@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type { Editor } from 'slate';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useAtom, useSetAtom } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { PushProcessor, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
@@ -45,7 +45,7 @@ import {
   factoryRenderLinkifyWithMention,
 } from '$plugins/react-custom-html-parser';
 import { today, yesterday, timeDayMonthYear } from '$utils/time';
-import { unwrapRelationJumpTarget } from '$utils/room';
+import { unwrapRelationJumpTarget, canEditEvent } from '$utils/room';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -67,13 +67,18 @@ import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import {
+  roomIdToReplyDraftAtomFamily,
+  roomIdToEditDraftAtomFamily,
+  roomIdToEditNavRequestAtomFamily,
+} from '$state/room/roomInputDrafts';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import {
   getRoomUnreadInfo,
   getEventTimeline,
   getFirstLinkedTimeline,
   getInitialTimeline,
+  getEmptyTimeline,
   getEventIdAbsoluteIndex,
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
@@ -85,6 +90,24 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
+
+function findLastOwnEditableProcessedEvent(
+  events: ProcessedEvent[],
+  myUserId: string | null | undefined
+): ProcessedEvent | undefined {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (!event) continue;
+    if (
+      event.mEvent.getSender() === myUserId &&
+      event.mEvent.getEffectiveEvent()?.type === 'm.room.message' &&
+      !event.mEvent.isRedacted()
+    ) {
+      return event;
+    }
+  }
+  return undefined;
+}
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
@@ -138,6 +161,19 @@ export function RoomTimeline({
   const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
   const { navigateRoom } = useRoomNavigate();
 
+  const [editInInput] = useSetting(settingsAtom, 'editInInput');
+  const setEditDraft = useSetAtom(roomIdToEditDraftAtomFamily(room.roomId));
+  const handleEditCallback = useCallback(
+    (id?: string) => {
+      if (editInInput) {
+        setEditDraft(id ? { eventId: id } : undefined);
+        return;
+      }
+      handleEdit(id);
+    },
+    [editInInput, handleEdit, setEditDraft]
+  );
+
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
   const [messageSpacing] = useSetting(settingsAtom, 'messageSpacing');
@@ -163,6 +199,7 @@ export function RoomTimeline({
   );
   const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
+  const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
@@ -222,6 +259,12 @@ export function RoomTimeline({
   const openThreadId = useAtomValue(openThreadAtom);
   const setOpenThread = useSetAtom(openThreadAtom);
 
+  // Preserved scroll offset from just before the thread drawer was opened, so
+  // we can restore position when the drawer closes and the main column reflows
+  // to a wider width (remeasured items would otherwise leave the VList at an
+  // unexpected position).
+  const scrollOffsetBeforeThreadRef = useRef<number | undefined>(undefined);
+
   const vListRef = useRef<VListHandle>(null);
   const [atBottomState, setAtBottomState] = useState(true);
   const atBottomRef = useRef(atBottomState);
@@ -251,7 +294,7 @@ export function RoomTimeline({
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
-  const isReadyRef = useRef(false);
+  const isReadyRef = useRef(isReady);
   isReadyRef.current = isReady;
 
   const lastProgrammaticBottomPinAtRef = useRef(0);
@@ -326,6 +369,10 @@ export function RoomTimeline({
   const forwardStatusRef = useRef(timelineSync.forwardStatus);
   forwardStatusRef.current = timelineSync.forwardStatus;
 
+  // Caps consecutive auto-pagination calls so a sparse timeline that never fills
+  // the viewport cannot loop indefinitely. Reset on every timeline clear/room jump.
+  const autopagAttemptsRef = useRef(0);
+
   const getRawIndexToProcessedIndex = useCallback((rawIndex: number): number | undefined => {
     const events = processedEventsRef.current;
     const match = events.find((e) => e.itemIndex === rawIndex);
@@ -389,6 +436,7 @@ export function RoomTimeline({
     if (timelineSync.eventsLength > 0) return;
     setIsReady(false);
     hasInitialScrolledRef.current = false;
+    autopagAttemptsRef.current = 0;
   }, [isReady, timelineSync.eventsLength]);
 
   const recalcTopSpacer = useCallback(() => {
@@ -432,21 +480,52 @@ export function RoomTimeline({
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let retryIntervalId: ReturnType<typeof setInterval> | undefined;
+    
     if (timelineSync.focusItem) {
-      if (timelineSync.focusItem.scrollTo && vListRef.current) {
+      // Reveal the timeline in the same effect that scrolls to the focus event so
+      // both the scroll and opacity-1 land in a single commit — no intermediate
+      // frame where events are rendered but still opacity-0.
+      setIsReady(true);
+      
+      let scrollSucceeded = false;
+      const attemptScroll = () => {
+        if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
+        
         const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
         if (processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           startJumpScrollBlock();
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
+          scrollSucceeded = true;
+          return true;
         }
+        return false;
+      };
+
+      // Try immediate scroll
+      if (!attemptScroll()) {
+        // If immediate scroll failed (event not in processedEvents yet), retry periodically.
+        // This handles the case where pagination just loaded the event but React hasn't
+        // finished processing/rendering it yet.
+        retryIntervalId = setInterval(() => {
+          if (attemptScroll() && retryIntervalId) {
+            clearInterval(retryIntervalId);
+            retryIntervalId = undefined;
+          }
+        }, 100);
       }
+
+      // Clear highlight after scroll settles. Use longer timeout for history jumps
+      // where pagination and rendering may take more time.
+      const highlightDuration = timelineSync.focusItem.highlight ? 4000 : 2000;
       timeoutId = setTimeout(() => {
         timelineSync.setFocusItem(undefined);
-      }, 2000);
+      }, highlightDuration);
     }
     return () => {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
+      if (retryIntervalId !== undefined) clearInterval(retryIntervalId);
     };
   }, [
     timelineSync.focusItem,
@@ -457,20 +536,69 @@ export function RoomTimeline({
   ]);
 
   useEffect(() => {
-    if (timelineSync.focusItem) {
-      setIsReady(true);
-    }
-  }, [timelineSync.focusItem]);
-
-  useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
-    // Re-arm the initial-scroll guard so that if the jump fails and
-    // useTimelineSync falls back to the live timeline, the useLayoutEffect
-    // can fire and call setIsReady(true) via the normal initial-scroll path.
+    // Re-arm the initial-scroll guard so that if the jump fails and falls back
+    // to the live timeline, the useLayoutEffect can fire via the normal path.
     hasInitialScrolledRef.current = false;
+    // Reset auto-pagination cap so the new timeline can fill the viewport.
+    autopagAttemptsRef.current = 0;
+    // Cancel any pending error-recovery scroll timer from a previous eventId load
+    // so it cannot reveal the timeline mid-flight of a new load.
+    if (initialScrollTimerRef.current !== undefined) {
+      clearTimeout(initialScrollTimerRef.current);
+      initialScrollTimerRef.current = undefined;
+    }
+    // Clear the stale live-timeline content immediately so loading placeholders
+    // are shown while the event-context API call is in flight, rather than
+    // having the entire message area go invisible (opacity:0) with no feedback.
+    timelineSyncRef.current.setTimeline(getEmptyTimeline());
     void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
+
+  // Recovery: loadEventTimeline's onError callback restores the live timeline but
+  // scrollToBottom fires before the VList has rendered the new events (the list is
+  // still empty at that point), so it returns early and no scroll happens.
+  // Detect the "eventId load failed, fell back to live" state and reveal the
+  // timeline scrolled to the bottom so the room is usable rather than stuck at
+  // opacity-0 or stranded at the top of history.
+  useEffect(() => {
+    if (!eventId) return;
+    if (isReady) return;
+    if (timelineSync.eventsLength === 0) return;
+    if (timelineSync.focusItem) return;
+    if (!timelineSync.liveTimelineLinked) return;
+    // Guard: don't start a second timer if one is already in flight.
+    if (initialScrollTimerRef.current !== undefined) return;
+
+    // Virtua has no measured item heights yet when data first populates
+    // (transition from 0 → N items).  A single scrollToIndex call lands at the
+    // estimated position (often 0) because every item is still at its default
+    // height.  Mirror the double-scroll pattern from the initial-scroll
+    // useLayoutEffect: scroll once immediately to warm up virtua's layout pass,
+    // then scroll again after 80 ms when heights are measured, then reveal.
+    const lastIdx = processedEventsRef.current.length - 1;
+    if (lastIdx >= 0) vListRef.current?.scrollToIndex(lastIdx, { align: 'end' });
+
+    initialScrollTimerRef.current = setTimeout(() => {
+      initialScrollTimerRef.current = undefined;
+      // Bail out if the timeline was already revealed by another code path
+      // (e.g. loadEventTimeline succeeded and set focusItem in the meantime).
+      if (isReadyRef.current) return;
+      if (timelineSyncRef.current.focusItem) return;
+      if (timelineSyncRef.current.eventsLength === 0) return;
+      if (!timelineSyncRef.current.liveTimelineLinked) return;
+      const idx = processedEventsRef.current.length - 1;
+      if (idx >= 0) vListRef.current?.scrollToIndex(idx, { align: 'end' });
+      setIsReady(true);
+    }, 80);
+  }, [
+    eventId,
+    isReady,
+    timelineSync.eventsLength,
+    timelineSync.focusItem,
+    timelineSync.liveTimelineLinked,
+  ]);
 
   useEffect(() => {
     if (eventId) return;
@@ -535,6 +663,24 @@ export function RoomTimeline({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // When the thread drawer opens/closes on desktop, the main timeline column
+  // changes width and Virtua remeasures all item heights.  Save the scroll
+  // offset just before the open so we can restore it after the close once
+  // layout has settled (two RAFs to let Virtua finish its resize cycle).
+  useEffect(() => {
+    if (openThreadId) {
+      scrollOffsetBeforeThreadRef.current = vListRef.current?.scrollOffset;
+    } else if (scrollOffsetBeforeThreadRef.current !== undefined) {
+      const savedOffset = scrollOffsetBeforeThreadRef.current;
+      scrollOffsetBeforeThreadRef.current = undefined;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          vListRef.current?.scrollTo(savedOffset);
+        });
+      });
+    }
+  }, [openThreadId]);
 
   const actions = useTimelineActions({
     room,
@@ -671,7 +817,12 @@ export function RoomTimeline({
       hideNickAvatarEvents,
       showHiddenEvents,
     },
-    state: { focusItem: timelineSync.focusItem, editId, activeReplyId, openThreadId },
+    state: {
+      focusItem: timelineSync.focusItem,
+      editId: editInInput ? undefined : editId,
+      activeReplyId,
+      openThreadId,
+    },
     permissions: {
       canRedact: permissions.action('redact', mx.getSafeUserId()),
       canDeleteOwn: permissions.event('m.room.redaction', mx.getSafeUserId()),
@@ -683,7 +834,7 @@ export function RoomTimeline({
       onUsernameClick: actions.handleUsernameClick,
       onReplyClick: actions.handleReplyClick,
       onReactionToggle: actions.handleReactionToggle,
-      onEditId: actions.handleEdit,
+      onEditId: handleEditCallback,
       onResend: actions.handleResend,
       onDeleteFailedSend: actions.handleDeleteFailedSend,
       setOpenThread: actions.setOpenThread,
@@ -889,6 +1040,7 @@ export function RoomTimeline({
     hideNickAvatarEvents,
     isReadOnly,
     hideMemberInReadOnly,
+    messageGroupingThreshold,
   });
 
   processedEventsRef.current = processedEvents;
@@ -910,17 +1062,53 @@ export function RoomTimeline({
     const ref = onEditLastMessageRef;
     ref.current = () => {
       const myUserId = mx.getUserId();
-      const found = [...processedEventsRef.current]
-        .toReversed()
-        .find(
-          (e) =>
-            e.mEvent.getSender() === myUserId &&
-            e.mEvent.getType() === 'm.room.message' &&
-            !e.mEvent.isRedacted()
-        );
-      if (found?.mEvent.getId()) actions.handleEdit(found.mEvent.getId());
+      const found = findLastOwnEditableProcessedEvent(processedEventsRef.current, myUserId);
+      if (found?.mEvent.getId()) handleEditCallback(found.mEvent.getId());
     };
-  }, [onEditLastMessageRef, mx, actions]);
+  }, [onEditLastMessageRef, mx, handleEditCallback]);
+
+  // Keep stable refs so the edit-nav effect below doesn't stale-close over them.
+  const editIdRef = useRef(editId);
+  editIdRef.current = editId;
+  const handleEditRef = useRef(handleEdit);
+  handleEditRef.current = handleEdit;
+
+  const [editNavRequest, setEditNavRequest] = useAtom(
+    roomIdToEditNavRequestAtomFamily(room.roomId)
+  );
+
+  useEffect(() => {
+    if (!editNavRequest) return;
+    const editableEvents = processedEventsRef.current.filter(
+      (e) => !e.mEvent.isRedacted() && canEditEvent(mx, e.mEvent)
+    );
+    if (editableEvents.length === 0) {
+      setEditNavRequest(undefined);
+      return;
+    }
+
+    const currentEditId = editIdRef.current;
+    const doHandleEdit = handleEditRef.current;
+
+    if (currentEditId === undefined) {
+      // No active edit — start at the most recent editable message.
+      const latest = editableEvents.at(-1)!;
+      const id = latest.mEvent.getId();
+      if (id) doHandleEdit(id);
+      setEditNavRequest(undefined);
+      return;
+    }
+
+    const currentIdx = editableEvents.findIndex((e) => e.mEvent.getId() === currentEditId);
+    const next =
+      editNavRequest.dir === 'prev'
+        ? editableEvents[currentIdx - 1]
+        : editableEvents[currentIdx + 1];
+    setEditNavRequest(undefined);
+    if (!next) return;
+    const id = next.mEvent.getId();
+    if (id) doHandleEdit(id);
+  }, [editNavRequest, mx, setEditNavRequest]);
 
   useEffect(() => {
     const v = vListRef.current;
@@ -960,7 +1148,10 @@ export function RoomTimeline({
       const hasRealScrollRoom = v.scrollSize > v.viewportSize + 300;
 
       if (!hasRealScrollRoom || (atTop && noVisibleGrowth)) {
-        void timelineSyncRef.current.handleTimelinePagination(true);
+        if (autopagAttemptsRef.current < 20) {
+          autopagAttemptsRef.current += 1;
+          void timelineSyncRef.current.handleTimelinePagination(true);
+        }
       }
     };
 
@@ -1126,28 +1317,61 @@ export function RoomTimeline({
         </TimelineFloat>
       )}
 
-      {frontPaginationJSX && (
-        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
+      {(!atBottomState || !timelineSync.liveTimelineLinked) && isReady && (
+        <TimelineFloat position="Bottom">
           {frontPaginationJSX}
+          {!frontPaginationJSX && (
+            <Chip
+              variant="SurfaceVariant"
+              radii="Pill"
+              outlined
+              before={<Icon size="50" src={Icons.ArrowBottom} />}
+              onClick={() => {
+                if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
+                timelineSync.setTimeline(getInitialTimeline(room));
+                scrollToBottom();
+              }}
+            >
+              <Text size="L400">Jump to Latest</Text>
+            </Chip>
+          )}
         </TimelineFloat>
       )}
-
-      {!atBottomState && isReady && (
-        <TimelineFloat position="Bottom">
-          <Chip
-            variant="SurfaceVariant"
-            radii="Pill"
-            outlined
-            before={<Icon size="50" src={Icons.ArrowBottom} />}
-            onClick={() => {
-              if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
-              timelineSync.setTimeline(getInitialTimeline(room));
-              scrollToBottom();
-            }}
-          >
-            <Text size="L400">Jump to Latest</Text>
-          </Chip>
-        </TimelineFloat>
+      {!isReady && !showLoadingPlaceholders && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+            padding: `0 0 ${config.space.S600} 0`,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+          }}
+        >
+          <MessageBase space={messageSpacing}>
+            {messageLayout === MessageLayout.Compact ? (
+              <CompactPlaceholder />
+            ) : (
+              <DefaultPlaceholder />
+            )}
+          </MessageBase>
+          <MessageBase space={messageSpacing}>
+            {messageLayout === MessageLayout.Compact ? (
+              <CompactPlaceholder />
+            ) : (
+              <DefaultPlaceholder />
+            )}
+          </MessageBase>
+          <MessageBase space={messageSpacing}>
+            {messageLayout === MessageLayout.Compact ? (
+              <CompactPlaceholder />
+            ) : (
+              <DefaultPlaceholder />
+            )}
+          </MessageBase>
+        </div>
       )}
     </Box>
   );

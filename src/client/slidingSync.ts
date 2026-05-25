@@ -273,6 +273,9 @@ export class SlidingSyncManager {
 
   private readonly activeRoomSubscriptions = new Set<string>();
 
+  /** Rooms that have been actively opened/viewed in this session. Never reset these. */
+  private readonly visitedRoomsThisSession = new Set<string>();
+
   private readonly listPageSize: number;
 
   private readonly listTimelineLimit: number;
@@ -472,6 +475,17 @@ export class SlidingSyncManager {
               if (newestServerTs < oldestLocalTs) {
                 return;
               }
+            }
+
+            // Check if this room has been visited in this session - never reset those
+            // to avoid blanking the UI when the user is actively viewing the room.
+            if (this.visitedRoomsThisSession.has(roomId)) {
+              debugLog.info('sync', 'Skipping timeline reset for visited room', {
+                roomId,
+                localEvents: localEvents.length,
+                serverEvents: serverEvents.length,
+              });
+              return;
             }
 
             // No overlap and server has newer events: local timeline is stale, reset needed
@@ -1140,6 +1154,10 @@ export class SlidingSyncManager {
     if (this.disposed) return;
     const room = this.mx.getRoom(roomId);
     const isEncrypted = this.mx.isRoomEncrypted(roomId);
+
+    // Mark this room as visited - timeline resets will skip visited rooms
+    this.visitedRoomsThisSession.add(roomId);
+
     if (room && !isEncrypted) {
       // Only use the unencrypted (lazy-load) subscription when we are certain
       // the room is unencrypted.  Unknown rooms fall through to the safer

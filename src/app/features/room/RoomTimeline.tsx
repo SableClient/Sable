@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type { Editor } from 'slate';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useAtom, useSetAtom } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { PushProcessor, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
@@ -45,7 +45,7 @@ import {
   factoryRenderLinkifyWithMention,
 } from '$plugins/react-custom-html-parser';
 import { today, yesterday, timeDayMonthYear } from '$utils/time';
-import { unwrapRelationJumpTarget } from '$utils/room';
+import { unwrapRelationJumpTarget, canEditEvent } from '$utils/room';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -69,7 +69,7 @@ import { profilesCacheAtom } from '$state/userRoomProfile';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import {
   roomIdToReplyDraftAtomFamily,
-  roomIdToEditDraftAtomFamily,
+  roomIdToEditNavRequestAtomFamily,
 } from '$state/room/roomInputDrafts';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import {
@@ -138,19 +138,6 @@ export function RoomTimeline({
 
   const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
   const { navigateRoom } = useRoomNavigate();
-
-  const [editInInput] = useSetting(settingsAtom, 'editInInput');
-  const setEditDraft = useSetAtom(roomIdToEditDraftAtomFamily(room.roomId));
-  const handleEditCallback = useCallback(
-    (id?: string) => {
-      if (editInInput) {
-        setEditDraft(id ? { eventId: id } : undefined);
-        return;
-      }
-      handleEdit(id);
-    },
-    [editInInput, handleEdit, setEditDraft]
-  );
 
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
@@ -632,12 +619,7 @@ export function RoomTimeline({
       hideNickAvatarEvents,
       showHiddenEvents,
     },
-    state: {
-      focusItem: timelineSync.focusItem,
-      editId: editInInput ? undefined : editId,
-      activeReplyId,
-      openThreadId,
-    },
+    state: { focusItem: timelineSync.focusItem, editId, activeReplyId, openThreadId },
     permissions: {
       canRedact: permissions.action('redact', mx.getSafeUserId()),
       canDeleteOwn: permissions.event('m.room.redaction', mx.getSafeUserId()),
@@ -649,7 +631,7 @@ export function RoomTimeline({
       onUsernameClick: actions.handleUsernameClick,
       onReplyClick: actions.handleReplyClick,
       onReactionToggle: actions.handleReactionToggle,
-      onEditId: handleEditCallback,
+      onEditId: actions.handleEdit,
       onResend: actions.handleResend,
       onDeleteFailedSend: actions.handleDeleteFailedSend,
       setOpenThread: actions.setOpenThread,
@@ -741,12 +723,6 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
-    } else if (timelineSync.backwardStatus === 'loading' && timelineSync.eventsLength > 0) {
-      backPaginationJSX = (
-        <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
-          <Spinner variant="Secondary" size="400" />
-        </Box>
-      );
     }
   }
 
@@ -773,14 +749,19 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
-    } else if (timelineSync.forwardStatus === 'loading' && timelineSync.eventsLength > 0) {
-      frontPaginationJSX = (
-        <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
-          <Spinner variant="Secondary" size="400" />
-        </Box>
-      );
     }
   }
+
+  const showBackPaginationSpinner =
+    timelineSync.backwardStatus === 'loading' && timelineSync.eventsLength > 0;
+  const showFrontPaginationSpinner =
+    timelineSync.forwardStatus === 'loading' && timelineSync.eventsLength > 0;
+  const timelineBottomFloatLift =
+    !atBottomState && isReady ? { bottom: `calc(${config.space.S400} + ${toRem(52)})` } : undefined;
+  const timelineTopFloatLift =
+    unreadInfo?.readUptoEventId && !unreadInfo?.inLiveTimeline && isReady
+      ? { top: `calc(${config.space.S400} + ${toRem(52)})` }
+      : undefined;
 
   const vListItemCount =
     timelineSync.eventsLength === 0 &&
@@ -834,9 +815,52 @@ export function RoomTimeline({
             e.mEvent.getType() === 'm.room.message' &&
             !e.mEvent.isRedacted()
         );
-      if (found?.mEvent.getId()) handleEditCallback(found.mEvent.getId());
+      if (found?.mEvent.getId()) actions.handleEdit(found.mEvent.getId());
     };
-  }, [onEditLastMessageRef, mx, handleEditCallback]);
+  }, [onEditLastMessageRef, mx, actions]);
+
+  // Keep stable refs so the edit-nav effect below doesn't stale-close over them.
+  const editIdRef = useRef(editId);
+  editIdRef.current = editId;
+  const handleEditRef = useRef(handleEdit);
+  handleEditRef.current = handleEdit;
+
+  const [editNavRequest, setEditNavRequest] = useAtom(
+    roomIdToEditNavRequestAtomFamily(room.roomId)
+  );
+
+  useEffect(() => {
+    if (!editNavRequest) return;
+    const editableEvents = processedEventsRef.current.filter(
+      (e) => !e.mEvent.isRedacted() && canEditEvent(mx, e.mEvent)
+    );
+    if (editableEvents.length === 0) {
+      setEditNavRequest(undefined);
+      return;
+    }
+
+    const currentEditId = editIdRef.current;
+    const doHandleEdit = handleEditRef.current;
+
+    if (currentEditId === undefined) {
+      // No active edit — start at the most recent editable message.
+      const latest = editableEvents.at(-1)!;
+      const id = latest.mEvent.getId();
+      if (id) doHandleEdit(id);
+      setEditNavRequest(undefined);
+      return;
+    }
+
+    const currentIdx = editableEvents.findIndex((e) => e.mEvent.getId() === currentEditId);
+    const next =
+      editNavRequest.dir === 'prev'
+        ? editableEvents[currentIdx - 1]
+        : editableEvents[currentIdx + 1];
+    setEditNavRequest(undefined);
+    if (!next) return;
+    const id = next.mEvent.getId();
+    if (id) doHandleEdit(id);
+  }, [editNavRequest, mx, setEditNavRequest]);
 
   useEffect(() => {
     const v = vListRef.current;
@@ -1030,7 +1054,23 @@ export function RoomTimeline({
         </VList>
       </div>
 
-      {frontPaginationJSX}
+      {showBackPaginationSpinner && (
+        <TimelineFloat position="Top" style={timelineTopFloatLift}>
+          <Spinner variant="Secondary" size="400" />
+        </TimelineFloat>
+      )}
+
+      {showFrontPaginationSpinner && (
+        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
+          <Spinner variant="Secondary" size="400" />
+        </TimelineFloat>
+      )}
+
+      {frontPaginationJSX && (
+        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
+          {frontPaginationJSX}
+        </TimelineFloat>
+      )}
 
       {!atBottomState && isReady && (
         <TimelineFloat position="Bottom">

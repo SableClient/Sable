@@ -54,7 +54,6 @@ import {
 import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTablet } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 type DirectMenuProps = {
@@ -103,27 +102,25 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
   };
   return (
     <>
-      <PageNavHeader size="600">
-        {hideText ? (
-          <Box alignItems="Center" grow="Yes" justifyContent="Center">
-            <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.User} size="200" filled={!!menuAnchor} />
-            </IconButton>
-          </Box>
-        ) : (
-          <Box grow="Yes" gap="300">
-            <Box grow="Yes" alignItems="Center">
+      <PageNavHeader>
+        <Box alignItems="Center" grow="Yes" gap="300" justifyContent="Center">
+          {!hideText && (
+            <Box grow="Yes">
               <Text size="H4" truncate>
                 Direct Messages
               </Text>
             </Box>
-            <Box shrink="No">
-              <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-                <Icon src={Icons.VerticalDots} size="200" filled={!!menuAnchor} />
-              </IconButton>
-            </Box>
+          )}
+          <Box>
+            <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
+              <Icon
+                src={hideText ? Icons.User : Icons.VerticalDots}
+                size="200"
+                filled={!!menuAnchor}
+              />
+            </IconButton>
           </Box>
-        )}
+        </Box>
       </PageNavHeader>
       <PopOut
         anchor={menuAnchor}
@@ -197,7 +194,6 @@ export function Direct() {
   }, [roomSidebarWidth]);
 
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
-  const [dmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
 
   const createDirectSelected = useDirectCreateSelected();
 
@@ -206,30 +202,39 @@ export function Direct() {
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
   // Track timeline activity to trigger re-sorting when messages arrive.
-  // Debounced to prevent excessive re-renders on rapid events (reactions, edits, etc.).
+  // Without this, DMs only re-sort when you switch rooms because getLastActiveTimestamp()
+  // is internal SDK state not tracked by React dependencies.
   const [activityCounter, setActivityCounter] = useState(0);
-  const activityTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const directsSetRef = useRef(directs);
+  directsSetRef.current = directs;
 
   useEffect(() => {
     const directRoomIds = Array.from(directs);
     const handleTimeline = () => {
-      clearTimeout(activityTimerRef.current);
-      activityTimerRef.current = setTimeout(() => {
-        setActivityCounter((prev) => prev + 1);
-      }, 500);
+      // Increment counter to trigger re-sort when any timeline event happens
+      setActivityCounter((prev) => prev + 1);
     };
 
     // Listen to timeline events only for direct message rooms
     directRoomIds.forEach((roomId) => {
       const room = mx.getRoom(roomId);
       room?.on(RoomEvent.Timeline, handleTimeline);
+      // Also re-sort when a limited sync resets the room's timeline, as
+      // getLastActiveTimestamp() will return an updated value afterwards.
+      room?.on(RoomEvent.TimelineReset, handleTimeline);
     });
 
+    // Re-sort once immediately after (re-)attaching listeners.
+    // The initial sliding sync batch fires timeline events before the
+    // component mounts; bumping the counter here ensures the first
+    // render picks up up-to-date timestamps from getLastActiveTimestamp().
+    setActivityCounter((prev) => prev + 1);
+
     return () => {
-      clearTimeout(activityTimerRef.current);
       directRoomIds.forEach((roomId) => {
         const room = mx.getRoom(roomId);
         room?.off(RoomEvent.Timeline, handleTimeline);
+        room?.off(RoomEvent.TimelineReset, handleTimeline);
       });
     };
   }, [mx, directs]);
@@ -252,6 +257,7 @@ export function Direct() {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 38,
     overscan: 10,
+    getItemKey: (index) => sortedDirects[index] ?? index,
   });
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
@@ -259,128 +265,130 @@ export function Direct() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
-    <Box
-      shrink="No"
-      style={{
-        position: 'relative',
-        width: isMobile ? '100%' : toRem(curWidth),
-      }}
-    >
-      <PageNav>
-        <DirectHeader hideText={hideText} />
-        {noRoomToDisplay ? (
-          <DirectEmpty />
-        ) : (
-          <PageNavContent scrollRef={scrollRef}>
-            <Box direction="Column" gap="300">
-              <NavCategory>
-                <NavItem variant="Background" radii="400" aria-selected={createDirectSelected}>
-                  <NavButton onClick={() => navigate(getDirectCreatePath())}>
-                    <NavItemContent>
-                      <Box
-                        as="span"
-                        grow="Yes"
-                        alignItems="Center"
-                        gap="200"
-                        justifyContent="Center"
-                      >
-                        <Avatar size="200" radii="400">
-                          <Icon src={Icons.Plus} size="100" />
-                        </Avatar>
-                        {!hideText && (
-                          <Box as="span" grow="Yes">
-                            <Text as="span" size="Inherit" truncate>
-                              Create Chat
-                            </Text>
-                          </Box>
-                        )}
-                      </Box>
-                    </NavItemContent>
-                  </NavButton>
-                </NavItem>
-              </NavCategory>
-              <NavCategory>
-                <NavCategoryHeader>
-                  <RoomNavCategoryButton
-                    closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
-                    data-category-id={DEFAULT_CATEGORY_ID}
-                    onClick={handleCategoryClick}
-                  >
-                    {!hideText && 'Chats'}
-                  </RoomNavCategoryButton>
-                </NavCategoryHeader>
-                <div
-                  style={{
-                    position: 'relative',
-                    height: virtualizer.getTotalSize(),
-                    overflow: 'clip',
-                  }}
-                >
-                  {virtualizer.getVirtualItems().map((vItem) => {
-                    const roomId = sortedDirects[vItem.index];
-                    if (!roomId) return null;
-                    const room = mx.getRoom(roomId);
-                    if (!room) return null;
-                    const selected = selectedRoomId === roomId;
-
-                    return (
-                      <VirtualTile
-                        virtualItem={vItem}
-                        key={vItem.index}
-                        ref={virtualizer.measureElement}
-                      >
-                        <div
-                          style={
-                            hideText
-                              ? {
-                                  padding: '0',
-                                  width: '100%',
-                                  aspectRatio: 1,
-                                  display: 'flex',
-                                }
-                              : {}
-                          }
+    <>
+      <Box
+        shrink="No"
+        style={{
+          position: 'relative',
+          width: isMobile ? '100%' : toRem(curWidth),
+        }}
+      >
+        <PageNav>
+          <DirectHeader hideText={hideText} />
+          {noRoomToDisplay ? (
+            <DirectEmpty />
+          ) : (
+            <PageNavContent scrollRef={scrollRef}>
+              <Box direction="Column" gap="300">
+                <NavCategory>
+                  <NavItem variant="Background" radii="400" aria-selected={createDirectSelected}>
+                    <NavButton onClick={() => navigate(getDirectCreatePath())}>
+                      <NavItemContent>
+                        <Box
+                          as="span"
+                          grow="Yes"
+                          alignItems="Center"
+                          gap="200"
+                          justifyContent="Center"
                         >
-                          <RoomNavItem
-                            room={room}
-                            selected={selected}
-                            showAvatar
-                            direct
-                            customDMCards={customDMCards}
-                            hideText={hideText}
-                            linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
-                            notificationMode={getRoomNotificationMode(
-                              notificationPreferences,
-                              room.roomId
-                            )}
-                            joinCallOnSingleClick={joinCallOnSingleClick}
-                            dmMessagePreview={dmMessagePreview}
-                          />
-                        </div>
-                      </VirtualTile>
-                    );
-                  })}
-                </div>
-              </NavCategory>
-            </Box>
-          </PageNavContent>
+                          <Avatar size="200" radii="400">
+                            <Icon src={Icons.Plus} size="100" />
+                          </Avatar>
+                          {!hideText && (
+                            <Box as="span" grow="Yes">
+                              <Text as="span" size="Inherit" truncate>
+                                Create Chat
+                              </Text>
+                            </Box>
+                          )}
+                        </Box>
+                      </NavItemContent>
+                    </NavButton>
+                  </NavItem>
+                </NavCategory>
+                <NavCategory>
+                  <NavCategoryHeader>
+                    <RoomNavCategoryButton
+                      closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
+                      data-category-id={DEFAULT_CATEGORY_ID}
+                      onClick={handleCategoryClick}
+                    >
+                      {!hideText && 'Chats'}
+                    </RoomNavCategoryButton>
+                  </NavCategoryHeader>
+                  <div
+                    style={{
+                      position: 'relative',
+                      height: virtualizer.getTotalSize(),
+                      overflow: 'clip',
+                    }}
+                  >
+                    {virtualizer.getVirtualItems().map((vItem) => {
+                      const roomId = sortedDirects[vItem.index];
+                      if (!roomId) return null;
+                      const room = mx.getRoom(roomId);
+                      if (!room) return null;
+                      const selected = selectedRoomId === roomId;
+
+                      return (
+                        <VirtualTile
+                          virtualItem={vItem}
+                          key={roomId}
+                          ref={virtualizer.measureElement}
+                        >
+                          <div
+                            style={
+                              hideText
+                                ? {
+                                    padding: '0',
+                                    width: '100%',
+                                    aspectRatio: 1,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                  }
+                                : {}
+                            }
+                          >
+                            <RoomNavItem
+                              room={room}
+                              selected={selected}
+                              showAvatar
+                              direct
+                              customDMCards={customDMCards}
+                              hideText={hideText}
+                              linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                              notificationMode={getRoomNotificationMode(
+                                notificationPreferences,
+                                room.roomId
+                              )}
+                              joinCallOnSingleClick={joinCallOnSingleClick}
+                            />
+                          </div>
+                        </VirtualTile>
+                      );
+                    })}
+                  </div>
+                </NavCategory>
+              </Box>
+            </PageNavContent>
           )}
         </PageNav>
-      {!mobileOrTablet() && (
-        <SidebarResizer
-          setCurWidth={setCurWidth}
-          sidebarWidth={roomSidebarWidth}
-          setSidebarWidth={setRoomSidebarWidth}
-          instep={80}
-          outstep={190}
-          minValue={50}
-          maxValue={500}
-        />
-      )}
-    </Box>
+        {!isMobile && (
+          <SidebarResizer
+            setCurWidth={setCurWidth}
+            sidebarWidth={roomSidebarWidth}
+            setSidebarWidth={setRoomSidebarWidth}
+            instep={80}
+            outstep={190}
+            minValue={50}
+            maxValue={500}
+          />
+        )}
+      </Box>
+    </>
   );
 }

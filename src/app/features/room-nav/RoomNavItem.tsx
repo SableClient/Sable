@@ -42,7 +42,7 @@ import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { TypingIndicator } from '$components/typing-indicator';
 import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
-import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
+import { getCanonicalAliasOrRoomId, isRoomAlias, mxcUrlToHttp } from '$utils/matrix';
 import { getViaServers } from '$plugins/via-servers';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSetting } from '$state/hooks/settings';
@@ -72,7 +72,9 @@ import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { livekitSupport } from '$hooks/useLivekitSupport';
 import { Presence, useUserPresence } from '$hooks/useUserPresence';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
-import { useRoomLastMessage } from '$hooks/useRoomLastMessage';
+import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
+import { UserAvatar } from '$components/user-avatar';
+import * as css from './styles.css';
 import { RoomNavUser } from './RoomNavUser';
 import { SidebarUnreadBadge } from '$components/sidebar';
 
@@ -267,9 +269,6 @@ type RoomNavItemProps = {
   customDMCards?: boolean;
   hideText?: boolean;
   joinCallOnSingleClick?: boolean;
-  roomTopicPreview?: boolean;
-  roomMessagePreview?: boolean;
-  dmMessagePreview?: boolean;
 };
 
 export function RoomNavItem({
@@ -278,9 +277,6 @@ export function RoomNavItem({
   showAvatar,
   direct,
   customDMCards,
-  roomTopicPreview = false,
-  roomMessagePreview = false,
-  dmMessagePreview = true,
   notificationMode,
   linkPath,
   hideText,
@@ -299,17 +295,17 @@ export function RoomNavItem({
     (receipt) => receipt.userId !== mx.getUserId()
   );
 
+  const isGroupDM = direct === true && room.getJoinedMemberCount() > 2;
+  // Keep hook call unconditional; pass undefined when not a group DM so the hook no-ops.
+  const groupMembers = useGroupDMMembers(mx, isGroupDM ? room : undefined, 3);
+
   const nicknames = useAtomValue(nicknamesAtom);
   const dmUserId = direct ? room.getAvatarFallbackMember()?.userId : undefined;
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
   const presence = useUserPresence(dmUserId ?? '');
-  const showPreview = direct ? dmMessagePreview : roomMessagePreview;
-  const lastMessage = useRoomLastMessage(showPreview ? room : undefined, mx);
   const getRoomTopic = useRoomTopic(room);
-  const roomTopic = direct
-    ? (customDMCards && getRoomTopic) || lastMessage || presence?.status
-    : (roomTopicPreview && getRoomTopic) || (roomMessagePreview ? lastMessage : undefined);
+  const roomTopic = direct ? ((customDMCards && getRoomTopic) ?? presence?.status) : undefined;
 
   const { navigateRoom } = useRoomNavigate();
   const navigate = useNavigate();
@@ -430,63 +426,95 @@ export function RoomNavItem({
                 style={hideTextStyling(hideText)}
               >
                 <NavItemContent style={hideTextStyling(hideText)}>
-                  <Box
-                    as="span"
-                    grow="Yes"
-                    alignItems="Center"
-                    justifyContent="Start"
-                    gap="200"
-                    style={hideTextStyling(hideText)}
-                  >
-                    <AvatarPresence
-                      badge={
-                        presence &&
-                        presence.presence !== Presence.Offline && (
-                          <PresenceBadge
-                            presence={presence.presence}
-                            size={hideText ? '300' : '200'}
-                          />
-                        )
-                      }
-                      style={hideTextStyling(hideText)}
-                    >
-                      <Avatar
-                        size={hideText ? undefined : '200'}
-                        radii="400"
+                  <Box as="span" grow="Yes" alignItems="Center" style={hideTextStyling(hideText)}>
+                    {isGroupDM && showAvatar && groupMembers.length > 1 ? (
+                      // Group DM: triangle layout of mini avatars.
+                      // In hideText (icon-only) mode the Avatar slot is 32px (size="300");
+                      // use the larger container+mini variant so the composite scales properly.
+                      <div className={hideText ? css.GroupAvatarRowHideText : css.GroupAvatarRow}>
+                        {groupMembers.map((member) => {
+                          const avatarSrc = member.avatarUrl
+                            ? (mxcUrlToHttp(
+                                mx,
+                                member.avatarUrl,
+                                useAuthentication,
+                                32,
+                                32,
+                                'crop'
+                              ) ?? undefined)
+                            : undefined;
+                          return (
+                            <Avatar
+                              key={member.userId}
+                              className={
+                                hideText ? css.GroupAvatarMiniHideText : css.GroupAvatarMini
+                              }
+                            >
+                              <UserAvatar
+                                userId={member.userId}
+                                src={avatarSrc}
+                                alt={member.displayName ?? member.userId}
+                                renderFallback={() => (
+                                  <Text as="span" size="T200">
+                                    {nameInitials(member.displayName ?? member.userId)}
+                                  </Text>
+                                )}
+                              />
+                            </Avatar>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <AvatarPresence
+                        badge={
+                          presence &&
+                          presence.presence !== Presence.Offline && (
+                            <PresenceBadge
+                              presence={presence.presence}
+                              size={hideText ? '300' : '200'}
+                            />
+                          )
+                        }
                         style={hideTextStyling(hideText)}
                       >
-                        {showAvatar ? (
-                          <RoomAvatar
-                            roomId={room.roomId}
-                            src={
-                              ((!direct || customDMCards) &&
-                                getRoomAvatarUrl(mx, room, 96, useAuthentication)) ||
-                              getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
-                            }
-                            uniformIcons
-                            alt={roomName}
-                            renderFallback={() => (
-                              <Text as="span" size="H6">
-                                {nameInitials(roomName)}
-                              </Text>
-                            )}
-                          />
-                        ) : (
-                          <RoomIcon
-                            style={{
-                              opacity:
-                                unread || hasRoomUnread || isActiveCall
-                                  ? config.opacity.P500
-                                  : config.opacity.P300,
-                            }}
-                            filled={selected || isActiveCall}
-                            size="100"
-                            joinRule={room.getJoinRule()}
-                            roomType={room.getType()}
-                          />
-                        )}
-                      </Avatar>
-                    </AvatarPresence>
+                        <Avatar
+                          size={hideText ? undefined : '200'}
+                          radii="400"
+                          style={hideTextStyling(hideText)}
+                        >
+                          {showAvatar ? (
+                            <RoomAvatar
+                              roomId={room.roomId}
+                              src={
+                                ((!direct || customDMCards) &&
+                                  getRoomAvatarUrl(mx, room, 96, useAuthentication)) ||
+                                getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+                              }
+                              uniformIcons
+                              alt={roomName}
+                              renderFallback={() => (
+                                <Text as="span" size="H6">
+                                  {nameInitials(roomName)}
+                                </Text>
+                              )}
+                            />
+                          ) : (
+                            <RoomIcon
+                              style={{
+                                opacity:
+                                  unread || hasRoomUnread || isActiveCall
+                                    ? config.opacity.P500
+                                    : config.opacity.P300,
+                              }}
+                              filled={selected || isActiveCall}
+                              size="100"
+                              joinRule={room.getJoinRule()}
+                              roomType={room.getType()}
+                            />
+                          )}
+                        </Avatar>
+                      </AvatarPresence>
+                    )}
                     {unread && hideText && (
                       <SidebarUnreadBadge
                         highlight={unread.highlight > 0}
@@ -496,7 +524,7 @@ export function RoomNavItem({
 
                     {!hideText && (
                       <>
-                        <Box as="span" grow="Yes" direction="Column" style={{ minWidth: 0 }}>
+                        <Box as="span" grow="Yes" direction="Column">
                           <Text
                             priority={unread || hasRoomUnread || isActiveCall ? '500' : '400'}
                             as="span"

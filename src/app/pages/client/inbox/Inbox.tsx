@@ -1,8 +1,16 @@
 import { Avatar, Box, Icon, Icons, Text, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { NavCategory, NavItem, NavItemContent, NavLink } from '$components/nav';
-import { getInboxInvitesPath, getInboxNotificationsPath } from '$pages/pathUtils';
-import { useInboxInvitesSelected, useInboxNotificationsSelected } from '$hooks/router/useInbox';
+import {
+  getInboxBookmarksPath,
+  getInboxInvitesPath,
+  getInboxNotificationsPath,
+} from '$pages/pathUtils';
+import {
+  useInboxBookmarksSelected,
+  useInboxInvitesSelected,
+  useInboxNotificationsSelected,
+} from '$hooks/router/useInbox';
 import { UnreadBadge } from '$components/unread-badge';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
@@ -50,9 +58,39 @@ function InvitesNavItem({ hideText }: { hideText?: boolean }) {
   );
 }
 
+function BookmarksNavItem({ hideText }: { hideText?: boolean }) {
+  const bookmarksSelected = useInboxBookmarksSelected();
+
+  return (
+    <NavItem variant="Background" radii="400" aria-selected={bookmarksSelected}>
+      <NavLink to={getInboxBookmarksPath()}>
+        <NavItemContent>
+          <Box as="span" grow="Yes" alignItems="Center" gap="200">
+            <Avatar
+              size="200"
+              radii="400"
+              style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+            >
+              <Icon src={Icons.Bookmark} size="100" filled={bookmarksSelected} />
+            </Avatar>
+            {!hideText && (
+              <Box as="span" grow="Yes">
+                <Text as="span" size="Inherit" truncate>
+                  Bookmarks
+                </Text>
+              </Box>
+            )}
+          </Box>
+        </NavItemContent>
+      </NavLink>
+    </NavItem>
+  );
+}
+
 export function Inbox() {
   useNavToActivePathMapper('inbox');
   const notificationsSelected = useInboxNotificationsSelected();
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
@@ -113,6 +151,7 @@ export function Inbox() {
                 </NavLink>
               </NavItem>
               <InvitesNavItem hideText={hideText} />
+              {enableMessageBookmarks && <BookmarksNavItem hideText={hideText} />}
             </NavCategory>
           </Box>
         </PageNavContent>

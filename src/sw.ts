@@ -28,6 +28,23 @@ const SW_SETTINGS_URL = '/sw-settings-meta';
 const SW_SESSION_CACHE = 'sable-sw-session-v1';
 const SW_SESSION_URL = '/sw-session-meta';
 
+// Inline type — mirrors BookmarkReminder in src/types/matrix/accountData.ts.
+// Defined here to avoid importing from the app bundle into the service worker.
+type BookmarkReminder = {
+  bookmarkId: string;
+  eventId: string;
+  roomId: string;
+  remindAt: number;
+  userId: string;
+  note?: string;
+  /** Timestamp (ms) when this device fired the reminder — suppresses re-firing. */
+  firedAt?: number;
+};
+
+/** Cache key used to persist bookmark reminders so the SW can fire them after a restart. */
+const SW_REMINDERS_CACHE = 'sable-reminders-v1';
+const SW_REMINDERS_URL = '/sw-reminders-meta';
+
 async function persistSettings() {
   try {
     const cache = await self.caches.open(SW_SETTINGS_CACHE);
@@ -39,6 +56,9 @@ async function persistSettings() {
           showMessageContent,
           showEncryptedMessageContent,
           clearNotificationsOnRead,
+          // Persist when the app was last visible so cold-SW-restart suppression works on iOS/iPad.
+          // A timestamp lets us expire stale entries (app may have closed without sending false).
+          appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
       )
@@ -61,6 +81,14 @@ async function loadPersistedSettings() {
       showEncryptedMessageContent = s.showEncryptedMessageContent;
     if (typeof s.clearNotificationsOnRead === 'boolean')
       clearNotificationsOnRead = s.clearNotificationsOnRead;
+    // Restore appIsVisible from the last-known visibility timestamp.
+    // On iOS/iPad, the SW is killed between pushes so appIsVisible always resets to false.
+    // If the app reported itself visible within the last 30 s, trust that it still is.
+    // The 30-second window is a safety net in case the app crashed without sending visible=false.
+    if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
+      const ageMs = Date.now() - s.appVisibleAt;
+      if (ageMs < 30_000) appIsVisible = true;
+    }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
   }
@@ -107,6 +135,82 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
     return undefined;
   }
 }
+
+async function persistReminders(reminders: BookmarkReminder[]): Promise<void> {
+  try {
+    const cache = await self.caches.open(SW_REMINDERS_CACHE);
+    await cache.put(
+      SW_REMINDERS_URL,
+      new Response(JSON.stringify(reminders), { headers: { 'Content-Type': 'application/json' } })
+    );
+  } catch {
+    // best-effort
+  }
+}
+
+async function loadPersistedReminders(): Promise<BookmarkReminder[]> {
+  try {
+    const cache = await self.caches.open(SW_REMINDERS_CACHE);
+    const response = await cache.match(SW_REMINDERS_URL);
+    if (!response) return [];
+    const data = await response.json();
+    if (Array.isArray(data)) return data as BookmarkReminder[];
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function checkDueReminders(): Promise<void> {
+  const reminders = await loadPersistedReminders();
+  if (reminders.length === 0) return;
+
+  const now = Date.now();
+  // Only fire reminders that are due AND haven't been fired on this device yet.
+  const due = reminders.filter((r) => r.remindAt <= now && !r.firedAt);
+
+  if (due.length === 0) return;
+
+  // Mark as fired in the cache so the same reminder doesn't re-fire on this device
+  // after the next updateReminders push (which would otherwise re-add it without firedAt).
+  const updatedReminders = reminders.map((r) =>
+    due.some((d) => d.bookmarkId === r.bookmarkId) ? { ...r, firedAt: now } : r
+  );
+  await persistReminders(updatedReminders);
+
+  // If the app is open in a visible tab, route reminders as in-app banners instead
+  // of OS notifications — avoids duplicate alerts on iPad and provides a nicer UX.
+  const windowClients = await self.clients.matchAll({ type: 'window' });
+  const visibleClients = windowClients.filter((c) => c.visibilityState === 'visible');
+
+  if (visibleClients.length > 0) {
+    visibleClients[0]!.postMessage({
+      type: 'remindersInApp',
+      reminders: due.map((r) => ({
+        bookmarkId: r.bookmarkId,
+        note: r.note,
+        roomId: r.roomId,
+        eventId: r.eventId,
+      })),
+    });
+  } else {
+    await Promise.allSettled(
+      due.map((r) =>
+        self.registration.showNotification('Bookmark Reminder', {
+          body: r.note ?? 'You have a bookmark reminder.',
+          tag: `reminder-${r.bookmarkId}`,
+          data: { isReminder: true, roomId: r.roomId, eventId: r.eventId },
+          icon: '/res/ic_launcher-192.png',
+        })
+      )
+    );
+  }
+  // Each device fires independently. No remindersFired message — users dismiss
+  // overdue reminders explicitly via "Clear Reminder" in the bookmarks panel.
+}
+
+// Check for due reminders every minute.
+setInterval(() => checkDueReminders().catch(() => undefined), 60_000);
 
 type SessionInfo = {
   accessToken: string;
@@ -566,6 +670,22 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // media fetch to trigger requestSessionWithTimeout.
       const windowClients = await self.clients.matchAll({ type: 'window' });
       windowClients.forEach((client) => client.postMessage({ type: 'requestSession' }));
+      // Fire any bookmark reminders that became due while the SW was inactive.
+      checkDueReminders().catch(() => undefined);
+      // Register for a periodic background sync to check reminders (1-hour minimum interval).
+      if ('periodicSync' in self.registration) {
+        try {
+          await (
+            self.registration as ServiceWorkerRegistration & {
+              periodicSync: {
+                register(tag: string, options?: { minInterval: number }): Promise<void>;
+              };
+            }
+          ).periodicSync.register('check-reminders', { minInterval: 3_600_000 });
+        } catch {
+          // periodicSync not granted — the setInterval fallback above covers this.
+        }
+      }
     })()
   );
 });
@@ -599,6 +719,9 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
+      // Persist the visibility timestamp so cold SW restarts (iOS/iPad) can still
+      // suppress duplicate OS notifications when the app was recently visible.
+      persistSettings().catch(() => undefined);
     }
   }
   if (type === 'setNotificationSettings') {
@@ -626,6 +749,31 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     }
     // Persist so settings survive SW restart (iOS kills the SW aggressively).
     event.waitUntil(persistSettings());
+  }
+  if (data.type === 'updateReminders') {
+    const incoming = (data as { type: string; reminders: BookmarkReminder[] }).reminders;
+    // Preserve per-device firedAt for entries where bookmarkId AND remindAt both match
+    // the cached entry — same reminder, already fired on this device.  If remindAt
+    // changed (user set a new time), firedAt is dropped so the new time fires fresh.
+    event.waitUntil(
+      (async () => {
+        const cached = await loadPersistedReminders();
+        const merged = incoming.map((r) => {
+          const existing = cached.find(
+            (c) => c.bookmarkId === r.bookmarkId && c.remindAt === r.remindAt && c.firedAt
+          );
+          return existing ? { ...r, firedAt: existing.firedAt } : r;
+        });
+        await persistReminders(merged);
+      })()
+    );
+  }
+});
+
+self.addEventListener('periodicsync', (event: Event) => {
+  const syncEvent = event as Event & { tag: string; waitUntil: (p: Promise<unknown>) => void };
+  if (syncEvent.tag === 'check-reminders') {
+    syncEvent.waitUntil(checkDueReminders());
   }
 });
 
@@ -879,6 +1027,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   });
 
   const isCall = data?.isCall === true;
+  const isReminder = data?.isReminder === true;
 
   // Build a canonical deep-link URL.
   //
@@ -900,6 +1049,12 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
       ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
       : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
     targetUrl = new URL(segments, scope).href;
+  } else if (isReminder) {
+    // Reminder notifications don't carry a user_id, so the /to/:user/:room/:event
+    // pattern is inapplicable.  Navigate straight to the bookmarks inbox page.
+    // On a warm start the HandleNotificationClick message handler also routes to
+    // this page; here we handle the cold-start (app was killed) case.
+    targetUrl = new URL('inbox/bookmarks/', scope).href;
   } else {
     // Fallback: no room ID or no user ID in payload.
     targetUrl = new URL('inbox/notifications/', scope).href;
@@ -937,6 +1092,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             eventId: pushEventId,
             isInvite,
             isCall,
+            isReminder,
           });
           // oxlint-disable-next-line no-await-in-loop
           await wc.focus();

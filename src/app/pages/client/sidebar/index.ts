@@ -7,3 +7,4 @@ export * from './ExploreTab';
 export * from './UnverifiedTab';
 export * from './SearchTab';
 export * from './AccountSwitcherTab';
+export * from './BookmarksTab';

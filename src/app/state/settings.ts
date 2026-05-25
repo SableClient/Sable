@@ -180,6 +180,10 @@ export interface Settings {
   roomMessagePreview: boolean;
   dmMessagePreview: boolean;
 
+  // experimental
+  enableMessageBookmarks: boolean;
+  enableBookmarkReminders: boolean;
+
   // furry stuff
   renderAnimals: boolean;
 
@@ -335,6 +339,10 @@ export const defaultSettings: Settings = {
   themeMigrationDismissed: false,
   themeRemoteTweakFavorites: [],
   themeRemoteEnabledTweakFullUrls: [],
+
+  // experimental
+  enableMessageBookmarks: false,
+  enableBookmarkReminders: false,
 };
 
 function cloneDefaultSettings(): Settings {

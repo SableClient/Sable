@@ -16,6 +16,7 @@ import {
   UnverifiedTab,
   SearchTab,
   AccountSwitcherTab,
+  BookmarksTab,
 } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
 
@@ -133,6 +134,7 @@ export function SidebarNav() {
         sticky={
           <SidebarStack>
             <SearchTab />
+            <BookmarksTab />
             <UnverifiedTab />
             <InboxTab />
             <AccountSwitcherTab />

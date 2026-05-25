@@ -1,9 +1,8 @@
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SearchIndexProvider } from '$hooks/useSearchIndex';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
 import {
   MatrixEvent,
@@ -25,7 +24,7 @@ import NotificationSound from '$public/sound/notification.ogg';
 import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
+import { settingsAtom } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -61,8 +60,9 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
-import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
-import { getInboxInvitesPath } from '../pathUtils';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
+import { useReminderSync } from '$features/bookmarks/useReminderSync';
+import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
 const pushRelayLog = createDebugLogger('push-relay');
@@ -199,7 +199,7 @@ function InviteNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play().catch(() => {});
+    audioElement?.play();
     clearMediaSessionQuickly();
   }, []);
 
@@ -273,7 +273,7 @@ function MessageNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play().catch(() => {});
+    audioElement?.play();
     clearMediaSessionQuickly();
   }, []);
 
@@ -383,13 +383,7 @@ function MessageNotifications() {
       // For "Mention & Keywords": respect the push rule (only notify if it matches).
       const shouldForceDMNotification =
         isDM && notificationType !== NotificationType.MentionsAndKeywords;
-      // For rooms explicitly set to "All Messages": also force-notify, mirroring the DM
-      // bypass above.  Push-rule evaluation can silently return notify=false when the
-      // room-specific rule was written by another client with a different action format.
-      const shouldForceRoomLoudNotification =
-        !isDM && notificationType === NotificationType.AllMessages;
-      const shouldNotify =
-        pushActions?.notify || shouldForceDMNotification || shouldForceRoomLoudNotification;
+      const shouldNotify = pushActions?.notify || shouldForceDMNotification;
 
       // If we shouldn't notify based on rules/settings, skip everything
       if (!shouldNotify) return;
@@ -403,10 +397,7 @@ function MessageNotifications() {
       // messages fall through to .m.rule.message which carries no sound tweak —
       // leaving loudByRule=false.  Treat known DMs as inherently loud so that
       // the OS notification and badge are consistent with the DM context.
-      // Similarly, rooms explicitly set to "All Messages" are treated as loud
-      // even when the room-specific push rule was written by another client
-      // without a sound tweak, or when push-rule evaluation fails silently.
-      const isLoud = loudByRule || isDM || shouldForceRoomLoudNotification;
+      const isLoud = loudByRule || isDM;
 
       // Record as notified to prevent duplicate banners (e.g. re-emitted decrypted events).
       notifiedEventsRef.current.add(eventId);
@@ -463,17 +454,13 @@ function MessageNotifications() {
         }
       }
 
-      // In-app audio plays regardless of tab visibility — sound doesn't require the page to be visible.
-      if (notificationSound && isLoud) {
-        playSound();
-      }
-
-      // Everything below requires the page to be visible (in-app UI only).
+      // Everything below requires the page to be visible (in-app UI + audio).
       if (document.visibilityState !== 'visible') return;
 
       // Page is visible — show the themed in-app notification banner.
-      // Show for DMs, highlighted messages (mentions/keywords), or any loud push-rule match.
-      if (showNotifications && (isHighlightByRule || isDM || isLoud)) {
+      // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
+      // For DMs, show banner for all messages.
+      if (showNotifications && (isHighlightByRule || isDM)) {
         const avatarMxc =
           room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
         const roomAvatar = avatarMxc
@@ -545,7 +532,10 @@ function MessageNotifications() {
         });
       }
 
-      // (Audio is handled above the visibility gate.)
+      // In-app audio: play when notification sounds are enabled AND this notification is loud.
+      if (notificationSound && isLoud) {
+        playSound();
+      }
     };
     mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
@@ -630,17 +620,23 @@ export function HandleNotificationClick() {
       const { data } = ev;
       if (!data || data.type !== 'notificationClick') return;
 
-      const { userId, roomId, eventId, isInvite } = data as {
+      const { userId, roomId, eventId, isInvite, isReminder } = data as {
         userId?: string;
         roomId?: string;
         eventId?: string;
         isInvite?: boolean;
+        isReminder?: boolean;
       };
 
       if (userId) setActiveSessionId(userId);
 
       if (isInvite) {
         navigate(getInboxInvitesPath());
+        return;
+      }
+
+      if (isReminder) {
+        navigate(getInboxBookmarksPath());
         return;
       }
 
@@ -856,60 +852,14 @@ function HandleDecryptPushEvent() {
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
-  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
-  const [autoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
-  const [presenceIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
-  const [presenceStatusMsg] = useSetting(settingsAtom, 'presenceStatusMsg');
-  const [autoIdled] = useAtom(presenceAutoIdledAtom);
-
-  const timeoutMs = autoIdlePresence ? Math.max(1, presenceIdleTimeoutMins) * 60 * 1000 : 0;
-  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
 
   useEffect(() => {
-    // When auto-idled, broadcast as unavailable regardless of the configured mode.
-    const effectiveMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
-    // DND broadcasts as online (you're active but don't want to be disturbed) with a status_msg.
-    const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
-    const effectiveState = sendPresence ? activePresence : 'offline';
-    const broadcasting = effectiveState !== 'offline';
-    // DND overrides the user's custom status message with the 'dnd' sentinel.
-    const effectiveStatusMsg = sendPresence && effectiveMode === 'dnd' ? 'dnd' : presenceStatusMsg;
-
     // Classic sync: set_presence query param on every /sync poll.
     // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(broadcasting ? undefined : SetPresence.Offline);
-    // Sliding sync: keep the extension enabled so we always receive others' presence.
-    // Only disable it when the master sendPresence toggle is off (full privacy mode).
+    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
+    // Sliding sync: enable/disable the presence extension on the next poll.
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-
-    // Explicitly PUT /presence/{userId}/status so the server knows the exact state.
-    // Do the optimistic update AFTER the network call to avoid inconsistency if it fails.
-    mx.setPresence({
-      presence: effectiveState,
-      status_msg: effectiveStatusMsg,
-    })
-      .then(() => {
-        // Optimistically update own presence in the local SDK store so the member list
-        // badge and status editor reflect the change immediately. MSC4186 servers never
-        // echo own presence back, so we rely on this local update for consistency.
-        getSlidingSyncManager(mx)?.updateOwnPresence(effectiveState, effectiveStatusMsg);
-      })
-      .catch(() => {
-        // Server doesn't support presence or network error — the local SDK store
-        // won't be updated, but that's acceptable since the server state is canonical.
-      });
-  }, [mx, sendPresence, presenceMode, presenceStatusMsg, autoIdled]);
-
-  return null;
-}
-
-function ProgressivePrefetchFeature() {
-  const mx = useMatrixClient();
-  const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
-
-  useEffect(() => {
-    getSlidingSyncManager(mx)?.setProgressivePrefetch(progressivePrefetch);
-  }, [mx, progressivePrefetch]);
+  }, [mx, sendPresence]);
 
   return null;
 }
@@ -919,11 +869,76 @@ function SettingsSyncFeature() {
   return null;
 }
 
+function BookmarksFeature() {
+  useInitBookmarks();
+  return null;
+}
+
+function ReminderSync() {
+  useReminderSync();
+  return null;
+}
+
+/**
+ * Listens for `remindersInApp` messages from the service worker and shows an
+ * in-app notification banner. The SW sends this instead of an OS notification
+ * when the app is foregrounded (visible tab), avoiding duplicate alerts.
+ */
+function ReminderBanners() {
+  const navigate = useNavigate();
+  const setInAppBanner = useSetAtom(inAppBannerAtom);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type !== 'remindersInApp') return;
+      const reminders: Array<{
+        bookmarkId: string;
+        note?: string;
+        roomId: string;
+        eventId: string;
+      }> = event.data.reminders ?? [];
+      const first = reminders[0];
+      if (!first) return;
+
+      setInAppBanner({
+        id: `reminder-${first.bookmarkId}`,
+        title: 'Bookmark Reminder',
+        body: first.note ?? 'You have a bookmark reminder.',
+        onClick: () => {
+          window.focus();
+          navigate(getInboxBookmarksPath());
+        },
+      });
+    };
+
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, [navigate, setInAppBanner]);
+
+  return null;
+}
+
+function RemindersFeature() {
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
+  const [enableBookmarkReminders] = useSetting(settingsAtom, 'enableBookmarkReminders');
+  if (!enableMessageBookmarks || !enableBookmarkReminders) return null;
+  return (
+    <>
+      <ReminderSync />
+      <ReminderBanners />
+    </>
+  );
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
-    <SearchIndexProvider>
+    <>
       <SettingsSyncFeature />
+      <BookmarksFeature />
+      <RemindersFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />
@@ -938,11 +953,10 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <ThemeMigrationBanner />
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
-      <ProgressivePrefetchFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />
       {children}
-    </SearchIndexProvider>
+    </>
   );
 }

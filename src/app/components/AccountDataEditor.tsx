@@ -224,7 +224,7 @@ function AccountDataView({ type, defaultContent, onEdit, onDelete }: AccountData
           <Text size="B400">Edit</Text>
         </Button>
         {onDelete && (
-          <Button variant="Critical" size="400" radii="300" onClick={onDelete}>
+          <Button variant="Critical" fill="Soft" size="400" radii="300" onClick={onDelete}>
             <Text size="B400">Delete</Text>
           </Button>
         )}

@@ -7,21 +7,6 @@ export type HashRouterConfig = {
   basename?: string;
 };
 
-export type ExperimentConfig = {
-  enabled?: boolean;
-  rolloutPercentage?: number;
-  variants?: string[];
-  controlVariant?: string;
-};
-
-export type ExperimentSelection = {
-  key: string;
-  enabled: boolean;
-  rolloutPercentage: number;
-  variant: string;
-  inExperiment: boolean;
-};
-
 export type ClientConfig = {
   defaultHomeserver?: number;
   homeserverList?: string[];
@@ -30,8 +15,6 @@ export type ClientConfig = {
 
   disableAccountSwitcher?: boolean;
   hideUsernamePasswordFields?: boolean;
-
-  experiments?: Record<string, ExperimentConfig>;
 
   pushNotificationDetails?: {
     pushNotifyUrl?: string;
@@ -68,15 +51,22 @@ export type ClientConfig = {
 
   settingsDefaults?: Partial<Settings>;
 
-  features?: {
-    polls?: boolean;
-    /** Operator kill-switch for in-memory search of encrypted rooms.
-     *  Defaults to enabled (true) when not configured.
-     *  Note: the user-facing setting (`encryptedSearch` in Settings) defaults to disabled,
-     *  so users must opt in even when this flag is on.
-     */
-    encryptedSearch?: boolean;
-  };
+  experiments?: Record<string, ExperimentConfig>;
+};
+
+export type ExperimentConfig = {
+  enabled?: boolean;
+  controlVariant?: string;
+  variants?: string[];
+  rolloutPercentage?: number;
+};
+
+export type ExperimentSelection = {
+  key: string;
+  enabled: boolean;
+  rolloutPercentage: number;
+  variant: string;
+  inExperiment: boolean;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);
@@ -151,7 +141,7 @@ export const selectExperimentVariant = (
     key,
     enabled,
     rolloutPercentage,
-    variant: variants[variantIndex]!,
+    variant: variants[variantIndex] ?? controlVariant,
     inExperiment: true,
   };
 };
@@ -161,7 +151,7 @@ export const useExperimentVariant = (key: string, subjectId?: string): Experimen
   return selectExperimentVariant(key, clientConfig.experiments?.[key], subjectId);
 };
 
-const EXPERIMENT_OVERRIDE_PREFIX = 'sable_exp_';
+export const EXPERIMENT_OVERRIDE_PREFIX = 'sable_exp_';
 
 export const setExperimentOverride = (key: string, value: boolean | null): void => {
   if (value === null) {
@@ -170,7 +160,6 @@ export const setExperimentOverride = (key: string, value: boolean | null): void 
     localStorage.setItem(`${EXPERIMENT_OVERRIDE_PREFIX}${key}`, String(value));
   }
 };
-
 export const clientDefaultServer = (clientConfig: ClientConfig): string =>
   clientConfig.homeserverList?.[clientConfig.defaultHomeserver ?? 0] ?? 'matrix.org';
 

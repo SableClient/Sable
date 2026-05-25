@@ -75,6 +75,7 @@ import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
 import { UserAvatar } from '$components/user-avatar';
 import * as css from './styles.css';
+import { useRoomLastMessage } from '$hooks/useRoomLastMessage';
 import { RoomNavUser } from './RoomNavUser';
 import { SidebarUnreadBadge } from '$components/sidebar';
 
@@ -274,16 +275,15 @@ type RoomNavItemProps = {
   dmMessagePreview?: boolean;
 };
 
-/* oxlint-disable no-unused-vars */
 export function RoomNavItem({
   room,
   selected,
   showAvatar,
   direct,
   customDMCards,
-  roomTopicPreview: _roomTopicPreview = false,
-  roomMessagePreview: _roomMessagePreview = false,
-  dmMessagePreview: _dmMessagePreview = true,
+  roomTopicPreview = false,
+  roomMessagePreview = false,
+  dmMessagePreview = true,
   notificationMode,
   linkPath,
   hideText,
@@ -311,8 +311,12 @@ export function RoomNavItem({
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
   const presence = useUserPresence(dmUserId ?? '');
+  const showPreview = direct ? dmMessagePreview : roomMessagePreview;
+  const lastMessage = useRoomLastMessage(showPreview ? room : undefined, mx);
   const getRoomTopic = useRoomTopic(room);
-  const roomTopic = direct ? ((customDMCards && getRoomTopic) ?? presence?.status) : undefined;
+  const roomTopic = direct
+    ? (customDMCards && getRoomTopic) || lastMessage || presence?.status
+    : (roomTopicPreview && getRoomTopic) || (roomMessagePreview ? lastMessage : undefined);
 
   const { navigateRoom } = useRoomNavigate();
   const navigate = useNavigate();

@@ -107,4 +107,11 @@ export type WorkerOutMessage =
     }
   | {
       type: 'FLUSH_DONE';
+    }
+  | {
+      type: '_sentry_breadcrumb';
+      category: string;
+      message: string;
+      level?: 'debug' | 'info' | 'warning' | 'error' | 'fatal';
+      data?: Record<string, unknown>;
     };

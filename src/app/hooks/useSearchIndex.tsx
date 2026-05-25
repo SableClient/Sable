@@ -14,6 +14,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import * as Sentry from '@sentry/react';
 import {
   ClientEvent,
   Direction,
@@ -491,6 +492,15 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
       switch (msg.type) {
         case 'READY':
+          Sentry.addBreadcrumb({
+            category: 'search.index',
+            message: 'Search worker ready',
+            level: 'info',
+            data: {
+              indexedEventCount: msg.indexedEventCount,
+              roomCount: msg.roomCount,
+            },
+          });
           setIsReady(true);
           // Request backfill states, then start background fill
           postToWorker({ type: 'GET_BACKFILL_STATES' });
@@ -526,6 +536,21 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         case 'ERROR':
           // eslint-disable-next-line no-console
           console.error('[SearchIndex worker error]', msg.message);
+          Sentry.addBreadcrumb({
+            category: 'search.index',
+            message: 'Worker error',
+            level: 'error',
+            data: { error: msg.message },
+          });
+          break;
+
+        case '_sentry_breadcrumb':
+          Sentry.addBreadcrumb({
+            category: msg.category,
+            message: msg.message,
+            level: msg.level ?? 'info',
+            data: msg.data,
+          });
           break;
 
         default:
@@ -546,12 +571,39 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     const userId = mx.getUserId();
     if (!userId) return () => {};
 
+    Sentry.addBreadcrumb({
+      category: 'search.index',
+      message: 'Initializing search worker',
+      level: 'info',
+      data: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
+    });
+
     const worker = new Worker(
       new URL('../plugins/search-worker/searchWorker.ts', import.meta.url),
       { type: 'module' }
     );
     workerRef.current = worker;
     worker.addEventListener('message', handleWorkerMessage);
+
+    // Set a timeout to detect if the worker never sends READY
+    const initTimeout = setTimeout(() => {
+      Sentry.captureMessage('Search worker INIT timeout — READY message never received', {
+        level: 'error',
+        tags: { component: 'search-index' },
+        extra: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
+      });
+    }, 30000); // 30s timeout
+
+    // Clear timeout when READY arrives
+    const originalHandler = handleWorkerMessage;
+    const wrappedHandler = (event: MessageEvent<WorkerOutMessage>) => {
+      if (event.data.type === 'READY') {
+        clearTimeout(initTimeout);
+      }
+      originalHandler(event);
+    };
+    worker.removeEventListener('message', handleWorkerMessage);
+    worker.addEventListener('message', wrappedHandler as EventListener);
 
     postToWorker({
       type: 'INIT',
@@ -616,7 +668,8 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     return () => {
       // Ask the worker to flush before terminating. We wait up to 2 s then
       // force-terminate regardless so the cleanup never hangs.
-      worker.removeEventListener('message', handleWorkerMessage);
+      clearTimeout(initTimeout);
+      worker.removeEventListener('message', wrappedHandler as EventListener);
       postToWorker({ type: 'FLUSH' });
       const terminateTimeout = setTimeout(() => {
         worker.terminate();

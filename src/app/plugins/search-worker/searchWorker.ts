@@ -243,14 +243,67 @@ function instrumentIDB(idb: IDBDatabase, dbName: string): void {
 }
 
 async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
+  post({
+    type: '_sentry_breadcrumb',
+    category: 'search.worker',
+    message: 'Worker received INIT message',
+    level: 'info',
+    data: { userId, maxPerRoom },
+  });
+
   maxMessagesPerRoom = maxPerRoom;
   const dbName = `sable-search-${userId}`;
 
-  db = await openDb(dbName);
+  post({
+    type: '_sentry_breadcrumb',
+    category: 'search.worker',
+    message: 'Opening IDB',
+    level: 'info',
+    data: { dbName },
+  });
+
+  try {
+    db = await openDb(dbName);
+  } catch (err: unknown) {
+    post({
+      type: '_sentry_breadcrumb',
+      category: 'search.worker',
+      message: 'IDB open failed',
+      level: 'error',
+      data: {
+        dbName,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    });
+    throw err;
+  }
+
+  post({
+    type: '_sentry_breadcrumb',
+    category: 'search.worker',
+    message: 'IDB opened successfully',
+    level: 'info',
+    data: { dbName, version: db.version },
+  });
+
   instrumentIDB(db, dbName);
+
+  post({
+    type: '_sentry_breadcrumb',
+    category: 'search.worker',
+    message: 'Loading serialized index from IDB',
+    level: 'info',
+  });
 
   const serialized = await idbGet<string>(db, 'index', 'v1');
   if (serialized) {
+    post({
+      type: '_sentry_breadcrumb',
+      category: 'search.worker',
+      message: 'Found persisted index, deserializing',
+      level: 'info',
+      data: { sizeBytes: serialized.length * 2 },
+    });
     try {
       index = MiniSearch.loadJSON(serialized, {
         idField: 'eventId',
@@ -274,15 +327,39 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
           combineWith: 'AND',
         },
       });
+      post({
+        type: '_sentry_breadcrumb',
+        category: 'search.worker',
+        message: 'Index deserialized successfully',
+        level: 'info',
+        data: { documentCount: index.documentCount },
+      });
+
       // Rebuild room queues and storedDocs from persisted data.
       // storedDocs must be repopulated so that chip-only queries (e.g. image
       // filter with no text term) can scan events from previous sessions.
+      post({
+        type: '_sentry_breadcrumb',
+        category: 'search.worker',
+        message: 'Loading room queues',
+        level: 'info',
+      });
+
       const savedQueues = await idbGet<Record<string, Array<[string, number]>>>(
         db,
         'index',
         'rooms'
       );
       if (savedQueues) {
+        const roomCount = Object.keys(savedQueues).length;
+        post({
+          type: '_sentry_breadcrumb',
+          category: 'search.worker',
+          message: 'Rebuilding room queues and storedDocs',
+          level: 'info',
+          data: { roomCount },
+        });
+
         for (const [roomId, queue] of Object.entries(savedQueues)) {
           roomQueues.set(roomId, queue);
           for (const [eventId] of queue) {
@@ -292,13 +369,57 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
             }
           }
         }
+
+        post({
+          type: '_sentry_breadcrumb',
+          category: 'search.worker',
+          message: 'Room queues rebuilt',
+          level: 'info',
+          data: {
+            roomCount: roomQueues.size,
+            storedDocsCount: storedDocs.size,
+          },
+        });
+      } else {
+        post({
+          type: '_sentry_breadcrumb',
+          category: 'search.worker',
+          message: 'No persisted room queues found',
+          level: 'info',
+        });
       }
-    } catch {
+    } catch (err: unknown) {
+      post({
+        type: '_sentry_breadcrumb',
+        category: 'search.worker',
+        message: 'Failed to deserialize index, creating new',
+        level: 'warning',
+        data: {
+          error: err instanceof Error ? err.message : String(err),
+        },
+      });
       index = makeIndex();
     }
   } else {
+    post({
+      type: '_sentry_breadcrumb',
+      category: 'search.worker',
+      message: 'No persisted index found, creating new',
+      level: 'info',
+    });
     index = makeIndex();
   }
+
+  post({
+    type: '_sentry_breadcrumb',
+    category: 'search.worker',
+    message: 'Sending READY message',
+    level: 'info',
+    data: {
+      indexedEventCount: index.documentCount,
+      roomCount: roomQueues.size,
+    },
+  });
 
   post({
     type: 'READY',
@@ -438,6 +559,17 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
       handleInit(msg.userId, msg.maxMessagesPerRoom).catch((err: unknown) => {
         // eslint-disable-next-line no-console
         console.error('[SearchWorker] INIT failed:', err);
+        post({
+          type: '_sentry_breadcrumb',
+          category: 'search.worker',
+          message: 'INIT failed with error',
+          level: 'error',
+          data: {
+            error: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
+          },
+        });
+        // Still send READY so the UI doesn't hang — the index will just be empty
         post({
           type: 'READY',
           indexedEventCount: 0,

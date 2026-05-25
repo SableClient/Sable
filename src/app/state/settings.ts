@@ -68,11 +68,12 @@ export function isPixelatedViewerRendering(mode: PixelatedImageRenderingMode): b
 
 export function shouldApplyUserHeroCards(
   mode: RenderUserCardsMode,
-  brightness: string | undefined
+  brightness?: string,
+  color?: string
 ): boolean {
+  if (!color || (brightness !== 'light' && brightness !== 'dark')) return false;
   if (mode === 'none') return false;
   if (mode === 'both') return true;
-  if (brightness !== 'light' && brightness !== 'dark') return false;
   return brightness === mode;
 }
 

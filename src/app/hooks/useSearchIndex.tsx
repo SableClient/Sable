@@ -539,6 +539,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         case 'ERROR':
           // eslint-disable-next-line no-console
           console.error('[SearchIndex worker error]', msg.message);
+          setInitError(`Worker error: ${msg.message}`);
           Sentry.addBreadcrumb({
             category: 'search.index',
             message: 'Worker error',

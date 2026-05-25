@@ -569,11 +569,10 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
             stack: err instanceof Error ? err.stack : undefined,
           },
         });
-        // Still send READY so the UI doesn't hang — the index will just be empty
+        // Send ERROR instead of READY so the UI can show the error state
         post({
-          type: 'READY',
-          indexedEventCount: 0,
-          roomCount: 0,
+          type: 'ERROR',
+          message: err instanceof Error ? err.message : String(err),
         });
       });
       break;

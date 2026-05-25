@@ -60,11 +60,36 @@ export async function enablePushNotifications(
     );
     throw new Error('Push messaging is not supported in this browser.');
   }
+  
+  const span = Sentry.startInactiveSpan({
+    name: 'push.register',
+    op: 'notification',
+    attributes: {
+      'push.transport': 'webpush',
+      'push.has_service_worker': !!navigator.serviceWorker.controller,
+      'push.sw_state': navigator.serviceWorker.controller?.state ?? 'none',
+      'push.has_application_server_key': !!clientConfig.pushNotificationDetails?.vapidPublicKey,
+    },
+  });
+  
   debugLog.info('notification', 'Enabling push notifications');
   const [pushSubAtom, setPushSubscription] = pushSubscriptionAtom;
   const registration = await navigator.serviceWorker.ready;
+  
   const currentBrowserSub = await registration.pushManager.getSubscription();
-
+  
+  Sentry.addBreadcrumb({
+    category: 'push',
+    message: 'Push registration attempt',
+    data: {
+      existingSubscription: !!currentBrowserSub,
+      permissionState: ('Notification' in window) ? window.Notification.permission : 'unsupported',
+      swControllerState: navigator.serviceWorker.controller?.state ?? 'none',
+    },
+    level: 'info',
+  });
+  
+  try {
   /* Self-Healing Check. Effectively checks if the browser has invalidated our subscription and recreates it
      only when necessary. This prevents us from needing an external call to get back the web push info.
   */
@@ -96,6 +121,11 @@ export async function enablePushNotifications(
       pusherData,
       token: mx.getAccessToken(),
     });
+    
+    span.setAttribute('push.endpoint', pushSubAtom.endpoint);
+    span.setAttribute('push.success', true);
+    span.setAttribute('push.reused_subscription', true);
+    span.end();
     return;
   }
 
@@ -145,6 +175,16 @@ export async function enablePushNotifications(
     pusherData,
     token: mx.getAccessToken(),
   });
+  
+  span.setAttribute('push.endpoint', newSubscription.endpoint);
+  span.setAttribute('push.success', true);
+  span.end();
+  } catch (err) {
+    span.setAttribute('push.success', false);
+    span.setAttribute('push.error', err instanceof Error ? err.message : String(err));
+    span.end();
+    throw err;
+  }
 }
 
 /**

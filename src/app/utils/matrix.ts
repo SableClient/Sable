@@ -339,34 +339,71 @@ export const downloadMedia = async (
    * adds auth for normal browser sub-resource loads when active. */
   accessToken?: string | null
 ): Promise<Blob> => {
-  // The service worker intercepts this request and adds auth; accessToken is a
-  // direct fallback so the header is present even when the SW has no session.
-  // Use 'no-cache' to ensure retries hit the network instead of returning cached failures.
-  const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-  
-  // Add a 30-second timeout to prevent infinite hangs
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const span = Sentry.startInactiveSpan({
+    name: 'media.load',
+    op: 'media',
+    attributes: {
+      'media.type': 'file',
+      'media.url': src.substring(0, 100), // Truncate URL to avoid PII
+      'media.has_access_token': !!accessToken,
+    },
+  });
   
   try {
-    const res = await fetch(src, { 
-      method: 'GET', 
-      cache: 'no-cache', 
-      headers,
-      signal: controller.signal 
-    });
-    clearTimeout(timeoutId);
+    // The service worker intercepts this request and adds auth; accessToken is a
+    // direct fallback so the header is present even when the SW has no session.
+    // Use 'no-cache' to ensure retries hit the network instead of returning cached failures.
+    const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
     
-    if (!res.ok) {
-      throw new Error(`Failed to download media: ${res.status} ${res.statusText}`);
+    // Add a 30-second timeout to prevent infinite hangs
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    try {
+      const res = await fetch(src, { 
+        method: 'GET', 
+        cache: 'no-cache', 
+        headers,
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        span.setAttribute('media.status_code', res.status);
+        span.setAttribute('media.error', `${res.status} ${res.statusText}`);
+        
+        // Log 401 specifically for auth failures (SABLE-39)
+        if (res.status === 401) {
+          Sentry.addBreadcrumb({
+            category: 'media',
+            message: 'Media auth failure',
+            data: { url: src.substring(0, 100), statusCode: 401 },
+            level: 'error',
+          });
+        }
+        
+        span.end();
+        throw new Error(`Failed to download media: ${res.status} ${res.statusText}`);
+      }
+      
+      const blob = await res.blob();
+      span.setAttribute('media.size_bytes', blob.size);
+      span.setAttribute('media.mime_type', blob.type);
+      span.end();
+      return blob;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err instanceof Error && err.name === 'AbortError') {
+        span.setAttribute('media.timeout', true);
+        span.end();
+        throw new Error('Media download timed out after 30 seconds', { cause: err });
+      }
+      span.setAttribute('media.error', err instanceof Error ? err.message : String(err));
+      span.end();
+      throw err;
     }
-    const blob = await res.blob();
-    return blob;
   } catch (err) {
-    clearTimeout(timeoutId);
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('Media download timed out after 30 seconds', { cause: err });
-    }
+    span.end();
     throw err;
   }
 };

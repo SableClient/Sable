@@ -256,13 +256,36 @@ export function BackgroundNotifications() {
     // fresh retry referencing the latest session from inactiveSessionsRef.
     const startSession = (session: Session, attempt = 0): void => {
       let sessionMx: MatrixClient | undefined;
+      const initTime = Date.now();
+      
+      Sentry.addBreadcrumb({
+        category: 'notification.background_client',
+        message: 'Background client stage: init',
+        data: { stage: 'init', userId: session.userId, attempt },
+        level: 'info',
+      });
+      
       startBackgroundClient(session, clientConfig.slidingSync)
         .then(async (mx) => {
           sessionMx = mx;
           current.set(session.userId, mx);
           Sentry.metrics.gauge('sable.background.client_count', current.size);
+          
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Background client stage: sync_start',
+            data: { stage: 'sync_start', userId: session.userId, elapsedMs: Date.now() - initTime },
+            level: 'info',
+          });
 
           await waitForSync(mx);
+          
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Background client stage: sync_ready',
+            data: { stage: 'sync_ready', userId: session.userId, elapsedMs: Date.now() - initTime },
+            level: 'info',
+          });
 
           // Wait for m.direct account data to load. This is critical for DM detection.
           // Without it, rooms in /direct/ won't be recognized as DMs, causing notifications to fail.
@@ -300,6 +323,13 @@ export function BackgroundNotifications() {
           // encryption guard when the Decrypted callback fires.
           const decryptingEvents = new Set<string>();
 
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Background client stage: push_registered',
+            data: { stage: 'push_registered', userId: session.userId, elapsedMs: Date.now() - initTime },
+            level: 'info',
+          });
+          
           const handleTimeline = (
             mEvent: MatrixEvent,
             room: Room | undefined,
@@ -544,6 +574,21 @@ export function BackgroundNotifications() {
             userId: session.userId,
             error: err,
           });
+          
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Background client stage: failed',
+            data: {
+              stage: 'failed',
+              userId: session.userId,
+              elapsedMs: Date.now() - initTime,
+              timeoutMs: 30000,
+              attempt,
+              error: err instanceof Error ? err.message : String(err),
+            },
+            level: 'error',
+          });
+          
           Sentry.captureException(err, {
             tags: { component: 'BackgroundNotifications' },
           });

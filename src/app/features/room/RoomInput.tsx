@@ -728,8 +728,21 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
 
         await Promise.all(
-          contents.map((content) =>
-            mx
+          contents.map((content) => {
+            const sendStartTime = Date.now();
+            const span = Sentry.startInactiveSpan({
+              name: 'message.send',
+              op: 'message',
+              attributes: {
+                'message.room_id': roomId,
+                'message.type': content.msgtype ?? 'm.text',
+                'message.is_encrypted': isEncrypted,
+                'message.body_length': content.body?.length ?? 0,
+                'message.is_thread': !!threadRootId,
+              },
+            });
+            
+            return mx
               .sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
               .then((res: { event_id: string }) => {
                 debugLog.info('message', 'Uploaded file message sent', {
@@ -737,6 +750,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   eventId: res.event_id,
                   msgtype: content.msgtype,
                 });
+                span.setAttribute('message.event_id', res.event_id);
+                span.setAttribute('message.send_duration_ms', Date.now() - sendStartTime);
+                span.end();
                 return res;
               })
               .catch((error: unknown) => {
@@ -745,9 +761,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   error: error instanceof Error ? error.message : String(error),
                 });
                 log.error('failed to send uploaded message', { roomId }, error);
+                span.setAttribute('message.error', error instanceof Error ? error.message : String(error));
+                span.end();
                 throw error;
-              })
-          )
+              });
+          })
         );
       }
     };

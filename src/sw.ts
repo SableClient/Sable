@@ -798,9 +798,12 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       console.warn(
         '[SW fetch] No valid session for media request',
         { url, clientId, hasSession: !!s },
-        'falling back to unauthenticated fetch'
       );
-      return fetch(event.request);
+      // Log fetch failure to help diagnose FetchEvent.respondWith errors
+      return fetch(event.request).catch((err) => {
+        console.error('[SW fetch] Media fetch failed:', { url, error: err.message });
+        throw err;
+      });
     })
   );
 });
@@ -1007,4 +1010,13 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 });
 
 precacheAndRoute(self.__WB_MANIFEST);
+self.addEventListener('activate', (event: ExtendableEvent) => {
+  console.info('[SW] activate - taking control of all clients');
+  event.waitUntil(
+    self.clients.claim().then(() => {
+      console.info('[SW] activate complete - claimed clients');
+    })
+  );
+});
+
 cleanupOutdatedCaches();

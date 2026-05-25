@@ -389,6 +389,23 @@ export class SlidingSyncManager {
         syncNumber: this.syncCount,
         isInitialSync: !this.initialSyncCompleted,
       });
+      
+      // Add breadcrumb for all state transitions (not just errors) to have full picture before crashes
+      const roomsInResponse = (resp as MSC3575SlidingSyncResponse)?.rooms
+        ? Object.keys((resp as MSC3575SlidingSyncResponse).rooms).length
+        : 0;
+      Sentry.addBreadcrumb({
+        category: 'sync.slidingSync',
+        message: `Sliding sync state: ${state}`,
+        data: {
+          prevState: 'unknown',
+          newState: state,
+          syncNumber: this.syncCount,
+          roomsInResponse,
+          hasError: !!err,
+        },
+        level: state === SlidingSyncState.RequestFinished ? 'info' : (err ? 'error' : 'warning'),
+      });
 
       if (err) {
         debugLog.error('sync', 'Sliding sync error', {

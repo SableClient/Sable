@@ -524,7 +524,7 @@ export function RoomNavItem({
 
                     {!hideText && (
                       <>
-                        <Box as="span" grow="Yes" direction="Column">
+                        <Box as="span" grow="Yes" direction="Column" style={{ minWidth: 0 }}>
                           <Text
                             priority={unread || hasRoomUnread || isActiveCall ? '500' : '400'}
                             as="span"

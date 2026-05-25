@@ -69,7 +69,7 @@ import { ClientBindAtoms, ClientLayout, ClientRoot, ClientRouteOutlet } from './
 import { HandleNotificationClick, ClientNonUIFeatures } from './client/ClientNonUIFeatures';
 import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
 import { BookmarksList } from './client/bookmarks';
-import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
+import { Direct, DirectCreate, DirectRouteRoomProvider, DirectSearch } from './client/direct';
 import { RouteSpaceProvider, Space, SpaceRouteRoomProvider, SpaceSearch } from './client/space';
 import { Explore, FeaturedRooms, PublicRooms } from './client/explore';
 import { Notifications, Inbox, Invites } from './client/inbox';
@@ -271,6 +271,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           }
         >
           {mobile ? null : <Route index element={<WelcomePage />} />}
+          <Route path={SEARCH_PATH_SEGMENT} element={<DirectSearch />} />
           <Route path={CREATE_PATH_SEGMENT} element={<DirectCreate />} />
           <Route
             path={ROOM_PATH_SEGMENT}

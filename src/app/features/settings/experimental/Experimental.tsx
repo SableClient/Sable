@@ -10,6 +10,7 @@ import { Sync } from '../general';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
+import { SearchIndexToggle } from './SearchIndexToggle';
 
 function TiptapComposerToggle() {
   const [useTiptapComposer, setUseTiptapComposer] = useSetting(settingsAtom, 'useTiptapComposer');
@@ -91,6 +92,7 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               <Sync />
               <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
+              <SearchIndexToggle />
               <PersonaToggle />
               <TiptapComposerToggle />
             </Box>

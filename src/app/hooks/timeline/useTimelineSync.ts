@@ -389,6 +389,8 @@ export function useTimelineSync({
   const resetAutoScrollPendingRef = useRef(false);
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
+  const eventsLengthRef = useRef(eventsLength);
+  eventsLengthRef.current = eventsLength;
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
 
   const canPaginateBack =
@@ -581,6 +583,36 @@ export function useTimelineSync({
   // data (no initial:true in the sliding sync response), that event may never
   // arrive — leaving the initial-scroll guard permanently blocked and the room
   // invisible.
+  // After initial:true (pull-to-refresh force-reset, reconnect, or first join),
+  // the sliding-sync SDK injects events into the live timeline via
+  // injectRoomEvents and then emits ClientEvent.Room.  When all injected events
+  // are historical (num_live === 0 → fromCache: true → liveEvent: false),
+  // useLiveEventArrive's 60-second timestamp gate silently drops them, so React
+  // never re-renders and the timeline stays blank indefinitely.  Listening here
+  // guarantees a re-render once all events are in the SDK's timeline, no matter
+  // how old they are.
+  useEffect(() => {
+    const handleRoomInitialized = (eventRoom: Room) => {
+      if (eventRoom.roomId !== room.roomId) return;
+      // Only update if the live timeline actually has events now — prevents
+      // spurious updates that would reset scroll position during normal sync.
+      const liveEvents = getLiveTimeline(room).getEvents();
+      if (liveEvents.length === 0) return;
+      // After PTR, React's timeline state may reference the correct live timeline
+      // object, but with eventsLength still at 0 (before the re-render). Detect this
+      // by comparing the SDK's current event count with React's last known count.
+      const reactEventsLength = eventsLengthRef.current;
+      const isStale = timeline.linkedTimelines[0] !== getLiveTimeline(room);
+      const needsUpdate = reactEventsLength === 0 || isStale;
+      if (!needsUpdate) return;
+      setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
+    };
+    mx.on(ClientEvent.Room, handleRoomInitialized);
+    return () => {
+      mx.off(ClientEvent.Room, handleRoomInitialized);
+    };
+  }, [mx, room, timeline.linkedTimelines]);
+
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);
   eventIdRef.current = eventId;

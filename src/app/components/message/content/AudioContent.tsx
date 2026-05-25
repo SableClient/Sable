@@ -76,8 +76,10 @@ export function AudioContent({
 
   const [currentTime, setCurrentTime] = useState(0);
   // duration in seconds. (NOTE: info.duration is in milliseconds)
-  const infoDuration = info.duration ?? 0;
-  const [duration, setDuration] = useState((infoDuration >= 0 ? infoDuration : 0) / 1000);
+  const infoDurationMs = info.duration ?? 0;
+  const initialDurationSec =
+    Number.isFinite(infoDurationMs) && infoDurationMs > 0 ? infoDurationMs / 1000 : 0;
+  const [duration, setDuration] = useState(initialDurationSec);
 
   const getAudioRef = useCallback(() => audioRef.current, []);
   const { loading } = useMediaLoading(getAudioRef);
@@ -85,9 +87,15 @@ export function AudioContent({
   const { seek } = useMediaSeek(getAudioRef);
   const { volume, mute, setMute, setVolume } = useMediaVolume(getAudioRef);
   const handlePlayTimeCallback: PlayTimeCallback = useCallback((d, ct) => {
-    setDuration(d);
-    setCurrentTime(ct);
+    if (Number.isFinite(d) && d > 0) setDuration(d);
+    if (Number.isFinite(ct) && ct >= 0) setCurrentTime(ct);
   }, []);
+
+  const trackMax = duration > 0 ? duration : 1;
+  const trackTime =
+    duration > 0 ? Math.min(Number.isFinite(currentTime) ? currentTime : 0, duration) : 0;
+  const displayDuration = duration > 0 ? duration : 0;
+  const displayCurrentTime = Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0;
   useMediaPlayTimeCallback(
     getAudioRef,
     useThrottle(handlePlayTimeCallback, PLAY_TIME_THROTTLE_OPS)
@@ -106,9 +114,14 @@ export function AudioContent({
       <Range
         step={1}
         min={0}
-        max={duration || 1}
-        values={[currentTime]}
-        onChange={(values) => seek(values[0] ?? 0)}
+        max={trackMax}
+        values={[trackTime]}
+        onChange={(values) => {
+          if (!(duration > 0)) return;
+          const next = values[0] ?? 0;
+          if (!Number.isFinite(next)) return;
+          seek(Math.max(0, Math.min(next, duration)));
+        }}
         renderTrack={(params) => {
           const { key, ...restProps } = params.props as unknown as {
             key?: string;
@@ -122,8 +135,8 @@ export function AudioContent({
                 variant="Secondary"
                 size="300"
                 min={0}
-                max={duration}
-                value={currentTime}
+                max={trackMax}
+                value={trackTime}
                 radii="300"
               />
             </div>
@@ -172,8 +185,8 @@ export function AudioContent({
         </Chip>
 
         <Text size="T200">{`${secondsToMinutesAndSeconds(
-          currentTime
-        )} / ${secondsToMinutesAndSeconds(duration)}`}</Text>
+          displayCurrentTime
+        )} / ${secondsToMinutesAndSeconds(displayDuration)}`}</Text>
       </>
     ),
     rightControl: (

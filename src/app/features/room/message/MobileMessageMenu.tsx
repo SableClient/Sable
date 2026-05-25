@@ -24,6 +24,10 @@ import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
+import { computeBookmarkId, createBookmarkItem } from '$features/bookmarks/bookmarkDomain';
+import { useIsBookmarked, useBookmarkActions } from '$features/bookmarks/useBookmarks';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import * as css from './MobileMessageMenu.css';
 
 export type MobileMessageMenuProps = {
@@ -133,6 +137,11 @@ export function MobileMessageMenu({
   // Pinning
   const pinnedEvents = useRoomPinnedEvents(room);
   const isPinned = pinnedEvents.includes(evtId);
+
+  // Bookmarking
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
+  const isBookmarked = useIsBookmarked(room.roomId, evtId);
+  const { add: addBookmark, remove: removeBookmark } = useBookmarkActions();
 
   // Nicknames
   const nicknames = useAtomValue(nicknamesAtom);
@@ -273,6 +282,16 @@ export function MobileMessageMenu({
     mx.sendStateEvent(room.roomId, EventType.RoomPinnedEvents as keyof StateEvents, pinContent);
     onClose();
   }, [pinnedEvents, isPinned, evtId, mx, room, onClose]);
+
+  const handleBookmarkClick = useCallback(async () => {
+    if (isBookmarked) {
+      await removeBookmark(computeBookmarkId(room.roomId, evtId));
+    } else {
+      const item = createBookmarkItem(room, mEvent);
+      if (item) await addBookmark(item);
+    }
+    onClose();
+  }, [isBookmarked, removeBookmark, room, evtId, mEvent, addBookmark, onClose]);
 
   const handleKick = useCallback(async () => {
     await mx.kick(room.roomId, senderId);
@@ -430,6 +449,13 @@ export function MobileMessageMenu({
                   icon={<Icon src={Icons.Pin} size="200" />}
                   label={isPinned ? 'Unpin Message' : 'Pin Message'}
                   onClick={handlePinClick}
+                />
+              )}
+              {enableMessageBookmarks && (
+                <ActionItem
+                  icon={<Icon src={Icons.Bookmark} size="200" filled={isBookmarked} />}
+                  label={isBookmarked ? 'Remove Bookmark' : 'Bookmark Message'}
+                  onClick={handleBookmarkClick}
                 />
               )}
               {senderId !== myUserId &&

@@ -132,11 +132,25 @@ export function useProcessedTimeline({
         }
       }
 
+      // Extract thread root from m.relates_to even when SDK didn't set threadRootId
+      // (sliding sync bug where thread relations arrive without threadId resolved)
+      const actualThreadRoot = (() => {
+        if (threadRootId !== undefined) return threadRootId;
+        const relation =
+          mEvent.getRelation?.() ??
+          (mEvent.getWireContent?.() as { 'm.relates_to'?: { rel_type?: unknown; event_id?: unknown } })?.['m.relates_to'] ??
+          (mEvent.getContent?.() as { 'm.relates_to'?: { rel_type?: unknown; event_id?: unknown } })?.['m.relates_to'];
+        if (relation?.rel_type === 'm.thread' && typeof relation.event_id === 'string') {
+          return relation.event_id;
+        }
+        return undefined;
+      })();
+
       if (
         !skipThreadFilter &&
-        threadRootId !== undefined &&
-        threadRootId !== mEventId &&
-        isThreadRelationEvent(mEvent, threadRootId)
+        actualThreadRoot !== undefined &&
+        actualThreadRoot !== mEventId &&
+        isThreadRelationEvent(mEvent, actualThreadRoot)
       )
         return acc;
 

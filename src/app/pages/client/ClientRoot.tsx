@@ -26,6 +26,7 @@ import {
   clearCacheAndReload,
   clearLoginData,
   clearMismatchedStores,
+  getSlidingSyncManager,
   initClient,
   logoutClient,
   startClient,
@@ -315,32 +316,42 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [mx, startMatrix]);
 
+  // Helper to check if the app is fully ready: sync must be in a ready state,
+  // and for sliding sync, all room lists must be fully loaded to prevent rooms
+  // from appearing in wrong positions or spaces as the list expands.
+  const checkReadyAndClearSplash = useCallback(
+    (state: string | null) => {
+      if (!state || !isClientReady(state)) return;
+
+      // For sliding sync, wait until all lists are fully loaded before clearing splash.
+      // This ensures rooms are in the correct positions and spaces before the UI renders.
+      const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
+      if (slidingSyncManager && !slidingSyncManager.isFullyLoaded()) {
+        return;
+      }
+
+      setLoading(false);
+      if (!firstSyncReadyRef.current) {
+        firstSyncReadyRef.current = true;
+        Sentry.metrics.distribution(
+          'sable.sync.time_to_ready_ms',
+          performance.now() - syncStartTimeRef.current
+        );
+      }
+    },
+    [mx]
+  );
+
   useEffect(() => {
     if (!mx) return;
-    if (isClientReady(mx.getSyncState())) {
-      setLoading(false);
-    }
-  }, [mx]);
+    checkReadyAndClearSplash(mx.getSyncState());
+  }, [mx, checkReadyAndClearSplash]);
 
   // Wait for the first sync response before hiding the splash, even if cached rooms
   // exist. This prevents rooms from visibly jumping between spaces as the sort order
-  // stabilizes during the first few sync cycles. The ~1-2 second delay is worth the
-  // improved UX of a stable, correctly-sorted room list on first render.
-  useSyncState(
-    mx,
-    useCallback((state: string) => {
-      if (isClientReady(state)) {
-        setLoading(false);
-        if (!firstSyncReadyRef.current) {
-          firstSyncReadyRef.current = true;
-          Sentry.metrics.distribution(
-            'sable.sync.time_to_ready_ms',
-            performance.now() - syncStartTimeRef.current
-          );
-        }
-      }
-    }, [])
-  );
+  // stabilizes during the first few sync cycles. For sliding sync, we also wait until
+  // all room lists are fully loaded to ensure stable positioning.
+  useSyncState(mx, checkReadyAndClearSplash);
 
   // Set matrix client context: homeserver and sync type (not PII)
   useEffect(() => {

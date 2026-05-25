@@ -389,8 +389,6 @@ export function useTimelineSync({
   const resetAutoScrollPendingRef = useRef(false);
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
-  const eventsLengthRef = useRef(eventsLength);
-  eventsLengthRef.current = eventsLength;
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
 
   const canPaginateBack =

@@ -44,9 +44,9 @@ export const LIST_SEARCH = 'search';
 export const LIST_ROOM_SEARCH = 'room_search';
 // Dynamic list key used for space-scoped room views.
 export const LIST_SPACE = 'space';
-// One event of timeline per list room is enough to compute unread counts;
-// the full history is loaded when the user opens the room.
-const LIST_TIMELINE_LIMIT = 1;
+// Timeline events per list room. Element Web uses 20 which provides enough context
+// for notification dot computation. The full history is loaded when opening a room.
+const LIST_TIMELINE_LIMIT = 20;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
@@ -1049,7 +1049,7 @@ export class SlidingSyncManager {
     if (!userId) return;
 
     const recentRoomIds = getRecentRoomIds(userId);
-    const toPrefetch = recentRoomIds.slice(0, 5); // Top 5 most recent
+    const toPrefetch = recentRoomIds.slice(0, 25); // Top 25 most recent
 
     if (toPrefetch.length === 0) return;
 

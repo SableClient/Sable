@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
+import { createDebugLogger } from '$utils/debugLogger';
+
+const debugLog = createDebugLogger('blob-cache');
 
 const CACHE_NAME = 'sable-media-v1';
 const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days

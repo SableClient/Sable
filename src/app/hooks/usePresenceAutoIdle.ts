@@ -13,6 +13,14 @@ const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'whe
  * Automatically transitions presence to idle after a configurable inactivity
  * timeout, and clears the idle state when activity is detected.
  *
+ * Multi-device coordination:
+ * - ONLINE TAKES PRECEDENCE: When ANY device detects activity, ALL devices
+ *   immediately switch to online and reset their idle timers.
+ * - Activity is synced via account data with a 2-second debounce for rapid
+ *   cross-device updates.
+ * - Listens for the 'sable:remote-activity' custom event dispatched by
+ *   usePresenceSync when another device becomes active.
+ *
  * Also subscribes to the Matrix `User.presence` event so that if another device
  * sets you back to `online`, the auto-idle state is cleared here too (multi-device
  * sync).
@@ -85,8 +93,16 @@ export function usePresenceAutoIdle(
       if (isVisible) handleActivity();
     });
 
+    // Listen for remote activity from other devices (dispatched by usePresenceSync)
+    const handleRemoteActivity = () => {
+      debugLog.info('general', 'Remote device activity detected — resetting timer');
+      handleActivity();
+    };
+    window.addEventListener('sable:remote-activity', handleRemoteActivity);
+
     return () => {
       ACTIVITY_EVENTS.forEach((ev) => document.removeEventListener(ev, handleActivity));
+      window.removeEventListener('sable:remote-activity', handleRemoteActivity);
       clearTimer();
       unsubVisibility();
     };

@@ -114,18 +114,79 @@ const useEventTimelineLoader = (
 
           // Check if the event now exists in the live timeline
           const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
-          const liveAbsIndex = getEventIdAbsoluteIndex(
+          let liveAbsIndex = getEventIdAbsoluteIndex(
             liveLinkedTimelines,
             liveTimeline,
             eventId
           );
 
+          // If event not found in current live timeline, try paginating backward to fetch it.
+          // This handles the case where sync hasn't caught up yet but the event is on the server.
+          if (liveAbsIndex === undefined) {
+            Sentry.addBreadcrumb({
+              category: 'timeline.jump',
+              message: 'Event not in live timeline, attempting backward pagination',
+              level: 'info',
+              data: { eventId },
+            });
+
+            const [paginateErr] = await to(
+              withTimeout(
+                mx.paginateEventTimeline(liveTimeline, { backwards: true, limit: PAGINATION_LIMIT }),
+                EVENT_TIMELINE_LOAD_TIMEOUT_MS
+              )
+            );
+
+            if (!paginateErr) {
+              // Re-check after pagination
+              const refreshedLinkedTimelines = getLinkedTimelines(liveTimeline);
+              liveAbsIndex = getEventIdAbsoluteIndex(
+                refreshedLinkedTimelines,
+                liveTimeline,
+                eventId
+              );
+
+              if (liveAbsIndex !== undefined) {
+                // Success! Event found after pagination
+                Sentry.addBreadcrumb({
+                  category: 'timeline.jump',
+                  message: 'Event found after backward pagination',
+                  level: 'info',
+                  data: { eventId, absIndex: liveAbsIndex },
+                });
+                onLoad(eventId, refreshedLinkedTimelines, liveAbsIndex);
+
+                // Proactively load context
+                if (onProactiveLoad) {
+                  setTimeout(() => onProactiveLoad(), 500);
+                }
+                return;
+              }
+            }
+          }
+
           if (liveAbsIndex !== undefined) {
-            // Event found in live timeline - use that instead
+            // Event found in live timeline (either initially or after refresh) - use that instead
+            Sentry.addBreadcrumb({
+              category: 'timeline.jump',
+              message: 'Using event from live timeline instead of disconnected fragment',
+              level: 'info',
+              data: { eventId, absIndex: liveAbsIndex },
+            });
             onLoad(eventId, liveLinkedTimelines, liveAbsIndex);
+
+            // Proactively load context
+            if (onProactiveLoad) {
+              setTimeout(() => onProactiveLoad(), 500);
+            }
           } else {
-            // Event not in live timeline - trigger error fallback (returns to live without jump)
-            onError(new Error('Event timeline disconnected from live timeline'));
+            // Event not in live timeline even after pagination - give up gracefully
+            Sentry.captureMessage('Event not found in live timeline after pagination', {
+              level: 'warning',
+              extra: { eventId },
+              tags: { feature: 'timeline', issue: 'event_not_found' },
+            });
+            onError(new Error('Event timeline disconnected and not found in live timeline'));
           }
           return;
         }

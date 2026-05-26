@@ -61,14 +61,27 @@ export const byOrderKey: SortFunc<string | undefined> = (a, b) => {
 };
 
 /**
- * Sort rooms by priority: mentions/highlights > unreads > DMs > activity.
+ * Calculate priority tier for room sorting.
+ * Helper function for factoryRoomIdByPriority.
+ */
+const getPriorityTier = (highlight: number, total: number, isDM: boolean): number => {
+  if (highlight > 0) return 5; // Highlights always highest
+  if (isDM && total > 0) return 4; // DMs with unreads
+  if (total > 0) return 3; // Regular rooms with unreads
+  if (isDM) return 2; // DMs with no unreads
+  return 1; // Regular rooms with no unreads
+};
+
+/**
+ * Sort rooms by priority: mentions/highlights > DMs with unreads > rooms with unreads > DMs > activity.
  * This provides a smarter prioritization for the room list sidebar.
  *
  * Priority tiers (highest to lowest):
  * 1. Rooms with mentions/highlights (highlight count > 0)
- * 2. Rooms with unreads but no highlights (total > 0, highlight = 0)
- * 3. Direct messages (from remaining rooms)
- * 4. All other rooms
+ * 2. Direct messages with unreads but no highlights
+ * 3. Regular rooms with unreads but no highlights
+ * 4. Direct messages with no unreads
+ * 5. All other rooms
  *
  * Within each tier, rooms are sorted by activity (most recent first).
  */
@@ -88,18 +101,6 @@ export const factoryRoomIdByPriority =
 
     const isDM1 = room1 ? isDMRoom(room1, mDirects) : false;
     const isDM2 = room2 ? isDMRoom(room2, mDirects) : false;
-
-    // Priority tier calculation:
-    // 4 = has highlights (mentions)
-    // 3 = has unreads but no highlights
-    // 2 = is DM
-    // 1 = everything else
-    const getPriorityTier = (highlight: number, total: number, isDM: boolean): number => {
-      if (highlight > 0) return 4;
-      if (total > 0) return 3;
-      if (isDM) return 2;
-      return 1;
-    };
 
     const tier1 = getPriorityTier(highlight1, total1, isDM1);
     const tier2 = getPriorityTier(highlight2, total2, isDM2);

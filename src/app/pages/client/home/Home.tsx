@@ -19,7 +19,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
-import { factoryRoomIdByActivity, factoryRoomIdByAtoZ, factoryRoomIdByPriority } from '$utils/sort';
+import { factoryRoomIdByAtoZ, factoryRoomIdByPriority } from '$utils/sort';
 import {
   NavButton,
   NavCategory,

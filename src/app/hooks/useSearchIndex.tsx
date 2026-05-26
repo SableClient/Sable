@@ -560,6 +560,13 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           });
           break;
 
+        case '_sentry_exception':
+          Sentry.captureException(msg.error, {
+            tags: msg.tags,
+            contexts: msg.contexts,
+          });
+          break;
+
         default:
           break;
       }

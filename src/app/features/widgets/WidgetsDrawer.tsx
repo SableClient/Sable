@@ -28,7 +28,9 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 
+import * as Sentry from '@sentry/react';
 import { createLogger } from '$utils/debug';
+import { createDebugLogger } from '$utils/debugLogger';
 import { WidgetIframe } from './WidgetIframe';
 import * as css from './WidgetsDrawer.css';
 import { IntegrationManager } from './IntegrationManager';
@@ -42,6 +44,7 @@ type WidgetsDrawerHeaderProps = {
 };
 
 const log = createLogger('WidgetsDrawer');
+const debugLog = createDebugLogger('WidgetsDrawer');
 
 function WidgetDrawerHeader({ activeWidget, onBack }: WidgetsDrawerHeaderProps) {
   const setWidgetDrawer = useSetSetting(settingsAtom, 'isWidgetDrawer');
@@ -123,6 +126,21 @@ function AddWidgetForm({ room, onAdded }: AddWidgetFormProps) {
       onAdded();
     } catch (err) {
       log.error('Failed to add widget:', err);
+      debugLog.error('general', 'Widget add failed', {
+        roomId: room.roomId,
+        widgetName: name.trim(),
+        error: err instanceof Error ? err.message : String(err),
+      });
+      Sentry.captureException(err, {
+        tags: { widget_operation: 'add' },
+        contexts: {
+          widget: {
+            roomId: room.roomId,
+            name: name.trim(),
+            url: url.substring(0, 100),
+          },
+        },
+      });
     } finally {
       setAdding(false);
     }
@@ -249,6 +267,21 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
       }
     } catch (err) {
       log.error('Failed to remove widget:', err);
+      debugLog.error('general', 'Widget remove failed', {
+        roomId: room.roomId,
+        widgetId: widget.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      Sentry.captureException(err, {
+        tags: { widget_operation: 'remove' },
+        contexts: {
+          widget: {
+            roomId: room.roomId,
+            widgetId: widget.id,
+            widgetName: widget.name,
+          },
+        },
+      });
     }
   };
 

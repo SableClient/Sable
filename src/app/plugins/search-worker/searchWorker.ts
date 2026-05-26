@@ -279,6 +279,13 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
         error: err instanceof Error ? err.message : String(err),
       },
     });
+    // Also capture as exception
+    post({
+      type: '_sentry_exception',
+      error: err instanceof Error ? err : new Error(String(err)),
+      tags: { search_operation: 'idb_open' },
+      contexts: { search: { dbName } },
+    });
     throw err;
   }
 

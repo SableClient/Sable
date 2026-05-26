@@ -114,4 +114,10 @@ export type WorkerOutMessage =
       message: string;
       level?: 'debug' | 'info' | 'warning' | 'error' | 'fatal';
       data?: Record<string, unknown>;
+    }
+  | {
+      type: '_sentry_exception';
+      error: Error;
+      tags?: Record<string, string>;
+      contexts?: Record<string, Record<string, unknown>>;
     };

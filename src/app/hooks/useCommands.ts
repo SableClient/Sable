@@ -19,6 +19,7 @@ import {
   KnownMembership,
 } from '$types/matrix-sdk';
 import { useMemo } from 'react';
+import * as Sentry from '@sentry/react';
 
 import {
   addRoomIdToMDirect,
@@ -862,6 +863,12 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
                 room,
                 userId
               );
+            } else {
+              Sentry.captureException(e, {
+                tags: { command: 'color', operation: 'set_room_color' },
+                contexts: { command: { roomId: room.roomId, input } },
+              });
+              sendFeedback('Failed to set room color. Please try again.', room, userId);
             }
           }
         },
@@ -912,6 +919,14 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
                 room,
                 userId
               );
+            } else {
+              Sentry.captureException(e, {
+                tags: { command: 'scolor', operation: 'set_space_color' },
+                contexts: {
+                  command: { spaceId: parents?.[0]?.getStateKey() ?? room.roomId, input },
+                },
+              });
+              sendFeedback('Failed to set space color. Please try again.', room, userId);
             }
           }
         },
@@ -995,6 +1010,14 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
                 room,
                 userId
               );
+            } else {
+              Sentry.captureException(e, {
+                tags: { command: 'font', operation: 'set_space_font' },
+                contexts: {
+                  command: { spaceId: parents?.[0]?.getStateKey() ?? room.roomId, input },
+                },
+              });
+              sendFeedback('Failed to set space font. Please try again.', room, userId);
             }
           }
         },
@@ -1045,6 +1068,16 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
                 userId
               );
             } else {
+              Sentry.captureException(e, {
+                tags: { command: 'widget', operation: 'add_widget' },
+                contexts: {
+                  command: {
+                    roomId: room.roomId,
+                    widgetName: name,
+                    widgetUrl: parsedUrl.toString().substring(0, 100),
+                  },
+                },
+              });
               sendFeedback(
                 `Failed to add widget: ${(e as Error).message || 'Unknown error'}`,
                 room,
@@ -1175,6 +1208,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             const content = JSON.parse(payload);
             await mx.sendMessage(room.roomId, content);
           } catch (e: unknown) {
+            Sentry.captureException(e, {
+              tags: { command: 'rawmsg', operation: 'send_raw_message' },
+              contexts: { command: { roomId: room.roomId, payload } },
+            });
             sendFeedback(`Invalid JSON: ${(e as Error).message}`, room, userId);
           }
         },

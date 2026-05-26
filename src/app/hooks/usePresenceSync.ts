@@ -132,7 +132,7 @@ export function usePresenceSyncEffect(): void {
 
       // Also send to the server so it broadcasts to others
       // (even though it won't echo back to us)
-      sendPresenceToServer(mx, state.presenceMode, state.autoIdled, syncEnabled);
+      sendPresenceToServer(mx, state.presenceMode, state.autoIdled, settingsRef.current.presenceStatusMsg, syncEnabled);
     },
     [mx, setSettings, setAutoIdled, syncEnabled]
   );
@@ -169,7 +169,7 @@ export function usePresenceSyncEffect(): void {
         });
 
       // Also send to the server
-      sendPresenceToServer(mx, presenceMode, autoIdled, syncEnabled);
+      sendPresenceToServer(mx, presenceMode, autoIdled, settings.presenceStatusMsg, syncEnabled);
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timerRef.current);
@@ -178,38 +178,52 @@ export function usePresenceSyncEffect(): void {
 
 /**
  * Send presence state to the Matrix server.
- * For auto-idle, sends 'unavailable'. For manual modes, sends the actual mode.
+ * For auto-idle, sends 'unavailable'. For DND, sends 'online' with status_msg='dnd'
+ * so other Sable clients can decode and display the DND badge.
  */
 function sendPresenceToServer(
   mx: MatrixClient,
   presenceMode: 'online' | 'unavailable' | 'dnd' | 'offline',
   autoIdled: boolean,
+  customStatusMsg: string,
   syncEnabled: boolean
 ): void {
   if (!syncEnabled) return;
 
   // Determine effective presence to send to server
   let serverPresence: 'online' | 'unavailable' | 'offline' = 'online';
+  let statusMsg: string | undefined;
+
   if (autoIdled) {
     serverPresence = 'unavailable';
-  } else if (presenceMode === 'offline' || presenceMode === 'dnd') {
-    // DND and offline both map to offline on the server
-    // (DND is a client-only state shown via badge color)
+    // Preserve custom status when auto-idled
+    statusMsg = customStatusMsg || undefined;
+  } else if (presenceMode === 'dnd') {
+    // DND is encoded as online + status_msg='dnd' so other Sable clients
+    // can decode it and show the DND badge (red color)
+    serverPresence = 'online';
+    statusMsg = 'dnd';
+  } else if (presenceMode === 'offline') {
     serverPresence = 'offline';
+    statusMsg = customStatusMsg || undefined;
   } else if (presenceMode === 'unavailable') {
     serverPresence = 'unavailable';
+    statusMsg = customStatusMsg || undefined;
   } else {
+    // online
     serverPresence = 'online';
+    statusMsg = customStatusMsg || undefined;
   }
 
   debugLog.info('general', 'Sending presence to server', {
     mode: presenceMode,
     autoIdled,
     serverPresence,
+    statusMsg,
   });
 
   // Send via matrix-js-sdk
-  mx.setPresence({ presence: serverPresence }).catch((err: Error) => {
+  mx.setPresence({ presence: serverPresence, status_msg: statusMsg }).catch((err: Error) => {
     debugLog.error('general', 'Failed to send presence to server', {
       error: err.message,
     });

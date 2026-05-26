@@ -408,6 +408,9 @@ export function RoomTimeline({
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let retryIntervalId: ReturnType<typeof setInterval> | undefined;
+    let recenterTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
     if (timelineSync.focusItem) {
       // Reveal the timeline in the same effect that scrolls to the focus event so
       // both the scroll and opacity-1 land in a single commit — no intermediate
@@ -418,6 +421,17 @@ export function RoomTimeline({
         if (processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
+          scrollSucceeded = true;
+
+          // Re-center after a delay to ensure item measurements are complete.
+          // The initial scrollToIndex may not center properly if item heights aren't known yet.
+          recenterTimeoutId = setTimeout(() => {
+            if (vListRef.current && processedIndex !== undefined) {
+              vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+            }
+          }, 300);
+
+          return true;
         }
       }
       timeoutId = setTimeout(() => {
@@ -426,6 +440,8 @@ export function RoomTimeline({
     }
     return () => {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
+      if (retryIntervalId !== undefined) clearInterval(retryIntervalId);
+      if (recenterTimeoutId !== undefined) clearTimeout(recenterTimeoutId);
     };
   }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex]);
 

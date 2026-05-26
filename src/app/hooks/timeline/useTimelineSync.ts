@@ -57,15 +57,10 @@ const useEventTimelineLoader = (
   mx: MatrixClient,
   room: Room,
   onLoad: (eventId: string, linkedTimelines: EventTimeline[], evtAbsIndex: number) => void,
-  onError: (err: Error | null) => void
-) => {
-  // Monotonically-increasing counter so that only the most-recently-started
-  // loadEventTimeline call can commit its result.  Concurrent calls (e.g. from
-  // rapid navigation or concurrent useEffect triggers) would otherwise both call
-  // setFocusItem({scrollTo:true}), causing a double scroll that lands on the wrong event.
-  const loadIdRef = useRef(0);
-
-  return useCallback(
+  onError: (err: Error | null) => void,
+  onProactiveLoad?: () => void
+) =>
+  useCallback(
     async (eventId: string) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const loadId = ++loadIdRef.current;
@@ -231,8 +226,14 @@ const useEventTimelineLoader = (
           performance.now() - jumpLoadStart
         );
         onLoad(eventId, linkedTimelines, absIndex);
+
+        // Proactively load context above and below the jumped-to event so the user
+        // can scroll immediately without waiting for pagination triggers.
+        if (onProactiveLoad) {
+          setTimeout(() => onProactiveLoad(), 500);
+        }
       }),
-    [mx, room, onLoad, onError]
+    [mx, room, onLoad, onError, onProactiveLoad]
   );
 };
 
@@ -584,6 +585,9 @@ export function useTimelineSync({
     }
   }, [eventsLength, liveTimelineLinked, isAtBottom]);
 
+  const handleTimelinePaginationRef = useRef(handleTimelinePagination);
+  handleTimelinePaginationRef.current = handleTimelinePagination;
+
   const loadEventTimeline = useEventTimelineLoader(
     mx,
     room,
@@ -609,7 +613,7 @@ export function useTimelineSync({
     useCallback(() => {
       // Proactively load a batch above and below the jumped-to event so the user
       // can scroll immediately without waiting for pagination triggers.
-      void handleTimelinePaginationRef.current(true); // backward
+      void handleTimelinePaginationRef.current(true);  // backward
       void handleTimelinePaginationRef.current(false); // forward
     }, [])
   );

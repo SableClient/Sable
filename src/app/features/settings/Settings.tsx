@@ -113,7 +113,10 @@ const settingsSectionIdToPage: Record<SettingsSectionId, SettingsPages> = {
 
 const settingsSectionComponents: Record<
   SettingsSectionId,
-  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element
+  | ComponentType<{ requestBack?: () => void; requestClose: () => void }>
+  | LazyExoticComponent<
+      (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element
+    >
 > = {
   general: General,
   account: Account,

@@ -642,19 +642,31 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const query = useCallback(
     (
       term: string,
-      opts?: { roomIds?: string[]; senders?: string[]; hasTypes?: string[] }
+      opts?: { roomIds?: string[]; senders?: string[]; hasTypes?: string[]; exactMatch?: boolean }
     ): Promise<IndexableEvent[]> => {
       if (!workerRef.current || !isReady) return Promise.resolve([]);
+
+      // Parse term for exact match (wrapped in double quotes)
+      let searchTerm = term;
+      let isExactMatch = opts?.exactMatch ?? false;
+
+      if (!isExactMatch && term.startsWith('"') && term.endsWith('"') && term.length > 1) {
+        // Strip quotes for exact match
+        searchTerm = term.slice(1, -1);
+        isExactMatch = true;
+      }
+
       const id = crypto.randomUUID();
       return new Promise((resolve, reject) => {
         pendingQueriesRef.current.set(id, { resolve, reject });
         postToWorker({
           type: 'QUERY',
           id,
-          term,
+          term: searchTerm,
           roomIds: opts?.roomIds,
           senders: opts?.senders,
           hasTypes: opts?.hasTypes,
+          exactMatch: isExactMatch,
         });
       });
     },

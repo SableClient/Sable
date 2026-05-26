@@ -328,7 +328,8 @@ function handleQuery(
   term: string,
   roomIds?: string[],
   senders?: string[],
-  hasTypes?: string[]
+  hasTypes?: string[],
+  exactMatch?: boolean
 ): void {
   if (!index) {
     post({ type: 'QUERY_RESULT', id, events: [] });
@@ -354,9 +355,18 @@ function handleQuery(
     return;
   }
 
-  const rawResults = index.search(term, {
-    filter: (r) => matchesFilters(r as unknown as IndexableEvent),
-  }) as unknown as IndexableEvent[];
+  // Override search options for exact match (disable fuzzy)
+  const searchOptions = exactMatch
+    ? {
+        fuzzy: false,
+        prefix: false,
+        filter: (r: unknown) => matchesFilters(r as IndexableEvent),
+      }
+    : {
+        filter: (r: unknown) => matchesFilters(r as IndexableEvent),
+      };
+
+  const rawResults = index.search(term, searchOptions) as unknown as IndexableEvent[];
 
   post({ type: 'QUERY_RESULT', id, events: rawResults });
 }

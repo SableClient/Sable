@@ -611,7 +611,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
       handleIndexEvents(msg.events);
       break;
     case 'QUERY':
-      handleQuery(msg.id, msg.term, msg.roomIds, msg.senders, msg.hasTypes);
+      handleQuery(msg.id, msg.term, msg.roomIds, msg.senders, msg.hasTypes, msg.exactMatch);
       break;
     case 'SET_BACKFILL_STATE':
       void handleSetBackfillState(msg.roomId, msg.state);

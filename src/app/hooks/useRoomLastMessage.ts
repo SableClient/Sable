@@ -52,15 +52,12 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
     const { msgtype } = displayContent;
     if (msgtype === MsgType.Text || msgtype === MsgType.Emote || msgtype === MsgType.Notice) {
       const body = stripReplyFallback(displayContent.body);
-      // Show "🔗 Link" only if message is primarily a link (URL with minimal surrounding text)
+      // Show "🔗 Link" only if message is ONLY a link with no other text
       if (body) {
-        const urlMatch = body.match(/https?:\/\/[^\s]+/);
-        if (urlMatch) {
-          const textWithoutUrl = body.replace(/https?:\/\/[^\s]+/g, '').trim();
-          // If remaining text is very short or empty, it's just a link
-          if (textWithoutUrl.length < 10) {
-            return '🔗 Link';
-          }
+        const trimmed = body.trim();
+        // Check if the entire message is just a URL
+        if (/^https?:\/\/[^\s]+$/.test(trimmed)) {
+          return '🔗 Link';
         }
       }
       return body;

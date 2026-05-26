@@ -595,6 +595,10 @@ export class SlidingSyncManager {
     };
   }
 
+  public isFullyLoaded(): boolean {
+    return this.listsFullyLoaded;
+  }
+
   private expandListsToKnownCount(): void {
     // Stop expanding once we've loaded all rooms - prevents continuous updates
     if (this.listsFullyLoaded) return;

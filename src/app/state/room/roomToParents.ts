@@ -20,6 +20,11 @@ import {
   mapParentWithChildren,
 } from '$utils/room';
 import { useSyncState } from '$hooks/useSyncState';
+import {
+  atomWithLocalStorage,
+  getLocalStorageItem,
+  setLocalStorageItem,
+} from '../utils/atomWithLocalStorage';
 
 export type RoomToParentsAction =
   | {
@@ -41,52 +46,73 @@ export type RoomToParentsAction =
       roomId: string;
     };
 
+// Strategy 2: Cache room hierarchy in localStorage to eliminate startup computation
+const ROOM_TO_PARENTS_CACHE_KEY = 'roomToParents';
+
+const baseCachedRoomToParents = atomWithLocalStorage<RoomToParents>(
+  ROOM_TO_PARENTS_CACHE_KEY,
+  (key: string) => {
+    // Deserialize from localStorage: [roomId, [parent1, parent2, ...]][]
+    const cached = getLocalStorageItem<[string, string[]][]>(key, []);
+    return new Map(cached.map(([room, parents]: [string, string[]]) => [room, new Set(parents)]));
+  },
+  (key: string, value: RoomToParents) => {
+    // Serialize to localStorage: convert Map<string, Set<string>> to array
+    const serializable = Array.from(value.entries()).map(
+      ([room, parents]: [string, Set<string>]) => [room, Array.from(parents)]
+    );
+    setLocalStorageItem(key, serializable);
+  }
+);
+
 const baseRoomToParents = atom(new Map());
 export const roomToParentsAtom = atom<RoomToParents, [RoomToParentsAction], undefined>(
   (get) => get(baseRoomToParents),
   (get, set, action) => {
     if (action.type === 'INITIALIZE') {
       set(baseRoomToParents, action.roomToParents);
+      // Also update cache
+      set(baseCachedRoomToParents, action.roomToParents);
       return;
     }
     if (action.type === 'PUT') {
-      set(
-        baseRoomToParents,
-        produce(get(baseRoomToParents), (draftRoomToParents) => {
-          mapParentWithChildren(draftRoomToParents, action.parent, action.children);
-        })
-      );
+      const newValue = produce(get(baseRoomToParents), (draftRoomToParents) => {
+        mapParentWithChildren(draftRoomToParents, action.parent, action.children);
+      });
+      set(baseRoomToParents, newValue);
+      // Also update cache
+      set(baseCachedRoomToParents, newValue);
       return;
     }
     if (action.type === 'REMOVE_CHILD') {
-      set(
-        baseRoomToParents,
-        produce(get(baseRoomToParents), (draftRoomToParents) => {
-          const parents = draftRoomToParents.get(action.child);
-          if (!parents) return;
-          parents.delete(action.parent);
-          if (parents.size === 0) {
-            draftRoomToParents.delete(action.child);
-          } else {
-            draftRoomToParents.set(action.child, parents);
-          }
-        })
-      );
+      const newValue = produce(get(baseRoomToParents), (draftRoomToParents) => {
+        const parents = draftRoomToParents.get(action.child);
+        if (!parents) return;
+        parents.delete(action.parent);
+        if (parents.size === 0) {
+          draftRoomToParents.delete(action.child);
+        } else {
+          draftRoomToParents.set(action.child, parents);
+        }
+      });
+      set(baseRoomToParents, newValue);
+      // Also update cache
+      set(baseCachedRoomToParents, newValue);
       return;
     }
     if (action.type === 'DELETE') {
-      set(
-        baseRoomToParents,
-        produce(get(baseRoomToParents), (draftRoomToParents) => {
-          const noParentRooms: string[] = [];
-          draftRoomToParents.delete(action.roomId);
-          draftRoomToParents.forEach((parents, child) => {
-            parents.delete(action.roomId);
-            if (parents.size === 0) noParentRooms.push(child);
-          });
-          noParentRooms.forEach((room) => draftRoomToParents.delete(room));
-        })
-      );
+      const newValue = produce(get(baseRoomToParents), (draftRoomToParents) => {
+        const noParentRooms: string[] = [];
+        draftRoomToParents.delete(action.roomId);
+        draftRoomToParents.forEach((parents, child) => {
+          parents.delete(action.roomId);
+          if (parents.size === 0) noParentRooms.push(child);
+        });
+        noParentRooms.forEach((room) => draftRoomToParents.delete(room));
+      });
+      set(baseRoomToParents, newValue);
+      // Also update cache
+      set(baseCachedRoomToParents, newValue);
     }
   }
 );
@@ -100,6 +126,17 @@ export const useBindRoomToParentsAtom = (
     () => setRoomToParents({ type: 'INITIALIZE', roomToParents: getRoomToParents(mx) }),
     [mx, setRoomToParents]
   );
+
+  // Strategy 2: Initialize from cache immediately on mount
+  useEffect(() => {
+    const cached = getLocalStorageItem<[string, string[]][]>(ROOM_TO_PARENTS_CACHE_KEY, []);
+    if (cached.length > 0) {
+      const cachedMap = new Map(
+        cached.map(([room, parents]: [string, string[]]) => [room, new Set(parents)])
+      );
+      setRoomToParents({ type: 'INITIALIZE', roomToParents: cachedMap });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useSyncState(
     mx,

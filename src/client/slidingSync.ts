@@ -56,6 +56,51 @@ const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
 
+// ---------------------------------------------------------------------------
+// Strategy 3: Sliding Sync List State Caching
+// ---------------------------------------------------------------------------
+
+const SLIDING_SYNC_LIST_CACHE_KEY = 'slidingSyncListCache';
+const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+type CachedListState = {
+  timestamp: number;
+  userId: string;
+  lists: Array<{
+    key: string;
+    count: number;
+  }>;
+};
+
+function getCachedListState(userId: string): CachedListState | null {
+  try {
+    const cached = localStorage.getItem(SLIDING_SYNC_LIST_CACHE_KEY);
+    if (!cached) return null;
+
+    const state: CachedListState = JSON.parse(cached);
+
+    // Validate userId matches
+    if (state.userId !== userId) return null;
+
+    // Validate age (< 24h old)
+    if (Date.now() - state.timestamp > CACHE_MAX_AGE_MS) return null;
+
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedListState(state: CachedListState): void {
+  try {
+    localStorage.setItem(SLIDING_SYNC_LIST_CACHE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore — localStorage may be full or unavailable
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 // Sort order for MSC4186 (Simplified Sliding Sync): most recently active first,
 // then alphabetical as a tiebreaker. by_notification_level is MSC3575-only and
 // not supported by Synapse's native MSC4186 implementation.
@@ -169,15 +214,16 @@ const buildUnencryptedSubscription = (timelineLimit: number): MSC3575RoomSubscri
 const buildLists = (
   pageSize: number,
   includeInviteList: boolean,
-  listTimelineLimit: number
+  listTimelineLimit: number,
+  cachedRoomCount: number = 0
 ): Map<string, MSC3575List> => {
   const lists = new Map<string, MSC3575List>();
   const listRequiredState = buildListRequiredState(listTimelineLimit > 0);
 
-  // Start with a small initial window so the first sync response is cheap:
-  // fewer rooms to process means less SDK work before the UI becomes interactive.
-  // expandListsToKnownCount() will progressively widen the range each cycle.
-  const initialRange = Math.min(pageSize, 20);
+  // Strategy 5: Adaptive initial range based on cached room count.
+  // Start with enough to cover cached rooms, or at least 100.
+  // This ensures we fetch at least all cached rooms in the first sync response.
+  const initialRange = Math.min(pageSize, Math.max(100, cachedRoomCount));
 
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, initialRange - 1)]],
@@ -360,7 +406,13 @@ export class SlidingSyncManager {
     this.roomTimelineLimit = roomTimelineLimit;
 
     const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
-    const lists = buildLists(listPageSize, includeInviteList, this.listTimelineLimit);
+    const cachedRoomCount = mx.getRooms().length;
+    const lists = buildLists(
+      listPageSize,
+      includeInviteList,
+      this.listTimelineLimit,
+      cachedRoomCount
+    );
     this.listKeys = Array.from(lists.keys());
     this.slidingSync = new SlidingSync(proxyBaseUrl, lists, defaultSubscription, mx, pollTimeoutMs);
 
@@ -890,6 +942,48 @@ export class SlidingSyncManager {
     return this.listsFullyLoaded;
   }
 
+  /**
+   * Check if we have a warm cache (existing rooms loaded from IndexedDB).
+   * If true, we can show the UI immediately while sync continues in background.
+   */
+  public hasWarmCache(): boolean {
+    return this.mx.getRooms().length > 0;
+  }
+
+  /**
+   * Strategy 8: Check if we've loaded "sufficient" rooms to show the UI,
+   * even if not all lists are fully loaded. This improves perceived performance
+   * for users with many rooms by not blocking on loading ALL rooms.
+   */
+  public hasSufficientRoomsLoaded(): boolean {
+    if (this.listsFullyLoaded) return true;
+
+    const cachedRoomCount = this.mx.getRooms().length;
+    // Target: load at least 200 rooms, or match cached count (up to 500)
+    // This ensures most users see their recent rooms immediately
+    const targetCount = Math.max(200, Math.min(cachedRoomCount, 500));
+
+    let loadedCount = 0;
+    for (const key of this.listKeys) {
+      const params = this.slidingSync.getListParams(key);
+      const rangeEnd = getListEndIndex(params);
+      loadedCount += rangeEnd + 1; // +1 because range is 0-indexed
+    }
+
+    return loadedCount >= targetCount;
+  }
+
+  /**
+   * Strategy 3: Get cached list state from previous session if available.
+   * Returns null if no cache exists, cache is stale, or userId doesn't match.
+   * UI can use this to optimistically render room order while sync loads fresh data.
+   */
+  public getCachedListState(): CachedListState | null {
+    const userId = this.mx.getUserId();
+    if (!userId) return null;
+    return getCachedListState(userId);
+  }
+
   private expandListsToKnownCount(): void {
     // Stop expanding once we've loaded all rooms - prevents continuous updates
     if (this.listsFullyLoaded) return;
@@ -1001,6 +1095,17 @@ export class SlidingSyncManager {
       Sentry.metrics.gauge('sable.sync.total_rooms', totalRooms, {
         attributes: { transport: 'sliding' },
       });
+
+      // Strategy 3: Cache list state to localStorage for faster next launch
+      const listStateToCache: CachedListState = {
+        timestamp: Date.now(),
+        userId: this.mx.getUserId() ?? '',
+        lists: this.listKeys.map((key) => ({
+          key,
+          count: this.slidingSync.getListData(key)?.joinedCount ?? 0,
+        })),
+      };
+      setCachedListState(listStateToCache);
     } else if (expandedAny) {
       log.log(`Sliding Sync lists expanding... for ${this.mx.getUserId()}`);
     }

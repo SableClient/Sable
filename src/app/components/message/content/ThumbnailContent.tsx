@@ -22,7 +22,7 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
       const thumbInfo = info.thumbnail_info;
       const thumbMxcUrl = info.thumbnail_file?.url ?? info.thumbnail_url;
       const encInfo = info.thumbnail_file;
-      
+
       // Thumbnail data is missing or malformed (common with bridged messages from Discord, Slack, etc.).
       // Return null to render nothing rather than crashing.
       if (typeof thumbMxcUrl !== 'string' || typeof thumbInfo?.mimetype !== 'string') {
@@ -31,7 +31,7 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
 
       const mediaUrl = mediaUrlCache.get(mx, thumbMxcUrl, useAuthentication);
       if (!mediaUrl) return null;
-      
+
       if (encInfo) {
         // Check blob cache first
         const cachedBlob = mediaUrlCache.getBlob(thumbMxcUrl, true, thumbInfo.mimetype);

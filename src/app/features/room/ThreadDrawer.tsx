@@ -91,7 +91,7 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
       !reactionOrEditEvent(ev) &&
       isThreadRelationEvent(ev, threadRootId)
   );
-  
+
   Sentry.addBreadcrumb({
     category: 'thread',
     message: 'getThreadReplyEvents called',
@@ -104,7 +104,7 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
       threadInitialized: thread?.initialEventsFetched ?? false,
     },
   });
-  
+
   if (filteredFromThread.length > 0) {
     Sentry.addBreadcrumb({
       category: 'thread',
@@ -113,12 +113,12 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
       data: {
         threadRootId,
         count: filteredFromThread.length,
-        eventIds: filteredFromThread.map(e => e.getId()).filter(Boolean),
+        eventIds: filteredFromThread.map((e) => e.getId()).filter(Boolean),
       },
     });
     return filteredFromThread;
   }
-  
+
   const fallbackEvents = room
     .getUnfilteredTimelineSet()
     .getLiveTimeline()
@@ -129,7 +129,7 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
         !reactionOrEditEvent(ev) &&
         isThreadRelationEvent(ev, threadRootId)
     );
-  
+
   Sentry.addBreadcrumb({
     category: 'thread',
     message: 'Returning fallback events from main timeline',
@@ -137,10 +137,10 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
     data: {
       threadRootId,
       count: fallbackEvents.length,
-      eventIds: fallbackEvents.map(e => e.getId()).filter(Boolean),
+      eventIds: fallbackEvents.map((e) => e.getId()).filter(Boolean),
     },
   });
-  
+
   return fallbackEvents;
 }
 
@@ -331,7 +331,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     // `forceUpdateCounter` is a cache-busting key for thread/timeline updates.
     void forceUpdateCounter;
     const filtered = processedEvents.filter((e) => e.id !== threadRootId);
-    
+
     Sentry.addBreadcrumb({
       category: 'thread',
       message: 'Computing displayReplies',
@@ -345,7 +345,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         threadInitialized: thread?.initialEventsFetched ?? false,
       },
     });
-    
+
     if (filtered.length > 0) {
       Sentry.addBreadcrumb({
         category: 'thread',
@@ -355,17 +355,17 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       });
       return filtered;
     }
-    
+
     const timelineSet = thread?.timelineSet ?? room.getUnfilteredTimelineSet();
     const fallbackEvents = getThreadReplyEvents(room, threadRootId);
-    
+
     Sentry.addBreadcrumb({
       category: 'thread',
       message: 'Using fallback getThreadReplyEvents',
       level: 'debug',
       data: { threadRootId, count: fallbackEvents.length },
     });
-    
+
     return fallbackEvents.map((ev, idx) => ({
       id: ev.getId() ?? `thread-reply-${idx}`,
       itemIndex: idx,
@@ -493,13 +493,13 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
             sender: mEvent.getSender(),
           },
         });
-        
+
         // Manually add the event to the thread timeline if it's not already there.
         // The SDK should do this automatically, but with sliding sync there may be timing issues.
         const currentThread = room.getThread(threadRootId);
         if (currentThread && currentThread.initialEventsFetched) {
           const eventId = mEvent.getId();
-          const existsInThread = currentThread.events.some(e => e.getId() === eventId);
+          const existsInThread = currentThread.events.some((e) => e.getId() === eventId);
           if (!existsInThread && isThreadRelationEvent(mEvent, threadRootId)) {
             Sentry.addBreadcrumb({
               category: 'thread',
@@ -510,7 +510,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
             currentThread.addEvents([mEvent], false);
           }
         }
-        
+
         // Schedule forceUpdate in a microtask to ensure the SDK has finished
         // adding the event to the thread timeline before we re-render.
         Promise.resolve().then(() => {
@@ -666,7 +666,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       // Get the last visible reply event
       const lastDisplayReply = displayReplies[displayReplies.length - 1];
       const lastEvent = lastDisplayReply?.mEvent;
-      
+
       if (!lastEvent || lastEvent.isSending()) {
         Sentry.addBreadcrumb({
           category: 'thread',

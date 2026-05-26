@@ -213,6 +213,13 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       const useIdbSearch = settings.idbSearchIndex && searchIndex?.isReady === true;
       const isFirstPage = !nextBatch || nextBatch === '';
 
+      // Detect exact match from quotes (for server search and result filtering)
+      const isExactMatch = term
+        ? term.startsWith('"') && term.endsWith('"') && term.length > 1
+        : false;
+      // Strip quotes for server search (server doesn't understand quote syntax)
+      const serverTerm = isExactMatch && term ? term.slice(1, -1) : term;
+
       const { encryptedRoomIds, serverRooms, skipServerSearch } = encryptedSearchEnabled
         ? partitionRoomsByEncryption(mx, rooms)
         : { encryptedRoomIds: [], serverRooms: rooms, skipServerSearch: false };
@@ -320,7 +327,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
             },
             include_state: false,
             order_by: order as SearchOrderBy.Recent,
-            search_term: term,
+            search_term: serverTerm,
           },
         },
       };
@@ -330,9 +337,28 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         next_batch: nextBatch === '' ? undefined : nextBatch,
       });
       const serverResult = parseSearchResult(r);
+
+      // Filter for exact matches when quotes were used
+      const exactMatchFiltered =
+        isExactMatch && serverTerm
+          ? {
+              ...serverResult,
+              groups: serverResult.groups
+                .map((group) => ({
+                  ...group,
+                  items: group.items.filter((item) => {
+                    const body = item.event.content?.body;
+                    if (typeof body !== 'string') return false;
+                    return body.toLowerCase().includes(serverTerm.toLowerCase());
+                  }),
+                }))
+                .filter((group) => group.items.length > 0),
+            }
+          : serverResult;
+
       const filteredServerResult = {
-        ...serverResult,
-        groups: filterGroupsByHasType(serverResult.groups),
+        ...exactMatchFiltered,
+        groups: filterGroupsByHasType(exactMatchFiltered.groups),
       };
 
       if (inMemoryGroups.length === 0) {

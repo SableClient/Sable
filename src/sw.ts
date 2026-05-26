@@ -211,6 +211,61 @@ async function requestSessionWithTimeout(
 }
 
 // ---------------------------------------------------------------------------
+// Strategy 7: Sliding Sync Prefetch
+// ---------------------------------------------------------------------------
+
+/**
+ * Prefetch sliding sync data on SW activation to warm the browser's HTTP cache.
+ * This makes the first sync response arrive faster when the app opens.
+ * Fire-and-forget: failures are silently ignored.
+ */
+async function prefetchSlidingSyncData(session: SessionInfo): Promise<void> {
+  try {
+    // Determine sliding sync proxy URL from homeserver base URL
+    const proxyUrl = new URL(session.baseUrl);
+    // Most deployments use /sliding-sync on the same server
+    // or a well-known sliding sync proxy endpoint
+    const slidingSyncEndpoint = `${proxyUrl.origin}/_matrix/client/unstable/org.matrix.msc3575/sync`;
+
+    // Minimal sliding sync request to fetch recent rooms
+    const requestBody = {
+      lists: {
+        joined: {
+          ranges: [[0, 99]], // First 100 rooms
+          sort: ['by_recency', 'by_name'],
+          timeline_limit: 1, // Minimal timeline to keep response small
+          required_state: [
+            ['m.room.name', ''],
+            ['m.room.avatar', ''],
+            ['m.room.encryption', ''],
+          ],
+          slow_get_all_rooms: false,
+        },
+      },
+    };
+
+    console.debug('[SW] Prefetching sliding sync data...');
+    const response = await fetch(slidingSyncEndpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (response.ok) {
+      console.debug('[SW] Sliding sync prefetch succeeded');
+    } else {
+      console.debug('[SW] Sliding sync prefetch failed:', response.status);
+    }
+  } catch (error) {
+    // Silently ignore — this is best-effort optimization
+    console.debug('[SW] Sliding sync prefetch error:', error);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Encrypted push — decryption relay
 // ---------------------------------------------------------------------------
 
@@ -544,6 +599,16 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // before the first setSession message from the page are immediately
       // authenticated rather than falling through to a 3-second timeout.
       preloadedSession = await loadPersistedSession();
+
+      // Strategy 7: Prefetch sliding sync data on activation (warm cache scenario).
+      // This makes the first sync response arrive faster when the app opens.
+      // Fire-and-forget: don't block activation on this optional optimization.
+      if (preloadedSession) {
+        prefetchSlidingSyncData(preloadedSession).catch(() => {
+          // Silently ignore — this is a best-effort optimization
+        });
+      }
+
       // Proactively request sessions from all window clients so the sessions Map
       // is pre-populated after a SW restart, rather than waiting for the first
       // media fetch to trigger requestSessionWithTimeout.

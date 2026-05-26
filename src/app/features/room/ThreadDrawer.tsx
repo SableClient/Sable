@@ -87,10 +87,35 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
       !reactionOrEditEvent(ev) &&
       isThreadRelationEvent(ev, threadRootId)
   );
+
+  Sentry.addBreadcrumb({
+    category: 'thread',
+    message: 'getThreadReplyEvents called',
+    level: 'debug',
+    data: {
+      threadRootId,
+      threadEventsTotal: fromThread.length,
+      filteredFromThread: filteredFromThread.length,
+      threadExists: !!thread,
+      threadInitialized: thread?.initialEventsFetched ?? false,
+    },
+  });
+
   if (filteredFromThread.length > 0) {
+    Sentry.addBreadcrumb({
+      category: 'thread',
+      message: 'Returning events from thread.events',
+      level: 'debug',
+      data: {
+        threadRootId,
+        count: filteredFromThread.length,
+        eventIds: filteredFromThread.map((e) => e.getId()).filter(Boolean),
+      },
+    });
     return filteredFromThread;
   }
-  return room
+
+  const fallbackEvents = room
     .getUnfilteredTimelineSet()
     .getLiveTimeline()
     .getEvents()
@@ -100,6 +125,19 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
         !reactionOrEditEvent(ev) &&
         isThreadRelationEvent(ev, threadRootId)
     );
+
+  Sentry.addBreadcrumb({
+    category: 'thread',
+    message: 'Returning fallback events from main timeline',
+    level: 'debug',
+    data: {
+      threadRootId,
+      count: fallbackEvents.length,
+      eventIds: fallbackEvents.map((e) => e.getId()).filter(Boolean),
+    },
+  });
+
+  return fallbackEvents;
 }
 
 type ThreadDrawerProps = {
@@ -271,9 +309,42 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     // `forceUpdateCounter` is a cache-busting key for thread/timeline updates.
     void forceUpdateCounter;
     const filtered = processedEvents.filter((e) => e.id !== threadRootId);
-    if (filtered.length > 0) return filtered;
+
+    Sentry.addBreadcrumb({
+      category: 'thread',
+      message: 'Computing displayReplies',
+      level: 'debug',
+      data: {
+        threadRootId,
+        forceUpdateCounter,
+        processedEventsCount: processedEvents.length,
+        filteredCount: filtered.length,
+        threadEventsCount: thread?.events.length ?? 0,
+        threadInitialized: thread?.initialEventsFetched ?? false,
+      },
+    });
+
+    if (filtered.length > 0) {
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'Using processedEvents for display',
+        level: 'debug',
+        data: { threadRootId, count: filtered.length },
+      });
+      return filtered;
+    }
+
     const timelineSet = thread?.timelineSet ?? room.getUnfilteredTimelineSet();
-    return getThreadReplyEvents(room, threadRootId).map((ev, idx) => ({
+    const fallbackEvents = getThreadReplyEvents(room, threadRootId);
+
+    Sentry.addBreadcrumb({
+      category: 'thread',
+      message: 'Using fallback getThreadReplyEvents',
+      level: 'debug',
+      data: { threadRootId, count: fallbackEvents.length },
+    });
+
+    return fallbackEvents.map((ev, idx) => ({
       id: ev.getId() ?? `thread-reply-${idx}`,
       itemIndex: idx,
       mEvent: ev,
@@ -382,7 +453,50 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
     const onTimeline = (mEvent: MatrixEvent) => {
       if (isEventInThread(mEvent)) {
-        forceUpdate((n) => n + 1);
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Timeline event detected in thread',
+          level: 'debug',
+          data: {
+            threadRootId,
+            eventId: mEvent.getId(),
+            eventType: mEvent.getType(),
+            sender: mEvent.getSender(),
+          },
+        });
+
+        // Manually add the event to the thread timeline if it's not already there.
+        // The SDK should do this automatically, but with sliding sync there may be timing issues.
+        const currentThread = room.getThread(threadRootId);
+        if (currentThread && currentThread.initialEventsFetched) {
+          const eventId = mEvent.getId();
+          const existsInThread = currentThread.events.some((e) => e.getId() === eventId);
+          if (!existsInThread && isThreadRelationEvent(mEvent, threadRootId)) {
+            Sentry.addBreadcrumb({
+              category: 'thread',
+              message: 'Manually adding event to thread timeline',
+              level: 'info',
+              data: { threadRootId, eventId },
+            });
+            currentThread.addEvents([mEvent], false);
+          }
+        }
+
+        // Schedule forceUpdate in a microtask to ensure the SDK has finished
+        // adding the event to the thread timeline before we re-render.
+        Promise.resolve().then(() => {
+          Sentry.addBreadcrumb({
+            category: 'thread',
+            message: 'Force update after timeline event',
+            level: 'debug',
+            data: {
+              threadRootId,
+              eventId: mEvent.getId(),
+              threadEventsCount: currentThread?.events.length ?? 0,
+            },
+          });
+          forceUpdate((n) => n + 1);
+        });
       }
     };
     const onRedaction = (mEvent: MatrixEvent) => {
@@ -413,8 +527,22 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       const events = currentThread.events || [];
       if (events.length === 0) return;
 
-      const lastEvent = events[events.length - 1];
-      if (!lastEvent || lastEvent.isSending()) return;
+      // Get the last visible reply event
+      const lastDisplayReply = displayReplies[displayReplies.length - 1];
+      const lastEvent = lastDisplayReply?.mEvent;
+
+      if (!lastEvent || lastEvent.isSending()) {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Cannot mark as read: last event invalid or sending',
+          level: 'debug',
+          data: {
+            hasLastEvent: !!lastEvent,
+            isSending: lastEvent?.isSending(),
+          },
+        });
+        return;
+      }
 
       const userId = mx.getUserId();
       if (!userId) return;

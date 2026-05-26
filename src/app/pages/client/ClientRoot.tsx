@@ -281,6 +281,50 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [mx, startMatrix]);
 
+  // Helper to check if the app is fully ready: sync must be in a ready state,
+  // and for sliding sync, either we have warm cache (show immediately) or
+  // all room lists must be fully loaded to prevent rooms from appearing in
+  // wrong positions or spaces as the list expands.
+  const checkReadyAndClearSplash = useCallback(
+    (state: string | null) => {
+      if (!state || !isClientReady(state)) return;
+
+      const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
+      if (slidingSyncManager) {
+        // Strategy 1 + 4: If we have warm cache, show cached rooms immediately
+        // while sync continues in background (parallel loading)
+        if (slidingSyncManager.hasWarmCache()) {
+          setLoading(false);
+          if (!firstSyncReadyRef.current) {
+            firstSyncReadyRef.current = true;
+            Sentry.metrics.distribution(
+              'sable.startup.time_to_ui_ms',
+              performance.now() - syncStartTimeRef.current,
+              { attributes: { cache_type: 'warm' } }
+            );
+          }
+          return;
+        }
+        // Cold cache: wait for full load to prevent visual jumping
+        // Strategy 8: Use "sufficient rooms" threshold for faster initial display
+        if (!slidingSyncManager.isFullyLoaded() && !slidingSyncManager.hasSufficientRoomsLoaded()) {
+          return;
+        }
+      }
+
+      setLoading(false);
+      if (!firstSyncReadyRef.current) {
+        firstSyncReadyRef.current = true;
+        Sentry.metrics.distribution(
+          'sable.startup.time_to_ui_ms',
+          performance.now() - syncStartTimeRef.current,
+          { attributes: { cache_type: 'cold' } }
+        );
+      }
+    },
+    [mx]
+  );
+
   useEffect(() => {
     if (!mx) return;
     if (isClientReady(mx.getSyncState())) {

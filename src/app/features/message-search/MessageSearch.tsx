@@ -104,8 +104,15 @@ export function MessageSearch({
   const msgSearchParams: MessageSearchParams = useMemo(() => {
     const defaultRooms = isGlobal ? undefined : rooms;
 
+    // Strip quotes from exact search terms before passing to search APIs
+    // (both Matrix server and local IndexedDB search)
+    let searchTerm = searchPathSearchParams.term;
+    if (searchTerm && searchTerm.startsWith('"') && searchTerm.endsWith('"')) {
+      searchTerm = searchTerm.slice(1, -1);
+    }
+
     return {
-      term: searchPathSearchParams.term,
+      term: searchTerm,
       order: searchPathSearchParams.order ?? SearchOrderBy.Recent,
       rooms: searchParamRooms ?? defaultRooms,
       senders: searchParamsSenders ?? senders,
@@ -147,8 +154,43 @@ export function MessageSearch({
   // Only the first page carries in-memory results (no pagination for encrypted rooms)
   const inMemoryRoomCount = data?.pages[0]?.inMemoryRoomCount ?? 0;
 
+  // Detect exact search (quoted string in original search params)
+  const originalSearchTerm = searchPathSearchParams.term || '';
+  const isExactSearch = originalSearchTerm.startsWith('"') && originalSearchTerm.endsWith('"');
+  const exactPhrase = isExactSearch ? originalSearchTerm.slice(1, -1).toLowerCase() : '';
+
+  // Filter results for exact match when quotes are used
+  const filteredGroups = useMemo(() => {
+    if (!isExactSearch) return groups;
+    return groups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const body = item.event.content?.body;
+          if (typeof body !== 'string') return false;
+          return body.toLowerCase().includes(exactPhrase);
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [groups, isExactSearch, exactPhrase]);
+
+  // Flatten groups for ungrouped timeline view
+  const isGrouped = searchPathSearchParams.grouped !== 'false';
+  const flatItems = useMemo(() => {
+    if (isGrouped) return [];
+    const items = filteredGroups.flatMap((group) =>
+      group.items.map((item) => ({
+        ...item,
+        roomId: group.roomId,
+      }))
+    );
+    // Sort by timestamp to truly interleave results across rooms
+    items.sort((a, b) => b.event.origin_server_ts - a.event.origin_server_ts);
+    return items;
+  }, [filteredGroups, isGrouped]);
+
   const virtualizer = useVirtualizer({
-    count: groups.length,
+    count: isGrouped ? filteredGroups.length : flatItems.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 40,
     overscan: 1,
@@ -230,7 +272,7 @@ export function MessageSearch({
 
   const lastVItem = vItems.at(-1);
   const lastVItemIndex: number | undefined = lastVItem?.index;
-  const lastGroupIndex = groups.length - 1;
+  const lastItemIndex = isGrouped ? filteredGroups.length - 1 : flatItems.length - 1;
   useEffect(() => {
     if (
       lastGroupIndex > -1 &&
@@ -308,7 +350,7 @@ export function MessageSearch({
         </PageHeroEmpty>
       )}
 
-      {msgSearchParams.term && groups.length === 0 && status === 'success' && (
+      {isSearching && filteredGroups.length === 0 && status === 'success' && (
         <Box
           className={ContainerColor({ variant: 'Warning' })}
           style={{ padding: config.space.S300, borderRadius: config.radii.R400 }}
@@ -322,8 +364,8 @@ export function MessageSearch({
         </Box>
       )}
 
-      {((msgSearchParams.term && status === 'pending') ||
-        (groups.length > 0 && vItems.length === 0)) && (
+      {((isSearching && status === 'pending') ||
+        ((isGrouped ? filteredGroups.length : flatItems.length) > 0 && vItems.length === 0)) && (
         <Box direction="Column" gap="100">
           {Array.from({ length: 8 }).map(() => (
             <SequenceCard
@@ -353,11 +395,12 @@ export function MessageSearch({
               height: virtualizer.getTotalSize(),
             }}
           >
-            {vItems.map((vItem) => {
-              const group = groups[vItem.index];
-              if (!group) return null;
-              const groupRoom = mx.getRoom(group.roomId);
-              if (!groupRoom) return null;
+            {isGrouped
+              ? vItems.map((vItem) => {
+                  const group = filteredGroups[vItem.index];
+                  if (!group) return null;
+                  const groupRoom = mx.getRoom(group.roomId);
+                  if (!groupRoom) return null;
 
               return (
                 <VirtualTile

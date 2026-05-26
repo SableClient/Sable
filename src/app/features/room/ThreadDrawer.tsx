@@ -311,6 +311,10 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
   const processedReplies = displayReplies;
 
+  // Track thread initialization state to trigger backfill when ready.
+  // Using a separate variable avoids running the entire init effect on every event update.
+  const threadInitialized = thread?.initialEventsFetched ?? false;
+
   // Ensure the Thread object exists and has its reply events loaded.
   useEffect(() => {
     // Case A: create thread shell; SDK handles the rest asynchronously.
@@ -318,21 +322,25 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       const localRoot = room.findEventById(threadRootId);
       if (localRoot) {
         room.createThread(threadRootId, localRoot, [], false);
-      } else {
-        // Root not in local timeline — fetch it from the server without
-        // touching the main timeline (no TimelineRefresh side-effect).
-        mx.fetchRoomEvent(room.roomId, threadRootId)
-          .then((rawEvt) => {
-            if (room.getThread(threadRootId)) return; // created concurrently
-            room.createThread(threadRootId, new MatrixEvent(rawEvt as IEvent), [], false);
-          })
-          .catch(() => {});
+        // Don't continue - wait for SDK to initialize the thread
+        return;
       }
+      // Root not in local timeline — fetch it from the server without
+      // touching the main timeline (no TimelineRefresh side-effect).
+      mx.fetchRoomEvent(room.roomId, threadRootId)
+        .then((rawEvt) => {
+          if (room.getThread(threadRootId)) return; // created concurrently
+          room.createThread(threadRootId, new MatrixEvent(rawEvt as IEvent), [], false);
+          // Force update to re-run this effect once thread is created
+          forceUpdate((n) => n + 1);
+        })
+        .catch(() => {});
+      return;
     }
 
     const currThread = room.getThread(threadRootId);
     // Case B: SDK is actively initialising — don't interfere.
-    if (!currThread || !currThread.initialEventsFetched) return;
+    if (!currThread || !threadInitialized) return;
 
     // Case C: SDK is done (or classic sync). Backfill from live timeline if
     // thread.events is still empty (classic sync path; server-side was already
@@ -369,10 +377,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     mx.paginateEventTimeline(currThread.timelineSet.getLiveTimeline(), { backwards: true })
       .then(() => forceUpdate((n) => n + 1))
       .catch(() => {});
-    // forceUpdateCounter must be in deps so this effect re-runs after
-    // ThreadEvent.Update fires (which flips initialEventsFetched from false to
-    // true).
-  }, [mx, room, threadRootId, forceUpdate, forceUpdateCounter]);
+    // threadInitialized changes when initialEventsFetched becomes true,
+    // triggering this effect to run backfill logic without running on every event.
+  }, [mx, room, threadRootId, forceUpdate, threadInitialized]);
 
   // Re-render when new thread events arrive (including reactions via ThreadEvent.Update).
   useEffect(() => {
@@ -403,16 +410,22 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
     const onTimeline = (mEvent: MatrixEvent) => {
       if (isEventInThread(mEvent)) {
-        forceUpdate((n) => n + 1);
+        // Schedule forceUpdate in a microtask to ensure the SDK has finished
+        // adding the event to the thread timeline before we re-render.
+        Promise.resolve().then(() => forceUpdate((n) => n + 1));
       }
     };
     const onRedaction = (mEvent: MatrixEvent) => {
       // Redactions (removing reactions/messages) should also trigger updates
       if (isEventInThread(mEvent)) {
-        forceUpdate((n) => n + 1);
+        Promise.resolve().then(() => forceUpdate((n) => n + 1));
       }
     };
-    const onThreadUpdate = () => forceUpdate((n) => n + 1);
+    const onThreadUpdate = () => {
+      // Thread metadata updates (reply count, participants) should also wait
+      // for SDK to finish processing before re-rendering.
+      Promise.resolve().then(() => forceUpdate((n) => n + 1));
+    };
     mx.on(RoomEvent.Timeline, onTimeline);
     room.on(RoomEvent.Redaction, onRedaction);
     room.on(ThreadEvent.Update, onThreadUpdate);
@@ -458,11 +471,18 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
       const readUpToId = currentThread.getEventReadUpTo(userId, false);
       const lastEventId = lastEvent.getId();
+      if (!lastEventId) return;
 
       // Only send receipt if we haven't already read up to the last event
       if (readUpToId !== lastEventId) {
         try {
-          await mx.sendReadReceipt(lastEvent, ReceiptType.Read);
+          // Send both read receipt AND read marker to ensure room-level unread badge clears.
+          // Thread replies are part of the main room timeline, so we need to update both
+          // the thread-specific receipt and the room-level marker.
+          await Promise.all([
+            mx.sendReadReceipt(lastEvent, ReceiptType.Read),
+            mx.setRoomReadMarkers(room.roomId, lastEventId, lastEvent),
+          ]);
         } catch (err) {
           console.warn('Failed to send thread read receipt:', err);
         }

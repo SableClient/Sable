@@ -14,9 +14,16 @@ import { ErrorPage } from '$components/DefaultErrorPage';
 import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
 
 // Lazy-load Settings to reduce initial bundle size
-const SettingsRoute = lazy(() =>
-  import('$features/settings').then((m) => ({ default: m.SettingsRoute }))
-);
+const SettingsRoute = lazy(() => {
+  const start = performance.now();
+  return import('$features/settings').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'settings' },
+    });
+    return { default: m.SettingsRoute };
+  });
+});
 import { Room } from '$features/room';
 import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';

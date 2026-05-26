@@ -425,12 +425,20 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
   try {
     // Parallelize IndexedDB sync store startup and crypto initialization
     // These are independent operations that can run concurrently
+    const parallelInitStart = performance.now();
     await Promise.all([
       storeStartup,
       mx.initRustCrypto({
         cryptoDatabasePrefix: storeName.rustCryptoPrefix,
       }),
     ]);
+    const parallelInitDuration = performance.now() - parallelInitStart;
+    Sentry.metrics.distribution('sable.startup.parallel_idb_init_ms', parallelInitDuration, {
+      attributes: { userId: session.userId },
+    });
+    debugLog.info('sync', 'Parallel IndexedDB initialization completed', {
+      duration: `${parallelInitDuration.toFixed(0)}ms`,
+    });
   } catch (err) {
     if (!isMismatch(err)) {
       debugLog.error('sync', 'Failed to initialize stores', { error: err });

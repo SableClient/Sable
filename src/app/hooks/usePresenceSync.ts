@@ -199,10 +199,12 @@ function sendPresenceToServer(
     // Preserve custom status when auto-idled
     statusMsg = customStatusMsg || undefined;
   } else if (presenceMode === 'dnd') {
-    // DND is encoded as online + status_msg='dnd' so other Sable clients
-    // can decode it and show the DND badge (red color)
+    // DND is encoded as online + status_msg starting with '[dnd]' so:
+    // - Other Sable clients decode it and show the DND badge (red color)
+    // - Non-Sable clients see the [dnd] prefix and custom status
+    // - Sable strips the [dnd] prefix when displaying status text
     serverPresence = 'online';
-    statusMsg = 'dnd';
+    statusMsg = customStatusMsg ? `[dnd] ${customStatusMsg}` : '[dnd]';
   } else if (presenceMode === 'offline') {
     serverPresence = 'offline';
     statusMsg = customStatusMsg || undefined;

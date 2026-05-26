@@ -20,16 +20,25 @@ export type UserPresence = {
 
 const getUserPresence = (user: User): UserPresence => {
   const rawPresence = user.presence as Presence;
-  // DND is encoded as online + status_msg 'dnd'. Decode it back so the badge
-  // renders red for any Sable client, not just the sender's own account switcher.
-  const presence =
-    rawPresence === Presence.Online && user.presenceStatusMsg === 'dnd'
-      ? Presence.Dnd
-      : rawPresence;
+  const statusMsg = user.presenceStatusMsg ?? '';
+  // DND is encoded as online + status_msg starting with '[dnd]'. Decode it back
+  // so the badge renders red for any Sable client, not just the sender's own account switcher.
+  const isDnd = rawPresence === Presence.Online && statusMsg.startsWith('[dnd]');
+  const presence = isDnd ? Presence.Dnd : rawPresence;
+  
+  // Strip the [dnd] prefix when displaying status in Sable
+  let displayStatus: string | undefined;
+  if (isDnd) {
+    // Remove '[dnd]' prefix and any following space, show remaining custom status
+    const withoutPrefix = statusMsg.slice(5).trimStart();
+    displayStatus = withoutPrefix || undefined;
+  } else {
+    displayStatus = statusMsg || undefined;
+  }
+  
   return {
     presence,
-    // Don't leak the internal DND sentinel as a visible status message.
-    status: user.presenceStatusMsg !== 'dnd' ? user.presenceStatusMsg : undefined,
+    status: displayStatus,
     active: user.currentlyActive,
     lastActiveTs: user.getLastActiveTs(),
   };

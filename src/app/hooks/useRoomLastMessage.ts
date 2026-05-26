@@ -51,7 +51,9 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   if (type === ROOM_MESSAGE_EVENT_TYPE) {
     const { msgtype } = displayContent;
     if (msgtype === MsgType.Text || msgtype === MsgType.Emote || msgtype === MsgType.Notice) {
-      const body = stripReplyFallback(displayContent.body);
+      const rawBody = displayContent.body;
+      if (typeof rawBody !== 'string') return undefined;
+      const body = stripReplyFallback(rawBody);
       // Show "🔗 Link" only if message is ONLY a link with no other text
       if (body) {
         const trimmed = body.trim();

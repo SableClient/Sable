@@ -188,6 +188,44 @@ const useEventTimelineLoader = (
           return;
         }
 
+        // Validate that the loaded timeline is connected to (or contains) the live timeline.
+        // If not, the SDK returned a disconnected fragment which causes "no history" or
+        // "wrong order" issues when opening from notifications.
+        const liveTimeline = getLiveTimeline(room);
+        const containsLive = linkedTimelines.some((tl) => tl === liveTimeline);
+
+        if (!containsLive) {
+          // Disconnected fragment detected - fall back to live timeline to avoid broken view.
+          // The event likely exists in the live timeline now (sync caught up), or pagination
+          // will fetch it.
+          Sentry.captureMessage('Loaded disconnected timeline fragment, falling back to live', {
+            level: 'warning',
+            extra: {
+              eventId,
+              fragmentLength: linkedTimelines.length,
+              fragmentEventsCount: getTimelinesEventsCount(linkedTimelines),
+            },
+            tags: { feature: 'timeline', issue: 'disconnected_fragment' },
+          });
+
+          // Check if the event now exists in the live timeline
+          const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
+          const liveAbsIndex = getEventIdAbsoluteIndex(
+            liveLinkedTimelines,
+            liveTimeline,
+            eventId
+          );
+
+          if (liveAbsIndex !== undefined) {
+            // Event found in live timeline - use that instead
+            onLoad(eventId, liveLinkedTimelines, liveAbsIndex);
+          } else {
+            // Event not in live timeline - trigger error fallback (returns to live without jump)
+            onError(new Error('Event timeline disconnected from live timeline'));
+          }
+          return;
+        }
+
         Sentry.metrics.distribution(
           'sable.timeline.jump_load_ms',
           performance.now() - jumpLoadStart

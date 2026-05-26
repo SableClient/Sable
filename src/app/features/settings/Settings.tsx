@@ -28,11 +28,25 @@ import { stopPropagation } from '$utils/keyboard';
 import { LogoutDialog } from '$components/LogoutDialog';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { lazy, Suspense } from 'react';
+import * as Sentry from '@sentry/react';
 import { About } from './about';
 import { Account } from './account';
 import { Cosmetics } from './cosmetics/Cosmetics';
 import { DeveloperTools } from './developer-tools';
 import { Devices } from './devices';
+
+// Lazy-load DeveloperTools to reduce Settings bundle size
+const DeveloperTools = lazy(() => {
+  const start = performance.now();
+  return import('./developer-tools').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'developer_tools' },
+    });
+    return { default: m.DeveloperTools };
+  });
+});
 import { EmojisStickers } from './emojis-stickers';
 import { Experimental } from './experimental/Experimental';
 import { General } from './general';

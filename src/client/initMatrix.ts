@@ -49,7 +49,10 @@ type SyncTransportMeta = {
 };
 const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
 const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
-const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 20000;
+// Reduced from 20s to 8s to improve perceived cold launch performance.
+// 8 seconds is sufficient for most networks while still allowing time for
+// slow connections. If the bootstrap times out, sliding sync takes over.
+const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 8000;
 
 type FetchRoomEventResult = Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>;
 type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {

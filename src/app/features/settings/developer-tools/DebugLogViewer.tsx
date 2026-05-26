@@ -41,13 +41,23 @@ const getCategoryBadgeVariant = (
     case 'error':
       return 'Critical';
     case 'sync':
+    case 'network':
       return 'Primary';
     case 'notification':
       return 'Success';
     case 'message':
+    case 'timeline':
       return 'Secondary';
     case 'call':
+    case 'media':
       return 'Warning';
+    case 'search':
+    case 'idb':
+    case 'storage':
+    case 'worker':
+    case 'crypto':
+    case 'auth':
+      return 'Secondary';
     default:
       return 'Secondary';
   }
@@ -284,8 +294,9 @@ export function DebugLogViewer() {
 
         <Text size="T300" style={{ opacity: 0.8 }}>
           Internal debug logging captures sync state, network events, notifications, messages,
-          calls, UI component lifecycle, and timeline operations. Logs are stored in memory (max
-          1000 entries) and cleared when you close the app.
+          calls, search indexing, storage operations (IDB), worker lifecycle, media handling,
+          crypto operations, authentication, UI components, and timeline operations. Logs are
+          stored in memory (max 1000 entries) and cleared when you close the app.
         </Text>
 
         {/* Filter Controls */}

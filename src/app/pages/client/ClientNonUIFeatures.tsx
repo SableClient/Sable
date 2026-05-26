@@ -9,7 +9,6 @@ import {
   MatrixEventEvent,
   PushProcessor,
   RoomEvent,
-  SetPresence,
   SyncState,
   EventType,
 } from '$types/matrix-sdk';
@@ -60,8 +59,10 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
-import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
-import { getInboxInvitesPath } from '../pathUtils';
+import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
+import { useReminderSync } from '$features/bookmarks/useReminderSync';
+import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
 const pushRelayLog = createDebugLogger('push-relay');
@@ -843,51 +844,25 @@ function HandleDecryptPushEvent() {
 }
 
 function PresenceFeature() {
-  const mx = useMatrixClient();
-  const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
-  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
-  const [autoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
-  const [presenceIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
-  const [presenceStatusMsg] = useSetting(settingsAtom, 'presenceStatusMsg');
-  const [autoIdled] = useAtom(presenceAutoIdledAtom);
+  // Presence sync is now handled by PresenceSyncFeature below.
+  // This component is kept as a stub in case we need global presence
+  // on/off logic in the future, but the actual state sync happens via
+  // account data in usePresenceSyncEffect.
+  return null;
+}
 
-  const timeoutMs = autoIdlePresence ? Math.max(1, presenceIdleTimeoutMins) * 60 * 1000 : 0;
-  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
+function PresenceSyncFeature() {
+  usePresenceSyncEffect();
+  return null;
+}
+
+function ProgressivePrefetchFeature() {
+  const mx = useMatrixClient();
+  const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
 
   useEffect(() => {
-    // When auto-idled, broadcast as unavailable regardless of the configured mode.
-    const effectiveMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
-    // DND broadcasts as online (you're active but don't want to be disturbed) with a status_msg.
-    const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
-    const effectiveState = sendPresence ? activePresence : 'offline';
-    const broadcasting = effectiveState !== 'offline';
-    // DND overrides the user's custom status message with the 'dnd' sentinel.
-    const effectiveStatusMsg = sendPresence && effectiveMode === 'dnd' ? 'dnd' : presenceStatusMsg;
-
-    // Classic sync: set_presence query param on every /sync poll.
-    // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(broadcasting ? undefined : SetPresence.Offline);
-    // Sliding sync: keep the extension enabled so we always receive others' presence.
-    // Only disable it when the master sendPresence toggle is off (full privacy mode).
-    getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-
-    // Explicitly PUT /presence/{userId}/status so the server knows the exact state.
-    // Do the optimistic update AFTER the network call to avoid inconsistency if it fails.
-    mx.setPresence({
-      presence: effectiveState,
-      status_msg: effectiveStatusMsg,
-    })
-      .then(() => {
-        // Optimistically update own presence in the local SDK store so the member list
-        // badge and status editor reflect the change immediately. MSC4186 servers never
-        // echo own presence back, so we rely on this local update for consistency.
-        getSlidingSyncManager(mx)?.updateOwnPresence(effectiveState, effectiveStatusMsg);
-      })
-      .catch(() => {
-        // Server doesn't support presence or network error — the local SDK store
-        // won't be updated, but that's acceptable since the server state is canonical.
-      });
-  }, [mx, sendPresence, presenceMode, presenceStatusMsg, autoIdled]);
+    getSlidingSyncManager(mx)?.setProgressivePrefetch(progressivePrefetch);
+  }, [mx, progressivePrefetch]);
 
   return null;
 }
@@ -916,6 +891,8 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <ThemeMigrationBanner />
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
+      <PresenceSyncFeature />
+      <ProgressivePrefetchFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />

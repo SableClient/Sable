@@ -22,6 +22,11 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
   const normalizedBg = useUniformIcons && image ? bgColorImg(image) : undefined;
 
   useEffect(() => {
+    if (!src) {
+      setProcessedSrc(undefined);
+      return () => {};
+    }
+
     let isMounted = true;
     let objectUrl: string | null = null;
 

@@ -404,6 +404,58 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     };
   }, [mx, room, threadRootId]);
 
+  // Listen directly on the thread for timeline and reset events.
+  // This provides a shorter, more reliable signal path than the
+  // timelineSet → thread → room → mx re-emission chain, and also
+  // catches RoomEvent.TimelineReset (fired when the thread timeline
+  // is cleared and re-populated during initialisation).
+  useEffect(() => {
+    if (!thread) return () => {};
+    const onDirectTimelineUpdate = (event?: MatrixEvent) => {
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'Direct thread timeline event',
+        level: 'debug',
+        data: {
+          threadRootId,
+          eventId: event?.getId(),
+          eventType: event?.getType(),
+          threadEventsCount: thread.events.length,
+        },
+      });
+      Sentry.metrics.count('sable.thread.direct_timeline_event', 1, {
+        attributes: { threadId: threadRootId },
+      });
+      // Microtask delay to ensure SDK finishes processing before re-render
+      Promise.resolve().then(() => {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Force update after direct thread event',
+          level: 'debug',
+          data: { threadRootId, eventId: event?.getId() },
+        });
+        forceUpdate((n) => n + 1);
+      });
+    };
+    const onDirectTimelineReset = () => {
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'Direct thread timeline reset',
+        level: 'info',
+        data: { threadRootId, threadEventsCount: thread.events.length },
+      });
+      Promise.resolve().then(() => {
+        forceUpdate((n) => n + 1);
+      });
+    };
+    thread.on(RoomEvent.Timeline, onDirectTimelineUpdate);
+    thread.on(RoomEvent.TimelineReset, onDirectTimelineReset);
+    return () => {
+      thread.off(RoomEvent.Timeline, onDirectTimelineUpdate);
+      thread.off(RoomEvent.TimelineReset, onDirectTimelineReset);
+    };
+  }, [thread, threadRootId]);
+
   // Mark thread as read when viewing it
   useEffect(() => {
     const markThreadAsRead = async () => {

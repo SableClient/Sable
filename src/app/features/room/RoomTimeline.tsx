@@ -401,6 +401,20 @@ export function RoomTimeline({
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
         }
+        return false;
+      };
+
+      // Try immediate scroll
+      if (!attemptScroll()) {
+        // If immediate scroll failed (event not in processedEvents yet), retry periodically.
+        // This handles the case where pagination just loaded the event but React hasn't
+        // finished processing/rendering it yet.
+        retryIntervalId = setInterval(() => {
+          if (attemptScroll()) {
+            clearInterval(retryIntervalId);
+            retryIntervalId = undefined;
+          }
+        }, 200);
       }
       timeoutId = setTimeout(() => {
         timelineSync.setFocusItem(undefined);

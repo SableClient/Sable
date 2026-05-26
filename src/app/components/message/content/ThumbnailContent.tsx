@@ -27,10 +27,24 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
       const mediaUrl = mxcUrlToHttp(mx, thumbMxcUrl, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
       if (encInfo) {
-        const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-          decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo)
-        );
-        return URL.createObjectURL(fileContent);
+        // Check blob cache first
+        const cachedBlob = mediaUrlCache.getBlob(thumbMxcUrl, true, thumbInfo.mimetype);
+        if (cachedBlob) return cachedBlob;
+
+        try {
+          const fileContent = await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) => decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo),
+            mx.getAccessToken()
+          );
+          const blobUrl = URL.createObjectURL(fileContent);
+          mediaUrlCache.setBlob(thumbMxcUrl, true, blobUrl, thumbInfo.mimetype);
+          return blobUrl;
+        } catch {
+          // Network-level media fetch failed (timeout, 404, 401, etc.).
+          // Return null so the component renders nothing instead of propagating to error boundary.
+          return null;
+        }
       }
 
       return mediaUrl;

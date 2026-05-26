@@ -702,7 +702,7 @@ export function RoomTimeline({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isKeyboardVisible, keyboardHeight]);
+  }, [isKeyboardVisible, keyboardHeight, setAtBottom]);
 
   // When the thread drawer opens/closes on desktop, the main timeline column
   // changes width and Virtua remeasures all item heights.  Save the scroll

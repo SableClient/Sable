@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import {
   Outlet,
   Route,
@@ -10,8 +11,12 @@ import * as Sentry from '@sentry/react';
 
 import type { ClientConfig } from '$hooks/useClientConfig';
 import { ErrorPage } from '$components/DefaultErrorPage';
-import { SettingsRoute } from '$features/settings';
 import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
+
+// Lazy-load Settings to reduce initial bundle size
+const SettingsRoute = lazy(() =>
+  import('$features/settings').then((m) => ({ default: m.SettingsRoute }))
+);
 import { Room } from '$features/room';
 import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';
@@ -350,7 +355,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
         </Route>
         <Route path={CREATE_PATH} element={<Create />} />
-        <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+        <Route
+          path={SETTINGS_PATH}
+          element={
+            <Suspense fallback={null}>
+              <SettingsRoute />
+            </Suspense>
+          }
+        />
         <Route
           path={INBOX_PATH}
           element={

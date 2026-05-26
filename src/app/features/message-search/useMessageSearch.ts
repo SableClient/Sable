@@ -280,10 +280,15 @@ export const useMessageSearch = (params: MessageSearchParams) => {
           }
         }
 
-        // Generate highlights from search term (strip quotes for exact match)
-        const termForHighlights =
-          term?.startsWith('"') && term.endsWith('"') && term.length > 1 ? term.slice(1, -1) : term;
-        const termWords = termForHighlights ? termForHighlights.split(/\s+/).filter(Boolean) : [];
+        // Generate highlights from search term
+        // For exact match (quoted), keep as single phrase; otherwise split into words
+        const isQuotedExactMatch = term?.startsWith('"') && term.endsWith('"') && term.length > 1;
+        const termForHighlights = isQuotedExactMatch && term ? term.slice(1, -1) : term;
+        const termWords = termForHighlights
+          ? isQuotedExactMatch
+            ? [termForHighlights] // Keep exact match as single phrase
+            : termForHighlights.split(/\s+/).filter(Boolean) // Split fuzzy search into words
+          : [];
 
         return {
           highlights: termWords,
@@ -334,10 +339,13 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         return filteredServerResult;
       }
 
-      // Generate highlights from search term (strip quotes for exact match)
-      const termForHighlights =
-        term.startsWith('"') && term.endsWith('"') && term.length > 1 ? term.slice(1, -1) : term;
-      const termWords = termForHighlights.split(/\s+/).filter(Boolean);
+      // Generate highlights from search term
+      // For exact match (quoted), keep as single phrase; otherwise split into words
+      const isQuotedExactMatch = term.startsWith('"') && term.endsWith('"') && term.length > 1;
+      const termForHighlights = isQuotedExactMatch ? term.slice(1, -1) : term;
+      const termWords = isQuotedExactMatch
+        ? [termForHighlights] // Keep exact match as single phrase
+        : termForHighlights.split(/\s+/).filter(Boolean); // Split fuzzy search into words
 
       return {
         ...filteredServerResult,

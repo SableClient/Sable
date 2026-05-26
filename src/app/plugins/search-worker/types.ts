@@ -59,6 +59,8 @@ export type WorkerInMessage =
       senders?: string[];
       /** SearchHasType values to filter by, e.g. ['image', 'link']. */
       hasTypes?: string[];
+      /** When true, disable fuzzy matching for exact search (e.g. quoted terms). */
+      exactMatch?: boolean;
     }
   | {
       type: 'SET_BACKFILL_STATE';

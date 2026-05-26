@@ -279,8 +279,14 @@ export const useMessageSearch = (params: MessageSearchParams) => {
             }
           }
         }
+
+        // Generate highlights from search term (strip quotes for exact match)
+        const termForHighlights =
+          term?.startsWith('"') && term.endsWith('"') && term.length > 1 ? term.slice(1, -1) : term;
+        const termWords = termForHighlights ? termForHighlights.split(/\s+/).filter(Boolean) : [];
+
         return {
-          highlights: [],
+          highlights: termWords,
           groups: mergeSearchGroups(
             filterGroupsByHasType(inMemoryGroups),
             unencryptedMemoryGroups,
@@ -328,7 +334,11 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         return filteredServerResult;
       }
 
-      const termWords = term.split(/\s+/).filter(Boolean);
+      // Generate highlights from search term (strip quotes for exact match)
+      const termForHighlights =
+        term.startsWith('"') && term.endsWith('"') && term.length > 1 ? term.slice(1, -1) : term;
+      const termWords = termForHighlights.split(/\s+/).filter(Boolean);
+
       return {
         ...filteredServerResult,
         groups: mergeSearchGroups(

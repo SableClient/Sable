@@ -60,6 +60,7 @@ import { useSpaceOptionally } from '$hooks/useSpace';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
+import { useKeyboardHeight } from '$hooks/ios-keyboard-fix';
 import { settingsAtom, MessageLayout } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { nicknamesAtom } from '$state/nicknames';
@@ -205,6 +206,10 @@ export function RoomTimeline({
   const mediaAuthentication = useMediaAuthentication();
   const spoilerClickHandler = useSpoilerClickHandler();
   const mentionClickHandler = useMentionClickHandler(room.roomId);
+  const { isKeyboardVisible, keyboardHeight } = useKeyboardHeight();
+  const prevKeyboardVisibleRef = useRef(false);
+  const prevKeyboardHeightRef = useRef(0);
+  const lastKeyboardCloseTimeRef = useRef(0);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const openUserRoomProfile = useOpenUserRoomProfile();
   const optionalSpace = useSpaceOptionally();
@@ -519,7 +524,8 @@ export function RoomTimeline({
       const newHeight = entries[0]!.contentRect.height;
       const prev = prevViewportHeightRef.current;
       const atBottom = atBottomRef.current;
-      const shrank = newHeight < prev;
+      const changed = newHeight !== prev;
+      const heightDelta = newHeight - prev;
 
       // Detect if this viewport expansion is from keyboard closing.
       // If the viewport grew by roughly the keyboard height that just disappeared,
@@ -535,11 +541,6 @@ export function RoomTimeline({
 
       if (keyboardJustClosed) {
         lastKeyboardCloseTimeRef.current = Date.now();
-        // If we were at bottom when keyboard closed, immediately ensure atBottom
-        // state is true to hide "Jump to Latest" button without delay
-        if (atBottom) {
-          setAtBottom(true);
-        }
       }
 
       // Handle both viewport shrinking (keyboard open) and expanding (keyboard close)
@@ -552,11 +553,13 @@ export function RoomTimeline({
         vListRef.current?.scrollTo(vListRef.current.scrollSize);
       }
       prevViewportHeightRef.current = newHeight;
+      prevKeyboardVisibleRef.current = isKeyboardVisible;
+      prevKeyboardHeightRef.current = keyboardHeight;
     });
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [isKeyboardVisible, keyboardHeight]);
 
   const actions = useTimelineActions({
     room,
@@ -752,8 +755,13 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
-      const withinSettleWindow =
-        Date.now() - lastProgrammaticBottomPinAtRef.current < SCROLL_SETTLE_MS;
+
+      // Use extended settle window (500ms) when keyboard just closed to fully
+      // suppress the jump button during the close animation. Otherwise use the
+      // standard 250ms window.
+      const keyboardCloseRecent = Date.now() - lastKeyboardCloseTimeRef.current < 500;
+      const settleMs = keyboardCloseRecent ? 500 : SCROLL_SETTLE_MS;
+      const withinSettleWindow = Date.now() - lastProgrammaticBottomPinAtRef.current < settleMs;
 
       // When the user is pinned to the bottom and content grows (images, embeds,
       // video thumbnails loading), scrollSize increases while offset stays put,

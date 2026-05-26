@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
 import type { MatrixEvent, MatrixClient } from '$types/matrix-sdk';
-import { SetPresence } from '$types/matrix-sdk';
+import { SetPresence, MatrixError } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
@@ -12,7 +12,16 @@ import { createDebugLogger } from '$utils/debugLogger';
 const debugLog = createDebugLogger('PresenceSync');
 
 /** Milliseconds to wait after a local presence change before uploading. */
-const DEBOUNCE_MS = 500;
+const DEBOUNCE_MS = 25000; // 25 seconds
+
+/** Minimum time between presence updates to avoid rate limiting. */
+const THROTTLE_MS = 25000; // 25 seconds
+
+/** Sleep utility for rate limit backoff. */
+const sleep = (ms: number) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+/** Timestamp (ms) of the last successful presence send. */
+let lastSentTimestamp = 0;
 
 type PresenceState = {
   /** The selected presence mode: 'online' | 'unavailable' | 'dnd' | 'offline' */
@@ -132,7 +141,7 @@ export function usePresenceSyncEffect(): void {
 
       // Also send to the server so it broadcasts to others
       // (even though it won't echo back to us)
-      sendPresenceToServer(mx, state.presenceMode, state.autoIdled, settingsRef.current.presenceStatusMsg, syncEnabled);
+      void sendPresenceToServer(mx, state.presenceMode, state.autoIdled, settingsRef.current.presenceStatusMsg, syncEnabled);
     },
     [mx, setSettings, setAutoIdled, syncEnabled]
   );
@@ -169,7 +178,7 @@ export function usePresenceSyncEffect(): void {
         });
 
       // Also send to the server
-      sendPresenceToServer(mx, presenceMode, autoIdled, settings.presenceStatusMsg, syncEnabled);
+      void sendPresenceToServer(mx, presenceMode, autoIdled, settings.presenceStatusMsg, syncEnabled);
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timerRef.current);
@@ -178,17 +187,31 @@ export function usePresenceSyncEffect(): void {
 
 /**
  * Send presence state to the Matrix server.
- * For auto-idle, sends 'unavailable'. For DND, sends 'online' with status_msg='dnd'
+ * For auto-idle, sends 'unavailable'. For DND, sends 'online' with status_msg='[dnd]'
  * so other Sable clients can decode and display the DND badge.
+ * 
+ * Throttles to at most once per THROTTLE_MS to avoid rate limiting.
+ * If rate limited (429), respects Retry-After header and backs off.
  */
-function sendPresenceToServer(
+async function sendPresenceToServer(
   mx: MatrixClient,
   presenceMode: 'online' | 'unavailable' | 'dnd' | 'offline',
   autoIdled: boolean,
   customStatusMsg: string,
   syncEnabled: boolean
-): void {
+): Promise<void> {
   if (!syncEnabled) return;
+
+  // Throttle: don't send more frequently than THROTTLE_MS
+  const now = Date.now();
+  const timeSinceLastSent = now - lastSentTimestamp;
+  if (timeSinceLastSent < THROTTLE_MS) {
+    debugLog.info('general', 'Skipping presence update (throttled)', {
+      timeSinceLastSent,
+      throttleMs: THROTTLE_MS,
+    });
+    return;
+  }
 
   // Determine effective presence to send to server
   let serverPresence: 'online' | 'unavailable' | 'offline' = 'online';
@@ -224,12 +247,28 @@ function sendPresenceToServer(
     statusMsg,
   });
 
-  // Send via matrix-js-sdk
-  mx.setPresence({ presence: serverPresence, status_msg: statusMsg }).catch((err: Error) => {
+  // Send via matrix-js-sdk with 429 handling
+  try {
+    await mx.setPresence({ presence: serverPresence, status_msg: statusMsg });
+    lastSentTimestamp = Date.now();
+  } catch (err) {
+    if (err instanceof MatrixError && err.httpStatus === 429) {
+      // Rate limited - respect Retry-After and back off
+      const retryAfterMs = err.data?.retry_after_ms ?? 5000;
+      debugLog.warn('general', 'Presence rate limited (429), backing off', {
+        retryAfterMs,
+      });
+      // Wait before allowing next send
+      await sleep(retryAfterMs);
+      lastSentTimestamp = Date.now();
+      return;
+    }
+    // Log other errors but don't throw
     debugLog.error('general', 'Failed to send presence to server', {
-      error: err.message,
+      error: err instanceof Error ? err.message : String(err),
     });
-  });
+    return;
+  }
 
   // Also update classic sync presence param
   mx.setSyncPresence(serverPresence === 'offline' ? SetPresence.Offline : undefined);

@@ -14,6 +14,9 @@ const debugLog = createDebugLogger('PresenceSync');
 /** Milliseconds to wait after a local presence change before uploading. */
 const DEBOUNCE_MS = 25000; // 25 seconds
 
+/** Fast debounce for activity events (idle→online) to ensure rapid multi-device sync. */
+const ACTIVITY_DEBOUNCE_MS = 2000; // 2 seconds
+
 /** Minimum time between presence updates to avoid rate limiting. */
 const THROTTLE_MS = 25000; // 25 seconds
 
@@ -30,6 +33,8 @@ type PresenceState = {
   autoIdled: boolean;
   /** Unix timestamp (ms) of when this state was last updated. */
   updatedAt: number;
+  /** Unix timestamp (ms) of the most recent user activity across all devices. */
+  lastActivityAt: number;
 };
 
 /**
@@ -38,6 +43,16 @@ type PresenceState = {
  * Presence doesn't echo back from the server on MSC4186, so we manually
  * propagate manual presence changes AND auto-idle state to other devices
  * using account data (similar to settings sync).
+ *
+ * Multi-device auto-idle coordination:
+ * - ONLINE TAKES PRECEDENCE: When ANY device becomes active, ALL devices
+ *   immediately switch to online. Activity events use a 2-second debounce
+ *   for rapid synchronization.
+ * - Idle events use a 25-second debounce to reduce server load and avoid
+ *   rate limiting.
+ * - Tracks `lastActivityAt` timestamp to coordinate activity across devices.
+ * - Dispatches 'sable:remote-activity' custom event when another device
+ *   becomes active, which resets the local idle timer in usePresenceAutoIdle.
  *
  * When another device changes presence or goes idle, this hook receives
  * the account data update and applies it locally.
@@ -73,6 +88,11 @@ export function usePresenceSyncEffect(): void {
     const { synctoken: _echoField, ...state } = content;
 
     if (!state.presenceMode || typeof state.autoIdled !== 'boolean') return;
+
+    // Backcompat: if lastActivityAt is missing, initialize it
+    if (!state.lastActivityAt) {
+      state.lastActivityAt = state.updatedAt || Date.now();
+    }
 
     lastRemoteStateRef.current = state;
 
@@ -118,11 +138,17 @@ export function usePresenceSyncEffect(): void {
 
       if (!state.presenceMode || typeof state.autoIdled !== 'boolean') return;
 
+      // Backcompat: if lastActivityAt is missing, initialize it
+      if (!state.lastActivityAt) {
+        state.lastActivityAt = state.updatedAt || Date.now();
+      }
+
       // If this is the same as what we last saw, skip (dedupe)
       if (
         lastRemoteStateRef.current &&
         lastRemoteStateRef.current.presenceMode === state.presenceMode &&
-        lastRemoteStateRef.current.autoIdled === state.autoIdled
+        lastRemoteStateRef.current.autoIdled === state.autoIdled &&
+        lastRemoteStateRef.current.lastActivityAt === state.lastActivityAt
       ) {
         return;
       }
@@ -131,6 +157,16 @@ export function usePresenceSyncEffect(): void {
 
       // Apply state from another device
       debugLog.info('general', 'Received presence update from another device', { state });
+
+      // ONLINE TAKES PRECEDENCE: If remote device is active (not auto-idled),
+      // immediately clear local auto-idle state. This ensures that when ANY device
+      // becomes active, ALL devices switch to online.
+      if (!state.autoIdled && autoIdledRef.current) {
+        debugLog.info('general', 'Remote device is active — clearing local auto-idle');
+        setAutoIdled(false);
+        // Trigger activity event in auto-idle hook to reset its timer
+        window.dispatchEvent(new CustomEvent('sable:remote-activity', { detail: { timestamp: state.lastActivityAt } }));
+      }
 
       if (state.presenceMode !== settingsRef.current.presenceMode) {
         setSettings({ ...settingsRef.current, presenceMode: state.presenceMode });
@@ -153,22 +189,38 @@ export function usePresenceSyncEffect(): void {
     if (!syncEnabled) return undefined;
 
     clearTimeout(timerRef.current);
+
+    // Use fast debounce for activity events (idle→online) to ensure rapid multi-device sync.
+    // Use longer debounce for idle events to avoid rate limiting.
+    const wasIdled = lastRemoteStateRef.current?.autoIdled ?? false;
+    const isActivityEvent = wasIdled && !autoIdled;
+    const debounceMs = isActivityEvent ? ACTIVITY_DEBOUNCE_MS : DEBOUNCE_MS;
+
     timerRef.current = setTimeout(() => {
       const token = Math.random().toString(36).slice(2, 10);
       pendingEchoTokenRef.current = token;
 
+      const now = Date.now();
+      // When going from idle to active, update lastActivityAt
+      // When going idle, preserve the existing lastActivityAt from remote state
+      const lastActivityAt =
+        !autoIdled && lastRemoteStateRef.current?.lastActivityAt
+          ? Math.max(now, lastRemoteStateRef.current.lastActivityAt)
+          : lastRemoteStateRef.current?.lastActivityAt ?? now;
+
       const state: PresenceState & { synctoken: string } = {
         presenceMode,
         autoIdled,
-        updatedAt: Date.now(),
+        updatedAt: now,
+        lastActivityAt,
         synctoken: token,
       };
 
-      debugLog.info('general', 'Uploading presence to account data', { state });
+      debugLog.info('general', 'Uploading presence to account data', { state, isActivityEvent, debounceMs });
 
       mx.setAccountData(CustomAccountDataEvent.SablePresence, state as Record<string, unknown>)
         .then(() => {
-          lastRemoteStateRef.current = { presenceMode, autoIdled, updatedAt: state.updatedAt };
+          lastRemoteStateRef.current = { presenceMode, autoIdled, updatedAt: state.updatedAt, lastActivityAt: state.lastActivityAt };
         })
         .catch((err) => {
           pendingEchoTokenRef.current = null;
@@ -179,7 +231,7 @@ export function usePresenceSyncEffect(): void {
 
       // Also send to the server
       void sendPresenceToServer(mx, presenceMode, autoIdled, settings.presenceStatusMsg, syncEnabled);
-    }, DEBOUNCE_MS);
+    }, debounceMs);
 
     return () => clearTimeout(timerRef.current);
   }, [mx, presenceMode, autoIdled, syncEnabled]);

@@ -45,8 +45,14 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   if (type === ENCRYPTED_EVENT_TYPE) return '🔒 Encrypted message';
 
   // Check if this message has been edited — use the edited content if available
-  const replacingEvent = ev.replacingEvent();
-  const displayContent = replacingEvent ? replacingEvent.getContent() : content;
+  const replacingEvent =
+    typeof ev.replacingEvent === 'function' ? ev.replacingEvent() : undefined;
+  let displayContent = replacingEvent ? replacingEvent.getContent() : content;
+  // If we're using an edit event's content, extract m.new_content (the actual edit)
+  // instead of the fallback body (which has "* " prefix for old clients)
+  if (replacingEvent && displayContent?.['m.new_content']) {
+    displayContent = displayContent['m.new_content'] as typeof displayContent;
+  }
 
   if (type === ROOM_MESSAGE_EVENT_TYPE) {
     const { msgtype } = displayContent;

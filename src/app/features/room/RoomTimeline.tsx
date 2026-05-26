@@ -480,7 +480,25 @@ export function RoomTimeline({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [isKeyboardVisible, keyboardHeight, setAtBottom]);
+
+  // When the thread drawer opens/closes on desktop, the main timeline column
+  // changes width and Virtua remeasures all item heights.  Save the scroll
+  // offset just before the open so we can restore it after the close once
+  // layout has settled (two RAFs to let Virtua finish its resize cycle).
+  useEffect(() => {
+    if (openThreadId) {
+      scrollOffsetBeforeThreadRef.current = vListRef.current?.scrollOffset;
+    } else if (scrollOffsetBeforeThreadRef.current !== undefined) {
+      const savedOffset = scrollOffsetBeforeThreadRef.current;
+      scrollOffsetBeforeThreadRef.current = undefined;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          vListRef.current?.scrollTo(savedOffset);
+        });
+      });
+    }
+  }, [openThreadId]);
 
   const actions = useTimelineActions({
     room,

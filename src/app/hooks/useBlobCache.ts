@@ -261,6 +261,18 @@ export function useBlobCache(url?: string): string | undefined {
 
           return objectUrl;
         } catch (e) {
+          debugLog.error('general', 'Blob fetch/cache failed', {
+            url: url.substring(0, 100),
+            error: e instanceof Error ? e.message : String(e),
+          });
+          Sentry.captureException(e, {
+            tags: { media_operation: 'blob_cache' },
+            contexts: {
+              media: {
+                url: url.substring(0, 100),
+              },
+            },
+          });
           inflightRequests.delete(url);
           throw e;
         }

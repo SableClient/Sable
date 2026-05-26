@@ -22,6 +22,7 @@ import {
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import type { Session } from '$state/sessions';
 import { sessionsAtom, activeSessionIdAtom, backgroundUnreadCountsAtom } from '$state/sessions';
 import {
@@ -242,6 +243,18 @@ export function AccountSwitcherTab() {
             await logoutClient(tempMx, session);
           } catch (err) {
             log.error('failed to logout background session, IndexedDB may remain', err);
+            debugLog.error('general', 'Failed to logout background session', {
+              userId: session.userId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            Sentry.captureException(err, {
+              tags: { operation: 'logout_background_session' },
+              contexts: {
+                account: {
+                  userId: session.userId,
+                },
+              },
+            });
           }
           setSessions({ type: 'DELETE', session });
           if (activeSessionId === session.userId) {
@@ -252,6 +265,20 @@ export function AccountSwitcherTab() {
         }
       } catch (err) {
         log.error('Logout failed', err);
+        debugLog.error('general', 'Account logout failed', {
+          userId: session.userId,
+          isActiveSession: activeSessionId === session.userId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        Sentry.captureException(err, {
+          tags: { operation: 'logout' },
+          contexts: {
+            account: {
+              userId: session.userId,
+              isActiveSession: activeSessionId === session.userId,
+            },
+          },
+        });
       } finally {
         setBusyUserIds((prev) => {
           const next = new Set(prev);

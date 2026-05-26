@@ -60,7 +60,11 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
-import { getInboxInvitesPath } from '../pathUtils';
+import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
+import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
+import { useReminderSync } from '$features/bookmarks/useReminderSync';
+import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
 const pushRelayLog = createDebugLogger('push-relay');
@@ -842,6 +846,27 @@ function HandleDecryptPushEvent() {
 }
 
 function PresenceFeature() {
+  const mx = useMatrixClient();
+  const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [autoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
+  const [presenceIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
+
+  // Auto-idle detection: monitors user activity and sets presenceAutoIdledAtom
+  // when inactivity timeout is reached. The sync feature will pick up the
+  // atom change and broadcast it to other devices + the server.
+  const timeoutMs = autoIdlePresence ? presenceIdleTimeoutMins * 60 * 1000 : 0;
+  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
+
+  return null;
+}
+
+function PresenceSyncFeature() {
+  usePresenceSyncEffect();
+  return null;
+}
+
+function ProgressivePrefetchFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
 

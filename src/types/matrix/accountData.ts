@@ -22,6 +22,7 @@ export enum CustomAccountDataEvent {
   SableNicknames = 'moe.sable.app.nicknames',
   SablePinStatus = 'moe.sable.app.pins_read_marker',
   SableBookmarksReminders = 'moe.sable.bookmarks.reminders',
+  SablePresence = 'moe.sable.app.presence',
 
   // because of a mistake hasn't been renamed in time
   SablePerProfileMessageProfiles = 'fyi.cisnt.permessageprofile',

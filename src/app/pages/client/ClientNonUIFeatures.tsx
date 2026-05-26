@@ -10,7 +10,6 @@ import {
   MatrixEventEvent,
   PushProcessor,
   RoomEvent,
-  SetPresence,
   SyncState,
   EventType,
 } from '$types/matrix-sdk';
@@ -83,6 +82,7 @@ const TelemetryConsentBanner = lazy(() => {
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
+import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
@@ -959,17 +959,15 @@ function HandleDecryptPushEvent() {
 }
 
 function PresenceFeature() {
-  const mx = useMatrixClient();
-  const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  // Presence sync is now handled by PresenceSyncFeature below.
+  // This component is kept as a stub in case we need global presence
+  // on/off logic in the future, but the actual state sync happens via
+  // account data in usePresenceSyncEffect.
+  return null;
+}
 
-  useEffect(() => {
-    // Classic sync: set_presence query param on every /sync poll.
-    // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
-    getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-  }, [mx, sendPresence]);
-
+function PresenceSyncFeature() {
+  usePresenceSyncEffect();
   return null;
 }
 
@@ -1079,6 +1077,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       </Suspense>
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
+      <PresenceSyncFeature />
       <ProgressivePrefetchFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />

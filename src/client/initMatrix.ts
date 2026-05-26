@@ -337,7 +337,9 @@ export const clearMismatchedStores = async (): Promise<void> => {
   );
 };
 
-const buildClient = async (session: Session): Promise<MatrixClient> => {
+const buildClient = async (
+  session: Session
+): Promise<{ mx: MatrixClient; storeStartup: Promise<void> }> => {
   const storeName = getSessionStoreName(session);
 
   const indexedDBStore = new IndexedDBStore({
@@ -360,8 +362,8 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
     verificationMethods: ['m.sas.v1'],
   });
 
-  await indexedDBStore.startup();
-  return mx;
+  // Return both client and store startup promise for parallel initialization
+  return { mx, storeStartup: indexedDBStore.startup() };
 };
 
 export const initClient = async (session: Session): Promise<MatrixClient> => {
@@ -399,8 +401,11 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
   };
 
   let mx: MatrixClient;
+  let storeStartup: Promise<void>;
   try {
-    mx = await buildClient(session);
+    const result = await buildClient(session);
+    mx = result.mx;
+    storeStartup = result.storeStartup;
   } catch (err) {
     if (!isMismatch(err)) {
       debugLog.error('sync', 'Failed to build client', { error: err });
@@ -409,28 +414,39 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     log.warn('initClient: mismatch on buildClient — wiping and retrying:', err);
     debugLog.warn('sync', 'Client build mismatch - wiping stores and retrying', { error: err });
     await wipeAllStores();
-    mx = await buildClient(session);
+    const result = await buildClient(session);
+    mx = result.mx;
+    storeStartup = result.storeStartup;
   }
 
   try {
-    await mx.initRustCrypto({
-      cryptoDatabasePrefix: storeName.rustCryptoPrefix,
-    });
+    // Parallelize IndexedDB sync store startup and crypto initialization
+    // These are independent operations that can run concurrently
+    await Promise.all([
+      storeStartup,
+      mx.initRustCrypto({
+        cryptoDatabasePrefix: storeName.rustCryptoPrefix,
+      }),
+    ]);
   } catch (err) {
     if (!isMismatch(err)) {
-      debugLog.error('sync', 'Failed to initialize crypto', { error: err });
+      debugLog.error('sync', 'Failed to initialize stores', { error: err });
       throw err;
     }
-    log.warn('initClient: mismatch on initRustCrypto — wiping and retrying:', err);
-    debugLog.warn('sync', 'Crypto init mismatch - wiping stores and retrying', {
+    log.warn('initClient: mismatch on parallel init — wiping and retrying:', err);
+    debugLog.warn('sync', 'Store init mismatch - wiping stores and retrying', {
       error: err,
     });
     mx.stopClient();
     await wipeAllStores();
-    mx = await buildClient(session);
-    await mx.initRustCrypto({
-      cryptoDatabasePrefix: storeName.rustCryptoPrefix,
-    });
+    const result = await buildClient(session);
+    mx = result.mx;
+    await Promise.all([
+      result.storeStartup,
+      mx.initRustCrypto({
+        cryptoDatabasePrefix: storeName.rustCryptoPrefix,
+      }),
+    ]);
   }
 
   mx.setMaxListeners(50);

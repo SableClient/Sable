@@ -28,11 +28,16 @@ import { stopPropagation } from '$utils/keyboard';
 import { LogoutDialog } from '$components/LogoutDialog';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { lazy, Suspense } from 'react';
 import { About } from './about';
 import { Account } from './account';
 import { Cosmetics } from './cosmetics/Cosmetics';
-import { DeveloperTools } from './developer-tools';
 import { Devices } from './devices';
+
+// Lazy-load DeveloperTools to reduce Settings bundle size
+const DeveloperTools = lazy(() =>
+  import('./developer-tools').then((m) => ({ default: m.DeveloperTools }))
+);
 import { EmojisStickers } from './emojis-stickers';
 import { Experimental } from './experimental/Experimental';
 import { General } from './general';
@@ -147,7 +152,11 @@ function SettingsSectionViewport({
 }) {
   useSettingsFocus();
   const Section = settingsSectionComponents[section];
-  return <Section requestBack={requestBack} requestClose={requestClose} />;
+  return (
+    <Suspense fallback={null}>
+      <Section requestBack={requestBack} requestClose={requestClose} />
+    </Suspense>
+  );
 }
 
 export function Settings({

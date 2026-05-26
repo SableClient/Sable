@@ -215,11 +215,36 @@ async function requestSessionWithTimeout(
 // ---------------------------------------------------------------------------
 
 /**
+ * Post a Sentry metric to all window clients.
+ * Used to track SW prefetch performance from the main thread.
+ */
+async function postSentryMetric(
+  metricName: string,
+  value: number,
+  attributes?: Record<string, string | number | boolean>
+): Promise<void> {
+  try {
+    const windowClients = await self.clients.matchAll({ type: 'window' });
+    windowClients.forEach((client) => {
+      client.postMessage({
+        type: 'sentryMetric',
+        metricName,
+        value,
+        attributes,
+      });
+    });
+  } catch (error) {
+    console.debug('[SW] Failed to post Sentry metric:', error);
+  }
+}
+
+/**
  * Prefetch sliding sync data on SW activation to warm the browser's HTTP cache.
  * This makes the first sync response arrive faster when the app opens.
- * Fire-and-forget: failures are silently ignored.
+ * Tracks success/failure and timing via Sentry metrics.
  */
 async function prefetchSlidingSyncData(session: SessionInfo): Promise<void> {
+  const startTime = performance.now();
   try {
     // Determine sliding sync proxy URL from homeserver base URL
     const proxyUrl = new URL(session.baseUrl);
@@ -254,14 +279,167 @@ async function prefetchSlidingSyncData(session: SessionInfo): Promise<void> {
       body: JSON.stringify(requestBody),
     });
 
+    const duration = performance.now() - startTime;
     if (response.ok) {
       console.debug('[SW] Sliding sync prefetch succeeded');
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'sliding_sync',
+        status: 'success',
+      });
     } else {
       console.debug('[SW] Sliding sync prefetch failed:', response.status);
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'sliding_sync',
+        status: 'error',
+        http_status: String(response.status),
+      });
     }
   } catch (error) {
-    // Silently ignore — this is best-effort optimization
+    const duration = performance.now() - startTime;
     console.debug('[SW] Sliding sync prefetch error:', error);
+    await postSentryMetric('sable.sw.prefetch_ms', duration, {
+      endpoint: 'sliding_sync',
+      status: 'exception',
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Strategy 7+: Additional Cache Priming
+// ---------------------------------------------------------------------------
+
+/**
+ * Prefetch well-known Matrix client configuration.
+ * This endpoint is frequently requested and safe to cache aggressively.
+ * Tracks success/failure and timing via Sentry metrics.
+ */
+async function prefetchWellKnown(session: SessionInfo): Promise<void> {
+  const startTime = performance.now();
+  try {
+    const baseUrl = new URL(session.baseUrl);
+    const wellKnownUrl = `${baseUrl.origin}/.well-known/matrix/client`;
+
+    console.debug('[SW] Prefetching well-known...');
+    const response = await fetch(wellKnownUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    const duration = performance.now() - startTime;
+    if (response.ok) {
+      console.debug('[SW] Well-known prefetch succeeded');
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'well_known',
+        status: 'success',
+      });
+    } else {
+      console.debug('[SW] Well-known prefetch failed:', response.status);
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'well_known',
+        status: 'error',
+        http_status: String(response.status),
+      });
+    }
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    console.debug('[SW] Well-known prefetch error:', error);
+    await postSentryMetric('sable.sw.prefetch_ms', duration, {
+      endpoint: 'well_known',
+      status: 'exception',
+    });
+  }
+}
+
+/**
+ * Prefetch homeserver capabilities to warm cache.
+ * This is requested during client initialization.
+ * Tracks success/failure and timing via Sentry metrics.
+ */
+async function prefetchCapabilities(session: SessionInfo): Promise<void> {
+  const startTime = performance.now();
+  try {
+    const capabilitiesUrl = `${session.baseUrl}/_matrix/client/v3/capabilities`;
+
+    console.debug('[SW] Prefetching capabilities...');
+    const response = await fetch(capabilitiesUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
+
+    const duration = performance.now() - startTime;
+    if (response.ok) {
+      console.debug('[SW] Capabilities prefetch succeeded');
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'capabilities',
+        status: 'success',
+      });
+    } else {
+      console.debug('[SW] Capabilities prefetch failed:', response.status);
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'capabilities',
+        status: 'error',
+        http_status: String(response.status),
+      });
+    }
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    console.debug('[SW] Capabilities prefetch error:', error);
+    await postSentryMetric('sable.sw.prefetch_ms', duration, {
+      endpoint: 'capabilities',
+      status: 'exception',
+    });
+  }
+}
+
+/**
+ * Prefetch user profile data (display name, avatar).
+ * This is shown immediately on client load.
+ * Tracks success/failure and timing via Sentry metrics.
+ */
+async function prefetchUserProfile(session: SessionInfo): Promise<void> {
+  if (!session.userId) {
+    console.debug('[SW] Cannot prefetch user profile: userId not available');
+    return;
+  }
+
+  const startTime = performance.now();
+  try {
+    const profileUrl = `${session.baseUrl}/_matrix/client/v3/profile/${encodeURIComponent(session.userId)}`;
+
+    console.debug('[SW] Prefetching user profile...');
+    const response = await fetch(profileUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
+
+    const duration = performance.now() - startTime;
+    if (response.ok) {
+      console.debug('[SW] User profile prefetch succeeded');
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'user_profile',
+        status: 'success',
+      });
+    } else {
+      console.debug('[SW] User profile prefetch failed:', response.status);
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'user_profile',
+        status: 'error',
+        http_status: String(response.status),
+      });
+    }
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    console.debug('[SW] User profile prefetch error:', error);
+    await postSentryMetric('sable.sw.prefetch_ms', duration, {
+      endpoint: 'user_profile',
+      status: 'exception',
+    });
   }
 }
 

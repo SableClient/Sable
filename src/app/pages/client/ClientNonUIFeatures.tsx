@@ -602,6 +602,36 @@ function HealthMonitor() {
   return null;
 }
 
+/**
+ * Handles Sentry metrics posted from the Service Worker.
+ * The SW cannot directly import Sentry, so it posts messages to the main thread.
+ */
+function ServiceWorkerMetricsHandler() {
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type !== 'sentryMetric') return;
+
+      const { metricName, value, attributes } = event.data as {
+        metricName: string;
+        value: number;
+        attributes?: Record<string, string | number | boolean>;
+      };
+
+      // Record the metric via Sentry
+      Sentry.metrics.distribution(metricName, value, {
+        attributes: attributes ?? {},
+      });
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, []);
+
+  return null;
+}
+
 type ClientNonUIFeaturesProps = {
   children: ReactNode;
 };
@@ -875,6 +905,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
       <HandleDecryptPushEvent />
+      <ServiceWorkerMetricsHandler />
       <NotificationBanner />
       <TelemetryConsentBanner />
       <ThemeMigrationBanner />

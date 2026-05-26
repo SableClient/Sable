@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
+import { createDebugLogger } from '$utils/debugLogger';
+
+const debugLog = createDebugLogger('blob-cache');
 
 const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();

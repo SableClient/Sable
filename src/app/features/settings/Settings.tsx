@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { IconSrc } from 'folds';
+import type { ComponentType, LazyExoticComponent } from 'react';
 import {
   Avatar,
   Box,
@@ -127,7 +128,8 @@ const settingsSectionIdToPage: Record<SettingsSectionId, SettingsPages> = {
 
 const settingsSectionComponents: Record<
   SettingsSectionId,
-  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element
+  | ComponentType<{ requestBack?: () => void; requestClose: () => void }>
+  | LazyExoticComponent<(props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element>
 > = {
   general: General,
   account: Account,

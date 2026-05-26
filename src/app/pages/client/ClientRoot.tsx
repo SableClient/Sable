@@ -318,21 +318,16 @@ export function ClientRoot({ children }: ClientRootProps) {
   }, [mx, startMatrix]);
 
   // Helper to check if the app is fully ready: sync must be in a ready state,
-  // and for sliding sync, we show UI progressively as soon as we have initial data.
-  // This significantly improves cold launch perception by showing partial UI quickly
-  // rather than waiting for all rooms to load.
+  // and for sliding sync, all room lists must be fully loaded to prevent rooms
+  // from appearing in wrong positions or spaces as the list expands.
   const checkReadyAndClearSplash = useCallback(
     (state: string | null) => {
       if (!state || !isClientReady(state)) return;
 
-      // Progressive UI loading: show UI as soon as sync reaches ready state.
-      // For sliding sync, we show UI immediately even if not all lists are fully loaded.
-      // This dramatically improves perceived cold launch performance - rooms will
-      // continue loading in the background and appear progressively.
+      // For sliding sync, wait until all lists are fully loaded before clearing splash.
+      // This ensures rooms are in the correct positions and spaces before the UI renders.
       const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
-      if (slidingSyncManager && !slidingSyncManager.hasMinimumData()) {
-        // Only wait if we have absolutely no rooms yet (very first network response).
-        // Once we have any rooms, show the UI and let the rest load in background.
+      if (slidingSyncManager && !slidingSyncManager.isFullyLoaded()) {
         return;
       }
 

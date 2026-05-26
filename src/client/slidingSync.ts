@@ -890,28 +890,6 @@ export class SlidingSyncManager {
     return this.listsFullyLoaded;
   }
 
-  /**
-   * Check if we have minimum data to show UI. Returns true as soon as we have
-   * any rooms loaded from the sync. This enables progressive UI loading for faster
-   * cold launch perception - the UI shows immediately with initial rooms and
-   * continues loading the rest in the background.
-   */
-  public hasMinimumData(): boolean {
-    // If we're fully loaded, we definitely have minimum data
-    if (this.listsFullyLoaded) return true;
-
-    // Check if any list has reported rooms
-    for (const key of this.listKeys) {
-      const listData = this.slidingSync.getListData(key);
-      if (listData && listData.joinedCount > 0) {
-        return true;
-      }
-    }
-
-    // Fallback: check if the Matrix client has any rooms loaded
-    return this.mx.getRooms().length > 0;
-  }
-
   private expandListsToKnownCount(): void {
     // Stop expanding once we've loaded all rooms - prevents continuous updates
     if (this.listsFullyLoaded) return;

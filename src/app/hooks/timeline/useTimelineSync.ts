@@ -56,7 +56,8 @@ const useEventTimelineLoader = (
   mx: MatrixClient,
   room: Room,
   onLoad: (eventId: string, linkedTimelines: EventTimeline[], evtAbsIndex: number) => void,
-  onError: (err: Error | null) => void
+  onError: (err: Error | null) => void,
+  onProactiveLoad?: () => void
 ) =>
   useCallback(
     async (eventId: string) =>
@@ -96,8 +97,14 @@ const useEventTimelineLoader = (
           performance.now() - jumpLoadStart
         );
         onLoad(eventId, linkedTimelines, absIndex);
+
+        // Proactively load context above and below the jumped-to event so the user
+        // can scroll immediately without waiting for pagination triggers.
+        if (onProactiveLoad) {
+          setTimeout(() => onProactiveLoad(), 500);
+        }
       }),
-    [mx, room, onLoad, onError]
+    [mx, room, onLoad, onError, onProactiveLoad]
   );
 
 const useTimelinePagination = (
@@ -445,6 +452,9 @@ export function useTimelineSync({
     }
   }, [eventsLength, liveTimelineLinked, isAtBottom]);
 
+  const handleTimelinePaginationRef = useRef(handleTimelinePagination);
+  handleTimelinePaginationRef.current = handleTimelinePagination;
+
   const loadEventTimeline = useEventTimelineLoader(
     mx,
     room,
@@ -467,7 +477,13 @@ export function useTimelineSync({
       if (!alive()) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       scrollToBottom('instant');
-    }, [alive, room, scrollToBottom])
+    }, [alive, room, scrollToBottom]),
+    useCallback(() => {
+      // Proactively load a batch above and below the jumped-to event so the user
+      // can scroll immediately without waiting for pagination triggers.
+      void handleTimelinePaginationRef.current(true);  // backward
+      void handleTimelinePaginationRef.current(false); // forward
+    }, [])
   );
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);

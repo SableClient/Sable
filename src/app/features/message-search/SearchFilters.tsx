@@ -41,6 +41,76 @@ import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { SearchHasType } from './useMessageSearch';
 
+type GroupButtonProps = {
+  grouped?: boolean;
+  onChange: (grouped?: boolean) => void;
+};
+function GroupButton({ grouped = true, onChange }: GroupButtonProps) {
+  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+
+  const setGrouping = (g?: boolean) => {
+    setMenuAnchor(undefined);
+    onChange(g);
+  };
+  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuAnchor(evt.currentTarget.getBoundingClientRect());
+  };
+
+  return (
+    <PopOut
+      anchor={menuAnchor}
+      align="End"
+      position="Bottom"
+      content={
+        <FocusTrap
+          focusTrapOptions={{
+            initialFocus: false,
+            onDeactivate: () => setMenuAnchor(undefined),
+            clickOutsideDeactivates: true,
+            escapeDeactivates: stopPropagation,
+          }}
+        >
+          <Menu variant="Surface">
+            <Header size="300" variant="Surface" style={{ padding: `0 ${config.space.S300}` }}>
+              <Text size="L400">Group results</Text>
+            </Header>
+            <Line variant="Surface" size="300" />
+            <div style={{ padding: config.space.S100 }}>
+              <MenuItem
+                onClick={() => setGrouping(true)}
+                variant="Surface"
+                size="300"
+                radii="300"
+                aria-pressed={grouped}
+              >
+                <Text size="T300">By Room</Text>
+              </MenuItem>
+              <MenuItem
+                onClick={() => setGrouping(false)}
+                variant="Surface"
+                size="300"
+                radii="300"
+                aria-pressed={!grouped}
+              >
+                <Text size="T300">Timeline</Text>
+              </MenuItem>
+            </div>
+          </Menu>
+        </FocusTrap>
+      }
+    >
+      <Chip
+        onClick={handleOpenMenu}
+        variant="SurfaceVariant"
+        radii="Pill"
+        before={<Icon size="100" src={grouped ? Icons.Hash : Icons.Clock} />}
+      >
+        <Text size="T200">{grouped ? 'Grouped' : 'Timeline'}</Text>
+      </Chip>
+    </PopOut>
+  );
+}
+
 type OrderButtonProps = {
   order?: string;
   onChange: (order?: string) => void;
@@ -589,6 +659,8 @@ type SearchFiltersProps = {
   onGlobalChange: (global?: boolean) => void;
   order?: string;
   onOrderChange: (order?: string) => void;
+  grouped?: boolean;
+  onGroupedChange: (grouped?: boolean) => void;
   hasTypes?: SearchHasType[];
   onHasTypesChange: (hasTypes?: SearchHasType[]) => void;
   senders?: string[];
@@ -603,8 +675,10 @@ export function SearchFilters({
   onSelectedRoomsChange,
   global,
   order,
+  grouped,
   onGlobalChange,
   onOrderChange,
+  onGroupedChange,
   hasTypes,
   onHasTypesChange,
   senders,
@@ -668,6 +742,7 @@ export function SearchFilters({
           onChange={onSelectedRoomsChange}
         />
         <Box grow="Yes" data-spacing-node />
+        <GroupButton grouped={grouped} onChange={onGroupedChange} />
         <OrderButton order={order} onChange={onOrderChange} />
       </Box>
       <Box gap="200" wrap="Wrap" alignItems="Center">

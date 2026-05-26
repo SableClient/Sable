@@ -38,6 +38,7 @@ export type SearchPathSearchParams = {
   rooms?: string;
   senders?: string;
   has?: string;
+  grouped?: string;
 };
 export const SEARCH_PATH_SEGMENT = 'search/';
 

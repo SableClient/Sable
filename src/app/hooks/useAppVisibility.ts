@@ -59,11 +59,22 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     if (!mx) return undefined;
 
     const doRetry = () => {
-      // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
-      // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
-      // slidingSync.resend() which aborts any stalled request and retries without backoff.
-      mx.retryImmediately();
-      getSlidingSyncManager(mx)?.retryNow();
+      // Wrap retry calls in try-catch to prevent crashes during wake/restore.
+      // The matrix client or sliding sync manager might be in an invalid state
+      // if the device just woke from sleep or the app was restored from bfcache.
+      try {
+        // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
+        // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
+        // slidingSync.resend() which aborts any stalled request and retries without backoff.
+        mx.retryImmediately();
+        getSlidingSyncManager(mx)?.retryNow();
+      } catch (err) {
+        debugLog.error('general', 'Sync retry failed during wake/restore', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        // Don't rethrow — allow the app to continue and retry will happen naturally
+        // once the client is in a healthy state again.
+      }
     };
 
     // Debounce foreground events: both pageshow[persisted] and visibilitychange can
@@ -83,7 +94,15 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     const handleForeground = () => {
       if (document.visibilityState !== 'visible') return;
       debugLog.info('general', 'App foregrounded — sync retry triggered');
-      debouncedRetry();
+
+      // Wrap in try-catch in case retry throws (e.g., client disposed, network unavailable)
+      try {
+        debouncedRetry();
+      } catch (err) {
+        debugLog.error('general', 'Failed to schedule sync retry on foreground', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
 
       if (!mobileOrTablet()) return;
       // On iOS the network layer is not always immediately available when
@@ -92,14 +111,26 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       // Each timer is cancelled if the app goes back to background first.
       const t1 = setTimeout(() => {
         if (document.visibilityState === 'visible') {
-          doRetry();
-          debugLog.info('general', 'App foregrounded — sync retry (1.5 s fallback)');
+          try {
+            doRetry();
+            debugLog.info('general', 'App foregrounded — sync retry (1.5 s fallback)');
+          } catch (err) {
+            debugLog.error('general', 'Sync retry failed (1.5s fallback)', {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
         }
       }, 1500);
       const t2 = setTimeout(() => {
         if (document.visibilityState === 'visible') {
-          doRetry();
-          debugLog.info('general', 'App foregrounded — sync retry (5 s fallback)');
+          try {
+            doRetry();
+            debugLog.info('general', 'App foregrounded — sync retry (5 s fallback)');
+          } catch (err) {
+            debugLog.error('general', 'Sync retry failed (5s fallback)', {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
         }
       }, 5000);
       const cancelOnHide = () => {
@@ -121,7 +152,13 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     const handlePageShow = (ev: PageTransitionEvent) => {
       if (ev.persisted) {
         debugLog.info('general', 'App restored from bfcache');
-        handleForeground();
+        try {
+          handleForeground();
+        } catch (err) {
+          debugLog.error('general', 'Failed to handle bfcache restore', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
     };
 

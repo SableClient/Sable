@@ -6,7 +6,7 @@ import { useAuthServer } from '$hooks/useAuthServer';
 import { RegisterFlowStatus, useAuthFlows } from '$hooks/useAuthFlows';
 import { useParsedLoginFlows } from '$hooks/useParsedLoginFlows';
 import { SupportedUIAFlowsLoader } from '$components/SupportedUIAFlowsLoader';
-import { getLoginPath } from '$pages/pathUtils';
+import { getLoginPath, withSearchParam } from '$pages/pathUtils';
 import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
 import type { RegisterPathSearchParams } from '$pages/paths';
 import { SSOLogin } from '$pages/auth/SSOLogin';
@@ -30,8 +30,13 @@ export function Register() {
   const registerSearchParams = useRegisterSearchParams(searchParams);
   const { sso } = useParsedLoginFlows(loginFlows.flows);
 
-  // redirect to /login because only that path handle m.login.token
-  const ssoRedirectUrl = usePathWithOrigin(getLoginPath(server));
+  // redirect to /login because only that path handles m.login.token
+  // Preserve addAccount parameter through SSO redirect
+  const baseRedirectUrl = usePathWithOrigin(getLoginPath(server));
+  const isAddingAccount = searchParams.get('addAccount') === '1';
+  const ssoRedirectUrl = isAddingAccount
+    ? withSearchParam(baseRedirectUrl, { addAccount: '1' })
+    : baseRedirectUrl;
 
   return (
     <Box direction="Column" gap="500">

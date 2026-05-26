@@ -49,7 +49,10 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import type { IReplyDraft } from '$state/room/roomInputDrafts';
-import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import {
+  roomIdToReplyDraftAtomFamily,
+  roomIdToEditDraftAtomFamily,
+} from '$state/room/roomInputDrafts';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
@@ -162,6 +165,18 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const serverFetchAttemptedRef = useRef<string | null>(null);
   const autoFillInProgressRef = useRef(false);
   const { editId, handleEdit } = useMessageEdit(editor);
+  const [editInInput] = useSetting(settingsAtom, 'editInInput');
+  const setEditDraft = useSetAtom(roomIdToEditDraftAtomFamily(threadRootId));
+  const handleEditCallback = useCallback(
+    (id?: string) => {
+      if (editInInput) {
+        setEditDraft(id ? { eventId: id } : undefined);
+        return;
+      }
+      handleEdit(id);
+    },
+    [editInInput, handleEdit, setEditDraft]
+  );
   const nicknames = useAtomValue(nicknamesAtom);
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);
   const useAuthentication = useMediaAuthentication();
@@ -184,6 +199,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
   const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
+  const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
   const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
   const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
@@ -268,6 +284,10 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(threadRootId));
   const replyDraft = useAtomValue(roomIdToReplyDraftAtomFamily(threadRootId));
   const activeReplyId = replyDraft?.eventId;
+  // Keep a ref so handleReplyClick can read the latest draft without being
+  // recreated on every keystroke (which would re-render all Message instances).
+  const replyDraftRef = useRef(replyDraft);
+  replyDraftRef.current = replyDraft;
 
   // User profile popup
   const openUserRoomProfile = useOpenUserRoomProfile();
@@ -300,6 +320,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     hideNickAvatarEvents: true,
     isReadOnly,
     hideMemberInReadOnly,
+    messageGroupingThreshold,
   });
 
   // When the thread's own timeline is empty (server-side threads not yet fetched,
@@ -487,6 +508,22 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       room.removeListener(ThreadEvent.NewReply, onThreadUpdate);
     };
   }, [mx, room, threadRootId]);
+
+  // Listen directly on the thread for timeline and reset events.
+  // This provides a shorter, more reliable signal path than the
+  // timelineSet → thread → room → mx re-emission chain, and also
+  // catches RoomEvent.TimelineReset (fired when the thread timeline
+  // is cleared and re-populated during initialisation).
+  useEffect(() => {
+    if (!thread) return;
+    const onDirectUpdate = () => forceUpdate((n) => n + 1);
+    thread.on(RoomEvent.Timeline, onDirectUpdate);
+    thread.on(RoomEvent.TimelineReset, onDirectUpdate);
+    return () => {
+      thread.off(RoomEvent.Timeline, onDirectUpdate);
+      thread.off(RoomEvent.TimelineReset, onDirectUpdate);
+    };
+  }, [thread]);
 
   // Mark thread as read when viewing it
   useEffect(() => {
@@ -743,7 +780,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         };
         // Only toggle off if we're actively replying to this event (non-empty body distinguishes
         // a real reply draft from the seeded base-thread draft, which has body: '').
-        if (activeReplyId === replyId && replyDraft?.body) {
+        if (activeReplyId === replyId && replyDraftRef.current?.body) {
           // Toggle off — reset to base thread draft
           setReplyDraft({
             userId: mx.getUserId() ?? '',
@@ -756,7 +793,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         }
       }
     },
-    [mx, room, setReplyDraft, activeReplyId, threadRootId, replyDraft]
+    [mx, room, setReplyDraft, activeReplyId, threadRootId]
   );
 
   const handleReactionToggle = useCallback(
@@ -873,7 +910,12 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       showHiddenEvents,
       hideThreadChip: true,
     },
-    state: { focusItem, editId, activeReplyId, openThreadId: threadRootId },
+    state: {
+      focusItem,
+      editId: editInInput ? undefined : editId,
+      activeReplyId,
+      openThreadId: threadRootId,
+    },
     permissions: {
       canRedact,
       canDeleteOwn,
@@ -885,7 +927,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       onUsernameClick: handleUsernameClick,
       onReplyClick: handleReplyClick,
       onReactionToggle: handleReactionToggle,
-      onEditId: handleEdit,
+      onEditId: handleEditCallback,
       onResend: handleResend,
       onDeleteFailedSend: handleDeleteFailedSend,
       setOpenThread: () => {},
@@ -914,6 +956,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   useEffect(() => {
     setCurHeight(threadRootHeight);
   }, [threadRootHeight]);
+
   return (
     <Box
       className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
@@ -966,7 +1009,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
               size="300"
               hideTrack
               style={{
-                height: toRem(curHeight),
+                maxHeight: toRem(curHeight),
                 flexShrink: 0,
               }}
             >

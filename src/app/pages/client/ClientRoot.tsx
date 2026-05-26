@@ -7,6 +7,7 @@ import {
   Icon,
   IconButton,
   Icons,
+  Line,
   Menu,
   MenuItem,
   PopOut,
@@ -25,6 +26,7 @@ import {
   clearCacheAndReload,
   clearLoginData,
   clearMismatchedStores,
+  getSlidingSyncManager,
   initClient,
   logoutClient,
   startClient,
@@ -35,6 +37,7 @@ import { ServerConfigsLoader } from '$components/ServerConfigsLoader';
 import { CapabilitiesProvider } from '$hooks/useCapabilities';
 import { MediaConfigProvider } from '$hooks/useMediaConfig';
 import { MatrixClientProvider } from '$hooks/useMatrixClient';
+import { MediaUrlCacheProvider } from '$hooks/useMediaUrlCacheContext';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSyncState } from '$hooks/useSyncState';
 import { stopPropagation } from '$utils/keyboard';
@@ -50,10 +53,13 @@ import { useSyncNicknames } from '$hooks/useNickname';
 import { useAppVisibility } from '$hooks/useAppVisibility';
 import { getHomePath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
+import { getSettings } from '$state/settings';
 import { pushSessionToSW } from '../../../sw-session';
+import { useSwUpdateAvailable } from '$hooks/useSwUpdateAvailable';
 import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
 import { AutoDiscovery } from './AutoDiscovery';
+import { ContainerColor } from '$styles/ContainerColor.css';
 
 const log = createLogger('ClientRoot');
 
@@ -90,7 +96,7 @@ function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
     <IconButton
       style={{
         position: 'absolute',
-        top: config.space.S100,
+        top: `calc(env(safe-area-inset-top, 0px) + ${config.space.S100})`,
         right: config.space.S100,
       }}
       variant="Background"
@@ -175,7 +181,6 @@ type ClientRootProps = {
   children: ReactNode;
 };
 export function ClientRoot({ children }: ClientRootProps) {
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const clientConfig = useClientConfig();
   const sessions = useAtomValue(sessionsAtom);
@@ -191,6 +196,8 @@ export function ClientRoot({ children }: ClientRootProps) {
   const syncStartTimeRef = useRef(performance.now());
   const firstSyncReadyRef = useRef(false);
 
+  const [loading, setLoading] = useState(true);
+
   const [loadState, loadMatrix, setLoadState] = useAsyncCallback<MatrixClient, Error, []>(
     useCallback(async () => {
       if (!activeSession) {
@@ -205,7 +212,7 @@ export function ClientRoot({ children }: ClientRootProps) {
       log.log('initClient for', activeSession.userId);
       const newMx = await initClient(activeSession);
       loadedUserIdRef.current = activeSession.userId;
-      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken);
+      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
       return newMx;
     }, [activeSession, activeSessionId, setActiveSessionId])
   );
@@ -214,12 +221,18 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   const [startState, startMatrix] = useAsyncCallback<void, Error, [MatrixClient]>(
     useCallback(
-      (m) =>
-        startClient(m, {
+      (m) => {
+        const s = getSettings();
+        const needsPreviewTimeline = s.dmMessagePreview || s.roomMessagePreview;
+        return startClient(m, {
           baseUrl: activeSession?.baseUrl,
-          slidingSync: clientConfig.slidingSync,
+          slidingSync: {
+            ...clientConfig.slidingSync,
+            listTimelineLimit: needsPreviewTimeline ? 20 : undefined,
+          },
           sessionSlidingSyncOptIn: activeSession?.slidingSyncOptIn,
-        }),
+        });
+      },
       [activeSession?.baseUrl, activeSession?.slidingSyncOptIn, clientConfig.slidingSync]
     )
   );
@@ -234,12 +247,12 @@ export function ClientRoot({ children }: ClientRootProps) {
         activeSession.userId,
         '— reloading client'
       );
-      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken);
+      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
       if (mx?.clientRunning) {
         stopClient(mx);
       }
-      setLoading(true);
       loadedUserIdRef.current = undefined;
+      setLoading(true);
       setLoadState({ status: AsyncStatus.Idle });
       navigate(getHomePath(), { replace: true });
     }
@@ -258,6 +271,29 @@ export function ClientRoot({ children }: ClientRootProps) {
   useSyncNicknames(mx);
   useLogoutListener(mx);
   useAppVisibility(mx);
+  const swUpdateAvailable = useSwUpdateAvailable();
+
+  // Keep the SW session warm so media fetches and push notifications work
+  // reliably after iOS kills and restarts the SW in the background.
+  // - Immediate resync whenever the tab comes back to the foreground.
+  // - Periodic heartbeat (10 min) keeps the persisted session up to date
+  //   while the app is running.
+  const swSessionBaseUrl = activeSession?.baseUrl;
+  const swSessionAccessToken = activeSession?.accessToken;
+  const swSessionUserId = activeSession?.userId;
+  useEffect(() => {
+    if (!swSessionBaseUrl || !swSessionAccessToken) return undefined;
+    const resync = () => pushSessionToSW(swSessionBaseUrl, swSessionAccessToken, swSessionUserId);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') resync();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    const timer = setInterval(resync, 10 * 60 * 1000);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(timer);
+    };
+  }, [swSessionBaseUrl, swSessionAccessToken, swSessionUserId]);
 
   useEffect(
     () => () => {
@@ -281,28 +317,42 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [mx, startMatrix]);
 
+  // Helper to check if the app is fully ready: sync must be in a ready state,
+  // and for sliding sync, all room lists must be fully loaded to prevent rooms
+  // from appearing in wrong positions or spaces as the list expands.
+  const checkReadyAndClearSplash = useCallback(
+    (state: string | null) => {
+      if (!state || !isClientReady(state)) return;
+
+      // For sliding sync, wait until all lists are fully loaded before clearing splash.
+      // This ensures rooms are in the correct positions and spaces before the UI renders.
+      const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
+      if (slidingSyncManager && !slidingSyncManager.isFullyLoaded()) {
+        return;
+      }
+
+      setLoading(false);
+      if (!firstSyncReadyRef.current) {
+        firstSyncReadyRef.current = true;
+        Sentry.metrics.distribution(
+          'sable.sync.time_to_ready_ms',
+          performance.now() - syncStartTimeRef.current
+        );
+      }
+    },
+    [mx]
+  );
+
   useEffect(() => {
     if (!mx) return;
-    if (isClientReady(mx.getSyncState())) {
-      setLoading(false);
-    }
-  }, [mx]);
+    checkReadyAndClearSplash(mx.getSyncState());
+  }, [mx, checkReadyAndClearSplash]);
 
-  useSyncState(
-    mx,
-    useCallback((state: string) => {
-      if (isClientReady(state)) {
-        if (!firstSyncReadyRef.current) {
-          firstSyncReadyRef.current = true;
-          Sentry.metrics.distribution(
-            'sable.sync.time_to_ready_ms',
-            performance.now() - syncStartTimeRef.current
-          );
-        }
-        setLoading(false);
-      }
-    }, [])
-  );
+  // Wait for the first sync response before hiding the splash, even if cached rooms
+  // exist. This prevents rooms from visibly jumping between spaces as the sort order
+  // stabilizes during the first few sync cycles. For sliding sync, we also wait until
+  // all room lists are fully loaded to ensure stable positioning.
+  useSyncState(mx, checkReadyAndClearSplash);
 
   // Set matrix client context: homeserver and sync type (not PII)
   useEffect(() => {
@@ -354,12 +404,37 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [startState]);
 
+  const hasClientRootError =
+    loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error;
+
   return (
     <AutoDiscovery userId={userId ?? ''} baseUrl={baseUrl ?? ''}>
       <SpecVersions baseUrl={baseUrl ?? ''}>
+        {swUpdateAvailable && (
+          <Box direction="Column" shrink="No">
+            <Box
+              as="button"
+              type="button"
+              className={ContainerColor({ variant: 'Primary' })}
+              style={{
+                padding: `${config.space.S100} 0`,
+                width: '100%',
+                cursor: 'pointer',
+                border: 'none',
+                background: 'none',
+              }}
+              alignItems="Center"
+              justifyContent="Center"
+              onClick={() => window.location.reload()}
+            >
+              <Text size="L400">Update available — tap to reload</Text>
+            </Box>
+            <Line variant="Primary" size="300" />
+          </Box>
+        )}
         {mx && <SyncStatus mx={mx} />}
-        {loading && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
-        {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (
+        {(loading || !mx) && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
+        {hasClientRootError ? (
           <SplashScreen>
             <Box
               direction="Column"
@@ -385,22 +460,23 @@ export function ClientRoot({ children }: ClientRootProps) {
               </Dialog>
             </Box>
           </SplashScreen>
-        )}
-        {loading || !mx ? (
+        ) : loading || !mx ? (
           <ClientRootLoading />
         ) : (
           <MatrixClientProvider value={mx}>
-            <ServerConfigsLoader>
-              {(serverConfigs) => (
-                <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
-                  <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
-                    <AuthMetadataProvider value={serverConfigs.authMetadata}>
-                      {children}
-                    </AuthMetadataProvider>
-                  </MediaConfigProvider>
-                </CapabilitiesProvider>
-              )}
-            </ServerConfigsLoader>
+            <MediaUrlCacheProvider>
+              <ServerConfigsLoader>
+                {(serverConfigs) => (
+                  <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
+                    <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
+                      <AuthMetadataProvider value={serverConfigs.authMetadata}>
+                        {children}
+                      </AuthMetadataProvider>
+                    </MediaConfigProvider>
+                  </CapabilitiesProvider>
+                )}
+              </ServerConfigsLoader>
+            </MediaUrlCacheProvider>
           </MatrixClientProvider>
         )}
       </SpecVersions>

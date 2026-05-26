@@ -49,14 +49,18 @@ const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlRespon
   return clientCache;
 };
 
-const openMediaInNewTab = async (url: string | undefined) => {
+const openMediaInNewTab = async (url: string | undefined, accessToken: string | null) => {
   if (!url) {
     console.warn('Attempted to open an empty url');
     return;
   }
-  const blob = await downloadMedia(url);
-  const blobUrl = URL.createObjectURL(blob);
-  window.open(blobUrl, '_blank');
+  try {
+    const blob = await downloadMedia(url, accessToken);
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+  } catch (err) {
+    console.error('Failed to open media in new tab', err);
+  }
 };
 
 function ogPositiveDimension(value: unknown): number | undefined {
@@ -119,7 +123,9 @@ export const UrlPreviewCard = as<
   );
 
   useEffect(() => {
-    loadPreview();
+    // Suppress unhandled rejection — errors are captured by useAsyncCallback
+    // (status set to Error) and the component returns null in that state.
+    loadPreview().catch(() => undefined);
   }, [url, loadPreview]);
 
   if (previewStatus.status === AsyncStatus.Error) return null;
@@ -149,7 +155,7 @@ export const UrlPreviewCard = as<
           console.error('Error converting mxc:// url.');
           return;
         }
-        openMediaInNewTab(mxcUrl);
+        openMediaInNewTab(mxcUrl, mx.getAccessToken());
       }
     };
 

@@ -124,6 +124,11 @@ export function isValidChild(mEvent: MatrixEvent): boolean {
   );
 }
 
+export const getShallowParents = (roomToParents: RoomToParents, roomId: string): string[] => {
+  const parents = roomToParents.get(roomId);
+  return parents ? Array.from(parents) : [];
+};
+
 export const getAllParents = (roomToParents: RoomToParents, roomId: string): Set<string> => {
   const allParents = new Set<string>();
 
@@ -209,7 +214,8 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
     return NotificationType.Default;
   }
 
-  if ((roomPushRule.actions[0] as string) === 'notify') return NotificationType.AllMessages;
+  if ((roomPushRule.actions as string[]).some((a) => a === 'notify'))
+    return NotificationType.AllMessages;
   return NotificationType.MentionsAndKeywords;
 };
 
@@ -312,6 +318,23 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     }
   }
 
+  // If the user's own message is the most recent event in the live timeline they
+  // implicitly read everything before it when they composed that reply. Return zero
+  // to suppress phantom unread badges that arise from stale SDK counters in sliding
+  // sync when no explicit read receipt is present.
+  if (userId && !room.getEventReadUpTo(userId)) {
+    const liveEvents = room.getLiveTimeline().getEvents();
+    const latestEvent = liveEvents[liveEvents.length - 1];
+    if (
+      latestEvent &&
+      !latestEvent.isSending() &&
+      latestEvent.getSender() === userId &&
+      isNotificationEvent(latestEvent)
+    ) {
+      return { roomId: room.roomId, highlight: 0, total: 0 };
+    }
+  }
+
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);
   const highlight = room.getUnreadNotificationCount(NotificationCountType.Highlight);
 
@@ -363,9 +386,14 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       if (!event) break;
       if (event.getId() === readUpToId) break;
       if (isNotificationEvent(event, room, userId) && event.getSender() !== userId) {
-        fallbackTotal += 1;
         const pushActions = pushProcessor.actionsForEvent(event);
-        if (pushActions?.tweaks?.highlight) fallbackHighlight += 1;
+        // Only count events that would actually generate a push notification.
+        // This excludes reactions (which use dont_notify by default push rules)
+        // and prevents the fallback from creating phantom unreads the SDK ignores.
+        if (pushActions?.notify) {
+          fallbackTotal += 1;
+          if (pushActions.tweaks?.highlight) fallbackHighlight += 1;
+        }
       }
     }
     if (fallbackTotal > 0) {
@@ -406,7 +434,10 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
   // ensure we show a notification badge (treat as highlight for badge color purposes).
   // This handles cases where push rules don't properly match (e.g., classic sync with
   // member_count condition failures, or sliding sync with limited required_state).
-  if (shouldForceDMHighlight && total > 0 && highlight === 0) {
+  // Guard on room-level (non-thread) total: thread-only unreads in DMs should not
+  // be force-highlighted — the thread's own push rules handle highlight there.
+  const roomLevelTotal = room.getRoomUnreadNotificationCount(NotificationCountType.Total);
+  if (shouldForceDMHighlight && roomLevelTotal > 0 && highlight === 0) {
     return {
       roomId: room.roomId,
       highlight: total, // Treat all unread messages as highlights for DMs
@@ -479,29 +510,50 @@ export const getRoomIconSrc = (
   return icons.Hash;
 };
 
+export type MxcConverter = (
+  mx: MatrixClient,
+  mxcUrl: string,
+  useAuthentication: boolean,
+  width?: number,
+  height?: number,
+  resizeMethod?: string,
+  allowDirectLinks?: boolean
+) => string | null;
+
 export const getRoomAvatarUrl = (
   mx: MatrixClient,
   room: Room,
   size: 32 | 96 = 32,
-  useAuthentication = false
+  useAuthentication = false,
+  converter?: MxcConverter
 ): string | undefined => {
   const mxcUrl = room.getMxcAvatarUrl();
-  return mxcUrl
-    ? (mx.mxcUrlToHttp(mxcUrl, size, size, 'crop', undefined, false, useAuthentication) ??
-        undefined)
-    : undefined;
+  if (!mxcUrl) return undefined;
+
+  if (converter) {
+    return converter(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined;
+  }
+
+  return (
+    mx.mxcUrlToHttp(mxcUrl, size, size, 'crop', undefined, false, useAuthentication) ?? undefined
+  );
 };
 
 export const getDirectRoomAvatarUrl = (
   mx: MatrixClient,
   room: Room,
   size: 32 | 96 = 32,
-  useAuthentication = false
+  useAuthentication = false,
+  converter?: MxcConverter
 ): string | undefined => {
   const mxcUrl = room.getAvatarFallbackMember()?.getMxcAvatarUrl();
 
   if (!mxcUrl) {
-    return getRoomAvatarUrl(mx, room, size, useAuthentication);
+    return getRoomAvatarUrl(mx, room, size, useAuthentication, converter);
+  }
+
+  if (converter) {
+    return converter(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined;
   }
 
   return (

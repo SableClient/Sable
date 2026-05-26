@@ -2,8 +2,9 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect } from 'react';
 import type { IThumbnailContent } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useMediaUrlCacheContext } from '$hooks/useMediaUrlCacheContext';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
+import { decryptFile, downloadEncryptedMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 
@@ -14,6 +15,7 @@ export type ThumbnailContentProps = {
 export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const mediaUrlCache = useMediaUrlCacheContext();
 
   const [thumbSrcState, loadThumbSrc] = useAsyncCallback(
     useCallback(async () => {
@@ -24,17 +26,25 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
         throw new Error('Failed to load thumbnail');
       }
 
-      const mediaUrl = mxcUrlToHttp(mx, thumbMxcUrl, useAuthentication);
+      const mediaUrl = mediaUrlCache.get(mx, thumbMxcUrl, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
       if (encInfo) {
-        const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-          decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo)
+        // Check blob cache first
+        const cachedBlob = mediaUrlCache.getBlob(thumbMxcUrl, true, thumbInfo.mimetype);
+        if (cachedBlob) return cachedBlob;
+
+        const fileContent = await downloadEncryptedMedia(
+          mediaUrl,
+          (encBuf) => decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo),
+          mx.getAccessToken()
         );
-        return URL.createObjectURL(fileContent);
+        const blobUrl = URL.createObjectURL(fileContent);
+        mediaUrlCache.setBlob(thumbMxcUrl, true, blobUrl, thumbInfo.mimetype);
+        return blobUrl;
       }
 
       return mediaUrl;
-    }, [mx, info, useAuthentication])
+    }, [mx, info, useAuthentication, mediaUrlCache])
   );
 
   useEffect(() => {

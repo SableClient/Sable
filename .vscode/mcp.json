@@ -1,0 +1,10 @@
+{
+  // GitHub MCP server — uses existing Copilot auth, no token prompt needed.
+  // Works in browser-based Codespaces (no vscode:// redirect required).
+  "servers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    }
+  }
+}

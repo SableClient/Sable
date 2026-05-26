@@ -26,6 +26,12 @@ export interface UseProcessedTimelineOptions {
    * where every reply legitimately has `threadRootId` set to the root.
    */
   skipThreadFilter?: boolean;
+  /**
+   * Minutes of inactivity before a new message from the same sender gets a
+   * full user header. Defaults to 2 (the original behaviour). Set higher
+   * (e.g. 15) for Discord-style compact grouping.
+   */
+  messageGroupingThreshold: number;
 }
 
 export interface ProcessedEvent {
@@ -78,14 +84,32 @@ export function useProcessedTimeline({
   isReadOnly,
   hideMemberInReadOnly,
   skipThreadFilter,
+  messageGroupingThreshold,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
   return useMemo(() => {
+    // Sort items by origin_server_ts so events always render in chronological
+    // order even when the SDK stores them in receipt order.  This is visible
+    // after a sliding-sync gap on mobile resume (TimelineReset delivers a full
+    // batch at once) and for bridge-backfilled or federated messages where
+    // receipt order ≠ timestamp order.  Receipt order is preserved as a
+    // tiebreaker so threading / causality is not affected.
+    const sortedItems = items.toSorted((a, b) => {
+      const [tlA, baseA] = getTimelineAndBaseIndex(linkedTimelines, a);
+      const [tlB, baseB] = getTimelineAndBaseIndex(linkedTimelines, b);
+      const evA = tlA ? getTimelineEvent(tlA, getTimelineRelativeIndex(a, baseA)) : null;
+      const evB = tlB ? getTimelineEvent(tlB, getTimelineRelativeIndex(b, baseB)) : null;
+      const tsA = evA?.getTs() ?? 0;
+      const tsB = evB?.getTs() ?? 0;
+      if (tsA !== tsB) return tsA - tsB;
+      return a - b; // receipt order tiebreaker keeps causally-related events stable
+    });
+
     let prevEvent: MatrixEvent | undefined;
     let isPrevRendered = false;
     let newDivider = false;
     let dayDivider = false;
 
-    const result = items.reduce<ProcessedEvent[]>((acc, item) => {
+    const result = sortedItems.reduce<ProcessedEvent[]>((acc, item) => {
       const [eventTimeline, baseIndex] = getTimelineAndBaseIndex(linkedTimelines, item);
       if (!eventTimeline) return acc;
 
@@ -132,11 +156,31 @@ export function useProcessedTimeline({
         }
       }
 
+      // Extract thread root from m.relates_to even when SDK didn't set threadRootId
+      // (sliding sync bug where thread relations arrive without threadId resolved)
+      const actualThreadRoot = (() => {
+        if (threadRootId !== undefined) return threadRootId;
+        const relation =
+          mEvent.getRelation?.() ??
+          (
+            mEvent.getWireContent?.() as {
+              'm.relates_to'?: { rel_type?: unknown; event_id?: unknown };
+            }
+          )?.['m.relates_to'] ??
+          (
+            mEvent.getContent?.() as { 'm.relates_to'?: { rel_type?: unknown; event_id?: unknown } }
+          )?.['m.relates_to'];
+        if (relation?.rel_type === 'm.thread' && typeof relation.event_id === 'string') {
+          return relation.event_id;
+        }
+        return undefined;
+      })();
+
       if (
         !skipThreadFilter &&
-        threadRootId !== undefined &&
-        threadRootId !== mEventId &&
-        isThreadRelationEvent(mEvent, threadRootId)
+        actualThreadRoot !== undefined &&
+        actualThreadRoot !== mEventId &&
+        isThreadRelationEvent(mEvent, actualThreadRoot)
       )
         return acc;
 
@@ -149,7 +193,14 @@ export function useProcessedTimeline({
       }
 
       if (!dayDivider) {
-        dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
+        // Only insert a day divider when moving *forward* to a new calendar day.
+        // Bridged messages (Discord, Signal, …) arrive with an origin_server_ts from
+        // an earlier day but are inserted at the end of the timeline by the SDK.
+        // Showing a backward day divider ("Yesterday" after "Today" messages) breaks
+        // the visual ordering, so we suppress dividers for out-of-order events.
+        dayDivider = prevEvent
+          ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) && mEvent.getTs() > prevEvent.getTs()
+          : false;
       }
 
       const isMessageEvent = MESSAGE_EVENT_TYPES.has(type);
@@ -157,7 +208,8 @@ export function useProcessedTimeline({
       let collapsed = false;
       if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
         if (isMessageEvent) {
-          const withinTimeThreshold = minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
+          const withinTimeThreshold =
+            minuteDifference(prevEvent.getTs(), mEvent.getTs()) < messageGroupingThreshold;
           const senderMatch = prevEvent.getSender() === eventSender;
           const typeMatch =
             normalizeMessageType(prevEvent.getType()) === normalizeMessageType(type);
@@ -211,5 +263,6 @@ export function useProcessedTimeline({
     isReadOnly,
     hideMemberInReadOnly,
     skipThreadFilter,
+    messageGroupingThreshold,
   ]);
 }

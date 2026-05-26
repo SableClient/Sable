@@ -21,9 +21,10 @@ import { BlurhashCanvas } from 'react-blurhash';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useMediaUrlCacheContext } from '$hooks/useMediaUrlCacheContext';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
-import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import { decryptFile, downloadEncryptedMedia, downloadMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
@@ -69,6 +70,7 @@ export const VideoContent = as<'div', VideoContentProps>(
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const mediaUrlCache = useMediaUrlCacheContext();
     const blurHash = validBlurHash(info.thumbnail_info?.[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]);
 
     const [load, setLoad] = useState(false);
@@ -80,15 +82,26 @@ export const VideoContent = as<'div', VideoContentProps>(
       useCallback(async () => {
         if (url.startsWith('http')) return url;
 
-        const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
+        const mediaUrl = mediaUrlCache.get(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
+
+        // Check blob cache first
+        const isEncrypted = !!encInfo;
+        const cachedBlob = mediaUrlCache.getBlob(url, isEncrypted, mimeType);
+        if (cachedBlob) return cachedBlob;
+
         const fileContent = encInfo
-          ? await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-              decryptFile(encBuf, mimeType, encInfo)
+          ? await downloadEncryptedMedia(
+              mediaUrl,
+              (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+              mx.getAccessToken()
             )
-          : await downloadMedia(mediaUrl);
-        return URL.createObjectURL(fileContent);
-      }, [mx, url, useAuthentication, mimeType, encInfo])
+          : await downloadMedia(mediaUrl, mx.getAccessToken());
+
+        const blobUrl = URL.createObjectURL(fileContent);
+        mediaUrlCache.setBlob(url, isEncrypted, blobUrl, mimeType);
+        return blobUrl;
+      }, [mx, url, useAuthentication, mimeType, encInfo, mediaUrlCache])
     );
 
     const handleLoad = () => {

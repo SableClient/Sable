@@ -32,7 +32,9 @@ describe('NON_SYNCABLE_KEYS', () => {
       'isWidgetDrawer',
       'memberSortFilterIndex',
       'developerTools',
+      'enterForNewline',
       'settingsSyncEnabled',
+      'searchIndexMessageLimit',
     ] as const;
 
     expected.forEach((key) => {

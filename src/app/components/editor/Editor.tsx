@@ -6,7 +6,7 @@ import { Node, createEditor } from 'slate';
 import type { RenderLeafProps, RenderElementProps, RenderPlaceholderProps } from 'slate-react';
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
-import { mobileOrTablet } from '$utils/user-agent';
+import { isPhone, mobileOrTablet } from '$utils/user-agent';
 import { BlockType } from './types';
 import { RenderElement, RenderLeaf } from './Elements';
 import type { CustomElement } from './slate';
@@ -114,6 +114,9 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const singleLineWidthOffsetRef = useRef(0);
     const latestValueRef = useRef<Descendant[]>(editor.children);
     const isMultilineRef = useRef(false);
+    // Tracks whether a triggerAutoCapitalize rAF is already queued to avoid stacking
+    // multiple rAFs when content changes fire rapidly (e.g. IME composition).
+    const autocapPendingRef = useRef(false);
     const [isMultiline, setIsMultiline] = useState(false);
     const [measurementVersion, setMeasurementVersion] = useState(0);
     const hasBefore = Boolean(before);
@@ -348,8 +351,29 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       updateMultilineLayout(latestValueRef.current);
     }, [measurementVersion, updateMultilineLayout]);
 
+    // Mobile OSes (iOS and Android) do not reliably capitalise the first letter in an empty
+    // contenteditable. Both platforms render a zero-width placeholder character (\uFEFF)
+    // inside the Slate DOM node to maintain the cursor, and their keyboards interpret this
+    // as existing content — so they don't apply sentence-case to the next keystroke.
+    // Toggling the autocapitalize attribute from 'none' → 'sentences' on the focused
+    // contenteditable forces the keyboard to re-evaluate capitalisation state with no
+    // content changes, no focus shifts, and no keyboard dismissal.
+    const triggerAutoCapitalize = useCallback(() => {
+      if (!mobileOrTablet()) return;
+      if (autocapPendingRef.current) return;
+      const el = editableRef.current;
+      if (!el) return;
+      autocapPendingRef.current = true;
+      el.setAttribute('autocapitalize', 'none');
+      requestAnimationFrame(() => {
+        el.setAttribute('autocapitalize', 'sentences');
+        autocapPendingRef.current = false;
+      });
+    }, []);
+
     const handleChange = useCallback(
       (value: Descendant[]) => {
+        const prevText = latestValueRef.current.map((node) => Node.string(node)).join('');
         latestValueRef.current = value;
         measurementCacheRef.current = null;
         if (multilineMeasureFrameRef.current !== null) {
@@ -358,8 +382,15 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
         }
         setMeasurementVersion((version) => version + 1);
         onChange?.(value);
+        // After a send, content goes from non-empty to empty while the editor stays focused.
+        // Trigger the autocap attribute toggle so the next message starts capitalised.
+        // onBlur keeps focus on the editor so isFocused() is true when this fires.
+        const nextText = value.map((node) => Node.string(node)).join('');
+        if (prevText.length > 0 && nextText.length === 0 && ReactEditor.isFocused(editor)) {
+          triggerAutoCapitalize();
+        }
       },
-      [onChange]
+      [onChange, editor, triggerAutoCapitalize]
     );
 
     const renderElement = useCallback(
@@ -371,8 +402,10 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
 
     const handleKeydown: KeyboardEventHandler = useCallback(
       (evt) => {
-        // mobile ignores config option
-        if (mobileOrTablet() && evt.key === 'Enter' && !evt.shiftKey) {
+        // Phones (on-screen keyboard) ignore the enter-to-send config option.
+        // Tablets with an external keyboard should still forward Enter to onKeyDown
+        // so RoomInput can honour the enterForNewline / mod+enter settings.
+        if (isPhone() && evt.key === 'Enter' && !evt.shiftKey) {
           return;
         }
 
@@ -440,6 +473,20 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 onPaste={onPaste}
                 // Defer to OS capitalization setting (respects iOS sentence-case toggle).
                 autoCapitalize="sentences"
+                // Detect text direction per-message so RTL languages (Arabic, Hebrew, etc.)
+                // automatically right-align without any toggle.
+                dir="auto"
+                // Trigger autocap re-evaluation when the editor gains focus empty.
+                // This handles the initial tap-to-focus case: Slate's DOM contains a
+                // \uFEFF placeholder that the keyboard sees as existing content and so
+                // skips sentence-case. The attribute toggle forces a re-evaluation.
+                // autocapPendingRef prevents double-fire if handleChange also fires
+                // (e.g. the send clears content while focus is transferred).
+                onFocus={() => {
+                  if (mobileOrTablet() && Node.string(editor).length === 0) {
+                    triggerAutoCapitalize();
+                  }
+                }}
                 // keeps focus after pressing send.
                 onBlur={() => {
                   if (mobileOrTablet()) ReactEditor.focus(editor);

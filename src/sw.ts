@@ -12,6 +12,10 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
+// Tracks whether the Matrix sync connection is healthy.
+// Defaults to true; set false when the app reports Reconnecting/Error so that
+// OS push notifications are not suppressed while the in-app path is broken.
+let syncIsHealthy = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -28,6 +32,9 @@ const SW_SETTINGS_URL = '/sw-settings-meta';
 const SW_SESSION_CACHE = 'sable-sw-session-v1';
 const SW_SESSION_URL = '/sw-session-meta';
 
+/** Cache for authenticated Matrix media responses — keyed by URL. */
+const SW_MEDIA_CACHE = 'sable-media-sw-v1';
+
 async function persistSettings() {
   try {
     const cache = await self.caches.open(SW_SETTINGS_CACHE);
@@ -39,6 +46,9 @@ async function persistSettings() {
           showMessageContent,
           showEncryptedMessageContent,
           clearNotificationsOnRead,
+          // Persist when the app was last visible so cold-SW-restart suppression works on iOS/iPad.
+          // A timestamp lets us expire stale entries (app may have closed without sending false).
+          appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
       )
@@ -61,6 +71,18 @@ async function loadPersistedSettings() {
       showEncryptedMessageContent = s.showEncryptedMessageContent;
     if (typeof s.clearNotificationsOnRead === 'boolean')
       clearNotificationsOnRead = s.clearNotificationsOnRead;
+    // Restore appIsVisible from the last-known visibility timestamp.
+    // On iOS/iPad, the SW is killed between pushes so appIsVisible always resets to false.
+    // If the app reported itself visible within the last 10 s, trust that it still is.
+    // Use a short window (10s) to reduce false positives from stale cache after crashes.
+    // The page will send an explicit visible=true message once it initializes anyway.
+    if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
+      const ageMs = Date.now() - s.appVisibleAt;
+      if (ageMs < 10_000) {
+        appIsVisible = true;
+        console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
+      }
+    }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
   }
@@ -157,12 +179,16 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     console.debug('[SW] setSession: stored', clientId, baseUrl);
     // Persist so push-event fetches work after iOS restarts the SW.
     persistSession(info).catch(() => undefined);
+    // Clear media cache when session changes to avoid serving stale auth failures.
+    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   } else {
     // Logout or invalid session
     sessions.delete(clientId);
     preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
     clearPersistedSession().catch(() => undefined);
+    // Clear media cache on logout.
+    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   }
 
   const resolveSession = clientToResolve.get(clientId);
@@ -190,7 +216,7 @@ function requestSession(client: Client): Promise<SessionInfo | undefined> {
 
 async function requestSessionWithTimeout(
   clientId: string,
-  timeoutMs = 3000
+  timeoutMs = 10000
 ): Promise<SessionInfo | undefined> {
   const client = await self.clients.get(clientId);
   if (!client) {
@@ -538,7 +564,19 @@ self.addEventListener('install', (event: ExtendableEvent) => {
 self.addEventListener('activate', (event: ExtendableEvent) => {
   event.waitUntil(
     (async () => {
-      await self.clients.claim();
+      // Do NOT call clients.claim() here.
+      //
+      // Calling clients.claim() in activate evicts iOS bfcache entries: it fires
+      // controllerchange on every client — including cached ones — and iOS evicts
+      // any page whose SW controller changes while it is in bfcache.  On iOS PWA
+      // (no browser chrome) this looks identical to a hard reload: the user sees
+      // the splash screen instead of an instant restore.
+      //
+      // Pages detect a stale/missing controller on every foreground event
+      // (pageshow[persisted] and visibilitychange→visible) and send CLAIM_CLIENTS
+      // so the SW claims them lazily once they are already visible.  New page
+      // navigations are automatically controlled by the active SW without an
+      // explicit claim.
       await cleanupDeadClients();
       // Pre-load the persisted session into memory so that media fetches arriving
       // before the first setSession message from the page are immediately
@@ -568,6 +606,21 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     setSession(client.id, accessToken, baseUrl, userId);
     event.waitUntil(cleanupDeadClients());
   }
+  if (type === 'CLAIM_CLIENTS') {
+    // Sent by the page on pageshow[persisted] or visibilitychange→visible when it
+    // detects that its SW controller is stale (e.g. after iOS killed and restarted
+    // the SW while the page was in bfcache or in the foreground under memory
+    // pressure).  Claiming here — after the page is visible — never evicts bfcache.
+    event.waitUntil(
+      (async () => {
+        await self.clients.claim();
+        // Re-request sessions from all newly-claimed clients so media auth is
+        // restored immediately without waiting for the next media fetch.
+        const claimedClients = await self.clients.matchAll({ type: 'window' });
+        claimedClients.forEach((c) => c.postMessage({ type: 'requestSession' }));
+      })()
+    );
+  }
   if (type === 'pushDecryptResult') {
     // Resolve a pending decryption request from handleMinimalPushPayload
     const { eventId } = data as { eventId?: string };
@@ -583,6 +636,17 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
     }
+  }
+  if (type === 'setSyncState') {
+    if (typeof (data as { healthy?: unknown }).healthy === 'boolean') {
+      syncIsHealthy = (data as { healthy: boolean }).healthy;
+    }
+  }
+  if (type === 'ping') {
+    // iOS terminates SWs after ~30 s of inactivity. The page sends a cheap
+    // ping every 20 s (regardless of visibility) so that event.waitUntil
+    // extends the SW lifetime while the app is open.
+    event.waitUntil(Promise.resolve());
   }
   if (type === 'setNotificationSettings') {
     if (
@@ -731,12 +795,16 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       if (persisted && validMediaRequest(url, persisted.baseUrl)) {
         return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
       }
-      console.warn(
-        '[SW fetch] No valid session for media request',
-        { url, clientId, hasSession: !!s },
-        'falling back to unauthenticated fetch'
-      );
-      return fetch(event.request);
+      console.warn('[SW fetch] No valid session for media request', {
+        url,
+        clientId,
+        hasSession: !!s,
+      });
+      // Log fetch failure to help diagnose FetchEvent.respondWith errors
+      return fetch(event.request).catch((err) => {
+        console.error('[SW fetch] Media fetch failed:', { url, error: err.message });
+        throw err;
+      });
     })
   );
 });
@@ -763,19 +831,36 @@ const onPushNotification = async (event: PushEvent) => {
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
-  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
-  // because iOS Safari PWA often returns empty or stale results from matchAll().
+  //
+  // Require BOTH the explicit appIsVisible flag AND a visible client from
+  // matchAll() before suppressing.  appIsVisible resets to false every time the
+  // SW starts fresh; on iOS the browser kills the SW between pushes, so on the
+  // next push appIsVisible is always false — we never suppress on a cold SW
+  // restart, which prevents the "notifications stop after a while" bug where
+  // stale matchAll() data (visibilityState stuck at 'visible') would cause all
+  // subsequent notifications to be silently dropped.
+  //
+  // Also require syncIsHealthy: if the Matrix sync is in Reconnecting/Error
+  // state, the in-app notification path is broken, so we must show the OS
+  // notification even when the app is visible.
+  //
+  // When matchAll() returns zero clients (iOS Safari PWA fully-suspended quirk),
+  // clients.some() returns false — do NOT suppress.  Better to show a duplicate
+  // (handled gracefully by the in-app banner) than to silently drop a
+  // notification while the app is backgrounded.
   const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+    appIsVisible && syncIsHealthy && clients.some((client) => client.visibilityState === 'visible');
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
+    '| syncIsHealthy:',
+    syncIsHealthy,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
-    console.debug('[SW push] suppressing OS notification — app is visible');
+    console.debug('[SW push] suppressing OS notification — app is visible and sync is healthy');
     return;
   }
 
@@ -926,4 +1011,13 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 });
 
 precacheAndRoute(self.__WB_MANIFEST);
+self.addEventListener('activate', (event: ExtendableEvent) => {
+  console.info('[SW] activate - taking control of all clients');
+  event.waitUntil(
+    self.clients.claim().then(() => {
+      console.info('[SW] activate complete - claimed clients');
+    })
+  );
+});
+
 cleanupOutdatedCaches();

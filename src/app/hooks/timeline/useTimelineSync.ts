@@ -11,7 +11,7 @@ import type {
   IRoomTimelineData,
   RoomEventHandlerMap,
 } from '$types/matrix-sdk';
-import { Direction, RoomEvent, RelationType, ThreadEvent } from '$types/matrix-sdk';
+import { ClientEvent, Direction, RoomEvent, RelationType, ThreadEvent } from '$types/matrix-sdk';
 
 import { useAlive } from '$hooks/useAlive';
 import { markAsRead } from '$utils/notifications';
@@ -186,24 +186,18 @@ const useTimelinePagination = (
           // that countAfter/stillHasToken comparisons are meaningful.
           const freshLTimelines = timelineRef.current.linkedTimelines;
           const firstTimeline = freshLTimelines[0];
-          if (!firstTimeline) {
-            (backwards ? setBackwardStatus : setForwardStatus)('idle');
-            return;
-          }
+          if (!firstTimeline) return;
           recalibratePagination(freshLTimelines);
+          (backwards ? setBackwardStatus : setForwardStatus)('idle');
 
           const countAfter = getTimelinesEventsCount(getLinkedTimelines(firstTimeline));
           const fetched = countAfter - countBefore;
 
-          let willContinue = false;
           if (fetched > 0 && fetched < 5) {
             const checkTimeline = backwards
               ? freshLTimelines[0]
               : freshLTimelines[freshLTimelines.length - 1];
-            if (!checkTimeline) {
-              (backwards ? setBackwardStatus : setForwardStatus)('idle');
-              return;
-            }
+            if (!checkTimeline) return;
             const checkDirection = backwards ? Direction.Backward : Direction.Forward;
             const stillHasToken =
               typeof getLinkedTimelines(checkTimeline)[0]?.getPaginationToken(checkDirection) ===
@@ -213,17 +207,11 @@ const useTimelinePagination = (
               // so the finally block below does NOT reset it after inner claims.
               fetchingRef.current[directionKey] = false;
               continuing = true;
-              willContinue = true;
               paginate(backwards);
               // At this point the inner paginate has synchronously set
               // fetchingRef.current[directionKey] = true before hitting its own
               // await.  The finally below will skip the reset.
             }
-          }
-
-          // Stay in 'loading' across auto-continuation chunks so the spinner does not flicker.
-          if (!willContinue) {
-            (backwards ? setBackwardStatus : setForwardStatus)('idle');
           }
         }
       } finally {
@@ -392,6 +380,7 @@ export function useTimelineSync({
   const [focusItem, setFocusItem] = useState<
     | {
         index: number;
+        eventId?: string;
         scrollTo: boolean;
         highlight: boolean;
       }
@@ -444,7 +433,10 @@ export function useTimelineSync({
       },
     });
 
-    if (delta > 50 && liveTimelineLinked) {
+    // Warn only for truly large batches (> 100) — active room subscription limit is 50,
+    // so we expect batches up to 50–100 during normal operation (opening rooms, backfill).
+    // 97% of warnings were "medium" (delta <= 100), indicating the 50 threshold was too low.
+    if (delta > 100 && liveTimelineLinked) {
       Sentry.captureMessage('Timeline: large event batch from sliding sync', {
         level: 'warning',
         extra: { delta, eventsLength, atBottom: isAtBottom },
@@ -464,6 +456,7 @@ export function useTimelineSync({
 
         setFocusItem({
           index: evtAbsIndex,
+          eventId: evtId,
           scrollTo: true,
           highlight: evtId !== readUptoEventIdRef.current,
         });
@@ -593,6 +586,49 @@ export function useTimelineSync({
   // data (no initial:true in the sliding sync response), that event may never
   // arrive — leaving the initial-scroll guard permanently blocked and the room
   // invisible.
+  // After initial:true (pull-to-refresh force-reset, reconnect, or first join),
+  // the sliding-sync SDK injects events into the live timeline via
+  // injectRoomEvents and then emits ClientEvent.Room.  When all injected events
+  // are historical (num_live === 0 → fromCache: true → liveEvent: false),
+  // useLiveEventArrive's 60-second timestamp gate silently drops them, so React
+  // never re-renders and the timeline stays blank indefinitely.  Listening here
+  // guarantees a re-render once all events are in the SDK's timeline, no matter
+  // how old they are.
+  useEffect(() => {
+    const handleRoomInitialized = (eventRoom: Room) => {
+      if (eventRoom.roomId !== room.roomId) return;
+      // Only update if the live timeline actually has events now — prevents
+      // spurious updates that would reset scroll position during normal sync.
+      const liveEvents = getLiveTimeline(room).getEvents();
+      if (liveEvents.length === 0) return;
+      // After PTR, React's timeline state may reference the correct live timeline
+      // object, but with eventsLength still at 0 (before the re-render). Detect this
+      // by comparing the SDK's current event count with React's last known count.
+      const reactEventsLength = eventsLengthRef.current;
+      const currentLiveTimeline = getLiveTimeline(room);
+      // linkedTimelines is ordered oldest→newest, so live timeline is last
+      const isStale =
+        timeline.linkedTimelines.length === 0 ||
+        timeline.linkedTimelines[timeline.linkedTimelines.length - 1] !== currentLiveTimeline;
+
+      // Calculate actual event count from SDK's current timeline chain to detect
+      // if events were appended without changing the timeline object reference
+      const currentSdkEventCount = getTimelinesEventsCount(getLinkedTimelines(currentLiveTimeline));
+      const eventCountChanged = currentSdkEventCount !== reactEventsLength;
+
+      const needsUpdate = reactEventsLength === 0 || isStale || eventCountChanged;
+      if (!needsUpdate) return;
+      // Force timeline update with fresh SDK state. This ensures the React
+      // timeline state picks up the newly-injected events after PTR or when
+      // the SDK appends events (e.g., room subscription expanded timeline_limit).
+      setTimeline({ linkedTimelines: getLinkedTimelines(currentLiveTimeline) });
+    };
+    mx.on(ClientEvent.Room, handleRoomInitialized);
+    return () => {
+      mx.off(ClientEvent.Room, handleRoomInitialized);
+    };
+  }, [mx, room, timeline.linkedTimelines, eventsLengthRef]);
+
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);
   eventIdRef.current = eventId;

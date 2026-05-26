@@ -43,10 +43,14 @@ export function setFallbackSession(
   userId: string,
   baseUrl: string
 ) {
-  localStorage.setItem('cinny_access_token', accessToken);
-  localStorage.setItem('cinny_device_id', deviceId);
-  localStorage.setItem('cinny_user_id', userId);
-  localStorage.setItem('cinny_hs_base_url', baseUrl);
+  try {
+    localStorage.setItem('cinny_access_token', accessToken);
+    localStorage.setItem('cinny_device_id', deviceId);
+    localStorage.setItem('cinny_user_id', userId);
+    localStorage.setItem('cinny_hs_base_url', baseUrl);
+  } catch {
+    // QuotaExceededError: write best-effort; ignore if storage is full
+  }
 }
 export const removeFallbackSession = () => {
   localStorage.removeItem('cinny_hs_base_url');

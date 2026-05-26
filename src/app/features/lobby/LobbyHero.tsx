@@ -9,20 +9,21 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
 import { PageHero } from '$components/page';
 import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
-import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import * as css from './LobbyHero.css';
 
 export function LobbyHero() {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const space = useSpace();
 
   const name = useRoomName(space);
   const topic = useRoomTopic(space);
   const avatarMxc = useRoomAvatar(space);
   const avatarUrl = avatarMxc
-    ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
+    ? (convertMxc(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
 
   return (

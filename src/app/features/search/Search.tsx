@@ -49,8 +49,11 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { getHomeSearchPath, getDirectSearchPath, getSpaceSearchPath } from '$pages/pathUtils';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -139,6 +142,7 @@ export type RoomSearchModalProps = {
 export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { navigateRoom, navigateSpace } = useRoomNavigate();
@@ -203,6 +207,31 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
 
   const listFocus = useListFocusIndex(roomsToRender.length, 0);
 
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [messageSearchQuery, setMessageSearchQuery] = useState<string | null>(null);
+
+  const handleNavigateMessageSearch = useCallback(
+    (query: string) => {
+      const sp = new URLSearchParams();
+      if (query) sp.set('term', query);
+      const qs = sp.toString() ? `?${sp.toString()}` : '';
+
+      let basePath: string;
+      if (pathname.startsWith('/direct/')) {
+        basePath = getDirectSearchPath();
+      } else if (selectedSpaceId) {
+        basePath = getSpaceSearchPath(selectedSpaceId);
+      } else {
+        basePath = getHomeSearchPath();
+      }
+
+      navigate(`${basePath}${qs}`);
+      requestClose();
+    },
+    [pathname, selectedSpaceId, navigate, requestClose]
+  );
+
   const queryHighlighRegex = result?.query
     ? makeHighlightRegex(result.query.split(' '))
     : undefined;
@@ -223,6 +252,15 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
 
     const target = evt.currentTarget;
     let value = target.value.trim();
+
+    if (!pickRoom && value.startsWith('>')) {
+      setMessageSearchQuery(value.slice(1).trimStart());
+      setSearchRoomType(undefined);
+      resetSearch();
+      return;
+    }
+
+    setMessageSearchQuery(null);
     const prefix = value.match(/^[#@*]/)?.[0];
     const searchType = typeof prefix === 'string' && getSearchPrefixToRoomType(prefix);
     if (searchType) {
@@ -240,6 +278,10 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
   };
 
   const handleInputKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('enter', evt) && messageSearchQuery !== null) {
+      handleNavigateMessageSearch(messageSearchQuery);
+      return;
+    }
     const roomId = roomsToRender[listFocus.index];
     if (isKeyHotkey('enter', evt) && roomId) {
       handleActivateRoom(roomId, spaces.includes(roomId));
@@ -340,40 +382,7 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
               />
             </Box>
             <Box grow="Yes">
-              {roomsToRender.length === 0 && (
-                <Box
-                  style={{ paddingTop: config.space.S700 }}
-                  grow="Yes"
-                  alignItems="Center"
-                  justifyContent="Center"
-                  direction="Column"
-                  gap="100"
-                >
-                  <Text size="H6" align="Center">
-                    {pickRoom
-                      ? result
-                        ? 'No Match Found'
-                        : pickRoom.eligibleRoomIds.length === 0
-                          ? 'No rooms to forward to'
-                          : 'No rooms match this filter'
-                      : result
-                        ? 'No Match Found'
-                        : 'No Rooms'}
-                  </Text>
-                  <Text size="T200" align="Center">
-                    {pickRoom
-                      ? result
-                        ? `No match found for "${result.query}".`
-                        : pickRoom.eligibleRoomIds.length === 0
-                          ? 'You cannot send messages in any joined room yet.'
-                          : 'Try another search, or use # for group rooms and @ for direct messages.'
-                      : result
-                        ? `No match found for "${result.query}".`
-                        : 'You do not have any Rooms to display yet.'}
-                  </Text>
-                </Box>
-              )}
-              {roomsToRender.length > 0 && (
+              {messageSearchQuery !== null && !pickRoom ? (
                 <Scroll ref={scrollRef} size="300" hideTrack>
                   <div
                     style={{
@@ -381,113 +390,196 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
                       paddingRight: config.space.S200,
                     }}
                   >
-                    {roomsToRender.map((roomId, index) => {
-                      const room = getRoom(roomId);
-                      if (!room) return null;
-
-                      const dm = mDirects.has(roomId);
-                      const dmUserId = dm && getDmUserId(roomId, getRoom, mx.getSafeUserId());
-                      const dmUsername = dmUserId && getMxIdLocalPart(dmUserId);
-                      const dmUserServer = dmUserId && getMxIdServer(dmUserId);
-
-                      const allParents = getAllParents(roomToParents, roomId);
-                      const orphanParents =
-                        allParents && orphanSpaces.filter((o) => allParents.has(o));
-                      const perfectOrphanParent =
-                        orphanParents && guessPerfectParent(mx, roomId, orphanParents);
-
-                      const exactParents = roomToParents.get(roomId);
-                      const perfectParent =
-                        exactParents && guessPerfectParent(mx, roomId, Array.from(exactParents));
-
-                      const unread = roomToUnread.get(roomId);
-
-                      return (
-                        <MenuItem
-                          key={roomId}
-                          as="button"
-                          data-focus-index={index}
-                          data-room-id={roomId}
-                          data-space={room.isSpaceRoom()}
-                          onClick={handleRoomClick}
-                          disabled={pickRoom?.busy}
-                          variant={listFocus.index === index ? 'Primary' : 'Surface'}
-                          aria-pressed={listFocus.index === index}
-                          radii="400"
-                          after={
-                            <Box gap="100">
-                              {dmUserServer && (
-                                <Text size="T200" priority="300" truncate>
-                                  <b>{dmUserServer}</b>
-                                </Text>
-                              )}
-                              {!dm && perfectOrphanParent && (
-                                <Text size="T200" priority="300" truncate>
-                                  <b>{getRoom(perfectOrphanParent)?.name ?? perfectOrphanParent}</b>
-                                </Text>
-                              )}
-                              {unread && (
-                                <UnreadBadgeCenter>
-                                  <UnreadBadge
-                                    highlight={unread.highlight > 0}
-                                    count={unread.highlight > 0 ? unread.highlight : unread.total}
-                                  />
-                                </UnreadBadgeCenter>
-                              )}
-                            </Box>
-                          }
-                          before={
-                            <Avatar size="200" radii={dm ? '400' : '300'}>
-                              {dm || room.isSpaceRoom() ? (
-                                <RoomAvatar
-                                  roomId={room.roomId}
-                                  src={
-                                    dm
-                                      ? getDirectRoomAvatarUrl(mx, room, 32, useAuthentication)
-                                      : getRoomAvatarUrl(mx, room, 32, useAuthentication)
-                                  }
-                                  alt={room.name}
-                                  renderFallback={() => (
-                                    <Text as="span" size="H6">
-                                      {nameInitials(room.name)}
-                                    </Text>
-                                  )}
-                                />
-                              ) : (
-                                <RoomIcon
-                                  size="100"
-                                  joinRule={room.getJoinRule()}
-                                  roomType={room.getType()}
-                                />
-                              )}
-                            </Avatar>
-                          }
-                        >
-                          <Box grow="Yes" alignItems="Center" gap="100">
-                            <Text size="T400" truncate>
-                              {queryHighlighRegex
-                                ? highlightText(queryHighlighRegex, [room.name])
-                                : room.name}
-                            </Text>
-                            {dmUsername && (
-                              <Text as="span" size="T200" priority="300" truncate>
-                                @
-                                {queryHighlighRegex
-                                  ? highlightText(queryHighlighRegex, [dmUsername])
-                                  : dmUsername}
-                              </Text>
-                            )}
-                            {!dm && perfectParent && perfectParent !== perfectOrphanParent && (
-                              <Text size="T200" priority="300" truncate>
-                                — {getRoom(perfectParent)?.name ?? perfectParent}
-                              </Text>
-                            )}
-                          </Box>
-                        </MenuItem>
-                      );
-                    })}
+                    <MenuItem
+                      as="button"
+                      variant="Primary"
+                      radii="400"
+                      onClick={() => handleNavigateMessageSearch(messageSearchQuery)}
+                      before={
+                        <Avatar size="200" radii="300">
+                          <Icon size="100" src={Icons.Search} />
+                        </Avatar>
+                      }
+                    >
+                      <Box grow="Yes" alignItems="Center" gap="100">
+                        <Text size="T400" truncate>
+                          {messageSearchQuery
+                            ? `Search messages: "${messageSearchQuery}"`
+                            : 'Search messages'}
+                        </Text>
+                      </Box>
+                    </MenuItem>
                   </div>
                 </Scroll>
+              ) : (
+                <>
+                  {roomsToRender.length === 0 && (
+                    <Box
+                      style={{ paddingTop: config.space.S700 }}
+                      grow="Yes"
+                      alignItems="Center"
+                      justifyContent="Center"
+                      direction="Column"
+                      gap="100"
+                    >
+                      <Text size="H6" align="Center">
+                        {pickRoom
+                          ? result
+                            ? 'No Match Found'
+                            : pickRoom.eligibleRoomIds.length === 0
+                              ? 'No rooms to forward to'
+                              : 'No rooms match this filter'
+                          : result
+                            ? 'No Match Found'
+                            : 'No Rooms'}
+                      </Text>
+                      <Text size="T200" align="Center">
+                        {pickRoom
+                          ? result
+                            ? `No match found for "${result.query}".`
+                            : pickRoom.eligibleRoomIds.length === 0
+                              ? 'You cannot send messages in any joined room yet.'
+                              : 'Try another search, or use # for group rooms and @ for direct messages.'
+                          : result
+                            ? `No match found for "${result.query}".`
+                            : 'You do not have any Rooms to display yet.'}
+                      </Text>
+                    </Box>
+                  )}
+                  {roomsToRender.length > 0 && (
+                    <Scroll ref={scrollRef} size="300" hideTrack>
+                      <div
+                        style={{
+                          padding: config.space.S400,
+                          paddingRight: config.space.S200,
+                        }}
+                      >
+                        {roomsToRender.map((roomId, index) => {
+                          const room = getRoom(roomId);
+                          if (!room) return null;
+
+                          const dm = mDirects.has(roomId);
+                          const dmUserId = dm && getDmUserId(roomId, getRoom, mx.getSafeUserId());
+                          const dmUsername = dmUserId && getMxIdLocalPart(dmUserId);
+                          const dmUserServer = dmUserId && getMxIdServer(dmUserId);
+
+                          const allParents = getAllParents(roomToParents, roomId);
+                          const orphanParents =
+                            allParents && orphanSpaces.filter((o) => allParents.has(o));
+                          const perfectOrphanParent =
+                            orphanParents && guessPerfectParent(mx, roomId, orphanParents);
+
+                          const exactParents = roomToParents.get(roomId);
+                          const perfectParent =
+                            exactParents &&
+                            guessPerfectParent(mx, roomId, Array.from(exactParents));
+
+                          const unread = roomToUnread.get(roomId);
+
+                          return (
+                            <MenuItem
+                              key={roomId}
+                              as="button"
+                              data-focus-index={index}
+                              data-room-id={roomId}
+                              data-space={room.isSpaceRoom()}
+                              onClick={handleRoomClick}
+                              disabled={pickRoom?.busy}
+                              variant={listFocus.index === index ? 'Primary' : 'Surface'}
+                              aria-pressed={listFocus.index === index}
+                              radii="400"
+                              after={
+                                <Box gap="100">
+                                  {dmUserServer && (
+                                    <Text size="T200" priority="300" truncate>
+                                      <b>{dmUserServer}</b>
+                                    </Text>
+                                  )}
+                                  {!dm && perfectOrphanParent && (
+                                    <Text size="T200" priority="300" truncate>
+                                      <b>
+                                        {getRoom(perfectOrphanParent)?.name ?? perfectOrphanParent}
+                                      </b>
+                                    </Text>
+                                  )}
+                                  {unread && (
+                                    <UnreadBadgeCenter>
+                                      <UnreadBadge
+                                        highlight={unread.highlight > 0}
+                                        count={
+                                          unread.highlight > 0 ? unread.highlight : unread.total
+                                        }
+                                      />
+                                    </UnreadBadgeCenter>
+                                  )}
+                                </Box>
+                              }
+                              before={
+                                <Avatar size="200" radii={dm ? '400' : '300'}>
+                                  {dm || room.isSpaceRoom() ? (
+                                    <RoomAvatar
+                                      roomId={room.roomId}
+                                      src={
+                                        dm
+                                          ? getDirectRoomAvatarUrl(
+                                              mx,
+                                              room,
+                                              32,
+                                              useAuthentication,
+                                              convertMxc
+                                            )
+                                          : getRoomAvatarUrl(
+                                              mx,
+                                              room,
+                                              32,
+                                              useAuthentication,
+                                              convertMxc
+                                            )
+                                      }
+                                      alt={room.name}
+                                      renderFallback={() => (
+                                        <Text as="span" size="H6">
+                                          {nameInitials(room.name)}
+                                        </Text>
+                                      )}
+                                    />
+                                  ) : (
+                                    <RoomIcon
+                                      size="100"
+                                      joinRule={room.getJoinRule()}
+                                      roomType={room.getType()}
+                                    />
+                                  )}
+                                </Avatar>
+                              }
+                            >
+                              <Box grow="Yes" alignItems="Center" gap="100">
+                                <Text size="T400" truncate>
+                                  {queryHighlighRegex
+                                    ? highlightText(queryHighlighRegex, [room.name])
+                                    : room.name}
+                                </Text>
+                                {dmUsername && (
+                                  <Text as="span" size="T200" priority="300" truncate>
+                                    @
+                                    {queryHighlighRegex
+                                      ? highlightText(queryHighlighRegex, [dmUsername])
+                                      : dmUsername}
+                                  </Text>
+                                )}
+                                {!dm && perfectParent && perfectParent !== perfectOrphanParent && (
+                                  <Text size="T200" priority="300" truncate>
+                                    — {getRoom(perfectParent)?.name ?? perfectParent}
+                                  </Text>
+                                )}
+                              </Box>
+                            </MenuItem>
+                          );
+                        })}
+                      </div>
+                    </Scroll>
+                  )}
+                </>
               )}
             </Box>
             <Line size="300" />
@@ -500,8 +592,8 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
                   </>
                 ) : (
                   <>
-                    Type <b>#</b> for rooms, <b>@</b> for DMs and <b>*</b> for spaces. Hotkey:{' '}
-                    <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
+                    Type <b>#</b> for rooms, <b>@</b> for DMs, <b>*</b> for spaces and <b>{'>'}</b>{' '}
+                    for messages. Hotkey: <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
                     {' / '}
                     <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + f</b>
                   </>

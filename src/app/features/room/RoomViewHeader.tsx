@@ -45,8 +45,14 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useIsDirectRoom, useRoom } from '$hooks/useRoom';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { useClientConfig } from '$hooks/useClientConfig';
 import { useSpaceOptionally } from '$hooks/useSpace';
-import { getHomeSearchPath, getSpaceSearchPath, withSearchParam } from '$pages/pathUtils';
+import {
+  getDirectSearchPath,
+  getHomeSearchPath,
+  getSpaceSearchPath,
+  withSearchParam,
+} from '$pages/pathUtils';
 import { createLogger } from '$utils/debug';
 import {
   getCanonicalAliasOrRoomId,
@@ -371,6 +377,10 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
   const encryptionEvent = useStateEvent(room, EventType.RoomEncryption);
   const encryptedRoom = !!encryptionEvent;
+
+  const { features } = useClientConfig();
+  const settings = useAtomValue(settingsAtom);
+  const encryptedSearchEnabled = features?.encryptedSearch !== false && settings.encryptedSearch;
   const avatarMxc = useRoomAvatar(room, direct && !customDMCards);
   const name = useRoomName(room);
   const topic = useRoomTopic(room);
@@ -556,7 +566,9 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     };
     const path = space
       ? getSpaceSearchPath(getCanonicalAliasOrRoomId(mx, space.roomId))
-      : getHomeSearchPath();
+      : direct
+        ? getDirectSearchPath()
+        : getHomeSearchPath();
     navigate(withSearchParam(path, searchParams));
   };
 
@@ -670,13 +682,13 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
         <Box shrink="No">
           {(!room.isCallRoom() || chat) && (
             <>
-              {!encryptedRoom && (
+              {(!encryptedRoom || encryptedSearchEnabled) && (
                 <TooltipProvider
                   position="Bottom"
                   offset={4}
                   tooltip={
                     <Tooltip>
-                      <Text>Search</Text>
+                      <Text>{encryptedRoom ? 'Search (local cache)' : 'Search'}</Text>
                     </Tooltip>
                   }
                 >

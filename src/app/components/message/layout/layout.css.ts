@@ -237,6 +237,9 @@ export const MessageTextBody = recipe({
   base: {
     unicodeBidi: 'plaintext',
     alignSelf: 'start',
+    // Full width ensures RTL text (direction:rtl from dir=auto) has room to right-align
+    // within the flex column that contains the message body.
+    width: '100%',
     wordBreak: 'break-word',
     fontSize: '1rem !important', // Override folds Text component to enable page zoom scaling
   },

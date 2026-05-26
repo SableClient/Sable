@@ -12,7 +12,11 @@ export const getLocalStorageItem = <T>(key: string, defaultValue: T): T => {
 };
 
 export const setLocalStorageItem = (key: string, value: unknown) => {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // QuotaExceededError: write best-effort; ignore if storage is full
+  }
 };
 
 export type GetLocalStorageItem<T> = (key: string) => T;

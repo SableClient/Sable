@@ -34,8 +34,8 @@ import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
 
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
-import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { formatCompactNumber } from '$utils/formatCompactNumber';
 import { ItemDraggableTarget, useDraggableItem } from './DnD';
 import * as styleCss from './style.css';
@@ -358,6 +358,7 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const convertMxc = useCachedMxcConverter();
     const { roomId, content } = item;
     const room = getRoom(roomId);
     const targetRef = useRef<HTMLDivElement>(null);
@@ -451,7 +452,7 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                   topic={summary.topic}
                   avatarUrl={
                     summary?.avatar_url
-                      ? (mxcUrlToHttp(mx, summary.avatar_url, useAuthentication, 96, 96, 'crop') ??
+                      ? (convertMxc(mx, summary.avatar_url, useAuthentication, 96, 96, 'crop') ??
                         undefined)
                       : undefined
                   }

@@ -40,7 +40,6 @@ import {
   getMemberAvatarMxc,
   isThreadRelationEvent,
 } from '$utils/room';
-import { mxcUrlToHttp } from '$utils/matrix';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
@@ -71,10 +70,13 @@ import { MessageEditHistoryItem } from '$components/message/modals/MessageEditHi
 import { MessageSourceCodeItem } from '$components/message/modals/MessageSource';
 import { MessageForwardItem } from '$components/message/modals/MessageForward';
 import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
+import { computeBookmarkId, createBookmarkItem } from '$features/bookmarks/bookmarkDomain';
+import { useIsBookmarked, useBookmarkActions } from '$features/bookmarks/useBookmarks';
 import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { filterPronounsByLanguage, getParsedPronouns } from '$utils/pronouns';
 import type { PronounSet } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import {
   addStickerToDefaultPack,
   doesStickerExistInDefaultPack,
@@ -82,6 +84,7 @@ import {
 import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
 import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
+import { MobileMessageMenu } from './MobileMessageMenu';
 import * as css from './styles.css';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
@@ -158,6 +161,40 @@ export const MessageCopyLinkItem = as<
   );
 });
 
+export const MessageCopyTextItem = as<
+  'button',
+  {
+    mEvent: MatrixEvent;
+    onClose?: () => void;
+  }
+>(({ mEvent, onClose, ...props }, ref) => {
+  const content = mEvent.getContent();
+  // For edited messages, prefer the new content body
+  const body: string | undefined = content['m.new_content']?.body ?? content.body;
+
+  if (!body || mEvent.isRedacted()) return null;
+
+  const handleCopy = () => {
+    copyToClipboard(body);
+    onClose?.();
+  };
+
+  return (
+    <MenuItem
+      size="300"
+      after={<Icon size="100" src={Icons.Alphabet} />}
+      radii="300"
+      onClick={handleCopy}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        Copy Text
+      </Text>
+    </MenuItem>
+  );
+});
+
 // message pinning
 export const MessagePinItem = as<
   'button',
@@ -194,6 +231,49 @@ export const MessagePinItem = as<
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
         {isPinned ? 'Unpin Message' : 'Pin Message'}
+      </Text>
+    </MenuItem>
+  );
+});
+
+// message bookmarking
+export const MessageBookmarkItem = as<
+  'button',
+  {
+    room: Room;
+    mEvent: MatrixEvent;
+    onClose?: () => void;
+  }
+>(({ room, mEvent, onClose, ...props }, ref) => {
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
+  const eventId = mEvent.getId();
+  const isBookmarked = useIsBookmarked(room.roomId, eventId ?? '');
+  const { add, remove } = useBookmarkActions();
+
+  if (!eventId) return null;
+  if (!enableMessageBookmarks) return null;
+
+  const handleClick = async () => {
+    if (isBookmarked) {
+      await remove(computeBookmarkId(room.roomId, eventId));
+    } else {
+      const item = createBookmarkItem(room, mEvent);
+      if (item) await add(item);
+    }
+    onClose?.();
+  };
+
+  return (
+    <MenuItem
+      size="300"
+      after={<Icon size="100" src={Icons.Bookmark} filled={isBookmarked} />}
+      radii="300"
+      onClick={handleClick}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        {isBookmarked ? 'Remove Bookmark' : 'Bookmark Message'}
       </Text>
     </MenuItem>
   );
@@ -255,22 +335,73 @@ export type MessageProps = {
   msc2723ForwardedMessageProps?: MSC2723ForwardedMessageProps;
 };
 
-function useMobileDoubleTap(callback: () => void, delay = 300) {
-  const lastTapRef = useRef(0);
+function useMobileLongPress(callback: () => void, delay = 500) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const firedRef = useRef(false);
 
-  return useCallback(() => {
-    if (!mobileOrTablet()) return;
-
-    const now = Date.now();
-    const timeSinceLastTap = now - lastTapRef.current;
-
-    if (timeSinceLastTap < delay && timeSinceLastTap > 0) {
-      callback();
-      lastTapRef.current = 0;
-    } else {
-      lastTapRef.current = now;
+  const cancel = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-  }, [callback, delay]);
+    startPosRef.current = null;
+  }, []);
+
+  const onTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (!mobileOrTablet()) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      startPosRef.current = { x: touch.clientX, y: touch.clientY };
+      firedRef.current = false;
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        firedRef.current = true;
+        // Clear any text selection the browser started during the long-press gesture.
+        window.getSelection()?.removeAllRanges();
+        callback();
+      }, delay);
+    },
+    [callback, delay]
+  );
+
+  const onTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!startPosRef.current) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - startPosRef.current.x;
+      const dy = touch.clientY - startPosRef.current.y;
+      if (Math.sqrt(dx * dx + dy * dy) > 10) cancel();
+    },
+    [cancel]
+  );
+
+  const onTouchEnd = useCallback(() => {
+    cancel();
+  }, [cancel]);
+
+  // Prevent the browser from selecting message text during a long-press gesture.
+  // Only applied on touch devices — desktop users can still select text normally.
+  const style = mobileOrTablet()
+    ? ({ userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties)
+    : undefined;
+
+  useEffect(
+    () => () => {
+      cancel();
+    },
+    [cancel]
+  );
+
+  return {
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd,
+    onTouchCancel: onTouchEnd,
+    style,
+  };
 }
 
 const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
@@ -374,6 +505,7 @@ function MessageInternal(
 ) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
 
   const [contentVersion, setContentVersion] = useState(0);
 
@@ -459,8 +591,8 @@ function MessageInternal(
   const avatarUrl = useMemo(() => {
     if (collapse) return undefined;
     const mxc = pmp?.avatar_url || memberAvatarMxc || profile.avatarUrl;
-    return mxc ? mxcUrlToHttp(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
-  }, [pmp, collapse, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication]);
+    return mxc ? convertMxc(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
+  }, [pmp, collapse, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication, convertMxc]);
 
   const cachedAvatar = useBlobCache(avatarUrl ?? undefined);
 
@@ -490,7 +622,6 @@ function MessageInternal(
 
   const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
-
   const [showPronouns] = useSetting(settingsAtom, 'showPronouns');
   const [parsePronouns] = useSetting(settingsAtom, 'parsePronouns');
 
@@ -517,17 +648,6 @@ function MessageInternal(
     return existing;
   }, [pronouns, inlinePronoun]);
 
-  useEffect(() => {
-    if (!mobileOptionsOpen) return undefined;
-    const handleClickOutside = (e: globalThis.Event) => {
-      if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
-        setMobileOptionsOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', handleClickOutside, { capture: true });
-    return () => document.removeEventListener('pointerdown', handleClickOutside, { capture: true });
-  }, [mobileOptionsOpen]);
-
   const headerJSX = !collapse && (
     <Box
       gap="300"
@@ -551,7 +671,7 @@ function MessageInternal(
             <UsernameBold>{cleanedDisplayName}</UsernameBold>
           </Text>
         </Username>
-        {showPronouns && (
+        {showPronouns && mergedPronouns.length > 0 && (
           <Pronouns pronouns={mergedPronouns} tagColor={usernameColor ?? 'currentColor'} />
         )}
         {showPmPInfo && (
@@ -798,6 +918,7 @@ function MessageInternal(
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     if (mobileOrTablet()) {
       evt.preventDefault();
+      setMobileOptionsOpen(true);
       return;
     }
 
@@ -853,7 +974,7 @@ function MessageInternal(
     onReplyClick(mockEvent);
   };
 
-  const onDoubleTap = useMobileDoubleTap(() => {
+  const longPress = useMobileLongPress(() => {
     setMobileOptionsOpen(true);
   });
 
@@ -884,7 +1005,7 @@ function MessageInternal(
       {...focusWithinProps}
       ref={ref}
     >
-      {!edit && (isDesktopHover || !!menuAnchor || !!emojiBoardAnchor || mobileOptionsOpen) && (
+      {!edit && (isDesktopHover || !!menuAnchor || !!emojiBoardAnchor) && (
         <div className={css.MessageOptionsBase} ref={optionsRef}>
           <Menu className={css.MessageOptionsBar} variant="SurfaceVariant">
             <Box gap="100">
@@ -1118,7 +1239,12 @@ function MessageInternal(
                           <MessageSourceCodeItem room={room} mEvent={mEvent} />
                         )}
                         <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                        <MessageCopyTextItem mEvent={mEvent} onClose={closeMenu} />
                         <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                      </Box>
+                      <Line size="300" />
+                      <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
+                        <MessageBookmarkItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         {canPinEvent && (
                           <MessagePinItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         )}
@@ -1240,7 +1366,7 @@ function MessageInternal(
       {messageLayout === MessageLayout.Compact && (
         <SwipeableMessageWrapper onReply={handleSwipeReply}>
           <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
-            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+            <div {...longPress}>{msgContentJSX}</div>
           </CompactLayout>
         </SwipeableMessageWrapper>
       )}
@@ -1252,19 +1378,37 @@ function MessageInternal(
             onContextMenu={handleContextMenu}
             align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
           >
-            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+            <div {...longPress}>{msgContentJSX}</div>
           </BubbleLayout>
         </SwipeableMessageWrapper>
       )}
       {messageLayout !== MessageLayout.Compact && messageLayout !== MessageLayout.Bubble && (
         <SwipeableMessageWrapper onReply={handleSwipeReply}>
           <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
-            <div onPointerDown={onDoubleTap}>
+            <div {...longPress}>
               {headerJSX}
               {msgContentJSX}
             </div>
           </ModernLayout>
         </SwipeableMessageWrapper>
+      )}
+      {mobileOptionsOpen && (
+        <MobileMessageMenu
+          room={room}
+          mEvent={mEvent}
+          canDelete={canDelete}
+          canSendReaction={canSendReaction}
+          canPinEvent={canPinEvent}
+          relations={relations}
+          isThreadedMessage={isThreadedMessage}
+          hideReadReceipts={hideReadReceipts}
+          showDeveloperTools={showDeveloperTools}
+          onReplyClick={onReplyClick}
+          onEditId={onEditId}
+          onReactionToggle={onReactionToggle}
+          imagePackRooms={imagePackRooms ?? []}
+          onClose={() => setMobileOptionsOpen(false)}
+        />
       )}
     </MessageBase>
   );
@@ -1319,6 +1463,7 @@ export const Event = as<'div', EventProps>(
     const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
       if (mobileOrTablet()) {
         evt.preventDefault();
+        setMobileOptionsOpen(true);
         return;
       }
 
@@ -1362,18 +1507,7 @@ export const Event = as<'div', EventProps>(
 
     const optionsRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-      if (!mobileOptionsOpen) return undefined;
-      const handleClick = (e: globalThis.Event) => {
-        if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
-          setMobileOptionsOpen(false);
-        }
-      };
-      document.addEventListener('pointerdown', handleClick, { capture: true });
-      return () => document.removeEventListener('pointerdown', handleClick, { capture: true });
-    }, [mobileOptionsOpen]);
-
-    const onDoubleTap = useMobileDoubleTap(() => {
+    const longPress = useMobileLongPress(() => {
       setMobileOptionsOpen(true);
     });
 
@@ -1399,7 +1533,7 @@ export const Event = as<'div', EventProps>(
         {...focusWithinProps}
         ref={ref}
       >
-        {(isDesktopHover || !!menuAnchor || mobileOptionsOpen) && (
+        {(isDesktopHover || !!menuAnchor) && (
           <div className={css.MessageOptionsBase} ref={optionsRef}>
             <Menu className={css.MessageOptionsBar} variant="SurfaceVariant">
               <Box gap="100">
@@ -1459,7 +1593,15 @@ export const Event = as<'div', EventProps>(
                               <MessageSourceCodeItem room={room} mEvent={mEvent} />
                             )}
                             <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                            <MessageCopyTextItem mEvent={mEvent} onClose={closeMenu} />
                             <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                            {!stateEvent && (
+                              <MessageBookmarkItem
+                                room={room}
+                                mEvent={mEvent}
+                                onClose={closeMenu}
+                              />
+                            )}
                           </Box>
                           {((!mEvent.isRedacted() && canDelete && !stateEvent) ||
                             (mEvent.getSender() !== mx.getUserId() && !stateEvent)) && (
@@ -1503,9 +1645,22 @@ export const Event = as<'div', EventProps>(
             </Menu>
           </div>
         )}
-        <div onContextMenu={handleContextMenu} onPointerDown={onDoubleTap}>
+        <div onContextMenu={handleContextMenu} {...longPress}>
           {children}
         </div>
+        {mobileOptionsOpen && (
+          <MobileMessageMenu
+            room={room}
+            mEvent={mEvent}
+            canDelete={canDelete}
+            hideReadReceipts={hideReadReceipts}
+            showDeveloperTools={showDeveloperTools}
+            onReplyClick={onReplyClick}
+            onReactionToggle={() => {}}
+            imagePackRooms={[]}
+            onClose={() => setMobileOptionsOpen(false)}
+          />
+        )}
       </MessageBase>
     );
   }

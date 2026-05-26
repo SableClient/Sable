@@ -1,24 +1,31 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import { useNavigate } from 'react-router-dom';
+import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { SyncState, ClientEvent } from '$types/matrix-sdk';
 import { activeSessionIdAtom, pendingNotificationAtom } from '../state/sessions';
 import { mDirectAtom } from '../state/mDirectList';
 import { useSyncState } from './useSyncState';
 import { useMatrixClient } from './useMatrixClient';
 import { getCanonicalAliasOrRoomId } from '../utils/matrix';
-import { getDirectRoomPath, getHomeRoomPath, getSpaceRoomPath } from '../pages/pathUtils';
-import { getOrphanParents, guessPerfectParent } from '../utils/room';
-import { roomToParentsAtom } from '../state/room/roomToParents';
+import {
+  getDirectRoomPath,
+  getHomeRoomPath,
+  getSpaceRoomPath,
+  getDirectPath,
+  getHomePath,
+  getSpacePath,
+} from '../pages/pathUtils';
+import { DIRECT_ROOM_PATH, HOME_ROOM_PATH, SPACE_ROOM_PATH } from '../pages/paths';
+import { getOrphanParents, getRoomToParents, guessPerfectParent } from '../utils/room';
 import { createLogger } from '../utils/debug';
 
 export function NotificationJumper() {
   const [pending, setPending] = useAtom(pendingNotificationAtom);
   const activeSessionId = useAtomValue(activeSessionIdAtom);
   const mDirects = useAtomValue(mDirectAtom);
-  const roomToParents = useAtomValue(roomToParentsAtom);
   const mx = useMatrixClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const log = createLogger('NotificationJumper');
 
   // Set true the moment we fire navigateRoom. Only reset when `pending` changes
@@ -56,9 +63,17 @@ export function NotificationJumper() {
       jumpingRef.current = true;
       // Navigate directly to home or direct path — bypasses space routing which
       // on mobile shows the space-nav panel first instead of the room timeline.
+      // First replace the current history entry with the section overview so that
+      // pressing back (including native iOS swipe-back) returns to the section list
+      // rather than the room the user was in before the notification.
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, pending.roomId);
+
+      // Compute target paths up-front so both branches can share them.
+      let targetSectionPath: string;
+      let targetRoomPath: string;
       if (mDirects.has(pending.roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, pending.eventId));
+        targetSectionPath = getDirectPath();
+        targetRoomPath = getDirectRoomPath(roomIdOrAlias, pending.eventId);
       } else {
         // If the room lives inside a space, route through the space path so
         // SpaceRouteRoomProvider can resolve it — HomeRouteRoomProvider only
@@ -66,20 +81,44 @@ export function NotificationJumper() {
         // Use getOrphanParents + guessPerfectParent (same as useRoomNavigate) so
         // we always navigate to a root-level space, not a subspace — subspace
         // paths are not recognised by the router and land on JoinBeforeNavigate.
-        const orphanParents = getOrphanParents(roomToParents, pending.roomId);
+        const orphanParents = getOrphanParents(getRoomToParents(mx), pending.roomId);
         if (orphanParents.length > 0) {
           const parentSpace =
             guessPerfectParent(mx, pending.roomId, orphanParents) ?? orphanParents[0];
-          navigate(
-            getSpaceRoomPath(
-              getCanonicalAliasOrRoomId(mx, parentSpace ?? pending.roomId),
-              roomIdOrAlias,
-              pending.eventId
-            )
-          );
+          const spaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace ?? pending.roomId);
+          targetSectionPath = getSpacePath(spaceIdOrAlias);
+          targetRoomPath = getSpaceRoomPath(spaceIdOrAlias, roomIdOrAlias, pending.eventId);
         } else {
-          navigate(getHomeRoomPath(roomIdOrAlias, pending.eventId));
+          targetSectionPath = getHomePath();
+          targetRoomPath = getHomeRoomPath(roomIdOrAlias, pending.eventId);
         }
+      }
+
+      // eventId is an optional param in the same route segment (:roomIdOrAlias/:eventId?/),
+      // so navigating from /direct/!room/ to /direct/!room/$event/ is a re-render of the
+      // existing Room component — not an unmount. loadEventTimeline() picks up the new
+      // eventId and fetches the event from the server if it isn't in the local cache yet.
+      // Skipping the section→room two-step avoids an unnecessary unmount that would:
+      //   a) reset isAtBottomRef so live events don't auto-scroll, and
+      //   b) lose the current scroll position for the "back" gesture.
+      const roomMatch =
+        matchPath(DIRECT_ROOM_PATH, location.pathname) ??
+        matchPath(HOME_ROOM_PATH, location.pathname) ??
+        matchPath(SPACE_ROOM_PATH, location.pathname);
+      const currentRoomIdOrAlias = roomMatch?.params.roomIdOrAlias
+        ? decodeURIComponent(roomMatch.params.roomIdOrAlias)
+        : undefined;
+      const alreadyInRoom =
+        currentRoomIdOrAlias !== undefined &&
+        (currentRoomIdOrAlias === roomIdOrAlias || currentRoomIdOrAlias === pending.roomId);
+
+      if (alreadyInRoom) {
+        navigate(targetRoomPath, { replace: true });
+      } else {
+        // First replace the current history entry with the section overview so
+        // that pressing back returns to the section list rather than the previous room.
+        navigate(targetSectionPath, { replace: true });
+        navigate(targetRoomPath);
       }
       setPending(null);
       // jumpingRef stays true until pending changes — see effect below.
@@ -90,7 +129,7 @@ export function NotificationJumper() {
         membership: room?.getMyMembership(),
       });
     }
-  }, [pending, activeSessionId, mx, mDirects, roomToParents, navigate, setPending, log]);
+  }, [pending, activeSessionId, mx, mDirects, navigate, location, setPending, log]);
 
   // Reset the guard only when pending is replaced (new notification or cleared).
   useEffect(() => {

@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SearchIndexProvider } from '$hooks/useSearchIndex';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
 import {
   MatrixEvent,
@@ -60,10 +61,34 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
-import { getInboxInvitesPath } from '../pathUtils';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
+import { useReminderSync } from '$features/bookmarks/useReminderSync';
+import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
+import { useSyncState } from '$hooks/useSyncState';
 
 const pushRelayLog = createDebugLogger('push-relay');
+
+function postToServiceWorker(data: unknown): void {
+  if (!('serviceWorker' in navigator)) return;
+
+  const posted = new Set<ServiceWorker>();
+  const postToWorker = (worker: ServiceWorker | null | undefined) => {
+    if (!worker || posted.has(worker)) return;
+    posted.add(worker);
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    worker.postMessage(data);
+  };
+
+  postToWorker(navigator.serviceWorker.controller);
+  navigator.serviceWorker.ready
+    .then((registration) => {
+      postToWorker(registration.active);
+      postToWorker(registration.waiting);
+      postToWorker(registration.installing);
+    })
+    .catch(() => undefined);
+}
 
 function clearMediaSessionQuickly(): void {
   if (!('mediaSession' in navigator)) return;
@@ -618,17 +643,23 @@ export function HandleNotificationClick() {
       const { data } = ev;
       if (!data || data.type !== 'notificationClick') return;
 
-      const { userId, roomId, eventId, isInvite } = data as {
+      const { userId, roomId, eventId, isInvite, isReminder } = data as {
         userId?: string;
         roomId?: string;
         eventId?: string;
         isInvite?: boolean;
+        isReminder?: boolean;
       };
 
       if (userId) setActiveSessionId(userId);
 
       if (isInvite) {
         navigate(getInboxInvitesPath());
+        return;
+      }
+
+      if (isReminder) {
+        navigate(getInboxBookmarksPath());
         return;
       }
 
@@ -657,18 +688,27 @@ function SyncNotificationSettingsWithServiceWorker() {
     const postVisibility = () => {
       const visible = document.visibilityState === 'visible';
       const msg = { type: 'setAppVisible', visible };
-      navigator.serviceWorker.controller?.postMessage(msg);
-      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+      postToServiceWorker(msg);
     };
 
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+
+    // iOS kills the SW after ~30 s of inactivity regardless of page
+    // visibility. Send a cheap keep-alive ping every 20 s so the SW
+    // stays alive whenever the page is open (foregrounded or not).
+    const keepAliveId = window.setInterval(() => {
+      navigator.serviceWorker.controller?.postMessage({ type: 'ping' });
+    }, 20_000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', postVisibility);
+      window.clearInterval(keepAliveId);
+    };
   }, []);
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).
     // The in-app sound setting only controls the in-page <audio> playback above.
@@ -679,11 +719,36 @@ function SyncNotificationSettingsWithServiceWorker() {
       clearNotificationsOnRead,
     };
 
-    navigator.serviceWorker.controller?.postMessage(payload);
-    navigator.serviceWorker.ready.then((registration) => {
-      registration.active?.postMessage(payload);
-    });
+    postToServiceWorker(payload);
   }, [showMessageContent, showEncryptedMessageContent, clearNotificationsOnRead]);
+
+  return null;
+}
+
+/**
+ * Tells the service worker whether the Matrix sync connection is healthy.
+ * When sync is in Reconnecting or Error state the in-app notification path is
+ * broken, so the SW must not suppress OS push notifications even while the app
+ * is visible.
+ */
+function SyncStateWithServiceWorker() {
+  const mx = useMatrixClient();
+
+  const postSyncHealth = useCallback((healthy: boolean) => {
+    const msg = { type: 'setSyncState', healthy };
+    postToServiceWorker(msg);
+  }, []);
+
+  useSyncState(
+    mx,
+    useCallback(
+      (current) => {
+        const healthy = current !== SyncState.Reconnecting && current !== SyncState.Error;
+        postSyncHealth(healthy);
+      },
+      [postSyncHealth]
+    )
+  );
 
   return null;
 }
@@ -808,7 +873,7 @@ function HandleDecryptPushEvent() {
           appVisible: visible,
         });
 
-        navigator.serviceWorker.controller?.postMessage({
+        postToServiceWorker({
           type: 'pushDecryptResult',
           eventId,
           success: true,
@@ -825,7 +890,7 @@ function HandleDecryptPushEvent() {
           'Push relay decryption failed',
           err instanceof Error ? err : new Error(String(err))
         );
-        navigator.serviceWorker.controller?.postMessage({
+        postToServiceWorker({
           type: 'pushDecryptResult',
           eventId,
           success: false,
@@ -856,16 +921,92 @@ function PresenceFeature() {
   return null;
 }
 
+function ProgressivePrefetchFeature() {
+  const mx = useMatrixClient();
+  const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
+
+  useEffect(() => {
+    getSlidingSyncManager(mx)?.setProgressivePrefetch(progressivePrefetch);
+  }, [mx, progressivePrefetch]);
+
+  return null;
+}
+
 function SettingsSyncFeature() {
   useSettingsSyncEffect();
   return null;
 }
 
+function BookmarksFeature() {
+  useInitBookmarks();
+  return null;
+}
+
+function ReminderSync() {
+  useReminderSync();
+  return null;
+}
+
+/**
+ * Listens for `remindersInApp` messages from the service worker and shows an
+ * in-app notification banner. The SW sends this instead of an OS notification
+ * when the app is foregrounded (visible tab), avoiding duplicate alerts.
+ */
+function ReminderBanners() {
+  const navigate = useNavigate();
+  const setInAppBanner = useSetAtom(inAppBannerAtom);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type !== 'remindersInApp') return;
+      const reminders: Array<{
+        bookmarkId: string;
+        note?: string;
+        roomId: string;
+        eventId: string;
+      }> = event.data.reminders ?? [];
+      const first = reminders[0];
+      if (!first) return;
+
+      setInAppBanner({
+        id: `reminder-${first.bookmarkId}`,
+        title: 'Bookmark Reminder',
+        body: first.note ?? 'You have a bookmark reminder.',
+        onClick: () => {
+          window.focus();
+          navigate(getInboxBookmarksPath());
+        },
+      });
+    };
+
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, [navigate, setInAppBanner]);
+
+  return null;
+}
+
+function RemindersFeature() {
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
+  const [enableBookmarkReminders] = useSetting(settingsAtom, 'enableBookmarkReminders');
+  if (!enableMessageBookmarks || !enableBookmarkReminders) return null;
+  return (
+    <>
+      <ReminderSync />
+      <ReminderBanners />
+    </>
+  );
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
-    <>
+    <SearchIndexProvider>
       <SettingsSyncFeature />
+      <BookmarksFeature />
+      <RemindersFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />
@@ -874,16 +1015,18 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
+      <SyncStateWithServiceWorker />
       <HandleDecryptPushEvent />
       <NotificationBanner />
       <TelemetryConsentBanner />
       <ThemeMigrationBanner />
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
+      <ProgressivePrefetchFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />
       {children}
-    </>
+    </SearchIndexProvider>
   );
 }

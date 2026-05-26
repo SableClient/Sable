@@ -121,7 +121,7 @@ export const UrlPreviewCard = as<
           const preview = await previewResult;
           clientCache.delete(url);
           return preview;
-        } catch (err) {
+        } catch {
           // Synapse returns 502/404/403 when the external URL is unreachable, forbidden,
           // or the preview service is unavailable. This is expected behaviour — silently
           // suppress and render no preview rather than propagating to error boundary.

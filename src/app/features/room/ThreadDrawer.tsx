@@ -585,7 +585,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   // catches RoomEvent.TimelineReset (fired when the thread timeline
   // is cleared and re-populated during initialisation).
   useEffect(() => {
-    if (!thread) return;
+    if (!thread) return () => {};
     const onDirectTimelineUpdate = (event?: MatrixEvent) => {
       Sentry.addBreadcrumb({
         category: 'thread',

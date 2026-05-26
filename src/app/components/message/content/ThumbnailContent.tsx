@@ -46,7 +46,7 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
           const blobUrl = URL.createObjectURL(fileContent);
           mediaUrlCache.setBlob(thumbMxcUrl, true, blobUrl, thumbInfo.mimetype);
           return blobUrl;
-        } catch (err) {
+        } catch {
           // Network-level media fetch failed (timeout, 404, 401, etc.).
           // Return null so the component renders nothing instead of propagating to error boundary.
           return null;

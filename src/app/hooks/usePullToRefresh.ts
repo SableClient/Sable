@@ -75,10 +75,10 @@ export function usePullToRefresh(
 
   useEffect(() => {
     // Only activate on actual mobile / tablet devices.
-    if (!mobileOrTablet()) return;
+    if (!mobileOrTablet()) return () => {};
 
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el) return () => {};
 
     ensurePTRStyles();
     const indicator = createIndicator();

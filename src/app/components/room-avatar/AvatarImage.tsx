@@ -22,7 +22,7 @@ export function useProcessedAvatarSrc(src?: string): string | undefined {
   useEffect(() => {
     if (!src) {
       setProcessedSrc(undefined);
-      return;
+      return () => {};
     }
 
     let isMounted = true;

@@ -521,7 +521,7 @@ export function RoomTimeline({
         // finished processing/rendering it yet.
         retryIntervalId = setInterval(() => {
           if (attemptScroll()) {
-            clearInterval(retryIntervalId!);
+            clearInterval(retryIntervalId);
             retryIntervalId = undefined;
           }
         }, 200);

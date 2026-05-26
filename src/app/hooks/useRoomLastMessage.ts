@@ -47,7 +47,11 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   // Check if this message has been edited — use the edited content if available
   const replacingEvent =
     typeof ev.replacingEvent === 'function' ? ev.replacingEvent() : undefined;
-  let displayContent = replacingEvent ? replacingEvent.getContent() : content;
+  // Only use the replacement event if it's been decrypted (otherwise we'd see ciphertext)
+  let displayContent =
+    replacingEvent && !replacingEvent.isBeingDecrypted() && !replacingEvent.isEncrypted()
+      ? replacingEvent.getContent()
+      : content;
   // If we're using an edit event's content, extract m.new_content (the actual edit)
   // instead of the fallback body (which has "* " prefix for old clients)
   if (replacingEvent && displayContent?.['m.new_content']) {
@@ -212,8 +216,19 @@ export function useRoomLastMessage(
     // haven't been opened yet; this ensures the preview resolves on mount.
     const events = room.getLiveTimeline().getEvents();
     const lastDisplayable = findLastDisplayableEvent(events);
-    if (lastDisplayable && lastDisplayable.isEncrypted()) {
-      mx.decryptEventIfNeeded(lastDisplayable).catch(() => undefined);
+    if (lastDisplayable) {
+      // Decrypt the main event if encrypted
+      if (lastDisplayable.isEncrypted()) {
+        mx.decryptEventIfNeeded(lastDisplayable).catch(() => undefined);
+      }
+      // Also decrypt the replacement event if present (edits are stored encrypted)
+      const replacingEvent =
+        typeof lastDisplayable.replacingEvent === 'function'
+          ? lastDisplayable.replacingEvent()
+          : undefined;
+      if (replacingEvent?.isEncrypted()) {
+        mx.decryptEventIfNeeded(replacingEvent).catch(() => undefined);
+      }
     }
 
     // Background paginate when the timeline is sparse and contains no

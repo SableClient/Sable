@@ -85,6 +85,8 @@ export type ImageContentProps = {
   mediaLayout?: 'default' | 'contained';
   containedStripMinPx?: number;
   fillsPreviewSlot?: boolean;
+  onError?: () => void;
+  suppressErrorUI?: boolean;
 };
 export const ImageContent = as<'div', ImageContentProps>(
   (
@@ -105,6 +107,8 @@ export const ImageContent = as<'div', ImageContentProps>(
       mediaLayout = 'default',
       containedStripMinPx,
       fillsPreviewSlot,
+      onError,
+      suppressErrorUI,
       ...props
     },
     ref
@@ -191,6 +195,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     const handleError = () => {
       setLoad(false);
       setError(true);
+      onError?.();
     };
 
     const handleRetry = () => {
@@ -212,10 +217,11 @@ export const ImageContent = as<'div', ImageContentProps>(
           // eslint-disable-next-line no-console
           console.warn('[ImageContent] Image load timeout after 30s:', url);
           setError(true);
+          onError?.();
         }
       }, 30000);
       return () => clearTimeout(timeoutId);
-    }, [srcState.status, load, error, url]);
+    }, [srcState.status, load, error, url, onError]);
 
     const imageW = info?.w;
     const imageH = info?.h;
@@ -372,7 +378,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               <Spinner variant="Secondary" />
             </Box>
           )}
-        {(error || srcState.status === AsyncStatus.Error) && (
+        {!suppressErrorUI && (error || srcState.status === AsyncStatus.Error) && (
           <Box
             className={css.AbsoluteContainer}
             alignItems="Center"

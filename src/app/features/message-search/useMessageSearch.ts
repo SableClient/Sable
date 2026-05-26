@@ -240,7 +240,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         } else {
           inMemoryGroups = searchEncryptedRoomsInMemory(
             mx,
-            term ?? '',
+            serverTerm ?? '',
             encryptedRoomIds,
             senders,
             hasTypes
@@ -327,7 +327,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
             },
             include_state: false,
             order_by: order as SearchOrderBy.Recent,
-            search_term: serverTerm,
+            search_term: serverTerm!,
           },
         },
       };

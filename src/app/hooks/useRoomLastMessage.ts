@@ -44,10 +44,19 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   // Only show encrypted placeholder if the event is still encrypted (not yet decrypted).
   if (type === ENCRYPTED_EVENT_TYPE) return '🔒 Encrypted message';
 
+  // Check if this message has been edited — use the edited content if available
+  const replacingEvent = ev.replacingEvent();
+  const displayContent = replacingEvent ? replacingEvent.getContent() : content;
+
   if (type === ROOM_MESSAGE_EVENT_TYPE) {
-    const { msgtype } = content;
+    const { msgtype } = displayContent;
     if (msgtype === MsgType.Text || msgtype === MsgType.Emote || msgtype === MsgType.Notice) {
-      return stripReplyFallback(content.body);
+      const body = stripReplyFallback(displayContent.body);
+      // Detect if message contains a link
+      if (body && /https?:\/\//.test(body)) {
+        return '🔗 Link';
+      }
+      return body;
     }
     if (msgtype === MsgType.Image) return '📷 Image';
     if (msgtype === MsgType.Video) return '📹 Video';
@@ -57,12 +66,12 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   }
 
   if (type === STICKER_EVENT_TYPE) {
-    return `🎉 ${content.body ?? 'Sticker'}`;
+    return `🎉 ${displayContent.body ?? 'Sticker'}`;
   }
 
   // Polls — show the question text when available.
   if (type === 'org.matrix.msc3381.poll.start' || type === 'm.poll.start') {
-    const pollContent = content?.['org.matrix.msc3381.poll.start'] ?? content?.['m.poll.start'];
+    const pollContent = displayContent?.['org.matrix.msc3381.poll.start'] ?? displayContent?.['m.poll.start'];
     const question =
       typeof pollContent === 'object' && pollContent !== null
         ? (pollContent as { question?: Record<string, unknown> }).question
@@ -79,6 +88,24 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
         ? pollBodyCandidate.trim()
         : 'Poll';
     return `📊 ${pollBody}`;
+  }
+
+  // Call events (Element Call / Native calls)
+  if (type === 'org.matrix.msc3401.call' || type === 'm.call.invite') {
+    return '📞 Started a call';
+  }
+  if (type === 'm.call.answer') {
+    return '📞 Answered call';
+  }
+  if (type === 'm.call.hangup') {
+    return '📞 Ended call';
+  }
+
+  // Widget events (Jitsi, custom widgets, etc.)
+  if (type === 'im.vector.modular.widgets') {
+    const widgetType = displayContent?.type;
+    if (widgetType === 'jitsi') return '📞 Started a Jitsi call';
+    return '🧩 Added a widget';
   }
 
   return undefined;

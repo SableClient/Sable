@@ -13,6 +13,7 @@ import {
   EventType,
 } from '$types/matrix-sdk';
 import { useAtomValue, useSetAtom } from 'jotai';
+import * as Sentry from '@sentry/react';
 import { ReactEditor } from 'slate-react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -481,21 +482,90 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
     const onTimeline = (mEvent: MatrixEvent) => {
       if (isEventInThread(mEvent)) {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Timeline event detected in thread',
+          level: 'debug',
+          data: {
+            threadRootId,
+            eventId: mEvent.getId(),
+            eventType: mEvent.getType(),
+            sender: mEvent.getSender(),
+          },
+        });
+        
+        // Manually add the event to the thread timeline if it's not already there.
+        // The SDK should do this automatically, but with sliding sync there may be timing issues.
+        const currentThread = room.getThread(threadRootId);
+        if (currentThread && currentThread.initialEventsFetched) {
+          const eventId = mEvent.getId();
+          const existsInThread = currentThread.events.some(e => e.getId() === eventId);
+          if (!existsInThread && isThreadRelationEvent(mEvent, threadRootId)) {
+            Sentry.addBreadcrumb({
+              category: 'thread',
+              message: 'Manually adding event to thread timeline',
+              level: 'info',
+              data: { threadRootId, eventId },
+            });
+            currentThread.addEvents([mEvent], false);
+          }
+        }
+        
         // Schedule forceUpdate in a microtask to ensure the SDK has finished
         // adding the event to the thread timeline before we re-render.
-        Promise.resolve().then(() => forceUpdate((n) => n + 1));
+        Promise.resolve().then(() => {
+          Sentry.addBreadcrumb({
+            category: 'thread',
+            message: 'Force update after timeline event',
+            level: 'debug',
+            data: {
+              threadRootId,
+              eventId: mEvent.getId(),
+              threadEventsCount: currentThread?.events.length ?? 0,
+            },
+          });
+          forceUpdate((n) => n + 1);
+        });
       }
     };
     const onRedaction = (mEvent: MatrixEvent) => {
       // Redactions (removing reactions/messages) should also trigger updates
       if (isEventInThread(mEvent)) {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Redaction event in thread',
+          level: 'debug',
+          data: {
+            threadRootId,
+            eventId: mEvent.getId(),
+          },
+        });
         Promise.resolve().then(() => forceUpdate((n) => n + 1));
       }
     };
     const onThreadUpdate = () => {
+      const currentThread = room.getThread(threadRootId);
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'ThreadEvent.Update or NewReply fired',
+        level: 'debug',
+        data: {
+          threadRootId,
+          threadEventsCount: currentThread?.events.length ?? 0,
+          initialEventsFetched: currentThread?.initialEventsFetched ?? false,
+        },
+      });
       // Thread metadata updates (reply count, participants) should also wait
       // for SDK to finish processing before re-rendering.
-      Promise.resolve().then(() => forceUpdate((n) => n + 1));
+      Promise.resolve().then(() => {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Force update after thread metadata update',
+          level: 'debug',
+          data: { threadRootId },
+        });
+        forceUpdate((n) => n + 1);
+      });
     };
     mx.on(RoomEvent.Timeline, onTimeline);
     room.on(RoomEvent.Redaction, onRedaction);
@@ -516,14 +586,50 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   // is cleared and re-populated during initialisation).
   useEffect(() => {
     if (!thread) return;
-    const onDirectUpdate = () => forceUpdate((n) => n + 1);
-    thread.on(RoomEvent.Timeline, onDirectUpdate);
-    thread.on(RoomEvent.TimelineReset, onDirectUpdate);
-    return () => {
-      thread.off(RoomEvent.Timeline, onDirectUpdate);
-      thread.off(RoomEvent.TimelineReset, onDirectUpdate);
+    const onDirectTimelineUpdate = (event?: MatrixEvent) => {
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'Direct thread timeline event',
+        level: 'debug',
+        data: {
+          threadRootId,
+          eventId: event?.getId(),
+          eventType: event?.getType(),
+          threadEventsCount: thread.events.length,
+        },
+      });
+      Sentry.metrics.count('sable.thread.direct_timeline_event', 1, {
+        attributes: { threadId: threadRootId },
+      });
+      // Microtask delay to ensure SDK finishes processing before re-render
+      Promise.resolve().then(() => {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Force update after direct thread event',
+          level: 'debug',
+          data: { threadRootId, eventId: event?.getId() },
+        });
+        forceUpdate((n) => n + 1);
+      });
     };
-  }, [thread]);
+    const onDirectTimelineReset = () => {
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'Direct thread timeline reset',
+        level: 'info',
+        data: { threadRootId, threadEventsCount: thread.events.length },
+      });
+      Promise.resolve().then(() => {
+        forceUpdate((n) => n + 1);
+      });
+    };
+    thread.on(RoomEvent.Timeline, onDirectTimelineUpdate);
+    thread.on(RoomEvent.TimelineReset, onDirectTimelineReset);
+    return () => {
+      thread.off(RoomEvent.Timeline, onDirectTimelineUpdate);
+      thread.off(RoomEvent.TimelineReset, onDirectTimelineReset);
+    };
+  }, [thread, threadRootId]);
 
   // Mark thread as read when viewing it
   useEffect(() => {

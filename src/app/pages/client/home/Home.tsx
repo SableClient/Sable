@@ -19,7 +19,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
-import { factoryRoomIdByActivity, factoryRoomIdByAtoZ } from '$utils/sort';
+import { factoryRoomIdByActivity, factoryRoomIdByAtoZ, factoryRoomIdByPriority } from '$utils/sort';
 import {
   NavButton,
   NavCategory,
@@ -46,6 +46,7 @@ import { VirtualTile } from '$components/virtualizer';
 import { RoomNavCategoryButton, RoomNavItem } from '$features/room-nav';
 import { makeNavCategoryId } from '$state/closedNavCategories';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
+import { mDirectAtom } from '$state/mDirectList';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavHeader, PageNavContent } from '$components/page';
@@ -210,6 +211,7 @@ export function Home() {
   const rooms = useHomeRooms();
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
+  const mDirects = useAtomValue(mDirectAtom);
   const navigate = useNavigate();
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
@@ -239,7 +241,7 @@ export function Home() {
   const sortedRooms = useMemo(() => {
     const items = Array.from(rooms).toSorted(
       closedCategories.has(DEFAULT_CATEGORY_ID)
-        ? factoryRoomIdByActivity(mx)
+        ? factoryRoomIdByPriority(mx, roomToUnread, mDirects)
         : factoryRoomIdByAtoZ(mx)
     );
     const hasUnread = (roomId: string) => {
@@ -250,7 +252,7 @@ export function Home() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId]);
+  }, [mx, rooms, closedCategories, roomToUnread, mDirects, selectedRoomId]);
 
   const virtualizer = useVirtualizer({
     count: sortedRooms.length,

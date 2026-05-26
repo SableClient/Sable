@@ -21,7 +21,7 @@ import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { factoryRoomIdByActivity } from '$utils/sort';
+import { factoryRoomIdByActivity, factoryRoomIdByPriority } from '$utils/sort';
 import {
   NavButton,
   NavCategory,
@@ -39,6 +39,7 @@ import { VirtualTile } from '$components/virtualizer';
 import { RoomNavCategoryButton, RoomNavItem } from '$features/room-nav';
 import { makeNavCategoryId } from '$state/closedNavCategories';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
+import { mDirectAtom } from '$state/mDirectList';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
@@ -188,6 +189,7 @@ export function Direct() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const directs = useDirectRooms();
   const notificationPreferences = useRoomsNotificationPreferencesContext();
+  const mDirects = useAtomValue(mDirectAtom);
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
@@ -236,7 +238,7 @@ export function Direct() {
 
   const sortedDirects = useMemo(() => {
     void activityCounter;
-    const items = Array.from(directs).toSorted(factoryRoomIdByActivity(mx));
+    const items = Array.from(directs).toSorted(factoryRoomIdByPriority(mx, roomToUnread, mDirects));
     const hasUnread = (roomId: string) => {
       const unread = roomToUnread.get(roomId);
       return !!unread && (unread.total > 0 || unread.highlight > 0);
@@ -245,7 +247,7 @@ export function Direct() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, directs, closedCategories, roomToUnread, selectedRoomId, activityCounter]);
+  }, [mx, directs, closedCategories, roomToUnread, mDirects, selectedRoomId, activityCounter]);
 
   const virtualizer = useVirtualizer({
     count: sortedDirects.length,

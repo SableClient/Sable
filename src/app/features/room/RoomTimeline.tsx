@@ -521,7 +521,30 @@ export function RoomTimeline({
       const atBottom = atBottomRef.current;
       const shrank = newHeight < prev;
 
-      if (shrank && atBottom) {
+      // Detect if this viewport expansion is from keyboard closing.
+      // If the viewport grew by roughly the keyboard height that just disappeared,
+      // record the time so handleVListScroll can use an extended settle window
+      // (500ms instead of 250ms) to fully suppress the jump button during the
+      // keyboard close animation.
+      const keyboardJustClosed =
+        prevKeyboardVisibleRef.current &&
+        !isKeyboardVisible &&
+        heightDelta > 0 &&
+        prevKeyboardHeightRef.current > 0 &&
+        Math.abs(heightDelta - prevKeyboardHeightRef.current) < 50;
+
+      if (keyboardJustClosed) {
+        lastKeyboardCloseTimeRef.current = Date.now();
+        // If we were at bottom when keyboard closed, immediately ensure atBottom
+        // state is true to hide "Jump to Latest" button without delay
+        if (atBottom) {
+          setAtBottom(true);
+        }
+      }
+
+      // Handle both viewport shrinking (keyboard open) and expanding (keyboard close)
+      // to prevent the "Jump to Present" button from flashing during these transitions.
+      if (changed && atBottom) {
         // Record the programmatic pin so handleVListScroll sees withinSettleWindow=true
         // and doesn't flip atBottom to false while VList commits the new scroll position.
         // Without this, the "Jump to Present" button flashes every time the keyboard opens.

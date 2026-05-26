@@ -368,7 +368,17 @@ function handleQuery(
 
   const rawResults = index.search(term, searchOptions) as unknown as IndexableEvent[];
 
-  post({ type: 'QUERY_RESULT', id, events: rawResults });
+  // For exact match, post-filter to ensure the phrase appears in the body
+  // MiniSearch tokenizes even with fuzzy:false, so we need to verify the actual phrase
+  const results = exactMatch
+    ? rawResults.filter((ev) => {
+        const body = typeof ev.body === 'string' ? ev.body : String(ev.body ?? '');
+        // Case-insensitive phrase search
+        return body.toLowerCase().includes(term.toLowerCase());
+      })
+    : rawResults;
+
+  post({ type: 'QUERY_RESULT', id, events: results });
 }
 
 async function handleSetBackfillState(roomId: string, state: BackfillState): Promise<void> {

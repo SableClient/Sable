@@ -36,8 +36,19 @@ import { SpaceSettingsRenderer } from '$features/space-settings';
 import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
 import { CreateRoomModalRenderer } from '$features/create-room';
 import { CreateSpaceModalRenderer } from '$features/create-space';
-import { BugReportModalRenderer } from '$features/bug-report';
 import type { Sessions } from '$state/sessions';
+
+// Lazy-load bug report modal - only needed when user explicitly opens it
+const BugReportModalRenderer = lazy(() => {
+  const start = performance.now();
+  return import('$features/bug-report').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'bug_report_modal' },
+    });
+    return { default: m.BugReportModalRenderer };
+  });
+});
 import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
@@ -209,7 +220,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                         <UserRoomProfileRenderer />
                         <CreateRoomModalRenderer />
                         <CreateSpaceModalRenderer />
-                        <BugReportModalRenderer />
+                        <Suspense fallback={null}>
+                          <BugReportModalRenderer />
+                        </Suspense>
                         <SettingsShallowRouteRenderer />
                         <RoomSettingsRenderer />
                         <SpaceSettingsRenderer />

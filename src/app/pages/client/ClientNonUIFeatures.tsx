@@ -54,10 +54,32 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { getSlidingSyncManager } from '$client/initMatrix';
+import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
-import { ThemeMigrationBanner } from '$components/theme/ThemeMigrationBanner';
-import { TelemetryConsentBanner } from '$components/telemetry-consent';
 import { useCallSignaling } from '$hooks/useCallSignaling';
+
+// Lazy-load banners to reduce initial bundle size - these are rarely shown on first load
+const ThemeMigrationBanner = lazy(() => {
+  const start = performance.now();
+  return import('$components/theme/ThemeMigrationBanner').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'theme_migration_banner' },
+    });
+    return { default: m.ThemeMigrationBanner };
+  });
+});
+
+const TelemetryConsentBanner = lazy(() => {
+  const start = performance.now();
+  return import('$components/telemetry-consent').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'telemetry_consent_banner' },
+    });
+    return { default: m.TelemetryConsentBanner };
+  });
+});
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
@@ -1018,8 +1040,12 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SyncStateWithServiceWorker />
       <HandleDecryptPushEvent />
       <NotificationBanner />
-      <TelemetryConsentBanner />
-      <ThemeMigrationBanner />
+      <Suspense fallback={null}>
+        <TelemetryConsentBanner />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ThemeMigrationBanner />
+      </Suspense>
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
       <ProgressivePrefetchFeature />

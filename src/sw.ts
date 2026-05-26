@@ -292,6 +292,89 @@ async function prefetchSlidingSyncData(session: SessionInfo): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Strategy 7+: Additional Cache Priming
+// ---------------------------------------------------------------------------
+
+/**
+ * Prefetch well-known Matrix client configuration.
+ * This endpoint is frequently requested and safe to cache aggressively.
+ */
+async function prefetchWellKnown(session: SessionInfo): Promise<void> {
+  try {
+    const baseUrl = new URL(session.baseUrl);
+    const wellKnownUrl = `${baseUrl.origin}/.well-known/matrix/client`;
+
+    console.debug('[SW] Prefetching well-known...');
+    const response = await fetch(wellKnownUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    if (response.ok) {
+      console.debug('[SW] Well-known prefetch succeeded');
+    } else {
+      console.debug('[SW] Well-known prefetch failed:', response.status);
+    }
+  } catch (error) {
+    console.debug('[SW] Well-known prefetch error:', error);
+  }
+}
+
+/**
+ * Prefetch homeserver capabilities to warm cache.
+ * This is requested during client initialization.
+ */
+async function prefetchCapabilities(session: SessionInfo): Promise<void> {
+  try {
+    const capabilitiesUrl = `${session.baseUrl}/_matrix/client/v3/capabilities`;
+
+    console.debug('[SW] Prefetching capabilities...');
+    const response = await fetch(capabilitiesUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      console.debug('[SW] Capabilities prefetch succeeded');
+    } else {
+      console.debug('[SW] Capabilities prefetch failed:', response.status);
+    }
+  } catch (error) {
+    console.debug('[SW] Capabilities prefetch error:', error);
+  }
+}
+
+/**
+ * Prefetch user profile data (display name, avatar).
+ * This is shown immediately on client load.
+ */
+async function prefetchUserProfile(session: SessionInfo): Promise<void> {
+  try {
+    const profileUrl = `${session.baseUrl}/_matrix/client/v3/profile/${encodeURIComponent(session.userId)}`;
+
+    console.debug('[SW] Prefetching user profile...');
+    const response = await fetch(profileUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      console.debug('[SW] User profile prefetch succeeded');
+    } else {
+      console.debug('[SW] User profile prefetch failed:', response.status);
+    }
+  } catch (error) {
+    console.debug('[SW] User profile prefetch error:', error);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Encrypted push — decryption relay
 // ---------------------------------------------------------------------------
 
@@ -638,12 +721,18 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // authenticated rather than falling through to a 3-second timeout.
       preloadedSession = await loadPersistedSession();
 
-      // Strategy 7: Prefetch sliding sync data on activation (warm cache scenario).
-      // This makes the first sync response arrive faster when the app opens.
-      // Fire-and-forget: don't block activation on this optional optimization.
+      // Strategy 7+: Prefetch critical data on activation to warm browser cache.
+      // This makes subsequent requests instant on warm cache launches.
+      // Fire-and-forget: don't block activation on these optional optimizations.
       if (preloadedSession) {
-        prefetchSlidingSyncData(preloadedSession).catch(() => {
-          // Silently ignore — this is a best-effort optimization
+        // Prefetch in parallel for maximum speed
+        Promise.allSettled([
+          prefetchSlidingSyncData(preloadedSession),
+          prefetchWellKnown(preloadedSession),
+          prefetchCapabilities(preloadedSession),
+          prefetchUserProfile(preloadedSession),
+        ]).catch(() => {
+          // Silently ignore — these are best-effort optimizations
         });
       }
 

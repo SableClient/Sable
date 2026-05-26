@@ -111,7 +111,11 @@ const useEventTimelineLoader = (
 
           // Check if the event now exists in the live timeline
           const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
-          let liveAbsIndex = getEventIdAbsoluteIndex(liveLinkedTimelines, liveTimeline, eventId);
+          let liveAbsIndex = getEventIdAbsoluteIndex(
+            liveLinkedTimelines,
+            liveTimeline,
+            eventId
+          );
 
           // If event not found in current live timeline, try paginating backward to fetch it.
           // This handles the case where sync hasn't caught up yet but the event is on the server.
@@ -125,10 +129,7 @@ const useEventTimelineLoader = (
 
             const [paginateErr] = await to(
               withTimeout(
-                mx.paginateEventTimeline(liveTimeline, {
-                  backwards: true,
-                  limit: PAGINATION_LIMIT,
-                }),
+                mx.paginateEventTimeline(liveTimeline, { backwards: true, limit: PAGINATION_LIMIT }),
                 EVENT_TIMELINE_LOAD_TIMEOUT_MS
               )
             );

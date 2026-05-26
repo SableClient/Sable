@@ -630,10 +630,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
     let worker: Worker;
     try {
-      worker = new Worker(
-        new URL('../plugins/search-worker/searchWorker.ts', import.meta.url),
-        { type: 'module' }
-      );
+      worker = new Worker(new URL('../plugins/search-worker/searchWorker.ts', import.meta.url), {
+        type: 'module',
+      });
     } catch (e) {
       // Worker failed to load — likely a missing or mis-served asset (404 → HTML)
       const errorMsg = `Search worker failed to instantiate: ${e instanceof Error ? e.message : String(e)}`;

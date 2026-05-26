@@ -77,7 +77,8 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
 
   // Polls — show the question text when available.
   if (type === 'org.matrix.msc3381.poll.start' || type === 'm.poll.start') {
-    const pollContent = displayContent?.['org.matrix.msc3381.poll.start'] ?? displayContent?.['m.poll.start'];
+    const pollContent =
+      displayContent?.['org.matrix.msc3381.poll.start'] ?? displayContent?.['m.poll.start'];
     const question =
       typeof pollContent === 'object' && pollContent !== null
         ? (pollContent as { question?: Record<string, unknown> }).question

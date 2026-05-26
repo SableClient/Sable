@@ -680,6 +680,11 @@ export function RoomTimeline({
 
       if (keyboardJustClosed) {
         lastKeyboardCloseTimeRef.current = Date.now();
+        // If we were at bottom when keyboard closed, immediately ensure atBottom
+        // state is true to hide "Jump to Latest" button without delay
+        if (atBottom) {
+          setAtBottom(true);
+        }
       }
 
       // Handle both viewport shrinking (keyboard open) and expanding (keyboard close)

@@ -20,6 +20,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { SwipeableChatWrapper } from '$components/SwipeableChatWrapper';
 import { BackRouteHandler } from '$components/BackRouteHandler';
+import { useKeyboardHeight } from '$hooks/ios-keyboard-fix/useKeyboardHeight';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { RoomSettingsPage } from '$state/roomSettings';
@@ -76,9 +77,10 @@ export function RoomView({ eventId }: { eventId?: string }) {
   const roomViewRef = useRef<HTMLDivElement>(null);
   const editLastMessageRef = useRef<(() => void) | undefined>();
 
+  const { isKeyboardVisible } = useKeyboardHeight();
+  const screenSize = useScreenSizeContext();
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const [useTiptapComposer] = useSetting(settingsAtom, 'useTiptapComposer');
-  const screenSize = useScreenSizeContext();
 
   const room = useRoom();
   const { roomId } = room;
@@ -213,7 +215,12 @@ export function RoomView({ eventId }: { eventId?: string }) {
                   </>
                 )}
               </div>
-              {hideReads ? <RoomViewFollowingPlaceholder /> : <RoomViewFollowing room={room} />}
+              {hideReads ? (
+                <RoomViewFollowingPlaceholder />
+              ) : // Hide Following indicator on mobile when keyboard is open to save space
+              screenSize === ScreenSize.Mobile && isKeyboardVisible ? null : (
+                <RoomViewFollowing room={room} />
+              )}
             </Box>
           </SwipeableChatWrapper>
         </Page>

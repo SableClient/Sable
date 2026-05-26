@@ -22,25 +22,35 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
       const thumbInfo = info.thumbnail_info;
       const thumbMxcUrl = info.thumbnail_file?.url ?? info.thumbnail_url;
       const encInfo = info.thumbnail_file;
+      
+      // Thumbnail data is missing or malformed (common with bridged messages from Discord, Slack, etc.).
+      // Return null to render nothing rather than crashing.
       if (typeof thumbMxcUrl !== 'string' || typeof thumbInfo?.mimetype !== 'string') {
-        throw new Error('Failed to load thumbnail');
+        return null;
       }
 
       const mediaUrl = mediaUrlCache.get(mx, thumbMxcUrl, useAuthentication);
-      if (!mediaUrl) throw new Error('Invalid media URL');
+      if (!mediaUrl) return null;
+      
       if (encInfo) {
         // Check blob cache first
         const cachedBlob = mediaUrlCache.getBlob(thumbMxcUrl, true, thumbInfo.mimetype);
         if (cachedBlob) return cachedBlob;
 
-        const fileContent = await downloadEncryptedMedia(
-          mediaUrl,
-          (encBuf) => decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo),
-          mx.getAccessToken()
-        );
-        const blobUrl = URL.createObjectURL(fileContent);
-        mediaUrlCache.setBlob(thumbMxcUrl, true, blobUrl, thumbInfo.mimetype);
-        return blobUrl;
+        try {
+          const fileContent = await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) => decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo),
+            mx.getAccessToken()
+          );
+          const blobUrl = URL.createObjectURL(fileContent);
+          mediaUrlCache.setBlob(thumbMxcUrl, true, blobUrl, thumbInfo.mimetype);
+          return blobUrl;
+        } catch (err) {
+          // Network-level media fetch failed (timeout, 404, 401, etc.).
+          // Return null so the component renders nothing instead of propagating to error boundary.
+          return null;
+        }
       }
 
       return mediaUrl;
@@ -51,5 +61,7 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
     loadThumbSrc();
   }, [loadThumbSrc]);
 
-  return thumbSrcState.status === AsyncStatus.Success ? renderImage(thumbSrcState.data) : null;
+  return thumbSrcState.status === AsyncStatus.Success && thumbSrcState.data
+    ? renderImage(thumbSrcState.data)
+    : null;
 }

@@ -21,7 +21,7 @@ import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { factoryRoomIdByActivity, factoryRoomIdByPriority } from '$utils/sort';
+import { factoryRoomIdByPriority } from '$utils/sort';
 import {
   NavButton,
   NavCategory,

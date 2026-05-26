@@ -130,6 +130,44 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
   }
 }
 
+/**
+ * Validate a session by making a lightweight /whoami request.
+ * Returns the session if valid, undefined if the token is expired/invalid.
+ * Used to detect stale persisted sessions before using them for media fetches.
+ */
+async function validateSession(session: SessionInfo): Promise<SessionInfo | undefined> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const res = await fetch(`${session.baseUrl}/_matrix/client/v3/account/whoami`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (res.status === 401) {
+      console.warn('[SW] validateSession: 401 Unauthorized - token expired or invalid');
+      return undefined;
+    }
+
+    if (!res.ok) {
+      console.warn('[SW] validateSession: non-200 response', res.status);
+      // Non-401 errors might be transient (network, server down) — optimistically
+      // return the session rather than blocking all media fetches.
+      return session;
+    }
+
+    return session;
+  } catch (err) {
+    console.warn('[SW] validateSession: fetch error', err instanceof Error ? err.message : err);
+    // Network errors, timeouts, etc. — optimistically return the session.
+    return session;
+  }
+}
+
 type SessionInfo = {
   accessToken: string;
   baseUrl: string;
@@ -813,8 +851,16 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       await cleanupDeadClients();
       // Pre-load the persisted session into memory so that media fetches arriving
       // before the first setSession message from the page are immediately
-      // authenticated rather than falling through to a 3-second timeout.
-      preloadedSession = await loadPersistedSession();
+      // authenticated rather than falling through to the 10-second timeout.
+      // Validate the session to detect expired tokens early.
+      const persisted = await loadPersistedSession();
+      preloadedSession = persisted ? await validateSession(persisted) : undefined;
+
+      if (!preloadedSession && persisted) {
+        console.warn('[SW activate] Persisted session failed validation (likely expired token)');
+        // Clear the stale session from cache so future activations don't retry it.
+        await clearPersistedSession();
+      }
 
       // Strategy 7+: Prefetch critical data on activation to warm browser cache.
       // This makes subsequent requests instant on warm cache launches.
@@ -1019,10 +1065,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // window (e.g. a prerender). Fall back to the persisted session directly.
   if (!clientId) {
     event.respondWith(
-      loadPersistedSession().then((persisted) => {
-        if (persisted && validMediaRequest(url, persisted.baseUrl)) {
+      loadPersistedSession().then(async (persisted) => {
+        const validated = persisted ? await validateSession(persisted) : undefined;
+        if (validated && validMediaRequest(url, validated.baseUrl)) {
           return fetch(url, {
-            ...fetchConfig(persisted.accessToken),
+            ...fetchConfig(validated.accessToken),
             redirect,
           });
         }
@@ -1041,13 +1088,17 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       // Fallback: try the persisted session (helps when SW restarts on iOS and
       // the client window hasn't responded to requestSession yet).
       const persisted = await loadPersistedSession();
-      if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-        return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
+      const validated = persisted ? await validateSession(persisted) : undefined;
+      if (validated && validMediaRequest(url, validated.baseUrl)) {
+        console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
+        return fetch(url, { ...fetchConfig(validated.accessToken), redirect });
       }
       console.warn('[SW fetch] No valid session for media request', {
         url,
         clientId,
         hasSession: !!s,
+        hadPersistedSession: !!persisted,
+        persistedSessionValid: !!validated,
       });
       // Log fetch failure to help diagnose FetchEvent.respondWith errors
       return fetch(event.request).catch((err) => {

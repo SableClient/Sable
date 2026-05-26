@@ -15,7 +15,7 @@ const debugLog = createDebugLogger('PresenceSync');
 const DEBOUNCE_MS = 25000; // 25 seconds
 
 /** Fast debounce for activity events (idle→online) to ensure rapid multi-device sync. */
-const ACTIVITY_DEBOUNCE_MS = 2000; // 2 seconds
+const ACTIVITY_DEBOUNCE_MS = 500; // 500ms
 
 /** Minimum time between presence updates to avoid rate limiting. */
 const THROTTLE_MS = 25000; // 25 seconds
@@ -168,16 +168,23 @@ export function usePresenceSyncEffect(): void {
         window.dispatchEvent(new CustomEvent('sable:remote-activity', { detail: { timestamp: state.lastActivityAt } }));
       }
 
-      if (state.presenceMode !== settingsRef.current.presenceMode) {
-        setSettings({ ...settingsRef.current, presenceMode: state.presenceMode });
-      }
-      if (state.autoIdled !== autoIdledRef.current) {
+      // DON'T apply remote idle state if we're currently active locally.
+      // This prevents race conditions where remote idle updates overwrite local activity
+      // during the debounce window before our activity uploads to account data.
+      if (state.autoIdled && !autoIdledRef.current) {
+        debugLog.info('general', 'Ignoring remote idle state — we are active locally');
+        // Don't apply the remote idle state
+      } else if (state.autoIdled !== autoIdledRef.current) {
         setAutoIdled(state.autoIdled);
       }
 
-      // Also send to the server so it broadcasts to others
-      // (even though it won't echo back to us)
-      void sendPresenceToServer(mx, state.presenceMode, state.autoIdled, settingsRef.current.presenceStatusMsg, syncEnabled);
+      if (state.presenceMode !== settingsRef.current.presenceMode) {
+        setSettings({ ...settingsRef.current, presenceMode: state.presenceMode });
+      }
+
+      // DO NOT send to server here — the remote device already sent it.
+      // Sending again causes redundant traffic and can trigger rate limiting,
+      // preventing our local state changes from being sent when they should be.
     },
     [mx, setSettings, setAutoIdled, syncEnabled]
   );

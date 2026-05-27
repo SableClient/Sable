@@ -621,6 +621,13 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     worker.removeEventListener('message', handleWorkerMessage);
     worker.addEventListener('message', wrappedHandler as EventListener);
 
+    Sentry.addBreadcrumb({
+      category: 'search.index',
+      message: 'INIT sent to worker',
+      level: 'info',
+      data: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
+    });
+
     postToWorker({
       type: 'INIT',
       userId,

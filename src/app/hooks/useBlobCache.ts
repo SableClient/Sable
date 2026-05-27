@@ -25,7 +25,20 @@ export function useBlobCache(url?: string): string | undefined {
   }
 
   useEffect(() => {
-    if (!url || imageBlobCache.has(url)) return undefined;
+    if (!url) return undefined;
+
+    // SABLE-4Y fix: Skip URLs that previously failed auth
+    if (authFailedUrls.has(url)) {
+      return undefined;
+    }
+
+    // Check memory cache first (instant)
+    if (imageBlobCache.has(url)) {
+      Sentry.metrics.count('blob_cache.request', 1, {
+        attributes: { result: 'hit', cacheType: 'memory' },
+      });
+      return undefined;
+    }
 
     let isMounted = true;
 
@@ -42,6 +55,21 @@ export function useBlobCache(url?: string): string | undefined {
 
       const requestPromise = (async () => {
         try {
+          // Check persistent cache (fast, survives reloads)
+          const cachedBlob = await getCachedMedia(url);
+          if (cachedBlob) {
+            Sentry.metrics.count('blob_cache.request', 1, {
+              attributes: { result: 'hit', cacheType: 'persistent' },
+            });
+            const objectUrl = URL.createObjectURL(cachedBlob);
+            imageBlobCache.set(url, objectUrl);
+            return objectUrl;
+          }
+
+          // Fetch from network (slow)
+          Sentry.metrics.count('blob_cache.request', 1, {
+            attributes: { result: 'miss', cacheType: 'network' },
+          });
           const res = await fetch(url, { mode: 'cors' });
           if (!res.ok) {
             throw new Error(`Failed to fetch blob: ${res.status} ${res.statusText}`);

@@ -65,6 +65,8 @@ type RenderImageProps = {
   alt: string;
   title: string;
   src: string;
+  width?: number;
+  height?: number;
   onLoad: () => void;
   onError: () => void;
   onClick: () => void;
@@ -329,6 +331,8 @@ export const ImageContent = as<'div', ImageContentProps>(
               alt: body,
               title: body,
               src: srcState.data,
+              ...(typeof info?.w === 'number' && Number.isFinite(info.w) ? { width: info.w } : {}),
+              ...(typeof info?.h === 'number' && Number.isFinite(info.h) ? { height: info.h } : {}),
               onLoad: handleLoad,
               onError: handleError,
               onClick: () => {

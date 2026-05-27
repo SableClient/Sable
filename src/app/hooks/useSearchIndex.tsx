@@ -35,6 +35,8 @@ import type {
   WorkerInMessage,
   WorkerOutMessage,
 } from '$plugins/search-worker/types';
+// eslint-disable-next-line import/default, import/no-unresolved -- Vite ?worker suffix returns Worker constructor
+import SearchWorkerConstructor from '$plugins/search-worker/searchWorker.ts?worker';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -638,23 +640,17 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     );
 
     let worker: Worker;
-    const resolvedWorkerUrl = new URL('../plugins/search-worker/searchWorker.ts', import.meta.url)
-      .href;
     try {
-      const workerUrl = new URL('../plugins/search-worker/searchWorker.ts', import.meta.url);
       Sentry.addBreadcrumb({
         category: 'search.index',
         message: 'Instantiating search worker',
         level: 'info',
         data: {
-          workerUrl: workerUrl.href,
           rocketLoaderActive,
           indexedDBAvailable: typeof indexedDB !== 'undefined',
         },
       });
-      worker = new Worker(workerUrl, {
-        type: 'module',
-      });
+      worker = new SearchWorkerConstructor();
     } catch (e) {
       // Worker failed to load — likely a missing or mis-served asset (404 → HTML).
       // This commonly happens when:
@@ -679,7 +675,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           userId,
           maxMessagesPerRoom: searchIndexMessageLimit,
           likely_stale_cache: isMimeError,
-          workerUrl: resolvedWorkerUrl,
           rocketLoaderActive,
           indexedDBAvailable: typeof indexedDB !== 'undefined',
           userAgent: navigator.userAgent,
@@ -724,7 +719,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           lineno: error.lineno,
           colno: error.colno,
           likely_stale_cache: isMimeError,
-          workerUrl: resolvedWorkerUrl,
           rocketLoaderActive,
           errorMessageEmpty: !message,
         },

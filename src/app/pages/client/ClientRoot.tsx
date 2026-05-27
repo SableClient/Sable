@@ -388,6 +388,44 @@ export function ClientRoot({ children }: ClientRootProps) {
   return (
     <AutoDiscovery userId={userId ?? ''} baseUrl={baseUrl ?? ''}>
       <SpecVersions baseUrl={baseUrl ?? ''}>
+        {swUpdateAvailable && (
+          <Box direction="Column" shrink="No">
+            <Box
+              as="button"
+              type="button"
+              className={ContainerColor({ variant: 'Primary' })}
+              style={{
+                padding: `${config.space.S100} 0`,
+                width: '100%',
+                cursor: 'pointer',
+                border: 'none',
+                background: 'none',
+              }}
+              alignItems="Center"
+              justifyContent="Center"
+              onClick={() => {
+                // Tell the waiting service worker to activate immediately
+                navigator.serviceWorker.getRegistration().then((reg) => {
+                  if (reg?.waiting) {
+                    // Send skipWaiting message to the waiting SW
+                    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+                    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    // Reload once the new SW is activated
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                      window.location.reload();
+                    }, { once: true });
+                  } else {
+                    // No waiting worker, just reload
+                    window.location.reload();
+                  }
+                });
+              }}
+            >
+              <Text size="L400">Update available — tap to reload</Text>
+            </Box>
+            <Line variant="Primary" size="300" />
+          </Box>
+        )}
         {mx && <SyncStatus mx={mx} />}
         {loading && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
         {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (

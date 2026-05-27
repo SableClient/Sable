@@ -537,6 +537,8 @@ export function useTimelineSync({
 
   const canPaginateBack =
     typeof timeline.linkedTimelines[0]?.getPaginationToken(Direction.Backward) === 'string';
+  const canPaginateForward =
+    typeof timeline.linkedTimelines.at(-1)?.getPaginationToken(Direction.Forward) === 'string';
 
   const atLiveEndRef = useRef(liveTimelineLinked);
   atLiveEndRef.current = liveTimelineLinked;
@@ -588,6 +590,9 @@ export function useTimelineSync({
   const handleTimelinePaginationRef = useRef(handleTimelinePagination);
   handleTimelinePaginationRef.current = handleTimelinePagination;
 
+  const timelineRef = useRef(timeline);
+  timelineRef.current = timeline;
+
   const loadEventTimeline = useEventTimelineLoader(
     mx,
     room,
@@ -613,8 +618,16 @@ export function useTimelineSync({
     useCallback(() => {
       // Proactively load a batch above and below the jumped-to event so the user
       // can scroll immediately without waiting for pagination triggers.
-      void handleTimelinePaginationRef.current(true);  // backward
-      void handleTimelinePaginationRef.current(false); // forward
+      // Only attempt forward pagination if there's a token — otherwise we're at
+      // the live edge and will get an error ("Failed to load messages").
+      void handleTimelinePaginationRef.current(true); // backward
+      
+      const { linkedTimelines } = timelineRef.current;
+      const lastTimeline = linkedTimelines.at(-1);
+      const forwardToken = lastTimeline?.getPaginationToken(Direction.Forward);
+      if (forwardToken) {
+        void handleTimelinePaginationRef.current(false); // forward
+      }
     }, [])
   );
 
@@ -819,6 +832,7 @@ export function useTimelineSync({
     eventsLength,
     liveTimelineLinked,
     canPaginateBack,
+    canPaginateForward,
     backwardStatus,
     forwardStatus,
     handleTimelinePagination,

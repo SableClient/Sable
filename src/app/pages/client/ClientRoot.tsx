@@ -337,9 +337,24 @@ export function ClientRoot({ children }: ClientRootProps) {
 
       const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
       if (slidingSyncManager) {
+        const hasWarm = slidingSyncManager.hasWarmCache();
+        const isFullyLoaded = slidingSyncManager.isFullyLoaded();
+        const hasSufficient = slidingSyncManager.hasSufficientRoomsLoaded();
+        const roomCount = mx?.getRooms().length ?? 0;
+
+        log.log('[startup] checkReady:', {
+          state,
+          hasWarmCache: hasWarm,
+          isFullyLoaded,
+          hasSufficientRooms: hasSufficient,
+          roomCount,
+          elapsed: `${(performance.now() - syncStartTimeRef.current).toFixed(0)}ms`,
+        });
+
         // Strategy 1 + 4: If we have warm cache, show cached rooms immediately
         // while sync continues in background (parallel loading)
-        if (slidingSyncManager.hasWarmCache()) {
+        if (hasWarm) {
+          log.log('[startup] showing UI immediately (warm cache)');
           setLoading(false);
           if (!firstSyncReadyRef.current) {
             firstSyncReadyRef.current = true;
@@ -353,9 +368,11 @@ export function ClientRoot({ children }: ClientRootProps) {
         }
         // Cold cache: wait for full load to prevent visual jumping
         // Strategy 8: Use "sufficient rooms" threshold for faster initial display
-        if (!slidingSyncManager.isFullyLoaded() && !slidingSyncManager.hasSufficientRoomsLoaded()) {
+        if (!isFullyLoaded && !hasSufficient) {
+          log.log('[startup] waiting for more rooms (cold cache)');
           return;
         }
+        log.log('[startup] showing UI (cold cache, sufficient rooms loaded)');
       }
 
       setLoading(false);

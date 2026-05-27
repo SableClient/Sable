@@ -215,6 +215,37 @@ function makeTypeFilter(hasTypes: string[] | undefined): ((ev: IndexableEvent) =
   };
 }
 
+// Instrument IDB connection lifecycle
+function instrumentIDB(idb: IDBDatabase, dbName: string): void {
+  idb.addEventListener('close', () => {
+    // eslint-disable-next-line no-console
+    console.error(`[SearchWorker] IDB connection closed unexpectedly: ${dbName}`);
+    post({
+      type: '_sentry_breadcrumb',
+      category: 'idb',
+      message: 'IDB connection closed unexpectedly',
+      data: { dbName, version: idb.version },
+      level: 'error',
+    });
+  });
+
+  idb.addEventListener('versionchange', (event: IDBVersionChangeEvent) => {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[SearchWorker] IDB version change requested: ${dbName}`,
+      event.oldVersion,
+      event.newVersion
+    );
+    post({
+      type: '_sentry_breadcrumb',
+      category: 'idb',
+      message: 'IDB version change requested',
+      data: { dbName, oldVersion: event.oldVersion, newVersion: event.newVersion },
+      level: 'warning',
+    });
+  });
+}
+
 async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
   maxMessagesPerRoom = maxPerRoom;
   const dbName = `sable-search-${userId}`;

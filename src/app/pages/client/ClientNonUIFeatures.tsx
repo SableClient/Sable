@@ -986,7 +986,6 @@ function ProgressivePrefetchFeature() {
 
   useEffect(() => {
     const manager = getSlidingSyncManager(mx);
-    console.log('[ProgressivePrefetch] Setting value:', progressivePrefetch, 'manager:', !!manager);
     manager?.setProgressivePrefetch(progressivePrefetch);
   }, [mx, progressivePrefetch]);
 

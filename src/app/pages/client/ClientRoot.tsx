@@ -505,9 +505,13 @@ export function ClientRoot({ children }: ClientRootProps) {
                     // oxlint-disable-next-line unicorn/require-post-message-target-origin
                     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                     // Reload once the new SW is activated
-                    navigator.serviceWorker.addEventListener('controllerchange', () => {
-                      window.location.reload();
-                    }, { once: true });
+                    navigator.serviceWorker.addEventListener(
+                      'controllerchange',
+                      () => {
+                        window.location.reload();
+                      },
+                      { once: true }
+                    );
                   } else {
                     // No waiting worker, just reload
                     window.location.reload();

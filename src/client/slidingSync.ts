@@ -1392,20 +1392,20 @@ export class SlidingSyncManager {
   /**
    * Prefetch recently-visited rooms by subscribing to them in a single batched
    * call to modifyRoomSubscriptions.
-   * 
+   *
    * IMPORTANT: This only subscribes to rooms that ALREADY EXIST in the client
    * (from IndexedDB cache or initial sync response). It does not load/fetch new
    * rooms. On warm cache launches, all cached rooms load from IndexedDB instantly,
    * then this method subscribes to them to request fresh timeline content.
-   * 
+   *
    * Progressive prefetch (if enabled) continues subscribing to additional cached
    * rooms in batches of 25 every 3 seconds, spreading server load and avoiding
    * overwhelming the connection with hundreds of simultaneous subscriptions.
-   * 
+   *
    * The "all rooms visible, then content loads, then sort" behavior on warm cache
    * is CORRECT: rooms appear from cache instantly → progressive prefetch subscribes
    * in batches → fresh content arrives → rooms re-sort by priority.
-   * 
+   *
    * Calling subscribeToRoom() per room would trigger a modifyRoomSubscriptions +
    * resend() for each room individually (N+1 resend calls), whereas this method
    * collects all rooms first and issues one call, keeping startup sync churn low.

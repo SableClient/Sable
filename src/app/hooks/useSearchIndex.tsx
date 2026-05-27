@@ -674,13 +674,14 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
     // Handle worker runtime errors (e.g., MIME type errors from failed imports)
     const handleWorkerError = (error: ErrorEvent) => {
-      const errorMsg = `Search worker runtime error: ${error.message}`;
-      const isMimeError =
-        error.message.includes('MIME') && error.message.includes('text/html');
+      // Null-check error.message — it may be undefined on ErrorEvent (SABLE-52)
+      const message = error?.message ?? '';
+      const errorMsg = `Search worker runtime error: ${message || 'Unknown worker error'}`;
+      const isMimeError = message.includes('MIME') && message.includes('text/html');
 
       setInitError(errorMsg);
       setIsReady(false);
-      Sentry.captureException(error.error || new Error(error.message), {
+      Sentry.captureException(error.error || new Error(message || 'Unknown worker error'), {
         level: isMimeError ? 'warning' : 'error',
         tags: {
           component: 'search-index',
@@ -698,7 +699,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         contexts: {
           hint: {
             description: isMimeError
-              ? 'Worker import failed with MIME error - likely stale cache referencing old assets'
+              ? 'Worker import failed with MIME error - likely stale cache referencing old assets or missing chunk'
               : 'Worker script runtime error',
           },
         },
@@ -706,9 +707,13 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     };
     worker.addEventListener('error', handleWorkerError);
 
-    // Set a timeout to detect if the worker never sends READY or ERROR
+    // Set a timeout to detect if the worker never sends READY or ERROR (SABLE-54)
     const initTimeout = setTimeout(() => {
       setInitError('Worker initialization timed out (30s) — READY message never received');
+      setIsReady(false);
+      // Terminate the stuck worker so it doesn't consume resources
+      worker.terminate();
+      workerRef.current = null;
       Sentry.captureMessage('Search worker INIT timeout — READY message never received', {
         level: 'error',
         tags: { component: 'search-index' },

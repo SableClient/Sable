@@ -191,7 +191,7 @@ export function usePresenceSyncEffect(): void {
       // Sending again causes redundant traffic and can trigger rate limiting,
       // preventing our local state changes from being sent when they should be.
     },
-    [mx, setSettings, setAutoIdled, syncEnabled]
+    [setSettings, setAutoIdled]
   );
   useAccountDataCallback(mx, onAccountData);
 
@@ -261,7 +261,7 @@ export function usePresenceSyncEffect(): void {
     }, debounceMs);
 
     return () => clearTimeout(timerRef.current);
-  }, [mx, presenceMode, autoIdled, syncEnabled]);
+  }, [mx, presenceMode, autoIdled, syncEnabled, settings.presenceStatusMsg]);
 }
 
 /**

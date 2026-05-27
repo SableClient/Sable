@@ -530,11 +530,12 @@ export function RoomTimeline({
           // Re-center after a delay to ensure item measurements are complete.
           // The initial scrollToIndex may not center properly if item heights aren't known yet.
           // Schedule this ONLY after the scroll succeeds to avoid firing before the event renders.
+          // Use 600ms to give Virtua enough time to measure complex messages (media, replies, etc.)
           recenterTimeoutId = setTimeout(() => {
             if (vListRef.current && processedIndex !== undefined) {
               vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
             }
-          }, 300);
+          }, 600);
 
           return true;
         }
@@ -623,15 +624,15 @@ export function RoomTimeline({
     if (initialScrollTimerRef.current !== undefined) return;
 
     // Delay recovery scroll to give the focusItem scroll enough time to succeed.
-    // If the permalink jump is working, focusItem.scrollTo will be cleared within
-    // ~500ms (100ms retry + 300ms recenter). Only fall back to recovery after 1s.
+    // If the permalink jump is working, focusItem will be active for 2-4s (highlight duration).
+    // Only fall back to recovery if focusItem doesn't exist or was never set.
     initialScrollTimerRef.current = setTimeout(() => {
       initialScrollTimerRef.current = undefined;
 
-      // Final check: if focusItem.scrollTo is still true after 1s, something went wrong
-      // but we shouldn't override an active scroll attempt. Only recover if scrollTo is
-      // false or focusItem is undefined.
-      if (timelineSyncRef.current.focusItem?.scrollTo) return;
+      // Don't fire recovery if focusItem exists at all - that means the permalink scroll
+      // is active (even if scrollTo is false, which happens after successful scroll).
+      // Only recover when focusItem is completely undefined (scroll never started or failed).
+      if (timelineSyncRef.current.focusItem) return;
       if (isReadyRef.current) return;
       if (timelineSyncRef.current.eventsLength === 0) return;
       if (!timelineSyncRef.current.liveTimelineLinked) return;
@@ -648,7 +649,7 @@ export function RoomTimeline({
         initialScrollTimerRef.current = undefined;
         // Final bail-out checks before revealing
         if (isReadyRef.current) return;
-        if (timelineSyncRef.current.focusItem?.scrollTo) return;
+        if (timelineSyncRef.current.focusItem) return;
         if (timelineSyncRef.current.eventsLength === 0) return;
         if (!timelineSyncRef.current.liveTimelineLinked) return;
 

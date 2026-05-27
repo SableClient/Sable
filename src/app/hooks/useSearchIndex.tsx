@@ -628,9 +628,30 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       data: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
     });
 
+    // Check for known worker-blocking issues
+    const rocketLoaderActive = Boolean(
+      document.querySelector('script[src*="rocket-loader"]') ||
+      // @ts-expect-error - Rocket Loader injects this global
+      window.RocketLoader ||
+      // @ts-expect-error - Cloudflare global
+      window.Rocketloader
+    );
+
     let worker: Worker;
+    const resolvedWorkerUrl = new URL('../plugins/search-worker/searchWorker.ts', import.meta.url)
+      .href;
     try {
       const workerUrl = new URL('../plugins/search-worker/searchWorker.ts', import.meta.url);
+      Sentry.addBreadcrumb({
+        category: 'search.index',
+        message: 'Instantiating search worker',
+        level: 'info',
+        data: {
+          workerUrl: workerUrl.href,
+          rocketLoaderActive,
+          indexedDBAvailable: typeof indexedDB !== 'undefined',
+        },
+      });
       worker = new Worker(workerUrl, {
         type: 'module',
       });
@@ -640,6 +661,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       // 1. Old cached index.html references old worker URL (from previous build)
       // 2. Server returns 404 or HTML instead of JS
       // 3. Browser tries to execute HTML as JavaScript → MIME type error
+      // 4. Cloudflare Rocket Loader interfering with worker instantiation
       const errorMsg = `Search worker failed to instantiate: ${e instanceof Error ? e.message : String(e)}`;
       const isMimeError =
         e instanceof Error && e.message.includes('MIME') && e.message.includes('text/html');
@@ -651,18 +673,24 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           component: 'search-index',
           failure_stage: 'worker_instantiation',
           is_mime_error: isMimeError,
+          rocket_loader_active: rocketLoaderActive,
         },
         extra: {
           userId,
           maxMessagesPerRoom: searchIndexMessageLimit,
           likely_stale_cache: isMimeError,
-          workerUrl: new URL('../plugins/search-worker/searchWorker.ts', import.meta.url).href,
+          workerUrl: resolvedWorkerUrl,
+          rocketLoaderActive,
+          indexedDBAvailable: typeof indexedDB !== 'undefined',
+          userAgent: navigator.userAgent,
         },
         contexts: {
           hint: {
-            description: isMimeError
-              ? 'Stale cached index.html likely referencing old worker URL. User should reload.'
-              : 'Worker script failed to load',
+            description: rocketLoaderActive
+              ? 'Cloudflare Rocket Loader detected - known to break Web Workers. Disable in CF dashboard.'
+              : isMimeError
+                ? 'Stale cached index.html likely referencing old worker URL. User should hard reload.'
+                : 'Worker script failed to load',
           },
         },
       });
@@ -687,6 +715,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           component: 'search-index',
           failure_stage: 'worker_runtime',
           is_mime_error: isMimeError,
+          rocket_loader_active: rocketLoaderActive,
         },
         extra: {
           userId,
@@ -695,12 +724,20 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           lineno: error.lineno,
           colno: error.colno,
           likely_stale_cache: isMimeError,
+          workerUrl: resolvedWorkerUrl,
+          rocketLoaderActive,
+          errorMessageEmpty: !message,
         },
         contexts: {
           hint: {
-            description: isMimeError
-              ? 'Worker import failed with MIME error - likely stale cache referencing old assets or missing chunk'
-              : 'Worker script runtime error',
+            description:
+              !message && rocketLoaderActive
+                ? 'Empty error message + Rocket Loader detected → Rocket Loader is blocking worker. Disable in CF dashboard.'
+                : !message
+                  ? 'Empty error message → worker failed to load (404, CORS, or stale cache). Check Network tab for worker URL.'
+                  : isMimeError
+                    ? 'Worker import failed with MIME error - likely stale cache referencing old assets or missing chunk'
+                    : 'Worker script runtime error',
           },
         },
       });

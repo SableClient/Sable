@@ -66,7 +66,6 @@ import { useKeyboardHeight } from '$hooks/ios-keyboard-fix';
 import { settingsAtom, MessageLayout } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { nicknamesAtom } from '$state/nicknames';
-import { inAppBannerAtom } from '$state/sessions';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
@@ -363,26 +362,6 @@ export function RoomTimeline({
     }, 350);
   }, [setAtBottom]);
 
-  const setInAppBanner = useSetAtom(inAppBannerAtom);
-  const handleDisconnectedFragment = useCallback(
-    (evtId: string) => {
-      // Show a notification banner when a disconnected timeline fragment is detected
-      // and we're falling back to the live timeline.
-      setInAppBanner({
-        id: `disconnected-${evtId}-${Date.now()}`,
-        title: 'Jumped to latest messages',
-        body: "Couldn't find the target message in recent history — showing latest messages instead.",
-        onClick: () => {
-          setInAppBanner(null);
-        },
-      });
-
-      // Auto-dismiss after 8 seconds
-      setTimeout(() => setInAppBanner(null), 8000);
-    },
-    [setInAppBanner]
-  );
-
   const timelineSync = useTimelineSync({
     room,
     mx,
@@ -394,7 +373,6 @@ export function RoomTimeline({
     setUnreadInfo,
     hideReadsRef,
     readUptoEventIdRef,
-    onDisconnectedFragment: handleDisconnectedFragment,
   });
 
   timelineSyncRef.current = timelineSync;

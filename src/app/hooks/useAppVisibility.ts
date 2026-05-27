@@ -143,12 +143,41 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     const handlePageShow = (ev: PageTransitionEvent) => {
       if (ev.persisted) {
         debugLog.info('general', 'App restored from bfcache');
-        handleForeground();
+        try {
+          // Emit visibility change event so timeline and other components can refresh
+          appEvents.emitVisibilityChange(true);
+          handleForeground();
+        } catch (err) {
+          debugLog.error('general', 'Failed to handle bfcache restore', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
     };
 
     document.addEventListener('visibilitychange', handleForeground);
     window.addEventListener('pageshow', handlePageShow);
+
+    // Emit initial visibility state on mount to ensure all listeners
+    // (including timeline refresh) are aware of current state. This is
+    // especially important on iOS where the app may be restored from
+    // suspension without a visibilitychange event.
+    if (document.visibilityState === 'visible') {
+      // Use setTimeout to ensure this fires after useEffect cleanup
+      // and after timeline/other listeners have mounted
+      const timeoutId = setTimeout(() => {
+        appEvents.emitVisibilityChange(true);
+      }, 100);
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener('visibilitychange', handleForeground);
+        window.removeEventListener('pageshow', handlePageShow);
+        if (debounceTimer !== undefined) {
+          clearTimeout(debounceTimer);
+        }
+      };
+    }
+
     return () => {
       document.removeEventListener('visibilitychange', handleForeground);
       window.removeEventListener('pageshow', handlePageShow);

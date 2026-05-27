@@ -1,5 +1,5 @@
 import { memo, useMemo, useCallback } from 'react';
-import type { IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse, MatrixEvent } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -45,6 +45,7 @@ import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
+import { PollEvent } from './message/PollEvent';
 
 type RenderMessageContentProps = {
   displayName: string;
@@ -61,6 +62,7 @@ type RenderMessageContentProps = {
   linkifyOpts: Opts;
   outlineAttachment?: boolean;
   hideCaption?: boolean;
+  mEvent?: MatrixEvent;
 };
 
 const getMediaType = (url: string) => {
@@ -92,6 +94,7 @@ function RenderMessageContentInternal({
   linkifyOpts,
   outlineAttachment,
   hideCaption,
+  mEvent,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
@@ -441,7 +444,17 @@ function RenderMessageContentInternal({
         }
       />
     );
-  return <UnsupportedContent body={(content as { body?: string }).body ?? ''} />;
+  if (content['org.matrix.msc3381.poll.start'])
+    return <PollEvent content={content} mEvent={mEvent} />;
+  return (
+    <UnsupportedContent
+      body={
+        (content as { body?: string }).body ??
+        (content as { 'org.matrix.msc1767.text'?: string })['org.matrix.msc1767.text'] ??
+        ''
+      }
+    />
+  );
 }
 
 export const RenderMessageContent = memo(RenderMessageContentInternal);

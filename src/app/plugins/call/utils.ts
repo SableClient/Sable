@@ -15,7 +15,12 @@ export function getCallCapabilities(
 
   capabilities.add(MatrixCapabilities.Screenshots);
   capabilities.add(MatrixCapabilities.AlwaysOnScreen);
-  capabilities.add(MatrixCapabilities.MSC3846TurnServers);
+  // Do NOT add MSC3846TurnServers: TURN credentials endpoint is not available on
+  // all homeservers. The widget will repeatedly poll /voip/turnServer and fail
+  // 404/500, wasting bandwidth. WebRTC can fall back to STUN (direct connection)
+  // without TURN credentials. Only enable TURN when the homeserver is confirmed
+  // to have a TURN server configured.
+  // capabilities.add(MatrixCapabilities.MSC3846TurnServers);
   capabilities.add(MatrixCapabilities.MSC4157SendDelayedEvent);
   capabilities.add(MatrixCapabilities.MSC4157UpdateDelayedEvent);
   capabilities.add('moe.sable.thumbnails');

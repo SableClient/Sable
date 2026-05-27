@@ -462,7 +462,21 @@ export function useTimelineSync({
       if (!alive()) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       scrollToBottom('instant');
-    }, [alive, room, scrollToBottom])
+    }, [alive, room, scrollToBottom]),
+    useCallback(() => {
+      // Proactively load a batch above and below the jumped-to event so the user
+      // can scroll immediately without waiting for pagination triggers.
+      // Only attempt forward pagination if there's a token — otherwise we're at
+      // the live edge and will get an error ("Failed to load messages").
+      void handleTimelinePaginationRef.current(true); // backward
+
+      const { linkedTimelines } = timelineRef.current;
+      const lastTimeline = linkedTimelines.at(-1);
+      const forwardToken = lastTimeline?.getPaginationToken(Direction.Forward);
+      if (forwardToken) {
+        void handleTimelinePaginationRef.current(false); // forward
+      }
+    }, [])
   );
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);

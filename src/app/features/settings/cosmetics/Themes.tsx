@@ -29,8 +29,8 @@ import {
 } from '$plugins/arborium';
 import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
-import type { PixelatedImageRenderingMode, ShowRoomIcon } from '$state/settings';
-import { settingsAtom } from '$state/settings';
+import type { ShowRoomIcon } from '$state/settings';
+import { DefaultLandingScreen, settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ThemeAppearanceSection } from './ThemeAppearanceSection';
 import { stopPropagation } from '$utils/keyboard';
@@ -811,11 +811,35 @@ export function Appearance({
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
+  const [defaultLandingScreen, setDefaultLandingScreen] = useSetting(
+    settingsAtom,
+    'defaultLandingScreen'
+  );
   const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
     settingsAtom,
     'closeFoldersByDefault'
   );
+
+  const [landingMenuCords, setLandingMenuCords] = useState<RectCords>();
+
+  const landingScreenItems: Array<{ label: string; value: DefaultLandingScreen }> = [
+    { label: 'Home', value: DefaultLandingScreen.Home },
+    { label: 'Direct Messages', value: DefaultLandingScreen.Direct },
+    { label: 'Last Visited', value: DefaultLandingScreen.LastVisited },
+  ];
+
+  const landingCurrentLabel =
+    landingScreenItems.find((item) => item.value === defaultLandingScreen)?.label || 'Home';
+
+  const handleLandingMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setLandingMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleLandingSelect = (value: DefaultLandingScreen) => {
+    setDefaultLandingScreen(value);
+    setLandingMenuCords(undefined);
+  };
 
   return (
     <Box direction="Column" gap="700">
@@ -832,6 +856,65 @@ export function Appearance({
 
           <Box direction="Column" gap="100">
             <Text size="L400">Visual Tweaks</Text>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Default Landing Screen"
+                focusId="default-landing-screen"
+                description="Choose which screen to show when opening the app"
+                after={
+                  <PopOut
+                    anchor={landingMenuCords}
+                    position="Bottom"
+                    align="End"
+                    content={
+                      <FocusTrap
+                        focusTrapOptions={{
+                          initialFocus: false,
+                          onDeactivate: () => setLandingMenuCords(undefined),
+                          clickOutsideDeactivates: true,
+                          escapeDeactivates: stopPropagation,
+                        }}
+                      >
+                        <Menu>
+                          {landingScreenItems.map((item) => (
+                            <MenuItem
+                              key={item.value}
+                              size="300"
+                              onClick={() => handleLandingSelect(item.value)}
+                              radii="300"
+                              before={
+                                defaultLandingScreen === item.value ? (
+                                  <Icon size="100" src={Icons.Check} />
+                                ) : (
+                                  <Box style={{ width: toRem(16) }} />
+                                )
+                              }
+                            >
+                              <Text size="T300">{item.label}</Text>
+                            </MenuItem>
+                          ))}
+                        </Menu>
+                      </FocusTrap>
+                    }
+                  >
+                    <Button
+                      onClick={handleLandingMenu}
+                      variant="Secondary"
+                      fill="None"
+                      size="300"
+                      radii="300"
+                      aria-pressed={!!landingMenuCords}
+                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                    >
+                      <Text size="T300" truncate>
+                        {landingCurrentLabel}
+                      </Text>
+                    </Button>
+                  </PopOut>
+                }
+              />
+            </SequenceCard>
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile

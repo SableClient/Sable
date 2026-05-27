@@ -30,9 +30,11 @@ import {
   toRem,
   Spinner,
 } from 'folds';
+import * as Sentry from '@sentry/react';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { createLogger } from '$utils/debug';
 import { useAlive } from '$hooks/useAlive';
 import { useMessageEdit } from '$hooks/useMessageEdit';
 import { useDocumentFocusChange } from '$hooks/useDocumentFocusChange';
@@ -85,6 +87,26 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
+
+const log = createLogger('RoomTimeline');
+
+function findLastOwnEditableProcessedEvent(
+  events: ProcessedEvent[],
+  myUserId: string | null | undefined
+): ProcessedEvent | undefined {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (!event) continue;
+    if (
+      event.mEvent.getSender() === myUserId &&
+      event.mEvent.getEffectiveEvent()?.type === 'm.room.message' &&
+      !event.mEvent.isRedacted()
+    ) {
+      return event;
+    }
+  }
+  return undefined;
+}
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
@@ -395,9 +417,59 @@ export function RoomTimeline({
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (timelineSync.focusItem) {
-      if (timelineSync.focusItem.scrollTo && vListRef.current) {
-        const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
+      const { index, eventId: focusEventId, scrollTo } = timelineSync.focusItem;
+      log.log(
+        `[PermalinkJump] focusItem set: eventId=${focusEventId}, index=${index}, scrollTo=${scrollTo}`
+      );
+      Sentry.addBreadcrumb({
+        category: 'timeline.permalink',
+        message: 'focusItem set',
+        level: 'info',
+        data: { eventId: focusEventId, index, scrollTo, roomId: room.roomId },
+      });
+
+      let scrollSucceeded = false;
+      const attemptScroll = () => {
+        if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
+
+        let processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
+
+        // Fallback: if index lookup fails but we have an eventId, search by ID.
+        // This handles fragmented timelines from sliding sync where absolute indices
+        // don't align across different timeline contexts.
+        if (processedIndex === undefined && timelineSync.focusItem.eventId) {
+          const found = processedEventsRef.current.findIndex(
+            (e) => e.mEvent.getId() === timelineSync.focusItem!.eventId
+          );
+          if (found >= 0) {
+            processedIndex = found;
+            log.log(
+              `[PermalinkJump] Found event by ID search: eventId=${timelineSync.focusItem.eventId}, processedIndex=${found}`
+            );
+          } else {
+            log.log(
+              `[PermalinkJump] Event not found in processedEvents yet: eventId=${timelineSync.focusItem.eventId}, processedEvents.length=${processedEventsRef.current.length}`
+            );
+          }
+        }
+
         if (processedIndex !== undefined) {
+          log.log(
+            `[PermalinkJump] Scroll succeeded: processedIndex=${processedIndex}, eventId=${timelineSync.focusItem.eventId}`
+          );
+          Sentry.addBreadcrumb({
+            category: 'timeline.permalink',
+            message: 'Scroll succeeded',
+            level: 'info',
+            data: {
+              processedIndex,
+              eventId: timelineSync.focusItem.eventId,
+              roomId: room.roomId,
+            },
+          });
+
+          // Reveal timeline and scroll in the same frame to avoid flash
+          setIsReady(true);
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
           scrollSucceeded = true;
@@ -535,7 +607,7 @@ export function RoomTimeline({
     reducedMotion,
     getRawIndexToProcessedIndex,
     startJumpScrollBlock,
-    room,
+    room.roomId,
   ]);
 
   useEffect(() => {
@@ -546,9 +618,150 @@ export function RoomTimeline({
 
   useEffect(() => {
     if (!eventId) return;
+    log.log(`[PermalinkJump] Starting load: eventId=${eventId}, roomId=${room.roomId}`);
+    Sentry.addBreadcrumb({
+      category: 'timeline.permalink',
+      message: 'Starting permalink load',
+      level: 'info',
+      data: { eventId, roomId: room.roomId },
+    });
+
     setIsReady(false);
-    void timelineSyncRef.current.loadEventTimeline(eventId);
+    // Re-arm the initial-scroll guard so that if the jump fails and falls back
+    // to the live timeline, the useLayoutEffect can fire via the normal path.
+    hasInitialScrolledRef.current = false;
+    // Reset auto-pagination cap so the new timeline can fill the viewport.
+    autopagAttemptsRef.current = 0;
+    // Cancel any pending error-recovery scroll timer from a previous eventId load
+    // so it cannot reveal the timeline mid-flight of a new load.
+    if (initialScrollTimerRef.current !== undefined) {
+      clearTimeout(initialScrollTimerRef.current);
+      initialScrollTimerRef.current = undefined;
+    }
+    // Clear the stale live-timeline content immediately so loading placeholders
+    // are shown while the event-context API call is in flight, rather than
+    // having the entire message area go invisible (opacity:0) with no feedback.
+    timelineSyncRef.current.setTimeline(getEmptyTimeline());
+    // Mark the eventId load as in-progress to prevent premature recovery scroll
+    eventIdLoadInProgressRef.current = true;
+    void timelineSyncRef.current
+      .loadEventTimeline(eventId)
+      .then(() => {
+        log.log(
+          `[PermalinkJump] loadEventTimeline succeeded: eventId=${eventId}, eventsLength=${timelineSyncRef.current.eventsLength}`
+        );
+        Sentry.addBreadcrumb({
+          category: 'timeline.permalink',
+          message: 'loadEventTimeline succeeded',
+          level: 'info',
+          data: {
+            eventId,
+            eventsLength: timelineSyncRef.current.eventsLength,
+            roomId: room.roomId,
+          },
+        });
+      })
+      .catch((err) => {
+        log.warn(`[PermalinkJump] loadEventTimeline failed: eventId=${eventId}`, err);
+        Sentry.addBreadcrumb({
+          category: 'timeline.permalink',
+          message: 'loadEventTimeline failed',
+          level: 'error',
+          data: { eventId, error: String(err), roomId: room.roomId },
+        });
+      })
+      .finally(() => {
+        // Clear the flag whether the load succeeded or failed. If it succeeded,
+        // focusItem will be set and the focus scroll will handle it. If it failed,
+        // the recovery scroll can now safely fire.
+        eventIdLoadInProgressRef.current = false;
+      });
   }, [eventId, room.roomId]);
+
+  // Recovery: loadEventTimeline's onError callback restores the live timeline but
+  // scrollToBottom fires before the VList has rendered the new events (the list is
+  // still empty at that point), so it returns early and no scroll happens.
+  // Detect the "eventId load failed, fell back to live" state and reveal the
+  // timeline scrolled to the bottom so the room is usable rather than stuck at
+  // opacity-0 or stranded at the top of history.
+  useEffect(() => {
+    if (!eventId) return;
+    if (isReady) return;
+    if (timelineSync.eventsLength === 0) return;
+    // Do NOT fire recovery scroll while the eventId load is still in progress.
+    // The live timeline may receive events from sliding sync before the target
+    // event context finishes loading, which would cause a premature scroll to bottom.
+    if (eventIdLoadInProgressRef.current) return;
+    // If focusItem is set or scrollTo is still pending, the focus scroll will handle it.
+    // Wait for it to complete before falling back to recovery scroll.
+    if (timelineSync.focusItem?.scrollTo) return;
+    if (!timelineSync.liveTimelineLinked) return;
+    // Guard: don't start a second timer if one is already in flight.
+    if (initialScrollTimerRef.current !== undefined) return;
+
+    // Delay recovery scroll to give the focusItem scroll enough time to succeed.
+    // If the permalink jump is working, focusItem will be active for 2-4s (highlight duration).
+    // Only fall back to recovery if focusItem doesn't exist or was never set.
+    initialScrollTimerRef.current = setTimeout(() => {
+      log.log(
+        `[PermalinkJump] Recovery scroll 1s timer fired: focusItem=${!!timelineSyncRef.current.focusItem}, isReady=${isReadyRef.current}, eventsLength=${timelineSyncRef.current.eventsLength}`
+      );
+      initialScrollTimerRef.current = undefined;
+
+      // Don't fire recovery if focusItem exists at all - that means the permalink scroll
+      // is active (even if scrollTo is false, which happens after successful scroll).
+      // Only recover when focusItem is completely undefined (scroll never started or failed).
+      if (timelineSyncRef.current.focusItem) {
+        log.log('[PermalinkJump] Recovery scroll canceled: focusItem exists');
+        return;
+      }
+      if (isReadyRef.current) return;
+      if (timelineSyncRef.current.eventsLength === 0) return;
+      if (!timelineSyncRef.current.liveTimelineLinked) return;
+
+      log.log(
+        `[PermalinkJump] Recovery scroll starting: scrolling to bottom, processedEvents.length=${processedEventsRef.current.length}`
+      );
+      Sentry.addBreadcrumb({
+        category: 'timeline.permalink',
+        message: 'Recovery scroll: falling back to bottom',
+        level: 'warning',
+        data: {
+          eventId,
+          eventsLength: timelineSyncRef.current.eventsLength,
+          roomId: room.roomId,
+        },
+      });
+
+      // Virtua has no measured item heights yet when data first populates
+      // (transition from 0 → N items).  A single scrollToIndex call lands at the
+      // estimated position (often 0) because every item is still at its default
+      // height.  Scroll once immediately to warm up virtua's layout pass, then
+      // schedule a second scroll after 80ms when heights are measured.
+      const lastIdx = processedEventsRef.current.length - 1;
+      if (lastIdx >= 0) vListRef.current?.scrollToIndex(lastIdx, { align: 'end' });
+
+      initialScrollTimerRef.current = setTimeout(() => {
+        initialScrollTimerRef.current = undefined;
+        // Final bail-out checks before revealing
+        if (isReadyRef.current) return;
+        if (timelineSyncRef.current.focusItem) return;
+        if (timelineSyncRef.current.eventsLength === 0) return;
+        if (!timelineSyncRef.current.liveTimelineLinked) return;
+
+        const idx = processedEventsRef.current.length - 1;
+        if (idx >= 0) vListRef.current?.scrollToIndex(idx, { align: 'end' });
+        setIsReady(true);
+      }, 80);
+    }, 1000);
+  }, [
+    eventId,
+    isReady,
+    timelineSync.eventsLength,
+    timelineSync.focusItem,
+    timelineSync.liveTimelineLinked,
+    room.roomId,
+  ]);
 
   useEffect(() => {
     if (eventId) return;
@@ -822,7 +1035,19 @@ export function RoomTimeline({
 
   const showLoadingPlaceholders =
     timelineSync.eventsLength === 0 &&
-    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
+    !isReady &&
+    (eventIdLoadInProgressRef.current ||
+      timelineSync.canPaginateBack ||
+      timelineSync.backwardStatus === 'loading');
+
+  // Log skeleton visibility for debugging
+  useEffect(() => {
+    if (eventId && showLoadingPlaceholders) {
+      log.log(
+        `[PermalinkJump] Showing loading skeletons: eventsLength=${timelineSync.eventsLength}, isReady=${isReady}, eventIdLoadInProgress=${eventIdLoadInProgressRef.current}`
+      );
+    }
+  }, [eventId, showLoadingPlaceholders, timelineSync.eventsLength, isReady]);
 
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {

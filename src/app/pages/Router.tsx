@@ -51,6 +51,7 @@ const BugReportModalRenderer = lazy(() => {
 });
 import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
+import { getSettings } from '$state/settings';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
 import { SearchModalRenderer } from '$features/search';
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
@@ -84,6 +85,7 @@ import {
   getExploreFeaturedPath,
   getHomePath,
   getInboxNotificationsPath,
+  getLandingPath,
   getLoginPath,
   getOriginBaseUrl,
   getSpaceLobbyPath,
@@ -134,7 +136,10 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
       <Route
         index
         loader={() => {
-          if (hasStoredSession()) return redirect(getHomePath());
+          if (hasStoredSession()) {
+            const settings = getSettings();
+            return redirect(getLandingPath(settings.defaultLandingScreen));
+          }
           const afterLoginPath = getAppPathFromHref(getOriginBaseUrl(), window.location.href);
           if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
           return redirect(getLoginPath());

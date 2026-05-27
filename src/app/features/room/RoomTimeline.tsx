@@ -585,6 +585,8 @@ export function RoomTimeline({
     autopagAttemptsRef.current = 0;
     // Reset jump success tracking for this new eventId.
     jumpSucceededRef.current = false;
+    // Reset "was at bottom" flag so pagination after the jump doesn't scroll to bottom.
+    wasAtBottomBeforePaginationRef.current = false;
     // Cancel any pending error-recovery scroll timer from a previous eventId load
     // so it cannot reveal the timeline mid-flight of a new load.
     if (initialScrollTimerRef.current !== undefined) {

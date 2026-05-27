@@ -224,7 +224,7 @@ function instrumentIDB(idb: IDBDatabase, dbName: string): void {
   idb.addEventListener('close', () => {
     // eslint-disable-next-line no-console
     console.error(`[SearchWorker] IDB connection closed unexpectedly: ${dbName}`);
-    postMessage({
+    post({
       type: '_sentry_breadcrumb',
       category: 'idb',
       message: 'IDB connection closed unexpectedly',
@@ -240,7 +240,7 @@ function instrumentIDB(idb: IDBDatabase, dbName: string): void {
       event.oldVersion,
       event.newVersion
     );
-    postMessage({
+    post({
       type: '_sentry_breadcrumb',
       category: 'idb',
       message: 'IDB version change requested',

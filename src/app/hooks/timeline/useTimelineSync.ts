@@ -102,15 +102,16 @@ const useEventTimelineLoader = (
         if (!containsLive) {
           // Disconnected fragment detected - fall back to live timeline to avoid broken view.
           // The event likely exists in the live timeline now (sync caught up), or pagination
-          // will fetch it.
-          Sentry.captureMessage('Loaded disconnected timeline fragment, falling back to live', {
+          // will fetch it. This is a recoverable condition — log as breadcrumb, not error.
+          Sentry.addBreadcrumb({
+            category: 'timeline.jump',
+            message: 'Disconnected fragment detected, falling back to live timeline',
             level: 'warning',
-            extra: {
+            data: {
               eventId,
               fragmentLength: linkedTimelines.length,
               fragmentEventsCount: getTimelinesEventsCount(linkedTimelines),
             },
-            tags: { feature: 'timeline', issue: 'disconnected_fragment' },
           });
 
           // Check if the event now exists in the live timeline
@@ -180,11 +181,14 @@ const useEventTimelineLoader = (
               setTimeout(() => onProactiveLoad(), 500);
             }
           } else {
-            // Event not in live timeline even after pagination - give up gracefully
-            Sentry.captureMessage('Event not found in live timeline after pagination', {
+            // Event not in live timeline even after pagination - give up gracefully.
+            // This is logged as a breadcrumb (not error) because the calling code will
+            // show the user an appropriate message via onError().
+            Sentry.addBreadcrumb({
+              category: 'timeline.jump',
+              message: 'Event not found after pagination and fallback attempts',
               level: 'warning',
-              extra: { eventId },
-              tags: { feature: 'timeline', issue: 'event_not_found' },
+              data: { eventId },
             });
             onError(new Error('Event timeline disconnected and not found in live timeline'));
           }

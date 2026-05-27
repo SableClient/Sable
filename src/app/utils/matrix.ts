@@ -396,6 +396,18 @@ export const downloadMedia = async (
       if (err instanceof Error && err.name === 'AbortError') {
         span.setAttribute('media.timeout', true);
         span.end();
+        // Log timeout as warning, not error — this is a recoverable condition
+        // (slow connection, large file) and the UI will show a placeholder
+        debugLog.warn('media', 'Media download timeout', {
+          url: src.substring(0, 100),
+          timeout: '30s',
+        });
+        Sentry.addBreadcrumb({
+          category: 'media',
+          message: 'Media download timeout',
+          level: 'warning',
+          data: { url: src.substring(0, 100), timeout: '30s' },
+        });
         throw new Error('Media download timed out after 30 seconds', { cause: err });
       }
       span.setAttribute('media.error', err instanceof Error ? err.message : String(err));

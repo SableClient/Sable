@@ -184,7 +184,11 @@ function evictOldestForRoom(roomId: string): void {
 
   const toRemove = queue.splice(0, excess);
   for (const [eventId] of toRemove) {
-    index.discard(eventId);
+    // Guard discard: the event might not be indexed if it was skipped due to
+    // an error or if a redaction/edit arrived before backfill reached it
+    if (index.has(eventId)) {
+      index.discard(eventId);
+    }
     storedDocs.delete(eventId);
   }
 }

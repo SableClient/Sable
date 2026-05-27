@@ -231,6 +231,9 @@ export function useBlobCache(url?: string): string | undefined {
 
     // Check memory cache first (instant)
     if (imageBlobCache.has(url)) {
+      Sentry.metrics.count('blob_cache.request', 1, {
+        attributes: { result: 'hit', cacheType: 'memory' },
+      });
       return undefined;
     }
 
@@ -253,12 +256,18 @@ export function useBlobCache(url?: string): string | undefined {
           // Check persistent cache (fast, survives reloads)
           const cachedBlob = await getCachedMedia(url);
           if (cachedBlob) {
+            Sentry.metrics.count('blob_cache.request', 1, {
+              attributes: { result: 'hit', cacheType: 'persistent' },
+            });
             const objectUrl = URL.createObjectURL(cachedBlob);
             imageBlobCache.set(url, objectUrl);
             return objectUrl;
           }
 
           // Fetch from network (slow)
+          Sentry.metrics.count('blob_cache.request', 1, {
+            attributes: { result: 'miss', cacheType: 'network' },
+          });
           const res = await fetch(url, { mode: 'cors' });
 
           // SABLE-4Y fix: Handle 401 auth failures gracefully

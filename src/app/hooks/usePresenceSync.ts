@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
 import type { MatrixEvent, MatrixClient } from '$types/matrix-sdk';
 import { SetPresence, MatrixError } from '$types/matrix-sdk';
+import * as Sentry from '@sentry/react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
@@ -337,6 +338,13 @@ async function sendPresenceToServer(
       debugLog.warn('general', 'Presence rate limited (429), backing off', {
         retryAfterMs,
       });
+
+      Sentry.captureMessage('Presence rate limited', {
+        level: 'warning',
+        tags: { component: 'presence-sync' },
+        extra: { retryAfterMs, userId: mx.getUserId() },
+      });
+
       // Wait before allowing next send
       await sleep(retryAfterMs);
       lastSentTimestamp = Date.now();

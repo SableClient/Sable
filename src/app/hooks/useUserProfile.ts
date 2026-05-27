@@ -181,6 +181,7 @@ export const useUserProfile = (
     let fetchPromise = inFlightProfiles.get(userId);
 
     if (!fetchPromise) {
+      const fetchStart = performance.now();
       // Queue the profile fetch to prevent connection pool saturation
       fetchPromise = profileQueue
         .add(() => {
@@ -201,45 +202,63 @@ export const useUserProfile = (
           inFlightProfiles.delete(userId);
         });
       inFlightProfiles.set(userId, fetchPromise);
+
+      let isMounted = true;
+
+      fetchPromise
+        .then((info: Record<string, unknown>) => {
+          if (!isMounted) return;
+          const normalized = normalizeInfo(info);
+          const duration = performance.now() - fetchStart;
+
+          Sentry.addBreadcrumb({
+            category: 'profile.fetch',
+            message: `Profile fetch MISS: ${userId}`,
+            data: {
+              userId,
+              durationMs: Math.round(duration),
+              isBridged: isBridgedUser(userId),
+              cacheHit: false,
+            },
+            level: 'info',
+          });
+
+          setGlobalProfiles((prev) => ({
+            ...prev,
+            [userId]: { ...prev[userId], ...normalized },
+          }));
+          // Mark bridged users with fetch timestamp for TTL tracking
+          if (isBridgedUser(userId)) {
+            bridgedUserCacheTimestamps.set(userId, Date.now());
+          }
+        })
+        .catch((err) => {
+          if (!isMounted) return;
+          const duration = performance.now() - fetchStart;
+          // Log profile fetch failures for monitoring (especially slow bridged users)
+          Sentry.addBreadcrumb({
+            category: 'profile',
+            message: 'Profile fetch failed',
+            level: 'warning',
+            data: {
+              userId,
+              isBridged: isBridgedUser(userId),
+              durationMs: Math.round(duration),
+              error: String(err),
+            },
+          });
+          setGlobalProfiles((prev) => ({
+            ...prev,
+            [userId]: { ...prev[userId], _fetched: true },
+          }));
+        });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
-    let isMounted = true;
-
-    fetchPromise
-      .then((info: Record<string, unknown>) => {
-        if (!isMounted) return;
-        const normalized = normalizeInfo(info);
-        setGlobalProfiles((prev) => ({
-          ...prev,
-          [userId]: { ...prev[userId], ...normalized },
-        }));
-        // Mark bridged users with fetch timestamp for TTL tracking
-        if (isBridgedUser(userId)) {
-          bridgedUserCacheTimestamps.set(userId, Date.now());
-        }
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        // Log profile fetch failures for monitoring (especially slow bridged users)
-        Sentry.addBreadcrumb({
-          category: 'profile',
-          message: 'Profile fetch failed',
-          level: 'warning',
-          data: {
-            userId,
-            isBridged: isBridgedUser(userId),
-            error: String(err),
-          },
-        });
-        setGlobalProfiles((prev) => ({
-          ...prev,
-          [userId]: { ...prev[userId], _fetched: true },
-        }));
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    return undefined;
   }, [userId, needsFetch, mx, setGlobalProfiles]);
 
   return useMemo(() => {

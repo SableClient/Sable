@@ -635,13 +635,20 @@ export class SlidingSyncManager {
         totalRoomCount += currentCount;
 
         if (currentCount !== previousCount) {
+          const deltaValue = currentCount - previousCount;
           changes[key] = {
             previous: previousCount,
             current: currentCount,
-            delta: currentCount - previousCount,
+            delta: deltaValue,
           };
           this.previousListCounts.set(key, currentCount);
           hasChanges = true;
+
+          // Track batch size distribution for observability
+          Sentry.metrics.distribution('sliding_sync.batch_size', Math.abs(deltaValue), {
+            unit: 'none',
+            attributes: { list: key, direction: deltaValue > 0 ? 'added' : 'removed' },
+          });
         }
       });
 

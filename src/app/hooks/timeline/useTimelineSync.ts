@@ -65,6 +65,13 @@ const useEventTimelineLoader = (
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
 
+        Sentry.addBreadcrumb({
+          category: 'timeline.load',
+          message: 'Timeline load started',
+          data: { eventId, roomId: room.roomId, isPermalink: true },
+          level: 'info',
+        });
+
         if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
           await withTimeout(
             mx.roomInitialSync(room.roomId, PAGINATION_LIMIT),
@@ -176,6 +183,19 @@ const useEventTimelineLoader = (
                 });
                 onLoad(eventId, refreshedLinkedTimelines, liveAbsIndex);
 
+                Sentry.addBreadcrumb({
+                  category: 'timeline.load',
+                  message: 'Timeline load complete',
+                  data: {
+                    eventId,
+                    roomId: room.roomId,
+                    duration: performance.now() - jumpLoadStart,
+                    connectedToLive: true,
+                    messageCount: getTimelinesEventsCount(refreshedLinkedTimelines),
+                  },
+                  level: 'info',
+                });
+
                 // Proactively load context
                 if (onProactiveLoad) {
                   setTimeout(() => onProactiveLoad(), 500);
@@ -214,6 +234,20 @@ const useEventTimelineLoader = (
               level: 'info',
               data: { eventId, absIndex: liveAbsIndex },
             });
+
+            Sentry.addBreadcrumb({
+              category: 'timeline.load',
+              message: 'Timeline load complete',
+              data: {
+                eventId,
+                roomId: room.roomId,
+                duration: performance.now() - jumpLoadStart,
+                connectedToLive: true,
+                messageCount: getTimelinesEventsCount(liveLinkedTimelines),
+              },
+              level: 'info',
+            });
+
             onLoad(eventId, liveLinkedTimelines, liveAbsIndex);
 
             // Proactively load context
@@ -239,6 +273,20 @@ const useEventTimelineLoader = (
           'sable.timeline.jump_load_ms',
           performance.now() - jumpLoadStart
         );
+
+        Sentry.addBreadcrumb({
+          category: 'timeline.load',
+          message: 'Timeline load complete',
+          data: {
+            eventId,
+            roomId: room.roomId,
+            duration: performance.now() - jumpLoadStart,
+            connectedToLive: containsLive,
+            messageCount: getTimelinesEventsCount(linkedTimelines),
+          },
+          level: 'info',
+        });
+
         onLoad(eventId, linkedTimelines, absIndex);
 
         // Proactively load context above and below the jumped-to event so the user

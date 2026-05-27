@@ -45,8 +45,7 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   if (type === ENCRYPTED_EVENT_TYPE) return '🔒 Encrypted message';
 
   // Check if this message has been edited — use the edited content if available
-  const replacingEvent =
-    typeof ev.replacingEvent === 'function' ? ev.replacingEvent() : undefined;
+  const replacingEvent = typeof ev.replacingEvent === 'function' ? ev.replacingEvent() : undefined;
   // Only use the replacement event if it's been decrypted (otherwise we'd see ciphertext)
   let displayContent =
     replacingEvent && !replacingEvent.isBeingDecrypted() && !replacingEvent.isEncrypted()

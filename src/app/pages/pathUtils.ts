@@ -3,6 +3,7 @@ import { generatePath } from 'react-router-dom';
 import { trimLeadingSlash, trimTrailingSlash } from '$utils/common';
 import type { HashRouterConfig } from '$hooks/useClientConfig';
 import type { SettingsPathSearchParams } from './paths';
+import { DefaultLandingScreen } from '$state/settings';
 import {
   DIRECT_CREATE_PATH,
   DIRECT_PATH,
@@ -91,6 +92,62 @@ export const getResetPasswordPath = (server?: string): string => {
 };
 
 export const getHomePath = (): string => HOME_PATH;
+
+const LAST_VISITED_PATH_KEY = 'sable_last_visited_path';
+
+/**
+ * Store the current path to localStorage so it can be restored on next app open.
+ * Only stores paths that are not transient (login, register, etc.).
+ */
+export const rememberLastVisitedPath = (path: string): void => {
+  // Only remember paths that make sense to return to
+  const isRememberablePath =
+    path.startsWith('/home/') ||
+    path.startsWith('/direct/') ||
+    path.startsWith('/inbox/') ||
+    path.startsWith('/explore/') ||
+    (path.match(/^\/[^/]+\/$/) !== null &&
+      !path.startsWith('/login') &&
+      !path.startsWith('/register'));
+
+  if (isRememberablePath) {
+    try {
+      localStorage.setItem(LAST_VISITED_PATH_KEY, path);
+    } catch {
+      // Ignore storage errors
+    }
+  }
+};
+
+/**
+ * Get the last visited path from localStorage, or undefined if not available.
+ */
+export const getLastVisitedPath = (): string | undefined => {
+  try {
+    return localStorage.getItem(LAST_VISITED_PATH_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Get the landing path based on user's settings.
+ * Falls back to Home if Last Visited is not available.
+ */
+export const getLandingPath = (setting: DefaultLandingScreen): string => {
+  switch (setting) {
+    case DefaultLandingScreen.Direct:
+      return DIRECT_PATH;
+    case DefaultLandingScreen.LastVisited: {
+      const lastPath = getLastVisitedPath();
+      return lastPath ?? HOME_PATH;
+    }
+    case DefaultLandingScreen.Home:
+    default:
+      return HOME_PATH;
+  }
+};
+
 export const getHomeCreatePath = (): string => HOME_CREATE_PATH;
 export const getHomeJoinPath = (): string => HOME_JOIN_PATH;
 export const getHomeSearchPath = (): string => HOME_SEARCH_PATH;

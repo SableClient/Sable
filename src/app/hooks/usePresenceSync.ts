@@ -21,7 +21,10 @@ const ACTIVITY_DEBOUNCE_MS = 500; // 500ms
 const THROTTLE_MS = 25000; // 25 seconds
 
 /** Sleep utility for rate limit backoff. */
-const sleep = (ms: number) => new Promise((resolve) => { setTimeout(resolve, ms); });
+const sleep = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 /** Timestamp (ms) of the last successful presence send. */
 let lastSentTimestamp = 0;
@@ -165,7 +168,9 @@ export function usePresenceSyncEffect(): void {
         debugLog.info('general', 'Remote device is active — clearing local auto-idle');
         setAutoIdled(false);
         // Trigger activity event in auto-idle hook to reset its timer
-        window.dispatchEvent(new CustomEvent('sable:remote-activity', { detail: { timestamp: state.lastActivityAt } }));
+        window.dispatchEvent(
+          new CustomEvent('sable:remote-activity', { detail: { timestamp: state.lastActivityAt } })
+        );
       }
 
       // DON'T apply remote idle state if we're currently active locally.
@@ -213,7 +218,7 @@ export function usePresenceSyncEffect(): void {
       const lastActivityAt =
         !autoIdled && lastRemoteStateRef.current?.lastActivityAt
           ? Math.max(now, lastRemoteStateRef.current.lastActivityAt)
-          : lastRemoteStateRef.current?.lastActivityAt ?? now;
+          : (lastRemoteStateRef.current?.lastActivityAt ?? now);
 
       const state: PresenceState & { synctoken: string } = {
         presenceMode,
@@ -223,11 +228,20 @@ export function usePresenceSyncEffect(): void {
         synctoken: token,
       };
 
-      debugLog.info('general', 'Uploading presence to account data', { state, isActivityEvent, debounceMs });
+      debugLog.info('general', 'Uploading presence to account data', {
+        state,
+        isActivityEvent,
+        debounceMs,
+      });
 
       mx.setAccountData(CustomAccountDataEvent.SablePresence, state as Record<string, unknown>)
         .then(() => {
-          lastRemoteStateRef.current = { presenceMode, autoIdled, updatedAt: state.updatedAt, lastActivityAt: state.lastActivityAt };
+          lastRemoteStateRef.current = {
+            presenceMode,
+            autoIdled,
+            updatedAt: state.updatedAt,
+            lastActivityAt: state.lastActivityAt,
+          };
         })
         .catch((err) => {
           pendingEchoTokenRef.current = null;
@@ -237,7 +251,13 @@ export function usePresenceSyncEffect(): void {
         });
 
       // Also send to the server
-      void sendPresenceToServer(mx, presenceMode, autoIdled, settings.presenceStatusMsg, syncEnabled);
+      void sendPresenceToServer(
+        mx,
+        presenceMode,
+        autoIdled,
+        settings.presenceStatusMsg,
+        syncEnabled
+      );
     }, debounceMs);
 
     return () => clearTimeout(timerRef.current);
@@ -248,7 +268,7 @@ export function usePresenceSyncEffect(): void {
  * Send presence state to the Matrix server.
  * For auto-idle, sends 'unavailable'. For DND, sends 'online' with status_msg='[dnd]'
  * so other Sable clients can decode and display the DND badge.
- * 
+ *
  * Throttles to at most once per THROTTLE_MS to avoid rate limiting.
  * If rate limited (429), respects Retry-After header and backs off.
  */

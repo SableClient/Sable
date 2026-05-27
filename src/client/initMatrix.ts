@@ -152,19 +152,26 @@ const deleteSessionStores = async (storeName: SessionStoreName): Promise<void> =
 const readStoredAccount = (dbName: string): Promise<string | undefined> =>
   new Promise((resolve) => {
     let settled = false;
-    const finish = (value: string | undefined) => {
+    const finish = (value: string | undefined, reason?: string) => {
       if (settled) return;
       settled = true;
+      debugLog.info('sync', `readStoredAccount(${dbName}):`, {
+        userId: value ? '***' + value.slice(-10) : undefined,
+        reason: reason ?? 'success',
+      });
       resolve(value);
     };
     const req = window.indexedDB.open(dbName);
-    req.addEventListener('error', () => finish(undefined));
+    req.addEventListener('error', () => {
+      debugLog.warn('sync', `readStoredAccount(${dbName}): IDB open error`);
+      finish(undefined, 'open_error');
+    });
     req.addEventListener('success', () => {
       const db = req.result;
       try {
         if (!db.objectStoreNames.contains('account')) {
           db.close();
-          finish(undefined);
+          finish(undefined, 'no_account_store');
         } else {
           const tx = db.transaction('account', 'readonly');
           const store = tx.objectStore('account');
@@ -173,19 +180,19 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
             db.close();
             const record = getReq.result;
             if (!record?.account_data) {
-              finish(undefined);
+              finish(undefined, 'no_account_data');
             } else {
               try {
                 const data = JSON.parse(record.account_data);
-                finish(data?.user_id ?? undefined);
+                finish(data?.user_id ?? undefined, data?.user_id ? 'found' : 'no_user_id');
               } catch {
-                finish(undefined);
+                finish(undefined, 'parse_error');
               }
             }
           });
           getReq.addEventListener('error', () => {
             db.close();
-            finish(undefined);
+            finish(undefined, 'get_error');
           });
         }
       } catch {
@@ -194,16 +201,38 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
         } catch {
           /* ignore */
         }
-        finish(undefined);
+        finish(undefined, 'exception');
       }
     });
   });
 
 const databaseExists = async (dbName: string): Promise<boolean> => {
   try {
+    // indexedDB.databases() is not widely supported (missing in Safari < 14,
+    // private browsing, some privacy settings). Log availability.
+    if (!window.indexedDB.databases) {
+      debugLog.warn('sync', 'indexedDB.databases() not available - cold cache detection limited');
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'indexedDB.databases() not available',
+        level: 'warning',
+      });
+      return false;
+    }
     const dbs = await window.indexedDB.databases();
-    return dbs.some((db) => db.name === dbName);
-  } catch {
+    const exists = dbs.some((db) => db.name === dbName);
+    debugLog.info('sync', `databaseExists(${dbName}):`, { exists, totalDbs: dbs.length });
+    return exists;
+  } catch (err) {
+    debugLog.warn('sync', `databaseExists(${dbName}) failed:`, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: `databaseExists check failed for ${dbName}`,
+      level: 'warning',
+      data: { error: err instanceof Error ? err.message : String(err) },
+    });
     return false;
   }
 };
@@ -344,6 +373,20 @@ const buildClient = async (
   session: Session
 ): Promise<{ mx: MatrixClient; storeStartup: Promise<void> }> => {
   const storeName = getSessionStoreName(session);
+  debugLog.info('sync', 'Building Matrix client with stores', {
+    syncDb: storeName.sync,
+    cryptoDb: storeName.crypto,
+    userId: session.userId,
+  });
+  Sentry.addBreadcrumb({
+    category: 'sync',
+    message: 'Building Matrix client',
+    level: 'info',
+    data: {
+      syncDb: storeName.sync,
+      cryptoDb: storeName.crypto,
+    },
+  });
 
   const indexedDBStore = new IndexedDBStore({
     indexedDB: global.indexedDB,
@@ -426,6 +469,12 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     // Parallelize IndexedDB sync store startup and crypto initialization
     // These are independent operations that can run concurrently
     const parallelInitStart = performance.now();
+    debugLog.info('sync', 'Starting parallel IndexedDB initialization');
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: 'Starting store initialization',
+      level: 'info',
+    });
     await Promise.all([
       storeStartup,
       mx.initRustCrypto({
@@ -438,6 +487,12 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     });
     debugLog.info('sync', 'Parallel IndexedDB initialization completed', {
       duration: `${parallelInitDuration.toFixed(0)}ms`,
+    });
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: 'Store initialization completed',
+      level: 'info',
+      data: { duration: `${parallelInitDuration.toFixed(0)}ms` },
     });
   } catch (err) {
     if (!isMismatch(err)) {

@@ -120,6 +120,7 @@ const useEventTimelineLoader = (
 
           // If event not found in current live timeline, try paginating backward to fetch it.
           // This handles the case where sync hasn't caught up yet but the event is on the server.
+          // For old bookmarks (e.g. weeks old), we may need multiple pagination rounds to reach them.
           if (liveAbsIndex === undefined) {
             Sentry.addBreadcrumb({
               category: 'timeline.jump',
@@ -128,18 +129,35 @@ const useEventTimelineLoader = (
               data: { eventId },
             });
 
-            const [paginateErr] = await to(
-              withTimeout(
-                mx.paginateEventTimeline(liveTimeline, {
-                  backwards: true,
-                  limit: PAGINATION_LIMIT,
-                }),
-                EVENT_TIMELINE_LOAD_TIMEOUT_MS
-              )
-            );
+            const MAX_PAGINATION_ATTEMPTS = 10; // 10 * 60 = 600 events max
+            let paginationAttempt = 0;
+            let foundEvent = false;
 
-            if (!paginateErr) {
-              // Re-check after pagination
+            /* eslint-disable no-await-in-loop -- sequential pagination required to check for event after each fetch */
+            while (paginationAttempt < MAX_PAGINATION_ATTEMPTS && !foundEvent) {
+              paginationAttempt++;
+
+              const [paginateErr, hasMore] = await to(
+                withTimeout(
+                  mx.paginateEventTimeline(liveTimeline, {
+                    backwards: true,
+                    limit: PAGINATION_LIMIT,
+                  }),
+                  EVENT_TIMELINE_LOAD_TIMEOUT_MS
+                )
+              );
+
+              if (paginateErr) {
+                Sentry.addBreadcrumb({
+                  category: 'timeline.jump',
+                  message: `Pagination attempt ${paginationAttempt} failed`,
+                  level: 'warning',
+                  data: { eventId, error: String(paginateErr) },
+                });
+                break;
+              }
+
+              // Re-check after each pagination
               const refreshedLinkedTimelines = getLinkedTimelines(liveTimeline);
               liveAbsIndex = getEventIdAbsoluteIndex(
                 refreshedLinkedTimelines,
@@ -149,11 +167,12 @@ const useEventTimelineLoader = (
 
               if (liveAbsIndex !== undefined) {
                 // Success! Event found after pagination
+                foundEvent = true;
                 Sentry.addBreadcrumb({
                   category: 'timeline.jump',
-                  message: 'Event found after backward pagination',
+                  message: `Event found after ${paginationAttempt} pagination attempt(s)`,
                   level: 'info',
-                  data: { eventId, absIndex: liveAbsIndex },
+                  data: { eventId, absIndex: liveAbsIndex, attempts: paginationAttempt },
                 });
                 onLoad(eventId, refreshedLinkedTimelines, liveAbsIndex);
 
@@ -163,6 +182,27 @@ const useEventTimelineLoader = (
                 }
                 return;
               }
+
+              // If hasMore is false, we've reached the start of the room
+              if (!hasMore) {
+                Sentry.addBreadcrumb({
+                  category: 'timeline.jump',
+                  message: 'Reached start of room history without finding event',
+                  level: 'warning',
+                  data: { eventId, attempts: paginationAttempt },
+                });
+                break;
+              }
+            }
+            /* eslint-enable no-await-in-loop */
+
+            if (!foundEvent && paginationAttempt >= MAX_PAGINATION_ATTEMPTS) {
+              Sentry.addBreadcrumb({
+                category: 'timeline.jump',
+                message: 'Max pagination attempts reached without finding event',
+                level: 'warning',
+                data: { eventId, attempts: paginationAttempt },
+              });
             }
           }
 

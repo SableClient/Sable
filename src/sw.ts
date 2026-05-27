@@ -1105,18 +1105,24 @@ self.addEventListener('fetch', (event: FetchEvent) => {
           console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
           return fetch(url, { ...fetchConfig(validated.accessToken), redirect });
         }
-        console.warn('[SW fetch] No valid session for media request', {
+        console.warn('[SW fetch] No valid session for media request — returning 401', {
           url,
           clientId,
           hasSession: !!s,
           hadPersistedSession: !!persisted,
           persistedSessionValid: !!validated,
         });
-        // Log fetch failure to help diagnose FetchEvent.respondWith errors
-        return fetch(event.request).catch((err) => {
-          console.error('[SW fetch] Media fetch failed:', { url, error: err.message });
-          throw err;
-        });
+        // SABLE-4Y fix: Return synthetic 401 instead of attempting unauthenticated
+        // fetch. Prevents network requests that will fail with 401 anyway, and
+        // allows client-side blob cache to handle auth failures gracefully.
+        return new Response(
+          JSON.stringify({ errcode: 'M_MISSING_TOKEN', error: 'No session available' }),
+          {
+            status: 401,
+            statusText: 'Unauthorized',
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       }),
       new Promise<Response>((_, reject) => {
         setTimeout(() => {

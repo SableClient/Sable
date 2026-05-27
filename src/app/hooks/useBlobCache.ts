@@ -10,6 +10,7 @@ const MAX_CACHE_SIZE_MB = 500; // Configurable limit
 
 const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();
+const authFailedUrls = new Set<string>(); // Track URLs that failed with 401
 
 type CacheMetadata = {
   url: string;
@@ -157,6 +158,7 @@ async function evictIfNeeded(): Promise<void> {
 export function clearInMemoryBlobCache(): void {
   imageBlobCache.clear();
   inflightRequests.clear();
+  authFailedUrls.clear();
 }
 
 /**
@@ -222,6 +224,11 @@ export function useBlobCache(url?: string): string | undefined {
   useEffect(() => {
     if (!url) return undefined;
 
+    // SABLE-4Y fix: Skip URLs that previously failed auth
+    if (authFailedUrls.has(url)) {
+      return undefined;
+    }
+
     // Check memory cache first (instant)
     if (imageBlobCache.has(url)) {
       return undefined;
@@ -253,6 +260,25 @@ export function useBlobCache(url?: string): string | undefined {
 
           // Fetch from network (slow)
           const res = await fetch(url, { mode: 'cors' });
+
+          // SABLE-4Y fix: Handle 401 auth failures gracefully
+          if (res.status === 401) {
+            debugLog.warn('general', 'Media fetch failed: authentication required', {
+              url: url.substring(0, 100),
+            });
+            Sentry.addBreadcrumb({
+              category: 'blob_cache',
+              message: 'Media fetch 401 - no valid session',
+              level: 'warning',
+              data: { url: url.substring(0, 100) },
+            });
+            // Mark URL as auth-failed to prevent retries
+            authFailedUrls.add(url);
+            inflightRequests.delete(url);
+            // Throw a specific error to bypass Sentry exception capture
+            throw new Error('AUTH_FAILED_401');
+          }
+
           if (!res.ok) {
             throw new Error(`Failed to fetch blob: ${res.status} ${res.statusText}`);
           }
@@ -265,18 +291,22 @@ export function useBlobCache(url?: string): string | undefined {
 
           return objectUrl;
         } catch (e) {
-          debugLog.error('general', 'Blob fetch/cache failed', {
-            url: url.substring(0, 100),
-            error: e instanceof Error ? e.message : String(e),
-          });
-          Sentry.captureException(e, {
-            tags: { media_operation: 'blob_cache' },
-            contexts: {
-              media: {
-                url: url.substring(0, 100),
+          // Don't log auth failures to Sentry (expected when SW has no session)
+          const isAuthFailure = e instanceof Error && e.message === 'AUTH_FAILED_401';
+          if (!isAuthFailure) {
+            debugLog.error('general', 'Blob fetch/cache failed', {
+              url: url.substring(0, 100),
+              error: e instanceof Error ? e.message : String(e),
+            });
+            Sentry.captureException(e, {
+              tags: { media_operation: 'blob_cache' },
+              contexts: {
+                media: {
+                  url: url.substring(0, 100),
+                },
               },
-            },
-          });
+            });
+          }
           inflightRequests.delete(url);
           throw e;
         }
@@ -302,6 +332,12 @@ export function useBlobCache(url?: string): string | undefined {
       isMounted = false;
     };
   }, [url]);
+
+  // SABLE-4Y fix: Don't return original URL as fallback for auth-failed URLs
+  // (would cause browser to attempt direct fetch, which also fails with 401)
+  if (url && authFailedUrls.has(url)) {
+    return undefined;
+  }
 
   return cacheState.blobUrl || url;
 }

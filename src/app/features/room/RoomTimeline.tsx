@@ -257,6 +257,10 @@ export function RoomTimeline({
   // AbortController to cancel in-flight jump operations when a new jump starts.
   // This prevents multiple concurrent jumps from interfering with each other.
   const jumpAbortControllerRef = useRef<AbortController | null>(null);
+  // Track whether the permalink jump succeeded (focusItem was set). Once set,
+  // recovery scroll should never fire for this eventId, even after focusItem
+  // is cleared (highlight ends). Reset only when eventId or room changes.
+  const jumpSucceededRef = useRef(false);
 
   const lastProgrammaticBottomPinAtRef = useRef(0);
 
@@ -265,6 +269,7 @@ export function RoomTimeline({
     mountScrollWindowRef.current = Date.now() + 3000;
     currentRoomIdRef.current = room.roomId;
     pendingReadyRef.current = false;
+    jumpSucceededRef.current = false;
     if (initialScrollTimerRef.current !== undefined) {
       clearTimeout(initialScrollTimerRef.current);
       initialScrollTimerRef.current = undefined;
@@ -444,12 +449,46 @@ export function RoomTimeline({
     let resizeObserver: ResizeObserver | undefined;
 
     if (timelineSync.focusItem) {
-      // Reveal the timeline in the same effect that scrolls to the focus event so
-      // both the scroll and opacity-1 land in a single commit — no intermediate
-      // frame where events are rendered but still opacity-0.
-      setIsReady(true);
-      if (timelineSync.focusItem.scrollTo && vListRef.current) {
-        const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
+      // Mark that the jump succeeded (focusItem was set). This prevents recovery
+      // scroll from firing even after focusItem is cleared (highlight ends).
+      jumpSucceededRef.current = true;
+
+      const { index, eventId: focusEventId, scrollTo } = timelineSync.focusItem;
+      log.log(
+        `[PermalinkJump] focusItem set: eventId=${focusEventId}, index=${index}, scrollTo=${scrollTo}`
+      );
+      Sentry.addBreadcrumb({
+        category: 'timeline.permalink',
+        message: 'focusItem set',
+        level: 'info',
+        data: { eventId: focusEventId, index, scrollTo, roomId: room.roomId },
+      });
+
+      let scrollSucceeded = false;
+      const attemptScroll = () => {
+        if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
+
+        let processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
+
+        // Fallback: if index lookup fails but we have an eventId, search by ID.
+        // This handles fragmented timelines from sliding sync where absolute indices
+        // don't align across different timeline contexts.
+        if (processedIndex === undefined && timelineSync.focusItem.eventId) {
+          const found = processedEventsRef.current.findIndex(
+            (e) => e.mEvent.getId() === timelineSync.focusItem!.eventId
+          );
+          if (found >= 0) {
+            processedIndex = found;
+            log.log(
+              `[PermalinkJump] Found event by ID search: eventId=${timelineSync.focusItem.eventId}, processedIndex=${found}`
+            );
+          } else {
+            log.log(
+              `[PermalinkJump] Event not found in processedEvents yet: eventId=${timelineSync.focusItem.eventId}, processedEvents.length=${processedEventsRef.current.length}`
+            );
+          }
+        }
+
         if (processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
@@ -544,6 +583,8 @@ export function RoomTimeline({
     hasInitialScrolledRef.current = false;
     // Reset auto-pagination cap so the new timeline can fill the viewport.
     autopagAttemptsRef.current = 0;
+    // Reset jump success tracking for this new eventId.
+    jumpSucceededRef.current = false;
     // Cancel any pending error-recovery scroll timer from a previous eventId load
     // so it cannot reveal the timeline mid-flight of a new load.
     if (initialScrollTimerRef.current !== undefined) {
@@ -602,6 +643,9 @@ export function RoomTimeline({
     if (!eventId) return;
     if (isReady) return;
     if (timelineSync.eventsLength === 0) return;
+    // Do NOT fire recovery scroll if the jump already succeeded. Once focusItem
+    // was set (even if later cleared after highlight), the jump worked correctly.
+    if (jumpSucceededRef.current) return;
     // Do NOT fire recovery scroll while the eventId load is still in progress.
     // The live timeline may receive events from sliding sync before the target
     // event context finishes loading, which would cause a premature scroll to bottom.

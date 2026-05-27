@@ -5,11 +5,16 @@ import { createDebugLogger } from '$utils/debugLogger';
 const debugLog = createDebugLogger('threadEvents');
 
 /**
- * Extract threadId from a Matrix event.
- * Thread replies have m.relates_to.rel_type = "m.thread" and m.relates_to.event_id = [root event ID].
- * The threadId is the root event ID.
+ * Extract threadId from a Matrix event and provide instrumentation for thread event handling.
  *
- * Exported for future SDK patches that need to route thread events correctly.
+ * This module fixes the issue where thread reply events were silently dropped during
+ * sliding sync. The SDK's EventTimelineSet.addEventToTimeline() rejects events with
+ * threadId=undefined (by design), but the SDK's sliding sync processing doesn't extract
+ * the threadId from m.relates_to before calling addEventToTimeline.
+ *
+ * The fix is in slidingSync.ts: we intercept the raw timeline events in the
+ * RequestFinished lifecycle handler, extract threadId for each event, and manually
+ * add them to the correct timeline set before the SDK's default handler runs.
  */
 export function getThreadIdFromEvent(event: MatrixEvent): string | undefined {
   // Check m.relates_to for thread relationship
@@ -28,28 +33,15 @@ export function getThreadIdFromEvent(event: MatrixEvent): string | undefined {
 }
 
 /**
- * Install instrumentation to track thread events that might be dropped.
+ * Install instrumentation to track thread events.
  *
- * TODO: The root cause is in matrix-js-sdk's sliding sync event processing.
- * When sliding sync delivers thread reply events, they are passed to
- * EventTimelineSet.addEventToTimeline() with threadId=undefined, causing them
- * to be rejected with "EventTimelineSet.canContain — event cannot be added to
- * any timeline" errors.
- *
- * The fix requires patching the SDK's SlidingSync.processRoomData() to:
- * 1. Extract threadId from each event using getThreadIdFromEvent()
- * 2. Get the thread-specific timeline set: room.getTimelineSet(threadId)
- * 3. Add events to that timeline set instead of the root timeline set
- *
- * For now, we add logging to track when thread events are encountered.
+ * Thread events are now correctly routed to their respective timeline sets
+ * in slidingSync.ts. This instrumentation remains for observability.
  */
 export function installThreadEventInstrumentation(mx: MatrixClient): void {
-  // Add breadcrumb when we detect potential thread events being processed
-  // This helps track the issue in Sentry without patching SDK internals
-
   debugLog.info('general', 'Thread event instrumentation installed', {
     userId: mx.getUserId(),
-    note: 'Tracking thread events for SDK-level fix',
+    note: 'Thread events now correctly routed in slidingSync.ts',
   });
 
   Sentry.addBreadcrumb({
@@ -58,7 +50,7 @@ export function installThreadEventInstrumentation(mx: MatrixClient): void {
     level: 'info',
     data: {
       userId: mx.getUserId(),
-      note: 'Thread events may be dropped due to SDK issue - see threadEventPatch.ts',
+      note: 'Thread events correctly routed to timeline sets',
     },
   });
 }

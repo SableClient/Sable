@@ -19,10 +19,12 @@ import {
   MSC3575_STATE_KEY_ME,
   EventType,
   User,
+  MatrixEvent,
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
+import { getThreadIdFromEvent } from './threadEventPatch';
 
 const log = createLogger('slidingSync');
 const debugLog = createDebugLogger('slidingSync');
@@ -434,6 +436,85 @@ export class SlidingSyncManager {
             if (timelineSet.getLiveTimeline().getEvents().length === 0) return;
             timelineSet.resetLiveTimeline();
           });
+
+        // Process timeline events with thread support before SDK's default handler runs.
+        // The SDK's addEventToTimeline rejects events with threadId=undefined (by design),
+        // causing thread reply events to be silently dropped. We intercept here to extract
+        // threadId from m.relates_to and route events to the correct timeline set.
+        Object.entries(rooms).forEach(([roomId, roomData]) => {
+          const room = this.mx.getRoom(roomId);
+          if (!room) return;
+
+          const rawEvents = roomData.timeline ?? [];
+          if (rawEvents.length === 0) return;
+
+          let threadEventsProcessed = 0;
+          let rootEventsProcessed = 0;
+
+          // Process each event and route to the correct timeline set based on threadId
+          for (const rawEvent of rawEvents) {
+            // Create MatrixEvent from raw server payload
+            const event = new MatrixEvent(rawEvent);
+            const threadId = getThreadIdFromEvent(event);
+
+            // Get the appropriate timeline set (thread-specific or root)
+            const timelineSet = threadId
+              ? room.getOrCreateThread(threadId).timelineSet
+              : room.getUnfilteredTimelineSet();
+
+            const timeline = timelineSet.getLiveTimeline();
+
+            // Add event to the correct timeline with threadId parameter
+            timelineSet.addEventToTimeline(event, timeline, {
+              toStartOfTimeline: false,
+              ...(threadId && { threadId }),
+            });
+
+            if (threadId) {
+              threadEventsProcessed += 1;
+            } else {
+              rootEventsProcessed += 1;
+            }
+          }
+
+          // Clear the timeline array so SDK doesn't try to re-add these events
+          roomData.timeline = [];
+
+          if (threadEventsProcessed > 0) {
+            debugLog.info('sync', 'Processed thread events with threadId routing', {
+              roomId,
+              threadEvents: threadEventsProcessed,
+              rootEvents: rootEventsProcessed,
+              syncCycle: this.syncCount,
+            });
+            Sentry.addBreadcrumb({
+              category: 'sync.threadEvents',
+              message: 'Thread events routed to correct timeline sets',
+              level: 'info',
+              data: {
+                roomId,
+                threadEvents: threadEventsProcessed,
+                rootEvents: rootEventsProcessed,
+              },
+            });
+          }
+        });
+
+        // If a force-resubscription cycle was scheduled (pull-to-refresh), restore
+        // all subscriptions now that the server has seen the empty-subscription
+        // request.  On the next sync cycle the server will treat these as new
+        // subscriptions and return initial:true with fresh data and backward-
+        // pagination tokens, which the block above will then handle.
+        if (this.pendingResubscriptions !== null) {
+          const toRestore = this.pendingResubscriptions;
+          this.pendingResubscriptions = null;
+          toRestore.forEach((roomId) => this.activeRoomSubscriptions.add(roomId));
+          this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+          // Explicitly trigger a sync to fetch fresh data with initial:true.
+          // Without this, modifyRoomSubscriptions alone may not trigger a new
+          // request if the sync loop is idle.
+          this.slidingSync.resend();
+        }
       }
 
       if (err || !resp || state !== SlidingSyncState.Complete) return;

@@ -70,16 +70,34 @@ const useEventTimelineLoader = (
           level: 'info',
         });
 
-        if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
-          await withTimeout(
-            mx.roomInitialSync(room.roomId, PAGINATION_LIMIT),
-            EVENT_TIMELINE_LOAD_TIMEOUT_MS
-          );
-          await withTimeout(
-            mx.getLatestTimeline(room.getUnfilteredTimelineSet()),
-            EVENT_TIMELINE_LOAD_TIMEOUT_MS
-          );
+        // Verify event exists before initiating timeline jump. Calling getEventTimeline
+        // with a non-existent event ID triggers expensive server-side lookups and can
+        // 404 or hang. fetchRoomEvent is cheaper (single /event endpoint) and lets us
+        // handle 404s gracefully without starting a full timeline load.
+        try {
+          await mx.fetchRoomEvent(room.roomId, eventId);
+        } catch (fetchErr) {
+          const matrixError = fetchErr as { httpStatus?: number; errcode?: string };
+          if (matrixError.httpStatus === 404) {
+            Sentry.addBreadcrumb({
+              category: 'timeline.load',
+              message: 'Event not found (404) — cannot jump to this message',
+              data: { eventId, roomId: room.roomId },
+              level: 'warning',
+            });
+            const notFoundError = new Error('This message no longer exists or is not accessible.');
+            notFoundError.name = 'EventNotFoundError';
+            onError(notFoundError);
+            return;
+          }
+          // For other errors (network, auth, etc.), proceed with timeline load anyway —
+          // the event might be in local cache even if the fetch failed transiently.
         }
+
+        // Directly fetch the event timeline context from the server using /context API.
+        // Do NOT wait for roomInitialSync or sliding sync — the jump should be independent
+        // of sync state and only use GET /rooms/{roomId}/context/{eventId}.
+        // This prevents the 6+ second delay from waiting for sliding sync to complete.
         const [err, replyEvtTimeline] = await to(
           withTimeout(
             mx.getEventTimeline(room.getUnfilteredTimelineSet(), eventId),

@@ -148,6 +148,18 @@ export const UrlPreviewCard = as<
   if (previewStatus.status === AsyncStatus.Error) return null;
 
   const renderContent = (prev: IPreviewUrlResponse) => {
+    // Debug: Log preview data to diagnose tiny images
+    if (prev['og:image']) {
+      console.log('[UrlPreviewCard] Preview data:', {
+        url,
+        'og:image': prev['og:image'],
+        'og:image:width': prev['og:image:width'],
+        'og:image:height': prev['og:image:height'],
+        imageType: typeof prev['og:image'],
+        isArray: Array.isArray(prev['og:image']),
+      });
+    }
+    
     const siteName = prev['og:site_name'];
     const title = prev['og:title'];
     const description = prev['og:description'];

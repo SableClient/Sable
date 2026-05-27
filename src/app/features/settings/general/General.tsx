@@ -30,7 +30,12 @@ import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
 import type { DateFormat, MessageSpacing, CaptionPosition } from '$state/settings';
-import { MessageLayout, RightSwipeAction, settingsAtom } from '$state/settings';
+import {
+  MessageLayout,
+  RightSwipeAction,
+  DefaultLandingScreen,
+  settingsAtom,
+} from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS, mobileOrTablet } from '$utils/user-agent';
@@ -390,6 +395,96 @@ function getTombstoneSettingToggleTitle(showHidden: boolean, showTombstone: bool
     return 'Disable to hide redacted messages entirely instead of showing a tombstone.';
   }
   return 'Enable to show tombstone events for redacted messages instead of hiding them entirely.';
+}
+
+function Navigation() {
+  const [defaultLandingScreen, setDefaultLandingScreen] = useSetting(
+    settingsAtom,
+    'defaultLandingScreen'
+  );
+  const [menuCords, setMenuCords] = useState<RectCords>();
+
+  const landingScreenItems: Array<{ label: string; value: DefaultLandingScreen }> = [
+    { label: 'Home', value: DefaultLandingScreen.Home },
+    { label: 'Direct Messages', value: DefaultLandingScreen.Direct },
+    { label: 'Last Visited', value: DefaultLandingScreen.LastVisited },
+  ];
+
+  const currentLabel =
+    landingScreenItems.find((item) => item.value === defaultLandingScreen)?.label || 'Home';
+
+  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleSelect = (value: DefaultLandingScreen) => {
+    setDefaultLandingScreen(value);
+    setMenuCords(undefined);
+  };
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Navigation</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Default Landing Screen"
+          focusId="default-landing-screen"
+          description="Choose which screen to show when opening the app"
+          after={
+            <PopOut
+              anchor={menuCords}
+              position="Bottom"
+              align="End"
+              content={
+                <FocusTrap
+                  focusTrapOptions={{
+                    initialFocus: false,
+                    onDeactivate: () => setMenuCords(undefined),
+                    clickOutsideDeactivates: true,
+                    escapeDeactivates: stopPropagation,
+                  }}
+                >
+                  <Menu>
+                    {landingScreenItems.map((item) => (
+                      <MenuItem
+                        key={item.value}
+                        size="300"
+                        onClick={() => handleSelect(item.value)}
+                        radii="300"
+                        before={
+                          defaultLandingScreen === item.value ? (
+                            <Icon size="100" src={Icons.Check} />
+                          ) : (
+                            <Box style={{ width: toRem(16) }} />
+                          )
+                        }
+                      >
+                        <Text size="T300">{item.label}</Text>
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                </FocusTrap>
+              }
+            >
+              <Button
+                onClick={handleMenu}
+                variant="Secondary"
+                fill="None"
+                size="300"
+                radii="300"
+                aria-pressed={!!menuCords}
+                after={<Icon size="50" src={Icons.ChevronBottom} />}
+              >
+                <Text size="B300" truncate>
+                  {currentLabel}
+                </Text>
+              </Button>
+            </PopOut>
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
 }
 
 function DateAndTime() {
@@ -1434,6 +1529,7 @@ export function General({ requestBack, requestClose }: Readonly<GeneralProps>) {
         <Scroll hideTrack visibility="Hover">
           <PageContent>
             <Box direction="Column" gap="700">
+              <Navigation />
               <DateAndTime />
               <Gestures isMobile={mobileOrTablet()} />
               <Editor isMobile={mobileOrTablet()} />

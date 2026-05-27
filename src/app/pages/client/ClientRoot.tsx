@@ -19,7 +19,7 @@ import FocusTrap from 'focus-trap-react';
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useRef, useCallback, useEffect, useState } from 'react';
 import * as Sentry from '@sentry/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
   clearCacheAndReload,
@@ -48,9 +48,12 @@ import {
 import { createLogger } from '$utils/debug';
 import { useSyncNicknames } from '$hooks/useNickname';
 import { useAppVisibility } from '$hooks/useAppVisibility';
-import { getHomePath } from '$pages/pathUtils';
+import { getLandingPath, rememberLastVisitedPath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { pushSessionToSW } from '../../../sw-session';
+import { useSwUpdateAvailable } from '$hooks/useSwUpdateAvailable';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
 import { AutoDiscovery } from './AutoDiscovery';
@@ -177,10 +180,12 @@ type ClientRootProps = {
 export function ClientRoot({ children }: ClientRootProps) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
   const clientConfig = useClientConfig();
   const sessions = useAtomValue(sessionsAtom);
   const [activeSessionId, setActiveSessionId] = useAtom(activeSessionIdAtom);
   const setSessions = useSetAtom(sessionsAtom);
+  const [defaultLandingScreen] = useSetting(settingsAtom, 'defaultLandingScreen');
 
   const activeSession: Session | undefined =
     sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
@@ -241,9 +246,15 @@ export function ClientRoot({ children }: ClientRootProps) {
       setLoading(true);
       loadedUserIdRef.current = undefined;
       setLoadState({ status: AsyncStatus.Idle });
-      navigate(getHomePath(), { replace: true });
+      navigate(getLandingPath(defaultLandingScreen), { replace: true });
     }
-  }, [activeSession, mx, navigate, setLoadState]);
+  }, [activeSession, mx, navigate, setLoadState, defaultLandingScreen]);
+
+  // Remember the last visited path so we can restore it on next app open
+  // if the user has selected "Last Visited" as their landing screen preference
+  useEffect(() => {
+    rememberLastVisitedPath(location.pathname);
+  }, [location.pathname]);
 
   const handleLogout = useCallback(async () => {
     if (!mx || !activeSession) return;

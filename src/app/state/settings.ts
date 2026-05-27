@@ -33,6 +33,12 @@ export type PerRoomShowRoomIcon = {
   display: ShowRoomIcon;
 };
 
+export enum DefaultLandingScreen {
+  Home = 'home',
+  Direct = 'direct',
+  LastVisited = 'last-visited',
+}
+
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
 export type ThemeRemoteFavorite = {
@@ -90,6 +96,7 @@ export interface Settings {
   twitterEmoji: boolean;
   pageZoom: number;
   hideActivity: boolean;
+  defaultLandingScreen: DefaultLandingScreen;
 
   isPeopleDrawer: boolean;
   isWidgetDrawer: boolean;
@@ -223,6 +230,7 @@ export const defaultSettings: Settings = {
   twitterEmoji: true,
   pageZoom: 100,
   hideActivity: false,
+  defaultLandingScreen: DefaultLandingScreen.Home,
 
   isPeopleDrawer: true,
   isWidgetDrawer: false,

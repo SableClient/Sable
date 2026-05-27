@@ -16,12 +16,31 @@ export type UserPresence = {
   lastActiveTs?: number;
 };
 
-const getUserPresence = (user: User): UserPresence => ({
-  presence: user.presence as Presence,
-  status: user.presenceStatusMsg,
-  active: user.currentlyActive,
-  lastActiveTs: user.getLastActiveTs(),
-});
+const getUserPresence = (user: User): UserPresence => {
+  const rawPresence = user.presence as Presence;
+  const statusMsg = user.presenceStatusMsg ?? '';
+  // DND is encoded as online + status_msg starting with '[dnd]'. Decode it back
+  // so the badge renders red for any Sable client, not just the sender's own account switcher.
+  const isDnd = rawPresence === Presence.Online && statusMsg.startsWith('[dnd]');
+  const presence = isDnd ? Presence.Dnd : rawPresence;
+
+  // Strip the [dnd] prefix when displaying status in Sable
+  let displayStatus: string | undefined;
+  if (isDnd) {
+    // Remove '[dnd]' prefix and any following space, show remaining custom status
+    const withoutPrefix = statusMsg.slice(5).trimStart();
+    displayStatus = withoutPrefix || undefined;
+  } else {
+    displayStatus = statusMsg || undefined;
+  }
+
+  return {
+    presence,
+    status: displayStatus,
+    active: user.currentlyActive,
+    lastActiveTs: user.getLastActiveTs(),
+  };
+};
 
 export const useUserPresence = (userId: string): UserPresence | undefined => {
   const mx = useMatrixClient();

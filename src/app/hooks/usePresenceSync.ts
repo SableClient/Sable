@@ -30,6 +30,9 @@ const sleep = (ms: number) =>
 /** Timestamp (ms) of the last successful presence send. */
 let lastSentTimestamp = 0;
 
+/** Module-level debounce timer - survives component remounts and navigation. */
+let presenceDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
 type PresenceState = {
   /** The selected presence mode: 'online' | 'unavailable' | 'dnd' | 'offline' */
   presenceMode: 'online' | 'unavailable' | 'dnd' | 'offline';
@@ -197,11 +200,14 @@ export function usePresenceSyncEffect(): void {
   useAccountDataCallback(mx, onAccountData);
 
   // Debounced upload whenever presence or auto-idle changes
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     if (!syncEnabled) return undefined;
 
-    clearTimeout(timerRef.current);
+    // Clear any existing module-level timer
+    if (presenceDebounceTimer !== null) {
+      clearTimeout(presenceDebounceTimer);
+      presenceDebounceTimer = null;
+    }
 
     // Use fast debounce for activity events (idle→online) to ensure rapid multi-device sync.
     // Use longer debounce for idle events to avoid rate limiting.
@@ -209,7 +215,7 @@ export function usePresenceSyncEffect(): void {
     const isActivityEvent = wasIdled && !autoIdled;
     const debounceMs = isActivityEvent ? ACTIVITY_DEBOUNCE_MS : DEBOUNCE_MS;
 
-    timerRef.current = setTimeout(() => {
+    presenceDebounceTimer = setTimeout(() => {
       const token = Math.random().toString(36).slice(2, 10);
       pendingEchoTokenRef.current = token;
 
@@ -261,7 +267,12 @@ export function usePresenceSyncEffect(): void {
       );
     }, debounceMs);
 
-    return () => clearTimeout(timerRef.current);
+    return () => {
+      if (presenceDebounceTimer !== null) {
+        clearTimeout(presenceDebounceTimer);
+        presenceDebounceTimer = null;
+      }
+    };
   }, [mx, presenceMode, autoIdled, syncEnabled, settings.presenceStatusMsg]);
 }
 

@@ -19,6 +19,7 @@ import { pushSessionToSW } from '../sw-session';
 import { cryptoCallbacks } from './secretStorageKeys';
 import type { SlidingSyncConfig, SlidingSyncDiagnostics } from './slidingSync';
 import { SlidingSyncManager } from './slidingSync';
+import { installThreadEventInstrumentation } from './threadEventPatch';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
@@ -657,14 +658,41 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
 
   if (await shouldBootstrapClassicOnColdCache()) {
     log.log('startClient cold-cache bootstrap: using classic sync for this run', mx.getUserId());
-    await startClassicSync(false, 'cold_cache_bootstrap');
-    waitForClientReady(mx, COLD_CACHE_BOOTSTRAP_TIMEOUT_MS).catch((err) => {
-      debugLog.warn('network', 'Cold cache bootstrap timed out', {
-        userId: mx.getUserId(),
-        timeout: `${COLD_CACHE_BOOTSTRAP_TIMEOUT_MS}ms`,
-        error: err instanceof Error ? err.message : String(err),
-      });
+
+    // Add breadcrumb: cold cache sync started
+    Sentry.addBreadcrumb({
+      category: 'sync.coldCache',
+      message: 'Cold cache sync started',
+      data: { userId: mx.getUserId(), timeoutMs: COLD_CACHE_BOOTSTRAP_TIMEOUT_MS },
+      level: 'info',
     });
+
+    const coldCacheStartMs = performance.now();
+    await startClassicSync(false, 'cold_cache_bootstrap');
+
+    // Wait for cold cache sync to complete, then add completion breadcrumb
+    waitForClientReady(mx, COLD_CACHE_BOOTSTRAP_TIMEOUT_MS)
+      .then(() => {
+        const durationMs = performance.now() - coldCacheStartMs;
+        const roomsPopulated = mx.getRooms().length;
+        Sentry.addBreadcrumb({
+          category: 'sync.coldCache',
+          message: 'Cold cache sync complete — staying on classic sync',
+          data: { roomsPopulated, durationMs: Math.round(durationMs) },
+          level: 'info',
+        });
+        debugLog.info('sync', 'Cold cache sync complete', {
+          roomsPopulated,
+          durationMs: `${durationMs.toFixed(0)}ms`,
+        });
+      })
+      .catch((err) => {
+        debugLog.warn('network', 'Cold cache bootstrap timed out', {
+          userId: mx.getUserId(),
+          timeout: `${COLD_CACHE_BOOTSTRAP_TIMEOUT_MS}ms`,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     return;
   }
 
@@ -692,6 +720,13 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     return;
   }
 
+  // Add breadcrumb: sliding sync started (cache warm)
+  Sentry.addBreadcrumb({
+    category: 'sync.coldCache',
+    message: 'Sliding sync started (cache warm)',
+    level: 'info',
+  });
+
   const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
     ...slidingConfig,
     includeInviteList: true,
@@ -718,6 +753,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
 
   try {
     installStartupFetchRoomEventPatch(mx, { stubOnCacheMiss: false });
+    installThreadEventInstrumentation(mx);
     await mx.startClient({
       lazyLoadMembers: true,
       slidingSync: manager.slidingSync,

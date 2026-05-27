@@ -430,8 +430,15 @@ export function RoomTimeline({
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
           scrollSucceeded = true;
 
+          // Stop retry loop now that scroll succeeded
+          if (retryIntervalId !== undefined) {
+            clearInterval(retryIntervalId);
+            retryIntervalId = undefined;
+          }
+
           // Re-center after a delay to ensure item measurements are complete.
           // The initial scrollToIndex may not center properly if item heights aren't known yet.
+          // Schedule this ONLY after the scroll succeeds to avoid firing before the event renders.
           recenterTimeoutId = setTimeout(() => {
             if (vListRef.current && processedIndex !== undefined) {
               vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
@@ -440,6 +447,19 @@ export function RoomTimeline({
 
           return true;
         }
+        return false;
+      };
+
+      // Try immediate scroll
+      if (!attemptScroll()) {
+        // If immediate scroll failed (event not in processedEvents yet), retry periodically.
+        // This handles the case where pagination just loaded the event but React hasn't
+        // finished processing/rendering it yet.
+        retryIntervalId = setInterval(() => {
+          if (attemptScroll()) {
+            // attemptScroll() now clears the interval itself when it succeeds
+          }
+        }, 100);
       }
       timeoutId = setTimeout(() => {
         timelineSync.setFocusItem(undefined);
@@ -494,32 +514,48 @@ export function RoomTimeline({
     // The live timeline may receive events from sliding sync before the target
     // event context finishes loading, which would cause a premature scroll to bottom.
     if (eventIdLoadInProgressRef.current) return;
-    if (timelineSync.focusItem) return;
+    // If focusItem is set or scrollTo is still pending, the focus scroll will handle it.
+    // Wait for it to complete before falling back to recovery scroll.
+    if (timelineSync.focusItem?.scrollTo) return;
     if (!timelineSync.liveTimelineLinked) return;
     // Guard: don't start a second timer if one is already in flight.
     if (initialScrollTimerRef.current !== undefined) return;
 
-    // Virtua has no measured item heights yet when data first populates
-    // (transition from 0 → N items).  A single scrollToIndex call lands at the
-    // estimated position (often 0) because every item is still at its default
-    // height.  Mirror the double-scroll pattern from the initial-scroll
-    // useLayoutEffect: scroll once immediately to warm up virtua's layout pass,
-    // then scroll again after 80 ms when heights are measured, then reveal.
-    const lastIdx = processedEventsRef.current.length - 1;
-    if (lastIdx >= 0) vListRef.current?.scrollToIndex(lastIdx, { align: 'end' });
-
+    // Delay recovery scroll to give the focusItem scroll enough time to succeed.
+    // If the permalink jump is working, focusItem.scrollTo will be cleared within
+    // ~500ms (100ms retry + 300ms recenter). Only fall back to recovery after 1s.
     initialScrollTimerRef.current = setTimeout(() => {
       initialScrollTimerRef.current = undefined;
-      // Bail out if the timeline was already revealed by another code path
-      // (e.g. loadEventTimeline succeeded and set focusItem in the meantime).
+
+      // Final check: if focusItem.scrollTo is still true after 1s, something went wrong
+      // but we shouldn't override an active scroll attempt. Only recover if scrollTo is
+      // false or focusItem is undefined.
+      if (timelineSyncRef.current.focusItem?.scrollTo) return;
       if (isReadyRef.current) return;
-      if (timelineSyncRef.current.focusItem) return;
       if (timelineSyncRef.current.eventsLength === 0) return;
       if (!timelineSyncRef.current.liveTimelineLinked) return;
-      const idx = processedEventsRef.current.length - 1;
-      if (idx >= 0) vListRef.current?.scrollToIndex(idx, { align: 'end' });
-      setIsReady(true);
-    }, 80);
+
+      // Virtua has no measured item heights yet when data first populates
+      // (transition from 0 → N items).  A single scrollToIndex call lands at the
+      // estimated position (often 0) because every item is still at its default
+      // height.  Scroll once immediately to warm up virtua's layout pass, then
+      // schedule a second scroll after 80ms when heights are measured.
+      const lastIdx = processedEventsRef.current.length - 1;
+      if (lastIdx >= 0) vListRef.current?.scrollToIndex(lastIdx, { align: 'end' });
+
+      initialScrollTimerRef.current = setTimeout(() => {
+        initialScrollTimerRef.current = undefined;
+        // Final bail-out checks before revealing
+        if (isReadyRef.current) return;
+        if (timelineSyncRef.current.focusItem?.scrollTo) return;
+        if (timelineSyncRef.current.eventsLength === 0) return;
+        if (!timelineSyncRef.current.liveTimelineLinked) return;
+
+        const idx = processedEventsRef.current.length - 1;
+        if (idx >= 0) vListRef.current?.scrollToIndex(idx, { align: 'end' });
+        setIsReady(true);
+      }, 80);
+    }, 1000);
   }, [
     eventId,
     isReady,

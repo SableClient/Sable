@@ -901,11 +901,12 @@ export function Appearance({
                     <Button
                       onClick={handleLandingMenu}
                       variant="Secondary"
-                      fill="None"
+                      outlined
+                      fill="Soft"
                       size="300"
                       radii="300"
                       aria-pressed={!!landingMenuCords}
-                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                      after={<Icon size="300" src={Icons.ChevronBottom} />}
                     >
                       <Text size="T300" truncate>
                         {landingCurrentLabel}

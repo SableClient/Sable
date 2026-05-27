@@ -1048,37 +1048,25 @@ export class SlidingSyncManager {
   }
 
   /**
-   * Remove the explicit room subscription for a room.
-   * Rooms that are still in a list will continue to receive background updates.
-   * This is a no-op after dispose().
-   */
-  public unsubscribeFromRoom(roomId: string): void {
-    if (this.disposed) return;
-    // Clean up any pending first-data latency listener for this room.
-    const pendingListener = this.pendingRoomDataListeners.get(roomId);
-    if (pendingListener) {
-      this.slidingSync.removeListener(SlidingSyncEvent.RoomData, pendingListener);
-      this.pendingRoomDataListeners.delete(roomId);
-    }
-    this.activeRoomSubscriptions.delete(roomId);
-    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
-    Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
-      attributes: { transport: 'sliding' },
-    });
-    log.log(`Sliding Sync active room subscription removed: ${roomId}`);
-    debugLog.info('sync', 'Room subscription removed (sliding)', {
-      remainingSubscriptions: this.activeRoomSubscriptions.size,
-      syncCycle: this.syncCount,
-    });
-  }
-
-  /**
-   * Prefetch recently-visited rooms by subscribing to them immediately.
-   * This reduces the time between room navigation and timeline appearing,
-   * especially beneficial for rooms not in the initial sync window.
-   *
-   * Called after initial sync completes to warm up the cache for likely
-   * next-room-to-be-opened scenarios.
+   * Prefetch recently-visited rooms by subscribing to them in a single batched
+   * call to modifyRoomSubscriptions.
+   * 
+   * IMPORTANT: This only subscribes to rooms that ALREADY EXIST in the client
+   * (from IndexedDB cache or initial sync response). It does not load/fetch new
+   * rooms. On warm cache launches, all cached rooms load from IndexedDB instantly,
+   * then this method subscribes to them to request fresh timeline content.
+   * 
+   * Progressive prefetch (if enabled) continues subscribing to additional cached
+   * rooms in batches of 25 every 3 seconds, spreading server load and avoiding
+   * overwhelming the connection with hundreds of simultaneous subscriptions.
+   * 
+   * The "all rooms visible, then content loads, then sort" behavior on warm cache
+   * is CORRECT: rooms appear from cache instantly → progressive prefetch subscribes
+   * in batches → fresh content arrives → rooms re-sort by priority.
+   * 
+   * Calling subscribeToRoom() per room would trigger a modifyRoomSubscriptions +
+   * resend() for each room individually (N+1 resend calls), whereas this method
+   * collects all rooms first and issues one call, keeping startup sync churn low.
    */
   public prefetchRecentRooms(): void {
     if (this.disposed) return;

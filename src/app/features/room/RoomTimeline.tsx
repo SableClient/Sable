@@ -251,6 +251,9 @@ export function RoomTimeline({
   // recovery scroll from firing prematurely when the live timeline loads before
   // the target event context finishes loading (which causes the blank → bottom jump).
   const eventIdLoadInProgressRef = useRef(false);
+  // Track which eventId is currently being loaded to prevent duplicate loads when
+  // the user clicks the jump button repeatedly before the first load completes.
+  const loadingEventIdRef = useRef<string | null>(null);
 
   const lastProgrammaticBottomPinAtRef = useRef(0);
 
@@ -493,12 +496,40 @@ export function RoomTimeline({
     timelineSyncRef.current.setTimeline(getEmptyTimeline());
     // Mark the eventId load as in-progress to prevent premature recovery scroll
     eventIdLoadInProgressRef.current = true;
-    void timelineSyncRef.current.loadEventTimeline(eventId).finally(() => {
-      // Clear the flag whether the load succeeded or failed. If it succeeded,
-      // focusItem will be set and the focus scroll will handle it. If it failed,
-      // the recovery scroll can now safely fire.
-      eventIdLoadInProgressRef.current = false;
-    });
+    loadingEventIdRef.current = eventId;
+    void timelineSyncRef.current
+      .loadEventTimeline(eventId)
+      .then(() => {
+        log.log(
+          `[PermalinkJump] loadEventTimeline succeeded: eventId=${eventId}, eventsLength=${timelineSyncRef.current.eventsLength}`
+        );
+        Sentry.addBreadcrumb({
+          category: 'timeline.permalink',
+          message: 'loadEventTimeline succeeded',
+          level: 'info',
+          data: {
+            eventId,
+            eventsLength: timelineSyncRef.current.eventsLength,
+            roomId: room.roomId,
+          },
+        });
+      })
+      .catch((err) => {
+        log.warn(`[PermalinkJump] loadEventTimeline failed: eventId=${eventId}`, err);
+        Sentry.addBreadcrumb({
+          category: 'timeline.permalink',
+          message: 'loadEventTimeline failed',
+          level: 'error',
+          data: { eventId, error: String(err), roomId: room.roomId },
+        });
+      })
+      .finally(() => {
+        // Clear the flag whether the load succeeded or failed. If it succeeded,
+        // focusItem will be set and the focus scroll will handle it. If it failed,
+        // the recovery scroll can now safely fire.
+        eventIdLoadInProgressRef.current = false;
+        loadingEventIdRef.current = null;
+      });
   }, [eventId, room.roomId]);
 
   // Recovery: loadEventTimeline's onError callback restores the live timeline but
@@ -696,7 +727,33 @@ export function RoomTimeline({
         }
         timelineSync.setFocusItem({ index: focusRawIndex, scrollTo: false, highlight: true });
       } else {
-        void timelineSync.loadEventTimeline(anchorId);
+        // Prevent duplicate loads when the user clicks repeatedly before the first load completes.
+        // This prevents the "going backwards through history" bug where each load clears and
+        // re-paginates the timeline, changing absolute indices and causing incorrect scroll positions.
+        if (loadingEventIdRef.current === anchorId) {
+          log.log(
+            `[PermalinkJump] Ignoring duplicate load request for ${anchorId} (already loading)`
+          );
+          return;
+        }
+        // Prepare for loading: hide timeline and show skeletons
+        setIsReady(false);
+        timelineSync.setTimeline(getEmptyTimeline());
+        eventIdLoadInProgressRef.current = true;
+        loadingEventIdRef.current = anchorId;
+
+        log.log(`[PermalinkJump] Starting load for ${anchorId} from handleOpenEvent`);
+        Sentry.addBreadcrumb({
+          category: 'timeline.permalink',
+          message: 'handleOpenEvent initiating load',
+          level: 'info',
+          data: { eventId: anchorId, roomId: room.roomId },
+        });
+
+        void timelineSync.loadEventTimeline(anchorId).finally(() => {
+          eventIdLoadInProgressRef.current = false;
+          loadingEventIdRef.current = null;
+        });
       }
     },
   });

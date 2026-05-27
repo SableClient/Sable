@@ -30,9 +30,11 @@ import {
   toRem,
   Spinner,
 } from 'folds';
+import * as Sentry from '@sentry/react';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { createLogger } from '$utils/debug';
 import { useAlive } from '$hooks/useAlive';
 import { useMessageEdit } from '$hooks/useMessageEdit';
 import { useDocumentFocusChange } from '$hooks/useDocumentFocusChange';
@@ -91,6 +93,8 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
+
+const log = createLogger('RoomTimeline');
 
 function findLastOwnEditableProcessedEvent(
   events: ProcessedEvent[],
@@ -497,6 +501,17 @@ export function RoomTimeline({
     let recenterTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
     if (timelineSync.focusItem) {
+      const { index, eventId: focusEventId, scrollTo } = timelineSync.focusItem;
+      log.log(
+        `[PermalinkJump] focusItem set: eventId=${focusEventId}, index=${index}, scrollTo=${scrollTo}`
+      );
+      Sentry.addBreadcrumb({
+        category: 'timeline.permalink',
+        message: 'focusItem set',
+        level: 'info',
+        data: { eventId: focusEventId, index, scrollTo, roomId: room.roomId },
+      });
+
       let scrollSucceeded = false;
       const attemptScroll = () => {
         if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
@@ -510,10 +525,33 @@ export function RoomTimeline({
           const found = processedEventsRef.current.findIndex(
             (e) => e.mEvent.getId() === timelineSync.focusItem!.eventId
           );
-          if (found >= 0) processedIndex = found;
+          if (found >= 0) {
+            processedIndex = found;
+            log.log(
+              `[PermalinkJump] Found event by ID search: eventId=${timelineSync.focusItem.eventId}, processedIndex=${found}`
+            );
+          } else {
+            log.log(
+              `[PermalinkJump] Event not found in processedEvents yet: eventId=${timelineSync.focusItem.eventId}, processedEvents.length=${processedEventsRef.current.length}`
+            );
+          }
         }
 
         if (processedIndex !== undefined) {
+          log.log(
+            `[PermalinkJump] Scroll succeeded: processedIndex=${processedIndex}, eventId=${timelineSync.focusItem.eventId}`
+          );
+          Sentry.addBreadcrumb({
+            category: 'timeline.permalink',
+            message: 'Scroll succeeded',
+            level: 'info',
+            data: {
+              processedIndex,
+              eventId: timelineSync.focusItem.eventId,
+              roomId: room.roomId,
+            },
+          });
+
           // Reveal timeline and scroll in the same frame to avoid flash
           setIsReady(true);
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
@@ -572,10 +610,19 @@ export function RoomTimeline({
     reducedMotion,
     getRawIndexToProcessedIndex,
     startJumpScrollBlock,
+    room.roomId,
   ]);
 
   useEffect(() => {
     if (!eventId) return;
+    log.log(`[PermalinkJump] Starting load: eventId=${eventId}, roomId=${room.roomId}`);
+    Sentry.addBreadcrumb({
+      category: 'timeline.permalink',
+      message: 'Starting permalink load',
+      level: 'info',
+      data: { eventId, roomId: room.roomId },
+    });
+
     setIsReady(false);
     // Re-arm the initial-scroll guard so that if the jump fails and falls back
     // to the live timeline, the useLayoutEffect can fire via the normal path.
@@ -594,12 +641,38 @@ export function RoomTimeline({
     timelineSyncRef.current.setTimeline(getEmptyTimeline());
     // Mark the eventId load as in-progress to prevent premature recovery scroll
     eventIdLoadInProgressRef.current = true;
-    void timelineSyncRef.current.loadEventTimeline(eventId).finally(() => {
-      // Clear the flag whether the load succeeded or failed. If it succeeded,
-      // focusItem will be set and the focus scroll will handle it. If it failed,
-      // the recovery scroll can now safely fire.
-      eventIdLoadInProgressRef.current = false;
-    });
+    void timelineSyncRef.current
+      .loadEventTimeline(eventId)
+      .then(() => {
+        log.log(
+          `[PermalinkJump] loadEventTimeline succeeded: eventId=${eventId}, eventsLength=${timelineSyncRef.current.eventsLength}`
+        );
+        Sentry.addBreadcrumb({
+          category: 'timeline.permalink',
+          message: 'loadEventTimeline succeeded',
+          level: 'info',
+          data: {
+            eventId,
+            eventsLength: timelineSyncRef.current.eventsLength,
+            roomId: room.roomId,
+          },
+        });
+      })
+      .catch((err) => {
+        log.warn(`[PermalinkJump] loadEventTimeline failed: eventId=${eventId}`, err);
+        Sentry.addBreadcrumb({
+          category: 'timeline.permalink',
+          message: 'loadEventTimeline failed',
+          level: 'error',
+          data: { eventId, error: String(err), roomId: room.roomId },
+        });
+      })
+      .finally(() => {
+        // Clear the flag whether the load succeeded or failed. If it succeeded,
+        // focusItem will be set and the focus scroll will handle it. If it failed,
+        // the recovery scroll can now safely fire.
+        eventIdLoadInProgressRef.current = false;
+      });
   }, [eventId, room.roomId]);
 
   // Recovery: loadEventTimeline's onError callback restores the live timeline but
@@ -627,15 +700,35 @@ export function RoomTimeline({
     // If the permalink jump is working, focusItem will be active for 2-4s (highlight duration).
     // Only fall back to recovery if focusItem doesn't exist or was never set.
     initialScrollTimerRef.current = setTimeout(() => {
+      log.log(
+        `[PermalinkJump] Recovery scroll 1s timer fired: focusItem=${!!timelineSyncRef.current.focusItem}, isReady=${isReadyRef.current}, eventsLength=${timelineSyncRef.current.eventsLength}`
+      );
       initialScrollTimerRef.current = undefined;
 
       // Don't fire recovery if focusItem exists at all - that means the permalink scroll
       // is active (even if scrollTo is false, which happens after successful scroll).
       // Only recover when focusItem is completely undefined (scroll never started or failed).
-      if (timelineSyncRef.current.focusItem) return;
+      if (timelineSyncRef.current.focusItem) {
+        log.log('[PermalinkJump] Recovery scroll canceled: focusItem exists');
+        return;
+      }
       if (isReadyRef.current) return;
       if (timelineSyncRef.current.eventsLength === 0) return;
       if (!timelineSyncRef.current.liveTimelineLinked) return;
+
+      log.log(
+        `[PermalinkJump] Recovery scroll starting: scrolling to bottom, processedEvents.length=${processedEventsRef.current.length}`
+      );
+      Sentry.addBreadcrumb({
+        category: 'timeline.permalink',
+        message: 'Recovery scroll: falling back to bottom',
+        level: 'warning',
+        data: {
+          eventId,
+          eventsLength: timelineSyncRef.current.eventsLength,
+          roomId: room.roomId,
+        },
+      });
 
       // Virtua has no measured item heights yet when data first populates
       // (transition from 0 → N items).  A single scrollToIndex call lands at the
@@ -664,6 +757,7 @@ export function RoomTimeline({
     timelineSync.eventsLength,
     timelineSync.focusItem,
     timelineSync.liveTimelineLinked,
+    room.roomId,
   ]);
 
   useEffect(() => {
@@ -1061,7 +1155,19 @@ export function RoomTimeline({
 
   const showLoadingPlaceholders =
     timelineSync.eventsLength === 0 &&
-    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
+    !isReady &&
+    (eventIdLoadInProgressRef.current ||
+      timelineSync.canPaginateBack ||
+      timelineSync.backwardStatus === 'loading');
+
+  // Log skeleton visibility for debugging
+  useEffect(() => {
+    if (eventId && showLoadingPlaceholders) {
+      log.log(
+        `[PermalinkJump] Showing loading skeletons: eventsLength=${timelineSync.eventsLength}, isReady=${isReady}, eventIdLoadInProgress=${eventIdLoadInProgressRef.current}`
+      );
+    }
+  }, [eventId, showLoadingPlaceholders, timelineSync.eventsLength, isReady]);
 
   // When showing loading placeholders, provide dummy data so VList renders items.
   // Without this, VList receives an empty array and renders nothing, causing a blank timeline.

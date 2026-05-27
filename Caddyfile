@@ -14,6 +14,18 @@
 		precompressed br
 	}
 
+	# Exclude static assets from the index.html fallback. If a JS/CSS/font file
+	# doesn't exist (e.g., stale worker URL from an old cached index.html), return
+	# 404 instead of serving index.html (which causes "text/html is not a valid
+	# JavaScript MIME type" errors when the browser tries to execute it).
+	@assets path /assets/* /font/* /res/* /sound/*
+	handle @assets {
+		file_server {
+			precompressed br
+		}
+	}
+
+	# All other requests fall back to index.html for client-side routing.
 	try_files {path} /index.html
 
 	# Content-hashed assets can be cached indefinitely — the filename changes on every build.

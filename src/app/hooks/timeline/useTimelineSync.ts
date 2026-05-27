@@ -58,20 +58,47 @@ const useEventTimelineLoader = (
   room: Room,
   onLoad: (eventId: string, linkedTimelines: EventTimeline[], evtAbsIndex: number) => void,
   onError: (err: Error | null) => void,
-  onProactiveLoad?: () => void
+  onProactiveLoad?: () => void,
+  onDisconnectedFragment?: (eventId: string) => void
 ) =>
   useCallback(
-    async (eventId: string) =>
+    async (eventId: string, signal?: AbortSignal) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const loadId = ++loadIdRef.current;
         const jumpLoadStart = performance.now();
 
+        // Check if already aborted before starting
+        if (signal?.aborted) {
+          const abortError = new Error('Timeline load aborted before start');
+          abortError.name = 'AbortError';
+          throw abortError;
+        }
+
+        Sentry.addBreadcrumb({
+          category: 'timeline.load',
+          message: 'Timeline load started',
+          data: { eventId, roomId: room.roomId, isPermalink: true },
+          level: 'info',
+        });
+
+        // Directly fetch the event timeline context from the server using /context API.
+        // Do NOT wait for roomInitialSync or sliding sync — the jump should be independent
+        // of sync state and only use GET /rooms/{roomId}/context/{eventId}.
+        // This prevents the 6+ second delay from waiting for sliding sync to complete.
         const [err, replyEvtTimeline] = await to(
           withTimeout(
             mx.getEventTimeline(room.getUnfilteredTimelineSet(), eventId),
             EVENT_TIMELINE_LOAD_TIMEOUT_MS
           )
         );
+
+        // Check if aborted after getEventTimeline
+        if (signal?.aborted) {
+          const abortError = new Error('Timeline load aborted after getEventTimeline');
+          abortError.name = 'AbortError';
+          throw abortError;
+        }
+
         if (!replyEvtTimeline) {
           if (loadId === loadIdRef.current) onError(err ?? null);
           return;
@@ -104,6 +131,11 @@ const useEventTimelineLoader = (
             tags: { feature: 'timeline', issue: 'disconnected_fragment' },
           });
 
+          // Notify the user that we're falling back to live timeline
+          if (onDisconnectedFragment) {
+            onDisconnectedFragment(eventId);
+          }
+
           // Check if the event now exists in the live timeline
           const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
           let liveAbsIndex = getEventIdAbsoluteIndex(
@@ -129,6 +161,13 @@ const useEventTimelineLoader = (
 
             /* eslint-disable no-await-in-loop -- sequential pagination required to check for event after each fetch */
             while (paginationAttempt < MAX_PAGINATION_ATTEMPTS && !foundEvent) {
+              // Check if aborted before pagination
+              if (signal?.aborted) {
+                const abortError = new Error('Timeline load aborted during pagination');
+                abortError.name = 'AbortError';
+                throw abortError;
+              }
+
               paginationAttempt++;
 
               const [paginateErr, hasMore] = await to(
@@ -276,7 +315,7 @@ const useEventTimelineLoader = (
           setTimeout(() => onProactiveLoad(), 500);
         }
       }),
-    [mx, room, onLoad, onError, onProactiveLoad]
+    [mx, room, onLoad, onError, onProactiveLoad, onDisconnectedFragment]
   );
 };
 
@@ -544,6 +583,7 @@ export interface UseTimelineSyncOptions {
   setUnreadInfo: Dispatch<SetStateAction<ReturnType<typeof getRoomUnreadInfo>>>;
   hideReadsRef: React.MutableRefObject<boolean>;
   readUptoEventIdRef: React.MutableRefObject<string | undefined>;
+  onDisconnectedFragment?: (eventId: string) => void;
 }
 
 export function useTimelineSync({
@@ -557,6 +597,7 @@ export function useTimelineSync({
   setUnreadInfo,
   hideReadsRef,
   readUptoEventIdRef,
+  onDisconnectedFragment,
 }: UseTimelineSyncOptions) {
   const alive = useAlive();
 
@@ -671,7 +712,8 @@ export function useTimelineSync({
       if (forwardToken) {
         void handleTimelinePaginationRef.current(false); // forward
       }
-    }, [])
+    }, []),
+    onDisconnectedFragment
   );
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);

@@ -67,7 +67,11 @@ document.addEventListener('visibilitychange', () => {
     requestSWClaim();
     // Check for SW updates when user returns to the app (e.g., after deploy)
     navigator.serviceWorker.getRegistration().then((registration) => {
-      registration?.update();
+      registration?.update().catch((err) => {
+        // Update checks can fail during deployment or due to network issues.
+        // Log but don't throw — the periodic check will retry later.
+        log.warn('SW update check failed (visibilitychange):', err);
+      });
     });
   }
 });
@@ -129,7 +133,11 @@ if ('serviceWorker' in navigator) {
       // to detect deployments faster without requiring a restart.
       setInterval(
         () => {
-          registration.update();
+          registration.update().catch((err) => {
+            // Update checks can fail during deployment (404 while new SW is being uploaded)
+            // or due to network issues. Log but don't throw — the next check will retry.
+            log.warn('SW update check failed:', err);
+          });
         },
         5 * 60 * 1000
       );

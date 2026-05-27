@@ -178,6 +178,14 @@ export async function togglePusher(
   keepEnabledWhenVisible = false
 ): Promise<void> {
   if (usePushNotifications) {
+    const [pushSubAtom] = pushSubscriptionAtom;
+    // Only enable/disable pushes if a subscription already exists. If there's no
+    // subscription yet, that means the user hasn't explicitly enabled push (no user
+    // gesture), so attempting to call pushManager.subscribe() will throw NotAllowedError.
+    // The user must explicitly enable push via the settings UI button before we can
+    // manage the pusher lifecycle during visibility changes.
+    if (!pushSubAtom) return;
+
     if (visible && !keepEnabledWhenVisible) {
       await disablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
     } else {

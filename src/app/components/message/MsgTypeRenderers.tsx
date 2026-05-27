@@ -96,52 +96,59 @@ const getUrlsFromContent = (
   content: Record<string, unknown>,
   renderUrlsPreview?: (urls: string[]) => ReactNode
 ): { urls?: string[]; bundleContent?: BundleContent[] } => {
-  const body = typeof content.body === 'string' ? content.body : '';
-  const customBody =
-    typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
-  const trimmedBody = trimReplyFromBody(body);
+  try {
+    const body = typeof content.body === 'string' ? content.body : '';
+    const customBody =
+      typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
+    const trimmedBody = trimReplyFromBody(body);
 
-  const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
-  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  urls = urls?.map(
-    (url) =>
-      (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
-      (url.startsWith('(') && url.substring(1)) ||
-      (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
-      url
-  );
-
-  if (urls && customBody) {
-    // Filter out URLs that only appear inside <code> or <pre> tags in the formatted body
-    const safeHtml = customBody
-      .replace(/<pre[^>]*>.*?<\/pre>/gs, '')
-      .replace(/<code[^>]*>.*?<\/code>/gs, '');
-    const safeText = safeHtml.replace(/<[^a][^>]*>/g, '');
-    const safeUrlsMatch = safeText.match(LINKINPUTREGEX);
-    let safeUrls = safeUrlsMatch ? [...new Set(safeUrlsMatch)] : [];
-    safeUrls = safeUrls.map(
+    const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
+    let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+    urls = urls?.map(
       (url) =>
         (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
         (url.startsWith('(') && url.substring(1)) ||
         (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
         url
     );
-    const safeUrlsSet = new Set(safeUrls);
-    urls = urls.filter((url) => safeUrlsSet.has(url) && !url.startsWith(MATRIX_TO_BASE));
-  }
 
-  let bundleContent = content[
-    prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME
-  ] as BundleContent[];
-  try {
-    bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-    if (renderUrlsPreview && bundleContent)
-      urls = bundleContent.map((bundle) => bundle.matched_url);
-  } catch {
-    urls = [];
-  }
+    if (urls && customBody) {
+      // Filter out URLs that only appear inside <code> or <pre> tags in the formatted body
+      const safeHtml = customBody
+        .replace(/<pre[^>]*>.*?<\/pre>/gs, '')
+        .replace(/<code[^>]*>.*?<\/code>/gs, '');
+      const safeText = safeHtml.replace(/<[^a][^>]*>/g, '');
+      const safeUrlsMatch = safeText.match(LINKINPUTREGEX);
+      let safeUrls = safeUrlsMatch ? [...new Set(safeUrlsMatch)] : [];
+      safeUrls = safeUrls.map(
+        (url) =>
+          (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+          (url.startsWith('(') && url.substring(1)) ||
+          (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+          url
+      );
+      const safeUrlsSet = new Set(safeUrls);
+      urls = urls.filter((url) => safeUrlsSet.has(url) && !url.startsWith(MATRIX_TO_BASE));
+    }
 
-  return { urls, bundleContent };
+    let bundleContent = content[
+      prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME
+    ] as BundleContent[];
+    try {
+      bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+      if (renderUrlsPreview && bundleContent)
+        urls = bundleContent.map((bundle) => bundle.matched_url);
+    } catch (innerError) {
+      console.warn('[getUrlsFromContent] Failed to process bundleContent:', innerError);
+      urls = [];
+    }
+
+    return { urls, bundleContent };
+  } catch (error) {
+    console.warn('[getUrlsFromContent] Failed to extract URLs from message content:', error);
+    // Return empty to allow message to render without link previews
+    return { urls: undefined, bundleContent: undefined };
+  }
 };
 
 export function MText({

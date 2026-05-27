@@ -659,15 +659,17 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
   if (await shouldBootstrapClassicOnColdCache()) {
     log.log('startClient cold-cache bootstrap: using classic sync for this run', mx.getUserId());
 
+    const coldCacheStartMs = performance.now();
+    const userId = mx.getUserId();
+
     // Add breadcrumb: cold cache sync started
     Sentry.addBreadcrumb({
       category: 'sync.coldCache',
       message: 'Cold cache sync started',
-      data: { userId: mx.getUserId(), timeoutMs: COLD_CACHE_BOOTSTRAP_TIMEOUT_MS },
+      data: { userId, timeoutMs: COLD_CACHE_BOOTSTRAP_TIMEOUT_MS, since: null },
       level: 'info',
     });
 
-    const coldCacheStartMs = performance.now();
     await startClassicSync(false, 'cold_cache_bootstrap');
 
     // Wait for cold cache sync to complete, then add completion breadcrumb
@@ -675,12 +677,18 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       .then(() => {
         const durationMs = performance.now() - coldCacheStartMs;
         const roomsPopulated = mx.getRooms().length;
+
         Sentry.addBreadcrumb({
           category: 'sync.coldCache',
-          message: 'Cold cache sync complete — staying on classic sync',
-          data: { roomsPopulated, durationMs: Math.round(durationMs) },
+          message: 'Cold cache warm — staying on classic sync',
+          data: { roomsPopulated, totalDurationMs: Math.round(durationMs) },
           level: 'info',
         });
+
+        Sentry.metrics.distribution('sable.sync.cold_cache_duration_ms', durationMs, {
+          attributes: { rooms_populated: String(roomsPopulated) },
+        });
+
         debugLog.info('sync', 'Cold cache sync complete', {
           roomsPopulated,
           durationMs: `${durationMs.toFixed(0)}ms`,

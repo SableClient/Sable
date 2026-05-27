@@ -155,9 +155,16 @@ export function DirectDMsList() {
   const mx = useMatrixClient();
   const selectedRoomId = useSelectedRoom();
   const sidebarRoomIds = useSidebarDirectRoomIds();
+  const roomToUnread = useAtomValue(roomToUnreadAtom);
 
   const mountTimeRef = useRef(performance.now());
   const firstReadyRef = useRef(false);
+  const phaseTimesRef = useRef<{
+    initialSync?: number;
+    memberLists?: number;
+    profiles?: number;
+    notifications?: number;
+  }>({});
 
   const recentDMs = useMemo(
     () =>
@@ -167,6 +174,40 @@ export function DirectDMsList() {
     [sidebarRoomIds, mx]
   );
 
+  // Track initial sync phase: when room IDs first appear
+  useEffect(() => {
+    if (sidebarRoomIds.length > 0 && phaseTimesRef.current.initialSync === undefined) {
+      const elapsed = performance.now() - mountTimeRef.current;
+      phaseTimesRef.current.initialSync = elapsed;
+      Sentry.metrics.distribution('sable.roomlist.phase.initial_sync_ms', elapsed);
+    }
+  }, [sidebarRoomIds]);
+
+  // Track member lists phase: when Room objects are fetched and member counts available
+  useEffect(() => {
+    if (recentDMs.length > 0 && phaseTimesRef.current.memberLists === undefined) {
+      const elapsed = performance.now() - mountTimeRef.current;
+      phaseTimesRef.current.memberLists = elapsed;
+      Sentry.metrics.distribution('sable.roomlist.phase.member_lists_ms', elapsed, {
+        attributes: { room_count: String(recentDMs.length) },
+      });
+    }
+  }, [recentDMs]);
+
+  // Track notifications phase: when unread data is available for all rooms
+  useEffect(() => {
+    if (
+      recentDMs.length > 0 &&
+      phaseTimesRef.current.notifications === undefined &&
+      recentDMs.every((room) => roomToUnread.has(room.roomId))
+    ) {
+      const elapsed = performance.now() - mountTimeRef.current;
+      phaseTimesRef.current.notifications = elapsed;
+      Sentry.metrics.distribution('sable.roomlist.phase.notifications_ms', elapsed);
+    }
+  }, [recentDMs, roomToUnread]);
+
+  // Track overall time to ready (keep existing metric)
   useEffect(() => {
     if (recentDMs.length > 0 && !firstReadyRef.current) {
       firstReadyRef.current = true;

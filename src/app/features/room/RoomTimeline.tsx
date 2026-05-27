@@ -400,6 +400,126 @@ export function RoomTimeline({
         if (processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
+          scrollSucceeded = true;
+
+          // Stop retry loop now that scroll succeeded
+          if (retryIntervalId !== undefined) {
+            clearInterval(retryIntervalId);
+            retryIntervalId = undefined;
+          }
+
+          // Capture room metadata for Sentry tags (must be outside requestAnimationFrame for lint)
+          const roomType: string = room.isSpaceRoom()
+            ? 'space'
+            : room.getJoinedMemberCount() > 2
+              ? 'room'
+              : 'dm';
+
+          // Measure scroll position accuracy after jump completes
+          requestAnimationFrame(() => {
+            const targetEl = document.getElementById(`event-${timelineSync.focusItem?.eventId}`);
+            const rect = targetEl?.getBoundingClientRect();
+            const inViewport = rect ? rect.top >= 0 && rect.bottom <= window.innerHeight : false;
+            const timelineEl = messageListRef.current;
+
+            Sentry.metrics.distribution('sable.timeline.jump_landed_offset_px', rect?.top ?? -1, {
+              attributes: {
+                in_viewport: String(inViewport),
+                room_type: roomType,
+              },
+            });
+
+            Sentry.addBreadcrumb({
+              category: 'timeline.jump',
+              message: 'Jump scroll complete',
+              data: {
+                eventId: timelineSync.focusItem?.eventId,
+                targetInViewport: inViewport,
+                offsetFromTop: rect?.top,
+                scrollTop: timelineEl?.scrollTop,
+                scrollHeight: timelineEl?.scrollHeight,
+              },
+              level: 'info',
+            });
+          });
+
+          // Use ResizeObserver to wait for layout to stabilize (images loading, etc.)
+          // before re-centering. This prevents the scroll target from being pushed out
+          // of view when media loads above it.
+          if (messageListRef.current && 'ResizeObserver' in globalThis) {
+            let resizeDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+            let clsDuringJump = 0;
+
+            // Track layout shift during jump using CLS API
+            const clsObserver = new PerformanceObserver((list) => {
+              for (const entry of list.getEntries()) {
+                const shiftEntry = entry as PerformanceEntry & {
+                  hadRecentInput?: boolean;
+                  value?: number;
+                };
+                if (!shiftEntry.hadRecentInput && typeof shiftEntry.value === 'number') {
+                  clsDuringJump += shiftEntry.value;
+                }
+              }
+            });
+            if ('observe' in clsObserver) {
+              clsObserver.observe({
+                type: 'layout-shift',
+                buffered: false,
+              } as PerformanceObserverInit);
+            }
+
+            resizeObserver = new ResizeObserver(() => {
+              // Clear any pending re-center and schedule a new one after 100ms of no resize
+              if (resizeDebounceTimer !== undefined) {
+                clearTimeout(resizeDebounceTimer);
+              }
+
+              resizeDebounceTimer = setTimeout(() => {
+                // Layout has settled (no resize for 100ms) — re-center now
+                if (vListRef.current && processedIndex !== undefined) {
+                  log.log(
+                    `[PermalinkJump] Re-centering after layout settled: processedIndex=${processedIndex}`
+                  );
+                  vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+                }
+
+                // Report CLS for this jump
+                Sentry.metrics.distribution('sable.timeline.jump_cls', clsDuringJump, {
+                  attributes: {
+                    room_type: roomType,
+                  },
+                });
+                clsObserver.disconnect();
+
+                // Stop observing after first stable re-center
+                if (resizeObserver) {
+                  resizeObserver.disconnect();
+                  resizeObserver = undefined;
+                }
+              }, 100);
+            });
+
+            resizeObserver.observe(messageListRef.current);
+
+            // Fallback: stop observing after 2 seconds regardless
+            recenterTimeoutId = setTimeout(() => {
+              clsObserver.disconnect();
+              if (resizeObserver) {
+                resizeObserver.disconnect();
+                resizeObserver = undefined;
+              }
+            }, 2000);
+          } else {
+            // Fallback for browsers without ResizeObserver: use timeout
+            recenterTimeoutId = setTimeout(() => {
+              if (vListRef.current && processedIndex !== undefined) {
+                vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+              }
+            }, 600);
+          }
+
+          return true;
         }
       }
       timeoutId = setTimeout(() => {
@@ -409,7 +529,14 @@ export function RoomTimeline({
     return () => {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
     };
-  }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex]);
+  }, [
+    timelineSync.focusItem,
+    timelineSync,
+    reducedMotion,
+    getRawIndexToProcessedIndex,
+    startJumpScrollBlock,
+    room,
+  ]);
 
   useEffect(() => {
     if (timelineSync.focusItem) {

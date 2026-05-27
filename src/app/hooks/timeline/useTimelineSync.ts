@@ -56,12 +56,53 @@ const useEventTimelineLoader = (
   mx: MatrixClient,
   room: Room,
   onLoad: (eventId: string, linkedTimelines: EventTimeline[], evtAbsIndex: number) => void,
-  onError: (err: Error | null) => void
-) =>
-  useCallback(
-    async (eventId: string) =>
+  onError: (err: Error | null) => void,
+  onProactiveLoad?: () => void
+) => {
+  const jumpInProgressRef = useRef(false);
+  const currentJumpTargetRef = useRef<string | null>(null);
+  const jumpStartTimeRef = useRef(0);
+
+  return useCallback(
+    async (eventId: string, signal?: AbortSignal) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
+
+        // Track re-entrancy: if a jump is already in progress, log the supersession
+        if (jumpInProgressRef.current && currentJumpTargetRef.current) {
+          Sentry.addBreadcrumb({
+            category: 'timeline.jump',
+            message: 'Jump superseded — cancelling in-progress jump',
+            data: {
+              previousEventId: currentJumpTargetRef.current,
+              newEventId: eventId,
+              roomId: room.roomId,
+            },
+            level: 'warning',
+          });
+          Sentry.metrics.count('sable.timeline.jump_superseded', 1, {
+            attributes: { room_id: room.roomId },
+          });
+        }
+
+        jumpInProgressRef.current = true;
+        currentJumpTargetRef.current = eventId;
+        jumpStartTimeRef.current = performance.now();
+
+        // Check if already aborted before starting
+        if (signal?.aborted) {
+          const abortError = new Error('Timeline load aborted before start');
+          abortError.name = 'AbortError';
+          Sentry.addBreadcrumb({
+            category: 'timeline.jump',
+            message: 'Jump aborted',
+            data: { eventId, durationMs: performance.now() - jumpStartTimeRef.current },
+            level: 'warning',
+          });
+          jumpInProgressRef.current = false;
+          currentJumpTargetRef.current = null;
+          throw abortError;
+        }
 
         Sentry.addBreadcrumb({
           category: 'timeline.load',
@@ -304,9 +345,26 @@ const useEventTimelineLoader = (
         });
 
         onLoad(eventId, linkedTimelines, absIndex);
+
+        // Proactively load context above and below the jumped-to event so the user
+        // can scroll immediately without waiting for pagination triggers.
+        if (onProactiveLoad) {
+          setTimeout(() => onProactiveLoad(), 500);
+        }
+
+        // Mark jump as succeeded
+        Sentry.addBreadcrumb({
+          category: 'timeline.jump',
+          message: 'Jump succeeded',
+          data: { eventId, durationMs: performance.now() - jumpStartTimeRef.current },
+          level: 'info',
+        });
+        jumpInProgressRef.current = false;
+        currentJumpTargetRef.current = null;
       }),
     [mx, room, onLoad, onError]
   );
+};
 
 const useTimelinePagination = (
   mx: MatrixClient,
@@ -364,6 +422,20 @@ const useTimelinePagination = (
 
       try {
         const countBefore = getTimelinesEventsCount(lTimelines);
+        const direction = backwards ? 'backwards' : 'forwards';
+        const paginatingRoomId = timelineToPaginate.getRoomId();
+
+        Sentry.addBreadcrumb({
+          category: 'timeline.pagination',
+          message: 'Pagination started',
+          data: {
+            direction,
+            roomId: paginatingRoomId ?? 'unknown',
+            fromToken: paginationToken?.substring(0, 20) ?? 'none',
+            currentEventCount: countBefore,
+          },
+          level: 'info',
+        });
 
         const [err] = await to(mx.paginateEventTimeline(timelineToPaginate, { backwards, limit }));
 

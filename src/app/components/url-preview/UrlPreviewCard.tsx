@@ -102,6 +102,7 @@ export const UrlPreviewCard = as<
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
+  const [imageError, setImageError] = useState(false);
 
   const isDirect = !!mediaType;
 
@@ -138,6 +139,11 @@ export const UrlPreviewCard = as<
     // (status set to Error) and the component returns null in that state.
     loadPreview().catch(() => undefined);
   }, [url, loadPreview]);
+
+  // Reset imageError when URL changes
+  useEffect(() => {
+    setImageError(false);
+  }, [url]);
 
   if (previewStatus.status === AsyncStatus.Error) return null;
 
@@ -290,7 +296,7 @@ export const UrlPreviewCard = as<
             />
           </Box>
         )}
-        {!showOgVideo && prev['og:image'] && (
+        {!showOgVideo && prev['og:image'] && !imageError && (
           <Box
             shrink="No"
             className={urlPreviewChrome.UrlPreviewMediaWell}
@@ -319,6 +325,8 @@ export const UrlPreviewCard = as<
               url={prev['og:image']}
               info={ogImageInfo}
               matrixThumbnailMaxEdge={previewThumbMaxEdge}
+              onError={() => setImageError(true)}
+              suppressErrorUI
               renderViewer={(p) => <ImageViewer {...p} />}
               renderImage={(p) => (
                 <Image

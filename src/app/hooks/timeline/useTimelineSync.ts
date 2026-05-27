@@ -28,7 +28,7 @@ import {
   PAGINATION_LIMIT,
 } from '$utils/timeline';
 
-export const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 12000;
+export const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 20000;
 
 export type PaginationStatus = 'idle' | 'loading' | 'error';
 
@@ -58,8 +58,7 @@ const useEventTimelineLoader = (
   room: Room,
   onLoad: (eventId: string, linkedTimelines: EventTimeline[], evtAbsIndex: number) => void,
   onError: (err: Error | null) => void,
-  onProactiveLoad?: () => void,
-  onDisconnectedFragment?: (eventId: string) => void
+  onProactiveLoad?: () => void
 ) =>
   useCallback(
     async (eventId: string, signal?: AbortSignal) =>
@@ -111,159 +110,10 @@ const useEventTimelineLoader = (
           return;
         }
 
-        // Validate that the loaded timeline is connected to (or contains) the live timeline.
-        // If not, the SDK returned a disconnected fragment which causes "no history" or
-        // "wrong order" issues when opening from notifications.
-        const liveTimeline = getLiveTimeline(room);
-        const containsLive = linkedTimelines.some((tl) => tl === liveTimeline);
-
-        if (!containsLive) {
-          // Disconnected fragment detected - fall back to live timeline to avoid broken view.
-          // The event likely exists in the live timeline now (sync caught up), or pagination
-          // will fetch it.
-          Sentry.captureMessage('Loaded disconnected timeline fragment, falling back to live', {
-            level: 'warning',
-            extra: {
-              eventId,
-              fragmentLength: linkedTimelines.length,
-              fragmentEventsCount: getTimelinesEventsCount(linkedTimelines),
-            },
-            tags: { feature: 'timeline', issue: 'disconnected_fragment' },
-          });
-
-          // Notify the user that we're falling back to live timeline
-          if (onDisconnectedFragment) {
-            onDisconnectedFragment(eventId);
-          }
-
-          // Check if the event now exists in the live timeline
-          const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
-          let liveAbsIndex = getEventIdAbsoluteIndex(
-            liveLinkedTimelines,
-            liveTimeline,
-            eventId
-          );
-
-          // If event not found in current live timeline, try paginating backward to fetch it.
-          // This handles the case where sync hasn't caught up yet but the event is on the server.
-          // For old bookmarks (e.g. weeks old), we may need multiple pagination rounds to reach them.
-          if (liveAbsIndex === undefined) {
-            Sentry.addBreadcrumb({
-              category: 'timeline.jump',
-              message: 'Event not in live timeline, attempting backward pagination',
-              level: 'info',
-              data: { eventId },
-            });
-
-            const MAX_PAGINATION_ATTEMPTS = 10; // 10 * 60 = 600 events max
-            let paginationAttempt = 0;
-            let foundEvent = false;
-
-            /* eslint-disable no-await-in-loop -- sequential pagination required to check for event after each fetch */
-            while (paginationAttempt < MAX_PAGINATION_ATTEMPTS && !foundEvent) {
-              // Check if aborted before pagination
-              if (signal?.aborted) {
-                const abortError = new Error('Timeline load aborted during pagination');
-                abortError.name = 'AbortError';
-                throw abortError;
-              }
-
-              paginationAttempt++;
-
-              const [paginateErr, hasMore] = await to(
-                withTimeout(
-                  mx.paginateEventTimeline(liveTimeline, {
-                    backwards: true,
-                    limit: PAGINATION_LIMIT,
-                  }),
-                  EVENT_TIMELINE_LOAD_TIMEOUT_MS
-                )
-              );
-
-              if (paginateErr) {
-                Sentry.addBreadcrumb({
-                  category: 'timeline.jump',
-                  message: `Pagination attempt ${paginationAttempt} failed`,
-                  level: 'warning',
-                  data: { eventId, error: String(paginateErr) },
-                });
-                break;
-              }
-
-              // Re-check after each pagination
-              const refreshedLinkedTimelines = getLinkedTimelines(liveTimeline);
-              liveAbsIndex = getEventIdAbsoluteIndex(
-                refreshedLinkedTimelines,
-                liveTimeline,
-                eventId
-              );
-
-              if (liveAbsIndex !== undefined) {
-                // Success! Event found after pagination
-                foundEvent = true;
-                Sentry.addBreadcrumb({
-                  category: 'timeline.jump',
-                  message: `Event found after ${paginationAttempt} pagination attempt(s)`,
-                  level: 'info',
-                  data: { eventId, absIndex: liveAbsIndex, attempts: paginationAttempt },
-                });
-                onLoad(eventId, refreshedLinkedTimelines, liveAbsIndex);
-
-                // Proactively load context
-                if (onProactiveLoad) {
-                  setTimeout(() => onProactiveLoad(), 500);
-                }
-                return;
-              }
-
-              // If hasMore is false, we've reached the start of the room
-              if (!hasMore) {
-                Sentry.addBreadcrumb({
-                  category: 'timeline.jump',
-                  message: 'Reached start of room history without finding event',
-                  level: 'warning',
-                  data: { eventId, attempts: paginationAttempt },
-                });
-                break;
-              }
-            }
-            /* eslint-enable no-await-in-loop */
-
-            if (!foundEvent && paginationAttempt >= MAX_PAGINATION_ATTEMPTS) {
-              Sentry.addBreadcrumb({
-                category: 'timeline.jump',
-                message: 'Max pagination attempts reached without finding event',
-                level: 'warning',
-                data: { eventId, attempts: paginationAttempt },
-              });
-            }
-          }
-
-          if (liveAbsIndex !== undefined) {
-            // Event found in live timeline (either initially or after refresh) - use that instead
-            Sentry.addBreadcrumb({
-              category: 'timeline.jump',
-              message: 'Using event from live timeline instead of disconnected fragment',
-              level: 'info',
-              data: { eventId, absIndex: liveAbsIndex },
-            });
-            onLoad(eventId, liveLinkedTimelines, liveAbsIndex);
-
-            // Proactively load context
-            if (onProactiveLoad) {
-              setTimeout(() => onProactiveLoad(), 500);
-            }
-          } else {
-            // Event not in live timeline even after pagination - give up gracefully
-            Sentry.captureMessage('Event not found in live timeline after pagination', {
-              level: 'warning',
-              extra: { eventId },
-              tags: { feature: 'timeline', issue: 'event_not_found' },
-            });
-            onError(new Error('Event timeline disconnected and not found in live timeline'));
-          }
-          return;
-        }
+        // Successfully loaded the timeline fragment from /context endpoint.
+        // This fragment may or may not be connected to the live timeline — both cases
+        // are valid and should be rendered. Disconnected fragments occur naturally for
+        // old permalinks/bookmarks and pagination will connect them as the user scrolls.
 
         // Validate that the loaded timeline is connected to (or contains) the live timeline.
         // If not, the SDK returned a disconnected fragment which causes "no history" or
@@ -307,6 +157,19 @@ const useEventTimelineLoader = (
           'sable.timeline.jump_load_ms',
           performance.now() - jumpLoadStart
         );
+
+        Sentry.addBreadcrumb({
+          category: 'timeline.load',
+          message: 'Timeline load complete',
+          data: {
+            eventId,
+            roomId: room.roomId,
+            duration: performance.now() - jumpLoadStart,
+            messageCount: getTimelinesEventsCount(linkedTimelines),
+          },
+          level: 'info',
+        });
+
         onLoad(eventId, linkedTimelines, absIndex);
 
         // Proactively load context above and below the jumped-to event so the user
@@ -315,7 +178,7 @@ const useEventTimelineLoader = (
           setTimeout(() => onProactiveLoad(), 500);
         }
       }),
-    [mx, room, onLoad, onError, onProactiveLoad, onDisconnectedFragment]
+    [mx, room, onLoad, onError, onProactiveLoad]
   );
 };
 
@@ -583,7 +446,6 @@ export interface UseTimelineSyncOptions {
   setUnreadInfo: Dispatch<SetStateAction<ReturnType<typeof getRoomUnreadInfo>>>;
   hideReadsRef: React.MutableRefObject<boolean>;
   readUptoEventIdRef: React.MutableRefObject<string | undefined>;
-  onDisconnectedFragment?: (eventId: string) => void;
 }
 
 export function useTimelineSync({
@@ -597,7 +459,6 @@ export function useTimelineSync({
   setUnreadInfo,
   hideReadsRef,
   readUptoEventIdRef,
-  onDisconnectedFragment,
 }: UseTimelineSyncOptions) {
   const alive = useAlive();
 
@@ -712,8 +573,7 @@ export function useTimelineSync({
       if (forwardToken) {
         void handleTimelinePaginationRef.current(false); // forward
       }
-    }, []),
-    onDisconnectedFragment
+    }, [])
   );
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);

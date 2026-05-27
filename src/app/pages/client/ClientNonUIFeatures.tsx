@@ -909,12 +909,10 @@ function PresenceFeature() {
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
 
   useEffect(() => {
-    // Classic sync: set_presence query param on every /sync poll.
-    // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
-    getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-  }, [mx, sendPresence]);
+    const manager = getSlidingSyncManager(mx);
+    console.log('[ProgressivePrefetch] Setting value:', progressivePrefetch, 'manager:', !!manager);
+    manager?.setProgressivePrefetch(progressivePrefetch);
+  }, [mx, progressivePrefetch]);
 
   return null;
 }

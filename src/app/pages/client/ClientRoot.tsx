@@ -291,9 +291,39 @@ export function ClientRoot({ children }: ClientRootProps) {
 
       const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
       if (slidingSyncManager) {
+        const hasWarm = slidingSyncManager.hasWarmCache();
+        const isFullyLoaded = slidingSyncManager.isFullyLoaded();
+        const hasSufficient = slidingSyncManager.hasSufficientRoomsLoaded();
+        const roomCount = mx?.getRooms().length ?? 0;
+        const elapsed = performance.now() - syncStartTimeRef.current;
+
+        const diagnostics = {
+          state,
+          hasWarmCache: hasWarm,
+          isFullyLoaded,
+          hasSufficientRooms: hasSufficient,
+          roomCount,
+          elapsed: `${elapsed.toFixed(0)}ms`,
+        };
+
+        log.log('[startup] checkReady:', diagnostics);
+        Sentry.addBreadcrumb({
+          category: 'startup',
+          message: 'checkReadyAndClearSplash',
+          level: 'info',
+          data: diagnostics,
+        });
+
         // Strategy 1 + 4: If we have warm cache, show cached rooms immediately
         // while sync continues in background (parallel loading)
-        if (slidingSyncManager.hasWarmCache()) {
+        if (hasWarm) {
+          log.log('[startup] showing UI immediately (warm cache)');
+          Sentry.addBreadcrumb({
+            category: 'startup',
+            message: 'Showing UI (warm cache)',
+            level: 'info',
+            data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
+          });
           setLoading(false);
           if (!firstSyncReadyRef.current) {
             firstSyncReadyRef.current = true;
@@ -307,9 +337,23 @@ export function ClientRoot({ children }: ClientRootProps) {
         }
         // Cold cache: wait for full load to prevent visual jumping
         // Strategy 8: Use "sufficient rooms" threshold for faster initial display
-        if (!slidingSyncManager.isFullyLoaded() && !slidingSyncManager.hasSufficientRoomsLoaded()) {
+        if (!isFullyLoaded && !hasSufficient) {
+          log.log('[startup] waiting for more rooms (cold cache)');
+          Sentry.addBreadcrumb({
+            category: 'startup',
+            message: 'Waiting for more rooms (cold cache)',
+            level: 'info',
+            data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
+          });
           return;
         }
+        log.log('[startup] showing UI (cold cache, sufficient rooms loaded)');
+        Sentry.addBreadcrumb({
+          category: 'startup',
+          message: 'Showing UI (cold cache)',
+          level: 'info',
+          data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
+        });
       }
 
       setLoading(false);

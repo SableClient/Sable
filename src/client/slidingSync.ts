@@ -777,6 +777,62 @@ export class SlidingSyncManager {
     this.presenceExtension.setEnabled(enabled);
   }
 
+  /**
+   * Enable or disable progressive prefetch. When enabled, after the initial
+   * batch of 25 rooms is prefetched, additional rooms are loaded in the
+   * background in batches of 25 until all rooms are subscribed.
+   */
+  public setProgressivePrefetch(enabled: boolean): void {
+    if (this.progressivePrefetchEnabled === enabled) return;
+    this.progressivePrefetchEnabled = enabled;
+    debugLog.info('sync', `Progressive prefetch ${enabled ? 'enabled' : 'disabled'}`);
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: `Progressive prefetch ${enabled ? 'enabled' : 'disabled'}`,
+      level: 'info',
+      data: { enabled, initialSyncCompleted: this.initialSyncCompleted },
+    });
+
+    // If disabling, cancel any pending prefetch
+    if (!enabled && this.progressivePrefetchTimer) {
+      clearTimeout(this.progressivePrefetchTimer);
+      this.progressivePrefetchTimer = null;
+      this.progressivePrefetchOffset = 0;
+    }
+
+    // If enabling and we already completed initial sync, start prefetch
+    if (enabled && this.initialSyncCompleted) {
+      this.scheduleNextProgressivePrefetch();
+    }
+  }
+
+  /**
+   * Synthesizes an own-presence update into the SDK store.
+   * MSC4186 servers never echo back the client's own m.presence events, so after
+   * calling mx.setPresence() we manually build a synthetic event and feed it into
+   * the SDK's User object — exactly what ExtensionPresence.onResponse does for others.
+   */
+  public updateOwnPresence(presence: string, statusMsg: string): void {
+    const userId = this.mx.getUserId();
+    if (!userId) return;
+    const mapper = this.mx.getEventMapper();
+    const rawEvent = {
+      type: 'm.presence',
+      sender: userId,
+      content: { presence, status_msg: statusMsg, currently_active: presence === 'online' },
+    };
+    const event = mapper(rawEvent as Parameters<typeof mapper>[0]);
+    let user = this.mx.store.getUser(userId);
+    if (user) {
+      user.setPresenceEvent(event);
+    } else {
+      user = User.createUser(userId, this.mx);
+      user.setPresenceEvent(event);
+      this.mx.store.storeUser(user);
+    }
+    this.mx.emit(ClientEvent.Event, event);
+  }
+
   public getDiagnostics(): SlidingSyncDiagnostics {
     return {
       proxyBaseUrl: this.proxyBaseUrl,
@@ -1233,6 +1289,201 @@ export class SlidingSyncManager {
     };
     this.pendingRoomDataListeners.set(roomId, onFirstRoomData);
     this.slidingSync.on(SlidingSyncEvent.RoomData, onFirstRoomData);
+  }
+
+  /**
+   * Prefetch recently-visited rooms by subscribing to them in a single batched
+   * call to modifyRoomSubscriptions. Calling subscribeToRoom() per room would
+   * trigger a modifyRoomSubscriptions + resend() for each room individually
+   * (N+1 resend calls), whereas this method collects all rooms first and issues
+   * one call, keeping startup sync churn to a minimum.
+   */
+  public prefetchRecentRooms(): void {
+    if (this.disposed) return;
+    const userId = this.mx.getUserId();
+    if (!userId) return;
+
+    const recentRoomIds = getRecentRoomIds(userId);
+    const toPrefetch = recentRoomIds.slice(0, 25); // Top 25 most recent
+
+    if (toPrefetch.length === 0) return;
+
+    debugLog.info('sync', 'Prefetching recent rooms', {
+      count: toPrefetch.length,
+      roomIds: toPrefetch,
+    });
+
+    // Phase 1: batch — add all rooms to activeRoomSubscriptions and set custom
+    // subscriptions, but defer modifyRoomSubscriptions until all are registered.
+    const toSubscribe: string[] = [];
+    for (const roomId of toPrefetch) {
+      const room = this.mx.getRoom(roomId);
+      if (!room || this.activeRoomSubscriptions.has(roomId)) continue;
+      const isEncrypted = this.mx.isRoomEncrypted(roomId);
+      if (!isEncrypted) {
+        this.slidingSync.useCustomSubscription(roomId, UNENCRYPTED_SUBSCRIPTION_KEY);
+      }
+      this.activeRoomSubscriptions.add(roomId);
+      toSubscribe.push(roomId);
+    }
+
+    if (toSubscribe.length === 0) return;
+
+    // Phase 2: single modifyRoomSubscriptions covers all rooms at once.
+    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+    Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
+      attributes: { transport: 'sliding' },
+    });
+    debugLog.info('sync', 'Batch-subscribed recent rooms (prefetch)', {
+      count: toSubscribe.length,
+      roomIds: toSubscribe,
+      activeSubscriptions: this.activeRoomSubscriptions.size,
+      syncCycle: this.syncCount,
+    });
+
+    // Phase 3: register one-shot latency listeners per room (no modifyRoomSubscriptions needed).
+    const subscribeMs = performance.now();
+    for (const roomId of toSubscribe) {
+      const existingListener = this.pendingRoomDataListeners.get(roomId);
+      if (existingListener) {
+        this.slidingSync.removeListener(SlidingSyncEvent.RoomData, existingListener);
+      }
+      const onFirstRoomData = (dataRoomId: string) => {
+        if (dataRoomId !== roomId) return;
+        const latencyMs = Math.round(performance.now() - subscribeMs);
+        const subscribedRoom = this.mx.getRoom(roomId);
+        const eventCount = subscribedRoom?.getLiveTimeline().getEvents().length ?? 0;
+        debugLog.info('sync', 'Room subscription: first data received (sliding prefetch)', {
+          latencyMs,
+          syncCycle: this.syncCount,
+          eventCount,
+        });
+        Sentry.metrics.distribution('sable.sync.room_sub_latency_ms', latencyMs, {
+          attributes: { transport: 'sliding' },
+        });
+        this.slidingSync.removeListener(SlidingSyncEvent.RoomData, onFirstRoomData);
+        this.pendingRoomDataListeners.delete(roomId);
+      };
+      this.pendingRoomDataListeners.set(roomId, onFirstRoomData);
+      this.slidingSync.on(SlidingSyncEvent.RoomData, onFirstRoomData);
+    }
+
+    // Set offset for progressive prefetch to start after initial batch
+    this.progressivePrefetchOffset = 25;
+
+    // If progressive prefetch is enabled, schedule the next batch
+    if (this.progressivePrefetchEnabled) {
+      debugLog.info('sync', 'Scheduling progressive prefetch after initial batch');
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'Scheduling progressive prefetch',
+        level: 'info',
+        data: {
+          initialBatchSize: toSubscribe.length,
+          nextOffset: 25,
+          totalRecentRooms: recentRoomIds.length,
+        },
+      });
+      this.scheduleNextProgressivePrefetch();
+    } else {
+      debugLog.info('sync', 'Progressive prefetch disabled, not scheduling next batch');
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'Progressive prefetch disabled',
+        level: 'info',
+      });
+    }
+  }
+
+  /**
+   * Schedule the next batch of progressive prefetch. Loads rooms in batches
+   * of 25 with a 3-second delay between batches to avoid overwhelming the
+   * server and client. Continues until all rooms are subscribed or maxRooms
+   * is reached.
+   */
+  private scheduleNextProgressivePrefetch(): void {
+    if (this.disposed || !this.progressivePrefetchEnabled) return;
+
+    // Cancel any existing timer
+    if (this.progressivePrefetchTimer) {
+      clearTimeout(this.progressivePrefetchTimer);
+      this.progressivePrefetchTimer = null;
+    }
+
+    const userId = this.mx.getUserId();
+    if (!userId) return;
+
+    const recentRoomIds = getRecentRoomIds(userId);
+    const batchSize = 25;
+    const nextBatch = recentRoomIds.slice(
+      this.progressivePrefetchOffset,
+      this.progressivePrefetchOffset + batchSize
+    );
+
+    if (nextBatch.length === 0) {
+      debugLog.info('sync', 'Progressive prefetch complete', {
+        totalPrefetched: this.progressivePrefetchOffset,
+      });
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'Progressive prefetch complete',
+        level: 'info',
+        data: { totalPrefetched: this.progressivePrefetchOffset },
+      });
+      return;
+    }
+
+    // Schedule next batch after 3 seconds
+    this.progressivePrefetchTimer = setTimeout(() => {
+      if (this.disposed || !this.progressivePrefetchEnabled) return;
+
+      debugLog.info('sync', 'Progressive prefetch batch', {
+        offset: this.progressivePrefetchOffset,
+        count: nextBatch.length,
+      });
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'Progressive prefetch batch starting',
+        level: 'info',
+        data: {
+          offset: this.progressivePrefetchOffset,
+          count: nextBatch.length,
+          totalRecentRooms: recentRoomIds.length,
+        },
+      });
+
+      const toSubscribe: string[] = [];
+      for (const roomId of nextBatch) {
+        const room = this.mx.getRoom(roomId);
+        if (!room || this.activeRoomSubscriptions.has(roomId)) continue;
+        const isEncrypted = this.mx.isRoomEncrypted(roomId);
+        if (!isEncrypted) {
+          this.slidingSync.useCustomSubscription(roomId, UNENCRYPTED_SUBSCRIPTION_KEY);
+        }
+        this.activeRoomSubscriptions.add(roomId);
+        toSubscribe.push(roomId);
+      }
+
+      if (toSubscribe.length > 0) {
+        this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+        Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
+          attributes: { transport: 'sliding' },
+        });
+        debugLog.info('sync', 'Batch-subscribed progressive prefetch rooms', {
+          count: toSubscribe.length,
+          activeSubscriptions: this.activeRoomSubscriptions.size,
+          offset: this.progressivePrefetchOffset,
+        });
+      }
+
+      // Move offset forward
+      this.progressivePrefetchOffset += batchSize;
+
+      // Schedule next batch if progressive prefetch is still enabled
+      if (this.progressivePrefetchEnabled) {
+        this.scheduleNextProgressivePrefetch();
+      }
+    }, 3000); // 3 second delay between batches
   }
 
   /**

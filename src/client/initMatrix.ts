@@ -720,6 +720,15 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     const userId = mx.getUserId();
     if (!userId) return false;
 
+    // Primary signal: if the client already has rooms loaded from IndexedDB,
+    // we definitely have a warm cache. This check happens AFTER store startup,
+    // so rooms would be loaded if the database existed and was valid.
+    const roomCount = mx.getRooms().length;
+    const hasRoomsInMemory = roomCount > 0;
+
+    // Secondary signals: check if IndexedDB stores exist and contain our account.
+    // These are less reliable (especially databaseExists on Safari/iOS where
+    // indexedDB.databases() may not be available), but provide additional confirmation.
     const [storeHasAccount, fallbackStoreHasAccount, hasStoreDb, hasFallbackStoreDb] =
       await Promise.all([
         readStoredAccount(`sync${userId}`),
@@ -728,20 +737,32 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
         databaseExists('web-sync-store'),
       ]);
 
+    // Prioritize rooms in memory as the most reliable signal.
+    // Fall back to account checks if rooms aren't loaded yet (edge case: empty account).
     const hasWarmCache =
+      hasRoomsInMemory ||
       storeHasAccount === userId ||
       fallbackStoreHasAccount === userId ||
-      hasStoreDb ||
-      hasFallbackStoreDb;
+      (hasStoreDb && storeHasAccount !== undefined) ||
+      (hasFallbackStoreDb && fallbackStoreHasAccount !== undefined);
 
     const cacheStatus = {
       userId,
+      roomCount,
+      hasRoomsInMemory,
       storeHasAccount: storeHasAccount === userId,
       fallbackStoreHasAccount: fallbackStoreHasAccount === userId,
       hasStoreDb,
       hasFallbackStoreDb,
       hasWarmCache,
       willBootstrapClassic: !hasWarmCache,
+      detection: hasRoomsInMemory
+        ? 'rooms_in_memory'
+        : storeHasAccount === userId || fallbackStoreHasAccount === userId
+          ? 'account_found'
+          : hasStoreDb || hasFallbackStoreDb
+            ? 'database_exists'
+            : 'no_cache',
     };
 
     debugLog.info('sync', 'Cold cache detection', cacheStatus);

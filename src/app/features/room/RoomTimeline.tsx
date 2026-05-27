@@ -66,6 +66,7 @@ import { useKeyboardHeight } from '$hooks/ios-keyboard-fix';
 import { settingsAtom, MessageLayout } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { nicknamesAtom } from '$state/nicknames';
+import { inAppBannerAtom } from '$state/sessions';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
@@ -316,6 +317,9 @@ export function RoomTimeline({
   // Track which eventId is currently being loaded to prevent duplicate loads when
   // the user clicks the jump button repeatedly before the first load completes.
   const loadingEventIdRef = useRef<string | null>(null);
+  // AbortController to cancel in-flight jump operations when a new jump starts.
+  // This prevents multiple concurrent jumps from interfering with each other.
+  const jumpAbortControllerRef = useRef<AbortController | null>(null);
 
   const lastProgrammaticBottomPinAtRef = useRef(0);
 
@@ -359,6 +363,26 @@ export function RoomTimeline({
     }, 350);
   }, [setAtBottom]);
 
+  const setInAppBanner = useSetAtom(inAppBannerAtom);
+  const handleDisconnectedFragment = useCallback(
+    (evtId: string) => {
+      // Show a notification banner when a disconnected timeline fragment is detected
+      // and we're falling back to the live timeline.
+      setInAppBanner({
+        id: `disconnected-${evtId}-${Date.now()}`,
+        title: 'Jumped to latest messages',
+        body: "Couldn't find the target message in recent history — showing latest messages instead.",
+        onClick: () => {
+          setInAppBanner(null);
+        },
+      });
+
+      // Auto-dismiss after 8 seconds
+      setTimeout(() => setInAppBanner(null), 8000);
+    },
+    [setInAppBanner]
+  );
+
   const timelineSync = useTimelineSync({
     room,
     mx,
@@ -370,6 +394,7 @@ export function RoomTimeline({
     setUnreadInfo,
     hideReadsRef,
     readUptoEventIdRef,
+    onDisconnectedFragment: handleDisconnectedFragment,
   });
 
   timelineSyncRef.current = timelineSync;
@@ -502,6 +527,7 @@ export function RoomTimeline({
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let retryIntervalId: ReturnType<typeof setInterval> | undefined;
     let recenterTimeoutId: ReturnType<typeof setTimeout> | undefined;
+    let resizeObserver: ResizeObserver | undefined;
 
     if (timelineSync.focusItem) {
       const { index, eventId: focusEventId, scrollTo } = timelineSync.focusItem;
@@ -568,15 +594,52 @@ export function RoomTimeline({
             retryIntervalId = undefined;
           }
 
-          // Re-center after a delay to ensure item measurements are complete.
-          // The initial scrollToIndex may not center properly if item heights aren't known yet.
-          // Schedule this ONLY after the scroll succeeds to avoid firing before the event renders.
-          // Use 600ms to give Virtua enough time to measure complex messages (media, replies, etc.)
-          recenterTimeoutId = setTimeout(() => {
-            if (vListRef.current && processedIndex !== undefined) {
-              vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
-            }
-          }, 600);
+          // Use ResizeObserver to wait for layout to stabilize (images loading, etc.)
+          // before re-centering. This prevents the scroll target from being pushed out
+          // of view when media loads above it.
+          if (messageListRef.current && 'ResizeObserver' in globalThis) {
+            let resizeDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+            resizeObserver = new ResizeObserver(() => {
+              // Clear any pending re-center and schedule a new one after 100ms of no resize
+              if (resizeDebounceTimer !== undefined) {
+                clearTimeout(resizeDebounceTimer);
+              }
+
+              resizeDebounceTimer = setTimeout(() => {
+                // Layout has settled (no resize for 100ms) — re-center now
+                if (vListRef.current && processedIndex !== undefined) {
+                  log.log(
+                    `[PermalinkJump] Re-centering after layout settled: processedIndex=${processedIndex}`
+                  );
+                  vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+                }
+
+                // Stop observing after first stable re-center
+                if (resizeObserver) {
+                  resizeObserver.disconnect();
+                  resizeObserver = undefined;
+                }
+              }, 100);
+            });
+
+            resizeObserver.observe(messageListRef.current);
+
+            // Fallback: stop observing after 2 seconds regardless
+            recenterTimeoutId = setTimeout(() => {
+              if (resizeObserver) {
+                resizeObserver.disconnect();
+                resizeObserver = undefined;
+              }
+            }, 2000);
+          } else {
+            // Fallback for browsers without ResizeObserver: use timeout
+            recenterTimeoutId = setTimeout(() => {
+              if (vListRef.current && processedIndex !== undefined) {
+                vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+              }
+            }, 600);
+          }
 
           return true;
         }
@@ -606,6 +669,7 @@ export function RoomTimeline({
       if (timeoutId !== undefined) clearTimeout(timeoutId);
       if (retryIntervalId !== undefined) clearInterval(retryIntervalId);
       if (recenterTimeoutId !== undefined) clearTimeout(recenterTimeoutId);
+      if (resizeObserver) resizeObserver.disconnect();
     };
   }, [
     timelineSync.focusItem,
@@ -931,15 +995,18 @@ export function RoomTimeline({
           highlight: true,
         });
       } else {
-        // Prevent duplicate loads when the user clicks repeatedly before the first load completes.
-        // This prevents the "going backwards through history" bug where each load clears and
-        // re-paginates the timeline, changing absolute indices and causing incorrect scroll positions.
-        if (loadingEventIdRef.current === anchorId) {
+        // Cancel any in-flight jump operation to prevent concurrent jumps
+        if (jumpAbortControllerRef.current) {
           log.log(
-            `[PermalinkJump] Ignoring duplicate load request for ${anchorId} (already loading)`
+            `[PermalinkJump] Cancelling previous jump for ${loadingEventIdRef.current || 'unknown'}`
           );
-          return;
+          jumpAbortControllerRef.current.abort();
         }
+
+        // Create new AbortController for this jump
+        jumpAbortControllerRef.current = new AbortController();
+        const currentAbortController = jumpAbortControllerRef.current;
+
         // Prepare for loading: hide timeline and show skeletons
         setIsReady(false);
         timelineSync.setTimeline(getEmptyTimeline());
@@ -954,10 +1021,25 @@ export function RoomTimeline({
           data: { eventId: anchorId, roomId: room.roomId },
         });
 
-        void timelineSync.loadEventTimeline(anchorId).finally(() => {
-          eventIdLoadInProgressRef.current = false;
-          loadingEventIdRef.current = null;
-        });
+        void timelineSync
+          .loadEventTimeline(anchorId, currentAbortController.signal)
+          .catch((err) => {
+            // Ignore aborted operations
+            if (err?.name === 'AbortError' || currentAbortController.signal.aborted) {
+              log.log(`[PermalinkJump] Jump to ${anchorId} was cancelled`);
+              return;
+            }
+            // Let other errors propagate to the error handler in useEventTimelineLoader
+            throw err;
+          })
+          .finally(() => {
+            // Only clean up if this is still the active controller
+            if (jumpAbortControllerRef.current === currentAbortController) {
+              eventIdLoadInProgressRef.current = false;
+              loadingEventIdRef.current = null;
+              jumpAbortControllerRef.current = null;
+            }
+          });
       }
     },
   });

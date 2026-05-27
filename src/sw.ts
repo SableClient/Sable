@@ -892,6 +892,12 @@ function fetchConfig(token: string): RequestInit {
 }
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data.type === 'SKIP_WAITING') {
+    // Client requested the waiting SW to activate immediately (user clicked update banner)
+    self.skipWaiting();
+    return;
+  }
+
   if (event.data.type === 'togglePush') {
     const token = event.data?.token;
     const fetchOptions = fetchConfig(token);

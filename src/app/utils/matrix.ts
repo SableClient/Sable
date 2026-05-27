@@ -421,8 +421,12 @@ export const downloadMedia = async (
         span.setAttribute('media.timeout', true);
         span.setStatus({ code: 2, message: 'Timeout after 30s' });
         span.end();
-        // Log timeout as warning breadcrumb, not error — this is a recoverable condition
-        // (slow connection, large file) and the UI will show a placeholder.
+        // Log timeout as warning, not error — this is a recoverable condition
+        // (slow connection, large file) and the UI will show a placeholder
+        debugLog.warn('media', 'Media download timeout', {
+          url: src.substring(0, 100),
+          timeout: '30s',
+        });
         Sentry.addBreadcrumb({
           category: 'media',
           message: 'Media download timeout',

@@ -109,6 +109,8 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'theme-chat-auto-any',
     'theme-import-open',
     'theme-local-sync-system',
+    'pronoun-pill-max-count',
+    'pronoun-pill-max-length',
     'pronoun-pills-for-all',
     'reduced-motion',
     'render-global-username-colors',

@@ -145,21 +145,7 @@ export const UrlPreviewCard = as<
     setImageError(false);
   }, [url]);
 
-  if (previewStatus.status === AsyncStatus.Error) return null;
-
   const renderContent = (prev: IPreviewUrlResponse) => {
-    // Debug: Log preview data to diagnose tiny images
-    if (prev['og:image']) {
-      console.log('[UrlPreviewCard] Preview data:', {
-        url,
-        'og:image': prev['og:image'],
-        'og:image:width': prev['og:image:width'],
-        'og:image:height': prev['og:image:height'],
-        imageType: typeof prev['og:image'],
-        isArray: Array.isArray(prev['og:image']),
-      });
-    }
-    
     const siteName = prev['og:site_name'];
     const title = prev['og:title'];
     const description = prev['og:description'];
@@ -376,6 +362,24 @@ export const UrlPreviewCard = as<
     previewContent = previewStatus.data ? (
       renderContent(previewStatus.data)
     ) : (
+      <UrlPreviewContent>
+        <Text
+          style={linkStyles}
+          truncate
+          as="a"
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          size="T200"
+          priority="300"
+        >
+          {safeDecodeUrl(url)}
+        </Text>
+      </UrlPreviewContent>
+    );
+  } else if (previewStatus.status === AsyncStatus.Error) {
+    // Show minimal link fallback instead of hiding entire preview
+    previewContent = (
       <UrlPreviewContent>
         <Text
           style={linkStyles}

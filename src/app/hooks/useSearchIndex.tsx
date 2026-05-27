@@ -706,7 +706,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     };
     worker.addEventListener('error', handleWorkerError);
 
-    // Set a timeout to detect if the worker never sends READY
+    // Set a timeout to detect if the worker never sends READY or ERROR
     const initTimeout = setTimeout(() => {
       setInitError('Worker initialization timed out (30s) — READY message never received');
       Sentry.captureMessage('Search worker INIT timeout — READY message never received', {
@@ -716,12 +716,14 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       });
     }, 30000); // 30s timeout
 
-    // Clear timeout when READY arrives
+    // Clear timeout when READY or ERROR arrives
     const originalHandler = handleWorkerMessage;
     const wrappedHandler = (event: MessageEvent<WorkerOutMessage>) => {
-      if (event.data.type === 'READY') {
+      if (event.data.type === 'READY' || event.data.type === 'ERROR') {
         clearTimeout(initTimeout);
-        setInitError(null); // Clear any previous error
+        if (event.data.type === 'READY') {
+          setInitError(null); // Clear any previous error only on successful READY
+        }
       }
       originalHandler(event);
     };

@@ -15,6 +15,24 @@ describe('expandBlockBoundariesAfterSingleNewlines', () => {
   it('still expands when a blockquote ends', () => {
     expect(expandBlockBoundariesAfterSingleNewlines('> quote\nplain')).toBe('> quote\n\nplain');
   });
+
+  it('does not expand between consecutive ordered list items', () => {
+    expect(expandBlockBoundariesAfterSingleNewlines('1. one\n2. two')).toBe('1. one\n2. two');
+  });
+
+  it('does not expand before a 2-space nested sublist', () => {
+    expect(expandBlockBoundariesAfterSingleNewlines('1. test\n  - sub')).toBe('1. test\n  - sub');
+  });
+
+  it('does not expand before a 4-space nested sublist', () => {
+    expect(expandBlockBoundariesAfterSingleNewlines('1. test\n    - sub')).toBe(
+      '1. test\n    - sub'
+    );
+  });
+
+  it('still expands before the first top-level list item after prose', () => {
+    expect(expandBlockBoundariesAfterSingleNewlines('intro\n- item')).toBe('intro\n\n- item');
+  });
 });
 
 describe('consecutive blockquotes', () => {

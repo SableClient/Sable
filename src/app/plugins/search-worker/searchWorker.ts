@@ -10,9 +10,36 @@ import type { IndexableEvent, BackfillState, WorkerInMessage, WorkerOutMessage }
 
 // ── IDB helpers ─────────────────────────────────────────────────────────────
 
+/**
+ * Check if IndexedDB is available and functional.
+ * Returns error message if unavailable, null if available.
+ */
+function checkIndexedDBAvailability(): string | null {
+  if (typeof indexedDB === 'undefined') {
+    return 'IndexedDB not available (browser does not support it)';
+  }
+  // Check if we're in a context where IDB might be blocked
+  try {
+    // Try to access indexedDB.open - will throw in some contexts
+    if (!indexedDB.open) {
+      return 'IndexedDB.open not available';
+    }
+  } catch (e) {
+    return `IndexedDB blocked: ${e instanceof Error ? e.message : String(e)}`;
+  }
+  return null;
+}
+
 function openDb(dbName: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName, 3);
+    let req: IDBOpenDBRequest;
+    try {
+      req = indexedDB.open(dbName, 3);
+    } catch (e) {
+      // Immediate error on open() call (SecurityError, etc.)
+      reject(new Error(`IndexedDB.open() threw: ${e instanceof Error ? e.message : String(e)}`));
+      return;
+    }
     req.onupgradeneeded = (event) => {
       const db = req.result;
       const oldVersion = event.oldVersion;
@@ -36,7 +63,26 @@ function openDb(dbName: string): Promise<IDBDatabase> {
       }
     };
     req.addEventListener('success', () => resolve(req.result));
-    req.addEventListener('error', () => reject(req.error));
+    req.addEventListener('error', () => {
+      const error = req.error || new Error('Unknown IDB error');
+      // @ts-expect-error - attach original request for debugging
+      error.idbRequest = { readyState: req.readyState };
+      reject(error);
+    });
+    req.addEventListener('blocked', () => {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[SearchWorker] IDB open blocked: ${dbName} - another connection open elsewhere`
+      );
+      // Don't reject immediately - browser may unblock it
+    });
+
+    // 15s timeout for IDB open (handles hung connections)
+    setTimeout(() => {
+      if (req.readyState !== 'done') {
+        reject(new Error(`IndexedDB.open() timeout (15s) - readyState: ${req.readyState}`));
+      }
+    }, 15000);
   });
 }
 
@@ -247,10 +293,119 @@ function instrumentIDB(idb: IDBDatabase, dbName: string): void {
 }
 
 async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
+  post({
+    type: '_sentry_breadcrumb',
+    category: 'search.worker',
+    message: 'Worker received INIT message',
+    level: 'info',
+    data: { userId, maxPerRoom },
+  });
+
+  // Check IndexedDB availability before attempting to use it
+  const idbError = checkIndexedDBAvailability();
+  if (idbError) {
+    post({
+      type: '_sentry_breadcrumb',
+      category: 'search.worker',
+      message: 'IndexedDB not available',
+      level: 'error',
+      data: { error: idbError },
+    });
+    post({
+      type: '_sentry_exception',
+      error: new Error(idbError),
+      tags: { search_operation: 'idb_availability_check' },
+      contexts: {
+        search: {
+          userId,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+        },
+      },
+    });
+    throw new Error(idbError);
+  }
+
   maxMessagesPerRoom = maxPerRoom;
   const dbName = `sable-search-${userId}`;
 
-  db = await openDb(dbName);
+  post({
+    type: '_sentry_breadcrumb',
+    category: 'search.worker',
+    message: 'Opening IDB',
+    level: 'info',
+    data: { dbName },
+  });
+
+  try {
+    db = await openDb(dbName);
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorName = err instanceof Error ? err.name : 'UnknownError';
+    const isQuotaError =
+      errorName === 'QuotaExceededError' || errorMessage.toLowerCase().includes('quota');
+    const isSecurityError =
+      errorName === 'SecurityError' || errorMessage.toLowerCase().includes('security');
+    const isVersionError =
+      errorName === 'VersionError' || errorMessage.toLowerCase().includes('version');
+
+    post({
+      type: '_sentry_breadcrumb',
+      category: 'search.worker',
+      message: 'IDB open failed',
+      level: 'error',
+      data: {
+        dbName,
+        error: errorMessage,
+        errorName,
+        isQuotaError,
+        isSecurityError,
+        isVersionError,
+      },
+    });
+    // Also capture as exception with enhanced context
+    post({
+      type: '_sentry_exception',
+      error: err instanceof Error ? err : new Error(String(err)),
+      tags: {
+        search_operation: 'idb_open',
+        idb_error_type: errorName,
+        is_quota_error: isQuotaError,
+        is_security_error: isSecurityError,
+      },
+      contexts: {
+        search: {
+          dbName,
+          errorName,
+          errorMessage,
+          hint: isQuotaError
+            ? 'Storage quota exceeded - user needs to clear browser data or increase quota'
+            : isSecurityError
+              ? 'SecurityError - likely private/incognito mode or cross-origin issue'
+              : isVersionError
+                ? 'Database version mismatch - corrupted or concurrent access'
+                : 'Generic IDB error',
+        },
+      },
+    });
+    throw err;
+  }
+
+  post({
+    type: '_sentry_breadcrumb',
+    category: 'search.worker',
+    message: 'IDB opened successfully',
+    level: 'info',
+    data: { dbName, version: db.version },
+  });
+
+  instrumentIDB(db, dbName);
+
+  post({
+    type: '_sentry_breadcrumb',
+    category: 'search.worker',
+    message: 'Loading serialized index from IDB',
+    level: 'info',
+  });
 
   const serialized = await idbGet<string>(db, 'index', 'v1');
   if (serialized) {

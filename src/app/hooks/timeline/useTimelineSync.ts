@@ -16,6 +16,7 @@ import { Direction, RoomEvent, RelationType, ThreadEvent } from '$types/matrix-s
 import { useAlive } from '$hooks/useAlive';
 import { markAsRead } from '$utils/notifications';
 import { decryptAllTimelineEvent } from '$utils/room';
+import { appEvents } from '$utils/appEvents';
 import {
   getInitialTimeline,
   getEmptyTimeline,
@@ -88,9 +89,103 @@ const useEventTimelineLoader = (
           return;
         }
 
-        // A newer loadEventTimeline call is already in flight; discard this
-        // result so we do not clobber the more-recent load's scroll target.
-        if (loadId !== loadIdRef.current) return;
+        // Validate that the loaded timeline is connected to (or contains) the live timeline.
+        // If not, the SDK returned a disconnected fragment which causes "no history" or
+        // "wrong order" issues when opening from notifications.
+        const liveTimeline = getLiveTimeline(room);
+        const containsLive = linkedTimelines.some((tl) => tl === liveTimeline);
+
+        if (!containsLive) {
+          // Disconnected fragment detected - fall back to live timeline to avoid broken view.
+          // The event likely exists in the live timeline now (sync caught up), or pagination
+          // will fetch it.
+          Sentry.captureMessage('Loaded disconnected timeline fragment, falling back to live', {
+            level: 'warning',
+            extra: {
+              eventId,
+              fragmentLength: linkedTimelines.length,
+              fragmentEventsCount: getTimelinesEventsCount(linkedTimelines),
+            },
+            tags: { feature: 'timeline', issue: 'disconnected_fragment' },
+          });
+
+          // Check if the event now exists in the live timeline
+          const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
+          let liveAbsIndex = getEventIdAbsoluteIndex(liveLinkedTimelines, liveTimeline, eventId);
+
+          // If event not found in current live timeline, try paginating backward to fetch it.
+          // This handles the case where sync hasn't caught up yet but the event is on the server.
+          if (liveAbsIndex === undefined) {
+            Sentry.addBreadcrumb({
+              category: 'timeline.jump',
+              message: 'Event not in live timeline, attempting backward pagination',
+              level: 'info',
+              data: { eventId },
+            });
+
+            const [paginateErr] = await to(
+              withTimeout(
+                mx.paginateEventTimeline(liveTimeline, {
+                  backwards: true,
+                  limit: PAGINATION_LIMIT,
+                }),
+                EVENT_TIMELINE_LOAD_TIMEOUT_MS
+              )
+            );
+
+            if (!paginateErr) {
+              // Re-check after pagination
+              const refreshedLinkedTimelines = getLinkedTimelines(liveTimeline);
+              liveAbsIndex = getEventIdAbsoluteIndex(
+                refreshedLinkedTimelines,
+                liveTimeline,
+                eventId
+              );
+
+              if (liveAbsIndex !== undefined) {
+                // Success! Event found after pagination
+                Sentry.addBreadcrumb({
+                  category: 'timeline.jump',
+                  message: 'Event found after backward pagination',
+                  level: 'info',
+                  data: { eventId, absIndex: liveAbsIndex },
+                });
+                onLoad(eventId, refreshedLinkedTimelines, liveAbsIndex);
+
+                // Proactively load context
+                if (onProactiveLoad) {
+                  setTimeout(() => onProactiveLoad(), 500);
+                }
+                return;
+              }
+            }
+          }
+
+          if (liveAbsIndex !== undefined) {
+            // Event found in live timeline (either initially or after refresh) - use that instead
+            Sentry.addBreadcrumb({
+              category: 'timeline.jump',
+              message: 'Using event from live timeline instead of disconnected fragment',
+              level: 'info',
+              data: { eventId, absIndex: liveAbsIndex },
+            });
+            onLoad(eventId, liveLinkedTimelines, liveAbsIndex);
+
+            // Proactively load context
+            if (onProactiveLoad) {
+              setTimeout(() => onProactiveLoad(), 500);
+            }
+          } else {
+            // Event not in live timeline even after pagination - give up gracefully
+            Sentry.captureMessage('Event not found in live timeline after pagination', {
+              level: 'warning',
+              extra: { eventId },
+              tags: { feature: 'timeline', issue: 'event_not_found' },
+            });
+            onError(new Error('Event timeline disconnected and not found in live timeline'));
+          }
+          return;
+        }
 
         Sentry.metrics.distribution(
           'sable.timeline.jump_load_ms',
@@ -471,7 +566,13 @@ export function useTimelineSync({
       if (!alive()) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       scrollToBottom('instant');
-    }, [alive, room, scrollToBottom])
+    }, [alive, room, scrollToBottom]),
+    useCallback(() => {
+      // Proactively load a batch above and below the jumped-to event so the user
+      // can scroll immediately without waiting for pagination triggers.
+      void handleTimelinePaginationRef.current(true); // backward
+      void handleTimelinePaginationRef.current(false); // forward
+    }, [])
   );
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);
@@ -623,6 +724,51 @@ export function useTimelineSync({
     // Intentionally only depends on room: we want this to fire when the room
     // identity changes, not on every eventId change.
   }, [room]);
+
+  // When the app comes to foreground (from background or notification tap),
+  // check if the SDK timeline has events but React's timeline state is stale,
+  // and force a refresh if needed. This fixes the visibility regression where
+  // cached events don't appear when opening the app because:
+  // 1. ClientEvent.Room doesn't fire for cached rooms (no initial:true)
+  // 2. useLiveEventArrive's 60s gate drops cached events
+  // 3. Room didn't change so prevRoomIdRef useEffect doesn't fire
+  useEffect(() => {
+    const handleVisibilityChange = (isVisible: boolean) => {
+      if (!isVisible) return; // Only act on foreground events
+
+      // Check if SDK has events but React timeline state is empty or stale
+      const liveTimeline = getLiveTimeline(room);
+      const sdkEvents = liveTimeline.getEvents();
+      if (sdkEvents.length === 0) return; // No events to show
+
+      const linkedTimelines = timeline.linkedTimelines;
+      const reactHasEvents =
+        linkedTimelines.length > 0 && getTimelinesEventsCount(linkedTimelines) > 0;
+
+      // If React state is empty but SDK has events, force refresh
+      if (!reactHasEvents) {
+        setTimeline({ linkedTimelines: getLinkedTimelines(liveTimeline) });
+        return;
+      }
+
+      // If React state has events, check if it's stale (references old timeline)
+      const currentLiveTimeline = linkedTimelines[linkedTimelines.length - 1];
+      if (currentLiveTimeline !== liveTimeline) {
+        setTimeline({ linkedTimelines: getLinkedTimelines(liveTimeline) });
+        return;
+      }
+
+      // Check if event count is out of sync (SDK has more events than React knows about)
+      const sdkEventCount = getTimelinesEventsCount(getLinkedTimelines(liveTimeline));
+      const reactEventCount = eventsLengthRef.current;
+      if (sdkEventCount > reactEventCount) {
+        setTimeline({ linkedTimelines: getLinkedTimelines(liveTimeline) });
+      }
+    };
+
+    const unsubscribe = appEvents.onVisibilityChange(handleVisibilityChange);
+    return unsubscribe;
+  }, [room, timeline.linkedTimelines, eventsLengthRef]);
 
   return {
     timeline,

@@ -373,8 +373,8 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
       tags: {
         search_operation: 'idb_open',
         idb_error_type: errorName,
-        is_quota_error: isQuotaError,
-        is_security_error: isSecurityError,
+        is_quota_error: String(isQuotaError),
+        is_security_error: String(isSecurityError),
       },
       contexts: {
         search: {

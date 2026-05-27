@@ -693,22 +693,11 @@ export function useTimelineSync({
     // must NOT restart the load here: doing so would cause an infinite loop
     // (getEventTimeline → TimelineRefresh → loadEventTimeline → getEventTimeline…).
     useCallback(() => {
-      if (eventId) return;
-      const wasAtBottom = isAtBottomRef.current;
-      resetAutoScrollPendingRef.current = wasAtBottom;
-      setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
-      if (wasAtBottom) {
-        scrollToBottom('instant');
-      }
-    }, [eventId, room, isAtBottomRef, scrollToBottom]),
-    // TimelineReset fires on an external sync gap.  If we are viewing a
-    // history event and already have it loaded (eventsLength > 0), reload so
-    // the event stays visible after the gap.  If eventsLength === 0 we are
-    // still loading — let the in-flight load complete instead of stacking
-    // another one on top.
-    useCallback(() => {
+      // When eventId is set, loadEventTimeline is responsible for updating the
+      // timeline state. Don't overwrite with the live timeline.
       if (eventId) {
-        if (eventsLengthRef.current > 0) void loadEventTimeline(eventId);
+        // If loadEventTimeline hasn't been called yet (e.g., first render), trigger it now.
+        // This handles the case where TimelineReset fires before the initial load effect runs.
         return;
       }
       const wasAtBottom = isAtBottomRef.current;
@@ -717,7 +706,7 @@ export function useTimelineSync({
       if (wasAtBottom) {
         scrollToBottom('instant');
       }
-    }, [eventId, eventsLengthRef, loadEventTimeline, room, isAtBottomRef, scrollToBottom])
+    }, [eventId, room, isAtBottomRef, scrollToBottom])
   );
 
   useRelationUpdate(
@@ -769,6 +758,52 @@ export function useTimelineSync({
   // data (no initial:true in the sliding sync response), that event may never
   // arrive — leaving the initial-scroll guard permanently blocked and the room
   // invisible.
+  // After initial:true (pull-to-refresh force-reset, reconnect, or first join),
+  // the sliding-sync SDK injects events into the live timeline via
+  // injectRoomEvents and then emits ClientEvent.Room.  When all injected events
+  // are historical (num_live === 0 → fromCache: true → liveEvent: false),
+  // useLiveEventArrive's 60-second timestamp gate silently drops them, so React
+  // never re-renders and the timeline stays blank indefinitely.  Listening here
+  // guarantees a re-render once all events are in the SDK's timeline, no matter
+  // how old they are.
+  useEffect(() => {
+    const handleRoomInitialized = (eventRoom: Room) => {
+      if (eventRoom.roomId !== room.roomId) return;
+      // Don't update to live timeline when waiting for eventId context to load.
+      // The eventId-specific loading path will handle setting the correct timeline.
+      if (eventId) return;
+      // Only update if the live timeline actually has events now — prevents
+      // spurious updates that would reset scroll position during normal sync.
+      const liveEvents = getLiveTimeline(room).getEvents();
+      if (liveEvents.length === 0) return;
+      // After PTR, React's timeline state may reference the correct live timeline
+      // object, but with eventsLength still at 0 (before the re-render). Detect this
+      // by comparing the SDK's current event count with React's last known count.
+      const reactEventsLength = eventsLengthRef.current;
+      const currentLiveTimeline = getLiveTimeline(room);
+      // linkedTimelines is ordered oldest→newest, so live timeline is last
+      const isStale =
+        timeline.linkedTimelines.length === 0 ||
+        timeline.linkedTimelines[timeline.linkedTimelines.length - 1] !== currentLiveTimeline;
+
+      // Calculate actual event count from SDK's current timeline chain to detect
+      // if events were appended without changing the timeline object reference
+      const currentSdkEventCount = getTimelinesEventsCount(getLinkedTimelines(currentLiveTimeline));
+      const eventCountChanged = currentSdkEventCount !== reactEventsLength;
+
+      const needsUpdate = reactEventsLength === 0 || isStale || eventCountChanged;
+      if (!needsUpdate) return;
+      // Force timeline update with fresh SDK state. This ensures the React
+      // timeline state picks up the newly-injected events after PTR or when
+      // the SDK appends events (e.g., room subscription expanded timeline_limit).
+      setTimeline({ linkedTimelines: getLinkedTimelines(currentLiveTimeline) });
+    };
+    mx.on(ClientEvent.Room, handleRoomInitialized);
+    return () => {
+      mx.off(ClientEvent.Room, handleRoomInitialized);
+    };
+  }, [mx, room, eventId, timeline.linkedTimelines, eventsLengthRef]);
+
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);
   eventIdRef.current = eventId;

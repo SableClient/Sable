@@ -75,6 +75,41 @@ function createRoom(
 }
 
 describe('useTimelineSync', () => {
+  it('reloads event context on TimelineReset when eventId is set', async () => {
+    const { room, timelineSet } = createRoom();
+    const scrollToBottom = vi.fn<() => void>();
+
+    // mx.getEventTimeline is intentionally absent — loadEventTimeline will
+    // reject silently (void), leaving the timeline state unchanged.
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: createMx() as never,
+        eventId: '$linked:event',
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom,
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    const timelineBefore = result.current.timeline.linkedTimelines;
+
+    await act(async () => {
+      timelineSet.emit(RoomEvent.TimelineReset);
+      await Promise.resolve();
+    });
+
+    // The live timeline should NOT have replaced the event-context timeline —
+    // the eventId branch in useLiveTimelineRefresh returns early after calling
+    // loadEventTimeline and never calls setTimeline with the live timeline.
+    expect(result.current.timeline.linkedTimelines).toBe(timelineBefore);
+    expect(scrollToBottom).not.toHaveBeenCalled();
+  });
+
   it('does not snap a non-bottom user to latest after TimelineReset', async () => {
     const { room, timelineSet, events } = createRoom();
     const scrollToBottom = vi.fn<() => void>();

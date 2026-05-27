@@ -12,6 +12,9 @@ import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
 import { EncryptedSearch } from './EncryptedSearch';
 import { SearchIndexToggle } from './SearchIndexToggle';
+import { EditInInput } from './EditInInput';
+import { MessageGrouping } from './MessageGrouping';
+import { MSC4438MessageBookmarks } from './MSC4438MessageBookmarks';
 
 function PersonaToggle() {
   const [showPersonaSetting, setShowPersonaSetting] = useSetting(
@@ -63,8 +66,9 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               <Sync />
               <EncryptedSearch />
               <SearchIndexToggle />
-              <MSC4268HistoryShare />
-              <BandwidthSavingEmojis />
+              <EditInInput />
+              <MessageGrouping />
+              <MSC4438MessageBookmarks />
               <PersonaToggle />
             </Box>
           </PageContent>

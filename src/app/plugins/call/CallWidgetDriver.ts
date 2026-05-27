@@ -48,7 +48,7 @@ export class CallWidgetDriver extends WidgetDriver {
     }
 
     debugLog.info('call', 'Initializing CallWidgetDriver', { roomId: inRoomId, deviceId });
-    this.allowedCapabilities = getCallCapabilities(inRoomId, mx.getSafeUserId(), deviceId);
+    this.allowedCapabilities = getCallCapabilities(mx, inRoomId, mx.getSafeUserId(), deviceId);
   }
 
   public async validateCapabilities(requested: Set<Capability>): Promise<Set<Capability>> {

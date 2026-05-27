@@ -1063,6 +1063,10 @@ export function RoomTimeline({
     timelineSync.eventsLength === 0 &&
     (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
 
+  // When showing loading placeholders, provide dummy data so VList renders items.
+  // Without this, VList receives an empty array and renders nothing, causing a blank timeline.
+  const placeholderDummyData = useMemo(() => Array(5).fill(null) as ProcessedEvent[], []);
+
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {
     if (timelineSync.backwardStatus === 'error') {
@@ -1153,6 +1157,9 @@ export function RoomTimeline({
   });
 
   processedEventsRef.current = processedEvents;
+
+  // Use dummy data for VList when showing loading placeholders, otherwise use actual events.
+  const vListData = showLoadingPlaceholders ? placeholderDummyData : processedEvents;
 
   // Recovery: if the 80 ms initial-scroll timer fired while processedEvents was
   // empty (timeline was mid-reset), scroll to bottom and reveal the timeline once
@@ -1305,7 +1312,7 @@ export function RoomTimeline({
       >
         <VList<ProcessedEvent>
           ref={vListRef}
-          data={processedEvents}
+          data={vListData}
           shift={shift}
           className={css.messageList}
           style={{

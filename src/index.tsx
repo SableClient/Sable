@@ -48,22 +48,10 @@ document.addEventListener('visibilitychange', () => {
     requestSWClaim();
     // Check for SW updates when user returns to the app (e.g., after deploy)
     navigator.serviceWorker.getRegistration().then((registration) => {
-      registration?.update().catch((err) => {
-        // Update checks can fail during deployment or due to network issues.
-        // Log but don't throw — the periodic check will retry later.
-        log.warn('SW update check failed (visibilitychange):', err);
-      });
+      registration?.update();
     });
   }
-
-  if (window.confirm('A new version of the app is available. Refresh to update?')) {
-    if (registration.waiting) {
-      // oxlint-disable-next-line unicorn/require-post-message-target-origin
-      registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
-    }
-    window.location.reload();
-  }
-};
+});
 
 if ('serviceWorker' in navigator) {
   const isProduction = import.meta.env.MODE === 'production';
@@ -137,11 +125,7 @@ if ('serviceWorker' in navigator) {
       // to detect deployments faster without requiring a restart.
       setInterval(
         () => {
-          registration.update().catch((err) => {
-            // Update checks can fail during deployment (404 while new SW is being uploaded)
-            // or due to network issues. Log but don't throw — the next check will retry.
-            log.warn('SW update check failed:', err);
-          });
+          registration.update();
         },
         5 * 60 * 1000
       );

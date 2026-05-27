@@ -3,6 +3,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import type { Room } from '$types/matrix-sdk';
 import { EventTimeline, EventType } from '$types/matrix-sdk';
+import * as Sentry from '@sentry/react';
 
 import colorMXID from '$utils/colorMXID';
 import { profilesCacheAtom } from '$state/userRoomProfile';
@@ -11,12 +12,36 @@ import { settingsAtom, shouldApplyUserHeroCards } from '$state/settings';
 import type { MSC1767Text } from '$types/matrix/common';
 import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import type { PronounSet } from '$utils/pronouns';
+import { ConcurrencyQueue } from '$utils/concurrencyQueue';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useActiveTheme } from './useTheme';
 import { CustomStateEvent } from '$types/matrix/room';
 import * as prefix from '$unstable/prefixes';
 
 const inFlightProfiles = new Map<string, Promise<Record<string, unknown>>>();
+
+// Limit concurrent profile fetches to prevent HTTP connection pool saturation.
+// Bridged user profile requests can take 57-58s each, and browsers cap concurrent
+// connections per domain at 6 (HTTP/1.1). Without a queue, many concurrent profile
+// fetches occupy all slots, blocking critical timeline /messages requests.
+const profileQueue = new ConcurrencyQueue(3);
+
+// Aggressive TTL-based cache for bridged users. These profiles rarely change.
+const BRIDGED_USER_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const bridgedUserCacheTimestamps = new Map<string, number>();
+
+const isBridgedUser = (userId: string): boolean => {
+  // Match common bridge patterns: @discord_*, @signal_*, @_*, etc.
+  // Most bridges use either a prefix like @discord_ or start with @_
+  return userId.startsWith('@discord_') || userId.startsWith('@signal_') || userId.startsWith('@_');
+};
+
+const shouldRefetchBridgedUser = (userId: string): boolean => {
+  if (!isBridgedUser(userId)) return false;
+  const lastFetch = bridgedUserCacheTimestamps.get(userId);
+  if (!lastFetch) return true;
+  return Date.now() - lastFetch > BRIDGED_USER_CACHE_TTL_MS;
+};
 
 export type MSC4440Bio = {
   'm.text': Array<MSC1767Text>;
@@ -137,18 +162,44 @@ export const useUserProfile = (
 
   const hasOnlyFetchedMarker =
     cached?._fetched === true && Object.keys(cached ?? {}).every((key) => key === '_fetched');
+
+  // For bridged users, check TTL before refetching
+  const bridgedUserExpired = isBridgedUser(userId) && shouldRefetchBridgedUser(userId);
   const needsFetch =
-    !!userId && userId !== 'undefined' && (!cached?._fetched || hasOnlyFetchedMarker);
+    !!userId &&
+    userId !== 'undefined' &&
+    (!cached?._fetched || hasOnlyFetchedMarker || bridgedUserExpired);
 
   useEffect(() => {
     if (!needsFetch) return undefined;
 
+    // For bridged users, skip if still within TTL window (even if _fetched is false)
+    if (isBridgedUser(userId) && !shouldRefetchBridgedUser(userId)) {
+      return undefined;
+    }
+
     let fetchPromise = inFlightProfiles.get(userId);
 
     if (!fetchPromise) {
-      fetchPromise = mx.getProfileInfo(userId).finally(() => {
-        inFlightProfiles.delete(userId);
-      });
+      // Queue the profile fetch to prevent connection pool saturation
+      fetchPromise = profileQueue
+        .add(() => {
+          Sentry.addBreadcrumb({
+            category: 'profile',
+            message: 'Profile fetch started',
+            level: 'debug',
+            data: {
+              userId,
+              isBridged: isBridgedUser(userId),
+              queuePending: profileQueue.pending,
+              queueActive: profileQueue.active,
+            },
+          });
+          return mx.getProfileInfo(userId);
+        })
+        .finally(() => {
+          inFlightProfiles.delete(userId);
+        });
       inFlightProfiles.set(userId, fetchPromise);
     }
 
@@ -162,9 +213,24 @@ export const useUserProfile = (
           ...prev,
           [userId]: { ...prev[userId], ...normalized },
         }));
+        // Mark bridged users with fetch timestamp for TTL tracking
+        if (isBridgedUser(userId)) {
+          bridgedUserCacheTimestamps.set(userId, Date.now());
+        }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!isMounted) return;
+        // Log profile fetch failures for monitoring (especially slow bridged users)
+        Sentry.addBreadcrumb({
+          category: 'profile',
+          message: 'Profile fetch failed',
+          level: 'warning',
+          data: {
+            userId,
+            isBridged: isBridgedUser(userId),
+            error: String(err),
+          },
+        });
         setGlobalProfiles((prev) => ({
           ...prev,
           [userId]: { ...prev[userId], _fetched: true },

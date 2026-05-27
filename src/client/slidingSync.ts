@@ -880,6 +880,12 @@ export class SlidingSyncManager {
     if (this.progressivePrefetchEnabled === enabled) return;
     this.progressivePrefetchEnabled = enabled;
     debugLog.info('sync', `Progressive prefetch ${enabled ? 'enabled' : 'disabled'}`);
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: `Progressive prefetch ${enabled ? 'enabled' : 'disabled'}`,
+      level: 'info',
+      data: { enabled, initialSyncCompleted: this.initialSyncCompleted },
+    });
 
     // If disabling, cancel any pending prefetch
     if (!enabled && this.progressivePrefetchTimer) {
@@ -1465,7 +1471,25 @@ export class SlidingSyncManager {
 
     // If progressive prefetch is enabled, schedule the next batch
     if (this.progressivePrefetchEnabled) {
+      debugLog.info('sync', 'Scheduling progressive prefetch after initial batch');
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'Scheduling progressive prefetch',
+        level: 'info',
+        data: {
+          initialBatchSize: toSubscribe.length,
+          nextOffset: 25,
+          totalRecentRooms: recentRoomIds.length,
+        },
+      });
       this.scheduleNextProgressivePrefetch();
+    } else {
+      debugLog.info('sync', 'Progressive prefetch disabled, not scheduling next batch');
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'Progressive prefetch disabled',
+        level: 'info',
+      });
     }
   }
 
@@ -1498,6 +1522,12 @@ export class SlidingSyncManager {
       debugLog.info('sync', 'Progressive prefetch complete', {
         totalPrefetched: this.progressivePrefetchOffset,
       });
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'Progressive prefetch complete',
+        level: 'info',
+        data: { totalPrefetched: this.progressivePrefetchOffset },
+      });
       return;
     }
 
@@ -1508,6 +1538,16 @@ export class SlidingSyncManager {
       debugLog.info('sync', 'Progressive prefetch batch', {
         offset: this.progressivePrefetchOffset,
         count: nextBatch.length,
+      });
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'Progressive prefetch batch starting',
+        level: 'info',
+        data: {
+          offset: this.progressivePrefetchOffset,
+          count: nextBatch.length,
+          totalRecentRooms: recentRoomIds.length,
+        },
       });
 
       const toSubscribe: string[] = [];

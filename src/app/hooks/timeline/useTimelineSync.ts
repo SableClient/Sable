@@ -16,6 +16,7 @@ import { ClientEvent, Direction, RoomEvent, RelationType, ThreadEvent } from '$t
 import { useAlive } from '$hooks/useAlive';
 import { markAsRead } from '$utils/notifications';
 import { decryptAllTimelineEvent } from '$utils/room';
+import { appEvents } from '$utils/appEvents';
 import {
   getInitialTimeline,
   getEmptyTimeline,
@@ -114,11 +115,7 @@ const useEventTimelineLoader = (
 
           // Check if the event now exists in the live timeline
           const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
-          let liveAbsIndex = getEventIdAbsoluteIndex(
-            liveLinkedTimelines,
-            liveTimeline,
-            eventId
-          );
+          let liveAbsIndex = getEventIdAbsoluteIndex(liveLinkedTimelines, liveTimeline, eventId);
 
           // If event not found in current live timeline, try paginating backward to fetch it.
           // This handles the case where sync hasn't caught up yet but the event is on the server.
@@ -132,7 +129,10 @@ const useEventTimelineLoader = (
 
             const [paginateErr] = await to(
               withTimeout(
-                mx.paginateEventTimeline(liveTimeline, { backwards: true, limit: PAGINATION_LIMIT }),
+                mx.paginateEventTimeline(liveTimeline, {
+                  backwards: true,
+                  limit: PAGINATION_LIMIT,
+                }),
                 EVENT_TIMELINE_LOAD_TIMEOUT_MS
               )
             );
@@ -580,7 +580,7 @@ export function useTimelineSync({
     useCallback(() => {
       // Proactively load a batch above and below the jumped-to event so the user
       // can scroll immediately without waiting for pagination triggers.
-      void handleTimelinePaginationRef.current(true);  // backward
+      void handleTimelinePaginationRef.current(true); // backward
       void handleTimelinePaginationRef.current(false); // forward
     }, [])
   );
@@ -755,6 +755,51 @@ export function useTimelineSync({
     // Intentionally only depends on room: we want this to fire when the room
     // identity changes, not on every eventId change.
   }, [room]);
+
+  // When the app comes to foreground (from background or notification tap),
+  // check if the SDK timeline has events but React's timeline state is stale,
+  // and force a refresh if needed. This fixes the visibility regression where
+  // cached events don't appear when opening the app because:
+  // 1. ClientEvent.Room doesn't fire for cached rooms (no initial:true)
+  // 2. useLiveEventArrive's 60s gate drops cached events
+  // 3. Room didn't change so prevRoomIdRef useEffect doesn't fire
+  useEffect(() => {
+    const handleVisibilityChange = (isVisible: boolean) => {
+      if (!isVisible) return; // Only act on foreground events
+
+      // Check if SDK has events but React timeline state is empty or stale
+      const liveTimeline = getLiveTimeline(room);
+      const sdkEvents = liveTimeline.getEvents();
+      if (sdkEvents.length === 0) return; // No events to show
+
+      const linkedTimelines = timeline.linkedTimelines;
+      const reactHasEvents =
+        linkedTimelines.length > 0 && getTimelinesEventsCount(linkedTimelines) > 0;
+
+      // If React state is empty but SDK has events, force refresh
+      if (!reactHasEvents) {
+        setTimeline({ linkedTimelines: getLinkedTimelines(liveTimeline) });
+        return;
+      }
+
+      // If React state has events, check if it's stale (references old timeline)
+      const currentLiveTimeline = linkedTimelines[linkedTimelines.length - 1];
+      if (currentLiveTimeline !== liveTimeline) {
+        setTimeline({ linkedTimelines: getLinkedTimelines(liveTimeline) });
+        return;
+      }
+
+      // Check if event count is out of sync (SDK has more events than React knows about)
+      const sdkEventCount = getTimelinesEventsCount(getLinkedTimelines(liveTimeline));
+      const reactEventCount = eventsLengthRef.current;
+      if (sdkEventCount > reactEventCount) {
+        setTimeline({ linkedTimelines: getLinkedTimelines(liveTimeline) });
+      }
+    };
+
+    const unsubscribe = appEvents.onVisibilityChange(handleVisibilityChange);
+    return unsubscribe;
+  }, [room, timeline.linkedTimelines, eventsLengthRef]);
 
   return {
     timeline,

@@ -618,6 +618,7 @@ export class SlidingSyncManager {
 
           let threadEventsProcessed = 0;
           let rootEventsProcessed = 0;
+          let threadEventsDropped = 0;
 
           // Process each event and route to the correct timeline set based on threadId
           for (const rawEvent of rawEvents) {
@@ -625,16 +626,59 @@ export class SlidingSyncManager {
             const event = new MatrixEvent(rawEvent);
             const threadId = getThreadIdFromEvent(event);
 
+            // Track dropped thread events where threadId resolution failed
+            const relatesTo = event.getContent()?.['m.relates_to'];
+            if (!threadId && relatesTo?.rel_type === 'm.thread') {
+              threadEventsDropped += 1;
+              Sentry.metrics.count('sable.timeline.thread_event_dropped', 1, {
+                attributes: {
+                  room_id: roomId,
+                  reason: 'threadId_undefined',
+                  encrypted: String(event.getType() === 'm.room.encrypted'),
+                },
+              });
+              console.warn('Thread event dropped — threadId unresolvable', {
+                eventId: event.getId(),
+                roomId,
+                relatesTo,
+              });
+              // Skip this event — cannot route to timeline without threadId
+              continue;
+            }
+
             // Get the appropriate timeline set (thread-specific or root)
-            const timelineSet = threadId
-              ? room.getOrCreateThread(threadId).timelineSet
-              : room.getUnfilteredTimelineSet();
+            let timelineSet;
+            if (threadId) {
+              const thread = room.getThread(threadId);
+              if (!thread) {
+                // Thread doesn't exist yet - track and skip
+                threadEventsDropped += 1;
+                Sentry.metrics.count('sable.timeline.thread_event_dropped', 1, {
+                  attributes: {
+                    room_id: roomId,
+                    reason: 'thread_not_found',
+                    encrypted: String(event.getType() === 'm.room.encrypted'),
+                  },
+                });
+                console.warn('Thread event dropped — thread not found', {
+                  eventId: event.getId(),
+                  roomId,
+                  threadId,
+                  relatesTo,
+                });
+                continue;
+              }
+              timelineSet = thread.timelineSet;
+            } else {
+              timelineSet = room.getUnfilteredTimelineSet();
+            }
 
             const timeline = timelineSet.getLiveTimeline();
 
             // Add event to the correct timeline with threadId parameter
             timelineSet.addEventToTimeline(event, timeline, {
               toStartOfTimeline: false,
+              addToState: true,
               ...(threadId && { threadId }),
             });
 
@@ -648,23 +692,34 @@ export class SlidingSyncManager {
           // Clear the timeline array so SDK doesn't try to re-add these events
           roomData.timeline = [];
 
-          if (threadEventsProcessed > 0) {
+          if (threadEventsProcessed > 0 || threadEventsDropped > 0) {
             debugLog.info('sync', 'Processed thread events with threadId routing', {
               roomId,
               threadEvents: threadEventsProcessed,
               rootEvents: rootEventsProcessed,
+              droppedEvents: threadEventsDropped,
               syncCycle: this.syncCount,
             });
             Sentry.addBreadcrumb({
               category: 'sync.threadEvents',
               message: 'Thread events routed to correct timeline sets',
-              level: 'info',
+              level: threadEventsDropped > 0 ? 'warning' : 'info',
               data: {
                 roomId,
                 threadEvents: threadEventsProcessed,
                 rootEvents: rootEventsProcessed,
+                droppedEvents: threadEventsDropped,
               },
             });
+
+            // Report per-sync thread drop count
+            if (threadEventsDropped > 0) {
+              Sentry.metrics.distribution(
+                'sable.timeline.thread_drops_per_sync',
+                threadEventsDropped,
+                { attributes: { room_id: roomId } }
+              );
+            }
           }
         });
 

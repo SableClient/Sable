@@ -630,17 +630,41 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
     let worker: Worker;
     try {
-      worker = new Worker(new URL('../plugins/search-worker/searchWorker.ts', import.meta.url), {
+      const workerUrl = new URL('../plugins/search-worker/searchWorker.ts', import.meta.url);
+      worker = new Worker(workerUrl, {
         type: 'module',
       });
     } catch (e) {
-      // Worker failed to load — likely a missing or mis-served asset (404 → HTML)
+      // Worker failed to load — likely a missing or mis-served asset (404 → HTML).
+      // This commonly happens when:
+      // 1. Old cached index.html references old worker URL (from previous build)
+      // 2. Server returns 404 or HTML instead of JS
+      // 3. Browser tries to execute HTML as JavaScript → MIME type error
       const errorMsg = `Search worker failed to instantiate: ${e instanceof Error ? e.message : String(e)}`;
+      const isMimeError =
+        e instanceof Error && e.message.includes('MIME') && e.message.includes('text/html');
+
       setInitError(errorMsg);
       Sentry.captureException(e, {
-        level: 'error',
-        tags: { component: 'search-index', failure_stage: 'worker_instantiation' },
-        extra: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
+        level: isMimeError ? 'warning' : 'error',
+        tags: {
+          component: 'search-index',
+          failure_stage: 'worker_instantiation',
+          is_mime_error: isMimeError,
+        },
+        extra: {
+          userId,
+          maxMessagesPerRoom: searchIndexMessageLimit,
+          likely_stale_cache: isMimeError,
+          workerUrl: new URL('../plugins/search-worker/searchWorker.ts', import.meta.url).href,
+        },
+        contexts: {
+          hint: {
+            description: isMimeError
+              ? 'Stale cached index.html likely referencing old worker URL. User should reload.'
+              : 'Worker script failed to load',
+          },
+        },
       });
       return () => {};
     }
@@ -651,17 +675,32 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     // Handle worker runtime errors (e.g., MIME type errors from failed imports)
     const handleWorkerError = (error: ErrorEvent) => {
       const errorMsg = `Search worker runtime error: ${error.message}`;
+      const isMimeError =
+        error.message.includes('MIME') && error.message.includes('text/html');
+
       setInitError(errorMsg);
       setIsReady(false);
       Sentry.captureException(error.error || new Error(error.message), {
-        level: 'error',
-        tags: { component: 'search-index', failure_stage: 'worker_runtime' },
+        level: isMimeError ? 'warning' : 'error',
+        tags: {
+          component: 'search-index',
+          failure_stage: 'worker_runtime',
+          is_mime_error: isMimeError,
+        },
         extra: {
           userId,
           maxMessagesPerRoom: searchIndexMessageLimit,
           filename: error.filename,
           lineno: error.lineno,
           colno: error.colno,
+          likely_stale_cache: isMimeError,
+        },
+        contexts: {
+          hint: {
+            description: isMimeError
+              ? 'Worker import failed with MIME error - likely stale cache referencing old assets'
+              : 'Worker script runtime error',
+          },
         },
       });
     };

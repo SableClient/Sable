@@ -502,7 +502,7 @@ export function ClientRoot({ children }: ClientRootProps) {
                 navigator.serviceWorker.getRegistration().then((reg) => {
                   if (reg?.waiting) {
                     // Send skipWaiting message to the waiting SW
-                    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    reg.waiting.postMessage({ type: 'SKIP_WAITING' }, self.location.origin);
                     // Reload once the new SW is activated
                     navigator.serviceWorker.addEventListener('controllerchange', () => {
                       window.location.reload();

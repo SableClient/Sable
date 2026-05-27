@@ -88,6 +88,17 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker
     .register(swUrl, swRegisterOptions)
     .then((registration) => {
+      // Check if there's already an update waiting (happens on mobile when SW was
+      // updated while the app was closed, or when updatefound fired before we
+      // added the listener). This is critical for iOS PWA where the app might
+      // launch with a stale index.html and the SW update has already completed.
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        log.log('SW update already waiting at registration time');
+        window.dispatchEvent(new CustomEvent('sable:sw-update'));
+      }
+
+      // Listen for future updates (when the server deploys a new sw.js while
+      // the app is running).
       registration.addEventListener('updatefound', () => {
         const installingWorker = registration.installing;
         if (installingWorker) {
@@ -97,6 +108,7 @@ if ('serviceWorker' in navigator) {
                 // Notify the app rather than silently reloading — the user
                 // should see a banner and choose when to refresh, especially
                 // on mobile where an unexpected reload is very disorienting.
+                log.log('SW update detected via statechange');
                 window.dispatchEvent(new CustomEvent('sable:sw-update'));
               }
             }

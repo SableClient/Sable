@@ -313,6 +313,9 @@ export function RoomTimeline({
   // recovery scroll from firing prematurely when the live timeline loads before
   // the target event context finishes loading (which causes the blank → bottom jump).
   const eventIdLoadInProgressRef = useRef(false);
+  // Track which eventId is currently being loaded to prevent duplicate loads when
+  // the user clicks the jump button repeatedly before the first load completes.
+  const loadingEventIdRef = useRef<string | null>(null);
 
   const lastProgrammaticBottomPinAtRef = useRef(0);
 
@@ -641,6 +644,7 @@ export function RoomTimeline({
     timelineSyncRef.current.setTimeline(getEmptyTimeline());
     // Mark the eventId load as in-progress to prevent premature recovery scroll
     eventIdLoadInProgressRef.current = true;
+    loadingEventIdRef.current = eventId;
     void timelineSyncRef.current
       .loadEventTimeline(eventId)
       .then(() => {
@@ -672,6 +676,7 @@ export function RoomTimeline({
         // focusItem will be set and the focus scroll will handle it. If it failed,
         // the recovery scroll can now safely fire.
         eventIdLoadInProgressRef.current = false;
+        loadingEventIdRef.current = null;
       });
   }, [eventId, room.roomId]);
 
@@ -926,7 +931,33 @@ export function RoomTimeline({
           highlight: true,
         });
       } else {
-        void timelineSync.loadEventTimeline(anchorId);
+        // Prevent duplicate loads when the user clicks repeatedly before the first load completes.
+        // This prevents the "going backwards through history" bug where each load clears and
+        // re-paginates the timeline, changing absolute indices and causing incorrect scroll positions.
+        if (loadingEventIdRef.current === anchorId) {
+          log.log(
+            `[PermalinkJump] Ignoring duplicate load request for ${anchorId} (already loading)`
+          );
+          return;
+        }
+        // Prepare for loading: hide timeline and show skeletons
+        setIsReady(false);
+        timelineSync.setTimeline(getEmptyTimeline());
+        eventIdLoadInProgressRef.current = true;
+        loadingEventIdRef.current = anchorId;
+
+        log.log(`[PermalinkJump] Starting load for ${anchorId} from handleOpenEvent`);
+        Sentry.addBreadcrumb({
+          category: 'timeline.permalink',
+          message: 'handleOpenEvent initiating load',
+          level: 'info',
+          data: { eventId: anchorId, roomId: room.roomId },
+        });
+
+        void timelineSync.loadEventTimeline(anchorId).finally(() => {
+          eventIdLoadInProgressRef.current = false;
+          loadingEventIdRef.current = null;
+        });
       }
     },
   });

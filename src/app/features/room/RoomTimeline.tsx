@@ -305,6 +305,11 @@ export function RoomTimeline({
   const isReadyRef = useRef(isReady);
   isReadyRef.current = isReady;
 
+  // Track whether the initial eventId load is in progress. Used to prevent the
+  // recovery scroll from firing prematurely when the live timeline loads before
+  // the target event context finishes loading (which causes the blank → bottom jump).
+  const eventIdLoadInProgressRef = useRef(false);
+
   const lastProgrammaticBottomPinAtRef = useRef(0);
 
   if (currentRoomIdRef.current !== room.roomId) {
@@ -580,7 +585,14 @@ export function RoomTimeline({
     // are shown while the event-context API call is in flight, rather than
     // having the entire message area go invisible (opacity:0) with no feedback.
     timelineSyncRef.current.setTimeline(getEmptyTimeline());
-    void timelineSyncRef.current.loadEventTimeline(eventId);
+    // Mark the eventId load as in-progress to prevent premature recovery scroll
+    eventIdLoadInProgressRef.current = true;
+    void timelineSyncRef.current.loadEventTimeline(eventId).finally(() => {
+      // Clear the flag whether the load succeeded or failed. If it succeeded,
+      // focusItem will be set and the focus scroll will handle it. If it failed,
+      // the recovery scroll can now safely fire.
+      eventIdLoadInProgressRef.current = false;
+    });
   }, [eventId, room.roomId]);
 
   // Recovery: loadEventTimeline's onError callback restores the live timeline but
@@ -593,6 +605,10 @@ export function RoomTimeline({
     if (!eventId) return;
     if (isReady) return;
     if (timelineSync.eventsLength === 0) return;
+    // Do NOT fire recovery scroll while the eventId load is still in progress.
+    // The live timeline may receive events from sliding sync before the target
+    // event context finishes loading, which would cause a premature scroll to bottom.
+    if (eventIdLoadInProgressRef.current) return;
     if (timelineSync.focusItem) return;
     if (!timelineSync.liveTimelineLinked) return;
     // Guard: don't start a second timer if one is already in flight.

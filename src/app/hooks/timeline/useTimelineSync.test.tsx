@@ -97,7 +97,7 @@ describe('useTimelineSync', () => {
     const { result } = renderHook(() =>
       useTimelineSync({
         room: room as Room,
-        mx: { getUserId: () => '@alice:test' } as never,
+        mx: createMx() as never,
         eventId: '$linked:event',
         isAtBottom: false,
         isAtBottomRef: { current: false },

@@ -660,13 +660,20 @@ export function useTimelineSync({
   useLiveTimelineRefresh(
     room,
     useCallback(() => {
+      // When eventId is set, loadEventTimeline is responsible for updating the
+      // timeline state. Don't overwrite with the live timeline.
+      if (eventId) {
+        // If loadEventTimeline hasn't been called yet (e.g., first render), trigger it now.
+        // This handles the case where TimelineReset fires before the initial load effect runs.
+        return;
+      }
       const wasAtBottom = isAtBottomRef.current;
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       if (wasAtBottom) {
         scrollToBottom('instant');
       }
-    }, [room, isAtBottomRef, scrollToBottom])
+    }, [eventId, room, isAtBottomRef, scrollToBottom])
   );
 
   useRelationUpdate(
@@ -729,6 +736,9 @@ export function useTimelineSync({
   useEffect(() => {
     const handleRoomInitialized = (eventRoom: Room) => {
       if (eventRoom.roomId !== room.roomId) return;
+      // Don't update to live timeline when waiting for eventId context to load.
+      // The eventId-specific loading path will handle setting the correct timeline.
+      if (eventId) return;
       // Only update if the live timeline actually has events now — prevents
       // spurious updates that would reset scroll position during normal sync.
       const liveEvents = getLiveTimeline(room).getEvents();
@@ -759,7 +769,7 @@ export function useTimelineSync({
     return () => {
       mx.off(ClientEvent.Room, handleRoomInitialized);
     };
-  }, [mx, room, timeline.linkedTimelines, eventsLengthRef]);
+  }, [mx, room, eventId, timeline.linkedTimelines, eventsLengthRef]);
 
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);

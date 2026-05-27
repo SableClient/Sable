@@ -98,7 +98,6 @@ export const UrlPreviewCard = as<
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
-  const [imageError, setImageError] = useState(false);
 
   const isDirect = !!mediaType;
 
@@ -123,13 +122,7 @@ export const UrlPreviewCard = as<
     loadPreview();
   }, [url, loadPreview]);
 
-  // Reset imageError when URL changes
-  useEffect(() => {
-    setImageError(false);
-  }, [url]);
-
   if (previewStatus.status === AsyncStatus.Error) return null;
-  if (imageError) return null;
 
   const renderContent = (prev: IPreviewUrlResponse) => {
     const siteName = prev['og:site_name'];
@@ -309,8 +302,6 @@ export const UrlPreviewCard = as<
               url={prev['og:image']}
               info={ogImageInfo}
               matrixThumbnailMaxEdge={previewThumbMaxEdge}
-              onError={() => setImageError(true)}
-              suppressErrorUI
               renderViewer={(p) => <ImageViewer {...p} />}
               renderImage={(p) => (
                 <Image

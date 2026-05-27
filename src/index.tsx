@@ -34,8 +34,26 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
   const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
 
-  if (userPreference === 'true') {
-    return;
+// Bfcache restore: page snaps back instantly; check whether the SW was
+// restarted while the page was away.
+window.addEventListener('pageshow', (ev) => {
+  if (ev.persisted) requestSWClaim();
+});
+
+// Visibility-change foreground: covers the case where iOS kills the SW
+// while the screen is on (memory pressure) and the user touches the app.
+// Also check for service worker updates when returning to the app.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    requestSWClaim();
+    // Check for SW updates when user returns to the app (e.g., after deploy)
+    navigator.serviceWorker.getRegistration().then((registration) => {
+      registration?.update().catch((err) => {
+        // Update checks can fail during deployment or due to network issues.
+        // Log but don't throw — the periodic check will retry later.
+        log.warn('SW update check failed (visibilitychange):', err);
+      });
+    });
   }
 
   if (window.confirm('A new version of the app is available. Refresh to update?')) {
@@ -83,8 +101,51 @@ if ('serviceWorker' in navigator) {
   };
 
   navigator.serviceWorker
-    .register(swUrl)
-    .then(sendSessionToSW)
+    .register(swUrl, swRegisterOptions)
+    .then((registration) => {
+      // Check if there's already an update waiting (happens on mobile when SW was
+      // updated while the app was closed, or when updatefound fired before we
+      // added the listener). This is critical for iOS PWA where the app might
+      // launch with a stale index.html and the SW update has already completed.
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        log.log('SW update already waiting at registration time');
+        window.dispatchEvent(new CustomEvent('sable:sw-update'));
+      }
+
+      // Listen for future updates (when the server deploys a new sw.js while
+      // the app is running).
+      registration.addEventListener('updatefound', () => {
+        const installingWorker = registration.installing;
+        if (installingWorker) {
+          installingWorker.addEventListener('statechange', () => {
+            if (installingWorker.state === 'installed') {
+              if (navigator.serviceWorker.controller) {
+                // Notify the app rather than silently reloading — the user
+                // should see a banner and choose when to refresh, especially
+                // on mobile where an unexpected reload is very disorienting.
+                log.log('SW update detected via statechange');
+                window.dispatchEvent(new CustomEvent('sable:sw-update'));
+              }
+            }
+          });
+        }
+      });
+      sendSessionToSW();
+
+      // Periodically check for updates while the app is running.
+      // Browsers only check automatically ~every 24h, so we check every 5 minutes
+      // to detect deployments faster without requiring a restart.
+      setInterval(
+        () => {
+          registration.update().catch((err) => {
+            // Update checks can fail during deployment (404 while new SW is being uploaded)
+            // or due to network issues. Log but don't throw — the next check will retry.
+            log.warn('SW update check failed:', err);
+          });
+        },
+        5 * 60 * 1000
+      );
+    })
     .catch((err) => {
       log.warn('SW registration failed:', err);
     });

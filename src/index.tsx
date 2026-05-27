@@ -61,8 +61,15 @@ window.addEventListener('pageshow', (ev) => {
 
 // Visibility-change foreground: covers the case where iOS kills the SW
 // while the screen is on (memory pressure) and the user touches the app.
+// Also check for service worker updates when returning to the app.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') requestSWClaim();
+  if (document.visibilityState === 'visible') {
+    requestSWClaim();
+    // Check for SW updates when user returns to the app (e.g., after deploy)
+    navigator.serviceWorker.getRegistration().then((registration) => {
+      registration?.update();
+    });
+  }
 });
 
 if ('serviceWorker' in navigator) {
@@ -116,6 +123,16 @@ if ('serviceWorker' in navigator) {
         }
       });
       sendSessionToSW();
+
+      // Periodically check for updates while the app is running.
+      // Browsers only check automatically ~every 24h, so we check every 5 minutes
+      // to detect deployments faster without requiring a restart.
+      setInterval(
+        () => {
+          registration.update();
+        },
+        5 * 60 * 1000
+      );
     })
     .catch((err) => {
       log.warn('SW registration failed:', err);

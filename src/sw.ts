@@ -73,12 +73,13 @@ async function loadPersistedSettings() {
       clearNotificationsOnRead = s.clearNotificationsOnRead;
     // Restore appIsVisible from the last-known visibility timestamp.
     // On iOS/iPad, the SW is killed between pushes so appIsVisible always resets to false.
-    // If the app reported itself visible within the last 10 s, trust that it still is.
-    // Use a short window (10s) to reduce false positives from stale cache after crashes.
+    // If the app reported itself visible within the last 2 s, trust that it still is.
+    // Use a very short window (2s) to only catch rapid SW restarts during active use,
+    // not when the phone has been locked for a few seconds.
     // The page will send an explicit visible=true message once it initializes anyway.
     if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
       const ageMs = Date.now() - s.appVisibleAt;
-      if (ageMs < 10_000) {
+      if (ageMs < 2_000) {
         appIsVisible = true;
         console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
       }

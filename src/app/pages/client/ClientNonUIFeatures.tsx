@@ -504,9 +504,9 @@ function MessageNotifications() {
       if (document.visibilityState !== 'visible') return;
 
       // Page is visible — show the themed in-app notification banner.
-      // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
-      // For DMs, show banner for all messages.
-      if (showNotifications && (isHighlightByRule || isDM)) {
+      // Show banner for: highlighted messages (mentions/keywords), DM messages, or loud notifications.
+      // Loud notifications include any room set to "All Messages" with sound enabled.
+      if (showNotifications && (isHighlightByRule || isDM || isLoud)) {
         const avatarMxc =
           room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
         const roomAvatar = avatarMxc

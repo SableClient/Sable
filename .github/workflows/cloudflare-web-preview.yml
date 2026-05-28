@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload Worker preview
         id: deploy
-        uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         env:
           PREVIEW_MESSAGE: ${{ steps.metadata.outputs.preview_message }}
         with:
@@ -126,7 +126,7 @@ jobs:
           echo "preview_url=${preview_url}" >> "$GITHUB_OUTPUT"
 
       - name: Publish summary and PR comment
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           MARKER: '<!-- cloudflare-worker-preview -->'
           PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}

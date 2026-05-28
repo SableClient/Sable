@@ -1112,8 +1112,29 @@ self.addEventListener('fetch', (event: FetchEvent) => {
           hadPersistedSession: !!persisted,
           persistedSessionValid: !!validated,
         });
-        // SABLE-4Y fix: Return synthetic 401 instead of attempting unauthenticated
-        // fetch. Prevents network requests that will fail with 401 anyway, and
+
+        // Check if this is an actual media download (encrypted bytes) vs metadata/preview
+        const isMediaDownload =
+          url.includes('/_matrix/client/v1/media/download') ||
+          url.includes('/_matrix/client/v1/media/thumbnail') ||
+          url.includes('/_matrix/media/v3/download') ||
+          url.includes('/_matrix/media/v3/thumbnail') ||
+          url.includes('/_matrix/media/r0/download') ||
+          url.includes('/_matrix/media/r0/thumbnail');
+
+        if (isMediaDownload) {
+          // Never return synthetic body for encrypted media — it would be passed to
+          // decryptAttachment() which tries to decrypt it and fails SHA-256 check.
+          // Let the real network error propagate so client catches it as fetch failure.
+          console.debug(
+            '[SW fetch] Media download with no session — letting fetch fail naturally',
+            { url }
+          );
+          return fetch(url, { redirect });
+        }
+
+        // SABLE-4Y fix: Return synthetic 401 for non-media requests (preview_url, etc).
+        // Prevents unnecessary network requests that will fail with 401 anyway, and
         // allows client-side blob cache to handle auth failures gracefully.
         return new Response(
           JSON.stringify({ errcode: 'M_MISSING_TOKEN', error: 'No session available' }),

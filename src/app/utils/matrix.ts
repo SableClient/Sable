@@ -220,6 +220,29 @@ export const decryptFile = async (
   }
 };
 
+/**
+ * Safely decrypt an encrypted attachment with integrity checking.
+ * Returns null on MediaIntegrityError to allow graceful fallback rendering.
+ */
+export const decryptFileSafe = async (
+  dataBuffer: ArrayBuffer,
+  type: string,
+  encInfo: EncryptedAttachmentInfo,
+  context?: { eventId?: string; roomId?: string; mediaUrl?: string }
+): Promise<Blob | null> => {
+  try {
+    return await decryptFile(dataBuffer, type, encInfo, context);
+  } catch (err) {
+    if (err instanceof Error && err.name === 'MediaIntegrityError') {
+      // Integrity error already logged to Sentry by decryptFile
+      // Return null to signal the caller to show a broken media placeholder
+      return null;
+    }
+    // Re-throw unexpected errors
+    throw err;
+  }
+};
+
 export type TUploadContent = File;
 
 export type ContentUploadOptions = {
@@ -525,12 +548,18 @@ export const downloadMedia = async (
 
 export const downloadEncryptedMedia = async (
   src: string,
-  decryptContent: (buf: ArrayBuffer) => Promise<Blob>,
+  decryptContent: (buf: ArrayBuffer) => Promise<Blob | null>,
   /** Forwarded to {@link downloadMedia} — see its doc for context. */
   accessToken?: string | null
 ): Promise<Blob> => {
   const encryptedContent = await downloadMedia(src, accessToken);
   const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
+
+  if (!decryptedContent) {
+    // decryptFileSafe returned null due to integrity failure
+    // Return an empty blob so the UI can show a broken media placeholder
+    throw new Error('media_integrity_failure');
+  }
 
   return decryptedContent;
 };

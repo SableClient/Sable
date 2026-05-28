@@ -348,6 +348,15 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       const events: IndexableEvent[] = [];
       for (const ev of unindexedEvents) {
         try {
+          // Skip thread reply events — they're not added to the room timeline during
+          // pagination (SDK rejects them), so indexing them here would cause phantom
+          // search results that can't be jumped to. Thread replies can be searched
+          // within their thread context via thread-specific search.
+          const relatesTo = ev.getContent()?.['m.relates_to'];
+          if (relatesTo?.rel_type === 'm.thread') {
+            continue;
+          }
+
           if (ev.getType() === 'm.room.encrypted') {
             // Still encrypted — re-use the live-indexing path which registers a
             // Decrypted listener so the event is indexed once keys arrive.

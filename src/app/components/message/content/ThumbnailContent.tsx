@@ -4,7 +4,7 @@ import type { IThumbnailContent } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaUrlCacheContext } from '$hooks/useMediaUrlCacheContext';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { decryptFile, downloadEncryptedMedia } from '$utils/matrix';
+import { decryptFileSafe, downloadEncryptedMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 
@@ -40,7 +40,10 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
         try {
           const fileContent = await downloadEncryptedMedia(
             mediaUrl,
-            (encBuf) => decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo),
+            (encBuf) =>
+              decryptFileSafe(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo, {
+                mediaUrl,
+              }),
             mx.getAccessToken()
           );
           const blobUrl = URL.createObjectURL(fileContent);

@@ -24,7 +24,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaUrlCacheContext } from '$hooks/useMediaUrlCacheContext';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
-import { decryptFile, downloadEncryptedMedia, downloadMedia } from '$utils/matrix';
+import { decryptFileSafe, downloadEncryptedMedia, downloadMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
@@ -93,7 +93,7 @@ export const VideoContent = as<'div', VideoContentProps>(
         const fileContent = encInfo
           ? await downloadEncryptedMedia(
               mediaUrl,
-              (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+              (encBuf) => decryptFileSafe(encBuf, mimeType, encInfo, { mediaUrl }),
               mx.getAccessToken()
             )
           : await downloadMedia(mediaUrl, mx.getAccessToken());

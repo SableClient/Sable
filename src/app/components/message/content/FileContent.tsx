@@ -29,7 +29,12 @@ import {
   mimeTypeToExt,
 } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
-import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import {
+  decryptFileSafe,
+  downloadEncryptedMedia,
+  downloadMedia,
+  mxcUrlToHttp,
+} from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
 
@@ -87,7 +92,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
       const fileContent = encInfo
         ? await downloadEncryptedMedia(
             mediaUrl,
-            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            (encBuf) => decryptFileSafe(encBuf, mimeType, encInfo, { mediaUrl }),
             mx.getAccessToken()
           )
         : await downloadMedia(mediaUrl, mx.getAccessToken());
@@ -182,7 +187,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
       const fileContent = encInfo
         ? await downloadEncryptedMedia(
             mediaUrl,
-            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            (encBuf) => decryptFileSafe(encBuf, mimeType, encInfo, { mediaUrl }),
             mx.getAccessToken()
           )
         : await downloadMedia(mediaUrl, mx.getAccessToken());
@@ -264,7 +269,7 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
       const fileContent = encInfo
         ? await downloadEncryptedMedia(
             mediaUrl,
-            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            (encBuf) => decryptFileSafe(encBuf, mimeType, encInfo, { mediaUrl }),
             mx.getAccessToken()
           )
         : await downloadMedia(mediaUrl, mx.getAccessToken());

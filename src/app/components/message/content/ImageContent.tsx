@@ -32,7 +32,7 @@ import { useMediaUrlCacheContext } from '$hooks/useMediaUrlCacheContext';
 import { bytesToSize } from '$utils/common';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
-import { decryptFile, downloadEncryptedMedia } from '$utils/matrix';
+import { decryptFileSafe, downloadEncryptedMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
@@ -146,7 +146,8 @@ export const ImageContent = as<'div', ImageContentProps>(
 
           const fileContent = await downloadEncryptedMedia(
             mediaUrl,
-            (encBuf) => decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo),
+            (encBuf) =>
+              decryptFileSafe(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo, { mediaUrl }),
             mx.getAccessToken()
           );
           const blobUrl = URL.createObjectURL(fileContent);

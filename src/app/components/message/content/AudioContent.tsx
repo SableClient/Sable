@@ -17,7 +17,12 @@ import {
 } from '$hooks/media';
 import { useThrottle } from '$hooks/useThrottle';
 import { secondsToMinutesAndSeconds } from '$utils/common';
-import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import {
+  decryptFileSafe,
+  downloadEncryptedMedia,
+  downloadMedia,
+  mxcUrlToHttp,
+} from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { MEDIA_VOLUME_KEY } from '$components/media';
 
@@ -56,7 +61,7 @@ export function AudioContent({
       const fileContent = encInfo
         ? await downloadEncryptedMedia(
             mediaUrl,
-            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            (encBuf) => decryptFileSafe(encBuf, mimeType, encInfo, { mediaUrl }),
             mx.getAccessToken()
           )
         : await downloadMedia(mediaUrl, mx.getAccessToken());

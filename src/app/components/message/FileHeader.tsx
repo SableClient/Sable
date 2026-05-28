@@ -7,7 +7,12 @@ import { mimeTypeToExt } from '$utils/mimeTypes';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import {
+  decryptFileSafe,
+  downloadEncryptedMedia,
+  downloadMedia,
+  mxcUrlToHttp,
+} from '$utils/matrix';
 
 const badgeStyles = { maxWidth: toRem(100) };
 
@@ -28,7 +33,7 @@ export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDow
       const fileContent = encInfo
         ? await downloadEncryptedMedia(
             mediaUrl,
-            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            (encBuf) => decryptFileSafe(encBuf, mimeType, encInfo, { mediaUrl }),
             mx.getAccessToken()
           )
         : await downloadMedia(mediaUrl, mx.getAccessToken());

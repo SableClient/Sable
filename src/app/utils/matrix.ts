@@ -175,8 +175,9 @@ export const decryptFile = async (
     // The hash uses standard base64 encoding (with padding), not URL-safe.
     const downloadedBytes = new Uint8Array(dataBuffer);
     const hashBuffer = await crypto.subtle.digest('SHA-256', downloadedBytes);
-    const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer));
-    const expectedHash = encInfo.hashes?.sha256;
+    // Matrix spec stores hashes as unpadded base64 - strip padding before comparison
+    const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer)).replace(/=+$/, '');
+    const expectedHash = (encInfo.hashes?.sha256 ?? '').replace(/=+$/, '');
 
     // Temporary diagnostic logging to debug SHA-256 mismatches
     // eslint-disable-next-line no-console

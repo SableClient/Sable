@@ -49,7 +49,7 @@ export function resolveUnreadBadgeMode({
     count > 0 &&
     ((dm && badgeCountDMsOnly) ||
       (loud && showLoudRoomCounts) ||
-      (!dm && showUnreadCounts) ||
+      (!dm && !loud && showUnreadCounts) ||
       (highlight && showPingCounts));
 
   return showNumber ? 'count' : 'dot';

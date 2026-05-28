@@ -23,7 +23,7 @@ import type { IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
-import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import { decryptFileSafe, downloadEncryptedMedia, downloadMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
@@ -83,8 +83,10 @@ export const VideoContent = as<'div', VideoContentProps>(
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
         const fileContent = encInfo
-          ? await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-              decryptFile(encBuf, mimeType, encInfo)
+          ? await downloadEncryptedMedia(
+              mediaUrl,
+              (encBuf) => decryptFileSafe(encBuf, mimeType, encInfo, { mediaUrl }),
+              mx.getAccessToken()
             )
           : await downloadMedia(mediaUrl);
         return URL.createObjectURL(fileContent);

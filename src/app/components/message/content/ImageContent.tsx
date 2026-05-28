@@ -31,7 +31,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { bytesToSize } from '$utils/common';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
-import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
+import { decryptFileSafe, downloadEncryptedMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
@@ -132,8 +132,15 @@ export const ImageContent = as<'div', ImageContentProps>(
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
         if (encInfo) {
-          const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-            decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo)
+          // Check blob cache first to avoid redundant downloads/decryption
+          const cachedBlob = mediaUrlCache.getBlob(url, true, mimeType);
+          if (cachedBlob) return cachedBlob;
+
+          const fileContent = await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) =>
+              decryptFileSafe(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo, { mediaUrl }),
+            mx.getAccessToken()
           );
           return URL.createObjectURL(fileContent);
         }

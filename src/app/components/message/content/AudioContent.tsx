@@ -17,7 +17,12 @@ import {
 } from '$hooks/media';
 import { useThrottle } from '$hooks/useThrottle';
 import { secondsToMinutesAndSeconds } from '$utils/common';
-import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import {
+  decryptFileSafe,
+  downloadEncryptedMedia,
+  downloadMedia,
+  mxcUrlToHttp,
+} from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { MEDIA_VOLUME_KEY } from '$components/media';
 
@@ -54,8 +59,12 @@ export function AudioContent({
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
       const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+        ? await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) => decryptFileSafe(encBuf, mimeType, encInfo, { mediaUrl }),
+            mx.getAccessToken()
+          )
+        : await downloadMedia(mediaUrl, mx.getAccessToken());
       return URL.createObjectURL(fileContent);
     }, [mx, url, useAuthentication, mimeType, encInfo])
   );

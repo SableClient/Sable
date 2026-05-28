@@ -108,43 +108,7 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
   }
 }
 
-/**
- * Validate a session by making a lightweight /whoami request.
- * Returns the session if valid, undefined if the token is expired/invalid.
- * Used to detect stale persisted sessions before using them for media fetches.
- */
-async function validateSession(session: SessionInfo): Promise<SessionInfo | undefined> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const res = await fetch(`${session.baseUrl}/_matrix/client/v3/account/whoami`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (res.status === 401) {
-      console.warn('[SW] validateSession: 401 Unauthorized - token expired or invalid');
-      return undefined;
-    }
-
-    if (!res.ok) {
-      console.warn('[SW] validateSession: non-200 response', res.status);
-      // Non-401 errors might be transient (network, server down) — optimistically
-      // return the session rather than blocking all media fetches.
-      return session;
-    }
-
-    return session;
-  } catch (err) {
-    console.warn('[SW] validateSession: fetch error', err instanceof Error ? err.message : err);
-    // Network errors, timeouts, etc. — optimistically return the session.
-    return session;
-  }
-}
 
 type SessionInfo = {
   accessToken: string;
@@ -166,9 +130,6 @@ const sessions = new Map<string, SessionInfo>();
  */
 let preloadedSession: SessionInfo | undefined;
 
-const clientToResolve = new Map<string, (value: SessionInfo | undefined) => void>();
-const clientToSessionPromise = new Map<string, Promise<SessionInfo | undefined>>();
-
 async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
   const activeIds = new Set(activeClients.map((c) => c.id));
@@ -176,8 +137,6 @@ async function cleanupDeadClients() {
   Array.from(sessions.keys()).forEach((id) => {
     if (!activeIds.has(id)) {
       sessions.delete(id);
-      clientToResolve.delete(id);
-      clientToSessionPromise.delete(id);
     }
   });
 }
@@ -202,51 +161,9 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     console.debug('[SW] setSession: removed', clientId);
     clearPersistedSession().catch(() => undefined);
   }
-
-  const resolveSession = clientToResolve.get(clientId);
-  if (resolveSession) {
-    resolveSession(sessions.get(clientId));
-    clientToResolve.delete(clientId);
-    clientToSessionPromise.delete(clientId);
-  }
 }
 
-function requestSession(client: Client): Promise<SessionInfo | undefined> {
-  const promise =
-    clientToSessionPromise.get(client.id) ??
-    new Promise((resolve) => {
-      clientToResolve.set(client.id, resolve);
-      client.postMessage({ type: 'requestSession' });
-    });
 
-  if (!clientToSessionPromise.has(client.id)) {
-    clientToSessionPromise.set(client.id, promise);
-  }
-
-  return promise;
-}
-
-async function requestSessionWithTimeout(
-  clientId: string,
-  timeoutMs = 3000
-): Promise<SessionInfo | undefined> {
-  const client = await self.clients.get(clientId);
-  if (!client) {
-    console.warn('[SW] requestSessionWithTimeout: client not found', clientId);
-    return undefined;
-  }
-
-  const sessionPromise = requestSession(client);
-
-  const timeout = new Promise<undefined>((resolve) => {
-    setTimeout(() => {
-      console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
-      resolve(undefined);
-    }, timeoutMs);
-  });
-
-  return Promise.race([sessionPromise, timeout]);
-}
 
 // ---------------------------------------------------------------------------
 // Encrypted push — decryption relay
@@ -580,16 +497,9 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       await cleanupDeadClients();
       // Pre-load the persisted session into memory so that media fetches arriving
       // before the first setSession message from the page are immediately
-      // authenticated rather than falling through to the 10-second timeout.
-      // Validate the session to detect expired tokens early.
-      const persisted = await loadPersistedSession();
-      preloadedSession = persisted ? await validateSession(persisted) : undefined;
-
-      if (!preloadedSession && persisted) {
-        console.warn('[SW activate] Persisted session failed validation (likely expired token)');
-        // Clear the stale session from cache so future activations don't retry it.
-        await clearPersistedSession();
-      }
+      // authenticated. If the token is expired, the media fetch will get a 401
+      // and the UI will show a retry button.
+      preloadedSession = await loadPersistedSession();
 
       // Strategy 7+: Prefetch critical data on activation to warm browser cache.
       // This makes subsequent requests instant on warm cache launches.
@@ -606,9 +516,9 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
         });
       }
 
-      // Proactively request sessions from all window clients so the sessions Map
-      // is pre-populated after a SW restart, rather than waiting for the first
-      // media fetch to trigger requestSessionWithTimeout.
+      // Proactively request sessions from all window clients to populate the
+      // sessions Map after a SW restart. Fire-and-forget: we don't wait for
+      // responses, clients will respond with setSession when ready.
       const windowClients = await self.clients.matchAll({ type: 'window' });
       windowClients.forEach((client) => client.postMessage({ type: 'requestSession' }));
     })()
@@ -629,6 +539,21 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setSession') {
     setSession(client.id, accessToken, baseUrl, userId);
     event.waitUntil(cleanupDeadClients());
+  }
+  if (type === 'CLAIM_CLIENTS') {
+    // Sent by the page on pageshow[persisted] or visibilitychange→visible when it
+    // detects that its SW controller is stale (e.g. after iOS killed and restarted
+    // the SW while the page was in bfcache or in the foreground under memory
+    // pressure).  Claiming here — after the page is visible — never evicts bfcache.
+    event.waitUntil(
+(async () => {
+        await self.clients.claim();
+        // Re-request sessions from all newly-claimed clients to repopulate the
+        // sessions Map. Fire-and-forget: responses come via setSession messages.
+        const claimedClients = await self.clients.matchAll({ type: 'window' });
+        claimedClients.forEach((c) => c.postMessage({ type: 'requestSession' }));
+      })()
+    );
   }
   if (type === 'pushDecryptResult') {
     // Resolve a pending decryption request from handleMinimalPushPayload
@@ -738,91 +663,36 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // the browser cannot render as an <img>/<video>/etc.
   const redirect: RequestRedirect = 'follow';
 
+  // Fast path: active session for this window
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
     event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
     return;
   }
 
-  // Since widgets like element call have their own client ids,
-  // we need this logic. We just go through the sessions list and get a session
-  // with the right base url. Media requests to a homeserver simply are fine with any account
-  // on the homeserver authenticating it, so this is fine. But it can be technically wrong.
-  // If you have two tabs for different users on the same homeserver, it might authenticate
-  // as the wrong one.
-  // Thus any logic in the future which cares about which user is authenticating the request
-  // might break this. Also, again, it is technically wrong.
-  // Also checks preloadedSession — populated from cache at SW activate — for the window
-  // between SW restart and the first live setSession arriving from the page.
-  const byBaseUrl =
-    [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl)) ??
-    (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)
-      ? preloadedSession
-      : undefined);
+  // Widget fast path: match by baseUrl (Element Call, etc)
+  // Since widgets like Element Call have their own client ids, we need to find
+  // a session that matches the homeserver. Media requests to a homeserver work
+  // with any authenticated account on that homeserver.
+  const byBaseUrl = [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl));
   if (byBaseUrl) {
     event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
     return;
   }
 
-  // No clientId: the fetch came from a context not associated with a specific
-  // window (e.g. a prerender). Fall back to the persisted session directly.
-  if (!clientId) {
-    event.respondWith(
-      loadPersistedSession().then(async (persisted) => {
-        const validated = persisted ? await validateSession(persisted) : undefined;
-        if (validated && validMediaRequest(url, validated.baseUrl)) {
-          return fetch(url, {
-            ...fetchConfig(validated.accessToken),
-            redirect,
-          });
-        }
-        return fetch(event.request);
-      })
-    );
+  // iOS PWA fallback: persisted session (SW restart)
+  // The preloadedSession is populated from cache at SW activate, providing
+  // auth during the window between SW restart and the first live setSession.
+  if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {
+    event.respondWith(fetch(url, { ...fetchConfig(preloadedSession.accessToken), redirect }));
     return;
   }
 
-  event.respondWith(
-    // Wrap the entire chain in a global timeout to prevent infinite hangs.
-    // Even though requestSessionWithTimeout has its own 10s timeout, edge cases
-    // (e.g., loadPersistedSession hanging on IDB, validateSession stuck) could
-    // leave the fetch hanging indefinitely. 15s is generous enough to allow all
-    // fallbacks to complete, but short enough to fail fast if something is stuck.
-    Promise.race([
-      requestSessionWithTimeout(clientId).then(async (s) => {
-        // Primary: session received from the live client window.
-        if (s && validMediaRequest(url, s.baseUrl)) {
-          return fetch(url, { ...fetchConfig(s.accessToken), redirect });
-        }
-        // Fallback: try the persisted session (helps when SW restarts on iOS and
-        // the client window hasn't responded to requestSession yet).
-        const persisted = await loadPersistedSession();
-        const validated = persisted ? await validateSession(persisted) : undefined;
-        if (validated && validMediaRequest(url, validated.baseUrl)) {
-          console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
-          return fetch(url, { ...fetchConfig(validated.accessToken), redirect });
-        }
-        console.warn('[SW fetch] No valid session for media request', {
-          url,
-          clientId,
-          hasSession: !!s,
-          hadPersistedSession: !!persisted,
-          persistedSessionValid: !!validated,
-        });
-        // Log fetch failure to help diagnose FetchEvent.respondWith errors
-        return fetch(event.request).catch((err) => {
-          console.error('[SW fetch] Media fetch failed:', { url, error: err.message });
-          throw err;
-        });
-      }),
-      new Promise<Response>((_, reject) => {
-        setTimeout(() => {
-          console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });
-          reject(new Error('Service worker media fetch timeout'));
-        }, 15000);
-      }),
-    ])
-  );
+  // No session: pass through unmodified
+  // Let real 401/404 errors surface. The main thread's downloadMedia() already
+  // includes accessToken as a fallback header, and logs failures to Sentry.
+  // The UI will show an error with a retry button.
+  event.respondWith(fetch(event.request));
 });
 
 // Detect a minimal (event_id_only) payload: has room_id + event_id but no

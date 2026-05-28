@@ -130,11 +130,23 @@ export const encryptFile = async <T extends File | Blob>(
 
 /**
  * Helper to encode ArrayBuffer as base64 (no padding, URL-safe).
+ * Used for encryption keys and IVs per Matrix spec.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const encodeBase64 = (buffer: Uint8Array): string => {
   const bytes = Array.from(buffer);
   const binaryString = bytes.map((b) => String.fromCharCode(b)).join('');
   return btoa(binaryString).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+};
+
+/**
+ * Helper to encode ArrayBuffer as standard base64 (with padding).
+ * Used for SHA-256 hashes per Matrix spec (file.hashes.sha256).
+ */
+const encodeBase64Standard = (buffer: Uint8Array): string => {
+  const bytes = Array.from(buffer);
+  const binaryString = bytes.map((b) => String.fromCharCode(b)).join('');
+  return btoa(binaryString);
 };
 
 /**
@@ -158,13 +170,28 @@ export const decryptFile = async (
   }
 ): Promise<Blob> => {
   try {
+    // DIAGNOSTIC: Verify hash of encrypted bytes (ciphertext), not decrypted output.
+    // Matrix spec stores the hash of the encrypted file as uploaded to the server.
+    // The hash uses standard base64 encoding (with padding), not URL-safe.
+    const downloadedBytes = new Uint8Array(dataBuffer);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', downloadedBytes);
+    const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer));
+    const expectedHash = encInfo.hashes?.sha256;
+
+    // Temporary diagnostic logging to debug SHA-256 mismatches
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] URL:', context?.mediaUrl);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Downloaded bytes:', downloadedBytes.byteLength);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Expected SHA-256:', expectedHash);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Actual SHA-256:', actualHash);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Match:', actualHash === expectedHash);
+
     // Decrypt the attachment
     const decryptedData = await decryptAttachment(dataBuffer, encInfo);
-
-    // Verify SHA-256 hash matches the expected value from the encryption info
-    const actualHashBytes = await window.crypto.subtle.digest('SHA-256', decryptedData);
-    const actualHash = encodeBase64(new Uint8Array(actualHashBytes));
-    const expectedHash = encInfo.hashes?.sha256;
 
     if (expectedHash && actualHash !== expectedHash) {
       // Hash mismatch — log to Sentry with diagnostic context

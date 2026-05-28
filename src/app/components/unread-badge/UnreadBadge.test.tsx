@@ -8,6 +8,7 @@ const settings = {
   showLoudRoomCounts: false,
   showPingCounts: true,
   showEasterEggs: true,
+  focusMode: 'off' as const,
 };
 
 vi.mock('$state/hooks/settings', () => ({
@@ -24,6 +25,7 @@ beforeEach(() => {
   settings.showLoudRoomCounts = false;
   settings.showPingCounts = true;
   settings.showEasterEggs = true;
+  settings.focusMode = 'off';
 });
 
 describe('resolveUnreadBadgeMode', () => {
@@ -35,6 +37,7 @@ describe('resolveUnreadBadgeMode', () => {
         badgeCountDMsOnly: false,
         showLoudRoomCounts: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('count');
   });
@@ -47,6 +50,7 @@ describe('resolveUnreadBadgeMode', () => {
         badgeCountDMsOnly: false,
         showLoudRoomCounts: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('dot');
   });
@@ -60,6 +64,7 @@ describe('resolveUnreadBadgeMode', () => {
         badgeCountDMsOnly: true,
         showLoudRoomCounts: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('count');
   });
@@ -73,6 +78,7 @@ describe('resolveUnreadBadgeMode', () => {
         badgeCountDMsOnly: false,
         showLoudRoomCounts: false,
         showPingCounts: true,
+        focusMode: 'off',
       })
     ).toBe('count');
   });
@@ -86,6 +92,7 @@ describe('resolveUnreadBadgeMode', () => {
         badgeCountDMsOnly: false,
         showLoudRoomCounts: true,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('count');
   });
@@ -99,6 +106,7 @@ describe('resolveUnreadBadgeMode', () => {
         badgeCountDMsOnly: false,
         showLoudRoomCounts: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('dot');
   });
@@ -112,6 +120,7 @@ describe('resolveUnreadBadgeMode', () => {
         badgeCountDMsOnly: false,
         showLoudRoomCounts: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('dot');
   });

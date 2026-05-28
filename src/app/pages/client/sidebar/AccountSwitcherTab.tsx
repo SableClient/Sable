@@ -186,6 +186,7 @@ export function AccountSwitcherTab() {
   // user.presence would leave the badge stuck at the SDK default forever.
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [presenceMode, setPresenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [focusMode, setFocusMode] = useSetting(settingsAtom, 'focusMode');
   const autoIdled = useAtomValue(presenceAutoIdledAtom);
   const setAutoIdled = useSetAtom(presenceAutoIdledAtom);
   // The effective mode for badge display: if auto-idled, show unavailable regardless of selected mode.
@@ -455,6 +456,50 @@ export function AccountSwitcherTab() {
                     </MenuItem>
                   );
                 })}
+                <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
+                <Box gap="100" direction="Column">
+                  <Text
+                    size="O400"
+                    priority="300"
+                    style={{ marginLeft: config.space.S200, marginTop: config.space.S100 }}
+                  >
+                    Focus Mode
+                  </Text>
+                  {[
+                    { mode: 'off' as const, label: 'Off', description: 'All notifications' },
+                    {
+                      mode: 'focus' as const,
+                      label: 'Focus',
+                      description: 'DMs and mentions only',
+                    },
+                    {
+                      mode: 'dnd' as const,
+                      label: 'Do Not Disturb',
+                      description: 'Critical messages only',
+                    },
+                  ].map(({ mode, label: modeLabel, description }) => {
+                    const isSelected = focusMode === mode;
+                    return (
+                      <MenuItem
+                        key={mode}
+                        size="300"
+                        radii="300"
+                        after={isSelected ? <Icon size="200" src={Icons.Check} /> : undefined}
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setFocusMode(mode);
+                        }}
+                      >
+                        <Box direction="Column" gap="100">
+                          <Text size="T300">{modeLabel}</Text>
+                          <Text size="T200" priority="300">
+                            {description}
+                          </Text>
+                        </Box>
+                      </MenuItem>
+                    );
+                  })}
+                </Box>
                 <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
                 <MenuItem
                   size="300"

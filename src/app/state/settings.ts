@@ -154,6 +154,7 @@ export interface Settings {
   presenceIdleTimeoutMins: number;
   /** User-set status message, cached locally so it survives mode changes and sliding-sync restarts. */
   presenceStatusMsg: string;
+  focusMode: 'off' | 'focus' | 'dnd';
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;
@@ -309,6 +310,7 @@ export const defaultSettings: Settings = {
   autoIdlePresence: true,
   presenceIdleTimeoutMins: 5,
   presenceStatusMsg: '',
+  focusMode: 'off',
   mobileGestures: true,
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,

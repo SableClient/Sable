@@ -51,6 +51,7 @@ import {
 } from '$utils/notificationStyle';
 import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
+import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
@@ -305,6 +306,7 @@ function MessageNotifications() {
     settingsAtom,
     'showMessageContentInEncryptedNotifications'
   );
+  const [focusMode] = useSetting(settingsAtom, 'focusMode');
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
@@ -444,6 +446,12 @@ function MessageNotifications() {
       // leaving loudByRule=false.  Treat known DMs as inherently loud so that
       // the OS notification and badge are consistent with the DM context.
       const isLoud = loudByRule || isDM;
+
+      // Apply focus mode filter: check if this notification should be shown
+      // based on the current focus mode setting.
+      if (!shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule)) {
+        return;
+      }
 
       // Record as notified to prevent duplicate banners (e.g. re-emitted decrypted events).
       notifiedEventsRef.current.add(eventId);
@@ -596,6 +604,7 @@ function MessageNotifications() {
     showMessageContent,
     showEncryptedMessageContent,
     usePushNotifications,
+    focusMode,
     playSound,
     setInAppBanner,
     setPending,

@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Box, Badge, toRem, Text } from 'folds';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { shouldShowNotificationInFocusMode, type FocusMode } from '$utils/focusMode';
 
 type UnreadBadgeProps = {
   highlight?: boolean;
@@ -18,6 +19,7 @@ type ResolveUnreadBadgeModeOptions = Omit<UnreadBadgeProps, 'mode'> & {
   badgeCountDMsOnly: boolean;
   showLoudRoomCounts: boolean;
   showPingCounts: boolean;
+  focusMode: FocusMode;
 };
 
 export type UnreadBadgeMode = 'dot' | 'count';
@@ -33,6 +35,7 @@ export type UnreadBadgeMode = 'dot' | 'count';
  * @param options.badgeCountDMsOnly Whether direct message unread badges should show counts.
  * @param options.showLoudRoomCounts Whether loud notification room badges should show counts.
  * @param options.showPingCounts Whether highlight badges should show counts.
+ * @param options.focusMode The current focus mode setting.
  * @returns `'count'` when the current badge context is allowed to show a number, otherwise `'dot'`.
  */
 export function resolveUnreadBadgeMode({
@@ -44,7 +47,13 @@ export function resolveUnreadBadgeMode({
   badgeCountDMsOnly,
   showLoudRoomCounts,
   showPingCounts,
+  focusMode,
 }: ResolveUnreadBadgeModeOptions): UnreadBadgeMode {
+  // Apply focus mode filter: if focus mode says not to show, always use dot (hidden state)
+  if (count > 0 && !shouldShowNotificationInFocusMode(focusMode, dm ?? false, highlight ?? false)) {
+    return 'dot';
+  }
+
   const showNumber =
     count > 0 &&
     ((dm && badgeCountDMsOnly) ||
@@ -83,6 +92,7 @@ export function UnreadBadge({ highlight, count, dm, loud, mode }: UnreadBadgePro
   const [badgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showLoudRoomCounts] = useSetting(settingsAtom, 'showLoudRoomCounts');
   const [showPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+  const [focusMode] = useSetting(settingsAtom, 'focusMode');
   const [showEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
   const resolvedMode =
     mode ??
@@ -95,6 +105,7 @@ export function UnreadBadge({ highlight, count, dm, loud, mode }: UnreadBadgePro
       badgeCountDMsOnly,
       showLoudRoomCounts,
       showPingCounts,
+      focusMode,
     });
 
   return (

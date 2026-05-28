@@ -8,12 +8,15 @@ type UnreadBadgeProps = {
   count: number;
   /** Whether this badge belongs to a DM room. Used with the badgeCountDMsOnly setting. */
   dm?: boolean;
+  /** Whether this room has loud notifications enabled (set to "All Messages"). */
+  loud?: boolean;
   mode?: UnreadBadgeMode;
 };
 
 type ResolveUnreadBadgeModeOptions = Omit<UnreadBadgeProps, 'mode'> & {
   showUnreadCounts: boolean;
   badgeCountDMsOnly: boolean;
+  showLoudRoomCounts: boolean;
   showPingCounts: boolean;
 };
 
@@ -24,9 +27,11 @@ export type UnreadBadgeMode = 'dot' | 'count';
  *
  * @param options.count The unread count backing this badge. Non-positive counts always resolve to dot mode.
  * @param options.dm Whether the badge belongs to a direct message.
+ * @param options.loud Whether the room has loud notifications enabled ("All Messages").
  * @param options.highlight Whether the badge represents a mention or keyword highlight.
  * @param options.showUnreadCounts Whether regular room unread badges should show counts.
  * @param options.badgeCountDMsOnly Whether direct message unread badges should show counts.
+ * @param options.showLoudRoomCounts Whether loud notification room badges should show counts.
  * @param options.showPingCounts Whether highlight badges should show counts.
  * @returns `'count'` when the current badge context is allowed to show a number, otherwise `'dot'`.
  */
@@ -34,13 +39,18 @@ export function resolveUnreadBadgeMode({
   highlight,
   count,
   dm,
+  loud,
   showUnreadCounts,
   badgeCountDMsOnly,
+  showLoudRoomCounts,
   showPingCounts,
 }: ResolveUnreadBadgeModeOptions): UnreadBadgeMode {
   const showNumber =
     count > 0 &&
-    ((dm && badgeCountDMsOnly) || (!dm && showUnreadCounts) || (highlight && showPingCounts));
+    ((dm && badgeCountDMsOnly) ||
+      (loud && showLoudRoomCounts) ||
+      (!dm && showUnreadCounts) ||
+      (highlight && showPingCounts));
 
   return showNumber ? 'count' : 'dot';
 }
@@ -68,9 +78,10 @@ export function UnreadBadgeCenter({ children }: { children: ReactNode }) {
   );
 }
 
-export function UnreadBadge({ highlight, count, dm, mode }: UnreadBadgeProps) {
+export function UnreadBadge({ highlight, count, dm, loud, mode }: UnreadBadgeProps) {
   const [showUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
+  const [showLoudRoomCounts] = useSetting(settingsAtom, 'showLoudRoomCounts');
   const [showPingCounts] = useSetting(settingsAtom, 'showPingCounts');
   const [showEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
   const resolvedMode =
@@ -79,8 +90,10 @@ export function UnreadBadge({ highlight, count, dm, mode }: UnreadBadgeProps) {
       highlight,
       count,
       dm,
+      loud,
       showUnreadCounts,
       badgeCountDMsOnly,
+      showLoudRoomCounts,
       showPingCounts,
     });
 

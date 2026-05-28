@@ -8,6 +8,7 @@ type SidebarUnreadBadgeProps = {
   highlight?: boolean;
   count: number;
   dm?: boolean;
+  loud?: boolean;
   mode?: UnreadBadgeMode;
 };
 
@@ -15,10 +16,12 @@ export function SidebarUnreadBadge({
   highlight,
   count,
   dm,
+  loud,
   mode,
 }: Readonly<SidebarUnreadBadgeProps>) {
   const [showUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
+  const [showLoudRoomCounts] = useSetting(settingsAtom, 'showLoudRoomCounts');
   const [showPingCounts] = useSetting(settingsAtom, 'showPingCounts');
   const resolvedMode =
     mode ??
@@ -26,14 +29,16 @@ export function SidebarUnreadBadge({
       highlight,
       count,
       dm,
+      loud,
       showUnreadCounts,
       badgeCountDMsOnly,
+      showLoudRoomCounts,
       showPingCounts,
     });
 
   return (
     <SidebarItemBadge mode={resolvedMode}>
-      <UnreadBadge highlight={highlight} count={count} dm={dm} mode={resolvedMode} />
+      <UnreadBadge highlight={highlight} count={count} dm={dm} loud={loud} mode={resolvedMode} />
     </SidebarItemBadge>
   );
 }

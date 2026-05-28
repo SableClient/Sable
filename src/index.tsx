@@ -96,6 +96,52 @@ if ('serviceWorker' in navigator) {
     pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
   };
 
+  // Emergency: unregister stale service worker if sw.js is 404ing (SABLE-2B).
+  // This self-heals for existing users who already have the broken SW registered,
+  // without waiting for a full cache clear.
+  (async () => {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      const checks = registrations
+        .filter(
+          (reg) =>
+            reg.active?.scriptURL.endsWith('/sw.js') || reg.active?.scriptURL.endsWith('/dev-sw.js')
+        )
+        .map(async (reg) => {
+          try {
+            // Check if sw.js is actually available
+            const check = await fetch(swUrl, { method: 'HEAD', cache: 'no-cache' }).catch(
+              () => null
+            );
+            if (!check || !check.ok) {
+              await reg.unregister();
+              return {
+                success: true,
+                message: 'Stale service worker unregistered (sw.js not found)',
+              };
+            }
+            return { success: true, message: 'SW script OK' };
+          } catch (err) {
+            return { success: false, error: err };
+          }
+        });
+
+      const results = await Promise.allSettled(checks);
+      results.forEach((result) => {
+        if (
+          result.status === 'fulfilled' &&
+          result.value.message &&
+          result.value.message.includes('unregistered')
+        ) {
+          log.log(result.value.message);
+        }
+      });
+    } catch (err) {
+      // Non-fatal — continue app init regardless
+      log.warn('SW emergency unregister check failed:', err);
+    }
+  })();
+
   navigator.serviceWorker
     .register(swUrl, swRegisterOptions)
     .then((registration) => {

@@ -538,6 +538,7 @@ export function RoomNavItem({
                       <SidebarUnreadBadge
                         highlight={unread.highlight > 0}
                         count={unread.highlight > 0 ? unread.highlight : unread.total}
+                        loud={notificationMode === RoomNotificationMode.AllMessages}
                       />
                     )}
 
@@ -582,6 +583,7 @@ export function RoomNavItem({
                               highlight={!!unread && unread.highlight > 0}
                               count={unreadCount}
                               dm={direct}
+                              loud={notificationMode === RoomNotificationMode.AllMessages}
                             />
                           </UnreadBadgeCenter>
                         )}

@@ -189,6 +189,10 @@ export function SystemNotification() {
   );
   const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
+  const [showLoudRoomCounts, setShowLoudRoomCounts] = useSetting(
+    settingsAtom,
+    'showLoudRoomCounts'
+  );
   const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
   const [faviconForMentionsOnly, setFaviconForMentionsOnly] = useSetting(
     settingsAtom,
@@ -410,6 +414,25 @@ export function SystemNotification() {
           focusId="show-mention-counts"
           description="Displays a number for mentions and keyword alerts."
           after={<Switch variant="Primary" value={showPingCounts} onChange={setShowPingCounts} />}
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Show Loud Room Counts"
+          focusId="show-loud-room-counts"
+          description="Displays a number for unread messages in rooms set to 'All Messages'. Rooms set to 'Mentions & Keywords' will show a plain dot."
+          after={
+            <Switch
+              variant="Primary"
+              value={showLoudRoomCounts}
+              onChange={setShowLoudRoomCounts}
+            />
+          }
         />
       </SequenceCard>
       <SequenceCard

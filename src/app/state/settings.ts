@@ -160,6 +160,7 @@ export interface Settings {
   useRightBubbles: boolean;
   showUnreadCounts: boolean;
   badgeCountDMsOnly: boolean;
+  showLoudRoomCounts: boolean;
   showPingCounts: boolean;
   showEasterEggs: boolean;
   hideReads: boolean;
@@ -314,6 +315,7 @@ export const defaultSettings: Settings = {
   useRightBubbles: false,
   showUnreadCounts: false,
   badgeCountDMsOnly: true,
+  showLoudRoomCounts: false,
   showPingCounts: true,
   showEasterEggs: true,
   hideReads: false,

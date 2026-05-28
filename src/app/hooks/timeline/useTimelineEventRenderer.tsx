@@ -58,6 +58,7 @@ import type { ForwardedMessageProps } from '$features/room/message';
 import { EncryptedContent, Event, Message, Reactions } from '$features/room/message';
 
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
+import { M_POLL_START } from 'matrix-js-sdk';
 
 function DecoratedUser({ room, userId, userName }: DecoratedUserProps) {
   const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));
@@ -1155,7 +1156,7 @@ export function useTimelineEventRenderer({
           </Event>
         );
       },
-      ['org.matrix.msc3381.poll.start']: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [M_POLL_START.name]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
         const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);
         const actualThreadRootId = isThreadRel ? threadRootId : undefined;

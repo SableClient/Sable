@@ -5,6 +5,7 @@ import { formatUnreadBadgeCount, resolveUnreadBadgeMode, UnreadBadge } from './U
 const settings = {
   showUnreadCounts: true,
   badgeCountDMsOnly: true,
+  showLoudRoomCounts: false,
   showPingCounts: true,
   showEasterEggs: true,
 };
@@ -20,6 +21,7 @@ vi.mock('$state/settings', () => ({
 beforeEach(() => {
   settings.showUnreadCounts = true;
   settings.badgeCountDMsOnly = true;
+  settings.showLoudRoomCounts = false;
   settings.showPingCounts = true;
   settings.showEasterEggs = true;
 });
@@ -31,6 +33,7 @@ describe('resolveUnreadBadgeMode', () => {
         count: 4,
         showUnreadCounts: true,
         badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
         showPingCounts: false,
       })
     ).toBe('count');
@@ -42,6 +45,7 @@ describe('resolveUnreadBadgeMode', () => {
         count: 4,
         showUnreadCounts: false,
         badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
         showPingCounts: false,
       })
     ).toBe('dot');
@@ -54,6 +58,7 @@ describe('resolveUnreadBadgeMode', () => {
         dm: true,
         showUnreadCounts: false,
         badgeCountDMsOnly: true,
+        showLoudRoomCounts: false,
         showPingCounts: false,
       })
     ).toBe('count');
@@ -66,6 +71,7 @@ describe('resolveUnreadBadgeMode', () => {
         highlight: true,
         showUnreadCounts: false,
         badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
         showPingCounts: true,
       })
     ).toBe('count');

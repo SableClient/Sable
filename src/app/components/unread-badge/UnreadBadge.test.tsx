@@ -70,6 +70,45 @@ describe('resolveUnreadBadgeMode', () => {
       })
     ).toBe('count');
   });
+
+  it('returns count for a loud room when loud room counts are enabled', () => {
+    expect(
+      resolveUnreadBadgeMode({
+        count: 5,
+        loud: true,
+        showUnreadCounts: false,
+        badgeCountDMsOnly: false,
+        showLoudRoomCounts: true,
+        showPingCounts: false,
+      })
+    ).toBe('count');
+  });
+
+  it('returns dot for a loud room when loud room counts are disabled', () => {
+    expect(
+      resolveUnreadBadgeMode({
+        count: 5,
+        loud: true,
+        showUnreadCounts: false,
+        badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
+        showPingCounts: false,
+      })
+    ).toBe('dot');
+  });
+
+  it('returns dot for a loud room when showUnreadCounts is enabled but showLoudRoomCounts is disabled', () => {
+    expect(
+      resolveUnreadBadgeMode({
+        count: 5,
+        loud: true,
+        showUnreadCounts: true,
+        badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
+        showPingCounts: false,
+      })
+    ).toBe('dot');
+  });
 });
 
 describe('formatUnreadBadgeCount', () => {

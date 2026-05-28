@@ -40,7 +40,10 @@ export function resolveUnreadBadgeMode({
 }: ResolveUnreadBadgeModeOptions): UnreadBadgeMode {
   const showNumber =
     count > 0 &&
-    ((dm && badgeCountDMsOnly) || (!dm && showUnreadCounts) || (highlight && showPingCounts));
+    ((dm && badgeCountDMsOnly) ||
+      (loud && showLoudRoomCounts) ||
+      (!dm && !loud && showUnreadCounts) ||
+      (highlight && showPingCounts));
 
   return showNumber ? 'count' : 'dot';
 }

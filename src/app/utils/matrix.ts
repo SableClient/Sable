@@ -133,9 +133,106 @@ export const decryptFile = async (
   type: string,
   encInfo: EncryptedAttachmentInfo
 ): Promise<Blob> => {
-  const dataArray = await decryptAttachment(dataBuffer, encInfo);
-  const blob = new Blob([dataArray], { type });
-  return blob;
+  try {
+    // DIAGNOSTIC: Verify hash of encrypted bytes (ciphertext), not decrypted output.
+    // Matrix spec stores the hash of the encrypted file as uploaded to the server.
+    // The hash uses standard base64 encoding (with padding), not URL-safe.
+    const downloadedBytes = new Uint8Array(dataBuffer);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', downloadedBytes);
+    // Matrix spec stores hashes as unpadded base64 - strip padding before comparison
+    const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer)).replace(/=+$/, '');
+    const expectedHash = (encInfo.hashes?.sha256 ?? '').replace(/=+$/, '');
+
+    // Temporary diagnostic logging to debug SHA-256 mismatches
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] URL:', context?.mediaUrl);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Downloaded bytes:', downloadedBytes.byteLength);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Expected SHA-256:', expectedHash);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Actual SHA-256:', actualHash);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Match:', actualHash === expectedHash);
+
+    // Decrypt the attachment
+    const decryptedData = await decryptAttachment(dataBuffer, encInfo);
+
+    if (expectedHash && actualHash !== expectedHash) {
+      // Hash mismatch — log to Sentry with diagnostic context
+      const roomType = context?.roomId?.startsWith('!')
+        ? 'room'
+        : context?.roomId?.startsWith('#')
+          ? 'alias'
+          : 'unknown';
+
+      Sentry.captureException(new Error('Mismatched SHA-256 digest'), {
+        level: 'error',
+        tags: { component: 'media.decrypt', room_type: roomType },
+        extra: {
+          eventId: context?.eventId,
+          roomId: context?.roomId,
+          expectedHash: expectedHash.slice(0, 16) + '...',
+          actualHash: actualHash.slice(0, 16) + '...',
+          mediaUrl: context?.mediaUrl,
+          encryptedSize: dataBuffer.byteLength,
+          decryptedSize: decryptedData.byteLength,
+        },
+      });
+
+      // Throw a specific error that calling code can catch and handle gracefully
+      const error = new Error('Media integrity check failed: SHA-256 hash mismatch');
+      error.name = 'MediaIntegrityError';
+      throw error;
+    }
+
+    const blob = new Blob([decryptedData], { type });
+    return blob;
+  } catch (err) {
+    // Re-throw known integrity errors as-is
+    if (err instanceof Error && err.name === 'MediaIntegrityError') {
+      throw err;
+    }
+
+    // Log other decryption failures to Sentry
+    Sentry.captureException(err, {
+      level: 'error',
+      tags: { component: 'media.decrypt' },
+      extra: {
+        eventId: context?.eventId,
+        roomId: context?.roomId,
+        mediaUrl: context?.mediaUrl,
+        encryptedSize: dataBuffer.byteLength,
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        errorMessage: err instanceof Error ? err.message : String(err),
+      },
+    });
+
+    throw err;
+  }
+};
+
+/**
+ * Safely decrypt an encrypted attachment with integrity checking.
+ * Returns null on MediaIntegrityError to allow graceful fallback rendering.
+ */
+export const decryptFileSafe = async (
+  dataBuffer: ArrayBuffer,
+  type: string,
+  encInfo: EncryptedAttachmentInfo,
+  context?: { eventId?: string; roomId?: string; mediaUrl?: string }
+): Promise<Blob | null> => {
+  try {
+    return await decryptFile(dataBuffer, type, encInfo, context);
+  } catch (err) {
+    if (err instanceof Error && err.name === 'MediaIntegrityError') {
+      // Integrity error already logged to Sentry by decryptFile
+      // Return null to signal the caller to show a broken media placeholder
+      return null;
+    }
+    // Re-throw unexpected errors
+    throw err;
+  }
 };
 
 export type TUploadContent = File;

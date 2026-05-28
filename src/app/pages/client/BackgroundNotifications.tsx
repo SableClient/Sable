@@ -45,6 +45,7 @@ import * as Sentry from '@sentry/react';
 import { startClient, stopClient } from '$client/initMatrix';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { mobileOrTablet } from '$utils/user-agent';
+import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 
 const log = createLogger('BackgroundNotifications');
 const debugLog = createDebugLogger('BackgroundNotifications');
@@ -132,6 +133,7 @@ export function BackgroundNotifications() {
     settingsAtom,
     'showMessageContentInEncryptedNotifications'
   );
+  const [focusMode] = useSetting(settingsAtom, 'focusMode');
   const shouldRunBackgroundNotifications = showNotifications || usePushNotifications;
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
@@ -145,6 +147,8 @@ export function BackgroundNotifications() {
   showMessageContentRef.current = showMessageContent;
   const showEncryptedMessageContentRef = useRef(showEncryptedMessageContent);
   showEncryptedMessageContentRef.current = showEncryptedMessageContent;
+  const focusModeRef = useRef(focusMode);
+  focusModeRef.current = focusMode;
   const clientsRef = useRef(new Map());
   const notifiedEventsRef = useRef(new Set());
   const setPending = useSetAtom(pendingNotificationAtom);
@@ -402,6 +406,21 @@ export function BackgroundNotifications() {
             // Treat DMs and "All Messages" rooms as inherently loud when the push rule lacks a
             // sound tweak (common with sliding sync where room_member_count conditions fail).
             const isLoud = loudByRule || isDM || shouldForceRoomLoudNotification;
+
+            // Apply focus mode filter: check if this notification should be shown
+            // based on the current focus mode setting.
+            if (
+              !shouldShowNotificationInFocusMode(focusModeRef.current, isDM, isHighlight)
+            ) {
+              debugLog.debug('notification', 'Event filtered by focus mode', {
+                eventId,
+                roomId: room.roomId,
+                focusMode: focusModeRef.current,
+                isDM,
+                isHighlight,
+              });
+              return;
+            }
 
             debugLog.info('notification', 'Processing notification event', {
               eventId,

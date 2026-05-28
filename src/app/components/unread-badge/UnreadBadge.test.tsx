@@ -7,6 +7,7 @@ const settings = {
   badgeCountDMsOnly: true,
   showPingCounts: true,
   showEasterEggs: true,
+  focusMode: 'off' as const,
 };
 
 vi.mock('$state/hooks/settings', () => ({
@@ -22,6 +23,7 @@ beforeEach(() => {
   settings.badgeCountDMsOnly = true;
   settings.showPingCounts = true;
   settings.showEasterEggs = true;
+  settings.focusMode = 'off';
 });
 
 describe('resolveUnreadBadgeMode', () => {
@@ -32,6 +34,7 @@ describe('resolveUnreadBadgeMode', () => {
         showUnreadCounts: true,
         badgeCountDMsOnly: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('count');
   });
@@ -43,6 +46,7 @@ describe('resolveUnreadBadgeMode', () => {
         showUnreadCounts: false,
         badgeCountDMsOnly: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('dot');
   });
@@ -55,6 +59,7 @@ describe('resolveUnreadBadgeMode', () => {
         showUnreadCounts: false,
         badgeCountDMsOnly: true,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('count');
   });
@@ -67,8 +72,51 @@ describe('resolveUnreadBadgeMode', () => {
         showUnreadCounts: false,
         badgeCountDMsOnly: false,
         showPingCounts: true,
+        focusMode: 'off',
       })
     ).toBe('count');
+  });
+
+  it('returns count for a loud room when loud room counts are enabled', () => {
+    expect(
+      resolveUnreadBadgeMode({
+        count: 5,
+        loud: true,
+        showUnreadCounts: false,
+        badgeCountDMsOnly: false,
+        showLoudRoomCounts: true,
+        showPingCounts: false,
+        focusMode: 'off',
+      })
+    ).toBe('count');
+  });
+
+  it('returns dot for a loud room when loud room counts are disabled', () => {
+    expect(
+      resolveUnreadBadgeMode({
+        count: 5,
+        loud: true,
+        showUnreadCounts: false,
+        badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
+        showPingCounts: false,
+        focusMode: 'off',
+      })
+    ).toBe('dot');
+  });
+
+  it('returns dot for a loud room when showUnreadCounts is enabled but showLoudRoomCounts is disabled', () => {
+    expect(
+      resolveUnreadBadgeMode({
+        count: 5,
+        loud: true,
+        showUnreadCounts: true,
+        badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
+        showPingCounts: false,
+        focusMode: 'off',
+      })
+    ).toBe('dot');
   });
 });
 

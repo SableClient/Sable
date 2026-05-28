@@ -128,14 +128,96 @@ export const encryptFile = async <T extends File | Blob>(
   };
 };
 
+/**
+ * Helper to encode ArrayBuffer as base64 (no padding, URL-safe).
+ */
+const encodeBase64 = (buffer: Uint8Array): string => {
+  const bytes = Array.from(buffer);
+  const binaryString = bytes.map((b) => String.fromCharCode(b)).join('');
+  return btoa(binaryString).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+};
+
+/**
+ * Decrypt an encrypted Matrix attachment, verify its SHA-256 hash, and return a Blob.
+ *
+ * Safety: Each call uses independent key material and IV/counter state. The
+ * `decryptAttachment` implementation from browser-encrypt-attachment imports
+ * a fresh CryptoKey for each call and uses a non-mutated copy of the IV for
+ * AES-CTR mode, so concurrent decryption calls (e.g., from main client + search
+ * backfill worker) do not share mutable state.
+ */
 export const decryptFile = async (
   dataBuffer: ArrayBuffer,
   type: string,
-  encInfo: EncryptedAttachmentInfo
+  encInfo: EncryptedAttachmentInfo,
+  /** Optional context for diagnostics (eventId, roomId, mxc URL) */
+  context?: {
+    eventId?: string;
+    roomId?: string;
+    mediaUrl?: string;
+  }
 ): Promise<Blob> => {
-  const dataArray = await decryptAttachment(dataBuffer, encInfo);
-  const blob = new Blob([dataArray], { type });
-  return blob;
+  try {
+    // Decrypt the attachment
+    const decryptedData = await decryptAttachment(dataBuffer, encInfo);
+
+    // Verify SHA-256 hash matches the expected value from the encryption info
+    const actualHashBytes = await window.crypto.subtle.digest('SHA-256', decryptedData);
+    const actualHash = encodeBase64(new Uint8Array(actualHashBytes));
+    const expectedHash = encInfo.hashes?.sha256;
+
+    if (expectedHash && actualHash !== expectedHash) {
+      // Hash mismatch — log to Sentry with diagnostic context
+      const roomType = context?.roomId?.startsWith('!')
+        ? 'room'
+        : context?.roomId?.startsWith('#')
+          ? 'alias'
+          : 'unknown';
+
+      Sentry.captureException(new Error('Mismatched SHA-256 digest'), {
+        level: 'error',
+        tags: { component: 'media.decrypt', room_type: roomType },
+        extra: {
+          eventId: context?.eventId,
+          roomId: context?.roomId,
+          expectedHash: expectedHash.slice(0, 16) + '...',
+          actualHash: actualHash.slice(0, 16) + '...',
+          mediaUrl: context?.mediaUrl,
+          encryptedSize: dataBuffer.byteLength,
+          decryptedSize: decryptedData.byteLength,
+        },
+      });
+
+      // Throw a specific error that calling code can catch and handle gracefully
+      const error = new Error('Media integrity check failed: SHA-256 hash mismatch');
+      error.name = 'MediaIntegrityError';
+      throw error;
+    }
+
+    const blob = new Blob([decryptedData], { type });
+    return blob;
+  } catch (err) {
+    // Re-throw known integrity errors as-is
+    if (err instanceof Error && err.name === 'MediaIntegrityError') {
+      throw err;
+    }
+
+    // Log other decryption failures to Sentry
+    Sentry.captureException(err, {
+      level: 'error',
+      tags: { component: 'media.decrypt' },
+      extra: {
+        eventId: context?.eventId,
+        roomId: context?.roomId,
+        mediaUrl: context?.mediaUrl,
+        encryptedSize: dataBuffer.byteLength,
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        errorMessage: err instanceof Error ? err.message : String(err),
+      },
+    });
+
+    throw err;
+  }
 };
 
 export type TUploadContent = File;

@@ -104,7 +104,48 @@
     "enable_the_sharehistory_command": "Enable the /sharehistory command",
     "if_enabled_this_command_will_allow_users_to_share_encrypted_history_with_ot": "If enabled, this command will allow users to share encrypted history with other newly joined users, as per MSC4268.",
     "disable_sharehistory_command": "Disable /sharehistory command",
-    "enable_sharehistory_command": "Enable /sharehistory command"
+    "enable_sharehistory_command": "Enable /sharehistory command",
+    "General": {
+      "formatting": "Formatting",
+      "month": "Month",
+      "day_of_the_week": "Day of the Week",
+      "day_of_the_week_sunday_0": "Day of the week (Sunday = 0)",
+      "two_letter_day_name": "Two-letter day name",
+      "short_day_name": "Short day name",
+      "full_day_name": "Full day name",
+      "day_of_the_month": "Day of the Month",
+      "full_month_name": "Full month name",
+      "short_month_name": "Short month name",
+      "the_month": "The month",
+      "two_digit_month": "Two-digit month",
+      "four_digit_year": "Four-digit year",
+      "two_digit_year": "Two-digit year"
+    },
+    "KeyboardShortcuts": {
+      "jump_to_the_highest_priority_unread_room": "Jump to the highest-priority unread room",
+      "go_to_next_unread_room_cycle": "Go to next unread room (cycle)",
+      "go_to_previous_unread_room_cycle": "Go to previous unread room (cycle)",
+      "undo_in_message_editor": "Undo in message editor",
+      "redo_in_message_editor": "Redo in message editor",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "keyboard_shortcuts": "Keyboard Shortcuts",
+      "close_keyboard_shortcuts": "Close keyboard shortcuts",
+      "messages": "Messages",
+      "navigation": "Navigation"
+    },
+    "Persona": {
+      "limited_compatibility_with_pluralkit_like_functions": "Limited Compatibility with PluralKit-like functions",
+      "enable_pk_commands": "Enable PK commands",
+      "if_enabled_it_will_enable_a_few_pk_style_commands_currently_verry_limited": "If enabled, it will enable a few pk style commands, currently verry limited",
+      "disable_pk_commands": "disable pk; commands",
+      "enable_pks_commands": "enable pk; commands",
+      "enable_shorthands": "Enable Shorthands",
+      "if_enabled_you_can_use_shorthands_to_use_a_persona_for_one_message_only_eg": "If enabled, you can use shorthands to use a Persona for one message only (eg. '✨:test')",
+      "disable_checking_typed_messages_for_shorthands": "disable checking typed messages for shorthands",
+      "enable_checking_typed_messages_for_shorthands": "enable checking typed messages for shorthands"
+    }
   },
   "General": {
     "continue": "Continue",

@@ -7,6 +7,7 @@
 import { Box, Scroll, Text, config } from 'folds';
 import { PageContent } from '$components/page';
 import { SettingsSectionPage } from '../SettingsSectionPage';
+import { t } from 'i18next';
 
 type ShortcutEntry = {
   keys: string;
@@ -29,21 +30,21 @@ function formatKey(key: string): string {
 
 const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
   {
-    name: 'Navigation',
+    name: t('Settings.KeyboardShortcuts.navigation'),
     shortcuts: [
-      { keys: 'Alt+N', description: 'Jump to the highest-priority unread room' },
-      { keys: 'Alt+Shift+Down', description: 'Go to next unread room (cycle)' },
-      { keys: 'Alt+Shift+Up', description: 'Go to previous unread room (cycle)' },
+      { keys: 'Alt+N', description: t('Settings.KeyboardShortcuts.jump_to_the_highest_priority_unread_room') },
+      { keys: 'Alt+Shift+Down', description: t('Settings.KeyboardShortcuts.go_to_next_unread_room_cycle') },
+      { keys: 'Alt+Shift+Up', description: t('Settings.KeyboardShortcuts.go_to_previous_unread_room_cycle') },
     ],
   },
   {
-    name: 'Messages',
+    name: t('Settings.KeyboardShortcuts.messages'),
     shortcuts: [
-      { keys: 'Ctrl+Z / ⌘+Z', description: 'Undo in message editor' },
-      { keys: 'Ctrl+Shift+Z / ⌘+Shift+Z', description: 'Redo in message editor' },
-      { keys: 'Ctrl+B / ⌘+B', description: 'Bold' },
-      { keys: 'Ctrl+I / ⌘+I', description: 'Italic' },
-      { keys: 'Ctrl+U / ⌘+U', description: 'Underline' },
+      { keys: 'Ctrl+Z / ⌘+Z', description: t('Settings.KeyboardShortcuts.undo_in_message_editor') },
+      { keys: 'Ctrl+Shift+Z / ⌘+Shift+Z', description: t('Settings.KeyboardShortcuts.redo_in_message_editor') },
+      { keys: 'Ctrl+B / ⌘+B', description: t('Settings.KeyboardShortcuts.bold') },
+      { keys: 'Ctrl+I / ⌘+I', description: t('Settings.KeyboardShortcuts.italic') },
+      { keys: 'Ctrl+U / ⌘+U', description: t('Settings.KeyboardShortcuts.underline') },
     ],
   },
 ];
@@ -112,9 +113,9 @@ type KeyboardShortcutsProps = {
 export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcutsProps) {
   return (
     <SettingsSectionPage
-      title="Keyboard Shortcuts"
+      title={t('Settings.KeyboardShortcuts.keyboard_shortcuts')}
       titleAs="h1"
-      actionLabel="Close keyboard shortcuts"
+      actionLabel={t('Settings.KeyboardShortcuts.close_keyboard_shortcuts')}
       requestBack={requestBack}
       requestClose={requestClose}
     >

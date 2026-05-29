@@ -89,7 +89,22 @@
       "selected_language_for_pronouns": "Selected language for pronouns",
       "the_language_to_show_pronouns_for_when_the_above_setting_is_enabled": "The language to show pronouns for when the above setting is enabled.",
       "language_code_e_g_en_de_en_de": "Language code (e.g. 'en', 'de', 'en,de')"
-    }
+    },
+    "save_bandwidth_for_sticker_and_emoji_images": "Save Bandwidth for Sticker and Emoji Images",
+    "enable_bandwidth_saving_for_stickers_and_emojis": "Enable bandwidth saving for stickers and emojis",
+    "if_enabled_sticker_and_emoji_images_will_be_optimized_to_save_bandwidth_thi": "If enabled, sticker and emoji images will be optimized to save bandwidth. This helps reduce data usage when viewing these images. But will increase server computation load.",
+    "personas_per_message_profiles": "Personas (Per-Message Profiles)",
+    "show_personas_tab": "Show Personas Tab",
+    "enables_the_personas_tab_in_the_settings_menu_for_per_message_profiles": "Enables the personas tab in the settings menu for per-message profiles",
+    "experimental": "Experimental",
+    "the_features_listed_below_may_be_unstable_or_incomplete": "The features listed below may be unstable or incomplete,",
+    "use_at_your_own_risk": "use at your own risk",
+    "please_report_any_new_issues_potentially_caused_by_these_features": "Please report any new issues potentially caused by these features!",
+    "enable_sharing_of_encrypted_history": "Enable Sharing of Encrypted History",
+    "enable_the_sharehistory_command": "Enable the /sharehistory command",
+    "if_enabled_this_command_will_allow_users_to_share_encrypted_history_with_ot": "If enabled, this command will allow users to share encrypted history with other newly joined users, as per MSC4268.",
+    "disable_sharehistory_command": "Disable /sharehistory command",
+    "enable_sharehistory_command": "Enable /sharehistory command"
   },
   "General": {
     "continue": "Continue",
@@ -120,7 +135,8 @@
     "upload_area": "Upload area",
     "display_name": "Display name",
     "pronouns": "Pronouns",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "edit": "Edit"
   },
   "RoomView": {
     "failed_to_load_history": "Failed to load history.",
@@ -214,5 +230,10 @@
       "invite_to_direct_message_anyway": "Invite to Direct Message anyway",
       "invite_another_member": "Invite another Member"
     }
+  },
+  "DevTools": {
+    "json_content": "JSON Content",
+    "account_data": "Account Data",
+    "developer_tools": "Developer Tools"
   }
 }

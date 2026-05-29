@@ -4,6 +4,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Box, Switch, Text } from 'folds';
 import { SequenceCardStyle } from '../styles.css';
+import { t } from 'i18next';
 
 export function BandwidthSavingEmojis() {
   const [useBandwidthSaving, setUseBandwidthSaving] = useSetting(
@@ -13,7 +14,7 @@ export function BandwidthSavingEmojis() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Save Bandwidth for Sticker and Emoji Images</Text>
+      <Text size="L400">{t('Settings.save_bandwidth_for_sticker_and_emoji_images')}</Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -21,9 +22,9 @@ export function BandwidthSavingEmojis() {
         gap="100"
       >
         <SettingTile
-          title="Enable bandwidth saving for stickers and emojis"
+          title={t('Settings.enable_bandwidth_saving_for_stickers_and_emojis')}
           focusId="bandwidth-saving-emojis"
-          description="If enabled, sticker and emoji images will be optimized to save bandwidth. This helps reduce data usage when viewing these images. But will increase server computation load."
+          description={t('Settings.if_enabled_sticker_and_emoji_images_will_be_optimized_to_save_bandwidth_thi')}
           after={
             <Switch variant="Primary" value={useBandwidthSaving} onChange={setUseBandwidthSaving} />
           }

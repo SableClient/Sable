@@ -10,6 +10,7 @@ import { Sync } from '../general';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
+import { t } from 'i18next';
 
 function PersonaToggle() {
   const [showPersonaSetting, setShowPersonaSetting] = useSetting(
@@ -19,12 +20,12 @@ function PersonaToggle() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Personas (Per-Message Profiles)</Text>
+      <Text size="L400">{t('Settings.personas_per_message_profiles')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Show Personas Tab"
+          title={t('Settings.show_personas_tab')}
           focusId="show-personas-tab"
-          description="Enables the personas tab in the settings menu for per-message profiles"
+          description={t('Settings.enables_the_personas_tab_in_the_settings_menu_for_per_message_profiles')}
           after={
             <Switch variant="Primary" value={showPersonaSetting} onChange={setShowPersonaSetting} />
           }
@@ -40,7 +41,7 @@ type ExperimentalProps = {
 };
 export function Experimental({ requestBack, requestClose }: Readonly<ExperimentalProps>) {
   return (
-    <SettingsSectionPage title="Experimental" requestBack={requestBack} requestClose={requestClose}>
+    <SettingsSectionPage title={t('Settings.experimental')} requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -49,10 +50,10 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               variant="Warning"
               description={
                 <>
-                  The features listed below may be unstable or incomplete,{' '}
-                  <strong>use at your own risk</strong>.
+                  {t('Settings.the_features_listed_below_may_be_unstable_or_incomplete')}{' '}
+                  <strong>{t('Settings.use_at_your_own_risk')}</strong>.
                   <br />
-                  Please report any new issues potentially caused by these features!
+                  {t('Settings.please_report_any_new_issues_potentially_caused_by_these_features')}
                 </>
               }
             />

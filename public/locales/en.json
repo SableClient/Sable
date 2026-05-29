@@ -119,7 +119,8 @@
     "upload": "Upload",
     "upload_area": "Upload area",
     "display_name": "Display name",
-    "pronouns": "Pronouns"
+    "pronouns": "Pronouns",
+    "unknown": "Unknown"
   },
   "RoomView": {
     "failed_to_load_history": "Failed to load history.",
@@ -174,7 +175,13 @@
     }
   },
   "RoomInput": {
-    "recording_duration": "Recording duration:"
+    "recording_duration": "Recording duration:",
+    "EmojiBoard": {
+      "no_results_found": "No Results found",
+      "search_results": "Search Results",
+      "personal_pack": "Personal Pack",
+      "unknown_pack": "Unknown Pack"
+    }
   },
   "RoomCreate": {
     "versions": "Versions",

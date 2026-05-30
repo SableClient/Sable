@@ -951,7 +951,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // Fast path: active session for this window
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
-    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
+    event.respondWith(
+      fetch(url, { ...fetchConfig(session.accessToken), redirect }).catch(() =>
+        fetch(event.request)
+      )
+    );
     return;
   }
 
@@ -961,7 +965,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // with any authenticated account on that homeserver.
   const byBaseUrl = [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl));
   if (byBaseUrl) {
-    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
+    event.respondWith(
+      fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }).catch(() =>
+        fetch(event.request)
+      )
+    );
     return;
   }
 
@@ -969,7 +977,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // The preloadedSession is populated from cache at SW activate, providing
   // auth during the window between SW restart and the first live setSession.
   if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {
-    event.respondWith(fetch(url, { ...fetchConfig(preloadedSession.accessToken), redirect }));
+    event.respondWith(
+      fetch(url, { ...fetchConfig(preloadedSession.accessToken), redirect }).catch(() =>
+        fetch(event.request)
+      )
+    );
     return;
   }
 
@@ -977,7 +989,14 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // Let real 401/404 errors surface. The main thread's downloadMedia() already
   // includes accessToken as a fallback header, and logs failures to Sentry.
   // The UI will show an error with a retry button.
-  event.respondWith(fetch(event.request));
+  event.respondWith(
+    fetch(event.request).catch((error) => {
+      // Network-level failures fall through to the browser's default fetch behavior.
+      // This prevents FetchEvent.respondWith errors from surfacing in the console.
+      console.debug('[SW] Media fetch failed, falling through:', error);
+      return fetch(event.request);
+    })
+  );
 });
 
 // Detect a minimal (event_id_only) payload: has room_id + event_id but no

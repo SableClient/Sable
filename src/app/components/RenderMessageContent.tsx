@@ -444,7 +444,7 @@ function RenderMessageContentInternal({
         }
       />
     );
-  if (content['org.matrix.msc3381.poll.start'])
+  if (content['org.matrix.msc3381.poll.start'] && mEvent)
     return <PollEvent content={content} mEvent={mEvent} />;
   return (
     <UnsupportedContent

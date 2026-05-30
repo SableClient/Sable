@@ -1156,7 +1156,7 @@ export function useTimelineEventRenderer({
           </Event>
         );
       },
-      [M_POLL_START.name]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [M_POLL_START.name]: (mEventId, mEvent, item, timelineSet) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
         const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);
         const actualThreadRootId = isThreadRel ? threadRootId : undefined;
@@ -1250,7 +1250,7 @@ export function useTimelineEventRenderer({
             onResend={onResend}
             onDeleteFailedSend={onDeleteFailedSend}
             onEditId={onEditId}
-            collapse={collapse}
+            collapse={false}
             activeReplyId={activeReplyId}
             reply={
               replyEventId && (

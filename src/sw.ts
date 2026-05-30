@@ -131,8 +131,6 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
   }
 }
 
-
-
 type SessionInfo = {
   accessToken: string;
   baseUrl: string;
@@ -189,8 +187,6 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   }
 }
-
-
 
 // ---------------------------------------------------------------------------
 // Strategy 7: Sliding Sync Prefetch
@@ -818,7 +814,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     // the SW while the page was in bfcache or in the foreground under memory
     // pressure).  Claiming here — after the page is visible — never evicts bfcache.
     event.waitUntil(
-(async () => {
+      (async () => {
         await self.clients.claim();
         // Re-request sessions from all newly-claimed clients to repopulate the
         // sessions Map. Fire-and-forget: responses come via setSession messages.

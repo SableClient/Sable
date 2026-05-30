@@ -427,11 +427,7 @@ export function SystemNotification() {
           focusId="show-loud-room-counts"
           description="Displays a number for unread messages in rooms set to 'All Messages' or using the default notification level. Rooms set to 'Mentions & Keywords' will show a plain dot."
           after={
-            <Switch
-              variant="Primary"
-              value={showLoudRoomCounts}
-              onChange={setShowLoudRoomCounts}
-            />
+            <Switch variant="Primary" value={showLoudRoomCounts} onChange={setShowLoudRoomCounts} />
           }
         />
       </SequenceCard>

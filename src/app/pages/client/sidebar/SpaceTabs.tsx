@@ -544,6 +544,11 @@ function SpaceTab({
   );
   const unread = useRoomsUnread(allChild, roomToUnreadAtom);
 
+  // For spaces, we pass loud={true} so that the "Show Loud Room Counts" setting
+  // applies to space badges. Spaces aggregate their children, so if any child
+  // has unreads, the space badge will show counts when the setting is enabled.
+  const hasLoudChildren = true;
+
   const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     evt.preventDefault();
     const cords = evt.currentTarget.getBoundingClientRect();
@@ -589,6 +594,7 @@ function SpaceTab({
         <SidebarUnreadBadge
           highlight={unread.highlight > 0}
           count={unread.highlight > 0 ? unread.highlight : unread.total}
+          loud={hasLoudChildren}
         />
       )}
       {menuAnchor && (
@@ -686,6 +692,9 @@ function ClosedSpaceFolder({
 
   const tooltipName = folderDefaultDisplayName(mx, folder);
 
+  // For space folders, pass loud={true} so "Show Loud Room Counts" applies to the folder badge
+  const hasLoudChildren = true;
+
   return (
     <RoomsUnreadProvider rooms={folder.content}>
       {(unread) => (
@@ -733,6 +742,7 @@ function ClosedSpaceFolder({
             <SidebarUnreadBadge
               highlight={unread.highlight > 0}
               count={unread.highlight > 0 ? unread.highlight : unread.total}
+              loud={hasLoudChildren}
             />
           )}
         </SidebarItem>

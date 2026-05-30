@@ -473,9 +473,7 @@ export function BackgroundNotifications() {
 
             // Apply focus mode filter: check if this notification should be shown
             // based on the current focus mode setting.
-            if (
-              !shouldShowNotificationInFocusMode(focusModeRef.current, isDM, isHighlight)
-            ) {
+            if (!shouldShowNotificationInFocusMode(focusModeRef.current, isDM, isHighlight)) {
               debugLog.debug('notification', 'Event filtered by focus mode', {
                 eventId,
                 roomId: room.roomId,

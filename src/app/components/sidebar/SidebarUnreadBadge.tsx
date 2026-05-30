@@ -23,6 +23,7 @@ export function SidebarUnreadBadge({
   const [badgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showLoudRoomCounts] = useSetting(settingsAtom, 'showLoudRoomCounts');
   const [showPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+  const [focusMode] = useSetting(settingsAtom, 'focusMode');
   const resolvedMode =
     mode ??
     resolveUnreadBadgeMode({
@@ -34,6 +35,7 @@ export function SidebarUnreadBadge({
       badgeCountDMsOnly,
       showLoudRoomCounts,
       showPingCounts,
+      focusMode,
     });
 
   return (

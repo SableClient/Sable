@@ -56,7 +56,7 @@ import {
   SidebarFolder,
   SidebarFolderDropTarget,
 } from '$components/sidebar';
-import { RoomUnreadProvider, RoomsUnreadProvider } from '$components/RoomUnreadProvider';
+import { RoomsUnreadProvider } from '$components/RoomUnreadProvider';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { RoomAvatar } from '$components/room-avatar';
@@ -77,6 +77,11 @@ import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoomsUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { markAsRead } from '$utils/notifications';
+import {
+  getRoomNotificationMode,
+  RoomNotificationMode,
+  useRoomsNotificationPreferencesContext,
+} from '$hooks/useRoomsNotificationPreferences';
 import { copyToClipboard } from '$utils/dom';
 import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
@@ -534,6 +539,40 @@ function SpaceTab({
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
+  // Aggregate unread across all recursive child rooms (space rooms themselves
+  // carry no messages, so RoomUnreadProvider would always return nothing).
+  const roomToParents = useAtomValue(roomToParentsAtom);
+  const allChild = useSpaceChildren(
+    allRoomsAtom,
+    space.roomId,
+    useRecursiveChildScopeFactory(mx, roomToParents)
+  );
+
+  // Filter to only include "loud" rooms (Default or All Messages notification mode).
+  // "Show Loud Room Counts" should only count rooms with Default or All Messages,
+  // not rooms set to "Mentions and Keywords Only" or "Mute".
+  const notificationPreferences = useRoomsNotificationPreferencesContext();
+  const loudChild = useMemo(
+    () =>
+      allChild.filter((roomId) => {
+        const mode = getRoomNotificationMode(notificationPreferences, roomId);
+        return mode === RoomNotificationMode.Unset || mode === RoomNotificationMode.AllMessages;
+      }),
+    [allChild, notificationPreferences]
+  );
+
+  // Get unreads from ALL child rooms to show badges for all unreads
+  const allUnread = useRoomsUnread(allChild, roomToUnreadAtom);
+
+  // Track loud rooms separately to determine when to show counts vs dots
+  const loudUnread = useRoomsUnread(loudChild, roomToUnreadAtom);
+  const hasLoudUnreads = !!loudUnread && (loudUnread.highlight > 0 || loudUnread.total > 0);
+
+  // Show badges for all unreads, but use loud parameter to control count vs dot display.
+  // When "Show Loud Room Counts" is enabled and there are loud unreads, show counts.
+  // Otherwise show dots (for quiet rooms like mentions-only or muted).
+  const unread = allUnread;
+
   const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     evt.preventDefault();
     const cords = evt.currentTarget.getBoundingClientRect();
@@ -544,74 +583,71 @@ function SpaceTab({
   };
 
   return (
-    <RoomUnreadProvider roomId={space.roomId}>
-      {(unread) => (
-        <SidebarItem
-          active={selected}
-          ref={targetRef}
-          aria-disabled={disabled}
-          data-drop-child={dropType === 'make-child'}
-          data-drop-above={dropType === 'reorder-above'}
-          data-drop-below={dropType === 'reorder-below'}
-          data-inside-folder={!!folder}
-        >
-          <SidebarItemTooltip tooltip={disabled ? undefined : space.name}>
-            {(triggerRef) => (
-              <SidebarAvatar
-                as="button"
-                data-id={space.roomId}
-                ref={triggerRef}
-                size={folder ? '300' : '400'}
-                onClick={onClick}
-                onContextMenu={handleContextMenu}
-              >
-                <RoomAvatar
-                  roomId={space.roomId}
-                  uniformIcons
-                  src={getRoomAvatarUrl(mx, space, 96, useAuthentication) ?? undefined}
-                  alt={space.name}
-                  renderFallback={() => (
-                    <Text size={folder ? 'H6' : 'H4'}>{nameInitials(space.name, 2)}</Text>
-                  )}
-                />
-              </SidebarAvatar>
-            )}
-          </SidebarItemTooltip>
-          {unread && (
-            <SidebarUnreadBadge
-              highlight={unread.highlight > 0}
-              count={unread.highlight > 0 ? unread.highlight : unread.total}
+    <SidebarItem
+      active={selected}
+      ref={targetRef}
+      aria-disabled={disabled}
+      data-drop-child={dropType === 'make-child'}
+      data-drop-above={dropType === 'reorder-above'}
+      data-drop-below={dropType === 'reorder-below'}
+      data-inside-folder={!!folder}
+    >
+      <SidebarItemTooltip tooltip={disabled ? undefined : space.name}>
+        {(triggerRef) => (
+          <SidebarAvatar
+            as="button"
+            data-id={space.roomId}
+            ref={triggerRef}
+            size={folder ? '300' : '400'}
+            onClick={onClick}
+            onContextMenu={handleContextMenu}
+          >
+            <RoomAvatar
+              roomId={space.roomId}
+              uniformIcons
+              src={getRoomAvatarUrl(mx, space, 96, useAuthentication) ?? undefined}
+              alt={space.name}
+              renderFallback={() => (
+                <Text size={folder ? 'H6' : 'H4'}>{nameInitials(space.name, 2)}</Text>
+              )}
             />
-          )}
-          {menuAnchor && (
-            <PopOut
-              anchor={menuAnchor}
-              position="Right"
-              align="Start"
-              content={
-                <FocusTrap
-                  focusTrapOptions={{
-                    initialFocus: false,
-                    returnFocusOnDeactivate: false,
-                    onDeactivate: () => setMenuAnchor(undefined),
-                    clickOutsideDeactivates: true,
-                    isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                    isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                    escapeDeactivates: stopPropagation,
-                  }}
-                >
-                  <SpaceMenu
-                    room={space}
-                    requestClose={() => setMenuAnchor(undefined)}
-                    onUnpin={onUnpin}
-                  />
-                </FocusTrap>
-              }
-            />
-          )}
-        </SidebarItem>
+          </SidebarAvatar>
+        )}
+      </SidebarItemTooltip>
+      {unread && (
+        <SidebarUnreadBadge
+          highlight={unread.highlight > 0}
+          count={unread.highlight > 0 ? unread.highlight : unread.total}
+          loud={hasLoudUnreads}
+        />
       )}
-    </RoomUnreadProvider>
+      {menuAnchor && (
+        <PopOut
+          anchor={menuAnchor}
+          position="Right"
+          align="Start"
+          content={
+            <FocusTrap
+              focusTrapOptions={{
+                initialFocus: false,
+                returnFocusOnDeactivate: false,
+                onDeactivate: () => setMenuAnchor(undefined),
+                clickOutsideDeactivates: true,
+                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
+                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+                escapeDeactivates: stopPropagation,
+              }}
+            >
+              <SpaceMenu
+                room={space}
+                requestClose={() => setMenuAnchor(undefined)}
+                onUnpin={onUnpin}
+              />
+            </FocusTrap>
+          }
+        />
+      )}
+    </SidebarItem>
   );
 }
 
@@ -680,8 +716,19 @@ function ClosedSpaceFolder({
 
   const tooltipName = folderDefaultDisplayName(mx, folder);
 
+  // Filter to only include "loud" rooms (Default or All Messages notification mode).
+  const notificationPreferences = useRoomsNotificationPreferencesContext();
+  const loudRooms = useMemo(
+    () =>
+      folder.content.filter((roomId) => {
+        const mode = getRoomNotificationMode(notificationPreferences, roomId);
+        return mode === RoomNotificationMode.Unset || mode === RoomNotificationMode.AllMessages;
+      }),
+    [folder.content, notificationPreferences]
+  );
+
   return (
-    <RoomsUnreadProvider rooms={folder.content}>
+    <RoomsUnreadProvider rooms={loudRooms}>
       {(unread) => (
         <SidebarItem
           active={selected}
@@ -727,6 +774,7 @@ function ClosedSpaceFolder({
             <SidebarUnreadBadge
               highlight={unread.highlight > 0}
               count={unread.highlight > 0 ? unread.highlight : unread.total}
+              loud={!!unread && (unread.highlight > 0 || unread.total > 0)}
             />
           )}
         </SidebarItem>

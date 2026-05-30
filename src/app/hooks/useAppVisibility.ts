@@ -61,11 +61,31 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     if (!mx) return undefined;
 
     const doRetry = () => {
-      // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
-      // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
-      // slidingSync.resend() which aborts any stalled request and retries without backoff.
-      mx.retryImmediately();
-      getSlidingSyncManager(mx)?.retryNow();
+      // Only retry if sync is actually in an error or stopped state.
+      // Calling retry when already syncing causes unnecessary reconnection banners.
+      const syncState = mx.getSyncState();
+      if (syncState !== 'ERROR' && syncState !== 'STOPPED' && syncState !== 'RECONNECTING') {
+        debugLog.info('general', 'Skipping retry - already syncing', { syncState });
+        return;
+      }
+
+      // Wrap retry calls in try-catch to prevent crashes during wake/restore.
+      // The matrix client or sliding sync manager might be in an invalid state
+      // if the device just woke from sleep or the app was restored from bfcache.
+      try {
+        debugLog.info('general', 'Triggering sync retry', { syncState });
+        // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
+        // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
+        // slidingSync.resend() which aborts any stalled request and retries without backoff.
+        mx.retryImmediately();
+        getSlidingSyncManager(mx)?.retryNow();
+      } catch (err) {
+        debugLog.error('general', 'Sync retry failed during wake/restore', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        // Don't rethrow — allow the app to continue and retry will happen naturally
+        // once the client is in a healthy state again.
+      }
     };
 
     // Debounce foreground events: both pageshow[persisted] and visibilitychange can

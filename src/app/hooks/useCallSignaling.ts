@@ -67,7 +67,13 @@ export function useCallSignaling() {
 
   const playOutgoingRinging = useCallback((roomId: string) => {
     if (outgoingAudioRef.current && ringingRoomIdRef.current !== roomId) {
-      outgoingAudioRef.current.play().catch(() => {});
+      // Attempt play — catch NotAllowedError silently (autoplay blocked by browser).
+      // This is expected behavior when there's no recent user gesture.
+      outgoingAudioRef.current.play().catch((err) => {
+        if (err.name !== 'NotAllowedError') {
+          debugLog.warn('call', 'Outgoing ringtone play failed', { error: String(err) });
+        }
+      });
       ringingRoomIdRef.current = roomId;
     }
   }, []);
@@ -75,7 +81,13 @@ export function useCallSignaling() {
   const playRinging = useCallback(
     (roomId: string) => {
       if (incomingAudioRef.current && ringingRoomIdRef.current !== roomId) {
-        incomingAudioRef.current.play().catch(() => {});
+        // Attempt play — catch NotAllowedError silently (autoplay blocked by browser).
+        // This is expected behavior when there's no recent user gesture.
+        incomingAudioRef.current.play().catch((err) => {
+          if (err.name !== 'NotAllowedError') {
+            debugLog.warn('call', 'Incoming ringtone play failed', { error: String(err) });
+          }
+        });
         ringingRoomIdRef.current = roomId;
         setIncomingCall(roomId);
       }

@@ -333,6 +333,8 @@ function MessageNotifications() {
     const skipFocusCheckEvents = new Set<string>();
     // Tracks when each event first arrived so we can measure notification delivery latency
     const notifyTimerMap = new Map<string, number>();
+    // Track pending decryption listeners to clean up on unmount
+    const pendingDecryptListeners = new Map<string, () => void>();
 
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = (
       mEvent,
@@ -381,12 +383,19 @@ function MessageNotifications() {
         const handleDecrypted = () => {
           // After decryption, run the notification logic with the decrypted event
           handleTimelineEvent(mEvent, room, undefined, true, data);
-          // Clean up the skip-focus marker
+          // Clean up the skip-focus marker and listener tracker
           if (eventId) {
             skipFocusCheckEvents.delete(eventId);
+            pendingDecryptListeners.delete(eventId);
           }
         };
         mEvent.once(MatrixEventEvent.Decrypted, handleDecrypted);
+        // Track listener for cleanup on unmount
+        if (eventId) {
+          pendingDecryptListeners.set(eventId, () =>
+            mEvent.off(MatrixEventEvent.Decrypted, handleDecrypted)
+          );
+        }
         return;
       }
 
@@ -594,6 +603,9 @@ function MessageNotifications() {
     mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
       mx.removeListener(RoomEvent.Timeline, handleTimelineEvent);
+      // Clean up any pending decryption listeners
+      pendingDecryptListeners.forEach((cleanup) => cleanup());
+      pendingDecryptListeners.clear();
     };
   }, [
     mx,
@@ -952,6 +964,27 @@ function HandleDecryptPushEvent() {
           'Push relay decryption failed',
           err instanceof Error ? err : new Error(String(err))
         );
+
+        // Check if this is a missing keys error
+        const isDecryptionError =
+          err instanceof Error &&
+          (err.message.includes("The sender's device has not sent us the keys") ||
+            err.message.includes('Unknown inbound session'));
+
+        if (isDecryptionError) {
+          Sentry.addBreadcrumb({
+            category: 'crypto',
+            message: 'Push decryption failed: missing room keys',
+            data: { eventId, roomId, error: err.message },
+            level: 'warning',
+          });
+          Sentry.metrics.count('sable.push.decrypt_missing_keys', 1, {
+            attributes: { app_visible: document.visibilityState === 'visible' },
+          });
+          // SDK will automatically request keys on next decryptEventIfNeeded call
+          // when the event is viewed in the timeline
+        }
+
         postToServiceWorker({
           type: 'pushDecryptResult',
           eventId,

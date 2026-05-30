@@ -19,10 +19,14 @@ let syncIsHealthy = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
-const { handlePushNotificationPushData } = createPushNotifications(self, () => ({
-  showMessageContent,
-  showEncryptedMessageContent,
-}));
+const { handlePushNotificationPushData } = createPushNotifications(
+  self,
+  () => ({
+    showMessageContent,
+    showEncryptedMessageContent,
+  }),
+  postSentryMetric
+);
 
 /** Cache key used to persist notification settings across SW restarts (iOS kills the SW frequently). */
 const SW_SETTINGS_CACHE = 'sable-sw-settings-v1';

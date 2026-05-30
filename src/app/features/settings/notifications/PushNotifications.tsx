@@ -127,6 +127,9 @@ export async function enablePushNotifications(
       span.setAttribute('push.success', true);
       span.setAttribute('push.reused_subscription', true);
       span.end();
+      Sentry.metrics.count('sable.push.registration', 1, {
+        attributes: { outcome: 'reused', has_vapid: true },
+      });
       return;
     }
 
@@ -180,10 +183,25 @@ export async function enablePushNotifications(
     span.setAttribute('push.endpoint', newSubscription.endpoint);
     span.setAttribute('push.success', true);
     span.end();
+    Sentry.metrics.count('sable.push.registration', 1, {
+      attributes: { outcome: 'created', has_vapid: true },
+    });
   } catch (err) {
     span.setAttribute('push.success', false);
     span.setAttribute('push.error', err instanceof Error ? err.message : String(err));
     span.end();
+    Sentry.metrics.count('sable.push.registration', 1, {
+      attributes: {
+        outcome: 'failed',
+        error_type: err instanceof Error ? err.name : 'unknown',
+      },
+    });
+    Sentry.addBreadcrumb({
+      category: 'push',
+      message: 'Push registration failed',
+      data: { error: err instanceof Error ? err.message : String(err) },
+      level: 'error',
+    });
     throw err;
   }
 }

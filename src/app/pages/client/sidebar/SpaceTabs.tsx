@@ -561,12 +561,17 @@ function SpaceTab({
     [allChild, notificationPreferences]
   );
 
+  // Get unreads from ALL child rooms to show badges for all unreads
+  const allUnread = useRoomsUnread(allChild, roomToUnreadAtom);
+
+  // Track loud rooms separately to determine when to show counts vs dots
   const loudUnread = useRoomsUnread(loudChild, roomToUnreadAtom);
   const hasLoudUnreads = !!loudUnread && (loudUnread.highlight > 0 || loudUnread.total > 0);
 
-  // Use loud unreads for the badge count when "Show Loud Room Counts" is enabled.
-  // Pass loud={hasLoudUnreads} so the setting only applies if there are actually loud unreads.
-  const unread = loudUnread;
+  // Show badges for all unreads, but use loud parameter to control count vs dot display.
+  // When "Show Loud Room Counts" is enabled and there are loud unreads, show counts.
+  // Otherwise show dots (for quiet rooms like mentions-only or muted).
+  const unread = allUnread;
 
   const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     evt.preventDefault();

@@ -28,6 +28,9 @@ const SW_SETTINGS_URL = '/sw-settings-meta';
 const SW_SESSION_CACHE = 'sable-sw-session-v1';
 const SW_SESSION_URL = '/sw-session-meta';
 
+/** Cache for authenticated Matrix media responses — keyed by URL. */
+const SW_MEDIA_CACHE = 'sable-media-sw-v2';
+
 async function persistSettings() {
   try {
     const cache = await self.caches.open(SW_SETTINGS_CACHE);

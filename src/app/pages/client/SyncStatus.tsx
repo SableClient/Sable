@@ -44,11 +44,13 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     }, [])
   );
 
+  // Only show "Connecting..." banner when recovering from an actual connection issue,
+  // not on normal startup (previous === null/undefined) or when already syncing
   if (
     (stateData.current === SyncState.Prepared ||
       stateData.current === SyncState.Syncing ||
       stateData.current === SyncState.Catchup) &&
-    stateData.previous !== SyncState.Syncing
+    (stateData.previous === SyncState.Reconnecting || stateData.previous === SyncState.Error)
   ) {
     return (
       <Box direction="Column" shrink="No">
@@ -58,7 +60,7 @@ export function SyncStatus({ mx }: SyncStatusProps) {
           alignItems="Center"
           justifyContent="Center"
         >
-          <Text size="L400">Connecting...</Text>
+          <Text size="L400">Connected!</Text>
         </Box>
         <Line variant="Success" size="300" />
       </Box>

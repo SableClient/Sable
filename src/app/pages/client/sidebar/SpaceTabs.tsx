@@ -77,6 +77,11 @@ import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoomsUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { markAsRead } from '$utils/notifications';
+import {
+  getRoomNotificationMode,
+  RoomNotificationMode,
+  useRoomsNotificationPreferencesContext,
+} from '$hooks/useRoomsNotificationPreferences';
 import { copyToClipboard } from '$utils/dom';
 import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
@@ -542,12 +547,26 @@ function SpaceTab({
     space.roomId,
     useRecursiveChildScopeFactory(mx, roomToParents)
   );
-  const unread = useRoomsUnread(allChild, roomToUnreadAtom);
 
-  // For spaces, we pass loud={true} so that the "Show Loud Room Counts" setting
-  // applies to space badges. Spaces aggregate their children, so if any child
-  // has unreads, the space badge will show counts when the setting is enabled.
-  const hasLoudChildren = true;
+  // Filter to only include "loud" rooms (Default or All Messages notification mode).
+  // "Show Loud Room Counts" should only count rooms with Default or All Messages,
+  // not rooms set to "Mentions and Keywords Only" or "Mute".
+  const notificationPreferences = useRoomsNotificationPreferencesContext();
+  const loudChild = useMemo(
+    () =>
+      allChild.filter((roomId) => {
+        const mode = getRoomNotificationMode(notificationPreferences, roomId);
+        return mode === RoomNotificationMode.Unset || mode === RoomNotificationMode.AllMessages;
+      }),
+    [allChild, notificationPreferences]
+  );
+
+  const loudUnread = useRoomsUnread(loudChild, roomToUnreadAtom);
+  const hasLoudUnreads = !!loudUnread && (loudUnread.highlight > 0 || loudUnread.total > 0);
+
+  // Use loud unreads for the badge count when "Show Loud Room Counts" is enabled.
+  // Pass loud={hasLoudUnreads} so the setting only applies if there are actually loud unreads.
+  const unread = loudUnread;
 
   const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     evt.preventDefault();
@@ -594,7 +613,7 @@ function SpaceTab({
         <SidebarUnreadBadge
           highlight={unread.highlight > 0}
           count={unread.highlight > 0 ? unread.highlight : unread.total}
-          loud={hasLoudChildren}
+          loud={hasLoudUnreads}
         />
       )}
       {menuAnchor && (
@@ -692,11 +711,19 @@ function ClosedSpaceFolder({
 
   const tooltipName = folderDefaultDisplayName(mx, folder);
 
-  // For space folders, pass loud={true} so "Show Loud Room Counts" applies to the folder badge
-  const hasLoudChildren = true;
+  // Filter to only include "loud" rooms (Default or All Messages notification mode).
+  const notificationPreferences = useRoomsNotificationPreferencesContext();
+  const loudRooms = useMemo(
+    () =>
+      folder.content.filter((roomId) => {
+        const mode = getRoomNotificationMode(notificationPreferences, roomId);
+        return mode === RoomNotificationMode.Unset || mode === RoomNotificationMode.AllMessages;
+      }),
+    [folder.content, notificationPreferences]
+  );
 
   return (
-    <RoomsUnreadProvider rooms={folder.content}>
+    <RoomsUnreadProvider rooms={loudRooms}>
       {(unread) => (
         <SidebarItem
           active={selected}
@@ -742,7 +769,7 @@ function ClosedSpaceFolder({
             <SidebarUnreadBadge
               highlight={unread.highlight > 0}
               count={unread.highlight > 0 ? unread.highlight : unread.total}
-              loud={hasLoudChildren}
+              loud={!!unread && (unread.highlight > 0 || unread.total > 0)}
             />
           )}
         </SidebarItem>

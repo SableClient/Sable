@@ -666,7 +666,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // Fast path: active session for this window
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
-    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
+    event.respondWith(
+      fetch(url, { ...fetchConfig(session.accessToken), redirect }).catch(() =>
+        fetch(event.request)
+      )
+    );
     return;
   }
 
@@ -676,7 +680,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // with any authenticated account on that homeserver.
   const byBaseUrl = [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl));
   if (byBaseUrl) {
-    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
+    event.respondWith(
+      fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }).catch(() =>
+        fetch(event.request)
+      )
+    );
     return;
   }
 
@@ -684,77 +692,25 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // The preloadedSession is populated from cache at SW activate, providing
   // auth during the window between SW restart and the first live setSession.
   if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {
-    event.respondWith(fetch(url, { ...fetchConfig(preloadedSession.accessToken), redirect }));
+    event.respondWith(
+      fetch(url, { ...fetchConfig(preloadedSession.accessToken), redirect }).catch(() =>
+        fetch(event.request)
+      )
+    );
     return;
   }
 
+  // No session: pass through unmodified
+  // Let real 401/404 errors surface. The main thread's downloadMedia() already
+  // includes accessToken as a fallback header, and logs failures to Sentry.
+  // The UI will show an error with a retry button.
   event.respondWith(
-    // Wrap the entire chain in a global timeout to prevent infinite hangs.
-    // Even though requestSessionWithTimeout has its own 10s timeout, edge cases
-    // (e.g., loadPersistedSession hanging on IDB, validateSession stuck) could
-    // leave the fetch hanging indefinitely. 15s is generous enough to allow all
-    // fallbacks to complete, but short enough to fail fast if something is stuck.
-    Promise.race([
-      requestSessionWithTimeout(clientId).then(async (s) => {
-        // Primary: session received from the live client window.
-        if (s && validMediaRequest(url, s.baseUrl)) {
-          return fetch(url, { ...fetchConfig(s.accessToken), redirect });
-        }
-        // Fallback: try the persisted session (helps when SW restarts on iOS and
-        // the client window hasn't responded to requestSession yet).
-        const persisted = await loadPersistedSession();
-        const validated = persisted ? await validateSession(persisted) : undefined;
-        if (validated && validMediaRequest(url, validated.baseUrl)) {
-          console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
-          return fetch(url, { ...fetchConfig(validated.accessToken), redirect });
-        }
-        console.warn('[SW fetch] No valid session for media request — returning 401', {
-          url,
-          clientId,
-          hasSession: !!s,
-          hadPersistedSession: !!persisted,
-          persistedSessionValid: !!validated,
-        });
-
-        // Check if this is an actual media download (encrypted bytes) vs metadata/preview
-        const isMediaDownload =
-          url.includes('/_matrix/client/v1/media/download') ||
-          url.includes('/_matrix/client/v1/media/thumbnail') ||
-          url.includes('/_matrix/media/v3/download') ||
-          url.includes('/_matrix/media/v3/thumbnail') ||
-          url.includes('/_matrix/media/r0/download') ||
-          url.includes('/_matrix/media/r0/thumbnail');
-
-        if (isMediaDownload) {
-          // Never return synthetic body for encrypted media — it would be passed to
-          // decryptAttachment() which tries to decrypt it and fails SHA-256 check.
-          // Let the real network error propagate so client catches it as fetch failure.
-          console.debug(
-            '[SW fetch] Media download with no session — letting fetch fail naturally',
-            { url }
-          );
-          return fetch(url, { redirect });
-        }
-
-        // SABLE-4Y fix: Return synthetic 401 for non-media requests (preview_url, etc).
-        // Prevents unnecessary network requests that will fail with 401 anyway, and
-        // allows client-side blob cache to handle auth failures gracefully.
-        return new Response(
-          JSON.stringify({ errcode: 'M_MISSING_TOKEN', error: 'No session available' }),
-          {
-            status: 401,
-            statusText: 'Unauthorized',
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-      }),
-      new Promise<Response>((_, reject) => {
-        setTimeout(() => {
-          console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });
-          reject(new Error('Service worker media fetch timeout'));
-        }, 15000);
-      }),
-    ])
+    fetch(event.request).catch((error) => {
+      // Network-level failures fall through to the browser's default fetch behavior.
+      // This prevents FetchEvent.respondWith errors from surfacing in the console.
+      console.debug('[SW] Media fetch failed, falling through:', error);
+      return fetch(event.request);
+    })
   );
 });
 

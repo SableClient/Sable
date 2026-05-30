@@ -18,6 +18,31 @@ import * as prefix from '$unstable/prefixes';
 
 const inFlightProfiles = new Map<string, Promise<Record<string, unknown>>>();
 
+// Limit concurrent profile fetches to prevent HTTP connection pool saturation.
+// Bridged user profile requests can take 57-58s each, and browsers cap concurrent
+// connections per domain at 6 (HTTP/1.1). Without a queue, many concurrent profile
+// fetches occupy all slots, blocking critical timeline /messages requests.
+// Increased from 3 to 6 to reduce N+1 pattern impact (SABLE-2) while still
+// leaving headroom for timeline/sync requests.
+const profileQueue = new ConcurrencyQueue(6);
+
+// Aggressive TTL-based cache for bridged users. These profiles rarely change.
+const BRIDGED_USER_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const bridgedUserCacheTimestamps = new Map<string, number>();
+
+const isBridgedUser = (userId: string): boolean => {
+  // Match common bridge patterns: @discord_*, @signal_*, @_*, etc.
+  // Most bridges use either a prefix like @discord_ or start with @_
+  return userId.startsWith('@discord_') || userId.startsWith('@signal_') || userId.startsWith('@_');
+};
+
+const shouldRefetchBridgedUser = (userId: string): boolean => {
+  if (!isBridgedUser(userId)) return false;
+  const lastFetch = bridgedUserCacheTimestamps.get(userId);
+  if (!lastFetch) return true;
+  return Date.now() - lastFetch > BRIDGED_USER_CACHE_TTL_MS;
+};
+
 export type MSC4440Bio = {
   'm.text': Array<MSC1767Text>;
 };

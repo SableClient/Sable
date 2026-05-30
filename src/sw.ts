@@ -173,12 +173,28 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
   }
 }
 
-function requestSession(client: Client): Promise<SessionInfo | undefined> {
-  const promise =
-    clientToSessionPromise.get(client.id) ??
-    new Promise((resolve) => {
-      clientToResolve.set(client.id, resolve);
-      client.postMessage({ type: 'requestSession' });
+// ---------------------------------------------------------------------------
+// Strategy 7: Sliding Sync Prefetch
+// ---------------------------------------------------------------------------
+
+/**
+ * Post a Sentry metric to all window clients.
+ * Used to track SW prefetch performance from the main thread.
+ */
+async function postSentryMetric(
+  metricName: string,
+  value: number,
+  attributes?: Record<string, string | number | boolean>
+): Promise<void> {
+  try {
+    const windowClients = await self.clients.matchAll({ type: 'window' });
+    windowClients.forEach((client) => {
+      client.postMessage({
+        type: 'sentryMetric',
+        metricName,
+        value,
+        attributes,
+      });
     });
 
   if (!clientToSessionPromise.has(client.id)) {
@@ -567,6 +583,21 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setSession') {
     setSession(client.id, accessToken, baseUrl, userId);
     event.waitUntil(cleanupDeadClients());
+  }
+  if (type === 'CLAIM_CLIENTS') {
+    // Sent by the page on pageshow[persisted] or visibilitychange→visible when it
+    // detects that its SW controller is stale (e.g. after iOS killed and restarted
+    // the SW while the page was in bfcache or in the foreground under memory
+    // pressure).  Claiming here — after the page is visible — never evicts bfcache.
+    event.waitUntil(
+      (async () => {
+        await self.clients.claim();
+        // Re-request sessions from all newly-claimed clients to repopulate the
+        // sessions Map. Fire-and-forget: responses come via setSession messages.
+        const claimedClients = await self.clients.matchAll({ type: 'window' });
+        claimedClients.forEach((c) => c.postMessage({ type: 'requestSession' }));
+      })()
+    );
   }
   if (type === 'pushDecryptResult') {
     // Resolve a pending decryption request from handleMinimalPushPayload

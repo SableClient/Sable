@@ -568,6 +568,11 @@ function SpaceTab({
   // Pass loud={hasLoudUnreads} so the setting only applies if there are actually loud unreads.
   const unread = loudUnread;
 
+  // For spaces, we pass loud={true} so that the "Show Loud Room Counts" setting
+  // applies to space badges. Spaces aggregate their children, so if any child
+  // has unreads, the space badge will show counts when the setting is enabled.
+  const hasLoudChildren = true;
+
   const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     evt.preventDefault();
     const cords = evt.currentTarget.getBoundingClientRect();
@@ -613,7 +618,7 @@ function SpaceTab({
         <SidebarUnreadBadge
           highlight={unread.highlight > 0}
           count={unread.highlight > 0 ? unread.highlight : unread.total}
-          loud={hasLoudUnreads}
+          loud={hasLoudChildren}
         />
       )}
       {menuAnchor && (
@@ -711,16 +716,8 @@ function ClosedSpaceFolder({
 
   const tooltipName = folderDefaultDisplayName(mx, folder);
 
-  // Filter to only include "loud" rooms (Default or All Messages notification mode).
-  const notificationPreferences = useRoomsNotificationPreferencesContext();
-  const loudRooms = useMemo(
-    () =>
-      folder.content.filter((roomId) => {
-        const mode = getRoomNotificationMode(notificationPreferences, roomId);
-        return mode === RoomNotificationMode.Unset || mode === RoomNotificationMode.AllMessages;
-      }),
-    [folder.content, notificationPreferences]
-  );
+  // For space folders, pass loud={true} so "Show Loud Room Counts" applies to the folder badge
+  const hasLoudChildren = true;
 
   return (
     <RoomsUnreadProvider rooms={loudRooms}>
@@ -769,7 +766,7 @@ function ClosedSpaceFolder({
             <SidebarUnreadBadge
               highlight={unread.highlight > 0}
               count={unread.highlight > 0 ? unread.highlight : unread.total}
-              loud={!!unread && (unread.highlight > 0 || unread.total > 0)}
+              loud={hasLoudChildren}
             />
           )}
         </SidebarItem>

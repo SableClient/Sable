@@ -395,6 +395,22 @@ export function BackgroundNotifications() {
 
             const loudByRule = Boolean(pushActions.tweaks?.sound);
             const isHighlight = Boolean(pushActions.tweaks?.highlight);
+            // Treat DMs and "All Messages" rooms as inherently loud when the push rule lacks a
+            // sound tweak (common with sliding sync where room_member_count conditions fail).
+            const isLoud = loudByRule || isDM || shouldForceRoomLoudNotification;
+
+            // Apply focus mode filter: check if this notification should be shown
+            // based on the current focus mode setting.
+            if (!shouldShowNotificationInFocusMode(focusModeRef.current, isDM, isHighlight)) {
+              debugLog.debug('notification', 'Event filtered by focus mode', {
+                eventId,
+                roomId: room.roomId,
+                focusMode: focusModeRef.current,
+                isDM,
+                isHighlight,
+              });
+              return;
+            }
 
             debugLog.info('notification', 'Processing notification event', {
               eventId,

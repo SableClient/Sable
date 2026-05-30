@@ -179,18 +179,6 @@ export const decryptFile = async (
     const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer)).replace(/=+$/, '');
     const expectedHash = (encInfo.hashes?.sha256 ?? '').replace(/=+$/, '');
 
-    // Temporary diagnostic logging to debug SHA-256 mismatches
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] URL:', context?.mediaUrl);
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] Downloaded bytes:', downloadedBytes.byteLength);
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] Expected SHA-256:', expectedHash);
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] Actual SHA-256:', actualHash);
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] Match:', actualHash === expectedHash);
-
     // Decrypt the attachment
     const decryptedData = await decryptAttachment(dataBuffer, encInfo);
 

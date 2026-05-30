@@ -288,6 +288,24 @@ export function useBlobCache(url?: string): string | undefined {
             throw new Error('AUTH_FAILED_401');
           }
 
+          // SABLE-4X fix: Handle 400 errors for federated media (e.g., thumbnail not found)
+          if (res.status === 400) {
+            debugLog.warn('general', 'Media fetch failed: bad request (likely federated media)', {
+              url: url.substring(0, 100),
+            });
+            Sentry.addBreadcrumb({
+              category: 'blob_cache',
+              message: 'Media fetch 400 - bad request',
+              level: 'warning',
+              data: { url: url.substring(0, 100) },
+            });
+            // Mark URL as auth-failed to prevent retries (reusing same set for any non-retryable error)
+            authFailedUrls.add(url);
+            inflightRequests.delete(url);
+            // Throw a specific error to bypass Sentry exception capture
+            throw new Error('BAD_REQUEST_400');
+          }
+
           if (!res.ok) {
             throw new Error(`Failed to fetch blob: ${res.status} ${res.statusText}`);
           }
@@ -300,9 +318,11 @@ export function useBlobCache(url?: string): string | undefined {
 
           return objectUrl;
         } catch (e) {
-          // Don't log auth failures to Sentry (expected when SW has no session)
-          const isAuthFailure = e instanceof Error && e.message === 'AUTH_FAILED_401';
-          if (!isAuthFailure) {
+          // Don't log expected failures to Sentry (auth/bad-request errors)
+          const isExpectedFailure =
+            e instanceof Error &&
+            (e.message === 'AUTH_FAILED_401' || e.message === 'BAD_REQUEST_400');
+          if (!isExpectedFailure) {
             debugLog.error('general', 'Blob fetch/cache failed', {
               url: url.substring(0, 100),
               error: e instanceof Error ? e.message : String(e),

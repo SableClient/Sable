@@ -47,9 +47,54 @@ export async function enablePushNotifications(
   /* Self-Healing Check. Effectively checks if the browser has invalidated our subscription and recreates it
      only when necessary. This prevents us from needing an external call to get back the web push info.
   */
-  if (currentBrowserSub && pushSubAtom && currentBrowserSub.endpoint === pushSubAtom.endpoint) {
-    debugLog.info('notification', 'Push subscription already exists and is valid - reusing', {
-      endpoint: pushSubAtom.endpoint,
+    if (currentBrowserSub && pushSubAtom && currentBrowserSub.endpoint === pushSubAtom.endpoint) {
+      debugLog.info('notification', 'Push subscription already exists and is valid - reusing', {
+        endpoint: pushSubAtom.endpoint,
+      });
+      const { keys } = pushSubAtom;
+      if (!keys?.p256dh || !keys.auth) return;
+      const pusherData = {
+        kind: 'http' as const,
+        app_id: clientConfig.pushNotificationDetails?.webPushAppID,
+        pushkey: keys.p256dh,
+        app_display_name: 'Sable',
+        device_display_name: 'This Browser',
+        lang: navigator.language || 'en',
+        data: {
+          url: clientConfig.pushNotificationDetails?.pushNotifyUrl,
+          format: 'event_id_only' as const,
+          endpoint: pushSubAtom.endpoint,
+          p256dh: keys.p256dh,
+          auth: keys.auth,
+        },
+        append: false,
+      };
+      postToServiceWorker({
+        url: mx.baseUrl,
+        type: 'togglePush',
+        pusherData,
+        token: mx.getAccessToken(),
+      });
+
+      span.setAttribute('push.endpoint', pushSubAtom.endpoint);
+      span.setAttribute('push.success', true);
+      span.setAttribute('push.reused_subscription', true);
+      span.end();
+      Sentry.metrics.count('sable.push.registration', 1, {
+        attributes: { outcome: 'reused', has_vapid: true },
+      });
+      return;
+    }
+
+    if (currentBrowserSub) {
+      debugLog.info('notification', 'Unsubscribing old push subscription');
+      await currentBrowserSub.unsubscribe();
+    }
+
+    debugLog.info('notification', 'Creating new push subscription');
+    const newSubscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: clientConfig.pushNotificationDetails?.vapidPublicKey,
     });
     const { keys } = pushSubAtom;
     if (!keys?.p256dh || !keys.auth) return;
@@ -75,7 +120,30 @@ export async function enablePushNotifications(
       pusherData,
       token: mx.getAccessToken(),
     });
-    return;
+
+    span.setAttribute('push.endpoint', newSubscription.endpoint);
+    span.setAttribute('push.success', true);
+    span.end();
+    Sentry.metrics.count('sable.push.registration', 1, {
+      attributes: { outcome: 'created', has_vapid: true },
+    });
+  } catch (err) {
+    span.setAttribute('push.success', false);
+    span.setAttribute('push.error', err instanceof Error ? err.message : String(err));
+    span.end();
+    Sentry.metrics.count('sable.push.registration', 1, {
+      attributes: {
+        outcome: 'failed',
+        error_type: err instanceof Error ? err.name : 'unknown',
+      },
+    });
+    Sentry.addBreadcrumb({
+      category: 'push',
+      message: 'Push registration failed',
+      data: { error: err instanceof Error ? err.message : String(err) },
+      level: 'error',
+    });
+    throw err;
   }
 
   if (currentBrowserSub) {

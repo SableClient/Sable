@@ -30,7 +30,12 @@ const resolveSilent = (): boolean => false;
 
 export const createPushNotifications = (
   self: ServiceWorkerGlobalScope,
-  getNotificationSettings: () => NotificationSettings
+  getNotificationSettings: () => NotificationSettings,
+  postSentryMetric: (
+    metricName: string,
+    value: number,
+    attributes?: Record<string, string | number | boolean>
+  ) => Promise<void>
 ) => {
   const showNotificationWithData = async (
     title: string,
@@ -58,7 +63,22 @@ export const createPushNotifications = (
       data,
     };
     console.debug('[SW showNotification] title:', title, '| data:', JSON.stringify(data, null, 2));
-    await self.registration.showNotification(title, notifOptions as NotificationOptions);
+    try {
+      await self.registration.showNotification(title, notifOptions as NotificationOptions);
+      // Track successful notification display
+      postSentryMetric('sable.notification.displayed', 1, {
+        event_type: (data?.type as string) ?? 'unknown',
+        is_call: Boolean(data?.isCall),
+        silent: Boolean(silent),
+      }).catch(() => undefined);
+    } catch (err) {
+      console.error('[SW showNotification] failed:', err);
+      // Track notification display failures
+      postSentryMetric('sable.notification.display_failed', 1, {
+        error_type: err instanceof Error ? err.name : 'unknown',
+      }).catch(() => undefined);
+      throw err;
+    }
   };
 
   const handleCallNotification = async (pushData: MatrixPushData) => {

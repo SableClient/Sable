@@ -1201,13 +1201,5 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 });
 
 precacheAndRoute(self.__WB_MANIFEST);
-self.addEventListener('activate', (event: ExtendableEvent) => {
-  console.info('[SW] activate - taking control of all clients');
-  event.waitUntil(
-    self.clients.claim().then(() => {
-      console.info('[SW] activate complete - claimed clients');
-    })
-  );
-});
 
 cleanupOutdatedCaches();

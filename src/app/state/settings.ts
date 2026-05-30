@@ -639,6 +639,14 @@ export const setSettings = (settings: Settings) => {
  */
 export const presenceAutoIdledAtom = atom(false);
 
+/**
+ * Ephemeral atom — true when settings have been fully initialized.
+ * Prevents theme flashing by delaying theme application until both localStorage
+ * AND account data have been checked (or timeout expires).
+ * Resets to false on every page load.
+ */
+export const settingsInitializedAtom = atom(false);
+
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),
   (_get, set, update) => {

@@ -701,6 +701,14 @@ async function handleMinimalPushPayload(
         ? await requestDecryptionFromClient(windowClients, rawEvent)
         : undefined;
 
+    // Track decryption relay results
+    postSentryMetric('sable.push.decrypt_relay', 1, {
+      success: result?.success ?? false,
+      app_visible: result?.visibilityState === 'visible',
+      has_clients: windowClients.length > 0,
+      timed_out: result === undefined && windowClients.length > 0,
+    }).catch(() => undefined);
+
     // If the relay responded and the app is currently visible, the in-app UI is already
     // displaying the message — skip the OS notification entirely.
     if (result?.visibilityState === 'visible') return;
@@ -1051,11 +1059,25 @@ const onPushNotification = async (event: PushEvent) => {
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
     console.debug('[SW push] suppressing OS notification — app is visible and sync is healthy');
+    // Post telemetry to app for Sentry tracking
+    postSentryMetric('sable.push.suppressed', 1, {
+      reason: 'app_visible_and_healthy',
+      has_clients: clients.length > 0,
+      sync_healthy: syncIsHealthy,
+    }).catch(() => undefined);
     return;
   }
 
   const pushData = event.data.json();
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
+
+  // Track push notification arrival
+  postSentryMetric('sable.push.received', 1, {
+    app_visible: appIsVisible,
+    sync_healthy: syncIsHealthy,
+    has_clients: clients.length > 0,
+    payload_type: isMinimalPushPayload(pushData) ? 'minimal' : 'full',
+  }).catch(() => undefined);
 
   try {
     if (typeof pushData?.unread === 'number') {

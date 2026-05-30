@@ -246,11 +246,49 @@ export async function togglePusher(
     // gesture), so attempting to call pushManager.subscribe() will throw NotAllowedError.
     // The user must explicitly enable push via the settings UI button before we can
     // manage the pusher lifecycle during visibility changes.
-    if (!pushSubAtom) return;
+    if (!pushSubAtom) {
+      debugLog.info('notification', 'togglePusher: no subscription exists yet, skipping', {
+        visible,
+        usePushNotifications,
+        keepEnabledWhenVisible,
+      });
+      return;
+    }
 
     if (visible && !keepEnabledWhenVisible) {
+      debugLog.info('notification', 'togglePusher: disabling (app visible)', {
+        visible,
+        keepEnabledWhenVisible,
+      });
+      Sentry.addBreadcrumb({
+        category: 'push',
+        message: 'Pusher disabled - app visible',
+        level: 'info',
+        data: { visible, keepEnabledWhenVisible },
+      });
+      Sentry.metrics.count('sable.push.disabled', 1, {
+        attributes: { reason: 'app_visible' },
+      });
       await disablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
     } else {
+      const reason = keepEnabledWhenVisible
+        ? 'kept_active_when_visible'
+        : visible
+          ? 'kept_active_visible'
+          : 'enabled_backgrounded';
+      debugLog.info('notification', `togglePusher: enabling/keeping active (${reason})`, {
+        visible,
+        keepEnabledWhenVisible,
+      });
+      Sentry.addBreadcrumb({
+        category: 'push',
+        message: `Pusher ${keepEnabledWhenVisible ? 'kept active' : 'enabled'}`,
+        level: 'info',
+        data: { visible, keepEnabledWhenVisible, reason },
+      });
+      Sentry.metrics.count('sable.push.enabled', 1, {
+        attributes: { reason },
+      });
       await enablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
     }
   }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
+import { useAtomValue } from 'jotai';
 import { configClass, varsClass } from 'folds';
 import {
   DarkTheme,
@@ -11,7 +12,7 @@ import {
 } from '$hooks/useTheme';
 import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, settingsInitializedAtom } from '$state/settings';
 import { getCachedThemeCss, putCachedThemeCss } from '../theme/cache';
 import { isLocalImportBundledUrl } from '../theme/localImportUrls';
 
@@ -58,12 +59,17 @@ export function UnAuthRouteThemeManager() {
 
 export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   const activeTheme = useActiveTheme();
+  const settingsInitialized = useAtomValue(settingsInitializedAtom);
   const [saturation] = useSetting(settingsAtom, 'saturationLevel');
   const [underlineLinks] = useSetting(settingsAtom, 'underlineLinks');
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [enabledTweakUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
 
   useEffect(() => {
+    // Wait for settings to initialize to prevent theme flashing when
+    // account data overrides localStorage settings
+    if (!settingsInitialized) return;
+
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
     document.body.classList.add(...activeTheme.classNames);
@@ -87,7 +93,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     } else {
       document.body.style.filter = '';
     }
-  }, [activeTheme, saturation, underlineLinks, reducedMotion]);
+  }, [settingsInitialized, activeTheme, saturation, underlineLinks, reducedMotion]);
 
   useEffect(() => {
     const url = activeTheme.remoteFullUrl?.trim();

@@ -62,11 +62,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       // Only retry if sync is actually in an error or stopped state.
       // Calling retry when already syncing causes unnecessary reconnection banners.
       const syncState = mx.getSyncState();
-      if (
-        syncState !== 'ERROR' &&
-        syncState !== 'STOPPED' &&
-        syncState !== 'RECONNECTING'
-      ) {
+      if (syncState !== 'ERROR' && syncState !== 'STOPPED' && syncState !== 'RECONNECTING') {
         debugLog.info('general', 'Skipping retry - already syncing', { syncState });
         return;
       }

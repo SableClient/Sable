@@ -96,25 +96,16 @@ export const isUnsupportedRoom = (room: Room | null): boolean => {
 };
 
 /**
- * Detects if a room is a direct message room using multiple signals for robustness:
- * 1. Primary: checks if room is in mDirects set (from m.direct account data)
- * 2. Fallback: checks if room has exactly 2 joined members (classic DM heuristic)
+ * Check if a room is a Direct Message based on m.direct account data.
  *
- * The fallback handles cases where m.direct account data is incomplete or outdated.
+ * NOTE: We do NOT use a member count heuristic here because it creates false
+ * positives — any regular room with 2 members would be incorrectly treated as a DM,
+ * triggering force-highlight behavior and showing green badges for all unreads.
+ * Only m.direct account data is reliable.
  */
 export const isDMRoom = (room: Room, mDirects?: Set<string>): boolean => {
-  // Primary signal: check m.direct account data
-  if (mDirects?.has(room.roomId)) {
-    return true;
-  }
-
-  // Fallback: use member count heuristic for untagged DMs
-  // Only applies to non-space rooms with exactly 2 members (you + them)
-  if (!room.isSpaceRoom() && room.getJoinedMemberCount() === 2) {
-    return true;
-  }
-
-  return false;
+  // Only trust m.direct account data
+  return mDirects?.has(room.roomId) ?? false;
 };
 
 export function isValidChild(mEvent: MatrixEvent): boolean {

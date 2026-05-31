@@ -564,8 +564,8 @@ function SpaceTab({
   const loudUnread = useRoomsUnread(loudChild, roomToUnreadAtom);
   const hasLoudUnreads = !!loudUnread && (loudUnread.highlight > 0 || loudUnread.total > 0);
 
-  // DEBUG: Log space badge calculation
-  if (space.name.includes('Draupnir')) {
+  // DEBUG: Log space badge calculation for Tech Chats and Draupnir
+  if (space.name.includes('Draupnir') || space.name.includes('Tech')) {
     console.log('[BADGE-DEBUG:SpaceTabs]', {
       spaceName: space.name,
       spaceId: space.roomId,

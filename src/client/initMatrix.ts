@@ -566,26 +566,64 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
         error: data?.error?.message,
       });
       if (state === SyncState.Error || state === SyncState.Reconnecting) {
+        const errorMsg = data?.error?.message ?? '';
+        const isCryptoStoreError =
+          errorMsg.includes('without an in-progress transaction') ||
+          errorMsg.includes('database connection is closed') ||
+          errorMsg.includes('InvalidStateError') ||
+          errorMsg.includes('UnknownError');
+
         debugLog.warn('sync', `Classic sync problem: ${state}`, {
           state,
           prevState: prevState ?? 'null',
-          errorMessage: data?.error?.message,
+          errorMessage: errorMsg,
           syncNumber: classicSyncCount,
+          isCryptoStoreError,
         });
         Sentry.metrics.count('sable.sync.error', 1, {
-          attributes: { transport: 'classic', state },
+          attributes: {
+            transport: 'classic',
+            state,
+            crypto_store_error: isCryptoStoreError,
+          },
         });
         Sentry.addBreadcrumb({
           category: 'sync.classic',
           message: `Classic sync problem: ${state}`,
-          level: 'warning',
+          level: isCryptoStoreError ? 'error' : 'warning',
           data: {
             state,
             prevState,
-            error: data?.error?.message,
+            error: errorMsg,
             syncNumber: classicSyncCount,
+            isCryptoStoreError,
           },
         });
+
+        // Capture crypto store errors to Sentry with additional context
+        if (isCryptoStoreError) {
+          Sentry.captureMessage('Crypto store IndexedDB error during sync', {
+            level: 'error',
+            tags: {
+              component: 'crypto-store',
+              sync_transport: 'classic',
+              error_type: errorMsg.includes('transaction')
+                ? 'transaction_error'
+                : errorMsg.includes('closed')
+                  ? 'connection_closed'
+                  : 'unknown_idb_error',
+            },
+            extra: {
+              errorMessage: errorMsg,
+              syncState: state,
+              prevState,
+              syncNumber: classicSyncCount,
+              userId: mx.getUserId(),
+              recovery_recommendation:
+                'Matrix SDK WASM crypto layer issue - client will attempt to reconnect',
+            },
+          });
+        }
       }
       if (
         !classicInitialSyncDone &&

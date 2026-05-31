@@ -346,15 +346,77 @@ export class SlidingSyncManager {
       });
 
       if (err) {
+        const errorMsg = err.message ?? '';
+        const isCryptoStoreError =
+          errorMsg.includes('without an in-progress transaction') ||
+          errorMsg.includes('database connection is closed') ||
+          errorMsg.includes('InvalidStateError') ||
+          errorMsg.includes('UnknownError');
+
         debugLog.error('sync', 'Sliding sync error', {
           error: err,
-          errorMessage: err.message,
+          errorMessage: errorMsg,
           syncNumber: this.syncCount,
           state,
+          isCryptoStoreError,
         });
         Sentry.metrics.count('sable.sync.error', 1, {
-          attributes: { transport: 'sliding', state },
+          attributes: {
+            transport: 'sliding',
+            state,
+            crypto_store_error: isCryptoStoreError,
+          },
         });
+
+        // Capture crypto store errors to Sentry with additional context
+        if (isCryptoStoreError) {
+          Sentry.captureMessage('Crypto store IndexedDB error during sync', {
+            level: 'error',
+            tags: {
+              component: 'crypto-store',
+              sync_transport: 'sliding',
+              error_type: errorMsg.includes('transaction')
+                ? 'transaction_error'
+                : errorMsg.includes('closed')
+                  ? 'connection_closed'
+                  : 'unknown_idb_error',
+            },
+            extra: {
+              errorMessage: errorMsg,
+              syncState: state,
+              syncNumber: this.syncCount,
+              userId: this.mx.getUserId(),
+              recovery_recommendation:
+                'Matrix SDK WASM crypto layer issue - client will attempt to reconnect',
+            },
+          });
+        }
+
+        // Detect M_UNKNOWN_POS error (sliding sync position lost)
+        const errorData = err as { errcode?: string; httpStatus?: number };
+        if (
+          errorData.errcode === 'M_UNKNOWN_POS' ||
+          (err.message && err.message.includes('M_UNKNOWN_POS'))
+        ) {
+          Sentry.addBreadcrumb({
+            category: 'sync.slidingSync',
+            message: 'Sliding sync position lost (M_UNKNOWN_POS) — full resync required',
+            data: {
+              syncNumber: this.syncCount,
+              roomsLoaded: this.mx.getRooms().length,
+              errorMessage: err.message,
+            },
+            level: 'error',
+          });
+          Sentry.captureMessage('Sliding sync M_UNKNOWN_POS detected', {
+            level: 'warning',
+            tags: { sync_transport: 'sliding' },
+            extra: {
+              syncNumber: this.syncCount,
+              roomCount: this.mx.getRooms().length,
+            },
+          });
+        }
       }
 
       if (this.disposed) {

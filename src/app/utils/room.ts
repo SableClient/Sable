@@ -430,7 +430,10 @@ export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): U
     const unreadInfo = getUnreadInfo(room, options);
     
     if (room.name.includes('Draupnir') || room.name.includes('cloudhub-social-bans')) {
-      console.log('[BADGE-DEBUG:getUnreadInfos] Draupnir room:', {
+      console.log('[getUnreadInfos] Draupnir room:', {
+        roomId: room.roomId,
+        name: room.name,
+        notifType,
         unreadInfo,
         willInclude: unreadInfo.total > 0 || unreadInfo.highlight > 0,
       });

@@ -191,7 +191,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
       applyFixup: shouldApplyUnreadFixup(),
       mDirects,
     });
-    console.log('[BADGE-DEBUG:init] Initial RESET:', {
+    console.log('[useBindRoomToUnreadAtom] Initial RESET:', {
       transport: getClientSyncDiagnostics(mx).transport,
       unreadInfosCount: unreadInfos.length,
       unreadInfos,

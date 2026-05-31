@@ -29,7 +29,7 @@ type PollEventProps = {
   mEvent: MatrixEvent;
 };
 
-type PollAnswerItem = {
+export type PollAnswerItem = {
   id: string;
   'org.matrix.msc1767.text': string;
 };
@@ -67,7 +67,8 @@ export function PollEvent({ content, mEvent }: PollEventProps) {
   const answers = (poll as { answers: PollAnswerItem[] })?.answers;
   const maxSelections = (poll as { max_selections: number })?.max_selections;
   const isDisclosed = (poll as { kind: string })?.kind === M_POLL_KIND_DISCLOSED.name;
-  const canEnd = (mx.getUserId() === mEvent.sender?.userId || permissions.action('redact', mx.getUserId() ?? ''))
+  const canEnd =
+    mx.getUserId() === mEvent.sender?.userId || permissions.action('redact', mx.getUserId() ?? '');
 
   let votes: PollVotes = {};
   answers.forEach((item) => (votes[item.id] = 0));
@@ -76,6 +77,8 @@ export function PollEvent({ content, mEvent }: PollEventProps) {
     ?.getUnfilteredTimelineSet()
     .relations.getAllChildEventsForEvent(eventId ?? '')
     .filter((event) => event.getRelation()?.rel_type === REFERENCE_RELATION.name);
+
+  // manual sorting because the timeline is sometimes sent stupidly <3
   let sortedChildEvents = childEvents
     ? childEvents.toSorted((a: MatrixEvent, b: MatrixEvent) =>
         a.event.origin_server_ts && b.event.origin_server_ts

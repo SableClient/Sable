@@ -159,6 +159,7 @@ import type {
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
+import { PollDialog } from './add-poll';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -381,6 +382,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [editingScheduledDelayId, setEditingScheduledDelayId] = useAtom(
       roomIdToEditingScheduledDelayIdAtomFamily(roomId)
     );
+    const [AddMenuAnchor, setAddMenuAnchor] = useState<RectCords>();
+    const [showPollPicker, setShowPollPicker] = useState(false);
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
@@ -1519,16 +1522,58 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            <IconButton
-              onClick={() => pickFile('*')}
-              variant="SurfaceVariant"
-              size="300"
-              radii="300"
-              title="Upload File"
-              aria-label="Upload and attach a File"
-            >
-              <Icon src={Icons.PlusCircle} />
-            </IconButton>
+            <>
+              <PopOut
+                anchor={AddMenuAnchor}
+                position="Top"
+                align="Start"
+                offset={5}
+                content={
+                  <FocusTrap
+                    focusTrapOptions={{
+                      initialFocus: false,
+                      onDeactivate: () => setAddMenuAnchor(undefined),
+                      clickOutsideDeactivates: true,
+                      escapeDeactivates: stopPropagation,
+                    }}
+                  >
+                    <Menu>
+                      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          onClick={() => {
+                            setAddMenuAnchor(undefined);
+                            setShowPollPicker(true);
+                          }}
+                          before={<Icon size="100" src={Icons.UnorderList} />}
+                        >
+                          <Text size="B300">Create Poll</Text>
+                        </MenuItem>
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          onClick={() => pickFile('*')}
+                          before={<Icon size="100" src={Icons.PlusCircle} />}
+                        >
+                          <Text size="B300">Add File</Text>
+                        </MenuItem>
+                      </Box>
+                    </Menu>
+                  </FocusTrap>
+                }
+              />
+              <IconButton
+                onClick={(evt) => setAddMenuAnchor(evt.currentTarget.getBoundingClientRect())}
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+                title="Upload File"
+                aria-label="Upload and attach a File"
+              >
+                <Icon src={Icons.PlusCircle} />
+              </IconButton>
+            </>
           }
           after={
             <>
@@ -1771,6 +1816,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             }}
           />
         )}
+        {showPollPicker && <PollDialog onCancel={() => setShowPollPicker(false)} mx={mx} roomId={roomId} />}
       </div>
     );
   }

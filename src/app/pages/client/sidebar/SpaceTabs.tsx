@@ -570,7 +570,7 @@ function SpaceTab({
 
   // DEBUG: Log space badge calculation
   if (space.name.includes('Draupnir')) {
-    console.log('[SpaceTabs DEBUG]', {
+    console.log('[BADGE-DEBUG:SpaceTabs]', {
       spaceName: space.name,
       spaceId: space.roomId,
       allChildCount: allChild.length,

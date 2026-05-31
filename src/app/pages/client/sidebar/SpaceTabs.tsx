@@ -572,9 +572,11 @@ function SpaceTab({
       allChildCount: allChild.length,
       allChildIds: allChild,
       loudChildCount: loudChild.length,
+      loudChildIds: loudChild,
       allUnread,
       loudUnread,
       hasLoudUnreads,
+      willShowBadge: !!allUnread,
     });
   }
 

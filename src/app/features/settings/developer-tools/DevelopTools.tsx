@@ -25,6 +25,97 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
+  const [cacheStats, setCacheStats] = useState(() => getBlobCacheStats());
+  const [svgCacheSize, setSvgCacheSize] = useState(0);
+  const [swCacheStats, setSwCacheStats] = useState({ count: 0, sizeMB: 0 });
+
+  useEffect(() => {
+    // Async-load persistent cache metadata (requires Cache API) and SVG cache size
+    getBlobCacheStatsAsync()
+      .then(setCacheStats)
+      .catch(() => undefined);
+    setSvgCacheSize(getSvgCacheSize());
+    // Read SW media cache from page context (same origin, shared with the SW)
+    caches
+      .open('sable-media-sw-v1')
+      .then(async (cache) => {
+        const requests = await cache.keys();
+        const responses = await Promise.all(requests.map((req) => cache.match(req)));
+        const totalBytes = responses.reduce((sum, resp) => {
+          if (!resp) return sum;
+          const cl = resp.headers.get('content-length');
+          return cl ? sum + parseInt(cl, 10) : sum;
+        }, 0);
+        setSwCacheStats({ count: requests.length, sizeMB: totalBytes / (1024 * 1024) });
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const [clearCacheState, clearMediaCacheAction] = useAsyncCallback<void, Error, []>(
+    useCallback(async () => {
+      await clearMediaCache();
+      setCacheStats(getBlobCacheStats());
+    }, [])
+  );
+
+  const clearInMemoryAction = useCallback(() => {
+    clearInMemoryBlobCache();
+    setCacheStats(getBlobCacheStats());
+  }, []);
+
+  const clearSvgCacheAction = useCallback(() => {
+    clearSvgBlobCache();
+    setSvgCacheSize(getSvgCacheSize());
+  }, []);
+
+  const [clearSwCacheState, clearSwCacheAction] = useAsyncCallback<void, Error, []>(
+    useCallback(async () => {
+      await caches.delete('sable-media-sw-v1');
+      setSwCacheStats({ count: 0, sizeMB: 0 });
+    }, [])
+  );
+
+  const [rotateState, rotateAllSessions] = useAsyncCallback<
+    { rotated: number; total: number },
+    Error,
+    []
+  >(
+    useCallback(async () => {
+      if (
+        !window.confirm(
+          'This will discard all current Megolm encryption sessions and start new ones. Continue?'
+        )
+      ) {
+        throw new Error('Cancelled');
+      }
+
+      const crypto = mx.getCrypto();
+      if (!crypto) throw new Error('Crypto module not available');
+
+      const encryptedRooms = mx
+        .getRooms()
+        .filter(
+          (room) => room.getMyMembership() === JOIN_MEMBERSHIP && mx.isRoomEncrypted(room.roomId)
+        );
+
+      const results = await Promise.allSettled(
+        encryptedRooms.map((room) => crypto.forceDiscardSession(room.roomId))
+      );
+      const rotated = results.filter((r) => r.status === 'fulfilled').length;
+
+      // Proactively start session creation + key sharing with all devices
+      // (including bridge bots). fire-and-forget per room, but surface failures.
+      encryptedRooms.forEach((room) => {
+        Promise.resolve()
+          .then(() => crypto.prepareToEncrypt(room))
+          .catch((error) => {
+            console.error('[DevelopTools] Failed to prepare room encryption', room.roomId, error);
+          });
+      });
+
+      return { rotated, total: encryptedRooms.length };
+    }, [mx])
+  );
 
   const submitAccountData: AccountDataSubmitCallback = useCallback(
     async (type, content) => {

@@ -58,6 +58,10 @@ export const unwrapForwardedContent = (content: string) => {
     if (blockquote) {
       return blockquote.innerHTML;
     }
+    return content;
+  } catch (error) {
+    console.warn('[MessageForward] Failed to unwrap forwarded content:', error);
+    return content;
   }
   return content;
 };

@@ -178,7 +178,7 @@ export const createPushNotifications = (
   const handlePushNotificationPushData = async (pushData: MatrixPushData) => {
     const eventType = pushData?.type as EventType | undefined;
     if (!eventType) {
-      console.warn('no event type');
+      console.warn('[SW pushNotification] no event type');
     }
 
     switch (eventType as string) {

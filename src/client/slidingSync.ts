@@ -378,6 +378,140 @@ export class SlidingSyncManager {
             if (timelineSet.getLiveTimeline().getEvents().length === 0) return;
             timelineSet.resetLiveTimeline();
           });
+
+        // Process timeline events with thread support before SDK's default handler runs.
+        // The SDK's addEventToTimeline rejects events with threadId=undefined (by design),
+        // causing thread reply events to be silently dropped. We intercept here to extract
+        // threadId from m.relates_to and route events to the correct timeline set.
+        Object.entries(rooms).forEach(([roomId, roomData]) => {
+          const room = this.mx.getRoom(roomId);
+          if (!room) return;
+
+          const rawEvents = roomData.timeline ?? [];
+          if (rawEvents.length === 0) return;
+
+          let threadEventsProcessed = 0;
+          let rootEventsProcessed = 0;
+          let threadEventsDropped = 0;
+
+          // Process each event and route to the correct timeline set based on threadId
+          for (const rawEvent of rawEvents) {
+            // Create MatrixEvent from raw server payload
+            const event = new MatrixEvent(rawEvent);
+            const threadId = getThreadIdFromEvent(event);
+
+            // Track dropped thread events where threadId resolution failed
+            const relatesTo = event.getContent()?.['m.relates_to'];
+            if (!threadId && relatesTo?.rel_type === 'm.thread') {
+              threadEventsDropped += 1;
+              Sentry.metrics.count('sable.timeline.thread_event_dropped', 1, {
+                attributes: {
+                  room_id: roomId,
+                  reason: 'threadId_undefined',
+                  encrypted: String(event.getType() === 'm.room.encrypted'),
+                },
+              });
+              console.warn('[SlidingSync] Thread event dropped — threadId unresolvable', {
+                eventId: event.getId(),
+                roomId,
+                relatesTo,
+              });
+              // Skip this event — cannot route to timeline without threadId
+              continue;
+            }
+
+            // Get the appropriate timeline set (thread-specific or root)
+            let timelineSet;
+            if (threadId) {
+              const thread = room.getThread(threadId);
+              if (!thread) {
+                // Thread doesn't exist yet - track and skip
+                threadEventsDropped += 1;
+                Sentry.metrics.count('sable.timeline.thread_event_dropped', 1, {
+                  attributes: {
+                    room_id: roomId,
+                    reason: 'thread_not_found',
+                    encrypted: String(event.getType() === 'm.room.encrypted'),
+                  },
+                });
+                console.warn('[SlidingSync] Thread event dropped — thread not found', {
+                  eventId: event.getId(),
+                  roomId,
+                  threadId,
+                  relatesTo,
+                });
+                continue;
+              }
+              timelineSet = thread.timelineSet;
+            } else {
+              timelineSet = room.getUnfilteredTimelineSet();
+            }
+
+            const timeline = timelineSet.getLiveTimeline();
+
+            // Add event to the correct timeline with threadId parameter
+            timelineSet.addEventToTimeline(event, timeline, {
+              toStartOfTimeline: false,
+              addToState: true,
+              ...(threadId && { threadId }),
+            });
+
+            if (threadId) {
+              threadEventsProcessed += 1;
+            } else {
+              rootEventsProcessed += 1;
+            }
+          }
+
+          // Clear the timeline array so SDK doesn't try to re-add these events
+          roomData.timeline = [];
+
+          if (threadEventsProcessed > 0 || threadEventsDropped > 0) {
+            debugLog.info('sync', 'Processed thread events with threadId routing', {
+              roomId,
+              threadEvents: threadEventsProcessed,
+              rootEvents: rootEventsProcessed,
+              droppedEvents: threadEventsDropped,
+              syncCycle: this.syncCount,
+            });
+            Sentry.addBreadcrumb({
+              category: 'sync.threadEvents',
+              message: 'Thread events routed to correct timeline sets',
+              level: threadEventsDropped > 0 ? 'warning' : 'info',
+              data: {
+                roomId,
+                threadEvents: threadEventsProcessed,
+                rootEvents: rootEventsProcessed,
+                droppedEvents: threadEventsDropped,
+              },
+            });
+
+            // Report per-sync thread drop count
+            if (threadEventsDropped > 0) {
+              Sentry.metrics.distribution(
+                'sable.timeline.thread_drops_per_sync',
+                threadEventsDropped,
+                { attributes: { room_id: roomId } }
+              );
+            }
+          }
+        });
+
+        // If a force-resubscription cycle was scheduled (pull-to-refresh), restore
+        // all subscriptions now that the server has seen the empty-subscription
+        // request.  On the next sync cycle the server will treat these as new
+        // subscriptions and return initial:true with fresh data and backward-
+        // pagination tokens, which the block above will then handle.
+        if (this.pendingResubscriptions !== null) {
+          const toRestore = this.pendingResubscriptions;
+          this.pendingResubscriptions = null;
+          toRestore.forEach((roomId) => this.activeRoomSubscriptions.add(roomId));
+          this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+          // Explicitly trigger a sync to fetch fresh data with initial:true.
+          // Without this, modifyRoomSubscriptions alone may not trigger a new
+          // request if the sync loop is idle.
+          this.slidingSync.resend();
+        }
       }
 
       if (err || !resp || state !== SlidingSyncState.Complete) return;

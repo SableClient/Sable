@@ -958,7 +958,7 @@ function HandleDecryptPushEvent() {
           visibilityState: document.visibilityState,
         });
       } catch (err) {
-        console.warn('[app] HandleDecryptPushEvent: failed to decrypt push event', err);
+        console.warn('[ClientFeatures] HandleDecryptPushEvent: failed to decrypt push event', err);
         pushRelayLog.error(
           'notification',
           'Push relay decryption failed',

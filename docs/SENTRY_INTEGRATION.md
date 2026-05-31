@@ -150,7 +150,7 @@ Configure Sentry via environment variables:
 VITE_SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
 
 # Required: Environment name - controls sampling rates
-# - "production" = 50% trace/replay sampling (balanced quota usage for production)
+# - "production" = 10% trace/replay sampling (cost-effective for production)
 # - "preview" = 100% trace/replay sampling (full debugging for PR previews)
 # - "development" = 100% trace/replay sampling (full debugging for local dev)
 VITE_SENTRY_ENVIRONMENT=production
@@ -239,8 +239,8 @@ docker build \
 **Production deployment (from `dev` branch):**
 
 - Set `VITE_SENTRY_ENVIRONMENT=production`
-- Gets 50% sampling for traces and session replay
-- Balanced quota usage for production
+- Gets 10% sampling for traces and session replay
+- Cost-effective for production usage
 - Configured in `.github/workflows/cloudflare-web-deploy.yml`
 
 **Preview deployments (PR previews, Cloudflare Pages):**
@@ -261,7 +261,7 @@ docker build \
 ```
 Environment    | Traces | Profiles | Session Replay | Error Replay
 ---------------|--------|----------|----------------|-------------
-production     | 50%    | 50%      | 50%            | 100%
+production     | 10%    | 10%      | 10%            | 100%
 preview        | 100%   | 100%     | 100%           | 100%
 development    | 100%   | 100%     | 100%           | 100%
 ```
@@ -363,8 +363,8 @@ the Sentry issue timeline and can be filtered in the developer settings panel.
 
 ### Sentry Configuration
 
-- **Tracing sample rate**: 100% in development, 50% in production
-- **Session replay sample rate**: 50% of all sessions, 100% of error sessions
+- **Tracing sample rate**: 100% in development, 10% in production
+- **Session replay sample rate**: 10% of all sessions, 100% of error sessions
 - **Warning capture rate**: 10% to avoid overwhelming Sentry
 - **Breadcrumb retention**: All breadcrumbs retained for context
 - **Log attachment limit**: Last 100 debug log entries

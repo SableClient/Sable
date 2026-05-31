@@ -122,7 +122,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
         Promise.resolve()
           .then(() => crypto.prepareToEncrypt(room))
           .catch((error) => {
-            console.error('Failed to prepare room encryption', room.roomId, error);
+            console.error('[DevelopTools] Failed to prepare room encryption', room.roomId, error);
           });
       });
 

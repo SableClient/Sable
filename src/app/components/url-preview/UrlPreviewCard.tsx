@@ -51,7 +51,7 @@ const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlRespon
 
 const openMediaInNewTab = async (url: string | undefined, accessToken: string | null) => {
   if (!url) {
-    console.warn('Attempted to open an empty url');
+    console.warn('[UrlPreview] Attempted to open an empty url');
     return;
   }
   try {
@@ -59,7 +59,7 @@ const openMediaInNewTab = async (url: string | undefined, accessToken: string | 
     const blobUrl = URL.createObjectURL(blob);
     window.open(blobUrl, '_blank');
   } catch (err) {
-    console.error('Failed to open media in new tab', err);
+    console.error('[UrlPreview] Failed to open media in new tab', err);
   }
 };
 
@@ -160,14 +160,14 @@ export const UrlPreviewCard = as<
     );
     const handleAuxClick = (ev: React.MouseEvent) => {
       if (!prev['og:image']) {
-        console.warn('No image');
+        console.warn('[UrlPreview] No image available');
         return;
       }
       if (ev.button === 1) {
         ev.preventDefault();
         const mxcUrl = mxcUrlToHttp(mx, prev['og:image'], /* useAuthentication */ true);
         if (!mxcUrl) {
-          console.error('Error converting mxc:// url.');
+          console.error('[UrlPreview] Error converting mxc:// url');
           return;
         }
         openMediaInNewTab(mxcUrl, mx.getAccessToken());

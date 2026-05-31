@@ -231,7 +231,7 @@ Sample rates for replay:
 
 | Trigger              | Production | Preview / Dev |
 | -------------------- | ---------- | ------------- |
-| Regular sessions     | 50%        | 100%          |
+| Regular sessions     | 10%        | 100%          |
 | Sessions with errors | 100%       | 100%          |
 
 **Code:** `src/instrument.ts` — `replayIntegration` call with `maskAllText`,

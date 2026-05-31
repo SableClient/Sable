@@ -187,12 +187,19 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
   );
 
   useEffect(() => {
+    const unreadInfos = getUnreadInfos(mx, {
+      applyFixup: shouldApplyUnreadFixup(),
+      mDirects,
+    });
+    console.log('[useBindRoomToUnreadAtom] Initial RESET:', {
+      transport: getClientSyncDiagnostics(mx).transport,
+      unreadInfosCount: unreadInfos.length,
+      unreadInfos,
+      mDirectsSize: mDirects.size,
+    });
     setUnreadAtom({
       type: 'RESET',
-      unreadInfos: getUnreadInfos(mx, {
-        applyFixup: shouldApplyUnreadFixup(),
-        mDirects,
-      }),
+      unreadInfos,
     });
   }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
 

@@ -12,7 +12,7 @@ const compareUnreadEqual = (u1?: Unread, u2?: Unread): boolean => {
 
 const getRoomsUnread = (rooms: string[], roomToUnread: RoomToUnread): Unread | undefined => {
   // DEBUG: Log all rooms being queried
-  console.log('[getRoomsUnread] Called with:', {
+  console.log('[BADGE-DEBUG:getRoomsUnread] Called with:', {
     roomCount: rooms.length,
     rooms,
     mapSize: roomToUnread.size,

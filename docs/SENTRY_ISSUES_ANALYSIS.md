@@ -60,9 +60,7 @@ Existing error handling is appropriate:
 ### Recommendation
 **This is a cache invalidation issue, not a code bug**. Cannot be fixed in code.
 
-**User mitigation**:
-- **Desktop/browser**: Hard reload (Cmd+Shift+R / Ctrl+Shift+R)
-- **Mobile PWA**: App cache clear may not be sufficient - users likely need to uninstall and reinstall the PWA to get fresh worker assets
+**User mitigation**: Hard reload (Cmd+Shift+R / Ctrl+Shift+R)
 
 **Server mitigation options** (not implemented in this commit):
 1. Set aggressive cache headers on `index.html` (`Cache-Control: no-cache`)

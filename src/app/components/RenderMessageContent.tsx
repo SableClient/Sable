@@ -1,5 +1,5 @@
 import { memo, useMemo, useCallback } from 'react';
-import type { IPreviewUrlResponse, MatrixEvent } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -63,6 +63,8 @@ type RenderMessageContentProps = {
   outlineAttachment?: boolean;
   hideCaption?: boolean;
   mEvent?: MatrixEvent;
+  mx?: MatrixClient;
+  room?: Room;
 };
 
 const getMediaType = (url: string) => {
@@ -95,6 +97,8 @@ function RenderMessageContentInternal({
   outlineAttachment,
   hideCaption,
   mEvent,
+  mx,
+  room,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
@@ -444,13 +448,15 @@ function RenderMessageContentInternal({
         }
       />
     );
-  if (content['org.matrix.msc3381.poll.start'] && mEvent)
-    return <PollEvent content={content} mEvent={mEvent} />;
+  if (content['org.matrix.msc3381.poll.start'] && mEvent && mx && room)
+    return <PollEvent content={content} mEvent={mEvent} mx={mx} room={room} />;
   return (
     <UnsupportedContent
       body={
         (content as { body?: string }).body ??
         (content as { 'org.matrix.msc1767.text'?: string })['org.matrix.msc1767.text'] ??
+        (content as { 'org.matrix.msc1767.text'?: { body: string } })['org.matrix.msc1767.text']
+          ?.body ??
         ''
       }
     />

@@ -1,21 +1,7 @@
-import { useMatrixClient } from '$hooks/useMatrixClient';
-import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { useRoomCreators } from '$hooks/useRoomCreators';
-import { useRoomPermissions } from '$hooks/useRoomPermissions';
+import { Box, Button, Checkbox, Line, ProgressBar, RadioButton, Text } from 'folds';
+import type { MatrixClient, Room, TimelineEvents } from 'matrix-js-sdk';
 import {
-  Box,
-  Button,
-  color,
-  config,
-  Header,
-  Line,
-  ProgressBar,
-  RadioButton,
-  Text,
-  toRem,
-} from 'folds';
-import type { Room, TimelineEvents } from 'matrix-js-sdk';
-import {
+  EventTimeline,
   M_POLL_END,
   M_POLL_KIND_DISCLOSED,
   M_POLL_RESPONSE,
@@ -23,10 +9,13 @@ import {
   REFERENCE_RELATION,
   type MatrixEvent,
 } from 'matrix-js-sdk';
+import * as css from './PollEvent.css';
 
 type PollEventProps = {
   content: Record<string, unknown>;
   mEvent: MatrixEvent;
+  mx: MatrixClient;
+  room: Room;
 };
 
 export type PollAnswerItem = {
@@ -47,19 +36,12 @@ type PollResponse = {
     answers: string[];
   };
 };
-export function PollEvent({ content, mEvent }: PollEventProps) {
-  const mx = useMatrixClient();
-
-  const roomId = mEvent.getRoomId() as string;
-  const room = mx.getRoom(roomId) as Room;
-  const eventId = mEvent.getId();
-
-  // TODO: Delete or move into a better place to not make polls be laggy
-  const powerLevels = usePowerLevelsContext();
-  const creators = useRoomCreators(room);
-  const permissions = useRoomPermissions(creators, powerLevels);
-
+export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   if (!content) return null;
+  const eventId = mEvent.getId();
+  const userId = mx.getUserId() ?? '';
+  const roomId = room.roomId;
+  const roomState = room.getLiveTimeline()?.getState(EventTimeline.FORWARDS);
 
   const poll = content[M_POLL_START.name];
   const question = (poll as { question?: string })?.question;
@@ -68,7 +50,7 @@ export function PollEvent({ content, mEvent }: PollEventProps) {
   const maxSelections = (poll as { max_selections: number })?.max_selections;
   const isDisclosed = (poll as { kind: string })?.kind === M_POLL_KIND_DISCLOSED.name;
   const canEnd =
-    mx.getUserId() === mEvent.sender?.userId || permissions.action('redact', mx.getUserId() ?? '');
+    userId === mEvent.sender?.userId || roomState?.maySendRedactionForEvent(mEvent, userId);
 
   let votes: PollVotes = {};
   answers.forEach((item) => (votes[item.id] = 0));
@@ -87,11 +69,12 @@ export function PollEvent({ content, mEvent }: PollEventProps) {
       )
     : [];
 
+  // This should technically request the permissions at the time of the end of the event but that doesnt seem to be supported by the sdk
   const endIndex = sortedChildEvents.findLastIndex(
     (item) =>
       item.getContent()[M_POLL_END.name] &&
       (item.sender?.userId === mEvent.sender?.userId ||
-        permissions.action('redact', mEvent.sender?.userId ?? ''))
+        roomState?.maySendRedactionForEvent(mEvent, mEvent.sender?.userId ?? ''))
   );
   const isEnded = endIndex !== -1;
 
@@ -119,15 +102,14 @@ export function PollEvent({ content, mEvent }: PollEventProps) {
   });
   const totalVotes = Object.values(votes).reduce((a, b) => a + b);
 
-  const userSelectionEvent = filteredChildEvents.find(
-    (item) => item.event.sender === mx.getUserId()
-  );
+  const userSelectionEvent = filteredChildEvents.find((item) => item.event.sender === userId);
   const userSelectionContent = userSelectionEvent?.getContent();
   const userSelection: string[] = userSelectionContent
     ? userSelectionContent[M_POLL_RESPONSE.name]?.answers
     : undefined;
+
   function handleNewVote(id: string) {
-    if (!eventId || !roomId || maxSelections === 0) return;
+    if (!eventId || !roomId || maxSelections < 1) return;
     let newAnswers: string[] = [];
     if (userSelection?.includes(id)) newAnswers = userSelection.filter((item) => item !== id);
     else newAnswers = userSelection ? [...userSelection, id] : [id];
@@ -171,38 +153,36 @@ export function PollEvent({ content, mEvent }: PollEventProps) {
   }
   // The choice of making it not the same size and style as an Attachment is deliberate as Polls tipically are Way more wordy and this feels more spacious
   return (
-    <Box
-      direction="Column"
-      style={{
-        backgroundColor: color.SurfaceVariant.Container,
-        maxWidth: toRem(500),
-        borderRadius: config.radii.R500,
-      }}
-      grow="Yes"
-      gap="0"
-    >
-      <Header variant="Primary" style={{ padding: config.space.S400 }}>
-        <Box gap="200" grow="Yes" justifyContent="SpaceBetween">
-          <Text>{questionBody} </Text>
-        </Box>
-      </Header>
-      <Line
-        direction="Horizontal"
-        variant="SurfaceVariant"
-        style={{ width: '99%', alignSelf: 'Center' }}
-      />
-      <Box direction="Column" grow="Yes" style={{ padding: config.space.S200 }} gap="300">
+    <Box direction="Column" className={css.PollEvent} grow="Yes" gap="100">
+      <Box className={css.PollHeader}>
+        <Text>{questionBody} </Text>
+      </Box>
+      <Line direction="Horizontal" variant="SurfaceVariant" className={css.PollEventSeparator} />
+      <Box direction="Column" grow="Yes" gap="300" className={css.PollAnswersBody}>
         {answers.map((item) => {
           const optionBody = item['org.matrix.msc1767.text'];
           const voteCount = votes[item.id];
           const isSelected = userSelection?.includes(item.id);
           return (
-            <Box key={item.id} gap="100" direction="Column">
+            <Box key={item.id} gap="100" direction="Column" className={css.PollAnswerItem}>
               <Box gap="100" alignItems="Center">
-                {!isEnded && (
+                {maxSelections === 1 ? (
                   <RadioButton
                     size="100"
+                    aria-disabled={isEnded}
+                    disabled={isEnded}
                     checked={isSelected}
+                    aria-label={`${isSelected ? 'Remove vote from' : 'vote for'} ${optionBody}`}
+                    variant={isSelected ? 'Primary' : 'Secondary'}
+                    onClick={() => handleNewVote(item.id)}
+                  />
+                ) : (
+                  <Checkbox
+                    size="100"
+                    aria-disabled={isEnded}
+                    disabled={isEnded}
+                    checked={isSelected}
+                    aria-label={`${isSelected ? 'Remove vote from' : 'vote for'} ${optionBody}`}
                     variant={isSelected ? 'Primary' : 'Secondary'}
                     onClick={() => handleNewVote(item.id)}
                   />
@@ -211,7 +191,7 @@ export function PollEvent({ content, mEvent }: PollEventProps) {
                   <Text>{optionBody}</Text>
 
                   {(isDisclosed || isEnded) && (
-                    <Text size="T200" style={{ color: color.SurfaceVariant.OnContainer }}>
+                    <Text size="T200" className={css.PollAnswerCount}>
                       {`(${voteCount} vote${voteCount !== 1 ? 's' : ''})`}
                     </Text>
                   )}
@@ -224,23 +204,31 @@ export function PollEvent({ content, mEvent }: PollEventProps) {
                   max={1}
                   variant={isSelected ? 'Primary' : 'Secondary'}
                   title={voteCount ? `${Math.round((voteCount / totalVotes) * 100)}%` : '0%'}
+                  className={css.PollAnswerBar}
                 />
               )}
             </Box>
           );
         })}
-        <Box gap="200" grow="Yes" justifyContent="SpaceBetween">
+        <Box gap="200" grow="Yes" justifyContent="SpaceBetween" alignItems="Center">
           <Text size="T200">
-            {`(${totalVotes} vote${totalVotes > 1 ? 's' : ''}`}
-            {totalVotes !== voters.size &&
-              ` by ${voters.size} voter${voters.size !== 1 ? 's' : ''}`}
-            {')'}
+            {isDisclosed || isEnded
+              ? `${totalVotes} vote${totalVotes !== 1 ? 's' : ''} ${totalVotes !== voters.size ? `by ${voters.size} voter${voters.size !== 1 ? 's' : ''}` : ''}`
+              : 'Results will be shown when the poll is over'}
           </Text>
-          {!isEnded && canEnd && (
-            <Button size="300" radii="400" variant="Critical" onClick={handleEndVote}>
-              End Poll
-            </Button>
-          )}
+          <Box alignItems="Center" gap="200">
+            <Text size="T200">
+              {maxSelections !== 1 && maxSelections !== answers.length
+                ? `Max ${maxSelections} options.`
+                : ''}
+            </Text>
+            {!isEnded && canEnd && (
+              <Button size="300" radii="400" variant="Critical" onClick={handleEndVote}>
+                End Poll
+              </Button>
+            )}
+            {isEnded && <Text size="T200">This poll has ended.</Text>}
+          </Box>
         </Box>
       </Box>
     </Box>

@@ -1816,7 +1816,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             }}
           />
         )}
-        {showPollPicker && <PollDialog onCancel={() => setShowPollPicker(false)} mx={mx} roomId={roomId} />}
+        {showPollPicker && (
+          <PollDialog onCancel={() => setShowPollPicker(false)} mx={mx} roomId={roomId} />
+        )}
       </div>
     );
   }

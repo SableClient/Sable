@@ -38,7 +38,7 @@ const getRoomsUnread = (rooms: string[], roomToUnread: RoomToUnread): Unread | u
     return newUnread;
   }, undefined);
   
-  console.log('[getRoomsUnread] Result:', unread);
+  console.log('[BADGE-DEBUG:getRoomsUnread] Result:', unread);
   
   return unread;
 };

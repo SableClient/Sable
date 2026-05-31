@@ -454,7 +454,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
 
 export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): UnreadInfo[] => {
   const allRooms = mx.getRooms();
-  console.log('[getUnreadInfos] Starting scan:', {
+  console.log('[BADGE-DEBUG:getUnreadInfos] Starting scan:', {
     totalRooms: allRooms.length,
     mDirectsSize: options?.mDirects?.size ?? 0,
   });
@@ -483,7 +483,7 @@ export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): U
     return unread;
   }, []);
 
-  console.log('[getUnreadInfos] Complete:', {
+  console.log('[BADGE-DEBUG:getUnreadInfos] Completed scan:', {
     totalUnreads: unreadInfos.length,
     unreadInfos,
   });

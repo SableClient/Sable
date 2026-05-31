@@ -24,6 +24,21 @@ const getRoomsUnread = (rooms: string[], roomToUnread: RoomToUnread): Unread | u
     newUnread.from?.add(roomId);
     return newUnread;
   }, undefined);
+  
+  // DEBUG: Log when we have rooms but no unreads
+  if (rooms.length > 0 && !unread) {
+    console.log('[useRoomsUnread DEBUG] No unreads found:', {
+      roomCount: rooms.length,
+      rooms,
+      roomToUnreadSize: roomToUnread.size,
+      roomsInMap: rooms.map(id => ({
+        id,
+        hasEntry: roomToUnread.has(id),
+        unread: roomToUnread.get(id)
+      }))
+    });
+  }
+  
   return unread;
 };
 

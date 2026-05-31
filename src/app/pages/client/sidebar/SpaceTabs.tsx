@@ -568,6 +568,20 @@ function SpaceTab({
   const loudUnread = useRoomsUnread(loudChild, roomToUnreadAtom);
   const hasLoudUnreads = !!loudUnread && (loudUnread.highlight > 0 || loudUnread.total > 0);
 
+  // DEBUG: Log space badge calculation
+  if (space.name.includes('Draupnir')) {
+    console.log('[SpaceTabs DEBUG]', {
+      spaceName: space.name,
+      spaceId: space.roomId,
+      allChildCount: allChild.length,
+      allChildIds: allChild,
+      loudChildCount: loudChild.length,
+      allUnread,
+      loudUnread,
+      hasLoudUnreads,
+    });
+  }
+
   // Show badges for all unreads, but use loud parameter to control count vs dot display.
   // When "Show Loud Room Counts" is enabled and there are loud unreads, show counts.
   // Otherwise show dots (for quiet rooms like mentions-only or muted).

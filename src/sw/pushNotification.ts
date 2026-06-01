@@ -285,6 +285,18 @@ export const createPushNotifications = (
       console.warn('[SW pushNotification] no event type');
     }
 
+    // DEBUG: Log the full push payload to understand its structure
+    console.log('[SW handlePushNotificationPushData] Full push payload:', JSON.stringify(pushData, null, 2));
+    console.log('[SW handlePushNotificationPushData] Push payload fields:', {
+      type: pushData.type,
+      prio: pushData.prio,
+      room_id: pushData.room_id,
+      room_name: pushData.room_name,
+      sender_display_name: pushData.sender_display_name,
+      counts: pushData.counts,
+      data: pushData.data,
+    });
+
     // Apply focus mode filtering before showing any push notification
     const focusMode = getFocusMode();
     const isDM = isDMRoom(pushData);
@@ -298,6 +310,9 @@ export const createPushNotifications = (
       shouldShow,
       roomId: pushData.room_id,
       eventType,
+      'data.highlight': pushData.data?.highlight,
+      'data.is_direct': pushData.data?.is_direct,
+      'prio': pushData.prio,
     });
     
     if (!shouldShow) {

@@ -956,6 +956,90 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   }
 });
 
+// Asset validation: prevent caching HTML responses for JavaScript/CSS assets.
+// After a new deployment, stale HTML might reference old hashed asset URLs that
+// no longer exist. The server returns a 404 HTML page, which Safari refuses to
+// execute as JavaScript, causing "text/html is not a valid JavaScript MIME type"
+// errors. This handler validates asset responses and deletes bad cache entries.
+self.addEventListener('fetch', (event: FetchEvent) => {
+  const { url, method } = event.request;
+  const parsedUrl = new URL(url);
+
+  // Only intercept GET requests to /assets/ paths
+  if (method !== 'GET' || !parsedUrl.pathname.startsWith('/assets/')) return;
+
+  event.respondWith(
+    (async () => {
+      const cache = await self.caches.open('workbox-precache-v2-' + self.registration.scope);
+
+      // Try cache first (workbox precache strategy)
+      let response = await cache.match(event.request);
+
+      if (!response) {
+        // Not in cache, fetch from network
+        try {
+          response = await fetch(event.request);
+        } catch (networkError) {
+          // Network error - try returning cached version if it exists
+          const cachedResponse = await cache.match(event.request);
+          if (cachedResponse) return cachedResponse;
+          throw networkError;
+        }
+      }
+
+      // Validate response before using/caching it
+      const contentType = response.headers.get('content-type') || '';
+      const isJavaScript =
+        parsedUrl.pathname.endsWith('.js') || parsedUrl.pathname.endsWith('.mjs');
+      const isCSS = parsedUrl.pathname.endsWith('.css');
+      const isWASM = parsedUrl.pathname.endsWith('.wasm');
+
+      // Check if response is valid for the requested asset type
+      const isValidResponse =
+        response.ok &&
+        response.status >= 200 &&
+        response.status < 300 &&
+        !contentType.includes('text/html');
+
+      // Additional MIME type validation for specific asset types
+      const hasValidMimeType =
+        (isJavaScript &&
+          (contentType.includes('javascript') || contentType.includes('ecmascript'))) ||
+        (isCSS && contentType.includes('css')) ||
+        (isWASM && contentType.includes('wasm')) ||
+        (!isJavaScript && !isCSS && !isWASM);
+
+      if (!isValidResponse || !hasValidMimeType) {
+        // Invalid response (likely a 404 HTML page) - delete from cache
+        await cache.delete(event.request);
+
+        console.warn(
+          '[SW] Deleted invalid asset cache entry:',
+          parsedUrl.pathname,
+          'status:',
+          response.status,
+          'content-type:',
+          contentType
+        );
+
+        // Return a synthetic error response
+        return new Response('Asset not available', {
+          status: 404,
+          statusText: 'Asset Not Found',
+          headers: { 'Content-Type': 'text/plain' },
+        });
+      }
+
+      // Valid response - cache it if it came from the network
+      if (response && !response.redirected) {
+        await cache.put(event.request, response.clone());
+      }
+
+      return response;
+    })()
+  );
+});
+
 self.addEventListener('fetch', (event: FetchEvent) => {
   const { url, method } = event.request;
 

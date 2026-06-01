@@ -670,6 +670,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       const errorMsg = `Search worker failed to instantiate: ${e instanceof Error ? e.message : String(e)}`;
       const isMimeError =
         e instanceof Error && e.message.includes('MIME') && e.message.includes('text/html');
+      const isTypeError = e instanceof TypeError;
 
       setInitError(errorMsg);
       Sentry.captureException(e, {
@@ -678,12 +679,13 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           component: 'search-index',
           failure_stage: 'worker_instantiation',
           is_mime_error: isMimeError,
+          is_type_error: isTypeError,
           rocket_loader_active: rocketLoaderActive,
         },
         extra: {
           userId,
           maxMessagesPerRoom: searchIndexMessageLimit,
-          likely_stale_cache: isMimeError,
+          likely_stale_cache: isMimeError || isTypeError,
           rocketLoaderActive,
           indexedDBAvailable: typeof indexedDB !== 'undefined',
           userAgent: navigator.userAgent,
@@ -692,12 +694,35 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           hint: {
             description: rocketLoaderActive
               ? 'Cloudflare Rocket Loader detected - known to break Web Workers. Disable in CF dashboard.'
-              : isMimeError
-                ? 'Stale cached index.html likely referencing old worker URL. User should hard reload.'
+              : isMimeError || isTypeError
+                ? 'Stale cached index.html likely referencing old worker URL. Triggering reload.'
                 : 'Worker script failed to load',
           },
         },
       });
+
+      // Auto-reload on stale asset errors to fetch fresh assets from the server.
+      // The MIME type error indicates the server returned HTML (404 page) instead
+      // of JavaScript, which means the old cached HTML is referencing a worker
+      // URL that no longer exists after a new deployment. A hard reload will
+      // force the service worker to fetch fresh assets.
+      if (isMimeError || isTypeError) {
+        Sentry.addBreadcrumb({
+          category: 'search.index',
+          message: 'Triggering page reload due to stale worker asset',
+          level: 'info',
+          data: {
+            errorMessage: errorMsg,
+            isMimeError,
+            isTypeError,
+          },
+        });
+        // Use a small delay to ensure the Sentry event is transmitted
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+      }
+
       return () => {};
     }
 
@@ -710,6 +735,8 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       const message = error?.message ?? '';
       const errorMsg = `Search worker runtime error: ${message || 'Unknown worker error'}`;
       const isMimeError = message.includes('MIME') && message.includes('text/html');
+      const isTypeError =
+        error.error instanceof TypeError || message.toLowerCase().includes('typeerror');
 
       setInitError(errorMsg);
       setIsReady(false);
@@ -719,6 +746,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           component: 'search-index',
           failure_stage: 'worker_runtime',
           is_mime_error: isMimeError,
+          is_type_error: isTypeError,
           rocket_loader_active: rocketLoaderActive,
         },
         extra: {
@@ -727,7 +755,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           filename: error.filename,
           lineno: error.lineno,
           colno: error.colno,
-          likely_stale_cache: isMimeError,
+          likely_stale_cache: isMimeError || isTypeError,
           rocketLoaderActive,
           errorMessageEmpty: !message,
         },
@@ -738,12 +766,31 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
                 ? 'Empty error message + Rocket Loader detected → Rocket Loader is blocking worker. Disable in CF dashboard.'
                 : !message
                   ? 'Empty error message → worker failed to load (404, CORS, or stale cache). Check Network tab for worker URL.'
-                  : isMimeError
-                    ? 'Worker import failed with MIME error - likely stale cache referencing old assets or missing chunk'
+                  : isMimeError || isTypeError
+                    ? 'Worker import failed with MIME/type error - likely stale cache. Triggering reload.'
                     : 'Worker script runtime error',
           },
         },
       });
+
+      // Auto-reload on stale asset errors to fetch fresh assets from the server
+      if (isMimeError || isTypeError) {
+        Sentry.addBreadcrumb({
+          category: 'search.index',
+          message: 'Triggering page reload due to worker runtime error (stale asset)',
+          level: 'info',
+          data: {
+            errorMessage: errorMsg,
+            isMimeError,
+            isTypeError,
+            filename: error.filename,
+          },
+        });
+        // Use a small delay to ensure the Sentry event is transmitted
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+      }
     };
     worker.addEventListener('error', handleWorkerError);
 

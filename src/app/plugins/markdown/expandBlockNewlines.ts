@@ -135,9 +135,39 @@ function nextLineIsBlockStarter(md: string, newlineIdx: number): boolean {
   return looksLikeBlockStart(effective);
 }
 
+function leadingSpaces(line: string): number {
+  let k = 0;
+  while (k < line.length && line[k] === ' ') k++;
+  return k;
+}
+
+function lineLooksLikeListItem(line: string): boolean {
+  const effective = effectiveContentAfterEscapes(line);
+  if (effective === null) return false;
+  return /^\d{1,9}\.\s/.test(effective) || /^[-*+]\s/.test(effective);
+}
+
+function nextLineIsNestedListItem(md: string, newlineIdx: number): boolean {
+  const prevLine = lineAtNewline(md, newlineIdx);
+  const nextLine = lineAfterNewline(md, newlineIdx);
+  if (!lineLooksLikeListItem(nextLine)) return false;
+  return leadingSpaces(nextLine) > leadingSpaces(prevLine);
+}
+
+function nextLineIsSiblingListItem(md: string, newlineIdx: number): boolean {
+  const prevLine = lineAtNewline(md, newlineIdx);
+  const nextLine = lineAfterNewline(md, newlineIdx);
+  if (!lineLooksLikeListItem(prevLine) || !lineLooksLikeListItem(nextLine)) return false;
+  return leadingSpaces(prevLine) === leadingSpaces(nextLine);
+}
+
 function shouldExpandSingleNewline(md: string, newlineIdx: number): boolean {
   // Consecutive `>` lines belong to one blockquote, keep the single `\n` between them.
   if (prevLineIsBlockquote(md, newlineIdx) && nextLineContinuesBlockquote(md, newlineIdx)) {
+    return false;
+  }
+  // Keep single `\n` between list items (siblings) and before nested sublists (2- or 4-space indent).
+  if (nextLineIsSiblingListItem(md, newlineIdx) || nextLineIsNestedListItem(md, newlineIdx)) {
     return false;
   }
   if (nextLineIsBlockStarter(md, newlineIdx)) return true;

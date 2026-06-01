@@ -25,18 +25,27 @@ export function shouldShowNotificationInFocusMode(
   isDM: boolean,
   isHighlight: boolean
 ): boolean {
-  if (focusMode === 'off') return true;
+  console.log('[shouldShowNotificationInFocusMode]', { focusMode, isDM, isHighlight });
+  
+  if (focusMode === 'off') {
+    console.log('[shouldShowNotificationInFocusMode] Off mode - allowing all');
+    return true;
+  }
 
   if (focusMode === 'focus') {
     // Focus: show all DMs, only highlights from rooms
-    return isDM || isHighlight;
+    const result = isDM || isHighlight;
+    console.log('[shouldShowNotificationInFocusMode] Focus mode -', result ? 'ALLOW' : 'BLOCK');
+    return result;
   }
 
   if (focusMode === 'dnd') {
     // DND: only show DM highlights or room highlights
+    console.log('[shouldShowNotificationInFocusMode] DND mode -', isHighlight ? 'ALLOW (is highlight)' : 'BLOCK (not highlight)');
     return isHighlight;
   }
 
+  console.log('[shouldShowNotificationInFocusMode] Unknown mode - allowing by default');
   return true;
 }
 

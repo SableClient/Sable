@@ -307,6 +307,12 @@ function MessageNotifications() {
     'showMessageContentInEncryptedNotifications'
   );
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
+  
+  // Debug: log focus mode changes
+  useEffect(() => {
+    console.log('[MessageNotifications] Focus mode changed to:', focusMode);
+  }, [focusMode]);
+  
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
@@ -458,9 +464,21 @@ function MessageNotifications() {
 
       // Apply focus mode filter: check if this notification should be shown
       // based on the current focus mode setting.
-      if (!shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule)) {
+      const shouldShow = shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule);
+      console.log('[FocusMode Filter]', {
+        focusMode,
+        isDM,
+        isHighlight: isHighlightByRule,
+        shouldShow,
+        roomId: room.roomId,
+        roomName: room.name,
+        eventId,
+      });
+      if (!shouldShow) {
+        console.log('[FocusMode Filter] Blocked notification');
         return;
       }
+      console.log('[FocusMode Filter] Allowing notification');
 
       // Record as notified to prevent duplicate banners (e.g. re-emitted decrypted events).
       notifiedEventsRef.current.add(eventId);

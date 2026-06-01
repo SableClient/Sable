@@ -285,6 +285,22 @@ export const createPushNotifications = (
       console.warn('[SW pushNotification] no event type');
     }
 
+    // Log push payload structure to Sentry for debugging focus mode filtering
+    // This helps us understand what metadata is available for filtering decisions
+    postSentryMetric('sable.push.payload_structure', 1, {
+      event_type: pushData.type ?? 'unknown',
+      has_prio: pushData.prio !== undefined,
+      prio_value: pushData.prio ?? 'none',
+      has_counts: pushData.counts !== undefined,
+      has_data: pushData.data !== undefined,
+      has_data_highlight: pushData.data?.highlight !== undefined,
+      data_highlight_value: String(pushData.data?.highlight ?? 'none'),
+      has_data_is_direct: pushData.data?.is_direct !== undefined,
+      data_is_direct_value: String(pushData.data?.is_direct ?? 'none'),
+      has_room_name: pushData.room_name !== undefined,
+      room_name_empty: pushData.room_name === '',
+    }).catch(() => undefined);
+
     // NOTE: Focus mode filtering is currently DISABLED in the service worker
     // because push payloads don't reliably include highlight/DM metadata.
     // Focus mode filtering happens on the app side (ClientNonUIFeatures and
@@ -300,6 +316,14 @@ export const createPushNotifications = (
     
     const focusMode = getFocusMode();
     console.log('[SW handlePushNotificationPushData] Focus mode:', focusMode, '(filtering disabled in SW - handled by app)');
+    console.log('[SW handlePushNotificationPushData] Payload fields:', {
+      has_prio: pushData.prio !== undefined,
+      prio: pushData.prio,
+      has_data_highlight: pushData.data?.highlight !== undefined,
+      data_highlight: pushData.data?.highlight,
+      has_data_is_direct: pushData.data?.is_direct !== undefined,
+      data_is_direct: pushData.data?.is_direct,
+    });
 
     switch (eventType as string) {
       case EventType.RoomMessage as string:

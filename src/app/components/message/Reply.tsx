@@ -44,7 +44,7 @@ import {
 } from './content';
 import * as css from './Reply.css';
 import { LinePlaceholder } from './placeholder';
-import { M_POLL_START } from 'matrix-js-sdk';
+import { M_POLL_START, M_TEXT } from 'matrix-js-sdk';
 
 const ROOM_REPLY_TIMELINE_EVENT_TYPES = new Set<string>([
   EventType.RoomMessage as string,
@@ -204,7 +204,7 @@ export const Reply = as<'div', ReplyProps>(
     const mx = useMatrixClient();
 
     const { body, formatted_body: formattedBody, format } = replyEvent?.getContent() ?? {};
-    const extensibleContent = replyEvent?.getContent()['org.matrix.msc1767.text'] as
+    const extensibleContent = replyEvent?.getContent()[M_TEXT.name] as
       | string
       | { body: string }
       | undefined;
@@ -273,12 +273,15 @@ export const Reply = as<'div', ReplyProps>(
       }),
       [mx, room.roomId, mentionClickHandler, nicknames, settingsLinkBaseUrl]
     );
-    if(eventType === M_POLL_START.name){
-      const question = (replyEvent?.getContent()[M_POLL_START.name] as {question: {'org.matrix.msc1767.text'?: string, body?: string}})?.question;
+    if (eventType === M_POLL_START.name) {
+      const question = (
+        replyEvent?.getContent()[M_POLL_START.name] as {
+          question: { [M_TEXT.name]?: string; body?: string };
+        }
+      )?.question;
       image = Icons.UnorderList;
-      bodyJSX = `'s poll asking ${question['org.matrix.msc1767.text'] ?? question.body ?? ''}`
-    }
-    else if (isFormattedReply && formattedBody !== '') {
+      bodyJSX = `'s poll asking ${(question[M_TEXT.name] as string) ?? question.body ?? ''}`;
+    } else if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
       if (shouldParseReplyFormattedPreview(sanitizedHtml)) {
         const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {

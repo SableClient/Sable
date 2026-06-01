@@ -46,6 +46,7 @@ import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
 import { PollEvent } from './message/PollEvent';
+import { M_TEXT } from 'matrix-js-sdk';
 
 type RenderMessageContentProps = {
   displayName: string;
@@ -457,9 +458,8 @@ function RenderMessageContentInternal({
     <UnsupportedContent
       body={
         (content as { body?: string }).body ??
-        (content as { 'org.matrix.msc1767.text'?: string })['org.matrix.msc1767.text'] ??
-        (content as { 'org.matrix.msc1767.text'?: { body: string } })['org.matrix.msc1767.text']
-          ?.body ??
+        (content as { [M_TEXT.name]?: string })[M_TEXT.name] ??
+        (content as { [M_TEXT.name]?: { body: string } })[M_TEXT.name]?.body ??
         ''
       }
     />

@@ -24,7 +24,12 @@ import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import type { IContent, MatrixClient, Room, TimelineEvents } from 'matrix-js-sdk';
-import { M_POLL_KIND_DISCLOSED, M_POLL_KIND_UNDISCLOSED, M_POLL_START } from 'matrix-js-sdk';
+import {
+  M_POLL_KIND_DISCLOSED,
+  M_POLL_KIND_UNDISCLOSED,
+  M_POLL_START,
+  M_TEXT,
+} from 'matrix-js-sdk';
 import { isKeyHotkey } from 'is-hotkey';
 import * as css from './PollDialog.css';
 import type { IReplyDraft } from '$state/room/roomInputDrafts';
@@ -47,30 +52,46 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
   const [answers, setAnswers] = useState<PollAnswerItem[]>([
     {
       id: randomStr(),
-      'org.matrix.msc1767.text': '',
+      [M_TEXT.name]: '',
     },
     {
       id: randomStr(),
-      'org.matrix.msc1767.text': '',
+      [M_TEXT.name]: '',
     },
   ]);
   const addOption = useCallback(() => {
-    if (maxSelections === answers.length) setMaxSelections(maxSelections + 1);
+    if (maxSelections === answers.length) {
+      setMaxSelections(maxSelections + 1);
+      setInputValue(maxSelections + 1);
+    }
     setAnswers([
       ...answers,
       {
         id: randomStr(),
-        'org.matrix.msc1767.text': '',
+        [M_TEXT.name]: '',
       },
     ]);
   }, [answers, setAnswers, maxSelections, setMaxSelections]);
+  const delOption = useCallback(
+    (id: string) => {
+      if (answers.length > 2) {
+        if (maxSelections === answers.length) {
+          setMaxSelections(maxSelections - 1);
+          setInputValue(maxSelections - 1);
+        }
+        setAnswers(answers.filter((answer) => answer.id !== id));
+      }
+    },
+    [answers, setAnswers, maxSelections, setMaxSelections]
+  );
 
   const handleSubmit = () => {
+    if (!title) return;
     // its an IContent instead of the proper object because the proper object doesnt work w other clients :>
     const pollContent: IContent = {
       [M_POLL_START.name]: {
         question: {
-          'org.matrix.msc1767.text': title.current,
+          [M_TEXT.name]: title.current,
           body: title.current,
           msgtype: 'm.text',
         },
@@ -78,7 +99,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
         max_selections: maxSelections,
         answers: answers,
       },
-      'org.matrix.msc1767.text': `New poll\n Question: ${title.current}\nAnswers:\n ${answers.map((item) => item['org.matrix.msc1767.text']).join('\n')}`,
+      [M_TEXT.name]: `New poll\n Question: ${title.current}\nAnswers:\n ${answers.map((item) => item[M_TEXT.name]).join('\n')}`,
     };
     if (replyDraft && clearReplyDraft) {
       pollContent['m.relates_to'] = getReplyContent(replyDraft, room);
@@ -170,7 +191,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
                           let newAnswers = answers;
                           newAnswers[index] = {
                             id: answers[index]?.id ?? randomStr(),
-                            'org.matrix.msc1767.text': evt.currentTarget.value.trim() ?? '',
+                            [M_TEXT.name]: evt.currentTarget.value.trim() ?? '',
                           };
                           setAnswers(newAnswers);
                         }}
@@ -182,10 +203,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
                             disabled={answers.length <= 2}
                             aria-disabled={answers.length <= 2}
                             aria-label="Remove Option"
-                            onClick={() => {
-                              if (answers.length > 2)
-                                setAnswers(answers.filter((answer) => answer.id !== item.id));
-                            }}
+                            onClick={() => delOption(item.id)}
                           >
                             <Icon size="50" src={Icons.Minus} />
                           </IconButton>

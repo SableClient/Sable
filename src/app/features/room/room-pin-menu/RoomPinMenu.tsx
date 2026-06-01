@@ -197,7 +197,7 @@ function PinnedMessageActiveContent(
         />
       )}
       <Box onClick={handleOpenClick}>
-      {renderContent(pinnedEvent.getType(), false, pinnedEvent, displayName, getContent)}
+        {renderContent(pinnedEvent.getType(), false, pinnedEvent, displayName, getContent)}
       </Box>
     </ModernLayout>
   );

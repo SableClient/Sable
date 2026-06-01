@@ -1,5 +1,6 @@
 import { Box, Button, Checkbox, Line, ProgressBar, RadioButton, Text } from 'folds';
-import type { MatrixClient, Room, TimelineEvents } from 'matrix-js-sdk';
+import type { MatrixClient, PollStartSubtype, Room, TimelineEvents } from 'matrix-js-sdk';
+import { M_TEXT } from 'matrix-js-sdk';
 import {
   EventTimeline,
   M_POLL_END,
@@ -10,6 +11,7 @@ import {
   type MatrixEvent,
 } from 'matrix-js-sdk';
 import * as css from './PollEvent.css';
+import { useCallback, useEffect, useState } from 'react';
 
 type PollEventProps = {
   content: Record<string, unknown>;
@@ -20,7 +22,7 @@ type PollEventProps = {
 
 export type PollAnswerItem = {
   id: string;
-  'org.matrix.msc1767.text': string;
+  [M_TEXT.name]: string;
 };
 
 type PollVotes = {
@@ -37,15 +39,13 @@ type PollResponse = {
   };
 };
 export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
-  if (!content) return null;
   const eventId = mEvent.getId();
   const userId = mx.getUserId() ?? '';
   const roomId = room.roomId;
   const roomState = room.getLiveTimeline()?.getState(EventTimeline.FORWARDS);
 
-  const poll = content[M_POLL_START.name];
-  const question = (poll as { question?: string })?.question;
-  const questionBody = (question as { body?: string })?.body ?? '';
+  const poll = content[M_POLL_START.name] as PollStartSubtype;
+  const questionBody = (poll?.question as { body?: string })?.body ?? '';
   const answers = (poll as { answers: PollAnswerItem[] })?.answers;
   const maxSelections = (poll as { max_selections: number })?.max_selections;
   const isDisclosed = (poll as { kind: string })?.kind === M_POLL_KIND_DISCLOSED.name;
@@ -55,46 +55,75 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   let votes: PollVotes = {};
   answers.forEach((item) => (votes[item.id] = 0));
 
+  // This should technically request the permissions at the time of the end of the event but that doesnt seem to be supported by the sdk
+  const getEndIndex = useCallback(
+    (events: MatrixEvent[]) => {
+      return events.findLastIndex(
+        (item) =>
+          item.getContent()[M_POLL_END.name] &&
+          (item.sender?.userId === mEvent.sender?.userId ||
+            roomState?.maySendRedactionForEvent(mEvent, mEvent.sender?.userId ?? ''))
+      );
+    },
+    [roomState, mEvent]
+  );
+
+  const sortChildEvents = useCallback((events: MatrixEvent[]) => {
+    if (!events) return [];
+
+    const sortedArray = events.toSorted((a: MatrixEvent, b: MatrixEvent) =>
+      a.event.origin_server_ts && b.event.origin_server_ts
+        ? b.event.origin_server_ts - a.event.origin_server_ts
+        : 0
+    );
+
+    return sortedArray;
+  }, []);
+
   const childEvents = room
     ?.getUnfilteredTimelineSet()
     .relations.getAllChildEventsForEvent(eventId ?? '')
     .filter((event) => event.getRelation()?.rel_type === REFERENCE_RELATION.name);
 
   // manual sorting because the timeline is sometimes sent stupidly <3
-  let sortedChildEvents = childEvents
-    ? childEvents.toSorted((a: MatrixEvent, b: MatrixEvent) =>
-        a.event.origin_server_ts && b.event.origin_server_ts
-          ? b.event.origin_server_ts - a.event.origin_server_ts
-          : 0
-      )
-    : [];
+  const [sortedChildEvents, setSortedChildEvents] = useState(sortChildEvents(childEvents));
+  const [isEnded, setIsEnded] = useState(getEndIndex(sortedChildEvents) !== -1);
 
-  // This should technically request the permissions at the time of the end of the event but that doesnt seem to be supported by the sdk
-  const endIndex = sortedChildEvents.findLastIndex(
-    (item) =>
-      item.getContent()[M_POLL_END.name] &&
-      (item.sender?.userId === mEvent.sender?.userId ||
-        roomState?.maySendRedactionForEvent(mEvent, mEvent.sender?.userId ?? ''))
-  );
-  const isEnded = endIndex !== -1;
+  // ensure a new sorted array is only generated when a new list is made
+  useEffect(() => {
+    let newChildEvents = childEvents ? sortChildEvents(childEvents) : [];
+    const newEndIndex = getEndIndex(newChildEvents);
 
-  if (isEnded) sortedChildEvents = sortedChildEvents.slice(endIndex + 1);
+    setSortedChildEvents(newChildEvents);
+    setIsEnded(newEndIndex !== -1);
 
+    // This is to avoid recomputation for anything but the childEvents changing
+    // oxlint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps
+  }, [childEvents.length, sortChildEvents, getEndIndex]);
+
+  if (!content) return null;
+  const finalArray = isEnded
+    ? sortedChildEvents.slice(getEndIndex(sortedChildEvents) + 1)
+    : sortedChildEvents;
   //filter for a unique event from each sender
   let voters = new Set<string>();
   let filteredChildEvents: MatrixEvent[] = [];
-  sortedChildEvents?.forEach((item) => {
-    if (item.event.sender && !voters.has(item.event.sender)) {
-      voters.add(item.event.sender);
-      filteredChildEvents.push(item);
-    }
-  });
+  if (isDisclosed || isEnded)
+    finalArray?.forEach((item) => {
+      if (item.event.sender && !voters.has(item.event.sender)) {
+        voters.add(item.event.sender);
+        filteredChildEvents.push(item);
+      }
+    });
 
   filteredChildEvents?.forEach((item) => {
     const VoteContent = item.getContent();
     const response = VoteContent[M_POLL_RESPONSE.name];
     const selections = response?.answers;
-    if (!selections || selections?.length > maxSelections) return;
+    if (selections.length > maxSelections || selections.length === 0) {
+      if (item.event.sender) voters.delete(item.event.sender);
+      return;
+    }
 
     selections.forEach((selection: string) => {
       if (votes[selection] !== undefined) votes[selection] += 1;
@@ -141,7 +170,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
         event_id: eventId,
       },
       'org.matrix.msc3381.poll.end': {},
-      'org.matrix.msc1767.text': 'The Poll has ended',
+      [M_TEXT.name]: 'The Poll has ended',
       body: 'The poll has ended',
       msgtype: 'm.text',
     };
@@ -160,7 +189,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
       <Line direction="Horizontal" variant="SurfaceVariant" className={css.PollEventSeparator} />
       <Box direction="Column" grow="Yes" shrink="No" gap="300" className={css.PollAnswersBody}>
         {answers.map((item) => {
-          const optionBody = item['org.matrix.msc1767.text'];
+          const optionBody = item[M_TEXT.name];
           const voteCount = votes[item.id];
           const isSelected = userSelection?.includes(item.id);
           return (

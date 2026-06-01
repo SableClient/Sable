@@ -773,6 +773,7 @@ function SyncNotificationSettingsWithServiceWorker() {
     'showMessageContentInEncryptedNotifications'
   );
   const [clearNotificationsOnRead] = useSetting(settingsAtom, 'clearNotificationsOnRead');
+  const [focusMode] = useSetting(settingsAtom, 'focusMode');
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;

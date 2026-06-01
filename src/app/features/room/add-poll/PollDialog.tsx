@@ -23,18 +23,23 @@ import { randomStr } from '$utils/common';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import type { IContent, MatrixClient, TimelineEvents } from 'matrix-js-sdk';
+import type { IContent, MatrixClient, Room, TimelineEvents } from 'matrix-js-sdk';
 import { M_POLL_KIND_DISCLOSED, M_POLL_KIND_UNDISCLOSED, M_POLL_START } from 'matrix-js-sdk';
 import { isKeyHotkey } from 'is-hotkey';
 import * as css from './PollDialog.css';
+import type { IReplyDraft } from '$state/room/roomInputDrafts';
+import { getReplyContent } from '../RoomInput';
 
 type PollDialogProps = {
   onCancel: () => void;
   mx: MatrixClient;
-  roomId: string;
+  room: Room;
+  replyDraft?: IReplyDraft;
+  clearReplyDraft?: () => void;
 };
 
-export function PollDialog({ onCancel, mx, roomId }: PollDialogProps) {
+export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: PollDialogProps) {
+  const roomId = room.roomId;
   const [isDisclosed, setIsDisclosed] = useState(true);
   const [maxSelections, setMaxSelections] = useState(1);
   const [inputValue, setInputValue] = useState(1);
@@ -75,6 +80,10 @@ export function PollDialog({ onCancel, mx, roomId }: PollDialogProps) {
       },
       'org.matrix.msc1767.text': `New poll\n Question: ${title.current}\nAnswers:\n ${answers.map((item) => item['org.matrix.msc1767.text']).join('\n')}`,
     };
+    if (replyDraft && clearReplyDraft) {
+      pollContent['m.relates_to'] = getReplyContent(replyDraft, room);
+      clearReplyDraft();
+    }
 
     mx.sendEvent(
       roomId,
@@ -113,7 +122,7 @@ export function PollDialog({ onCancel, mx, roomId }: PollDialogProps) {
             <Header className={css.PollDialogHeader} variant="Surface" size="500">
               <Box grow="Yes" gap="200">
                 <Icon src={Icons.UnorderList} />
-                <Text size="H4">New Poll </Text>
+                <Text size="H4">{`New Poll ${replyDraft ? '(reply / thread)' : ''}`} </Text>
               </Box>
               <IconButton
                 size="300"

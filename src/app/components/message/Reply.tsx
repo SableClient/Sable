@@ -44,6 +44,7 @@ import {
 } from './content';
 import * as css from './Reply.css';
 import { LinePlaceholder } from './placeholder';
+import { M_POLL_START } from 'matrix-js-sdk';
 
 const ROOM_REPLY_TIMELINE_EVENT_TYPES = new Set<string>([
   EventType.RoomMessage as string,
@@ -203,6 +204,11 @@ export const Reply = as<'div', ReplyProps>(
     const mx = useMatrixClient();
 
     const { body, formatted_body: formattedBody, format } = replyEvent?.getContent() ?? {};
+    const extensibleContent = replyEvent?.getContent()['org.matrix.msc1767.text'] as
+      | string
+      | { body: string }
+      | undefined;
+    const extensibleBody = (extensibleContent as { body: string })?.body ?? extensibleContent;
     const sender = replyEvent?.getSender();
     const eventType = replyEvent?.getType();
 
@@ -233,7 +239,7 @@ export const Reply = as<'div', ReplyProps>(
     const isFormattedReply =
       format === 'org.matrix.custom.html' && typeof formattedBody === 'string';
     const hasPlainTextReply = typeof body === 'string' && body !== '';
-
+    const hasExtensibleBody = typeof extensibleBody === 'string' && extensibleBody !== '';
     // An encrypted event that hasn't been decrypted yet (keys pending) has an
     // empty result from getClearContent().  Treat it as still-loading rather
     // than a failure so the UI shows a placeholder instead of MessageFailedContent
@@ -267,8 +273,12 @@ export const Reply = as<'div', ReplyProps>(
       }),
       [mx, room.roomId, mentionClickHandler, nicknames, settingsLinkBaseUrl]
     );
-
-    if (isFormattedReply && formattedBody !== '') {
+    if(eventType === M_POLL_START.name){
+      const question = (replyEvent?.getContent()[M_POLL_START.name] as {question: {'org.matrix.msc1767.text'?: string, body?: string}})?.question;
+      image = Icons.UnorderList;
+      bodyJSX = `'s poll asking ${question['org.matrix.msc1767.text'] ?? question.body ?? ''}`
+    }
+    else if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
       if (shouldParseReplyFormattedPreview(sanitizedHtml)) {
         const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
@@ -284,9 +294,15 @@ export const Reply = as<'div', ReplyProps>(
       } else if (hasPlainTextReply) {
         const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
         bodyJSX = scaleSystemEmoji(strippedBody);
+      } else if (hasExtensibleBody) {
+        const strippedBody = trimReplyFromBody(extensibleBody).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
+        bodyJSX = scaleSystemEmoji(strippedBody);
       }
     } else if (hasPlainTextReply) {
       const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
+      bodyJSX = scaleSystemEmoji(strippedBody);
+    } else if (hasExtensibleBody) {
+      const strippedBody = trimReplyFromBody(extensibleBody).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
       bodyJSX = scaleSystemEmoji(strippedBody);
     } else if (eventType === EventType.RoomMember && !!replyEvent) {
       const parsedMemberEvent = parseMemberEvent(replyEvent);

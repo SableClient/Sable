@@ -154,11 +154,11 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   // The choice of making it not the same size and style as an Attachment is deliberate as Polls tipically are Way more wordy and this feels more spacious
   return (
     <Box direction="Column" className={css.PollEvent} grow="Yes" gap="100">
-      <Box className={css.PollHeader}>
+      <Box className={css.PollHeader} shrink="No">
         <Text>{questionBody} </Text>
       </Box>
       <Line direction="Horizontal" variant="SurfaceVariant" className={css.PollEventSeparator} />
-      <Box direction="Column" grow="Yes" gap="300" className={css.PollAnswersBody}>
+      <Box direction="Column" grow="Yes" shrink="No" gap="300" className={css.PollAnswersBody}>
         {answers.map((item) => {
           const optionBody = item['org.matrix.msc1767.text'];
           const voteCount = votes[item.id];
@@ -210,7 +210,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
             </Box>
           );
         })}
-        <Box gap="200" grow="Yes" justifyContent="SpaceBetween" alignItems="Center">
+        <Box gap="200" grow="Yes" shrink="No" justifyContent="SpaceBetween" alignItems="Center">
           <Text size="T200">
             {isDisclosed || isEnded
               ? `${totalVotes} vote${totalVotes !== 1 ? 's' : ''} ${totalVotes !== voters.size ? `by ${voters.size} voter${voters.size !== 1 ? 's' : ''}` : ''}`

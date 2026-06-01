@@ -163,7 +163,7 @@ import { PollDialog } from './add-poll';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
-const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
+export const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   const thread = room.getThread(threadRootId);
   const threadEvents: MatrixEvent[] = thread?.events ?? [];
   const filtered = threadEvents.filter(
@@ -192,7 +192,10 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   return threadRootId;
 };
 
-const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEventRelation => {
+export const getReplyContent = (
+  replyDraft: IReplyDraft | undefined,
+  room?: Room
+): IEventRelation => {
   if (!replyDraft) return {};
 
   const relatesTo: IEventRelation = {};
@@ -1817,7 +1820,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           />
         )}
         {showPollPicker && (
-          <PollDialog onCancel={() => setShowPollPicker(false)} mx={mx} roomId={roomId} />
+          <PollDialog
+            onCancel={() => setShowPollPicker(false)}
+            mx={mx}
+            room={room}
+            replyDraft={replyDraft}
+            clearReplyDraft={() => setReplyDraft(undefined)}
+          />
         )}
       </div>
     );

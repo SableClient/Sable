@@ -171,6 +171,8 @@ export function SearchResultGroup({
             linkifyOpts={linkifyOpts}
             highlightRegex={highlightRegex}
             outlineAttachment
+            mx={mx}
+            room={room}
           />
         );
       },

@@ -247,6 +247,9 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
                   htmlReactParserOptions={htmlReactParserOptions}
                   linkifyOpts={linkifyOpts}
                   outlineAttachment
+                  mEvent={rootEvent}
+                  mx={mx}
+                  room={room}
                 />
               );
             }}

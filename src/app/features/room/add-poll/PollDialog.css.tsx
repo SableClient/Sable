@@ -21,11 +21,12 @@ export const PollDialogAnswerBody = style({
 export const PollDialogAnswerInput = style({ width: '100%' });
 export const PollDialogMaxSelectionNumber = style({ width: toRem(80) });
 
-export const PollDialogMaxSelectionSlider = style({ 
-                      width: '100%',
-                      cursor: 'pointer',
-                      appearance: 'none',
-                      height: toRem(6),
-                      borderRadius: config.radii.Pill,
-                      backgroundColor: color.Background.ContainerLine,
-                      accentColor: color.Primary.Main,});
+export const PollDialogMaxSelectionSlider = style({
+  width: '100%',
+  cursor: 'pointer',
+  appearance: 'none',
+  height: toRem(6),
+  borderRadius: config.radii.Pill,
+  backgroundColor: color.Background.ContainerLine,
+  accentColor: color.Primary.Main,
+});

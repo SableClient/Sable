@@ -809,10 +809,11 @@ function SyncNotificationSettingsWithServiceWorker() {
       showMessageContent,
       showEncryptedMessageContent,
       clearNotificationsOnRead,
+      focusMode,
     };
 
     postToServiceWorker(payload);
-  }, [showMessageContent, showEncryptedMessageContent, clearNotificationsOnRead]);
+  }, [showMessageContent, showEncryptedMessageContent, clearNotificationsOnRead, focusMode]);
 
   return null;
 }

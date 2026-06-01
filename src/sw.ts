@@ -19,12 +19,14 @@ let syncIsHealthy = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
+let focusMode: 'off' | 'focus' | 'dnd' = 'off';
 const { handlePushNotificationPushData } = createPushNotifications(
   self,
   () => ({
     showMessageContent,
     showEncryptedMessageContent,
   }),
+  () => focusMode,
   postSentryMetric
 );
 
@@ -50,6 +52,7 @@ async function persistSettings() {
           showMessageContent,
           showEncryptedMessageContent,
           clearNotificationsOnRead,
+          focusMode,
           // Persist when the app was last visible so cold-SW-restart suppression works on iOS/iPad.
           // A timestamp lets us expire stale entries (app may have closed without sending false).
           appVisibleAt: appIsVisible ? Date.now() : 0,
@@ -75,6 +78,8 @@ async function loadPersistedSettings() {
       showEncryptedMessageContent = s.showEncryptedMessageContent;
     if (typeof s.clearNotificationsOnRead === 'boolean')
       clearNotificationsOnRead = s.clearNotificationsOnRead;
+    if (s.focusMode === 'off' || s.focusMode === 'focus' || s.focusMode === 'dnd')
+      focusMode = s.focusMode;
     // Restore appIsVisible from the last-known visibility timestamp.
     // On iOS/iPad, the SW is killed between pushes so appIsVisible always resets to false.
     // If the app reported itself visible within the last 2 s, trust that it still is.
@@ -884,6 +889,11 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     ) {
       clearNotificationsOnRead = (data as { clearNotificationsOnRead: boolean })
         .clearNotificationsOnRead;
+    }
+    const fm = (data as { focusMode?: unknown }).focusMode;
+    if (fm === 'off' || fm === 'focus' || fm === 'dnd') {
+      focusMode = fm;
+      console.debug('[SW setNotificationSettings] focusMode updated to:', focusMode);
     }
     // Persist so settings survive SW restart (iOS kills the SW aggressively).
     event.waitUntil(persistSettings());

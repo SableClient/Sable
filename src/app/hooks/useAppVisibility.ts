@@ -46,112 +46,34 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile);
     };
 
-    const unsub = appEvents.onVisibilityChange(handleVisibilityForNotifications);
-    return unsub;
+    const unsub = appEvents.onVisibilityChange;
+    appEvents.onVisibilityChange = handleVisibilityForNotifications;
+    return () => {
+      appEvents.onVisibilityChange = unsub;
+    };
   }, [mx, clientConfig, usePushNotifications, pushSubAtom]);
 
+  // Handle app foreground/background events for timeline refresh and visibility tracking.
+  // The Matrix SDK handles reconnection automatically when network requests are aborted
+  // by iOS suspension - we just need to emit visibility events for UI updates.
   useEffect(() => {
     if (!mx) return undefined;
 
-    const doRetry = () => {
-      // Only retry if sync is actually in an error or stopped state.
-      // Calling retry when already syncing causes unnecessary reconnection banners.
-      const syncState = mx.getSyncState();
-      if (
-        syncState !== 'ERROR' &&
-        syncState !== 'STOPPED' &&
-        syncState !== 'RECONNECTING'
-      ) {
-        debugLog.info('general', 'Skipping retry - already syncing', { syncState });
-        return;
-      }
-
-      // Wrap retry calls in try-catch to prevent crashes during wake/restore.
-      // The matrix client or sliding sync manager might be in an invalid state
-      // if the device just woke from sleep or the app was restored from bfcache.
-      try {
-        debugLog.info('general', 'Triggering sync retry', { syncState });
-        // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
-        // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
-        // slidingSync.resend() which aborts any stalled request and retries without backoff.
-        mx.retryImmediately();
-        getSlidingSyncManager(mx)?.retryNow();
-      } catch (err) {
-        debugLog.error('general', 'Sync retry failed during wake/restore', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-        // Don't rethrow — allow the app to continue and retry will happen naturally
-        // once the client is in a healthy state again.
-      }
-    };
-
-    // Debounce foreground events: both pageshow[persisted] and visibilitychange can
-    // fire within milliseconds of each other on iOS bfcache restore, so coalesce them
-    // to avoid duplicate sync retries.
-    let debounceTimer: number | undefined;
-    const debouncedRetry = () => {
-      if (debounceTimer !== undefined) {
-        clearTimeout(debounceTimer);
-      }
-      debounceTimer = window.setTimeout(() => {
-        debounceTimer = undefined;
-        doRetry();
-      }, 100); // 100ms window to catch both events
-    };
-
     const handleForeground = () => {
       if (document.visibilityState !== 'visible') return;
-      debugLog.info('general', 'App foregrounded — sync retry triggered');
-
-      // Wrap in try-catch in case retry throws (e.g., client disposed, network unavailable)
+      debugLog.info('general', 'App foregrounded');
+      
+      // Emit visibility event so timeline and other components can refresh.
+      // The Matrix SDK will handle reconnection automatically if needed - no
+      // need for aggressive retry logic that can cause reconnection cascades
+      // on iOS when in-flight requests are aborted during suspension.
       try {
-        debouncedRetry();
+        appEvents.onVisibilityChange?.(true);
       } catch (err) {
-        debugLog.error('general', 'Failed to schedule sync retry on foreground', {
+        debugLog.error('general', 'Failed to emit visibility change', {
           error: err instanceof Error ? err.message : String(err),
         });
       }
-
-      if (!mobileOrTablet()) return;
-      // On iOS the network layer is not always immediately available when
-      // visibilitychange fires after a background suspension. Schedule
-      // fallback retries so the sync recovers once networking is ready.
-      // Each timer is cancelled if the app goes back to background first.
-      const t1 = setTimeout(() => {
-        if (document.visibilityState === 'visible') {
-          try {
-            doRetry();
-            debugLog.info('general', 'App foregrounded — sync retry (1.5 s fallback)');
-          } catch (err) {
-            debugLog.error('general', 'Sync retry failed (1.5s fallback)', {
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
-        }
-      }, 1500);
-      const t2 = setTimeout(() => {
-        if (document.visibilityState === 'visible') {
-          try {
-            doRetry();
-            debugLog.info('general', 'App foregrounded — sync retry (5 s fallback)');
-          } catch (err) {
-            debugLog.error('general', 'Sync retry failed (5s fallback)', {
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
-        }
-      }, 5000);
-      const cancelOnHide = () => {
-        if (document.visibilityState === 'visible') return;
-        clearTimeout(t1);
-        clearTimeout(t2);
-        if (debounceTimer !== undefined) {
-          clearTimeout(debounceTimer);
-          debounceTimer = undefined;
-        }
-        document.removeEventListener('visibilitychange', cancelOnHide);
-      };
-      document.addEventListener('visibilitychange', cancelOnHide);
     };
 
     // pageshow fires when the page is restored from the browser's back-forward
@@ -161,9 +83,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       if (ev.persisted) {
         debugLog.info('general', 'App restored from bfcache');
         try {
-          // Emit visibility change event so timeline and other components can refresh
-          appEvents.emitVisibilityChange(true);
-          handleForeground();
+          appEvents.onVisibilityChange?.(true);
         } catch (err) {
           debugLog.error('general', 'Failed to handle bfcache restore', {
             error: err instanceof Error ? err.message : String(err),
@@ -176,27 +96,21 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     window.addEventListener('pageshow', handlePageShow);
 
     // Emit initial visibility state on mount to ensure all listeners
-    // (including timeline refresh) are aware of current state. This is
-    // especially important on iOS where the app may be restored from
-    // suspension without a visibilitychange event.
+    // (including timeline refresh) are aware of current state.
     if (document.visibilityState === 'visible') {
-      // Use setTimeout to ensure this fires after useEffect cleanup
-      // and after timeline/other listeners have mounted
       const timeoutId = setTimeout(() => {
-        appEvents.emitVisibilityChange(true);
+        appEvents.onVisibilityChange?.(true);
       }, 100);
       return () => {
         clearTimeout(timeoutId);
         document.removeEventListener('visibilitychange', handleForeground);
         window.removeEventListener('pageshow', handlePageShow);
-        if (debounceTimer !== undefined) {
-          clearTimeout(debounceTimer);
-        }
       };
     }
 
     return () => {
-      appEvents.onVisibilityChange = null;
+      document.removeEventListener('visibilitychange', handleForeground);
+      window.removeEventListener('pageshow', handlePageShow);
     };
-  }, [mx, clientConfig, usePushNotifications, pushSubAtom, isMobile]);
+  }, [mx]);
 }

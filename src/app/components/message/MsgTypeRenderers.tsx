@@ -384,6 +384,7 @@ export function MNotice({
 
 type RenderImageContentProps = {
   body: string;
+  imageAlt?: string;
   filename?: string;
   info?: IImageInfo & IThumbnailContent;
   mimeType?: string;
@@ -396,13 +397,21 @@ type MImageProps = {
   content: IImageContent;
   renderImageContent: (props: RenderImageContentProps) => ReactNode;
   outlined?: boolean;
+  suppressInlineImageAlt?: boolean;
 };
-export function MImage({ content, renderImageContent, outlined }: MImageProps) {
+export function MImage({
+  content,
+  renderImageContent,
+  outlined,
+  suppressInlineImageAlt,
+}: MImageProps) {
   const imgInfo = content?.info;
   const mxcUrl = content.file?.url ?? content.url;
   if (typeof mxcUrl !== 'string') {
     return <BrokenContent body={content.body ?? content.filename} />;
   }
+  const description =
+    (typeof content.body === 'string' && content.body.trim()) || content.filename || 'Image';
   const MAX_SIZE = 400;
   const imgW = imgInfo?.w ?? MAX_SIZE;
   const imgH = imgInfo?.h ?? MAX_SIZE;
@@ -426,7 +435,8 @@ export function MImage({ content, renderImageContent, outlined }: MImageProps) {
         }}
       >
         {renderImageContent({
-          body: content.filename || 'Image',
+          body: description,
+          ...(suppressInlineImageAlt ? { imageAlt: '' } : {}),
           info: imgInfo,
           mimeType: imgInfo?.mimetype,
           url: mxcUrl,

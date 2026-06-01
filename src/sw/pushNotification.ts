@@ -285,48 +285,21 @@ export const createPushNotifications = (
       console.warn('[SW pushNotification] no event type');
     }
 
-    // DEBUG: Log the full push payload to understand its structure
-    console.log('[SW handlePushNotificationPushData] Full push payload:', JSON.stringify(pushData, null, 2));
-    console.log('[SW handlePushNotificationPushData] Push payload fields:', {
-      type: pushData.type,
-      prio: pushData.prio,
-      room_id: pushData.room_id,
-      room_name: pushData.room_name,
-      sender_display_name: pushData.sender_display_name,
-      counts: pushData.counts,
-      data: pushData.data,
-    });
-
-    // Apply focus mode filtering before showing any push notification
+    // NOTE: Focus mode filtering is currently DISABLED in the service worker
+    // because push payloads don't reliably include highlight/DM metadata.
+    // Focus mode filtering happens on the app side (ClientNonUIFeatures and
+    // BackgroundNotifications) where we have full event and room context.
+    //
+    // The app-side filtering works correctly and blocks notifications as expected.
+    // Service worker push notifications are only shown when the app is fully
+    // backgrounded/killed, and in that case it's safer to show the notification
+    // (and let the user see it) than to incorrectly block an important message.
+    //
+    // TODO: Re-enable SW filtering once we can reliably detect DM/highlight status
+    // from the push payload, or implement a mechanism to sync room metadata to SW.
+    
     const focusMode = getFocusMode();
-    const isDM = isDMRoom(pushData);
-    const isHighlight = isHighlightNotification(pushData);
-    
-    const shouldShow = shouldShowNotificationInFocusMode(focusMode, isDM, isHighlight);
-    console.log('[SW handlePushNotificationPushData] Focus mode filter check', {
-      focusMode,
-      isDM,
-      isHighlight,
-      shouldShow,
-      roomId: pushData.room_id,
-      eventType,
-      'data.highlight': pushData.data?.highlight,
-      'data.is_direct': pushData.data?.is_direct,
-      'prio': pushData.prio,
-    });
-    
-    if (!shouldShow) {
-      console.log('[SW handlePushNotificationPushData] Notification blocked by focus mode filter');
-      // Track blocked notifications
-      postSentryMetric('sable.push.blocked_by_focus_mode', 1, {
-        focus_mode: focusMode,
-        is_dm: isDM,
-        is_highlight: isHighlight,
-      }).catch(() => undefined);
-      return;
-    }
-    
-    console.log('[SW handlePushNotificationPushData] Notification allowed by focus mode filter');
+    console.log('[SW handlePushNotificationPushData] Focus mode:', focusMode, '(filtering disabled in SW - handled by app)');
 
     switch (eventType as string) {
       case EventType.RoomMessage as string:

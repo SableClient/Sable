@@ -458,7 +458,9 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           title="Hide Add Menu in the Editor"
           focusId="hide-add-menu"
           description="Make the Plus button in the editor only add files. You may still send the special items using commands such as /poll and /location"
-          after={<Switch variant="Primary" value={editorOldAddFile} onChange={setEditorOldAddFile} />}
+          after={
+            <Switch variant="Primary" value={editorOldAddFile} onChange={setEditorOldAddFile} />
+          }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

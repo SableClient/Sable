@@ -159,7 +159,7 @@ import type {
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
-import { PollDialog } from './add-poll';
+import { PollDialog } from './poll-modals';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -1575,7 +1575,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 }
               />
               <IconButton
-                onClick={(evt) => editorOldAddFile? pickFile('*') : setAddMenuAnchor(evt.currentTarget.getBoundingClientRect())}
+                onClick={(evt) =>
+                  editorOldAddFile
+                    ? pickFile('*')
+                    : setAddMenuAnchor(evt.currentTarget.getBoundingClientRect())
+                }
                 variant="SurfaceVariant"
                 size="300"
                 radii="300"

@@ -637,7 +637,7 @@ function PrivacyBlurFeature() {
 function HealthMonitor() {
   useEffect(() => {
     const id = window.setInterval(() => {
-      const { cacheSize, inflightCount } = getBlobCacheStats();
+      const { cacheSize, inflightCount, queueDepth } = getBlobCacheStats();
       Sentry.metrics.gauge('sable.media.blob_cache_size', cacheSize);
       if (inflightCount > 0) {
         Sentry.metrics.gauge('sable.media.inflight_requests', inflightCount);
@@ -649,6 +649,9 @@ function HealthMonitor() {
             data: { inflight_count: inflightCount },
           });
         }
+      }
+      if (queueDepth > 0) {
+        Sentry.metrics.gauge('sable.media.fetch_queue_depth', queueDepth);
       }
     }, 60_000);
     return () => window.clearInterval(id);

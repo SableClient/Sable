@@ -12,6 +12,12 @@ const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();
 const authFailedUrls = new Set<string>(); // Track URLs that failed with 401
 
+// Concurrency limiter: cap simultaneous remote fetches to avoid N+1 API call
+// detection when many components (e.g. room-list avatars) mount at once.
+const MAX_CONCURRENT_FETCHES = 4;
+let activeFetches = 0;
+const fetchQueue: Array<() => void> = [];
+
 type CacheMetadata = {
   url: string;
   size: number;
@@ -20,6 +26,25 @@ type CacheMetadata = {
 
 let cacheMetadata: CacheMetadata[] = [];
 let metadataLoaded = false;
+
+function acquireFetchSlot(): Promise<void> {
+  if (activeFetches < MAX_CONCURRENT_FETCHES) {
+    activeFetches += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    fetchQueue.push(resolve);
+  });
+}
+
+function releaseFetchSlot(): void {
+  const next = fetchQueue.shift();
+  if (next) {
+    next();
+  } else {
+    activeFetches -= 1;
+  }
+}
 
 /**
  * Open the Cache API storage for media blobs.
@@ -185,6 +210,7 @@ export function getBlobCacheStats(): {
   inflightCount: number;
   persistentCacheSizeMB: number;
   persistentCacheCount: number;
+  queueDepth: number;
 } {
   const totalSizeBytes = cacheMetadata.reduce((sum, m) => sum + m.size, 0);
   return {
@@ -192,6 +218,7 @@ export function getBlobCacheStats(): {
     inflightCount: inflightRequests.size,
     persistentCacheSizeMB: totalSizeBytes / (1024 * 1024),
     persistentCacheCount: cacheMetadata.length,
+    queueDepth: fetchQueue.length,
   };
 }
 
@@ -229,6 +256,15 @@ export function useBlobCache(url?: string): string | undefined {
       return undefined;
     }
 
+    // Blob URLs are already in-memory object URLs — no need to re-fetch them.
+    // Fetching a blob: URL just to create another blob URL is redundant and
+    // causes the N+1 API call pattern when many components mount simultaneously.
+    if (url.startsWith('blob:')) {
+      imageBlobCache.set(url, url);
+      setCacheState({ sourceUrl: url, blobUrl: url });
+      return undefined;
+    }
+
     // Check memory cache first (instant)
     if (imageBlobCache.has(url)) {
       Sentry.metrics.count('blob_cache.request', 1, {
@@ -252,6 +288,7 @@ export function useBlobCache(url?: string): string | undefined {
       }
 
       const requestPromise = (async () => {
+        await acquireFetchSlot();
         try {
           // Check persistent cache (fast, survives reloads)
           const cachedBlob = await getCachedMedia(url);
@@ -338,6 +375,8 @@ export function useBlobCache(url?: string): string | undefined {
           }
           inflightRequests.delete(url);
           throw e;
+        } finally {
+          releaseFetchSlot();
         }
       })();
 

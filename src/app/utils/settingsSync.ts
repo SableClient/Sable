@@ -14,6 +14,8 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'isPeopleDrawer',
   'isWidgetDrawer',
   'memberSortFilterIndex',
+  // Device-specific audio preferences
+  'isNotificationSounds',
   // Developer / diagnostic / experimental performance features
   'developerTools',
   'progressivePrefetch',

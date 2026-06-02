@@ -246,21 +246,8 @@ function InviteNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    if (!audioElement) {
-      console.error('[InviteNotifications] Audio element not available, cannot play sound');
-      return;
-    }
-    try {
-      const playPromise = audioElement.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.error('[InviteNotifications] Failed to play sound:', err);
-        });
-      }
-      clearMediaSessionQuickly();
-    } catch (err) {
-      console.error('[InviteNotifications] Exception playing sound:', err);
-    }
+    audioElement?.play();
+    clearMediaSessionQuickly();
   }, []);
 
   useEffect(() => {
@@ -335,21 +322,8 @@ function MessageNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    if (!audioElement) {
-      console.error('[MessageNotifications] Audio element not available, cannot play sound');
-      return;
-    }
-    try {
-      const playPromise = audioElement.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.error('[MessageNotifications] Failed to play notification sound:', err);
-        });
-      }
-      clearMediaSessionQuickly();
-    } catch (err) {
-      console.error('[MessageNotifications] Exception playing notification sound:', err);
-    }
+    audioElement?.play();
+    clearMediaSessionQuickly();
   }, []);
 
   useEffect(() => {
@@ -538,40 +512,23 @@ function MessageNotifications() {
         }
       }
 
-      // Everything below requires the page to be visible (in-app UI + audio).
-      console.warn('[MessageNotifications] Visibility check', {
-        visibilityState: document.visibilityState,
-        eventId,
-        roomId: room.roomId,
-      });
-      if (document.visibilityState !== 'visible') return;
-
-      // In-app audio: play when notification sounds are enabled AND this notification is loud.
-      if (notificationSound && isLoud) {
-        console.warn('[MessageNotifications] Playing notification sound', {
-          notificationSound,
-          isLoud,
-          eventId,
-          roomId: room.roomId,
-        });
-        playSound();
-      } else {
-        console.warn('[MessageNotifications] NOT playing sound', {
-          notificationSound,
-          isLoud,
-          eventId,
-          roomId: room.roomId,
-        });
-      }
-
-      // Focus mode filter: gate in-app banners.
-      // Sound has already played above, so this return does not silence audio.
+      // Focus mode filter: apply before sound/banners.
+      // This allows focus mode to suppress both audio and visual notifications.
       if (!shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule)) return;
 
+      // In-app audio: play when notification sounds are enabled AND this notification is loud.
+      // Play sound before the visibility check so audio works even when tab is hidden/backgrounded.
+      if (notificationSound && isLoud) {
+        playSound();
+      }
+
+      // Everything below requires the page to be visible (in-app banners only).
+      if (document.visibilityState !== 'visible') return;
+
       // Page is visible — show the themed in-app notification banner.
-      // Show banner for: highlighted messages (mentions/keywords), DM messages, or loud notifications.
-      // Loud notifications include any room set to "All Messages" with sound enabled.
-      if (showNotifications && (isHighlightByRule || isDM || isLoud)) {
+      // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
+      // For DMs, show banner for all messages.
+      if (showNotifications && (isHighlightByRule || isDM)) {
         const avatarMxc =
           room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
         const roomAvatar = avatarMxc

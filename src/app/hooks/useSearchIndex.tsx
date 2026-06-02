@@ -95,15 +95,41 @@ const MAX_CONCURRENT_BACKFILLS = HAS_IDLE_CALLBACK ? Infinity : 2;
  */
 const BACKFILL_STARTUP_DELAY_MS = 30_000;
 
+/**
+ * Minimum delay between consecutive paginated /messages fetches within a single
+ * room. Prevents rapid-fire N+1 API calls that Sentry detects as performance issues.
+ * Even with requestIdleCallback, we enforce a small yield to avoid saturating the
+ * connection pool with sequential requests.
+ */
+const BACKFILL_INTER_PAGE_DELAY_MS = 200;
+
+/**
+ * Maximum number of rooms to backfill per session. Prevents accounts with 10,000+
+ * rooms from triggering unbounded API calls. Backfill resumes from checkpoint on
+ * next session.
+ */
+const MAX_ROOMS_PER_SESSION = 500;
+
+/**
+ * How long after user activity (mousemove, keydown, scroll, touch) to pause backfill.
+ * Ensures background indexing doesn't compete with real-time user requests.
+ */
+const USER_ACTIVITY_COOLDOWN_MS = 5_000;
+
 function scheduleIdle(cb: () => void): () => void {
+  // Always enforce a minimum delay between pages to prevent N+1 API call flooding,
+  // even on systems with requestIdleCallback. The delay gives the browser time to
+  // process other requests and prevents sequential HTTP request saturation.
+  const wrappedCb = () => {
+    setTimeout(cb, BACKFILL_INTER_PAGE_DELAY_MS);
+  };
+
   if (HAS_IDLE_CALLBACK) {
-    const id = requestIdleCallback(cb, { timeout: 5000 });
+    const id = requestIdleCallback(wrappedCb, { timeout: 5000 });
     return () => cancelIdleCallback(id);
   }
-  // iOS Safari: no requestIdleCallback — use a longer delay; combined with the
-  // concurrency cap (MAX_CONCURRENT_BACKFILLS) this prevents HTTP connection
-  // pool saturation and gives WASM crypto breathing room between pages.
-  const id = setTimeout(cb, 500);
+  // iOS Safari: no requestIdleCallback — combine idle delay + inter-page delay.
+  const id = setTimeout(wrappedCb, 500);
   return () => clearTimeout(id);
 }
 
@@ -186,6 +212,10 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const backfillReadyRef = useRef(false);
   // Handle for the startup-delay timer so we can cancel it on cleanup.
   const backfillStartDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track rooms backfilled this session to enforce the per-session cap.
+  const roomsBackfilledThisSessionRef = useRef(new Set<string>());
+  // Track last user activity timestamp to pause backfill when user is active.
+  const lastUserActivityRef = useRef(Date.now());
 
   const postToWorker = useCallback((msg: WorkerInMessage) => {
     // oxlint-disable-next-line require-post-message-target-origin -- Worker.postMessage has no targetOrigin
@@ -233,6 +263,25 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const backfillRoom = useCallback(
     async (room: Room, state: BackfillState): Promise<void> => {
       if (state.done) return;
+
+      // Check per-session room cap: if we've already backfilled MAX_ROOMS_PER_SESSION
+      // rooms this session, skip this room and mark it incomplete so it resumes next session.
+      if (
+        !roomsBackfilledThisSessionRef.current.has(room.roomId) &&
+        roomsBackfilledThisSessionRef.current.size >= MAX_ROOMS_PER_SESSION
+      ) {
+        Sentry.addBreadcrumb({
+          category: 'search.backfill',
+          message: `Session room cap reached (${MAX_ROOMS_PER_SESSION}), deferring room ${room.roomId}`,
+          level: 'info',
+        });
+        backfillingRoomsRef.current.delete(room.roomId);
+        // Do NOT mark as done — we want to resume this room in the next session
+        return;
+      }
+
+      // Mark this room as backfilled in this session (even if we only process one page)
+      roomsBackfilledThisSessionRef.current.add(room.roomId);
 
       const isEncrypted = room.hasEncryptionStateEvent();
 
@@ -454,6 +503,24 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
             });
             return;
           }
+          // Pause when user is actively interacting with the app to avoid competing
+          // with real-time user requests (room navigation, message sends, etc.).
+          const timeSinceActivity = Date.now() - lastUserActivityRef.current;
+          if (timeSinceActivity < USER_ACTIVITY_COOLDOWN_MS) {
+            backfillingRoomsRef.current.delete(room.roomId);
+            backfillQueueRef.current.unshift({ room, state: nextState });
+            Sentry.addBreadcrumb({
+              category: 'search.backfill',
+              message: `Backfill deferred for room ${room.roomId}`,
+              data: {
+                reason: 'user_active',
+                timeSinceActivity,
+                cooldown: USER_ACTIVITY_COOLDOWN_MS,
+              },
+              level: 'info',
+            });
+            return;
+          }
           void backfillRoom(room, nextState);
         });
         cancelIdlesRef.current.push(cancel);
@@ -492,6 +559,10 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     if (!backfillReadyRef.current) return;
     const s = syncStateRef.current;
     if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) return;
+
+    // Pause when user is actively interacting with the app
+    const timeSinceActivity = Date.now() - lastUserActivityRef.current;
+    if (timeSinceActivity < USER_ACTIVITY_COOLDOWN_MS) return;
 
     while (
       backfillingRoomsRef.current.size < MAX_CONCURRENT_BACKFILLS &&
@@ -889,6 +960,20 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       document.addEventListener('visibilitychange', handleVisibilityChange);
     }
 
+    // Track user activity to pause backfill when the user is actively using the app.
+    // We use a passive listener and only update a timestamp, so there's no performance
+    // impact. The actual backfill pause logic checks this timestamp before scheduling
+    // each page fetch.
+    const handleUserActivity = () => {
+      lastUserActivityRef.current = Date.now();
+    };
+    // Use passive listeners for performance (no preventDefault() needed)
+    const activityOpts = { passive: true };
+    window.addEventListener('mousemove', handleUserActivity, activityOpts);
+    window.addEventListener('keydown', handleUserActivity, activityOpts);
+    window.addEventListener('scroll', handleUserActivity, activityOpts);
+    window.addEventListener('touchstart', handleUserActivity, activityOpts);
+
     return () => {
       // Ask the worker to flush before terminating. We wait up to 2 s then
       // force-terminate regardless so the cleanup never hangs.
@@ -924,6 +1009,10 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         handleRoomAdded as unknown as (...args: unknown[]) => void
       );
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+      window.removeEventListener('touchstart', handleUserActivity);
 
       // Cancel the startup delay and reset the ready gate
       if (backfillStartDelayRef.current !== null) {
@@ -931,6 +1020,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         backfillStartDelayRef.current = null;
       }
       backfillReadyRef.current = false;
+      // Reset session cap tracking so next mount starts fresh
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
+      roomsBackfilledThisSessionRef.current.clear();
 
       // Cancel all pending idle callbacks
       // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time

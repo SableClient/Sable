@@ -34,7 +34,7 @@ function shouldShowNotificationInFocusMode(
   isHighlight: boolean
 ): boolean {
   console.log('[SW shouldShowNotificationInFocusMode]', { focusMode, isDM, isHighlight });
-  
+
   if (focusMode === 'off') {
     console.log('[SW shouldShowNotificationInFocusMode] Off mode - allowing all');
     return true;
@@ -49,7 +49,10 @@ function shouldShowNotificationInFocusMode(
 
   if (focusMode === 'dnd') {
     // DND: only show DM highlights or room highlights
-    console.log('[SW shouldShowNotificationInFocusMode] DND mode -', isHighlight ? 'ALLOW (is highlight)' : 'BLOCK (not highlight)');
+    console.log(
+      '[SW shouldShowNotificationInFocusMode] DND mode -',
+      isHighlight ? 'ALLOW (is highlight)' : 'BLOCK (not highlight)'
+    );
     return isHighlight;
   }
 
@@ -85,7 +88,7 @@ interface MatrixPushData {
 function isDMRoom(pushData: MatrixPushData): boolean {
   // Check if data includes is_direct flag (some push gateways include this)
   if (pushData.data?.is_direct === true) return true;
-  
+
   // Heuristic: DMs typically don't have a room name or have a simple name
   // (just the other user's name). This isn't perfect but better than nothing.
   // TODO: Ideally the push gateway should include explicit room type information.
@@ -101,11 +104,11 @@ function isDMRoom(pushData: MatrixPushData): boolean {
 function isHighlightNotification(pushData: MatrixPushData): boolean {
   // Check if data includes explicit highlight flag
   if (pushData.data?.highlight === true) return true;
-  
+
   // High priority from push gateway usually indicates a highlight
   // https://spec.matrix.org/v1.11/push-gateway-api/#post_matrixpushv1notify
   if (pushData.prio === 'high') return true;
-  
+
   return false;
 }
 
@@ -313,9 +316,13 @@ export const createPushNotifications = (
     //
     // TODO: Re-enable SW filtering once we can reliably detect DM/highlight status
     // from the push payload, or implement a mechanism to sync room metadata to SW.
-    
+
     const focusMode = getFocusMode();
-    console.log('[SW handlePushNotificationPushData] Focus mode:', focusMode, '(filtering disabled in SW - handled by app)');
+    console.log(
+      '[SW handlePushNotificationPushData] Focus mode:',
+      focusMode,
+      '(filtering disabled in SW - handled by app)'
+    );
     console.log('[SW handlePushNotificationPushData] Payload fields:', {
       has_prio: pushData.prio !== undefined,
       prio: pushData.prio,

@@ -164,12 +164,12 @@ export function BackgroundNotifications() {
     'showMessageContentInEncryptedNotifications'
   );
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
-  
+
   // Debug: log focus mode changes in background notifications
   useEffect(() => {
     console.log('[BackgroundNotifications] Focus mode changed to:', focusMode);
   }, [focusMode]);
-  
+
   const shouldRunBackgroundNotifications = showNotifications || usePushNotifications;
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);

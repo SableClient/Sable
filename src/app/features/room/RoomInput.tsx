@@ -260,6 +260,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
+    const [editorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
 
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
@@ -1574,7 +1575,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 }
               />
               <IconButton
-                onClick={(evt) => setAddMenuAnchor(evt.currentTarget.getBoundingClientRect())}
+                onClick={(evt) => editorOldAddFile? pickFile('*') : setAddMenuAnchor(evt.currentTarget.getBoundingClientRect())}
                 variant="SurfaceVariant"
                 size="300"
                 radii="300"

@@ -964,8 +964,15 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   const { url, method } = event.request;
   const parsedUrl = new URL(url);
 
-  // Only intercept GET requests to /assets/ paths
-  if (method !== 'GET' || !parsedUrl.pathname.startsWith('/assets/')) return;
+  // Skip audio files — let them pass through without validation
+  const isAudio =
+    parsedUrl.pathname.endsWith('.ogg') ||
+    parsedUrl.pathname.endsWith('.mp3') ||
+    parsedUrl.pathname.endsWith('.webm') ||
+    parsedUrl.pathname.endsWith('.wav');
+
+  // Only intercept GET requests to /assets/ paths (but not audio files)
+  if (method !== 'GET' || !parsedUrl.pathname.startsWith('/assets/') || isAudio) return;
 
   event.respondWith(
     (async () => {

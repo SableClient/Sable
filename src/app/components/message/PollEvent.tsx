@@ -78,7 +78,8 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
       events.findLastIndex(
         (item) =>
           M_POLL_END.name in item.getContent() &&
-          item.sender && mEvent.sender &&
+          item.sender &&
+          mEvent.sender &&
           (item.sender?.userId === mEvent.sender.userId ||
             roomState?.maySendRedactionForEvent(mEvent, item.sender.userId))
       ),
@@ -188,24 +189,21 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   }
   function handleEndVote() {
     const maxValue = Math.max(...Object.values(votes));
-    let endText = 'The Poll has ended and'
-    const winnerArray = answers.filter(item => votes[item.id] === maxValue)
-    if(votes.maxValue === 0)
-      endText += ' nobody voted';
-    else if(winnerArray.length === 1 && winnerArray[0])
+    let endText = 'The Poll has ended and';
+    const winnerArray = answers.filter((item) => votes[item.id] === maxValue);
+    if (votes.maxValue === 0) endText += ' nobody voted';
+    else if (winnerArray.length === 1 && winnerArray[0])
       endText += `${winnerArray[0][M_TEXT.name]} won`;
     else {
       endText += ': ';
       winnerArray.forEach((item, index) => {
         endText += item[M_TEXT.name];
-        if(index < winnerArray.length - 2)
-          endText += ', ';
-        else if(index < winnerArray.length - 1)
-          endText += ', and ';
-      })
+        if (index < winnerArray.length - 2) endText += ', ';
+        else if (index < winnerArray.length - 1) endText += ', and ';
+      });
       endText += ' won';
     }
-    
+
     const endContent = {
       'm.relates_to': {
         rel_type: 'm.reference',

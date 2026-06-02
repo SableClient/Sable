@@ -247,7 +247,6 @@ function InviteNotifications() {
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
     audioElement?.play();
-    clearMediaSessionQuickly();
   }, []);
 
   useEffect(() => {
@@ -323,7 +322,6 @@ function MessageNotifications() {
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
     audioElement?.play();
-    clearMediaSessionQuickly();
   }, []);
 
   useEffect(() => {

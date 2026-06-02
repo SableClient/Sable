@@ -251,6 +251,7 @@ interface RoomInputProps {
   threadRootId?: string;
   onEditLastMessage?: () => void;
 }
+
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
   ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
     // When in thread mode, isolate drafts by thread root ID so thread replies
@@ -820,6 +821,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else if (commandName === Command.UnFlip) {
         plainText = `${UNFLIP} ${plainText}`;
         customHtml = `${UNFLIP} ${customHtml}`;
+      } else if (commandName === Command.Poll) {
+        setShowPollPicker(true);
+        resetEditor(editor);
+        resetEditorHistory(editor);
+        sendTypingStatus(false);
+        return;
       } else if (commandName) {
         const commandContent = commands[commandName as Command];
         if (commandContent) {

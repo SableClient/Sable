@@ -14,6 +14,7 @@ import {
   Input,
   Chip,
   Switch,
+  color,
 } from 'folds';
 import { stopPropagation } from '$utils/keyboard';
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
@@ -43,12 +44,18 @@ type PollDialogProps = {
   clearReplyDraft?: () => void;
 };
 
+type ErrorProps = {
+  errorcode: 'title' | 'option' | 'maxOptions';
+  errorString: string;
+};
+
 export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: PollDialogProps) {
   const roomId = room.roomId;
   const [isDisclosed, setIsDisclosed] = useState(true);
   const [maxSelections, setMaxSelections] = useState(1);
   const [inputValue, setInputValue] = useState(1);
   const title = useRef<string>('');
+  const [error, setError] = useState<ErrorProps | undefined>(undefined);
   const [answers, setAnswers] = useState<PollAnswerItem[]>([
     {
       id: randomStr(),
@@ -86,7 +93,25 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
   );
 
   const handleSubmit = () => {
-    if (!title) return;
+    if (title.current.length === 0) {
+      setError({ errorcode: 'title', errorString: 'Missing Title' });
+      return;
+    }
+    const emptyAnswers = answers.filter((item) => item['org.matrix.msc1767.text'].length === 0);
+    if (emptyAnswers.length > 0) {
+      setError({
+        errorcode: 'option',
+        errorString: `Missing option text${emptyAnswers.length > 1 ? 's' : ''}`,
+      });
+      return;
+    }
+    if (maxSelections < 1 || maxSelections > answers.length) {
+      setError({
+        errorcode: 'maxOptions',
+        errorString: `You can only have between 1 and ${answers.length} selections`,
+      });
+      return;
+    }
     // its an IContent instead of the proper object because the proper object doesnt work w other clients :>
     const pollContent: IContent = {
       [M_POLL_START.name]: {
@@ -159,7 +184,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
               <Box direction="Column">
                 <Text> Title </Text>
                 <Input
-                  variant="SurfaceVariant"
+                  variant={error?.errorcode === 'title' ? 'Critical' : 'SurfaceVariant'}
                   size="400"
                   aria-label="Insert Title"
                   onChange={(evt) => (title.current = evt.currentTarget.value.trim())}
@@ -183,7 +208,11 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
                   {answers.map((item, index) => (
                     <Box direction="Row" grow="Yes" shrink="No" alignItems="Center" key={item.id}>
                       <Input
-                        variant="SurfaceVariant"
+                        variant={
+                          error?.errorcode === 'option' && item[M_TEXT.name].length === 0
+                            ? 'Critical'
+                            : 'SurfaceVariant'
+                        }
                         size="400"
                         className={css.PollDialogAnswerInput}
                         aria-label={`Type Option ${index + 1}`}
@@ -237,6 +266,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
                     after={
                       <Input
                         className={css.PollDialogMaxSelectionNumber}
+                        variant={error?.errorcode === 'maxOptions' ? 'Critical' : 'SurfaceVariant'}
                         size="300"
                         radii="300"
                         type="number"
@@ -275,6 +305,11 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
               >
                 <Text size="B400">Create Poll</Text>
               </Button>
+              {!!error && (
+                <Text align="Center" size="B500" style={{ color: color.Critical.OnContainer }}>
+                  {error.errorString}
+                </Text>
+              )}
             </Box>
           </Dialog>
         </FocusTrap>

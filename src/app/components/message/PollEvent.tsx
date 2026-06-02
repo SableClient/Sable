@@ -57,14 +57,13 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
 
   // This should technically request the permissions at the time of the end of the event but that doesnt seem to be supported by the sdk
   const getEndIndex = useCallback(
-    (events: MatrixEvent[]) => {
-      return events.findLastIndex(
+    (events: MatrixEvent[]) =>
+      events.findLastIndex(
         (item) =>
-          item.getContent()[M_POLL_END.name] &&
+          M_POLL_END.name in item.getContent() &&
           (item.sender?.userId === mEvent.sender?.userId ||
-            roomState?.maySendRedactionForEvent(mEvent, mEvent.sender?.userId ?? ''))
-      );
-    },
+            roomState?.maySendRedactionForEvent(mEvent, item.sender?.userId ?? ''))
+      ),
     [roomState, mEvent]
   );
 
@@ -110,6 +109,9 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   let filteredChildEvents: MatrixEvent[] = [];
   if (isDisclosed || isEnded)
     finalArray?.forEach((item) => {
+      if (M_POLL_END.name in item.getContent()) {
+        return;
+      }
       if (item.event.sender && !voters.has(item.event.sender)) {
         voters.add(item.event.sender);
         filteredChildEvents.push(item);
@@ -131,7 +133,10 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   });
   const totalVotes = Object.values(votes).reduce((a, b) => a + b);
 
-  const userSelectionEvent = filteredChildEvents.find((item) => item.event.sender === userId);
+  const userSelectionEvent =
+    filteredChildEvents.length > 0
+      ? filteredChildEvents.find((item) => item.event.sender === userId)
+      : finalArray.find((item) => item.event.sender === userId);
   const userSelectionContent = userSelectionEvent?.getContent();
   const userSelection: string[] = userSelectionContent
     ? userSelectionContent[M_POLL_RESPONSE.name]?.answers

@@ -285,6 +285,7 @@ export enum Command {
   // Spec missing from cinny
   Location = 'location',
   ShareMyLocation = 'sharemylocation',
+  Poll = 'poll',
 }
 
 export type CommandContent = {
@@ -1612,6 +1613,13 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             sendFeedback(response, room, mx.getSafeUserId());
           }
           navigator.geolocation.getCurrentPosition(success, error, options);
+        },
+      },
+      [Command.Poll]: {
+        name: Command.Poll,
+        description: 'Create a poll',
+        exe: async () => {
+          return;
         },
       },
     }),

@@ -114,19 +114,6 @@ function postToServiceWorker(data: unknown): void {
     .catch(() => undefined);
 }
 
-function clearMediaSessionQuickly(): void {
-  if (!('mediaSession' in navigator)) return;
-  // iOS registers the lock screen media player as a side-effect of
-  // HTMLAudioElement.play(). We delay slightly so iOS has finished updating
-  // the media session before we clear it — clearing too early is a no-op.
-  // We only clear if no real in-app media (video/audio in a room) has since
-  // registered meaningful metadata; if it has, leave it alone.
-  setTimeout(() => {
-    if (navigator.mediaSession.metadata !== null) return;
-    navigator.mediaSession.playbackState = 'none';
-  }, 500);
-}
-
 function SystemEmojiFeature() {
   const [twitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
 

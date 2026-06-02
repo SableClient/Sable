@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
+import { SyncState } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
 import { togglePusher } from '../features/settings/notifications/PushNotifications';
 import { appEvents } from '../utils/appEvents';
@@ -62,7 +63,11 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       // Only retry if sync is actually in an error or stopped state.
       // Calling retry when already syncing causes unnecessary reconnection banners.
       const syncState = mx.getSyncState();
-      if (syncState !== 'ERROR' && syncState !== 'STOPPED' && syncState !== 'RECONNECTING') {
+      if (
+        syncState !== SyncState.Error &&
+        syncState !== SyncState.Stopped &&
+        syncState !== SyncState.Reconnecting
+      ) {
         debugLog.info('general', 'Skipping retry - already syncing', { syncState });
         return;
       }

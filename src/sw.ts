@@ -26,7 +26,6 @@ const { handlePushNotificationPushData } = createPushNotifications(
     showMessageContent,
     showEncryptedMessageContent,
   }),
-  () => focusMode,
   postSentryMetric
 );
 

@@ -165,11 +165,6 @@ export function BackgroundNotifications() {
   );
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
 
-  // Debug: log focus mode changes in background notifications
-  useEffect(() => {
-    console.log('[BackgroundNotifications] Focus mode changed to:', focusMode);
-  }, [focusMode]);
-
   const shouldRunBackgroundNotifications = showNotifications || usePushNotifications;
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
@@ -484,17 +479,7 @@ export function BackgroundNotifications() {
               isDM,
               isHighlight
             );
-            console.log('[BackgroundNotifications FocusMode Filter]', {
-              focusMode: focusModeRef.current,
-              isDM,
-              isHighlight,
-              shouldShow: shouldShowNotif,
-              roomId: room.roomId,
-              eventId,
-              userId: session.userId,
-            });
             if (!shouldShowNotif) {
-              console.log('[BackgroundNotifications] Blocked by focus mode filter');
               debugLog.debug('notification', 'Event filtered by focus mode', {
                 eventId,
                 roomId: room.roomId,
@@ -504,7 +489,6 @@ export function BackgroundNotifications() {
               });
               return;
             }
-            console.log('[BackgroundNotifications] Allowing notification');
 
             debugLog.info('notification', 'Processing notification event', {
               eventId,

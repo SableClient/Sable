@@ -246,8 +246,21 @@ function InviteNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
-    clearMediaSessionQuickly();
+    if (!audioElement) {
+      console.error('[InviteNotifications] Audio element not available, cannot play sound');
+      return;
+    }
+    try {
+      const playPromise = audioElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.error('[InviteNotifications] Failed to play sound:', err);
+        });
+      }
+      clearMediaSessionQuickly();
+    } catch (err) {
+      console.error('[InviteNotifications] Exception playing sound:', err);
+    }
   }, []);
 
   useEffect(() => {
@@ -308,11 +321,6 @@ function MessageNotifications() {
   );
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
 
-  // Debug: log focus mode changes
-  useEffect(() => {
-    console.log('[MessageNotifications] Focus mode changed to:', focusMode);
-  }, [focusMode]);
-
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
@@ -327,8 +335,21 @@ function MessageNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
-    clearMediaSessionQuickly();
+    if (!audioElement) {
+      console.error('[MessageNotifications] Audio element not available, cannot play sound');
+      return;
+    }
+    try {
+      const playPromise = audioElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.error('[MessageNotifications] Failed to play notification sound:', err);
+        });
+      }
+      clearMediaSessionQuickly();
+    } catch (err) {
+      console.error('[MessageNotifications] Exception playing notification sound:', err);
+    }
   }, []);
 
   useEffect(() => {
@@ -462,24 +483,6 @@ function MessageNotifications() {
       // the OS notification and badge are consistent with the DM context.
       const isLoud = loudByRule || isDM;
 
-      // Apply focus mode filter: check if this notification should be shown
-      // based on the current focus mode setting.
-      const shouldShow = shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule);
-      console.log('[FocusMode Filter]', {
-        focusMode,
-        isDM,
-        isHighlight: isHighlightByRule,
-        shouldShow,
-        roomId: room.roomId,
-        roomName: room.name,
-        eventId,
-      });
-      if (!shouldShow) {
-        console.log('[FocusMode Filter] Blocked notification');
-        return;
-      }
-      console.log('[FocusMode Filter] Allowing notification');
-
       // Record as notified to prevent duplicate banners (e.g. re-emitted decrypted events).
       notifiedEventsRef.current.add(eventId);
       if (notifiedEventsRef.current.size > 200) {
@@ -536,7 +539,34 @@ function MessageNotifications() {
       }
 
       // Everything below requires the page to be visible (in-app UI + audio).
+      console.warn('[MessageNotifications] Visibility check', {
+        visibilityState: document.visibilityState,
+        eventId,
+        roomId: room.roomId,
+      });
       if (document.visibilityState !== 'visible') return;
+
+      // In-app audio: play when notification sounds are enabled AND this notification is loud.
+      if (notificationSound && isLoud) {
+        console.warn('[MessageNotifications] Playing notification sound', {
+          notificationSound,
+          isLoud,
+          eventId,
+          roomId: room.roomId,
+        });
+        playSound();
+      } else {
+        console.warn('[MessageNotifications] NOT playing sound', {
+          notificationSound,
+          isLoud,
+          eventId,
+          roomId: room.roomId,
+        });
+      }
+
+      // Focus mode filter: gate in-app banners.
+      // Sound has already played above, so this return does not silence audio.
+      if (!shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule)) return;
 
       // Page is visible — show the themed in-app notification banner.
       // Show banner for: highlighted messages (mentions/keywords), DM messages, or loud notifications.
@@ -611,11 +641,6 @@ function MessageNotifications() {
             });
           },
         });
-      }
-
-      // In-app audio: play when notification sounds are enabled AND this notification is loud.
-      if (notificationSound && isLoud) {
-        playSound();
       }
     };
     mx.on(RoomEvent.Timeline, handleTimelineEvent);

@@ -445,11 +445,6 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
 
 export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): UnreadInfo[] => {
   const allRooms = mx.getRooms();
-  console.log('[BADGE-DEBUG:getUnreadInfos] Starting scan:', {
-    totalRooms: allRooms.length,
-    mDirectsSize: options?.mDirects?.size ?? 0,
-  });
-
   const unreadInfos = allRooms.reduce<UnreadInfo[]>((unread, room) => {
     if (room.isSpaceRoom()) return unread;
     if (room.getMyMembership() !== 'join') return unread;
@@ -460,24 +455,12 @@ export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): U
     // Always call getUnreadInfo - it has fallback logic for sliding sync rooms without receipts
     const unreadInfo = getUnreadInfo(room, options);
 
-    if (room.name.includes('Draupnir') || room.name.includes('cloudhub-social-bans')) {
-      console.log('[BADGE-DEBUG:getUnreadInfos] Draupnir room:', {
-        unreadInfo,
-        willInclude: unreadInfo.total > 0 || unreadInfo.highlight > 0,
-      });
-    }
-
     if (unreadInfo.total > 0 || unreadInfo.highlight > 0) {
       unread.push(unreadInfo);
     }
 
     return unread;
   }, []);
-
-  console.log('[BADGE-DEBUG:getUnreadInfos] Completed scan:', {
-    totalUnreads: unreadInfos.length,
-    unreadInfos,
-  });
 
   return unreadInfos;
 };

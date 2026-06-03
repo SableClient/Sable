@@ -13,9 +13,9 @@ type EncryptedContentProps = {
 
 export function EncryptedContent({ mEvent, children }: EncryptedContentProps) {
   const mx = useMatrixClient();
-  const [, toggleEncrypted] = useState(
-    mEvent.getType() === (EventType.RoomMessageEncrypted as string)
-  );
+  // Use a counter to force re-renders when decryption state changes
+  // (using boolean state can be optimized away by React if value doesn't change)
+  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
     if (mEvent.getType() !== (EventType.RoomMessageEncrypted as string)) return;
@@ -33,16 +33,24 @@ export function EncryptedContent({ mEvent, children }: EncryptedContentProps) {
   }, [mx, mEvent]);
 
   useEffect(() => {
-    toggleEncrypted(mEvent.getType() === (EventType.RoomMessageEncrypted as string));
+    // Attach listener BEFORE checking state to avoid race condition where
+    // decryption completes between state check and listener attachment
     const handleDecrypted: MatrixEventHandlerMap[MatrixEventEvent.Decrypted] = (event) => {
       if (event.isDecryptionFailure()) {
         Sentry.metrics.count('sable.decryption.failure', 1, {
           attributes: { reason: event.decryptionFailureReason ?? 'UNKNOWN_ERROR' },
         });
       }
-      toggleEncrypted(event.getType() === (EventType.RoomMessageEncrypted as string));
+      forceUpdate((n) => n + 1);
     };
     mEvent.on(MatrixEventEvent.Decrypted, handleDecrypted);
+
+    // If the event is already decrypted when this effect runs (e.g., loaded from cache
+    // or decrypted by another component), force an immediate render
+    if (mEvent.getType() !== (EventType.RoomMessageEncrypted as string)) {
+      forceUpdate((n) => n + 1);
+    }
+
     return () => {
       mEvent.removeListener(MatrixEventEvent.Decrypted, handleDecrypted);
     };

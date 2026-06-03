@@ -738,10 +738,13 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       // 2. Server returns 404 or HTML instead of JS
       // 3. Browser tries to execute HTML as JavaScript → MIME type error
       // 4. Cloudflare Rocket Loader interfering with worker instantiation
+      // SABLE-5G: Worker chunks may fail to load if not included in SW precache manifest
       const errorMsg = `Search worker failed to instantiate: ${e instanceof Error ? e.message : String(e)}`;
       const isMimeError =
         e instanceof Error && e.message.includes('MIME') && e.message.includes('text/html');
       const isTypeError = e instanceof TypeError;
+      const isModuleImportError =
+        e instanceof Error && e.message.toLowerCase().includes('importing a module script failed');
 
       setInitError(errorMsg);
       Sentry.captureException(e, {
@@ -751,6 +754,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           failure_stage: 'worker_instantiation',
           is_mime_error: isMimeError,
           is_type_error: isTypeError,
+          is_module_import_error: isModuleImportError,
           rocket_loader_active: rocketLoaderActive,
         },
         extra: {
@@ -760,14 +764,17 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           rocketLoaderActive,
           indexedDBAvailable: typeof indexedDB !== 'undefined',
           userAgent: navigator.userAgent,
+          errorStack: e instanceof Error ? e.stack : undefined,
         },
         contexts: {
           hint: {
             description: rocketLoaderActive
               ? 'Cloudflare Rocket Loader detected - known to break Web Workers. Disable in CF dashboard.'
-              : isMimeError || isTypeError
-                ? 'Stale cached index.html likely referencing old worker URL. Triggering reload.'
-                : 'Worker script failed to load',
+              : isModuleImportError
+                ? 'Worker module import failed - likely 404 or not in SW precache manifest. Check that worker chunk is included in manifest.'
+                : isMimeError || isTypeError
+                  ? 'Stale cached index.html likely referencing old worker URL. Triggering reload.'
+                  : 'Worker script failed to load',
           },
         },
       });
@@ -777,21 +784,51 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       // of JavaScript, which means the old cached HTML is referencing a worker
       // URL that no longer exists after a new deployment. A hard reload will
       // force the service worker to fetch fresh assets.
+      //
+      // SABLE-5A: Be conservative with reloads to avoid reload loops:
+      // 1. Don't reload within first 30s of app start (let initial startup complete)
+      // 2. Don't reload more than once per 5 minutes (avoid reload loops)
+      // 3. Don't reload more than 3 times per session (hard limit)
       if (isMimeError || isTypeError) {
+        const now = Date.now();
+        const appStartTime = Number(sessionStorage.getItem('sable:app_start_time') || now);
+        const lastReloadTime = Number(sessionStorage.getItem('sable:last_worker_reload') || 0);
+        const reloadCount = Number(sessionStorage.getItem('sable:worker_reload_count') || 0);
+        const timeSinceStart = now - appStartTime;
+        const timeSinceLastReload = now - lastReloadTime;
+
+        const shouldReload =
+          timeSinceStart > 30_000 && // App running for at least 30s
+          timeSinceLastReload > 300_000 && // At least 5 minutes since last reload
+          reloadCount < 3; // No more than 3 reloads per session
+
         Sentry.addBreadcrumb({
           category: 'search.index',
-          message: 'Triggering page reload due to stale worker asset',
+          message: shouldReload
+            ? 'Triggering page reload due to stale worker asset'
+            : 'Skipping reload (too soon or too many attempts)',
           level: 'info',
           data: {
             errorMessage: errorMsg,
             isMimeError,
             isTypeError,
+            shouldReload,
+            timeSinceStart,
+            timeSinceLastReload,
+            reloadCount,
           },
         });
-        // Use a small delay to ensure the Sentry event is transmitted
-        setTimeout(() => {
-          window.location.reload();
-        }, 100);
+
+        if (shouldReload) {
+          // Track this reload attempt
+          sessionStorage.setItem('sable:last_worker_reload', String(now));
+          sessionStorage.setItem('sable:worker_reload_count', String(reloadCount + 1));
+
+          // Use a small delay to ensure the Sentry event is transmitted
+          setTimeout(() => {
+            window.location.reload();
+          }, 100);
+        }
       }
 
       return () => {};
@@ -845,22 +882,46 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       });
 
       // Auto-reload on stale asset errors to fetch fresh assets from the server
+      // SABLE-5A: Be conservative with reloads to avoid reload loops
       if (isMimeError || isTypeError) {
+        const now = Date.now();
+        const appStartTime = Number(sessionStorage.getItem('sable:app_start_time') || now);
+        const lastReloadTime = Number(sessionStorage.getItem('sable:last_worker_reload') || 0);
+        const reloadCount = Number(sessionStorage.getItem('sable:worker_reload_count') || 0);
+        const timeSinceStart = now - appStartTime;
+        const timeSinceLastReload = now - lastReloadTime;
+
+        const shouldReload =
+          timeSinceStart > 30_000 && // App running for at least 30s
+          timeSinceLastReload > 300_000 && // At least 5 minutes since last reload
+          reloadCount < 3; // No more than 3 reloads per session
+
         Sentry.addBreadcrumb({
           category: 'search.index',
-          message: 'Triggering page reload due to worker runtime error (stale asset)',
+          message: shouldReload
+            ? 'Triggering page reload due to worker runtime error (stale asset)'
+            : 'Skipping reload (too soon or too many attempts)',
           level: 'info',
           data: {
             errorMessage: errorMsg,
             isMimeError,
             isTypeError,
             filename: error.filename,
+            shouldReload,
+            timeSinceStart,
+            timeSinceLastReload,
+            reloadCount,
           },
         });
-        // Use a small delay to ensure the Sentry event is transmitted
-        setTimeout(() => {
-          window.location.reload();
-        }, 100);
+
+        if (shouldReload) {
+          sessionStorage.setItem('sable:last_worker_reload', String(now));
+          sessionStorage.setItem('sable:worker_reload_count', String(reloadCount + 1));
+
+          setTimeout(() => {
+            window.location.reload();
+          }, 100);
+        }
       }
     };
     worker.addEventListener('error', handleWorkerError);

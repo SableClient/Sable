@@ -59,7 +59,20 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   useEffect(() => {
     if (!mx) return undefined;
 
+    // SABLE-5B: Track last retry time to avoid excessive retries
+    let lastRetryTime = 0;
+    const MIN_RETRY_INTERVAL_MS = 5000; // Don't retry more than once per 5 seconds
+
     const doRetry = () => {
+      // Check if we've retried too recently
+      const now = Date.now();
+      if (now - lastRetryTime < MIN_RETRY_INTERVAL_MS) {
+        debugLog.info('general', 'Skipping retry - too soon since last attempt', {
+          timeSinceLastRetry: now - lastRetryTime,
+        });
+        return;
+      }
+
       // Only retry if sync is actually in an error or stopped state.
       // Calling retry when already syncing causes unnecessary reconnection banners.
       const syncState = mx.getSyncState();
@@ -77,6 +90,8 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       // if the device just woke from sleep or the app was restored from bfcache.
       try {
         debugLog.info('general', 'Triggering sync retry', { syncState });
+        lastRetryTime = now;
+
         // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
         // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
         // slidingSync.resend() which aborts any stalled request and retries without backoff.
@@ -94,6 +109,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     // Debounce foreground events: both pageshow[persisted] and visibilitychange can
     // fire within milliseconds of each other on iOS bfcache restore, so coalesce them
     // to avoid duplicate sync retries.
+    // SABLE-5B: Increase debounce window to 500ms to let sync state stabilize
     let debounceTimer: number | undefined;
     const debouncedRetry = () => {
       if (debounceTimer !== undefined) {
@@ -102,12 +118,20 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       debounceTimer = window.setTimeout(() => {
         debounceTimer = undefined;
         doRetry();
-      }, 100); // 100ms window to catch both events
+      }, 500); // 500ms window to let sync state stabilize
     };
 
     const handleForeground = () => {
       if (document.visibilityState !== 'visible') return;
       debugLog.info('general', 'App foregrounded — sync retry triggered');
+
+      // SABLE-5D: Diagnostic logging for crypto and sync state after resume
+      debugLog.info('general', 'App resume diagnostic', {
+        syncState: mx.getSyncState(),
+        clientRunning: mx.clientRunning,
+        isCryptoEnabled: mx.isCryptoEnabled(),
+        hasSecretStorage: Boolean(mx.secretStorage),
+      });
 
       // Wrap in try-catch in case retry throws (e.g., client disposed, network unavailable)
       try {
@@ -123,18 +147,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       // visibilitychange fires after a background suspension. Schedule
       // fallback retries so the sync recovers once networking is ready.
       // Each timer is cancelled if the app goes back to background first.
-      const t1 = setTimeout(() => {
-        if (document.visibilityState === 'visible') {
-          try {
-            doRetry();
-            debugLog.info('general', 'App foregrounded — sync retry (1.5 s fallback)');
-          } catch (err) {
-            debugLog.error('general', 'Sync retry failed (1.5s fallback)', {
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
-        }
-      }, 1500);
+      // SABLE-5B: Reduced from 2 fallback timers to 1 (removed 1.5s, kept 5s)
       const t2 = setTimeout(() => {
         if (document.visibilityState === 'visible') {
           try {
@@ -149,7 +162,6 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       }, 5000);
       const cancelOnHide = () => {
         if (document.visibilityState === 'visible') return;
-        clearTimeout(t1);
         clearTimeout(t2);
         if (debounceTimer !== undefined) {
           clearTimeout(debounceTimer);

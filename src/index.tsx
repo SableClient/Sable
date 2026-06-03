@@ -24,6 +24,11 @@ import { createLogger } from './app/utils/debug';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 import { installConsolePasteScamWarning } from './app/utils/consolePasteScamWarning';
 
+// SABLE-5A: Track app start time for reload throttling
+if (!sessionStorage.getItem('sable:app_start_time')) {
+  sessionStorage.setItem('sable:app_start_time', String(Date.now()));
+}
+
 enableMapSet();
 installConsolePasteScamWarning();
 const log = createLogger('index');

@@ -460,6 +460,31 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     }
     log.warn('initClient: mismatch on buildClient — wiping and retrying:', err);
     debugLog.warn('sync', 'Client build mismatch - wiping stores and retrying', { error: err });
+    // SABLE-5E: Capture mismatch wipe events to Sentry before wiping
+    Sentry.addBreadcrumb({
+      category: 'initMatrix',
+      message: 'Store mismatch detected during buildClient - triggering wipe',
+      level: 'warning',
+      data: {
+        stage: 'buildClient',
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        errorMessage: err instanceof Error ? err.message : String(err),
+      },
+    });
+    Sentry.captureException(err, {
+      level: 'warning',
+      tags: {
+        component: 'initMatrix',
+        event: 'store_wipe_on_mismatch',
+        stage: 'buildClient',
+      },
+      contexts: {
+        mismatch: {
+          errorName: err instanceof Error ? err.name : 'Unknown',
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+      },
+    });
     await wipeAllStores();
     const result = await buildClient(session);
     mx = result.mx;
@@ -504,6 +529,34 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     debugLog.warn('sync', 'Store init mismatch - wiping stores and retrying', {
       error: err,
     });
+    // SABLE-5E: Capture mismatch wipe events to Sentry before wiping
+    Sentry.addBreadcrumb({
+      category: 'initMatrix',
+      message: 'Store mismatch detected during initRustCrypto - triggering wipe',
+      level: 'warning',
+      data: {
+        stage: 'initRustCrypto',
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        errorMessage: err instanceof Error ? err.message : String(err),
+      },
+    });
+    Sentry.captureException(err, {
+      level: 'warning',
+      tags: {
+        component: 'initMatrix',
+        event: 'store_wipe_on_mismatch',
+        stage: 'initRustCrypto',
+      },
+      contexts: {
+        mismatch: {
+          errorName: err instanceof Error ? err.name : 'Unknown',
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+      },
+    });
+    // SABLE-5F: Clean up all event listeners from the old client before wiping
+    // to prevent stale events from being processed after rebuild
+    mx.removeAllListeners();
     mx.stopClient();
     await wipeAllStores();
     const result = await buildClient(session);
@@ -962,6 +1015,9 @@ export const stopClient = (mx: MatrixClient): void => {
     mx.removeListener(ClientEvent.Sync, classicSyncListener);
     classicSyncObserverByClient.delete(mx);
   }
+  // SABLE-5F: Remove all event listeners to prevent stale events from
+  // being processed if the client is rebuilt (e.g., after mismatch wipe)
+  mx.removeAllListeners();
   mx.stopClient();
   syncTransportByClient.delete(mx);
 };

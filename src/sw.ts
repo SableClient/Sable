@@ -1329,3 +1329,39 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 precacheAndRoute(self.__WB_MANIFEST);
 
 cleanupOutdatedCaches();
+
+// SABLE-5G: Catch-all fetch handler for navigation requests
+// Handles FetchEvent.respondWith errors when precached assets fail to load
+// (e.g., right after SW update when old cached URLs are being cleaned up).
+// Falls back to serving cached index.html for navigation requests.
+self.addEventListener('fetch', (event: FetchEvent) => {
+  const { request } = event;
+  // Only handle navigation requests (document loads)
+  if (request.mode !== 'navigate') {
+    return;
+  }
+
+  event.respondWith(
+    (async () => {
+      try {
+        // Try network first
+        return await fetch(request);
+      } catch (fetchError) {
+        console.debug('[SW fetch fallback] Network fetch failed, trying cache:', fetchError);
+        // Network failed, try to serve cached index.html
+        try {
+          const cache = await caches.open('workbox-precache-v2-' + self.registration.scope);
+          const cachedResponse = await cache.match('/index.html');
+          if (cachedResponse) {
+            console.debug('[SW fetch fallback] Serving cached index.html');
+            return cachedResponse;
+          }
+        } catch (cacheError) {
+          console.error('[SW fetch fallback] Failed to serve cached index.html:', cacheError);
+        }
+        // Both network and cache failed, rethrow original error
+        throw fetchError;
+      }
+    })()
+  );
+});

@@ -14,7 +14,9 @@ const authFailedUrls = new Set<string>(); // Track URLs that failed with 401
 
 // Concurrency limiter: cap simultaneous remote fetches to avoid N+1 API call
 // detection when many components (e.g. room-list avatars) mount at once.
-const MAX_CONCURRENT_FETCHES = 4;
+// SABLE-5C: Increased from 4 to 8 to reduce timeline scroll glitches from
+// slow sequential image loading causing layout shifts.
+const MAX_CONCURRENT_FETCHES = 8;
 let activeFetches = 0;
 const fetchQueue: Array<() => void> = [];
 

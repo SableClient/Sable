@@ -12,18 +12,19 @@ const compareUnreadEqual = (u1?: Unread, u2?: Unread): boolean => {
 
 const getRoomsUnread = (rooms: string[], roomToUnread: RoomToUnread): Unread | undefined => {
   // DEBUG: Log all rooms being queried
+  // oxlint-disable-next-line no-console -- Temporary debug logging for badge investigation
   console.log('[BADGE-DEBUG:getRoomsUnread] Called with:', {
     roomCount: rooms.length,
     rooms,
     mapSize: roomToUnread.size,
     mapKeys: Array.from(roomToUnread.keys()),
-    roomDetails: rooms.map(id => ({
+    roomDetails: rooms.map((id) => ({
       id,
       inMap: roomToUnread.has(id),
-      value: roomToUnread.get(id)
-    }))
+      value: roomToUnread.get(id),
+    })),
   });
-  
+
   const unread = rooms.reduce<Unread | undefined>((u, roomId) => {
     const roomUnread = roomToUnread.get(roomId);
     if (!roomUnread) return u;
@@ -37,9 +38,10 @@ const getRoomsUnread = (rooms: string[], roomToUnread: RoomToUnread): Unread | u
     newUnread.from?.add(roomId);
     return newUnread;
   }, undefined);
-  
+
+  // oxlint-disable-next-line no-console -- Temporary debug logging for badge investigation
   console.log('[getRoomsUnread] Result:', unread);
-  
+
   return unread;
 };
 
@@ -50,7 +52,7 @@ export const useRoomsUnread = (
   // Create a stable dependency key that changes only when room IDs actually change,
   // not when the array reference changes. This prevents stale closures and race conditions.
   const roomsKey = rooms.join('|');
-  
+
   const selector = useCallback(
     (roomToUnread: RoomToUnread) => getRoomsUnread(rooms, roomToUnread),
     // eslint-disable-next-line react-hooks/exhaustive-deps

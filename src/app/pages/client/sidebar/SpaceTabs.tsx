@@ -561,11 +561,16 @@ function SpaceTab({
     [allChild, notificationPreferences]
   );
 
+  // Get unreads from ALL child rooms to show badges for all unreads
+  const allUnread = useRoomsUnread(allChild, roomToUnreadAtom);
+
+  // Track loud rooms separately to determine when to show counts vs dots
   const loudUnread = useRoomsUnread(loudChild, roomToUnreadAtom);
   const hasLoudUnreads = !!loudUnread && (loudUnread.highlight > 0 || loudUnread.total > 0);
 
   // DEBUG: Log space badge calculation for Tech Chats and Draupnir
   if (space.name.includes('Draupnir') || space.name.includes('Tech')) {
+    // oxlint-disable-next-line no-console -- Temporary debug logging for badge investigation
     console.log('[BADGE-DEBUG:SpaceTabs]', {
       spaceName: space.name,
       spaceId: space.roomId,
@@ -630,7 +635,7 @@ function SpaceTab({
         <SidebarUnreadBadge
           highlight={unread.highlight > 0}
           count={unread.highlight > 0 ? unread.highlight : unread.total}
-          loud={hasLoudChildren}
+          loud={hasLoudUnreads}
         />
       )}
       {menuAnchor && (
@@ -732,7 +737,7 @@ function ClosedSpaceFolder({
   const hasLoudChildren = true;
 
   return (
-    <RoomsUnreadProvider rooms={loudRooms}>
+    <RoomsUnreadProvider rooms={folder.content}>
       {(unread) => (
         <SidebarItem
           active={selected}

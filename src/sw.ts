@@ -139,8 +139,6 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
   }
 }
 
-
-
 type SessionInfo = {
   accessToken: string;
   baseUrl: string;

@@ -129,7 +129,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       debugLog.info('general', 'App resume diagnostic', {
         syncState: mx.getSyncState(),
         clientRunning: mx.clientRunning,
-        isCryptoEnabled: mx.isCryptoEnabled(),
+        hasCrypto: Boolean(mx.getCrypto()),
         hasSecretStorage: Boolean(mx.secretStorage),
       });
 

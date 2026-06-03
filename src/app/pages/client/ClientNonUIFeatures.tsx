@@ -442,6 +442,12 @@ function MessageNotifications() {
       // the OS notification and badge are consistent with the DM context.
       const isLoud = loudByRule || isDM;
 
+      // Apply focus mode filter: check if this notification should be shown
+      // based on the current focus mode setting.
+      if (!shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule)) {
+        return;
+      }
+
       // Record as notified to prevent duplicate banners (e.g. re-emitted decrypted events).
       notifiedEventsRef.current.add(eventId);
       if (notifiedEventsRef.current.size > 200) {
@@ -511,9 +517,9 @@ function MessageNotifications() {
       if (document.visibilityState !== 'visible') return;
 
       // Page is visible — show the themed in-app notification banner.
-      // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
-      // For DMs, show banner for all messages.
-      if (showNotifications && (isHighlightByRule || isDM)) {
+      // Show banner for: highlighted messages (mentions/keywords), DM messages, or loud notifications.
+      // Loud notifications include any room set to "All Messages" with sound enabled.
+      if (showNotifications && (isHighlightByRule || isDM || isLoud)) {
         const avatarMxc =
           room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
         const roomAvatar = avatarMxc

@@ -233,7 +233,8 @@ function InviteNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
+    audioElement?.play().catch(() => {});
+    clearMediaSessionQuickly();
   }, []);
 
   useEffect(() => {
@@ -308,7 +309,8 @@ function MessageNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
+    audioElement?.play().catch(() => {});
+    clearMediaSessionQuickly();
   }, []);
 
   useEffect(() => {

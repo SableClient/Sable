@@ -1564,7 +1564,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         <MenuItem
                           size="300"
                           radii="300"
-                          onClick={() => pickFile('*')}
+                          onClick={() => {
+                            pickFile('*');
+                            setAddMenuAnchor(undefined);
+                          }}
                           before={<Icon size="100" src={Icons.PlusCircle} />}
                         >
                           <Text size="B300">Add File</Text>

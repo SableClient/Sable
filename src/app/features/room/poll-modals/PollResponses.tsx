@@ -2,6 +2,7 @@ import classNames from 'classnames';
 import {
   Avatar,
   Box,
+  Button,
   Header,
   Icon,
   IconButton,
@@ -11,9 +12,7 @@ import {
   Scroll,
   Text,
   as,
-  color,
   config,
-  toRem,
 } from 'folds';
 import type { MatrixEvent, Room, RoomMember } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
@@ -79,22 +78,19 @@ export const PollResponsesViewer = as<'div', PollResponsesViewerProps>(
       >
         <Box shrink="No" className={css.Sidebar}>
           <Scroll visibility="Hover" hideTrack size="300">
-            <Box className={css.SidebarContent} direction="Column" gap="200">
+            <Box className={css.SidebarContent} grow="Yes" direction="Column" gap="200">
               {answers.map((item) => (
-                <Box
+                <Button
+                  variant="Secondary"
                   style={{
-                    maxWidth: toRem(300),
-                    backgroundColor: color.Secondary.Container,
-                    padding: config.space.S200,
-                    borderRadius: config.radii.R400,
-                    cursor: 'pointer',
-                    textAlign: 'justify',
+                    maxWidth: '100%',
+                    flexShrink: '1',
                   }}
                   key={item.id}
                   onClick={() => setSelectedOption(item)}
                 >
-                  {item[M_TEXT.name]}
-                </Box>
+                  <Text truncate>{item[M_TEXT.name]}</Text>
+                </Button>
               ))}
             </Box>
           </Scroll>

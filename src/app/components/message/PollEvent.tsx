@@ -274,10 +274,10 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
                 {(isDisclosed || isEnded) && (
                   <ProgressBar
                     size="400"
-                    value={hasVoted || isEnded ? (voteCount ?? 0) / totalVotes : 0}
+                    value={hasVoted || isEnded ? (voteCount ?? 0) / voters.size : 0}
                     max={1}
                     variant={isSelected ? 'Primary' : 'Secondary'}
-                    title={voteCount ? `${Math.round((voteCount / totalVotes) * 100)}%` : '0%'}
+                    title={voteCount ? `${Math.round((voteCount / voters.size) * 100)}%` : '0%'}
                     className={css.PollAnswerBar}
                   />
                 )}
@@ -318,7 +318,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
                 escapeDeactivates: stopPropagation,
               }}
             >
-              <Modal variant="Surface" size="500">
+              <Modal variant="Surface">
                 <PollResponsesViewer
                   room={room}
                   answers={answers}

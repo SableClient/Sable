@@ -561,12 +561,24 @@ function SpaceTab({
     [allChild, notificationPreferences]
   );
 
-  // Get unreads from ALL child rooms to show badges for all unreads
-  const allUnread = useRoomsUnread(allChild, roomToUnreadAtom);
-
-  // Track loud rooms separately to determine when to show counts vs dots
   const loudUnread = useRoomsUnread(loudChild, roomToUnreadAtom);
   const hasLoudUnreads = !!loudUnread && (loudUnread.highlight > 0 || loudUnread.total > 0);
+
+  // DEBUG: Log space badge calculation for Tech Chats and Draupnir
+  if (space.name.includes('Draupnir') || space.name.includes('Tech')) {
+    console.log('[BADGE-DEBUG:SpaceTabs]', {
+      spaceName: space.name,
+      spaceId: space.roomId,
+      allChildCount: allChild.length,
+      allChildIds: allChild,
+      loudChildCount: loudChild.length,
+      loudChildIds: loudChild,
+      allUnread,
+      loudUnread,
+      hasLoudUnreads,
+      willShowBadge: !!allUnread,
+    });
+  }
 
   // Show badges for all unreads, but use loud parameter to control count vs dot display.
   // When "Show Loud Room Counts" is enabled and there are loud unreads, show counts.
@@ -618,7 +630,7 @@ function SpaceTab({
         <SidebarUnreadBadge
           highlight={unread.highlight > 0}
           count={unread.highlight > 0 ? unread.highlight : unread.total}
-          loud={hasLoudUnreads}
+          loud={hasLoudChildren}
         />
       )}
       {menuAnchor && (
@@ -716,16 +728,8 @@ function ClosedSpaceFolder({
 
   const tooltipName = folderDefaultDisplayName(mx, folder);
 
-  // Filter to only include "loud" rooms (Default or All Messages notification mode).
-  const notificationPreferences = useRoomsNotificationPreferencesContext();
-  const loudRooms = useMemo(
-    () =>
-      folder.content.filter((roomId) => {
-        const mode = getRoomNotificationMode(notificationPreferences, roomId);
-        return mode === RoomNotificationMode.Unset || mode === RoomNotificationMode.AllMessages;
-      }),
-    [folder.content, notificationPreferences]
-  );
+  // For space folders, pass loud={true} so "Show Loud Room Counts" applies to the folder badge
+  const hasLoudChildren = true;
 
   return (
     <RoomsUnreadProvider rooms={loudRooms}>
@@ -774,7 +778,7 @@ function ClosedSpaceFolder({
             <SidebarUnreadBadge
               highlight={unread.highlight > 0}
               count={unread.highlight > 0 ? unread.highlight : unread.total}
-              loud={!!unread && (unread.highlight > 0 || unread.total > 0)}
+              loud={hasLoudChildren}
             />
           )}
         </SidebarItem>

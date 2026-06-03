@@ -33,6 +33,7 @@ import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
 import { getRoomAvatarUrl, getStateEvent } from '$utils/room';
 import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { KnockRoomPrompt } from '$components/knock-room-prompt';
 import { RoomAvatar } from '$components/room-avatar';
 import { formatCompactNumber } from '$utils/formatCompactNumber';
@@ -175,6 +176,7 @@ export const RoomCard = as<'div', RoomCardProps>(
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const convertMxc = useCachedMxcConverter();
     const joinedRoomId = useJoinedRoomId(allRooms, roomIdOrAlias);
     const joinedRoom = mx.getRoom(joinedRoomId);
     const [topicEvent, setTopicEvent] = useState(() =>
@@ -185,8 +187,8 @@ export const RoomCard = as<'div', RoomCardProps>(
     const fallbackTopic = roomIdOrAlias;
 
     const avatar = joinedRoom
-      ? getRoomAvatarUrl(mx, joinedRoom, 96, useAuthentication)
-      : avatarUrl && mxcUrlToHttp(mx, avatarUrl, useAuthentication, 96, 96, 'crop');
+      ? getRoomAvatarUrl(mx, joinedRoom, 96, useAuthentication, convertMxc)
+      : avatarUrl && (convertMxc(mx, avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined);
 
     const bannerState = joinedRoom
       ? getStateEvent(joinedRoom, CustomStateEvent.RoomBanner)

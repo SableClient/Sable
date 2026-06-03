@@ -9,7 +9,7 @@ import {
   getSpacePath,
   getSpaceRoomPath,
 } from '$pages/pathUtils';
-import { getOrphanParents, guessPerfectParent } from '$utils/room';
+import { getShallowParents, guessPerfectParent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { mDirectAtom } from '$state/mDirectList';
 import { settingsAtom } from '$state/settings';
@@ -36,15 +36,25 @@ export const useRoomNavigate = () => {
   const navigateRoom = useCallback(
     (roomId: string, eventId?: string, opts?: NavigateOptions) => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
+
+      // DM rooms always navigate to /direct, regardless of space membership.
+      if (mDirects.has(roomId)) {
+        navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
+        return;
+      }
+
       const openSpaceTimeline = developerTools && spaceSelectedId === roomId;
 
-      const orphanParents = openSpaceTimeline ? [roomId] : getOrphanParents(roomToParents, roomId);
-      if (orphanParents.length > 0) {
+      const shallowParents = openSpaceTimeline
+        ? [roomId]
+        : getShallowParents(roomToParents, roomId);
+      if (shallowParents.length > 0) {
         let parentSpace: string;
-        if (spaceSelectedId && orphanParents.includes(spaceSelectedId)) {
+        if (spaceSelectedId && shallowParents.includes(spaceSelectedId)) {
           parentSpace = spaceSelectedId;
         } else {
-          parentSpace = guessPerfectParent(mx, roomId, orphanParents) ?? orphanParents[0] ?? roomId;
+          parentSpace =
+            guessPerfectParent(mx, roomId, shallowParents) ?? shallowParents[0] ?? roomId;
         }
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);
@@ -53,11 +63,6 @@ export const useRoomNavigate = () => {
           getSpaceRoomPath(pSpaceIdOrAlias, openSpaceTimeline ? roomId : roomIdOrAlias, eventId),
           opts
         );
-        return;
-      }
-
-      if (mDirects.has(roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
         return;
       }
 

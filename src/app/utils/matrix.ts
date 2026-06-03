@@ -128,14 +128,147 @@ export const encryptFile = async <T extends File | Blob>(
   };
 };
 
+/**
+ * Helper to encode ArrayBuffer as base64 (no padding, URL-safe).
+ * Used for encryption keys and IVs per Matrix spec.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const encodeBase64 = (buffer: Uint8Array): string => {
+  const bytes = Array.from(buffer);
+  const binaryString = bytes.map((b) => String.fromCharCode(b)).join('');
+  return btoa(binaryString).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+};
+
+/**
+ * Helper to encode ArrayBuffer as standard base64 (with padding).
+ * Used for SHA-256 hashes per Matrix spec (file.hashes.sha256).
+ */
+const encodeBase64Standard = (buffer: Uint8Array): string => {
+  const bytes = Array.from(buffer);
+  const binaryString = bytes.map((b) => String.fromCharCode(b)).join('');
+  return btoa(binaryString);
+};
+
+/**
+ * Decrypt an encrypted Matrix attachment, verify its SHA-256 hash, and return a Blob.
+ *
+ * Safety: Each call uses independent key material and IV/counter state. The
+ * `decryptAttachment` implementation from browser-encrypt-attachment imports
+ * a fresh CryptoKey for each call and uses a non-mutated copy of the IV for
+ * AES-CTR mode, so concurrent decryption calls (e.g., from main client + search
+ * backfill worker) do not share mutable state.
+ */
 export const decryptFile = async (
   dataBuffer: ArrayBuffer,
   type: string,
-  encInfo: EncryptedAttachmentInfo
+  encInfo: EncryptedAttachmentInfo,
+  /** Optional context for diagnostics (eventId, roomId, mxc URL) */
+  context?: {
+    eventId?: string;
+    roomId?: string;
+    mediaUrl?: string;
+  }
 ): Promise<Blob> => {
-  const dataArray = await decryptAttachment(dataBuffer, encInfo);
-  const blob = new Blob([dataArray], { type });
-  return blob;
+  try {
+    // DIAGNOSTIC: Verify hash of encrypted bytes (ciphertext), not decrypted output.
+    // Matrix spec stores the hash of the encrypted file as uploaded to the server.
+    // The hash uses standard base64 encoding (with padding), not URL-safe.
+    const downloadedBytes = new Uint8Array(dataBuffer);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', downloadedBytes);
+    // Matrix spec stores hashes as unpadded base64 - strip padding before comparison
+    const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer)).replace(/=+$/, '');
+    const expectedHash = (encInfo.hashes?.sha256 ?? '').replace(/=+$/, '');
+
+    // Temporary diagnostic logging to debug SHA-256 mismatches
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] URL:', context?.mediaUrl);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Downloaded bytes:', downloadedBytes.byteLength);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Expected SHA-256:', expectedHash);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Actual SHA-256:', actualHash);
+    // eslint-disable-next-line no-console
+    console.log('[media-debug] Match:', actualHash === expectedHash);
+
+    // Decrypt the attachment
+    const decryptedData = await decryptAttachment(dataBuffer, encInfo);
+
+    if (expectedHash && actualHash !== expectedHash) {
+      // Hash mismatch — log to Sentry with diagnostic context
+      const roomType = context?.roomId?.startsWith('!')
+        ? 'room'
+        : context?.roomId?.startsWith('#')
+          ? 'alias'
+          : 'unknown';
+
+      Sentry.captureException(new Error('Mismatched SHA-256 digest'), {
+        level: 'error',
+        tags: { component: 'media.decrypt', room_type: roomType },
+        extra: {
+          eventId: context?.eventId,
+          roomId: context?.roomId,
+          expectedHash: expectedHash.slice(0, 16) + '...',
+          actualHash: actualHash.slice(0, 16) + '...',
+          mediaUrl: context?.mediaUrl,
+          encryptedSize: dataBuffer.byteLength,
+          decryptedSize: decryptedData.byteLength,
+        },
+      });
+
+      // Throw a specific error that calling code can catch and handle gracefully
+      const error = new Error('Media integrity check failed: SHA-256 hash mismatch');
+      error.name = 'MediaIntegrityError';
+      throw error;
+    }
+
+    const blob = new Blob([decryptedData], { type });
+    return blob;
+  } catch (err) {
+    // Re-throw known integrity errors as-is
+    if (err instanceof Error && err.name === 'MediaIntegrityError') {
+      throw err;
+    }
+
+    // Log other decryption failures to Sentry
+    Sentry.captureException(err, {
+      level: 'error',
+      tags: { component: 'media.decrypt' },
+      extra: {
+        eventId: context?.eventId,
+        roomId: context?.roomId,
+        mediaUrl: context?.mediaUrl,
+        encryptedSize: dataBuffer.byteLength,
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        errorMessage: err instanceof Error ? err.message : String(err),
+      },
+    });
+
+    throw err;
+  }
+};
+
+/**
+ * Safely decrypt an encrypted attachment with integrity checking.
+ * Returns null on MediaIntegrityError to allow graceful fallback rendering.
+ */
+export const decryptFileSafe = async (
+  dataBuffer: ArrayBuffer,
+  type: string,
+  encInfo: EncryptedAttachmentInfo,
+  context?: { eventId?: string; roomId?: string; mediaUrl?: string }
+): Promise<Blob | null> => {
+  try {
+    return await decryptFile(dataBuffer, type, encInfo, context);
+  } catch (err) {
+    if (err instanceof Error && err.name === 'MediaIntegrityError') {
+      // Integrity error already logged to Sentry by decryptFile
+      // Return null to signal the caller to show a broken media placeholder
+      return null;
+    }
+    // Re-throw unexpected errors
+    throw err;
+  }
 };
 
 export type TUploadContent = File;
@@ -332,19 +465,129 @@ export const mxcUrlToHttp = (
     useAuthentication
   );
 
-export const downloadMedia = async (src: string): Promise<Blob> => {
-  // this request is authenticated by service worker
-  const res = await fetch(src, { method: 'GET' });
-  const blob = await res.blob();
-  return blob;
+export const downloadMedia = async (
+  src: string,
+  /** Belt-and-suspenders fallback for when the service worker session is
+   * unavailable (e.g. iOS SW restart before setSession fires). The SW still
+   * adds auth for normal browser sub-resource loads when active. */
+  accessToken?: string | null,
+  /** Optional metadata from Matrix event content.info for enriched diagnostics */
+  mediaInfo?: {
+    mimetype?: string;
+    size?: number;
+    w?: number;
+    h?: number;
+  }
+): Promise<Blob> => {
+  // Extract media server from URL for attribution
+  let mediaServer: string | undefined;
+  try {
+    const url = new URL(src);
+    mediaServer = url.hostname;
+  } catch {
+    // Invalid URL, skip server extraction
+  }
+
+  const span = Sentry.startInactiveSpan({
+    name: 'media.load',
+    op: 'media',
+    attributes: {
+      'media.type': mediaInfo?.mimetype ?? 'unknown',
+      'media.size_bytes': mediaInfo?.size,
+      'media.width': mediaInfo?.w,
+      'media.height': mediaInfo?.h,
+      'media.authenticated': src.includes('/client/v1/media/'),
+      'media.is_thumbnail': src.includes('/thumbnail/'),
+      'media.server': mediaServer,
+      'media.url': src.substring(0, 100), // Truncate URL to avoid PII
+      'media.has_access_token': !!accessToken,
+    },
+  });
+
+  try {
+    // The service worker intercepts this request and adds auth; accessToken is a
+    // direct fallback so the header is present even when the SW has no session.
+    // Use 'no-cache' to ensure retries hit the network instead of returning cached failures.
+    const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+
+    // Add a 30-second timeout to prevent infinite hangs
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const res = await fetch(src, {
+        method: 'GET',
+        cache: 'no-cache',
+        headers,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        span.setAttribute('media.status_code', res.status);
+        span.setAttribute('media.error', `${res.status} ${res.statusText}`);
+
+        // Log 401 specifically for auth failures (SABLE-39)
+        if (res.status === 401) {
+          Sentry.addBreadcrumb({
+            category: 'media',
+            message: 'Media auth failure',
+            data: { url: src.substring(0, 100), statusCode: 401 },
+            level: 'error',
+          });
+        }
+
+        span.end();
+        throw new Error(`Failed to download media: ${res.status} ${res.statusText}`);
+      }
+
+      const blob = await res.blob();
+      span.setAttribute('media.actual_size_bytes', blob.size);
+      span.setAttribute('media.actual_mime_type', blob.type);
+      span.setAttribute('media.cache_hit', res.headers.get('X-From-Cache') === 'true');
+      span.setStatus({ code: 1 }); // ok
+      span.end();
+      return blob;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err instanceof Error && err.name === 'AbortError') {
+        span.setAttribute('media.timeout', true);
+        span.setStatus({ code: 2, message: 'Timeout after 30s' });
+        span.end();
+        // Log timeout as warning breadcrumb, not error — this is a recoverable condition
+        // (slow connection, large file) and the UI will show a placeholder.
+        Sentry.addBreadcrumb({
+          category: 'media',
+          message: 'Media download timeout',
+          level: 'warning',
+          data: { url: src.substring(0, 100), timeout: '30s' },
+        });
+        throw new Error('Media download timed out after 30 seconds', { cause: err });
+      }
+      span.setAttribute('media.error', err instanceof Error ? err.message : String(err));
+      span.end();
+      throw err;
+    }
+  } catch (err) {
+    span.end();
+    throw err;
+  }
 };
 
 export const downloadEncryptedMedia = async (
   src: string,
-  decryptContent: (buf: ArrayBuffer) => Promise<Blob>
+  decryptContent: (buf: ArrayBuffer) => Promise<Blob | null>,
+  /** Forwarded to {@link downloadMedia} — see its doc for context. */
+  accessToken?: string | null
 ): Promise<Blob> => {
-  const encryptedContent = await downloadMedia(src);
+  const encryptedContent = await downloadMedia(src, accessToken);
   const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
+
+  if (!decryptedContent) {
+    // decryptFileSafe returned null due to integrity failure
+    // Return an empty blob so the UI can show a broken media placeholder
+    throw new Error('media_integrity_failure');
+  }
 
   return decryptedContent;
 };

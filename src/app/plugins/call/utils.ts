@@ -4,9 +4,10 @@ import {
   MatrixCapabilities,
   WidgetEventCapability,
 } from 'matrix-widget-api';
-import { EventType } from '$types/matrix-sdk';
+import { EventType, type MatrixClient } from '$types/matrix-sdk';
 
 export function getCallCapabilities(
+  mx: MatrixClient,
   roomId: string,
   userId: string,
   deviceId: string
@@ -15,7 +16,15 @@ export function getCallCapabilities(
 
   capabilities.add(MatrixCapabilities.Screenshots);
   capabilities.add(MatrixCapabilities.AlwaysOnScreen);
-  capabilities.add(MatrixCapabilities.MSC3846TurnServers);
+
+  // Only advertise TURN capability if homeserver provides TURN servers.
+  // getTurnServers() returns cached servers (zero overhead). If empty, the widget
+  // won't poll /voip/turnServer and won't generate 404/500 errors. WebRTC will
+  // fall back to STUN (direct connection) when TURN is unavailable.
+  if (mx.getTurnServers().length > 0) {
+    capabilities.add(MatrixCapabilities.MSC3846TurnServers);
+  }
+
   capabilities.add(MatrixCapabilities.MSC4157SendDelayedEvent);
   capabilities.add(MatrixCapabilities.MSC4157UpdateDelayedEvent);
   capabilities.add('moe.sable.thumbnails');

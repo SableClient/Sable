@@ -69,14 +69,13 @@ export const ThreadDrawerOverlay = style({
 
 export const ThreadBrowserItem = style({
   width: '100%',
-  padding: `${config.space.S200} ${config.space.S100}`,
+  padding: `${config.space.S200} ${config.space.S400}`,
   borderRadius: config.radii.R300,
   textAlign: 'left',
   cursor: 'pointer',
   background: 'none',
   border: 'none',
   color: 'inherit',
-  overflow: 'hidden',
   ':hover': {
     backgroundColor: color.SurfaceVariant.Container,
     transform: 'none',

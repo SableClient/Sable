@@ -17,13 +17,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { HTMLReactParserOptions } from 'html-react-parser';
-import { mxcUrlToHttp } from '$utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
-import { useUserPresence } from '$hooks/useUserPresence';
+import { useUserPresence, type Presence } from '$hooks/useUserPresence';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useMembership } from '$hooks/useMembership';
@@ -45,7 +45,7 @@ import {
 } from '$plugins/react-custom-html-parser';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { RenderBody } from '$components/message';
-import { getSettings, settingsAtom } from '$state/settings';
+import { getSettings, settingsAtom, presenceAutoIdledAtom } from '$state/settings';
 import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -404,6 +404,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const theme = useTheme();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const navigate = useNavigate();
   const closeUserRoomProfile = useCloseUserRoomProfile();
   const ignoredUsers = useIgnoredUsers();
@@ -437,9 +438,33 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const nicknames = useAtomValue(nicknamesAtom);
   const displayName = getMemberDisplayName(room, userId, nicknames);
   const avatarMxc = getMemberAvatarMxc(room, userId);
-  const avatarUrl = (avatarMxc && mxcUrlToHttp(mx, avatarMxc, useAuthentication)) ?? undefined;
+  const avatarUrl = (avatarMxc && convertMxc(mx, avatarMxc, useAuthentication)) ?? undefined;
 
-  const presence = useUserPresence(userId);
+  const sdkPresence = useUserPresence(userId);
+
+  // Own presence badge is driven from settings state rather than the SDK's User object.
+  // The SDK won't echo your own presence back on MSC4186 sliding sync, so reading
+  // user.presence would leave the badge stuck at the SDK default forever.
+  const isOwnUser = userId === myUserId;
+  const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [presenceStatusMsg] = useSetting(settingsAtom, 'presenceStatusMsg');
+  const autoIdled = useAtomValue(presenceAutoIdledAtom);
+
+  let presence: ReturnType<typeof useUserPresence> = undefined;
+  if (isOwnUser && sendPresence) {
+    // For own user, synthesize presence from settings state
+    const effectivePresence = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
+    presence = {
+      presence: effectivePresence as Presence,
+      status: presenceStatusMsg,
+      active: !autoIdled,
+      lastActiveTs: Date.now(), // Always non-zero so the badge displays
+    };
+  } else {
+    // For other users, use SDK User object
+    presence = sdkPresence;
+  }
 
   const fetchedProfile = useUserProfile(userId, room);
   const extendedProfile =
@@ -453,7 +478,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
       : undefined;
 
   const bannerHttpUrl = parsedBanner
-    ? (mxcUrlToHttp(mx, parsedBanner, useAuthentication) ?? undefined)
+    ? (convertMxc(mx, parsedBanner, useAuthentication) ?? undefined)
     : undefined;
 
   const handleMessage = () => {

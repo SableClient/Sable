@@ -19,7 +19,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
-import { factoryRoomIdByActivity, factoryRoomIdByAtoZ } from '$utils/sort';
+import { factoryRoomIdByAtoZ, factoryRoomIdByPriority } from '$utils/sort';
 import {
   NavButton,
   NavCategory,
@@ -46,6 +46,7 @@ import { VirtualTile } from '$components/virtualizer';
 import { RoomNavCategoryButton, RoomNavItem } from '$features/room-nav';
 import { makeNavCategoryId } from '$state/closedNavCategories';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
+import { mDirectAtom } from '$state/mDirectList';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavHeader, PageNavContent } from '$components/page';
@@ -63,7 +64,9 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { usePullToRefresh } from '$hooks/usePullToRefresh';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -71,10 +74,6 @@ type HomeMenuProps = {
 const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, ref) => {
   const orphanRooms = useHomeRooms();
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const [isShowingAllRoomsInHome, setIsShowingAllRoomsInHome] = useSetting(
-    settingsAtom,
-    'isShowingAllRoomsInHome'
-  );
   const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
   const mx = useMatrixClient();
 
@@ -96,16 +95,6 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Mark as Read
-          </Text>
-        </MenuItem>
-        <MenuItem
-          onClick={() => setIsShowingAllRoomsInHome(!isShowingAllRoomsInHome)}
-          size="300"
-          after={<Icon size="100" src={isShowingAllRoomsInHome ? Icons.Home : Icons.Globe} />}
-          radii="300"
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            {isShowingAllRoomsInHome ? 'Show Home Rooms' : 'Show All Rooms'}
           </Text>
         </MenuItem>
       </Box>
@@ -219,10 +208,10 @@ export function Home() {
   const mx = useMatrixClient();
   useNavToActivePathMapper('home');
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [isShowingAllRoomsInHome] = useSetting(settingsAtom, 'isShowingAllRoomsInHome');
-  const rooms = useHomeRooms(isShowingAllRoomsInHome);
+  const rooms = useHomeRooms();
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
+  const mDirects = useAtomValue(mDirectAtom);
   const navigate = useNavigate();
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
@@ -251,8 +240,8 @@ export function Home() {
 
   const sortedRooms = useMemo(() => {
     const items = Array.from(rooms).toSorted(
-      closedCategories.has(DEFAULT_CATEGORY_ID) || isShowingAllRoomsInHome
-        ? factoryRoomIdByActivity(mx)
+      closedCategories.has(DEFAULT_CATEGORY_ID)
+        ? factoryRoomIdByPriority(mx, roomToUnread, mDirects)
         : factoryRoomIdByAtoZ(mx)
     );
     const hasUnread = (roomId: string) => {
@@ -263,7 +252,7 @@ export function Home() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId, isShowingAllRoomsInHome]);
+  }, [mx, rooms, closedCategories, roomToUnread, mDirects, selectedRoomId]);
 
   const virtualizer = useVirtualizer({
     count: sortedRooms.length,
@@ -277,8 +266,10 @@ export function Home() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
+  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+
+  usePullToRefresh(scrollRef, mx);
 
   return (
     <Box
@@ -426,7 +417,6 @@ export function Home() {
                     const room = mx.getRoom(roomId);
                     if (!room) return null;
                     const selected = selectedRoomId === roomId;
-                    const canonicalName = getCanonicalAliasOrRoomId(mx, roomId);
 
                     return (
                       <VirtualTile
@@ -452,7 +442,7 @@ export function Home() {
                             selected={selected}
                             showAvatar={showIcons()}
                             hideText={hideText}
-                            linkPath={getHomeRoomPath(canonicalName)}
+                            linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
                             notificationMode={getRoomNotificationMode(
                               notificationPreferences,
                               room.roomId
@@ -469,7 +459,7 @@ export function Home() {
           </PageNavContent>
         )}
       </PageNav>
-      {!isMobile && (
+      {!mobileOrTabletLayout() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

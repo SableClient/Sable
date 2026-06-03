@@ -28,10 +28,11 @@ import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IImageInfo } from '$types/matrix/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useMediaUrlCacheContext } from '$hooks/useMediaUrlCacheContext';
 import { bytesToSize } from '$utils/common';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
-import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
+import { decryptFileSafe, downloadEncryptedMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
@@ -64,6 +65,8 @@ type RenderImageProps = {
   alt: string;
   title: string;
   src: string;
+  width?: number;
+  height?: number;
   onLoad: () => void;
   onError: () => void;
   onClick: () => void;
@@ -84,6 +87,8 @@ export type ImageContentProps = {
   mediaLayout?: 'default' | 'contained';
   containedStripMinPx?: number;
   fillsPreviewSlot?: boolean;
+  onError?: () => void;
+  suppressErrorUI?: boolean;
 };
 export const ImageContent = as<'div', ImageContentProps>(
   (
@@ -104,12 +109,15 @@ export const ImageContent = as<'div', ImageContentProps>(
       mediaLayout = 'default',
       containedStripMinPx,
       fillsPreviewSlot,
+      onError,
+      suppressErrorUI,
       ...props
     },
     ref
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const mediaUrlCache = useMediaUrlCacheContext();
     const blurHash = validBlurHash(info?.[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]);
 
     const [load, setLoad] = useState(false);
@@ -125,20 +133,39 @@ export const ImageContent = as<'div', ImageContentProps>(
 
         if (typeof matrixThumbnailMaxEdge === 'number' && matrixThumbnailMaxEdge > 0 && !encInfo) {
           const { tw, th } = thumbnailDimsForMaxEdge(matrixThumbnailMaxEdge, info?.w, info?.h);
-          const thumbUrl = mxcUrlToHttp(mx, url, useAuthentication, tw, th, 'scale', false);
+          const thumbUrl = mediaUrlCache.get(mx, url, useAuthentication, tw, th, 'scale', false);
           if (thumbUrl) return thumbUrl;
         }
 
-        const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
+        const mediaUrl = mediaUrlCache.get(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
         if (encInfo) {
-          const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-            decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo)
+          // Check blob cache first to avoid redundant downloads/decryption
+          const cachedBlob = mediaUrlCache.getBlob(url, true, mimeType);
+          if (cachedBlob) return cachedBlob;
+
+          const fileContent = await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) =>
+              decryptFileSafe(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo, { mediaUrl }),
+            mx.getAccessToken()
           );
-          return URL.createObjectURL(fileContent);
+          const blobUrl = URL.createObjectURL(fileContent);
+          mediaUrlCache.setBlob(url, true, blobUrl, mimeType);
+          return blobUrl;
         }
         return mediaUrl;
-      }, [mx, url, useAuthentication, mimeType, encInfo, matrixThumbnailMaxEdge, info?.w, info?.h])
+      }, [
+        mx,
+        url,
+        useAuthentication,
+        mimeType,
+        encInfo,
+        matrixThumbnailMaxEdge,
+        info?.w,
+        info?.h,
+        mediaUrlCache,
+      ])
     );
 
     useEffect(() => {
@@ -156,14 +183,14 @@ export const ImageContent = as<'div', ImageContentProps>(
       }
       let cancelled = false;
       void (async () => {
-        const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
+        const mediaUrl = mediaUrlCache.get(mx, url, useAuthentication);
         if (!mediaUrl || cancelled) return;
         setViewerFullSrc(mediaUrl);
       })();
       return () => {
         cancelled = true;
       };
-    }, [viewer, matrixThumbnailMaxEdge, encInfo, url, mx, useAuthentication]);
+    }, [viewer, matrixThumbnailMaxEdge, encInfo, url, mx, useAuthentication, mediaUrlCache]);
 
     const handleLoad = () => {
       setLoad(true);
@@ -171,6 +198,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     const handleError = () => {
       setLoad(false);
       setError(true);
+      onError?.();
     };
 
     const handleRetry = () => {
@@ -181,6 +209,22 @@ export const ImageContent = as<'div', ImageContentProps>(
     useEffect(() => {
       if (autoPlay) loadSrc();
     }, [autoPlay, loadSrc]);
+
+    // Safety timeout: if the image src is ready but hasn't loaded within 30s,
+    // treat it as an error. This prevents infinite spinners when the browser
+    // silently fails to load the image (e.g. bad URL, CORS issue).
+    useEffect(() => {
+      if (srcState.status !== AsyncStatus.Success || load || error) return undefined;
+      const timeoutId = setTimeout(() => {
+        if (!load && !error) {
+          // eslint-disable-next-line no-console
+          console.warn('[ImageContent] Image load timeout after 30s:', url);
+          setError(true);
+          onError?.();
+        }
+      }, 30000);
+      return () => clearTimeout(timeoutId);
+    }, [srcState.status, load, error, url, onError]);
 
     const imageW = info?.w;
     const imageH = info?.h;
@@ -288,6 +332,8 @@ export const ImageContent = as<'div', ImageContentProps>(
               alt: body,
               title: body,
               src: srcState.data,
+              ...(typeof info?.w === 'number' && Number.isFinite(info.w) ? { width: info.w } : {}),
+              ...(typeof info?.h === 'number' && Number.isFinite(info.h) ? { height: info.h } : {}),
               onLoad: handleLoad,
               onError: handleError,
               onClick: () => {
@@ -337,7 +383,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               <Spinner variant="Secondary" />
             </Box>
           )}
-        {(error || srcState.status === AsyncStatus.Error) && (
+        {!suppressErrorUI && (error || srcState.status === AsyncStatus.Error) && (
           <Box
             className={css.AbsoluteContainer}
             alignItems="Center"

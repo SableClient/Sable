@@ -79,7 +79,8 @@ import { ContainerColor } from '$styles/ContainerColor.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { BreakWord } from '$styles/Text.css';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
-import { mobileOrTablet } from '$utils/user-agent';
+import { mobileOrTablet, mobileOrTabletLayout } from '$utils/user-agent';
+import { usePullToRefresh } from '$hooks/usePullToRefresh';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { useCallEmbed } from '$hooks/useCallEmbed';
@@ -674,6 +675,9 @@ export function Space() {
    * Determines the depth limit for the joined space hierarchy and the SpaceNavItems to start appearing
    */
   const [subspaceHierarchyLimit] = useSetting(settingsAtom, 'subspaceHierarchyLimit');
+  const [roomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
+  const [roomMessagePreview] = useSetting(settingsAtom, 'roomMessagePreview');
+  const [dmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
   /**
    * Creates an SVG used for connecting spaces to their subrooms.
    * @param virtualizedItems - The virtualized item list that will be used to render elements in the nav
@@ -857,8 +861,11 @@ export function Space() {
   }, [lastRoomId, spaceIdOrAlias, mx, navigate]);
 
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
+  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+
+  usePullToRefresh(scrollRef, mx);
+
   return (
     <Box
       shrink="No"
@@ -1037,6 +1044,9 @@ export function Space() {
                             room.roomId
                           )}
                           joinCallOnSingleClick={joinCallOnSingleClick}
+                          roomTopicPreview={roomTopicPreview}
+                          roomMessagePreview={roomMessagePreview}
+                          dmMessagePreview={dmMessagePreview}
                         />
                       </div>
                     </VirtualTile>
@@ -1048,7 +1058,7 @@ export function Space() {
           </PageNavContent>
         </SwipeableOverlayWrapper>
       </PageNav>
-      {!isMobile && (
+      {!mobileOrTabletLayout() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

@@ -37,7 +37,6 @@ import {
   UsernameBold,
   Reply,
 } from '$components/message';
-import { RenderMessageContent } from '$components/RenderMessageContent';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import type { GetContentCallback } from '$types/matrix/room';
@@ -53,6 +52,7 @@ import {
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { EncryptedContent } from './message';
 import * as css from './ThreadDrawer.css';
+import { RenderMessageContent } from '$components/RenderMessageContent';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
 
@@ -228,7 +228,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
             onClick={handleJumpClick}
           />
         )}
-        <Box style={{ maxHeight: '200px', overflow: 'auto', flexShrink: 0 }}>
+        <Box direction="Column" style={{ maxHeight: '200px', overflow: 'auto', minHeight: 0 }}>
           <EncryptedContent mEvent={rootEvent}>
             {() => {
               if (rootEvent.isRedacted()) {
@@ -324,7 +324,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
         // Now fetch page 1 from the /threads endpoint.  threadsTimelineSets is
         // populated so fetchRoomThreadList will not early-return.
         await room.fetchRoomThreads().catch((err: unknown) => {
-          console.warn('ThreadBrowser: fetchRoomThreads failed', err);
+          console.warn('[ThreadBrowser] fetchRoomThreads failed', err);
         });
 
         // Paginate to load the first page into the timeline set.

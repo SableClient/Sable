@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Room } from '$types/matrix-sdk';
-import { RoomEvent } from '$types/matrix-sdk';
+import { ClientEvent, RoomEvent } from '$types/matrix-sdk';
 import { useTimelineSync } from './useTimelineSync';
 
 vi.mock('@sentry/react', () => ({
@@ -41,6 +41,16 @@ function createTimeline(events: unknown[] = [{}]): FakeTimeline {
   };
 }
 
+function createMx() {
+  const mxEmitter = new EventEmitter();
+  return {
+    getUserId: () => '@alice:test',
+    on: mxEmitter.on.bind(mxEmitter),
+    off: mxEmitter.off.bind(mxEmitter),
+    emit: mxEmitter.emit.bind(mxEmitter),
+  };
+}
+
 function createRoom(
   roomId = '!room:test',
   events: unknown[] = [{}]
@@ -64,10 +74,13 @@ function createRoom(
     emit: roomEmitter.emit.bind(roomEmitter),
     roomId,
     getUnfilteredTimelineSet: () => timelineSet as never,
+    getLiveTimeline: () => timeline,
     getEventReadUpTo: () => null,
     getThread: () => null,
+    getUnreadNotificationCount: () => 0,
     client: {
       getUserId: () => '@alice:test',
+      getAccountData: () => null,
     },
   } as unknown as FakeRoom;
 
@@ -75,6 +88,41 @@ function createRoom(
 }
 
 describe('useTimelineSync', () => {
+  it('reloads event context on TimelineReset when eventId is set', async () => {
+    const { room, timelineSet } = createRoom();
+    const scrollToBottom = vi.fn<() => void>();
+
+    // mx.getEventTimeline is intentionally absent — loadEventTimeline will
+    // reject silently (void), leaving the timeline state unchanged.
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: createMx() as never,
+        eventId: '$linked:event',
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom,
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    const timelineBefore = result.current.timeline.linkedTimelines;
+
+    await act(async () => {
+      timelineSet.emit(RoomEvent.TimelineReset);
+      await Promise.resolve();
+    });
+
+    // The live timeline should NOT have replaced the event-context timeline —
+    // the eventId branch in useLiveTimelineRefresh returns early after calling
+    // loadEventTimeline and never calls setTimeline with the live timeline.
+    expect(result.current.timeline.linkedTimelines).toBe(timelineBefore);
+    expect(scrollToBottom).not.toHaveBeenCalled();
+  });
+
   it('does not snap a non-bottom user to latest after TimelineReset', async () => {
     const { room, timelineSet, events } = createRoom();
     const scrollToBottom = vi.fn<() => void>();
@@ -82,7 +130,7 @@ describe('useTimelineSync', () => {
     renderHook(() =>
       useTimelineSync({
         room: room as Room,
-        mx: { getUserId: () => '@alice:test' } as never,
+        mx: createMx() as never,
         isAtBottom: false,
         isAtBottomRef: { current: false },
         scrollToBottom,
@@ -114,7 +162,7 @@ describe('useTimelineSync', () => {
     renderHook(() =>
       useTimelineSync({
         room: room as Room,
-        mx: { getUserId: () => '@alice:test' } as never,
+        mx: createMx() as never,
         isAtBottom: true,
         isAtBottomRef: { current: true },
         scrollToBottom,
@@ -142,7 +190,7 @@ describe('useTimelineSync', () => {
       ({ room, eventId }) =>
         useTimelineSync({
           room,
-          mx: { getUserId: () => '@alice:test' } as never,
+          mx: createMx() as never,
           eventId,
           isAtBottom: false,
           isAtBottomRef: { current: false },
@@ -179,7 +227,7 @@ describe('useTimelineSync', () => {
       ({ room, eventId }) =>
         useTimelineSync({
           room,
-          mx: { getUserId: () => '@alice:test' } as never,
+          mx: createMx() as never,
           eventId,
           isAtBottom: false,
           isAtBottomRef: { current: false },
@@ -214,7 +262,7 @@ describe('useTimelineSync', () => {
       ({ room }) =>
         useTimelineSync({
           room,
-          mx: { getUserId: () => '@alice:test' } as never,
+          mx: createMx() as never,
           eventId: undefined,
           isAtBottom: false,
           isAtBottomRef: { current: false },
@@ -237,5 +285,75 @@ describe('useTimelineSync', () => {
     });
 
     expect(result.current.timeline.linkedTimelines[0]).toBe(roomOne.timelineSet.getLiveTimeline());
+  });
+
+  it('recovers timeline when ClientEvent.Room fires after initial:true bulk load', async () => {
+    // Simulate the pull-to-refresh blank-timeline bug: the live timeline is
+    // reset to empty (T1) by scheduleForceReset(), events are bulk-injected
+    // by the SDK with num_live=0 (all fromCache:true / liveEvent:false), and
+    // ClientEvent.Room is emitted once all events are in place.
+    // useLiveEventArrive won't fire for any of those old events, so the only
+    // recovery path is the ClientEvent.Room listener added in this fix.
+    const emptyTimeline = {
+      getEvents: () => [] as unknown[],
+      getNeighbouringTimeline: () => undefined,
+      getPaginationToken: () => undefined,
+      getRoomId: () => '!room:test',
+    };
+    const populatedEvents: unknown[] = [{}, {}, {}];
+    const populatedTimeline = {
+      getEvents: () => populatedEvents,
+      getNeighbouringTimeline: () => undefined,
+      getPaginationToken: () => undefined,
+      getRoomId: () => '!room:test',
+    };
+
+    const timelineSet = new EventEmitter() as FakeTimelineSet;
+    // Start with empty live timeline (post-reset state)
+    let currentTimeline: typeof emptyTimeline | typeof populatedTimeline = emptyTimeline;
+    timelineSet.getLiveTimeline = () => currentTimeline;
+    timelineSet.getTimelineForEvent = () => undefined;
+
+    const roomEmitter = new EventEmitter();
+    const room = {
+      on: roomEmitter.on.bind(roomEmitter),
+      removeListener: roomEmitter.removeListener.bind(roomEmitter),
+      emit: roomEmitter.emit.bind(roomEmitter),
+      roomId: '!room:test',
+      getUnfilteredTimelineSet: () => timelineSet as never,
+      getEventReadUpTo: () => null,
+      getThread: () => null,
+      client: { getUserId: () => '@alice:test' },
+    } as unknown as FakeRoom;
+
+    const mx = createMx();
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        isAtBottom: true,
+        isAtBottomRef: { current: true },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    // Initially empty — timeline renders nothing
+    expect(result.current.eventsLength).toBe(0);
+
+    // SDK injects events into the live timeline (num_live=0: no liveEvent fires)
+    currentTimeline = populatedTimeline;
+
+    // SDK emits ClientEvent.Room after injectRoomEvents completes
+    await act(async () => {
+      mx.emit(ClientEvent.Room, room);
+      await Promise.resolve();
+    });
+
+    // The hook must now reflect the populated timeline
+    expect(result.current.eventsLength).toBe(3);
   });
 });

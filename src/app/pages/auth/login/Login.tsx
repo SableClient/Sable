@@ -41,7 +41,14 @@ export function Login() {
   const { loginFlows } = useAuthFlows();
   const [searchParams] = useSearchParams();
   const loginSearchParams = useLoginSearchParams(searchParams);
-  const ssoRedirectUrl = usePathWithOrigin(getLoginPath(server));
+
+  // Preserve addAccount parameter through SSO redirect
+  const baseRedirectUrl = usePathWithOrigin(getLoginPath(server));
+  const isAddingAccount = searchParams.get('addAccount') === '1';
+  const ssoRedirectUrl = isAddingAccount
+    ? withSearchParam(baseRedirectUrl, { addAccount: '1' })
+    : baseRedirectUrl;
+
   const loginTokenForHashRouter = getLoginTokenSearchParam();
   const absoluteLoginPath = usePathWithOrigin(getLoginPath(server));
 

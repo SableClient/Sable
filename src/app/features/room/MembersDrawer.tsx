@@ -26,7 +26,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import classNames from 'classnames';
 
 import { AvatarPresence, PresenceBadge } from '$components/presence';
-import { useUserPresence } from '$hooks/useUserPresence';
+import { Presence, useUserPresence } from '$hooks/useUserPresence';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { UseStateProvider } from '$components/UseStateProvider';
 import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
@@ -36,7 +36,7 @@ import { TypingIndicator } from '$components/typing-indicator';
 import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useSetSetting, useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { ScrollTopContainer } from '$components/scroll-top-container';
@@ -48,6 +48,7 @@ import { useMemberPowerSort, useMemberSort, useMemberSortMenu } from '$hooks/use
 import { useGetMemberPowerLevel, usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { MembershipFilterMenu } from '$components/MembershipFilterMenu';
 import { MemberSortMenu } from '$components/MemberSortMenu';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { useOpenUserRoomProfile, useUserRoomProfileState } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { ContainerColor } from '$styles/ContainerColor.css';
@@ -57,6 +58,7 @@ import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './MembersDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 type MemberDrawerHeaderProps = {
@@ -123,6 +125,7 @@ function MemberItem({
   typing,
   hideText,
 }: MemberItemProps) {
+  const convertMxc = useCachedMxcConverter();
   const nicknames = useAtomValue(nicknamesAtom);
   const name =
     getMemberDisplayName(room, member.userId, nicknames) ??
@@ -132,11 +135,42 @@ function MemberItem({
   // Increased the request size to 128x128 to maintain quality for the larger avatar
   const avatarMxcUrl = member.getMxcAvatarUrl();
   const avatarUrl = avatarMxcUrl
-    ? mx.mxcUrlToHttp(avatarMxcUrl, 128, 128, 'crop', undefined, false, useAuthentication)
+    ? convertMxc(mx, avatarMxcUrl, useAuthentication, 128, 128, 'crop')
     : undefined;
 
   const presence = useUserPresence(member.userId);
   const { color, font } = useSableCosmetics(member.userId, room);
+
+  // Own presence badge is driven from settings state rather than the SDK's User object.
+  // The SDK won't echo your own presence back on MSC4186 sliding sync, so reading
+  // user.presence would leave the badge stuck at the SDK default forever.
+  const isOwnUser = member.userId === mx.getUserId();
+  const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [presenceStatusMsg] = useSetting(settingsAtom, 'presenceStatusMsg');
+  const autoIdled = useAtomValue(presenceAutoIdledAtom);
+
+  let presenceBadge: React.ReactNode = undefined;
+  let statusMessage: string | undefined = undefined;
+
+  if (isOwnUser) {
+    // Show own presence badge from settings state
+    if (sendPresence) {
+      const effectiveDisplayMode = autoIdled
+        ? Presence.Unavailable
+        : ((presenceMode ?? 'online') as Presence);
+      presenceBadge = <PresenceBadge presence={effectiveDisplayMode} size="200" />;
+    }
+    // Show own status message from settings state (status msg never echoed back on sliding sync)
+    statusMessage = presenceStatusMsg;
+  } else {
+    // Show other users' presence badges from SDK User object
+    if (presence && presence.presence !== Presence.Offline) {
+      presenceBadge = <PresenceBadge presence={presence.presence} size="200" />;
+    }
+    statusMessage = presence?.status;
+  }
+
   const MemberAvatar = (
     <div
       style={{
@@ -147,13 +181,7 @@ function MemberItem({
         transformOrigin: 'center',
       }}
     >
-      <AvatarPresence
-        badge={
-          presence && presence.lastActiveTs !== 0 ? (
-            <PresenceBadge presence={presence.presence} size="200" />
-          ) : undefined
-        }
-      >
+      <AvatarPresence badge={presenceBadge}>
         <Avatar size="300" radii="400">
           <UserAvatar
             userId={member.userId}
@@ -199,7 +227,7 @@ function MemberItem({
         <Text size="T300" truncate style={{ color, fontFamily: font, lineHeight: '1.2' }}>
           {name}
         </Text>
-        {presence?.status && (
+        {statusMessage && (
           <Text
             size="T200"
             truncate
@@ -209,7 +237,7 @@ function MemberItem({
               marginTop: '-2px',
             }}
           >
-            {presence.status}
+            {statusMessage}
           </Text>
         )}
       </Box>
@@ -316,7 +344,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
   }, [memberSidebarWidth]);
 
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
+  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
   return (
     <Box
@@ -325,12 +353,12 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
       direction="Column"
       style={{
         position: 'relative',
-        width: isMobile ? '100%' : toRem(curWidth),
+        width: !mobileOrTabletLayout() ? toRem(curWidth) : '100%',
       }}
     >
       <MemberDrawerHeader room={room} hideText={hideText} />
       <Box className={css.MemberDrawerContentBase} grow="Yes">
-        {!isMobile && (
+        {!mobileOrTabletLayout() && (
           <SidebarResizer
             setCurWidth={setCurWidth}
             sidebarWidth={memberSidebarWidth}

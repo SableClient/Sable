@@ -7,7 +7,8 @@ import type { IRoomCreateContent } from '$types/matrix/room';
 import { getMemberDisplayName, getStateEvent } from '$utils/room';
 import { nicknamesAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getMxIdLocalPart, mxcUrlToHttp, removeRoomIdFromMDirect } from '$utils/matrix';
+import { getMxIdLocalPart, removeRoomIdFromMDirect } from '$utils/matrix';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { timeDayMonthYear, timeHourMinute } from '$utils/time';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -30,6 +31,7 @@ export type RoomIntroProps = {
 export const RoomIntro = as<'div', RoomIntroProps>(({ room, ...props }, ref) => {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const { navigateRoom } = useRoomNavigate();
   const mDirects = useAtomValue(mDirectAtom);
   const nicknames = useAtomValue(nicknamesAtom);
@@ -41,7 +43,9 @@ export const RoomIntro = as<'div', RoomIntroProps>(({ room, ...props }, ref) => 
   const avatarMxc = useRoomAvatar(room, mDirects.has(room.roomId));
   const name = useRoomName(room);
   const topic = useRoomTopic(room);
-  const avatarHttpUrl = avatarMxc ? mxcUrlToHttp(mx, avatarMxc, useAuthentication) : undefined;
+  const avatarHttpUrl = avatarMxc
+    ? (convertMxc(mx, avatarMxc, useAuthentication) ?? undefined)
+    : undefined;
 
   const createContent = createEvent?.getContent<IRoomCreateContent>();
   const ts = createEvent?.getTs();

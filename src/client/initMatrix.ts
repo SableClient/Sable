@@ -19,6 +19,7 @@ import { pushSessionToSW } from '../sw-session';
 import { cryptoCallbacks } from './secretStorageKeys';
 import type { SlidingSyncConfig, SlidingSyncDiagnostics } from './slidingSync';
 import { SlidingSyncManager } from './slidingSync';
+import { installThreadEventInstrumentation } from './threadEventPatch';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
@@ -49,7 +50,10 @@ type SyncTransportMeta = {
 };
 const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
 const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
-const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 20000;
+// Reduced from 20s to 8s to improve perceived cold launch performance.
+// 8 seconds is sufficient for most networks while still allowing time for
+// slow connections. If the bootstrap times out, sliding sync takes over.
+const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 8000;
 
 type FetchRoomEventResult = Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>;
 type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
@@ -149,19 +153,26 @@ const deleteSessionStores = async (storeName: SessionStoreName): Promise<void> =
 const readStoredAccount = (dbName: string): Promise<string | undefined> =>
   new Promise((resolve) => {
     let settled = false;
-    const finish = (value: string | undefined) => {
+    const finish = (value: string | undefined, reason?: string) => {
       if (settled) return;
       settled = true;
+      debugLog.info('sync', `readStoredAccount(${dbName}):`, {
+        userId: value ? '***' + value.slice(-10) : undefined,
+        reason: reason ?? 'success',
+      });
       resolve(value);
     };
     const req = window.indexedDB.open(dbName);
-    req.addEventListener('error', () => finish(undefined));
+    req.addEventListener('error', () => {
+      debugLog.warn('sync', `readStoredAccount(${dbName}): IDB open error`);
+      finish(undefined, 'open_error');
+    });
     req.addEventListener('success', () => {
       const db = req.result;
       try {
         if (!db.objectStoreNames.contains('account')) {
           db.close();
-          finish(undefined);
+          finish(undefined, 'no_account_store');
         } else {
           const tx = db.transaction('account', 'readonly');
           const store = tx.objectStore('account');
@@ -170,19 +181,19 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
             db.close();
             const record = getReq.result;
             if (!record?.account_data) {
-              finish(undefined);
+              finish(undefined, 'no_account_data');
             } else {
               try {
                 const data = JSON.parse(record.account_data);
-                finish(data?.user_id ?? undefined);
+                finish(data?.user_id ?? undefined, data?.user_id ? 'found' : 'no_user_id');
               } catch {
-                finish(undefined);
+                finish(undefined, 'parse_error');
               }
             }
           });
           getReq.addEventListener('error', () => {
             db.close();
-            finish(undefined);
+            finish(undefined, 'get_error');
           });
         }
       } catch {
@@ -191,16 +202,38 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
         } catch {
           /* ignore */
         }
-        finish(undefined);
+        finish(undefined, 'exception');
       }
     });
   });
 
 const databaseExists = async (dbName: string): Promise<boolean> => {
   try {
+    // indexedDB.databases() is not widely supported (missing in Safari < 14,
+    // private browsing, some privacy settings). Log availability.
+    if (!window.indexedDB.databases) {
+      debugLog.warn('sync', 'indexedDB.databases() not available - cold cache detection limited');
+      Sentry.addBreadcrumb({
+        category: 'sync',
+        message: 'indexedDB.databases() not available',
+        level: 'warning',
+      });
+      return false;
+    }
     const dbs = await window.indexedDB.databases();
-    return dbs.some((db) => db.name === dbName);
-  } catch {
+    const exists = dbs.some((db) => db.name === dbName);
+    debugLog.info('sync', `databaseExists(${dbName}):`, { exists, totalDbs: dbs.length });
+    return exists;
+  } catch (err) {
+    debugLog.warn('sync', `databaseExists(${dbName}) failed:`, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: `databaseExists check failed for ${dbName}`,
+      level: 'warning',
+      data: { error: err instanceof Error ? err.message : String(err) },
+    });
     return false;
   }
 };
@@ -337,8 +370,24 @@ export const clearMismatchedStores = async (): Promise<void> => {
   );
 };
 
-const buildClient = async (session: Session): Promise<MatrixClient> => {
+const buildClient = async (
+  session: Session
+): Promise<{ mx: MatrixClient; storeStartup: Promise<void> }> => {
   const storeName = getSessionStoreName(session);
+  debugLog.info('sync', 'Building Matrix client with stores', {
+    syncDb: storeName.sync,
+    cryptoDb: storeName.crypto,
+    userId: session.userId,
+  });
+  Sentry.addBreadcrumb({
+    category: 'sync',
+    message: 'Building Matrix client',
+    level: 'info',
+    data: {
+      syncDb: storeName.sync,
+      cryptoDb: storeName.crypto,
+    },
+  });
 
   const indexedDBStore = new IndexedDBStore({
     indexedDB: global.indexedDB,
@@ -360,8 +409,8 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
     verificationMethods: ['m.sas.v1'],
   });
 
-  await indexedDBStore.startup();
-  return mx;
+  // Return both client and store startup promise for parallel initialization
+  return { mx, storeStartup: indexedDBStore.startup() };
 };
 
 export const initClient = async (session: Session): Promise<MatrixClient> => {
@@ -399,8 +448,11 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
   };
 
   let mx: MatrixClient;
+  let storeStartup: Promise<void>;
   try {
-    mx = await buildClient(session);
+    const result = await buildClient(session);
+    mx = result.mx;
+    storeStartup = result.storeStartup;
   } catch (err) {
     if (!isMismatch(err)) {
       debugLog.error('sync', 'Failed to build client', { error: err });
@@ -408,29 +460,113 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     }
     log.warn('initClient: mismatch on buildClient — wiping and retrying:', err);
     debugLog.warn('sync', 'Client build mismatch - wiping stores and retrying', { error: err });
+    // SABLE-5E: Capture mismatch wipe events to Sentry before wiping
+    Sentry.addBreadcrumb({
+      category: 'initMatrix',
+      message: 'Store mismatch detected during buildClient - triggering wipe',
+      level: 'warning',
+      data: {
+        stage: 'buildClient',
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        errorMessage: err instanceof Error ? err.message : String(err),
+      },
+    });
+    Sentry.captureException(err, {
+      level: 'warning',
+      tags: {
+        component: 'initMatrix',
+        event: 'store_wipe_on_mismatch',
+        stage: 'buildClient',
+      },
+      contexts: {
+        mismatch: {
+          errorName: err instanceof Error ? err.name : 'Unknown',
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+      },
+    });
     await wipeAllStores();
-    mx = await buildClient(session);
+    const result = await buildClient(session);
+    mx = result.mx;
+    storeStartup = result.storeStartup;
   }
 
   try {
-    await mx.initRustCrypto({
-      cryptoDatabasePrefix: storeName.rustCryptoPrefix,
+    // Parallelize IndexedDB sync store startup and crypto initialization
+    // These are independent operations that can run concurrently
+    const parallelInitStart = performance.now();
+    debugLog.info('sync', 'Starting parallel IndexedDB initialization');
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: 'Starting store initialization',
+      level: 'info',
+    });
+    await Promise.all([
+      storeStartup,
+      mx.initRustCrypto({
+        cryptoDatabasePrefix: storeName.rustCryptoPrefix,
+      }),
+    ]);
+    const parallelInitDuration = performance.now() - parallelInitStart;
+    Sentry.metrics.distribution('sable.startup.parallel_idb_init_ms', parallelInitDuration, {
+      attributes: { userId: session.userId },
+    });
+    debugLog.info('sync', 'Parallel IndexedDB initialization completed', {
+      duration: `${parallelInitDuration.toFixed(0)}ms`,
+    });
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: 'Store initialization completed',
+      level: 'info',
+      data: { duration: `${parallelInitDuration.toFixed(0)}ms` },
     });
   } catch (err) {
     if (!isMismatch(err)) {
-      debugLog.error('sync', 'Failed to initialize crypto', { error: err });
+      debugLog.error('sync', 'Failed to initialize stores', { error: err });
       throw err;
     }
-    log.warn('initClient: mismatch on initRustCrypto — wiping and retrying:', err);
-    debugLog.warn('sync', 'Crypto init mismatch - wiping stores and retrying', {
+    log.warn('initClient: mismatch on parallel init — wiping and retrying:', err);
+    debugLog.warn('sync', 'Store init mismatch - wiping stores and retrying', {
       error: err,
     });
+    // SABLE-5E: Capture mismatch wipe events to Sentry before wiping
+    Sentry.addBreadcrumb({
+      category: 'initMatrix',
+      message: 'Store mismatch detected during initRustCrypto - triggering wipe',
+      level: 'warning',
+      data: {
+        stage: 'initRustCrypto',
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        errorMessage: err instanceof Error ? err.message : String(err),
+      },
+    });
+    Sentry.captureException(err, {
+      level: 'warning',
+      tags: {
+        component: 'initMatrix',
+        event: 'store_wipe_on_mismatch',
+        stage: 'initRustCrypto',
+      },
+      contexts: {
+        mismatch: {
+          errorName: err instanceof Error ? err.name : 'Unknown',
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+      },
+    });
+    // SABLE-5F: Clean up all event listeners from the old client before wiping
+    // to prevent stale events from being processed after rebuild
+    mx.removeAllListeners();
     mx.stopClient();
     await wipeAllStores();
-    mx = await buildClient(session);
-    await mx.initRustCrypto({
-      cryptoDatabasePrefix: storeName.rustCryptoPrefix,
-    });
+    const result = await buildClient(session);
+    mx = result.mx;
+    await Promise.all([
+      result.storeStartup,
+      mx.initRustCrypto({
+        cryptoDatabasePrefix: storeName.rustCryptoPrefix,
+      }),
+    ]);
   }
 
   mx.setMaxListeners(50);
@@ -462,6 +598,7 @@ export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | un
 
 export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
   debugLog.info('sync', 'Starting Matrix client', { userId: mx.getUserId() });
+
   disposeSlidingSync(mx);
   const slidingConfig = config?.slidingSync;
   const slidingEnabledOnServer = resolveSlidingEnabled(slidingConfig?.enabled);
@@ -550,6 +687,17 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     let classicSyncCount = 0;
     const classicSyncStartMs = performance.now();
     let classicInitialSyncDone = false;
+
+    // Create span for sync connecting stage
+    const syncConnectSpan = Sentry.startInactiveSpan({
+      name: 'app.startup.sync',
+      op: 'app.startup',
+      attributes: {
+        'startup.stage': 'connecting',
+        'startup.transport': 'classic',
+      },
+    });
+
     const classicSyncListener = (
       state: SyncState,
       prevState: SyncState | null,
@@ -566,26 +714,64 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
         error: data?.error?.message,
       });
       if (state === SyncState.Error || state === SyncState.Reconnecting) {
+        const errorMsg = data?.error?.message ?? '';
+        const isCryptoStoreError =
+          errorMsg.includes('without an in-progress transaction') ||
+          errorMsg.includes('database connection is closed') ||
+          errorMsg.includes('InvalidStateError') ||
+          errorMsg.includes('UnknownError');
+
         debugLog.warn('sync', `Classic sync problem: ${state}`, {
           state,
           prevState: prevState ?? 'null',
-          errorMessage: data?.error?.message,
+          errorMessage: errorMsg,
           syncNumber: classicSyncCount,
+          isCryptoStoreError,
         });
         Sentry.metrics.count('sable.sync.error', 1, {
-          attributes: { transport: 'classic', state },
+          attributes: {
+            transport: 'classic',
+            state,
+            crypto_store_error: isCryptoStoreError,
+          },
         });
         Sentry.addBreadcrumb({
           category: 'sync.classic',
           message: `Classic sync problem: ${state}`,
-          level: 'warning',
+          level: isCryptoStoreError ? 'error' : 'warning',
           data: {
             state,
             prevState,
-            error: data?.error?.message,
+            error: errorMsg,
             syncNumber: classicSyncCount,
+            isCryptoStoreError,
           },
         });
+
+        // Capture crypto store errors to Sentry with additional context
+        if (isCryptoStoreError) {
+          Sentry.captureMessage('Crypto store IndexedDB error during sync', {
+            level: 'error',
+            tags: {
+              component: 'crypto-store',
+              sync_transport: 'classic',
+              error_type: errorMsg.includes('transaction')
+                ? 'transaction_error'
+                : errorMsg.includes('closed')
+                  ? 'connection_closed'
+                  : 'unknown_idb_error',
+            },
+            extra: {
+              errorMessage: errorMsg,
+              syncState: state,
+              prevState,
+              syncNumber: classicSyncCount,
+              userId: mx.getUserId(),
+              recovery_recommendation:
+                'Matrix SDK WASM crypto layer issue - client will attempt to reconnect',
+            },
+          });
+        }
       }
       if (
         !classicInitialSyncDone &&
@@ -601,6 +787,20 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
         Sentry.metrics.distribution('sable.sync.initial_ms', elapsed, {
           attributes: { transport: 'classic' },
         });
+
+        // End sync connect span and record first sync metrics
+        syncConnectSpan.setAttribute('startup.first_sync_rooms', mx.getRooms().length);
+        syncConnectSpan.setAttribute('startup.elapsed_ms', elapsed);
+        syncConnectSpan.end();
+
+        // Start room list ready span
+        const roomListSpan = Sentry.startInactiveSpan({
+          name: 'app.startup.room_list',
+          op: 'app.startup',
+          attributes: { 'startup.room_count': mx.getRooms().length },
+        });
+        // End immediately for classic sync (room list is ready when first sync completes)
+        roomListSpan.end();
       }
     };
     classicSyncObserverByClient.set(mx, classicSyncListener);
@@ -612,6 +812,15 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     const userId = mx.getUserId();
     if (!userId) return false;
 
+    // Primary signal: if the client already has rooms loaded from IndexedDB,
+    // we definitely have a warm cache. This check happens AFTER store startup,
+    // so rooms would be loaded if the database existed and was valid.
+    const roomCount = mx.getRooms().length;
+    const hasRoomsInMemory = roomCount > 0;
+
+    // Secondary signals: check if IndexedDB stores exist and contain our account.
+    // These are less reliable (especially databaseExists on Safari/iOS where
+    // indexedDB.databases() may not be available), but provide additional confirmation.
     const [storeHasAccount, fallbackStoreHasAccount, hasStoreDb, hasFallbackStoreDb] =
       await Promise.all([
         readStoredAccount(`sync${userId}`),
@@ -620,11 +829,41 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
         databaseExists('web-sync-store'),
       ]);
 
+    // Prioritize rooms in memory as the most reliable signal.
+    // Fall back to account checks if rooms aren't loaded yet (edge case: empty account).
     const hasWarmCache =
+      hasRoomsInMemory ||
       storeHasAccount === userId ||
       fallbackStoreHasAccount === userId ||
-      hasStoreDb ||
-      hasFallbackStoreDb;
+      (hasStoreDb && storeHasAccount !== undefined) ||
+      (hasFallbackStoreDb && fallbackStoreHasAccount !== undefined);
+
+    const cacheStatus = {
+      userId,
+      roomCount,
+      hasRoomsInMemory,
+      storeHasAccount: storeHasAccount === userId,
+      fallbackStoreHasAccount: fallbackStoreHasAccount === userId,
+      hasStoreDb,
+      hasFallbackStoreDb,
+      hasWarmCache,
+      willBootstrapClassic: !hasWarmCache,
+      detection: hasRoomsInMemory
+        ? 'rooms_in_memory'
+        : storeHasAccount === userId || fallbackStoreHasAccount === userId
+          ? 'account_found'
+          : hasStoreDb || hasFallbackStoreDb
+            ? 'database_exists'
+            : 'no_cache',
+    };
+
+    debugLog.info('sync', 'Cold cache detection', cacheStatus);
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: 'Cold cache detection',
+      level: 'info',
+      data: cacheStatus,
+    });
 
     return !hasWarmCache;
   };
@@ -644,14 +883,49 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
 
   if (await shouldBootstrapClassicOnColdCache()) {
     log.log('startClient cold-cache bootstrap: using classic sync for this run', mx.getUserId());
-    await startClassicSync(false, 'cold_cache_bootstrap');
-    waitForClientReady(mx, COLD_CACHE_BOOTSTRAP_TIMEOUT_MS).catch((err) => {
-      debugLog.warn('network', 'Cold cache bootstrap timed out', {
-        userId: mx.getUserId(),
-        timeout: `${COLD_CACHE_BOOTSTRAP_TIMEOUT_MS}ms`,
-        error: err instanceof Error ? err.message : String(err),
-      });
+
+    const coldCacheStartMs = performance.now();
+    const userId = mx.getUserId();
+
+    // Add breadcrumb: cold cache sync started
+    Sentry.addBreadcrumb({
+      category: 'sync.coldCache',
+      message: 'Cold cache sync started',
+      data: { userId, timeoutMs: COLD_CACHE_BOOTSTRAP_TIMEOUT_MS, since: null },
+      level: 'info',
     });
+
+    await startClassicSync(false, 'cold_cache_bootstrap');
+
+    // Wait for cold cache sync to complete, then add completion breadcrumb
+    waitForClientReady(mx, COLD_CACHE_BOOTSTRAP_TIMEOUT_MS)
+      .then(() => {
+        const durationMs = performance.now() - coldCacheStartMs;
+        const roomsPopulated = mx.getRooms().length;
+
+        Sentry.addBreadcrumb({
+          category: 'sync.coldCache',
+          message: 'Cold cache warm — staying on classic sync',
+          data: { roomsPopulated, totalDurationMs: Math.round(durationMs) },
+          level: 'info',
+        });
+
+        Sentry.metrics.distribution('sable.sync.cold_cache_duration_ms', durationMs, {
+          attributes: { rooms_populated: String(roomsPopulated) },
+        });
+
+        debugLog.info('sync', 'Cold cache sync complete', {
+          roomsPopulated,
+          durationMs: `${durationMs.toFixed(0)}ms`,
+        });
+      })
+      .catch((err) => {
+        debugLog.warn('network', 'Cold cache bootstrap timed out', {
+          userId: mx.getUserId(),
+          timeout: `${COLD_CACHE_BOOTSTRAP_TIMEOUT_MS}ms`,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     return;
   }
 
@@ -679,6 +953,13 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     return;
   }
 
+  // Add breadcrumb: sliding sync started (cache warm)
+  Sentry.addBreadcrumb({
+    category: 'sync.coldCache',
+    message: 'Sliding sync started (cache warm)',
+    level: 'info',
+  });
+
   const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
     ...slidingConfig,
     includeInviteList: true,
@@ -705,6 +986,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
 
   try {
     installStartupFetchRoomEventPatch(mx, { stubOnCacheMiss: false });
+    installThreadEventInstrumentation(mx);
     await mx.startClient({
       lazyLoadMembers: true,
       slidingSync: manager.slidingSync,
@@ -733,6 +1015,9 @@ export const stopClient = (mx: MatrixClient): void => {
     mx.removeListener(ClientEvent.Sync, classicSyncListener);
     classicSyncObserverByClient.delete(mx);
   }
+  // SABLE-5F: Remove all event listeners to prevent stale events from
+  // being processed if the client is rebuilt (e.g., after mismatch wipe)
+  mx.removeAllListeners();
   mx.stopClient();
   syncTransportByClient.delete(mx);
 };
@@ -802,5 +1087,17 @@ export const clearLoginData = async () => {
     if (name) window.indexedDB.deleteDatabase(name);
   });
   window.localStorage.clear();
+
+  // Unregister all service workers so the next load starts fresh.
+  // Especially important on iOS/mobile where stale SWs can persist.
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((r) => r.unregister()));
+    }
+  } catch {
+    // SW unregister is best-effort; reload regardless
+  }
+
   window.location.reload();
 };

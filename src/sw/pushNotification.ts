@@ -23,6 +23,13 @@ interface MatrixPushData {
   event_id?: string;
   user_id?: string;
   timestamp?: number;
+  counts?: {
+    unread?: number;
+    missed_calls?: number;
+  };
+  // Matrix push gateways should include this when the event matched a highlight rule
+  // https://spec.matrix.org/v1.11/push-gateway-api/#post_matrixpushv1notify
+  prio?: 'high' | 'low';
   data?: Record<string, unknown>;
 }
 
@@ -30,7 +37,12 @@ const resolveSilent = (): boolean => false;
 
 export const createPushNotifications = (
   self: ServiceWorkerGlobalScope,
-  getNotificationSettings: () => NotificationSettings
+  getNotificationSettings: () => NotificationSettings,
+  postSentryMetric: (
+    metricName: string,
+    value: number,
+    attributes?: Record<string, string | number | boolean>
+  ) => Promise<void>
 ) => {
   const showNotificationWithData = async (
     title: string,
@@ -58,7 +70,22 @@ export const createPushNotifications = (
       data,
     };
     console.debug('[SW showNotification] title:', title, '| data:', JSON.stringify(data, null, 2));
-    await self.registration.showNotification(title, notifOptions as NotificationOptions);
+    try {
+      await self.registration.showNotification(title, notifOptions as NotificationOptions);
+      // Track successful notification display
+      postSentryMetric('sable.notification.displayed', 1, {
+        event_type: (data?.type as string) ?? 'unknown',
+        is_call: Boolean(data?.isCall),
+        silent: Boolean(silent),
+      }).catch(() => undefined);
+    } catch (err) {
+      console.error('[SW showNotification] failed:', err);
+      // Track notification display failures
+      postSentryMetric('sable.notification.display_failed', 1, {
+        error_type: err instanceof Error ? err.name : 'unknown',
+      }).catch(() => undefined);
+      throw err;
+    }
   };
 
   const handleCallNotification = async (pushData: MatrixPushData) => {
@@ -177,9 +204,15 @@ export const createPushNotifications = (
 
   const handlePushNotificationPushData = async (pushData: MatrixPushData) => {
     const eventType = pushData?.type as EventType | undefined;
-    if (!eventType) {
-      console.warn('no event type');
-    }
+
+    // NOTE: Focus mode filtering is currently DISABLED in the service worker
+    // because push payloads don't reliably include highlight/DM metadata.
+    // Focus mode filtering happens on the app side (ClientNonUIFeatures and
+    // BackgroundNotifications) where we have full event and room context.
+    // SW push notifications are only shown when the app is backgrounded/killed,
+    // so it is safer to show the notification than to incorrectly block a message.
+    // TODO: Re-enable SW filtering once DM/highlight status is reliably available
+    // in the push payload or synced via room metadata.
 
     switch (eventType as string) {
       case EventType.RoomMessage as string:

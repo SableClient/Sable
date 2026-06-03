@@ -1,8 +1,11 @@
 // https://github.com/element-hq/element-web/blob/a5b63d582fde59ea4dd3c7fdcad7266ab70dd695/apps/web/src/utils/MegolmExportEncryption.ts
 
+import * as Sentry from '@sentry/react';
 import { createLogger } from './debug';
+import { createDebugLogger } from './debugLogger';
 
 const logger = createLogger('MegolmExportEncryption');
+const debugLog = createDebugLogger('MegolmExportEncryption');
 const subtleCrypto = globalThis.crypto.subtle;
 
 export class FriendlyError extends Error {
@@ -174,6 +177,11 @@ async function deriveKeys(
       ['deriveBits']
     );
   } catch (error) {
+    debugLog.error('general', 'Crypto key import failed for PBKDF2', { error });
+    Sentry.captureException(error, {
+      tags: { crypto_operation: 'pbkdf2_import' },
+      level: 'error',
+    });
     throw friendlyError(`subtleCrypto.importKey failed: ${String(error)}`, cryptoFailMsg());
   }
 
@@ -190,6 +198,12 @@ async function deriveKeys(
       512
     );
   } catch (error) {
+    debugLog.error('general', 'Crypto deriveBits failed', { error, iterations });
+    Sentry.captureException(error, {
+      tags: { crypto_operation: 'pbkdf2_derive' },
+      contexts: { crypto: { iterations } },
+      level: 'error',
+    });
     throw friendlyError(`subtleCrypto.deriveBits failed: ${String(error)}`, cryptoFailMsg());
   }
 
@@ -202,6 +216,11 @@ async function deriveKeys(
   const aesProm = subtleCrypto
     .importKey('raw', aesKey, { name: 'AES-CTR' }, false, ['encrypt', 'decrypt'])
     .catch((error) => {
+      debugLog.error('general', 'AES key import failed', { error });
+      Sentry.captureException(error, {
+        tags: { crypto_operation: 'aes_import' },
+        level: 'error',
+      });
       throw friendlyError(
         `subtleCrypto.importKey failed for AES key: ${String(error)}`,
         cryptoFailMsg()
@@ -220,6 +239,11 @@ async function deriveKeys(
       ['sign', 'verify']
     )
     .catch((error) => {
+      debugLog.error('general', 'HMAC key import failed', { error });
+      Sentry.captureException(error, {
+        tags: { crypto_operation: 'hmac_import' },
+        level: 'error',
+      });
       throw friendlyError(
         `subtleCrypto.importKey failed for HMAC key: ${String(error)}`,
         cryptoFailMsg()
@@ -267,9 +291,16 @@ export async function decryptMegolmKeyFile(data: ArrayBuffer, password: string):
   try {
     isValid = await subtleCrypto.verify({ name: 'HMAC' }, hmacKey, hmac, toVerify);
   } catch (error) {
+    debugLog.error('general', 'HMAC verification failed', { error });
+    Sentry.captureException(error, {
+      tags: { crypto_operation: 'hmac_verify' },
+      level: 'error',
+    });
     throw friendlyError(`subtleCrypto.verify failed: ${String(error)}`, cryptoFailMsg());
   }
   if (!isValid) {
+    debugLog.warn('general', 'HMAC mismatch - incorrect password?');
+    Sentry.metrics.count('sable.crypto.key_export_password_failure', 1);
     throw friendlyError('hmac mismatch', 'Authentication check failed: Incorrect password?');
   }
 
@@ -285,6 +316,11 @@ export async function decryptMegolmKeyFile(data: ArrayBuffer, password: string):
       ciphertext
     );
   } catch (error) {
+    debugLog.error('general', 'AES decryption failed', { error });
+    Sentry.captureException(error, {
+      tags: { crypto_operation: 'aes_decrypt' },
+      level: 'error',
+    });
     throw friendlyError(`subtleCrypto.decrypt failed: ${String(error)}`, cryptoFailMsg());
   }
 
@@ -335,6 +371,11 @@ export async function encryptMegolmKeyFile(
       encodedData
     );
   } catch (error) {
+    debugLog.error('general', 'AES encryption failed', { error });
+    Sentry.captureException(error, {
+      tags: { crypto_operation: 'aes_encrypt' },
+      level: 'error',
+    });
     throw friendlyError(`subtleCrypto.encrypt failed: ${String(error)}`, cryptoFailMsg());
   }
 
@@ -360,6 +401,11 @@ export async function encryptMegolmKeyFile(
   try {
     hmac = await subtleCrypto.sign({ name: 'HMAC' }, hmacKey, toSign);
   } catch (error) {
+    debugLog.error('general', 'HMAC signing failed', { error });
+    Sentry.captureException(error, {
+      tags: { crypto_operation: 'hmac_sign' },
+      level: 'error',
+    });
     throw friendlyError(`subtleCrypto.sign failed: ${String(error)}`, cryptoFailMsg());
   }
 

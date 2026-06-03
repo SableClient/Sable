@@ -20,6 +20,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { SwipeableChatWrapper } from '$components/SwipeableChatWrapper';
 import { BackRouteHandler } from '$components/BackRouteHandler';
+import { useKeyboardHeight } from '$hooks/ios-keyboard-fix/useKeyboardHeight';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { RoomSettingsPage } from '$state/roomSettings';
@@ -33,6 +34,7 @@ import { CallView } from '$features/call/CallView';
 import { useRoom } from '$hooks/useRoom';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
 import { RoomInput } from './RoomInput';
+import { RoomInputTiptap } from './RoomInputTiptap';
 import { RoomTombstone } from './RoomTombstone';
 import { RoomViewTyping } from './RoomViewTyping';
 import { RoomTimeline } from './RoomTimeline';
@@ -75,8 +77,10 @@ export function RoomView({ eventId }: { eventId?: string }) {
   const roomViewRef = useRef<HTMLDivElement>(null);
   const editLastMessageRef = useRef<(() => void) | undefined>();
 
-  const [hideReads] = useSetting(settingsAtom, 'hideReads');
+  const { isKeyboardVisible } = useKeyboardHeight();
   const screenSize = useScreenSizeContext();
+  const [hideReads] = useSetting(settingsAtom, 'hideReads');
+  const [useTiptapComposer] = useSetting(settingsAtom, 'useTiptapComposer');
 
   const room = useRoom();
   const { roomId } = room;
@@ -160,7 +164,14 @@ export function RoomView({ eventId }: { eventId?: string }) {
               <RoomViewTyping room={room} />
               <GlobalModalManager />
             </Box>
-            <Box shrink="No" direction="Column">
+            <Box
+              shrink="No"
+              direction="Column"
+              style={{
+                backgroundColor: 'var(--sable-surface-container)',
+                paddingBottom: 'var(--sable-safe-bottom, env(safe-area-inset-bottom, 0px))',
+              }}
+            >
               {canMessage && delayedEventsSupported && (
                 <ScheduledMessagesList room={room} onEditMessage={handleEditMessage} />
               )}
@@ -173,7 +184,15 @@ export function RoomView({ eventId }: { eventId?: string }) {
                   />
                 ) : (
                   <>
-                    {canMessage && (
+                    {canMessage && useTiptapComposer && (
+                      <RoomInputTiptap
+                        key={`${roomId}-tiptap-${editorResetKey}`}
+                        room={room}
+                        roomId={roomId}
+                        fileDropContainerRef={roomViewRef}
+                      />
+                    )}
+                    {canMessage && !useTiptapComposer && (
                       <RoomInput
                         key={`${roomId}-${editorResetKey}`}
                         room={room}
@@ -196,7 +215,12 @@ export function RoomView({ eventId }: { eventId?: string }) {
                   </>
                 )}
               </div>
-              {hideReads ? <RoomViewFollowingPlaceholder /> : <RoomViewFollowing room={room} />}
+              {hideReads ? (
+                <RoomViewFollowingPlaceholder />
+              ) : // Hide Following indicator on mobile when keyboard is open to save space
+              screenSize === ScreenSize.Mobile && isKeyboardVisible ? null : (
+                <RoomViewFollowing room={room} />
+              )}
             </Box>
           </SwipeableChatWrapper>
         </Page>

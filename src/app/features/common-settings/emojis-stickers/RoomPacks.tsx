@@ -26,8 +26,8 @@ import { useRoomImagePacks } from '$hooks/useImagePacks';
 import { LineClamp2 } from '$styles/Text.css';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 
 import { suffixRename } from '$utils/common';
@@ -141,6 +141,7 @@ type RoomPacksProps = {
 export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const room = useRoom();
   const alive = useAlive();
 
@@ -188,7 +189,9 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
 
   const renderPack = (pack: ImagePack) => {
     const avatarMxc = pack.getAvatarUrl(ImageUsage.Emoticon);
-    const avatarUrl = avatarMxc ? mxcUrlToHttp(mx, avatarMxc, useAuthentication) : undefined;
+    const avatarUrl = avatarMxc
+      ? (convertMxc(mx, avatarMxc, useAuthentication) ?? undefined)
+      : undefined;
     const { address } = pack;
     if (!address) return null;
     const removed = removedPacks.some((addr) => packAddressEqual(addr, address));

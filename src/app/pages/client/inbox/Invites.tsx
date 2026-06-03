@@ -60,6 +60,8 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
+import type { MxcConverter } from '$utils/room';
 
 import { testBadWords } from '$plugins/bad-words';
 import { allRoomsAtom } from '$state/room-list/roomList';
@@ -93,14 +95,15 @@ const makeInviteData = (
   mx: MatrixClient,
   room: Room,
   useAuthentication: boolean,
-  nicknames: Record<string, string>
+  nicknames: Record<string, string>,
+  converter?: MxcConverter
 ): InviteData => {
   const userId = mx.getSafeUserId();
   const direct = isDirectInvite(room, userId);
 
   const roomAvatar = direct
-    ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
-    : getRoomAvatarUrl(mx, room, 96, useAuthentication);
+    ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, converter)
+    : getRoomAvatarUrl(mx, room, 96, useAuthentication, converter);
   const roomName = room.name || room.getCanonicalAlias() || room.roomId;
   const roomTopic =
     getStateEvent(room, EventType.RoomTopic)?.getContent<RoomTopicEventContent>()?.topic ??
@@ -700,6 +703,7 @@ function SpamInvites({
 export function Invites() {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const { navigateRoom, navigateSpace } = useRoomNavigate();
   const allRooms = useAtomValue(allRoomsAtom);
   const allInviteIds = useAtomValue(allInvitesAtom);
@@ -710,7 +714,7 @@ export function Invites() {
   const invitesData = allInviteIds
     .map((inviteId) => mx.getRoom(inviteId))
     .filter((inviteRoom) => !!inviteRoom)
-    .map((inviteRoom) => makeInviteData(mx, inviteRoom, useAuthentication, nicknames));
+    .map((inviteRoom) => makeInviteData(mx, inviteRoom, useAuthentication, nicknames, convertMxc));
 
   const [knownInvites, unknownInvites, spamInvites] = useMemo(() => {
     const known: InviteData[] = [];

@@ -49,14 +49,18 @@ const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlRespon
   return clientCache;
 };
 
-const openMediaInNewTab = async (url: string | undefined) => {
+const openMediaInNewTab = async (url: string | undefined, accessToken: string | null) => {
   if (!url) {
-    console.warn('Attempted to open an empty url');
+    console.warn('[UrlPreview] Attempted to open an empty url');
     return;
   }
-  const blob = await downloadMedia(url);
-  const blobUrl = URL.createObjectURL(blob);
-  window.open(blobUrl, '_blank');
+  try {
+    const blob = await downloadMedia(url, accessToken);
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+  } catch (err) {
+    console.error('[UrlPreview] Failed to open media in new tab', err);
+  }
 };
 
 function ogPositiveDimension(value: unknown): number | undefined {
@@ -98,31 +102,48 @@ export const UrlPreviewCard = as<
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
+  const [imageError, setImageError] = useState(false);
 
   const isDirect = !!mediaType;
 
   const [previewStatus, loadPreview] = useAsyncCallback(
-    useCallback(() => {
-      if (isDirect) return Promise.resolve(null);
-      if (!ts && !bundle) return Promise.resolve(null);
+    useCallback(async () => {
+      if (isDirect) return null;
+      if (!ts && !bundle) return null;
       if (urlPreview && ts) {
         const clientCache = getClientCache(mx);
         const cached = clientCache.get(url);
         if (cached !== undefined) return cached;
-        const previewResult = mx?.getUrlPreview(url, ts);
-        clientCache.set(url, previewResult);
-        previewResult.finally(() => clientCache.delete(url));
-        return previewResult;
+
+        try {
+          const previewResult = mx?.getUrlPreview(url, ts);
+          if (!previewResult) return null;
+          clientCache.set(url, previewResult);
+          const preview = await previewResult;
+          clientCache.delete(url);
+          return preview;
+        } catch {
+          // Synapse returns 502/404/403 when the external URL is unreachable, forbidden,
+          // or the preview service is unavailable. This is expected behaviour — silently
+          // suppress and render no preview rather than propagating to error boundary.
+          clientCache.delete(url);
+          return null;
+        }
       }
-      return Promise.resolve(bundle);
+      return bundle ?? null;
     }, [isDirect, ts, bundle, urlPreview, mx, url])
   );
 
   useEffect(() => {
-    loadPreview();
+    // Suppress unhandled rejection — errors are captured by useAsyncCallback
+    // (status set to Error) and the component returns null in that state.
+    loadPreview().catch(() => undefined);
   }, [url, loadPreview]);
 
-  if (previewStatus.status === AsyncStatus.Error) return null;
+  // Reset imageError when URL changes
+  useEffect(() => {
+    setImageError(false);
+  }, [url]);
 
   const renderContent = (prev: IPreviewUrlResponse) => {
     const siteName = prev['og:site_name'];
@@ -139,17 +160,17 @@ export const UrlPreviewCard = as<
     );
     const handleAuxClick = (ev: React.MouseEvent) => {
       if (!prev['og:image']) {
-        console.warn('No image');
+        console.warn('[UrlPreview] No image available');
         return;
       }
       if (ev.button === 1) {
         ev.preventDefault();
         const mxcUrl = mxcUrlToHttp(mx, prev['og:image'], /* useAuthentication */ true);
         if (!mxcUrl) {
-          console.error('Error converting mxc:// url.');
+          console.error('[UrlPreview] Error converting mxc:// url');
           return;
         }
-        openMediaInNewTab(mxcUrl);
+        openMediaInNewTab(mxcUrl, mx.getAccessToken());
       }
     };
 
@@ -273,7 +294,7 @@ export const UrlPreviewCard = as<
             />
           </Box>
         )}
-        {!showOgVideo && prev['og:image'] && (
+        {!showOgVideo && prev['og:image'] && !imageError && (
           <Box
             shrink="No"
             className={urlPreviewChrome.UrlPreviewMediaWell}
@@ -302,6 +323,8 @@ export const UrlPreviewCard = as<
               url={prev['og:image']}
               info={ogImageInfo}
               matrixThumbnailMaxEdge={previewThumbMaxEdge}
+              onError={() => setImageError(true)}
+              suppressErrorUI
               renderViewer={(p) => <ImageViewer {...p} />}
               renderImage={(p) => (
                 <Image
@@ -339,6 +362,24 @@ export const UrlPreviewCard = as<
     previewContent = previewStatus.data ? (
       renderContent(previewStatus.data)
     ) : (
+      <UrlPreviewContent>
+        <Text
+          style={linkStyles}
+          truncate
+          as="a"
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          size="T200"
+          priority="300"
+        >
+          {safeDecodeUrl(url)}
+        </Text>
+      </UrlPreviewContent>
+    );
+  } else if (previewStatus.status === AsyncStatus.Error) {
+    // Show minimal link fallback instead of hiding entire preview
+    previewContent = (
       <UrlPreviewContent>
         <Text
           style={linkStyles}

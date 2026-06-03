@@ -12,13 +12,22 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
+// Tracks whether the Matrix sync connection is healthy.
+// Defaults to true; set false when the app reports Reconnecting/Error so that
+// OS push notifications are not suppressed while the in-app path is broken.
+let syncIsHealthy = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
-const { handlePushNotificationPushData } = createPushNotifications(self, () => ({
-  showMessageContent,
-  showEncryptedMessageContent,
-}));
+let focusMode: 'off' | 'focus' | 'dnd' = 'off';
+const { handlePushNotificationPushData } = createPushNotifications(
+  self,
+  () => ({
+    showMessageContent,
+    showEncryptedMessageContent,
+  }),
+  postSentryMetric
+);
 
 /** Cache key used to persist notification settings across SW restarts (iOS kills the SW frequently). */
 const SW_SETTINGS_CACHE = 'sable-sw-settings-v1';
@@ -27,6 +36,9 @@ const SW_SETTINGS_URL = '/sw-settings-meta';
 /** Cache key used to persist the active session so push-event fetches work after SW restart. */
 const SW_SESSION_CACHE = 'sable-sw-session-v1';
 const SW_SESSION_URL = '/sw-session-meta';
+
+/** Cache for authenticated Matrix media responses — keyed by URL. */
+const SW_MEDIA_CACHE = 'sable-media-sw-v2';
 
 async function persistSettings() {
   try {
@@ -39,6 +51,10 @@ async function persistSettings() {
           showMessageContent,
           showEncryptedMessageContent,
           clearNotificationsOnRead,
+          focusMode,
+          // Persist when the app was last visible so cold-SW-restart suppression works on iOS/iPad.
+          // A timestamp lets us expire stale entries (app may have closed without sending false).
+          appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
       )
@@ -61,6 +77,21 @@ async function loadPersistedSettings() {
       showEncryptedMessageContent = s.showEncryptedMessageContent;
     if (typeof s.clearNotificationsOnRead === 'boolean')
       clearNotificationsOnRead = s.clearNotificationsOnRead;
+    if (s.focusMode === 'off' || s.focusMode === 'focus' || s.focusMode === 'dnd')
+      focusMode = s.focusMode;
+    // Restore appIsVisible from the last-known visibility timestamp.
+    // On iOS/iPad, the SW is killed between pushes so appIsVisible always resets to false.
+    // If the app reported itself visible within the last 2 s, trust that it still is.
+    // Use a very short window (2s) to only catch rapid SW restarts during active use,
+    // not when the phone has been locked for a few seconds.
+    // The page will send an explicit visible=true message once it initializes anyway.
+    if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
+      const ageMs = Date.now() - s.appVisibleAt;
+      if (ageMs < 2_000) {
+        appIsVisible = true;
+        console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
+      }
+    }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
   }
@@ -128,9 +159,6 @@ const sessions = new Map<string, SessionInfo>();
  */
 let preloadedSession: SessionInfo | undefined;
 
-const clientToResolve = new Map<string, (value: SessionInfo | undefined) => void>();
-const clientToSessionPromise = new Map<string, Promise<SessionInfo | undefined>>();
-
 async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
   const activeIds = new Set(activeClients.map((c) => c.id));
@@ -138,8 +166,6 @@ async function cleanupDeadClients() {
   Array.from(sessions.keys()).forEach((id) => {
     if (!activeIds.has(id)) {
       sessions.delete(id);
-      clientToResolve.delete(id);
-      clientToSessionPromise.delete(id);
     }
   });
 }
@@ -157,57 +183,250 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     console.debug('[SW] setSession: stored', clientId, baseUrl);
     // Persist so push-event fetches work after iOS restarts the SW.
     persistSession(info).catch(() => undefined);
+    // Clear media cache when session changes to avoid serving stale auth failures.
+    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   } else {
     // Logout or invalid session
     sessions.delete(clientId);
     preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
     clearPersistedSession().catch(() => undefined);
-  }
-
-  const resolveSession = clientToResolve.get(clientId);
-  if (resolveSession) {
-    resolveSession(sessions.get(clientId));
-    clientToResolve.delete(clientId);
-    clientToSessionPromise.delete(clientId);
+    // Clear media cache on logout.
+    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   }
 }
 
-function requestSession(client: Client): Promise<SessionInfo | undefined> {
-  const promise =
-    clientToSessionPromise.get(client.id) ??
-    new Promise((resolve) => {
-      clientToResolve.set(client.id, resolve);
-      client.postMessage({ type: 'requestSession' });
+// ---------------------------------------------------------------------------
+// Strategy 7: Sliding Sync Prefetch
+// ---------------------------------------------------------------------------
+
+/**
+ * Post a Sentry metric to all window clients.
+ * Used to track SW prefetch performance from the main thread.
+ */
+async function postSentryMetric(
+  metricName: string,
+  value: number,
+  attributes?: Record<string, string | number | boolean>
+): Promise<void> {
+  try {
+    const windowClients = await self.clients.matchAll({ type: 'window' });
+    windowClients.forEach((client) => {
+      client.postMessage({
+        type: 'sentryMetric',
+        metricName,
+        value,
+        attributes,
+      });
+    });
+  } catch (error) {
+    console.debug('[SW] Failed to post Sentry metric:', error);
+  }
+}
+
+/**
+ * Prefetch sliding sync data on SW activation to warm the browser's HTTP cache.
+ * This makes the first sync response arrive faster when the app opens.
+ * Tracks success/failure and timing via Sentry metrics.
+ */
+async function prefetchSlidingSyncData(session: SessionInfo): Promise<void> {
+  const startTime = performance.now();
+  try {
+    // Determine sliding sync proxy URL from homeserver base URL
+    const proxyUrl = new URL(session.baseUrl);
+    // Most deployments use /sliding-sync on the same server
+    // or a well-known sliding sync proxy endpoint
+    const slidingSyncEndpoint = `${proxyUrl.origin}/_matrix/client/unstable/org.matrix.msc3575/sync`;
+
+    // Minimal sliding sync request to fetch recent rooms
+    const requestBody = {
+      lists: {
+        joined: {
+          ranges: [[0, 99]], // First 100 rooms
+          sort: ['by_recency', 'by_name'],
+          timeline_limit: 1, // Minimal timeline to keep response small
+          required_state: [
+            ['m.room.name', ''],
+            ['m.room.avatar', ''],
+            ['m.room.encryption', ''],
+          ],
+          slow_get_all_rooms: false,
+        },
+      },
+    };
+
+    console.debug('[SW] Prefetching sliding sync data...');
+    const response = await fetch(slidingSyncEndpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
     });
 
-  if (!clientToSessionPromise.has(client.id)) {
-    clientToSessionPromise.set(client.id, promise);
+    const duration = performance.now() - startTime;
+    if (response.ok) {
+      console.debug('[SW] Sliding sync prefetch succeeded');
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'sliding_sync',
+        status: 'success',
+      });
+    } else {
+      console.debug('[SW] Sliding sync prefetch failed:', response.status);
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'sliding_sync',
+        status: 'error',
+        http_status: String(response.status),
+      });
+    }
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    console.debug('[SW] Sliding sync prefetch error:', error);
+    await postSentryMetric('sable.sw.prefetch_ms', duration, {
+      endpoint: 'sliding_sync',
+      status: 'exception',
+    });
   }
-
-  return promise;
 }
 
-async function requestSessionWithTimeout(
-  clientId: string,
-  timeoutMs = 3000
-): Promise<SessionInfo | undefined> {
-  const client = await self.clients.get(clientId);
-  if (!client) {
-    console.warn('[SW] requestSessionWithTimeout: client not found', clientId);
-    return undefined;
+// ---------------------------------------------------------------------------
+// Strategy 7+: Additional Cache Priming
+// ---------------------------------------------------------------------------
+
+/**
+ * Prefetch well-known Matrix client configuration.
+ * This endpoint is frequently requested and safe to cache aggressively.
+ * Tracks success/failure and timing via Sentry metrics.
+ */
+async function prefetchWellKnown(session: SessionInfo): Promise<void> {
+  const startTime = performance.now();
+  try {
+    const baseUrl = new URL(session.baseUrl);
+    const wellKnownUrl = `${baseUrl.origin}/.well-known/matrix/client`;
+
+    console.debug('[SW] Prefetching well-known...');
+    const response = await fetch(wellKnownUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    const duration = performance.now() - startTime;
+    if (response.ok) {
+      console.debug('[SW] Well-known prefetch succeeded');
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'well_known',
+        status: 'success',
+      });
+    } else {
+      console.debug('[SW] Well-known prefetch failed:', response.status);
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'well_known',
+        status: 'error',
+        http_status: String(response.status),
+      });
+    }
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    console.debug('[SW] Well-known prefetch error:', error);
+    await postSentryMetric('sable.sw.prefetch_ms', duration, {
+      endpoint: 'well_known',
+      status: 'exception',
+    });
+  }
+}
+
+/**
+ * Prefetch homeserver capabilities to warm cache.
+ * This is requested during client initialization.
+ * Tracks success/failure and timing via Sentry metrics.
+ */
+async function prefetchCapabilities(session: SessionInfo): Promise<void> {
+  const startTime = performance.now();
+  try {
+    const capabilitiesUrl = `${session.baseUrl}/_matrix/client/v3/capabilities`;
+
+    console.debug('[SW] Prefetching capabilities...');
+    const response = await fetch(capabilitiesUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
+
+    const duration = performance.now() - startTime;
+    if (response.ok) {
+      console.debug('[SW] Capabilities prefetch succeeded');
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'capabilities',
+        status: 'success',
+      });
+    } else {
+      console.debug('[SW] Capabilities prefetch failed:', response.status);
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'capabilities',
+        status: 'error',
+        http_status: String(response.status),
+      });
+    }
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    console.debug('[SW] Capabilities prefetch error:', error);
+    await postSentryMetric('sable.sw.prefetch_ms', duration, {
+      endpoint: 'capabilities',
+      status: 'exception',
+    });
+  }
+}
+
+/**
+ * Prefetch user profile data (display name, avatar).
+ * This is shown immediately on client load.
+ * Tracks success/failure and timing via Sentry metrics.
+ */
+async function prefetchUserProfile(session: SessionInfo): Promise<void> {
+  if (!session.userId) {
+    console.debug('[SW] Cannot prefetch user profile: userId not available');
+    return;
   }
 
-  const sessionPromise = requestSession(client);
+  const startTime = performance.now();
+  try {
+    const profileUrl = `${session.baseUrl}/_matrix/client/v3/profile/${encodeURIComponent(session.userId)}`;
 
-  const timeout = new Promise<undefined>((resolve) => {
-    setTimeout(() => {
-      console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
-      resolve(undefined);
-    }, timeoutMs);
-  });
+    console.debug('[SW] Prefetching user profile...');
+    const response = await fetch(profileUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
 
-  return Promise.race([sessionPromise, timeout]);
+    const duration = performance.now() - startTime;
+    if (response.ok) {
+      console.debug('[SW] User profile prefetch succeeded');
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'user_profile',
+        status: 'success',
+      });
+    } else {
+      console.debug('[SW] User profile prefetch failed:', response.status);
+      await postSentryMetric('sable.sw.prefetch_ms', duration, {
+        endpoint: 'user_profile',
+        status: 'error',
+        http_status: String(response.status),
+      });
+    }
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    console.debug('[SW] User profile prefetch error:', error);
+    await postSentryMetric('sable.sw.prefetch_ms', duration, {
+      endpoint: 'user_profile',
+      status: 'exception',
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -490,6 +709,14 @@ async function handleMinimalPushPayload(
         ? await requestDecryptionFromClient(windowClients, rawEvent)
         : undefined;
 
+    // Track decryption relay results
+    postSentryMetric('sable.push.decrypt_relay', 1, {
+      success: result?.success ?? false,
+      app_visible: result?.visibilityState === 'visible',
+      has_clients: windowClients.length > 0,
+      timed_out: result === undefined && windowClients.length > 0,
+    }).catch(() => undefined);
+
     // If the relay responded and the app is currently visible, the in-app UI is already
     // displaying the message — skip the OS notification entirely.
     if (result?.visibilityState === 'visible') return;
@@ -538,15 +765,44 @@ self.addEventListener('install', (event: ExtendableEvent) => {
 self.addEventListener('activate', (event: ExtendableEvent) => {
   event.waitUntil(
     (async () => {
-      await self.clients.claim();
+      // Do NOT call clients.claim() here.
+      //
+      // Calling clients.claim() in activate evicts iOS bfcache entries: it fires
+      // controllerchange on every client — including cached ones — and iOS evicts
+      // any page whose SW controller changes while it is in bfcache.  On iOS PWA
+      // (no browser chrome) this looks identical to a hard reload: the user sees
+      // the splash screen instead of an instant restore.
+      //
+      // Pages detect a stale/missing controller on every foreground event
+      // (pageshow[persisted] and visibilitychange→visible) and send CLAIM_CLIENTS
+      // so the SW claims them lazily once they are already visible.  New page
+      // navigations are automatically controlled by the active SW without an
+      // explicit claim.
       await cleanupDeadClients();
       // Pre-load the persisted session into memory so that media fetches arriving
       // before the first setSession message from the page are immediately
-      // authenticated rather than falling through to a 3-second timeout.
+      // authenticated. If the token is expired, the media fetch will get a 401
+      // and the UI will show a retry button.
       preloadedSession = await loadPersistedSession();
-      // Proactively request sessions from all window clients so the sessions Map
-      // is pre-populated after a SW restart, rather than waiting for the first
-      // media fetch to trigger requestSessionWithTimeout.
+
+      // Strategy 7+: Prefetch critical data on activation to warm browser cache.
+      // This makes subsequent requests instant on warm cache launches.
+      // Fire-and-forget: don't block activation on these optional optimizations.
+      if (preloadedSession) {
+        // Prefetch in parallel for maximum speed
+        Promise.allSettled([
+          prefetchSlidingSyncData(preloadedSession),
+          prefetchWellKnown(preloadedSession),
+          prefetchCapabilities(preloadedSession),
+          prefetchUserProfile(preloadedSession),
+        ]).catch(() => {
+          // Silently ignore — these are best-effort optimizations
+        });
+      }
+
+      // Proactively request sessions from all window clients to populate the
+      // sessions Map after a SW restart. Fire-and-forget: we don't wait for
+      // responses, clients will respond with setSession when ready.
       const windowClients = await self.clients.matchAll({ type: 'window' });
       windowClients.forEach((client) => client.postMessage({ type: 'requestSession' }));
     })()
@@ -568,6 +824,21 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     setSession(client.id, accessToken, baseUrl, userId);
     event.waitUntil(cleanupDeadClients());
   }
+  if (type === 'CLAIM_CLIENTS') {
+    // Sent by the page on pageshow[persisted] or visibilitychange→visible when it
+    // detects that its SW controller is stale (e.g. after iOS killed and restarted
+    // the SW while the page was in bfcache or in the foreground under memory
+    // pressure).  Claiming here — after the page is visible — never evicts bfcache.
+    event.waitUntil(
+      (async () => {
+        await self.clients.claim();
+        // Re-request sessions from all newly-claimed clients to repopulate the
+        // sessions Map. Fire-and-forget: responses come via setSession messages.
+        const claimedClients = await self.clients.matchAll({ type: 'window' });
+        claimedClients.forEach((c) => c.postMessage({ type: 'requestSession' }));
+      })()
+    );
+  }
   if (type === 'pushDecryptResult') {
     // Resolve a pending decryption request from handleMinimalPushPayload
     const { eventId } = data as { eventId?: string };
@@ -583,6 +854,17 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
     }
+  }
+  if (type === 'setSyncState') {
+    if (typeof (data as { healthy?: unknown }).healthy === 'boolean') {
+      syncIsHealthy = (data as { healthy: boolean }).healthy;
+    }
+  }
+  if (type === 'ping') {
+    // iOS terminates SWs after ~30 s of inactivity. The page sends a cheap
+    // ping every 20 s (regardless of visibility) so that event.waitUntil
+    // extends the SW lifetime while the app is open.
+    event.waitUntil(Promise.resolve());
   }
   if (type === 'setNotificationSettings') {
     if (
@@ -606,6 +888,11 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     ) {
       clearNotificationsOnRead = (data as { clearNotificationsOnRead: boolean })
         .clearNotificationsOnRead;
+    }
+    const fm = (data as { focusMode?: unknown }).focusMode;
+    if (fm === 'off' || fm === 'focus' || fm === 'dnd') {
+      focusMode = fm;
+      console.debug('[SW setNotificationSettings] focusMode updated to:', focusMode);
     }
     // Persist so settings survive SW restart (iOS kills the SW aggressively).
     event.waitUntil(persistSettings());
@@ -649,6 +936,12 @@ function fetchConfig(token: string): RequestInit {
 }
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data.type === 'SKIP_WAITING') {
+    // Client requested the waiting SW to activate immediately (user clicked update banner)
+    self.skipWaiting();
+    return;
+  }
+
   if (event.data.type === 'togglePush') {
     const token = event.data?.token;
     const fetchOptions = fetchConfig(token);
@@ -660,6 +953,97 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       })
     );
   }
+});
+
+// Asset validation: prevent caching HTML responses for JavaScript/CSS assets.
+// After a new deployment, stale HTML might reference old hashed asset URLs that
+// no longer exist. The server returns a 404 HTML page, which Safari refuses to
+// execute as JavaScript, causing "text/html is not a valid JavaScript MIME type"
+// errors. This handler validates asset responses and deletes bad cache entries.
+self.addEventListener('fetch', (event: FetchEvent) => {
+  const { url, method } = event.request;
+  const parsedUrl = new URL(url);
+
+  // Skip audio files — let them pass through without validation
+  const isAudio =
+    parsedUrl.pathname.endsWith('.ogg') ||
+    parsedUrl.pathname.endsWith('.mp3') ||
+    parsedUrl.pathname.endsWith('.webm') ||
+    parsedUrl.pathname.endsWith('.wav');
+
+  // Only intercept GET requests to /assets/ paths (but not audio files)
+  if (method !== 'GET' || !parsedUrl.pathname.startsWith('/assets/') || isAudio) return;
+
+  event.respondWith(
+    (async () => {
+      const cache = await self.caches.open('workbox-precache-v2-' + self.registration.scope);
+
+      // Try cache first (workbox precache strategy)
+      let response = await cache.match(event.request);
+
+      if (!response) {
+        // Not in cache, fetch from network
+        try {
+          response = await fetch(event.request);
+        } catch (networkError) {
+          // Network error - try returning cached version if it exists
+          const cachedResponse = await cache.match(event.request);
+          if (cachedResponse) return cachedResponse;
+          throw networkError;
+        }
+      }
+
+      // Validate response before using/caching it
+      const contentType = response.headers.get('content-type') || '';
+      const isJavaScript =
+        parsedUrl.pathname.endsWith('.js') || parsedUrl.pathname.endsWith('.mjs');
+      const isCSS = parsedUrl.pathname.endsWith('.css');
+      const isWASM = parsedUrl.pathname.endsWith('.wasm');
+
+      // Check if response is valid for the requested asset type
+      const isValidResponse =
+        response.ok &&
+        response.status >= 200 &&
+        response.status < 300 &&
+        !contentType.includes('text/html');
+
+      // Additional MIME type validation for specific asset types
+      const hasValidMimeType =
+        (isJavaScript &&
+          (contentType.includes('javascript') || contentType.includes('ecmascript'))) ||
+        (isCSS && contentType.includes('css')) ||
+        (isWASM && contentType.includes('wasm')) ||
+        (!isJavaScript && !isCSS && !isWASM);
+
+      if (!isValidResponse || !hasValidMimeType) {
+        // Invalid response (likely a 404 HTML page) - delete from cache
+        await cache.delete(event.request);
+
+        console.warn(
+          '[SW] Deleted invalid asset cache entry:',
+          parsedUrl.pathname,
+          'status:',
+          response.status,
+          'content-type:',
+          contentType
+        );
+
+        // Return a synthetic error response
+        return new Response('Asset not available', {
+          status: 404,
+          statusText: 'Asset Not Found',
+          headers: { 'Content-Type': 'text/plain' },
+        });
+      }
+
+      // Valid response - cache it if it came from the network
+      if (response && !response.redirected) {
+        await cache.put(event.request, response.clone());
+      }
+
+      return response;
+    })()
+  );
 });
 
 self.addEventListener('fetch', (event: FetchEvent) => {
@@ -676,66 +1060,52 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // the browser cannot render as an <img>/<video>/etc.
   const redirect: RequestRedirect = 'follow';
 
+  // Fast path: active session for this window
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
-    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
-    return;
-  }
-
-  // Since widgets like element call have their own client ids,
-  // we need this logic. We just go through the sessions list and get a session
-  // with the right base url. Media requests to a homeserver simply are fine with any account
-  // on the homeserver authenticating it, so this is fine. But it can be technically wrong.
-  // If you have two tabs for different users on the same homeserver, it might authenticate
-  // as the wrong one.
-  // Thus any logic in the future which cares about which user is authenticating the request
-  // might break this. Also, again, it is technically wrong.
-  // Also checks preloadedSession — populated from cache at SW activate — for the window
-  // between SW restart and the first live setSession arriving from the page.
-  const byBaseUrl =
-    [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl)) ??
-    (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)
-      ? preloadedSession
-      : undefined);
-  if (byBaseUrl) {
-    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
-    return;
-  }
-
-  // No clientId: the fetch came from a context not associated with a specific
-  // window (e.g. a prerender). Fall back to the persisted session directly.
-  if (!clientId) {
     event.respondWith(
-      loadPersistedSession().then((persisted) => {
-        if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-          return fetch(url, {
-            ...fetchConfig(persisted.accessToken),
-            redirect,
-          });
-        }
-        return fetch(event.request);
-      })
+      fetch(url, { ...fetchConfig(session.accessToken), redirect }).catch(() =>
+        fetch(event.request)
+      )
     );
     return;
   }
 
+  // Widget fast path: match by baseUrl (Element Call, etc)
+  // Since widgets like Element Call have their own client ids, we need to find
+  // a session that matches the homeserver. Media requests to a homeserver work
+  // with any authenticated account on that homeserver.
+  const byBaseUrl = [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl));
+  if (byBaseUrl) {
+    event.respondWith(
+      fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }).catch(() =>
+        fetch(event.request)
+      )
+    );
+    return;
+  }
+
+  // iOS PWA fallback: persisted session (SW restart)
+  // The preloadedSession is populated from cache at SW activate, providing
+  // auth during the window between SW restart and the first live setSession.
+  if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {
+    event.respondWith(
+      fetch(url, { ...fetchConfig(preloadedSession.accessToken), redirect }).catch(() =>
+        fetch(event.request)
+      )
+    );
+    return;
+  }
+
+  // No session: pass through unmodified
+  // Let real 401/404 errors surface. The main thread's downloadMedia() already
+  // includes accessToken as a fallback header, and logs failures to Sentry.
+  // The UI will show an error with a retry button.
   event.respondWith(
-    requestSessionWithTimeout(clientId).then(async (s) => {
-      // Primary: session received from the live client window.
-      if (s && validMediaRequest(url, s.baseUrl)) {
-        return fetch(url, { ...fetchConfig(s.accessToken), redirect });
-      }
-      // Fallback: try the persisted session (helps when SW restarts on iOS and
-      // the client window hasn't responded to requestSession yet).
-      const persisted = await loadPersistedSession();
-      if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-        return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
-      }
-      console.warn(
-        '[SW fetch] No valid session for media request',
-        { url, clientId, hasSession: !!s },
-        'falling back to unauthenticated fetch'
-      );
+    fetch(event.request).catch((error) => {
+      // Network-level failures fall through to the browser's default fetch behavior.
+      // This prevents FetchEvent.respondWith errors from surfacing in the console.
+      console.debug('[SW] Media fetch failed, falling through:', error);
       return fetch(event.request);
     })
   );
@@ -763,24 +1133,55 @@ const onPushNotification = async (event: PushEvent) => {
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
-  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
-  // because iOS Safari PWA often returns empty or stale results from matchAll().
+  //
+  // Require BOTH the explicit appIsVisible flag AND a visible client from
+  // matchAll() before suppressing.  appIsVisible resets to false every time the
+  // SW starts fresh; on iOS the browser kills the SW between pushes, so on the
+  // next push appIsVisible is always false — we never suppress on a cold SW
+  // restart, which prevents the "notifications stop after a while" bug where
+  // stale matchAll() data (visibilityState stuck at 'visible') would cause all
+  // subsequent notifications to be silently dropped.
+  //
+  // Also require syncIsHealthy: if the Matrix sync is in Reconnecting/Error
+  // state, the in-app notification path is broken, so we must show the OS
+  // notification even when the app is visible.
+  //
+  // When matchAll() returns zero clients (iOS Safari PWA fully-suspended quirk),
+  // clients.some() returns false — do NOT suppress.  Better to show a duplicate
+  // (handled gracefully by the in-app banner) than to silently drop a
+  // notification while the app is backgrounded.
   const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+    appIsVisible && syncIsHealthy && clients.some((client) => client.visibilityState === 'visible');
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
+    '| syncIsHealthy:',
+    syncIsHealthy,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
-    console.debug('[SW push] suppressing OS notification — app is visible');
+    console.debug('[SW push] suppressing OS notification — app is visible and sync is healthy');
+    // Post telemetry to app for Sentry tracking
+    postSentryMetric('sable.push.suppressed', 1, {
+      reason: 'app_visible_and_healthy',
+      has_clients: clients.length > 0,
+      sync_healthy: syncIsHealthy,
+    }).catch(() => undefined);
     return;
   }
 
   const pushData = event.data.json();
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
+
+  // Track push notification arrival
+  postSentryMetric('sable.push.received', 1, {
+    app_visible: appIsVisible,
+    sync_healthy: syncIsHealthy,
+    has_clients: clients.length > 0,
+    payload_type: isMinimalPushPayload(pushData) ? 'minimal' : 'full',
+  }).catch(() => undefined);
 
   try {
     if (typeof pushData?.unread === 'number') {
@@ -926,4 +1327,41 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 });
 
 precacheAndRoute(self.__WB_MANIFEST);
+
 cleanupOutdatedCaches();
+
+// SABLE-5G: Catch-all fetch handler for navigation requests
+// Handles FetchEvent.respondWith errors when precached assets fail to load
+// (e.g., right after SW update when old cached URLs are being cleaned up).
+// Falls back to serving cached index.html for navigation requests.
+self.addEventListener('fetch', (event: FetchEvent) => {
+  const { request } = event;
+  // Only handle navigation requests (document loads)
+  if (request.mode !== 'navigate') {
+    return;
+  }
+
+  event.respondWith(
+    (async () => {
+      try {
+        // Try network first
+        return await fetch(request);
+      } catch (fetchError) {
+        console.debug('[SW fetch fallback] Network fetch failed, trying cache:', fetchError);
+        // Network failed, try to serve cached index.html
+        try {
+          const cache = await caches.open('workbox-precache-v2-' + self.registration.scope);
+          const cachedResponse = await cache.match('/index.html');
+          if (cachedResponse) {
+            console.debug('[SW fetch fallback] Serving cached index.html');
+            return cachedResponse;
+          }
+        } catch (cacheError) {
+          console.error('[SW fetch fallback] Failed to serve cached index.html:', cacheError);
+        }
+        // Both network and cache failed, rethrow original error
+        throw fetchError;
+      }
+    })()
+  );
+});

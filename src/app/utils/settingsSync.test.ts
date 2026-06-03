@@ -31,8 +31,12 @@ describe('NON_SYNCABLE_KEYS', () => {
       'isPeopleDrawer',
       'isWidgetDrawer',
       'memberSortFilterIndex',
+      'isNotificationSounds',
       'developerTools',
+      'progressivePrefetch',
+      'enterForNewline',
       'settingsSyncEnabled',
+      'searchIndexMessageLimit',
     ] as const;
 
     expected.forEach((key) => {

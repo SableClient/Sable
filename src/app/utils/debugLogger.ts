@@ -17,6 +17,13 @@ export type LogCategory =
   | 'call'
   | 'ui'
   | 'timeline'
+  | 'search'
+  | 'idb'
+  | 'worker'
+  | 'storage'
+  | 'crypto'
+  | 'media'
+  | 'auth'
   | 'error'
   | 'general';
 

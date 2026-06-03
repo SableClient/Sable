@@ -1,4 +1,6 @@
 import type { MatrixClient } from '$types/matrix-sdk';
+import type { RoomToUnread } from '$types/matrix/room';
+import { isDMRoom } from './room';
 
 export type SortFunc<T> = (a: T, b: T) => number;
 
@@ -57,3 +59,60 @@ export const byOrderKey: SortFunc<string | undefined> = (a, b) => {
   }
   return 1;
 };
+
+/**
+ * Calculate priority tier for room sorting.
+ * Helper function for factoryRoomIdByPriority.
+ */
+const getPriorityTier = (highlight: number, total: number, isDM: boolean): number => {
+  if (highlight > 0) return 5; // Highlights always highest
+  if (isDM && total > 0) return 4; // DMs with unreads
+  if (total > 0) return 3; // Regular rooms with unreads
+  if (isDM) return 2; // DMs with no unreads
+  return 1; // Regular rooms with no unreads
+};
+
+/**
+ * Sort rooms by priority: mentions/highlights > DMs with unreads > rooms with unreads > DMs > activity.
+ * This provides a smarter prioritization for the room list sidebar.
+ *
+ * Priority tiers (highest to lowest):
+ * 1. Rooms with mentions/highlights (highlight count > 0)
+ * 2. Direct messages with unreads but no highlights
+ * 3. Regular rooms with unreads but no highlights
+ * 4. Direct messages with no unreads
+ * 5. All other rooms
+ *
+ * Within each tier, rooms are sorted by activity (most recent first).
+ */
+export const factoryRoomIdByPriority =
+  (mx: MatrixClient, roomToUnread: RoomToUnread, mDirects?: Set<string>): SortFunc<string> =>
+  (a, b) => {
+    const room1 = mx.getRoom(a);
+    const room2 = mx.getRoom(b);
+
+    const unread1 = roomToUnread.get(a);
+    const unread2 = roomToUnread.get(b);
+
+    const highlight1 = unread1?.highlight ?? 0;
+    const highlight2 = unread2?.highlight ?? 0;
+    const total1 = unread1?.total ?? 0;
+    const total2 = unread2?.total ?? 0;
+
+    const isDM1 = room1 ? isDMRoom(room1, mDirects) : false;
+    const isDM2 = room2 ? isDMRoom(room2, mDirects) : false;
+
+    const tier1 = getPriorityTier(highlight1, total1, isDM1);
+    const tier2 = getPriorityTier(highlight2, total2, isDM2);
+
+    // Sort by tier first (higher tier = higher priority = comes first)
+    if (tier1 !== tier2) {
+      return tier2 - tier1;
+    }
+
+    // Within same tier, sort by activity (most recent first)
+    return (
+      (room2?.getLastActiveTimestamp() ?? Number.MIN_SAFE_INTEGER) -
+      (room1?.getLastActiveTimestamp() ?? Number.MIN_SAFE_INTEGER)
+    );
+  };

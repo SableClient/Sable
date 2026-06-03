@@ -13,6 +13,7 @@ import {
   EventType,
 } from '$types/matrix-sdk';
 import { useAtomValue, useSetAtom } from 'jotai';
+import * as Sentry from '@sentry/react';
 import { ReactEditor } from 'slate-react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -49,7 +50,10 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import type { IReplyDraft } from '$state/room/roomInputDrafts';
-import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import {
+  roomIdToReplyDraftAtomFamily,
+  roomIdToEditDraftAtomFamily,
+} from '$state/room/roomInputDrafts';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
@@ -87,10 +91,35 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
       !reactionOrEditEvent(ev) &&
       isThreadRelationEvent(ev, threadRootId)
   );
+
+  Sentry.addBreadcrumb({
+    category: 'thread',
+    message: 'getThreadReplyEvents called',
+    level: 'debug',
+    data: {
+      threadRootId,
+      threadEventsTotal: fromThread.length,
+      filteredFromThread: filteredFromThread.length,
+      threadExists: !!thread,
+      threadInitialized: thread?.initialEventsFetched ?? false,
+    },
+  });
+
   if (filteredFromThread.length > 0) {
+    Sentry.addBreadcrumb({
+      category: 'thread',
+      message: 'Returning events from thread.events',
+      level: 'debug',
+      data: {
+        threadRootId,
+        count: filteredFromThread.length,
+        eventIds: filteredFromThread.map((e) => e.getId()).filter(Boolean),
+      },
+    });
     return filteredFromThread;
   }
-  return room
+
+  const fallbackEvents = room
     .getUnfilteredTimelineSet()
     .getLiveTimeline()
     .getEvents()
@@ -100,6 +129,19 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
         !reactionOrEditEvent(ev) &&
         isThreadRelationEvent(ev, threadRootId)
     );
+
+  Sentry.addBreadcrumb({
+    category: 'thread',
+    message: 'Returning fallback events from main timeline',
+    level: 'debug',
+    data: {
+      threadRootId,
+      count: fallbackEvents.length,
+      eventIds: fallbackEvents.map((e) => e.getId()).filter(Boolean),
+    },
+  });
+
+  return fallbackEvents;
 }
 
 type ThreadDrawerProps = {
@@ -124,6 +166,18 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const serverFetchAttemptedRef = useRef<string | null>(null);
   const autoFillInProgressRef = useRef(false);
   const { editId, handleEdit } = useMessageEdit(editor);
+  const [editInInput] = useSetting(settingsAtom, 'editInInput');
+  const setEditDraft = useSetAtom(roomIdToEditDraftAtomFamily(threadRootId));
+  const handleEditCallback = useCallback(
+    (id?: string) => {
+      if (editInInput) {
+        setEditDraft(id ? { eventId: id } : undefined);
+        return;
+      }
+      handleEdit(id);
+    },
+    [editInInput, handleEdit, setEditDraft]
+  );
   const nicknames = useAtomValue(nicknamesAtom);
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);
   const useAuthentication = useMediaAuthentication();
@@ -146,6 +200,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
   const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
+  const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
   const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
   const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
@@ -230,6 +285,10 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(threadRootId));
   const replyDraft = useAtomValue(roomIdToReplyDraftAtomFamily(threadRootId));
   const activeReplyId = replyDraft?.eventId;
+  // Keep a ref so handleReplyClick can read the latest draft without being
+  // recreated on every keystroke (which would re-render all Message instances).
+  const replyDraftRef = useRef(replyDraft);
+  replyDraftRef.current = replyDraft;
 
   // User profile popup
   const openUserRoomProfile = useOpenUserRoomProfile();
@@ -262,6 +321,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     hideNickAvatarEvents: true,
     isReadOnly,
     hideMemberInReadOnly,
+    messageGroupingThreshold,
   });
 
   // When the thread's own timeline is empty (server-side threads not yet fetched,
@@ -271,9 +331,42 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     // `forceUpdateCounter` is a cache-busting key for thread/timeline updates.
     void forceUpdateCounter;
     const filtered = processedEvents.filter((e) => e.id !== threadRootId);
-    if (filtered.length > 0) return filtered;
+
+    Sentry.addBreadcrumb({
+      category: 'thread',
+      message: 'Computing displayReplies',
+      level: 'debug',
+      data: {
+        threadRootId,
+        forceUpdateCounter,
+        processedEventsCount: processedEvents.length,
+        filteredCount: filtered.length,
+        threadEventsCount: thread?.events.length ?? 0,
+        threadInitialized: thread?.initialEventsFetched ?? false,
+      },
+    });
+
+    if (filtered.length > 0) {
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'Using processedEvents for display',
+        level: 'debug',
+        data: { threadRootId, count: filtered.length },
+      });
+      return filtered;
+    }
+
     const timelineSet = thread?.timelineSet ?? room.getUnfilteredTimelineSet();
-    return getThreadReplyEvents(room, threadRootId).map((ev, idx) => ({
+    const fallbackEvents = getThreadReplyEvents(room, threadRootId);
+
+    Sentry.addBreadcrumb({
+      category: 'thread',
+      message: 'Using fallback getThreadReplyEvents',
+      level: 'debug',
+      data: { threadRootId, count: fallbackEvents.length },
+    });
+
+    return fallbackEvents.map((ev, idx) => ({
       id: ev.getId() ?? `thread-reply-${idx}`,
       itemIndex: idx,
       mEvent: ev,
@@ -290,6 +383,10 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
   const processedReplies = displayReplies;
 
+  // Track thread initialization state to trigger backfill when ready.
+  // Using a separate variable avoids running the entire init effect on every event update.
+  const threadInitialized = thread?.initialEventsFetched ?? false;
+
   // Ensure the Thread object exists and has its reply events loaded.
   useEffect(() => {
     // Case A: create thread shell; SDK handles the rest asynchronously.
@@ -297,21 +394,25 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       const localRoot = room.findEventById(threadRootId);
       if (localRoot) {
         room.createThread(threadRootId, localRoot, [], false);
-      } else {
-        // Root not in local timeline — fetch it from the server without
-        // touching the main timeline (no TimelineRefresh side-effect).
-        mx.fetchRoomEvent(room.roomId, threadRootId)
-          .then((rawEvt) => {
-            if (room.getThread(threadRootId)) return; // created concurrently
-            room.createThread(threadRootId, new MatrixEvent(rawEvt as IEvent), [], false);
-          })
-          .catch(() => {});
+        // Don't continue - wait for SDK to initialize the thread
+        return;
       }
+      // Root not in local timeline — fetch it from the server without
+      // touching the main timeline (no TimelineRefresh side-effect).
+      mx.fetchRoomEvent(room.roomId, threadRootId)
+        .then((rawEvt) => {
+          if (room.getThread(threadRootId)) return; // created concurrently
+          room.createThread(threadRootId, new MatrixEvent(rawEvt as IEvent), [], false);
+          // Force update to re-run this effect once thread is created
+          forceUpdate((n) => n + 1);
+        })
+        .catch(() => {});
+      return;
     }
 
     const currThread = room.getThread(threadRootId);
     // Case B: SDK is actively initialising — don't interfere.
-    if (!currThread || !currThread.initialEventsFetched) return;
+    if (!currThread || !threadInitialized) return;
 
     // Case C: SDK is done (or classic sync). Backfill from live timeline if
     // thread.events is still empty (classic sync path; server-side was already
@@ -348,10 +449,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     mx.paginateEventTimeline(currThread.timelineSet.getLiveTimeline(), { backwards: true })
       .then(() => forceUpdate((n) => n + 1))
       .catch(() => {});
-    // forceUpdateCounter must be in deps so this effect re-runs after
-    // ThreadEvent.Update fires (which flips initialEventsFetched from false to
-    // true).
-  }, [mx, room, threadRootId, forceUpdate, forceUpdateCounter]);
+    // threadInitialized changes when initialEventsFetched becomes true,
+    // triggering this effect to run backfill logic without running on every event.
+  }, [mx, room, threadRootId, forceUpdate, threadInitialized]);
 
   // Re-render when new thread events arrive (including reactions via ThreadEvent.Update).
   useEffect(() => {
@@ -382,16 +482,91 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
     const onTimeline = (mEvent: MatrixEvent) => {
       if (isEventInThread(mEvent)) {
-        forceUpdate((n) => n + 1);
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Timeline event detected in thread',
+          level: 'debug',
+          data: {
+            threadRootId,
+            eventId: mEvent.getId(),
+            eventType: mEvent.getType(),
+            sender: mEvent.getSender(),
+          },
+        });
+
+        // Manually add the event to the thread timeline if it's not already there.
+        // The SDK should do this automatically, but with sliding sync there may be timing issues.
+        const currentThread = room.getThread(threadRootId);
+        if (currentThread && currentThread.initialEventsFetched) {
+          const eventId = mEvent.getId();
+          const existsInThread = currentThread.events.some((e) => e.getId() === eventId);
+          if (!existsInThread && isThreadRelationEvent(mEvent, threadRootId)) {
+            Sentry.addBreadcrumb({
+              category: 'thread',
+              message: 'Manually adding event to thread timeline',
+              level: 'info',
+              data: { threadRootId, eventId },
+            });
+            currentThread.addEvents([mEvent], false);
+          }
+        }
+
+        // Schedule forceUpdate in a microtask to ensure the SDK has finished
+        // adding the event to the thread timeline before we re-render.
+        Promise.resolve().then(() => {
+          Sentry.addBreadcrumb({
+            category: 'thread',
+            message: 'Force update after timeline event',
+            level: 'debug',
+            data: {
+              threadRootId,
+              eventId: mEvent.getId(),
+              threadEventsCount: currentThread?.events.length ?? 0,
+            },
+          });
+          forceUpdate((n) => n + 1);
+        });
       }
     };
     const onRedaction = (mEvent: MatrixEvent) => {
       // Redactions (removing reactions/messages) should also trigger updates
       if (isEventInThread(mEvent)) {
-        forceUpdate((n) => n + 1);
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Redaction event in thread',
+          level: 'debug',
+          data: {
+            threadRootId,
+            eventId: mEvent.getId(),
+          },
+        });
+        Promise.resolve().then(() => forceUpdate((n) => n + 1));
       }
     };
-    const onThreadUpdate = () => forceUpdate((n) => n + 1);
+    const onThreadUpdate = () => {
+      const currentThread = room.getThread(threadRootId);
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'ThreadEvent.Update or NewReply fired',
+        level: 'debug',
+        data: {
+          threadRootId,
+          threadEventsCount: currentThread?.events.length ?? 0,
+          initialEventsFetched: currentThread?.initialEventsFetched ?? false,
+        },
+      });
+      // Thread metadata updates (reply count, participants) should also wait
+      // for SDK to finish processing before re-rendering.
+      Promise.resolve().then(() => {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Force update after thread metadata update',
+          level: 'debug',
+          data: { threadRootId },
+        });
+        forceUpdate((n) => n + 1);
+      });
+    };
     mx.on(RoomEvent.Timeline, onTimeline);
     room.on(RoomEvent.Redaction, onRedaction);
     room.on(ThreadEvent.Update, onThreadUpdate);
@@ -404,37 +579,167 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     };
   }, [mx, room, threadRootId]);
 
+  // Listen directly on the thread for timeline and reset events.
+  // This provides a shorter, more reliable signal path than the
+  // timelineSet → thread → room → mx re-emission chain, and also
+  // catches RoomEvent.TimelineReset (fired when the thread timeline
+  // is cleared and re-populated during initialisation).
+  useEffect(() => {
+    if (!thread) return () => {};
+    const onDirectTimelineUpdate = (event?: MatrixEvent) => {
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'Direct thread timeline event',
+        level: 'debug',
+        data: {
+          threadRootId,
+          eventId: event?.getId(),
+          eventType: event?.getType(),
+          threadEventsCount: thread.events.length,
+        },
+      });
+      Sentry.metrics.count('sable.thread.direct_timeline_event', 1, {
+        attributes: { threadId: threadRootId },
+      });
+      // Microtask delay to ensure SDK finishes processing before re-render
+      Promise.resolve().then(() => {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Force update after direct thread event',
+          level: 'debug',
+          data: { threadRootId, eventId: event?.getId() },
+        });
+        forceUpdate((n) => n + 1);
+      });
+    };
+    const onDirectTimelineReset = () => {
+      Sentry.addBreadcrumb({
+        category: 'thread',
+        message: 'Direct thread timeline reset',
+        level: 'info',
+        data: { threadRootId, threadEventsCount: thread.events.length },
+      });
+      Promise.resolve().then(() => {
+        forceUpdate((n) => n + 1);
+      });
+    };
+    thread.on(RoomEvent.Timeline, onDirectTimelineUpdate);
+    thread.on(RoomEvent.TimelineReset, onDirectTimelineReset);
+    return () => {
+      thread.off(RoomEvent.Timeline, onDirectTimelineUpdate);
+      thread.off(RoomEvent.TimelineReset, onDirectTimelineReset);
+    };
+  }, [thread, threadRootId]);
+
   // Mark thread as read when viewing it
   useEffect(() => {
     const markThreadAsRead = async () => {
       const currentThread = room.getThread(threadRootId);
-      if (!currentThread) return;
+      if (!currentThread) {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Cannot mark as read: thread not found',
+          level: 'warning',
+          data: { threadRootId, roomId: room.roomId },
+        });
+        return;
+      }
 
-      const events = currentThread.events || [];
-      if (events.length === 0) return;
+      // Use displayReplies instead of currentThread.events because displayReplies
+      // includes the fallback path (scanning main timeline) when thread.events is empty.
+      // This ensures we mark as read even when the SDK thread object hasn't been
+      // populated yet but we're still showing replies from the main timeline.
+      if (displayReplies.length === 0) {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Cannot mark as read: no visible replies',
+          level: 'debug',
+          data: {
+            threadRootId,
+            threadEventsCount: currentThread.events.length,
+            displayRepliesCount: displayReplies.length,
+          },
+        });
+        return;
+      }
 
-      const lastEvent = events[events.length - 1];
-      if (!lastEvent || lastEvent.isSending()) return;
+      // Get the last visible reply event
+      const lastDisplayReply = displayReplies[displayReplies.length - 1];
+      const lastEvent = lastDisplayReply?.mEvent;
+
+      if (!lastEvent || lastEvent.isSending()) {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Cannot mark as read: last event invalid or sending',
+          level: 'debug',
+          data: {
+            hasLastEvent: !!lastEvent,
+            isSending: lastEvent?.isSending(),
+          },
+        });
+        return;
+      }
 
       const userId = mx.getUserId();
       if (!userId) return;
 
       const readUpToId = currentThread.getEventReadUpTo(userId, false);
       const lastEventId = lastEvent.getId();
+      if (!lastEventId) return;
 
       // Only send receipt if we haven't already read up to the last event
       if (readUpToId !== lastEventId) {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Sending thread read receipts',
+          level: 'info',
+          data: {
+            threadRootId,
+            lastEventId,
+            readUpToId,
+            displayRepliesCount: displayReplies.length,
+          },
+        });
         try {
-          await mx.sendReadReceipt(lastEvent, ReceiptType.Read);
+          // Send both read receipt AND read marker to ensure room-level unread badge clears.
+          // Thread replies are part of the main room timeline, so we need to update both
+          // the thread-specific receipt and the room-level marker.
+          await Promise.all([
+            mx.sendReadReceipt(lastEvent, ReceiptType.Read),
+            mx.setRoomReadMarkers(room.roomId, lastEventId, lastEvent),
+          ]);
+          Sentry.addBreadcrumb({
+            category: 'thread',
+            message: 'Thread read receipts sent successfully',
+            level: 'info',
+            data: { threadRootId, lastEventId },
+          });
         } catch (err) {
-          console.warn('Failed to send thread read receipt:', err);
+          Sentry.captureException(err, {
+            tags: { component: 'ThreadDrawer', operation: 'sendReadReceipt' },
+            contexts: {
+              thread: {
+                threadRootId,
+                lastEventId,
+                readUpToId,
+                displayRepliesCount: displayReplies.length,
+              },
+            },
+          });
         }
+      } else {
+        Sentry.addBreadcrumb({
+          category: 'thread',
+          message: 'Already read up to latest event',
+          level: 'debug',
+          data: { threadRootId, lastEventId, readUpToId },
+        });
       }
     };
 
     // Mark as read when opened and when new messages arrive
     markThreadAsRead();
-  }, [mx, room, threadRootId, forceUpdateCounter]);
+  }, [mx, room, threadRootId, forceUpdateCounter, displayReplies]);
 
   const replyEvents = getThreadReplyEvents(room, threadRootId);
   const isThreadLoading = !!thread && !thread.initialEventsFetched && replyEvents.length === 0;
@@ -581,7 +886,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         };
         // Only toggle off if we're actively replying to this event (non-empty body distinguishes
         // a real reply draft from the seeded base-thread draft, which has body: '').
-        if (activeReplyId === replyId && replyDraft?.body) {
+        if (activeReplyId === replyId && replyDraftRef.current?.body) {
           // Toggle off — reset to base thread draft
           setReplyDraft({
             userId: mx.getUserId() ?? '',
@@ -594,7 +899,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         }
       }
     },
-    [mx, room, setReplyDraft, activeReplyId, threadRootId, replyDraft]
+    [mx, room, setReplyDraft, activeReplyId, threadRootId]
   );
 
   const handleReactionToggle = useCallback(
@@ -711,7 +1016,12 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       showHiddenEvents,
       hideThreadChip: true,
     },
-    state: { focusItem, editId, activeReplyId, openThreadId: threadRootId },
+    state: {
+      focusItem,
+      editId: editInInput ? undefined : editId,
+      activeReplyId,
+      openThreadId: threadRootId,
+    },
     permissions: {
       canRedact,
       canDeleteOwn,
@@ -723,7 +1033,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       onUsernameClick: handleUsernameClick,
       onReplyClick: handleReplyClick,
       onReactionToggle: handleReactionToggle,
-      onEditId: handleEdit,
+      onEditId: handleEditCallback,
       onResend: handleResend,
       onDeleteFailedSend: handleDeleteFailedSend,
       setOpenThread: () => {},
@@ -752,6 +1062,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   useEffect(() => {
     setCurHeight(threadRootHeight);
   }, [threadRootHeight]);
+
   return (
     <Box
       className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
@@ -804,7 +1115,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
               size="300"
               hideTrack
               style={{
-                height: toRem(curHeight),
+                maxHeight: toRem(curHeight),
                 flexShrink: 0,
               }}
             >

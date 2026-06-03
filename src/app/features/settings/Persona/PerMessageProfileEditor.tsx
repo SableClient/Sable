@@ -45,8 +45,6 @@ export function PerMessageProfileEditor({
   const [currentId, setCurrentId] = useState(profileId);
   const [newId, setNewId] = useState(profileId);
 
-  console.warn(pronouns);
-
   // Pronouns
   const [currentPronouns, setCurrentPronouns] = useState(pronouns);
   const [newPronouns, setNewPronouns] = useState(pronouns);

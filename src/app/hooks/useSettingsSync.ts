@@ -4,7 +4,7 @@ import type { MatrixEvent } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, settingsInitializedAtom } from '$state/settings';
 import { deserializeFromSync, serializeForSync } from '$utils/settingsSync';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
@@ -33,6 +33,7 @@ export function useSettingsSyncEffect(): void {
   const [settings, setSettings] = useAtom(settingsAtom);
   const setLastSynced = useSetAtom(settingsSyncLastSyncedAtom);
   const setSyncStatus = useSetAtom(settingsSyncStatusAtom);
+  const setInitialized = useSetAtom(settingsInitializedAtom);
 
   // Keep a ref so callbacks can always read the latest value without stale closures.
   const settingsRef = useRef(settings);
@@ -41,10 +42,23 @@ export function useSettingsSyncEffect(): void {
   const syncEnabled = settings.settingsSyncEnabled;
 
   // On mount / when sync is first enabled: load from account data
+  // Also marks settings as initialized after checking or timeout
   useEffect(() => {
-    if (!syncEnabled) return;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    if (!syncEnabled) {
+      // If sync is disabled, settings are ready immediately
+      setInitialized(true);
+      return;
+    }
+
     const event = mx.getAccountData(CustomAccountDataEvent.SableSettings);
-    if (!event) return;
+    if (!event) {
+      // No account data exists — settings are ready immediately
+      setInitialized(true);
+      return;
+    }
+
     // Strip synctoken so a stored sync token from a previous session doesn't get treated
     // as an incoming change from another device.
     const { synctoken: echoField, ...content } = event.getContent();
@@ -55,7 +69,15 @@ export function useSettingsSyncEffect(): void {
       }
       setLastSynced(Date.now());
     }
-  }, [mx, syncEnabled, setSettings, setLastSynced]);
+
+    // Mark as initialized after a short delay to allow account data to load
+    // This prevents theme flashing on slow connections
+    timeoutId = setTimeout(() => {
+      setInitialized(true);
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [mx, syncEnabled, setSettings, setLastSynced, setInitialized]);
 
   // Echo-detection: track the token of our last upload
   // When our upload echoes back via ClientEvent.AccountData we skip applying it

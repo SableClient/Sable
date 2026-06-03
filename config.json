@@ -44,5 +44,9 @@
   "hashRouter": {
     "enabled": false,
     "basename": "/"
+  },
+
+  "features": {
+    "encryptedSearch": true
   }
 }

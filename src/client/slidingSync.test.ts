@@ -73,6 +73,7 @@ function makeMockMx(overrides: Record<string, unknown> = {}) {
     getSafeUserId: vi.fn<() => string>().mockReturnValue('@user:example.com'),
     isRoomEncrypted: vi.fn<() => boolean>().mockReturnValue(false),
     getRoom: vi.fn<() => null>().mockReturnValue(null),
+    getRooms: vi.fn<() => unknown[]>().mockReturnValue([]),
     on: vi.fn<() => void>(),
     off: vi.fn<() => void>(),
     removeListener: vi.fn<() => void>(),

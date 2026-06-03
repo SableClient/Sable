@@ -3,11 +3,76 @@ import { useCallback, useEffect, useState } from 'react';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { ClientConfig } from '$hooks/useClientConfig';
 import { trimTrailingSlash } from '$utils/common';
+import * as Sentry from '@sentry/react';
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Fetch the client config with retry logic and exponential backoff.
+ * config.json is a static asset served locally, so transient failures are likely
+ * caused by service worker issues or deploy races. Retrying ensures the app
+ * doesn't start with incorrect configuration.
+ */
 const getClientConfig = async (): Promise<ClientConfig> => {
   const url = `${trimTrailingSlash(import.meta.env.BASE_URL)}/config.json`;
-  const config = await fetch(url, { method: 'GET' });
-  return config.json();
+  const maxAttempts = 3;
+
+  // Sequential retries with exponential backoff are intentional — we need to wait
+  // before retrying, so parallel Promise.all would be incorrect here.
+  // eslint-disable-next-line no-await-in-loop
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      Sentry.addBreadcrumb({
+        category: 'config',
+        message: `Fetching config.json (attempt ${attempt + 1}/${maxAttempts})`,
+        level: 'info',
+      });
+
+      const config = await fetch(url, { method: 'GET' });
+      if (!config.ok) {
+        throw new Error(`HTTP ${config.status}: ${config.statusText}`);
+      }
+
+      const data = await config.json();
+
+      Sentry.addBreadcrumb({
+        category: 'config',
+        message: 'config.json loaded successfully',
+        level: 'info',
+        data: { attempt: attempt + 1 },
+      });
+
+      return data;
+    } catch (err) {
+      const isLastAttempt = attempt === maxAttempts - 1;
+      const errorMessage = err instanceof Error ? err.message : String(err);
+
+      Sentry.addBreadcrumb({
+        category: 'config',
+        message: `config.json fetch failed (attempt ${attempt + 1}/${maxAttempts})`,
+        level: isLastAttempt ? 'error' : 'warning',
+        data: { error: errorMessage },
+      });
+
+      if (isLastAttempt) {
+        Sentry.captureMessage('Failed to load config.json after all retries', {
+          level: 'error',
+          extra: { attempts: maxAttempts, lastError: errorMessage },
+        });
+        throw new Error(
+          `Failed to load app configuration after ${maxAttempts} attempts: ${errorMessage}`,
+          { cause: err }
+        );
+      }
+
+      // Exponential backoff: 500ms, 1000ms, 2000ms
+      const backoffMs = 500 * Math.pow(2, attempt);
+      await sleep(backoffMs);
+    }
+  }
+
+  // TypeScript exhaustiveness check (unreachable)
+  throw new Error('Unreachable: config fetch loop exited without return or throw');
 };
 
 type ClientConfigLoaderProps = {

@@ -1,5 +1,6 @@
 import type { KeyboardEventHandler, MouseEvent, RefObject } from 'react';
 import { forwardRef, useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import { isKeyHotkey } from 'is-hotkey';
@@ -66,8 +67,8 @@ import {
   BlockType,
 } from '$components/editor';
 import { plainToEditorInput } from '$components/editor/input';
+import { htmlToMarkdown } from '$plugins/markdown';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
-import { UseStateProvider } from '$components/UseStateProvider';
 import type { TUploadContent } from '$utils/matrix';
 import { encryptFile, getImageInfo, mxcUrlToHttp, toggleReaction } from '$utils/matrix';
 import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
@@ -80,6 +81,7 @@ import {
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
   roomUploadAtomFamily,
+  roomIdToEditDraftAtomFamily,
 } from '$state/room/roomInputDrafts';
 import { UploadCardRenderer } from '$components/upload-card';
 import type { UploadBoardImperativeHandlers } from '$components/upload-board';
@@ -91,7 +93,12 @@ import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { getMentionContent, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
+import {
+  getMentionContent,
+  isThreadRelationEvent,
+  reactionOrEditEvent,
+  getEditedEvent,
+} from '$utils/room';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
@@ -143,6 +150,7 @@ import {
 import { ImageUsage } from '$plugins/custom-emoji';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { useKeyboardHeight, useScrollLock } from '$hooks/ios-keyboard-fix';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -158,6 +166,7 @@ import type {
   AudioRecordingCompletePayload,
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
+import { PollCreator } from './PollCreator';
 import * as prefix from '$unstable/prefixes';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
@@ -276,6 +285,42 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [pkCompatEnable] = useSetting(settingsAtom, 'pkCompat');
     const [pmpProxyingEnable] = useSetting(settingsAtom, 'pmpProxying');
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
+    // Hoisted from the UseStateProvider in JSX so EmojiBoard can be kept mounted
+    // after first open (avoids re-initializing virtualizer on every open).
+    const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
+    const [emojiBoardAnchorRect, setEmojiBoardAnchorRect] = useState<DOMRect | null>(null);
+    const openEmojiBoard = useCallback((tab: EmojiBoardTab) => {
+      const rect = emojiBtnRef.current?.getBoundingClientRect() ?? null;
+      setEmojiBoardAnchorRect(rect);
+      setEmojiBoardTab(tab);
+    }, []);
+    // Keep the emoji/sticker picker position in sync with viewport changes (e.g.
+    // the iOS virtual keyboard appearing/disappearing while the board is open).
+    useEffect(() => {
+      if (emojiBoardTab === undefined) return undefined;
+      const updateRect = () => {
+        setEmojiBoardAnchorRect(emojiBtnRef.current?.getBoundingClientRect() ?? null);
+      };
+      const vp = window.visualViewport;
+      if (vp) {
+        vp.addEventListener('resize', updateRect);
+        vp.addEventListener('scroll', updateRect);
+        return () => {
+          vp.removeEventListener('resize', updateRect);
+          vp.removeEventListener('scroll', updateRect);
+        };
+      }
+      return undefined;
+    }, [emojiBoardTab]);
+    const closeEmojiBoard = useCallback(() => {
+      setEmojiBoardTab((t) => {
+        if (t) {
+          if (!mobileOrTablet()) ReactEditor.focus(editor);
+          return undefined;
+        }
+        return t;
+      });
+    }, [editor]);
     const micBtnRef = useRef<HTMLButtonElement>(null);
     // Preserve stable list keys across metadata/description replacements without
     // storing UI-only IDs in the upload draft state.
@@ -294,6 +339,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(draftKey));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
+    const [editDraft, setEditDraft] = useAtom(roomIdToEditDraftAtomFamily(draftKey));
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
@@ -347,6 +393,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               },
             })
           );
+          // If all files failed to encrypt (e.g. iCloud file not yet downloaded
+          // on iOS), surface an error rather than silently producing no items.
+          if (fileItems.length === 0 && safeFiles.length > 0) {
+            setSendError('Could not read the file. Try downloading it first, then try again.');
+            return;
+          }
         } else {
           safeFiles.forEach((f) =>
             fileItems.push({
@@ -383,11 +435,20 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+    const [pollCreatorOpen, setPollCreatorOpen] = useState(false);
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
+
+    const { triggerPreLift } = useKeyboardHeight();
+    // Always active on mobile: iOS can apply window.scrollY even with overflow:hidden
+    // on body (scroll-prediction bug). The lock snaps scrollY back to 0 immediately
+    // on any scroll event, preventing the "header scrolls up then snaps" jank.
+    // useKeyboardHeight now manages --sable-visible-height synchronously in its own
+    // event handler, so no useEffect here is needed for CSS variable management.
+    useScrollLock(mobileOrTablet());
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -457,6 +518,45 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
       }
     }, [replyDraft?.eventId, editor]);
+
+    const prevEditEventId = useRef(editDraft?.eventId);
+    useEffect(() => {
+      if (editDraft?.eventId === prevEditEventId.current) return;
+      prevEditEventId.current = editDraft?.eventId;
+
+      if (!editDraft) {
+        // Edit was cancelled — editor was already reset by the cancel handler
+        return;
+      }
+
+      const editEvent = room.findEventById(editDraft.eventId);
+      if (!editEvent) return;
+
+      const evtId = editEvent.getId();
+      const evtTimeline = evtId ? room.getTimelineForEvent(evtId) : undefined;
+      const editedVersion =
+        evtTimeline && evtId
+          ? getEditedEvent(evtId, editEvent, evtTimeline.getTimelineSet())
+          : undefined;
+      const content = editedVersion?.getContent()['m.new_content'] ?? editEvent.getContent();
+      const body = typeof content.body === 'string' ? content.body : '';
+      const formattedBody =
+        typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
+
+      const initialValue = plainToEditorInput(formattedBody ? htmlToMarkdown(formattedBody) : body);
+
+      resetEditor(editor);
+      resetEditorHistory(editor);
+      Transforms.insertFragment(editor, initialValue);
+      requestAnimationFrame(() => {
+        try {
+          ReactEditor.focus(editor);
+          moveCursor(editor);
+        } catch {
+          // ignore focus errors
+        }
+      });
+    }, [editDraft, editor, room]);
 
     const handleFileMetadata = useCallback(
       (fileItem: TUploadItem, metadata: TUploadMetadata) => {
@@ -628,8 +728,21 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
 
         await Promise.all(
-          contents.map((content) =>
-            mx
+          contents.map((content) => {
+            const sendStartTime = Date.now();
+            const span = Sentry.startInactiveSpan({
+              name: 'message.send',
+              op: 'message',
+              attributes: {
+                'message.room_id': roomId,
+                'message.type': content.msgtype ?? 'm.text',
+                'message.is_encrypted': isEncrypted,
+                'message.body_length': content.body?.length ?? 0,
+                'message.is_thread': !!threadRootId,
+              },
+            });
+
+            return mx
               .sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
               .then((res: { event_id: string }) => {
                 debugLog.info('message', 'Uploaded file message sent', {
@@ -637,6 +750,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   eventId: res.event_id,
                   msgtype: content.msgtype,
                 });
+                span.setAttribute('message.event_id', res.event_id);
+                span.setAttribute('message.send_duration_ms', Date.now() - sendStartTime);
+                span.end();
                 return res;
               })
               .catch((error: unknown) => {
@@ -645,9 +761,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   error: error instanceof Error ? error.message : String(error),
                 });
                 log.error('failed to send uploaded message', { roomId }, error);
+                span.setAttribute(
+                  'message.error',
+                  error instanceof Error ? error.message : String(error)
+                );
+                span.end();
                 throw error;
-              })
-          )
+              });
+          })
         );
       }
     };
@@ -814,6 +935,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else if (commandName === Command.UnFlip) {
         plainText = `${UNFLIP} ${plainText}`;
         customHtml = `${UNFLIP} ${customHtml}`;
+      } else if (commandName === Command.CreatePoll) {
+        setPollCreatorOpen(true);
+        resetEditor(editor);
+        resetEditorHistory(editor);
+        sendTypingStatus(false);
+        return;
       } else if (commandName) {
         const commandContent = commands[commandName as Command];
         if (commandContent) {
@@ -827,6 +954,81 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
 
       if (plainText === '') return;
+
+      // Discord-style edit: when an editDraft is active, send an m.replace event
+      // instead of a new message and clear the edit state.
+      if (editDraft) {
+        const editEvent = room.findEventById(editDraft.eventId);
+        if (editEvent) {
+          const oldContent = editEvent.getContent();
+          const msgtype = (oldContent.msgtype as string) ?? MsgType.Text;
+
+          const newContent: IContent = { msgtype, body: plainText };
+          if (!customHtmlEqualsPlainText(customHtml, plainText)) {
+            newContent.format = 'org.matrix.custom.html';
+            newContent.formatted_body = customHtml;
+          }
+          // Preserve media and extension fields from the original event so
+          // that image/file/sticker captions retain their attachments, and
+          // vendor extensions (spoiler, link previews, per-message profile)
+          // are not silently dropped.
+          for (const key of [
+            'filename',
+            'info',
+            'file',
+            'url',
+            'page.codeberg.everypizza.msc4193.spoiler',
+            'com.beeper.linkpreviews',
+            'com.beeper.per_message_profile',
+          ] as const) {
+            if (key in oldContent) {
+              newContent[key as string] = oldContent[key as string];
+            }
+          }
+          const mentionData = getMentions(mx, roomId, editor);
+          newContent['m.mentions'] = getMentionContent(
+            Array.from(mentionData.users),
+            mentionData.room
+          );
+
+          const sendContent: IContent = {
+            ...oldContent,
+            'm.relates_to': {
+              event_id: editDraft.eventId,
+              rel_type: RelationType.Replace,
+            },
+            body: `* ${plainText}`,
+            'm.new_content': newContent,
+            'm.mentions': newContent['m.mentions'],
+          };
+          if (newContent.format) {
+            sendContent.format = newContent.format;
+            sendContent.formatted_body = `* ${newContent.formatted_body as string}`;
+          }
+
+          resetEditor(editor);
+          resetEditorHistory(editor);
+          setInputKey((prev) => prev + 1);
+          setEditDraft(undefined);
+          sendTypingStatus(false);
+
+          mx.sendMessage(roomId, sendContent as RoomMessageEventContent).catch((error: unknown) => {
+            log.error('failed to send edit', { roomId }, error);
+          });
+        } else {
+          // Original event evicted from timeline — cannot send edit.
+          // Clear the edit state so the user is not stuck.
+          log.error('failed to send edit: original event not found', {
+            roomId,
+            eventId: editDraft.eventId,
+          });
+          setEditDraft(undefined);
+          resetEditor(editor);
+          resetEditorHistory(editor);
+          sendTypingStatus(false);
+        }
+        return;
+      }
 
       // PluralKit-style proxy wrappers (per-message profile proxies) must be stripped
       // *before* building `content`, otherwise we end up sending the wrapper verbatim.
@@ -1081,6 +1283,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       isEncrypted,
       setEditingScheduledDelayId,
       setScheduledTime,
+      editDraft,
+      setEditDraft,
       setServerMaxDelayMs,
     ]);
 
@@ -1147,6 +1351,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             setAutocompleteQuery(undefined);
             return;
           }
+          if (editDraft) {
+            setEditDraft(undefined);
+            resetEditor(editor);
+            resetEditorHistory(editor);
+            return;
+          }
           setReplyDraft(undefined);
         }
       },
@@ -1160,6 +1370,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         showAudioRecorder,
         editor,
         onEditLastMessage,
+        editDraft,
+        setEditDraft,
       ]
     );
 
@@ -1273,7 +1485,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     return (
-      <div ref={ref}>
+      // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+      <div ref={ref} onMouseDown={mobileOrTablet() ? triggerPreLift : undefined}>
         {selectedFiles.length > 0 && (
           <UploadBoard
             header={
@@ -1426,6 +1639,44 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       <Text size="T300">
                         Scheduled for {timeDayMonthYear(scheduledTime.getTime())} at{' '}
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
+                      </Text>
+                    </Box>
+                  </Box>
+                </div>
+              )}
+              {editDraft && (
+                <div>
+                  <Box
+                    alignItems="Center"
+                    gap="300"
+                    style={{
+                      padding: `${config.space.S200} ${config.space.S300} 0`,
+                    }}
+                  >
+                    <IconButton
+                      onClick={() => {
+                        setEditDraft(undefined);
+                        resetEditor(editor);
+                        resetEditorHistory(editor);
+                      }}
+                      variant="SurfaceVariant"
+                      size="300"
+                      radii="300"
+                      aria-label="Cancel edit"
+                      title="Cancel edit"
+                    >
+                      <Icon src={Icons.Cross} size="50" />
+                    </IconButton>
+                    <Box
+                      direction="Row"
+                      gap="200"
+                      alignItems="Center"
+                      grow="Yes"
+                      style={{ minWidth: 0 }}
+                    >
+                      <Icon size="100" src={Icons.Pencil} />
+                      <Text size="T300" truncate>
+                        Editing message
                       </Text>
                     </Box>
                   </Box>
@@ -1585,77 +1836,72 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
               <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
 
-              <UseStateProvider initial={undefined}>
-                {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
-                  <PopOut
-                    offset={16}
-                    alignOffset={-44}
-                    position="Top"
-                    align="End"
-                    anchor={
-                      emojiBoardTab === undefined
-                        ? undefined
-                        : (emojiBtnRef.current?.getBoundingClientRect() ?? undefined)
-                    }
-                    content={
-                      <EmojiBoard
-                        tab={emojiBoardTab}
-                        onTabChange={setEmojiBoardTab}
-                        imagePackRooms={imagePackRooms}
-                        returnFocusOnDeactivate={false}
-                        onEmojiSelect={handleEmoticonSelect}
-                        onCustomEmojiSelect={handleEmoticonSelect}
-                        onStickerSelect={handleStickerSelect}
-                        requestClose={() => {
-                          setEmojiBoardTab((t) => {
-                            if (t) {
-                              if (!mobileOrTablet()) ReactEditor.focus(editor);
-                              return undefined;
-                            }
-                            return t;
-                          });
-                        }}
-                      />
-                    }
+              {/* Emoji/sticker board: kept mounted after first open to avoid re-initialising
+                  the virtualizer on every open. FocusTrap is deactivated when hidden. */}
+              {emojiBoardAnchorRect &&
+                createPortal(
+                  <div
+                    style={{
+                      position: 'fixed',
+                      zIndex: 999,
+                      // Position above the emoji button (mirrors PopOut position="Top" offset=16).
+                      bottom: window.innerHeight - emojiBoardAnchorRect.top + 16,
+                      // Right-align with the emoji button, but clamp so the picker
+                      // never extends past the left edge of the screen.
+                      // The EmojiBoard is min(432px, 100vw-32px) wide; ensure
+                      // viewportWidth − right − boardWidth ≥ 0.
+                      right: (() => {
+                        const rawRight = window.innerWidth - emojiBoardAnchorRect.right;
+                        const boardWidth = Math.min(432, window.innerWidth - 32);
+                        return Math.max(0, Math.min(rawRight, window.innerWidth - boardWidth));
+                      })(),
+                      display: emojiBoardTab !== undefined ? undefined : 'none',
+                    }}
                   >
-                    {!hideStickerBtn && (
-                      <IconButton
-                        aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
-                        onClick={() => setEmojiBoardTab(EmojiBoardTab.Sticker)}
-                        variant="SurfaceVariant"
-                        size="300"
-                        radii="300"
-                        title="open sticker picker"
-                        aria-label="Open sticker picker"
-                      >
-                        <Icon
-                          src={Icons.Sticker}
-                          filled={emojiBoardTab === EmojiBoardTab.Sticker}
-                        />
-                      </IconButton>
-                    )}
-                    <IconButton
-                      ref={emojiBtnRef}
-                      aria-pressed={
-                        hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
-                      }
-                      onClick={() => setEmojiBoardTab(EmojiBoardTab.Emoji)}
-                      variant="SurfaceVariant"
-                      size="300"
-                      radii="300"
-                      title="open emoji picker"
-                      aria-label="Open emoji picker"
-                    >
-                      <Icon
-                        src={Icons.Smile}
-                        filled={
-                          hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
-                        }
-                      />
-                    </IconButton>
-                  </PopOut>
+                    <EmojiBoard
+                      active={emojiBoardTab !== undefined}
+                      tab={emojiBoardTab ?? EmojiBoardTab.Emoji}
+                      onTabChange={setEmojiBoardTab}
+                      imagePackRooms={imagePackRooms}
+                      returnFocusOnDeactivate={false}
+                      onEmojiSelect={handleEmoticonSelect}
+                      onCustomEmojiSelect={handleEmoticonSelect}
+                      onStickerSelect={handleStickerSelect}
+                      requestClose={closeEmojiBoard}
+                    />
+                  </div>,
+                  document.body
                 )}
-              </UseStateProvider>
+              {!hideStickerBtn && (
+                <IconButton
+                  aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
+                  onClick={() => openEmojiBoard(EmojiBoardTab.Sticker)}
+                  variant="SurfaceVariant"
+                  size="300"
+                  radii="300"
+                  title="open sticker picker"
+                  aria-label="Open sticker picker"
+                >
+                  <Icon src={Icons.Sticker} filled={emojiBoardTab === EmojiBoardTab.Sticker} />
+                </IconButton>
+              )}
+              <IconButton
+                ref={emojiBtnRef}
+                aria-pressed={
+                  hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
+                }
+                onClick={() => openEmojiBoard(EmojiBoardTab.Emoji)}
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+                title="open emoji picker"
+                aria-label="Open emoji picker"
+              >
+                <Icon
+                  src={Icons.Smile}
+                  filled={hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji}
+                />
+              </IconButton>
               <PopOut
                 anchor={scheduleMenuAnchor}
                 position="Top"
@@ -1771,6 +2017,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             }}
           />
         )}
+        {pollCreatorOpen && <PollCreator room={room} onClose={() => setPollCreatorOpen(false)} />}
       </div>
     );
   }

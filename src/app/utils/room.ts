@@ -96,25 +96,16 @@ export const isUnsupportedRoom = (room: Room | null): boolean => {
 };
 
 /**
- * Detects if a room is a direct message room using multiple signals for robustness:
- * 1. Primary: checks if room is in mDirects set (from m.direct account data)
- * 2. Fallback: checks if room has exactly 2 joined members (classic DM heuristic)
+ * Check if a room is a Direct Message based on m.direct account data.
  *
- * The fallback handles cases where m.direct account data is incomplete or outdated.
+ * NOTE: We do NOT use a member count heuristic here because it creates false
+ * positives — any regular room with 2 members would be incorrectly treated as a DM,
+ * triggering force-highlight behavior and showing green badges for all unreads.
+ * Only m.direct account data is reliable.
  */
 export const isDMRoom = (room: Room, mDirects?: Set<string>): boolean => {
-  // Primary signal: check m.direct account data
-  if (mDirects?.has(room.roomId)) {
-    return true;
-  }
-
-  // Fallback: use member count heuristic for untagged DMs
-  // Only applies to non-space rooms with exactly 2 members (you + them)
-  if (!room.isSpaceRoom() && room.getJoinedMemberCount() === 2) {
-    return true;
-  }
-
-  return false;
+  // Only trust m.direct account data
+  return mDirects?.has(room.roomId) ?? false;
 };
 
 export function isValidChild(mEvent: MatrixEvent): boolean {
@@ -123,6 +114,11 @@ export function isValidChild(mEvent: MatrixEvent): boolean {
     Array.isArray(mEvent.getContent<{ via: string[] }>().via)
   );
 }
+
+export const getShallowParents = (roomToParents: RoomToParents, roomId: string): string[] => {
+  const parents = roomToParents.get(roomId);
+  return parents ? Array.from(parents) : [];
+};
 
 export const getAllParents = (roomToParents: RoomToParents, roomId: string): Set<string> => {
   const allParents = new Set<string>();
@@ -209,7 +205,8 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
     return NotificationType.Default;
   }
 
-  if ((roomPushRule.actions[0] as string) === 'notify') return NotificationType.AllMessages;
+  if ((roomPushRule.actions as string[]).some((a) => a === 'notify'))
+    return NotificationType.AllMessages;
   return NotificationType.MentionsAndKeywords;
 };
 
@@ -312,6 +309,23 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     }
   }
 
+  // If the user's own message is the most recent event in the live timeline they
+  // implicitly read everything before it when they composed that reply. Return zero
+  // to suppress phantom unread badges that arise from stale SDK counters in sliding
+  // sync when no explicit read receipt is present.
+  if (userId && !room.getEventReadUpTo(userId)) {
+    const liveEvents = room.getLiveTimeline().getEvents();
+    const latestEvent = liveEvents[liveEvents.length - 1];
+    if (
+      latestEvent &&
+      !latestEvent.isSending() &&
+      latestEvent.getSender() === userId &&
+      isNotificationEvent(latestEvent)
+    ) {
+      return { roomId: room.roomId, highlight: 0, total: 0 };
+    }
+  }
+
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);
   const highlight = room.getUnreadNotificationCount(NotificationCountType.Highlight);
 
@@ -363,9 +377,14 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       if (!event) break;
       if (event.getId() === readUpToId) break;
       if (isNotificationEvent(event, room, userId) && event.getSender() !== userId) {
-        fallbackTotal += 1;
         const pushActions = pushProcessor.actionsForEvent(event);
-        if (pushActions?.tweaks?.highlight) fallbackHighlight += 1;
+        // Only count events that would actually generate a push notification.
+        // This excludes reactions (which use dont_notify by default push rules)
+        // and prevents the fallback from creating phantom unreads the SDK ignores.
+        if (pushActions?.notify) {
+          fallbackTotal += 1;
+          if (pushActions.tweaks?.highlight) fallbackHighlight += 1;
+        }
       }
     }
     if (fallbackTotal > 0) {
@@ -406,7 +425,10 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
   // ensure we show a notification badge (treat as highlight for badge color purposes).
   // This handles cases where push rules don't properly match (e.g., classic sync with
   // member_count condition failures, or sliding sync with limited required_state).
-  if (shouldForceDMHighlight && total > 0 && highlight === 0) {
+  // Guard on room-level (non-thread) total: thread-only unreads in DMs should not
+  // be force-highlighted — the thread's own push rules handle highlight there.
+  const roomLevelTotal = room.getRoomUnreadNotificationCount(NotificationCountType.Total);
+  if (shouldForceDMHighlight && roomLevelTotal > 0 && highlight === 0) {
     return {
       roomId: room.roomId,
       highlight: total, // Treat all unread messages as highlights for DMs
@@ -422,19 +444,43 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
 };
 
 export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): UnreadInfo[] => {
-  const unreadInfos = mx.getRooms().reduce<UnreadInfo[]>((unread, room) => {
+  const allRooms = mx.getRooms();
+  // oxlint-disable-next-line no-console -- Temporary debug logging for badge investigation
+  console.log('[getUnreadInfos] Starting scan:', {
+    totalRooms: allRooms.length,
+    mDirectsSize: options?.mDirects?.size ?? 0,
+  });
+
+  const unreadInfos = allRooms.reduce<UnreadInfo[]>((unread, room) => {
     if (room.isSpaceRoom()) return unread;
     if (room.getMyMembership() !== 'join') return unread;
-    if (getNotificationType(mx, room.roomId) === NotificationType.Mute) return unread;
+
+    const notifType = getNotificationType(mx, room.roomId);
+    if (notifType === NotificationType.Mute) return unread;
 
     // Always call getUnreadInfo - it has fallback logic for sliding sync rooms without receipts
     const unreadInfo = getUnreadInfo(room, options);
+
+    if (room.name.includes('Draupnir') || room.name.includes('cloudhub-social-bans')) {
+      // oxlint-disable-next-line no-console -- Temporary debug logging for badge investigation
+      console.log('[BADGE-DEBUG:getUnreadInfos] Draupnir room:', {
+        unreadInfo,
+        willInclude: unreadInfo.total > 0 || unreadInfo.highlight > 0,
+      });
+    }
+
     if (unreadInfo.total > 0 || unreadInfo.highlight > 0) {
       unread.push(unreadInfo);
     }
 
     return unread;
   }, []);
+
+  // oxlint-disable-next-line no-console -- Temporary debug logging for badge investigation
+  console.log('[getUnreadInfos] Complete:', {
+    totalUnreads: unreadInfos.length,
+    unreadInfos,
+  });
 
   return unreadInfos;
 };
@@ -479,29 +525,50 @@ export const getRoomIconSrc = (
   return icons.Hash;
 };
 
+export type MxcConverter = (
+  mx: MatrixClient,
+  mxcUrl: string,
+  useAuthentication: boolean,
+  width?: number,
+  height?: number,
+  resizeMethod?: string,
+  allowDirectLinks?: boolean
+) => string | null;
+
 export const getRoomAvatarUrl = (
   mx: MatrixClient,
   room: Room,
   size: 32 | 96 = 32,
-  useAuthentication = false
+  useAuthentication = false,
+  converter?: MxcConverter
 ): string | undefined => {
   const mxcUrl = room.getMxcAvatarUrl();
-  return mxcUrl
-    ? (mx.mxcUrlToHttp(mxcUrl, size, size, 'crop', undefined, false, useAuthentication) ??
-        undefined)
-    : undefined;
+  if (!mxcUrl) return undefined;
+
+  if (converter) {
+    return converter(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined;
+  }
+
+  return (
+    mx.mxcUrlToHttp(mxcUrl, size, size, 'crop', undefined, false, useAuthentication) ?? undefined
+  );
 };
 
 export const getDirectRoomAvatarUrl = (
   mx: MatrixClient,
   room: Room,
   size: 32 | 96 = 32,
-  useAuthentication = false
+  useAuthentication = false,
+  converter?: MxcConverter
 ): string | undefined => {
   const mxcUrl = room.getAvatarFallbackMember()?.getMxcAvatarUrl();
 
   if (!mxcUrl) {
-    return getRoomAvatarUrl(mx, room, size, useAuthentication);
+    return getRoomAvatarUrl(mx, room, size, useAuthentication, converter);
+  }
+
+  if (converter) {
+    return converter(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined;
   }
 
   return (

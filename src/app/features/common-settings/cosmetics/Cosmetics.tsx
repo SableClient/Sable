@@ -35,9 +35,10 @@ import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import type { UserProfile } from '$hooks/useUserProfile';
 import { useUserProfile } from '$hooks/useUserProfile';
-import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
+import { getMxIdLocalPart } from '$utils/matrix';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { Room, RoomMember, StateEvents } from '$types/matrix-sdk';
 import { Command, useCommands } from '$hooks/useCommands';
@@ -68,6 +69,7 @@ type CosmeticsSettingProps = {
 export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSettingProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const capabilities = useCapabilities();
   const [alertRemove, setAlertRemove] = useState(false);
   const disableSetAvatar = capabilities['m.set_avatar_url']?.enabled === false;
@@ -83,7 +85,7 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
     memberStateContent?.avatar_url !== undefined &&
     memberStateContent.avatar_url !== globalAvatarMxc;
   const avatarUrl =
-    avatarMxc && (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined);
+    avatarMxc && (convertMxc(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined);
 
   const [imageFile, setImageFile] = useState<File>();
   const imageFileURL = useObjectURL(imageFile);

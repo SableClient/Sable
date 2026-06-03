@@ -6,8 +6,8 @@ import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { useRoomAvatar, useRoomJoinRule, useRoomName } from '$hooks/useRoomMeta';
 import { mDirectAtom } from '$state/mDirectList';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
@@ -83,6 +83,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
   const room = useRoom();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const mDirects = useAtomValue(mDirectAtom);
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
 
@@ -91,7 +92,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
   const joinRuleContent = useRoomJoinRule(room);
 
   const avatarUrl = roomAvatar
-    ? (mxcUrlToHttp(mx, roomAvatar, useAuthentication, 96, 96, 'crop') ?? undefined)
+    ? (convertMxc(mx, roomAvatar, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
 
   const screenSize = useScreenSizeContext();

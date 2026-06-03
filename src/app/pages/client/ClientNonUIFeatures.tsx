@@ -3,13 +3,13 @@ import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SearchIndexProvider } from '$hooks/useSearchIndex';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
 import {
   MatrixEvent,
   MatrixEventEvent,
   PushProcessor,
   RoomEvent,
-  SetPresence,
   SyncState,
   EventType,
 } from '$types/matrix-sdk';
@@ -51,31 +51,67 @@ import {
 } from '$utils/notificationStyle';
 import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
+import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { getSlidingSyncManager } from '$client/initMatrix';
+import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
-import { ThemeMigrationBanner } from '$components/theme/ThemeMigrationBanner';
-import { TelemetryConsentBanner } from '$components/telemetry-consent';
 import { useCallSignaling } from '$hooks/useCallSignaling';
+
+// Lazy-load banners to reduce initial bundle size - these are rarely shown on first load
+const ThemeMigrationBanner = lazy(() => {
+  const start = performance.now();
+  return import('$components/theme/ThemeMigrationBanner').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'theme_migration_banner' },
+    });
+    return { default: m.ThemeMigrationBanner };
+  });
+});
+
+const TelemetryConsentBanner = lazy(() => {
+  const start = performance.now();
+  return import('$components/telemetry-consent').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'telemetry_consent_banner' },
+    });
+    return { default: m.TelemetryConsentBanner };
+  });
+});
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
-import { getInboxInvitesPath } from '../pathUtils';
+import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
+import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
+import { useReminderSync } from '$features/bookmarks/useReminderSync';
+import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
+import { useSyncState } from '$hooks/useSyncState';
 
 const pushRelayLog = createDebugLogger('push-relay');
 
-function clearMediaSessionQuickly(): void {
-  if (!('mediaSession' in navigator)) return;
-  // iOS registers the lock screen media player as a side-effect of
-  // HTMLAudioElement.play(). We delay slightly so iOS has finished updating
-  // the media session before we clear it — clearing too early is a no-op.
-  // We only clear if no real in-app media (video/audio in a room) has since
-  // registered meaningful metadata; if it has, leave it alone.
-  setTimeout(() => {
-    if (navigator.mediaSession.metadata !== null) return;
-    navigator.mediaSession.playbackState = 'none';
-  }, 500);
+function postToServiceWorker(data: unknown): void {
+  if (!('serviceWorker' in navigator)) return;
+
+  const posted = new Set<ServiceWorker>();
+  const postToWorker = (worker: ServiceWorker | null | undefined) => {
+    if (!worker || posted.has(worker)) return;
+    posted.add(worker);
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    worker.postMessage(data);
+  };
+
+  postToWorker(navigator.serviceWorker.controller);
+  navigator.serviceWorker.ready
+    .then((registration) => {
+      postToWorker(registration.active);
+      postToWorker(registration.waiting);
+      postToWorker(registration.installing);
+    })
+    .catch(() => undefined);
 }
 
 function SystemEmojiFeature() {
@@ -257,6 +293,8 @@ function MessageNotifications() {
     settingsAtom,
     'showMessageContentInEncryptedNotifications'
   );
+  const [focusMode] = useSetting(settingsAtom, 'focusMode');
+
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
@@ -283,6 +321,8 @@ function MessageNotifications() {
     const skipFocusCheckEvents = new Set<string>();
     // Tracks when each event first arrived so we can measure notification delivery latency
     const notifyTimerMap = new Map<string, number>();
+    // Track pending decryption listeners to clean up on unmount
+    const pendingDecryptListeners = new Map<string, () => void>();
 
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = (
       mEvent,
@@ -331,12 +371,19 @@ function MessageNotifications() {
         const handleDecrypted = () => {
           // After decryption, run the notification logic with the decrypted event
           handleTimelineEvent(mEvent, room, undefined, true, data);
-          // Clean up the skip-focus marker
+          // Clean up the skip-focus marker and listener tracker
           if (eventId) {
             skipFocusCheckEvents.delete(eventId);
+            pendingDecryptListeners.delete(eventId);
           }
         };
         mEvent.once(MatrixEventEvent.Decrypted, handleDecrypted);
+        // Track listener for cleanup on unmount
+        if (eventId) {
+          pendingDecryptListeners.set(eventId, () =>
+            mEvent.off(MatrixEventEvent.Decrypted, handleDecrypted)
+          );
+        }
         return;
       }
 
@@ -397,6 +444,12 @@ function MessageNotifications() {
       // the OS notification and badge are consistent with the DM context.
       const isLoud = loudByRule || isDM;
 
+      // Apply focus mode filter: check if this notification should be shown
+      // based on the current focus mode setting.
+      if (!shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule)) {
+        return;
+      }
+
       // Record as notified to prevent duplicate banners (e.g. re-emitted decrypted events).
       notifiedEventsRef.current.add(eventId);
       if (notifiedEventsRef.current.size > 200) {
@@ -452,13 +505,23 @@ function MessageNotifications() {
         }
       }
 
-      // Everything below requires the page to be visible (in-app UI + audio).
+      // Focus mode filter: apply before sound/banners.
+      // This allows focus mode to suppress both audio and visual notifications.
+      if (!shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule)) return;
+
+      // In-app audio: play when notification sounds are enabled AND this notification is loud.
+      // Play sound before the visibility check so audio works even when tab is hidden/backgrounded.
+      if (notificationSound && isLoud) {
+        playSound();
+      }
+
+      // Everything below requires the page to be visible (in-app banners only).
       if (document.visibilityState !== 'visible') return;
 
       // Page is visible — show the themed in-app notification banner.
-      // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
-      // For DMs, show banner for all messages.
-      if (showNotifications && (isHighlightByRule || isDM)) {
+      // Show banner for: highlighted messages (mentions/keywords), DM messages, or loud notifications.
+      // Loud notifications include any room set to "All Messages" with sound enabled.
+      if (showNotifications && (isHighlightByRule || isDM || isLoud)) {
         const avatarMxc =
           room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
         const roomAvatar = avatarMxc
@@ -529,15 +592,13 @@ function MessageNotifications() {
           },
         });
       }
-
-      // In-app audio: play when notification sounds are enabled AND this notification is loud.
-      if (notificationSound && isLoud) {
-        playSound();
-      }
     };
     mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
       mx.removeListener(RoomEvent.Timeline, handleTimelineEvent);
+      // Clean up any pending decryption listeners
+      pendingDecryptListeners.forEach((cleanup) => cleanup());
+      pendingDecryptListeners.clear();
     };
   }, [
     mx,
@@ -548,6 +609,7 @@ function MessageNotifications() {
     showMessageContent,
     showEncryptedMessageContent,
     usePushNotifications,
+    focusMode,
     playSound,
     setInAppBanner,
     setPending,
@@ -583,7 +645,7 @@ function PrivacyBlurFeature() {
 function HealthMonitor() {
   useEffect(() => {
     const id = window.setInterval(() => {
-      const { cacheSize, inflightCount } = getBlobCacheStats();
+      const { cacheSize, inflightCount, queueDepth } = getBlobCacheStats();
       Sentry.metrics.gauge('sable.media.blob_cache_size', cacheSize);
       if (inflightCount > 0) {
         Sentry.metrics.gauge('sable.media.inflight_requests', inflightCount);
@@ -596,9 +658,42 @@ function HealthMonitor() {
           });
         }
       }
+      if (queueDepth > 0) {
+        Sentry.metrics.gauge('sable.media.fetch_queue_depth', queueDepth);
+      }
     }, 60_000);
     return () => window.clearInterval(id);
   }, []);
+  return null;
+}
+
+/**
+ * Handles Sentry metrics posted from the Service Worker.
+ * The SW cannot directly import Sentry, so it posts messages to the main thread.
+ */
+function ServiceWorkerMetricsHandler() {
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type !== 'sentryMetric') return;
+
+      const { metricName, value, attributes } = event.data as {
+        metricName: string;
+        value: number;
+        attributes?: Record<string, string | number | boolean>;
+      };
+
+      // Record the metric via Sentry
+      Sentry.metrics.distribution(metricName, value, {
+        attributes: attributes ?? {},
+      });
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, []);
+
   return null;
 }
 
@@ -618,17 +713,23 @@ export function HandleNotificationClick() {
       const { data } = ev;
       if (!data || data.type !== 'notificationClick') return;
 
-      const { userId, roomId, eventId, isInvite } = data as {
+      const { userId, roomId, eventId, isInvite, isReminder } = data as {
         userId?: string;
         roomId?: string;
         eventId?: string;
         isInvite?: boolean;
+        isReminder?: boolean;
       };
 
       if (userId) setActiveSessionId(userId);
 
       if (isInvite) {
         navigate(getInboxInvitesPath());
+        return;
+      }
+
+      if (isReminder) {
+        navigate(getInboxBookmarksPath());
         return;
       }
 
@@ -650,6 +751,7 @@ function SyncNotificationSettingsWithServiceWorker() {
     'showMessageContentInEncryptedNotifications'
   );
   const [clearNotificationsOnRead] = useSetting(settingsAtom, 'clearNotificationsOnRead');
+  const [focusMode] = useSetting(settingsAtom, 'focusMode');
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;
@@ -657,18 +759,27 @@ function SyncNotificationSettingsWithServiceWorker() {
     const postVisibility = () => {
       const visible = document.visibilityState === 'visible';
       const msg = { type: 'setAppVisible', visible };
-      navigator.serviceWorker.controller?.postMessage(msg);
-      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+      postToServiceWorker(msg);
     };
 
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+
+    // iOS kills the SW after ~30 s of inactivity regardless of page
+    // visibility. Send a cheap keep-alive ping every 20 s so the SW
+    // stays alive whenever the page is open (foregrounded or not).
+    const keepAliveId = window.setInterval(() => {
+      navigator.serviceWorker.controller?.postMessage({ type: 'ping' });
+    }, 20_000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', postVisibility);
+      window.clearInterval(keepAliveId);
+    };
   }, []);
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).
     // The in-app sound setting only controls the in-page <audio> playback above.
@@ -677,13 +788,39 @@ function SyncNotificationSettingsWithServiceWorker() {
       showMessageContent,
       showEncryptedMessageContent,
       clearNotificationsOnRead,
+      focusMode,
     };
 
-    navigator.serviceWorker.controller?.postMessage(payload);
-    navigator.serviceWorker.ready.then((registration) => {
-      registration.active?.postMessage(payload);
-    });
-  }, [showMessageContent, showEncryptedMessageContent, clearNotificationsOnRead]);
+    postToServiceWorker(payload);
+  }, [showMessageContent, showEncryptedMessageContent, clearNotificationsOnRead, focusMode]);
+
+  return null;
+}
+
+/**
+ * Tells the service worker whether the Matrix sync connection is healthy.
+ * When sync is in Reconnecting or Error state the in-app notification path is
+ * broken, so the SW must not suppress OS push notifications even while the app
+ * is visible.
+ */
+function SyncStateWithServiceWorker() {
+  const mx = useMatrixClient();
+
+  const postSyncHealth = useCallback((healthy: boolean) => {
+    const msg = { type: 'setSyncState', healthy };
+    postToServiceWorker(msg);
+  }, []);
+
+  useSyncState(
+    mx,
+    useCallback(
+      (current) => {
+        const healthy = current !== SyncState.Reconnecting && current !== SyncState.Error;
+        postSyncHealth(healthy);
+      },
+      [postSyncHealth]
+    )
+  );
 
   return null;
 }
@@ -808,7 +945,7 @@ function HandleDecryptPushEvent() {
           appVisible: visible,
         });
 
-        navigator.serviceWorker.controller?.postMessage({
+        postToServiceWorker({
           type: 'pushDecryptResult',
           eventId,
           success: true,
@@ -819,13 +956,34 @@ function HandleDecryptPushEvent() {
           visibilityState: document.visibilityState,
         });
       } catch (err) {
-        console.warn('[app] HandleDecryptPushEvent: failed to decrypt push event', err);
+        console.warn('[ClientFeatures] HandleDecryptPushEvent: failed to decrypt push event', err);
         pushRelayLog.error(
           'notification',
           'Push relay decryption failed',
           err instanceof Error ? err : new Error(String(err))
         );
-        navigator.serviceWorker.controller?.postMessage({
+
+        // Check if this is a missing keys error
+        const isDecryptionError =
+          err instanceof Error &&
+          (err.message.includes("The sender's device has not sent us the keys") ||
+            err.message.includes('Unknown inbound session'));
+
+        if (isDecryptionError) {
+          Sentry.addBreadcrumb({
+            category: 'crypto',
+            message: 'Push decryption failed: missing room keys',
+            data: { eventId, roomId, error: err.message },
+            level: 'warning',
+          });
+          Sentry.metrics.count('sable.push.decrypt_missing_keys', 1, {
+            attributes: { app_visible: document.visibilityState === 'visible' },
+          });
+          // SDK will automatically request keys on next decryptEventIfNeeded call
+          // when the event is viewed in the timeline
+        }
+
+        postToServiceWorker({
           type: 'pushDecryptResult',
           eventId,
           success: false,
@@ -844,14 +1002,32 @@ function HandleDecryptPushEvent() {
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [autoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
+  const [presenceIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
+
+  // Auto-idle detection: monitors user activity and sets presenceAutoIdledAtom
+  // when inactivity timeout is reached. The sync feature will pick up the
+  // atom change and broadcast it to other devices + the server.
+  const timeoutMs = autoIdlePresence ? presenceIdleTimeoutMins * 60 * 1000 : 0;
+  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
+
+  return null;
+}
+
+function PresenceSyncFeature() {
+  usePresenceSyncEffect();
+  return null;
+}
+
+function ProgressivePrefetchFeature() {
+  const mx = useMatrixClient();
+  const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
 
   useEffect(() => {
-    // Classic sync: set_presence query param on every /sync poll.
-    // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
-    getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-  }, [mx, sendPresence]);
+    const manager = getSlidingSyncManager(mx);
+    manager?.setProgressivePrefetch(progressivePrefetch);
+  }, [mx, progressivePrefetch]);
 
   return null;
 }
@@ -861,11 +1037,76 @@ function SettingsSyncFeature() {
   return null;
 }
 
+function BookmarksFeature() {
+  useInitBookmarks();
+  return null;
+}
+
+function ReminderSync() {
+  useReminderSync();
+  return null;
+}
+
+/**
+ * Listens for `remindersInApp` messages from the service worker and shows an
+ * in-app notification banner. The SW sends this instead of an OS notification
+ * when the app is foregrounded (visible tab), avoiding duplicate alerts.
+ */
+function ReminderBanners() {
+  const navigate = useNavigate();
+  const setInAppBanner = useSetAtom(inAppBannerAtom);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type !== 'remindersInApp') return;
+      const reminders: Array<{
+        bookmarkId: string;
+        note?: string;
+        roomId: string;
+        eventId: string;
+      }> = event.data.reminders ?? [];
+      const first = reminders[0];
+      if (!first) return;
+
+      setInAppBanner({
+        id: `reminder-${first.bookmarkId}`,
+        title: 'Bookmark Reminder',
+        body: first.note ?? 'You have a bookmark reminder.',
+        onClick: () => {
+          window.focus();
+          navigate(getInboxBookmarksPath());
+        },
+      });
+    };
+
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, [navigate, setInAppBanner]);
+
+  return null;
+}
+
+function RemindersFeature() {
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
+  const [enableBookmarkReminders] = useSetting(settingsAtom, 'enableBookmarkReminders');
+  if (!enableMessageBookmarks || !enableBookmarkReminders) return null;
+  return (
+    <>
+      <ReminderSync />
+      <ReminderBanners />
+    </>
+  );
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
-    <>
+    <SearchIndexProvider>
       <SettingsSyncFeature />
+      <BookmarksFeature />
+      <RemindersFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />
@@ -874,16 +1115,24 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
+      <SyncStateWithServiceWorker />
       <HandleDecryptPushEvent />
+      <ServiceWorkerMetricsHandler />
       <NotificationBanner />
-      <TelemetryConsentBanner />
-      <ThemeMigrationBanner />
+      <Suspense fallback={null}>
+        <TelemetryConsentBanner />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ThemeMigrationBanner />
+      </Suspense>
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
+      <PresenceSyncFeature />
+      <ProgressivePrefetchFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />
       {children}
-    </>
+    </SearchIndexProvider>
   );
 }

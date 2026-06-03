@@ -50,6 +50,15 @@ const resolveBuildHash = (): string | undefined => {
 const appVersion = packageJson.version;
 const buildHash = resolveBuildHash();
 
+const injectedExperimentFlags: Record<string, boolean> = Object.fromEntries(
+  Object.entries(process.env)
+    .filter(([k]) => k.startsWith('VITE_FEATURE_'))
+    .map(([k, v]) => [
+      k.slice('VITE_FEATURE_'.length).toLowerCase().replace(/_/g, '-'),
+      v === 'true' || v === '1',
+    ])
+);
+
 const isReleaseTag = (() => {
   const envVal = process.env.VITE_IS_RELEASE_TAG;
   if (envVal !== undefined && envVal !== '') return envVal === 'true';
@@ -131,6 +140,7 @@ export default defineConfig(({ command }) => ({
     APP_VERSION: JSON.stringify(appVersion),
     BUILD_HASH: JSON.stringify(buildHash ?? ''),
     IS_RELEASE_TAG: JSON.stringify(isReleaseTag),
+    INJECTED_EXPERIMENT_FLAGS: JSON.stringify(injectedExperimentFlags),
   },
   resolve: {
     alias: {
@@ -182,6 +192,11 @@ export default defineConfig(({ command }) => ({
         globIgnores: ['public/element-call/**'],
         // The app's own crypto WASM and main bundle exceed the 2 MiB default.
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MiB
+        // SABLE-5G: Ensure web worker chunks (e.g., search-worker-XXXXX.js) are
+        // included in the precache manifest. Vite's ?worker suffix builds workers
+        // as separate chunks with hashed filenames, and injectManifest should
+        // automatically include them via globPatterns. If worker imports fail at
+        // runtime with 404 errors, verify the worker chunk appears in the manifest.
       },
       devOptions: {
         enabled: true,

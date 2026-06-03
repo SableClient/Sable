@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
+import { atom } from 'jotai';
 
 import { ThemeKind, type Theme } from '$hooks/useTheme';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
@@ -52,6 +53,7 @@ vi.mock('$state/hooks/settings', () => ({
 
 vi.mock('$state/settings', () => ({
   settingsAtom: {},
+  settingsInitializedAtom: atom(true),
 }));
 
 vi.mock('$plugins/arborium', () => ({

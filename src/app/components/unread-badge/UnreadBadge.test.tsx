@@ -5,8 +5,10 @@ import { formatUnreadBadgeCount, resolveUnreadBadgeMode, UnreadBadge } from './U
 const settings = {
   showUnreadCounts: true,
   badgeCountDMsOnly: true,
+  showLoudRoomCounts: false,
   showPingCounts: true,
   showEasterEggs: true,
+  focusMode: 'off' as const,
 };
 
 vi.mock('$state/hooks/settings', () => ({
@@ -20,8 +22,10 @@ vi.mock('$state/settings', () => ({
 beforeEach(() => {
   settings.showUnreadCounts = true;
   settings.badgeCountDMsOnly = true;
+  settings.showLoudRoomCounts = false;
   settings.showPingCounts = true;
   settings.showEasterEggs = true;
+  settings.focusMode = 'off';
 });
 
 describe('resolveUnreadBadgeMode', () => {
@@ -31,7 +35,9 @@ describe('resolveUnreadBadgeMode', () => {
         count: 4,
         showUnreadCounts: true,
         badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('count');
   });
@@ -42,7 +48,9 @@ describe('resolveUnreadBadgeMode', () => {
         count: 4,
         showUnreadCounts: false,
         badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('dot');
   });
@@ -54,7 +62,9 @@ describe('resolveUnreadBadgeMode', () => {
         dm: true,
         showUnreadCounts: false,
         badgeCountDMsOnly: true,
+        showLoudRoomCounts: false,
         showPingCounts: false,
+        focusMode: 'off',
       })
     ).toBe('count');
   });
@@ -66,9 +76,53 @@ describe('resolveUnreadBadgeMode', () => {
         highlight: true,
         showUnreadCounts: false,
         badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
         showPingCounts: true,
+        focusMode: 'off',
       })
     ).toBe('count');
+  });
+
+  it('returns count for a loud room when loud room counts are enabled', () => {
+    expect(
+      resolveUnreadBadgeMode({
+        count: 5,
+        loud: true,
+        showUnreadCounts: false,
+        badgeCountDMsOnly: false,
+        showLoudRoomCounts: true,
+        showPingCounts: false,
+        focusMode: 'off',
+      })
+    ).toBe('count');
+  });
+
+  it('returns dot for a loud room when loud room counts are disabled', () => {
+    expect(
+      resolveUnreadBadgeMode({
+        count: 5,
+        loud: true,
+        showUnreadCounts: false,
+        badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
+        showPingCounts: false,
+        focusMode: 'off',
+      })
+    ).toBe('dot');
+  });
+
+  it('returns dot for a loud room when showUnreadCounts is enabled but showLoudRoomCounts is disabled', () => {
+    expect(
+      resolveUnreadBadgeMode({
+        count: 5,
+        loud: true,
+        showUnreadCounts: true,
+        badgeCountDMsOnly: false,
+        showLoudRoomCounts: false,
+        showPingCounts: false,
+        focusMode: 'off',
+      })
+    ).toBe('dot');
   });
 });
 

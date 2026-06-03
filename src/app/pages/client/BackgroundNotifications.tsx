@@ -45,6 +45,7 @@ import * as Sentry from '@sentry/react';
 import { startClient, stopClient } from '$client/initMatrix';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { mobileOrTablet } from '$utils/user-agent';
+import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 
 const log = createLogger('BackgroundNotifications');
 const debugLog = createDebugLogger('BackgroundNotifications');
@@ -65,11 +66,41 @@ const startBackgroundClient = async (
     rustCryptoPrefix: `bg-sync${session.userId}`,
   };
 
+  Sentry.addBreadcrumb({
+    category: 'notification.background_client',
+    message: 'Creating IndexedDBStore for background client',
+    level: 'info',
+    data: { userId: session.userId, dbName: storeName.sync },
+  });
+
   const indexedDBStore = new IndexedDBStore({
     indexedDB: global.indexedDB,
     localStorage: global.localStorage,
     dbName: storeName.sync,
   });
+
+  // CRITICAL: Must call startup() before using the store, otherwise matrix-js-sdk
+  // will detect a failure and trigger the "degrade" path (delete + recreate).
+  try {
+    await indexedDBStore.startup();
+    Sentry.addBreadcrumb({
+      category: 'notification.background_client',
+      message: 'IndexedDBStore startup succeeded',
+      level: 'info',
+      data: { userId: session.userId },
+    });
+  } catch (err: unknown) {
+    Sentry.addBreadcrumb({
+      category: 'notification.background_client',
+      message: 'IndexedDBStore startup failed — store will degrade',
+      level: 'error',
+      data: {
+        userId: session.userId,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    });
+    // Don't throw — let the client proceed with degraded mode (in-memory only)
+  }
 
   const mx = createClient({
     baseUrl: session.baseUrl,
@@ -132,6 +163,8 @@ export function BackgroundNotifications() {
     settingsAtom,
     'showMessageContentInEncryptedNotifications'
   );
+  const [focusMode] = useSetting(settingsAtom, 'focusMode');
+
   const shouldRunBackgroundNotifications = showNotifications || usePushNotifications;
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
@@ -145,6 +178,8 @@ export function BackgroundNotifications() {
   showMessageContentRef.current = showMessageContent;
   const showEncryptedMessageContentRef = useRef(showEncryptedMessageContent);
   showEncryptedMessageContentRef.current = showEncryptedMessageContent;
+  const focusModeRef = useRef(focusMode);
+  focusModeRef.current = focusMode;
   const clientsRef = useRef(new Map());
   const notifiedEventsRef = useRef(new Set());
   const setPending = useSetAtom(pendingNotificationAtom);
@@ -256,13 +291,36 @@ export function BackgroundNotifications() {
     // fresh retry referencing the latest session from inactiveSessionsRef.
     const startSession = (session: Session, attempt = 0): void => {
       let sessionMx: MatrixClient | undefined;
+      const initTime = Date.now();
+
+      Sentry.addBreadcrumb({
+        category: 'notification.background_client',
+        message: 'Background client stage: init',
+        data: { stage: 'init', userId: session.userId, attempt },
+        level: 'info',
+      });
+
       startBackgroundClient(session, clientConfig.slidingSync)
         .then(async (mx) => {
           sessionMx = mx;
           current.set(session.userId, mx);
           Sentry.metrics.gauge('sable.background.client_count', current.size);
 
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Background client stage: sync_start',
+            data: { stage: 'sync_start', userId: session.userId, elapsedMs: Date.now() - initTime },
+            level: 'info',
+          });
+
           await waitForSync(mx);
+
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Background client stage: sync_ready',
+            data: { stage: 'sync_ready', userId: session.userId, elapsedMs: Date.now() - initTime },
+            level: 'info',
+          });
 
           // Wait for m.direct account data to load. This is critical for DM detection.
           // Without it, rooms in /direct/ won't be recognized as DMs, causing notifications to fail.
@@ -299,6 +357,17 @@ export function BackgroundNotifications() {
           // Track encrypted events that are being decrypted to avoid re-checking the
           // encryption guard when the Decrypted callback fires.
           const decryptingEvents = new Set<string>();
+
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Background client stage: push_registered',
+            data: {
+              stage: 'push_registered',
+              userId: session.userId,
+              elapsedMs: Date.now() - initTime,
+            },
+            level: 'info',
+          });
 
           const handleTimeline = (
             mEvent: MatrixEvent,
@@ -381,7 +450,11 @@ export function BackgroundNotifications() {
             // For "Mention & Keywords": respect the push rule (only notify if it matches).
             const shouldForceDMNotification =
               isDM && notificationType !== NotificationType.MentionsAndKeywords;
-            const shouldNotify = pushActions?.notify || shouldForceDMNotification;
+            // For rooms explicitly set to "All Messages": force-notify, mirroring the DM bypass.
+            const shouldForceRoomLoudNotification =
+              !isDM && notificationType === NotificationType.AllMessages;
+            const shouldNotify =
+              pushActions?.notify || shouldForceDMNotification || shouldForceRoomLoudNotification;
 
             if (!shouldNotify) {
               debugLog.debug('notification', 'Event filtered - no push action match', {
@@ -395,6 +468,27 @@ export function BackgroundNotifications() {
 
             const loudByRule = Boolean(pushActions.tweaks?.sound);
             const isHighlight = Boolean(pushActions.tweaks?.highlight);
+            // Treat DMs and "All Messages" rooms as inherently loud when the push rule lacks a
+            // sound tweak (common with sliding sync where room_member_count conditions fail).
+            const isLoud = loudByRule || isDM || shouldForceRoomLoudNotification;
+
+            // Apply focus mode filter: check if this notification should be shown
+            // based on the current focus mode setting.
+            const shouldShowNotif = shouldShowNotificationInFocusMode(
+              focusModeRef.current,
+              isDM,
+              isHighlight
+            );
+            if (!shouldShowNotif) {
+              debugLog.debug('notification', 'Event filtered by focus mode', {
+                eventId,
+                roomId: room.roomId,
+                focusMode: focusModeRef.current,
+                isDM,
+                isHighlight,
+              });
+              return;
+            }
 
             debugLog.info('notification', 'Processing notification event', {
               eventId,
@@ -402,7 +496,7 @@ export function BackgroundNotifications() {
               eventType,
               isDM,
               isHighlight,
-              loud: loudByRule,
+              loud: isLoud,
             });
 
             const senderName =
@@ -429,7 +523,7 @@ export function BackgroundNotifications() {
             });
 
             // Silent-rule events: unread badge updated above; no OS notification or sound.
-            if (!loudByRule && !isHighlight) {
+            if (!isLoud && !isHighlight) {
               debugLog.debug('notification', 'Silent notification - badge updated only', {
                 eventId,
                 roomId: room.roomId,
@@ -458,8 +552,8 @@ export function BackgroundNotifications() {
                 showMessageContent: showMessageContentRef.current,
                 showEncryptedMessageContent: showEncryptedMessageContentRef.current,
               }),
-              // Play sound only if the push rule requests it and the user has sounds enabled.
-              silent: !notificationSoundRef.current || !loudByRule,
+              // Play sound only if the event is loud and the user has sounds enabled.
+              silent: !notificationSoundRef.current || !isLoud,
               eventId,
               data: {
                 type: mEvent.getType(),
@@ -502,9 +596,9 @@ export function BackgroundNotifications() {
                 icon: notificationPayload.options.icon,
                 onClick: notifOnClick,
               });
-            } else if (loudByRule) {
-              // App is backgrounded or in-app notifications disabled â€” fire an OS notification.
-              // Only send for loud (sound-tweak) rules; highlight-only events are silently counted.
+            } else if (isLoud) {
+              // App is backgrounded or in-app notifications disabled — fire an OS notification.
+              // Send for loud events (includes DMs and rooms set to "All Messages").
               debugLog.info('notification', 'Sending OS notification', {
                 eventId,
                 roomId: room.roomId,
@@ -537,6 +631,21 @@ export function BackgroundNotifications() {
             userId: session.userId,
             error: err,
           });
+
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Background client stage: failed',
+            data: {
+              stage: 'failed',
+              userId: session.userId,
+              elapsedMs: Date.now() - initTime,
+              timeoutMs: 30000,
+              attempt,
+              error: err instanceof Error ? err.message : String(err),
+            },
+            level: 'error',
+          });
+
           Sentry.captureException(err, {
             tags: { component: 'BackgroundNotifications' },
           });

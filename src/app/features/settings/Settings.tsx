@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { IconSrc } from 'folds';
+import type { ComponentType, LazyExoticComponent } from 'react';
 import {
   Avatar,
   Box,
@@ -28,11 +29,24 @@ import { stopPropagation } from '$utils/keyboard';
 import { LogoutDialog } from '$components/LogoutDialog';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { lazy, Suspense } from 'react';
+import * as Sentry from '@sentry/react';
 import { About } from './about';
 import { Account } from './account';
 import { Cosmetics } from './cosmetics/Cosmetics';
-import { DeveloperTools } from './developer-tools';
 import { Devices } from './devices';
+
+// Lazy-load DeveloperTools to reduce Settings bundle size
+const DeveloperTools = lazy(() => {
+  const start = performance.now();
+  return import('./developer-tools').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'developer_tools' },
+    });
+    return { default: m.DeveloperTools };
+  });
+});
 import { EmojisStickers } from './emojis-stickers';
 import { Experimental } from './experimental/Experimental';
 import { General } from './general';
@@ -113,7 +127,10 @@ const settingsSectionIdToPage: Record<SettingsSectionId, SettingsPages> = {
 
 const settingsSectionComponents: Record<
   SettingsSectionId,
-  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element
+  | ComponentType<{ requestBack?: () => void; requestClose: () => void }>
+  | LazyExoticComponent<
+      (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element
+    >
 > = {
   general: General,
   account: Account,
@@ -147,7 +164,11 @@ function SettingsSectionViewport({
 }) {
   useSettingsFocus();
   const Section = settingsSectionComponents[section];
-  return <Section requestBack={requestBack} requestClose={requestClose} />;
+  return (
+    <Suspense fallback={null}>
+      <Section requestBack={requestBack} requestClose={requestClose} />
+    </Suspense>
+  );
 }
 
 export function Settings({

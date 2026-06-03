@@ -1,0 +1,27 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "Sable",
+    },
+    {
+      "path": "../Sable-Docs",
+      "name": "Sable-Docs",
+    },
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "typescript.tsdk": "Sable/node_modules/typescript/lib",
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "webpro.vscode-knip",
+      "tamasfe.even-better-toml",
+      "yzhang.markdown-all-in-one",
+      "github.vscode-pull-request-github",
+      "eamodio.gitlens",
+    ],
+  },
+}

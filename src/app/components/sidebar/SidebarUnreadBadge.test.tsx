@@ -7,6 +7,8 @@ const settings = {
   showUnreadCounts: true,
   badgeCountDMsOnly: false,
   showPingCounts: false,
+  showLoudRoomCounts: false,
+  focusMode: 'off' as const,
 };
 
 vi.mock('$state/hooks/settings', () => ({

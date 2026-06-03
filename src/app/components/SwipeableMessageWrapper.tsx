@@ -18,9 +18,9 @@ function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onRepl
       if (active) {
         const val = mx < 0 ? mx : 0;
         x.set(Math.max(-80, val));
-        if (mx < -50 !== isReady) setIsReady(mx < -50);
+        if (mx < -80 !== isReady) setIsReady(mx < -80);
       } else {
-        if (mx < -50) onReply();
+        if (mx < -80) onReply();
         x.set(0);
         setIsReady(false);
       }

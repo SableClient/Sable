@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import {
   Outlet,
   Route,
@@ -10,12 +11,24 @@ import * as Sentry from '@sentry/react';
 
 import type { ClientConfig } from '$hooks/useClientConfig';
 import { ErrorPage } from '$components/DefaultErrorPage';
-import { SettingsRoute } from '$features/settings';
 import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
+
+// Lazy-load Settings to reduce initial bundle size
+const SettingsRoute = lazy(() => {
+  const start = performance.now();
+  return import('$features/settings').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'settings' },
+    });
+    return { default: m.SettingsRoute };
+  });
+});
 import { Room } from '$features/room';
 import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';
 import { ScreenSize } from '$hooks/useScreenSize';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import { ReceiveSelfDeviceVerification } from '$components/DeviceVerification';
 import { AutoRestoreBackupOnVerification } from '$components/BackupRestore';
 import { RoomSettingsRenderer } from '$features/room-settings';
@@ -23,10 +36,22 @@ import { SpaceSettingsRenderer } from '$features/space-settings';
 import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
 import { CreateRoomModalRenderer } from '$features/create-room';
 import { CreateSpaceModalRenderer } from '$features/create-space';
-import { BugReportModalRenderer } from '$features/bug-report';
 import type { Sessions } from '$state/sessions';
+
+// Lazy-load bug report modal - only needed when user explicitly opens it
+const BugReportModalRenderer = lazy(() => {
+  const start = performance.now();
+  return import('$features/bug-report').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'bug_report_modal' },
+    });
+    return { default: m.BugReportModalRenderer };
+  });
+});
 import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
+import { getSettings } from '$state/settings';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
 import { SearchModalRenderer } from '$features/search';
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
@@ -49,6 +74,7 @@ import {
   NOTIFICATIONS_PATH_SEGMENT,
   ROOM_PATH_SEGMENT,
   SEARCH_PATH_SEGMENT,
+  BOOKMARKS_PATH_SEGMENT,
   SERVER_PATH_SEGMENT,
   CREATE_PATH,
   TO_ROOM_EVENT_PATH,
@@ -59,6 +85,7 @@ import {
   getExploreFeaturedPath,
   getHomePath,
   getInboxNotificationsPath,
+  getLandingPath,
   getLoginPath,
   getOriginBaseUrl,
   getSpaceLobbyPath,
@@ -66,7 +93,8 @@ import {
 import { ClientBindAtoms, ClientLayout, ClientRoot, ClientRouteOutlet } from './client';
 import { HandleNotificationClick, ClientNonUIFeatures } from './client/ClientNonUIFeatures';
 import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
-import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
+import { BookmarksList } from './client/bookmarks';
+import { Direct, DirectCreate, DirectRouteRoomProvider, DirectSearch } from './client/direct';
 import { RouteSpaceProvider, Space, SpaceRouteRoomProvider, SpaceSearch } from './client/space';
 import { Explore, FeaturedRooms, PublicRooms } from './client/explore';
 import { Notifications, Inbox, Invites } from './client/inbox';
@@ -101,14 +129,17 @@ const getFirstSession = () => {
 
 export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize) => {
   const { hashRouter } = clientConfig;
-  const mobile = screenSize === ScreenSize.Mobile;
+  const mobile = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
 
   const routes = createRoutesFromElements(
     <Route>
       <Route
         index
         loader={() => {
-          if (hasStoredSession()) return redirect(getHomePath());
+          if (hasStoredSession()) {
+            const settings = getSettings();
+            return redirect(getLandingPath(settings.defaultLandingScreen));
+          }
           const afterLoginPath = getAppPathFromHref(getOriginBaseUrl(), window.location.href);
           if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
           return redirect(getLoginPath());
@@ -119,7 +150,6 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           // Allow reaching the login page with ?addAccount=1 even when already logged in
           const url = new URL(request.url);
           if (url.searchParams.get('addAccount') === '1') return null;
-          if (url.searchParams.has('loginToken')) return null;
           if (hasStoredSession()) return redirect(getHomePath());
           return null;
         }}
@@ -195,7 +225,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                         <UserRoomProfileRenderer />
                         <CreateRoomModalRenderer />
                         <CreateSpaceModalRenderer />
-                        <BugReportModalRenderer />
+                        <Suspense fallback={null}>
+                          <BugReportModalRenderer />
+                        </Suspense>
                         <SettingsShallowRouteRenderer />
                         <RoomSettingsRenderer />
                         <SpaceSettingsRenderer />
@@ -244,6 +276,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={CREATE_PATH_SEGMENT} element={<HomeCreateRoom />} />
           <Route path={JOIN_PATH_SEGMENT} element={<p>join</p>} />
           <Route path={SEARCH_PATH_SEGMENT} element={<HomeSearch />} />
+          <Route path={BOOKMARKS_PATH_SEGMENT} element={<BookmarksList />} />
           <Route
             path={ROOM_PATH_SEGMENT}
             element={
@@ -268,6 +301,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           }
         >
           {mobile ? null : <Route index element={<WelcomePage />} />}
+          <Route path={SEARCH_PATH_SEGMENT} element={<DirectSearch />} />
           <Route path={CREATE_PATH_SEGMENT} element={<DirectCreate />} />
           <Route
             path={ROOM_PATH_SEGMENT}
@@ -346,7 +380,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
         </Route>
         <Route path={CREATE_PATH} element={<Create />} />
-        <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+        <Route
+          path={SETTINGS_PATH}
+          element={
+            <Suspense fallback={null}>
+              <SettingsRoute />
+            </Suspense>
+          }
+        />
         <Route
           path={INBOX_PATH}
           element={
@@ -370,6 +411,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           )}
           <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
           <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
+          <Route path={BOOKMARKS_PATH_SEGMENT} element={<BookmarksList />} />
         </Route>
         <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
       </Route>

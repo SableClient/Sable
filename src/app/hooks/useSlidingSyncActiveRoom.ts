@@ -2,10 +2,13 @@ import { useEffect } from 'react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
+import { addRecentRoom } from '$utils/recentRooms';
 
 /**
  * Subscribes the currently selected room to the sliding sync "active room"
  * custom subscription (higher timeline limit) for the duration the room is open.
+ *
+ * Also tracks room visits in localStorage for prefetching optimization.
  *
  * Subscriptions are intentionally never removed on navigation — once a room
  * has been opened it continues receiving background updates so that returning
@@ -25,6 +28,13 @@ export const useSlidingSyncActiveRoom = (): void => {
     if (!manager) return undefined;
 
     manager.subscribeToRoom(roomId);
+
+    // Track room visit for prefetching optimization
+    const userId = mx.getUserId();
+    if (userId) {
+      addRecentRoom(userId, roomId);
+    }
+
     return undefined;
   }, [mx, roomId]);
 };

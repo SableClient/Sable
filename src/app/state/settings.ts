@@ -33,6 +33,12 @@ export type PerRoomShowRoomIcon = {
   display: ShowRoomIcon;
 };
 
+export enum DefaultLandingScreen {
+  Home = 'home',
+  Direct = 'direct',
+  LastVisited = 'last-visited',
+}
+
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
 export type ThemeRemoteFavorite = {
@@ -55,25 +61,13 @@ export type ThemeRemoteTweakFavorite = {
 /** Custom profile card hero colors: which brightness schemes to honor. */
 export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
 
-/** Where to use crisp nearest-neighbor (pixelated) image scaling. */
-export type PixelatedImageRenderingMode = 'both' | 'chat' | 'viewer' | 'none';
-
-export function isPixelatedChatRendering(mode: PixelatedImageRenderingMode): boolean {
-  return mode === 'both' || mode === 'chat';
-}
-
-export function isPixelatedViewerRendering(mode: PixelatedImageRenderingMode): boolean {
-  return mode === 'both' || mode === 'viewer';
-}
-
 export function shouldApplyUserHeroCards(
   mode: RenderUserCardsMode,
-  brightness?: string,
-  color?: string
+  brightness: string | undefined
 ): boolean {
-  if (!color || (brightness !== 'light' && brightness !== 'dark')) return false;
   if (mode === 'none') return false;
   if (mode === 'both') return true;
+  if (brightness !== 'light' && brightness !== 'dark') return false;
   return brightness === mode;
 }
 
@@ -91,6 +85,7 @@ export interface Settings {
   twitterEmoji: boolean;
   pageZoom: number;
   hideActivity: boolean;
+  defaultLandingScreen: DefaultLandingScreen;
 
   isPeopleDrawer: boolean;
   isWidgetDrawer: boolean;
@@ -129,6 +124,10 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
+  progressivePrefetch: boolean;
+  encryptedSearch: boolean;
+  idbSearchIndex: boolean;
+  searchIndexMessageLimit: number;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -150,12 +149,19 @@ export interface Settings {
 
   // Sable features!
   sendPresence: boolean;
+  presenceMode: 'online' | 'unavailable' | 'dnd' | 'offline';
+  autoIdlePresence: boolean;
+  presenceIdleTimeoutMins: number;
+  /** User-set status message, cached locally so it survives mode changes and sliding-sync restarts. */
+  presenceStatusMsg: string;
+  focusMode: 'off' | 'focus' | 'dnd';
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;
   useRightBubbles: boolean;
   showUnreadCounts: boolean;
   badgeCountDMsOnly: boolean;
+  showLoudRoomCounts: boolean;
   showPingCounts: boolean;
   showEasterEggs: boolean;
   hideReads: boolean;
@@ -165,7 +171,6 @@ export interface Settings {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
-  pixelatedImageRendering: PixelatedImageRenderingMode;
   incomingInlineImagesDefaultHeight: number;
   incomingInlineImagesMaxHeight: number;
   linkPreviewImageMaxHeight: number;
@@ -179,6 +184,7 @@ export interface Settings {
   pmpProxying: boolean;
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
+  useTiptapComposer: boolean;
   closeFoldersByDefault: boolean;
   perRoomShowRoomIcon: PerRoomShowRoomIcon[];
   showRoomIcon: ShowRoomIcon;
@@ -190,7 +196,15 @@ export interface Settings {
   threadRootHeight: number;
   vcmsgSidebarWidth: number;
   widgetSidebarWidth: number;
-  isShowingAllRoomsInHome: boolean;
+  roomTopicPreview: boolean;
+  roomMessagePreview: boolean;
+  dmMessagePreview: boolean;
+
+  // experimental
+  enableMessageBookmarks: boolean;
+  enableBookmarkReminders: boolean;
+  editInInput: boolean;
+  messageGroupingThreshold: number;
 
   // furry stuff
   renderAnimals: boolean;
@@ -227,6 +241,7 @@ export const defaultSettings: Settings = {
   twitterEmoji: true,
   pageZoom: 100,
   hideActivity: false,
+  defaultLandingScreen: DefaultLandingScreen.Home,
 
   isPeopleDrawer: true,
   isWidgetDrawer: false,
@@ -268,6 +283,10 @@ export const defaultSettings: Settings = {
 
   developerTools: false,
   settingsSyncEnabled: false,
+  progressivePrefetch: false,
+  encryptedSearch: false,
+  idbSearchIndex: false,
+  searchIndexMessageLimit: 2000,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',
@@ -287,12 +306,18 @@ export const defaultSettings: Settings = {
 
   // Sable features!
   sendPresence: true,
+  presenceMode: 'online',
+  autoIdlePresence: true,
+  presenceIdleTimeoutMins: 5,
+  presenceStatusMsg: '',
+  focusMode: 'off',
   mobileGestures: true,
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,
   useRightBubbles: false,
   showUnreadCounts: false,
   badgeCountDMsOnly: true,
+  showLoudRoomCounts: false,
   showPingCounts: true,
   showEasterEggs: true,
   hideReads: false,
@@ -302,7 +327,6 @@ export const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
-  pixelatedImageRendering: 'viewer',
   incomingInlineImagesDefaultHeight: 32,
   incomingInlineImagesMaxHeight: 64,
   linkPreviewImageMaxHeight: 640,
@@ -316,6 +340,7 @@ export const defaultSettings: Settings = {
   pmpProxying: false,
   mentionInReplies: true,
   showPersonaSetting: false,
+  useTiptapComposer: false,
   closeFoldersByDefault: false,
   perRoomShowRoomIcon: [],
   showRoomIcon: ShowRoomIcon.Smart,
@@ -327,7 +352,9 @@ export const defaultSettings: Settings = {
   threadRootHeight: 220,
   vcmsgSidebarWidth: 399,
   widgetSidebarWidth: 420,
-  isShowingAllRoomsInHome: false,
+  roomTopicPreview: false,
+  roomMessagePreview: false,
+  dmMessagePreview: true,
   // furry stuff
   renderAnimals: true,
 
@@ -347,6 +374,12 @@ export const defaultSettings: Settings = {
   themeMigrationDismissed: false,
   themeRemoteTweakFavorites: [],
   themeRemoteEnabledTweakFullUrls: [],
+
+  // experimental
+  enableMessageBookmarks: false,
+  enableBookmarkReminders: false,
+  editInInput: false,
+  messageGroupingThreshold: 180000,
 };
 
 function cloneDefaultSettings(): Settings {
@@ -377,17 +410,6 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
     parsed.renderUserCards !== 'none'
   ) {
     parsed.renderUserCards = 'both';
-  }
-
-  if (typeof parsed.pixelatedImageRendering === 'boolean') {
-    parsed.pixelatedImageRendering = parsed.pixelatedImageRendering ? 'both' : 'none';
-  } else if (
-    parsed.pixelatedImageRendering !== 'both' &&
-    parsed.pixelatedImageRendering !== 'chat' &&
-    parsed.pixelatedImageRendering !== 'viewer' &&
-    parsed.pixelatedImageRendering !== 'none'
-  ) {
-    delete parsed.pixelatedImageRendering;
   }
 
   if (
@@ -513,10 +535,6 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
         ? val
         : undefined;
-    case 'pixelatedImageRendering':
-      return val === 'both' || val === 'chat' || val === 'viewer' || val === 'none'
-        ? val
-        : undefined;
     case 'jumboEmojiSize':
       return typeof val === 'string' && JUMBO_EMOJI_VALUES.has(val as JumboEmojiSize)
         ? val
@@ -608,8 +626,26 @@ export const getSettings = (): Settings =>
   mergePersistedSettings(localStorage.getItem(STORAGE_KEY), runtimeSettingsDefaults);
 
 export const setSettings = (settings: Settings) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // QuotaExceededError: write best-effort; ignore if storage is full
+  }
 };
+
+/**
+ * Ephemeral atom — true when the auto-idle hook has transitioned the user to idle.
+ * Not persisted to localStorage; resets to false on every page load.
+ */
+export const presenceAutoIdledAtom = atom(false);
+
+/**
+ * Ephemeral atom — true when settings have been fully initialized.
+ * Prevents theme flashing by delaying theme application until both localStorage
+ * AND account data have been checked (or timeout expires).
+ * Resets to false on every page load.
+ */
+export const settingsInitializedAtom = atom(false);
 
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),

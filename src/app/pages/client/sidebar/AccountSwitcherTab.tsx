@@ -1,7 +1,8 @@
-import type { MouseEvent, MouseEventHandler } from 'react';
+import type { MouseEvent, MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import type { RectCords } from 'folds';
 import {
+  Badge,
   Box,
   Button,
   Dialog,
@@ -21,6 +22,7 @@ import {
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import type { Session } from '$state/sessions';
 import { sessionsAtom, activeSessionIdAtom, backgroundUnreadCountsAtom } from '$state/sessions';
 import {
@@ -45,6 +47,10 @@ import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
+import type { Presence } from '$hooks/useUserPresence';
+import { AvatarPresence, PresenceBadge } from '$components/presence';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
 
 const log = createLogger('AccountSwitcherTab');
 const debugLog = createDebugLogger('AccountSwitcherTab');
@@ -175,6 +181,21 @@ export function AccountSwitcherTab() {
     : undefined;
   const activeDisplayName = activeProfile.displayName;
 
+  // Own presence badge is driven from settings state rather than the SDK's User object.
+  // The SDK won't echo your own presence back on MSC4186 sliding sync, so reading
+  // user.presence would leave the badge stuck at the SDK default forever.
+  const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode, setPresenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [focusMode, setFocusMode] = useSetting(settingsAtom, 'focusMode');
+  const autoIdled = useAtomValue(presenceAutoIdledAtom);
+  const setAutoIdled = useSetAtom(presenceAutoIdledAtom);
+  // The effective mode for badge display: if auto-idled, show unavailable regardless of selected mode.
+  const effectiveDisplayMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
+  let myOwnPresenceBadge: ReactNode;
+  if (sendPresence) {
+    myOwnPresenceBadge = <PresenceBadge presence={effectiveDisplayMode as Presence} size="200" />;
+  }
+
   const sessionProfiles = useSessionProfiles(sessions);
 
   const { disableAccountSwitcher } = useClientConfig();
@@ -223,6 +244,18 @@ export function AccountSwitcherTab() {
             await logoutClient(tempMx, session);
           } catch (err) {
             log.error('failed to logout background session, IndexedDB may remain', err);
+            debugLog.error('general', 'Failed to logout background session', {
+              userId: session.userId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            Sentry.captureException(err, {
+              tags: { operation: 'logout_background_session' },
+              contexts: {
+                account: {
+                  userId: session.userId,
+                },
+              },
+            });
           }
           setSessions({ type: 'DELETE', session });
           if (activeSessionId === session.userId) {
@@ -233,6 +266,20 @@ export function AccountSwitcherTab() {
         }
       } catch (err) {
         log.error('Logout failed', err);
+        debugLog.error('general', 'Account logout failed', {
+          userId: session.userId,
+          isActiveSession: activeSessionId === session.userId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        Sentry.captureException(err, {
+          tags: { operation: 'logout' },
+          contexts: {
+            account: {
+              userId: session.userId,
+              isActiveSession: activeSessionId === session.userId,
+            },
+          },
+        });
       } finally {
         setBusyUserIds((prev) => {
           const next = new Set(prev);
@@ -269,19 +316,21 @@ export function AccountSwitcherTab() {
     <SidebarItem active={!!menuAnchor}>
       <SidebarItemTooltip tooltip={label}>
         {(triggerRef) => (
-          <SidebarAvatar
-            as="button"
-            ref={triggerRef}
-            onClick={handleToggle}
-            outlined={sessions.length > 1}
-          >
-            <UserAvatar
-              userId={activeSession.userId}
-              src={activeAvatarUrl}
-              alt={label}
-              renderFallback={() => <Text size="H4">{nameInitials(label)}</Text>}
-            />
-          </SidebarAvatar>
+          <AvatarPresence badge={myOwnPresenceBadge}>
+            <SidebarAvatar
+              as="button"
+              ref={triggerRef}
+              onClick={handleToggle}
+              outlined={sessions.length > 1}
+            >
+              <UserAvatar
+                userId={activeSession.userId}
+                src={activeAvatarUrl}
+                alt={label}
+                renderFallback={() => <Text size="H4">{nameInitials(label)}</Text>}
+              />
+            </SidebarAvatar>
+          </AvatarPresence>
         )}
       </SidebarItemTooltip>
       {(totalBackgroundUnread > 0 || anyBackgroundHighlight) && (
@@ -350,6 +399,107 @@ export function AccountSwitcherTab() {
                 >
                   <Text size="T300">Add Account</Text>
                 </MenuItem>
+                <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
+                <Text size="L400" style={{ padding: `${config.space.S100} ${config.space.S200}` }}>
+                  Status
+                </Text>
+                {(
+                  [
+                    { label: 'Online', desc: undefined, mode: 'online' as const },
+                    { label: 'Idle', desc: undefined, mode: 'unavailable' as const },
+                    { label: 'Do Not Disturb', desc: undefined, mode: 'dnd' as const },
+                    {
+                      label: 'Invisible',
+                      desc: 'You will appear offline',
+                      mode: 'offline' as const,
+                    },
+                  ] as const
+                ).map(({ label: statusLabel, desc, mode }) => {
+                  const isSelected = sendPresence && (presenceMode ?? 'online') === mode;
+                  const badge =
+                    mode === 'dnd' ? (
+                      <Badge size="300" variant="Critical" fill="Solid" radii="Pill" />
+                    ) : (
+                      <PresenceBadge presence={mode as Presence} size="300" />
+                    );
+                  return (
+                    <MenuItem
+                      key={mode}
+                      size="300"
+                      radii="300"
+                      before={badge}
+                      after={
+                        isSelected ? (
+                          <Icon
+                            size="200"
+                            src={Icons.Check}
+                            style={{ color: 'var(--mx-c-success)' }}
+                          />
+                        ) : undefined
+                      }
+                      onClick={() => {
+                        setPresenceMode(mode);
+                        // Clear auto-idle so the badge updates immediately on manual selection.
+                        setAutoIdled(false);
+                        // Re-enable presence broadcasting if the master toggle was off.
+                        if (!sendPresence) setSendPresence(true);
+                      }}
+                    >
+                      <Box direction="Column">
+                        <Text size="T300">{statusLabel}</Text>
+                        {desc && (
+                          <Text size="T200" priority="300">
+                            {desc}
+                          </Text>
+                        )}
+                      </Box>
+                    </MenuItem>
+                  );
+                })}
+                <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
+                <Box gap="100" direction="Column">
+                  <Text
+                    size="O400"
+                    priority="300"
+                    style={{ marginLeft: config.space.S200, marginTop: config.space.S100 }}
+                  >
+                    Focus Mode
+                  </Text>
+                  {[
+                    { mode: 'off' as const, label: 'Off', description: 'All notifications' },
+                    {
+                      mode: 'focus' as const,
+                      label: 'Focus',
+                      description: 'DMs and mentions only',
+                    },
+                    {
+                      mode: 'dnd' as const,
+                      label: 'Do Not Disturb',
+                      description: 'Critical messages only',
+                    },
+                  ].map(({ mode, label: modeLabel, description }) => {
+                    const isSelected = focusMode === mode;
+                    return (
+                      <MenuItem
+                        key={mode}
+                        size="300"
+                        radii="300"
+                        after={isSelected ? <Icon size="200" src={Icons.Check} /> : undefined}
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setFocusMode(mode);
+                        }}
+                      >
+                        <Box direction="Column" gap="100">
+                          <Text size="T300">{modeLabel}</Text>
+                          <Text size="T200" priority="300">
+                            {description}
+                          </Text>
+                        </Box>
+                      </MenuItem>
+                    );
+                  })}
+                </Box>
                 <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
                 <MenuItem
                   size="300"

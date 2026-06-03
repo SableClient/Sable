@@ -17,11 +17,14 @@ import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
 import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { nameInitials } from '$utils/common';
-import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
+import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
+import { Presence, useUserPresence } from '$hooks/useUserPresence';
+import { AvatarPresence, PresenceBadge } from '$components/presence';
 import * as css from './DirectDMsList.css';
 
 const MAX_GROUP_MEMBERS = 3;
@@ -34,6 +37,7 @@ type DMItemProps = {
 function DMItem({ room, selected }: DMItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const navigate = useNavigate();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
 
@@ -43,6 +47,9 @@ function DMItem({ room, selected }: DMItemProps) {
 
   // Check if this is a group DM (more than 2 members)
   const isGroupDM = room.getJoinedMemberCount() > 2;
+
+  const dmUserId = !isGroupDM ? room.getAvatarFallbackMember()?.userId : undefined;
+  const dmPresence = useUserPresence(dmUserId ?? '');
 
   // Get member info for group DMs using m.direct and profile API (doesn't require full room state)
   // Members are sorted by who last sent messages (most recent first)
@@ -57,7 +64,7 @@ function DMItem({ room, selected }: DMItemProps) {
     if (groupMembers.length !== 1 || !member?.avatarUrl) {
       return undefined;
     }
-    return mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined;
+    return convertMxc(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined;
   };
 
   // Render appropriate avatar based on DM type
@@ -69,8 +76,8 @@ function DMItem({ room, selected }: DMItemProps) {
           <RoomAvatar
             roomId={room.roomId}
             src={
-              getRoomAvatarUrl(mx, room, 96, useAuthentication) ||
-              getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+              getRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc) ||
+              getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)
             }
             alt={room.name}
             renderFallback={() => (
@@ -108,7 +115,7 @@ function DMItem({ room, selected }: DMItemProps) {
         <Box className={css.GroupAvatarRow}>
           {groupMembers.map((member) => {
             const avatarUrl = member.avatarUrl
-              ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 48, 48, 'crop') ?? undefined)
+              ? (convertMxc(mx, member.avatarUrl, useAuthentication, 48, 48, 'crop') ?? undefined)
               : undefined;
 
             return (
@@ -135,9 +142,19 @@ function DMItem({ room, selected }: DMItemProps) {
     <SidebarItem active={selected}>
       <SidebarItemTooltip tooltip={room.name}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
-            {renderAvatar()}
-          </SidebarAvatar>
+          <AvatarPresence
+            badge={
+              !isGroupDM &&
+              dmPresence &&
+              dmPresence.presence !== Presence.Offline && (
+                <PresenceBadge presence={dmPresence.presence} size="200" />
+              )
+            }
+          >
+            <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
+              {renderAvatar()}
+            </SidebarAvatar>
+          </AvatarPresence>
         )}
       </SidebarItemTooltip>
       {unread && (unread.total > 0 || unread.highlight > 0) && (
@@ -155,9 +172,16 @@ export function DirectDMsList() {
   const mx = useMatrixClient();
   const selectedRoomId = useSelectedRoom();
   const sidebarRoomIds = useSidebarDirectRoomIds();
+  const roomToUnread = useAtomValue(roomToUnreadAtom);
 
   const mountTimeRef = useRef(performance.now());
   const firstReadyRef = useRef(false);
+  const phaseTimesRef = useRef<{
+    initialSync?: number;
+    memberLists?: number;
+    profiles?: number;
+    notifications?: number;
+  }>({});
 
   const recentDMs = useMemo(
     () =>
@@ -167,6 +191,40 @@ export function DirectDMsList() {
     [sidebarRoomIds, mx]
   );
 
+  // Track initial sync phase: when room IDs first appear
+  useEffect(() => {
+    if (sidebarRoomIds.length > 0 && phaseTimesRef.current.initialSync === undefined) {
+      const elapsed = performance.now() - mountTimeRef.current;
+      phaseTimesRef.current.initialSync = elapsed;
+      Sentry.metrics.distribution('sable.roomlist.phase.initial_sync_ms', elapsed);
+    }
+  }, [sidebarRoomIds]);
+
+  // Track member lists phase: when Room objects are fetched and member counts available
+  useEffect(() => {
+    if (recentDMs.length > 0 && phaseTimesRef.current.memberLists === undefined) {
+      const elapsed = performance.now() - mountTimeRef.current;
+      phaseTimesRef.current.memberLists = elapsed;
+      Sentry.metrics.distribution('sable.roomlist.phase.member_lists_ms', elapsed, {
+        attributes: { room_count: String(recentDMs.length) },
+      });
+    }
+  }, [recentDMs]);
+
+  // Track notifications phase: when unread data is available for all rooms
+  useEffect(() => {
+    if (
+      recentDMs.length > 0 &&
+      phaseTimesRef.current.notifications === undefined &&
+      recentDMs.every((room) => roomToUnread.has(room.roomId))
+    ) {
+      const elapsed = performance.now() - mountTimeRef.current;
+      phaseTimesRef.current.notifications = elapsed;
+      Sentry.metrics.distribution('sable.roomlist.phase.notifications_ms', elapsed);
+    }
+  }, [recentDMs, roomToUnread]);
+
+  // Track overall time to ready (keep existing metric)
   useEffect(() => {
     if (recentDMs.length > 0 && !firstReadyRef.current) {
       firstReadyRef.current = true;

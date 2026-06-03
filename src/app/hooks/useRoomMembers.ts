@@ -1,9 +1,13 @@
 import type { MatrixClient, MatrixEvent, RoomMember } from '$types/matrix-sdk';
 import { EventType, RoomMemberEvent, RoomStateEvent } from '$types/matrix-sdk';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+// Track which rooms have already loaded members to prevent redundant API calls (SABLE-1C fix)
+const loadedRooms = new Set<string>();
 
 export const useRoomMembers = (mx: MatrixClient, roomId: string): RoomMember[] => {
   const [members, setMembers] = useState<RoomMember[]>([]);
+  const loadInitiatedRef = useRef(false);
 
   useEffect(() => {
     const room = mx.getRoom(roomId);
@@ -18,11 +22,29 @@ export const useRoomMembers = (mx: MatrixClient, roomId: string): RoomMember[] =
 
     if (room) {
       setMembers(room.getMembers());
-      room.loadMembersIfNeeded().then(() => {
+
+      // Only load members if we haven't already loaded them for this room
+      // Fixes N+1 issue where every component mount triggers a /members API call
+      const alreadyLoaded = loadedRooms.has(roomId);
+      if (!alreadyLoaded && !loadInitiatedRef.current) {
+        loadInitiatedRef.current = true;
+        room
+          .loadMembersIfNeeded()
+          .then(() => {
+            loadedRooms.add(roomId);
+            loadingMembers = false;
+            if (disposed) return;
+            updateMemberList();
+          })
+          .catch(() => {
+            // If loading fails, allow retry on next mount
+            loadInitiatedRef.current = false;
+            loadingMembers = false;
+          });
+      } else {
         loadingMembers = false;
-        if (disposed) return;
         updateMemberList();
-      });
+      }
     }
 
     const handleStateEvent = (event: MatrixEvent) => {

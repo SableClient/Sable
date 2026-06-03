@@ -29,10 +29,15 @@ interface OEmbed {
   height?: number;
 }
 
-async function oEmbedData(url: string): Promise<OEmbed> {
-  const data = await fetch(url).then((resp) => resp.json());
-
-  return data;
+async function oEmbedData(url: string): Promise<OEmbed | null> {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null; // Silently suppress failed oEmbed lookups (401, 403, etc.)
+    return await resp.json();
+  } catch {
+    // Non-JSON response or network error — treat as no embed available
+    return null;
+  }
 }
 
 export type EmbedHeaderProps = {

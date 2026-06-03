@@ -197,8 +197,9 @@ type AccountDataViewProps = {
   type: string;
   defaultContent: string;
   onEdit: () => void;
+  onDelete?: () => void;
 };
-function AccountDataView({ type, defaultContent, onEdit }: AccountDataViewProps) {
+function AccountDataView({ type, defaultContent, onEdit, onDelete }: AccountDataViewProps) {
   return (
     <Box
       direction="Column"
@@ -222,6 +223,11 @@ function AccountDataView({ type, defaultContent, onEdit }: AccountDataViewProps)
         <Button variant="Secondary" size="400" radii="300" onClick={onEdit}>
           <Text size="B400">Edit</Text>
         </Button>
+        {onDelete && (
+          <Button variant="Critical" fill="Soft" size="400" radii="300" onClick={onDelete}>
+            <Text size="B400">Delete</Text>
+          </Button>
+        )}
       </Box>
       <Box grow="Yes" direction="Column" gap="100">
         <Text size="L400">JSON Content</Text>
@@ -246,6 +252,7 @@ export type AccountDataEditorProps = {
   type?: string;
   content?: object;
   submitChange: AccountDataSubmitCallback;
+  onDelete?: () => void;
   requestClose: () => void;
 };
 
@@ -253,6 +260,7 @@ export function AccountDataEditor({
   type,
   content,
   submitChange,
+  onDelete,
   requestClose,
 }: AccountDataEditorProps) {
   const [data, setData] = useState<AccountDataInfo>({
@@ -315,6 +323,7 @@ export function AccountDataEditor({
             type={data.type}
             defaultContent={contentJSONStr}
             onEdit={() => setEdit(true)}
+            onDelete={onDelete}
           />
         )}
       </Box>

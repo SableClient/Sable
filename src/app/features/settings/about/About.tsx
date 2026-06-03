@@ -21,11 +21,29 @@ export function HomeserverInfo() {
   const [federationUrl, setFederationUrl] = useState<string>(mx.baseUrl);
   const [version, setVersion] = useState<VersionResult>(undefined);
 
-  if (!version)
+  if (!version) {
+    // Step 1: Fetch well-known first to discover federation server
+    const userDomain = mx.getSafeUserId().split(':')[1];
     mx.http
-      .request(Method.Get, '/version', undefined, undefined, {
-        prefix: '/_matrix/federation/v1',
-        baseUrl: federationUrl,
+      .request(Method.Get, '/server', undefined, undefined, {
+        prefix: '/.well-known/matrix',
+        baseUrl: `https://${userDomain}`,
+      })
+      .then((well_known) => {
+        // Step 2: Parse m.server from well-known response
+        const mServer = (well_known as { 'm.server'?: string })['m.server'];
+        // Extract host from m.server (format: "host:port" or "host")
+        const federationBase = mServer
+          ? `https://${mServer.split(':')[0]}${mServer.includes(':') ? `:${mServer.split(':')[1]}` : ''}`
+          : `https://${userDomain}:8448`; // Fallback to port 8448 if well-known not found
+
+        setFederationUrl(federationBase);
+
+        // Step 3: Fetch federation version from discovered endpoint
+        return mx.http.request(Method.Get, '/version', undefined, undefined, {
+          prefix: '/_matrix/federation/v1',
+          baseUrl: federationBase,
+        });
       })
       .then((fetched_version) =>
         setVersion({
@@ -33,24 +51,10 @@ export function HomeserverInfo() {
         })
       )
       .catch((error) => {
-        if (federationUrl === mx.baseUrl) {
-          mx.http
-            .request(Method.Get, '/server', undefined, undefined, {
-              prefix: '/.well-known/matrix',
-              baseUrl: `https://${mx.getSafeUserId().split(':')[1]}`,
-            })
-            .then((well_known) => {
-              const mServer = (well_known as { 'm.server'?: string })['m.server'];
-              const newUrl = mServer ? `https://${mServer.split(':')[0]}` : federationUrl;
-              if (newUrl !== federationUrl) {
-                setFederationUrl(newUrl);
-              }
-            })
-            .catch((error_) => setVersion({ error: { message: String(error_) } }));
-        } else {
-          setVersion({ error: { message: String(error) } });
-        }
+        // Federation may not be exposed to clients — treat as optional
+        setVersion({ error: { message: String(error) } });
       });
+  }
 
   return (
     <Box direction="Column" gap="100" id="homeserver-info">

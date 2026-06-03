@@ -1,7 +1,6 @@
 import type { RefObject } from 'react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, Box, Icon, Icons, config, Spinner, IconButton, Line, toRem } from 'folds';
-import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -16,13 +15,17 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { decodeSearchParamValueArray, encodeSearchParamValueArray } from '$pages/pathUtils';
-import { useRooms } from '$state/hooks/roomList';
+import { useSelectedRooms } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
+import { isRoom } from '$utils/room';
+import { useAtomValue } from 'jotai';
 import { mDirectAtom } from '$state/mDirectList';
 import { VirtualTile } from '$components/virtualizer';
 import type { MessageSearchParams } from './useMessageSearch';
 import { useMessageSearch } from './useMessageSearch';
+import type { SearchHasType } from './useMessageSearch';
 import { SearchResultGroup } from './SearchResultGroup';
+import { SearchResultTimelineItem } from './SearchResultTimelineItem';
 import { SearchInput } from './SearchInput';
 import { SearchFilters } from './SearchFilters';
 
@@ -34,6 +37,8 @@ const useSearchPathSearchParams = (searchParams: URLSearchParams): SearchPathSea
       order: searchParams.get('order') ?? undefined,
       rooms: searchParams.get('rooms') ?? undefined,
       senders: searchParams.get('senders') ?? undefined,
+      has: searchParams.get('has') ?? undefined,
+      grouped: searchParams.get('grouped') ?? undefined,
     }),
     [searchParams]
   );
@@ -45,6 +50,9 @@ type MessageSearchProps = {
   senders?: string[];
   scrollRef: RefObject<HTMLDivElement | null>;
 };
+
+const VALID_HAS_TYPES = new Set<SearchHasType>(['image', 'file', 'audio', 'video', 'link']);
+
 export function MessageSearch({
   defaultRoomsFilterName,
   allowGlobal,
@@ -54,7 +62,8 @@ export function MessageSearch({
 }: Readonly<MessageSearchProps>) {
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
-  const allRooms = useRooms(mx, allRoomsAtom, mDirects);
+  const allRoomsSelector = useCallback((rId: string) => isRoom(mx.getRoom(rId)), [mx]);
+  const allRooms = useSelectedRooms(allRoomsAtom, allRoomsSelector);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
@@ -83,9 +92,18 @@ export function MessageSearch({
     }
     return undefined;
   }, [searchPathSearchParams.senders]);
+  const searchParamHasTypes = useMemo(() => {
+    if (!searchPathSearchParams.has) return undefined;
+    const decoded = decodeSearchParamValueArray(searchPathSearchParams.has).filter(
+      (t): t is SearchHasType => VALID_HAS_TYPES.has(t as SearchHasType)
+    );
+    return decoded.length > 0 ? decoded : undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchPathSearchParams.has]);
+
+  const isGlobal = searchPathSearchParams.global === 'true';
 
   const msgSearchParams: MessageSearchParams = useMemo(() => {
-    const isGlobal = searchPathSearchParams.global === 'true';
     const defaultRooms = isGlobal ? undefined : rooms;
 
     return {
@@ -93,19 +111,33 @@ export function MessageSearch({
       order: searchPathSearchParams.order ?? SearchOrderBy.Recent,
       rooms: searchParamRooms ?? defaultRooms,
       senders: searchParamsSenders ?? senders,
+      hasTypes: searchParamHasTypes,
     };
-  }, [searchPathSearchParams, searchParamRooms, searchParamsSenders, rooms, senders]);
+  }, [
+    isGlobal,
+    searchPathSearchParams,
+    searchParamRooms,
+    searchParamsSenders,
+    searchParamHasTypes,
+    rooms,
+    senders,
+  ]);
+
+  const isSearching =
+    !!msgSearchParams.term || (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0);
 
   const searchMessages = useMessageSearch(msgSearchParams);
 
   const { status, data, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    enabled: !!msgSearchParams.term,
+    enabled:
+      !!msgSearchParams.term || (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0),
     queryKey: [
       'search',
       msgSearchParams.term,
       msgSearchParams.order,
       msgSearchParams.rooms,
       msgSearchParams.senders,
+      msgSearchParams.hasTypes,
     ],
     queryFn: ({ pageParam }) => searchMessages(pageParam),
     initialPageParam: '',
@@ -117,9 +149,26 @@ export function MessageSearch({
     const mixed = data?.pages.flatMap((result) => result.highlights);
     return Array.from(new Set(mixed));
   }, [data]);
+  // Only the first page carries in-memory results (no pagination for encrypted rooms)
+  const inMemoryRoomCount = data?.pages[0]?.inMemoryRoomCount ?? 0;
+
+  // Flatten groups for ungrouped timeline view
+  const isGrouped = searchPathSearchParams.grouped !== 'false';
+  const flatItems = useMemo(() => {
+    if (isGrouped) return [];
+    const items = groups.flatMap((group) =>
+      group.items.map((item) => ({
+        ...item,
+        roomId: group.roomId,
+      }))
+    );
+    // Sort by timestamp to truly interleave results across rooms
+    items.sort((a, b) => b.event.origin_server_ts - a.event.origin_server_ts);
+    return items;
+  }, [groups, isGrouped]);
 
   const virtualizer = useVirtualizer({
-    count: groups.length,
+    count: isGrouped ? groups.length : flatItems.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 40,
     overscan: 1,
@@ -177,19 +226,52 @@ export function MessageSearch({
     });
   };
 
+  const handleGroupedChange = (grouped?: boolean) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('grouped');
+      if (grouped === false) {
+        newParams.append('grouped', 'false');
+      }
+      return newParams;
+    });
+  };
+
+  const handleHasTypesChange = (hasTypes?: SearchHasType[]) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('has');
+      if (hasTypes && hasTypes.length > 0) {
+        newParams.append('has', encodeSearchParamValueArray(hasTypes));
+      }
+      return newParams;
+    });
+  };
+
+  const handleSendersChange = (newSenders?: string[]) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('senders');
+      if (newSenders && newSenders.length > 0) {
+        newParams.append('senders', encodeSearchParamValueArray(newSenders));
+      }
+      return newParams;
+    });
+  };
+
   const lastVItem = vItems.at(-1);
   const lastVItemIndex: number | undefined = lastVItem?.index;
-  const lastGroupIndex = groups.length - 1;
+  const lastItemIndex = isGrouped ? groups.length - 1 : flatItems.length - 1;
   useEffect(() => {
     if (
-      lastGroupIndex > -1 &&
-      lastGroupIndex === lastVItemIndex &&
+      lastItemIndex > -1 &&
+      lastItemIndex === lastVItemIndex &&
       !isFetchingNextPage &&
       hasNextPage
     ) {
       fetchNextPage();
     }
-  }, [lastVItemIndex, lastGroupIndex, fetchNextPage, isFetchingNextPage, hasNextPage]);
+  }, [lastVItemIndex, lastItemIndex, fetchNextPage, isFetchingNextPage, hasNextPage]);
 
   return (
     <Box direction="Column" gap="700">
@@ -207,7 +289,7 @@ export function MessageSearch({
       </ScrollTopContainer>
       <Box ref={scrollTopAnchorRef} direction="Column" gap="300">
         <SearchInput
-          active={!!msgSearchParams.term}
+          active={isSearching}
           loading={status === 'pending'}
           searchInputRef={searchInputRef}
           onSearch={handleSearch}
@@ -216,17 +298,38 @@ export function MessageSearch({
         <SearchFilters
           defaultRoomsFilterName={defaultRoomsFilterName}
           allowGlobal={allowGlobal}
-          roomList={searchPathSearchParams.global === 'true' ? allRooms : rooms}
+          roomList={isGlobal ? allRooms : rooms}
+          defaultRooms={isGlobal ? allRooms : rooms}
           selectedRooms={searchParamRooms}
           onSelectedRoomsChange={handleSelectedRoomsChange}
           global={searchPathSearchParams.global === 'true'}
           onGlobalChange={handleGlobalChange}
           order={msgSearchParams.order}
           onOrderChange={handleOrderChange}
+          grouped={searchPathSearchParams.grouped !== 'false'}
+          onGroupedChange={handleGroupedChange}
+          hasTypes={searchParamHasTypes}
+          onHasTypesChange={handleHasTypesChange}
+          senders={searchParamsSenders ?? senders}
+          onSendersChange={handleSendersChange}
         />
       </Box>
 
-      {!msgSearchParams.term && status === 'pending' && (
+      {inMemoryRoomCount > 0 && status !== 'pending' && (
+        <Box
+          className={ContainerColor({ variant: 'Secondary' })}
+          style={{ padding: config.space.S300, borderRadius: config.radii.R400 }}
+          alignItems="Center"
+          gap="200"
+        >
+          <Icon size="200" src={Icons.Info} />
+          <Text size="T300">
+            {`${inMemoryRoomCount} ${inMemoryRoomCount === 1 ? 'room' : 'rooms'} searched from local cache only.`}
+          </Text>
+        </Box>
+      )}
+
+      {!isSearching && status === 'pending' && (
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
@@ -238,7 +341,7 @@ export function MessageSearch({
         </PageHeroEmpty>
       )}
 
-      {msgSearchParams.term && groups.length === 0 && status === 'success' && (
+      {isSearching && groups.length === 0 && status === 'success' && (
         <Box
           className={ContainerColor({ variant: 'Warning' })}
           style={{ padding: config.space.S300, borderRadius: config.radii.R400 }}
@@ -247,13 +350,19 @@ export function MessageSearch({
         >
           <Icon size="200" src={Icons.Info} />
           <Text>
-            No results found for <b>{`"${msgSearchParams.term}"`}</b>
+            {msgSearchParams.term ? (
+              <>
+                No results found for <b>{`"${msgSearchParams.term}"`}</b>
+              </>
+            ) : (
+              'No results found.'
+            )}
           </Text>
         </Box>
       )}
 
-      {((msgSearchParams.term && status === 'pending') ||
-        (groups.length > 0 && vItems.length === 0)) && (
+      {((isSearching && status === 'pending') ||
+        ((isGrouped ? groups.length : flatItems.length) > 0 && vItems.length === 0)) && (
         <Box direction="Column" gap="100">
           {Array.from({ length: 8 }).map(() => (
             <SequenceCard
@@ -268,7 +377,13 @@ export function MessageSearch({
       {vItems.length > 0 && (
         <Box direction="Column" gap="300">
           <Box direction="Column" gap="200">
-            <Text size="H5">{`Results for "${msgSearchParams.term}"`}</Text>
+            <Text size="H5">
+              {msgSearchParams.term
+                ? `Results for "${msgSearchParams.term}"`
+                : msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0
+                  ? `Results for ${msgSearchParams.hasTypes.join(', ')}`
+                  : 'Results'}
+            </Text>
             <Line size="300" variant="Surface" />
           </Box>
           <div
@@ -277,33 +392,61 @@ export function MessageSearch({
               height: virtualizer.getTotalSize(),
             }}
           >
-            {vItems.map((vItem) => {
-              const group = groups[vItem.index];
-              if (!group) return null;
-              const groupRoom = mx.getRoom(group.roomId);
-              if (!groupRoom) return null;
+            {isGrouped
+              ? vItems.map((vItem) => {
+                  const group = groups[vItem.index];
+                  if (!group) return null;
+                  const groupRoom = mx.getRoom(group.roomId);
+                  if (!groupRoom) return null;
 
-              return (
-                <VirtualTile
-                  virtualItem={vItem}
-                  style={{ paddingBottom: config.space.S500 }}
-                  ref={virtualizer.measureElement}
-                  key={vItem.index}
-                >
-                  <SearchResultGroup
-                    room={groupRoom}
-                    highlights={highlights}
-                    items={group.items}
-                    mediaAutoLoad={mediaAutoLoad}
-                    urlPreview={urlPreview}
-                    onOpen={navigateRoom}
-                    legacyUsernameColor={legacyUsernameColor || mDirects.has(groupRoom.roomId)}
-                    hour24Clock={hour24Clock}
-                    dateFormatString={dateFormatString}
-                  />
-                </VirtualTile>
-              );
-            })}
+                  return (
+                    <VirtualTile
+                      virtualItem={vItem}
+                      style={{ paddingBottom: config.space.S500 }}
+                      ref={virtualizer.measureElement}
+                      key={vItem.index}
+                    >
+                      <SearchResultGroup
+                        room={groupRoom}
+                        highlights={highlights}
+                        items={group.items}
+                        mediaAutoLoad={mediaAutoLoad}
+                        urlPreview={urlPreview}
+                        onOpen={navigateRoom}
+                        legacyUsernameColor={legacyUsernameColor || mDirects.has(groupRoom.roomId)}
+                        hour24Clock={hour24Clock}
+                        dateFormatString={dateFormatString}
+                      />
+                    </VirtualTile>
+                  );
+                })
+              : vItems.map((vItem) => {
+                  const flatItem = flatItems[vItem.index];
+                  if (!flatItem) return null;
+                  const itemRoom = mx.getRoom(flatItem.roomId);
+                  if (!itemRoom) return null;
+
+                  return (
+                    <VirtualTile
+                      virtualItem={vItem}
+                      style={{ paddingBottom: config.space.S200 }}
+                      ref={virtualizer.measureElement}
+                      key={vItem.index}
+                    >
+                      <SearchResultTimelineItem
+                        room={itemRoom}
+                        item={flatItem}
+                        highlights={highlights}
+                        mediaAutoLoad={mediaAutoLoad}
+                        urlPreview={urlPreview}
+                        onOpen={navigateRoom}
+                        legacyUsernameColor={legacyUsernameColor || mDirects.has(itemRoom.roomId)}
+                        hour24Clock={hour24Clock}
+                        dateFormatString={dateFormatString}
+                      />
+                    </VirtualTile>
+                  );
+                })}
           </div>
           {isFetchingNextPage && (
             <Box justifyContent="Center" alignItems="Center">

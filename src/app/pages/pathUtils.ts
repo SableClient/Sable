@@ -3,10 +3,12 @@ import { generatePath } from 'react-router-dom';
 import { trimLeadingSlash, trimTrailingSlash } from '$utils/common';
 import type { HashRouterConfig } from '$hooks/useClientConfig';
 import type { SettingsPathSearchParams } from './paths';
+import { DefaultLandingScreen } from '$state/settings';
 import {
   DIRECT_CREATE_PATH,
   DIRECT_PATH,
   DIRECT_ROOM_PATH,
+  DIRECT_SEARCH_PATH,
   EXPLORE_FEATURED_PATH,
   EXPLORE_PATH,
   EXPLORE_SERVER_PATH,
@@ -15,7 +17,9 @@ import {
   HOME_PATH,
   HOME_ROOM_PATH,
   HOME_SEARCH_PATH,
+  HOME_BOOKMARKS_PATH,
   LOGIN_PATH,
+  INBOX_BOOKMARKS_PATH,
   INBOX_INVITES_PATH,
   INBOX_NOTIFICATIONS_PATH,
   INBOX_PATH,
@@ -88,9 +92,66 @@ export const getResetPasswordPath = (server?: string): string => {
 };
 
 export const getHomePath = (): string => HOME_PATH;
+
+const LAST_VISITED_PATH_KEY = 'sable_last_visited_path';
+
+/**
+ * Store the current path to localStorage so it can be restored on next app open.
+ * Only stores paths that are not transient (login, register, etc.).
+ */
+export const rememberLastVisitedPath = (path: string): void => {
+  // Only remember paths that make sense to return to
+  const isRememberablePath =
+    path.startsWith('/home/') ||
+    path.startsWith('/direct/') ||
+    path.startsWith('/inbox/') ||
+    path.startsWith('/explore/') ||
+    (path.match(/^\/[^/]+\/$/) !== null &&
+      !path.startsWith('/login') &&
+      !path.startsWith('/register'));
+
+  if (isRememberablePath) {
+    try {
+      localStorage.setItem(LAST_VISITED_PATH_KEY, path);
+    } catch {
+      // Ignore storage errors
+    }
+  }
+};
+
+/**
+ * Get the last visited path from localStorage, or undefined if not available.
+ */
+export const getLastVisitedPath = (): string | undefined => {
+  try {
+    return localStorage.getItem(LAST_VISITED_PATH_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Get the landing path based on user's settings.
+ * Falls back to Home if Last Visited is not available.
+ */
+export const getLandingPath = (setting: DefaultLandingScreen): string => {
+  switch (setting) {
+    case DefaultLandingScreen.Direct:
+      return DIRECT_PATH;
+    case DefaultLandingScreen.LastVisited: {
+      const lastPath = getLastVisitedPath();
+      return lastPath ?? HOME_PATH;
+    }
+    case DefaultLandingScreen.Home:
+    default:
+      return HOME_PATH;
+  }
+};
+
 export const getHomeCreatePath = (): string => HOME_CREATE_PATH;
 export const getHomeJoinPath = (): string => HOME_JOIN_PATH;
 export const getHomeSearchPath = (): string => HOME_SEARCH_PATH;
+export const getHomeBookmarksPath = (): string => HOME_BOOKMARKS_PATH;
 export const getHomeRoomPath = (roomIdOrAlias: string, eventId?: string): string => {
   const params = {
     roomIdOrAlias: encodeURIComponent(roomIdOrAlias),
@@ -102,6 +163,7 @@ export const getHomeRoomPath = (roomIdOrAlias: string, eventId?: string): string
 
 export const getDirectPath = (): string => DIRECT_PATH;
 export const getDirectCreatePath = (): string => DIRECT_CREATE_PATH;
+export const getDirectSearchPath = (): string => DIRECT_SEARCH_PATH;
 export const getDirectRoomPath = (roomIdOrAlias: string, eventId?: string): string => {
   const params = {
     roomIdOrAlias: encodeURIComponent(roomIdOrAlias),
@@ -158,6 +220,7 @@ export const getCreatePath = (): string => CREATE_PATH;
 export const getInboxPath = (): string => INBOX_PATH;
 export const getInboxNotificationsPath = (): string => INBOX_NOTIFICATIONS_PATH;
 export const getInboxInvitesPath = (): string => INBOX_INVITES_PATH;
+export const getInboxBookmarksPath = (): string => INBOX_BOOKMARKS_PATH;
 
 export const getSettingsPath = (section?: string, focus?: string): string => {
   const path = trimTrailingSlash(generatePath(SETTINGS_PATH, { section: section ?? null }));

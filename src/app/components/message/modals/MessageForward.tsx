@@ -49,17 +49,22 @@ export const MessageForwardItem = as<'button', MessageForwardItemProps>(
 );
 
 export const unwrapForwardedContent = (content: string) => {
-  // unwrap the content of a forwarded message if it was wrapped in a blockquote with the data-forward-marker attribute
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(content, 'text/html');
-  const forwardMarker = doc.querySelector('[data-forward-marker]');
-  if (forwardMarker) {
-    const blockquote = forwardMarker.querySelector('blockquote');
-    if (blockquote) {
-      return blockquote.innerHTML;
+  try {
+    // unwrap the content of a forwarded message if it was wrapped in a blockquote with the data-forward-marker attribute
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    const forwardMarker = doc.querySelector('[data-forward-marker]');
+    if (forwardMarker) {
+      const blockquote = forwardMarker.querySelector('blockquote');
+      if (blockquote) {
+        return blockquote.innerHTML;
+      }
     }
+    return content;
+  } catch (error) {
+    console.warn('[MessageForward] Failed to unwrap forwarded content:', error);
+    return content;
   }
-  return content;
 };
 
 type MessageForwardInternalProps = {

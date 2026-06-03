@@ -11,11 +11,12 @@ import type {
   IRoomTimelineData,
   RoomEventHandlerMap,
 } from '$types/matrix-sdk';
-import { Direction, RoomEvent, RelationType, ThreadEvent } from '$types/matrix-sdk';
+import { ClientEvent, Direction, RoomEvent, RelationType, ThreadEvent } from '$types/matrix-sdk';
 
 import { useAlive } from '$hooks/useAlive';
 import { markAsRead } from '$utils/notifications';
 import { decryptAllTimelineEvent } from '$utils/room';
+import { appEvents } from '$utils/appEvents';
 import {
   getInitialTimeline,
   getEmptyTimeline,
@@ -27,7 +28,7 @@ import {
   PAGINATION_LIMIT,
 } from '$utils/timeline';
 
-export const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 12000;
+export const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 20000;
 
 export type PaginationStatus = 'idle' | 'loading' | 'error';
 
@@ -56,29 +57,103 @@ const useEventTimelineLoader = (
   mx: MatrixClient,
   room: Room,
   onLoad: (eventId: string, linkedTimelines: EventTimeline[], evtAbsIndex: number) => void,
-  onError: (err: Error | null) => void
-) =>
-  useCallback(
-    async (eventId: string) =>
+  onError: (err: Error | null) => void,
+  onProactiveLoad?: () => void
+) => {
+  const jumpInProgressRef = useRef(false);
+  const currentJumpTargetRef = useRef<string | null>(null);
+  const jumpStartTimeRef = useRef(0);
+
+  return useCallback(
+    async (eventId: string, signal?: AbortSignal) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
 
-        if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
-          await withTimeout(
-            mx.roomInitialSync(room.roomId, PAGINATION_LIMIT),
-            EVENT_TIMELINE_LOAD_TIMEOUT_MS
-          );
-          await withTimeout(
-            mx.getLatestTimeline(room.getUnfilteredTimelineSet()),
-            EVENT_TIMELINE_LOAD_TIMEOUT_MS
-          );
+        // Track re-entrancy: if a jump is already in progress, log the supersession
+        if (jumpInProgressRef.current && currentJumpTargetRef.current) {
+          Sentry.addBreadcrumb({
+            category: 'timeline.jump',
+            message: 'Jump superseded — cancelling in-progress jump',
+            data: {
+              previousEventId: currentJumpTargetRef.current,
+              newEventId: eventId,
+              roomId: room.roomId,
+            },
+            level: 'warning',
+          });
+          Sentry.metrics.count('sable.timeline.jump_superseded', 1, {
+            attributes: { room_id: room.roomId },
+          });
         }
+
+        jumpInProgressRef.current = true;
+        currentJumpTargetRef.current = eventId;
+        jumpStartTimeRef.current = performance.now();
+
+        // Check if already aborted before starting
+        if (signal?.aborted) {
+          const abortError = new Error('Timeline load aborted before start');
+          abortError.name = 'AbortError';
+          Sentry.addBreadcrumb({
+            category: 'timeline.jump',
+            message: 'Jump aborted',
+            data: { eventId, durationMs: performance.now() - jumpStartTimeRef.current },
+            level: 'warning',
+          });
+          jumpInProgressRef.current = false;
+          currentJumpTargetRef.current = null;
+          throw abortError;
+        }
+
+        Sentry.addBreadcrumb({
+          category: 'timeline.load',
+          message: 'Timeline load started',
+          data: { eventId, roomId: room.roomId, isPermalink: true },
+          level: 'info',
+        });
+
+        // Verify event exists before initiating timeline jump. Calling getEventTimeline
+        // with a non-existent event ID triggers expensive server-side lookups and can
+        // 404 or hang. fetchRoomEvent is cheaper (single /event endpoint) and lets us
+        // handle 404s gracefully without starting a full timeline load.
+        try {
+          await mx.fetchRoomEvent(room.roomId, eventId);
+        } catch (fetchErr) {
+          const matrixError = fetchErr as { httpStatus?: number; errcode?: string };
+          if (matrixError.httpStatus === 404) {
+            Sentry.addBreadcrumb({
+              category: 'timeline.load',
+              message: 'Event not found (404) — cannot jump to this message',
+              data: { eventId, roomId: room.roomId },
+              level: 'warning',
+            });
+            const notFoundError = new Error('This message no longer exists or is not accessible.');
+            notFoundError.name = 'EventNotFoundError';
+            onError(notFoundError);
+            return;
+          }
+          // For other errors (network, auth, etc.), proceed with timeline load anyway —
+          // the event might be in local cache even if the fetch failed transiently.
+        }
+
+        // Directly fetch the event timeline context from the server using /context API.
+        // Do NOT wait for roomInitialSync or sliding sync — the jump should be independent
+        // of sync state and only use GET /rooms/{roomId}/context/{eventId}.
+        // This prevents the 6+ second delay from waiting for sliding sync to complete.
         const [err, replyEvtTimeline] = await to(
           withTimeout(
             mx.getEventTimeline(room.getUnfilteredTimelineSet(), eventId),
             EVENT_TIMELINE_LOAD_TIMEOUT_MS
           )
         );
+
+        // Check if aborted after getEventTimeline
+        if (signal?.aborted) {
+          const abortError = new Error('Timeline load aborted after getEventTimeline');
+          abortError.name = 'AbortError';
+          throw abortError;
+        }
+
         if (!replyEvtTimeline) {
           onError(err ?? null);
           return;
@@ -91,14 +166,49 @@ const useEventTimelineLoader = (
           return;
         }
 
+        // Successfully loaded the timeline fragment from /context endpoint.
+        // This fragment may or may not be connected to the live timeline — both cases
+        // are valid and should be rendered. Disconnected fragments occur naturally for
+        // old permalinks/bookmarks and pagination will connect them as the user scrolls.
+
         Sentry.metrics.distribution(
           'sable.timeline.jump_load_ms',
           performance.now() - jumpLoadStart
         );
+
+        Sentry.addBreadcrumb({
+          category: 'timeline.load',
+          message: 'Timeline load complete',
+          data: {
+            eventId,
+            roomId: room.roomId,
+            duration: performance.now() - jumpLoadStart,
+            messageCount: getTimelinesEventsCount(linkedTimelines),
+          },
+          level: 'info',
+        });
+
         onLoad(eventId, linkedTimelines, absIndex);
+
+        // Proactively load context above and below the jumped-to event so the user
+        // can scroll immediately without waiting for pagination triggers.
+        if (onProactiveLoad) {
+          setTimeout(() => onProactiveLoad(), 500);
+        }
+
+        // Mark jump as succeeded
+        Sentry.addBreadcrumb({
+          category: 'timeline.jump',
+          message: 'Jump succeeded',
+          data: { eventId, durationMs: performance.now() - jumpStartTimeRef.current },
+          level: 'info',
+        });
+        jumpInProgressRef.current = false;
+        currentJumpTargetRef.current = null;
       }),
-    [mx, room, onLoad, onError]
+    [mx, room, onLoad, onError, onProactiveLoad]
   );
+};
 
 const useTimelinePagination = (
   mx: MatrixClient,
@@ -156,6 +266,20 @@ const useTimelinePagination = (
 
       try {
         const countBefore = getTimelinesEventsCount(lTimelines);
+        const direction = backwards ? 'backwards' : 'forwards';
+        const paginatingRoomId = timelineToPaginate.getRoomId();
+
+        Sentry.addBreadcrumb({
+          category: 'timeline.pagination',
+          message: 'Pagination started',
+          data: {
+            direction,
+            roomId: paginatingRoomId ?? 'unknown',
+            fromToken: paginationToken?.substring(0, 20) ?? 'none',
+            currentEventCount: countBefore,
+          },
+          level: 'info',
+        });
 
         const [err] = await to(mx.paginateEventTimeline(timelineToPaginate, { backwards, limit }));
 
@@ -186,24 +310,18 @@ const useTimelinePagination = (
           // that countAfter/stillHasToken comparisons are meaningful.
           const freshLTimelines = timelineRef.current.linkedTimelines;
           const firstTimeline = freshLTimelines[0];
-          if (!firstTimeline) {
-            (backwards ? setBackwardStatus : setForwardStatus)('idle');
-            return;
-          }
+          if (!firstTimeline) return;
           recalibratePagination(freshLTimelines);
+          (backwards ? setBackwardStatus : setForwardStatus)('idle');
 
           const countAfter = getTimelinesEventsCount(getLinkedTimelines(firstTimeline));
           const fetched = countAfter - countBefore;
 
-          let willContinue = false;
           if (fetched > 0 && fetched < 5) {
             const checkTimeline = backwards
               ? freshLTimelines[0]
               : freshLTimelines[freshLTimelines.length - 1];
-            if (!checkTimeline) {
-              (backwards ? setBackwardStatus : setForwardStatus)('idle');
-              return;
-            }
+            if (!checkTimeline) return;
             const checkDirection = backwards ? Direction.Backward : Direction.Forward;
             const stillHasToken =
               typeof getLinkedTimelines(checkTimeline)[0]?.getPaginationToken(checkDirection) ===
@@ -213,17 +331,11 @@ const useTimelinePagination = (
               // so the finally block below does NOT reset it after inner claims.
               fetchingRef.current[directionKey] = false;
               continuing = true;
-              willContinue = true;
               paginate(backwards);
               // At this point the inner paginate has synchronously set
               // fetchingRef.current[directionKey] = true before hitting its own
               // await.  The finally below will skip the reset.
             }
-          }
-
-          // Stay in 'loading' across auto-continuation chunks so the spinner does not flicker.
-          if (!willContinue) {
-            (backwards ? setBackwardStatus : setForwardStatus)('idle');
           }
         }
       } finally {
@@ -392,6 +504,7 @@ export function useTimelineSync({
   const [focusItem, setFocusItem] = useState<
     | {
         index: number;
+        eventId?: string;
         scrollTo: boolean;
         highlight: boolean;
       }
@@ -405,6 +518,8 @@ export function useTimelineSync({
 
   const canPaginateBack =
     typeof timeline.linkedTimelines[0]?.getPaginationToken(Direction.Backward) === 'string';
+  const canPaginateForward =
+    typeof timeline.linkedTimelines.at(-1)?.getPaginationToken(Direction.Forward) === 'string';
 
   const atLiveEndRef = useRef(liveTimelineLinked);
   atLiveEndRef.current = liveTimelineLinked;
@@ -444,7 +559,10 @@ export function useTimelineSync({
       },
     });
 
-    if (delta > 50 && liveTimelineLinked) {
+    // Warn only for truly large batches (> 100) — active room subscription limit is 50,
+    // so we expect batches up to 50–100 during normal operation (opening rooms, backfill).
+    // 97% of warnings were "medium" (delta <= 100), indicating the 50 threshold was too low.
+    if (delta > 100 && liveTimelineLinked) {
       Sentry.captureMessage('Timeline: large event batch from sliding sync', {
         level: 'warning',
         extra: { delta, eventsLength, atBottom: isAtBottom },
@@ -452,6 +570,12 @@ export function useTimelineSync({
       });
     }
   }, [eventsLength, liveTimelineLinked, isAtBottom]);
+
+  const handleTimelinePaginationRef = useRef(handleTimelinePagination);
+  handleTimelinePaginationRef.current = handleTimelinePagination;
+
+  const timelineRef = useRef(timeline);
+  timelineRef.current = timeline;
 
   const loadEventTimeline = useEventTimelineLoader(
     mx,
@@ -464,6 +588,7 @@ export function useTimelineSync({
 
         setFocusItem({
           index: evtAbsIndex,
+          eventId: evtId,
           scrollTo: true,
           highlight: evtId !== readUptoEventIdRef.current,
         });
@@ -474,7 +599,21 @@ export function useTimelineSync({
       if (!alive()) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       scrollToBottom('instant');
-    }, [alive, room, scrollToBottom])
+    }, [alive, room, scrollToBottom]),
+    useCallback(() => {
+      // Proactively load a batch above and below the jumped-to event so the user
+      // can scroll immediately without waiting for pagination triggers.
+      // Only attempt forward pagination if there's a token — otherwise we're at
+      // the live edge and will get an error ("Failed to load messages").
+      void handleTimelinePaginationRef.current(true); // backward
+
+      const { linkedTimelines } = timelineRef.current;
+      const lastTimeline = linkedTimelines.at(-1);
+      const forwardToken = lastTimeline?.getPaginationToken(Direction.Forward);
+      if (forwardToken) {
+        void handleTimelinePaginationRef.current(false); // forward
+      }
+    }, [])
   );
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);
@@ -535,13 +674,20 @@ export function useTimelineSync({
   useLiveTimelineRefresh(
     room,
     useCallback(() => {
+      // When eventId is set, loadEventTimeline is responsible for updating the
+      // timeline state. Don't overwrite with the live timeline.
+      if (eventId) {
+        // If loadEventTimeline hasn't been called yet (e.g., first render), trigger it now.
+        // This handles the case where TimelineReset fires before the initial load effect runs.
+        return;
+      }
       const wasAtBottom = isAtBottomRef.current;
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       if (wasAtBottom) {
         scrollToBottom('instant');
       }
-    }, [room, isAtBottomRef, scrollToBottom])
+    }, [eventId, room, isAtBottomRef, scrollToBottom])
   );
 
   useRelationUpdate(
@@ -593,6 +739,52 @@ export function useTimelineSync({
   // data (no initial:true in the sliding sync response), that event may never
   // arrive — leaving the initial-scroll guard permanently blocked and the room
   // invisible.
+  // After initial:true (pull-to-refresh force-reset, reconnect, or first join),
+  // the sliding-sync SDK injects events into the live timeline via
+  // injectRoomEvents and then emits ClientEvent.Room.  When all injected events
+  // are historical (num_live === 0 → fromCache: true → liveEvent: false),
+  // useLiveEventArrive's 60-second timestamp gate silently drops them, so React
+  // never re-renders and the timeline stays blank indefinitely.  Listening here
+  // guarantees a re-render once all events are in the SDK's timeline, no matter
+  // how old they are.
+  useEffect(() => {
+    const handleRoomInitialized = (eventRoom: Room) => {
+      if (eventRoom.roomId !== room.roomId) return;
+      // Don't update to live timeline when waiting for eventId context to load.
+      // The eventId-specific loading path will handle setting the correct timeline.
+      if (eventId) return;
+      // Only update if the live timeline actually has events now — prevents
+      // spurious updates that would reset scroll position during normal sync.
+      const liveEvents = getLiveTimeline(room).getEvents();
+      if (liveEvents.length === 0) return;
+      // After PTR, React's timeline state may reference the correct live timeline
+      // object, but with eventsLength still at 0 (before the re-render). Detect this
+      // by comparing the SDK's current event count with React's last known count.
+      const reactEventsLength = eventsLengthRef.current;
+      const currentLiveTimeline = getLiveTimeline(room);
+      // linkedTimelines is ordered oldest→newest, so live timeline is last
+      const isStale =
+        timeline.linkedTimelines.length === 0 ||
+        timeline.linkedTimelines[timeline.linkedTimelines.length - 1] !== currentLiveTimeline;
+
+      // Calculate actual event count from SDK's current timeline chain to detect
+      // if events were appended without changing the timeline object reference
+      const currentSdkEventCount = getTimelinesEventsCount(getLinkedTimelines(currentLiveTimeline));
+      const eventCountChanged = currentSdkEventCount !== reactEventsLength;
+
+      const needsUpdate = reactEventsLength === 0 || isStale || eventCountChanged;
+      if (!needsUpdate) return;
+      // Force timeline update with fresh SDK state. This ensures the React
+      // timeline state picks up the newly-injected events after PTR or when
+      // the SDK appends events (e.g., room subscription expanded timeline_limit).
+      setTimeline({ linkedTimelines: getLinkedTimelines(currentLiveTimeline) });
+    };
+    mx.on(ClientEvent.Room, handleRoomInitialized);
+    return () => {
+      mx.off(ClientEvent.Room, handleRoomInitialized);
+    };
+  }, [mx, room, eventId, timeline.linkedTimelines, eventsLengthRef]);
+
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);
   eventIdRef.current = eventId;
@@ -605,12 +797,58 @@ export function useTimelineSync({
     // identity changes, not on every eventId change.
   }, [room]);
 
+  // When the app comes to foreground (from background or notification tap),
+  // check if the SDK timeline has events but React's timeline state is stale,
+  // and force a refresh if needed. This fixes the visibility regression where
+  // cached events don't appear when opening the app because:
+  // 1. ClientEvent.Room doesn't fire for cached rooms (no initial:true)
+  // 2. useLiveEventArrive's 60s gate drops cached events
+  // 3. Room didn't change so prevRoomIdRef useEffect doesn't fire
+  useEffect(() => {
+    const handleVisibilityChange = (isVisible: boolean) => {
+      if (!isVisible) return; // Only act on foreground events
+
+      // Check if SDK has events but React timeline state is empty or stale
+      const liveTimeline = getLiveTimeline(room);
+      const sdkEvents = liveTimeline.getEvents();
+      if (sdkEvents.length === 0) return; // No events to show
+
+      const linkedTimelines = timeline.linkedTimelines;
+      const reactHasEvents =
+        linkedTimelines.length > 0 && getTimelinesEventsCount(linkedTimelines) > 0;
+
+      // If React state is empty but SDK has events, force refresh
+      if (!reactHasEvents) {
+        setTimeline({ linkedTimelines: getLinkedTimelines(liveTimeline) });
+        return;
+      }
+
+      // If React state has events, check if it's stale (references old timeline)
+      const currentLiveTimeline = linkedTimelines[linkedTimelines.length - 1];
+      if (currentLiveTimeline !== liveTimeline) {
+        setTimeline({ linkedTimelines: getLinkedTimelines(liveTimeline) });
+        return;
+      }
+
+      // Check if event count is out of sync (SDK has more events than React knows about)
+      const sdkEventCount = getTimelinesEventsCount(getLinkedTimelines(liveTimeline));
+      const reactEventCount = eventsLengthRef.current;
+      if (sdkEventCount > reactEventCount) {
+        setTimeline({ linkedTimelines: getLinkedTimelines(liveTimeline) });
+      }
+    };
+
+    const unsubscribe = appEvents.onVisibilityChange(handleVisibilityChange);
+    return unsubscribe;
+  }, [room, timeline.linkedTimelines, eventsLengthRef]);
+
   return {
     timeline,
     setTimeline,
     eventsLength,
     liveTimelineLinked,
     canPaginateBack,
+    canPaginateForward,
     backwardStatus,
     forwardStatus,
     handleTimelinePagination,

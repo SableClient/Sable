@@ -380,6 +380,8 @@ type EmojiBoardProps = {
   imagePackRooms: Room[];
   requestClose: () => void;
   returnFocusOnDeactivate?: boolean;
+  /** Controls whether the FocusTrap is active. Pass false when rendering but hiding the board. */
+  active?: boolean;
   onEmojiSelect?: (unicode: string, shortcode: string) => void;
   onCustomEmojiSelect?: (mxc: string, shortcode: string) => void;
   onStickerSelect?: (mxc: string, shortcode: string, label: string) => void;
@@ -393,6 +395,7 @@ export function EmojiBoard({
   imagePackRooms,
   requestClose,
   returnFocusOnDeactivate,
+  active = true,
   onEmojiSelect,
   onCustomEmojiSelect,
   onStickerSelect,
@@ -534,6 +537,7 @@ export function EmojiBoard({
 
   return (
     <FocusTrap
+      active={active}
       focusTrapOptions={{
         returnFocusOnDeactivate,
         initialFocus: false,
@@ -545,6 +549,7 @@ export function EmojiBoard({
         isKeyBackward: (evt: KeyboardEvent) =>
           !editableActiveElement() && isKeyHotkey(['arrowup', 'arrowleft'], evt),
         escapeDeactivates: stopPropagation,
+        tabbableOptions: { displayCheck: 'none' },
       }}
     >
       <EmojiBoardLayout

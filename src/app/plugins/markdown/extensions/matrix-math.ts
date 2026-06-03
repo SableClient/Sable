@@ -221,10 +221,16 @@ function isIgnorableMathContent(latex: string): boolean {
  * - the closing `$` is not preceded by whitespace, and
  * - the closing `$` is not immediately followed by an ASCII digit.
  */
+/** Opening `$[fg.color=…]` / `$[bg.color=…]` */
+const MFM_COLOR_FN_OPEN = /^\$\[(?:fg|bg)\.color=/;
+
 function tryTokenizeInlineMath(
   src: string
 ): { type: 'math'; raw: string; latex: string } | undefined {
   if (!src.startsWith('$')) {
+    return undefined;
+  }
+  if (MFM_COLOR_FN_OPEN.test(src)) {
     return undefined;
   }
   if (src.startsWith('$$') && (src.length < 3 || src.charAt(2) !== '$')) {
@@ -256,7 +262,7 @@ export const matrixMathExtension = {
   name: 'math',
   level: 'inline',
   start(src: string) {
-    if (/^\$\[(?:fg|bg)\.color=/.test(src)) return -1;
+    if (MFM_COLOR_FN_OPEN.test(src)) return -1;
     return src.indexOf('$');
   },
   tokenizer(src: string) {

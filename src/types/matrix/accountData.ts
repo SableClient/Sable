@@ -1,18 +1,33 @@
-import * as prefix from '$unstable/prefixes';
+export enum CustomAccountDataEvent {
+  CinnySpaces = 'in.cinny.spaces',
 
-export const CustomAccountDataEvent = {
-  CinnySpaces: prefix.MATRIX_CINNY_UNSTABLE_ACCOUNT_SPACES_PROPERTY_NAME,
-  ElementRecentEmoji: prefix.MATRIX_ELEMENT_UNSTABLE_ACCOUNT_RECENT_EMOJIS_PROPERTY_NAME,
-  PoniesUserEmotes: prefix.MATRIX_UNSTABLE_ACCOUNT_USER_EMOTES_PROPERTY_NAME,
-  PoniesEmoteRooms: prefix.MATRIX_UNSTABLE_ACCOUNT_EMOTE_ROOMS_PROPERTY_NAME,
-  SableNicknames: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_NICKNAMES_PROPERTY_NAME,
-  SablePinStatus: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_PIN_STATUS_PROPERTY_NAME,
-  SablePerProfileMessageProfiles:
-    prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME,
-  SableSettings: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME,
-} as const;
-export type CustomAccountDataEvent =
-  (typeof CustomAccountDataEvent)[keyof typeof CustomAccountDataEvent];
+  ElementRecentEmoji = 'io.element.recent_emoji',
+
+  PoniesUserEmotes = 'im.ponies.user_emotes',
+  PoniesEmoteRooms = 'im.ponies.emote_rooms',
+
+  SecretStorageDefaultKey = 'm.secret_storage.default_key',
+
+  CrossSigningMaster = 'm.cross_signing.master',
+  CrossSigningSelf = 'm.cross_signing.self',
+  CrossSigningUser = 'm.cross_signing.user',
+  MegolmBackupV1 = 'm.megolm_backup.v1',
+
+  // MSC4438 Message Bookmarks (unstable prefix)
+  BookmarksIndex = 'org.matrix.msc4438.bookmarks.index',
+  /** Prefix for per-bookmark item events; append the bookmark ID to get the full event type. */
+  BookmarkItemPrefix = 'org.matrix.msc4438.bookmark.',
+
+  // Sable account data
+  SableNicknames = 'moe.sable.app.nicknames',
+  SablePinStatus = 'moe.sable.app.pins_read_marker',
+  SableBookmarksReminders = 'moe.sable.bookmarks.reminders',
+  SablePresence = 'moe.sable.app.presence',
+
+  // because of a mistake hasn't been renamed in time
+  SablePerProfileMessageProfiles = 'fyi.cisnt.permessageprofile',
+  SableSettings = 'moe.sable.app.settings',
+}
 
 export type MDirectContent = Record<string, string[]>;
 
@@ -44,6 +59,26 @@ export type SecretContent = {
 /**
  * type to save compatibility information
  */
+/** A single bookmark reminder stored in account data. */
+export type BookmarkReminder = {
+  /** Matches the key used in the MSC4438 bookmarks index. */
+  bookmarkId: string;
+  /** Matrix event ID of the bookmarked message. */
+  eventId: string;
+  /** Matrix room ID where the bookmarked message lives. */
+  roomId: string;
+  /** Unix timestamp (ms) when the reminder should fire. */
+  remindAt: number;
+  /** Matrix user ID who set the reminder — used for notification routing. */
+  userId: string;
+  /** Optional note shown in the notification body. */
+  note?: string;
+};
+
+export type BookmarksRemindersContent = {
+  reminders: BookmarkReminder[];
+};
+
 export type AccountDataCompatVersion = {
   /**
    * a simple version number, for example 1

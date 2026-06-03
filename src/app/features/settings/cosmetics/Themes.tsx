@@ -823,6 +823,26 @@ export function Appearance({
     setLandingMenuCords(undefined);
   };
 
+  const [landingMenuCords, setLandingMenuCords] = useState<RectCords>();
+
+  const landingScreenItems: Array<{ label: string; value: DefaultLandingScreen }> = [
+    { label: 'Home', value: DefaultLandingScreen.Home },
+    { label: 'Direct Messages', value: DefaultLandingScreen.Direct },
+    { label: 'Last Visited', value: DefaultLandingScreen.LastVisited },
+  ];
+
+  const landingCurrentLabel =
+    landingScreenItems.find((item) => item.value === defaultLandingScreen)?.label || 'Home';
+
+  const handleLandingMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setLandingMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleLandingSelect = (value: DefaultLandingScreen) => {
+    setDefaultLandingScreen(value);
+    setLandingMenuCords(undefined);
+  };
+
   return (
     <Box direction="Column" gap="700">
       <ThemeAppearanceSection

@@ -861,10 +861,14 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     }
   }
   if (type === 'ping') {
-    // iOS terminates SWs after ~30 s of inactivity. The page sends a cheap
-    // ping every 20 s (regardless of visibility) so that event.waitUntil
-    // extends the SW lifetime while the app is open.
-    event.waitUntil(Promise.resolve());
+    // iOS terminates SWs after ~30 s of inactivity. The page sends pings every
+    // 20 s; extending the lifetime by 25 s per ping keeps the SW alive
+    // continuously while the app is open.
+    event.waitUntil(
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 25_000);
+      })
+    );
   }
   if (type === 'setNotificationSettings') {
     if (
@@ -1065,7 +1069,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   if (session && validMediaRequest(url, session.baseUrl)) {
     event.respondWith(
       fetch(url, { ...fetchConfig(session.accessToken), redirect }).catch(() =>
-        fetch(event.request)
+        // Authenticated fetch had a network error; try unauthenticated as last resort.
+        // Second catch prevents a rejected respondWith ("Load failed") on offline.
+        fetch(event.request).catch(
+          () => new Response(null, { status: 503, statusText: 'Service Unavailable' })
+        )
       )
     );
     return;
@@ -1079,7 +1087,9 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   if (byBaseUrl) {
     event.respondWith(
       fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }).catch(() =>
-        fetch(event.request)
+        fetch(event.request).catch(
+          () => new Response(null, { status: 503, statusText: 'Service Unavailable' })
+        )
       )
     );
     return;
@@ -1091,24 +1101,18 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {
     event.respondWith(
       fetch(url, { ...fetchConfig(preloadedSession.accessToken), redirect }).catch(() =>
-        fetch(event.request)
+        fetch(event.request).catch(
+          () => new Response(null, { status: 503, statusText: 'Service Unavailable' })
+        )
       )
     );
     return;
   }
 
-  // No session: pass through unmodified
-  // Let real 401/404 errors surface. The main thread's downloadMedia() already
-  // includes accessToken as a fallback header, and logs failures to Sentry.
-  // The UI will show an error with a retry button.
-  event.respondWith(
-    fetch(event.request).catch((error) => {
-      // Network-level failures fall through to the browser's default fetch behavior.
-      // This prevents FetchEvent.respondWith errors from surfacing in the console.
-      console.debug('[SW] Media fetch failed, falling through:', error);
-      return fetch(event.request);
-    })
-  );
+  // No session — don't intercept; let the browser fetch without SW intervention.
+  // The main thread's blob cache handles non-OK responses gracefully.
+  // Calling event.respondWith here with an unauthenticated fetch causes
+  // "FetchEvent.respondWith received an error: Load failed" on network errors.
 });
 
 // Detect a minimal (event_id_only) payload: has room_id + event_id but no

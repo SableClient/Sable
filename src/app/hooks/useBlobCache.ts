@@ -12,6 +12,18 @@ const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();
 const authFailedUrls = new Set<string>(); // Track URLs that failed with 401
 
+// Listeners notified when the SW controller changes and authFailedUrls is cleared.
+const onSwRestored = new Set<() => void>();
+
+// When the SW is reclaimed after an iOS kill-and-restart, clear the auth-failed
+// URL set so that media items blocked during the gap can be retried.
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    authFailedUrls.clear();
+    onSwRestored.forEach((listener) => listener());
+  });
+}
+
 // Concurrency limiter: cap simultaneous remote fetches to avoid N+1 API call
 // detection when many components (e.g. room-list avatars) mount at once.
 // SABLE-5C: Increased from 4 to 8 to reduce timeline scroll glitches from
@@ -242,6 +254,8 @@ export function useBlobCache(url?: string): string | undefined {
     sourceUrl: url,
     blobUrl: url ? imageBlobCache.get(url) : undefined,
   });
+  // Incremented when the SW is reclaimed, so auth-failed URLs are retried.
+  const [retryToken, setRetryToken] = useState(0);
 
   if (url !== cacheState.sourceUrl) {
     setCacheState({
@@ -249,6 +263,18 @@ export function useBlobCache(url?: string): string | undefined {
       blobUrl: url ? imageBlobCache.get(url) : undefined,
     });
   }
+
+  // Subscribe to SW controller restoration so this hook retries if the URL
+  // previously failed only because the SW had no session yet.
+  useEffect(() => {
+    const onRestored = () => {
+      if (url && !imageBlobCache.has(url)) setRetryToken((n) => n + 1);
+    };
+    onSwRestored.add(onRestored);
+    return () => {
+      onSwRestored.delete(onRestored);
+    };
+  }, [url]);
 
   useEffect(() => {
     if (!url) return undefined;
@@ -401,7 +427,7 @@ export function useBlobCache(url?: string): string | undefined {
     return () => {
       isMounted = false;
     };
-  }, [url]);
+  }, [url, retryToken]);
 
   // SABLE-4Y fix: Don't return original URL as fallback for auth-failed URLs
   // (would cause browser to attempt direct fetch, which also fails with 401)

@@ -597,7 +597,7 @@ async function requestDecryptionFromClient(
   const eventId = rawEvent.event_id as string;
 
   // Chain clients sequentially using reduce to avoid await-in-loop and for-of.
-  return Array.from(windowClients).reduce(
+  const result = await Array.from(windowClients).reduce(
     async (prevPromise, client) => {
       const prev = await prevPromise;
       if (prev?.success) return prev;
@@ -629,6 +629,17 @@ async function requestDecryptionFromClient(
     },
     Promise.resolve(undefined) as Promise<DecryptionResult | undefined>
   );
+
+  // If all clients timed out, the page is likely crashed/unresponsive.
+  // Mark appIsVisible=false and persist so future push notifications aren't
+  // suppressed by a stale appVisibleAt timestamp in the cache.
+  if (!result && windowClients.length > 0) {
+    console.warn('[SW] All clients timed out — marking app as not visible');
+    appIsVisible = false;
+    persistSettings().catch(() => undefined);
+  }
+
+  return result;
 }
 
 /**
@@ -853,6 +864,12 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
+      // Persist the visibility timestamp so cold SW restarts (iOS/iPad) can still
+      // suppress duplicate OS notifications when the app was recently visible.
+      // Equally important: when the app goes to background (visible=false), this
+      // clears appVisibleAt so the next cold SW restart won't falsely restore
+      // appIsVisible=true from a stale cache entry.
+      event.waitUntil(persistSettings());
     }
   }
   if (type === 'setSyncState') {

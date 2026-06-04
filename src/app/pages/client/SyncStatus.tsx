@@ -59,8 +59,7 @@ export function SyncStatus({ mx }: SyncStatusProps) {
 
   // Drive banner phase transitions from sync state.
   useEffect(() => {
-    const isDegraded =
-      syncCurrent === SyncState.Reconnecting || syncCurrent === SyncState.Error;
+    const isDegraded = syncCurrent === SyncState.Reconnecting || syncCurrent === SyncState.Error;
     const isHealthy =
       syncCurrent === SyncState.Prepared ||
       syncCurrent === SyncState.Syncing ||

@@ -15,6 +15,22 @@ const authFailedUrls = new Set<string>(); // Track URLs that failed with 401
 // Listeners notified when the SW controller changes and authFailedUrls is cleared.
 const onSwRestored = new Set<() => void>();
 
+// Session for direct authenticated fetches when the SW has no session yet
+// (e.g. right after an iOS background kill, before CLAIM_CLIENTS is sent).
+let blobCacheSession: { accessToken: string; baseUrl: string } | undefined;
+
+/**
+ * Provide the active session so media can be fetched directly with an
+ * Authorization header when the SW is not yet acting as the fetch controller.
+ * Call this from ClientRoot whenever the session changes.
+ */
+export function setBlobCacheSession(
+  accessToken: string | undefined,
+  baseUrl: string | undefined
+): void {
+  blobCacheSession = accessToken && baseUrl ? { accessToken, baseUrl } : undefined;
+}
+
 // When the SW is reclaimed after an iOS kill-and-restart, clear the auth-failed
 // URL set so that media items blocked during the gap can be retried.
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
@@ -337,6 +353,23 @@ export function useBlobCache(url?: string): string | undefined {
 
           // SABLE-4Y fix: Handle 401 auth failures gracefully
           if (res.status === 401) {
+            // The SW may not yet have a session (e.g. right after iOS background kill).
+            // Try a direct authenticated request before permanently blacklisting the URL.
+            const isMatrixMediaUrl = /\/_matrix\/(client\/v1\/media|media\/v\d+)\//.test(url);
+            if (blobCacheSession && isMatrixMediaUrl) {
+              const directRes = await fetch(url, {
+                mode: 'cors',
+                credentials: 'omit',
+                headers: { Authorization: `Bearer ${blobCacheSession.accessToken}` },
+              });
+              if (directRes.ok) {
+                const blob = await directRes.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                imageBlobCache.set(url, objectUrl);
+                cacheMedia(url, blob);
+                return objectUrl;
+              }
+            }
             debugLog.warn('general', 'Media fetch failed: authentication required', {
               url: url.substring(0, 100),
             });

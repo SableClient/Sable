@@ -56,6 +56,7 @@ import { useClientConfig } from '$hooks/useClientConfig';
 import { getSettings } from '$state/settings';
 import { pushSessionToSW } from '../../../sw-session';
 import { useSwUpdateAvailable } from '$hooks/useSwUpdateAvailable';
+import { setBlobCacheSession } from '$hooks/useBlobCache';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SyncStatus } from './SyncStatus';
@@ -293,6 +294,7 @@ export function ClientRoot({ children }: ClientRootProps) {
   const swSessionUserId = activeSession?.userId;
   useEffect(() => {
     if (!swSessionBaseUrl || !swSessionAccessToken) return undefined;
+    setBlobCacheSession(swSessionAccessToken, swSessionBaseUrl);
     const resync = () => pushSessionToSW(swSessionBaseUrl, swSessionAccessToken, swSessionUserId);
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') resync();

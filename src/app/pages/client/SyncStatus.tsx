@@ -1,6 +1,6 @@
 import type { MatrixClient } from '$types/matrix-sdk';
 import { SyncState } from '$types/matrix-sdk';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, config, Line, Text } from 'folds';
 import * as Sentry from '@sentry/react';
 import { useSyncState } from '$hooks/useSyncState';
@@ -14,6 +14,16 @@ type StateData = {
 type SyncStatusProps = {
   mx: MatrixClient;
 };
+
+// How long (ms) to wait in a degraded state before showing the banner.
+// Fast reconnections (e.g. normal iOS bfcache restore) never trigger the UI.
+const RECONNECTING_DELAY_MS = 2500;
+// How long (ms) the "Connected!" recovery banner stays visible.
+const RECOVERED_DISMISS_MS = 3000;
+
+// Banner lifecycle: idle → pending → visible → recovered → idle
+type BannerPhase = 'idle' | 'pending' | 'visible' | 'recovered';
+
 export function SyncStatus({ mx }: SyncStatusProps) {
   const [stateData, setStateData] = useState<StateData>(() => ({
     current: mx.getSyncState(),
@@ -44,14 +54,49 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     }, [])
   );
 
-  // Only show "Connecting..." banner when recovering from an actual connection issue,
-  // not on normal startup (previous === null/undefined) or when already syncing
-  if (
-    (stateData.current === SyncState.Prepared ||
-      stateData.current === SyncState.Syncing ||
-      stateData.current === SyncState.Catchup) &&
-    (stateData.previous === SyncState.Reconnecting || stateData.previous === SyncState.Error)
-  ) {
+  const [bannerPhase, setBannerPhase] = useState<BannerPhase>('idle');
+  const syncCurrent = stateData.current;
+
+  // Drive banner phase transitions from sync state.
+  useEffect(() => {
+    const isDegraded =
+      syncCurrent === SyncState.Reconnecting || syncCurrent === SyncState.Error;
+    const isHealthy =
+      syncCurrent === SyncState.Prepared ||
+      syncCurrent === SyncState.Syncing ||
+      syncCurrent === SyncState.Catchup;
+
+    if (isDegraded) {
+      // Stay in 'visible' once the banner is showing; otherwise queue the delay.
+      setBannerPhase((p) => (p === 'visible' ? 'visible' : 'pending'));
+      return undefined;
+    }
+
+    if (isHealthy) {
+      // Quick reconnect never showed banner → silent recovery. Slow reconnect → show "Connected!".
+      setBannerPhase((p) => (p === 'visible' ? 'recovered' : 'idle'));
+    } else {
+      // Stopped, null, or other non-healthy transition — clear immediately.
+      setBannerPhase('idle');
+    }
+    return undefined;
+  }, [syncCurrent]);
+
+  // After the delay in 'pending', promote to 'visible'.
+  useEffect(() => {
+    if (bannerPhase !== 'pending') return undefined;
+    const timer = window.setTimeout(() => setBannerPhase('visible'), RECONNECTING_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [bannerPhase]);
+
+  // Auto-dismiss the 'recovered' (Connected!) banner.
+  useEffect(() => {
+    if (bannerPhase !== 'recovered') return undefined;
+    const timer = window.setTimeout(() => setBannerPhase('idle'), RECOVERED_DISMISS_MS);
+    return () => window.clearTimeout(timer);
+  }, [bannerPhase]);
+
+  if (bannerPhase === 'recovered') {
     return (
       <Box direction="Column" shrink="No">
         <Box
@@ -67,7 +112,7 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     );
   }
 
-  if (stateData.current === SyncState.Reconnecting) {
+  if (bannerPhase === 'visible' && syncCurrent === SyncState.Reconnecting) {
     return (
       <Box direction="Column" shrink="No">
         <Box
@@ -83,7 +128,7 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     );
   }
 
-  if (stateData.current === SyncState.Error) {
+  if (bannerPhase === 'visible' && syncCurrent === SyncState.Error) {
     return (
       <Box direction="Column" shrink="No">
         <Box

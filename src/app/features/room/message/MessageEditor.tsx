@@ -292,9 +292,10 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         content.format = contentBody.format;
         content.formatted_body = contentBody.formatted_body;
         content['m.new_content'] = newContent;
-        if (oldContent.info !== undefined && oldContent.filename?.length > 0) {
-          content.filename = oldContent.filename;
-          content['m.new_content'].filename = oldContent.filename;
+        if (oldContent.info !== undefined && oldContent.msgtype !== 'm.text') {
+          content.filename = 'filename' in oldContent ? oldContent.filename : oldContent.body;
+          content['m.new_content'].filename =
+            'filename' in oldContent ? oldContent.filename : oldContent.body;
           content.info = oldContent.info;
           content['m.new_content'].info = oldContent.info;
 

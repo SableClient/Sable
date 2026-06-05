@@ -3,6 +3,7 @@ import { DefaultReset, config, toRem } from 'folds';
 
 export const MessageBase = style({
   position: 'relative',
+  maxWidth: '100%',
 });
 export const MessageBaseBubbleCollapsed = style({
   paddingTop: 0,

@@ -733,8 +733,18 @@ function ClosedSpaceFolder({
 
   const tooltipName = folderDefaultDisplayName(mx, folder);
 
-  // For space folders, pass loud={true} so "Show Loud Room Counts" applies to the folder badge
-  const hasLoudChildren = true;
+  // Determine whether any space in the folder has loud notifications (Default/AllMessages).
+  // Hardcoding true causes all unreads to render as counts when the setting is on,
+  // regardless of individual room notification modes.
+  const notificationPreferences = useRoomsNotificationPreferencesContext();
+  const hasLoudChildren = useMemo(
+    () =>
+      folder.content.some((roomId) => {
+        const mode = getRoomNotificationMode(notificationPreferences, roomId);
+        return mode === RoomNotificationMode.Unset || mode === RoomNotificationMode.AllMessages;
+      }),
+    [folder.content, notificationPreferences]
+  );
 
   return (
     <RoomsUnreadProvider rooms={folder.content}>

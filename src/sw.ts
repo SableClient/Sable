@@ -878,14 +878,12 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     }
   }
   if (type === 'ping') {
-    // iOS terminates SWs after ~30 s of inactivity. The page sends pings every
-    // 20 s; extending the lifetime by 25 s per ping keeps the SW alive
-    // continuously while the app is open.
-    event.waitUntil(
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, 25_000);
-      })
-    );
+    // iOS terminates SWs after ~30 s of inactivity. The page sends a ping every
+    // 20 s; receiving the message itself resets the SW idle timer. A long-running
+    // waitUntil promise (e.g. a 25 s setTimeout) is harmful on iOS: backgrounded
+    // pages freeze timers, leaving a perpetually-pending waitUntil that causes an
+    // ungraceful IDB teardown when iOS force-kills the SW, losing crypto keys.
+    event.waitUntil(Promise.resolve());
   }
   if (type === 'setNotificationSettings') {
     if (

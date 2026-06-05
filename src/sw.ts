@@ -611,7 +611,9 @@ async function requestDecryptionFromClient(
           decryptionPendingMap.delete(eventId);
           console.warn('[SW decryptRelay] timed out waiting for client', client.id);
           resolve(undefined);
-        }, 5000);
+          // 8 s: iOS bfcache restores can take 5–7 s before the MatrixClient
+          // finishes loading crypto keys, so 5 s was too tight.
+        }, 8000);
       });
 
       try {

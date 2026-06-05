@@ -202,6 +202,19 @@ if (dsn && sentryEnabled) {
         return null; // Drop event — session limit reached
       }
 
+      // Drop MatrixRTCSessionManager "unknown room" console errors captured via the
+      // Sentry console integration. These fire during every cold sliding-sync startup
+      // because RoomStateEvent.Events can arrive before the room is registered in
+      // mx.getRoom() — an SDK-level race we cannot fix from Sable. The underlying
+      // MemoryStore collapse that amplified this 254× has been fixed separately.
+      const msgValue = (event.exception?.values?.[0]?.value ?? event.message) || '';
+      if (
+        typeof msgValue === 'string' &&
+        msgValue.includes('Got room state event for unknown room')
+      ) {
+        return null;
+      }
+
       // Improve grouping for Matrix API errors.
       // MatrixError objects carry an `errcode` (e.g. M_FORBIDDEN, M_NOT_FOUND) — use it to
       // split errors into meaningful issue groups rather than merging them all by stack trace.

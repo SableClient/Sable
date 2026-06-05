@@ -554,10 +554,13 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
         },
       },
     });
-    // SABLE-5F: Clean up all event listeners from the old client before wiping
-    // to prevent stale events from being processed after rebuild
-    mx.removeAllListeners();
+    // Shut the SDK down first so it can cancel in-flight /sync requests and
+    // close the WASM OlmMachine cleanly (olmMachine.close() is called inside
+    // mx.stopClient()). Removing all listeners BEFORE stopClient was stripping
+    // the SDK's own internal error handlers, leaving in-flight microtasks able
+    // to call into the freed OlmMachine → "null pointer passed to rust" panic.
     mx.stopClient();
+    mx.removeAllListeners();
     await wipeAllStores();
     const result = await buildClient(session);
     mx = result.mx;
@@ -569,7 +572,9 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     ]);
   }
 
-  mx.setMaxListeners(50);
+  // 100 listeners: large apps render many components that each register one
+  // RoomStateEvent.Events handler via useStateEventCallback. 50 was too low.
+  mx.setMaxListeners(100);
   return mx;
 };
 
@@ -715,6 +720,21 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       });
       if (state === SyncState.Error || state === SyncState.Reconnecting) {
         const errorMsg = data?.error?.message ?? '';
+        // "null pointer passed to rust" = WASM OlmMachine use-after-free;
+        // the SDK called olmMachine.close() while a sync microtask was queued.
+        // This is fatal — the client cannot recover without a full restart.
+        const isWasmFatal = errorMsg.includes('null pointer passed to rust');
+        if (isWasmFatal) {
+          Sentry.captureMessage('Fatal WASM OlmMachine use-after-free — forcing reload', {
+            level: 'fatal',
+            tags: { component: 'crypto-wasm', sync_transport: 'classic' },
+            extra: { errorMessage: errorMsg, syncState: state, syncNumber: classicSyncCount },
+          });
+          // The OlmMachine has been freed; any retry will panic again.
+          // Reload is the only safe recovery path.
+          window.location.reload();
+          return;
+        }
         const isCryptoStoreError =
           errorMsg.includes('without an in-progress transaction') ||
           errorMsg.includes('database connection is closed') ||
@@ -1015,10 +1035,13 @@ export const stopClient = (mx: MatrixClient): void => {
     mx.removeListener(ClientEvent.Sync, classicSyncListener);
     classicSyncObserverByClient.delete(mx);
   }
-  // SABLE-5F: Remove all event listeners to prevent stale events from
-  // being processed if the client is rebuilt (e.g., after mismatch wipe)
-  mx.removeAllListeners();
+  // Shut the SDK down first so it can cancel in-flight requests and close the
+  // WASM OlmMachine cleanly before we strip remaining app-level listeners.
+  // Reversing this order (removeAllListeners → stopClient) was removing the
+  // SDK's own internal handlers, which prevented clean WASM teardown and left
+  // queued microtasks able to call into the freed OlmMachine.
   mx.stopClient();
+  mx.removeAllListeners();
   syncTransportByClient.delete(mx);
 };
 

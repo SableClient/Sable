@@ -33,12 +33,18 @@ export function useCallSignaling() {
   const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
 
-  // Stable refs so volatile values (mutedRoomId, ring callbacks) don't force
-  // the listener registration effect to re-run — which would cause the
-  // SessionEnded and RoomState.events listeners to accumulate when muting
-  // or when call state changes rapidly during a sync retry cycle.
+  // Stable refs so volatile values (mutedRoomId, mDirects, ring callbacks)
+  // don't force the listener registration effect to re-run.
+  //
+  // mDirects in particular: jotai emits a new Set<string> reference on every
+  // m.direct account-data event. During a rapid post-foreground sync burst this
+  // can fire 11+ times, causing the effect to re-register SessionStarted /
+  // SessionEnded listeners on mx.matrixRTC before React drains its cleanup
+  // queue, accumulating up to 11 duplicate listeners.
   const mutedRoomIdRef = useRef(mutedRoomId);
   mutedRoomIdRef.current = mutedRoomId;
+  const mDirectsRef = useRef(mDirects);
+  mDirectsRef.current = mDirects;
 
   useEffect(() => {
     const inc = new Audio(RingtoneSound);
@@ -112,7 +118,7 @@ export function useCallSignaling() {
       const myUserId = mx.getUserId();
       const now = Date.now();
 
-      const signal = Array.from(mDirects).reduce<SignalState>(
+      const signal = Array.from(mDirectsRef.current).reduce<SignalState>(
         (acc, roomId) => {
           if (acc.incoming || mutedRoomIdRef.current === roomId) return acc;
 
@@ -253,7 +259,7 @@ export function useCallSignaling() {
       mx.off(RoomStateEvent.Events, handleUpdate);
       stopRingingRef.current();
     };
-  }, [mx, mDirects, setMutedRoomId]); // stable: volatile deps accessed via refs above
+  }, [mx, setMutedRoomId]); // mDirects and mutedRoomId accessed via refs — do not add here
 
   return null;
 }

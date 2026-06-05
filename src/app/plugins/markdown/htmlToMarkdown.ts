@@ -11,6 +11,9 @@ import { isAllowedHtmlTag } from './allowedHtmlTags';
 import { formatMfmColorDataMd } from './extensions/matrix-mfm-color';
 import { isMatrixHexColor } from '$utils/matrixHtml';
 
+/** CommonMark list nesting indent (four spaces per level). */
+const LIST_MARKDOWN_INDENT = '    ';
+
 /**
  * Converts Matrix-compatible HTML back to markdown for round-trip editing.
  * Preserves original markdown syntax via data-md attributes and converts
@@ -419,7 +422,7 @@ function processUnorderedList(
   insideCode: boolean = false
 ): string {
   const mdSequence = node.attribs['data-md'] || '-';
-  const indent = '  '.repeat(depth);
+  const indent = LIST_MARKDOWN_INDENT.repeat(depth);
   const items = node.children
     .filter((c): c is Element => isTag(c) && c.name === 'li')
     .map((li) => {
@@ -439,7 +442,7 @@ function processOrderedList(node: Element, depth: number = 0, insideCode: boolea
       ? mdSequence
       : `${mdSequence}.`;
 
-  const indent = '  '.repeat(depth);
+  const indent = LIST_MARKDOWN_INDENT.repeat(depth);
   const items = node.children
     .filter((c): c is Element => isTag(c) && c.name === 'li')
     .map((li, index) => {

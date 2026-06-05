@@ -103,6 +103,26 @@ describe('bidirectional round-trip', () => {
     expect(result).toContain('2. Second');
   });
 
+  it('round-trips nested sublists with four-space indent', () => {
+    const markdown = '1. parent\n    - child';
+    const html = markdownToHtml(markdown);
+    expect(html).toMatch(/<li>[\s\S]*<ul/i);
+    const injected = injectDataMd(html);
+    const result = htmlToMarkdown(injected);
+    expect(result).toContain('1. parent');
+    expect(result).toContain('    - child');
+  });
+
+  it('round-trips nested sublists written with two-space indent', () => {
+    const markdown = '1. parent\n  - child';
+    const html = markdownToHtml(markdown);
+    expect(html).toMatch(/<li>[\s\S]*<ul/i);
+    const injected = injectDataMd(html);
+    const result = htmlToMarkdown(injected);
+    expect(result).toContain('1. parent');
+    expect(result).toContain('- child');
+  });
+
   it('round-trips spoiler syntax', () => {
     const markdown = '||hidden message||';
     const html = markdownToHtml(markdown);

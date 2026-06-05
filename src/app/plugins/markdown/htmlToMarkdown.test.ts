@@ -4,9 +4,12 @@ import {
   MX_EMOTICON_MD_SEP,
   MX_EMOTICON_MD_START,
 } from './extensions/matrix-emoticon';
+import { toMatrixCustomHTML, trimCustomHtml } from '$components/editor/output';
 import { plainToEditorInput } from '$components/editor/input';
 import { BlockType } from '$components/editor/types';
+import { injectDataMd } from './injectDataMd';
 import { htmlToMarkdown } from './htmlToMarkdown';
+import { markdownToHtml } from './markdownToHtml';
 
 describe('htmlToMarkdown', () => {
   it('converts headings', () => {
@@ -123,6 +126,20 @@ describe('htmlToMarkdown', () => {
     const result = htmlToMarkdown('<ol><li>Item 1</li><li>Item 2</li></ol>');
     expect(result).toContain('1.');
     expect(result).toContain('Item 1');
+  });
+
+  it('indents nested sublists with four spaces per level', () => {
+    const html = '<ol><li><p>parent</p><ul><li><p>child</p></li></ul></li></ol>';
+    expect(htmlToMarkdown(html)).toContain('1. parent');
+    expect(htmlToMarkdown(html)).toContain('    - child');
+  });
+
+  it('edit-load and save round-trip keeps nested sublist', () => {
+    const md = '1. test\n    - sub\n';
+    const loaded = htmlToMarkdown(injectDataMd(markdownToHtml(md)));
+    expect(loaded).toContain('    - sub');
+    const html = trimCustomHtml(toMatrixCustomHTML(plainToEditorInput(loaded), {}));
+    expect(html).toMatch(/<li>[\s\S]*<ul/i);
   });
 
   it('preserves data-md attributes for round-trip', () => {

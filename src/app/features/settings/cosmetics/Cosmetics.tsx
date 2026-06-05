@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MouseEventHandler } from 'react';
+import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import type { RectCords } from 'folds';
 import {
   Box,
@@ -7,13 +7,16 @@ import {
   config,
   Icon,
   Icons,
+  Input,
   Menu,
   MenuItem,
   PopOut,
   Scroll,
   Switch,
   Text,
+  toRem,
 } from 'folds';
+import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -26,6 +29,94 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
+
+function PronounPillMaxCountInput({ disabled }: { disabled: boolean }) {
+  const [maxCount, setMaxCount] = useSetting(settingsAtom, 'pronounPillMaxCount');
+  const [inputValue, setInputValue] = useState(maxCount.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 10) {
+      setMaxCount(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(maxCount.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={Number.parseInt(inputValue, 10) === maxCount ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="1"
+      max="10"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      disabled={disabled}
+      outlined
+    />
+  );
+}
+
+function PronounPillMaxLengthInput({ disabled }: { disabled: boolean }) {
+  const [maxLength, setMaxLength] = useSetting(settingsAtom, 'pronounPillMaxLength');
+  const [inputValue, setInputValue] = useState(maxLength.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 64) {
+      setMaxLength(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(maxLength.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={Number.parseInt(inputValue, 10) === maxLength ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="1"
+      max="64"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      disabled={disabled}
+      outlined
+    />
+  );
+}
 
 const emojiSizeItems = [
   { id: 'none', name: 'None (Same size as text)' },
@@ -280,6 +371,32 @@ function IdentityCosmetics() {
           focusId="show-pronoun-pills"
           description="Display user pronouns in the message timeline."
           after={<Switch variant="Primary" value={showPronouns} onChange={setShowPronouns} />}
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showPronouns ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Max Pronoun Pills"
+          focusId="pronoun-pill-max-count"
+          description="Maximum number of pronoun pills shown per user in the timeline. Additional pronouns appear behind the ... pill."
+          after={<PronounPillMaxCountInput disabled={!showPronouns} />}
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showPronouns ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Max Pronoun Pill Length"
+          focusId="pronoun-pill-max-length"
+          description="Maximum characters shown in each pronoun pill before truncation."
+          after={<PronounPillMaxLengthInput disabled={!showPronouns} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

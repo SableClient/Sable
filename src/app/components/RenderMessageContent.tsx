@@ -359,11 +359,11 @@ function RenderMessageContentInternal({
               if (isGif && !autoplayGifs && p.src) {
                 return (
                   <ClientSideHoverFreeze src={p.src}>
-                    <Image {...p} loading="lazy" />
+                    <Image info={info} {...p} loading="lazy" />
                   </ClientSideHoverFreeze>
                 );
               }
-              return <Image {...p} loading="lazy" />;
+              return <Image info={info} {...p} loading="lazy" />;
             }}
             renderViewer={(p) => <ImageViewer {...p} />}
           />

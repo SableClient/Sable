@@ -28,8 +28,6 @@ export const ImageViewer = as<'div', ImageViewerProps>(
     const [isPixelated, setIsPixelated] = useState(
       isPixelatedRendering(pixelatedImageRendering, info)
     );
-    // oxlint-disable-next-line no-console
-    console.log(info);
 
     const {
       transforms,
@@ -98,7 +96,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               radii="Pill"
               onClick={() => setIsPixelated(!isPixelated)}
               aria-label="Toggle Pixelation"
-              title={`Turn ${isPixelated ? 'Antialiasing' : 'Pixelation'} on`}
+              title={`Turn ${isPixelated ? 'Anti-aliasing' : 'Pixelation'} on`}
             >
               <CheckerboardIcon size={20} weight={isPixelated ? 'duotone' : 'fill'} />
             </IconButton>

@@ -63,7 +63,7 @@ export function isPixelatedRendering(
   mode: PixelatedImageRenderingMode,
   info?: IImageInfo
 ): boolean {
-  if (mode === 'smart') return !info || !info.w || !info.h || info.w < 192 || info.h < 192;
+  if (mode === 'smart') return !!info && !!info.w && !!info.h && (info.w < 192 || info.h < 192);
   return mode === 'always';
 }
 

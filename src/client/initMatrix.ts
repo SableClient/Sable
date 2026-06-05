@@ -50,6 +50,12 @@ type SyncTransportMeta = {
 };
 const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
 const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
+// Config saved from the most-recent startClient() call. Used by
+// resumeClientFromBfcache() so it can re-create the sync loop after the page
+// is restored from bfcache with the same sliding-sync / poll-timeout settings.
+const bfcacheStartConfigByClient = new WeakMap<MatrixClient, StartClientConfig>();
+// Tracks clients currently paused for bfcache (sync stopped, crypto kept alive).
+const pausedForBfcache = new WeakSet<MatrixClient>();
 // Reduced from 20s to 8s to improve perceived cold launch performance.
 // 8 seconds is sufficient for most networks while still allowing time for
 // slow connections. If the bootstrap times out, sliding sync takes over.
@@ -602,6 +608,11 @@ export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | un
   slidingSyncByClient.get(mx);
 
 export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
+  // Save config so resumeClientFromBfcache() can restart with identical settings.
+  bfcacheStartConfigByClient.set(mx, config ?? {});
+  // If this is a resume, clear the paused flag.
+  pausedForBfcache.delete(mx);
+
   debugLog.info('sync', 'Starting Matrix client', { userId: mx.getUserId() });
 
   disposeSlidingSync(mx);
@@ -1043,6 +1054,65 @@ export const stopClient = (mx: MatrixClient): void => {
   mx.stopClient();
   mx.removeAllListeners();
   syncTransportByClient.delete(mx);
+};
+
+/**
+ * Suspend sync for a bfcache freeze: abort the in-flight /sync request so iOS
+ * can bfcache the page without a pending network request blocking it.
+ *
+ * Critically, crypto (OlmMachine / IDB) is intentionally NOT stopped. We keep
+ * the WASM heap and IDB connection alive so that decryption works immediately
+ * on pageshow restore. Safari 14+ bfcaches pages with open IDB connections as
+ * long as there are no active transactions — which is the case once sync stops.
+ *
+ * Call resumeClientFromBfcache() in the pageshow[persisted] or
+ * visibilitychange → visible handler to restart the sync loop.
+ */
+export const pauseClientForBfcache = (mx: MatrixClient): void => {
+  if (!mx.clientRunning) return; // already stopped
+  debugLog.info('sync', 'Pausing Matrix client sync for bfcache freeze', {
+    userId: mx.getUserId(),
+  });
+  // Access the SyncApi directly to abort only the /sync fetch without touching
+  // the crypto backend. mx.stopClient() would call olmMachine.close(), which
+  // frees the WASM heap and forces a full crypto re-init on restore (IDB open
+  // + key loading), adding ~2–5 s of latency on every foreground wake.
+  const rawMx = mx as unknown as {
+    syncApi?: { stop(): void };
+    clientRunning: boolean;
+  };
+  rawMx.syncApi?.stop();
+  // Reset flag so startClient() will accept a new call on resume.
+  rawMx.clientRunning = false;
+  pausedForBfcache.add(mx);
+};
+
+/**
+ * Resume sync after a bfcache restore or background → foreground transition
+ * when sync was paused via pauseClientForBfcache().
+ *
+ * Re-creates the SlidingSyncManager / classic SyncApi using the config from
+ * the last startClient() call. Idempotent: does nothing if the client was not
+ * paused or if startClient() was never called for this instance.
+ */
+export const resumeClientFromBfcache = async (mx: MatrixClient): Promise<void> => {
+  if (!pausedForBfcache.has(mx)) return; // not paused — nothing to do
+  const config = bfcacheStartConfigByClient.get(mx);
+  if (!config) {
+    debugLog.warn('sync', 'resumeClientFromBfcache: no saved start config — cannot resume', {
+      userId: mx.getUserId(),
+    });
+    return;
+  }
+  debugLog.info('sync', 'Resuming Matrix client from bfcache', { userId: mx.getUserId() });
+  try {
+    await startClient(mx, config);
+  } catch (err) {
+    debugLog.error('sync', 'Failed to resume Matrix client from bfcache', {
+      error: err instanceof Error ? err.message : String(err),
+      userId: mx.getUserId(),
+    });
+  }
 };
 
 export const clearCacheAndReload = async (mx: MatrixClient) => {

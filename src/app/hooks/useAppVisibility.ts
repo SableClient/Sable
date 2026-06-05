@@ -9,7 +9,11 @@ import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
 import { pushSubscriptionAtom } from '../state/pushSubscription';
 import { createDebugLogger } from '../utils/debugLogger';
-import { getSlidingSyncManager } from '$client/initMatrix';
+import {
+  getSlidingSyncManager,
+  pauseClientForBfcache,
+  resumeClientFromBfcache,
+} from '$client/initMatrix';
 import { mobileOrTablet } from '$utils/user-agent';
 
 const debugLog = createDebugLogger('AppVisibility');
@@ -124,6 +128,14 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     const handleForeground = () => {
       if (document.visibilityState !== 'visible') return;
       debugLog.info('general', 'App foregrounded — sync retry triggered');
+      // If the client was paused for bfcache (via pagehide → pauseClientForBfcache),
+      // restart it now. This fires for both quick app-switches AND bfcache restores
+      // that surface via visibilitychange rather than pageshow.
+      resumeClientFromBfcache(mx).catch((err: unknown) => {
+        debugLog.error('general', 'resumeClientFromBfcache failed on foreground', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
 
       // SABLE-5D: Diagnostic logging for crypto and sync state after resume
       debugLog.info('general', 'App resume diagnostic', {
@@ -175,12 +187,40 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     // pageshow fires when the page is restored from the browser's back-forward
     // cache (bfcache). On some iOS versions the PWA can be restored from bfcache
     // without a visibilitychange event, so this acts as an extra safety net.
+    // pagehide fires when the page is about to be either bfcached OR terminated.
+    // Cancelling the in-flight /sync long-poll is the primary requirement for
+    // iOS bfcache eligibility — a pending network request blocks bfcache even
+    // on Safari 14+ where open IDB connections alone do not.
+    // We stop ONLY the SyncApi (aborting the fetch); crypto (OlmMachine) is kept
+    // alive so decryption is instant on restore without a full IDB re-open.
+    const handlePageHide = () => {
+      if (!mx) return;
+      debugLog.info('general', 'Page hiding — pausing sync for bfcache eligibility', {
+        visibilityState: document.visibilityState,
+      });
+      try {
+        pauseClientForBfcache(mx);
+      } catch (err) {
+        debugLog.error('general', 'pauseClientForBfcache failed', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    };
+
     const handlePageShow = (ev: PageTransitionEvent) => {
       if (ev.persisted) {
         debugLog.info('general', 'App restored from bfcache');
         try {
           // Emit visibility change event so timeline and other components can refresh
           appEvents.emitVisibilityChange(true);
+          // Restart the sync loop (it was stopped in handlePageHide so iOS could
+          // bfcache the page). This must happen before handleForeground() so that
+          // retryImmediately() has a running client to call into.
+          resumeClientFromBfcache(mx).catch((err: unknown) => {
+            debugLog.error('general', 'resumeClientFromBfcache failed on pageshow', {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
           handleForeground();
         } catch (err) {
           debugLog.error('general', 'Failed to handle bfcache restore', {
@@ -191,6 +231,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     };
 
     document.addEventListener('visibilitychange', handleForeground);
+    window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('pageshow', handlePageShow);
 
     // Emit initial visibility state on mount to ensure all listeners
@@ -206,6 +247,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       return () => {
         clearTimeout(timeoutId);
         document.removeEventListener('visibilitychange', handleForeground);
+        window.removeEventListener('pagehide', handlePageHide);
         window.removeEventListener('pageshow', handlePageShow);
         if (debounceTimer !== undefined) {
           clearTimeout(debounceTimer);
@@ -215,6 +257,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
 
     return () => {
       document.removeEventListener('visibilitychange', handleForeground);
+      window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('pageshow', handlePageShow);
       if (debounceTimer !== undefined) {
         clearTimeout(debounceTimer);

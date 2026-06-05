@@ -588,7 +588,10 @@ function mxidLocalpart(userId: string): string {
 
 /**
  * Post a decryptPushEvent request to one of the open window clients and wait
- * up to 5 s for the pushDecryptResult reply.
+ * up to 8 s for the pushDecryptResult reply.
+ *
+ * 8 s: iOS bfcache restores can take 5–7 s before the MatrixClient finishes
+ * loading crypto keys from IDB, so 5 s was too tight.
  */
 async function requestDecryptionFromClient(
   windowClients: readonly Client[],
@@ -611,8 +614,6 @@ async function requestDecryptionFromClient(
           decryptionPendingMap.delete(eventId);
           console.warn('[SW decryptRelay] timed out waiting for client', client.id);
           resolve(undefined);
-          // 8 s: iOS bfcache restores can take 5–7 s before the MatrixClient
-          // finishes loading crypto keys, so 5 s was too tight.
         }, 8000);
       });
 

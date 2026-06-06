@@ -17,6 +17,8 @@ const settingsSectionLabel = Object.fromEntries(
 
 const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]> = {
   general: [
+    'show-interactive-map',
+    'show-interactive-map-enc',
     'client-side-embeds',
     'composer-formatting-toolbar',
     'hide-add-menu',

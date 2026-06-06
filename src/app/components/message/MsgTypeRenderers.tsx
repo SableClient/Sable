@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useMemo } from 'react';
-import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
+import { Box, Chip, color, Icon, Icons, Text, toRem, config } from 'folds';
 import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
 import { JUMBO_EMOJI_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
@@ -35,6 +35,10 @@ import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
 import { LINKINPUTREGEX } from '$components/editor';
 import { MATRIX_TO_BASE } from '$plugins/matrix-to';
+import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import type { LatLngExpression } from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { copyToClipboard } from '$utils/dom';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -636,30 +640,71 @@ export function MFile({ content, renderFileContent, outlined }: MFileProps) {
 
 type MLocationProps = {
   content: IContent;
+  showMaps?: boolean;
 };
-export function MLocation({ content }: MLocationProps) {
+export function MLocation({ content, showMaps }: MLocationProps) {
   const geoUri = content.geo_uri;
   if (typeof geoUri !== 'string') {
     return <BrokenContent body={typeof content.body === 'string' ? content.body : undefined} />;
   }
   const location = parseGeoUri(geoUri);
   if (!location) return <BrokenContent />;
-
+  const coords: LatLngExpression = [Number(location.latitude), Number(location.longitude)];
   return (
-    <Box direction="Column" alignItems="Start" gap="100">
-      <Text size="T400">{geoUri}</Text>
-      <Chip
-        as="a"
-        size="400"
-        href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
-        target="_blank"
-        rel="noreferrer noopener"
-        variant="Primary"
-        radii="Pill"
-        before={<Icon src={Icons.External} size="50" />}
+    <Box
+      direction="Column"
+      style={{
+        maxWidth: toRem(500),
+        backgroundColor: color.SurfaceVariant.Container,
+        borderRadius: config.radii.R500,
+        overflow: 'hidden',
+      }}
+      onPointerMove={(evt) => evt.stopPropagation()}
+    >
+      <Box
+        direction="Row"
+        alignItems="Center"
+        gap="100"
+        justifyContent="SpaceBetween"
+        style={{ padding: config.space.S200 }}
       >
-        <Text size="B300">Open Location</Text>
-      </Chip>
+        <Chip
+          size="400"
+          variant="SurfaceVariant"
+          onClick={() => copyToClipboard(`${location.latitude}, ${location.longitude}`)}
+          before={<Icon size="50" src={Icons.Link} />}
+        >
+          <Text size="T400">{`${location.latitude}, ${location.longitude}`}</Text>
+        </Chip>
+
+        <Chip
+          as="a"
+          size="400"
+          href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          variant="Primary"
+          radii="Pill"
+          before={<Icon src={Icons.External} size="50" />}
+        >
+          <Text size="B300">Open Location</Text>
+        </Chip>
+      </Box>
+      {showMaps && (
+      <MapContainer
+        center={coords}
+        zoom={16}
+        scrollWheelZoom={true}
+        style={{ height: toRem(400) }}
+        attributionControl
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap Contributors</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        <Marker position={coords} draggable></Marker>
+      </MapContainer>)}
     </Box>
   );
 }

@@ -59,6 +59,7 @@ type RenderMessageContentProps = {
   bundledPreview?: boolean;
   urlPreview?: boolean;
   clientUrlPreview?: boolean;
+  showMaps?: boolean;
   highlightRegex?: RegExp;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
@@ -94,6 +95,7 @@ function RenderMessageContentInternal({
   bundledPreview,
   urlPreview,
   clientUrlPreview,
+  showMaps,
   highlightRegex,
   htmlReactParserOptions,
   linkifyOpts,
@@ -429,7 +431,7 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === (MsgType.File as string)) return renderFile();
-  if (msgType === (MsgType.Location as string)) return <MLocation content={content} />;
+  if (msgType === (MsgType.Location as string)) return <MLocation showMaps={showMaps} content={content} />;
   if (msgType === 'm.bad.encrypted') return <MBadEncrypted />;
 
   // cute events

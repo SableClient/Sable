@@ -568,26 +568,9 @@ function SpaceTab({
   const loudUnread = useRoomsUnread(loudChild, roomToUnreadAtom);
   const hasLoudUnreads = !!loudUnread && (loudUnread.highlight > 0 || loudUnread.total > 0);
 
-  // DEBUG: Log space badge calculation for Tech Chats and Draupnir
-  if (space.name.includes('Draupnir') || space.name.includes('Tech')) {
-    // oxlint-disable-next-line no-console -- Temporary debug logging for badge investigation
-    console.log('[BADGE-DEBUG:SpaceTabs]', {
-      spaceName: space.name,
-      spaceId: space.roomId,
-      allChildCount: allChild.length,
-      allChildIds: allChild,
-      loudChildCount: loudChild.length,
-      loudChildIds: loudChild,
-      allUnread,
-      loudUnread,
-      hasLoudUnreads,
-      willShowBadge: !!allUnread,
-    });
-  }
-
-  // Show badges for all unreads, but use loud parameter to control count vs dot display.
-  // When "Show Loud Room Counts" is enabled and there are loud unreads, show counts.
-  // Otherwise show dots (for quiet rooms like mentions-only or muted).
+  // Show badges for all unreads, but the displayed count only covers loud rooms when
+  // "Show Loud Room Counts" is enabled. Highlights (mentions) always use the full
+  // highlight count regardless of notification mode.
   const unread = allUnread;
 
   const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -634,7 +617,13 @@ function SpaceTab({
       {unread && (
         <SidebarUnreadBadge
           highlight={unread.highlight > 0}
-          count={unread.highlight > 0 ? unread.highlight : unread.total}
+          count={
+            unread.highlight > 0
+              ? unread.highlight
+              : hasLoudUnreads
+                ? (loudUnread?.total ?? unread.total)
+                : unread.total
+          }
           loud={hasLoudUnreads}
         />
       )}

@@ -16,7 +16,7 @@ import {
   getSpacePath,
 } from '../pages/pathUtils';
 import { DIRECT_ROOM_PATH, HOME_ROOM_PATH, SPACE_ROOM_PATH } from '../pages/paths';
-import { getOrphanParents, getRoomToParents, guessPerfectParent } from '../utils/room';
+import { getShallowParents, getRoomToParents, guessPerfectParent } from '../utils/room';
 import { createLogger } from '../utils/debug';
 
 export function NotificationJumper() {
@@ -75,16 +75,15 @@ export function NotificationJumper() {
         targetSectionPath = getDirectPath();
         targetRoomPath = getDirectRoomPath(roomIdOrAlias, pending.eventId);
       } else {
-        // If the room lives inside a space, route through the space path so
-        // SpaceRouteRoomProvider can resolve it — HomeRouteRoomProvider only
-        // knows orphan rooms and would show JoinBeforeNavigate otherwise.
-        // Use getOrphanParents + guessPerfectParent (same as useRoomNavigate) so
-        // we always navigate to a root-level space, not a subspace — subspace
-        // paths are not recognised by the router and land on JoinBeforeNavigate.
-        const orphanParents = getOrphanParents(getRoomToParents(mx), pending.roomId);
-        if (orphanParents.length > 0) {
+        // Route through the immediate parent space so the user lands in the
+        // most relevant context. getShallowParents returns direct parents —
+        // the same strategy used by useRoomNavigate — which correctly prefers
+        // a sub-space that is pinned at the top level (e.g. "Coven") over a
+        // distant root ancestor (e.g. "Bridges") that contains it transitively.
+        const shallowParents = getShallowParents(getRoomToParents(mx), pending.roomId);
+        if (shallowParents.length > 0) {
           const parentSpace =
-            guessPerfectParent(mx, pending.roomId, orphanParents) ?? orphanParents[0];
+            guessPerfectParent(mx, pending.roomId, shallowParents) ?? shallowParents[0];
           const spaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace ?? pending.roomId);
           targetSectionPath = getSpacePath(spaceIdOrAlias);
           targetRoomPath = getSpaceRoomPath(spaceIdOrAlias, roomIdOrAlias, pending.eventId);

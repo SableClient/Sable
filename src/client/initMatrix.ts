@@ -401,6 +401,28 @@ const buildClient = async (
     dbName: storeName.sync,
   });
 
+  // The SDK's IndexedDBStore.degradable() wrapper silently catches any IDB
+  // error (including transient ones like 'Transaction aborted'), deletes the
+  // entire sync IDB database, and switches the store to in-memory mode for
+  // the rest of the session — with no signal to the app by default.
+  // Register a listener so we can see this in Sentry and understand how often
+  // transient IDB aborts are triggering permanent MemoryStore degradation.
+  indexedDBStore.on('degraded', (err: Error) => {
+    debugLog.error('sync', 'IndexedDBStore degraded to MemoryStore — sync IDB deleted', {
+      error: err.message,
+    });
+    Sentry.captureMessage('IndexedDBStore degraded to MemoryStore', {
+      level: 'error',
+      tags: { component: 'idb-sync-store' },
+      extra: {
+        errorMessage: err.message,
+        errorName: err.name,
+        isTransientAbort: err.message.includes('Transaction aborted'),
+        userId: session.userId,
+      },
+    });
+  });
+
   const legacyCryptoStore = new IndexedDBCryptoStore(global.indexedDB, storeName.crypto);
 
   const mx = createClient({
@@ -746,7 +768,23 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
           window.location.reload();
           return;
         }
+        // Transient IDB aborts from the Rust crypto backend:
+        //   "Transaction aborted"       — IDB write interrupted by a VPN drop,
+        //                                 network tear, or iOS aborting active
+        //                                 transactions during a bfcache freeze.
+        //   "failed to read or write to the crypto store" — error prefix from the
+        //                                 WASM → IDB bridge for the same class of
+        //                                 failure.
+        //
+        // The OlmMachine WASM heap is still intact; the session keys it was
+        // writing are still in memory and will be retried on the next sync cycle.
+        // Do NOT force a reload for these — unlike the WASM null-pointer case,
+        // the crypto layer is still functional.
+        const isTransientCryptoAbort =
+          errorMsg.includes('Transaction aborted') ||
+          errorMsg.includes('failed to read or write to the crypto store');
         const isCryptoStoreError =
+          isTransientCryptoAbort ||
           errorMsg.includes('without an in-progress transaction') ||
           errorMsg.includes('database connection is closed') ||
           errorMsg.includes('InvalidStateError') ||
@@ -758,12 +796,14 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
           errorMessage: errorMsg,
           syncNumber: classicSyncCount,
           isCryptoStoreError,
+          isTransientCryptoAbort,
         });
         Sentry.metrics.count('sable.sync.error', 1, {
           attributes: {
             transport: 'classic',
             state,
             crypto_store_error: isCryptoStoreError,
+            transient_abort: isTransientCryptoAbort,
           },
         });
         Sentry.addBreadcrumb({
@@ -776,6 +816,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
             error: errorMsg,
             syncNumber: classicSyncCount,
             isCryptoStoreError,
+            isTransientCryptoAbort,
           },
         });
 
@@ -786,11 +827,14 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
             tags: {
               component: 'crypto-store',
               sync_transport: 'classic',
-              error_type: errorMsg.includes('transaction')
-                ? 'transaction_error'
-                : errorMsg.includes('closed')
-                  ? 'connection_closed'
-                  : 'unknown_idb_error',
+              error_type: isTransientCryptoAbort
+                ? 'transaction_abort'
+                : errorMsg.includes('transaction')
+                  ? 'transaction_error'
+                  : errorMsg.includes('closed')
+                    ? 'connection_closed'
+                    : 'unknown_idb_error',
+              transient: String(isTransientCryptoAbort),
             },
             extra: {
               errorMessage: errorMsg,
@@ -798,8 +842,9 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
               prevState,
               syncNumber: classicSyncCount,
               userId: mx.getUserId(),
-              recovery_recommendation:
-                'Matrix SDK WASM crypto layer issue - client will attempt to reconnect',
+              recovery_recommendation: isTransientCryptoAbort
+                ? 'Transient IDB abort (VPN drop / iOS bfcache) — SDK will retry automatically'
+                : 'Matrix SDK WASM crypto layer issue — client will attempt to reconnect',
             },
           });
         }

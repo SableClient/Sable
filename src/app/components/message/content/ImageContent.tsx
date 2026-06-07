@@ -33,6 +33,7 @@ import { bytesToSize } from '$utils/common';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
 import { decryptFileSafe, downloadEncryptedMedia } from '$utils/matrix';
+import { getDecryptedBlob, storeDecryptedBlob } from '$hooks/useBlobCache';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
@@ -140,9 +141,17 @@ export const ImageContent = as<'div', ImageContentProps>(
         const mediaUrl = mediaUrlCache.get(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
         if (encInfo) {
-          // Check blob cache first to avoid redundant downloads/decryption
-          const cachedBlob = mediaUrlCache.getBlob(url, true, mimeType);
-          if (cachedBlob) return cachedBlob;
+          // Check in-memory blob cache first (instant)
+          const cachedBlobUrl = mediaUrlCache.getBlob(url, true, mimeType);
+          if (cachedBlobUrl) return cachedBlobUrl;
+
+          // Check persistent cache to avoid re-download and re-decrypt on reload
+          const persistedBlob = await getDecryptedBlob(url);
+          if (persistedBlob) {
+            const blobUrl = URL.createObjectURL(persistedBlob);
+            mediaUrlCache.setBlob(url, true, blobUrl, mimeType);
+            return blobUrl;
+          }
 
           const fileContent = await downloadEncryptedMedia(
             mediaUrl,
@@ -152,6 +161,8 @@ export const ImageContent = as<'div', ImageContentProps>(
           );
           const blobUrl = URL.createObjectURL(fileContent);
           mediaUrlCache.setBlob(url, true, blobUrl, mimeType);
+          // Persist the decrypted blob so subsequent loads skip decrypt
+          void storeDecryptedBlob(url, fileContent);
           return blobUrl;
         }
         return mediaUrl;

@@ -172,6 +172,13 @@ async function cleanupDeadClients() {
 
 function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, userId?: unknown) {
   if (typeof accessToken === 'string' && typeof baseUrl === 'string') {
+    // Only clear the media cache when the token actually changes (new account or
+    // token rotation). Normal page reloads with the same token should keep the
+    // cache intact so cached images survive reload without re-downloading.
+    const isSameToken =
+      preloadedSession?.accessToken === accessToken ||
+      [...sessions.values()].some((s) => s.accessToken === accessToken);
+
     const info: SessionInfo = {
       accessToken,
       baseUrl,
@@ -183,8 +190,11 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     console.debug('[SW] setSession: stored', clientId, baseUrl);
     // Persist so push-event fetches work after iOS restarts the SW.
     persistSession(info).catch(() => undefined);
-    // Clear media cache when session changes to avoid serving stale auth failures.
-    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
+    // Clear media cache only when the access token changes (login as different
+    // account, or token rotation) to avoid serving content from the wrong session.
+    if (!isSameToken) {
+      self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
+    }
   } else {
     // Logout or invalid session
     sessions.delete(clientId);
@@ -1068,6 +1078,79 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   );
 });
 
+/**
+ * Fetch a Matrix media URL with auth injection and persistent caching.
+ *
+ * Strategy: cache-first for normal requests (Matrix media is immutable by
+ * content address — the media ID never changes for a given file).
+ * Requests with `cache: 'no-cache'` or `'no-store'` bypass the cache lookup
+ * and always go to the network — this preserves the intent of downloadMedia()
+ * which sets `no-cache` so retries always fetch fresh bytes.
+ *
+ * 1. For cacheable requests: return the cached response if available.
+ * 2. Fetch with Bearer auth; fall back to unauthenticated on network error.
+ * 3. Store successful responses in SW_MEDIA_CACHE only when:
+ *    - The content-type is `image/*` (skip encrypted blobs, video, audio, etc.)
+ *    - AND the original request was NOT `no-cache`/`no-store` — encrypted images
+ *      are uploaded with the original file's MIME type (e.g. image/jpeg) even
+ *      though the bytes are ciphertext, so caching them under the image URL would
+ *      serve garbage to any future <img> tag. downloadMedia() always uses
+ *      `no-cache`, so these encrypted bytes are never stored.
+ */
+async function handleMediaFetch(
+  url: string,
+  session: SessionInfo,
+  fallbackRequest: Request
+): Promise<Response> {
+  const redirect: RequestRedirect = 'follow';
+
+  // `no-cache` / `no-store` — skip the cache and always hit the network.
+  // downloadMedia() uses `no-cache` so retries bypass stale or encrypted-byte entries.
+  const bypassCache = fallbackRequest.cache === 'no-cache' || fallbackRequest.cache === 'no-store';
+
+  if (!bypassCache) {
+    // Cache-first: serve from SW media cache if available
+    try {
+      const cache = await self.caches.open(SW_MEDIA_CACHE);
+      const cached = await cache.match(url);
+      if (cached) return cached;
+    } catch {
+      // Cache API unavailable — fall through to network
+    }
+  }
+
+  // Fetch with auth header; fall back to unauthenticated on network error
+  let response: Response;
+  try {
+    response = await fetch(url, { ...fetchConfig(session.accessToken), redirect });
+  } catch {
+    try {
+      response = await fetch(fallbackRequest);
+    } catch {
+      return new Response(null, { status: 503, statusText: 'Service Unavailable' });
+    }
+  }
+
+  // Cache immutable Matrix media images for future <img> tag requests.
+  // Only cache when:
+  //   - response is successful and content-type is image/*
+  //   - the original request did NOT use no-cache (encrypted blobs sent with
+  //     the wrong image/* content-type must not be stored here)
+  if (!bypassCache && response.ok) {
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.startsWith('image/')) {
+      try {
+        const cache = await self.caches.open(SW_MEDIA_CACHE);
+        await cache.put(url, response.clone());
+      } catch {
+        // Quota exceeded or storage unavailable — continue without caching
+      }
+    }
+  }
+
+  return response;
+}
+
 self.addEventListener('fetch', (event: FetchEvent) => {
   const { url, method } = event.request;
 
@@ -1075,25 +1158,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
   const { clientId } = event;
 
-  // For browser sub-resource loads (images, video, audio, etc.), 'follow' is
-  // the correct mode: the auth header is sent to the Matrix server which owns
-  // the first hop; any CDN redirect it issues is followed natively by the
-  // Fetch machinery.  'manual' would return an opaque-redirect Response that
-  // the browser cannot render as an <img>/<video>/etc.
-  const redirect: RequestRedirect = 'follow';
-
   // Fast path: active session for this window
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
-    event.respondWith(
-      fetch(url, { ...fetchConfig(session.accessToken), redirect }).catch(() =>
-        // Authenticated fetch had a network error; try unauthenticated as last resort.
-        // Second catch prevents a rejected respondWith ("Load failed") on offline.
-        fetch(event.request).catch(
-          () => new Response(null, { status: 503, statusText: 'Service Unavailable' })
-        )
-      )
-    );
+    event.respondWith(handleMediaFetch(url, session, event.request));
     return;
   }
 
@@ -1103,13 +1171,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // with any authenticated account on that homeserver.
   const byBaseUrl = [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl));
   if (byBaseUrl) {
-    event.respondWith(
-      fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }).catch(() =>
-        fetch(event.request).catch(
-          () => new Response(null, { status: 503, statusText: 'Service Unavailable' })
-        )
-      )
-    );
+    event.respondWith(handleMediaFetch(url, byBaseUrl, event.request));
     return;
   }
 
@@ -1117,13 +1179,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // The preloadedSession is populated from cache at SW activate, providing
   // auth during the window between SW restart and the first live setSession.
   if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {
-    event.respondWith(
-      fetch(url, { ...fetchConfig(preloadedSession.accessToken), redirect }).catch(() =>
-        fetch(event.request).catch(
-          () => new Response(null, { status: 503, statusText: 'Service Unavailable' })
-        )
-      )
-    );
+    event.respondWith(handleMediaFetch(url, preloadedSession, event.request));
     return;
   }
 

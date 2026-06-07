@@ -262,6 +262,23 @@ export async function getBlobCacheStatsAsync(): Promise<ReturnType<typeof getBlo
 }
 
 /**
+ * Store a pre-decrypted blob in the persistent media cache.
+ * Use this after decrypting encrypted attachments so subsequent page loads
+ * can skip the download+decrypt round-trip.
+ */
+export async function storeDecryptedBlob(url: string, blob: Blob): Promise<void> {
+  await cacheMedia(url, blob);
+}
+
+/**
+ * Retrieve a previously stored decrypted blob from the persistent cache.
+ * Returns undefined on a miss or if the cached entry has expired.
+ */
+export async function getDecryptedBlob(url: string): Promise<Blob | undefined> {
+  return getCachedMedia(url);
+}
+
+/**
  * Hook to fetch and cache media blobs with persistent storage.
  * Checks in-memory cache first, then Cache API, then fetches from network.
  */

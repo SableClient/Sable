@@ -170,26 +170,12 @@ export const decryptFile = async (
   }
 ): Promise<Blob> => {
   try {
-    // DIAGNOSTIC: Verify hash of encrypted bytes (ciphertext), not decrypted output.
-    // Matrix spec stores the hash of the encrypted file as uploaded to the server.
-    // The hash uses standard base64 encoding (with padding), not URL-safe.
+    // Verify SHA-256 hash of the encrypted bytes (ciphertext) per Matrix spec.
     const downloadedBytes = new Uint8Array(dataBuffer);
     const hashBuffer = await crypto.subtle.digest('SHA-256', downloadedBytes);
-    // Matrix spec stores hashes as unpadded base64 - strip padding before comparison
+    // Matrix spec stores hashes as unpadded base64 — strip padding before comparison
     const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer)).replace(/=+$/, '');
     const expectedHash = (encInfo.hashes?.sha256 ?? '').replace(/=+$/, '');
-
-    // Temporary diagnostic logging to debug SHA-256 mismatches
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] URL:', context?.mediaUrl);
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] Downloaded bytes:', downloadedBytes.byteLength);
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] Expected SHA-256:', expectedHash);
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] Actual SHA-256:', actualHash);
-    // eslint-disable-next-line no-console
-    console.log('[media-debug] Match:', actualHash === expectedHash);
 
     // Decrypt the attachment
     const decryptedData = await decryptAttachment(dataBuffer, encInfo);

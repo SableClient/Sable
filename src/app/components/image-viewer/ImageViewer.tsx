@@ -4,24 +4,30 @@ import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
 import { useImageGestures } from '$hooks/useImageGestures';
 import { useSetting } from '$state/hooks/settings';
-import { isPixelatedViewerRendering, settingsAtom } from '$state/settings';
+import { isPixelatedRendering, settingsAtom } from '$state/settings';
 import { downloadMedia } from '$utils/matrix';
 import * as css from './ImageViewer.css';
+import type { IImageInfo } from '$types/matrix/common';
+import { CheckerboardIcon } from '@phosphor-icons/react';
 
 export type ImageViewerProps = {
   alt: string;
   src: string;
   requestClose: () => void;
+  info?: IImageInfo;
 };
 
 export const ImageViewer = as<'div', ImageViewerProps>(
-  ({ className, alt, src, requestClose, ...props }, ref) => {
+  ({ className, alt, src, requestClose, info, ...props }, ref) => {
     const zoomInputRef = useRef<HTMLInputElement>(null);
     const [pixelatedImageRendering] = useSetting(settingsAtom, 'pixelatedImageRendering');
 
     const [isImageReady, setIsImageReady] = useState(false);
     const [isEditingZoom, setIsEditingZoom] = useState(false);
     const [zoomInput, setZoomInput] = useState('100');
+    const [isPixelated, setIsPixelated] = useState(
+      isPixelatedRendering(pixelatedImageRendering, info)
+    );
 
     const {
       transforms,
@@ -84,6 +90,16 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             </Text>
           </Box>
           <Box shrink="No" alignItems="Center" gap="200">
+            <IconButton
+              variant="Surface"
+              size="300"
+              radii="Pill"
+              onClick={() => setIsPixelated(!isPixelated)}
+              aria-label="Toggle Pixelation"
+              title={`Turn ${isPixelated ? 'Anti-aliasing' : 'Pixelation'} on`}
+            >
+              <CheckerboardIcon size={20} weight={isPixelated ? 'duotone' : 'fill'} />
+            </IconButton>
             <IconButton
               variant="Surface"
               style={{
@@ -225,10 +241,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
           onPointerDown={onPointerDown}
         >
           <img
-            className={classNames(
-              css.ImageViewerImg,
-              isPixelatedViewerRendering(pixelatedImageRendering) && css.ImageViewerImgPixelated
-            )}
+            className={classNames(css.ImageViewerImg, isPixelated && css.ImageViewerImgPixelated)}
             draggable={false}
             data-gestures="ignore"
             style={{

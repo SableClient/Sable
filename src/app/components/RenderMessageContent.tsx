@@ -46,6 +46,7 @@ import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
+import type { IImageInfo } from '$types/matrix/common';
 
 type RenderMessageContentProps = {
   displayName: string;
@@ -339,7 +340,7 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === (MsgType.Image as string)) {
-    const info = (content as { info?: { mimetype?: string } }).info;
+    const { info } = content as { info?: IImageInfo };
     const isGif =
       info?.mimetype === 'image/gif' ||
       info?.mimetype === 'image/apng' ||
@@ -363,11 +364,11 @@ function RenderMessageContentInternal({
               if (isGif && !autoplayGifs && p.src) {
                 return (
                   <ClientSideHoverFreeze src={p.src}>
-                    <Image {...p} loading="lazy" />
+                    <Image info={info} {...p} loading="lazy" />
                   </ClientSideHoverFreeze>
                 );
               }
-              return <Image {...p} loading="lazy" />;
+              return <Image info={info} {...p} loading="lazy" />;
             }}
             renderViewer={(p) => <ImageViewer {...p} />}
           />

@@ -1541,7 +1541,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.Location]: {
         name: Command.Location,
-        description: 'Share a location as /location <latitude> <longitude>',
+        description:
+          'Open location sharing menu or share a location as /location <latitude> <longitude>',
         exe: async (payload) => {
           const target = payload
             .replace(',', ' ')
@@ -1553,9 +1554,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const mlat = target[0];
           const mlon = target[1];
           const malt = target[2];
+          if (target.length === 0) return;
           if (!mlat || !mlon) {
             sendFeedback(
-              'You need to specify a latitude, a longitude parameter, and optionally an altitude, as for example: /location 43.959971 -59.790623 or use the /sharemylocation to share the current location',
+              'You need to specify a latitude, and a longitude parameter, as for example: /location 43.959971 -59.790623 or have nothing after the /location to open the map to click which location to share',
               room,
               mx.getSafeUserId()
             );
@@ -1565,7 +1567,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             msgtype: 'm.location',
             geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=0`,
             body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
-          } as unknown as RoomMessageEventContent);
+          } as RoomMessageEventContent);
         },
       },
       [Command.ShareMyLocation]: {
@@ -1589,7 +1591,6 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             const mlat = crd.latitude;
             const mlon = crd.longitude;
             const malt = crd.altitude;
-            const macc = crd.accuracy;
             if (!mlat || !mlon) {
               sendFeedback(
                 'Unable to retrieve the location data for an unknown reason',
@@ -1600,7 +1601,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             }
             mx.sendMessage(room.roomId, {
               msgtype: 'm.location',
-              geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=${macc}`,
+              geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=0`,
               body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
             } as unknown as RoomMessageEventContent);
           }

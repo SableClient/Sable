@@ -35,10 +35,10 @@ import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
 import { LINKINPUTREGEX } from '$components/editor';
 import { MATRIX_TO_BASE } from '$plugins/matrix-to';
+import { copyToClipboard } from '$utils/dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { copyToClipboard } from '$utils/dom';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -685,26 +685,28 @@ export function MLocation({ content, showMaps }: MLocationProps) {
           rel="noreferrer noopener"
           variant="Primary"
           radii="Pill"
+          style={{ flexShrink: '0' }}
           before={<Icon src={Icons.External} size="50" />}
         >
           <Text size="B300">Open Location</Text>
         </Chip>
       </Box>
       {showMaps && (
-      <MapContainer
-        center={coords}
-        zoom={16}
-        scrollWheelZoom={true}
-        style={{ height: toRem(400) }}
-        attributionControl
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap Contributors</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <MapContainer
+          center={coords}
+          zoom={16}
+          scrollWheelZoom={true}
+          style={{ height: toRem(400) }}
+          attributionControl
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-        <Marker position={coords} draggable></Marker>
-      </MapContainer>)}
+          <Marker position={coords}></Marker>
+        </MapContainer>
+      )}
     </Box>
   );
 }

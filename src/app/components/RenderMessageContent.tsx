@@ -431,7 +431,8 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === (MsgType.File as string)) return renderFile();
-  if (msgType === (MsgType.Location as string)) return <MLocation showMaps={showMaps} content={content} />;
+  if (msgType === (MsgType.Location as string))
+    return <MLocation showMaps={showMaps} content={content} />;
   if (msgType === 'm.bad.encrypted') return <MBadEncrypted />;
 
   // cute events

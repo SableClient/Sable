@@ -129,7 +129,7 @@ import {
   convertPerMessageProfileToBeeperFormat,
   getCurrentlyUsedPerMessageProfileForRoom,
 } from '$hooks/usePerMessageProfile';
-import { Microphone, Stop } from '@phosphor-icons/react';
+import { Microphone, Stop, MapPinPlusIcon } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { ErrorCode } from '../../cs-errorcode';
 import { sanitizeText } from '$utils/sanitize';
@@ -160,6 +160,7 @@ import type {
 import { AudioMessageRecorder } from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
 import { PollDialog } from './poll-modals';
+import { LocationDialog } from './location-modal';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -389,6 +390,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const [AddMenuAnchor, setAddMenuAnchor] = useState<RectCords>();
     const [showPollPicker, setShowPollPicker] = useState(false);
+    const [showLocationPicker, setShowLocationPicker] = useState(false);
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
@@ -822,16 +824,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else if (commandName === Command.UnFlip) {
         plainText = `${UNFLIP} ${plainText}`;
         customHtml = `${UNFLIP} ${customHtml}`;
-      } else if (commandName === Command.Poll) {
-        setShowPollPicker(true);
-        resetEditor(editor);
-        resetEditorHistory(editor);
-        sendTypingStatus(false);
-        return;
       } else if (commandName) {
-        const commandContent = commands[commandName as Command];
-        if (commandContent) {
-          commandContent.exe(plainText, customHtml);
+        if ((commandName as Command) === Command.Poll) setShowPollPicker(true);
+        else if ((commandName as Command) === Command.Location && plainText.trim().length === 0)
+          setShowLocationPicker(true);
+        else {
+          const commandContent = commands[commandName as Command];
+          if (commandContent) {
+            commandContent.exe(plainText, customHtml);
+          }
         }
         resetEditor(editor);
         resetEditorHistory(editor);
@@ -1565,6 +1566,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                           size="300"
                           radii="300"
                           onClick={() => {
+                            setAddMenuAnchor(undefined);
+                            setShowLocationPicker(true);
+                          }}
+                          before={<MapPinPlusIcon size="20" />}
+                        >
+                          <Text size="B300">Add Location</Text>
+                        </MenuItem>
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          onClick={() => {
                             pickFile('*');
                             setAddMenuAnchor(undefined);
                           }}
@@ -1586,8 +1598,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 variant="SurfaceVariant"
                 size="300"
                 radii="300"
-                title="Upload File"
-                aria-label="Upload and attach a File"
+                title={editorOldAddFile ? 'Upload File' : 'Add'}
+                aria-label={editorOldAddFile ? 'Upload and attach a File' : 'Add more menu'}
               >
                 <Icon src={Icons.PlusCircle} />
               </IconButton>
@@ -1837,6 +1849,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         {showPollPicker && (
           <PollDialog
             onCancel={() => setShowPollPicker(false)}
+            mx={mx}
+            room={room}
+            replyDraft={replyDraft}
+            clearReplyDraft={() => setReplyDraft(undefined)}
+          />
+        )}
+        {showLocationPicker && (
+          <LocationDialog
+            onCancel={() => setShowLocationPicker(false)}
             mx={mx}
             room={room}
             replyDraft={replyDraft}

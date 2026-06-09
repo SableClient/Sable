@@ -1164,7 +1164,7 @@ function Embeds() {
         <SettingTile
           title="Show Interactive maps"
           focusId="show-interactive-map"
-          description="Show an interactive map in messages. This reduces Privacy because it requests map data from OpenStreetMap.org"
+          description="Show an interactive map in messages. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
           after={
             <Switch
               variant="Primary"
@@ -1179,7 +1179,7 @@ function Embeds() {
         <SettingTile
           title="Show Interactive maps in Encrypted Rooms"
           focusId="show-interactive-map-enc"
-          description="Show an interactive map in Encrtyped rooms. This reduces Privacy because it requests map data from OpenStreetMap.org"
+          description="Show an interactive map in Encrtyped rooms. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
           after={
             <Switch
               variant="Primary"

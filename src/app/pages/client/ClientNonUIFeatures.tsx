@@ -52,6 +52,7 @@ import {
 import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
+import { useSyncState } from '$hooks/useSyncState';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { NotificationBanner } from '$components/notification-banner';
 import { ThemeMigrationBanner } from '$components/theme/ThemeMigrationBanner';
@@ -664,7 +665,15 @@ function SyncNotificationSettingsWithServiceWorker() {
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+
+    const keepAliveId = window.setInterval(() => {
+      navigator.serviceWorker.controller?.postMessage({ type: 'ping' });
+    }, 20_000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', postVisibility);
+      window.clearInterval(keepAliveId);
+    };
   }, []);
 
   useEffect(() => {
@@ -684,6 +693,33 @@ function SyncNotificationSettingsWithServiceWorker() {
       registration.active?.postMessage(payload);
     });
   }, [showMessageContent, showEncryptedMessageContent, clearNotificationsOnRead]);
+
+  return null;
+}
+
+function SyncStateWithServiceWorker() {
+  const mx = useMatrixClient();
+
+  const postSyncHealth = useCallback((healthy: boolean) => {
+    if (!('serviceWorker' in navigator)) return;
+    const msg = { type: 'setSyncState', healthy };
+    navigator.serviceWorker.controller?.postMessage(msg);
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        registration.active?.postMessage(msg);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useSyncState(
+    mx,
+    useCallback(
+      (current) => {
+        postSyncHealth(current !== SyncState.Reconnecting && current !== SyncState.Error);
+      },
+      [postSyncHealth]
+    )
+  );
 
   return null;
 }
@@ -874,6 +910,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
+      <SyncStateWithServiceWorker />
       <HandleDecryptPushEvent />
       <NotificationBanner />
       <TelemetryConsentBanner />

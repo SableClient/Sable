@@ -12,6 +12,7 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
+let syncIsHealthy = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -39,6 +40,7 @@ async function persistSettings() {
           showMessageContent,
           showEncryptedMessageContent,
           clearNotificationsOnRead,
+          appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
       )
@@ -61,6 +63,13 @@ async function loadPersistedSettings() {
       showEncryptedMessageContent = s.showEncryptedMessageContent;
     if (typeof s.clearNotificationsOnRead === 'boolean')
       clearNotificationsOnRead = s.clearNotificationsOnRead;
+    if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
+      const ageMs = Date.now() - s.appVisibleAt;
+      if (ageMs < 2_000) {
+        appIsVisible = true;
+        console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
+      }
+    }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
   }
@@ -582,7 +591,16 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
+      event.waitUntil(persistSettings());
     }
+  }
+  if (type === 'setSyncState') {
+    if (typeof (data as { healthy?: unknown }).healthy === 'boolean') {
+      syncIsHealthy = (data as { healthy: boolean }).healthy;
+    }
+  }
+  if (type === 'ping') {
+    event.waitUntil(Promise.resolve());
   }
   if (type === 'setNotificationSettings') {
     if (
@@ -761,21 +779,23 @@ const onPushNotification = async (event: PushEvent) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
 
-  // If the app is open and visible, skip the OS push notification — the in-app
-  // pill notification handles the alert instead.
-  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
-  // because iOS Safari PWA often returns empty or stale results from matchAll().
+  // If the app is open, visible, and sync is healthy, skip the OS push
+  // notification — the in-app pill notification handles the alert instead.
+  // Require both signals so stale iOS Safari matchAll() visibility cannot drop
+  // background notifications after the worker restarts.
   const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+    appIsVisible && syncIsHealthy && clients.some((client) => client.visibilityState === 'visible');
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
+    '| syncIsHealthy:',
+    syncIsHealthy,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
-    console.debug('[SW push] suppressing OS notification — app is visible');
+    console.debug('[SW push] suppressing OS notification — app is visible and sync is healthy');
     return;
   }
 

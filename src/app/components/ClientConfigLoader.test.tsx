@@ -20,7 +20,15 @@ afterEach(() => {
 });
 
 const mockFetch = (config: object) =>
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: () => Promise.resolve(config) }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: () => Promise.resolve(config),
+    })
+  );
 
 describe('ClientConfigLoader + matrix-to wiring', () => {
   it('generates a standard matrix.to URL when no custom base is configured', async () => {

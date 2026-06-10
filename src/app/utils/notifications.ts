@@ -1,5 +1,9 @@
+import * as Sentry from '@sentry/react';
 import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
 import { ReceiptType } from '$types/matrix-sdk';
+import { createDebugLogger } from './debugLogger';
+
+const debugLog = createDebugLogger('notifications');
 
 export async function markAsRead(mx: MatrixClient, roomId: string, privateReceipt: boolean) {
   const room = mx.getRoom(roomId);
@@ -24,12 +28,30 @@ export async function markAsRead(mx: MatrixClient, roomId: string, privateReceip
   const latestEventId = latestEvent.getId();
   if (!latestEventId) return;
 
-  // Update both read receipt and fully-read marker so unread state clears reliably
-  // across clients and bridge-heavy rooms where hidden events may exist.
-  if (privateReceipt) {
-    await mx.setRoomReadMarkers(roomId, latestEventId, undefined, latestEvent);
-  } else {
-    await mx.setRoomReadMarkers(roomId, latestEventId, latestEvent);
+  try {
+    // Update both read receipt and fully-read marker so unread state clears reliably
+    // across clients and bridge-heavy rooms where hidden events may exist.
+    if (privateReceipt) {
+      await mx.setRoomReadMarkers(roomId, latestEventId, undefined, latestEvent);
+    } else {
+      await mx.setRoomReadMarkers(roomId, latestEventId, latestEvent);
+    }
+  } catch (err) {
+    debugLog.warn('notification', 'Failed to set room read marker; falling back to receipt', {
+      error: err instanceof Error ? err.message : String(err),
+      privateReceipt,
+    });
+    Sentry.captureException(err, {
+      level: 'warning',
+      tags: {
+        component: 'markAsRead',
+        operation: 'setRoomReadMarkers',
+        private_receipt: String(privateReceipt),
+      },
+      extra: {
+        eventId: latestEventId,
+      },
+    });
   }
 
   // Keep legacy receipt path as a safety fallback for homeservers with partial support.

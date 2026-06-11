@@ -24,9 +24,7 @@ const inFlightProfiles = new Map<string, Promise<Record<string, unknown>>>();
 // Bridged user profile requests can take 57-58s each, and browsers cap concurrent
 // connections per domain at 6 (HTTP/1.1). Without a queue, many concurrent profile
 // fetches occupy all slots, blocking critical timeline /messages requests.
-// Increased from 3 to 6 to reduce N+1 pattern impact (SABLE-2) while still
-// leaving headroom for timeline/sync requests.
-const profileQueue = new ConcurrencyQueue(6);
+const profileQueue = new ConcurrencyQueue(3);
 
 // Aggressive TTL-based cache for bridged users. These profiles rarely change.
 const BRIDGED_USER_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -183,7 +181,6 @@ export const useUserProfile = (
     let fetchPromise = inFlightProfiles.get(userId);
 
     if (!fetchPromise) {
-      const fetchStart = performance.now();
       // Queue the profile fetch to prevent connection pool saturation
       fetchPromise = profileQueue
         .add(() => {
@@ -260,7 +257,43 @@ export const useUserProfile = (
       };
     }
 
-    return undefined;
+    let isMounted = true;
+
+    fetchPromise
+      .then((info: Record<string, unknown>) => {
+        if (!isMounted) return;
+        const normalized = normalizeInfo(info);
+        setGlobalProfiles((prev) => ({
+          ...prev,
+          [userId]: { ...prev[userId], ...normalized },
+        }));
+        // Mark bridged users with fetch timestamp for TTL tracking
+        if (isBridgedUser(userId)) {
+          bridgedUserCacheTimestamps.set(userId, Date.now());
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        // Log profile fetch failures for monitoring (especially slow bridged users)
+        Sentry.addBreadcrumb({
+          category: 'profile',
+          message: 'Profile fetch failed',
+          level: 'warning',
+          data: {
+            userId,
+            isBridged: isBridgedUser(userId),
+            error: String(err),
+          },
+        });
+        setGlobalProfiles((prev) => ({
+          ...prev,
+          [userId]: { ...prev[userId], _fetched: true },
+        }));
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [userId, needsFetch, mx, setGlobalProfiles]);
 
   return useMemo(() => {

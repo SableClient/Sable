@@ -41,6 +41,22 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
         try {
           const fileContent = await downloadEncryptedMedia(
             mediaUrl,
+            (encBuf) => decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo),
+            mx.getAccessToken()
+          );
+          const blobUrl = URL.createObjectURL(fileContent);
+          mediaUrlCache.setBlob(thumbMxcUrl, true, blobUrl, thumbInfo.mimetype);
+          return blobUrl;
+        } catch {
+          // Network-level media fetch failed (timeout, 404, 401, etc.).
+          // Return null so the component renders nothing instead of propagating to error boundary.
+          return null;
+        }
+      }
+
+        try {
+          const fileContent = await downloadEncryptedMedia(
+            mediaUrl,
             (encBuf) =>
               decryptFileSafe(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo, {
                 mediaUrl,

@@ -639,9 +639,10 @@ export function RoomTimeline({
         // finished processing/rendering it yet.
         retryIntervalId = setInterval(() => {
           if (attemptScroll()) {
-            // attemptScroll() now clears the interval itself when it succeeds
+            clearInterval(retryIntervalId);
+            retryIntervalId = undefined;
           }
-        }, 100);
+        }, 200);
       }
 
       // Clear highlight after scroll settles. Use longer timeout for history jumps

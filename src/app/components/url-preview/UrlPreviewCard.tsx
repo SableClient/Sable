@@ -114,7 +114,7 @@ export const UrlPreviewCard = as<
         const clientCache = getClientCache(mx);
         const cached = clientCache.get(url);
         if (cached !== undefined) return cached;
-
+        
         try {
           const previewResult = mx?.getUrlPreview(url, ts);
           if (!previewResult) return null;

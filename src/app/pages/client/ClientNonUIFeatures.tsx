@@ -1083,7 +1083,7 @@ function PresenceSyncFeature() {
 
 function ProgressivePrefetchFeature() {
   const mx = useMatrixClient();
-  const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
+  const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
 
   useEffect(() => {
     getSlidingSyncManager(mx)?.setProgressivePrefetch(progressivePrefetch);

@@ -62,7 +62,7 @@ export const unwrapForwardedContent = (content: string) => {
     }
     return content;
   } catch (error) {
-    console.warn('[MessageForward] Failed to unwrap forwarded content:', error);
+    console.warn('[unwrapForwardedContent] Failed to unwrap forwarded content:', error);
     return content;
   }
 };

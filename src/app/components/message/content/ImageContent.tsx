@@ -171,13 +171,9 @@ export const ImageContent = as<'div', ImageContentProps>(
       setError(false);
     };
     const handleError = () => {
-      // Only show the error if the source download already succeeded — if
-      // it's still loading the image element may fire a transient error
-      // before the blob URL is ready.
-      if (srcState.status === AsyncStatus.Success) {
-        setLoad(false);
-        setError(true);
-      }
+      setLoad(false);
+      setError(true);
+      onError?.();
     };
 
     const handleRetry = () => {
@@ -364,7 +360,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               <Spinner variant="Secondary" />
             </Box>
           )}
-        {!load && (error || srcState.status === AsyncStatus.Error) && (
+        {!suppressErrorUI && (error || srcState.status === AsyncStatus.Error) && (
           <Box
             className={css.AbsoluteContainer}
             alignItems="Center"

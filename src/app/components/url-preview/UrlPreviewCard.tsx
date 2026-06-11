@@ -328,6 +328,7 @@ export const UrlPreviewCard = as<
               renderViewer={(p) => <ImageViewer {...p} />}
               renderImage={(p) => (
                 <Image
+                  info={ogImageInfo}
                   {...p}
                   style={{
                     display: 'block',

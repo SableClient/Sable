@@ -1,6 +1,7 @@
 import { atom, type WritableAtom } from 'jotai';
 import type { Store } from 'jotai/vanilla/store';
 import { mobileOrTablet } from '$utils/user-agent';
+import type { IImageInfo } from '$types/matrix/common';
 
 const STORAGE_KEY = 'settings';
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
@@ -60,6 +61,17 @@ export type ThemeRemoteTweakFavorite = {
 
 /** Custom profile card hero colors: which brightness schemes to honor. */
 export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
+
+/** Where to use crisp nearest-neighbor (pixelated) image scaling. */
+export type PixelatedImageRenderingMode = 'always' | 'smart' | 'never';
+
+export function isPixelatedRendering(
+  mode: PixelatedImageRenderingMode,
+  info?: IImageInfo
+): boolean {
+  if (mode === 'smart') return !!info && !!info.w && !!info.h && (info.w < 192 || info.h < 192);
+  return mode === 'always';
+}
 
 export function shouldApplyUserHeroCards(
   mode: RenderUserCardsMode,
@@ -171,6 +183,7 @@ export interface Settings {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  pixelatedImageRendering: PixelatedImageRenderingMode;
   incomingInlineImagesDefaultHeight: number;
   incomingInlineImagesMaxHeight: number;
   linkPreviewImageMaxHeight: number;
@@ -327,6 +340,7 @@ export const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
+  pixelatedImageRendering: 'smart',
   incomingInlineImagesDefaultHeight: 32,
   incomingInlineImagesMaxHeight: 64,
   linkPreviewImageMaxHeight: 640,
@@ -535,6 +549,8 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
         ? val
         : undefined;
+    case 'pixelatedImageRendering':
+      return val === 'always' || val === 'smart' || val === 'never' ? val : undefined;
     case 'jumboEmojiSize':
       return typeof val === 'string' && JUMBO_EMOJI_VALUES.has(val as JumboEmojiSize)
         ? val

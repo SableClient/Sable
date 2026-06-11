@@ -61,6 +61,7 @@ type RenderViewerProps = {
   src: string;
   alt: string;
   requestClose: () => void;
+  info?: IImageInfo;
 };
 type RenderImageProps = {
   alt: string;
@@ -297,6 +298,7 @@ export const ImageContent = as<'div', ImageContentProps>(
                     src: viewerFullSrc ?? srcState.data,
                     alt: body,
                     requestClose: () => setViewer(false),
+                    info: info,
                   })}
                 </Modal>
               </FocusTrap>

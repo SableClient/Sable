@@ -59,49 +59,16 @@ const useEventTimelineLoader = (
   onLoad: (eventId: string, linkedTimelines: EventTimeline[], evtAbsIndex: number) => void,
   onError: (err: Error | null) => void,
   onProactiveLoad?: () => void
-) => {
-  const jumpInProgressRef = useRef(false);
-  const currentJumpTargetRef = useRef<string | null>(null);
-  const jumpStartTimeRef = useRef(0);
-
-  return useCallback(
+) =>
+  useCallback(
     async (eventId: string, signal?: AbortSignal) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
-
-        // Track re-entrancy: if a jump is already in progress, log the supersession
-        if (jumpInProgressRef.current && currentJumpTargetRef.current) {
-          Sentry.addBreadcrumb({
-            category: 'timeline.jump',
-            message: 'Jump superseded — cancelling in-progress jump',
-            data: {
-              previousEventId: currentJumpTargetRef.current,
-              newEventId: eventId,
-              roomId: room.roomId,
-            },
-            level: 'warning',
-          });
-          Sentry.metrics.count('sable.timeline.jump_superseded', 1, {
-            attributes: { room_id: room.roomId },
-          });
-        }
-
-        jumpInProgressRef.current = true;
-        currentJumpTargetRef.current = eventId;
-        jumpStartTimeRef.current = performance.now();
 
         // Check if already aborted before starting
         if (signal?.aborted) {
           const abortError = new Error('Timeline load aborted before start');
           abortError.name = 'AbortError';
-          Sentry.addBreadcrumb({
-            category: 'timeline.jump',
-            message: 'Jump aborted',
-            data: { eventId, durationMs: performance.now() - jumpStartTimeRef.current },
-            level: 'warning',
-          });
-          jumpInProgressRef.current = false;
-          currentJumpTargetRef.current = null;
           throw abortError;
         }
 
@@ -111,30 +78,6 @@ const useEventTimelineLoader = (
           data: { eventId, roomId: room.roomId, isPermalink: true },
           level: 'info',
         });
-
-        // Verify event exists before initiating timeline jump. Calling getEventTimeline
-        // with a non-existent event ID triggers expensive server-side lookups and can
-        // 404 or hang. fetchRoomEvent is cheaper (single /event endpoint) and lets us
-        // handle 404s gracefully without starting a full timeline load.
-        try {
-          await mx.fetchRoomEvent(room.roomId, eventId);
-        } catch (fetchErr) {
-          const matrixError = fetchErr as { httpStatus?: number; errcode?: string };
-          if (matrixError.httpStatus === 404) {
-            Sentry.addBreadcrumb({
-              category: 'timeline.load',
-              message: 'Event not found (404) — cannot jump to this message',
-              data: { eventId, roomId: room.roomId },
-              level: 'warning',
-            });
-            const notFoundError = new Error('This message no longer exists or is not accessible.');
-            notFoundError.name = 'EventNotFoundError';
-            onError(notFoundError);
-            return;
-          }
-          // For other errors (network, auth, etc.), proceed with timeline load anyway —
-          // the event might be in local cache even if the fetch failed transiently.
-        }
 
         // Directly fetch the event timeline context from the server using /context API.
         // Do NOT wait for roomInitialSync or sliding sync — the jump should be independent
@@ -166,6 +109,11 @@ const useEventTimelineLoader = (
           return;
         }
 
+        // Successfully loaded the timeline fragment from /context endpoint.
+        // This fragment may or may not be connected to the live timeline — both cases
+        // are valid and should be rendered. Disconnected fragments occur naturally for
+        // old permalinks/bookmarks and pagination will connect them as the user scrolls.
+
         // Validate that the loaded timeline is connected to (or contains) the live timeline.
         // If not, the SDK returned a disconnected fragment which causes "no history" or
         // "wrong order" issues when opening from notifications.
@@ -175,162 +123,31 @@ const useEventTimelineLoader = (
         if (!containsLive) {
           // Disconnected fragment detected - fall back to live timeline to avoid broken view.
           // The event likely exists in the live timeline now (sync caught up), or pagination
-          // will fetch it. This is a recoverable condition — log as breadcrumb, not error.
-          Sentry.addBreadcrumb({
-            category: 'timeline.jump',
-            message: 'Disconnected fragment detected, falling back to live timeline',
+          // will fetch it.
+          Sentry.captureMessage('Loaded disconnected timeline fragment, falling back to live', {
             level: 'warning',
-            data: {
+            extra: {
               eventId,
               fragmentLength: linkedTimelines.length,
               fragmentEventsCount: getTimelinesEventsCount(linkedTimelines),
             },
+            tags: { feature: 'timeline', issue: 'disconnected_fragment' },
           });
 
           // Check if the event now exists in the live timeline
           const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
-          let liveAbsIndex = getEventIdAbsoluteIndex(liveLinkedTimelines, liveTimeline, eventId);
-
-          // If event not found in current live timeline, try paginating backward to fetch it.
-          // This handles the case where sync hasn't caught up yet but the event is on the server.
-          // For old bookmarks (e.g. weeks old), we may need multiple pagination rounds to reach them.
-          if (liveAbsIndex === undefined) {
-            Sentry.addBreadcrumb({
-              category: 'timeline.jump',
-              message: 'Event not in live timeline, attempting backward pagination',
-              level: 'info',
-              data: { eventId },
-            });
-
-            const MAX_PAGINATION_ATTEMPTS = 10; // 10 * 60 = 600 events max
-            let paginationAttempt = 0;
-            let foundEvent = false;
-
-            /* eslint-disable no-await-in-loop -- sequential pagination required to check for event after each fetch */
-            while (paginationAttempt < MAX_PAGINATION_ATTEMPTS && !foundEvent) {
-              paginationAttempt++;
-
-              const [paginateErr, hasMore] = await to(
-                withTimeout(
-                  mx.paginateEventTimeline(liveTimeline, {
-                    backwards: true,
-                    limit: PAGINATION_LIMIT,
-                  }),
-                  EVENT_TIMELINE_LOAD_TIMEOUT_MS
-                )
-              );
-
-              if (paginateErr) {
-                Sentry.addBreadcrumb({
-                  category: 'timeline.jump',
-                  message: `Pagination attempt ${paginationAttempt} failed`,
-                  level: 'warning',
-                  data: { eventId, error: String(paginateErr) },
-                });
-                break;
-              }
-
-              // Re-check after each pagination
-              const refreshedLinkedTimelines = getLinkedTimelines(liveTimeline);
-              liveAbsIndex = getEventIdAbsoluteIndex(
-                refreshedLinkedTimelines,
-                liveTimeline,
-                eventId
-              );
-
-              if (liveAbsIndex !== undefined) {
-                // Success! Event found after pagination
-                foundEvent = true;
-                Sentry.addBreadcrumb({
-                  category: 'timeline.jump',
-                  message: `Event found after ${paginationAttempt} pagination attempt(s)`,
-                  level: 'info',
-                  data: { eventId, absIndex: liveAbsIndex, attempts: paginationAttempt },
-                });
-                onLoad(eventId, refreshedLinkedTimelines, liveAbsIndex);
-
-                Sentry.addBreadcrumb({
-                  category: 'timeline.load',
-                  message: 'Timeline load complete',
-                  data: {
-                    eventId,
-                    roomId: room.roomId,
-                    duration: performance.now() - jumpLoadStart,
-                    connectedToLive: true,
-                    messageCount: getTimelinesEventsCount(refreshedLinkedTimelines),
-                  },
-                  level: 'info',
-                });
-
-                // Proactively load context
-                if (onProactiveLoad) {
-                  setTimeout(() => onProactiveLoad(), 500);
-                }
-                return;
-              }
-
-              // If hasMore is false, we've reached the start of the room
-              if (!hasMore) {
-                Sentry.addBreadcrumb({
-                  category: 'timeline.jump',
-                  message: 'Reached start of room history without finding event',
-                  level: 'warning',
-                  data: { eventId, attempts: paginationAttempt },
-                });
-                break;
-              }
-            }
-            /* eslint-enable no-await-in-loop */
-
-            if (!foundEvent && paginationAttempt >= MAX_PAGINATION_ATTEMPTS) {
-              Sentry.addBreadcrumb({
-                category: 'timeline.jump',
-                message: 'Max pagination attempts reached without finding event',
-                level: 'warning',
-                data: { eventId, attempts: paginationAttempt },
-              });
-            }
-          }
+          const liveAbsIndex = getEventIdAbsoluteIndex(
+            liveLinkedTimelines,
+            liveTimeline,
+            eventId
+          );
 
           if (liveAbsIndex !== undefined) {
-            // Event found in live timeline (either initially or after refresh) - use that instead
-            Sentry.addBreadcrumb({
-              category: 'timeline.jump',
-              message: 'Using event from live timeline instead of disconnected fragment',
-              level: 'info',
-              data: { eventId, absIndex: liveAbsIndex },
-            });
-
-            Sentry.addBreadcrumb({
-              category: 'timeline.load',
-              message: 'Timeline load complete',
-              data: {
-                eventId,
-                roomId: room.roomId,
-                duration: performance.now() - jumpLoadStart,
-                connectedToLive: true,
-                messageCount: getTimelinesEventsCount(liveLinkedTimelines),
-              },
-              level: 'info',
-            });
-
+            // Event found in live timeline - use that instead
             onLoad(eventId, liveLinkedTimelines, liveAbsIndex);
-
-            // Proactively load context
-            if (onProactiveLoad) {
-              setTimeout(() => onProactiveLoad(), 500);
-            }
           } else {
-            // Event not in live timeline even after pagination - give up gracefully.
-            // This is logged as a breadcrumb (not error) because the calling code will
-            // show the user an appropriate message via onError().
-            Sentry.addBreadcrumb({
-              category: 'timeline.jump',
-              message: 'Event not found after pagination and fallback attempts',
-              level: 'warning',
-              data: { eventId },
-            });
-            onError(new Error('Event timeline disconnected and not found in live timeline'));
+            // Event not in live timeline - trigger error fallback (returns to live without jump)
+            onError(new Error('Event timeline disconnected from live timeline'));
           }
           return;
         }
@@ -347,7 +164,6 @@ const useEventTimelineLoader = (
             eventId,
             roomId: room.roomId,
             duration: performance.now() - jumpLoadStart,
-            connectedToLive: containsLive,
             messageCount: getTimelinesEventsCount(linkedTimelines),
           },
           level: 'info',
@@ -360,16 +176,6 @@ const useEventTimelineLoader = (
         if (onProactiveLoad) {
           setTimeout(() => onProactiveLoad(), 500);
         }
-
-        // Mark jump as succeeded
-        Sentry.addBreadcrumb({
-          category: 'timeline.jump',
-          message: 'Jump succeeded',
-          data: { eventId, durationMs: performance.now() - jumpStartTimeRef.current },
-          level: 'info',
-        });
-        jumpInProgressRef.current = false;
-        currentJumpTargetRef.current = null;
       }),
     [mx, room, onLoad, onError, onProactiveLoad]
   );
@@ -771,7 +577,7 @@ export function useTimelineSync({
       // Only attempt forward pagination if there's a token — otherwise we're at
       // the live edge and will get an error ("Failed to load messages").
       void handleTimelinePaginationRef.current(true); // backward
-
+      
       const { linkedTimelines } = timelineRef.current;
       const lastTimeline = linkedTimelines.at(-1);
       const forwardToken = lastTimeline?.getPaginationToken(Direction.Forward);
@@ -838,6 +644,10 @@ export function useTimelineSync({
 
   useLiveTimelineRefresh(
     room,
+    // TimelineRefresh fires when getEventTimeline() creates a new context —
+    // i.e. it was triggered by our own history load.  If eventId is set we
+    // must NOT restart the load here: doing so would cause an infinite loop
+    // (getEventTimeline → TimelineRefresh → loadEventTimeline → getEventTimeline…).
     useCallback(() => {
       // When eventId is set, loadEventTimeline is responsible for updating the
       // timeline state. Don't overwrite with the live timeline.

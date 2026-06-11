@@ -1120,45 +1120,25 @@ export class SlidingSyncManager {
   }
 
   /**
-   * Check if we have a warm cache (existing rooms loaded from IndexedDB).
-   * If true, we can show the UI immediately while sync continues in background.
+   * Check if we have minimum data to show UI. Returns true as soon as we have
+   * any rooms loaded from the sync. This enables progressive UI loading for faster
+   * cold launch perception - the UI shows immediately with initial rooms and
+   * continues loading the rest in the background.
    */
-  public hasWarmCache(): boolean {
-    return this.mx.getRooms().length > 0;
-  }
-
-  /**
-   * Strategy 8: Check if we've loaded "sufficient" rooms to show the UI,
-   * even if not all lists are fully loaded. This improves perceived performance
-   * for users with many rooms by not blocking on loading ALL rooms.
-   */
-  public hasSufficientRoomsLoaded(): boolean {
+  public hasMinimumData(): boolean {
+    // If we're fully loaded, we definitely have minimum data
     if (this.listsFullyLoaded) return true;
 
-    const cachedRoomCount = this.mx.getRooms().length;
-    // Target: load at least 200 rooms, or match cached count (up to 500)
-    // This ensures most users see their recent rooms immediately
-    const targetCount = Math.max(200, Math.min(cachedRoomCount, 500));
-
-    let loadedCount = 0;
+    // Check if any list has reported rooms
     for (const key of this.listKeys) {
-      const params = this.slidingSync.getListParams(key);
-      const rangeEnd = getListEndIndex(params);
-      loadedCount += rangeEnd + 1; // +1 because range is 0-indexed
+      const listData = this.slidingSync.getListData(key);
+      if (listData && listData.joinedCount > 0) {
+        return true;
+      }
     }
 
-    return loadedCount >= targetCount;
-  }
-
-  /**
-   * Strategy 3: Get cached list state from previous session if available.
-   * Returns null if no cache exists, cache is stale, or userId doesn't match.
-   * UI can use this to optimistically render room order while sync loads fresh data.
-   */
-  public getCachedListState(): CachedListState | null {
-    const userId = this.mx.getUserId();
-    if (!userId) return null;
-    return getCachedListState(userId);
+    // Fallback: check if the Matrix client has any rooms loaded
+    return this.mx.getRooms().length > 0;
   }
 
   private expandListsToKnownCount(): void {

@@ -51,12 +51,6 @@ type SyncTransportMeta = {
 };
 const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
 const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
-// Config saved from the most-recent startClient() call. Used by
-// resumeClientFromBfcache() so it can re-create the sync loop after the page
-// is restored from bfcache with the same sliding-sync / poll-timeout settings.
-const bfcacheStartConfigByClient = new WeakMap<MatrixClient, StartClientConfig>();
-// Tracks clients currently paused for bfcache (sync stopped, crypto kept alive).
-const pausedForBfcache = new WeakSet<MatrixClient>();
 // Reduced from 20s to 8s to improve perceived cold launch performance.
 // 8 seconds is sufficient for most networks while still allowing time for
 // slow connections. If the bootstrap times out, sliding sync takes over.

@@ -343,87 +343,30 @@ export function ClientRoot({ children }: ClientRootProps) {
   }, [mx, startMatrix]);
 
   // Helper to check if the app is fully ready: sync must be in a ready state,
-  // and for sliding sync, either we have warm cache (show immediately) or
-  // all room lists must be fully loaded to prevent rooms from appearing in
-  // wrong positions or spaces as the list expands.
+  // and for sliding sync, we show UI progressively as soon as we have initial data.
+  // This significantly improves cold launch perception by showing partial UI quickly
+  // rather than waiting for all rooms to load.
   const checkReadyAndClearSplash = useCallback(
     (state: string | null) => {
       if (!state || !isClientReady(state)) return;
 
+      // Progressive UI loading: show UI as soon as sync reaches ready state.
+      // For sliding sync, we show UI immediately even if not all lists are fully loaded.
+      // This dramatically improves perceived cold launch performance - rooms will
+      // continue loading in the background and appear progressively.
       const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
-      if (slidingSyncManager) {
-        const hasWarm = slidingSyncManager.hasWarmCache();
-        const isFullyLoaded = slidingSyncManager.isFullyLoaded();
-        const hasSufficient = slidingSyncManager.hasSufficientRoomsLoaded();
-        const roomCount = mx?.getRooms().length ?? 0;
-        const elapsed = performance.now() - syncStartTimeRef.current;
-
-        const diagnostics = {
-          state,
-          hasWarmCache: hasWarm,
-          isFullyLoaded,
-          hasSufficientRooms: hasSufficient,
-          roomCount,
-          elapsed: `${elapsed.toFixed(0)}ms`,
-        };
-
-        log.log('[startup] checkReady:', diagnostics);
-        Sentry.addBreadcrumb({
-          category: 'startup',
-          message: 'checkReadyAndClearSplash',
-          level: 'info',
-          data: diagnostics,
-        });
-
-        // Strategy 1 + 4: If we have warm cache, show cached rooms immediately
-        // while sync continues in background (parallel loading)
-        if (hasWarm) {
-          log.log('[startup] showing UI immediately (warm cache)');
-          Sentry.addBreadcrumb({
-            category: 'startup',
-            message: 'Showing UI (warm cache)',
-            level: 'info',
-            data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
-          });
-          setLoading(false);
-          if (!firstSyncReadyRef.current) {
-            firstSyncReadyRef.current = true;
-            Sentry.metrics.distribution(
-              'sable.startup.time_to_ui_ms',
-              performance.now() - syncStartTimeRef.current,
-              { attributes: { cache_type: 'warm' } }
-            );
-          }
-          return;
-        }
-        // Cold cache: wait for full load to prevent visual jumping
-        // Strategy 8: Use "sufficient rooms" threshold for faster initial display
-        if (!isFullyLoaded && !hasSufficient) {
-          log.log('[startup] waiting for more rooms (cold cache)');
-          Sentry.addBreadcrumb({
-            category: 'startup',
-            message: 'Waiting for more rooms (cold cache)',
-            level: 'info',
-            data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
-          });
-          return;
-        }
-        log.log('[startup] showing UI (cold cache, sufficient rooms loaded)');
-        Sentry.addBreadcrumb({
-          category: 'startup',
-          message: 'Showing UI (cold cache)',
-          level: 'info',
-          data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
-        });
+      if (slidingSyncManager && !slidingSyncManager.hasMinimumData()) {
+        // Only wait if we have absolutely no rooms yet (very first network response).
+        // Once we have any rooms, show the UI and let the rest load in background.
+        return;
       }
 
       setLoading(false);
       if (!firstSyncReadyRef.current) {
         firstSyncReadyRef.current = true;
         Sentry.metrics.distribution(
-          'sable.startup.time_to_ui_ms',
-          performance.now() - syncStartTimeRef.current,
-          { attributes: { cache_type: 'cold' } }
+          'sable.sync.time_to_ready_ms',
+          performance.now() - syncStartTimeRef.current
         );
       }
     },
@@ -517,6 +460,7 @@ export function ClientRoot({ children }: ClientRootProps) {
                 navigator.serviceWorker.getRegistration().then((reg) => {
                   if (reg?.waiting) {
                     // Send skipWaiting message to the waiting SW
+                    // oxlint-disable-next-line unicorn/require-post-message-target-origin
                     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                     // Reload once the new SW is activated
                     navigator.serviceWorker.addEventListener('controllerchange', () => {

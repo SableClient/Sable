@@ -903,24 +903,6 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       data: cacheStatus,
     });
 
-    const cacheStatus = {
-      userId,
-      storeHasAccount: storeHasAccount === userId,
-      fallbackStoreHasAccount: fallbackStoreHasAccount === userId,
-      hasStoreDb,
-      hasFallbackStoreDb,
-      hasWarmCache,
-      willBootstrapClassic: !hasWarmCache,
-    };
-
-    debugLog.info('sync', 'Cold cache detection', cacheStatus);
-    Sentry.addBreadcrumb({
-      category: 'sync',
-      message: 'Cold cache detection',
-      level: 'info',
-      data: cacheStatus,
-    });
-
     return !hasWarmCache;
   };
 

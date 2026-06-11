@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
+import { mobileOrTablet } from '$utils/user-agent';
 
 const safeAreaTop = 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))';
 const safeAreaBottom = 'var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))';
@@ -42,7 +43,7 @@ type SystemBarShellProps = {
 
 export function SystemBarShell({ children, onPortalContainerChange }: SystemBarShellProps) {
   const tauriOs = isTauri() ? osType() : undefined;
-  const enabled = tauriOs === 'android' || tauriOs === 'ios';
+  const enabled = tauriOs === 'android' || tauriOs === 'ios' || (!isTauri() && mobileOrTablet());
 
   return (
     <>

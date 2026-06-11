@@ -200,7 +200,17 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     if (response.ok || !isRetryableAuthError(response)) {
       return fetchAndCache(response);
     }
-    return fetchAndCache(await fetchMediaResponse(url, undefined, cacheMode));
+    const retryResponse = await fetchMediaResponse(url, undefined, cacheMode);
+    if (retryResponse.ok || !isRetryableAuthError(retryResponse)) {
+      return fetchAndCache(retryResponse);
+    }
+
+    const directAccessToken = resolveAccessToken(options);
+    if (directAccessToken) {
+      return fetchAndCache(await fetchMediaResponse(url, directAccessToken, cacheMode));
+    }
+
+    return fetchAndCache(retryResponse);
   }
 
   const initialAccessToken = resolveAccessToken(options);

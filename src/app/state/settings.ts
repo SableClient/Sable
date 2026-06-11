@@ -455,7 +455,7 @@ export function mergePersistedSettings(
   rawLocalStorage: string | null,
   fileDefaults: Partial<Settings>
 ): Settings {
-  const base = { ...defaultSettings, ...fileDefaults };
+  const base = { ...cloneDefaultSettings(), ...fileDefaults };
   if (rawLocalStorage === null) return base;
 
   const parsed = JSON.parse(rawLocalStorage) as Record<string, unknown>;
@@ -644,8 +644,6 @@ export function resetRuntimeSettingsDefaults(): void {
   runtimeSettingsDefaults = {};
 }
 
-export const baseSettings = atom<Settings>(cloneDefaultSettings());
-
 export function bootstrapSettingsStore(store: Store, rawSettingsDefaults: unknown): void {
   const sanitized = sanitizeSettingsDefaults(rawSettingsDefaults);
   runtimeSettingsDefaults = sanitized;
@@ -663,6 +661,8 @@ export const setSettings = (settings: Settings) => {
     // QuotaExceededError: write best-effort; ignore if storage is full
   }
 };
+
+export const baseSettings = atom<Settings>(getSettings());
 
 /**
  * Ephemeral atom — true when the auto-idle hook has transitioned the user to idle.

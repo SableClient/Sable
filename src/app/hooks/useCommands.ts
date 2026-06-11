@@ -52,6 +52,8 @@ import {
   deletePerMessageProfile,
   setCurrentlyUsedPerMessageProfileIdForRoom,
 } from './usePerMessageProfile';
+import type { locationPoint } from '$features/room/location-modal/LocationDialog';
+import { filterLocationString, locationErrors } from '$features/room/location-modal/LocationDialog';
 
 export const SHRUG = String.raw`¯\_(ツ)_/¯`;
 export const TABLEFLIP = '(╯°□°)╯︵ ┻━┻';
@@ -1544,18 +1546,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         description:
           'Open location sharing menu or share a location as /location <latitude> <longitude>',
         exe: async (payload) => {
-          const target = payload
-            .replace(',', ' ')
-            .replace('/', ' ')
-            .replace('  ', ' ')
-            .trim()
-            .split(' ');
-
-          const mlat = target[0];
-          const mlon = target[1];
-          const malt = target[2];
-          if (target.length === 0) return;
-          if (!mlat || !mlon) {
+          const coords: locationPoint = filterLocationString(payload);
+          if (!coords.lat || !coords.lon || coords.status !== locationErrors.none) {
             sendFeedback(
               'You need to specify a latitude, and a longitude parameter, as for example: /location 43.959971 -59.790623 or have nothing after the /location to open the map to click which location to share',
               room,
@@ -1563,11 +1555,16 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             );
             return;
           }
-          await mx.sendMessage(room.roomId, {
-            msgtype: 'm.location',
-            geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=0`,
-            body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
-          } as RoomMessageEventContent);
+
+          const mlat = coords.lat;
+          const mlon = coords.lon;
+
+          if (mlat && mlon)
+            await mx.sendMessage(room.roomId, {
+              msgtype: 'm.location',
+              geo_uri: `geo:${mlat},${mlon};u=0`,
+              body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
+            } as RoomMessageEventContent);
         },
       },
       [Command.ShareMyLocation]: {

@@ -1,3 +1,4 @@
+// oxlint-disable no-console
 import FocusTrap from 'focus-trap-react';
 import {
   Dialog,
@@ -33,6 +34,64 @@ import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import classNames from 'classnames';
 
+export function filterLocationString(result: string) {
+  // OSM format
+  if (result.toLowerCase().includes('lat=') && result.toLowerCase().includes('lon=')) {
+    const tokenizedResult = result.toLowerCase().split(/[ ,&?;::m]/);
+    const coords: { mlat?: string; mlng?: string } = {
+      mlat: tokenizedResult.find((item) => item.includes('lat='))?.substring(4),
+      mlng: tokenizedResult.find((item) => item.includes('lon='))?.substring(4),
+    };
+    if (coords.mlat && coords.mlng) {
+      const mlat = Number.parseFloat(coords.mlat);
+      const mlng = Number.parseFloat(coords.mlng);
+
+      if (!Number.isNaN(mlat) && !Number.isNaN(mlng)) {
+        return { status: locationErrors.none, lat: mlat, lon: mlng } as locationPoint;
+      }
+    }
+  }
+  // Fallback the center of the map on OSM
+  if (result.toLowerCase().includes('#map=')) {
+    const coords: string[] = result
+      .substring(result.toLowerCase().indexOf('#map=') + 5)
+      .split(/[, /]/);
+    if (coords.length >= 3 && typeof coords[1] === 'string' && typeof coords[2] === 'string') {
+      const mlat = Number.parseFloat(coords[1]);
+      const mlng = Number.parseFloat(coords[2]);
+
+      if (!Number.isNaN(mlat) && !Number.isNaN(mlng))
+        return { status: locationErrors.none, lat: mlat, lon: mlng } as locationPoint;
+    }
+  }
+  // apple address bar pins (eg. https://maps.apple.com/place?auid=6096426607790210541&address=Catal%C3%A3o+-+GO%2C+75714-000%2C+Brazil&coordinate=-17.711014%2C-47.488393&name=75714-000&lsp=7618 )
+  if (result.toLowerCase().includes('&coordinate=')) {
+    const coords: string[] = result
+      .substring(result.toLowerCase().indexOf('&coordinate='))
+      .replaceAll(/[=& ]|(%2C)/g, ' ')
+      .trim()
+      .split(' ')
+      .filter((item) => item.length > 0);
+    if (coords.length >= 3 && typeof coords[1] === 'string' && typeof coords[2] === 'string') {
+      const mlat = Number.parseFloat(coords[1]);
+      const mlng = Number.parseFloat(coords[2]);
+
+      if (!Number.isNaN(mlat) && !Number.isNaN(mlng)) {
+        return { status: locationErrors.none, lat: mlat, lon: mlng } as locationPoint;
+      }
+    }
+  }
+  // geo tags or just putting the numbers without any formatting next to the other
+  const coords = result.split(/[, ;:]/).filter((item) => item.length && item !== 'geo');
+  if (coords.length >= 2 && typeof coords[0] === 'string' && typeof coords[1] === 'string') {
+    const mlat = Number.parseFloat(coords[0]);
+    const mlng = Number.parseFloat(coords[1]);
+    if (!Number.isNaN(mlat) && !Number.isNaN(mlng))
+      return { status: locationErrors.none, lat: mlat, lon: mlng } as locationPoint;
+  }
+  return { status: locationErrors.clipboard };
+}
+
 type LocationDialogProps = {
   onCancel: () => void;
   mx: MatrixClient;
@@ -41,13 +100,19 @@ type LocationDialogProps = {
   clearReplyDraft?: () => void;
 };
 
-enum locationErrors {
+export enum locationErrors {
   none,
   permissions = 'You have denied Sable access to you location services',
   module = 'Your device does not have a gps module, or it may not be turned on',
   unknown = 'The sharing failed for unknown reasons',
   clipboard = 'Unable to identify the coordonates from clipboard',
 }
+
+export type locationPoint = {
+  status: locationErrors;
+  lat?: number;
+  lon?: number;
+};
 
 export function LocationDialog({
   onCancel,
@@ -110,6 +175,22 @@ export function LocationDialog({
     return false;
   };
 
+  function storeLocation(coords: locationPoint) {
+    setLocationError(coords.status);
+    if (!coords.lat || !coords.lon || coords.status !== locationErrors.none) return;
+    movePin({ lat: coords.lat, lng: coords.lon });
+    setInputPosition({ lat: coords.lat.toFixed(6), lng: coords.lon.toFixed(6) });
+    setPinPosition({ lat: coords.lat, lng: coords.lon });
+    return;
+  }
+
+  function getClipboard() {
+    navigator.clipboard.readText().then((result: string) => {
+      const coords = filterLocationString(result);
+      storeLocation(coords);
+    });
+  }
+
   function getLocation() {
     const options = {
       enableHighAccuracy: true,
@@ -119,15 +200,11 @@ export function LocationDialog({
     function success(pos: GeolocationPosition) {
       const crd = pos.coords;
 
-      const coords = { lat: crd.latitude, lng: crd.longitude };
-      if (!coords.lat || !coords.lng) {
+      if (!crd.latitude || !crd.longitude) {
         setLocationError(locationErrors.unknown);
         return;
       }
-      setPinPosition(coords);
-      setInputPosition({ lat: coords.lat.toFixed(6), lng: coords.lng.toFixed(6) });
-      movePin(coords);
-      setLocationError(locationErrors.none);
+      storeLocation({ lat: crd.latitude, lon: crd.longitude, status: locationErrors.none });
     }
 
     function error(err: GeolocationPositionError) {
@@ -136,60 +213,6 @@ export function LocationDialog({
       else setLocationError(locationErrors.unknown);
     }
     navigator.geolocation.getCurrentPosition(success, error, options);
-  }
-  function getClipboard() {
-    function storeLocation(lat: number, lng: number) {
-      movePin({ lat, lng });
-      setInputPosition({ lat: lat.toFixed(6), lng: lng.toFixed(6) });
-      setPinPosition({ lat, lng });
-      setLocationError(locationErrors.none);
-    }
-
-    navigator.clipboard.readText().then((result) => {
-      // OSM format
-      if (result.toLowerCase().includes('mlat=') && result.toLowerCase().includes('mlon=')) {
-        const tokenizedResult = result.toLowerCase().split(/[ ,&?;::]/);
-        const coords: { mlat?: string; mlng?: string } = {
-          mlat: tokenizedResult.find((item) => item.includes('mlat='))?.substring(5),
-          mlng: tokenizedResult.find((item) => item.includes('mlon='))?.substring(5),
-        };
-        if (coords.mlat && coords.mlng) {
-          const mlat = Number.parseFloat(coords.mlat);
-          const mlng = Number.parseFloat(coords.mlng);
-
-          if (!Number.isNaN(mlat) && !Number.isNaN(mlng)) {
-            storeLocation(mlat, mlng);
-            return;
-          }
-        }
-      }
-      // Fallback the center of the map on OSM
-      if (result.toLowerCase().includes('#map=')) {
-        const coords: string[] = result
-          .substring(result.toLowerCase().indexOf('#map=') + 5)
-          .split(/[, /]/);
-        if (coords.length >= 3 && typeof coords[1] === 'string' && typeof coords[2] === 'string') {
-          const mlat = Number.parseFloat(coords[1]);
-          const mlng = Number.parseFloat(coords[2]);
-
-          if (!Number.isNaN(mlat) && !Number.isNaN(mlng)) {
-            storeLocation(mlat, mlng);
-            return;
-          }
-        }
-      }
-      // geo tags or just putting the numbers without any formatting next to the other
-      const coords = result.split(/[, ;:]/).filter((item) => item.length && item !== 'geo');
-      if (coords.length >= 2 && typeof coords[0] === 'string' && typeof coords[1] === 'string') {
-        const mlat = Number.parseFloat(coords[0]);
-        const mlng = Number.parseFloat(coords[1]);
-        if (!Number.isNaN(mlat) && !Number.isNaN(mlng)) {
-          storeLocation(mlat, mlng);
-          return;
-        }
-      }
-      setLocationError(locationErrors.clipboard);
-    });
   }
   const handleLat: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;

@@ -32,7 +32,6 @@ import { bytesToSize } from '$utils/common';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
 import { decryptFileSafe, downloadEncryptedMedia } from '$utils/matrix';
-import { getDecryptedBlob, storeDecryptedBlob } from '$hooks/useBlobCache';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { ModalWide } from '$styles/Modal.css';
@@ -139,9 +138,15 @@ export const ImageContent = as<'div', ImageContentProps>(
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
         if (encInfo) {
-          if (!rawMediaUrl) throw new Error('Invalid media URL');
-          const fileContent = await downloadEncryptedMedia(rawMediaUrl, (encBuf) =>
-            decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo)
+          // Check blob cache first to avoid redundant downloads/decryption
+          const cachedBlob = mediaUrlCache.getBlob(url, true, mimeType);
+          if (cachedBlob) return cachedBlob;
+
+          const fileContent = await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) =>
+              decryptFileSafe(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo, { mediaUrl }),
+            mx.getAccessToken()
           );
           const blobUrl = URL.createObjectURL(fileContent);
           mediaUrlCache.setBlob(url, true, blobUrl, mimeType);

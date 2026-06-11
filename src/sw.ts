@@ -1525,24 +1525,51 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   }
 
   event.respondWith(
-    requestSessionWithTimeout(clientId).then(async (s) => {
-      // Primary: session received from the live client window.
-      if (s && validMediaRequest(url, s.baseUrl)) {
-        return fetchMediaWithRetry(url, s.accessToken, redirect, clientId);
-      }
-      // Fallback: try the persisted session (helps when SW restarts on iOS and
-      // the client window hasn't responded to requestSession yet).
-      const persisted = await loadPersistedSession();
-      if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-        return fetchMediaWithRetry(url, persisted.accessToken, redirect, clientId);
-      }
-      console.warn(
-        '[SW fetch] No valid session for media request',
-        { url, clientId, hasSession: !!s },
-        'falling back to unauthenticated fetch'
-      );
-      return fetch(event.request);
-    })
+    // Wrap the entire chain in a global timeout to prevent infinite hangs.
+    // Even though requestSessionWithTimeout has its own 10s timeout, edge cases
+    // (e.g., loadPersistedSession hanging on IDB, validateSession stuck) could
+    // leave the fetch hanging indefinitely. 15s is generous enough to allow all
+    // fallbacks to complete, but short enough to fail fast if something is stuck.
+    Promise.race([
+      requestSessionWithTimeout(clientId).then(async (s) => {
+        // Primary: session received from the live client window.
+        if (s && validMediaRequest(url, s.baseUrl)) {
+          return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+        }
+        // Fallback: try the persisted session (helps when SW restarts on iOS and
+        // the client window hasn't responded to requestSession yet).
+        const persisted = await loadPersistedSession();
+        const validated = persisted ? await validateSession(persisted) : undefined;
+        if (validated && validMediaRequest(url, validated.baseUrl)) {
+          console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
+          return fetch(url, { ...fetchConfig(validated.accessToken), redirect });
+        }
+        console.warn('[SW fetch] No valid session for media request — returning 401', {
+          url,
+          clientId,
+          hasSession: !!s,
+          hadPersistedSession: !!persisted,
+          persistedSessionValid: !!validated,
+        });
+        // SABLE-4Y fix: Return synthetic 401 instead of attempting unauthenticated
+        // fetch. Prevents network requests that will fail with 401 anyway, and
+        // allows client-side blob cache to handle auth failures gracefully.
+        return new Response(
+          JSON.stringify({ errcode: 'M_MISSING_TOKEN', error: 'No session available' }),
+          {
+            status: 401,
+            statusText: 'Unauthorized',
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }),
+      new Promise<Response>((_, reject) => {
+        setTimeout(() => {
+          console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });
+          reject(new Error('Service worker media fetch timeout'));
+        }, 15000);
+      }),
+    ])
   );
 });
 

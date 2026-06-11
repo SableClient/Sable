@@ -35,6 +35,8 @@ import type {
   WorkerInMessage,
   WorkerOutMessage,
 } from '$plugins/search-worker/types';
+// eslint-disable-next-line import/default, import/no-unresolved -- Vite ?worker suffix returns Worker constructor
+import SearchWorkerConstructor from '$plugins/search-worker/searchWorker.ts?worker';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -195,8 +197,25 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const indexEvent = useCallback(
     (mEvent: MatrixEvent, room: Room) => {
       const handleDecrypted = () => {
-        const ev = toIndexableEvent(mEvent, room.roomId);
-        if (ev) postToWorker({ type: 'INDEX_EVENTS', events: [ev] });
+        try {
+          const ev = toIndexableEvent(mEvent, room.roomId);
+          if (ev) postToWorker({ type: 'INDEX_EVENTS', events: [ev] });
+        } catch (e) {
+          // Skip events that fail to process without halting live indexing
+          console.warn(
+            `[search-index] Failed to index live event ${mEvent.getId()} in room ${room.roomId}:`,
+            e
+          );
+          Sentry.captureException(e, {
+            level: 'warning',
+            tags: { component: 'search-index', failure_stage: 'live_event_indexing' },
+            extra: {
+              eventId: mEvent.getId(),
+              eventType: mEvent.getType(),
+              roomId: room.roomId,
+            },
+          });
+        }
       };
 
       if (mEvent.getType() === 'm.room.encrypted') {
@@ -328,13 +347,41 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
       const events: IndexableEvent[] = [];
       for (const ev of unindexedEvents) {
-        if (ev.getType() === 'm.room.encrypted') {
-          // Still encrypted — re-use the live-indexing path which registers a
-          // Decrypted listener so the event is indexed once keys arrive.
-          indexEvent(ev, room);
-        } else {
-          const indexable = toIndexableEvent(ev, room.roomId);
-          if (indexable) events.push(indexable);
+        try {
+          // Skip thread reply events — they're not added to the room timeline during
+          // pagination (SDK rejects them), so indexing them here would cause phantom
+          // search results that can't be jumped to. Thread replies can be searched
+          // within their thread context via thread-specific search.
+          const relatesTo = ev.getContent()?.['m.relates_to'];
+          if (relatesTo?.rel_type === 'm.thread') {
+            continue;
+          }
+
+          if (ev.getType() === 'm.room.encrypted') {
+            // Still encrypted — re-use the live-indexing path which registers a
+            // Decrypted listener so the event is indexed once keys arrive.
+            indexEvent(ev, room);
+          } else {
+            const indexable = toIndexableEvent(ev, room.roomId);
+            if (indexable) events.push(indexable);
+          }
+        } catch (e) {
+          // Skip events that fail to process (e.g., media fetch errors, malformed content)
+          // without aborting the entire backfill. Log for debugging.
+          console.warn(
+            `[search-index] Failed to index event ${ev.getId()} in room ${room.roomId}:`,
+            e
+          );
+          Sentry.captureException(e, {
+            level: 'warning',
+            tags: { component: 'search-index', failure_stage: 'event_indexing' },
+            extra: {
+              eventId: ev.getId(),
+              eventType: ev.getType(),
+              roomId: room.roomId,
+            },
+          });
+          continue;
         }
       }
 
@@ -592,16 +639,121 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       data: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
     });
 
-    const worker = new Worker(
-      new URL('../plugins/search-worker/searchWorker.ts', import.meta.url),
-      { type: 'module' }
+    // Check for known worker-blocking issues
+    const rocketLoaderActive = Boolean(
+      document.querySelector('script[src*="rocket-loader"]') ||
+      // @ts-expect-error - Rocket Loader injects this global
+      window.RocketLoader ||
+      // @ts-expect-error - Cloudflare global
+      window.Rocketloader
     );
+
+    let worker: Worker;
+    try {
+      Sentry.addBreadcrumb({
+        category: 'search.index',
+        message: 'Instantiating search worker',
+        level: 'info',
+        data: {
+          rocketLoaderActive,
+          indexedDBAvailable: typeof indexedDB !== 'undefined',
+        },
+      });
+      worker = new SearchWorkerConstructor();
+    } catch (e) {
+      // Worker failed to load — likely a missing or mis-served asset (404 → HTML).
+      // This commonly happens when:
+      // 1. Old cached index.html references old worker URL (from previous build)
+      // 2. Server returns 404 or HTML instead of JS
+      // 3. Browser tries to execute HTML as JavaScript → MIME type error
+      // 4. Cloudflare Rocket Loader interfering with worker instantiation
+      const errorMsg = `Search worker failed to instantiate: ${e instanceof Error ? e.message : String(e)}`;
+      const isMimeError =
+        e instanceof Error && e.message.includes('MIME') && e.message.includes('text/html');
+
+      setInitError(errorMsg);
+      Sentry.captureException(e, {
+        level: isMimeError ? 'warning' : 'error',
+        tags: {
+          component: 'search-index',
+          failure_stage: 'worker_instantiation',
+          is_mime_error: isMimeError,
+          rocket_loader_active: rocketLoaderActive,
+        },
+        extra: {
+          userId,
+          maxMessagesPerRoom: searchIndexMessageLimit,
+          likely_stale_cache: isMimeError,
+          rocketLoaderActive,
+          indexedDBAvailable: typeof indexedDB !== 'undefined',
+          userAgent: navigator.userAgent,
+        },
+        contexts: {
+          hint: {
+            description: rocketLoaderActive
+              ? 'Cloudflare Rocket Loader detected - known to break Web Workers. Disable in CF dashboard.'
+              : isMimeError
+                ? 'Stale cached index.html likely referencing old worker URL. User should hard reload.'
+                : 'Worker script failed to load',
+          },
+        },
+      });
+      return () => {};
+    }
+
     workerRef.current = worker;
     worker.addEventListener('message', handleWorkerMessage);
 
-    // Set a timeout to detect if the worker never sends READY
+    // Handle worker runtime errors (e.g., MIME type errors from failed imports)
+    const handleWorkerError = (error: ErrorEvent) => {
+      // Null-check error.message — it may be undefined on ErrorEvent (SABLE-52)
+      const message = error?.message ?? '';
+      const errorMsg = `Search worker runtime error: ${message || 'Unknown worker error'}`;
+      const isMimeError = message.includes('MIME') && message.includes('text/html');
+
+      setInitError(errorMsg);
+      setIsReady(false);
+      Sentry.captureException(error.error || new Error(message || 'Unknown worker error'), {
+        level: isMimeError ? 'warning' : 'error',
+        tags: {
+          component: 'search-index',
+          failure_stage: 'worker_runtime',
+          is_mime_error: isMimeError,
+          rocket_loader_active: rocketLoaderActive,
+        },
+        extra: {
+          userId,
+          maxMessagesPerRoom: searchIndexMessageLimit,
+          filename: error.filename,
+          lineno: error.lineno,
+          colno: error.colno,
+          likely_stale_cache: isMimeError,
+          rocketLoaderActive,
+          errorMessageEmpty: !message,
+        },
+        contexts: {
+          hint: {
+            description:
+              !message && rocketLoaderActive
+                ? 'Empty error message + Rocket Loader detected → Rocket Loader is blocking worker. Disable in CF dashboard.'
+                : !message
+                  ? 'Empty error message → worker failed to load (404, CORS, or stale cache). Check Network tab for worker URL.'
+                  : isMimeError
+                    ? 'Worker import failed with MIME error - likely stale cache referencing old assets or missing chunk'
+                    : 'Worker script runtime error',
+          },
+        },
+      });
+    };
+    worker.addEventListener('error', handleWorkerError);
+
+    // Set a timeout to detect if the worker never sends READY or ERROR (SABLE-54)
     const initTimeout = setTimeout(() => {
       setInitError('Worker initialization timed out (30s) — READY message never received');
+      setIsReady(false);
+      // Terminate the stuck worker so it doesn't consume resources
+      worker.terminate();
+      workerRef.current = null;
       Sentry.captureMessage('Search worker INIT timeout — READY message never received', {
         level: 'error',
         tags: { component: 'search-index' },
@@ -609,12 +761,14 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       });
     }, 30000); // 30s timeout
 
-    // Clear timeout when READY arrives
+    // Clear timeout when READY or ERROR arrives
     const originalHandler = handleWorkerMessage;
     const wrappedHandler = (event: MessageEvent<WorkerOutMessage>) => {
-      if (event.data.type === 'READY') {
+      if (event.data.type === 'READY' || event.data.type === 'ERROR') {
         clearTimeout(initTimeout);
-        setInitError(null); // Clear any previous error
+        if (event.data.type === 'READY') {
+          setInitError(null); // Clear any previous error only on successful READY
+        }
       }
       originalHandler(event);
     };
@@ -693,6 +847,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       // force-terminate regardless so the cleanup never hangs.
       clearTimeout(initTimeout);
       worker.removeEventListener('message', wrappedHandler as EventListener);
+      worker.removeEventListener('error', handleWorkerError);
       postToWorker({ type: 'FLUSH' });
       const terminateTimeout = setTimeout(() => {
         worker.terminate();
@@ -777,19 +932,31 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const query = useCallback(
     (
       term: string,
-      opts?: { roomIds?: string[]; senders?: string[]; hasTypes?: string[] }
+      opts?: { roomIds?: string[]; senders?: string[]; hasTypes?: string[]; exactMatch?: boolean }
     ): Promise<IndexableEvent[]> => {
       if (!workerRef.current || !isReady) return Promise.resolve([]);
+
+      // Parse term for exact match (wrapped in double quotes)
+      let searchTerm = term;
+      let isExactMatch = opts?.exactMatch ?? false;
+
+      if (!isExactMatch && term.startsWith('"') && term.endsWith('"') && term.length > 1) {
+        // Strip quotes for exact match
+        searchTerm = term.slice(1, -1);
+        isExactMatch = true;
+      }
+
       const id = crypto.randomUUID();
       return new Promise((resolve, reject) => {
         pendingQueriesRef.current.set(id, { resolve, reject });
         postToWorker({
           type: 'QUERY',
           id,
-          term,
+          term: searchTerm,
           roomIds: opts?.roomIds,
           senders: opts?.senders,
           hasTypes: opts?.hasTypes,
+          exactMatch: isExactMatch,
         });
       });
     },

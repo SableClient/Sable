@@ -169,12 +169,13 @@ export const decryptFile = async (
   }
 ): Promise<Blob> => {
   try {
-    // Verify SHA-256 hash of the encrypted bytes (ciphertext) per Matrix spec.
+    // DIAGNOSTIC: Verify hash of encrypted bytes (ciphertext), not decrypted output.
+    // Matrix spec stores the hash of the encrypted file as uploaded to the server.
+    // The hash uses standard base64 encoding (with padding), not URL-safe.
     const downloadedBytes = new Uint8Array(dataBuffer);
     const hashBuffer = await crypto.subtle.digest('SHA-256', downloadedBytes);
-    // Matrix spec stores hashes as unpadded base64 — strip padding before comparison
-    const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer)).replace(/=+$/, '');
-    const expectedHash = (encInfo.hashes?.sha256 ?? '').replace(/=+$/, '');
+    const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer));
+    const expectedHash = encInfo.hashes?.sha256;
 
     // Decrypt the attachment
     const decryptedData = await decryptAttachment(dataBuffer, encInfo);
@@ -460,7 +461,15 @@ export const downloadEncryptedMedia = async (
   accessToken?: string | null
 ): Promise<Blob> => {
   const encryptedContent = await downloadMedia(src);
-  return decryptContent(await encryptedContent.arrayBuffer());
+  const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
+
+  if (!decryptedContent) {
+    // decryptFileSafe returned null due to integrity failure
+    // Return an empty blob so the UI can show a broken media placeholder
+    throw new Error('media_integrity_failure');
+  }
+
+  return decryptedContent;
 };
 
 const sleepForMs = (ms: number) =>

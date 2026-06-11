@@ -70,11 +70,28 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     }, [])
   );
 
-  useEffect(() => {
-    if (!useDemoStatusLoop) return undefined;
-    const intervalId = window.setInterval(() => {
-      setDemoIndex((index) => (index + 1) % DEMO_STATUS_SEQUENCE.length);
-    }, DEMO_STATUS_STEP_MS);
+  // Only show "Connecting..." banner when recovering from an actual connection issue,
+  // not on normal startup (previous === null/undefined) or when already syncing
+  if (
+    (stateData.current === SyncState.Prepared ||
+      stateData.current === SyncState.Syncing ||
+      stateData.current === SyncState.Catchup) &&
+    (stateData.previous === SyncState.Reconnecting || stateData.previous === SyncState.Error)
+  ) {
+    return (
+      <Box direction="Column" shrink="No">
+        <Box
+          className={ContainerColor({ variant: 'Success' })}
+          style={{ padding: `${config.space.S100} 0` }}
+          alignItems="Center"
+          justifyContent="Center"
+        >
+          <Text size="L400">Connected!</Text>
+        </Box>
+        <Line variant="Success" size="300" />
+      </Box>
+    );
+  }
 
     return () => {
       window.clearInterval(intervalId);

@@ -14,9 +14,6 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
-// Tracks whether the Matrix sync connection is healthy.
-// Defaults to true; set false when the app reports Reconnecting/Error so that
-// OS push notifications are not suppressed while the in-app path is broken.
 let syncIsHealthy = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
@@ -52,9 +49,6 @@ async function persistSettings() {
           showMessageContent,
           showEncryptedMessageContent,
           clearNotificationsOnRead,
-          focusMode,
-          // Persist when the app was last visible so cold-SW-restart suppression works on iOS/iPad.
-          // A timestamp lets us expire stale entries (app may have closed without sending false).
           appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
@@ -78,14 +72,6 @@ async function loadPersistedSettings() {
       showEncryptedMessageContent = s.showEncryptedMessageContent;
     if (typeof s.clearNotificationsOnRead === 'boolean')
       clearNotificationsOnRead = s.clearNotificationsOnRead;
-    if (s.focusMode === 'off' || s.focusMode === 'focus' || s.focusMode === 'dnd')
-      focusMode = s.focusMode;
-    // Restore appIsVisible from the last-known visibility timestamp.
-    // On iOS/iPad, the SW is killed between pushes so appIsVisible always resets to false.
-    // If the app reported itself visible within the last 2 s, trust that it still is.
-    // Use a very short window (2s) to only catch rapid SW restarts during active use,
-    // not when the phone has been locked for a few seconds.
-    // The page will send an explicit visible=true message once it initializes anyway.
     if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
       const ageMs = Date.now() - s.appVisibleAt;
       if (ageMs < 2_000) {
@@ -1106,11 +1092,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
-      // Persist the visibility timestamp so cold SW restarts (iOS/iPad) can still
-      // suppress duplicate OS notifications when the app was recently visible.
-      // Equally important: when the app goes to background (visible=false), this
-      // clears appVisibleAt so the next cold SW restart won't falsely restore
-      // appIsVisible=true from a stale cache entry.
       event.waitUntil(persistSettings());
     }
   }
@@ -1120,11 +1101,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     }
   }
   if (type === 'ping') {
-    // iOS terminates SWs after ~30 s of inactivity. The page sends a ping every
-    // 20 s; receiving the message itself resets the SW idle timer. A long-running
-    // waitUntil promise (e.g. a 25 s setTimeout) is harmful on iOS: backgrounded
-    // pages freeze timers, leaving a perpetually-pending waitUntil that causes an
-    // ungraceful IDB teardown when iOS force-kills the SW, losing crypto keys.
     event.waitUntil(Promise.resolve());
   }
   if (type === 'setNotificationSettings') {
@@ -1593,25 +1569,10 @@ const onPushNotification = async (event: PushEvent) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
 
-  // If the app is open and visible, skip the OS push notification — the in-app
-  // pill notification handles the alert instead.
-  //
-  // Require BOTH the explicit appIsVisible flag AND a visible client from
-  // matchAll() before suppressing.  appIsVisible resets to false every time the
-  // SW starts fresh; on iOS the browser kills the SW between pushes, so on the
-  // next push appIsVisible is always false — we never suppress on a cold SW
-  // restart, which prevents the "notifications stop after a while" bug where
-  // stale matchAll() data (visibilityState stuck at 'visible') would cause all
-  // subsequent notifications to be silently dropped.
-  //
-  // Also require syncIsHealthy: if the Matrix sync is in Reconnecting/Error
-  // state, the in-app notification path is broken, so we must show the OS
-  // notification even when the app is visible.
-  //
-  // When matchAll() returns zero clients (iOS Safari PWA fully-suspended quirk),
-  // clients.some() returns false — do NOT suppress.  Better to show a duplicate
-  // (handled gracefully by the in-app banner) than to silently drop a
-  // notification while the app is backgrounded.
+  // If the app is open, visible, and sync is healthy, skip the OS push
+  // notification — the in-app pill notification handles the alert instead.
+  // Require both signals so stale iOS Safari matchAll() visibility cannot drop
+  // background notifications after the worker restarts.
   const hasVisibleClient =
     appIsVisible && syncIsHealthy && clients.some((client) => client.visibilityState === 'visible');
   console.debug(
@@ -1625,12 +1586,6 @@ const onPushNotification = async (event: PushEvent) => {
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
     console.debug('[SW push] suppressing OS notification — app is visible and sync is healthy');
-    // Post telemetry to app for Sentry tracking
-    postSentryMetric('sable.push.suppressed', 1, {
-      reason: 'app_visible_and_healthy',
-      has_clients: clients.length > 0,
-      sync_healthy: syncIsHealthy,
-    }).catch(() => undefined);
     return;
   }
 

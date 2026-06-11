@@ -1,5 +1,9 @@
-import { MatrixClient, ReceiptType } from '$types/matrix-sdk';
-import { isTauri } from '@tauri-apps/api/core';
+import * as Sentry from '@sentry/react';
+import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
+import { ReceiptType } from '$types/matrix-sdk';
+import { createDebugLogger } from './debugLogger';
+
+const debugLog = createDebugLogger('notifications');
 
 export async function markAsRead(mx: MatrixClient, roomId: string, privateReceipt: boolean) {
   const room = mx.getRoom(roomId);

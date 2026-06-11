@@ -52,6 +52,7 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
+import { useSyncState } from '$hooks/useSyncState';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
@@ -780,9 +781,6 @@ function SyncNotificationSettingsWithServiceWorker() {
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
 
-    // iOS kills the SW after ~30 s of inactivity regardless of page
-    // visibility. Send a cheap keep-alive ping every 20 s so the SW
-    // stays alive whenever the page is open (foregrounded or not).
     const keepAliveId = window.setInterval(() => {
       navigator.serviceWorker.controller?.postMessage({ type: 'ping' });
     }, 20_000);
@@ -832,6 +830,33 @@ function SyncStateWithServiceWorker() {
       (current) => {
         const healthy = current !== SyncState.Reconnecting && current !== SyncState.Error;
         postSyncHealth(healthy);
+      },
+      [postSyncHealth]
+    )
+  );
+
+  return null;
+}
+
+function SyncStateWithServiceWorker() {
+  const mx = useMatrixClient();
+
+  const postSyncHealth = useCallback((healthy: boolean) => {
+    if (!('serviceWorker' in navigator)) return;
+    const msg = { type: 'setSyncState', healthy };
+    navigator.serviceWorker.controller?.postMessage(msg);
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        registration.active?.postMessage(msg);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useSyncState(
+    mx,
+    useCallback(
+      (current) => {
+        postSyncHealth(current !== SyncState.Reconnecting && current !== SyncState.Error);
       },
       [postSyncHealth]
     )
@@ -1206,7 +1231,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
-      <NotificationTransportRuntimeFeature />
+      <SyncStateWithServiceWorker />
       <HandleDecryptPushEvent />
       <ServiceWorkerMetricsHandler />
       <NotificationBanner />

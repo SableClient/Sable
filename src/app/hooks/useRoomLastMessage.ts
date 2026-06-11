@@ -51,16 +51,10 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   if (type === ROOM_MESSAGE_EVENT_TYPE) {
     const { msgtype } = displayContent;
     if (msgtype === MsgType.Text || msgtype === MsgType.Emote || msgtype === MsgType.Notice) {
-      const rawBody = displayContent.body;
-      if (typeof rawBody !== 'string') return undefined;
-      const body = stripReplyFallback(rawBody);
-      // Show "🔗 Link" only if message is ONLY a link with no other text
-      if (body) {
-        const trimmed = body.trim();
-        // Check if the entire message is just a URL
-        if (/^https?:\/\/[^\s]+$/.test(trimmed)) {
-          return '🔗 Link';
-        }
+      const body = stripReplyFallback(displayContent.body);
+      // Detect if message contains a link
+      if (body && /https?:\/\//.test(body)) {
+        return '🔗 Link';
       }
       return body;
     }
@@ -77,8 +71,7 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
 
   // Polls — show the question text when available.
   if (type === 'org.matrix.msc3381.poll.start' || type === 'm.poll.start') {
-    const pollContent =
-      displayContent?.['org.matrix.msc3381.poll.start'] ?? displayContent?.['m.poll.start'];
+    const pollContent = displayContent?.['org.matrix.msc3381.poll.start'] ?? displayContent?.['m.poll.start'];
     const question =
       typeof pollContent === 'object' && pollContent !== null
         ? (pollContent as { question?: Record<string, unknown> }).question

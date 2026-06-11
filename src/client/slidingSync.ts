@@ -671,7 +671,7 @@ export class SlidingSyncManager {
                   encrypted: String(event.getType() === 'm.room.encrypted'),
                 },
               });
-              console.warn('Thread event dropped — threadId unresolvable', {
+              console.warn('[SlidingSync] Thread event dropped — threadId unresolvable', {
                 eventId: event.getId(),
                 roomId,
                 relatesTo,
@@ -694,7 +694,7 @@ export class SlidingSyncManager {
                     encrypted: String(event.getType() === 'm.room.encrypted'),
                   },
                 });
-                console.warn('Thread event dropped — thread not found', {
+                console.warn('[SlidingSync] Thread event dropped — thread not found', {
                   eventId: event.getId(),
                   roomId,
                   threadId,

@@ -203,15 +203,9 @@ export const createPushNotifications = (
 
   const handlePushNotificationPushData = async (pushData: MatrixPushData) => {
     const eventType = pushData?.type as EventType | undefined;
-
-    // NOTE: Focus mode filtering is currently DISABLED in the service worker
-    // because push payloads don't reliably include highlight/DM metadata.
-    // Focus mode filtering happens on the app side (ClientNonUIFeatures and
-    // BackgroundNotifications) where we have full event and room context.
-    // SW push notifications are only shown when the app is backgrounded/killed,
-    // so it is safer to show the notification than to incorrectly block a message.
-    // TODO: Re-enable SW filtering once DM/highlight status is reliably available
-    // in the push payload or synced via room metadata.
+    if (!eventType) {
+      console.warn('[SW pushNotification] no event type');
+    }
 
     switch (eventType as string) {
       case EventType.RoomMessage as string:

@@ -55,8 +55,8 @@ export function SentrySettings() {
   const sentryEnabled = localStorage.getItem('sable_sentry_enabled') === 'true';
   const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
   const isProd = environment === 'production';
-  const traceSampleRate = isProd ? '10%' : '100%';
-  const replaySampleRate = isProd ? '10%' : '100%';
+  const traceSampleRate = isProd ? '50%' : '100%';
+  const replaySampleRate = isProd ? '50%' : '100%';
 
   return (
     <Box direction="Column" gap="100">

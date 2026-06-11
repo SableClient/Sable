@@ -72,7 +72,6 @@ console.log('[CATEGORY-DEBUG:component]', { data });
 ```
 
 **Examples:**
-
 - `[BADGE-DEBUG:SpaceTabs]` - Space badge calculation
 - `[BADGE-DEBUG:getRoomsUnread]` - Unread map queries
 - `[BADGE-DEBUG:init]` - Atom initialization
@@ -105,14 +104,12 @@ The `createDebugLogger` system uses these categories (defined in `debugLogger.ts
 ### DO
 
 ✅ Use appropriate log levels:
-
 - `debug` - Verbose information for troubleshooting
 - `info` - Normal operation, state changes
 - `warn` - Unexpected but recoverable situations
 - `error` - Errors that require attention
 
 ✅ Include relevant context data:
-
 ```typescript
 debugLog.log('error', 'timeline', 'Failed to load events', {
   roomId,
@@ -122,7 +119,6 @@ debugLog.log('error', 'timeline', 'Failed to load events', {
 ```
 
 ✅ Use descriptive messages:
-
 ```typescript
 // Good
 console.debug('[SW] Prefetching sliding sync data...');
@@ -132,7 +128,6 @@ console.debug('[SW] Fetch...');
 ```
 
 ✅ Scrub sensitive data before logging:
-
 ```typescript
 // Use the scrubbing utilities from sentryScrubbers.ts
 import { scrubMatrixIds, scrubMatrixUrl } from '$utils/sentryScrubbers';
@@ -151,14 +146,12 @@ import { scrubMatrixIds, scrubMatrixUrl } from '$utils/sentryScrubbers';
 ### Migrating from Raw Console Logs
 
 **Before:**
-
 ```typescript
 console.log('Loading room', roomId);
 console.warn('Failed to load:', error);
 ```
 
 **After:**
-
 ```typescript
 const debugLog = createDebugLogger('roomLoader');
 
@@ -169,14 +162,12 @@ debugLog.log('warn', 'timeline', 'Failed to load', { roomId, error });
 ### Migrating from Simple Logger
 
 **Before:**
-
 ```typescript
 const log = createLogger('featureName');
 log.warn('Something went wrong');
 ```
 
 **After:**
-
 ```typescript
 const debugLog = createDebugLogger('featureName');
 debugLog.log('warn', 'general', 'Something went wrong');
@@ -202,7 +193,6 @@ When adding temporary debug logs for investigating specific issues:
 3. Remove before merging to `dev` (or create a follow-up task)
 
 Example:
-
 ```typescript
 // TODO: Remove after investigating space badge visibility issue
 console.log('[BADGE-DEBUG:SpaceTabs]', {
@@ -241,7 +231,6 @@ expect(logSpy).toHaveBeenCalledWith('[BADGE-DEBUG:init]', expect.any(Object));
 ## Examples from Codebase
 
 ### Service Worker
-
 ```typescript
 // src/sw.ts
 console.debug('[SW] Prefetching sliding sync data...');
@@ -249,7 +238,6 @@ console.warn('[SW fetchRawEvent] HTTP', res.status, 'for', eventId);
 ```
 
 ### Matrix Client Init
-
 ```typescript
 // src/client/initMatrix.ts
 const log = createLogger('initMatrix');
@@ -260,14 +248,13 @@ debugLog.log('info', 'sync', 'Client started', { transport });
 ```
 
 ### Timeline Component
-
 ```typescript
 // Example component
 const debugLog = createDebugLogger('Timeline');
 
 useEffect(() => {
   debugLog.log('info', 'timeline', 'Loading room timeline', { roomId });
-
+  
   try {
     // ... load timeline ...
   } catch (error) {
@@ -281,14 +268,12 @@ useEffect(() => {
 ### Enable Debug Logging
 
 **Simple Logger:**
-
 ```javascript
 localStorage.setItem('sable_debug', '1');
 location.reload();
 ```
 
 **Enhanced Logger:**
-
 ```javascript
 localStorage.setItem('sable_internal_debug', '1');
 location.reload();

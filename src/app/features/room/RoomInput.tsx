@@ -1586,8 +1586,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 variant="SurfaceVariant"
                 size="300"
                 radii="300"
-                title="Upload File"
-                aria-label="Upload and attach a File"
+                title={editorOldAddFile ? 'Upload File' : 'Add'}
+                aria-label={editorOldAddFile ? 'Upload and attach a File' : 'Add new Item'}
               >
                 <Icon src={Icons.PlusCircle} />
               </IconButton>

@@ -15,6 +15,7 @@ import {
   Chip,
   Switch,
   color,
+  Scroll,
 } from 'folds';
 import { stopPropagation } from '$utils/keyboard';
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
@@ -204,9 +205,21 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
                     <Text size="B400">Add Option</Text>
                   </Chip>
                 </Box>
-                <Box direction="Column" gap="100" className={css.PollDialogAnswerBody}>
+                <Scroll
+                  hideTrack
+                  direction="Vertical"
+                  size="300"
+                  className={css.PollDialogAnswerBody}
+                >
                   {answers.map((item, index) => (
-                    <Box direction="Row" grow="Yes" shrink="No" alignItems="Center" key={item.id}>
+                    <Box
+                      className={css.PollDialogAnswerContainer}
+                      direction="Row"
+                      grow="Yes"
+                      shrink="No"
+                      alignItems="Center"
+                      key={item.id}
+                    >
                       <Input
                         variant={
                           error?.errorcode === 'option' && item[M_TEXT.name].length === 0
@@ -240,9 +253,9 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
                       />
                     </Box>
                   ))}
-                </Box>
+                </Scroll>
               </Box>
-              <Box direction="Column">
+              <Box direction="Column" gap="100">
                 <SequenceCard
                   className={SequenceCardStyle}
                   variant="SurfaceVariant"

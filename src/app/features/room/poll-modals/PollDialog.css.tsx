@@ -16,8 +16,8 @@ export const PollDialogTitle = style({
 });
 export const PollDialogAnswerBody = style({
   maxHeight: toRem(300),
-  overflow: 'scroll',
 });
+export const PollDialogAnswerContainer = style({ paddingTop: toRem(4) });
 export const PollDialogAnswerInput = style({ width: '100%' });
 export const PollDialogMaxSelectionNumber = style({ width: toRem(80) });
 

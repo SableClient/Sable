@@ -143,13 +143,13 @@ const encodeBase64 = (buffer: Uint8Array): string => {
 };
 
 /**
- * Helper to encode ArrayBuffer as standard base64 (with padding).
- * Used for SHA-256 hashes per Matrix spec (file.hashes.sha256).
+ * Helper to encode ArrayBuffer as unpadded standard base64.
+ * Used for Matrix encrypted attachment SHA-256 hashes.
  */
-const encodeBase64Standard = (buffer: Uint8Array): string => {
+const encodeUnpaddedBase64 = (buffer: Uint8Array): string => {
   const bytes = Array.from(buffer);
   const binaryString = bytes.map((b) => String.fromCharCode(b)).join('');
-  return btoa(binaryString);
+  return btoa(binaryString).replace(/=/g, '');
 };
 
 /**
@@ -174,17 +174,27 @@ export const decryptFile = async (
 ): Promise<Blob> => {
   try {
     // DIAGNOSTIC: Verify hash of encrypted bytes (ciphertext), not decrypted output.
-    // Matrix spec stores the hash of the encrypted file as uploaded to the server.
-    // The hash uses standard base64 encoding (with padding), not URL-safe.
+    // Matrix encrypted attachments store SHA-256 as unpadded base64.
     const downloadedBytes = new Uint8Array(dataBuffer);
     const hashBuffer = await crypto.subtle.digest('SHA-256', downloadedBytes);
-    const actualHash = encodeBase64Standard(new Uint8Array(hashBuffer));
+    const actualHash = encodeUnpaddedBase64(new Uint8Array(hashBuffer));
     const expectedHash = encInfo.hashes?.sha256;
+    const normalizedExpectedHash = expectedHash?.replace(/=+$/g, '');
+    const normalizedEncInfo: EncryptedAttachmentInfo =
+      typeof normalizedExpectedHash === 'string' && normalizedExpectedHash !== expectedHash
+        ? {
+            ...encInfo,
+            hashes: {
+              ...encInfo.hashes,
+              sha256: normalizedExpectedHash,
+            },
+          }
+        : encInfo;
 
     // Decrypt the attachment
-    const decryptedData = await decryptAttachment(dataBuffer, encInfo);
+    const decryptedData = await decryptAttachment(dataBuffer, normalizedEncInfo);
 
-    if (expectedHash && actualHash !== expectedHash) {
+    if (normalizedExpectedHash && actualHash !== normalizedExpectedHash) {
       // Hash mismatch — log to Sentry with diagnostic context
       const roomType = context?.roomId?.startsWith('!')
         ? 'room'
@@ -198,7 +208,7 @@ export const decryptFile = async (
         extra: {
           eventId: context?.eventId,
           roomId: context?.roomId,
-          expectedHash: expectedHash.slice(0, 16) + '...',
+          expectedHash: normalizedExpectedHash.slice(0, 16) + '...',
           actualHash: actualHash.slice(0, 16) + '...',
           mediaUrl: context?.mediaUrl,
           encryptedSize: dataBuffer.byteLength,

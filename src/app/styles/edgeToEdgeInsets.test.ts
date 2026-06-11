@@ -44,6 +44,7 @@ describe('android edge-to-edge inset contract', () => {
 
   it('uses the App shell as the only safe-area owner', () => {
     const appShell = readWorkspaceFile('src/app/components/app-shell/AppShell.tsx');
+    const indexCss = readWorkspaceFile('src/index.css');
     const systemBarShell = readWorkspaceFile('src/app/components/app-shell/SystemBarShell.tsx');
     const mobileCapability = readWorkspaceFile('src-tauri/capabilities/mobile.json');
 
@@ -51,6 +52,8 @@ describe('android edge-to-edge inset contract', () => {
     expect(appShell).toContain("height: '100%'");
     expect(appShell).toContain('height: contentHeight');
     expect(appShell).toContain('<ScreenSizeProvider value={screenSize}>');
+    expect(indexCss).toContain('height: var(--sable-visible-height, 100%)');
+    expect(indexCss).not.toContain('height: var(--sable-visible-height, 100dvh)');
     expect(systemBarShell).toContain('var(--safe-area-inset-top, env(safe-area-inset-top, 0px))');
     expect(systemBarShell).toContain("const needsBottomSystemBar = tauriOs === 'android'");
     expect(systemBarShell).toContain('var(--sable-bg-container-line)');

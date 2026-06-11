@@ -57,9 +57,30 @@ import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
 import { useCallSignaling } from '$hooks/useCallSignaling';
-import { isTauri } from '@tauri-apps/api/core';
-import { type as osType } from '@tauri-apps/plugin-os';
-import { getRenderableMediaUrlStats } from '$hooks/useRenderableMediaUrl';
+
+// Lazy-load banners to reduce initial bundle size - these are rarely shown on first load
+const ThemeMigrationBanner = lazy(() => {
+  const start = performance.now();
+  return import('$components/theme/ThemeMigrationBanner').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'theme_migration_banner' },
+    });
+    return { default: m.ThemeMigrationBanner };
+  });
+});
+
+const TelemetryConsentBanner = lazy(() => {
+  const start = performance.now();
+  return import('$components/telemetry-consent').then((m) => {
+    const duration = performance.now() - start;
+    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
+      attributes: { component: 'telemetry_consent_banner' },
+    });
+    return { default: m.TelemetryConsentBanner };
+  });
+});
+import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { usePresenceSyncEffect } from '$hooks/usePresenceSync';

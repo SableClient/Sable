@@ -379,9 +379,8 @@ export const clearMismatchedStores = async (): Promise<void> => {
 };
 
 const buildClient = async (
-  session: Session,
-  onTokenRefresh?: (newAccessToken: string, newRefreshToken?: string) => void
-): Promise<MatrixClient> => {
+  session: Session
+): Promise<{ mx: MatrixClient; storeStartup: Promise<void> }> => {
   const storeName = getSessionStoreName(session);
   debugLog.info('sync', 'Building Matrix client with stores', {
     syncDb: storeName.sync,
@@ -459,9 +458,8 @@ const buildClient = async (
     }),
   });
 
-  mxRef = mx;
-  await indexedDBStore.startup();
-  return mx;
+  // Return both client and store startup promise for parallel initialization
+  return { mx, storeStartup: indexedDBStore.startup() };
 };
 
 export const initClient = async (
@@ -504,7 +502,9 @@ export const initClient = async (
   let mx: MatrixClient;
   let storeStartup: Promise<void>;
   try {
-    mx = await buildClient(session, onTokenRefresh);
+    const result = await buildClient(session);
+    mx = result.mx;
+    storeStartup = result.storeStartup;
   } catch (err) {
     if (!isMismatch(err)) {
       debugLog.error('sync', 'Failed to build client', { error: err });
@@ -538,38 +538,20 @@ export const initClient = async (
       },
     });
     await wipeAllStores();
-    mx = await buildClient(session, onTokenRefresh);
+    const result = await buildClient(session);
+    mx = result.mx;
+    storeStartup = result.storeStartup;
   }
 
   try {
     // Parallelize IndexedDB sync store startup and crypto initialization
     // These are independent operations that can run concurrently
-    const parallelInitStart = performance.now();
-    debugLog.info('sync', 'Starting parallel IndexedDB initialization');
-    Sentry.addBreadcrumb({
-      category: 'sync',
-      message: 'Starting store initialization',
-      level: 'info',
-    });
     await Promise.all([
       storeStartup,
       mx.initRustCrypto({
         cryptoDatabasePrefix: storeName.rustCryptoPrefix,
       }),
     ]);
-    const parallelInitDuration = performance.now() - parallelInitStart;
-    Sentry.metrics.distribution('sable.startup.parallel_idb_init_ms', parallelInitDuration, {
-      attributes: { userId: session.userId },
-    });
-    debugLog.info('sync', 'Parallel IndexedDB initialization completed', {
-      duration: `${parallelInitDuration.toFixed(0)}ms`,
-    });
-    Sentry.addBreadcrumb({
-      category: 'sync',
-      message: 'Store initialization completed',
-      level: 'info',
-      data: { duration: `${parallelInitDuration.toFixed(0)}ms` },
-    });
   } catch (err) {
     if (!isMismatch(err)) {
       debugLog.error('sync', 'Failed to initialize stores', { error: err });
@@ -579,41 +561,16 @@ export const initClient = async (
     debugLog.warn('sync', 'Store init mismatch - wiping stores and retrying', {
       error: err,
     });
-    // SABLE-5E: Capture mismatch wipe events to Sentry before wiping
-    Sentry.addBreadcrumb({
-      category: 'initMatrix',
-      message: 'Store mismatch detected during initRustCrypto - triggering wipe',
-      level: 'warning',
-      data: {
-        stage: 'initRustCrypto',
-        errorName: err instanceof Error ? err.name : 'Unknown',
-        errorMessage: err instanceof Error ? err.message : String(err),
-      },
-    });
-    Sentry.captureException(err, {
-      level: 'warning',
-      tags: {
-        component: 'initMatrix',
-        event: 'store_wipe_on_mismatch',
-        stage: 'initRustCrypto',
-      },
-      contexts: {
-        mismatch: {
-          errorName: err instanceof Error ? err.name : 'Unknown',
-          errorMessage: err instanceof Error ? err.message : String(err),
-        },
-      },
-    });
-    // Shut the SDK down first so it can cancel in-flight /sync requests and
-    // close the WASM OlmMachine cleanly (olmMachine.close() is called inside
-    // mx.stopClient()). Removing all listeners BEFORE stopClient was stripping
-    // the SDK's own internal error handlers, leaving in-flight microtasks able
-    // to call into the freed OlmMachine → "null pointer passed to rust" panic.
     mx.stopClient();
-    mx.removeAllListeners();
     await wipeAllStores();
-    mx = await buildClient(session, onTokenRefresh);
-    await mx.initRustCrypto({ cryptoDatabasePrefix: storeName.rustCryptoPrefix });
+    const result = await buildClient(session);
+    mx = result.mx;
+    await Promise.all([
+      result.storeStartup,
+      mx.initRustCrypto({
+        cryptoDatabasePrefix: storeName.rustCryptoPrefix,
+      }),
+    ]);
   }
 
   // 100 listeners: large apps render many components that each register one

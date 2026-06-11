@@ -657,6 +657,144 @@ async function prefetchUserProfile(session: SessionInfo): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Strategy 7: Sliding Sync Prefetch
+// ---------------------------------------------------------------------------
+
+/**
+ * Prefetch sliding sync data on SW activation to warm the browser's HTTP cache.
+ * This makes the first sync response arrive faster when the app opens.
+ * Fire-and-forget: failures are silently ignored.
+ */
+async function prefetchSlidingSyncData(session: SessionInfo): Promise<void> {
+  try {
+    // Determine sliding sync proxy URL from homeserver base URL
+    const proxyUrl = new URL(session.baseUrl);
+    // Most deployments use /sliding-sync on the same server
+    // or a well-known sliding sync proxy endpoint
+    const slidingSyncEndpoint = `${proxyUrl.origin}/_matrix/client/unstable/org.matrix.msc3575/sync`;
+
+    // Minimal sliding sync request to fetch recent rooms
+    const requestBody = {
+      lists: {
+        joined: {
+          ranges: [[0, 99]], // First 100 rooms
+          sort: ['by_recency', 'by_name'],
+          timeline_limit: 1, // Minimal timeline to keep response small
+          required_state: [
+            ['m.room.name', ''],
+            ['m.room.avatar', ''],
+            ['m.room.encryption', ''],
+          ],
+          slow_get_all_rooms: false,
+        },
+      },
+    };
+
+    console.debug('[SW] Prefetching sliding sync data...');
+    const response = await fetch(slidingSyncEndpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (response.ok) {
+      console.debug('[SW] Sliding sync prefetch succeeded');
+    } else {
+      console.debug('[SW] Sliding sync prefetch failed:', response.status);
+    }
+  } catch (error) {
+    // Silently ignore — this is best-effort optimization
+    console.debug('[SW] Sliding sync prefetch error:', error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Strategy 7+: Additional Cache Priming
+// ---------------------------------------------------------------------------
+
+/**
+ * Prefetch well-known Matrix client configuration.
+ * This endpoint is frequently requested and safe to cache aggressively.
+ */
+async function prefetchWellKnown(session: SessionInfo): Promise<void> {
+  try {
+    const baseUrl = new URL(session.baseUrl);
+    const wellKnownUrl = `${baseUrl.origin}/.well-known/matrix/client`;
+
+    console.debug('[SW] Prefetching well-known...');
+    const response = await fetch(wellKnownUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    if (response.ok) {
+      console.debug('[SW] Well-known prefetch succeeded');
+    } else {
+      console.debug('[SW] Well-known prefetch failed:', response.status);
+    }
+  } catch (error) {
+    console.debug('[SW] Well-known prefetch error:', error);
+  }
+}
+
+/**
+ * Prefetch homeserver capabilities to warm cache.
+ * This is requested during client initialization.
+ */
+async function prefetchCapabilities(session: SessionInfo): Promise<void> {
+  try {
+    const capabilitiesUrl = `${session.baseUrl}/_matrix/client/v3/capabilities`;
+
+    console.debug('[SW] Prefetching capabilities...');
+    const response = await fetch(capabilitiesUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      console.debug('[SW] Capabilities prefetch succeeded');
+    } else {
+      console.debug('[SW] Capabilities prefetch failed:', response.status);
+    }
+  } catch (error) {
+    console.debug('[SW] Capabilities prefetch error:', error);
+  }
+}
+
+/**
+ * Prefetch user profile data (display name, avatar).
+ * This is shown immediately on client load.
+ */
+async function prefetchUserProfile(session: SessionInfo): Promise<void> {
+  try {
+    const profileUrl = `${session.baseUrl}/_matrix/client/v3/profile/${encodeURIComponent(session.userId)}`;
+
+    console.debug('[SW] Prefetching user profile...');
+    const response = await fetch(profileUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      console.debug('[SW] User profile prefetch succeeded');
+    } else {
+      console.debug('[SW] User profile prefetch failed:', response.status);
+    }
+  } catch (error) {
+    console.debug('[SW] User profile prefetch error:', error);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Encrypted push — decryption relay
 // ---------------------------------------------------------------------------
 
@@ -1026,12 +1164,18 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // and the UI will show a retry button.
       preloadedSession = await loadPersistedSession();
 
-      // Strategy 7: Prefetch sliding sync data on activation (warm cache scenario).
-      // This makes the first sync response arrive faster when the app opens.
-      // Fire-and-forget: don't block activation on this optional optimization.
+      // Strategy 7+: Prefetch critical data on activation to warm browser cache.
+      // This makes subsequent requests instant on warm cache launches.
+      // Fire-and-forget: don't block activation on these optional optimizations.
       if (preloadedSession) {
-        prefetchSlidingSyncData(preloadedSession).catch(() => {
-          // Silently ignore — this is a best-effort optimization
+        // Prefetch in parallel for maximum speed
+        Promise.allSettled([
+          prefetchSlidingSyncData(preloadedSession),
+          prefetchWellKnown(preloadedSession),
+          prefetchCapabilities(preloadedSession),
+          prefetchUserProfile(preloadedSession),
+        ]).catch(() => {
+          // Silently ignore — these are best-effort optimizations
         });
       }
 

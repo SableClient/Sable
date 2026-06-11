@@ -1599,7 +1599,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 size="300"
                 radii="300"
                 title={editorOldAddFile ? 'Upload File' : 'Add'}
-                aria-label={editorOldAddFile ? 'Upload and attach a File' : 'Add more menu'}
+                aria-label={editorOldAddFile ? 'Upload and attach a File' : 'Add new Item'}
               >
                 <Icon src={Icons.PlusCircle} />
               </IconButton>

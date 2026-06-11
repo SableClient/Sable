@@ -191,7 +191,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
     const maxValue = Math.max(...Object.values(votes));
     let endText = 'The Poll has ended and';
     const winnerArray = answers.filter((item) => votes[item.id] === maxValue);
-    if (votes.maxValue === 0) endText += ' nobody voted';
+    if (maxValue === 0) endText += ' nobody voted';
     else if (winnerArray.length === 1 && winnerArray[0])
       endText += `${winnerArray[0][M_TEXT.name]} won`;
     else {
@@ -223,7 +223,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   // The choice of making it not the same size and style as an Attachment is deliberate as Polls tipically are Way more wordy and this feels more spacious
   return (
     <>
-      <Box direction="Column" className={css.PollEvent} grow="Yes" gap="100">
+      <Box direction="Column" className={css.PollEvent} grow="Yes" gap="200">
         <Box className={css.PollHeader} shrink="No">
           <Text>{questionBody} </Text>
         </Box>
@@ -298,7 +298,13 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
                   : ''}
               </Text>
               {!isEnded && canEnd && (
-                <Button size="300" radii="400" variant="Critical" onClick={handleEndVote}>
+                <Button
+                  size="300"
+                  radii="400"
+                  variant="Critical"
+                  fill="Soft"
+                  onClick={handleEndVote}
+                >
                   End Poll
                 </Button>
               )}

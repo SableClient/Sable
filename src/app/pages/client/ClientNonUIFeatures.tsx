@@ -39,7 +39,6 @@ import {
 } from '$utils/room';
 import { NotificationType } from '$types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
-import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useInboxNotificationsSelected } from '$hooks/router/useInbox';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -266,7 +265,6 @@ function MessageNotifications() {
 
   const setPending = useSetAtom(pendingNotificationAtom);
   const setInAppBanner = useSetAtom(inAppBannerAtom);
-  const selectedRoomId = useSelectedRoom();
   const notificationSelected = useInboxNotificationsSelected();
 
   const playSound = useCallback(() => {
@@ -300,8 +298,7 @@ function MessageNotifications() {
       }
       const shouldSkipFocusCheck = eventId && skipFocusCheckEvents.has(eventId);
       if (!shouldSkipFocusCheck) {
-        if (document.hasFocus() && (selectedRoomId === room?.roomId || notificationSelected))
-          return;
+        if (document.hasFocus() && notificationSelected) return;
       }
 
       // Older sliding sync proxies (e.g. matrix-sliding-sync) omit num_live,
@@ -435,18 +432,50 @@ function MessageNotifications() {
             }),
             silent: !notificationSound || !isLoud,
             eventId,
+            data: {
+              type: mEvent.getType(),
+              room_id: room.roomId,
+              event_id: eventId,
+              user_id: mx.getUserId() ?? undefined,
+            },
           });
-          const noti = new window.Notification(osPayload.title, osPayload.options);
           const { roomId } = room;
-          noti.addEventListener('click', () => {
+          const handleClick = () => {
             window.focus();
             setPending({
               roomId,
               eventId,
               targetSessionId: mx.getUserId() ?? undefined,
             });
-            noti.close();
-          });
+          };
+          const showWindowNotification = () => {
+            try {
+              const noti = new window.Notification(osPayload.title, osPayload.options);
+              noti.addEventListener('click', () => {
+                handleClick();
+                noti.close();
+              });
+            } catch {
+              // OS notification unavailable or blocked.
+            }
+          };
+          if ('serviceWorker' in navigator) {
+            const readyOrTimeout = Promise.race<ServiceWorkerRegistration | undefined>([
+              navigator.serviceWorker.ready,
+              new Promise<undefined>((resolve) => {
+                setTimeout(() => resolve(undefined), 800);
+              }),
+            ]);
+            void readyOrTimeout
+              .then((reg) =>
+                reg
+                  ? reg.showNotification(osPayload.title, osPayload.options)
+                  : showWindowNotification()
+              )
+              .catch(showWindowNotification);
+          } else {
+            showWindowNotification();
+          }
         } catch {
           // window.Notification unavailable or blocked (sandboxed context, DnD, etc.)
         }
@@ -551,7 +580,6 @@ function MessageNotifications() {
     playSound,
     setInAppBanner,
     setPending,
-    selectedRoomId,
     appBaseUrl,
     useAuthentication,
   ]);

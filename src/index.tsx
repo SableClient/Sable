@@ -120,7 +120,6 @@ if ('serviceWorker' in navigator) {
 
 const injectIOSMetaTags = () => {
   const metaTags = [
-    { name: 'theme-color', content: '#0C0B0F' },
     { name: 'apple-mobile-web-app-capable', content: 'yes' },
     {
       name: 'apple-mobile-web-app-status-bar-style',

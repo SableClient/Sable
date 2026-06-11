@@ -15,7 +15,7 @@
  *    instant (matching Element Web's model).
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 
 import { SlidingSyncManager, type SlidingSyncConfig } from './slidingSync';
@@ -87,6 +87,11 @@ function makeManager(mx: ReturnType<typeof makeMockMx>): SlidingSyncManager {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 // ── dispose() ────────────────────────────────────────────────────────────────
@@ -125,8 +130,10 @@ describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
     const manager = makeManager(mx);
     manager.attach();
     manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
 
     fireMembershipEvent(mx, 'leave');
+    vi.advanceTimersByTime(100);
 
     // subscribeToRoom + unsubscribeFromRoom = 2 calls
     expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(2);
@@ -137,8 +144,10 @@ describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
     const manager = makeManager(mx);
     manager.attach();
     manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
 
     fireMembershipEvent(mx, 'ban');
+    vi.advanceTimersByTime(100);
 
     expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(2);
   });
@@ -148,6 +157,7 @@ describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
     const manager = makeManager(mx);
     manager.attach();
     manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
 
     fireMembershipEvent(mx, 'leave', '!room:example.com', '@other:example.com');
 
@@ -160,6 +170,7 @@ describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
     const manager = makeManager(mx);
     manager.attach();
     manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
 
     fireMembershipEvent(mx, 'join');
 
@@ -174,5 +185,27 @@ describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
     fireMembershipEvent(mx, 'leave');
 
     expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).not.toHaveBeenCalled();
+  });
+
+  it('does not resend a subscription for a room that is already active', () => {
+    const manager = makeManager(makeMockMx());
+    manager.subscribeToRoom('!room:example.com');
+    manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(1);
+  });
+
+  it('batches rapid active-room subscriptions into one SDK update', () => {
+    const manager = makeManager(makeMockMx());
+    manager.subscribeToRoom('!a:example.com');
+    manager.subscribeToRoom('!b:example.com');
+    vi.advanceTimersByTime(100);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(1);
+    const firstCall = mocks.slidingSyncInstance.modifyRoomSubscriptions.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    const [rooms] = firstCall as unknown as [Set<string>];
+    expect([...rooms].toSorted()).toEqual(['!a:example.com', '!b:example.com']);
   });
 });

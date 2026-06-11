@@ -25,7 +25,7 @@ const getUserPresence = (user: User): UserPresence => {
   // so the badge renders red for any Sable client, not just the sender's own account switcher.
   const isDnd = rawPresence === Presence.Online && statusMsg.startsWith('[dnd]');
   const presence = isDnd ? Presence.Dnd : rawPresence;
-
+  
   // Strip the [dnd] prefix when displaying status in Sable
   let displayStatus: string | undefined;
   if (isDnd) {
@@ -35,7 +35,7 @@ const getUserPresence = (user: User): UserPresence => {
   } else {
     displayStatus = statusMsg || undefined;
   }
-
+  
   return {
     presence,
     status: displayStatus,

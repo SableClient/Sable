@@ -1051,9 +1051,7 @@ function ProgressivePrefetchFeature() {
   const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
 
   useEffect(() => {
-    const manager = getSlidingSyncManager(mx);
-    console.log('[ProgressivePrefetch] Setting value:', progressivePrefetch, 'manager:', !!manager);
-    manager?.setProgressivePrefetch(progressivePrefetch);
+    getSlidingSyncManager(mx)?.setProgressivePrefetch(progressivePrefetch);
   }, [mx, progressivePrefetch]);
 
   return null;

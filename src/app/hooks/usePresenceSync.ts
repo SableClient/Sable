@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
 import type { MatrixEvent, MatrixClient } from '$types/matrix-sdk';
 import { SetPresence, MatrixError } from '$types/matrix-sdk';
-import * as Sentry from '@sentry/react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
@@ -22,16 +21,10 @@ const ACTIVITY_DEBOUNCE_MS = 500; // 500ms
 const THROTTLE_MS = 25000; // 25 seconds
 
 /** Sleep utility for rate limit backoff. */
-const sleep = (ms: number) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+const sleep = (ms: number) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 /** Timestamp (ms) of the last successful presence send. */
 let lastSentTimestamp = 0;
-
-/** Module-level debounce timer - survives component remounts and navigation. */
-let presenceDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 type PresenceState = {
   /** The selected presence mode: 'online' | 'unavailable' | 'dnd' | 'offline' */
@@ -172,9 +165,7 @@ export function usePresenceSyncEffect(): void {
         debugLog.info('general', 'Remote device is active — clearing local auto-idle');
         setAutoIdled(false);
         // Trigger activity event in auto-idle hook to reset its timer
-        window.dispatchEvent(
-          new CustomEvent('sable:remote-activity', { detail: { timestamp: state.lastActivityAt } })
-        );
+        window.dispatchEvent(new CustomEvent('sable:remote-activity', { detail: { timestamp: state.lastActivityAt } }));
       }
 
       // DON'T apply remote idle state if we're currently active locally.
@@ -195,19 +186,16 @@ export function usePresenceSyncEffect(): void {
       // Sending again causes redundant traffic and can trigger rate limiting,
       // preventing our local state changes from being sent when they should be.
     },
-    [setSettings, setAutoIdled]
+    [mx, setSettings, setAutoIdled, syncEnabled]
   );
   useAccountDataCallback(mx, onAccountData);
 
   // Debounced upload whenever presence or auto-idle changes
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     if (!syncEnabled) return undefined;
 
-    // Clear any existing module-level timer
-    if (presenceDebounceTimer !== null) {
-      clearTimeout(presenceDebounceTimer);
-      presenceDebounceTimer = null;
-    }
+    clearTimeout(timerRef.current);
 
     // Use fast debounce for activity events (idle→online) to ensure rapid multi-device sync.
     // Use longer debounce for idle events to avoid rate limiting.
@@ -215,7 +203,7 @@ export function usePresenceSyncEffect(): void {
     const isActivityEvent = wasIdled && !autoIdled;
     const debounceMs = isActivityEvent ? ACTIVITY_DEBOUNCE_MS : DEBOUNCE_MS;
 
-    presenceDebounceTimer = setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       const token = Math.random().toString(36).slice(2, 10);
       pendingEchoTokenRef.current = token;
 
@@ -225,7 +213,7 @@ export function usePresenceSyncEffect(): void {
       const lastActivityAt =
         !autoIdled && lastRemoteStateRef.current?.lastActivityAt
           ? Math.max(now, lastRemoteStateRef.current.lastActivityAt)
-          : (lastRemoteStateRef.current?.lastActivityAt ?? now);
+          : lastRemoteStateRef.current?.lastActivityAt ?? now;
 
       const state: PresenceState & { synctoken: string } = {
         presenceMode,
@@ -235,20 +223,11 @@ export function usePresenceSyncEffect(): void {
         synctoken: token,
       };
 
-      debugLog.info('general', 'Uploading presence to account data', {
-        state,
-        isActivityEvent,
-        debounceMs,
-      });
+      debugLog.info('general', 'Uploading presence to account data', { state, isActivityEvent, debounceMs });
 
       mx.setAccountData(CustomAccountDataEvent.SablePresence, state as Record<string, unknown>)
         .then(() => {
-          lastRemoteStateRef.current = {
-            presenceMode,
-            autoIdled,
-            updatedAt: state.updatedAt,
-            lastActivityAt: state.lastActivityAt,
-          };
+          lastRemoteStateRef.current = { presenceMode, autoIdled, updatedAt: state.updatedAt, lastActivityAt: state.lastActivityAt };
         })
         .catch((err) => {
           pendingEchoTokenRef.current = null;
@@ -258,29 +237,18 @@ export function usePresenceSyncEffect(): void {
         });
 
       // Also send to the server
-      void sendPresenceToServer(
-        mx,
-        presenceMode,
-        autoIdled,
-        settings.presenceStatusMsg,
-        syncEnabled
-      );
+      void sendPresenceToServer(mx, presenceMode, autoIdled, settings.presenceStatusMsg, syncEnabled);
     }, debounceMs);
 
-    return () => {
-      if (presenceDebounceTimer !== null) {
-        clearTimeout(presenceDebounceTimer);
-        presenceDebounceTimer = null;
-      }
-    };
-  }, [mx, presenceMode, autoIdled, syncEnabled, settings.presenceStatusMsg]);
+    return () => clearTimeout(timerRef.current);
+  }, [mx, presenceMode, autoIdled, syncEnabled]);
 }
 
 /**
  * Send presence state to the Matrix server.
  * For auto-idle, sends 'unavailable'. For DND, sends 'online' with status_msg='[dnd]'
  * so other Sable clients can decode and display the DND badge.
- *
+ * 
  * Throttles to at most once per THROTTLE_MS to avoid rate limiting.
  * If rate limited (429), respects Retry-After header and backs off.
  */
@@ -338,34 +306,50 @@ async function sendPresenceToServer(
     statusMsg,
   });
 
-  // Send via matrix-js-sdk with 429 handling
-  try {
-    await mx.setPresence({ presence: serverPresence, status_msg: statusMsg });
-    lastSentTimestamp = Date.now();
-  } catch (err) {
-    if (err instanceof MatrixError && err.httpStatus === 429) {
-      // Rate limited - respect Retry-After and back off
-      const retryAfterMs = err.data?.retry_after_ms ?? 5000;
-      debugLog.warn('general', 'Presence rate limited (429), backing off', {
-        retryAfterMs,
-      });
+  // Send via matrix-js-sdk with 429 handling and retry
+  let retryCount = 0;
+  const maxRetries = 3;
 
-      Sentry.captureMessage('Presence rate limited', {
-        level: 'warning',
-        tags: { component: 'presence-sync' },
-        extra: { retryAfterMs, userId: mx.getUserId() },
-      });
-
-      // Wait before allowing next send
-      await sleep(retryAfterMs);
+  // eslint-disable-next-line no-await-in-loop -- Sequential retries are intentional
+  while (retryCount <= maxRetries) {
+    try {
+      await mx.setPresence({ presence: serverPresence, status_msg: statusMsg });
       lastSentTimestamp = Date.now();
+      return; // Success - exit
+    } catch (err) {
+      if (err instanceof MatrixError && err.httpStatus === 429) {
+        // Rate limited - respect Retry-After and retry after backoff
+        const retryAfterMs = err.data?.retry_after_ms ?? 5000;
+        debugLog.warn('general', 'Presence rate limited (429), backing off', {
+          retryAfterMs,
+          retryCount,
+        });
+
+        Sentry.captureMessage('Presence rate limited', {
+          level: 'warning',
+          tags: { component: 'presence-sync' },
+          extra: { retryAfterMs, userId: mx.getUserId(), retryCount },
+        });
+
+        // If we've exhausted retries, give up
+        if (retryCount >= maxRetries) {
+          debugLog.error('general', 'Presence retry limit exceeded after 429', { maxRetries });
+          lastSentTimestamp = Date.now();
+          return;
+        }
+
+        // Wait before retrying
+        await sleep(retryAfterMs);
+        lastSentTimestamp = Date.now();
+        retryCount += 1;
+        continue; // Retry the request
+      }
+      // Non-429 error - log and exit
+      debugLog.error('general', 'Failed to send presence to server', {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return;
     }
-    // Log other errors but don't throw
-    debugLog.error('general', 'Failed to send presence to server', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return;
   }
 
   // Also update classic sync presence param

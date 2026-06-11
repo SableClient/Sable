@@ -43,7 +43,9 @@ type SystemBarShellProps = {
 
 export function SystemBarShell({ children, onPortalContainerChange }: SystemBarShellProps) {
   const tauriOs = isTauri() ? osType() : undefined;
-  const enabled = tauriOs === 'android' || tauriOs === 'ios' || (!isTauri() && mobileOrTablet());
+  const isTauriMobile = tauriOs === 'android' || tauriOs === 'ios';
+  const isBrowserMobile = !isTauri() && mobileOrTablet();
+  const enabled = isTauriMobile || isBrowserMobile;
 
   return (
     <>
@@ -76,7 +78,7 @@ export function SystemBarShell({ children, onPortalContainerChange }: SystemBarS
         <div id="portalContainer" ref={onPortalContainerChange} />
       </div>
 
-      {enabled && <SystemBarStrip position="bottom" size={safeAreaBottom} />}
+      {isTauriMobile && <SystemBarStrip position="bottom" size={safeAreaBottom} />}
     </>
   );
 }

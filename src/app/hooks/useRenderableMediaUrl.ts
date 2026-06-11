@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { activeSessionIdAtom } from '$state/sessions';
 import { fetchMediaBlob, getCurrentMediaSessionScope } from '$utils/mediaTransport';
-import { hasControllingServiceWorker, hasServiceWorker } from '$utils/platform';
 
 type ObjectUrlEntry = {
   refs: number;
@@ -98,49 +97,15 @@ export function useRenderableMediaUrl(url: string | undefined): string | undefin
     renderableUrl && !renderableUrl.startsWith('blob:')
       ? getObjectUrlCacheKey(sessionScope, renderableUrl)
       : undefined;
-  const [usesControlledServiceWorker, setUsesControlledServiceWorker] = useState(() =>
-    hasControllingServiceWorker()
-  );
-  const needsBlob = !usesControlledServiceWorker;
   const usesExistingObjectUrl = renderableUrl?.startsWith('blob:') ?? false;
   const [resolvedState, setResolvedState] = useState<ResolvedMediaUrlState>(() => ({
     cacheKey: objectUrlCacheKey,
-    url: needsBlob && !usesExistingObjectUrl ? undefined : renderableUrl,
+    url: usesExistingObjectUrl ? renderableUrl : undefined,
   }));
-
-  useEffect(() => {
-    if (!hasServiceWorker()) {
-      setUsesControlledServiceWorker(false);
-      return undefined;
-    }
-
-    const { serviceWorker } = navigator;
-    if (!serviceWorker) {
-      setUsesControlledServiceWorker(false);
-      return undefined;
-    }
-
-    const updateControlState = () => {
-      setUsesControlledServiceWorker(hasControllingServiceWorker());
-    };
-
-    updateControlState();
-    serviceWorker.addEventListener('controllerchange', updateControlState);
-    serviceWorker.ready.then(updateControlState).catch(() => undefined);
-
-    return () => {
-      serviceWorker.removeEventListener('controllerchange', updateControlState);
-    };
-  }, []);
 
   useEffect(() => {
     if (!renderableUrl) {
       setResolvedState({ cacheKey: undefined, url: undefined });
-      return undefined;
-    }
-
-    if (!needsBlob) {
-      setResolvedState({ cacheKey: undefined, url: renderableUrl });
       return undefined;
     }
 
@@ -176,9 +141,9 @@ export function useRenderableMediaUrl(url: string | undefined): string | undefin
       cancelled = true;
       releaseObjectUrlEntry(objectUrlCacheKey);
     };
-  }, [needsBlob, objectUrlCacheKey, renderableUrl, usesExistingObjectUrl]);
+  }, [objectUrlCacheKey, renderableUrl, usesExistingObjectUrl]);
 
-  if (!needsBlob || usesExistingObjectUrl) {
+  if (usesExistingObjectUrl) {
     return renderableUrl;
   }
 

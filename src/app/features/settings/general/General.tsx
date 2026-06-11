@@ -416,6 +416,7 @@ function DateAndTime() {
 function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [editorToolbar, setEditorToolbar] = useSetting(settingsAtom, 'editorToolbar');
+  const [editorOldAddFile, setEditorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
@@ -450,6 +451,16 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           focusId="composer-formatting-toolbar"
           description="Enable the formatting toolbar in the message composer."
           after={<Switch variant="Primary" value={editorToolbar} onChange={setEditorToolbar} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Hide Add Menu in the Editor"
+          focusId="hide-add-menu"
+          description="Make the Plus button in the editor only add files. You may still send the special items using commands such as /poll and /location"
+          after={
+            <Switch variant="Primary" value={editorOldAddFile} onChange={setEditorOldAddFile} />
+          }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

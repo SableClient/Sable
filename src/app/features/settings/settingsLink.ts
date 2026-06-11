@@ -19,6 +19,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
   general: [
     'client-side-embeds',
     'composer-formatting-toolbar',
+    'hide-add-menu',
     'custom-date-format',
     'date-format',
     'disable-media-auto-load',

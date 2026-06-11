@@ -159,10 +159,11 @@ import type {
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
+import { PollDialog } from './poll-modals';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
-const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
+export const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   const thread = room.getThread(threadRootId);
   const threadEvents: MatrixEvent[] = thread?.events ?? [];
   const filtered = threadEvents.filter(
@@ -191,7 +192,10 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   return threadRootId;
 };
 
-const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEventRelation => {
+export const getReplyContent = (
+  replyDraft: IReplyDraft | undefined,
+  room?: Room
+): IEventRelation => {
   if (!replyDraft) return {};
 
   const relatesTo: IEventRelation = {};
@@ -247,6 +251,7 @@ interface RoomInputProps {
   threadRootId?: string;
   onEditLastMessage?: () => void;
 }
+
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
   ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
     // When in thread mode, isolate drafts by thread root ID so thread replies
@@ -255,6 +260,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
+    const [editorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
 
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
@@ -381,6 +387,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [editingScheduledDelayId, setEditingScheduledDelayId] = useAtom(
       roomIdToEditingScheduledDelayIdAtomFamily(roomId)
     );
+    const [AddMenuAnchor, setAddMenuAnchor] = useState<RectCords>();
+    const [showPollPicker, setShowPollPicker] = useState(false);
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
@@ -814,6 +822,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else if (commandName === Command.UnFlip) {
         plainText = `${UNFLIP} ${plainText}`;
         customHtml = `${UNFLIP} ${customHtml}`;
+      } else if (commandName === Command.Poll) {
+        setShowPollPicker(true);
+        resetEditor(editor);
+        resetEditorHistory(editor);
+        sendTypingStatus(false);
+        return;
       } else if (commandName) {
         const commandContent = commands[commandName as Command];
         if (commandContent) {
@@ -1519,16 +1533,65 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            <IconButton
-              onClick={() => pickFile('*')}
-              variant="SurfaceVariant"
-              size="300"
-              radii="300"
-              title="Upload File"
-              aria-label="Upload and attach a File"
-            >
-              <Icon src={Icons.PlusCircle} />
-            </IconButton>
+            <>
+              <PopOut
+                anchor={AddMenuAnchor}
+                position="Top"
+                align="Start"
+                offset={5}
+                content={
+                  <FocusTrap
+                    focusTrapOptions={{
+                      initialFocus: false,
+                      onDeactivate: () => setAddMenuAnchor(undefined),
+                      clickOutsideDeactivates: true,
+                      escapeDeactivates: stopPropagation,
+                    }}
+                  >
+                    <Menu>
+                      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          onClick={() => {
+                            setAddMenuAnchor(undefined);
+                            setShowPollPicker(true);
+                          }}
+                          before={<Icon size="100" src={Icons.UnorderList} />}
+                        >
+                          <Text size="B300">Create Poll</Text>
+                        </MenuItem>
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          onClick={() => {
+                            pickFile('*');
+                            setAddMenuAnchor(undefined);
+                          }}
+                          before={<Icon size="100" src={Icons.PlusCircle} />}
+                        >
+                          <Text size="B300">Add File</Text>
+                        </MenuItem>
+                      </Box>
+                    </Menu>
+                  </FocusTrap>
+                }
+              />
+              <IconButton
+                onClick={(evt) =>
+                  editorOldAddFile
+                    ? pickFile('*')
+                    : setAddMenuAnchor(evt.currentTarget.getBoundingClientRect())
+                }
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+                title={editorOldAddFile ? 'Upload File' : 'Add'}
+                aria-label={editorOldAddFile ? 'Upload and attach a File' : 'Add new Item'}
+              >
+                <Icon src={Icons.PlusCircle} />
+              </IconButton>
+            </>
           }
           after={
             <>
@@ -1769,6 +1832,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               setShowSchedulePicker(false);
               setSendError(undefined);
             }}
+          />
+        )}
+        {showPollPicker && (
+          <PollDialog
+            onCancel={() => setShowPollPicker(false)}
+            mx={mx}
+            room={room}
+            replyDraft={replyDraft}
+            clearReplyDraft={() => setReplyDraft(undefined)}
           />
         )}
       </div>

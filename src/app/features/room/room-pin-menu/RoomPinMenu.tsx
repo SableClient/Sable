@@ -96,6 +96,7 @@ import type { PinReadMarker } from '$features/room/RoomViewHeader';
 import * as css from './RoomPinMenu.css';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { EventType } from '$types/matrix-sdk';
+import { M_POLL_START } from 'matrix-js-sdk';
 
 const log = createLogger('RoomPinMenu');
 
@@ -195,7 +196,9 @@ function PinnedMessageActiveContent(
           onClick={handleOpenClick}
         />
       )}
-      {renderContent(pinnedEvent.getType(), false, pinnedEvent, displayName, getContent)}
+      <Box onClick={handleOpenClick}>
+        {renderContent(pinnedEvent.getType(), false, pinnedEvent, displayName, getContent)}
+      </Box>
     </ModernLayout>
   );
 }
@@ -410,6 +413,9 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
               htmlReactParserOptions={htmlReactParserOptions}
               linkifyOpts={linkifyOpts}
               outlineAttachment
+              mEvent={event}
+              mx={mx}
+              room={room}
             />
           );
         },
@@ -474,6 +480,9 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
                       urlPreview={urlPreview}
                       htmlReactParserOptions={htmlReactParserOptions}
                       linkifyOpts={linkifyOpts}
+                      mx={mx}
+                      room={room}
+                      mEvent={event}
                     />
                   );
                 }
@@ -512,6 +521,33 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
                   renderViewer={(p) => <ImageViewer {...p} />}
                 />
               )}
+            />
+          );
+        },
+        [M_POLL_START.name]: (event, displayName, getContent) => {
+          if (event.isRedacted()) {
+            const unsigned = event.getUnsigned();
+            const redactionContent = unsigned.redacted_because?.content as
+              | { reason?: string }
+              | undefined;
+            return <RedactedContent reason={redactionContent?.reason} />;
+          }
+
+          return (
+            <RenderMessageContent
+              displayName={displayName}
+              msgType={event.getContent().msgtype ?? ''}
+              ts={event.getTs()}
+              getContent={getContent}
+              edited={!!event.replacingEvent()}
+              mediaAutoLoad={mediaAutoLoad}
+              urlPreview={urlPreview}
+              htmlReactParserOptions={htmlReactParserOptions}
+              linkifyOpts={linkifyOpts}
+              outlineAttachment
+              mEvent={event}
+              mx={mx}
+              room={room}
             />
           );
         },

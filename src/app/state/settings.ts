@@ -98,6 +98,7 @@ export interface Settings {
   memberSortFilterIndex: number;
   enterForNewline: boolean;
   editorToolbar: boolean;
+  editorOldAddFile: boolean;
   composerToolbarOpen: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
@@ -234,6 +235,7 @@ export const defaultSettings: Settings = {
   memberSortFilterIndex: 0,
   enterForNewline: false,
   editorToolbar: false,
+  editorOldAddFile: false,
   composerToolbarOpen: false,
   messageLayout: 0,
   messageSpacing: '400',

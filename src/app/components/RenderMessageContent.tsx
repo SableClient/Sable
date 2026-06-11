@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { memo, useMemo, useCallback } from 'react';
-import type { IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -46,6 +46,8 @@ import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
+import { PollEvent } from './message/PollEvent';
+import { M_TEXT } from 'matrix-js-sdk';
 import type { IImageInfo } from '$types/matrix/common';
 
 type RenderMessageContentProps = {
@@ -63,6 +65,9 @@ type RenderMessageContentProps = {
   linkifyOpts: Opts;
   outlineAttachment?: boolean;
   hideCaption?: boolean;
+  mEvent?: MatrixEvent;
+  mx?: MatrixClient;
+  room?: Room;
 };
 
 const getMediaType = (url: string) => {
@@ -95,6 +100,9 @@ function RenderMessageContentInternal({
   linkifyOpts,
   outlineAttachment,
   hideCaption,
+  mEvent,
+  mx,
+  room,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
@@ -447,7 +455,21 @@ function RenderMessageContentInternal({
         }
       />
     );
-  return <UnsupportedContent body={(content as { body?: string }).body ?? ''} />;
+  if (content['org.matrix.msc3381.poll.start']) {
+    if (mEvent && mx && room)
+      return <PollEvent content={content} mEvent={mEvent} mx={mx} room={room} />;
+    else return <UnsupportedContent body="abba" />;
+  }
+  return (
+    <UnsupportedContent
+      body={
+        (content as { body?: string }).body ??
+        (content as { [M_TEXT.name]?: string })[M_TEXT.name] ??
+        (content as { [M_TEXT.name]?: { body: string } })[M_TEXT.name]?.body ??
+        ''
+      }
+    />
+  );
 }
 
 export const RenderMessageContent = memo(RenderMessageContentInternal);

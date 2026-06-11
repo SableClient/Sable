@@ -111,7 +111,7 @@ function KatexRenderer({
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([katex]) => {
+    void Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([katex]) => {
       if (mounted) {
         setHtml(katex.default.renderToString(math, { throwOnError: false, displayMode }));
       }
@@ -430,7 +430,7 @@ export function CodeBlock({
   const [copied, setCopied] = useTimeoutToggle();
 
   const handleCopy = () => {
-    copyToClipboard(extractTextFromChildren(children));
+    void copyToClipboard(extractTextFromChildren(children));
     setCopied();
   };
 
@@ -631,6 +631,9 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'p') {
+          if (parent instanceof Element && parent.name === 'li') {
+            return <>{renderChildren()}</>;
+          }
           return (
             <Text {...props} className={classNames(css.Paragraph, css.MarginSpaced)} size="Inherit">
               {renderChildren()}

@@ -446,4 +446,15 @@ describe('react custom html parser', () => {
       expect(screen.queryByText('&lt;test&gt;')).not.toBeInTheDocument();
     }
   );
+
+  it('unwraps paragraph tags inside list items instead of rendering block breaks', () => {
+    const { container } = renderMessage(
+      '<ol><li><p>one</p></li><li><p>two</p></li></ol><ul><li><p>bullet</p></li></ul>'
+    );
+
+    expect(container.querySelector('p')).toBeNull();
+    expect(container.textContent).toContain('one');
+    expect(container.textContent).toContain('two');
+    expect(container.textContent).toContain('bullet');
+  });
 });

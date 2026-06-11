@@ -1,6 +1,7 @@
 import { atom, type WritableAtom } from 'jotai';
 import type { Store } from 'jotai/vanilla/store';
 import { mobileOrTablet } from '$utils/user-agent';
+import type { IImageInfo } from '$types/matrix/common';
 
 const STORAGE_KEY = 'settings';
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
@@ -56,14 +57,14 @@ export type ThemeRemoteTweakFavorite = {
 export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
 
 /** Where to use crisp nearest-neighbor (pixelated) image scaling. */
-export type PixelatedImageRenderingMode = 'both' | 'chat' | 'viewer' | 'none';
+export type PixelatedImageRenderingMode = 'always' | 'smart' | 'never';
 
-export function isPixelatedChatRendering(mode: PixelatedImageRenderingMode): boolean {
-  return mode === 'both' || mode === 'chat';
-}
-
-export function isPixelatedViewerRendering(mode: PixelatedImageRenderingMode): boolean {
-  return mode === 'both' || mode === 'viewer';
+export function isPixelatedRendering(
+  mode: PixelatedImageRenderingMode,
+  info?: IImageInfo
+): boolean {
+  if (mode === 'smart') return !!info && !!info.w && !!info.h && (info.w < 192 || info.h < 192);
+  return mode === 'always';
 }
 
 export function shouldApplyUserHeroCards(
@@ -138,6 +139,8 @@ export interface Settings {
   privacyBlurEmotes: boolean;
   showPronouns: boolean;
   parsePronouns: boolean;
+  pronounPillMaxCount: number;
+  pronounPillMaxLength: number;
   renderGlobalNameColors: boolean;
   renderUserCards: RenderUserCardsMode;
   filterPronounsBasedOnLanguage?: boolean;
@@ -276,6 +279,8 @@ export const defaultSettings: Settings = {
   privacyBlurEmotes: false,
   showPronouns: true,
   parsePronouns: true,
+  pronounPillMaxCount: 3,
+  pronounPillMaxLength: 16,
   renderGlobalNameColors: true,
   renderUserCards: 'both',
   renderRoomColors: true,
@@ -300,7 +305,7 @@ export const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
-  pixelatedImageRendering: 'viewer',
+  pixelatedImageRendering: 'smart',
   incomingInlineImagesDefaultHeight: 32,
   incomingInlineImagesMaxHeight: 64,
   linkPreviewImageMaxHeight: 640,
@@ -380,10 +385,9 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (typeof parsed.pixelatedImageRendering === 'boolean') {
     parsed.pixelatedImageRendering = parsed.pixelatedImageRendering ? 'both' : 'none';
   } else if (
-    parsed.pixelatedImageRendering !== 'both' &&
-    parsed.pixelatedImageRendering !== 'chat' &&
-    parsed.pixelatedImageRendering !== 'viewer' &&
-    parsed.pixelatedImageRendering !== 'none'
+    parsed.pixelatedImageRendering !== 'always' &&
+    parsed.pixelatedImageRendering !== 'smart' &&
+    parsed.pixelatedImageRendering !== 'never'
   ) {
     delete parsed.pixelatedImageRendering;
   }
@@ -512,11 +516,17 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         ? val
         : undefined;
     case 'pixelatedImageRendering':
-      return val === 'both' || val === 'chat' || val === 'viewer' || val === 'none'
-        ? val
-        : undefined;
+      return val === 'always' || val === 'smart' || val === 'never' ? val : undefined;
     case 'jumboEmojiSize':
       return typeof val === 'string' && JUMBO_EMOJI_VALUES.has(val as JumboEmojiSize)
+        ? val
+        : undefined;
+    case 'pronounPillMaxCount':
+      return typeof val === 'number' && Number.isInteger(val) && val >= 1 && val <= 10
+        ? val
+        : undefined;
+    case 'pronounPillMaxLength':
+      return typeof val === 'number' && Number.isInteger(val) && val >= 1 && val <= 64
         ? val
         : undefined;
     case 'themeRemoteManualKind':

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { memo, useMemo, useCallback } from 'react';
 import type { IPreviewUrlResponse, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
@@ -47,6 +48,7 @@ import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
 import { PollEvent } from './message/PollEvent';
 import { M_TEXT } from 'matrix-js-sdk';
+import type { IImageInfo } from '$types/matrix/common';
 
 type RenderMessageContentProps = {
   displayName: string;
@@ -80,7 +82,8 @@ const isSableChatEmbedCandidate = (url: string): boolean =>
   /^https:\/\//i.test(url) &&
   (/\.preview\.sable\.css(\?|#|$)/i.test(url) || isHttpsFullSableCssUrl(url));
 
-const CAPTION_STYLE = { marginTop: config.space.S200 };
+const CAPTION_STYLE: CSSProperties = { marginTop: config.space.S200, maxWidth: '100%' };
+const TEXT_STYLE: CSSProperties = { maxWidth: '100%' };
 
 function RenderMessageContentInternal({
   displayName,
@@ -224,6 +227,7 @@ function RenderMessageContentInternal({
         <Box
           style={{
             padding: config.space.S200,
+            paddingRight: config.space.S0,
             wordBreak: 'break-word',
             maxWidth: '100%',
             display: 'flex',
@@ -238,6 +242,7 @@ function RenderMessageContentInternal({
             renderBody={renderBody}
             renderUrlsPreview={messageUrlsPreview}
             renderBundledPreviews={messageBundlePreview}
+            style={TEXT_STYLE}
           />
         </Box>
       );
@@ -301,6 +306,7 @@ function RenderMessageContentInternal({
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
+        style={TEXT_STYLE}
       />
     );
   }
@@ -342,7 +348,7 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === (MsgType.Image as string)) {
-    const info = (content as { info?: { mimetype?: string } }).info;
+    const { info } = content as { info?: IImageInfo };
     const isGif =
       info?.mimetype === 'image/gif' ||
       info?.mimetype === 'image/apng' ||
@@ -366,11 +372,11 @@ function RenderMessageContentInternal({
               if (isGif && !autoplayGifs && p.src) {
                 return (
                   <ClientSideHoverFreeze src={p.src}>
-                    <Image {...p} loading="lazy" />
+                    <Image info={info} {...p} loading="lazy" />
                   </ClientSideHoverFreeze>
                 );
               }
-              return <Image {...p} loading="lazy" />;
+              return <Image info={info} {...p} loading="lazy" />;
             }}
             renderViewer={(p) => <ImageViewer {...p} />}
           />

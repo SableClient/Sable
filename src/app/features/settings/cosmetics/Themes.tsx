@@ -222,10 +222,9 @@ function ThemeVisualPreferences() {
     'pixelatedImageRendering'
   );
   const pixelatedImageRenderingOptions: SettingMenuOption<PixelatedImageRenderingMode>[] = [
-    { value: 'both', label: 'Both' },
-    { value: 'chat', label: 'Chat' },
-    { value: 'viewer', label: 'Image viewer' },
-    { value: 'none', label: 'Neither' },
+    { value: 'always', label: 'Always' },
+    { value: 'smart', label: 'Smart' },
+    { value: 'never', label: 'never' },
   ];
   const [incomingInlineImagesDefaultHeight, setIncomingInlineImagesDefaultHeight] = useSetting(
     settingsAtom,

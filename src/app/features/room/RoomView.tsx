@@ -169,7 +169,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
               direction="Column"
               style={{
                 backgroundColor: 'var(--sable-surface-container)',
-                paddingBottom: 'var(--sable-safe-bottom, env(safe-area-inset-bottom, 0px))',
+                paddingBottom: 'var(--sable-safe-bottom, 0px)',
               }}
             >
               {canMessage && delayedEventsSupported && (

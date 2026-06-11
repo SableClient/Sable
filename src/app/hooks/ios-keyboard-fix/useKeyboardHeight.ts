@@ -38,6 +38,20 @@ let mountCount = 0;
 // across instances.
 let cssVarsApplied = false;
 
+function isEditableElement(element: Element | null): boolean {
+  if (!(element instanceof HTMLElement)) return false;
+
+  const tagName = element.tagName.toLowerCase();
+  return (
+    element.isContentEditable ||
+    tagName === 'textarea' ||
+    (tagName === 'input' &&
+      !['button', 'checkbox', 'file', 'hidden', 'radio', 'range', 'reset', 'submit'].includes(
+        (element as HTMLInputElement).type
+      ))
+  );
+}
+
 export function useKeyboardHeight() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -71,6 +85,32 @@ export function useKeyboardHeight() {
       cssVarsApplied = false;
     };
 
+    const markKeyboardClosed = () => {
+      if (stabilityTimer) {
+        clearTimeout(stabilityTimer);
+        stabilityTimer = null;
+      }
+      pendingValue = 0;
+      baselineHeight = window.innerHeight;
+      clearCSSVars();
+      setKeyboardHeight(0);
+      setIsKeyboardVisible(false);
+      isVisibleRef.current = false;
+    };
+
+    const verifyKeyboardClosed = () => {
+      window.setTimeout(() => {
+        if (!isEditableElement(document.activeElement)) {
+          markKeyboardClosed();
+          return;
+        }
+
+        if (baselineHeight - viewport.height < 30) {
+          markKeyboardClosed();
+        }
+      }, 50);
+    };
+
     const handleResize = () => {
       const calculatedHeight = baselineHeight - viewport.height;
 
@@ -79,14 +119,7 @@ export function useKeyboardHeight() {
       // re-render, so there is no window in which a follow-on resize event
       // can observe the variable as missing and incorrectly re-set it.
       if (calculatedHeight < 30) {
-        if (stabilityTimer) {
-          clearTimeout(stabilityTimer);
-          stabilityTimer = null;
-        }
-        clearCSSVars();
-        setKeyboardHeight(0);
-        setIsKeyboardVisible(false);
-        isVisibleRef.current = false;
+        markKeyboardClosed();
         return;
       }
 
@@ -146,12 +179,16 @@ export function useKeyboardHeight() {
     };
 
     viewport.addEventListener('resize', handleResize);
+    viewport.addEventListener('scroll', verifyKeyboardClosed);
     window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('focusout', verifyKeyboardClosed);
     return () => {
       mountCount -= 1;
       if (stabilityTimer) clearTimeout(stabilityTimer);
       viewport.removeEventListener('resize', handleResize);
+      viewport.removeEventListener('scroll', verifyKeyboardClosed);
       window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('focusout', verifyKeyboardClosed);
       // Only clear CSS vars when the last instance unmounts — prevents the thread
       // drawer unmounting mid-keyboard-open from wiping the variable while the
       // main room's RoomInput still has the keyboard open.

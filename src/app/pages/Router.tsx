@@ -409,6 +409,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             )}
             <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
             <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
+            <Route path={BOOKMARKS_PATH_SEGMENT} element={<BookmarksList />} />
           </Route>
           <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
         </Route>

@@ -4,9 +4,13 @@ import type { IThumbnailContent } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaUrlCacheContext } from '$hooks/useMediaUrlCacheContext';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { decryptFileSafe, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
+import {
+  decryptFileSafe,
+  downloadEncryptedMedia,
+  downloadMedia,
+  mxcUrlToHttp,
+} from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 
 export type ThumbnailContentProps = {
@@ -25,8 +29,6 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
     if (typeof thumbMxcUrl !== 'string') return undefined;
     return mxcUrlToHttp(mx, thumbMxcUrl, useAuthentication) ?? undefined;
   }, [mx, thumbMxcUrl, useAuthentication]);
-
-  const resolvedMediaUrl = useRenderableMediaUrl(encInfo ? undefined : rawMediaUrl);
 
   const [thumbSrcState, loadThumbSrc] = useAsyncCallback(
     useCallback(async () => {
@@ -59,16 +61,20 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
           return null;
         }
       }
-      return resolvedMediaUrl ?? rawMediaUrl ?? thumbMxcUrl;
-    }, [
-      encInfo,
-      info.thumbnail_info,
-      mediaUrlCache,
-      mx,
-      rawMediaUrl,
-      resolvedMediaUrl,
-      thumbMxcUrl,
-    ])
+      if (!rawMediaUrl) return null;
+
+      const cachedBlob = mediaUrlCache.getBlob(thumbMxcUrl, false, thumbInfo.mimetype);
+      if (cachedBlob) return cachedBlob;
+
+      try {
+        const fileContent = await downloadMedia(rawMediaUrl, mx.getAccessToken());
+        const blobUrl = URL.createObjectURL(fileContent);
+        mediaUrlCache.setBlob(thumbMxcUrl, false, blobUrl, thumbInfo.mimetype);
+        return blobUrl;
+      } catch {
+        return null;
+      }
+    }, [encInfo, info.thumbnail_info, mediaUrlCache, mx, rawMediaUrl, thumbMxcUrl])
   );
 
   useEffect(() => {

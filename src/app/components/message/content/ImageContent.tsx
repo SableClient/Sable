@@ -32,10 +32,14 @@ import { useMediaUrlCacheContext } from '$hooks/useMediaUrlCacheContext';
 import { bytesToSize } from '$utils/common';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
-import { decryptFileSafe, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
+import {
+  decryptFileSafe,
+  downloadEncryptedMedia,
+  downloadMedia,
+  mxcUrlToHttp,
+} from '$utils/matrix';
 import { getDecryptedBlob, storeDecryptedBlob } from '$hooks/useBlobCache';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
@@ -135,8 +139,6 @@ export const ImageContent = as<'div', ImageContentProps>(
       return mxcUrlToHttp(mx, url, useAuthentication) ?? undefined;
     }, [mx, url, useAuthentication]);
 
-    const resolvedMediaUrl = useRenderableMediaUrl(encInfo ? undefined : rawMediaUrl);
-
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
         if (url.startsWith('http')) return url;
@@ -144,7 +146,15 @@ export const ImageContent = as<'div', ImageContentProps>(
         if (typeof matrixThumbnailMaxEdge === 'number' && matrixThumbnailMaxEdge > 0 && !encInfo) {
           const { tw, th } = thumbnailDimsForMaxEdge(matrixThumbnailMaxEdge, info?.w, info?.h);
           const thumbUrl = mediaUrlCache.get(mx, url, useAuthentication, tw, th, 'scale', false);
-          if (thumbUrl) return thumbUrl;
+          if (thumbUrl) {
+            const cachedBlob = mediaUrlCache.getBlob(url, false, `thumb:${tw}x${th}:scale`);
+            if (cachedBlob) return cachedBlob;
+
+            const thumbContent = await downloadMedia(thumbUrl, mx.getAccessToken());
+            const thumbBlobUrl = URL.createObjectURL(thumbContent);
+            mediaUrlCache.setBlob(url, false, thumbBlobUrl, `thumb:${tw}x${th}:scale`);
+            return thumbBlobUrl;
+          }
         }
 
         const mediaUrl = rawMediaUrl;
@@ -174,7 +184,13 @@ export const ImageContent = as<'div', ImageContentProps>(
           void storeDecryptedBlob(url, fileContent);
           return blobUrl;
         }
-        return resolvedMediaUrl ?? mediaUrl;
+        const cachedBlob = mediaUrlCache.getBlob(url, false, mimeType);
+        if (cachedBlob) return cachedBlob;
+
+        const fileContent = await downloadMedia(mediaUrl, mx.getAccessToken());
+        const blobUrl = URL.createObjectURL(fileContent);
+        mediaUrlCache.setBlob(url, false, blobUrl, mimeType);
+        return blobUrl;
       }, [
         encInfo,
         info?.h,
@@ -184,7 +200,6 @@ export const ImageContent = as<'div', ImageContentProps>(
         mimeType,
         mx,
         rawMediaUrl,
-        resolvedMediaUrl,
         url,
         useAuthentication,
       ])

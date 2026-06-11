@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ComponentType } from 'react';
 import type { IconSrc } from 'folds';
-import type { ComponentType, LazyExoticComponent } from 'react';
 import {
   Avatar,
   Box,
@@ -125,7 +124,7 @@ const settingsSectionIdToPage: Record<SettingsSectionId, SettingsPages> = {
 
 const settingsSectionComponents: Record<
   SettingsSectionId,
-  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element | null
+  ComponentType<{ requestBack?: () => void; requestClose: () => void }>
 > = {
   general: General,
   account: Account,

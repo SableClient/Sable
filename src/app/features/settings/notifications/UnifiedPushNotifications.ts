@@ -1,4 +1,4 @@
-import { IPusherRequest, MatrixClient } from '$types/matrix-sdk';
+import type { IPusherRequest, MatrixClient } from '$types/matrix-sdk';
 import type {
   MessagingStyleMessage,
   MessagingStylePerson,
@@ -8,7 +8,6 @@ import { resolveNotificationPreviewText } from '$utils/notificationStyle';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { getStateEvent, getMemberAvatarMxc } from '$utils/room';
 import { createDebugLogger } from '$utils/debugLogger';
-import { StateEvent } from '$types/matrix/room';
 import { fetch } from '$utils/fetch';
 import {
   getUnifiedPushDistributor,
@@ -67,6 +66,7 @@ async function discoverGateway(
     if (index >= probeCandidates.length) return undefined;
 
     const candidate = probeCandidates[index];
+    if (!candidate) return undefined;
     const result = await probeCandidate(candidate);
     if (result) return result;
 
@@ -168,7 +168,7 @@ export async function tryEnableUnifiedPush(
     pusherData.auth = pubKeySet.auth;
   }
 
-  await mx.setPusher({
+  const pusher: Parameters<MatrixClient['setPusher']>[0] = {
     kind: 'http',
     app_id: resolvedConfig.appId,
     pushkey: endpoint,
@@ -178,7 +178,8 @@ export async function tryEnableUnifiedPush(
     lang: navigator.language || 'en',
     data: pusherData,
     append: false,
-  } as any);
+  };
+  await mx.setPusher(pusher);
 
   return {
     status: 'registered',
@@ -208,6 +209,14 @@ export async function enableUnifiedPush(
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
 }
 
 async function getCurrentDeviceUnifiedPushPushkeys(
@@ -429,7 +438,7 @@ async function postRoomNotification(
 
 /** Handles a rich push payload containing full event details (type, room_name, content, etc.). */
 async function handleRichPushPayload(
-  pushData: Record<string, any>,
+  pushData: Record<string, unknown>,
   settings: NotificationSettings
 ) {
   const eventType = pushData.type as EventType;
@@ -442,16 +451,16 @@ async function handleRichPushPayload(
 
       const previewText = resolveNotificationPreviewText({
         content: pushData?.content,
-        eventType: pushData?.type,
+        eventType: optionalString(pushData?.type),
         isEncryptedRoom: isEncrypted,
         showMessageContent: settings.showMessageContent,
         showEncryptedMessageContent: settings.showEncryptedMessageContent,
       });
 
-      const roomId: string | undefined = pushData?.room_id;
-      const roomName: string = pushData?.room_name ?? 'Unknown Room';
-      const senderName: string | undefined = pushData?.sender_display_name;
-      const senderId: string | undefined = pushData?.sender;
+      const roomId = optionalString(pushData?.room_id);
+      const roomName = optionalString(pushData?.room_name) ?? 'Unknown Room';
+      const senderName = optionalString(pushData?.sender_display_name);
+      const senderId = optionalString(pushData?.sender);
       const isSilent = !settings.notificationSoundEnabled;
 
       const selfUserId = settings.mx.getUserId() ?? undefined;
@@ -491,7 +500,7 @@ async function handleRichPushPayload(
 
       const cache = getOrCreateRoomCache(roomId, roomName);
 
-      const eventId: string | undefined = pushData?.event_id;
+      const eventId = optionalString(pushData?.event_id);
       if (eventId && cache.seenEventIds.has(eventId)) break;
       if (eventId) cache.seenEventIds.add(eventId);
 
@@ -521,9 +530,10 @@ async function handleRichPushPayload(
       break;
     }
     case EventType.RoomMember: {
-      if (pushData?.content?.membership !== 'invite') break;
-      const senderName: string | undefined = pushData?.sender_display_name;
-      const roomName: string | undefined = pushData?.room_name;
+      const content = isRecord(pushData?.content) ? pushData.content : undefined;
+      if (content?.membership !== 'invite') break;
+      const senderName = optionalString(pushData?.sender_display_name);
+      const roomName = optionalString(pushData?.room_name);
       let body = '';
       if (senderName && roomName) body = `${senderName} invites you to ${roomName}`;
       else if (senderName) body = `from ${senderName}`;
@@ -555,13 +565,13 @@ async function handleRichPushPayload(
  * the public UnifiedPush gateway, looking up context from local SDK state.
  */
 async function handleMinimalPushPayload(
-  pushData: Record<string, any>,
+  pushData: Record<string, unknown>,
   settings: NotificationSettings
 ) {
-  const roomId: string | undefined = pushData?.room_id;
-  const eventId: string | undefined = pushData?.event_id;
-  const unread: number | undefined =
-    typeof pushData?.counts?.unread === 'number' ? pushData.counts.unread : undefined;
+  const roomId = optionalString(pushData?.room_id);
+  const eventId = optionalString(pushData?.event_id);
+  const counts = isRecord(pushData?.counts) ? pushData.counts : undefined;
+  const unread: number | undefined = typeof counts?.unread === 'number' ? counts.unread : undefined;
 
   if (!roomId) return;
 
@@ -573,7 +583,7 @@ async function handleMinimalPushPayload(
 
   const room = settings.mx.getRoom(roomId);
   const roomName = room?.name ?? 'Unknown Room';
-  const isEncryptedRoom = room ? !!getStateEvent(room, StateEvent.RoomEncryption) : false;
+  const isEncryptedRoom = room ? !!getStateEvent(room, EventType.RoomEncryption) : false;
 
   let senderName: string | undefined;
   let senderId: string | undefined;
@@ -664,7 +674,7 @@ async function handleUnifiedPushPayload(
   }
 
   // The UP gateway wraps the Matrix push in a `notification` field.
-  const pushData = (raw.notification ?? raw) as Record<string, any>;
+  const pushData = isRecord(raw.notification) ? raw.notification : raw;
   const eventType = pushData?.type as EventType | undefined;
 
   if (eventType) {

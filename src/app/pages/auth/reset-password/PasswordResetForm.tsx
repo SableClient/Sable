@@ -29,7 +29,8 @@ import { getLoginPath, withSearchParam } from '$pages/pathUtils';
 import { getUIAError, getUIAErrorCode } from '$utils/matrix-uia';
 import { FieldError } from '$pages/auth/FiledError';
 import { fetch } from '$utils/fetch';
-import { ResetPasswordResult, resetPassword } from './resetPasswordUtil';
+import type { ResetPasswordResult } from './resetPasswordUtil';
+import { resetPassword } from './resetPasswordUtil';
 
 type FormData = {
   email: string;

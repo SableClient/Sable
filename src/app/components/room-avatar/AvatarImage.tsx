@@ -4,18 +4,16 @@ import { useState, useEffect } from 'react';
 import bgColorImg from '$utils/bgColorImg';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
-import { fetch } from '$utils/fetch';
 import * as css from './RoomAvatar.css';
 
 const AVATAR_CACHE_NAME = 'sable-avatars-v1';
 
-export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProps) {
-  const [uniformIconsSetting] = useSetting(settingsAtom, 'uniformIcons');
-  const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
-  const resolvedSrc = useRenderableMediaUrl(src);
-  const mediaSrc = resolvedSrc ?? src;
-  const [processedSrc, setProcessedSrc] = useState<string>(mediaSrc);
+// Module-level in-memory cache: maps a Matrix media URL → blob URL so that
+// avatars of any type only need to be fetched once per session. MXC URLs are
+// content-addressed and never change, so this mapping is stable for the
+// lifetime of the page and eliminates N+1 fetches as virtual-list items
+// unmount and remount.
+const avatarBlobCache = new Map<string, string>();
 
 // -------------------------------------------------------------------------
 // Persistent Cache API helpers
@@ -116,9 +114,12 @@ export function useProcessedAvatarSrc(src?: string): string | undefined {
     let isMounted = true;
 
     const processImage = async () => {
-      try {
-        const res = await fetch(mediaSrc, { mode: 'cors' });
-        const contentType = res.headers.get('content-type');
+      // Layer 1: in-memory hit — return immediately without any async work.
+      const memCached = avatarBlobCache.get(src);
+      if (memCached) {
+        setProcessedSrc(memCached);
+        return;
+      }
 
       try {
         // Layer 2: persistent on-device cache.
@@ -156,11 +157,15 @@ export function useProcessedAvatarSrc(src?: string): string | undefined {
           blob = await res.blob();
         }
 
-          objectUrl = URL.createObjectURL(blob);
-          if (isMounted) setProcessedSrc(objectUrl);
-        } else if (isMounted) setProcessedSrc(mediaSrc);
+        const blobUrl = URL.createObjectURL(blob);
+        avatarBlobCache.set(src, blobUrl);
+        // Persist on-device so subsequent page loads skip the network entirely.
+        storeAvatarInPersistentCache(src, blob).catch(() => undefined);
+        if (isMounted) setProcessedSrc(blobUrl);
       } catch {
-        if (isMounted) setProcessedSrc(mediaSrc);
+        // Network or processing failure — fall back to the original URL so the
+        // browser can attempt a direct load (e.g. unauthenticated media).
+        if (isMounted) setProcessedSrc(src);
       }
     };
 
@@ -171,7 +176,7 @@ export function useProcessedAvatarSrc(src?: string): string | undefined {
       // Blob URLs are retained in avatarBlobCache — do not revoke them here so
       // that subsequent remounts can reuse the cached result without re-fetching.
     };
-  }, [mediaSrc]);
+  }, [src]);
 
   return processedSrc;
 }

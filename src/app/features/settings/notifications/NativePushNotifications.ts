@@ -1,5 +1,5 @@
-import { IPusherRequest, MatrixClient } from '$types/matrix-sdk';
-import { ClientConfig } from '$hooks/useClientConfig';
+import type { IPusherRequest, MatrixClient } from '$types/matrix-sdk';
+import type { ClientConfig } from '$hooks/useClientConfig';
 import { getNativePushNotificationsApi } from './NativePushNotificationsApiClient';
 
 const NATIVE_PUSH_TOKEN_STORAGE_KEY = 'nativePushToken';

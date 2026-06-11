@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TauriFrontendReady } from './TauriFrontendReady';

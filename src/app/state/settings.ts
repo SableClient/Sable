@@ -1,5 +1,6 @@
 import { atom, type WritableAtom } from 'jotai';
 import type { Store } from 'jotai/vanilla/store';
+import type { IImageInfo } from '$types/matrix/common';
 import { mobileOrTablet } from '$utils/user-agent';
 import type {
   NotificationTransportMode,

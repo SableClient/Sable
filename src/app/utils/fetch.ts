@@ -126,7 +126,7 @@ async function loopbackFetch(input: RequestInfo | URL, init?: RequestInit): Prom
   signal?.addEventListener('abort', handleAbort, { once: true });
 
   try {
-    const response = await raceWithAbort(
+    const response: LoopbackFetchResponse = await raceWithAbort(
       invoke<LoopbackFetchResponse>('loopback_fetch', { request }),
       signal
     );

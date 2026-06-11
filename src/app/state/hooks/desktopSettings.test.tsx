@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { renderHook, act } from '@testing-library/react';
 import { createStore, Provider } from 'jotai';
 import { createElement, type ReactNode } from 'react';

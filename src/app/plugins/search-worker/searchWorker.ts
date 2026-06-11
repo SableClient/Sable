@@ -492,7 +492,8 @@ function handleQuery(
   term: string,
   roomIds?: string[],
   senders?: string[],
-  hasTypes?: string[]
+  hasTypes?: string[],
+  exactMatch?: boolean
 ): void {
   if (!index) {
     post({ type: 'QUERY_RESULT', id, events: [] });
@@ -522,7 +523,11 @@ function handleQuery(
     filter: (r) => matchesFilters(r as unknown as IndexableEvent),
   }) as unknown as IndexableEvent[];
 
-  post({ type: 'QUERY_RESULT', id, events: rawResults });
+  const results = exactMatch
+    ? rawResults.filter((event) => event.body.toLowerCase().includes(term.toLowerCase()))
+    : rawResults;
+
+  post({ type: 'QUERY_RESULT', id, events: results });
 }
 
 async function handleSetBackfillState(roomId: string, state: BackfillState): Promise<void> {
@@ -595,7 +600,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
       handleIndexEvents(msg.events);
       break;
     case 'QUERY':
-      handleQuery(msg.id, msg.term, msg.roomIds, msg.senders, msg.hasTypes);
+      handleQuery(msg.id, msg.term, msg.roomIds, msg.senders, msg.hasTypes, msg.exactMatch);
       break;
     case 'SET_BACKFILL_STATE':
       void handleSetBackfillState(msg.roomId, msg.state);

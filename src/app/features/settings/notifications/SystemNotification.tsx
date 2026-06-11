@@ -1,5 +1,7 @@
-import { type FormEvent, MouseEventHandler, useCallback, useEffect, useRef, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -12,12 +14,11 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Spinner,
   Switch,
   Text,
 } from 'folds';
-import { IPusherRequest } from '$types/matrix-sdk';
+import type { IPusherRequest } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -422,11 +423,8 @@ function NotificationTransportOverrideInput({
 }
 
 function labelUnifiedPushDistributorOption(distributor: string): string {
-  const lastSegment = distributor
-    .split(/[./]/)
-    .map((segment) => segment.trim())
-    .filter(Boolean)
-    .at(-1);
+  const segments = distributor.split(/[./]/).map((segment) => segment.trim());
+  const lastSegment = segments.findLast(Boolean);
 
   return lastSegment ?? distributor;
 }

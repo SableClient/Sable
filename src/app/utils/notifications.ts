@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import { isTauri } from '@tauri-apps/api/core';
 import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
 import { ReceiptType } from '$types/matrix-sdk';
 import { createDebugLogger } from './debugLogger';

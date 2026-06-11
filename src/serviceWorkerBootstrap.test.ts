@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerAppServiceWorker } from './serviceWorkerBootstrap';
 

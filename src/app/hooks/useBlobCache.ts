@@ -1,11 +1,87 @@
 import { useState, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
+import { createDebugLogger } from '$utils/debugLogger';
+
+const debugLog = createDebugLogger('blob-cache');
+
+const CACHE_NAME = 'sable-media-v1';
+const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_CACHE_SIZE_MB = 500; // Configurable limit
 
 const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();
 const authFailedUrls = new Set<string>(); // Track URLs that failed with 401
 
-export function getBlobCacheStats(): { cacheSize: number; inflightCount: number } {
-  return { cacheSize: imageBlobCache.size, inflightCount: inflightRequests.size };
+// Listeners notified when the SW controller changes and authFailedUrls is cleared.
+const onSwRestored = new Set<() => void>();
+
+// Session for direct authenticated fetches when the SW has no session yet
+// (e.g. right after an iOS background kill, before CLAIM_CLIENTS is sent).
+let blobCacheSession: { accessToken: string; baseUrl: string } | undefined;
+
+/**
+ * Provide the active session so media can be fetched directly with an
+ * Authorization header when the SW is not yet acting as the fetch controller.
+ * Call this from ClientRoot whenever the session changes.
+ */
+export function setBlobCacheSession(
+  accessToken: string | undefined,
+  baseUrl: string | undefined
+): void {
+  blobCacheSession = accessToken && baseUrl ? { accessToken, baseUrl } : undefined;
+}
+
+// When the SW is reclaimed after an iOS kill-and-restart, clear the auth-failed
+// URL set so that media items blocked during the gap can be retried.
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    authFailedUrls.clear();
+    onSwRestored.forEach((listener) => listener());
+  });
+}
+
+// Concurrency limiter: cap simultaneous remote fetches to avoid N+1 API call
+// detection when many components (e.g. room-list avatars) mount at once.
+// SABLE-5C: Increased from 4 to 8 to reduce timeline scroll glitches from
+// slow sequential image loading causing layout shifts.
+const MAX_CONCURRENT_FETCHES = 8;
+let activeFetches = 0;
+const fetchQueue: Array<() => void> = [];
+
+type CacheMetadata = {
+  url: string;
+  size: number;
+  cachedAt: number;
+};
+
+let cacheMetadata: CacheMetadata[] = [];
+let metadataLoaded = false;
+
+function acquireFetchSlot(): Promise<void> {
+  if (activeFetches < MAX_CONCURRENT_FETCHES) {
+    activeFetches += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    fetchQueue.push(resolve);
+  });
+}
+
+function releaseFetchSlot(): void {
+  const next = fetchQueue.shift();
+  if (next) {
+    next();
+  } else {
+    activeFetches -= 1;
+  }
+}
+
+/**
+ * Open the Cache API storage for media blobs.
+ * Persistent across page reloads and shared between tabs.
+ */
+async function openMediaCache(): Promise<Cache> {
+  return await caches.open(CACHE_NAME);
 }
 
 /**
@@ -164,6 +240,7 @@ export function getBlobCacheStats(): {
   inflightCount: number;
   persistentCacheSizeMB: number;
   persistentCacheCount: number;
+  queueDepth: number;
 } {
   const totalSizeBytes = cacheMetadata.reduce((sum, m) => sum + m.size, 0);
   return {
@@ -171,6 +248,7 @@ export function getBlobCacheStats(): {
     inflightCount: inflightRequests.size,
     persistentCacheSizeMB: totalSizeBytes / (1024 * 1024),
     persistentCacheCount: cacheMetadata.length,
+    queueDepth: fetchQueue.length,
   };
 }
 
@@ -184,6 +262,23 @@ export async function getBlobCacheStatsAsync(): Promise<ReturnType<typeof getBlo
 }
 
 /**
+ * Store a pre-decrypted blob in the persistent media cache.
+ * Use this after decrypting encrypted attachments so subsequent page loads
+ * can skip the download+decrypt round-trip.
+ */
+export async function storeDecryptedBlob(url: string, blob: Blob): Promise<void> {
+  await cacheMedia(url, blob);
+}
+
+/**
+ * Retrieve a previously stored decrypted blob from the persistent cache.
+ * Returns undefined on a miss or if the cached entry has expired.
+ */
+export async function getDecryptedBlob(url: string): Promise<Blob | undefined> {
+  return getCachedMedia(url);
+}
+
+/**
  * Hook to fetch and cache media blobs with persistent storage.
  * Checks in-memory cache first, then Cache API, then fetches from network.
  */
@@ -192,6 +287,8 @@ export function useBlobCache(url?: string): string | undefined {
     sourceUrl: url,
     blobUrl: url ? imageBlobCache.get(url) : undefined,
   });
+  // Incremented when the SW is reclaimed, so auth-failed URLs are retried.
+  const [retryToken, setRetryToken] = useState(0);
 
   if (url !== cacheState.sourceUrl) {
     setCacheState({
@@ -199,6 +296,18 @@ export function useBlobCache(url?: string): string | undefined {
       blobUrl: url ? imageBlobCache.get(url) : undefined,
     });
   }
+
+  // Subscribe to SW controller restoration so this hook retries if the URL
+  // previously failed only because the SW had no session yet.
+  useEffect(() => {
+    const onRestored = () => {
+      if (url && !imageBlobCache.has(url)) setRetryToken((n) => n + 1);
+    };
+    onSwRestored.add(onRestored);
+    return () => {
+      onSwRestored.delete(onRestored);
+    };
+  }, [url]);
 
   useEffect(() => {
     if (!url) return undefined;
@@ -208,30 +317,76 @@ export function useBlobCache(url?: string): string | undefined {
       return undefined;
     }
 
+    // Blob URLs are already in-memory object URLs — no need to re-fetch them.
+    // Fetching a blob: URL just to create another blob URL is redundant and
+    // causes the N+1 API call pattern when many components mount simultaneously.
+    if (url.startsWith('blob:')) {
+      imageBlobCache.set(url, url);
+      setCacheState({ sourceUrl: url, blobUrl: url });
+      return undefined;
+    }
+
     // Check memory cache first (instant)
     if (imageBlobCache.has(url)) {
+      Sentry.metrics.count('blob_cache.request', 1, {
+        attributes: { result: 'hit', cacheType: 'memory' },
+      });
       return undefined;
     }
 
     let isMounted = true;
 
     const fetchBlob = async () => {
+      // Check if another component is already fetching this URL
       if (inflightRequests.has(url)) {
         try {
           const existingBlobUrl = await inflightRequests.get(url);
           if (isMounted) setCacheState({ sourceUrl: url, blobUrl: existingBlobUrl });
         } catch {
-          // Inflight request failed, silently ignore (consistent with fetchBlob behavior)
+          // Inflight request failed, silently ignore
         }
         return;
       }
 
       const requestPromise = (async () => {
+        await acquireFetchSlot();
         try {
+          // Check persistent cache (fast, survives reloads)
+          const cachedBlob = await getCachedMedia(url);
+          if (cachedBlob) {
+            Sentry.metrics.count('blob_cache.request', 1, {
+              attributes: { result: 'hit', cacheType: 'persistent' },
+            });
+            const objectUrl = URL.createObjectURL(cachedBlob);
+            imageBlobCache.set(url, objectUrl);
+            return objectUrl;
+          }
+
+          // Fetch from network (slow)
+          Sentry.metrics.count('blob_cache.request', 1, {
+            attributes: { result: 'miss', cacheType: 'network' },
+          });
           const res = await fetch(url, { mode: 'cors' });
 
           // SABLE-4Y fix: Handle 401 auth failures gracefully
           if (res.status === 401) {
+            // The SW may not yet have a session (e.g. right after iOS background kill).
+            // Try a direct authenticated request before permanently blacklisting the URL.
+            const isMatrixMediaUrl = /\/_matrix\/(client\/v1\/media|media\/v\d+)\//.test(url);
+            if (blobCacheSession && isMatrixMediaUrl) {
+              const directRes = await fetch(url, {
+                mode: 'cors',
+                credentials: 'omit',
+                headers: { Authorization: `Bearer ${blobCacheSession.accessToken}` },
+              });
+              if (directRes.ok) {
+                const blob = await directRes.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                imageBlobCache.set(url, objectUrl);
+                cacheMedia(url, blob);
+                return objectUrl;
+              }
+            }
             debugLog.warn('general', 'Media fetch failed: authentication required', {
               url: url.substring(0, 100),
             });
@@ -266,39 +421,23 @@ export function useBlobCache(url?: string): string | undefined {
             throw new Error('BAD_REQUEST_400');
           }
 
-          // Fetch from network (slow)
-          const res = await fetch(url, { mode: 'cors' });
-
-          // SABLE-4Y fix: Handle 401 auth failures gracefully
-          if (res.status === 401) {
-            debugLog.warn('general', 'Media fetch failed: authentication required', {
-              url: url.substring(0, 100),
-            });
-            Sentry.addBreadcrumb({
-              category: 'blob_cache',
-              message: 'Media fetch 401 - no valid session',
-              level: 'warning',
-              data: { url: url.substring(0, 100) },
-            });
-            // Mark URL as auth-failed to prevent retries
-            authFailedUrls.add(url);
-            inflightRequests.delete(url);
-            // Throw a specific error to bypass Sentry exception capture
-            throw new Error('AUTH_FAILED_401');
-          }
-
           if (!res.ok) {
             throw new Error(`Failed to fetch blob: ${res.status} ${res.statusText}`);
           }
           const blob = await res.blob();
           const objectUrl = URL.createObjectURL(blob);
 
+          // Store in both caches
           imageBlobCache.set(url, objectUrl);
+          cacheMedia(url, blob); // Non-blocking persistent storage
+
           return objectUrl;
         } catch (e) {
-          // Don't log auth failures to Sentry (expected when SW has no session)
-          const isAuthFailure = e instanceof Error && e.message === 'AUTH_FAILED_401';
-          if (!isAuthFailure) {
+          // Don't log expected failures to Sentry (auth/bad-request errors)
+          const isExpectedFailure =
+            e instanceof Error &&
+            (e.message === 'AUTH_FAILED_401' || e.message === 'BAD_REQUEST_400');
+          if (!isExpectedFailure) {
             debugLog.error('general', 'Blob fetch/cache failed', {
               url: url.substring(0, 100),
               error: e instanceof Error ? e.message : String(e),
@@ -314,6 +453,8 @@ export function useBlobCache(url?: string): string | undefined {
           }
           inflightRequests.delete(url);
           throw e;
+        } finally {
+          releaseFetchSlot();
         }
       })();
 
@@ -336,7 +477,7 @@ export function useBlobCache(url?: string): string | undefined {
     return () => {
       isMounted = false;
     };
-  }, [url]);
+  }, [url, retryToken]);
 
   // SABLE-4Y fix: Don't return original URL as fallback for auth-failed URLs
   // (would cause browser to attempt direct fetch, which also fails with 401)

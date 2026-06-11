@@ -33,6 +33,10 @@ vi.mock('$components/code-highlight', () => ({
   CodeHighlightRenderer,
 }));
 
+vi.mock('$hooks/useRenderableMediaUrl', () => ({
+  useRenderableMediaUrl: (src: string | undefined) => src,
+}));
+
 const createMatrixClient = (overrides: Record<string, unknown> = {}) =>
   ({
     getUserId: () => '@alice:example.org',

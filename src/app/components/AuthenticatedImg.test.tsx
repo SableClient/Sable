@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthenticatedImg } from './AuthenticatedImg';

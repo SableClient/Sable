@@ -63,7 +63,6 @@ const DEFAULT_MAX_ROOMS = 5000;
 // ---------------------------------------------------------------------------
 
 const SLIDING_SYNC_LIST_CACHE_KEY = 'slidingSyncListCache';
-const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 type CachedListState = {
   timestamp: number;
@@ -73,25 +72,6 @@ type CachedListState = {
     count: number;
   }>;
 };
-
-function getCachedListState(userId: string): CachedListState | null {
-  try {
-    const cached = localStorage.getItem(SLIDING_SYNC_LIST_CACHE_KEY);
-    if (!cached) return null;
-
-    const state: CachedListState = JSON.parse(cached);
-
-    // Validate userId matches
-    if (state.userId !== userId) return null;
-
-    // Validate age (< 24h old)
-    if (Date.now() - state.timestamp > CACHE_MAX_AGE_MS) return null;
-
-    return state;
-  } catch {
-    return null;
-  }
-}
 
 function setCachedListState(state: CachedListState): void {
   try {
@@ -320,6 +300,10 @@ export class SlidingSyncManager {
   private readonly listKeys: string[];
 
   private readonly activeRoomSubscriptions = new Set<string>();
+
+  private readonly ptrRefreshRooms = new Set<string>();
+
+  private readonly visitedRoomsThisSession = new Set<string>();
 
   private roomSubscriptionFlushTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -1538,20 +1522,20 @@ export class SlidingSyncManager {
   /**
    * Prefetch recently-visited rooms by subscribing to them in a single batched
    * call to modifyRoomSubscriptions.
-   * 
+   *
    * IMPORTANT: This only subscribes to rooms that ALREADY EXIST in the client
    * (from IndexedDB cache or initial sync response). It does not load/fetch new
    * rooms. On warm cache launches, all cached rooms load from IndexedDB instantly,
    * then this method subscribes to them to request fresh timeline content.
-   * 
+   *
    * Progressive prefetch (if enabled) continues subscribing to additional cached
    * rooms in batches of 25 every 3 seconds, spreading server load and avoiding
    * overwhelming the connection with hundreds of simultaneous subscriptions.
-   * 
+   *
    * The "all rooms visible, then content loads, then sort" behavior on warm cache
    * is CORRECT: rooms appear from cache instantly → progressive prefetch subscribes
    * in batches → fresh content arrives → rooms re-sort by priority.
-   * 
+   *
    * Calling subscribeToRoom() per room would trigger a modifyRoomSubscriptions +
    * resend() for each room individually (N+1 resend calls), whereas this method
    * collects all rooms first and issues one call, keeping startup sync churn low.

@@ -7,7 +7,7 @@ import { useAuthServer } from '$hooks/useAuthServer';
 import { RegisterFlowStatus, useAuthFlows } from '$hooks/useAuthFlows';
 import { useParsedLoginFlows } from '$hooks/useParsedLoginFlows';
 import { SupportedUIAFlowsLoader } from '$components/SupportedUIAFlowsLoader';
-import { getLoginPath, withSearchParam } from '$pages/pathUtils';
+import { getLoginPath } from '$pages/pathUtils';
 import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
 import type { RegisterPathSearchParams } from '$pages/paths';
 import { SSOLogin } from '$pages/auth/SSOLogin';

@@ -1,20 +1,8 @@
-import {
-  CSSProperties,
-  ComponentPropsWithoutRef,
-  Fragment,
-  ReactEventHandler,
-  ReactNode,
-  useMemo,
-  useState,
-} from 'react';
-import {
-  attributesToProps,
-  domToReact,
-  Element,
-  HTMLReactParserOptions,
-  Text as DOMText,
-} from 'html-react-parser';
-import { MatrixClient } from '$types/matrix-sdk';
+import type { CSSProperties, ComponentPropsWithoutRef, ReactEventHandler, ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
+import type { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';

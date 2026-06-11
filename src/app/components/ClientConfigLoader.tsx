@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import * as Sentry from '@sentry/react';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { ClientConfig } from '$hooks/useClientConfig';
 import { trimTrailingSlash } from '$utils/common';

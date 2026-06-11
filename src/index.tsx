@@ -18,6 +18,7 @@ import './app/styles/overrides/General.css';
 import './app/styles/overrides/Privacy.css';
 import './app/styles/overrides/TauriDesktop.css';
 import { createLogger } from './app/utils/debug';
+import { installConsolePasteScamWarning } from './app/utils/consolePasteScamWarning';
 import { registerAppServiceWorker } from './serviceWorkerBootstrap';
 
 enableMapSet();
@@ -26,139 +27,7 @@ const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
 
-const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
-  const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
-  const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
-
-  if (userPreference === 'true') {
-    return;
-  }
-
-  if (window.confirm('A new version of the app is available. Refresh to update?')) {
-    if (registration.waiting) {
-      // oxlint-disable-next-line unicorn/require-post-message-target-origin
-      registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
-    }
-    window.location.reload();
-  }
-};
-
-if ('serviceWorker' in navigator) {
-  const isProduction = import.meta.env.MODE === 'production';
-  const swUrl = isProduction
-    ? `${trimTrailingSlash(import.meta.env.BASE_URL)}/sw.js`
-    : `/dev-sw.js?dev-sw`;
-
-  const swRegisterOptions: RegistrationOptions = {};
-  if (!isProduction) {
-    swRegisterOptions.type = 'module';
-  }
-
-  navigator.serviceWorker.register(swUrl, swRegisterOptions).then((registration) => {
-    registration.addEventListener('updatefound', () => {
-      const installingWorker = registration.installing;
-      if (installingWorker) {
-        installingWorker.addEventListener('statechange', () => {
-          if (installingWorker.state === 'installed') {
-            if (navigator.serviceWorker.controller) {
-              showUpdateAvailablePrompt(registration);
-            }
-          }
-        });
-      }
-    });
-  });
-
-  const sendSessionToSW = () => {
-    // Use the active session from the new multi-session store, fall back to legacy
-    const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
-    const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
-    const active =
-      sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
-    pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
-  };
-
-  // Emergency: unregister stale service worker if sw.js is 404ing (SABLE-2B).
-  // This self-heals for existing users who already have the broken SW registered,
-  // without waiting for a full cache clear.
-  (async () => {
-    try {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      const checks = registrations
-        .filter(
-          (reg) =>
-            reg.active?.scriptURL.endsWith('/sw.js') || reg.active?.scriptURL.endsWith('/dev-sw.js')
-        )
-        .map(async (reg) => {
-          try {
-            // Check if sw.js is actually available
-            const check = await fetch(swUrl, { method: 'HEAD', cache: 'no-cache' }).catch(
-              () => null
-            );
-            if (!check || !check.ok) {
-              await reg.unregister();
-              return {
-                success: true,
-                message: 'Stale service worker unregistered (sw.js not found)',
-              };
-            }
-            return { success: true, message: 'SW script OK' };
-          } catch (err) {
-            return { success: false, error: err };
-          }
-        });
-
-      const results = await Promise.allSettled(checks);
-      results.forEach((result) => {
-        if (
-          result.status === 'fulfilled' &&
-          result.value.message &&
-          result.value.message.includes('unregistered')
-        ) {
-          log.log(result.value.message);
-        }
-      });
-    } catch (err) {
-      // Non-fatal — continue app init regardless
-      log.warn('SW emergency unregister check failed:', err);
-    }
-  })();
-
-  navigator.serviceWorker
-    .register(swUrl)
-    .then(sendSessionToSW)
-    .catch((err) => {
-      log.warn('SW registration failed:', err);
-    });
-  navigator.serviceWorker.ready.then(sendSessionToSW).catch((err) => {
-    log.warn('SW ready failed:', err);
-  });
-
-  navigator.serviceWorker.addEventListener('message', (ev) => {
-    const { data } = ev;
-    if (!data || typeof data !== 'object') return;
-    const { type } = data as { type?: unknown };
-
-    if (type === 'requestSession') {
-      sendSessionToSW();
-    }
-
-    if (data.type === 'token' && data.id) {
-      const token = localStorage.getItem('cinny_access_token') ?? undefined;
-      ev.source?.postMessage({
-        replyTo: data.id,
-        payload: token,
-      });
-    } else if (data.type === 'openRoom' && data.id) {
-      /* Example:
-      event.source.postMessage({
-        replyTo: event.data.id,
-        payload: success?,
-      });
-      */
-    }
-  });
-}
+registerAppServiceWorker();
 
 const injectIOSMetaTags = () => {
   const metaTags = [

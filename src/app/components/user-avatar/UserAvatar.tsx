@@ -26,7 +26,7 @@ export function UserAvatar({ className, userId, src, alt, renderFallback }: User
     setError(false);
   }, [src]);
 
-  if (!processedSrc || error) {
+  if (!(resolvedSrc ?? src) || error) {
     return (
       <AvatarFallback
         style={{ backgroundColor: colorMXID(userId), color: color.Surface.Container }}

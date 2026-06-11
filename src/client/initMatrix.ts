@@ -51,6 +51,8 @@ type SyncTransportMeta = {
 };
 const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
 const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
+const bfcacheStartConfigByClient = new WeakMap<MatrixClient, StartClientConfig>();
+const pausedForBfcache = new WeakSet<MatrixClient>();
 // Reduced from 20s to 8s to improve perceived cold launch performance.
 // 8 seconds is sufficient for most networks while still allowing time for
 // slow connections. If the bootstrap times out, sliding sync takes over.
@@ -379,7 +381,8 @@ export const clearMismatchedStores = async (): Promise<void> => {
 };
 
 const buildClient = async (
-  session: Session
+  session: Session,
+  onTokenRefresh?: (newAccessToken: string, newRefreshToken?: string) => void
 ): Promise<{ mx: MatrixClient; storeStartup: Promise<void> }> => {
   const storeName = getSessionStoreName(session);
   debugLog.info('sync', 'Building Matrix client with stores', {
@@ -457,6 +460,7 @@ const buildClient = async (
       },
     }),
   });
+  mxRef = mx;
 
   // Return both client and store startup promise for parallel initialization
   return { mx, storeStartup: indexedDBStore.startup() };
@@ -502,7 +506,7 @@ export const initClient = async (
   let mx: MatrixClient;
   let storeStartup: Promise<void>;
   try {
-    const result = await buildClient(session);
+    const result = await buildClient(session, onTokenRefresh);
     mx = result.mx;
     storeStartup = result.storeStartup;
   } catch (err) {
@@ -538,7 +542,7 @@ export const initClient = async (
       },
     });
     await wipeAllStores();
-    const result = await buildClient(session);
+    const result = await buildClient(session, onTokenRefresh);
     mx = result.mx;
     storeStartup = result.storeStartup;
   }

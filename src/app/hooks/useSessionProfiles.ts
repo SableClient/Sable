@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Session } from '$state/sessions';
+import type { Session } from '$state/sessions';
 import { fetch } from '$utils/fetch';
 import { fetchMediaBlob } from '$utils/mediaTransport';
 
@@ -64,6 +64,7 @@ export const useSessionProfiles = (sessions: Session[]): SessionProfiles => {
 
   useEffect(() => {
     let cancelled = false;
+    const newBlobUrls: string[] = [];
 
     sessionsRef.current.forEach(async (session) => {
       try {

@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '$state/sessions';
@@ -15,7 +16,8 @@ describe('useSessionProfiles', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
-        const url = String(input);
+        const url =
+          typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 
         if (url.endsWith('/_matrix/client/v3/profile/%40alice%3Aexample.org')) {
           return new Response(

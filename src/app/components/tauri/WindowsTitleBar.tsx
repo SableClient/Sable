@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
-import { getCurrentWindow, type Window } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
 import { type as osType } from '@tauri-apps/plugin-os';
 import { useAtomValue } from 'jotai';
@@ -91,7 +91,6 @@ function CloseIcon() {
 
 export function WindowsTitleBar() {
   const [maximized, setMaximized] = useState(false);
-  const appWindowRef = useRef<Window | null>(null);
   const snapTimerRef = useRef<number | undefined>(undefined);
   const isWindowsDesktopTauri = isTauri() && osType() === 'windows';
   const titlebarStatus = useAtomValue(titlebarStatusAtom);
@@ -108,7 +107,6 @@ export function WindowsTitleBar() {
     if (!isWindowsDesktopTauri) return undefined;
 
     const appWindow = getCurrentWindow();
-    appWindowRef.current = appWindow;
 
     let mounted = true;
     let unlistenResize: (() => void) | undefined;
@@ -171,9 +169,11 @@ export function WindowsTitleBar() {
 
     stopWindowTracking().catch(() => {});
     hideSnapOverlay();
-    appWindowRef.current?.minimize().catch((error) => {
-      log.warn('Failed to minimize window:', error);
-    });
+    getCurrentWindow()
+      .minimize()
+      .catch((error) => {
+        log.warn('Failed to minimize window:', error);
+      });
   };
 
   const toggleMaximize = () => {
@@ -186,9 +186,11 @@ export function WindowsTitleBar() {
 
     stopWindowTracking().catch(() => {});
     hideSnapOverlay();
-    appWindowRef.current?.toggleMaximize().catch((error) => {
-      log.warn('Failed to toggle maximize:', error);
-    });
+    getCurrentWindow()
+      .toggleMaximize()
+      .catch((error) => {
+        log.warn('Failed to toggle maximize:', error);
+      });
   };
 
   const close = () => {
@@ -196,9 +198,11 @@ export function WindowsTitleBar() {
 
     stopWindowTracking().catch(() => {});
     hideSnapOverlay();
-    appWindowRef.current?.close().catch((error) => {
-      log.warn('Failed to close window:', error);
-    });
+    getCurrentWindow()
+      .close()
+      .catch((error) => {
+        log.warn('Failed to close window:', error);
+      });
   };
 
   const showSnapOverlay = () => {
@@ -210,8 +214,8 @@ export function WindowsTitleBar() {
     stopWindowTracking().catch(() => {});
 
     snapTimerRef.current = window.setTimeout(() => {
-      appWindowRef.current
-        ?.setFocus()
+      getCurrentWindow()
+        .setFocus()
         .then(() => showSnapOverlayCommand())
         .catch((error) => {
           log.warn('Failed to show snap overlay:', error);

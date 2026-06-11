@@ -163,6 +163,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'export-messages-data',
     'import-messages-data',
   ],
+  desktop: [],
   emojis: ['default-pack', 'select-pack'],
   'developer-tools': [
     'access-token',

@@ -39,6 +39,26 @@ function PersonaToggle() {
   );
 }
 
+function TiptapComposerToggle() {
+  const [useTiptapComposer, setUseTiptapComposer] = useSetting(settingsAtom, 'useTiptapComposer');
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Tiptap Composer</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Use Tiptap Composer"
+          focusId="use-tiptap-composer"
+          description="Enables the experimental rich-text composer in rooms"
+          after={
+            <Switch variant="Primary" value={useTiptapComposer} onChange={setUseTiptapComposer} />
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
+
 type ExperimentalProps = {
   requestBack?: () => void;
   requestClose: () => void;
@@ -64,6 +84,8 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
             <br />
             <Box direction="Column" gap="700">
               <Sync />
+              <BandwidthSavingEmojis />
+              <MSC4268HistoryShare />
               <EncryptedSearch />
               <SearchIndexToggle />
               <EditInInput />

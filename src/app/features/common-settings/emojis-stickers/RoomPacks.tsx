@@ -28,6 +28,7 @@ import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 
 import { suffixRename } from '$utils/common';

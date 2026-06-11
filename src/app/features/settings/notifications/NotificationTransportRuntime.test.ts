@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { NotificationTransportRuntimeContext } from './NotificationTransportRuntime';
 import { NotificationTransportRuntime } from './NotificationTransportRuntime';

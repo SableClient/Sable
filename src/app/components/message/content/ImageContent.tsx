@@ -1,4 +1,5 @@
-import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -31,7 +32,8 @@ import { useMediaUrlCacheContext } from '$hooks/useMediaUrlCacheContext';
 import { bytesToSize } from '$utils/common';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
-import { decryptFileSafe, downloadEncryptedMedia } from '$utils/matrix';
+import { decryptFileSafe, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
+import { getDecryptedBlob, storeDecryptedBlob } from '$hooks/useBlobCache';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { ModalWide } from '$styles/Modal.css';
@@ -137,10 +139,28 @@ export const ImageContent = as<'div', ImageContentProps>(
 
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
+        if (url.startsWith('http')) return url;
+
+        if (typeof matrixThumbnailMaxEdge === 'number' && matrixThumbnailMaxEdge > 0 && !encInfo) {
+          const { tw, th } = thumbnailDimsForMaxEdge(matrixThumbnailMaxEdge, info?.w, info?.h);
+          const thumbUrl = mediaUrlCache.get(mx, url, useAuthentication, tw, th, 'scale', false);
+          if (thumbUrl) return thumbUrl;
+        }
+
+        const mediaUrl = rawMediaUrl;
+        if (!mediaUrl) throw new Error('Invalid media URL');
+
         if (encInfo) {
           // Check blob cache first to avoid redundant downloads/decryption
           const cachedBlob = mediaUrlCache.getBlob(url, true, mimeType);
           if (cachedBlob) return cachedBlob;
+
+          const persistedBlob = await getDecryptedBlob(url);
+          if (persistedBlob) {
+            const blobUrl = URL.createObjectURL(persistedBlob);
+            mediaUrlCache.setBlob(url, true, blobUrl, mimeType);
+            return blobUrl;
+          }
 
           const fileContent = await downloadEncryptedMedia(
             mediaUrl,
@@ -154,9 +174,37 @@ export const ImageContent = as<'div', ImageContentProps>(
           void storeDecryptedBlob(url, fileContent);
           return blobUrl;
         }
-        return resolvedMediaUrl ?? rawMediaUrl ?? url;
-      }, [rawMediaUrl, resolvedMediaUrl, url, mimeType, encInfo])
+        return resolvedMediaUrl ?? mediaUrl;
+      }, [
+        encInfo,
+        info?.h,
+        info?.w,
+        matrixThumbnailMaxEdge,
+        mediaUrlCache,
+        mimeType,
+        mx,
+        rawMediaUrl,
+        resolvedMediaUrl,
+        url,
+        useAuthentication,
+      ])
     );
+
+    useEffect(() => {
+      if (!viewer) {
+        setViewerFullSrc(null);
+        return;
+      }
+      if (
+        typeof matrixThumbnailMaxEdge !== 'number' ||
+        matrixThumbnailMaxEdge <= 0 ||
+        encInfo ||
+        url.startsWith('http')
+      ) {
+        return;
+      }
+      setViewerFullSrc(rawMediaUrl ?? null);
+    }, [viewer, matrixThumbnailMaxEdge, encInfo, url, rawMediaUrl]);
 
     // When the source download succeeds, reset image-element error state so the
     // Retry button doesn't flash before the <img> has had a chance to load.

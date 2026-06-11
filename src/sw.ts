@@ -18,6 +18,7 @@ let syncIsHealthy = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
+let focusMode: 'off' | 'focus' | 'dnd' = 'off';
 const { handlePushNotificationPushData } = createPushNotifications(
   self,
   () => ({
@@ -49,6 +50,7 @@ async function persistSettings() {
           showMessageContent,
           showEncryptedMessageContent,
           clearNotificationsOnRead,
+          focusMode,
           appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
@@ -72,6 +74,9 @@ async function loadPersistedSettings() {
       showEncryptedMessageContent = s.showEncryptedMessageContent;
     if (typeof s.clearNotificationsOnRead === 'boolean')
       clearNotificationsOnRead = s.clearNotificationsOnRead;
+    if (s.focusMode === 'off' || s.focusMode === 'focus' || s.focusMode === 'dnd') {
+      focusMode = s.focusMode;
+    }
     if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
       const ageMs = Date.now() - s.appVisibleAt;
       if (ageMs < 2_000) {
@@ -143,6 +148,9 @@ const sessions = new Map<string, SessionInfo>();
  */
 let preloadedSession: SessionInfo | undefined;
 
+const clientToResolve = new Map<string, (value: SessionInfo | undefined) => void>();
+const clientToSessionPromise = new Map<string, Promise<SessionInfo | undefined>>();
+
 async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
   const activeIds = new Set(activeClients.map((c) => c.id));
@@ -150,6 +158,8 @@ async function cleanupDeadClients() {
   Array.from(sessions.keys()).forEach((id) => {
     if (!activeIds.has(id)) {
       sessions.delete(id);
+      clientToResolve.delete(id);
+      clientToSessionPromise.delete(id);
     }
   });
 }
@@ -188,16 +198,52 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     // Clear media cache on logout.
     self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   }
+
+  const resolveSession = clientToResolve.get(clientId);
+  if (resolveSession) {
+    resolveSession(sessions.get(clientId));
+    clientToResolve.delete(clientId);
+    clientToSessionPromise.delete(clientId);
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Strategy 7: Sliding Sync Prefetch
-// ---------------------------------------------------------------------------
+function requestSession(client: Client): Promise<SessionInfo | undefined> {
+  const promise =
+    clientToSessionPromise.get(client.id) ??
+    new Promise<SessionInfo | undefined>((resolve) => {
+      clientToResolve.set(client.id, resolve);
+      client.postMessage({ type: 'requestSession' });
+    });
 
-/**
- * Post a Sentry metric to all window clients.
- * Used to track SW prefetch performance from the main thread.
- */
+  if (!clientToSessionPromise.has(client.id)) {
+    clientToSessionPromise.set(client.id, promise);
+  }
+
+  return promise;
+}
+
+async function requestSessionWithTimeout(
+  clientId: string,
+  timeoutMs = 3000
+): Promise<SessionInfo | undefined> {
+  const client = await self.clients.get(clientId);
+  if (!client) {
+    console.warn('[SW] requestSessionWithTimeout: client not found', clientId);
+    return undefined;
+  }
+
+  const sessionPromise = requestSession(client);
+
+  const timeout = new Promise<undefined>((resolve) => {
+    setTimeout(() => {
+      console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
+      resolve(undefined);
+    }, timeoutMs);
+  });
+
+  return Promise.race([sessionPromise, timeout]);
+}
+
 async function postSentryMetric(
   metricName: string,
   value: number,
@@ -423,385 +469,6 @@ async function prefetchUserProfile(session: SessionInfo): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Strategy 7: Sliding Sync Prefetch
-// ---------------------------------------------------------------------------
-
-/**
- * Post a Sentry metric to all window clients.
- * Used to track SW prefetch performance from the main thread.
- */
-async function postSentryMetric(
-  metricName: string,
-  value: number,
-  attributes?: Record<string, string | number | boolean>
-): Promise<void> {
-  try {
-    const windowClients = await self.clients.matchAll({ type: 'window' });
-    windowClients.forEach((client) => {
-      client.postMessage({
-        type: 'sentryMetric',
-        metricName,
-        value,
-        attributes,
-      });
-    });
-  } catch (error) {
-    console.debug('[SW] Failed to post Sentry metric:', error);
-  }
-}
-
-/**
- * Prefetch sliding sync data on SW activation to warm the browser's HTTP cache.
- * This makes the first sync response arrive faster when the app opens.
- * Tracks success/failure and timing via Sentry metrics.
- */
-async function prefetchSlidingSyncData(session: SessionInfo): Promise<void> {
-  const startTime = performance.now();
-  try {
-    // Determine sliding sync proxy URL from homeserver base URL
-    const proxyUrl = new URL(session.baseUrl);
-    // Most deployments use /sliding-sync on the same server
-    // or a well-known sliding sync proxy endpoint
-    const slidingSyncEndpoint = `${proxyUrl.origin}/_matrix/client/unstable/org.matrix.msc3575/sync`;
-
-    // Minimal sliding sync request to fetch recent rooms
-    const requestBody = {
-      lists: {
-        joined: {
-          ranges: [[0, 99]], // First 100 rooms
-          sort: ['by_recency', 'by_name'],
-          timeline_limit: 1, // Minimal timeline to keep response small
-          required_state: [
-            ['m.room.name', ''],
-            ['m.room.avatar', ''],
-            ['m.room.encryption', ''],
-          ],
-          slow_get_all_rooms: false,
-        },
-      },
-    };
-
-    console.debug('[SW] Prefetching sliding sync data...');
-    const response = await fetch(slidingSyncEndpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    const duration = performance.now() - startTime;
-    if (response.ok) {
-      console.debug('[SW] Sliding sync prefetch succeeded');
-      await postSentryMetric('sable.sw.prefetch_ms', duration, {
-        endpoint: 'sliding_sync',
-        status: 'success',
-      });
-    } else {
-      console.debug('[SW] Sliding sync prefetch failed:', response.status);
-      await postSentryMetric('sable.sw.prefetch_ms', duration, {
-        endpoint: 'sliding_sync',
-        status: 'error',
-        http_status: String(response.status),
-      });
-    }
-  } catch (error) {
-    const duration = performance.now() - startTime;
-    console.debug('[SW] Sliding sync prefetch error:', error);
-    await postSentryMetric('sable.sw.prefetch_ms', duration, {
-      endpoint: 'sliding_sync',
-      status: 'exception',
-    });
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Strategy 7+: Additional Cache Priming
-// ---------------------------------------------------------------------------
-
-/**
- * Prefetch well-known Matrix client configuration.
- * This endpoint is frequently requested and safe to cache aggressively.
- * Tracks success/failure and timing via Sentry metrics.
- */
-async function prefetchWellKnown(session: SessionInfo): Promise<void> {
-  const startTime = performance.now();
-  try {
-    const baseUrl = new URL(session.baseUrl);
-    const wellKnownUrl = `${baseUrl.origin}/.well-known/matrix/client`;
-
-    console.debug('[SW] Prefetching well-known...');
-    const response = await fetch(wellKnownUrl, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
-
-    const duration = performance.now() - startTime;
-    if (response.ok) {
-      console.debug('[SW] Well-known prefetch succeeded');
-      await postSentryMetric('sable.sw.prefetch_ms', duration, {
-        endpoint: 'well_known',
-        status: 'success',
-      });
-    } else {
-      console.debug('[SW] Well-known prefetch failed:', response.status);
-      await postSentryMetric('sable.sw.prefetch_ms', duration, {
-        endpoint: 'well_known',
-        status: 'error',
-        http_status: String(response.status),
-      });
-    }
-  } catch (error) {
-    const duration = performance.now() - startTime;
-    console.debug('[SW] Well-known prefetch error:', error);
-    await postSentryMetric('sable.sw.prefetch_ms', duration, {
-      endpoint: 'well_known',
-      status: 'exception',
-    });
-  }
-}
-
-/**
- * Prefetch homeserver capabilities to warm cache.
- * This is requested during client initialization.
- * Tracks success/failure and timing via Sentry metrics.
- */
-async function prefetchCapabilities(session: SessionInfo): Promise<void> {
-  const startTime = performance.now();
-  try {
-    const capabilitiesUrl = `${session.baseUrl}/_matrix/client/v3/capabilities`;
-
-    console.debug('[SW] Prefetching capabilities...');
-    const response = await fetch(capabilitiesUrl, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        Accept: 'application/json',
-      },
-    });
-
-    const duration = performance.now() - startTime;
-    if (response.ok) {
-      console.debug('[SW] Capabilities prefetch succeeded');
-      await postSentryMetric('sable.sw.prefetch_ms', duration, {
-        endpoint: 'capabilities',
-        status: 'success',
-      });
-    } else {
-      console.debug('[SW] Capabilities prefetch failed:', response.status);
-      await postSentryMetric('sable.sw.prefetch_ms', duration, {
-        endpoint: 'capabilities',
-        status: 'error',
-        http_status: String(response.status),
-      });
-    }
-  } catch (error) {
-    const duration = performance.now() - startTime;
-    console.debug('[SW] Capabilities prefetch error:', error);
-    await postSentryMetric('sable.sw.prefetch_ms', duration, {
-      endpoint: 'capabilities',
-      status: 'exception',
-    });
-  }
-}
-
-/**
- * Prefetch user profile data (display name, avatar).
- * This is shown immediately on client load.
- * Tracks success/failure and timing via Sentry metrics.
- */
-async function prefetchUserProfile(session: SessionInfo): Promise<void> {
-  if (!session.userId) {
-    console.debug('[SW] Cannot prefetch user profile: userId not available');
-    return;
-  }
-
-  const startTime = performance.now();
-  try {
-    const profileUrl = `${session.baseUrl}/_matrix/client/v3/profile/${encodeURIComponent(session.userId)}`;
-
-    console.debug('[SW] Prefetching user profile...');
-    const response = await fetch(profileUrl, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        Accept: 'application/json',
-      },
-    });
-
-    const duration = performance.now() - startTime;
-    if (response.ok) {
-      console.debug('[SW] User profile prefetch succeeded');
-      await postSentryMetric('sable.sw.prefetch_ms', duration, {
-        endpoint: 'user_profile',
-        status: 'success',
-      });
-    } else {
-      console.debug('[SW] User profile prefetch failed:', response.status);
-      await postSentryMetric('sable.sw.prefetch_ms', duration, {
-        endpoint: 'user_profile',
-        status: 'error',
-        http_status: String(response.status),
-      });
-    }
-  } catch (error) {
-    const duration = performance.now() - startTime;
-    console.debug('[SW] User profile prefetch error:', error);
-    await postSentryMetric('sable.sw.prefetch_ms', duration, {
-      endpoint: 'user_profile',
-      status: 'exception',
-    });
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Strategy 7: Sliding Sync Prefetch
-// ---------------------------------------------------------------------------
-
-/**
- * Prefetch sliding sync data on SW activation to warm the browser's HTTP cache.
- * This makes the first sync response arrive faster when the app opens.
- * Fire-and-forget: failures are silently ignored.
- */
-async function prefetchSlidingSyncData(session: SessionInfo): Promise<void> {
-  try {
-    // Determine sliding sync proxy URL from homeserver base URL
-    const proxyUrl = new URL(session.baseUrl);
-    // Most deployments use /sliding-sync on the same server
-    // or a well-known sliding sync proxy endpoint
-    const slidingSyncEndpoint = `${proxyUrl.origin}/_matrix/client/unstable/org.matrix.msc3575/sync`;
-
-    // Minimal sliding sync request to fetch recent rooms
-    const requestBody = {
-      lists: {
-        joined: {
-          ranges: [[0, 99]], // First 100 rooms
-          sort: ['by_recency', 'by_name'],
-          timeline_limit: 1, // Minimal timeline to keep response small
-          required_state: [
-            ['m.room.name', ''],
-            ['m.room.avatar', ''],
-            ['m.room.encryption', ''],
-          ],
-          slow_get_all_rooms: false,
-        },
-      },
-    };
-
-    console.debug('[SW] Prefetching sliding sync data...');
-    const response = await fetch(slidingSyncEndpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (response.ok) {
-      console.debug('[SW] Sliding sync prefetch succeeded');
-    } else {
-      console.debug('[SW] Sliding sync prefetch failed:', response.status);
-    }
-  } catch (error) {
-    // Silently ignore — this is best-effort optimization
-    console.debug('[SW] Sliding sync prefetch error:', error);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Strategy 7+: Additional Cache Priming
-// ---------------------------------------------------------------------------
-
-/**
- * Prefetch well-known Matrix client configuration.
- * This endpoint is frequently requested and safe to cache aggressively.
- */
-async function prefetchWellKnown(session: SessionInfo): Promise<void> {
-  try {
-    const baseUrl = new URL(session.baseUrl);
-    const wellKnownUrl = `${baseUrl.origin}/.well-known/matrix/client`;
-
-    console.debug('[SW] Prefetching well-known...');
-    const response = await fetch(wellKnownUrl, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
-
-    if (response.ok) {
-      console.debug('[SW] Well-known prefetch succeeded');
-    } else {
-      console.debug('[SW] Well-known prefetch failed:', response.status);
-    }
-  } catch (error) {
-    console.debug('[SW] Well-known prefetch error:', error);
-  }
-}
-
-/**
- * Prefetch homeserver capabilities to warm cache.
- * This is requested during client initialization.
- */
-async function prefetchCapabilities(session: SessionInfo): Promise<void> {
-  try {
-    const capabilitiesUrl = `${session.baseUrl}/_matrix/client/v3/capabilities`;
-
-    console.debug('[SW] Prefetching capabilities...');
-    const response = await fetch(capabilitiesUrl, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        Accept: 'application/json',
-      },
-    });
-
-    if (response.ok) {
-      console.debug('[SW] Capabilities prefetch succeeded');
-    } else {
-      console.debug('[SW] Capabilities prefetch failed:', response.status);
-    }
-  } catch (error) {
-    console.debug('[SW] Capabilities prefetch error:', error);
-  }
-}
-
-/**
- * Prefetch user profile data (display name, avatar).
- * This is shown immediately on client load.
- */
-async function prefetchUserProfile(session: SessionInfo): Promise<void> {
-  try {
-    const profileUrl = `${session.baseUrl}/_matrix/client/v3/profile/${encodeURIComponent(session.userId)}`;
-
-    console.debug('[SW] Prefetching user profile...');
-    const response = await fetch(profileUrl, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        Accept: 'application/json',
-      },
-    });
-
-    if (response.ok) {
-      console.debug('[SW] User profile prefetch succeeded');
-    } else {
-      console.debug('[SW] User profile prefetch failed:', response.status);
-    }
-  } catch (error) {
-    console.debug('[SW] User profile prefetch error:', error);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Encrypted push — decryption relay
-// ---------------------------------------------------------------------------
-
-/**
- * The shape returned by the client tab after decrypting an encrypted push event.
- * Also used as a partial pushData object for handlePushNotificationPushData.
- */
 type DecryptionResult = {
   eventId: string;
   success: boolean;
@@ -809,17 +476,11 @@ type DecryptionResult = {
   content?: unknown;
   sender_display_name?: string;
   room_name?: string;
-  /** document.visibilityState reported by the responding app tab. */
   visibilityState?: string;
 };
 
-/** Pending decryption requests keyed by event_id. */
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
 
-/**
- * Fetch a single raw Matrix event from the homeserver.
- * Returns undefined on error (e.g. network failure, auth error, redacted event).
- */
 async function fetchRawEvent(
   baseUrl: string,
   accessToken: string,
@@ -1336,6 +997,23 @@ function fetchConfig(token: string): RequestInit {
   };
 }
 
+async function validateSession(session: SessionInfo): Promise<SessionInfo | undefined> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+  try {
+    const response = await fetch(`${session.baseUrl}/_matrix/client/v3/account/whoami`, {
+      ...fetchConfig(session.accessToken),
+      signal: controller.signal,
+    });
+    return response.ok ? session : undefined;
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function getLiveWindowSessions(url: string, clientId: string): Promise<SessionInfo[]> {
   const collected: SessionInfo[] = [];
   const seen = new Set<string>();
@@ -1516,85 +1194,13 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   );
 });
 
-/**
- * Fetch a Matrix media URL with auth injection and persistent caching.
- *
- * Strategy: cache-first for normal requests (Matrix media is immutable by
- * content address — the media ID never changes for a given file).
- * Requests with `cache: 'no-cache'` or `'no-store'` bypass the cache lookup
- * and always go to the network — this preserves the intent of downloadMedia()
- * which sets `no-cache` so retries always fetch fresh bytes.
- *
- * 1. For cacheable requests: return the cached response if available.
- * 2. Fetch with Bearer auth; fall back to unauthenticated on network error.
- * 3. Store successful responses in SW_MEDIA_CACHE only when:
- *    - The content-type is `image/*` (skip encrypted blobs, video, audio, etc.)
- *    - AND the original request was NOT `no-cache`/`no-store` — encrypted images
- *      are uploaded with the original file's MIME type (e.g. image/jpeg) even
- *      though the bytes are ciphertext, so caching them under the image URL would
- *      serve garbage to any future <img> tag. downloadMedia() always uses
- *      `no-cache`, so these encrypted bytes are never stored.
- */
-async function handleMediaFetch(
-  url: string,
-  session: SessionInfo,
-  fallbackRequest: Request
-): Promise<Response> {
-  const redirect: RequestRedirect = 'follow';
-
-  // `no-cache` / `no-store` — skip the cache and always hit the network.
-  // downloadMedia() uses `no-cache` so retries bypass stale or encrypted-byte entries.
-  const bypassCache = fallbackRequest.cache === 'no-cache' || fallbackRequest.cache === 'no-store';
-
-  if (!bypassCache) {
-    // Cache-first: serve from SW media cache if available
-    try {
-      const cache = await self.caches.open(SW_MEDIA_CACHE);
-      const cached = await cache.match(url);
-      if (cached) return cached;
-    } catch {
-      // Cache API unavailable — fall through to network
-    }
-  }
-
-  // Fetch with auth header; fall back to unauthenticated on network error
-  let response: Response;
-  try {
-    response = await fetch(url, { ...fetchConfig(session.accessToken), redirect });
-  } catch {
-    try {
-      response = await fetch(fallbackRequest);
-    } catch {
-      return new Response(null, { status: 503, statusText: 'Service Unavailable' });
-    }
-  }
-
-  // Cache immutable Matrix media images for future <img> tag requests.
-  // Only cache when:
-  //   - response is successful and content-type is image/*
-  //   - the original request did NOT use no-cache (encrypted blobs sent with
-  //     the wrong image/* content-type must not be stored here)
-  if (!bypassCache && response.ok) {
-    const contentType = response.headers.get('content-type') ?? '';
-    if (contentType.startsWith('image/')) {
-      try {
-        const cache = await self.caches.open(SW_MEDIA_CACHE);
-        await cache.put(url, response.clone());
-      } catch {
-        // Quota exceeded or storage unavailable — continue without caching
-      }
-    }
-  }
-
-  return response;
-}
-
 self.addEventListener('fetch', (event: FetchEvent) => {
   const { url, method } = event.request;
 
   if (method !== 'GET' || !mediaPath(url)) return;
 
   const { clientId } = event;
+  const redirect: RequestRedirect = 'follow';
 
   // Fast path: active session for this window
   const session = clientId ? sessions.get(clientId) : undefined;
@@ -1622,8 +1228,9 @@ self.addEventListener('fetch', (event: FetchEvent) => {
           return fetchMediaWithRetry(url, persisted.accessToken, redirect, '');
         }
         const matching = getMatchingSessions(url);
-        if (matching.length === 1) {
-          return fetchMediaWithRetry(url, matching[0].accessToken, redirect, '');
+        const [matchingSession] = matching;
+        if (matching.length === 1 && matchingSession) {
+          return fetchMediaWithRetry(url, matchingSession.accessToken, redirect, '');
         }
         if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {
           return fetchMediaWithRetry(url, preloadedSession.accessToken, redirect, '');
@@ -1635,8 +1242,9 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   }
 
   const syncByBaseUrl = getMatchingSessions(url);
-  if (syncByBaseUrl.length === 1) {
-    event.respondWith(fetchMediaWithRetry(url, syncByBaseUrl[0].accessToken, redirect, clientId));
+  const [syncSession] = syncByBaseUrl;
+  if (syncByBaseUrl.length === 1 && syncSession) {
+    event.respondWith(fetchMediaWithRetry(url, syncSession.accessToken, redirect, clientId));
     return;
   }
   if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {

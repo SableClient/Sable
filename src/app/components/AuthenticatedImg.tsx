@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/alt-text */
-import { ReactEventHandler, ReactNode, useEffect, useState } from 'react';
+import type { ReactEventHandler, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 
 type AuthenticatedImgProps = React.ImgHTMLAttributes<HTMLImageElement> & {

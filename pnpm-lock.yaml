@@ -72,6 +72,24 @@ importers:
       '@tauri-apps/plugin-store':
         specifier: ^2.4.3
         version: 2.4.3
+      '@tiptap/core':
+        specifier: 3.23.4
+        version: 3.23.4(@tiptap/pm@3.23.4)
+      '@tiptap/extension-link':
+        specifier: ^3.23.4
+        version: 3.23.4(@tiptap/core@3.23.4(@tiptap/pm@3.23.4))(@tiptap/pm@3.23.4)
+      '@tiptap/extension-mention':
+        specifier: ^3.23.4
+        version: 3.23.4(@tiptap/core@3.23.4(@tiptap/pm@3.23.4))(@tiptap/pm@3.23.4)(@tiptap/suggestion@3.23.4(@tiptap/core@3.23.4(@tiptap/pm@3.23.4))(@tiptap/pm@3.23.4))
+      '@tiptap/extension-placeholder':
+        specifier: ^3.23.4
+        version: 3.23.4(@tiptap/extensions@3.23.4(@tiptap/core@3.23.4(@tiptap/pm@3.23.4))(@tiptap/pm@3.23.4))
+      '@tiptap/react':
+        specifier: ^3.23.4
+        version: 3.23.4(@floating-ui/dom@1.7.6)(@tiptap/core@3.23.4(@tiptap/pm@3.23.4))(@tiptap/pm@3.23.4)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tiptap/starter-kit':
+        specifier: ^3.23.4
+        version: 3.23.4
       '@use-gesture/react':
         specifier: 10.3.1
         version: 10.3.1(react@18.3.1)
@@ -171,6 +189,9 @@ importers:
       matrix-widget-api:
         specifier: ^1.16.1
         version: 1.17.0
+      minisearch:
+        specifier: 7.2.0
+        version: 7.2.0
       motion:
         specifier: 12.35.0
         version: 12.35.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

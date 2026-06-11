@@ -48,6 +48,10 @@ vi.mock('$hooks/useMediaAuthentication', () => ({
   useMediaAuthentication: () => false,
 }));
 
+vi.mock('$hooks/useRenderableMediaUrl', () => ({
+  useRenderableMediaUrl: (src: string | undefined) => src,
+}));
+
 vi.mock('$hooks/useIgnoredUsers', () => ({
   useIgnoredUsers: () => [],
 }));

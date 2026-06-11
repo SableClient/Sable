@@ -15,35 +15,6 @@ import { createRouter } from './Router';
 
 const queryClient = new QueryClient();
 
-type BootstrappedAppShellProps = {
-  clientConfig: ClientConfig;
-  screenSize: ScreenSize;
-};
-
-function BootstrappedAppShell({ clientConfig, screenSize }: BootstrappedAppShellProps) {
-  const jotaiStoreRef = useRef<ReturnType<typeof createStore>>();
-  if (!jotaiStoreRef.current) {
-    jotaiStoreRef.current = createStore();
-  }
-  bootstrapSettingsStore(jotaiStoreRef.current, clientConfig.settingsDefaults);
-  const reactQueryDevtoolsEnabled = isReactQueryDevtoolsEnabled();
-
-  return (
-    <ClientConfigProvider value={clientConfig}>
-      <QueryClientProvider client={queryClient}>
-        <JotaiProvider store={jotaiStoreRef.current}>
-          <RouterProvider router={createRouter(clientConfig, screenSize)} />
-        </JotaiProvider>
-        {reactQueryDevtoolsEnabled && (
-          <Suspense fallback={null}>
-            <ReactQueryDevtools initialIsOpen={false} />
-          </Suspense>
-        )}
-      </QueryClientProvider>
-    </ClientConfigProvider>
-  );
-}
-
 function App() {
   const screenSize = useScreenSize();
   useCompositionEndTracking();

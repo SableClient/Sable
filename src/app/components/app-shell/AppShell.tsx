@@ -7,7 +7,8 @@ import { type as osType } from '@tauri-apps/plugin-os';
 
 import { TauriFrontendReady } from '$components/tauri/TauriFrontendReady';
 import { WindowsTitleBar } from '$components/tauri/WindowsTitleBar';
-import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
+import type { ScreenSize } from '$hooks/useScreenSize';
+import { ScreenSizeProvider } from '$hooks/useScreenSize';
 import { isReactQueryDevtoolsEnabled } from '$pages/reactQueryDevtoolsGate';
 import { SystemBarShell } from './SystemBarShell';
 

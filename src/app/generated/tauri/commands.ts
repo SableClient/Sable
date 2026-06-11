@@ -8,7 +8,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import * as types from './types';
+import type * as types from './types';
 
 export async function abortLoopbackFetch(params: types.AbortLoopbackFetchParams): Promise<void> {
   return invoke('abort_loopback_fetch', params);

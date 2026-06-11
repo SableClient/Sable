@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const nativeFetch = vi.fn();

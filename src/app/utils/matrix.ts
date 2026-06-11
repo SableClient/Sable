@@ -16,8 +16,12 @@ import to from 'await-to-js';
 import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 
 import * as Sentry from '@sentry/react';
-import { getEventReactions, getReactionContent, getStateEvent } from './room';
+import { getEventReactions, getStateEvent } from './room';
+import { getReactionContent } from './messageReaction';
+import { matchMxId, validMxId } from './mxIdHelper';
 import { fetchMediaBlob, type MediaTransportOptions } from './mediaTransport';
+
+export { getMxIdServer } from './mxIdHelper';
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
 
@@ -451,8 +455,15 @@ export const mxcUrlToHttp = (
     useAuthentication
   );
 
-export const downloadMedia = async (src: string, options?: MediaTransportOptions): Promise<Blob> =>
-  fetchMediaBlob(src, options);
+const normalizeMediaOptions = (
+  options?: MediaTransportOptions | string | null
+): MediaTransportOptions | undefined =>
+  typeof options === 'string' || options === null ? { accessToken: options } : options;
+
+export const downloadMedia = async (
+  src: string,
+  options?: MediaTransportOptions | string | null
+): Promise<Blob> => fetchMediaBlob(src, normalizeMediaOptions(options));
 
 export const downloadEncryptedMedia = async (
   src: string,
@@ -460,7 +471,7 @@ export const downloadEncryptedMedia = async (
   /** Forwarded to {@link downloadMedia} — see its doc for context. */
   accessToken?: string | null
 ): Promise<Blob> => {
-  const encryptedContent = await downloadMedia(src);
+  const encryptedContent = await downloadMedia(src, { accessToken });
   const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
 
   if (!decryptedContent) {

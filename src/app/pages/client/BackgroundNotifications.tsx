@@ -19,6 +19,7 @@ import {
   pendingNotificationAtom,
   backgroundUnreadCountsAtom,
   inAppBannerAtom,
+  type Session,
 } from '$state/sessions';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';

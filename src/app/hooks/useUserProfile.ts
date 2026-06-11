@@ -181,6 +181,7 @@ export const useUserProfile = (
     let fetchPromise = inFlightProfiles.get(userId);
 
     if (!fetchPromise) {
+      const fetchStart = performance.now();
       // Queue the profile fetch to prevent connection pool saturation
       fetchPromise = profileQueue
         .add(() => {

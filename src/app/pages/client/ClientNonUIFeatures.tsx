@@ -57,6 +57,9 @@ import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
 import { useCallSignaling } from '$hooks/useCallSignaling';
+import { getRenderableMediaUrlStats } from '$hooks/useRenderableMediaUrl';
+import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
 
 // Lazy-load banners to reduce initial bundle size - these are rarely shown on first load
 const ThemeMigrationBanner = lazy(() => {
@@ -80,7 +83,6 @@ const TelemetryConsentBanner = lazy(() => {
     return { default: m.TelemetryConsentBanner };
   });
 });
-import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
@@ -694,9 +696,6 @@ function HealthMonitor() {
           });
         }
       }
-      if (queueDepth > 0) {
-        Sentry.metrics.gauge('sable.media.fetch_queue_depth', queueDepth);
-      }
     }, 60_000);
     return () => window.clearInterval(id);
   }, []);
@@ -851,33 +850,6 @@ function SyncStateWithServiceWorker() {
       (current) => {
         const healthy = current !== SyncState.Reconnecting && current !== SyncState.Error;
         postSyncHealth(healthy);
-      },
-      [postSyncHealth]
-    )
-  );
-
-  return null;
-}
-
-function SyncStateWithServiceWorker() {
-  const mx = useMatrixClient();
-
-  const postSyncHealth = useCallback((healthy: boolean) => {
-    if (!('serviceWorker' in navigator)) return;
-    const msg = { type: 'setSyncState', healthy };
-    navigator.serviceWorker.controller?.postMessage(msg);
-    navigator.serviceWorker.ready
-      .then((registration) => {
-        registration.active?.postMessage(msg);
-      })
-      .catch(() => undefined);
-  }, []);
-
-  useSyncState(
-    mx,
-    useCallback(
-      (current) => {
-        postSyncHealth(current !== SyncState.Reconnecting && current !== SyncState.Error);
       },
       [postSyncHealth]
     )
@@ -1083,7 +1055,7 @@ function PresenceSyncFeature() {
 
 function ProgressivePrefetchFeature() {
   const mx = useMatrixClient();
-  const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
 
   useEffect(() => {
     getSlidingSyncManager(mx)?.setProgressivePrefetch(progressivePrefetch);
@@ -1251,6 +1223,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <InviteNotifications />
       <MessageNotifications />
       <BackgroundNotifications />
+      <NotificationTransportRuntimeFeature />
       <SyncNotificationSettingsWithServiceWorker />
       <SyncStateWithServiceWorker />
       <HandleDecryptPushEvent />

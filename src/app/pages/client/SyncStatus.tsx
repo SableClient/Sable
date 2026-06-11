@@ -1,4 +1,5 @@
-import { MatrixClient, SyncState } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
+import { SyncState } from '$types/matrix-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSetAtom } from 'jotai';
 import { isTauri } from '@tauri-apps/api/core';
@@ -37,8 +38,8 @@ const isSyncStatusDemoEnabled = (): boolean => {
 };
 
 export function SyncStatus({ mx }: SyncStatusProps) {
-  const [stateData, setStateData] = useState<StateData>(() => ({
-    current: mx.getSyncState(),
+  const [stateData, setStateData] = useState<StateData>({
+    current: null,
     previous: undefined,
   });
   const [demoIndex, setDemoIndex] = useState(0);
@@ -70,28 +71,11 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     }, [])
   );
 
-  // Only show "Connecting..." banner when recovering from an actual connection issue,
-  // not on normal startup (previous === null/undefined) or when already syncing
-  if (
-    (stateData.current === SyncState.Prepared ||
-      stateData.current === SyncState.Syncing ||
-      stateData.current === SyncState.Catchup) &&
-    (stateData.previous === SyncState.Reconnecting || stateData.previous === SyncState.Error)
-  ) {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Success' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connected!</Text>
-        </Box>
-        <Line variant="Success" size="300" />
-      </Box>
-    );
-  }
+  useEffect(() => {
+    if (!useDemoStatusLoop) return undefined;
+    const intervalId = window.setInterval(() => {
+      setDemoIndex((index) => (index + 1) % DEMO_STATUS_SEQUENCE.length);
+    }, DEMO_STATUS_STEP_MS);
 
     return () => {
       window.clearInterval(intervalId);
@@ -99,7 +83,7 @@ export function SyncStatus({ mx }: SyncStatusProps) {
   }, [useDemoStatusLoop]);
 
   const statusView = useMemo(() => {
-    if (useDemoStatusLoop) return DEMO_STATUS_SEQUENCE[demoIndex];
+    if (useDemoStatusLoop) return DEMO_STATUS_SEQUENCE[demoIndex] ?? null;
     return getSyncConnectionStatusView(current, previous);
   }, [current, demoIndex, previous, useDemoStatusLoop]);
 

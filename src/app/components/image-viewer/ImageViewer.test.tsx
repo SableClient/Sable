@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import FileSaver from 'file-saver';
@@ -14,6 +15,12 @@ vi.mock('$hooks/useImageGestures', () => ({
     resetTransforms: vi.fn(),
     zoomIn: vi.fn(),
     zoomOut: vi.fn(),
+    setZoom: vi.fn(),
+    fitRatio: 1,
+    imageRef: { current: null },
+    containerRef: { current: null },
+    handleImageLoad: vi.fn(),
+    enableResizeWithWindow: vi.fn(),
   }),
 }));
 

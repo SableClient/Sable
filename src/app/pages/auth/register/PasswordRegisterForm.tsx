@@ -39,7 +39,8 @@ import type { RequestEmailTokenCallback, RequestEmailTokenResponse } from '$hook
 import { FieldError } from '$pages/auth/FiledError';
 import { deviceDisplayName } from '$utils/user-agent';
 import { fetch } from '$utils/fetch';
-import { RegisterError, RegisterResult, register, useRegisterComplete } from './registerUtil';
+import type { RegisterResult } from './registerUtil';
+import { RegisterError, register, useRegisterComplete } from './registerUtil';
 
 export const SUPPORTED_REGISTER_STAGES = [
   AuthType.RegistrationToken,

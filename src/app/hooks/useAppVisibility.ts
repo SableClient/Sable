@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
-import { SyncState } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
 import { togglePusher } from '../features/settings/notifications/PushNotifications';
 import { appEvents } from '../utils/appEvents';
@@ -9,11 +8,7 @@ import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
 import { pushSubscriptionAtom } from '../state/pushSubscription';
 import { createDebugLogger } from '../utils/debugLogger';
-import {
-  getSlidingSyncManager,
-  pauseClientForBfcache,
-  resumeClientFromBfcache,
-} from '$client/initMatrix';
+import { getSlidingSyncManager } from '$client/initMatrix';
 import { mobileOrTablet } from '$utils/user-agent';
 
 const debugLog = createDebugLogger('AppVisibility');
@@ -170,7 +165,11 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     document.addEventListener('visibilitychange', handleForeground);
     window.addEventListener('pageshow', handlePageShow);
     return () => {
-      appEvents.onVisibilityChange = unsub;
+      if (debounceTimer !== undefined) {
+        clearTimeout(debounceTimer);
+      }
+      document.removeEventListener('visibilitychange', handleForeground);
+      window.removeEventListener('pageshow', handlePageShow);
     };
   }, [mx, clientConfig, usePushNotifications, pushSubAtom]);
 
@@ -183,13 +182,13 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     const handleForeground = () => {
       if (document.visibilityState !== 'visible') return;
       debugLog.info('general', 'App foregrounded');
-      
+
       // Emit visibility event so timeline and other components can refresh.
       // The Matrix SDK will handle reconnection automatically if needed - no
       // need for aggressive retry logic that can cause reconnection cascades
       // on iOS when in-flight requests are aborted during suspension.
       try {
-        appEvents.onVisibilityChange?.(true);
+        appEvents.emitVisibilityChange(true);
       } catch (err) {
         debugLog.error('general', 'Failed to emit visibility change', {
           error: err instanceof Error ? err.message : String(err),
@@ -204,7 +203,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       if (ev.persisted) {
         debugLog.info('general', 'App restored from bfcache');
         try {
-          appEvents.onVisibilityChange?.(true);
+          appEvents.emitVisibilityChange(true);
         } catch (err) {
           debugLog.error('general', 'Failed to handle bfcache restore', {
             error: err instanceof Error ? err.message : String(err),
@@ -220,7 +219,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     // (including timeline refresh) are aware of current state.
     if (document.visibilityState === 'visible') {
       const timeoutId = setTimeout(() => {
-        appEvents.onVisibilityChange?.(true);
+        appEvents.emitVisibilityChange(true);
       }, 100);
       return () => {
         clearTimeout(timeoutId);

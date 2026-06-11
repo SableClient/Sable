@@ -5,12 +5,8 @@ import { createClient } from '$types/matrix-sdk';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { promiseFulfilledResult, promiseRejectedResult } from '$utils/common';
-import {
-  AuthFlows,
-  RegisterFlowStatus,
-  RegisterFlowsResponse,
-  parseRegisterErrResp,
-} from '$hooks/useAuthFlows';
+import type { AuthFlows, RegisterFlowsResponse } from '$hooks/useAuthFlows';
+import { RegisterFlowStatus, parseRegisterErrResp } from '$hooks/useAuthFlows';
 import { fetch } from '$utils/fetch';
 
 type AuthFlowsLoaderProps = {

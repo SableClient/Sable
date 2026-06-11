@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { describe, expect, it, vi } from 'vitest';
 import { CallWidgetDriver } from './CallWidgetDriver';
 
@@ -51,7 +52,9 @@ describe('CallWidgetDriver.downloadFile', () => {
         sessionScope: '@alice:example.org',
       })
     );
-    const [, options] = downloadMedia.mock.calls[0];
+    const firstCall = downloadMedia.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    const [, options] = firstCall!;
     expect(options.getAccessToken()).toBe('widget-token');
   });
 });

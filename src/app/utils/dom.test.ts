@@ -1,3 +1,5 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
+import type * as DomModule from './dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mediaTransport = vi.hoisted(() => ({
@@ -19,8 +21,15 @@ describe('loadImageElementFromMediaUrl', () => {
         let currentSrc = '';
         let onload: ((event: Event) => void) | null = null;
         let onerror: ((event: Event | string) => void) | null = null;
+        const listeners = new Map<string, (event: Event) => void>();
 
         return {
+          addEventListener(type: string, handler: (event: Event) => void) {
+            listeners.set(type, handler);
+          },
+          removeEventListener(type: string) {
+            listeners.delete(type);
+          },
           set onload(handler: ((event: Event) => void) | null) {
             onload = handler;
           },
@@ -35,7 +44,11 @@ describe('loadImageElementFromMediaUrl', () => {
           },
           set src(value: string) {
             currentSrc = value;
-            queueMicrotask(() => onload?.(new Event('load')));
+            queueMicrotask(() => {
+              const event = new Event('load');
+              listeners.get('load')?.(event);
+              onload?.(event);
+            });
           },
           get src() {
             return currentSrc;
@@ -55,7 +68,7 @@ describe('loadImageElementFromMediaUrl', () => {
     const stickerBlob = new Blob(['sticker'], { type: 'image/png' });
     mediaTransport.fetchMediaBlob.mockResolvedValue(stickerBlob);
 
-    const dom = (await import('./dom')) as typeof import('./dom') & {
+    const dom = (await import('./dom')) as typeof DomModule & {
       loadImageElementFromMediaUrl: (url: string) => Promise<{
         blob: Blob;
         image: HTMLImageElement;

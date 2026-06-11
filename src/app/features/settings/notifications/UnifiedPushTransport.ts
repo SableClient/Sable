@@ -297,10 +297,11 @@ export async function registerUnifiedPushTransport(): Promise<UnifiedPushRegistr
       permissionState,
       error: normalizeErrorMessage(error),
       ...(selectedDistributor ? { distributor: selectedDistributor } : {}),
-      ...(error && typeof error === 'object' && 'instance' in error
-        ? {
-            instance: String((error as { instance?: unknown }).instance ?? ''),
-          }
+      ...(error &&
+      typeof error === 'object' &&
+      'instance' in error &&
+      typeof (error as { instance?: unknown }).instance === 'string'
+        ? { instance: (error as { instance: string }).instance }
         : {}),
     } as UnifiedPushRegistrationResult;
   }

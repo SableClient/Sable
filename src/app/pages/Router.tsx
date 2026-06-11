@@ -138,83 +138,15 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
         <Route
           index
           loader={() => {
-            if (hasStoredSession()) return redirect(getHomePath());
+            if (hasStoredSession()) {
+              const settings = getSettings();
+              return redirect(getLandingPath(settings.defaultLandingScreen));
+            }
             const afterLoginPath = getAppPathFromHref(getOriginBaseUrl(), window.location.href);
             if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
             return redirect(getLoginPath());
-          }
-          return null;
-        }}
-        element={
-          <Sentry.ErrorBoundary
-            fallback={({ error, eventId }) => (
-              <ErrorPage
-                error={error instanceof Error ? error : new Error(String(error))}
-                eventId={eventId || undefined}
-              />
-            )}
-            beforeCapture={(scope) => scope.setTag('section', 'client')}
-          >
-            <AuthRouteThemeManager>
-              {/* HandleNotificationClick must live outside ClientRoot's loading gate so
-                SW notification-click postMessages are never dropped during client
-                reloads (e.g., account switches). It only needs navigate + Jotai atoms. */}
-              <HandleNotificationClick />
-              <ClientRoot>
-                <ClientInitStorageAtom>
-                  <ClientRoomsNotificationPreferences>
-                    <ClientBindAtoms>
-                      <ClientNonUIFeatures>
-                        <NotificationJumper />
-                        <CallEmbedProvider>
-                          <ClientLayout
-                            nav={
-                              <MobileFriendlyClientNav>
-                                <SidebarNav />
-                              </MobileFriendlyClientNav>
-                            }
-                          >
-                            <ClientRouteOutlet />
-                          </ClientLayout>
-                          <CallStatusRenderer />
-                        </CallEmbedProvider>
-                        <SearchModalRenderer />
-                        <UserRoomProfileRenderer />
-                        <CreateRoomModalRenderer />
-                        <CreateSpaceModalRenderer />
-                        <Suspense fallback={null}>
-                          <BugReportModalRenderer />
-                        </Suspense>
-                        <SettingsShallowRouteRenderer />
-                        <RoomSettingsRenderer />
-                        <SpaceSettingsRenderer />
-                        <GlobalKeyboardShortcuts />
-                        {/* Screen reader live region — populated by announce() in utils/announce.ts */}
-                        <div
-                          id="sable-announcements"
-                          role="status"
-                          aria-live="polite"
-                          aria-atomic="true"
-                          style={{
-                            position: 'absolute',
-                            width: '1px',
-                            height: '1px',
-                            overflow: 'hidden',
-                            clip: 'rect(0,0,0,0)',
-                            whiteSpace: 'nowrap',
-                          }}
-                        />
-                        <ReceiveSelfDeviceVerification />
-                        <AutoRestoreBackupOnVerification />
-                      </ClientNonUIFeatures>
-                    </ClientBindAtoms>
-                  </ClientRoomsNotificationPreferences>
-                </ClientInitStorageAtom>
-              </ClientRoot>
-            </AuthRouteThemeManager>
-          </Sentry.ErrorBoundary>
-        }
-      >
+          }}
+        />
         <Route
           loader={({ request }) => {
             const url = new URL(request.url);
@@ -342,32 +274,13 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             <Route path={CREATE_PATH_SEGMENT} element={<HomeCreateRoom />} />
             <Route path={JOIN_PATH_SEGMENT} element={<p>join</p>} />
             <Route path={SEARCH_PATH_SEGMENT} element={<HomeSearch />} />
+            <Route path={BOOKMARKS_PATH_SEGMENT} element={<BookmarksList />} />
             <Route
-              index
-              loader={() => redirect(getExploreFeaturedPath())}
-              element={<WelcomePage />}
-            />
-          )}
-          <Route path={FEATURED_PATH_SEGMENT} element={<FeaturedRooms />} />
-          <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
-        </Route>
-        <Route path={CREATE_PATH} element={<Create />} />
-        <Route
-          path={SETTINGS_PATH}
-          element={
-            <Suspense fallback={null}>
-              <SettingsRoute />
-            </Suspense>
-          }
-        />
-        <Route
-          path={INBOX_PATH}
-          element={
-            <PageRoot
-              nav={
-                <MobileFriendlyPageNav path={INBOX_PATH}>
-                  <Inbox />
-                </MobileFriendlyPageNav>
+              path={ROOM_PATH_SEGMENT}
+              element={
+                <HomeRouteRoomProvider>
+                  <Room />
+                </HomeRouteRoomProvider>
               }
             />
           </Route>
@@ -386,6 +299,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             }
           >
             {mobile ? null : <Route index element={<WelcomePage />} />}
+            <Route path={SEARCH_PATH_SEGMENT} element={<DirectSearch />} />
             <Route path={CREATE_PATH_SEGMENT} element={<DirectCreate />} />
             <Route
               path={ROOM_PATH_SEGMENT}
@@ -464,7 +378,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
           </Route>
           <Route path={CREATE_PATH} element={<Create />} />
-          <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+          <Route
+            path={SETTINGS_PATH}
+            element={
+              <Suspense fallback={null}>
+                <SettingsRoute />
+              </Suspense>
+            }
+          />
           <Route
             path={INBOX_PATH}
             element={

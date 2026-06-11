@@ -49,14 +49,14 @@ export function useSettingsSyncEffect(): void {
     if (!syncEnabled) {
       // If sync is disabled, settings are ready immediately
       setInitialized(true);
-      return;
+      return undefined;
     }
 
     const event = mx.getAccountData(CustomAccountDataEvent.SableSettings);
     if (!event) {
       // No account data exists — settings are ready immediately
       setInitialized(true);
-      return;
+      return undefined;
     }
 
     // Strip synctoken so a stored sync token from a previous session doesn't get treated

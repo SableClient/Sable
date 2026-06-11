@@ -1,3 +1,5 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
+import type * as Folds from 'folds';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -99,7 +101,7 @@ const {
 });
 
 vi.mock('folds', async () => {
-  const actual = await vi.importActual<typeof import('folds')>('folds');
+  const actual = await vi.importActual<typeof Folds>('folds');
 
   return {
     ...actual,
@@ -412,7 +414,9 @@ describe('SystemNotification background push surface', () => {
       unifiedPushDistributor: 'org.unifiedpush.distributor.ntfy',
     });
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]);
+    const [saveButton] = screen.getAllByRole('button', { name: 'Save' });
+    expect(saveButton).toBeDefined();
+    fireEvent.click(saveButton!);
 
     expect(settings.pushTransportOverride).toEqual({
       unifiedPushDistributor: 'org.unifiedpush.distributor.ntfy',

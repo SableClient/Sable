@@ -42,6 +42,10 @@ import { MatrixClientProvider } from '$hooks/useMatrixClient';
 import { MediaUrlCacheProvider } from '$hooks/useMediaUrlCacheContext';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSyncState } from '$hooks/useSyncState';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { useSwUpdateAvailable } from '$hooks/useSwUpdateAvailable';
+import { setBlobCacheSession } from '$hooks/useBlobCache';
 import { stopPropagation } from '$utils/keyboard';
 import { AuthMetadataProvider } from '$hooks/useAuthMetadata';
 import {
@@ -352,35 +356,18 @@ export function ClientRoot({ children }: ClientRootProps) {
 
       const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
       if (slidingSyncManager) {
-        const hasWarm = slidingSyncManager.hasWarmCache();
         const isFullyLoaded = slidingSyncManager.isFullyLoaded();
-        const hasSufficient = slidingSyncManager.hasSufficientRoomsLoaded();
+        const hasSufficient = slidingSyncManager.hasMinimumData();
         const roomCount = mx?.getRooms().length ?? 0;
 
         log.log('[startup] checkReady:', {
           state,
-          hasWarmCache: hasWarm,
           isFullyLoaded,
           hasSufficientRooms: hasSufficient,
           roomCount,
           elapsed: `${(performance.now() - syncStartTimeRef.current).toFixed(0)}ms`,
         });
 
-        // Strategy 1 + 4: If we have warm cache, show cached rooms immediately
-        // while sync continues in background (parallel loading)
-        if (hasWarm) {
-          log.log('[startup] showing UI immediately (warm cache)');
-          setLoading(false);
-          if (!firstSyncReadyRef.current) {
-            firstSyncReadyRef.current = true;
-            Sentry.metrics.distribution(
-              'sable.startup.time_to_ui_ms',
-              performance.now() - syncStartTimeRef.current,
-              { attributes: { cache_type: 'warm' } }
-            );
-          }
-          return;
-        }
         // Cold cache: wait for full load to prevent visual jumping
         // Strategy 8: Use "sufficient rooms" threshold for faster initial display
         if (!isFullyLoaded && !hasSufficient) {
@@ -493,9 +480,13 @@ export function ClientRoot({ children }: ClientRootProps) {
                     // oxlint-disable-next-line unicorn/require-post-message-target-origin
                     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                     // Reload once the new SW is activated
-                    navigator.serviceWorker.addEventListener('controllerchange', () => {
-                      window.location.reload();
-                    }, { once: true });
+                    navigator.serviceWorker.addEventListener(
+                      'controllerchange',
+                      () => {
+                        window.location.reload();
+                      },
+                      { once: true }
+                    );
                   } else {
                     // No waiting worker, just reload
                     window.location.reload();

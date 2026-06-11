@@ -1,3 +1,5 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
+import type * as Folds from 'folds';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SequenceCardStyle } from '$features/settings/styles.css';
@@ -33,7 +35,7 @@ vi.mock('$state/hooks/desktopSettings', () => ({
 }));
 
 vi.mock('folds', async () => {
-  const actual = await vi.importActual<typeof import('folds')>('folds');
+  const actual = await vi.importActual<typeof Folds>('folds');
   return {
     ...actual,
     Switch: ({

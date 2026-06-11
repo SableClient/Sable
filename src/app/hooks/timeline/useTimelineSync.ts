@@ -136,11 +136,7 @@ const useEventTimelineLoader = (
 
           // Check if the event now exists in the live timeline
           const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
-          const liveAbsIndex = getEventIdAbsoluteIndex(
-            liveLinkedTimelines,
-            liveTimeline,
-            eventId
-          );
+          const liveAbsIndex = getEventIdAbsoluteIndex(liveLinkedTimelines, liveTimeline, eventId);
 
           if (liveAbsIndex !== undefined) {
             // Event found in live timeline - use that instead
@@ -179,7 +175,6 @@ const useEventTimelineLoader = (
       }),
     [mx, room, onLoad, onError, onProactiveLoad]
   );
-};
 
 const useTimelinePagination = (
   mx: MatrixClient,
@@ -577,7 +572,7 @@ export function useTimelineSync({
       // Only attempt forward pagination if there's a token — otherwise we're at
       // the live edge and will get an error ("Failed to load messages").
       void handleTimelinePaginationRef.current(true); // backward
-      
+
       const { linkedTimelines } = timelineRef.current;
       const lastTimeline = linkedTimelines.at(-1);
       const forwardToken = lastTimeline?.getPaginationToken(Direction.Forward);

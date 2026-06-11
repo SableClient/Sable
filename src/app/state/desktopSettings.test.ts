@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { createStore } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {

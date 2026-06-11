@@ -1,7 +1,8 @@
 import type { MatrixClient } from '$types/matrix-sdk';
+import * as Sentry from '@sentry/react';
 import { createDebugLogger } from '$utils/debugLogger';
 import { isTauri } from '@tauri-apps/api/core';
-import { ClientConfig } from '../../../hooks/useClientConfig';
+import type { ClientConfig } from '../../../hooks/useClientConfig';
 
 const debugLog = createDebugLogger('PushNotifications');
 

@@ -39,15 +39,17 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
   const [cacheStats, setCacheStats] = useState(() => getBlobCacheStats());
-  const [svgCacheSize, setSvgCacheSize] = useState(0);
+  const [avatarCacheStats, setAvatarCacheStats] = useState({ count: 0, sizeMB: 0 });
   const [swCacheStats, setSwCacheStats] = useState({ count: 0, sizeMB: 0 });
 
   useEffect(() => {
-    // Async-load persistent cache metadata (requires Cache API) and SVG cache size
+    // Async-load persistent cache metadata (requires Cache API).
     getBlobCacheStatsAsync()
       .then(setCacheStats)
       .catch(() => undefined);
-    setSvgCacheSize(getSvgCacheSize());
+    getAvatarCacheStatsAsync()
+      .then(setAvatarCacheStats)
+      .catch(() => undefined);
     // Read SW media cache from page context (same origin, shared with the SW)
     caches
       .open('sable-media-sw-v1')
@@ -76,10 +78,12 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
     setCacheStats(getBlobCacheStats());
   }, []);
 
-  const clearSvgCacheAction = useCallback(() => {
-    clearSvgBlobCache();
-    setSvgCacheSize(getSvgCacheSize());
-  }, []);
+  const [clearAvatarCacheState, clearAvatarCacheAction] = useAsyncCallback<void, Error, []>(
+    useCallback(async () => {
+      await clearAvatarCache();
+      setAvatarCacheStats(await getAvatarCacheStatsAsync());
+    }, [])
+  );
 
   const [clearSwCacheState, clearSwCacheAction] = useAsyncCallback<void, Error, []>(
     useCallback(async () => {

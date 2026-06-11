@@ -5,7 +5,6 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { encodeBlurHash } from '$utils/blurHash';
-import { MATRIX_BLUR_HASH_PROPERTY_NAME } from '$types/matrix/common';
 import { fetch } from '$utils/fetch';
 import { Attachment, AttachmentBox, AttachmentHeader } from '../message/attachment';
 import { Image } from '../media';

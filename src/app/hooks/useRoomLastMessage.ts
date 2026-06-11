@@ -45,17 +45,8 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   if (type === ENCRYPTED_EVENT_TYPE) return '🔒 Encrypted message';
 
   // Check if this message has been edited — use the edited content if available
-  const replacingEvent = typeof ev.replacingEvent === 'function' ? ev.replacingEvent() : undefined;
-  // Only use the replacement event if it's been decrypted (otherwise we'd see ciphertext)
-  let displayContent =
-    replacingEvent && !replacingEvent.isBeingDecrypted() && !replacingEvent.isEncrypted()
-      ? replacingEvent.getContent()
-      : content;
-  // If we're using an edit event's content, extract m.new_content (the actual edit)
-  // instead of the fallback body (which has "* " prefix for old clients)
-  if (replacingEvent && displayContent?.['m.new_content']) {
-    displayContent = displayContent['m.new_content'] as typeof displayContent;
-  }
+  const replacingEvent = ev.replacingEvent();
+  const displayContent = replacingEvent ? replacingEvent.getContent() : content;
 
   if (type === ROOM_MESSAGE_EVENT_TYPE) {
     const { msgtype } = displayContent;
@@ -215,19 +206,8 @@ export function useRoomLastMessage(
     // haven't been opened yet; this ensures the preview resolves on mount.
     const events = room.getLiveTimeline().getEvents();
     const lastDisplayable = findLastDisplayableEvent(events);
-    if (lastDisplayable) {
-      // Decrypt the main event if encrypted
-      if (lastDisplayable.isEncrypted()) {
-        mx.decryptEventIfNeeded(lastDisplayable).catch(() => undefined);
-      }
-      // Also decrypt the replacement event if present (edits are stored encrypted)
-      const replacingEvent =
-        typeof lastDisplayable.replacingEvent === 'function'
-          ? lastDisplayable.replacingEvent()
-          : undefined;
-      if (replacingEvent?.isEncrypted()) {
-        mx.decryptEventIfNeeded(replacingEvent).catch(() => undefined);
-      }
+    if (lastDisplayable && lastDisplayable.isEncrypted()) {
+      mx.decryptEventIfNeeded(lastDisplayable).catch(() => undefined);
     }
 
     // Background paginate when the timeline is sparse and contains no

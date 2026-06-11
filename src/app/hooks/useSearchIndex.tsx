@@ -35,8 +35,6 @@ import type {
   WorkerInMessage,
   WorkerOutMessage,
 } from '$plugins/search-worker/types';
-// eslint-disable-next-line import/default, import/no-unresolved -- Vite ?worker suffix returns Worker constructor
-import SearchWorkerConstructor from '$plugins/search-worker/searchWorker.ts?worker';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -95,41 +93,15 @@ const MAX_CONCURRENT_BACKFILLS = HAS_IDLE_CALLBACK ? Infinity : 2;
  */
 const BACKFILL_STARTUP_DELAY_MS = 30_000;
 
-/**
- * Minimum delay between consecutive paginated /messages fetches within a single
- * room. Prevents rapid-fire N+1 API calls that Sentry detects as performance issues.
- * Even with requestIdleCallback, we enforce a small yield to avoid saturating the
- * connection pool with sequential requests.
- */
-const BACKFILL_INTER_PAGE_DELAY_MS = 200;
-
-/**
- * Maximum number of rooms to backfill per session. Prevents accounts with 10,000+
- * rooms from triggering unbounded API calls. Backfill resumes from checkpoint on
- * next session.
- */
-const MAX_ROOMS_PER_SESSION = 500;
-
-/**
- * How long after user activity (mousemove, keydown, scroll, touch) to pause backfill.
- * Ensures background indexing doesn't compete with real-time user requests.
- */
-const USER_ACTIVITY_COOLDOWN_MS = 5_000;
-
 function scheduleIdle(cb: () => void): () => void {
-  // Always enforce a minimum delay between pages to prevent N+1 API call flooding,
-  // even on systems with requestIdleCallback. The delay gives the browser time to
-  // process other requests and prevents sequential HTTP request saturation.
-  const wrappedCb = () => {
-    setTimeout(cb, BACKFILL_INTER_PAGE_DELAY_MS);
-  };
-
   if (HAS_IDLE_CALLBACK) {
-    const id = requestIdleCallback(wrappedCb, { timeout: 5000 });
+    const id = requestIdleCallback(cb, { timeout: 5000 });
     return () => cancelIdleCallback(id);
   }
-  // iOS Safari: no requestIdleCallback — combine idle delay + inter-page delay.
-  const id = setTimeout(wrappedCb, 500);
+  // iOS Safari: no requestIdleCallback — use a longer delay; combined with the
+  // concurrency cap (MAX_CONCURRENT_BACKFILLS) this prevents HTTP connection
+  // pool saturation and gives WASM crypto breathing room between pages.
+  const id = setTimeout(cb, 500);
   return () => clearTimeout(id);
 }
 
@@ -212,10 +184,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const backfillReadyRef = useRef(false);
   // Handle for the startup-delay timer so we can cancel it on cleanup.
   const backfillStartDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track rooms backfilled this session to enforce the per-session cap.
-  const roomsBackfilledThisSessionRef = useRef(new Set<string>());
-  // Track last user activity timestamp to pause backfill when user is active.
-  const lastUserActivityRef = useRef(Date.now());
 
   const postToWorker = useCallback((msg: WorkerInMessage) => {
     // oxlint-disable-next-line require-post-message-target-origin -- Worker.postMessage has no targetOrigin
@@ -263,25 +231,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const backfillRoom = useCallback(
     async (room: Room, state: BackfillState): Promise<void> => {
       if (state.done) return;
-
-      // Check per-session room cap: if we've already backfilled MAX_ROOMS_PER_SESSION
-      // rooms this session, skip this room and mark it incomplete so it resumes next session.
-      if (
-        !roomsBackfilledThisSessionRef.current.has(room.roomId) &&
-        roomsBackfilledThisSessionRef.current.size >= MAX_ROOMS_PER_SESSION
-      ) {
-        Sentry.addBreadcrumb({
-          category: 'search.backfill',
-          message: `Session room cap reached (${MAX_ROOMS_PER_SESSION}), deferring room ${room.roomId}`,
-          level: 'info',
-        });
-        backfillingRoomsRef.current.delete(room.roomId);
-        // Do NOT mark as done — we want to resume this room in the next session
-        return;
-      }
-
-      // Mark this room as backfilled in this session (even if we only process one page)
-      roomsBackfilledThisSessionRef.current.add(room.roomId);
 
       const isEncrypted = room.hasEncryptionStateEvent();
 
@@ -494,24 +443,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
             });
             return;
           }
-          // Pause when user is actively interacting with the app to avoid competing
-          // with real-time user requests (room navigation, message sends, etc.).
-          const timeSinceActivity = Date.now() - lastUserActivityRef.current;
-          if (timeSinceActivity < USER_ACTIVITY_COOLDOWN_MS) {
-            backfillingRoomsRef.current.delete(room.roomId);
-            backfillQueueRef.current.unshift({ room, state: nextState });
-            Sentry.addBreadcrumb({
-              category: 'search.backfill',
-              message: `Backfill deferred for room ${room.roomId}`,
-              data: {
-                reason: 'user_active',
-                timeSinceActivity,
-                cooldown: USER_ACTIVITY_COOLDOWN_MS,
-              },
-              level: 'info',
-            });
-            return;
-          }
           void backfillRoom(room, nextState);
         });
         cancelIdlesRef.current.push(cancel);
@@ -550,10 +481,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     if (!backfillReadyRef.current) return;
     const s = syncStateRef.current;
     if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) return;
-
-    // Pause when user is actively interacting with the app
-    const timeSinceActivity = Date.now() - lastUserActivityRef.current;
-    if (timeSinceActivity < USER_ACTIVITY_COOLDOWN_MS) return;
 
     while (
       backfillingRoomsRef.current.size < MAX_CONCURRENT_BACKFILLS &&
@@ -701,61 +628,19 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       data: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
     });
 
-    // Check for known worker-blocking issues
-    const rocketLoaderActive = Boolean(
-      document.querySelector('script[src*="rocket-loader"]') ||
-      // @ts-expect-error - Rocket Loader injects this global
-      window.RocketLoader ||
-      // @ts-expect-error - Cloudflare global
-      window.Rocketloader
-    );
-
     let worker: Worker;
     try {
-      Sentry.addBreadcrumb({
-        category: 'search.index',
-        message: 'Instantiating search worker',
-        level: 'info',
-        data: {
-          rocketLoaderActive,
-          indexedDBAvailable: typeof indexedDB !== 'undefined',
-        },
+      worker = new Worker(new URL('../plugins/search-worker/searchWorker.ts', import.meta.url), {
+        type: 'module',
       });
-      worker = new SearchWorkerConstructor();
     } catch (e) {
-      // Worker failed to load — likely a missing or mis-served asset (404 → HTML).
-      // This commonly happens when:
-      // 1. Old cached index.html references old worker URL (from previous build)
-      // 2. Server returns 404 or HTML instead of JS
-      // 3. Browser tries to execute HTML as JavaScript → MIME type error
-      // 4. Cloudflare Rocket Loader interfering with worker instantiation
+      // Worker failed to load — likely a missing or mis-served asset (404 → HTML)
       const errorMsg = `Search worker failed to instantiate: ${e instanceof Error ? e.message : String(e)}`;
       setInitError(errorMsg);
       Sentry.captureException(e, {
-        level: isMimeError ? 'warning' : 'error',
-        tags: {
-          component: 'search-index',
-          failure_stage: 'worker_instantiation',
-          is_mime_error: isMimeError,
-          rocket_loader_active: rocketLoaderActive,
-        },
-        extra: {
-          userId,
-          maxMessagesPerRoom: searchIndexMessageLimit,
-          likely_stale_cache: isMimeError,
-          rocketLoaderActive,
-          indexedDBAvailable: typeof indexedDB !== 'undefined',
-          userAgent: navigator.userAgent,
-        },
-        contexts: {
-          hint: {
-            description: rocketLoaderActive
-              ? 'Cloudflare Rocket Loader detected - known to break Web Workers. Disable in CF dashboard.'
-              : isMimeError
-                ? 'Stale cached index.html likely referencing old worker URL. User should hard reload.'
-                : 'Worker script failed to load',
-          },
-        },
+        level: 'error',
+        tags: { component: 'search-index', failure_stage: 'worker_instantiation' },
+        extra: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
       });
       return () => {};
     }
@@ -765,54 +650,26 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
     // Handle worker runtime errors (e.g., MIME type errors from failed imports)
     const handleWorkerError = (error: ErrorEvent) => {
-      // Null-check error.message — it may be undefined on ErrorEvent (SABLE-52)
-      const message = error?.message ?? '';
-      const errorMsg = `Search worker runtime error: ${message || 'Unknown worker error'}`;
-      const isMimeError = message.includes('MIME') && message.includes('text/html');
-
+      const errorMsg = `Search worker runtime error: ${error.message}`;
       setInitError(errorMsg);
       setIsReady(false);
-      Sentry.captureException(error.error || new Error(message || 'Unknown worker error'), {
-        level: isMimeError ? 'warning' : 'error',
-        tags: {
-          component: 'search-index',
-          failure_stage: 'worker_runtime',
-          is_mime_error: isMimeError,
-          rocket_loader_active: rocketLoaderActive,
-        },
+      Sentry.captureException(error.error || new Error(error.message), {
+        level: 'error',
+        tags: { component: 'search-index', failure_stage: 'worker_runtime' },
         extra: {
           userId,
           maxMessagesPerRoom: searchIndexMessageLimit,
           filename: error.filename,
           lineno: error.lineno,
           colno: error.colno,
-          likely_stale_cache: isMimeError,
-          rocketLoaderActive,
-          errorMessageEmpty: !message,
-        },
-        contexts: {
-          hint: {
-            description:
-              !message && rocketLoaderActive
-                ? 'Empty error message + Rocket Loader detected → Rocket Loader is blocking worker. Disable in CF dashboard.'
-                : !message
-                  ? 'Empty error message → worker failed to load (404, CORS, or stale cache). Check Network tab for worker URL.'
-                  : isMimeError
-                    ? 'Worker import failed with MIME error - likely stale cache referencing old assets or missing chunk'
-                    : 'Worker script runtime error',
-          },
         },
       });
     };
     worker.addEventListener('error', handleWorkerError);
 
-    // Set a timeout to detect if the worker never sends READY or ERROR (SABLE-54)
+    // Set a timeout to detect if the worker never sends READY
     const initTimeout = setTimeout(() => {
       setInitError('Worker initialization timed out (30s) — READY message never received');
-      setIsReady(false);
-      // Terminate the stuck worker so it doesn't consume resources
-      worker.terminate();
-      workerRef.current = null;
       Sentry.captureMessage('Search worker INIT timeout — READY message never received', {
         level: 'error',
         tags: { component: 'search-index' },
@@ -820,14 +677,12 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       });
     }, 30000); // 30s timeout
 
-    // Clear timeout when READY or ERROR arrives
+    // Clear timeout when READY arrives
     const originalHandler = handleWorkerMessage;
     const wrappedHandler = (event: MessageEvent<WorkerOutMessage>) => {
-      if (event.data.type === 'READY' || event.data.type === 'ERROR') {
+      if (event.data.type === 'READY') {
         clearTimeout(initTimeout);
-        if (event.data.type === 'READY') {
-          setInitError(null); // Clear any previous error only on successful READY
-        }
+        setInitError(null); // Clear any previous error
       }
       originalHandler(event);
     };
@@ -894,20 +749,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       document.addEventListener('visibilitychange', handleVisibilityChange);
     }
 
-    // Track user activity to pause backfill when the user is actively using the app.
-    // We use a passive listener and only update a timestamp, so there's no performance
-    // impact. The actual backfill pause logic checks this timestamp before scheduling
-    // each page fetch.
-    const handleUserActivity = () => {
-      lastUserActivityRef.current = Date.now();
-    };
-    // Use passive listeners for performance (no preventDefault() needed)
-    const activityOpts = { passive: true };
-    window.addEventListener('mousemove', handleUserActivity, activityOpts);
-    window.addEventListener('keydown', handleUserActivity, activityOpts);
-    window.addEventListener('scroll', handleUserActivity, activityOpts);
-    window.addEventListener('touchstart', handleUserActivity, activityOpts);
-
     return () => {
       // Ask the worker to flush before terminating. We wait up to 2 s then
       // force-terminate regardless so the cleanup never hangs.
@@ -943,10 +784,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         handleRoomAdded as unknown as (...args: unknown[]) => void
       );
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('mousemove', handleUserActivity);
-      window.removeEventListener('keydown', handleUserActivity);
-      window.removeEventListener('scroll', handleUserActivity);
-      window.removeEventListener('touchstart', handleUserActivity);
 
       // Cancel the startup delay and reset the ready gate
       if (backfillStartDelayRef.current !== null) {
@@ -954,9 +791,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         backfillStartDelayRef.current = null;
       }
       backfillReadyRef.current = false;
-      // Reset session cap tracking so next mount starts fresh
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
-      roomsBackfilledThisSessionRef.current.clear();
 
       // Cancel all pending idle callbacks
       // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time

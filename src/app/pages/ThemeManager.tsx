@@ -84,7 +84,6 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     // account data overrides localStorage settings
     if (!settingsInitialized) return;
 
-    syncDocumentThemeMetadata(activeTheme.kind);
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
     document.body.classList.add(...activeTheme.classNames);

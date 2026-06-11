@@ -68,23 +68,10 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     const MIN_RETRY_INTERVAL_MS = 5000; // Don't retry more than once per 5 seconds
 
     const doRetry = () => {
-      // Check if we've retried too recently
-      const now = Date.now();
-      if (now - lastRetryTime < MIN_RETRY_INTERVAL_MS) {
-        debugLog.info('general', 'Skipping retry - too soon since last attempt', {
-          timeSinceLastRetry: now - lastRetryTime,
-        });
-        return;
-      }
-
       // Only retry if sync is actually in an error or stopped state.
       // Calling retry when already syncing causes unnecessary reconnection banners.
       const syncState = mx.getSyncState();
-      if (
-        syncState !== SyncState.Error &&
-        syncState !== SyncState.Stopped &&
-        syncState !== SyncState.Reconnecting
-      ) {
+      if (syncState !== 'ERROR' && syncState !== 'STOPPED' && syncState !== 'RECONNECTING') {
         debugLog.info('general', 'Skipping retry - already syncing', { syncState });
         return;
       }
@@ -94,8 +81,6 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       // if the device just woke from sleep or the app was restored from bfcache.
       try {
         debugLog.info('general', 'Triggering sync retry', { syncState });
-        lastRetryTime = now;
-
         // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
         // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
         // slidingSync.resend() which aborts any stalled request and retries without backoff.
@@ -213,14 +198,6 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
         try {
           // Emit visibility change event so timeline and other components can refresh
           appEvents.emitVisibilityChange(true);
-          // Restart the sync loop (it was stopped in handlePageHide so iOS could
-          // bfcache the page). This must happen before handleForeground() so that
-          // retryImmediately() has a running client to call into.
-          resumeClientFromBfcache(mx).catch((err: unknown) => {
-            debugLog.error('general', 'resumeClientFromBfcache failed on pageshow', {
-              error: err instanceof Error ? err.message : String(err),
-            });
-          });
           handleForeground();
         } catch (err) {
           debugLog.error('general', 'Failed to handle bfcache restore', {
@@ -247,7 +224,6 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       return () => {
         clearTimeout(timeoutId);
         document.removeEventListener('visibilitychange', handleForeground);
-        window.removeEventListener('pagehide', handlePageHide);
         window.removeEventListener('pageshow', handlePageShow);
         if (debounceTimer !== undefined) {
           clearTimeout(debounceTimer);

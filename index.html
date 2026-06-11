@@ -25,6 +25,79 @@
     />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1b1a21" />
+    <style>
+      :root[data-sable-boot-theme='light'] {
+        --sable-bg-container: #ffffff;
+        --sable-bg-on-container: #18181b;
+        color-scheme: light;
+        background: #ffffff;
+      }
+
+      :root[data-sable-boot-theme='dark'] {
+        --sable-bg-container: #1b1a21;
+        --sable-bg-on-container: #eae8f0;
+        color-scheme: dark;
+        background: #1b1a21;
+      }
+
+      body {
+        background: var(--sable-bg-container);
+        color: var(--sable-bg-on-container);
+      }
+    </style>
+    <script>
+      (function () {
+        function isNonEmptyString(value) {
+          return typeof value === 'string' && value.trim().length > 0;
+        }
+
+        function slotIsDark(settings, systemIsDark) {
+          if (systemIsDark) {
+            if (isNonEmptyString(settings.themeRemoteDarkFullUrl)) {
+              return settings.themeRemoteDarkKind ? settings.themeRemoteDarkKind === 'dark' : true;
+            }
+            return settings.darkThemeId ? settings.darkThemeId === 'dark-theme' : true;
+          }
+
+          if (isNonEmptyString(settings.themeRemoteLightFullUrl)) {
+            return settings.themeRemoteLightKind ? settings.themeRemoteLightKind === 'dark' : false;
+          }
+          return settings.lightThemeId === 'dark-theme';
+        }
+
+        function resolveBootTheme() {
+          var systemIsDark =
+            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var settings = {};
+
+          try {
+            settings = JSON.parse(window.localStorage.getItem('settings') || '{}') || {};
+          } catch (_err) {
+            settings = {};
+          }
+
+          if (settings.useSystemTheme === false) {
+            if (isNonEmptyString(settings.themeRemoteManualFullUrl)) {
+              if (settings.themeRemoteManualKind) {
+                return settings.themeRemoteManualKind === 'dark' ? 'dark' : 'light';
+              }
+            }
+            return settings.themeId === 'dark-theme' ? 'dark' : 'light';
+          }
+
+          return slotIsDark(settings, systemIsDark) ? 'dark' : 'light';
+        }
+
+        var theme = resolveBootTheme();
+        var color = theme === 'dark' ? '#1b1a21' : '#ffffff';
+        document.documentElement.dataset.sableBootTheme = theme;
+        document.documentElement.style.backgroundColor = color;
+
+        document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+          meta.setAttribute('content', color);
+        });
+      })();
+    </script>
 
     <link id="favicon" rel="shortcut icon" href="./public/favicon.png" />
 

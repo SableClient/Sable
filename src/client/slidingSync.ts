@@ -327,6 +327,10 @@ export class SlidingSyncManager {
   /** Rooms currently in a PTR refresh cycle - allow resets for these. */
   private readonly ptrRefreshRooms = new Set<string>();
 
+  private roomSubscriptionFlushTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private lastFlushedRoomSubscriptionsKey = '';
+
   private readonly listPageSize: number;
 
   private readonly listTimelineLimit: number;
@@ -957,6 +961,10 @@ export class SlidingSyncManager {
     // Clean up pending room-data latency listeners before marking disposed.
     // SlidingSync.stop() will removeAllListeners anyway, but this keeps the Map tidy.
     this.pendingRoomDataListeners.clear();
+    if (this.roomSubscriptionFlushTimer) {
+      clearTimeout(this.roomSubscriptionFlushTimer);
+      this.roomSubscriptionFlushTimer = undefined;
+    }
 
     this.disposed = true;
     // Stop the SDK's internal polling loop and abort any in-flight requests.
@@ -1481,6 +1489,7 @@ export class SlidingSyncManager {
    */
   public subscribeToRoom(roomId: string): void {
     if (this.disposed) return;
+    if (this.activeRoomSubscriptions.has(roomId)) return;
     const room = this.mx.getRoom(roomId);
     const isEncrypted = this.mx.isRoomEncrypted(roomId);
 
@@ -1494,7 +1503,7 @@ export class SlidingSyncManager {
       this.slidingSync.useCustomSubscription(roomId, UNENCRYPTED_SUBSCRIPTION_KEY);
     }
     this.activeRoomSubscriptions.add(roomId);
-    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+    this.scheduleRoomSubscriptionFlush();
     Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
       attributes: { transport: 'sliding' },
     });
@@ -1768,6 +1777,7 @@ export class SlidingSyncManager {
    */
   public unsubscribeFromRoom(roomId: string): void {
     if (this.disposed) return;
+    if (!this.activeRoomSubscriptions.has(roomId)) return;
     // Clean up any pending first-data latency listener for this room.
     const pendingListener = this.pendingRoomDataListeners.get(roomId);
     if (pendingListener) {
@@ -1775,7 +1785,7 @@ export class SlidingSyncManager {
       this.pendingRoomDataListeners.delete(roomId);
     }
     this.activeRoomSubscriptions.delete(roomId);
-    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+    this.scheduleRoomSubscriptionFlush();
     Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
       attributes: { transport: 'sliding' },
     });
@@ -1784,6 +1794,24 @@ export class SlidingSyncManager {
       remainingSubscriptions: this.activeRoomSubscriptions.size,
       syncCycle: this.syncCount,
     });
+  }
+
+  private scheduleRoomSubscriptionFlush(): void {
+    if (this.disposed || this.roomSubscriptionFlushTimer) return;
+    this.roomSubscriptionFlushTimer = setTimeout(() => {
+      this.roomSubscriptionFlushTimer = undefined;
+      this.flushRoomSubscriptions();
+    }, 100);
+  }
+
+  private flushRoomSubscriptions(): void {
+    if (this.disposed) return;
+    const nextSubscriptions = [...this.activeRoomSubscriptions].toSorted();
+    const nextKey = nextSubscriptions.join('\u0000');
+    if (nextKey === this.lastFlushedRoomSubscriptionsKey) return;
+
+    this.lastFlushedRoomSubscriptionsKey = nextKey;
+    this.slidingSync.modifyRoomSubscriptions(new Set(nextSubscriptions));
   }
 
   public static async probe(

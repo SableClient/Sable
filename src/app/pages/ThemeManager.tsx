@@ -18,6 +18,19 @@ import { isLocalImportBundledUrl } from '../theme/localImportUrls';
 
 const REMOTE_STYLE_ID = 'sable-remote-theme-style';
 const REMOTE_TWEAKS_STYLE_ID = 'sable-remote-tweaks-style';
+const LIGHT_THEME_COLOR = '#ffffff';
+const DARK_THEME_COLOR = '#1b1a21';
+
+function syncDocumentThemeMetadata(kind: ThemeKind): void {
+  const bootTheme = kind === ThemeKind.Dark ? 'dark' : 'light';
+  const themeColor = kind === ThemeKind.Dark ? DARK_THEME_COLOR : LIGHT_THEME_COLOR;
+  document.documentElement.dataset.sableBootTheme = bootTheme;
+  document.documentElement.style.backgroundColor = themeColor;
+
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+    meta.content = themeColor;
+  });
+}
 
 async function loadRemoteThemeCssText(url: string): Promise<string | undefined> {
   try {
@@ -44,6 +57,7 @@ export function UnAuthRouteThemeManager() {
   const systemThemeKind = useSystemThemeKind();
 
   useEffect(() => {
+    syncDocumentThemeMetadata(systemThemeKind);
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
     if (systemThemeKind === ThemeKind.Dark) {
@@ -70,6 +84,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     // account data overrides localStorage settings
     if (!settingsInitialized) return;
 
+    syncDocumentThemeMetadata(activeTheme.kind);
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
     document.body.classList.add(...activeTheme.classNames);

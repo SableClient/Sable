@@ -456,35 +456,13 @@ export const downloadMedia = async (
   /** Belt-and-suspenders fallback for when the service worker session is
    * unavailable (e.g. iOS SW restart before setSession fires). The SW still
    * adds auth for normal browser sub-resource loads when active. */
-  accessToken?: string | null,
-  /** Optional metadata from Matrix event content.info for enriched diagnostics */
-  mediaInfo?: {
-    mimetype?: string;
-    size?: number;
-    w?: number;
-    h?: number;
-  }
+  accessToken?: string | null
 ): Promise<Blob> => {
-  // Extract media server from URL for attribution
-  let mediaServer: string | undefined;
-  try {
-    const url = new URL(src);
-    mediaServer = url.hostname;
-  } catch {
-    // Invalid URL, skip server extraction
-  }
-
   const span = Sentry.startInactiveSpan({
     name: 'media.load',
     op: 'media',
     attributes: {
-      'media.type': mediaInfo?.mimetype ?? 'unknown',
-      'media.size_bytes': mediaInfo?.size,
-      'media.width': mediaInfo?.w,
-      'media.height': mediaInfo?.h,
-      'media.authenticated': src.includes('/client/v1/media/'),
-      'media.is_thumbnail': src.includes('/thumbnail/'),
-      'media.server': mediaServer,
+      'media.type': 'file',
       'media.url': src.substring(0, 100), // Truncate URL to avoid PII
       'media.has_access_token': !!accessToken,
     },
@@ -528,17 +506,14 @@ export const downloadMedia = async (
       }
 
       const blob = await res.blob();
-      span.setAttribute('media.actual_size_bytes', blob.size);
-      span.setAttribute('media.actual_mime_type', blob.type);
-      span.setAttribute('media.cache_hit', res.headers.get('X-From-Cache') === 'true');
-      span.setStatus({ code: 1 }); // ok
+      span.setAttribute('media.size_bytes', blob.size);
+      span.setAttribute('media.mime_type', blob.type);
       span.end();
       return blob;
     } catch (err) {
       clearTimeout(timeoutId);
       if (err instanceof Error && err.name === 'AbortError') {
         span.setAttribute('media.timeout', true);
-        span.setStatus({ code: 2, message: 'Timeout after 30s' });
         span.end();
         // Log timeout as warning breadcrumb, not error — this is a recoverable condition
         // (slow connection, large file) and the UI will show a placeholder.

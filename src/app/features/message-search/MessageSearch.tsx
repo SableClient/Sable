@@ -156,15 +156,12 @@ export function MessageSearch({
   const isGrouped = searchPathSearchParams.grouped !== 'false';
   const flatItems = useMemo(() => {
     if (isGrouped) return [];
-    const items = groups.flatMap((group) =>
+    return groups.flatMap((group) =>
       group.items.map((item) => ({
         ...item,
         roomId: group.roomId,
       }))
     );
-    // Sort by timestamp to truly interleave results across rooms
-    items.sort((a, b) => b.event.origin_server_ts - a.event.origin_server_ts);
-    return items;
   }, [groups, isGrouped]);
 
   const virtualizer = useVirtualizer({

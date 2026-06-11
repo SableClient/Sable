@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
 import type { MatrixEvent, MatrixClient } from '$types/matrix-sdk';
 import { SetPresence, MatrixError } from '$types/matrix-sdk';
-import * as Sentry from '@sentry/react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
@@ -29,9 +28,6 @@ const sleep = (ms: number) =>
 
 /** Timestamp (ms) of the last successful presence send. */
 let lastSentTimestamp = 0;
-
-/** Module-level debounce timer - survives component remounts and navigation. */
-let presenceDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 type PresenceState = {
   /** The selected presence mode: 'online' | 'unavailable' | 'dnd' | 'offline' */
@@ -200,14 +196,11 @@ export function usePresenceSyncEffect(): void {
   useAccountDataCallback(mx, onAccountData);
 
   // Debounced upload whenever presence or auto-idle changes
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     if (!syncEnabled) return undefined;
 
-    // Clear any existing module-level timer
-    if (presenceDebounceTimer !== null) {
-      clearTimeout(presenceDebounceTimer);
-      presenceDebounceTimer = null;
-    }
+    clearTimeout(timerRef.current);
 
     // Use fast debounce for activity events (idle→online) to ensure rapid multi-device sync.
     // Use longer debounce for idle events to avoid rate limiting.
@@ -215,7 +208,7 @@ export function usePresenceSyncEffect(): void {
     const isActivityEvent = wasIdled && !autoIdled;
     const debounceMs = isActivityEvent ? ACTIVITY_DEBOUNCE_MS : DEBOUNCE_MS;
 
-    presenceDebounceTimer = setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       const token = Math.random().toString(36).slice(2, 10);
       pendingEchoTokenRef.current = token;
 
@@ -267,12 +260,7 @@ export function usePresenceSyncEffect(): void {
       );
     }, debounceMs);
 
-    return () => {
-      if (presenceDebounceTimer !== null) {
-        clearTimeout(presenceDebounceTimer);
-        presenceDebounceTimer = null;
-      }
-    };
+    return () => clearTimeout(timerRef.current);
   }, [mx, presenceMode, autoIdled, syncEnabled, settings.presenceStatusMsg]);
 }
 
@@ -338,50 +326,27 @@ async function sendPresenceToServer(
     statusMsg,
   });
 
-  // Send via matrix-js-sdk with 429 handling and retry
-  let retryCount = 0;
-  const maxRetries = 3;
-
-  // eslint-disable-next-line no-await-in-loop -- Sequential retries are intentional
-  while (retryCount <= maxRetries) {
-    try {
-      await mx.setPresence({ presence: serverPresence, status_msg: statusMsg });
-      lastSentTimestamp = Date.now();
-      return; // Success - exit
-    } catch (err) {
-      if (err instanceof MatrixError && err.httpStatus === 429) {
-        // Rate limited - respect Retry-After and retry after backoff
-        const retryAfterMs = err.data?.retry_after_ms ?? 5000;
-        debugLog.warn('general', 'Presence rate limited (429), backing off', {
-          retryAfterMs,
-          retryCount,
-        });
-
-        Sentry.captureMessage('Presence rate limited', {
-          level: 'warning',
-          tags: { component: 'presence-sync' },
-          extra: { retryAfterMs, userId: mx.getUserId(), retryCount },
-        });
-
-        // If we've exhausted retries, give up
-        if (retryCount >= maxRetries) {
-          debugLog.error('general', 'Presence retry limit exceeded after 429', { maxRetries });
-          lastSentTimestamp = Date.now();
-          return;
-        }
-
-        // Wait before retrying
-        await sleep(retryAfterMs);
-        lastSentTimestamp = Date.now();
-        retryCount += 1;
-        continue; // Retry the request
-      }
-      // Non-429 error - log and exit
-      debugLog.error('general', 'Failed to send presence to server', {
-        error: err instanceof Error ? err.message : String(err),
+  // Send via matrix-js-sdk with 429 handling
+  try {
+    await mx.setPresence({ presence: serverPresence, status_msg: statusMsg });
+    lastSentTimestamp = Date.now();
+  } catch (err) {
+    if (err instanceof MatrixError && err.httpStatus === 429) {
+      // Rate limited - respect Retry-After and back off
+      const retryAfterMs = err.data?.retry_after_ms ?? 5000;
+      debugLog.warn('general', 'Presence rate limited (429), backing off', {
+        retryAfterMs,
       });
+      // Wait before allowing next send
+      await sleep(retryAfterMs);
+      lastSentTimestamp = Date.now();
       return;
     }
+    // Log other errors but don't throw
+    debugLog.error('general', 'Failed to send presence to server', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return;
   }
 
   // Also update classic sync presence param

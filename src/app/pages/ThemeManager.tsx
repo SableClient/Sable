@@ -80,10 +80,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   const [enabledTweakUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
 
   useEffect(() => {
-    // Wait for settings to initialize to prevent theme flashing when
-    // account data overrides localStorage settings
-    if (!settingsInitialized) return;
-
+    syncDocumentThemeMetadata(activeTheme.kind);
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
     document.body.classList.add(...activeTheme.classNames);

@@ -321,12 +321,6 @@ export class SlidingSyncManager {
 
   private readonly activeRoomSubscriptions = new Set<string>();
 
-  /** Rooms that have been actively opened/viewed in this session. Never reset these. */
-  private readonly visitedRoomsThisSession = new Set<string>();
-
-  /** Rooms currently in a PTR refresh cycle - allow resets for these. */
-  private readonly ptrRefreshRooms = new Set<string>();
-
   private roomSubscriptionFlushTimer: ReturnType<typeof setTimeout> | undefined;
 
   private lastFlushedRoomSubscriptionsKey = '';

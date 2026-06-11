@@ -753,6 +753,9 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
     anchor: RectCords;
   }>();
   const [renameTargetFolder, setRenameTargetFolder] = useState<ISidebarFolder>();
+  const [baseHiddenSpaces] = useSetting(settingsAtom, 'hiddenSpaces');
+  const [isHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
+  const hiddenSpaces = isHidingRooms ? baseHiddenSpaces : undefined;
 
   const handleFolderContextMenu = useCallback(
     (folder: ISidebarFolder): MouseEventHandler =>
@@ -957,7 +960,24 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
     [mx, sidebarItems, orphanSpaces, localEchoSidebarItem]
   );
 
-  if (sidebarItems.length === 0) return null;
+  //This is a negative filter, so everything that IS inside of the 'filter' argument gets filtered OUT of the list
+  function handleFilterSpaces(list: SidebarItems, filter: string[] | undefined) {
+    if (filter?.length === 0) return list;
+    let spaces: TSidebarItem[] = [];
+    list.forEach((item) => {
+      if (typeof item === 'object') {
+        const filterSubSpaces = item.content.filter((sId) => !filter?.includes(sId));
+        if (filterSubSpaces.length) {
+          let folder = item;
+          folder.content = filterSubSpaces;
+          spaces.push(folder);
+        }
+      } else if (!filter?.includes(item)) spaces.push(item);
+    });
+    return spaces;
+  }
+  const filteredSidebarItems = handleFilterSpaces(sidebarItems, hiddenSpaces);
+  if (filteredSidebarItems.length === 0) return null;
   return (
     <>
       {folderMenuState && (
@@ -998,7 +1018,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
       )}
       <SidebarStackSeparator />
       <SidebarStack>
-        {sidebarItems.map((item) => {
+        {filteredSidebarItems.map((item) => {
           if (typeof item === 'object') {
             if (openedFolder.has(item.id)) {
               return (

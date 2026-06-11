@@ -225,6 +225,9 @@ export function Home() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
 
+  const [hiddenRooms] = useSetting(settingsAtom, 'hiddenRooms');
+  const [isHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
+
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   useEffect(() => {
@@ -250,11 +253,13 @@ export function Home() {
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
   const sortedRooms = useMemo(() => {
-    const items = Array.from(rooms).toSorted(
+    let items = Array.from(rooms).toSorted(
       closedCategories.has(DEFAULT_CATEGORY_ID) || isShowingAllRoomsInHome
         ? factoryRoomIdByActivity(mx)
         : factoryRoomIdByAtoZ(mx)
     );
+
+    if (isHidingRooms) items = items.filter((rId) => !hiddenRooms.includes(rId));
     const hasUnread = (roomId: string) => {
       const unread = roomToUnread.get(roomId);
       return !!unread && (unread.total > 0 || unread.highlight > 0);
@@ -263,7 +268,16 @@ export function Home() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId, isShowingAllRoomsInHome]);
+  }, [
+    mx,
+    rooms,
+    closedCategories,
+    roomToUnread,
+    selectedRoomId,
+    hiddenRooms,
+    isHidingRooms,
+    isShowingAllRoomsInHome,
+  ]);
 
   const virtualizer = useVirtualizer({
     count: sortedRooms.length,

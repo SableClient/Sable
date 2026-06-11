@@ -50,6 +50,10 @@ import { SettingTile } from '$components/setting-tile';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { roomToChildrenAtom } from '$state/room/roomToChildren';
+import { useAtomValue } from 'jotai';
 
 export function ServerChip({
   server,
@@ -368,6 +372,32 @@ export function MutualRoomsChip({
 
   const [cords, setCords] = useState<RectCords>();
 
+  const [isHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
+  const [hiddenRooms] = useSetting(settingsAtom, 'hiddenRooms');
+  const [hiddenSpaces] = useSetting(settingsAtom, 'hiddenSpaces');
+  const roomToChildren = useAtomValue(roomToChildrenAtom);
+  const baseMutualRooms = useMemo(() => {
+    if (mutualRoomsState.status === AsyncStatus.Success) {
+      if (!isHidingRooms) return mutualRoomsState.data;
+      let hideList = new Set<string>();
+      for (const item of mutualRoomsState.data) {
+        if (hiddenRooms.includes(item)) {
+          hideList.add(item);
+          continue;
+        }
+        if (hiddenSpaces.includes(item)) {
+          hideList.add(item);
+          const childrenSet = roomToChildren.get(item);
+          if (childrenSet) {
+            hideList = hideList.union(childrenSet);
+          }
+        }
+      }
+      return mutualRoomsState.data.filter((item) => !hideList.has(item));
+    }
+    return [];
+  }, [isHidingRooms, hiddenRooms, hiddenSpaces, mutualRoomsState, roomToChildren]);
+
   const open: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setCords(evt.currentTarget.getBoundingClientRect());
   };
@@ -382,7 +412,7 @@ export function MutualRoomsChip({
     };
 
     if (mutualRoomsState.status === AsyncStatus.Success) {
-      const mutualRooms = mutualRoomsState.data
+      const mutualRooms = baseMutualRooms
         .toSorted(factoryRoomIdByAtoZ(mx))
         .map(getRoom)
         .filter((room) => !!room);
@@ -399,7 +429,7 @@ export function MutualRoomsChip({
       });
     }
     return data;
-  }, [mutualRoomsState, getRoom, directs, mx]);
+  }, [mutualRoomsState, getRoom, directs, mx, baseMutualRooms]);
 
   if (
     userId === mx.getSafeUserId() ||
@@ -541,9 +571,7 @@ export function MutualRoomsChip({
         variant={cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
         before={mutualRoomsState.status === AsyncStatus.Loading && <Spinner size="50" />}
-        disabled={
-          mutualRoomsState.status !== AsyncStatus.Success || mutualRoomsState.data.length === 0
-        }
+        disabled={mutualRoomsState.status !== AsyncStatus.Success || baseMutualRooms.length === 0}
         onClick={open}
         aria-pressed={!!cords}
         className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
@@ -554,7 +582,7 @@ export function MutualRoomsChip({
       >
         <Text size="B300" style={{ color: textColor }}>
           {mutualRoomsState.status === AsyncStatus.Success &&
-            `${mutualRoomsState.data.length} Mutual Rooms`}
+            `${baseMutualRooms.length} Mutual Rooms`}
           {mutualRoomsState.status === AsyncStatus.Loading && 'Mutual Rooms'}
         </Text>
       </Chip>

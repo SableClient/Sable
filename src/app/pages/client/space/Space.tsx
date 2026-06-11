@@ -518,6 +518,10 @@ export function Space() {
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
+  const [hiddenRooms] = useSetting(settingsAtom, 'hiddenRooms');
+  const [hiddenSpaces] = useSetting(settingsAtom, 'hiddenSpaces');
+  const [isHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
+
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   useEffect(() => {
@@ -780,7 +784,7 @@ export function Space() {
     );
   };
 
-  const hierarchy = useSpaceJoinedHierarchy(
+  const baseHierarchy = useSpaceJoinedHierarchy(
     space.roomId,
     getRoom,
     useCallback(
@@ -814,6 +818,15 @@ export function Space() {
       [getInClosedCategories, space.roomId]
     )
   );
+  const hierarchy = isHidingRooms
+    ? baseHierarchy.filter(
+        (item) =>
+          (!hiddenRooms.includes(item.roomId) &&
+            !hiddenSpaces.includes(item.roomId) &&
+            (!item.parentId || !hiddenSpaces.includes(item.parentId))) ||
+          item.roomId === selectedRoomId
+      )
+    : baseHierarchy;
 
   const virtualizer = useVirtualizer({
     count: hierarchy.length,

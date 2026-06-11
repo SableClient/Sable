@@ -12,6 +12,7 @@ import {
   MenuItem,
   PopOut,
   type RectCords,
+  Switch,
 } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -98,11 +99,35 @@ export function SelectShowPerRoomRoomIcon({ roomId }: { roomId: string }) {
   );
 }
 
+export function SelectHideRoom({ roomId, isSpace }: { roomId: string; isSpace?: boolean }) {
+  const [hideRoom, setHideRoom] = useSetting(
+    settingsAtom,
+    isSpace ? 'hiddenSpaces' : 'hiddenRooms'
+  );
+  const isHidden = hideRoom.includes(roomId);
+
+  function handleHideRoom() {
+    const newHideRoomList = !isHidden
+      ? [...hideRoom, roomId]
+      : hideRoom.filter((roomItem) => roomItem !== roomId);
+    setHideRoom(newHideRoomList);
+  }
+
+  return (
+    <SettingTile
+      title="Add Room to Hide list"
+      description="Should this room be hidden upon enabling the Hide Rooms option?"
+      after={<Switch variant="Primary" value={isHidden} onChange={handleHideRoom} />}
+    />
+  );
+}
+
 type AppearanceProps = {
   requestClose: () => void;
 };
 export function Appearance({ requestClose }: AppearanceProps) {
   const room = useRoom();
+  const isSpace = room.isSpaceRoom();
 
   return (
     <Page>
@@ -126,16 +151,25 @@ export function Appearance({ requestClose }: AppearanceProps) {
             <Box direction="Column" gap="700">
               <Box direction="Column" gap="100">
                 <Text size="L400">Visual Tweaks</Text>
+                {isSpace && (
+                  <SequenceCard
+                    className={SequenceCardStyle}
+                    variant="SurfaceVariant"
+                    direction="Column"
+                  >
+                    <SettingTile
+                      title="Show Room Icons In Sidebar"
+                      description="When do you want to show the specific room icons in the sidebar within this space?"
+                      after={<SelectShowPerRoomRoomIcon roomId={room.roomId} />}
+                    />
+                  </SequenceCard>
+                )}
                 <SequenceCard
                   className={SequenceCardStyle}
                   variant="SurfaceVariant"
                   direction="Column"
                 >
-                  <SettingTile
-                    title="Show Room Icons In Sidebar"
-                    description="When do you want to show the specific room icons in the sidebar within this space?"
-                    after={<SelectShowPerRoomRoomIcon roomId={room.roomId} />}
-                  />
+                  <SelectHideRoom roomId={room.roomId} isSpace={isSpace} />
                 </SequenceCard>
               </Box>
             </Box>

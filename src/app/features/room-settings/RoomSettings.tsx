@@ -23,6 +23,7 @@ import { useSetting } from '$state/hooks/settings';
 import { Permissions } from './permissions';
 import { General } from './general';
 import { RoomAbbreviations } from './abbreviations/RoomAbbreviations';
+import { Appearance } from '$features/common-settings/appearance/Appearance';
 
 type RoomSettingsMenuItem = {
   page: RoomSettingsPage;
@@ -69,6 +70,12 @@ const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
         page: RoomSettingsPage.DeveloperToolsPage,
         name: 'Developer Tools',
         icon: Icons.Terminal,
+      },
+      {
+        page: RoomSettingsPage.AppearancePage,
+        name: 'Appearance',
+        icon: Icons.Alphabet,
+        activeIcon: Icons.AlphabetUnderline,
       },
     ],
     []
@@ -208,6 +215,9 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
         )}
         {activePage === RoomSettingsPage.AbbreviationsPage && (
           <RoomAbbreviations requestClose={handlePageRequestClose} />
+        )}
+        {activePage === RoomSettingsPage.AppearancePage && (
+          <Appearance requestClose={handlePageRequestClose} />
         )}
       </PageRoot>
     </SwipeableOverlayWrapper>

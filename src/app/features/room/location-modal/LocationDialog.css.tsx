@@ -11,10 +11,16 @@ export const LocationDialogHeader = style({
   padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
   borderBottomWidth: config.borderWidth.B300,
 });
-export const LocationDialogTitle = style({
+export const LocationDialogItems = style({
   padding: config.space.S400,
   alignItems: 'center',
   textAlign: 'center',
+});
+export const LocationDialogButtons = style({
+  width: '100%',
+});
+export const LocationDialogErrorText = style({
+  color: color.Critical.Main,
 });
 export const LocationInputs = style({
   width: '100%',
@@ -40,14 +46,10 @@ export const LocationInputClipboard = style({
   justifyContent: 'center',
   flexShrink: '1',
 });
-export const LocationDialogAnswerInput = style({ width: '100%' });
-
-export const LocationDialogMaxSelectionSlider = style({
+export const LocationMapBody = style({
   width: '100%',
-  cursor: 'pointer',
-  appearance: 'none',
-  height: toRem(6),
-  borderRadius: config.radii.Pill,
-  backgroundColor: color.Background.ContainerLine,
-  accentColor: color.Primary.Main,
+  height: toRem(400),
+  borderRadius: config.radii.R400,
+  overflow: 'hidden',
 });
+export const LocationMapContainer = style({ width: '100%', height: '100%' });

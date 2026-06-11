@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useMemo } from 'react';
-import { Box, Chip, color, Icon, Icons, Text, toRem, config } from 'folds';
+import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
 import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
 import { JUMBO_EMOJI_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
@@ -39,6 +39,7 @@ import { copyToClipboard } from '$utils/dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import * as css from './MsgTypeRenderers.css';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -653,12 +654,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
   return (
     <Box
       direction="Column"
-      style={{
-        maxWidth: toRem(500),
-        backgroundColor: color.SurfaceVariant.Container,
-        borderRadius: config.radii.R500,
-        overflow: 'hidden',
-      }}
+      className={css.LocationRendererBody}
       onPointerMove={(evt) => evt.stopPropagation()}
     >
       <Box
@@ -666,13 +662,14 @@ export function MLocation({ content, showMaps }: MLocationProps) {
         alignItems="Center"
         gap="100"
         justifyContent="SpaceBetween"
-        style={{ padding: config.space.S200 }}
+        className={css.LocationRendererHeader}
       >
         <Chip
           size="400"
           variant="SurfaceVariant"
           onClick={() => copyToClipboard(`${location.latitude}, ${location.longitude}`)}
           before={<Icon size="50" src={Icons.Link} />}
+          className={css.LocationCoordsChip}
         >
           <Text size="T400">{`${location.latitude}, ${location.longitude}`}</Text>
         </Chip>
@@ -685,7 +682,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
           rel="noreferrer noopener"
           variant="Primary"
           radii="Pill"
-          style={{ flexShrink: '0' }}
+          className={css.LocationExternalChip}
           before={<Icon src={Icons.External} size="50" />}
         >
           <Text size="B300">Open Location</Text>
@@ -696,7 +693,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
           center={coords}
           zoom={16}
           scrollWheelZoom={true}
-          style={{ height: toRem(400) }}
+          className={css.LocationMapContainer}
           attributionControl
         >
           <TileLayer

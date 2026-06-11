@@ -13,10 +13,7 @@ import {
   Icons,
   Button,
   Input,
-  toRem,
-  config,
   Chip,
-  color,
 } from 'folds';
 import { ClipboardIcon, MapPinAreaIcon, MapPinLineIcon } from '@phosphor-icons/react';
 import { stopPropagation } from '$utils/keyboard';
@@ -278,8 +275,8 @@ export function LocationDialog({
                 <Icon src={Icons.Cross} />
               </IconButton>
             </Header>
-            <Box direction="Column" gap="200" className={css.LocationDialogTitle}>
-              <Box direction="Row" style={{ width: '100%' }}>
+            <Box direction="Column" gap="200" className={css.LocationDialogItems}>
+              <Box direction="Row" className={css.LocationDialogButtons}>
                 <Chip
                   variant={
                     locationError === locationErrors.none ||
@@ -303,7 +300,7 @@ export function LocationDialog({
                 </Chip>
               </Box>
               {locationError !== locationErrors.none && (
-                <Box style={{ color: color.Critical.Main }}>
+                <Box className={css.LocationDialogErrorText}>
                   <Icon size="50" src={Icons.Warning} />
                   <Text size="L400">{locationError}</Text>
                 </Box>
@@ -341,19 +338,12 @@ export function LocationDialog({
                 </Box>
               </Box>
               {showMaps && (
-                <Box
-                  style={{
-                    width: '100%',
-                    height: toRem(400),
-                    borderRadius: config.radii.R400,
-                    overflow: 'hidden',
-                  }}
-                >
+                <Box className={css.LocationMapBody}>
                   <MapContainer
                     center={initCoords}
                     zoom={zoom.current}
                     scrollWheelZoom={true}
-                    style={{ width: '100%', height: '100%' }}
+                    className={css.LocationMapContainer}
                     ref={setMap}
                   >
                     <TileLayer

@@ -313,6 +313,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
                 type="submit"
                 variant="Primary"
                 onClick={handleSubmit}
+                fill="Soft"
                 title="Create Poll"
                 aria-label="Create Poll"
               >

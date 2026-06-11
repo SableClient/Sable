@@ -298,7 +298,13 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
                   : ''}
               </Text>
               {!isEnded && canEnd && (
-                <Button size="300" radii="400" variant="Critical" onClick={handleEndVote}>
+                <Button
+                  size="300"
+                  radii="400"
+                  variant="Critical"
+                  fill="Soft"
+                  onClick={handleEndVote}
+                >
                   End Poll
                 </Button>
               )}

@@ -44,7 +44,9 @@ function getInitialMembers(
 
 /**
  * Fetches member information for a group DM.
- * Gets all joined members from room state and fetches their profiles.
+ * Gets already-synced joined members from room state and fetches their profiles.
+ * This hook is used by room-list previews, so it must not call
+ * loadMembersIfNeeded() for every rendered group DM.
  * Sorts members by who last sent messages (most recent first), with members who haven't sent messages last.
  */
 export const useGroupDMMembers = (
@@ -70,10 +72,8 @@ export const useGroupDMMembers = (
       try {
         const currentUserId = mx.getUserId();
 
-        // Load members from server if needed (handles lazy-loading)
-        await room.loadMembersIfNeeded();
-
-        // Now get all members
+        // Use local member state only. Fetching full members here causes an
+        // N+1 /members request pattern while rendering room lists.
         const allMembers = room.getMembers();
 
         const allUserIds = allMembers

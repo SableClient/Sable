@@ -292,6 +292,46 @@ describe('fetchMediaBlob', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it('falls back to direct auth when Safari cannot read a service worker media body', async () => {
+    platform.hasControllingServiceWorker.mockReturnValue(true);
+    const { fetchMediaBlob } = await import('./mediaTransport');
+    const url = 'https://example.org/auth-media.png';
+    const swResponse = new Response('sw ok', { status: 200 });
+    const headersSeen: Array<string | null> = [];
+    const cacheModesSeen: Array<RequestCache | undefined> = [];
+
+    vi.spyOn(swResponse, 'blob').mockRejectedValueOnce(new TypeError('Load failed'));
+    localStorage.setItem(
+      'matrixSessions',
+      JSON.stringify([
+        {
+          baseUrl: 'https://matrix.example.org',
+          userId: '@alice:example.org',
+          deviceId: 'DEVICE',
+          accessToken: 'token-1',
+        },
+      ])
+    );
+    localStorage.setItem('matrixActiveSession', '@alice:example.org');
+
+    vi.mocked(fetch).mockImplementation(async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      headersSeen.push(headers.get('authorization'));
+      cacheModesSeen.push(init?.cache);
+      if (headersSeen.length === 1) {
+        return swResponse;
+      }
+      return new Response('direct ok', { status: 200 });
+    });
+
+    const blob = await fetchMediaBlob(url);
+
+    expect(await blob.text()).toBe('direct ok');
+    expect(headersSeen).toEqual([null, 'Bearer token-1']);
+    expect(cacheModesSeen).toEqual(['default', 'reload']);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('bypasses the service worker path when explicit auth overrides are provided', async () => {
     platform.hasControllingServiceWorker.mockReturnValue(true);
     const { fetchMediaBlob } = await import('./mediaTransport');

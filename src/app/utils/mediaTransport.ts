@@ -153,6 +153,11 @@ function isRetryableAuthError(response: Response): boolean {
   return response.status === 401 || response.status === 403;
 }
 
+function isResponseBodyReadError(error: unknown): boolean {
+  if (!(error instanceof TypeError)) return false;
+  return /load failed|network/i.test(error.message);
+}
+
 async function fetchMediaResponse(
   url: string,
   accessToken?: string | null,
@@ -194,21 +199,37 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     }
     return blob;
   };
+  const fetchAndCacheViaDirectAuth = async (): Promise<Blob | undefined> => {
+    const directAccessToken = resolveAccessToken(options);
+    if (!directAccessToken) return undefined;
+
+    const directCacheMode = cacheMode === 'default' ? 'reload' : cacheMode;
+    return fetchAndCache(await fetchMediaResponse(url, directAccessToken, directCacheMode));
+  };
+  const fetchAndCacheFromServiceWorker = async (response: Response): Promise<Blob> => {
+    try {
+      return await fetchAndCache(response);
+    } catch (error) {
+      if (response.ok && isResponseBodyReadError(error)) {
+        const directBlob = await fetchAndCacheViaDirectAuth();
+        if (directBlob) return directBlob;
+      }
+      throw error;
+    }
+  };
 
   if (useServiceWorker) {
     const response = await fetchMediaResponse(url, undefined, cacheMode);
     if (response.ok || !isRetryableAuthError(response)) {
-      return fetchAndCache(response);
+      return fetchAndCacheFromServiceWorker(response);
     }
     const retryResponse = await fetchMediaResponse(url, undefined, cacheMode);
     if (retryResponse.ok || !isRetryableAuthError(retryResponse)) {
-      return fetchAndCache(retryResponse);
+      return fetchAndCacheFromServiceWorker(retryResponse);
     }
 
-    const directAccessToken = resolveAccessToken(options);
-    if (directAccessToken) {
-      return fetchAndCache(await fetchMediaResponse(url, directAccessToken, cacheMode));
-    }
+    const directBlob = await fetchAndCacheViaDirectAuth();
+    if (directBlob) return directBlob;
 
     return fetchAndCache(retryResponse);
   }

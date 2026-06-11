@@ -61,7 +61,7 @@ export const PageNavContent = style({
   minHeight: '100%',
   paddingTop: config.space.S200,
   paddingLeft: config.space.S200,
-  paddingBottom: config.space.S700,
+  paddingBottom: config.space.S200,
 });
 
 export const PageHeader = recipe({

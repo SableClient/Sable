@@ -195,25 +195,8 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const indexEvent = useCallback(
     (mEvent: MatrixEvent, room: Room) => {
       const handleDecrypted = () => {
-        try {
-          const ev = toIndexableEvent(mEvent, room.roomId);
-          if (ev) postToWorker({ type: 'INDEX_EVENTS', events: [ev] });
-        } catch (e) {
-          // Skip events that fail to process without halting live indexing
-          console.warn(
-            `[search-index] Failed to index live event ${mEvent.getId()} in room ${room.roomId}:`,
-            e
-          );
-          Sentry.captureException(e, {
-            level: 'warning',
-            tags: { component: 'search-index', failure_stage: 'live_event_indexing' },
-            extra: {
-              eventId: mEvent.getId(),
-              eventType: mEvent.getType(),
-              roomId: room.roomId,
-            },
-          });
-        }
+        const ev = toIndexableEvent(mEvent, room.roomId);
+        if (ev) postToWorker({ type: 'INDEX_EVENTS', events: [ev] });
       };
 
       if (mEvent.getType() === 'm.room.encrypted') {
@@ -345,32 +328,13 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
       const events: IndexableEvent[] = [];
       for (const ev of unindexedEvents) {
-        try {
-          if (ev.getType() === 'm.room.encrypted') {
-            // Still encrypted — re-use the live-indexing path which registers a
-            // Decrypted listener so the event is indexed once keys arrive.
-            indexEvent(ev, room);
-          } else {
-            const indexable = toIndexableEvent(ev, room.roomId);
-            if (indexable) events.push(indexable);
-          }
-        } catch (e) {
-          // Skip events that fail to process (e.g., media fetch errors, malformed content)
-          // without aborting the entire backfill. Log for debugging.
-          console.warn(
-            `[search-index] Failed to index event ${ev.getId()} in room ${room.roomId}:`,
-            e
-          );
-          Sentry.captureException(e, {
-            level: 'warning',
-            tags: { component: 'search-index', failure_stage: 'event_indexing' },
-            extra: {
-              eventId: ev.getId(),
-              eventType: ev.getType(),
-              roomId: room.roomId,
-            },
-          });
-          continue;
+        if (ev.getType() === 'm.room.encrypted') {
+          // Still encrypted — re-use the live-indexing path which registers a
+          // Decrypted listener so the event is indexed once keys arrive.
+          indexEvent(ev, room);
+        } else {
+          const indexable = toIndexableEvent(ev, room.roomId);
+          if (indexable) events.push(indexable);
         }
       }
 
@@ -628,44 +592,12 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       data: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
     });
 
-    let worker: Worker;
-    try {
-      worker = new Worker(new URL('../plugins/search-worker/searchWorker.ts', import.meta.url), {
-        type: 'module',
-      });
-    } catch (e) {
-      // Worker failed to load — likely a missing or mis-served asset (404 → HTML)
-      const errorMsg = `Search worker failed to instantiate: ${e instanceof Error ? e.message : String(e)}`;
-      setInitError(errorMsg);
-      Sentry.captureException(e, {
-        level: 'error',
-        tags: { component: 'search-index', failure_stage: 'worker_instantiation' },
-        extra: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
-      });
-      return () => {};
-    }
-
+    const worker = new Worker(
+      new URL('../plugins/search-worker/searchWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
     workerRef.current = worker;
     worker.addEventListener('message', handleWorkerMessage);
-
-    // Handle worker runtime errors (e.g., MIME type errors from failed imports)
-    const handleWorkerError = (error: ErrorEvent) => {
-      const errorMsg = `Search worker runtime error: ${error.message}`;
-      setInitError(errorMsg);
-      setIsReady(false);
-      Sentry.captureException(error.error || new Error(error.message), {
-        level: 'error',
-        tags: { component: 'search-index', failure_stage: 'worker_runtime' },
-        extra: {
-          userId,
-          maxMessagesPerRoom: searchIndexMessageLimit,
-          filename: error.filename,
-          lineno: error.lineno,
-          colno: error.colno,
-        },
-      });
-    };
-    worker.addEventListener('error', handleWorkerError);
 
     // Set a timeout to detect if the worker never sends READY
     const initTimeout = setTimeout(() => {
@@ -688,6 +620,13 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     };
     worker.removeEventListener('message', handleWorkerMessage);
     worker.addEventListener('message', wrappedHandler as EventListener);
+
+    Sentry.addBreadcrumb({
+      category: 'search.index',
+      message: 'INIT sent to worker',
+      level: 'info',
+      data: { userId, maxMessagesPerRoom: searchIndexMessageLimit },
+    });
 
     postToWorker({
       type: 'INIT',
@@ -754,7 +693,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       // force-terminate regardless so the cleanup never hangs.
       clearTimeout(initTimeout);
       worker.removeEventListener('message', wrappedHandler as EventListener);
-      worker.removeEventListener('error', handleWorkerError);
       postToWorker({ type: 'FLUSH' });
       const terminateTimeout = setTimeout(() => {
         worker.terminate();
@@ -839,31 +777,19 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const query = useCallback(
     (
       term: string,
-      opts?: { roomIds?: string[]; senders?: string[]; hasTypes?: string[]; exactMatch?: boolean }
+      opts?: { roomIds?: string[]; senders?: string[]; hasTypes?: string[] }
     ): Promise<IndexableEvent[]> => {
       if (!workerRef.current || !isReady) return Promise.resolve([]);
-
-      // Parse term for exact match (wrapped in double quotes)
-      let searchTerm = term;
-      let isExactMatch = opts?.exactMatch ?? false;
-
-      if (!isExactMatch && term.startsWith('"') && term.endsWith('"') && term.length > 1) {
-        // Strip quotes for exact match
-        searchTerm = term.slice(1, -1);
-        isExactMatch = true;
-      }
-
       const id = crypto.randomUUID();
       return new Promise((resolve, reject) => {
         pendingQueriesRef.current.set(id, { resolve, reject });
         postToWorker({
           type: 'QUERY',
           id,
-          term: searchTerm,
+          term,
           roomIds: opts?.roomIds,
           senders: opts?.senders,
           hasTypes: opts?.hasTypes,
-          exactMatch: isExactMatch,
         });
       });
     },

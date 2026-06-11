@@ -10,36 +10,9 @@ import type { IndexableEvent, BackfillState, WorkerInMessage, WorkerOutMessage }
 
 // ── IDB helpers ─────────────────────────────────────────────────────────────
 
-/**
- * Check if IndexedDB is available and functional.
- * Returns error message if unavailable, null if available.
- */
-function checkIndexedDBAvailability(): string | null {
-  if (typeof indexedDB === 'undefined') {
-    return 'IndexedDB not available (browser does not support it)';
-  }
-  // Check if we're in a context where IDB might be blocked
-  try {
-    // Try to access indexedDB.open - will throw in some contexts
-    if (!indexedDB.open) {
-      return 'IndexedDB.open not available';
-    }
-  } catch (e) {
-    return `IndexedDB blocked: ${e instanceof Error ? e.message : String(e)}`;
-  }
-  return null;
-}
-
 function openDb(dbName: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    let req: IDBOpenDBRequest;
-    try {
-      req = indexedDB.open(dbName, 3);
-    } catch (e) {
-      // Immediate error on open() call (SecurityError, etc.)
-      reject(new Error(`IndexedDB.open() threw: ${e instanceof Error ? e.message : String(e)}`));
-      return;
-    }
+    const req = indexedDB.open(dbName, 3);
     req.onupgradeneeded = (event) => {
       const db = req.result;
       const oldVersion = event.oldVersion;
@@ -63,26 +36,7 @@ function openDb(dbName: string): Promise<IDBDatabase> {
       }
     };
     req.addEventListener('success', () => resolve(req.result));
-    req.addEventListener('error', () => {
-      const error = req.error || new Error('Unknown IDB error');
-      // @ts-expect-error - attach original request for debugging
-      error.idbRequest = { readyState: req.readyState };
-      reject(error);
-    });
-    req.addEventListener('blocked', () => {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `[SearchWorker] IDB open blocked: ${dbName} - another connection open elsewhere`
-      );
-      // Don't reject immediately - browser may unblock it
-    });
-
-    // 15s timeout for IDB open (handles hung connections)
-    setTimeout(() => {
-      if (req.readyState !== 'done') {
-        reject(new Error(`IndexedDB.open() timeout (15s) - readyState: ${req.readyState}`));
-      }
-    }, 15000);
+    req.addEventListener('error', () => reject(req.error));
   });
 }
 
@@ -270,7 +224,7 @@ function instrumentIDB(idb: IDBDatabase, dbName: string): void {
   idb.addEventListener('close', () => {
     // eslint-disable-next-line no-console
     console.error(`[SearchWorker] IDB connection closed unexpectedly: ${dbName}`);
-    post({
+    postMessage({
       type: '_sentry_breadcrumb',
       category: 'idb',
       message: 'IDB connection closed unexpectedly',
@@ -286,7 +240,7 @@ function instrumentIDB(idb: IDBDatabase, dbName: string): void {
       event.oldVersion,
       event.newVersion
     );
-    post({
+    postMessage({
       type: '_sentry_breadcrumb',
       category: 'idb',
       message: 'IDB version change requested',
@@ -305,30 +259,6 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
     data: { userId, maxPerRoom },
   });
 
-  // Check IndexedDB availability before attempting to use it
-  const idbError = checkIndexedDBAvailability();
-  if (idbError) {
-    post({
-      type: '_sentry_breadcrumb',
-      category: 'search.worker',
-      message: 'IndexedDB not available',
-      level: 'error',
-      data: { error: idbError },
-    });
-    post({
-      type: '_sentry_exception',
-      error: new Error(idbError),
-      tags: { search_operation: 'idb_availability_check' },
-      contexts: {
-        search: {
-          userId,
-          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-        },
-      },
-    });
-    throw new Error(idbError);
-  }
-
   maxMessagesPerRoom = maxPerRoom;
   const dbName = `sable-search-${userId}`;
 
@@ -343,15 +273,6 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
   try {
     db = await openDb(dbName);
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    const errorName = err instanceof Error ? err.name : 'UnknownError';
-    const isQuotaError =
-      errorName === 'QuotaExceededError' || errorMessage.toLowerCase().includes('quota');
-    const isSecurityError =
-      errorName === 'SecurityError' || errorMessage.toLowerCase().includes('security');
-    const isVersionError =
-      errorName === 'VersionError' || errorMessage.toLowerCase().includes('version');
-
     post({
       type: '_sentry_breadcrumb',
       category: 'search.worker',
@@ -359,37 +280,15 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
       level: 'error',
       data: {
         dbName,
-        error: errorMessage,
-        errorName,
-        isQuotaError,
-        isSecurityError,
-        isVersionError,
+        error: err instanceof Error ? err.message : String(err),
       },
     });
-    // Also capture as exception with enhanced context
+    // Also capture as exception
     post({
       type: '_sentry_exception',
       error: err instanceof Error ? err : new Error(String(err)),
-      tags: {
-        search_operation: 'idb_open',
-        idb_error_type: errorName,
-        is_quota_error: String(isQuotaError),
-        is_security_error: String(isSecurityError),
-      },
-      contexts: {
-        search: {
-          dbName,
-          errorName,
-          errorMessage,
-          hint: isQuotaError
-            ? 'Storage quota exceeded - user needs to clear browser data or increase quota'
-            : isSecurityError
-              ? 'SecurityError - likely private/incognito mode or cross-origin issue'
-              : isVersionError
-                ? 'Database version mismatch - corrupted or concurrent access'
-                : 'Generic IDB error',
-        },
-      },
+      tags: { search_operation: 'idb_open' },
+      contexts: { search: { dbName } },
     });
     throw err;
   }
@@ -593,8 +492,7 @@ function handleQuery(
   term: string,
   roomIds?: string[],
   senders?: string[],
-  hasTypes?: string[],
-  exactMatch?: boolean
+  hasTypes?: string[]
 ): void {
   if (!index) {
     post({ type: 'QUERY_RESULT', id, events: [] });
@@ -620,30 +518,11 @@ function handleQuery(
     return;
   }
 
-  // Override search options for exact match (disable fuzzy)
-  const searchOptions = exactMatch
-    ? {
-        fuzzy: false,
-        prefix: false,
-        filter: (r: unknown) => matchesFilters(r as IndexableEvent),
-      }
-    : {
-        filter: (r: unknown) => matchesFilters(r as IndexableEvent),
-      };
+  const rawResults = index.search(term, {
+    filter: (r) => matchesFilters(r as unknown as IndexableEvent),
+  }) as unknown as IndexableEvent[];
 
-  const rawResults = index.search(term, searchOptions) as unknown as IndexableEvent[];
-
-  // For exact match, post-filter to ensure the phrase appears in the body
-  // MiniSearch tokenizes even with fuzzy:false, so we need to verify the actual phrase
-  const results = exactMatch
-    ? rawResults.filter((ev) => {
-        const body = typeof ev.body === 'string' ? ev.body : String(ev.body ?? '');
-        // Case-insensitive phrase search
-        return body.toLowerCase().includes(term.toLowerCase());
-      })
-    : rawResults;
-
-  post({ type: 'QUERY_RESULT', id, events: results });
+  post({ type: 'QUERY_RESULT', id, events: rawResults });
 }
 
 async function handleSetBackfillState(roomId: string, state: BackfillState): Promise<void> {
@@ -716,7 +595,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
       handleIndexEvents(msg.events);
       break;
     case 'QUERY':
-      handleQuery(msg.id, msg.term, msg.roomIds, msg.senders, msg.hasTypes, msg.exactMatch);
+      handleQuery(msg.id, msg.term, msg.roomIds, msg.senders, msg.hasTypes);
       break;
     case 'SET_BACKFILL_STATE':
       void handleSetBackfillState(msg.roomId, msg.state);

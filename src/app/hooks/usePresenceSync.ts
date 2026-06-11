@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
 import type { MatrixEvent, MatrixClient } from '$types/matrix-sdk';
 import { SetPresence, MatrixError } from '$types/matrix-sdk';
+import * as Sentry from '@sentry/react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
@@ -28,6 +29,9 @@ const sleep = (ms: number) =>
 
 /** Timestamp (ms) of the last successful presence send. */
 let lastSentTimestamp = 0;
+
+/** Module-level debounce timer - survives component remounts and navigation. */
+let presenceDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 type PresenceState = {
   /** The selected presence mode: 'online' | 'unavailable' | 'dnd' | 'offline' */
@@ -196,11 +200,14 @@ export function usePresenceSyncEffect(): void {
   useAccountDataCallback(mx, onAccountData);
 
   // Debounced upload whenever presence or auto-idle changes
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     if (!syncEnabled) return undefined;
 
-    clearTimeout(timerRef.current);
+    // Clear any existing module-level timer
+    if (presenceDebounceTimer !== null) {
+      clearTimeout(presenceDebounceTimer);
+      presenceDebounceTimer = null;
+    }
 
     // Use fast debounce for activity events (idle→online) to ensure rapid multi-device sync.
     // Use longer debounce for idle events to avoid rate limiting.
@@ -208,7 +215,7 @@ export function usePresenceSyncEffect(): void {
     const isActivityEvent = wasIdled && !autoIdled;
     const debounceMs = isActivityEvent ? ACTIVITY_DEBOUNCE_MS : DEBOUNCE_MS;
 
-    timerRef.current = setTimeout(() => {
+    presenceDebounceTimer = setTimeout(() => {
       const token = Math.random().toString(36).slice(2, 10);
       pendingEchoTokenRef.current = token;
 
@@ -260,7 +267,12 @@ export function usePresenceSyncEffect(): void {
       );
     }, debounceMs);
 
-    return () => clearTimeout(timerRef.current);
+    return () => {
+      if (presenceDebounceTimer !== null) {
+        clearTimeout(presenceDebounceTimer);
+        presenceDebounceTimer = null;
+      }
+    };
   }, [mx, presenceMode, autoIdled, syncEnabled, settings.presenceStatusMsg]);
 }
 
@@ -337,6 +349,13 @@ async function sendPresenceToServer(
       debugLog.warn('general', 'Presence rate limited (429), backing off', {
         retryAfterMs,
       });
+
+      Sentry.captureMessage('Presence rate limited', {
+        level: 'warning',
+        tags: { component: 'presence-sync' },
+        extra: { retryAfterMs, userId: mx.getUserId() },
+      });
+
       // Wait before allowing next send
       await sleep(retryAfterMs);
       lastSentTimestamp = Date.now();

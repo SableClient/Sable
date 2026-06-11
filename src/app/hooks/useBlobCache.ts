@@ -4,10 +4,6 @@ import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('blob-cache');
 
-const CACHE_NAME = 'sable-media-v1';
-const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const MAX_CACHE_SIZE_MB = 500; // Configurable limit
-
 const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();
 const authFailedUrls = new Set<string>(); // Track URLs that failed with 401
@@ -300,29 +296,10 @@ export function useBlobCache(url?: string): string | undefined {
   // Subscribe to SW controller restoration so this hook retries if the URL
   // previously failed only because the SW had no session yet.
   useEffect(() => {
-    const onRestored = () => {
-      if (url && !imageBlobCache.has(url)) setRetryToken((n) => n + 1);
-    };
-    onSwRestored.add(onRestored);
-    return () => {
-      onSwRestored.delete(onRestored);
-    };
-  }, [url]);
-
-  useEffect(() => {
     if (!url) return undefined;
 
     // SABLE-4Y fix: Skip URLs that previously failed auth
     if (authFailedUrls.has(url)) {
-      return undefined;
-    }
-
-    // Blob URLs are already in-memory object URLs — no need to re-fetch them.
-    // Fetching a blob: URL just to create another blob URL is redundant and
-    // causes the N+1 API call pattern when many components mount simultaneously.
-    if (url.startsWith('blob:')) {
-      imageBlobCache.set(url, url);
-      setCacheState({ sourceUrl: url, blobUrl: url });
       return undefined;
     }
 
@@ -433,24 +410,18 @@ export function useBlobCache(url?: string): string | undefined {
 
           return objectUrl;
         } catch (e) {
-          // Don't log expected failures to Sentry (auth/bad-request errors)
-          const isExpectedFailure =
-            e instanceof Error &&
-            (e.message === 'AUTH_FAILED_401' || e.message === 'BAD_REQUEST_400');
-          if (!isExpectedFailure) {
-            debugLog.error('general', 'Blob fetch/cache failed', {
-              url: url.substring(0, 100),
-              error: e instanceof Error ? e.message : String(e),
-            });
-            Sentry.captureException(e, {
-              tags: { media_operation: 'blob_cache' },
-              contexts: {
-                media: {
-                  url: url.substring(0, 100),
-                },
+          debugLog.error('general', 'Blob fetch/cache failed', {
+            url: url.substring(0, 100),
+            error: e instanceof Error ? e.message : String(e),
+          });
+          Sentry.captureException(e, {
+            tags: { media_operation: 'blob_cache' },
+            contexts: {
+              media: {
+                url: url.substring(0, 100),
               },
-            });
-          }
+            },
+          });
           inflightRequests.delete(url);
           throw e;
         } finally {

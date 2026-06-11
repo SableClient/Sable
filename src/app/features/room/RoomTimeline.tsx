@@ -513,10 +513,6 @@ export function RoomTimeline({
     let resizeObserver: ResizeObserver | undefined;
 
     if (timelineSync.focusItem) {
-      // Mark that the jump succeeded (focusItem was set). This prevents recovery
-      // scroll from firing even after focusItem is cleared (highlight ends).
-      jumpSucceededRef.current = true;
-
       const { index, eventId: focusEventId, scrollTo } = timelineSync.focusItem;
       log.log(
         `[PermalinkJump] focusItem set: eventId=${focusEventId}, index=${index}, scrollTo=${scrollTo}`
@@ -551,6 +547,147 @@ export function RoomTimeline({
               `[PermalinkJump] Event not found in processedEvents yet: eventId=${timelineSync.focusItem.eventId}, processedEvents.length=${processedEventsRef.current.length}`
             );
           }
+        }
+
+        if (processedIndex !== undefined) {
+          log.log(
+            `[PermalinkJump] Scroll succeeded: processedIndex=${processedIndex}, eventId=${timelineSync.focusItem.eventId}`
+          );
+          Sentry.addBreadcrumb({
+            category: 'timeline.permalink',
+            message: 'Scroll succeeded',
+            level: 'info',
+            data: {
+              processedIndex,
+              eventId: timelineSync.focusItem.eventId,
+              roomId: room.roomId,
+            },
+          });
+
+          // Reveal timeline and scroll in the same frame to avoid flash
+          setIsReady(true);
+          vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+          timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
+          scrollSucceeded = true;
+
+          // Stop retry loop now that scroll succeeded
+          if (retryIntervalId !== undefined) {
+            clearInterval(retryIntervalId);
+            retryIntervalId = undefined;
+          }
+
+          // Capture room metadata for Sentry tags (must be outside requestAnimationFrame for lint)
+          const roomType: string = room.isSpaceRoom()
+            ? 'space'
+            : room.getJoinedMemberCount() > 2
+              ? 'room'
+              : 'dm';
+
+          // Measure scroll position accuracy after jump completes
+          requestAnimationFrame(() => {
+            const targetEl = document.getElementById(`event-${timelineSync.focusItem?.eventId}`);
+            const rect = targetEl?.getBoundingClientRect();
+            const inViewport = rect ? rect.top >= 0 && rect.bottom <= window.innerHeight : false;
+            const timelineEl = messageListRef.current;
+
+            Sentry.metrics.distribution('sable.timeline.jump_landed_offset_px', rect?.top ?? -1, {
+              attributes: {
+                in_viewport: String(inViewport),
+                room_type: roomType,
+              },
+            });
+
+            Sentry.addBreadcrumb({
+              category: 'timeline.jump',
+              message: 'Jump scroll complete',
+              data: {
+                eventId: timelineSync.focusItem?.eventId,
+                targetInViewport: inViewport,
+                offsetFromTop: rect?.top,
+                scrollTop: timelineEl?.scrollTop,
+                scrollHeight: timelineEl?.scrollHeight,
+              },
+              level: 'info',
+            });
+          });
+
+          // Use ResizeObserver to wait for layout to stabilize (images loading, etc.)
+          // before re-centering. This prevents the scroll target from being pushed out
+          // of view when media loads above it.
+          if (messageListRef.current && 'ResizeObserver' in globalThis) {
+            let resizeDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+            let clsDuringJump = 0;
+
+            // Track layout shift during jump using CLS API
+            const clsObserver = new PerformanceObserver((list) => {
+              for (const entry of list.getEntries()) {
+                const shiftEntry = entry as PerformanceEntry & {
+                  hadRecentInput?: boolean;
+                  value?: number;
+                };
+                if (!shiftEntry.hadRecentInput && typeof shiftEntry.value === 'number') {
+                  clsDuringJump += shiftEntry.value;
+                }
+              }
+            });
+            if ('observe' in clsObserver) {
+              clsObserver.observe({
+                type: 'layout-shift',
+                buffered: false,
+              } as PerformanceObserverInit);
+            }
+
+            resizeObserver = new ResizeObserver(() => {
+              // Clear any pending re-center and schedule a new one after 100ms of no resize
+              if (resizeDebounceTimer !== undefined) {
+                clearTimeout(resizeDebounceTimer);
+              }
+
+              resizeDebounceTimer = setTimeout(() => {
+                // Layout has settled (no resize for 100ms) — re-center now
+                if (vListRef.current && processedIndex !== undefined) {
+                  log.log(
+                    `[PermalinkJump] Re-centering after layout settled: processedIndex=${processedIndex}`
+                  );
+                  vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+                }
+
+                // Report CLS for this jump
+                Sentry.metrics.distribution('sable.timeline.jump_cls', clsDuringJump, {
+                  attributes: {
+                    room_type: roomType,
+                  },
+                });
+                clsObserver.disconnect();
+
+                // Stop observing after first stable re-center
+                if (resizeObserver) {
+                  resizeObserver.disconnect();
+                  resizeObserver = undefined;
+                }
+              }, 100);
+            });
+
+            resizeObserver.observe(messageListRef.current);
+
+            // Fallback: stop observing after 2 seconds regardless
+            recenterTimeoutId = setTimeout(() => {
+              clsObserver.disconnect();
+              if (resizeObserver) {
+                resizeObserver.disconnect();
+                resizeObserver = undefined;
+              }
+            }, 2000);
+          } else {
+            // Fallback for browsers without ResizeObserver: use timeout
+            recenterTimeoutId = setTimeout(() => {
+              if (vListRef.current && processedIndex !== undefined) {
+                vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+              }
+            }, 600);
+          }
+
+          return true;
         }
 
         if (processedIndex !== undefined) {
@@ -728,8 +865,14 @@ export function RoomTimeline({
     reducedMotion,
     getRawIndexToProcessedIndex,
     startJumpScrollBlock,
-    room,
+    room.roomId,
   ]);
+
+  useEffect(() => {
+    if (timelineSync.focusItem) {
+      setIsReady(true);
+    }
+  }, [timelineSync.focusItem]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -747,10 +890,6 @@ export function RoomTimeline({
     hasInitialScrolledRef.current = false;
     // Reset auto-pagination cap so the new timeline can fill the viewport.
     autopagAttemptsRef.current = 0;
-    // Reset jump success tracking for this new eventId.
-    jumpSucceededRef.current = false;
-    // Reset "was at bottom" flag so pagination after the jump doesn't scroll to bottom.
-    wasAtBottomBeforePaginationRef.current = false;
     // Cancel any pending error-recovery scroll timer from a previous eventId load
     // so it cannot reveal the timeline mid-flight of a new load.
     if (initialScrollTimerRef.current !== undefined) {
@@ -763,7 +902,6 @@ export function RoomTimeline({
     timelineSyncRef.current.setTimeline(getEmptyTimeline());
     // Mark the eventId load as in-progress to prevent premature recovery scroll
     eventIdLoadInProgressRef.current = true;
-    loadingEventIdRef.current = eventId;
     void timelineSyncRef.current
       .loadEventTimeline(eventId)
       .then(() => {
@@ -795,7 +933,6 @@ export function RoomTimeline({
         // focusItem will be set and the focus scroll will handle it. If it failed,
         // the recovery scroll can now safely fire.
         eventIdLoadInProgressRef.current = false;
-        loadingEventIdRef.current = null;
       });
   }, [eventId, room.roomId]);
 
@@ -809,9 +946,6 @@ export function RoomTimeline({
     if (!eventId) return;
     if (isReady) return;
     if (timelineSync.eventsLength === 0) return;
-    // Do NOT fire recovery scroll if the jump already succeeded. Once focusItem
-    // was set (even if later cleared after highlight), the jump worked correctly.
-    if (jumpSucceededRef.current) return;
     // Do NOT fire recovery scroll while the eventId load is still in progress.
     // The live timeline may receive events from sliding sync before the target
     // event context finishes loading, which would cause a premature scroll to bottom.
@@ -1316,10 +1450,6 @@ export function RoomTimeline({
       );
     }
   }, [eventId, showLoadingPlaceholders, timelineSync.eventsLength, isReady]);
-
-  // When showing loading placeholders, provide dummy data so VList renders items.
-  // Without this, VList receives an empty array and renders nothing, causing a blank timeline.
-  const placeholderDummyData = useMemo(() => Array(5).fill(null) as ProcessedEvent[], []);
 
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {

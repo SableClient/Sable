@@ -1,7 +1,11 @@
 import { atom, type WritableAtom } from 'jotai';
 import type { Store } from 'jotai/vanilla/store';
 import { mobileOrTablet } from '$utils/user-agent';
-import type { IImageInfo } from '$types/matrix/common';
+import type {
+  NotificationTransportMode,
+  NotificationTransportProvider,
+  PushTransportOverrides,
+} from '$features/settings/notifications/NotificationTransport';
 
 const STORAGE_KEY = 'settings';
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
@@ -123,12 +127,17 @@ export interface Settings {
   clientPreviewYoutube: boolean;
 
   usePushNotifications: boolean;
+  useUnifiedPush: boolean;
   useInAppNotifications: boolean;
   useSystemNotifications: boolean;
   isNotificationSounds: boolean;
   showMessageContentInNotifications: boolean;
   showMessageContentInEncryptedNotifications: boolean;
   clearNotificationsOnRead: boolean;
+  backgroundPushEnabled: boolean;
+  backgroundPushProvider: NotificationTransportProvider | null;
+  pushTransportMode: NotificationTransportMode;
+  pushTransportOverride: PushTransportOverrides;
 
   hour24Clock: boolean;
   dateFormatString: string;
@@ -284,12 +293,17 @@ export const defaultSettings: Settings = {
   // In-app pill banner: default on for mobile (primary foreground alert), opt-in on desktop.
   // System (OS) notifications: desktop-only; hidden and disabled on mobile.
   usePushNotifications: mobileOrTablet(),
+  useUnifiedPush: false,
   useInAppNotifications: mobileOrTablet(),
   useSystemNotifications: !mobileOrTablet(),
   isNotificationSounds: true,
   showMessageContentInNotifications: false,
   showMessageContentInEncryptedNotifications: false,
   clearNotificationsOnRead: false,
+  backgroundPushEnabled: mobileOrTablet(),
+  backgroundPushProvider: null,
+  pushTransportMode: 'auto',
+  pushTransportOverride: {},
 
   hour24Clock: false,
   dateFormatString: 'D MMM YYYY',

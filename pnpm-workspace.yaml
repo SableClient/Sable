@@ -1,4 +1,5 @@
 allowBuilds:
+  '@sableclient/tauri-plugin-notifications-api': true
   '@sentry/cli': true
   '@swc/core': true
   cloudflared: true

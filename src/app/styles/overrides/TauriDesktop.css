@@ -1,0 +1,145 @@
+:root {
+  --tauri-titlebar-height: 32px;
+  --tauri-titlebar-icon-size: 12px;
+}
+
+.tauri-titlebar {
+  height: var(--tauri-titlebar-height);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  position: relative;
+  background: var(--sable-bg-container);
+  border-bottom: 1px solid var(--sable-bg-container-line);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.tauri-titlebar [data-tauri-drag-region] {
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+
+.tauri-titlebar__drag {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 12px;
+}
+
+.tauri-titlebar__title {
+  color: var(--sable-bg-on-container);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+.tauri-titlebar__controls {
+  display: flex;
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.tauri-titlebar__status {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  height: 100%;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 8px;
+}
+
+.tauri-titlebar-status__label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--sable-bg-on-container);
+  background: color-mix(in srgb, var(--sable-bg-on-container) 10%, transparent);
+  white-space: nowrap;
+}
+
+.tauri-titlebar-status__label--success {
+  background: rgb(34 197 94 / 28%);
+}
+
+.tauri-titlebar-status__label--warning {
+  background: rgb(245 158 11 / 28%);
+}
+
+.tauri-titlebar-status__label--critical {
+  background: rgb(239 68 68 / 28%);
+}
+
+.tauri-titlebar__control {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  font: inherit;
+  line-height: 0;
+  outline: none;
+  width: 46px;
+  height: var(--tauri-titlebar-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sable-bg-on-container);
+  background: transparent;
+  cursor: default;
+  transition:
+    background-color 80ms linear,
+    color 80ms linear;
+  transform: none;
+}
+
+.tauri-titlebar__control:hover {
+  background: color-mix(in srgb, var(--sable-bg-on-container) 14%, transparent);
+  transform: none;
+}
+
+.tauri-titlebar__control:active {
+  background: color-mix(in srgb, var(--sable-bg-on-container) 20%, transparent);
+  transform: none;
+}
+
+.tauri-titlebar__control:focus-visible {
+  transform: none;
+}
+
+.tauri-titlebar__control svg {
+  display: block;
+  width: var(--tauri-titlebar-icon-size);
+  height: var(--tauri-titlebar-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+  pointer-events: none;
+}
+
+.tauri-titlebar__control svg * {
+  vector-effect: non-scaling-stroke;
+}
+
+.tauri-titlebar__control--close:hover {
+  background: rgb(232 17 35 / 90%);
+  color: #fff;
+}
+
+.tauri-titlebar__control--close:active {
+  background: rgb(232 17 35 / 80%);
+  color: #fff;
+}

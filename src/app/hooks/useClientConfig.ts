@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { PushTransportConfig } from '$features/settings/notifications/NotificationTransport';
 
 import type { Settings } from '$state/settings';
 
@@ -20,7 +21,12 @@ export type ClientConfig = {
     pushNotifyUrl?: string;
     vapidPublicKey?: string;
     webPushAppID?: string;
+    nativePushAppID?: string;
+    unifiedPushAppID?: string;
+    unifiedPushGatewayUrl?: string;
   };
+
+  pushTransport?: PushTransportConfig;
 
   slidingSync?: {
     enabled?: boolean;

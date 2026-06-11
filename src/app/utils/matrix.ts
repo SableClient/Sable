@@ -16,9 +16,8 @@ import to from 'await-to-js';
 import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 
 import * as Sentry from '@sentry/react';
-import { getEventReactions, getStateEvent } from './room';
-import { getReactionContent } from './messageReaction';
-import { matchMxId, validMxId } from './mxIdHelper';
+import { getEventReactions, getReactionContent, getStateEvent } from './room';
+import { fetchMediaBlob, type MediaTransportOptions } from './mediaTransport';
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
 
@@ -451,118 +450,8 @@ export const mxcUrlToHttp = (
     useAuthentication
   );
 
-export const downloadMedia = async (
-  src: string,
-  /** Belt-and-suspenders fallback for when the service worker session is
-   * unavailable (e.g. iOS SW restart before setSession fires). The SW still
-   * adds auth for normal browser sub-resource loads when active. */
-  accessToken?: string | null,
-  /** Optional metadata from Matrix event content.info for enriched diagnostics */
-  mediaInfo?: {
-    mimetype?: string;
-    size?: number;
-    w?: number;
-    h?: number;
-  }
-): Promise<Blob> => {
-  // Extract media server from URL for attribution
-  let mediaServer: string | undefined;
-  try {
-    const url = new URL(src);
-    mediaServer = url.hostname;
-  } catch {
-    // Invalid URL, skip server extraction
-  }
-
-  const span = Sentry.startInactiveSpan({
-    name: 'media.load',
-    op: 'media',
-    attributes: {
-      'media.type': mediaInfo?.mimetype ?? 'unknown',
-      'media.size_bytes': mediaInfo?.size,
-      'media.width': mediaInfo?.w,
-      'media.height': mediaInfo?.h,
-      'media.authenticated': src.includes('/client/v1/media/'),
-      'media.is_thumbnail': src.includes('/thumbnail/'),
-      'media.server': mediaServer,
-      'media.url': src.substring(0, 100), // Truncate URL to avoid PII
-      'media.has_access_token': !!accessToken,
-    },
-  });
-
-  try {
-    // The service worker intercepts this request and adds auth; accessToken is a
-    // direct fallback so the header is present even when the SW has no session.
-    // Use 'no-cache' to ensure retries hit the network instead of returning cached failures.
-    const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-
-    // Add a 30-second timeout to prevent infinite hangs
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-    try {
-      const res = await fetch(src, {
-        method: 'GET',
-        cache: 'no-cache',
-        headers,
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        span.setAttribute('media.status_code', res.status);
-        span.setAttribute('media.error', `${res.status} ${res.statusText}`);
-
-        // Log 401 specifically for auth failures (SABLE-39)
-        if (res.status === 401) {
-          Sentry.addBreadcrumb({
-            category: 'media',
-            message: 'Media auth failure',
-            data: { url: src.substring(0, 100), statusCode: 401 },
-            level: 'error',
-          });
-        }
-
-        span.end();
-        throw new Error(`Failed to download media: ${res.status} ${res.statusText}`);
-      }
-
-      const blob = await res.blob();
-      span.setAttribute('media.actual_size_bytes', blob.size);
-      span.setAttribute('media.actual_mime_type', blob.type);
-      span.setAttribute('media.cache_hit', res.headers.get('X-From-Cache') === 'true');
-      span.setStatus({ code: 1 }); // ok
-      span.end();
-      return blob;
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err instanceof Error && err.name === 'AbortError') {
-        span.setAttribute('media.timeout', true);
-        span.setStatus({ code: 2, message: 'Timeout after 30s' });
-        span.end();
-        // Log timeout as warning, not error — this is a recoverable condition
-        // (slow connection, large file) and the UI will show a placeholder
-        debugLog.warn('media', 'Media download timeout', {
-          url: src.substring(0, 100),
-          timeout: '30s',
-        });
-        Sentry.addBreadcrumb({
-          category: 'media',
-          message: 'Media download timeout',
-          level: 'warning',
-          data: { url: src.substring(0, 100), timeout: '30s' },
-        });
-        throw new Error('Media download timed out after 30 seconds', { cause: err });
-      }
-      span.setAttribute('media.error', err instanceof Error ? err.message : String(err));
-      span.end();
-      throw err;
-    }
-  } catch (err) {
-    span.end();
-    throw err;
-  }
-};
+export const downloadMedia = async (src: string, options?: MediaTransportOptions): Promise<Blob> =>
+  fetchMediaBlob(src, options);
 
 export const downloadEncryptedMedia = async (
   src: string,
@@ -570,16 +459,8 @@ export const downloadEncryptedMedia = async (
   /** Forwarded to {@link downloadMedia} — see its doc for context. */
   accessToken?: string | null
 ): Promise<Blob> => {
-  const encryptedContent = await downloadMedia(src, accessToken);
-  const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
-
-  if (!decryptedContent) {
-    // decryptFileSafe returned null due to integrity failure
-    // Return an empty blob so the UI can show a broken media placeholder
-    throw new Error('media_integrity_failure');
-  }
-
-  return decryptedContent;
+  const encryptedContent = await downloadMedia(src);
+  return decryptContent(await encryptedContent.arrayBuffer());
 };
 
 const sleepForMs = (ms: number) =>

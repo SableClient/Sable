@@ -84,11 +84,14 @@ import {
   roomIdToEditDraftAtomFamily,
 } from '$state/room/roomInputDrafts';
 import { UploadCardRenderer } from '$components/upload-card';
-import type { UploadBoardImperativeHandlers } from '$components/upload-board';
-import { UploadBoard, UploadBoardContent, UploadBoardHeader } from '$components/upload-board';
-import type { Upload, UploadSuccess } from '$state/upload';
-import { UploadStatus, createUploadFamilyObserverAtom } from '$state/upload';
-import { getImageUrlBlob, loadImageElement } from '$utils/dom';
+import {
+  UploadBoard,
+  UploadBoardContent,
+  UploadBoardHeader,
+  UploadBoardImperativeHandlers,
+} from '$components/upload-board';
+import { Upload, UploadStatus, UploadSuccess, createUploadFamilyObserverAtom } from '$state/upload';
+import { loadImageElementFromMediaUrl } from '$utils/dom';
 import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
@@ -1439,10 +1442,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const stickerUrl = mxcUrlToHttp(mx, mxc, useAuthentication);
       if (!stickerUrl) return;
 
-      const info = getImageInfo(
-        await loadImageElement(stickerUrl),
-        await getImageUrlBlob(stickerUrl)
-      );
+      const { blob, image } = await loadImageElementFromMediaUrl(stickerUrl);
+      const info = getImageInfo(image, blob);
 
       const content: StickerEventContent & ReplyEventContent & IContent & IGenericMSC4459 = {
         body: label,

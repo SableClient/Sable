@@ -1,11 +1,11 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["src/sw.ts", "scripts/normalize-imports.js", "scripts/inject-client-config.js"],
-  "ignore": ["oxlint.config.ts", "oxfmt.config.ts"],
+  "entry": ["src/sw.ts", "scripts/**/*.js"],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true
   },
+  "ignoreFiles": ["src/app/generated/**/*"],
   "ignoreDependencies": [
     "buffer",
     "@sableclient/sable-call-embedded",

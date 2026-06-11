@@ -5,8 +5,13 @@ import { createClient } from '$types/matrix-sdk';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { promiseFulfilledResult, promiseRejectedResult } from '$utils/common';
-import type { AuthFlows, RegisterFlowsResponse } from '$hooks/useAuthFlows';
-import { RegisterFlowStatus, parseRegisterErrResp } from '$hooks/useAuthFlows';
+import {
+  AuthFlows,
+  RegisterFlowStatus,
+  RegisterFlowsResponse,
+  parseRegisterErrResp,
+} from '$hooks/useAuthFlows';
+import { fetch } from '$utils/fetch';
 
 type AuthFlowsLoaderProps = {
   fallback?: () => ReactNode;
@@ -17,7 +22,7 @@ export function AuthFlowsLoader({ fallback, error, children }: AuthFlowsLoaderPr
   const autoDiscoveryInfo = useAutoDiscoveryInfo();
   const baseUrl = autoDiscoveryInfo['m.homeserver'].base_url;
 
-  const mx = useMemo(() => createClient({ baseUrl }), [baseUrl]);
+  const mx = useMemo(() => createClient({ baseUrl, fetchFn: fetch }), [baseUrl]);
 
   const [state, load] = useAsyncCallback(
     useCallback(async () => {

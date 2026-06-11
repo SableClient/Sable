@@ -1,5 +1,4 @@
-/* oxlint-disable no-console */
-// Keep the service worker import graph narrow, the app barrel pulls in runtime Matrix SDK modules that break SW script evaluation
+/* eslint-disable no-console */
 import { EventType } from 'matrix-js-sdk/lib/@types/event';
 import {
   buildRoomMessageNotification,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { MatrixClient } from '$types/matrix-sdk';
+import { MatrixClient } from '$types/matrix-sdk';
+import { fetch } from '$utils/fetch';
 import { useMatrixClient } from './useMatrixClient';
 
 export interface IntegrationManager {

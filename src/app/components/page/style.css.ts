@@ -25,7 +25,8 @@ export type PageNavVariants = RecipeVariants<typeof PageNav>;
 
 export const PageNavHeader = recipe({
   base: {
-    padding: `0 ${config.space.S200} 0 ${config.space.S300}`,
+    paddingRight: config.space.S200,
+    paddingLeft: config.space.S300,
     flexShrink: 0,
     selectors: {
       'button&': {
@@ -58,10 +59,9 @@ export type PageNavHeaderVariants = RecipeVariants<typeof PageNavHeader>;
 
 export const PageNavContent = style({
   minHeight: '100%',
-  padding: config.space.S200,
-  paddingRight: 0,
-  // Ensure the last nav item is always above the home indicator / Android nav bar.
-  paddingBottom: `max(${config.space.S700}, env(safe-area-inset-bottom, 0px))`,
+  paddingTop: config.space.S200,
+  paddingLeft: config.space.S200,
+  paddingBottom: config.space.S700,
 });
 
 export const PageHeader = recipe({
@@ -92,7 +92,6 @@ export const PageContent = style([
   {
     paddingTop: config.space.S400,
     paddingLeft: config.space.S400,
-    paddingRight: 0,
     paddingBottom: toRem(100),
   },
 ]);

@@ -15,6 +15,7 @@ import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
+import { fetch } from '$utils/fetch';
 import { pushSessionToSW } from '../sw-session';
 import { cryptoCallbacks } from './secretStorageKeys';
 import type { SlidingSyncConfig, SlidingSyncDiagnostics } from './slidingSync';
@@ -115,6 +116,13 @@ function installStartupFetchRoomEventPatch(
 
   mx.on(ClientEvent.Sync, onSync);
   fetchRoomEventStartupCleanupByClient.set(mx, restore);
+}
+
+export function resolveRefreshToken(
+  oldRefreshToken: string,
+  responseRefreshToken?: string
+): string {
+  return responseRefreshToken ?? oldRefreshToken;
 }
 
 export const resolveSlidingEnabled = (enabled: SlidingSyncConfig['enabled']): boolean => {
@@ -377,8 +385,9 @@ export const clearMismatchedStores = async (): Promise<void> => {
 };
 
 const buildClient = async (
-  session: Session
-): Promise<{ mx: MatrixClient; storeStartup: Promise<void> }> => {
+  session: Session,
+  onTokenRefresh?: (newAccessToken: string, newRefreshToken?: string) => void
+): Promise<MatrixClient> => {
   const storeName = getSessionStoreName(session);
   debugLog.info('sync', 'Building Matrix client with stores', {
     syncDb: storeName.sync,
@@ -425,23 +434,46 @@ const buildClient = async (
 
   const legacyCryptoStore = new IndexedDBCryptoStore(global.indexedDB, storeName.crypto);
 
+  let mxRef!: MatrixClient;
+
   const mx = createClient({
     baseUrl: session.baseUrl,
     accessToken: session.accessToken,
     userId: session.userId,
+    fetchFn: fetch,
     store: indexedDBStore,
     cryptoStore: legacyCryptoStore,
     deviceId: session.deviceId,
     timelineSupport: true,
     cryptoCallbacks: cryptoCallbacks as unknown as CryptoCallbacks,
     verificationMethods: ['m.sas.v1'],
+    ...(session.refreshToken && {
+      refreshToken: session.refreshToken,
+      tokenRefreshFunction: async (oldRefreshToken: string) => {
+        const res = await mxRef.refreshToken(oldRefreshToken);
+        const resolvedRefreshToken = resolveRefreshToken(oldRefreshToken, res.refresh_token);
+        onTokenRefresh?.(res.access_token, resolvedRefreshToken);
+        return {
+          accessToken: res.access_token,
+          refreshToken: resolvedRefreshToken,
+          expiry:
+            typeof res.expires_in_ms === 'number'
+              ? new Date(Date.now() + res.expires_in_ms)
+              : undefined,
+        };
+      },
+    }),
   });
 
-  // Return both client and store startup promise for parallel initialization
-  return { mx, storeStartup: indexedDBStore.startup() };
+  mxRef = mx;
+  await indexedDBStore.startup();
+  return mx;
 };
 
-export const initClient = async (session: Session): Promise<MatrixClient> => {
+export const initClient = async (
+  session: Session,
+  onTokenRefresh?: (newAccessToken: string, newRefreshToken?: string) => void
+): Promise<MatrixClient> => {
   const storeName = getSessionStoreName(session);
   debugLog.info('sync', 'Initializing Matrix client', {
     userId: session.userId,
@@ -478,9 +510,7 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
   let mx: MatrixClient;
   let storeStartup: Promise<void>;
   try {
-    const result = await buildClient(session);
-    mx = result.mx;
-    storeStartup = result.storeStartup;
+    mx = await buildClient(session, onTokenRefresh);
   } catch (err) {
     if (!isMismatch(err)) {
       debugLog.error('sync', 'Failed to build client', { error: err });
@@ -514,9 +544,7 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
       },
     });
     await wipeAllStores();
-    const result = await buildClient(session);
-    mx = result.mx;
-    storeStartup = result.storeStartup;
+    mx = await buildClient(session, onTokenRefresh);
   }
 
   try {
@@ -590,14 +618,8 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     mx.stopClient();
     mx.removeAllListeners();
     await wipeAllStores();
-    const result = await buildClient(session);
-    mx = result.mx;
-    await Promise.all([
-      result.storeStartup,
-      mx.initRustCrypto({
-        cryptoDatabasePrefix: storeName.rustCryptoPrefix,
-      }),
-    ]);
+    mx = await buildClient(session, onTokenRefresh);
+    await mx.initRustCrypto({ cryptoDatabasePrefix: storeName.rustCryptoPrefix });
   }
 
   // 100 listeners: large apps render many components that each register one

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Session } from '$state/sessions';
+import { Session } from '$state/sessions';
+import { fetch } from '$utils/fetch';
+import { fetchMediaBlob } from '$utils/mediaTransport';
 
 export type SessionProfile = {
   displayName?: string;
@@ -17,11 +19,35 @@ const parseMxc = (mxcUrl: string): { serverName: string; mediaId: string } | und
   return { serverName, mediaId };
 };
 
-const mxcToThumbnailUrl = (baseUrl: string, mxcUrl: string): string | undefined => {
+const fetchAvatarBlobUrl = async (
+  session: Session,
+  mxcUrl: string
+): Promise<string | undefined> => {
   const parsed = parseMxc(mxcUrl);
   if (!parsed) return undefined;
   const { serverName, mediaId } = parsed;
-  return `${baseUrl}/_matrix/client/v1/media/thumbnail/${serverName}/${mediaId}?width=96&height=96&method=crop`;
+
+  const tryFetch = async (url: string) => {
+    const blob = await fetchMediaBlob(url, {
+      accessToken: session.accessToken,
+      sessionScope: session.userId,
+    });
+    return URL.createObjectURL(blob);
+  };
+
+  try {
+    return await tryFetch(
+      `${session.baseUrl}/_matrix/client/v1/media/thumbnail/${encodeURIComponent(serverName)}/${encodeURIComponent(mediaId)}?width=96&height=96&method=crop`
+    );
+  } catch {
+    try {
+      return await tryFetch(
+        `${session.baseUrl}/_matrix/media/v3/thumbnail/${encodeURIComponent(serverName)}/${encodeURIComponent(mediaId)}?width=96&height=96&method=crop`
+      );
+    } catch {
+      return undefined;
+    }
+  }
 };
 
 export const useSessionProfiles = (sessions: Session[]): SessionProfiles => {
@@ -30,7 +56,11 @@ export const useSessionProfiles = (sessions: Session[]): SessionProfiles => {
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
 
-  const sessionKey = sessions.map((s) => s.userId).join('\x00');
+  const sessionIdentityKey = sessions
+    .map((session) =>
+      [session.userId, session.baseUrl, session.accessToken, session.deviceId].join('\x01')
+    )
+    .join('\x00');
 
   useEffect(() => {
     let cancelled = false;
@@ -45,9 +75,16 @@ export const useSessionProfiles = (sessions: Session[]): SessionProfiles => {
         const data = (await res.json()) as { displayname?: string; avatar_url?: string };
         if (cancelled) return;
 
-        const avatarHttpUrl = data.avatar_url
-          ? mxcToThumbnailUrl(session.baseUrl, data.avatar_url)
-          : undefined;
+        let avatarHttpUrl: string | undefined;
+        if (data.avatar_url) {
+          avatarHttpUrl = await fetchAvatarBlobUrl(session, data.avatar_url);
+          if (avatarHttpUrl) newBlobUrls.push(avatarHttpUrl);
+        }
+
+        if (cancelled) {
+          if (avatarHttpUrl) URL.revokeObjectURL(avatarHttpUrl);
+          return;
+        }
 
         setProfiles((prev) => ({
           ...prev,
@@ -63,8 +100,9 @@ export const useSessionProfiles = (sessions: Session[]): SessionProfiles => {
 
     return () => {
       cancelled = true;
+      newBlobUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [sessionKey]);
+  }, [sessionIdentityKey]);
 
   return profiles;
 };

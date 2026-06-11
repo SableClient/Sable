@@ -66,7 +66,7 @@ import { SwipeableMessageWrapper } from '$components/SwipeableMessageWrapper';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { useSetting } from '$state/hooks/settings';
-import { useBlobCache } from '$hooks/useBlobCache';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { MessageAllReactionItem } from '$components/message/modals/MessageReactions';
 import { MessageReadReceiptItem } from '$components/message/modals/MessageReadRecipts';
 import { MessageEditHistoryItem } from '$components/message/modals/MessageEditHistory';
@@ -671,7 +671,7 @@ function MessageInternal(
     return mxc ? convertMxc(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
   }, [pmp, collapse, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication, convertMxc]);
 
-  const cachedAvatar = useBlobCache(avatarUrl ?? undefined);
+  const cachedAvatar = useRenderableMediaUrl(avatarUrl ?? undefined);
 
   // UI State
   const [isDesktopHover, setIsDesktopHover] = useState(false);

@@ -56,30 +56,9 @@ import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
 import { useCallSignaling } from '$hooks/useCallSignaling';
-
-// Lazy-load banners to reduce initial bundle size - these are rarely shown on first load
-const ThemeMigrationBanner = lazy(() => {
-  const start = performance.now();
-  return import('$components/theme/ThemeMigrationBanner').then((m) => {
-    const duration = performance.now() - start;
-    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
-      attributes: { component: 'theme_migration_banner' },
-    });
-    return { default: m.ThemeMigrationBanner };
-  });
-});
-
-const TelemetryConsentBanner = lazy(() => {
-  const start = performance.now();
-  return import('$components/telemetry-consent').then((m) => {
-    const duration = performance.now() - start;
-    Sentry.metrics.distribution('sable.startup.lazy_load_ms', duration, {
-      attributes: { component: 'telemetry_consent_banner' },
-    });
-    return { default: m.TelemetryConsentBanner };
-  });
-});
-import { getBlobCacheStats } from '$hooks/useBlobCache';
+import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
+import { getRenderableMediaUrlStats } from '$hooks/useRenderableMediaUrl';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
@@ -88,9 +67,18 @@ import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
-import { useSyncState } from '$hooks/useSyncState';
+import {
+  NotificationTransportRuntime,
+  type NotificationTransportRuntimeContext,
+} from '../../features/settings/notifications/NotificationTransportRuntime';
+import {
+  normalizeNotificationTransportMode,
+  resolvePreferredNotificationTransportProvider,
+  type NotificationTransportPlatform,
+} from '../../features/settings/notifications/NotificationTransport';
 
 const pushRelayLog = createDebugLogger('push-relay');
+const transportLog = createDebugLogger('push-transport');
 
 function postToServiceWorker(data: unknown): void {
   if (!('serviceWorker' in navigator)) return;
@@ -667,11 +655,11 @@ function PrivacyBlurFeature() {
 }
 
 // Periodically emits memory-health gauges so Sentry dashboards can surface
-// unbounded growth (e.g. blob cache never evicted, stale inflight requests).
+// unbounded growth (e.g. renderable media cache never evicted, stale inflight requests).
 function HealthMonitor() {
   useEffect(() => {
     const id = window.setInterval(() => {
-      const { cacheSize, inflightCount, queueDepth } = getBlobCacheStats();
+      const { cacheSize, inflightCount } = getRenderableMediaUrlStats();
       Sentry.metrics.gauge('sable.media.blob_cache_size', cacheSize);
       if (inflightCount > 0) {
         Sentry.metrics.gauge('sable.media.inflight_requests', inflightCount);
@@ -733,7 +721,7 @@ export function HandleNotificationClick() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return undefined;
+    if (!('serviceWorker' in navigator) || isTauri()) return undefined;
 
     const handleMessage = (ev: MessageEvent) => {
       const { data } = ev;
@@ -806,6 +794,7 @@ function SyncNotificationSettingsWithServiceWorker() {
   }, []);
 
   useEffect(() => {
+    if (!('serviceWorker' in navigator) || isTauri()) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).
     // The in-app sound setting only controls the in-page <audio> playback above.
@@ -1057,6 +1046,83 @@ function ProgressivePrefetchFeature() {
   return null;
 }
 
+function getNotificationTransportRuntimePlatform(): NotificationTransportPlatform {
+  if (!isTauri()) return 'web';
+
+  const platform = osType();
+  if (platform === 'android') return 'android';
+  if (platform === 'ios') return 'ios';
+  return 'desktop';
+}
+
+function NotificationTransportRuntimeFeature() {
+  const mx = useMatrixClient();
+  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
+  const [backgroundPushProvider] = useSetting(settingsAtom, 'backgroundPushProvider');
+  const [pushTransportMode] = useSetting(settingsAtom, 'pushTransportMode');
+  const [isNotificationSounds] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
+  const [showEncryptedMessageContent] = useSetting(
+    settingsAtom,
+    'showMessageContentInEncryptedNotifications'
+  );
+  const [useInAppNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
+
+  const runtimeRef = useRef<NotificationTransportRuntime | null>(null);
+  const contextRef = useRef<NotificationTransportRuntimeContext>({
+    mx,
+    showMessageContent,
+    showEncryptedMessageContent,
+    notificationSoundEnabled: isNotificationSounds,
+    useInAppNotifications,
+  });
+  contextRef.current = {
+    mx,
+    showMessageContent,
+    showEncryptedMessageContent,
+    notificationSoundEnabled: isNotificationSounds,
+    useInAppNotifications,
+  };
+
+  if (!runtimeRef.current) {
+    runtimeRef.current = new NotificationTransportRuntime();
+  }
+
+  useEffect(() => {
+    if (!isTauri()) return undefined;
+
+    const runtimePlatform = getNotificationTransportRuntimePlatform();
+    const normalizedMode = normalizeNotificationTransportMode(pushTransportMode, runtimePlatform);
+    const provider = backgroundPushEnabled
+      ? (backgroundPushProvider ??
+        resolvePreferredNotificationTransportProvider(normalizedMode, runtimePlatform))
+      : null;
+    const runtime = runtimeRef.current;
+    if (!runtime) return undefined;
+
+    const syncPromise = runtime.sync(provider, () => contextRef.current);
+    syncPromise.catch((error) => {
+      transportLog.error(
+        'notification',
+        'Notification transport runtime failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
+    });
+    return () => {
+      const cleanupPromise = runtime.dispose();
+      cleanupPromise.catch((error) => {
+        transportLog.error(
+          'notification',
+          'Notification transport runtime cleanup failed',
+          error instanceof Error ? error : new Error(String(error))
+        );
+      });
+    };
+  }, [backgroundPushEnabled, backgroundPushProvider, pushTransportMode]);
+
+  return null;
+}
+
 function SettingsSyncFeature() {
   useSettingsSyncEffect();
   return null;
@@ -1140,7 +1206,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
-      <SyncStateWithServiceWorker />
+      <NotificationTransportRuntimeFeature />
       <HandleDecryptPushEvent />
       <ServiceWorkerMetricsHandler />
       <NotificationBanner />

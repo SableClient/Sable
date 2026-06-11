@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { ClientConfig } from '$hooks/useClientConfig';
 import { trimTrailingSlash } from '$utils/common';
-import * as Sentry from '@sentry/react';
+import { fetch } from '$utils/fetch';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

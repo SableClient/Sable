@@ -1,10 +1,15 @@
-import type { MatrixClient } from '$types/matrix-sdk';
-import { SyncState } from '$types/matrix-sdk';
-import { useCallback, useEffect, useState } from 'react';
-import { Box, config, Line, Text } from 'folds';
+import { MatrixClient, SyncState } from '$types/matrix-sdk';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSetAtom } from 'jotai';
+import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
 import * as Sentry from '@sentry/react';
 import { useSyncState } from '$hooks/useSyncState';
-import { ContainerColor } from '$styles/ContainerColor.css';
+import { titlebarStatusAtom, type TitlebarStatusView } from '$state/titlebarStatus';
+import {
+  getSyncConnectionStatusView,
+  SyncConnectionStatusBanner,
+} from '$components/SyncConnectionStatus';
 
 type StateData = {
   current: SyncState | null;
@@ -15,133 +20,82 @@ type SyncStatusProps = {
   mx: MatrixClient;
 };
 
-// How long (ms) to wait in a degraded state before showing the banner.
-// Fast reconnections (e.g. normal iOS bfcache restore) never trigger the UI.
-const RECONNECTING_DELAY_MS = 2500;
-// How long (ms) the "Connected!" recovery banner stays visible.
-const RECOVERED_DISMISS_MS = 3000;
+const DEMO_STATUS_STEP_MS = 1500;
+const DEMO_STATUS_SEQUENCE: readonly (TitlebarStatusView | null)[] = [
+  { text: 'Connecting...', variant: 'Success' },
+  null,
+  { text: 'Connection Lost! Reconnecting...', variant: 'Warning' },
+  null,
+  { text: 'Connection Lost!', variant: 'Critical' },
+  null,
+];
 
-// Banner lifecycle: idle → pending → visible → recovered → idle
-type BannerPhase = 'idle' | 'pending' | 'visible' | 'recovered';
+const isSyncStatusDemoEnabled = (): boolean => {
+  if (import.meta.env.VITE_DEMO_SYNC_STATUS === '1') return true;
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('demoSyncStatus') === '1';
+};
 
 export function SyncStatus({ mx }: SyncStatusProps) {
   const [stateData, setStateData] = useState<StateData>(() => ({
     current: mx.getSyncState(),
     previous: undefined,
-  }));
+  });
+  const [demoIndex, setDemoIndex] = useState(0);
+  const useDemoStatusLoop = isSyncStatusDemoEnabled();
+  const setTitlebarStatus = useSetAtom(titlebarStatusAtom);
+  const { current, previous } = stateData;
 
   useSyncState(
     mx,
-    useCallback((current, previous) => {
+    useCallback((nextCurrent, nextPrevious) => {
       setStateData((s) => {
-        if (s.current === current && s.previous === previous) {
+        if (s.current === nextCurrent && s.previous === nextPrevious) {
           return s;
         }
-        return { current, previous };
+        return { current: nextCurrent, previous: nextPrevious };
       });
 
-      if (current === SyncState.Reconnecting || current === SyncState.Error) {
+      if (nextCurrent === SyncState.Reconnecting || nextCurrent === SyncState.Error) {
         Sentry.addBreadcrumb({
           category: 'sync',
-          message: `Sync state changed to ${current}`,
-          level: current === SyncState.Error ? 'error' : 'warning',
-          data: { previous },
+          message: `Sync state changed to ${nextCurrent}`,
+          level: nextCurrent === SyncState.Error ? 'error' : 'warning',
+          data: { previous: nextPrevious },
         });
         Sentry.metrics.count('sable.sync.degraded', 1, {
-          attributes: { state: current },
+          attributes: { state: nextCurrent },
         });
       }
     }, [])
   );
 
-  const [bannerPhase, setBannerPhase] = useState<BannerPhase>('idle');
-  const syncCurrent = stateData.current;
-
-  // Drive banner phase transitions from sync state.
   useEffect(() => {
-    const isDegraded = syncCurrent === SyncState.Reconnecting || syncCurrent === SyncState.Error;
-    const isHealthy =
-      syncCurrent === SyncState.Prepared ||
-      syncCurrent === SyncState.Syncing ||
-      syncCurrent === SyncState.Catchup;
+    if (!useDemoStatusLoop) return undefined;
+    const intervalId = window.setInterval(() => {
+      setDemoIndex((index) => (index + 1) % DEMO_STATUS_SEQUENCE.length);
+    }, DEMO_STATUS_STEP_MS);
 
-    if (isDegraded) {
-      // Stay in 'visible' once the banner is showing; otherwise queue the delay.
-      setBannerPhase((p) => (p === 'visible' ? 'visible' : 'pending'));
-      return undefined;
-    }
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [useDemoStatusLoop]);
 
-    if (isHealthy) {
-      // Quick reconnect never showed banner → silent recovery. Slow reconnect → show "Connected!".
-      setBannerPhase((p) => (p === 'visible' ? 'recovered' : 'idle'));
-    } else {
-      // Stopped, null, or other non-healthy transition — clear immediately.
-      setBannerPhase('idle');
-    }
-    return undefined;
-  }, [syncCurrent]);
+  const statusView = useMemo(() => {
+    if (useDemoStatusLoop) return DEMO_STATUS_SEQUENCE[demoIndex];
+    return getSyncConnectionStatusView(current, previous);
+  }, [current, demoIndex, previous, useDemoStatusLoop]);
 
-  // After the delay in 'pending', promote to 'visible'.
+  const useTitlebarSlot = isTauri() && osType() === 'windows';
   useEffect(() => {
-    if (bannerPhase !== 'pending') return undefined;
-    const timer = window.setTimeout(() => setBannerPhase('visible'), RECONNECTING_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [bannerPhase]);
+    if (!useTitlebarSlot) return undefined;
+    setTitlebarStatus(statusView);
+    return () => {
+      setTitlebarStatus(null);
+    };
+  }, [statusView, setTitlebarStatus, useTitlebarSlot]);
 
-  // Auto-dismiss the 'recovered' (Connected!) banner.
-  useEffect(() => {
-    if (bannerPhase !== 'recovered') return undefined;
-    const timer = window.setTimeout(() => setBannerPhase('idle'), RECOVERED_DISMISS_MS);
-    return () => window.clearTimeout(timer);
-  }, [bannerPhase]);
+  if (useTitlebarSlot) return null;
 
-  if (bannerPhase === 'recovered') {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Success' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connected!</Text>
-        </Box>
-        <Line variant="Success" size="300" />
-      </Box>
-    );
-  }
-
-  if (bannerPhase === 'visible' && syncCurrent === SyncState.Reconnecting) {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Warning' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connection Lost! Reconnecting...</Text>
-        </Box>
-        <Line variant="Warning" size="300" />
-      </Box>
-    );
-  }
-
-  if (bannerPhase === 'visible' && syncCurrent === SyncState.Error) {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Critical' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connection Lost!</Text>
-        </Box>
-        <Line variant="Critical" size="300" />
-      </Box>
-    );
-  }
-
-  return null;
+  return <SyncConnectionStatusBanner status={statusView} />;
 }

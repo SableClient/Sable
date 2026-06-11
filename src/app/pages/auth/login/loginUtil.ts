@@ -15,6 +15,7 @@ import { getHomePath } from '$pages/pathUtils';
 import { activeSessionIdAtom, sessionsAtom } from '$state/sessions';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import { fetch } from '$utils/fetch';
 import { ErrorCode } from '../../../cs-errorcode';
 import { autoDiscovery, specVersions } from '../../../cs-api';
 
@@ -79,7 +80,7 @@ export const login = async (
     });
   }
 
-  const mx = createClient({ baseUrl: url });
+  const mx = createClient({ baseUrl: url, fetchFn: fetch });
   debugLog.info('general', 'Attempting login', { baseUrl: url, loginType: data.type });
 
   return Sentry.startSpan(

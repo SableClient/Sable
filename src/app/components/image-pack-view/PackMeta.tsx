@@ -25,6 +25,7 @@ import { useObjectURL } from '$hooks/useObjectURL';
 import type { UploadSuccess } from '$state/upload';
 import { createUploadAtom } from '$state/upload';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { PackMetaReader } from '$plugins/custom-emoji';
 import { CompactUploadCardRenderer } from '$components/upload-card';
 
@@ -33,10 +34,11 @@ type ImagePackAvatarProps = {
   name?: string;
 };
 function ImagePackAvatar({ url, name }: ImagePackAvatarProps) {
+  const resolvedUrl = useRenderableMediaUrl(url);
   return (
     <Avatar size="500" className={ContainerColor({ variant: 'Secondary' })}>
       {url ? (
-        <AvatarImage src={url} alt={name ?? 'Unknown'} />
+        <AvatarImage src={resolvedUrl ?? url} alt={name ?? 'Unknown'} />
       ) : (
         <AvatarFallback>
           <Text size="H2">{nameInitials(name ?? 'Unknown')}</Text>

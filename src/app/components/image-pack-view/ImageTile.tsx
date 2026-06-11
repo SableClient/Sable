@@ -10,6 +10,7 @@ import type { TUploadAtom } from '$state/upload';
 import { createUploadAtom } from '$state/upload';
 import { replaceSpaceWithDash } from '$utils/common';
 import { SettingTile } from '$components/setting-tile';
+import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import * as css from './style.css';
 import { UsageSwitcher, useUsageStr } from './UsageSwitcher';
 
@@ -39,9 +40,9 @@ export function ImageTile({
   return (
     <SettingTile
       before={
-        <img
+        <AuthenticatedImg
           className={css.ImagePackImage}
-          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? ''}
+          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? undefined}
           alt={image.shortcode}
           loading="lazy"
         />
@@ -163,9 +164,9 @@ export function ImageTileEdit({
   return (
     <SettingTile
       before={
-        <img
+        <AuthenticatedImg
           className={css.ImagePackImage}
-          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? ''}
+          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? undefined}
           alt={image.shortcode}
           loading="lazy"
         />

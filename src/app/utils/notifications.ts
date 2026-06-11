@@ -1,9 +1,5 @@
-import * as Sentry from '@sentry/react';
-import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
-import { ReceiptType } from '$types/matrix-sdk';
-import { createDebugLogger } from './debugLogger';
-
-const debugLog = createDebugLogger('notifications');
+import { MatrixClient, ReceiptType } from '$types/matrix-sdk';
+import { isTauri } from '@tauri-apps/api/core';
 
 export async function markAsRead(mx: MatrixClient, roomId: string, privateReceipt: boolean) {
   const room = mx.getRoom(roomId);
@@ -59,4 +55,17 @@ export async function markAsRead(mx: MatrixClient, roomId: string, privateReceip
     latestEvent,
     privateReceipt ? ReceiptType.ReadPrivate : ReceiptType.Read
   );
+
+  // On Android (Tauri), dismiss the room's OS notification immediately so
+  // it stays in sync with the read state instead of lingering until the
+  // next push payload with unread: 0 arrives.
+  if (isTauri()) {
+    try {
+      const { clearRoomNotification } =
+        await import('$features/settings/notifications/UnifiedPushNotifications');
+      await clearRoomNotification(roomId);
+    } catch {
+      // Notification plugin not available (desktop, web) — ignore.
+    }
+  }
 }

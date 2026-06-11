@@ -1,7 +1,7 @@
 import type { MatrixClient } from '$types/matrix-sdk';
 import { createDebugLogger } from '$utils/debugLogger';
-import type { ClientConfig } from '../../../hooks/useClientConfig';
-import * as Sentry from '@sentry/react';
+import { isTauri } from '@tauri-apps/api/core';
+import { ClientConfig } from '../../../hooks/useClientConfig';
 
 const debugLog = createDebugLogger('PushNotifications');
 
@@ -54,6 +54,9 @@ export async function enablePushNotifications(
   clientConfig: ClientConfig,
   pushSubscriptionAtom: PushSubscriptionState
 ): Promise<void> {
+  if (isTauri()) {
+    throw new Error('Push notifications are disabled in Tauri runtime.');
+  }
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     debugLog.error(
       'notification',
@@ -215,6 +218,8 @@ export async function disablePushNotifications(
   clientConfig: ClientConfig,
   pushSubscriptionAtom: PushSubscriptionState
 ): Promise<void> {
+  if (isTauri()) return;
+
   debugLog.info('notification', 'Disabling push notifications');
   const [pushSubAtom] = pushSubscriptionAtom;
 

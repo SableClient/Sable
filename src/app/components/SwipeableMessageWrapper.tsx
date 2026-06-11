@@ -1,4 +1,4 @@
-import { useMotionValue, useSpring, useTransform, motion } from 'framer-motion';
+import { useMotionValue, useSpring, useTransform, motion } from 'motion/react';
 import { useDrag } from '@use-gesture/react';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';

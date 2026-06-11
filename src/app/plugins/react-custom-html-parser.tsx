@@ -1,9 +1,20 @@
-/* oxlint-disable jsx-a11y/alt-text */
-import type { CSSProperties, ComponentPropsWithoutRef, ReactEventHandler, ReactNode } from 'react';
-import { Fragment, useEffect, useMemo, useState } from 'react';
-import type { HTMLReactParserOptions } from 'html-react-parser';
-import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
-import type { MatrixClient } from '$types/matrix-sdk';
+import {
+  CSSProperties,
+  ComponentPropsWithoutRef,
+  Fragment,
+  ReactEventHandler,
+  ReactNode,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  attributesToProps,
+  domToReact,
+  Element,
+  HTMLReactParserOptions,
+  Text as DOMText,
+} from 'html-react-parser';
+import { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
@@ -11,6 +22,7 @@ import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';
 
 import * as css from '$styles/CustomHtml.css';
+import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import {
   getCanonicalAliasRoomId,
   getMxIdLocalPart,
@@ -496,12 +508,9 @@ export function CodeBlock({
  * silent browser broken-image icon showing up in message bodies.
  */
 function FallbackImg({
-  fallback,
   ...props
-}: ComponentPropsWithoutRef<'img'> & { fallback: ReactNode }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return <>{fallback}</>;
-  return <img {...props} onError={() => setFailed(true)} />;
+}: ComponentPropsWithoutRef<typeof AuthenticatedImg> & { fallback: ReactNode }) {
+  return <AuthenticatedImg {...props} />;
 }
 
 export const getReactCustomHtmlParser = (
@@ -926,6 +935,12 @@ export const getReactCustomHtmlParser = (
                 }
               />
             );
+
+          return (
+            <span title={`Failed to load media${props.alt ? `: ${props.alt}` : ''}`}>
+              {fallbackLabel}
+            </span>
+          );
         }
       }
 

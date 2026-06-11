@@ -44,10 +44,13 @@ describe('android edge-to-edge inset contract', () => {
 
   it('uses the App shell as the only safe-area owner', () => {
     const appShell = readWorkspaceFile('src/app/components/app-shell/AppShell.tsx');
+    const indexHtml = readWorkspaceFile('index.html');
     const indexCss = readWorkspaceFile('src/index.css');
     const systemBarShell = readWorkspaceFile('src/app/components/app-shell/SystemBarShell.tsx');
     const mobileCapability = readWorkspaceFile('src-tauri/capabilities/mobile.json');
 
+    expect(indexHtml).not.toContain('viewport-fit=cover');
+    expect(indexHtml).not.toContain('interactive-widget=');
     expect(appShell).toContain('const contentHeight = useCustomWindowsTitleBar');
     expect(appShell).toContain("height: '100%'");
     expect(appShell).toContain('height: contentHeight');

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
+import * as Sentry from '@sentry/react';
 import { togglePusher } from '../features/settings/notifications/PushNotifications';
 import { appEvents } from '../utils/appEvents';
 import { useClientConfig } from './useClientConfig';
@@ -19,12 +20,48 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   const pushSubAtom = useAtom(pushSubscriptionAtom);
 
   useEffect(() => {
+    let hiddenAt: number | undefined =
+      document.visibilityState === 'hidden' ? performance.now() : undefined;
+
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';
+      const now = performance.now();
+      const hiddenDurationMs = isVisible && hiddenAt !== undefined ? now - hiddenAt : undefined;
+      if (!isVisible) hiddenAt = now;
+      if (isVisible) hiddenAt = undefined;
+
+      Sentry.addBreadcrumb({
+        category: 'app.visibility',
+        message: isVisible ? 'App became visible' : 'App became hidden',
+        level: 'info',
+        data: {
+          visibilityState: document.visibilityState,
+          hiddenDurationMs: hiddenDurationMs ? Math.round(hiddenDurationMs) : undefined,
+          online: navigator.onLine,
+          mobileOrTablet: mobileOrTablet(),
+        },
+      });
+      Sentry.metrics.count('sable.app.visibility_change', 1, {
+        attributes: {
+          visibility_state: document.visibilityState,
+          online: navigator.onLine,
+          mobile: mobileOrTablet(),
+        },
+      });
+      if (hiddenDurationMs !== undefined) {
+        Sentry.metrics.distribution('sable.app.hidden_duration_ms', hiddenDurationMs, {
+          attributes: { online: navigator.onLine, mobile: mobileOrTablet() },
+        });
+      }
+
       debugLog.info(
         'general',
         `App visibility changed: ${isVisible ? 'visible (foreground)' : 'hidden (background)'}`,
-        { visibilityState: document.visibilityState }
+        {
+          visibilityState: document.visibilityState,
+          hiddenDurationMs: hiddenDurationMs ? Math.round(hiddenDurationMs) : undefined,
+          online: navigator.onLine,
+        }
       );
       appEvents.emitVisibilityChange(isVisible);
       if (!isVisible) {
@@ -63,6 +100,23 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       // The matrix client or sliding sync manager might be in an invalid state
       // if the device just woke from sleep or the app was restored from bfcache.
       try {
+        Sentry.addBreadcrumb({
+          category: 'app.visibility',
+          message: 'Sync retry requested after foreground',
+          level: 'info',
+          data: {
+            syncState: mx.getSyncState(),
+            clientRunning: mx.clientRunning,
+            online: navigator.onLine,
+          },
+        });
+        Sentry.metrics.count('sable.sync.foreground_retry', 1, {
+          attributes: {
+            sync_state: mx.getSyncState() ?? 'unknown',
+            client_running: mx.clientRunning,
+            online: navigator.onLine,
+          },
+        });
         // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
         // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
         // slidingSync.resend() which aborts any stalled request and retries without backoff.
@@ -94,6 +148,12 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     const handleForeground = () => {
       if (document.visibilityState !== 'visible') return;
       debugLog.info('general', 'App foregrounded — sync retry triggered');
+      Sentry.addBreadcrumb({
+        category: 'app.visibility',
+        message: 'Foreground handler scheduling sync retry',
+        level: 'info',
+        data: { syncState: mx.getSyncState(), clientRunning: mx.clientRunning },
+      });
 
       // Wrap in try-catch in case retry throws (e.g., client disposed, network unavailable)
       try {
@@ -114,6 +174,12 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
           try {
             doRetry();
             debugLog.info('general', 'App foregrounded — sync retry (1.5 s fallback)');
+            Sentry.addBreadcrumb({
+              category: 'app.visibility',
+              message: 'Foreground fallback sync retry fired',
+              level: 'info',
+              data: { delayMs: 1500, syncState: mx.getSyncState() },
+            });
           } catch (err) {
             debugLog.error('general', 'Sync retry failed (1.5s fallback)', {
               error: err instanceof Error ? err.message : String(err),
@@ -126,6 +192,12 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
           try {
             doRetry();
             debugLog.info('general', 'App foregrounded — sync retry (5 s fallback)');
+            Sentry.addBreadcrumb({
+              category: 'app.visibility',
+              message: 'Foreground fallback sync retry fired',
+              level: 'info',
+              data: { delayMs: 5000, syncState: mx.getSyncState() },
+            });
           } catch (err) {
             debugLog.error('general', 'Sync retry failed (5s fallback)', {
               error: err instanceof Error ? err.message : String(err),
@@ -152,6 +224,15 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     const handlePageShow = (ev: PageTransitionEvent) => {
       if (ev.persisted) {
         debugLog.info('general', 'App restored from bfcache');
+        Sentry.addBreadcrumb({
+          category: 'app.visibility',
+          message: 'Page restored from bfcache',
+          level: 'info',
+          data: { persisted: ev.persisted, syncState: mx.getSyncState() },
+        });
+        Sentry.metrics.count('sable.app.pageshow', 1, {
+          attributes: { persisted: ev.persisted },
+        });
         try {
           handleForeground();
         } catch (err) {

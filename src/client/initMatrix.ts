@@ -53,6 +53,7 @@ const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
 const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
 const bfcacheStartConfigByClient = new WeakMap<MatrixClient, StartClientConfig>();
 const pausedForBfcache = new WeakSet<MatrixClient>();
+const bfcachePauseStartedAtByClient = new WeakMap<MatrixClient, number>();
 // Reduced from 20s to 8s to improve perceived cold launch performance.
 // 8 seconds is sufficient for most networks while still allowing time for
 // slow connections. If the bootstrap times out, sliding sync takes over.
@@ -607,12 +608,33 @@ export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | un
   slidingSyncByClient.get(mx);
 
 export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
+  const wasPausedForBfcache = pausedForBfcache.has(mx);
   // Save config so resumeClientFromBfcache() can restart with identical settings.
   bfcacheStartConfigByClient.set(mx, config ?? {});
   // If this is a resume, clear the paused flag.
   pausedForBfcache.delete(mx);
 
   debugLog.info('sync', 'Starting Matrix client', { userId: mx.getUserId() });
+  Sentry.addBreadcrumb({
+    category: 'sync.lifecycle',
+    message: wasPausedForBfcache
+      ? 'Starting Matrix client after bfcache pause'
+      : 'Starting Matrix client',
+    level: 'info',
+    data: {
+      wasPausedForBfcache,
+      currentSyncState: mx.getSyncState(),
+      clientRunning: mx.clientRunning,
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
+    },
+  });
+  Sentry.metrics.count('sable.sync.start_client', 1, {
+    attributes: {
+      was_paused_for_bfcache: wasPausedForBfcache,
+      sync_state: mx.getSyncState() ?? 'unknown',
+    },
+  });
 
   disposeSlidingSync(mx);
   const slidingConfig = config?.slidingSync;
@@ -1023,6 +1045,26 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
 export const stopClient = (mx: MatrixClient): void => {
   log.log('stopClient', mx.getUserId());
   debugLog.info('sync', 'Stopping client', { userId: mx.getUserId() });
+  const meta = syncTransportByClient.get(mx);
+  Sentry.addBreadcrumb({
+    category: 'sync.lifecycle',
+    message: 'Stopping Matrix client',
+    level: 'info',
+    data: {
+      transport: meta?.transport ?? 'unknown',
+      reason: meta?.reason ?? 'unknown',
+      syncState: mx.getSyncState(),
+      clientRunning: mx.clientRunning,
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+    },
+  });
+  Sentry.metrics.count('sable.sync.stop_client', 1, {
+    attributes: {
+      transport: meta?.transport ?? 'unknown',
+      reason: meta?.reason ?? 'unknown',
+      sync_state: mx.getSyncState() ?? 'unknown',
+    },
+  });
   fetchRoomEventStartupCleanupByClient.get(mx)?.();
   disposeSlidingSync(mx);
   const classicSyncListener = classicSyncObserverByClient.get(mx);
@@ -1054,8 +1096,27 @@ export const stopClient = (mx: MatrixClient): void => {
  */
 export const pauseClientForBfcache = (mx: MatrixClient): void => {
   if (!mx.clientRunning) return; // already stopped
+  const meta = syncTransportByClient.get(mx);
   debugLog.info('sync', 'Pausing Matrix client sync for bfcache freeze', {
     userId: mx.getUserId(),
+  });
+  Sentry.addBreadcrumb({
+    category: 'sync.lifecycle',
+    message: 'Pausing Matrix client for bfcache',
+    level: 'info',
+    data: {
+      transport: meta?.transport ?? 'unknown',
+      reason: meta?.reason ?? 'unknown',
+      syncState: mx.getSyncState(),
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
+    },
+  });
+  Sentry.metrics.count('sable.sync.pause_bfcache', 1, {
+    attributes: {
+      transport: meta?.transport ?? 'unknown',
+      sync_state: mx.getSyncState() ?? 'unknown',
+    },
   });
   // Access the SyncApi directly to abort only the /sync fetch without touching
   // the crypto backend. mx.stopClient() would call olmMachine.close(), which
@@ -1069,6 +1130,7 @@ export const pauseClientForBfcache = (mx: MatrixClient): void => {
   // Reset flag so startClient() will accept a new call on resume.
   rawMx.clientRunning = false;
   pausedForBfcache.add(mx);
+  bfcachePauseStartedAtByClient.set(mx, performance.now());
 };
 
 /**
@@ -1088,13 +1150,42 @@ export const resumeClientFromBfcache = async (mx: MatrixClient): Promise<void> =
     });
     return;
   }
+  const pauseStartedAt = bfcachePauseStartedAtByClient.get(mx);
+  const pausedDurationMs =
+    pauseStartedAt !== undefined ? Math.round(performance.now() - pauseStartedAt) : undefined;
   debugLog.info('sync', 'Resuming Matrix client from bfcache', { userId: mx.getUserId() });
+  Sentry.addBreadcrumb({
+    category: 'sync.lifecycle',
+    message: 'Resuming Matrix client from bfcache',
+    level: 'info',
+    data: {
+      pausedDurationMs,
+      syncState: mx.getSyncState(),
+      clientRunning: mx.clientRunning,
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
+    },
+  });
+  Sentry.metrics.count('sable.sync.resume_bfcache', 1, {
+    attributes: {
+      sync_state: mx.getSyncState() ?? 'unknown',
+      client_running: mx.clientRunning,
+    },
+  });
+  if (pausedDurationMs !== undefined) {
+    Sentry.metrics.distribution('sable.sync.bfcache_paused_ms', pausedDurationMs);
+  }
   try {
     await startClient(mx, config);
+    bfcachePauseStartedAtByClient.delete(mx);
   } catch (err) {
     debugLog.error('sync', 'Failed to resume Matrix client from bfcache', {
       error: err instanceof Error ? err.message : String(err),
       userId: mx.getUserId(),
+    });
+    Sentry.captureException(err, {
+      tags: { component: 'initMatrix', phase: 'resume_bfcache' },
+      extra: { pausedDurationMs },
     });
   }
 };

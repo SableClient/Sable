@@ -1,5 +1,6 @@
 import { trimTrailingSlash } from './app/utils/common';
 import { createLogger } from './app/utils/debug';
+import * as Sentry from '@sentry/react';
 import type { Sessions } from './app/state/sessions';
 import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './app/state/sessions';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
@@ -49,14 +50,49 @@ export function registerAppServiceWorker() {
 
   sendSessionToSW();
 
+  Sentry.addBreadcrumb({
+    category: 'service_worker',
+    message: 'Registering app service worker',
+    level: 'info',
+    data: {
+      mode: import.meta.env.MODE,
+      swUrl,
+      hasController: !!navigator.serviceWorker.controller,
+    },
+  });
+
   const registrationPromise = navigator.serviceWorker.register(swUrl, swRegisterOptions);
 
   registrationPromise
     .then((registration) => {
+      Sentry.addBreadcrumb({
+        category: 'service_worker',
+        message: 'Service worker registration resolved',
+        level: 'info',
+        data: {
+          active: !!registration.active,
+          waiting: !!registration.waiting,
+          installing: !!registration.installing,
+        },
+      });
       registration.addEventListener('updatefound', () => {
+        Sentry.addBreadcrumb({
+          category: 'service_worker',
+          message: 'Service worker update found',
+          level: 'info',
+        });
         const installingWorker = registration.installing;
         if (installingWorker) {
           installingWorker.addEventListener('statechange', () => {
+            Sentry.addBreadcrumb({
+              category: 'service_worker',
+              message: 'Service worker install state changed',
+              level: installingWorker.state === 'redundant' ? 'warning' : 'info',
+              data: {
+                state: installingWorker.state,
+                hasController: !!navigator.serviceWorker.controller,
+              },
+            });
             if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
               showUpdateAvailablePrompt(registration);
             }
@@ -67,17 +103,64 @@ export function registerAppServiceWorker() {
       sendSessionToSW();
     })
     .catch((err) => {
+      Sentry.addBreadcrumb({
+        category: 'service_worker',
+        message: 'Service worker registration failed',
+        level: 'error',
+        data: { error: err instanceof Error ? err.message : String(err) },
+      });
       log.warn('SW registration failed:', err);
     });
 
-  navigator.serviceWorker.ready.then(sendSessionToSW).catch((err) => {
-    log.warn('SW ready failed:', err);
+  navigator.serviceWorker.ready
+    .then((registration) => {
+      Sentry.addBreadcrumb({
+        category: 'service_worker',
+        message: 'Service worker ready',
+        level: 'info',
+        data: { active: !!registration.active, waiting: !!registration.waiting },
+      });
+      sendSessionToSW();
+    })
+    .catch((err) => {
+      Sentry.addBreadcrumb({
+        category: 'service_worker',
+        message: 'Service worker ready failed',
+        level: 'error',
+        data: { error: err instanceof Error ? err.message : String(err) },
+      });
+      log.warn('SW ready failed:', err);
+    });
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    Sentry.addBreadcrumb({
+      category: 'service_worker',
+      message: 'Service worker controller changed',
+      level: 'warning',
+      data: { visibilityState: document.visibilityState },
+    });
   });
 
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const { data } = ev;
     if (!data || typeof data !== 'object') return;
     const { type } = data as { type?: unknown };
+
+    if (type === 'sentryBreadcrumb') {
+      const breadcrumb = data as {
+        category?: string;
+        message?: string;
+        level?: Sentry.SeverityLevel;
+        data?: Record<string, unknown>;
+      };
+      Sentry.addBreadcrumb({
+        category: breadcrumb.category ?? 'service_worker',
+        message: breadcrumb.message ?? 'Service worker event',
+        level: breadcrumb.level ?? 'info',
+        data: breadcrumb.data,
+      });
+      return;
+    }
 
     if (type === 'requestSession') {
       sendSessionToSW();

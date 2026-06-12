@@ -236,8 +236,20 @@ export function BackgroundNotifications() {
             silent: opts.silent ?? false,
             data: opts.data,
           } as NotificationOptions);
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Displayed notification through service worker registration',
+            level: 'info',
+            data: { silent: opts.silent ?? false, hasBody: !!opts.body },
+          });
           return;
-        } catch {
+        } catch (err) {
+          Sentry.addBreadcrumb({
+            category: 'notification.background_client',
+            message: 'Service worker notification display failed; falling back',
+            level: 'warning',
+            data: { error: err instanceof Error ? err.message : String(err) },
+          });
           // Fall through to window.Notification if SW registration fails.
         }
       }
@@ -255,6 +267,22 @@ export function BackgroundNotifications() {
             noti.close();
           });
         }
+        Sentry.addBreadcrumb({
+          category: 'notification.background_client',
+          message: 'Displayed notification through window Notification API',
+          level: 'info',
+          data: { silent: opts.silent ?? false, hasBody: !!opts.body },
+        });
+      } else {
+        Sentry.addBreadcrumb({
+          category: 'notification.background_client',
+          message: 'Notification not displayed because permission/API is unavailable',
+          level: 'warning',
+          data: {
+            hasNotificationApi: 'Notification' in window,
+            permission: 'Notification' in window ? window.Notification.permission : 'missing',
+          },
+        });
       }
     }
 
@@ -516,6 +544,9 @@ export function BackgroundNotifications() {
                 eventId,
                 roomId: room.roomId,
               });
+              Sentry.metrics.count('sable.notification.silent_badge_only', 1, {
+                attributes: { source: 'background_client', is_dm: isDM },
+              });
               return;
             }
 
@@ -572,6 +603,9 @@ export function BackgroundNotifications() {
                 roomId: room.roomId,
                 title: notificationPayload.title,
               });
+              Sentry.metrics.count('sable.notification.in_app_banner', 1, {
+                attributes: { source: 'background_client', is_dm: isDM },
+              });
               setInAppBannerRef.current({
                 id: dedupeId,
                 title: notificationPayload.title,
@@ -589,6 +623,9 @@ export function BackgroundNotifications() {
                 roomId: room.roomId,
                 title: notificationPayload.title,
                 hasSound: !notificationPayload.options.silent,
+              });
+              Sentry.metrics.count('sable.notification.os_requested', 1, {
+                attributes: { source: 'background_client', is_dm: isDM },
               });
               sendNotification({
                 title: notificationPayload.title,

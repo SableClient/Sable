@@ -237,6 +237,17 @@ async function requestSessionWithTimeout(
   const timeout = new Promise<undefined>((resolve) => {
     setTimeout(() => {
       console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
+      postSentryBreadcrumb(
+        'service_worker.session',
+        'Session request to client timed out',
+        'warning',
+        {
+          timeoutMs,
+        }
+      ).catch(() => undefined);
+      postSentryMetric('sable.sw.session_request_timeout', 1, {
+        timeout_ms: timeoutMs,
+      }).catch(() => undefined);
       resolve(undefined);
     }, timeoutMs);
   });
@@ -261,6 +272,31 @@ async function postSentryMetric(
     });
   } catch (error) {
     console.debug('[SW] Failed to post Sentry metric:', error);
+  }
+}
+
+async function postSentryBreadcrumb(
+  category: string,
+  message: string,
+  level: 'debug' | 'info' | 'warning' | 'error' = 'info',
+  data?: Record<string, string | number | boolean | undefined>
+): Promise<void> {
+  try {
+    const windowClients = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    });
+    windowClients.forEach((client) => {
+      client.postMessage({
+        type: 'sentryBreadcrumb',
+        category,
+        message,
+        level,
+        data,
+      });
+    });
+  } catch (error) {
+    console.debug('[SW] Failed to post Sentry breadcrumb:', error);
   }
 }
 
@@ -690,6 +726,12 @@ async function handleMinimalPushPayload(
     // No session anywhere — app was never opened since install, or the user logged out.
     // Show a minimal actionable notification so the user can tap through to the room.
     console.debug('[SW push] minimal payload: no session, showing generic notification');
+    await postSentryBreadcrumb(
+      'notification.push',
+      'Minimal push payload had no persisted session; showing generic notification',
+      'warning',
+      { hasWindowClients: windowClients.length > 0 }
+    );
     await self.registration.showNotification('New Message', {
       body: undefined,
       icon: '/public/res/logo-maskable/logo-maskable-180x180.png',
@@ -709,6 +751,12 @@ async function handleMinimalPushPayload(
   ]);
 
   if (!rawEvent) {
+    await postSentryBreadcrumb(
+      'notification.push',
+      'Failed to fetch raw event for minimal push; showing generic notification',
+      'warning',
+      { hasWindowClients: windowClients.length > 0 }
+    );
     await self.registration.showNotification('New Message', {
       body: undefined,
       icon: '/public/res/logo-maskable/logo-maskable-180x180.png',
@@ -762,6 +810,15 @@ async function handleMinimalPushPayload(
     if (result?.visibilityState === 'visible') return;
 
     if (result?.success) {
+      await postSentryBreadcrumb(
+        'notification.push',
+        'Encrypted push decrypted through window client',
+        'info',
+        {
+          appVisible: result.visibilityState === 'visible',
+          hasWindowClients: windowClients.length > 0,
+        }
+      );
       // App was backgrounded but not frozen — decryption succeeded.
       // Prefer the server-fetched display name (authoritative) over the relay's SDK cache
       // value, which may be stale or missing if the SDK hasn't fully synced yet.
@@ -775,6 +832,15 @@ async function handleMinimalPushPayload(
         room_avatar_url: notificationAvatarUrl,
       });
     } else {
+      await postSentryBreadcrumb(
+        'notification.push',
+        'Encrypted push used fallback content',
+        'warning',
+        {
+          timedOut: result === undefined && windowClients.length > 0,
+          hasWindowClients: windowClients.length > 0,
+        }
+      );
       // App is frozen or fully closed — show "Encrypted message" fallback.
       await handlePushNotificationPushData({
         ...baseData,
@@ -799,12 +865,19 @@ async function handleMinimalPushPayload(
 }
 
 self.addEventListener('install', (event: ExtendableEvent) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    Promise.all([
+      self.skipWaiting(),
+      postSentryBreadcrumb('service_worker', 'Service worker install event', 'info'),
+      postSentryMetric('sable.sw.install', 1),
+    ])
+  );
 });
 
 self.addEventListener('activate', (event: ExtendableEvent) => {
   event.waitUntil(
     (async () => {
+      const activationStartedAt = performance.now();
       // Do NOT call clients.claim() here.
       //
       // Calling clients.claim() in activate evicts iOS bfcache entries: it fires
@@ -824,6 +897,12 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // authenticated. If the token is expired, the media fetch will get a 401
       // and the UI will show a retry button.
       preloadedSession = await loadPersistedSession();
+      await postSentryBreadcrumb('service_worker', 'Service worker activated', 'info', {
+        hasPreloadedSession: !!preloadedSession,
+      });
+      await postSentryMetric('sable.sw.activate_ms', performance.now() - activationStartedAt, {
+        has_preloaded_session: !!preloadedSession,
+      });
 
       // Strategy 7+: Prefetch critical data on activation to warm browser cache.
       // This makes subsequent requests instant on warm cache launches.
@@ -864,6 +943,12 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     setSession(client.id, accessToken, baseUrl, userId);
     const persisted = sessions.get(client.id);
     event.waitUntil(
+      postSentryBreadcrumb('service_worker.session', 'Service worker session updated', 'info', {
+        hasSession: !!persisted,
+        sessionCount: sessions.size,
+      })
+    );
+    event.waitUntil(
       (persisted ? persistSession(persisted) : clearPersistedSession()).catch(() => undefined)
     );
     event.waitUntil(cleanupDeadClients());
@@ -875,11 +960,19 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     // pressure).  Claiming here — after the page is visible — never evicts bfcache.
     event.waitUntil(
       (async () => {
+        const claimStartedAt = performance.now();
         await self.clients.claim();
         // Re-request sessions from all newly-claimed clients to repopulate the
         // sessions Map. Fire-and-forget: responses come via setSession messages.
         const claimedClients = await self.clients.matchAll({ type: 'window' });
         claimedClients.forEach((c) => c.postMessage({ type: 'requestSession' }));
+        await postSentryBreadcrumb('service_worker', 'Service worker claimed clients', 'warning', {
+          claimedClientCount: claimedClients.length,
+          durationMs: Math.round(performance.now() - claimStartedAt),
+        });
+        await postSentryMetric('sable.sw.claim_clients', 1, {
+          client_count: claimedClients.length,
+        });
       })()
     );
   }
@@ -897,12 +990,22 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
+      event.waitUntil(
+        postSentryBreadcrumb('service_worker.visibility', 'App visibility updated in SW', 'info', {
+          appVisible: appIsVisible,
+        })
+      );
       event.waitUntil(persistSettings());
     }
   }
   if (type === 'setSyncState') {
     if (typeof (data as { healthy?: unknown }).healthy === 'boolean') {
       syncIsHealthy = (data as { healthy: boolean }).healthy;
+      event.waitUntil(
+        postSentryBreadcrumb('service_worker.sync', 'Sync health updated in SW', 'info', {
+          syncHealthy: syncIsHealthy,
+        })
+      );
     }
   }
   if (type === 'ping') {
@@ -1338,6 +1441,20 @@ const onPushNotification = async (event: PushEvent) => {
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
     console.debug('[SW push] suppressing OS notification — app is visible and sync is healthy');
+    postSentryBreadcrumb(
+      'notification.push',
+      'OS push notification suppressed because visible client sync is healthy',
+      'info',
+      {
+        appVisible: appIsVisible,
+        syncHealthy: syncIsHealthy,
+        clientCount: clients.length,
+      }
+    ).catch(() => undefined);
+    postSentryMetric('sable.push.suppressed_visible', 1, {
+      sync_healthy: syncIsHealthy,
+      client_count: clients.length,
+    }).catch(() => undefined);
     return;
   }
 
@@ -1350,6 +1467,12 @@ const onPushNotification = async (event: PushEvent) => {
     sync_healthy: syncIsHealthy,
     has_clients: clients.length > 0,
     payload_type: isMinimalPushPayload(pushData) ? 'minimal' : 'full',
+  }).catch(() => undefined);
+  postSentryBreadcrumb('notification.push', 'Push received by service worker', 'info', {
+    appVisible: appIsVisible,
+    syncHealthy: syncIsHealthy,
+    clientCount: clients.length,
+    payloadType: isMinimalPushPayload(pushData) ? 'minimal' : 'full',
   }).catch(() => undefined);
 
   try {
@@ -1445,6 +1568,24 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   }
 
   console.debug('[SW notificationclick] targetUrl:', targetUrl);
+  postSentryBreadcrumb(
+    'notification.click',
+    'Notification click received by service worker',
+    'info',
+    {
+      hasUserId: !!pushUserId,
+      hasRoomId: !!pushRoomId,
+      hasEventId: !!pushEventId,
+      isInvite,
+      isCall,
+    }
+  ).catch(() => undefined);
+  postSentryMetric('sable.notification.clicked', 1, {
+    has_user_id: !!pushUserId,
+    has_room_id: !!pushRoomId,
+    is_invite: isInvite,
+    is_call: isCall,
+  }).catch(() => undefined);
 
   event.waitUntil(
     (async () => {
@@ -1479,9 +1620,25 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
           });
           // oxlint-disable-next-line no-await-in-loop
           await wc.focus();
+          postSentryBreadcrumb(
+            'notification.click',
+            'Focused existing client for notification click',
+            'info',
+            {
+              clientCount: clientList.length,
+            }
+          ).catch(() => undefined);
           return;
         } catch (err) {
           console.debug('[SW notificationclick] postMessage/focus failed:', err);
+          postSentryBreadcrumb(
+            'notification.click',
+            'Failed to focus existing notification client',
+            'warning',
+            {
+              error: err instanceof Error ? err.message : String(err),
+            }
+          ).catch(() => undefined);
         }
       }
 
@@ -1490,6 +1647,11 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
       console.debug('[SW notificationclick] falling back to openWindow()', targetUrl);
       if (self.clients.openWindow) {
         await self.clients.openWindow(targetUrl);
+        await postSentryBreadcrumb(
+          'notification.click',
+          'Opened new window for notification click',
+          'info'
+        );
       }
     })()
   );

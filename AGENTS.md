@@ -15,6 +15,13 @@ Workflow and process rules for AI agents. These complement the universal rules i
   git checkout -b fix/your-branch integration
   ```
 - Keep `dev` as a clean mirror of `upstream/dev`. Do not base normal fork work on `dev`.
+- Syncing the `dev` mirror is mechanical and can be automated. It is allowed to hard-reset local `dev` and force-update `origin/dev` because `dev` is not a work branch:
+  ```
+  git fetch upstream origin
+  git checkout dev
+  git reset --hard upstream/dev
+  git push origin dev --force-with-lease
+  ```
 - Only branch from `dev` when the user explicitly wants to prepare a PR against upstream:
   ```
   git fetch upstream origin
@@ -31,6 +38,14 @@ Workflow and process rules for AI agents. These complement the universal rules i
   git checkout -b sync/upstream-dev-YYYY-MM-DD integration
   git merge upstream/dev
   ```
+- Upstream sync branches should be treated as integration work, not upstream PR work:
+  - First update the `dev` mirror so `origin/dev` reflects `upstream/dev`.
+  - Create `sync/upstream-dev-YYYY-MM-DD` from current `integration`.
+  - Merge `upstream/dev` into the sync branch.
+  - Resolve conflicts by preserving fork behavior unless upstream is clearly better, more spec-compliant, or explicitly requested.
+  - Run the full quality gate.
+  - Push the sync branch and open a draft PR targeting `origin/integration`.
+  - Do not merge the sync PR until conflicts, overlapping features, and release-note impact have been reviewed.
 - When asked to build or refresh `integration`, prompt for which feature/fix/chore branches and upstream sync branch to include. In general, include active fork branches, not `dev`.
 - For overlapping upstream/fork features, preserve working `integration` behavior unless the upstream implementation is clearly better, more spec-compliant, or explicitly requested by the user.
 

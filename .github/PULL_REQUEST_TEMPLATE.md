@@ -1,4 +1,4 @@
-<!-- Please read https://github.com/Just-Insane/Sable/blob/integration/CONTRIBUTING.md before submitting fork-local pull requests. Use upstream/dev only for deliberate upstream contributions. -->
+<!-- Please read CONTRIBUTING.md before submitting fork-local pull requests. Use upstream/dev only for deliberate upstream contributions. -->
 
 ### Description
 

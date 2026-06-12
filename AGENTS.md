@@ -27,7 +27,7 @@ Workflow and process rules for AI agents. These complement the universal rules i
   git fetch upstream origin
   git checkout dev
   git reset --hard upstream/dev
-  git push origin dev
+  git push origin dev --force-with-lease
   git checkout -b fix/upstream-thing dev
   ```
 - Pull upstream changes into the fork through explicit sync branches from `integration`; resolve overlap there, then open a PR back to `origin/integration`:

@@ -111,6 +111,8 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   }, [settingsInitialized, activeTheme, saturation, underlineLinks, reducedMotion]);
 
   useEffect(() => {
+    if (!settingsInitialized) return undefined;
+
     const url = activeTheme.remoteFullUrl?.trim();
     let cancelled = false;
 
@@ -137,9 +139,11 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [activeTheme.remoteFullUrl]);
+  }, [settingsInitialized, activeTheme.remoteFullUrl]);
 
   useEffect(() => {
+    if (!settingsInitialized) return undefined;
+
     const urls = (enabledTweakUrls ?? []).filter((u) => u.trim().length > 0);
     let cancelled = false;
 
@@ -164,7 +168,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [enabledTweakUrls]);
+  }, [settingsInitialized, enabledTweakUrls]);
 
   return (
     <ArboriumThemeBridge kind={activeTheme.kind}>

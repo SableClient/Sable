@@ -8,44 +8,62 @@ permissions: {}
 
 jobs:
   prepare-release:
-    if: |
-      !contains(github.event.head_commit.message, 'chore: prepare release') &&
-      !contains(github.event.head_commit.message, 'from Just-Insane/release')
+    if: "!contains(github.event.head_commit.message, 'chore: prepare release')"
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
     steps:
+      - name: Detect release branch merge
+        id: release-merge
+        shell: bash
+        env:
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          first_line="${HEAD_COMMIT_MESSAGE%%$'\n'*}"
+          if [[ "$first_line" =~ ^Merge\ pull\ request\ \#[0-9]+\ from\ Just-Insane/release$ ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Generate bot token
         id: generate-token
+        if: steps.release-merge.outputs.skip != 'true'
         uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.release-merge.outputs.skip != 'true'
         with:
           fetch-depth: 0
           persist-credentials: true
           token: ${{ steps.generate-token.outputs.token }}
 
       - uses: fregante/setup-git-user@024bc0b8e177d7e77203b48dab6fb45666854b35 # v2.0.2
+        if: steps.release-merge.outputs.skip != 'true'
 
       - uses: knope-dev/action@19617851f9f13ab2f27a05989c55efb18aca3675 # v2.1.2
+        if: steps.release-merge.outputs.skip != 'true'
         with:
           version: 0.22.3
 
       - name: Prepare Release
+        if: steps.release-merge.outputs.skip != 'true'
         run: knope prepare-release --verbose
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
       - name: Enrich changelog and update release PR
+        if: steps.release-merge.outputs.skip != 'true'
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: node .github/scripts/enrich-changelog.mjs --update-release-pr
 
       - name: Amend release commit with enriched changelog
+        if: steps.release-merge.outputs.skip != 'true'
         shell: bash
         run: |
           if [[ "$(git rev-parse --abbrev-ref HEAD)" != "release" ]]; then
@@ -62,5 +80,6 @@ jobs:
           fi
 
       - name: Push release branch
+        if: steps.release-merge.outputs.skip != 'true'
         shell: bash
         run: git push --force --set-upstream origin release

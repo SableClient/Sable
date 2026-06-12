@@ -386,15 +386,16 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const homeUnread = useRoomsUnread(homeRooms, roomToUnreadAtom);
   const spaceUnread = useRoomsUnread(spaceChildRooms, roomToUnreadAtom);
   const backTargetUnread = useMemo(() => {
-    if (spaceRoomSelected) return spaceUnread;
     if (directRoomSelected) return directUnread;
     if (homeRoomSelected) return homeUnread;
+    if (space && spaceRoomSelected) return spaceUnread;
     return unread;
   }, [
     directRoomSelected,
     directUnread,
     homeRoomSelected,
     homeUnread,
+    space,
     spaceRoomSelected,
     spaceUnread,
     unread,

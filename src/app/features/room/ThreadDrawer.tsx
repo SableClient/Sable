@@ -229,7 +229,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   // Reply draft (keyed by threadRootId to match RoomInput's draftKey logic)
   const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(threadRootId));
   const replyDraft = useAtomValue(roomIdToReplyDraftAtomFamily(threadRootId));
-  const activeReplyId = replyDraft?.body ? replyDraft?.eventId : undefined;
+  const activeReplyId = replyDraft?.eventId;
+  const suppressMark = !replyDraft?.body;
 
   // User profile popup
   const openUserRoomProfile = useOpenUserRoomProfile();
@@ -711,7 +712,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       showHiddenEvents,
       hideThreadChip: true,
     },
-    state: { focusItem, editId, activeReplyId, openThreadId: threadRootId },
+    state: { focusItem, editId, activeReplyId, openThreadId: threadRootId, suppressMark },
     permissions: {
       canRedact,
       canDeleteOwn,

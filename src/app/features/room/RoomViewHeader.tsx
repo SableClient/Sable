@@ -82,6 +82,7 @@ import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { RoomNotificationModeSwitcher } from '$components/RoomNotificationSwitcher';
@@ -372,6 +373,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const screenSize = useScreenSizeContext();
   const room = useRoom();
   const space = useSpaceOptionally();
+  const selectedSpaceId = useSelectedSpace();
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
   const homeRoomSelected = !!matchPath({ path: HOME_ROOM_PATH, end: false }, location.pathname);
   const directRoomSelected = !!matchPath({ path: DIRECT_ROOM_PATH, end: false }, location.pathname);
@@ -381,7 +383,8 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const directRooms = useDirects(mx, allRoomsAtom, mDirects);
   const homeRooms = useOrphanRooms(mx, allRoomsAtom, mDirects, roomToParents);
   const spaceChildrenScope = useRecursiveChildScopeFactory(mx, roomToParents);
-  const spaceChildRooms = useSpaceChildren(allRoomsAtom, space?.roomId ?? '', spaceChildrenScope);
+  const activeSpaceId = selectedSpaceId ?? space?.roomId ?? '';
+  const spaceChildRooms = useSpaceChildren(allRoomsAtom, activeSpaceId, spaceChildrenScope);
   const directUnread = useRoomsUnread(directRooms, roomToUnreadAtom);
   const homeUnread = useRoomsUnread(homeRooms, roomToUnreadAtom);
   const spaceUnread = useRoomsUnread(spaceChildRooms, roomToUnreadAtom);

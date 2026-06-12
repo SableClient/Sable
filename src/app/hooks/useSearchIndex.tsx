@@ -95,6 +95,9 @@ const MAX_CONCURRENT_BACKFILLS = HAS_IDLE_CALLBACK ? Infinity : 2;
  */
 const BACKFILL_STARTUP_DELAY_MS = 30_000;
 
+const canRunMobileBackfill = (): boolean =>
+  HAS_IDLE_CALLBACK || (document.visibilityState === 'visible' && document.hasFocus());
+
 function scheduleIdle(cb: () => void): () => void {
   if (HAS_IDLE_CALLBACK) {
     const id = requestIdleCallback(cb, { timeout: 5000 });
@@ -233,6 +236,23 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const backfillRoom = useCallback(
     async (room: Room, state: BackfillState): Promise<void> => {
       if (state.done) return;
+
+      if (!canRunMobileBackfill()) {
+        backfillingRoomsRef.current.delete(room.roomId);
+        backfillQueueRef.current.unshift({ room, state });
+        Sentry.addBreadcrumb({
+          category: 'search.backfill',
+          message: `Backfill deferred for room ${room.roomId}`,
+          data: {
+            reason: 'mobile_not_focused',
+            isMobile: !HAS_IDLE_CALLBACK,
+            visibilityState: document.visibilityState,
+            focused: document.hasFocus(),
+          },
+          level: 'info',
+        });
+        return;
+      }
 
       const isEncrypted = room.hasEncryptionStateEvent();
 
@@ -437,18 +457,21 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
             });
             return;
           }
-          // On mobile, pause when the tab is hidden to avoid unnecessary
-          // network traffic and WASM crypto work in the background.
-          if (!HAS_IDLE_CALLBACK && document.visibilityState === 'hidden') {
+          // On mobile, pause unless the PWA is actually foreground-focused.
+          // iOS standalone PWAs can keep reporting visibilityState="visible"
+          // after backgrounding, but background pagination can compete with
+          // the Matrix /sync long-poll and cause reconnect banners.
+          if (!canRunMobileBackfill()) {
             backfillingRoomsRef.current.delete(room.roomId);
             backfillQueueRef.current.unshift({ room, state: nextState });
             Sentry.addBreadcrumb({
               category: 'search.backfill',
               message: `Backfill deferred for room ${room.roomId}`,
               data: {
-                reason: 'mobile_hidden',
+                reason: 'mobile_not_focused',
                 isMobile: !HAS_IDLE_CALLBACK,
                 visibilityState: document.visibilityState,
+                focused: document.hasFocus(),
               },
               level: 'info',
             });
@@ -492,6 +515,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     if (!backfillReadyRef.current) return;
     const s = syncStateRef.current;
     if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) return;
+    if (!canRunMobileBackfill()) return;
 
     while (
       backfillingRoomsRef.current.size < MAX_CONCURRENT_BACKFILLS &&
@@ -831,15 +855,17 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     };
     mx.on(ClientEvent.Room, handleRoomAdded as unknown as (...args: unknown[]) => void);
 
-    // On mobile, resume backfill when the tab becomes visible again after being
-    // hidden (backfill pauses when hidden to avoid unnecessary background work).
-    const handleVisibilityChange = () => {
-      if (!HAS_IDLE_CALLBACK && document.visibilityState === 'visible') {
+    // On mobile, resume backfill when the PWA becomes foreground-focused again
+    // after being backgrounded or blurred.
+    const handleForegroundFocus = () => {
+      if (canRunMobileBackfill()) {
         resumeBackfill();
       }
     };
     if (!HAS_IDLE_CALLBACK) {
-      document.addEventListener('visibilitychange', handleVisibilityChange);
+      document.addEventListener('visibilitychange', handleForegroundFocus);
+      window.addEventListener('focus', handleForegroundFocus);
+      window.addEventListener('pageshow', handleForegroundFocus);
     }
 
     return () => {
@@ -876,7 +902,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         ClientEvent.Room,
         handleRoomAdded as unknown as (...args: unknown[]) => void
       );
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('visibilitychange', handleForegroundFocus);
+      window.removeEventListener('focus', handleForegroundFocus);
+      window.removeEventListener('pageshow', handleForegroundFocus);
 
       // Cancel the startup delay and reset the ready gate
       if (backfillStartDelayRef.current !== null) {

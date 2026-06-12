@@ -58,6 +58,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   const userId = mx.getUserId() ?? '';
   const roomId = room.roomId;
   const roomState = room.getLiveTimeline()?.getState(EventTimeline.FORWARDS);
+  const pollSender = mEvent.getSender();
 
   const poll = content[M_POLL_START.name] as PollStartSubtype;
   const questionBody = (poll?.question as { body?: string })?.body ?? '';
@@ -75,15 +76,17 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   // This should technically request the permissions at the time of the end of the event but that doesnt seem to be supported by the sdk
   const getEndIndex = useCallback(
     (events: MatrixEvent[]) =>
-      events.findLastIndex(
-        (item) =>
+      events.findLastIndex((item) => {
+        const itemSender = item.getSender();
+        return (
           M_POLL_END.name in item.getContent() &&
-          item.sender &&
-          mEvent.sender &&
-          (item.sender?.userId === mEvent.sender.userId ||
-            roomState?.maySendRedactionForEvent(mEvent, item.sender.userId))
-      ),
-    [roomState, mEvent]
+          typeof item.getSender() === 'string' &&
+          pollSender &&
+          itemSender &&
+          (itemSender === pollSender || roomState?.maySendRedactionForEvent(mEvent, itemSender))
+        );
+      }),
+    [roomState, mEvent, pollSender]
   );
 
   const sortChildEvents = useCallback((events: MatrixEvent[]) => {

@@ -6,6 +6,7 @@ updates:
     cooldown:
       default-days: 7
     directory: /
+    target-branch: integration
     schedule:
       interval: daily
     open-pull-requests-limit: 5
@@ -22,6 +23,7 @@ updates:
     cooldown:
       default-days: 7
     directory: /
+    target-branch: integration
     schedule:
       interval: daily
     open-pull-requests-limit: 5
@@ -38,6 +40,7 @@ updates:
     cooldown:
       default-days: 7
     directory: /
+    target-branch: integration
     schedule:
       interval: daily
     open-pull-requests-limit: 10

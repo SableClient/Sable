@@ -1,27 +1,25 @@
 ---
-name: rebuild integration
-description: When asked to rebuild integration, or if there are large numbers of changes to branches
+name: refresh integration
+description: When asked to refresh integration from selected branches or upstream changes
 ---
 
-Rebuild the `integration` branch safely.
+Refresh the `integration` branch safely.
 
 ## Goal
 
-Create a fresh `integration` branch from the latest `dev`, then merge selected branches into it in a clean, deliberate order.
+Keep `integration` as the fork's active trunk by merging selected fork branches and explicit upstream sync branches in a clean, deliberate order.
 
-`integration` must be treated as disposable. It should not contain unique work that is not present on a feature/fix/personal branch.
+`integration` is not disposable. It may contain the fork's canonical product state. Preserve its current behavior unless the user explicitly approves replacing it.
 
 ## Required Process
 
 1. Inspect the current git state.
 2. Ensure the working tree is clean before making changes.
 3. Fetch all remotes.
-4. Update local `dev` from `upstream/dev`.
-5. Push updated `dev` to `origin/dev`.
-6. Delete and recreate local `integration` from updated `dev`.
-7. Ask me which branches should be included.
-8. Always include `personal/config`.
-9. Before merging, propose the cleanest merge order.
+4. Confirm local `integration` is up to date with `origin/integration`.
+5. Confirm local `dev`, `origin/dev`, and `upstream/dev` match when upstream mirroring is relevant.
+6. Ask which feature/fix/chore branches and upstream sync branches should be included.
+7. Before merging, propose the cleanest merge order.
 
 ## Merge Planning
 
@@ -31,8 +29,9 @@ Before performing merges, inspect selected branches and produce a merge plan tha
 - overlapping files
 - likely conflict areas
 - whether some branches should be merged before others
-- whether any branches appear stale and should first be rebased or merged from `dev`
+- whether any branch appears stale and should first be refreshed from `integration`
 - whether any branch appears to duplicate changes from another branch
+- whether upstream changes overlap fork-local behavior
 
 Do not merge until you have shown the plan and I confirm.
 
@@ -40,16 +39,26 @@ Do not merge until you have shown the plan and I confirm.
 
 When merging selected branches:
 
+- preserve `integration` behavior unless the branch intentionally changes it
 - preserve feature branch commits where practical
 - avoid dropping code or features silently
 - resolve conflicts carefully
 - explain each conflict before resolving it
-- prefer existing branch intent over accidental integration-only state
+- prefer existing branch intent over accidental duplicate state
 - do not make unrelated cleanup changes
+
+## Upstream Intake
+
+Use explicit upstream sync branches:
+
+1. Start from current `integration`.
+2. Merge `upstream/dev`.
+3. Resolve conflicts by preserving fork behavior unless upstream is clearly better, more spec-compliant, or explicitly requested.
+4. Open a PR from the sync branch to `integration`.
 
 ## Validation
 
-After rebuilding `integration`:
+After refreshing `integration`:
 
 1. Show the final branch graph summary.
 2. Show which branches were merged.
@@ -60,6 +69,6 @@ After rebuilding `integration`:
 
 ## Important
 
-Do not create unique feature work directly on `integration`.
+Do not reset `integration` to `dev`.
 
-If you discover commits that exist only on `integration`, stop and report them instead of deleting them silently.
+If you discover unique work whose purpose is unclear, stop and report it instead of deleting it silently.

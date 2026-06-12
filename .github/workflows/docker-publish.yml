@@ -2,7 +2,7 @@ name: Build and publish Docker image
 
 on:
   push:
-    branches: [dev, integration]
+    branches: [integration]
     tags:
       - 'v*'
   pull_request:
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       git_tag:
-        description: 'Git tag to build and publish (e.g. v1.2.3). Leave empty to build current HEAD as a dev image.'
+        description: 'Git tag to build and publish (e.g. v1.2.3). Leave empty to build current HEAD as an integration image.'
         required: false
         type: string
 
@@ -23,7 +23,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'pull_request' && (github.base_ref == 'dev' && 'production' || github.base_ref == 'integration' && 'preview' || 'preview') || github.ref == 'refs/heads/dev' && 'production' || github.ref == 'refs/heads/integration' && 'preview' || 'preview' }}
+    environment: ${{ (github.ref == 'refs/heads/integration' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && 'production' || 'preview' }}
     permissions:
       contents: read
       packages: write
@@ -74,11 +74,11 @@ jobs:
           flavor: |
             latest=false
           tags: |
-            # dev/integration branch or manual dispatch without a tag: short commit SHA
-            type=sha,prefix=,format=short,enable=${{ github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/integration' || (github.event_name == 'workflow_dispatch' && inputs.git_tag == '') }}
+            # integration branch or manual dispatch without a tag: short commit SHA
+            type=sha,prefix=,format=short,enable=${{ github.ref == 'refs/heads/integration' || (github.event_name == 'workflow_dispatch' && inputs.git_tag == '') }}
 
-            # dev branch or manual dispatch without a tag: latest tag
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && inputs.git_tag == '') }}
+            # integration branch or manual dispatch without a tag: latest tag
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/integration' || (github.event_name == 'workflow_dispatch' && inputs.git_tag == '') }}
 
             # integration branch: stable integration tag
             type=raw,value=integration,enable=${{ github.ref == 'refs/heads/integration' }}
@@ -100,7 +100,7 @@ jobs:
           VITE_BUILD_HASH: ${{ steps.vars.outputs.short_sha }}
           VITE_IS_RELEASE_TAG: ${{ steps.release_tag.outputs.is_release }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          VITE_SENTRY_ENVIRONMENT: ${{ (steps.release_tag.outputs.is_release == 'true' || github.ref == 'refs/heads/dev') && 'production' || 'preview' }}
+          VITE_SENTRY_ENVIRONMENT: ${{ (github.ref == 'refs/heads/integration' || github.event_name == 'workflow_dispatch' || steps.release_tag.outputs.is_release == 'true') && 'production' || 'preview' }}
           VITE_APP_VERSION: ${{ github.ref_name }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}

@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
   merge_group:
-    branches: [dev]
+    branches: [integration]
 
 permissions: {}
 
@@ -101,7 +101,7 @@ jobs:
 
             Replace \`patch\` with \`major\`, \`minor\`, \`patch\`, \`docs\`, or \`note\` as appropriate.
 
-            📖 Read more in [CONTRIBUTING.md](https://github.com/SableClient/Sable/blob/dev/CONTRIBUTING.md#release-notes-and-versioning-knope).
+            📖 Read more in [CONTRIBUTING.md](../blob/integration/CONTRIBUTING.md#release-notes-and-versioning-knope).
 
             > If this PR is internal/maintenance with no user-facing impact, a maintainer can add the \`internal\` label to skip this check.`;
 

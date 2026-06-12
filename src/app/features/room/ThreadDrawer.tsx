@@ -230,6 +230,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(threadRootId));
   const replyDraft = useAtomValue(roomIdToReplyDraftAtomFamily(threadRootId));
   const activeReplyId = replyDraft?.body ? replyDraft?.eventId : undefined;
+
   // User profile popup
   const openUserRoomProfile = useOpenUserRoomProfile();
 

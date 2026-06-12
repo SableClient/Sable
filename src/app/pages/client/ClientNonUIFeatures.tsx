@@ -844,11 +844,16 @@ function SyncStateWithServiceWorker() {
     postToServiceWorker(msg);
   }, []);
 
+  useEffect(() => {
+    const current = mx.getSyncState();
+    postSyncHealth(current === SyncState.Prepared || current === SyncState.Syncing);
+  }, [mx, postSyncHealth]);
+
   useSyncState(
     mx,
     useCallback(
       (current) => {
-        const healthy = current !== SyncState.Reconnecting && current !== SyncState.Error;
+        const healthy = current === SyncState.Prepared || current === SyncState.Syncing;
         postSyncHealth(healthy);
       },
       [postSyncHealth]

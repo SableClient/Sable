@@ -2,7 +2,7 @@
 /// <reference lib="WebWorker" />
 
 /* oxlint-disable no-console, unicorn/require-post-message-target-origin */
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
 
 import { createPushNotifications } from './sw/pushNotification';
 import { readPersistedSession } from './sw-session-persistence';
@@ -14,7 +14,7 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
-let syncIsHealthy = true;
+let syncIsHealthy = false;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -81,6 +81,7 @@ async function loadPersistedSettings() {
       const ageMs = Date.now() - s.appVisibleAt;
       if (ageMs < 2_000) {
         appIsVisible = true;
+        syncIsHealthy = false;
         console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
       }
     }
@@ -1681,8 +1682,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
         console.debug('[SW fetch fallback] Network fetch failed, trying cache:', fetchError);
         // Network failed, try to serve cached index.html
         try {
-          const cache = await caches.open('workbox-precache-v2-' + self.registration.scope);
-          const cachedResponse = await cache.match('/index.html');
+          const cachedResponse = await matchPrecache('/index.html');
           if (cachedResponse) {
             console.debug('[SW fetch fallback] Serving cached index.html');
             return cachedResponse;

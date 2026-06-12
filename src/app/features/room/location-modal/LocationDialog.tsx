@@ -44,7 +44,7 @@ export function filterLocationString(result: string) {
       const mlng = Number.parseFloat(coords.mlng);
 
       if (!Number.isNaN(mlat) && !Number.isNaN(mlng)) {
-        return { status: locationErrors.none, lat: mlat, lon: mlng } as locationPoint;
+        return { status: LocationErrors.none, lat: mlat, lon: mlng } as LocationPoint;
       }
     }
   }
@@ -58,7 +58,7 @@ export function filterLocationString(result: string) {
       const mlng = Number.parseFloat(coords[2]);
 
       if (!Number.isNaN(mlat) && !Number.isNaN(mlng))
-        return { status: locationErrors.none, lat: mlat, lon: mlng } as locationPoint;
+        return { status: LocationErrors.none, lat: mlat, lon: mlng } as LocationPoint;
     }
   }
   // apple address bar pins (eg. https://maps.apple.com/place?auid=6096426607790210541&address=Catal%C3%A3o+-+GO%2C+75714-000%2C+Brazil&coordinate=-17.711014%2C-47.488393&name=75714-000&lsp=7618 )
@@ -74,7 +74,7 @@ export function filterLocationString(result: string) {
       const mlng = Number.parseFloat(coords[2]);
 
       if (!Number.isNaN(mlat) && !Number.isNaN(mlng)) {
-        return { status: locationErrors.none, lat: mlat, lon: mlng } as locationPoint;
+        return { status: LocationErrors.none, lat: mlat, lon: mlng } as LocationPoint;
       }
     }
   }
@@ -84,9 +84,9 @@ export function filterLocationString(result: string) {
     const mlat = Number.parseFloat(coords[0]);
     const mlng = Number.parseFloat(coords[1]);
     if (!Number.isNaN(mlat) && !Number.isNaN(mlng))
-      return { status: locationErrors.none, lat: mlat, lon: mlng } as locationPoint;
+      return { status: LocationErrors.none, lat: mlat, lon: mlng } as LocationPoint;
   }
-  return { status: locationErrors.clipboard };
+  return { status: LocationErrors.clipboard };
 }
 
 type LocationDialogProps = {
@@ -97,16 +97,17 @@ type LocationDialogProps = {
   clearReplyDraft?: () => void;
 };
 
-export enum locationErrors {
+export enum LocationErrors {
   none,
   permissions = 'You have denied Sable access to you location services',
   module = 'Your device does not have a gps module, or it may not be turned on',
   unknown = 'The sharing failed for unknown reasons',
-  clipboard = 'Unable to identify the coordonates from clipboard',
+  clipboard = 'Unable to identify the coordinates from clipboard',
+  missingClipboard = 'Unable to retrieve clipboard contents',
 }
 
-export type locationPoint = {
-  status: locationErrors;
+export type LocationPoint = {
+  status: LocationErrors;
   lat?: number;
   lon?: number;
 };
@@ -129,7 +130,7 @@ export function LocationDialog({
   });
   const [pinPosition, setPinPosition] = useState<L.LatLngLiteral>(initCoords);
   const zoom = useRef<number>(2);
-  const [locationError, setLocationError] = useState<locationErrors>(locationErrors.none);
+  const [locationError, setLocationError] = useState<LocationErrors>(LocationErrors.none);
 
   const [map, setMap] = useState<L.Map | null>(null);
 
@@ -172,9 +173,9 @@ export function LocationDialog({
     return false;
   };
 
-  function storeLocation(coords: locationPoint) {
+  function storeLocation(coords: LocationPoint) {
     setLocationError(coords.status);
-    if (!coords.lat || !coords.lon || coords.status !== locationErrors.none) return;
+    if (!coords.lat || !coords.lon || coords.status !== LocationErrors.none) return;
     movePin({ lat: coords.lat, lng: coords.lon });
     setInputPosition({ lat: coords.lat.toFixed(6), lng: coords.lon.toFixed(6) });
     setPinPosition({ lat: coords.lat, lng: coords.lon });
@@ -182,10 +183,13 @@ export function LocationDialog({
   }
 
   function getClipboard() {
-    navigator.clipboard.readText().then((result: string) => {
-      const coords = filterLocationString(result);
-      storeLocation(coords);
-    });
+    navigator.clipboard
+      .readText()
+      .then((result: string) => {
+        const coords = filterLocationString(result);
+        storeLocation(coords);
+      })
+      .catch(() => storeLocation({ status: LocationErrors.missingClipboard }));
   }
 
   function getLocation() {
@@ -198,16 +202,16 @@ export function LocationDialog({
       const crd = pos.coords;
 
       if (!crd.latitude || !crd.longitude) {
-        setLocationError(locationErrors.unknown);
+        setLocationError(LocationErrors.unknown);
         return;
       }
-      storeLocation({ lat: crd.latitude, lon: crd.longitude, status: locationErrors.none });
+      storeLocation({ lat: crd.latitude, lon: crd.longitude, status: LocationErrors.none });
     }
 
     function error(err: GeolocationPositionError) {
-      if (err.code === 1) setLocationError(locationErrors.permissions);
-      else if (err.code === 2) setLocationError(locationErrors.module);
-      else setLocationError(locationErrors.unknown);
+      if (err.code === 1) setLocationError(LocationErrors.permissions);
+      else if (err.code === 2) setLocationError(LocationErrors.module);
+      else setLocationError(LocationErrors.unknown);
     }
     navigator.geolocation.getCurrentPosition(success, error, options);
   }
@@ -279,8 +283,9 @@ export function LocationDialog({
               <Box direction="Row" className={css.LocationDialogButtons}>
                 <Chip
                   variant={
-                    locationError === locationErrors.none ||
-                    locationError === locationErrors.clipboard
+                    locationError === LocationErrors.none ||
+                    locationError === LocationErrors.clipboard ||
+                    locationError === LocationErrors.missingClipboard
                       ? 'Primary'
                       : 'Critical'
                   }
@@ -291,7 +296,12 @@ export function LocationDialog({
                   <Text className={css.LocationInputField}>Share Current Location</Text>
                 </Chip>
                 <Chip
-                  variant={locationError !== locationErrors.clipboard ? 'Secondary' : 'Critical'}
+                  variant={
+                    locationError !== LocationErrors.clipboard &&
+                    locationError !== LocationErrors.missingClipboard
+                      ? 'Secondary'
+                      : 'Critical'
+                  }
                   className={classNames(css.LocationInputItem, css.LocationInputClipboard)}
                   onClick={getClipboard}
                   before={<ClipboardIcon size="18" />}
@@ -299,7 +309,7 @@ export function LocationDialog({
                   <Text className={css.LocationInputField}>Paste Clipboard</Text>
                 </Chip>
               </Box>
-              {locationError !== locationErrors.none && (
+              {locationError !== LocationErrors.none && (
                 <Box className={css.LocationDialogErrorText}>
                   <Icon size="50" src={Icons.Warning} />
                   <Text size="L400">{locationError}</Text>

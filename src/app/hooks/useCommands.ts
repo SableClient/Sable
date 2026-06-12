@@ -52,8 +52,8 @@ import {
   deletePerMessageProfile,
   setCurrentlyUsedPerMessageProfileIdForRoom,
 } from './usePerMessageProfile';
-import type { locationPoint } from '$features/room/location-modal/LocationDialog';
-import { filterLocationString, locationErrors } from '$features/room/location-modal/LocationDialog';
+import type { LocationPoint } from '$features/room/location-modal/LocationDialog';
+import { filterLocationString, LocationErrors } from '$features/room/location-modal/LocationDialog';
 
 export const SHRUG = String.raw`¯\_(ツ)_/¯`;
 export const TABLEFLIP = '(╯°□°)╯︵ ┻━┻';
@@ -1546,8 +1546,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         description:
           'Open location sharing menu or share a location as /location <latitude> <longitude>',
         exe: async (payload) => {
-          const coords: locationPoint = filterLocationString(payload);
-          if (!coords.lat || !coords.lon || coords.status !== locationErrors.none) {
+          const coords: LocationPoint = filterLocationString(payload);
+          if (!coords.lat || !coords.lon || coords.status !== LocationErrors.none) {
             sendFeedback(
               'You need to specify a latitude, and a longitude parameter, as for example: /location 43.959971 -59.790623 or have nothing after the /location to open the map to click which location to share',
               room,

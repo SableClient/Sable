@@ -720,6 +720,45 @@ function HealthMonitor() {
   return null;
 }
 
+type ServiceWorkerLogLevel = 'debug' | 'info' | 'warning' | 'error';
+type ServiceWorkerLogAttributes = Record<string, string | number | boolean>;
+
+const flattenServiceWorkerLogAttributes = (
+  data?: Record<string, string | number | boolean | undefined>
+): ServiceWorkerLogAttributes => {
+  const attributes: ServiceWorkerLogAttributes = {};
+  Object.entries(data ?? {}).forEach(([key, value]) => {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      attributes[key] = value;
+    }
+  });
+  return attributes;
+};
+
+const logServiceWorkerMessage = (
+  category: string,
+  message: string,
+  level: ServiceWorkerLogLevel = 'info',
+  data?: Record<string, string | number | boolean | undefined>
+): void => {
+  const attributes = {
+    category,
+    ...flattenServiceWorkerLogAttributes(data),
+  };
+  const logMessage = `[${category}] ${message}`;
+
+  if (level === 'error') Sentry.logger.error(logMessage, attributes);
+  else if (level === 'warning') Sentry.logger.warn(logMessage, attributes);
+  else if (level === 'debug') Sentry.logger.debug(logMessage, attributes);
+  else Sentry.logger.info(logMessage, attributes);
+};
+
+const getPushTelemetryLogLevel = (event: string): ServiceWorkerLogLevel => {
+  if (event === 'handler_error') return 'error';
+  if (event === 'decrypt_timeout' || event === 'fetch_fallback') return 'warning';
+  return 'info';
+};
+
 /**
  * Handles Sentry metrics posted from the Service Worker.
  * The SW cannot directly import Sentry, so it posts messages to the main thread.
@@ -758,6 +797,7 @@ function ServiceWorkerMetricsHandler() {
           data?: Record<string, string | number | boolean | undefined>;
         };
         Sentry.addBreadcrumb({ category, message, level, data });
+        logServiceWorkerMessage(category, message, level ?? 'info', data);
         return;
       }
 
@@ -765,20 +805,31 @@ function ServiceWorkerMetricsHandler() {
         const records: unknown[] = Array.isArray(event.data.records) ? event.data.records : [];
         records.forEach((record) => {
           const pushRecord = record as {
+            id?: string;
             event?: string;
             timestamp?: number;
             data?: Record<string, string | number | boolean>;
           };
           if (!pushRecord.event) return;
+          const level = getPushTelemetryLogLevel(pushRecord.event);
+          const logData = {
+            push_event: pushRecord.event,
+            push_record_id: pushRecord.id,
+            push_record_timestamp: pushRecord.timestamp,
+            ...pushRecord.data,
+          };
           Sentry.addBreadcrumb({
             category: 'service_worker.push',
             message: `SW push ${pushRecord.event}`,
-            level: pushRecord.event === 'handler_error' ? 'error' : 'info',
-            data: {
-              timestamp: pushRecord.timestamp,
-              ...pushRecord.data,
-            },
+            level,
+            data: logData,
           });
+          logServiceWorkerMessage(
+            'service_worker.push',
+            `SW push ${pushRecord.event}`,
+            level,
+            logData
+          );
           Sentry.metrics.count('sable.sw.push_telemetry', 1, {
             attributes: { event: pushRecord.event },
           });

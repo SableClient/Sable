@@ -40,6 +40,7 @@ import { PageHeader } from '$components/page';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
+import { UnreadBadge } from '$components/unread-badge';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useIsDirectRoom, useRoom } from '$hooks/useRoom';
@@ -357,6 +358,8 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const screenSize = useScreenSizeContext();
   const room = useRoom();
   const space = useSpaceOptionally();
+  const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
+  const highlightedUnreadCount = unread?.highlight ?? 0;
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();
   const direct = useIsDirectRoom();
@@ -615,7 +618,12 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
           <BackRouteHandler>
             {(onBack) => (
               <Box shrink="No" alignItems="Center">
-                <IconButton fill="None" onClick={onBack}>
+                <IconButton fill="None" onClick={onBack} style={{ position: 'relative' }}>
+                  {highlightedUnreadCount > 0 && (
+                    <span className={css.BackButtonBadge}>
+                      <UnreadBadge highlight count={highlightedUnreadCount} />
+                    </span>
+                  )}
                   <Icon src={Icons.ArrowLeft} />
                 </IconButton>
               </Box>

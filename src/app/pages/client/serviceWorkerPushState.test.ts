@@ -20,6 +20,9 @@ describe('service worker push state helpers', () => {
       requestId: 'req-1',
       visible: true,
       syncHealthy: true,
+      visibilityState: 'visible',
+      focused: true,
+      mobile: false,
     });
 
     expect(buildPushVisibilityResult('req-2', 'visible', SyncState.Reconnecting)).toEqual({
@@ -27,6 +30,9 @@ describe('service worker push state helpers', () => {
       requestId: 'req-2',
       visible: true,
       syncHealthy: false,
+      visibilityState: 'visible',
+      focused: true,
+      mobile: false,
     });
 
     expect(buildPushVisibilityResult('req-3', 'hidden', SyncState.Syncing)).toEqual({
@@ -34,6 +40,26 @@ describe('service worker push state helpers', () => {
       requestId: 'req-3',
       visible: false,
       syncHealthy: false,
+      visibilityState: 'hidden',
+      focused: true,
+      mobile: false,
+    });
+  });
+
+  it('does not confirm mobile visibility when WebKit reports visible but the page is not focused', () => {
+    expect(
+      buildPushVisibilityResult('req-4', 'visible', SyncState.Syncing, {
+        focused: false,
+        mobile: true,
+      })
+    ).toEqual({
+      type: 'pushVisibilityResult',
+      requestId: 'req-4',
+      visible: false,
+      syncHealthy: false,
+      visibilityState: 'visible',
+      focused: false,
+      mobile: true,
     });
   });
 

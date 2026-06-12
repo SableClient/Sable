@@ -5,7 +5,12 @@ export type PushVisibilityMessage = {
   requestId: string;
   visible: boolean;
   syncHealthy: boolean;
+  visibilityState: DocumentVisibilityState;
+  focused: boolean;
+  mobile: boolean;
 };
+
+export type PushVisibilityState = Omit<PushVisibilityMessage, 'type' | 'requestId'>;
 
 export type PushInAppFallbackMessage = {
   roomId?: string;
@@ -34,17 +39,39 @@ export type PushFallbackBannerData = {
 export const isMatrixSyncHealthy = (state: SyncState | null | undefined): boolean =>
   state === SyncState.Prepared || state === SyncState.Syncing;
 
+export function resolvePushVisibilityState(
+  visibilityState: DocumentVisibilityState,
+  syncState: SyncState | null | undefined,
+  options: {
+    focused?: boolean;
+    mobile?: boolean;
+  } = {}
+): PushVisibilityState {
+  const focused = options.focused ?? true;
+  const mobile = options.mobile ?? false;
+  const visible = visibilityState === 'visible' && (!mobile || focused);
+  return {
+    visible,
+    syncHealthy: visible && isMatrixSyncHealthy(syncState),
+    visibilityState,
+    focused,
+    mobile,
+  };
+}
+
 export function buildPushVisibilityResult(
   requestId: string,
   visibilityState: DocumentVisibilityState,
-  syncState: SyncState | null | undefined
+  syncState: SyncState | null | undefined,
+  options?: {
+    focused?: boolean;
+    mobile?: boolean;
+  }
 ): PushVisibilityMessage {
-  const visible = visibilityState === 'visible';
   return {
     type: 'pushVisibilityResult',
     requestId,
-    visible,
-    syncHealthy: visible && isMatrixSyncHealthy(syncState),
+    ...resolvePushVisibilityState(visibilityState, syncState, options),
   };
 }
 

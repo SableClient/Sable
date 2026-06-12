@@ -598,6 +598,9 @@ type DecryptionResult = {
   sender_display_name?: string;
   room_name?: string;
   visibilityState?: string;
+  visible?: boolean;
+  focused?: boolean;
+  mobile?: boolean;
   syncHealthy?: boolean;
   clientId?: string;
 };
@@ -608,6 +611,9 @@ type PushVisibilityResult = {
   clientId: string;
   visible: boolean;
   syncHealthy: boolean;
+  visibilityState?: string;
+  focused?: boolean;
+  mobile?: boolean;
 };
 
 const pushVisibilityPendingMap = new Map<
@@ -987,8 +993,11 @@ async function handleMinimalPushPayload(
     // Track decryption relay results
     postSentryMetric('sable.push.decrypt_relay', 1, {
       success: result?.success ?? false,
-      app_visible: result?.visibilityState === 'visible',
+      app_visible: result?.visible === true,
       sync_healthy: result?.syncHealthy ?? false,
+      visibility_state: result?.visibilityState ?? 'unknown',
+      focused: result?.focused ?? false,
+      mobile: result?.mobile ?? false,
       has_clients: windowClients.length > 0,
       timed_out: result === undefined && windowClients.length > 0,
     }).catch(() => undefined);
@@ -997,14 +1006,20 @@ async function handleMinimalPushPayload(
       await recordPushTelemetry('decrypt_timeout', { payload_type: 'minimal' });
     }
 
-    if (result?.visibilityState === 'visible') {
+    if (result?.visible === true) {
       await recordPushTelemetry('confirmed_visible', {
         payload_type: 'minimal',
         sync_healthy: result.syncHealthy === true,
+        visibility_state: result.visibilityState ?? 'unknown',
+        focused: result.focused ?? false,
+        mobile: result.mobile ?? false,
       });
       await recordPushTelemetry('suppressed_visible', {
         payload_type: 'minimal',
         sync_healthy: result.syncHealthy === true,
+        visibility_state: result.visibilityState ?? 'unknown',
+        focused: result.focused ?? false,
+        mobile: result.mobile ?? false,
       });
       if (result.syncHealthy === false && result.clientId) {
         await postPushInAppFallback(
@@ -1033,6 +1048,7 @@ async function handleMinimalPushPayload(
         'info',
         {
           appVisible: result.visibilityState === 'visible',
+          visible: false,
           hasWindowClients: windowClients.length > 0,
         }
       );
@@ -1216,10 +1232,16 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       requestId,
       visible,
       syncHealthy: resultSyncHealthy,
+      visibilityState,
+      focused,
+      mobile,
     } = data as {
       requestId?: unknown;
       visible?: unknown;
       syncHealthy?: unknown;
+      visibilityState?: unknown;
+      focused?: unknown;
+      mobile?: unknown;
     };
     if (
       typeof requestId === 'string' &&
@@ -1229,7 +1251,14 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       const resolve = pushVisibilityPendingMap.get(requestId);
       if (resolve) {
         pushVisibilityPendingMap.delete(requestId);
-        resolve({ clientId: client.id, visible, syncHealthy: resultSyncHealthy });
+        resolve({
+          clientId: client.id,
+          visible,
+          syncHealthy: resultSyncHealthy,
+          visibilityState: typeof visibilityState === 'string' ? visibilityState : undefined,
+          focused: typeof focused === 'boolean' ? focused : undefined,
+          mobile: typeof mobile === 'boolean' ? mobile : undefined,
+        });
       }
     }
   }
@@ -1714,10 +1743,16 @@ const onPushNotification = async (event: PushEvent) => {
     await recordPushTelemetry('confirmed_visible', {
       payload_type: payloadType,
       sync_healthy: visibleClient.syncHealthy,
+      visibility_state: visibleClient.visibilityState ?? 'unknown',
+      focused: visibleClient.focused ?? false,
+      mobile: visibleClient.mobile ?? false,
     });
     await recordPushTelemetry('suppressed_visible', {
       payload_type: payloadType,
       sync_healthy: visibleClient.syncHealthy,
+      visibility_state: visibleClient.visibilityState ?? 'unknown',
+      focused: visibleClient.focused ?? false,
+      mobile: visibleClient.mobile ?? false,
     });
     postSentryBreadcrumb(
       'notification.push',
@@ -1726,11 +1761,17 @@ const onPushNotification = async (event: PushEvent) => {
       {
         appVisible: appIsVisible,
         syncHealthy: visibleClient.syncHealthy,
+        visibilityState: visibleClient.visibilityState,
+        focused: visibleClient.focused,
+        mobile: visibleClient.mobile,
         clientCount: clients.length,
       }
     ).catch(() => undefined);
     postSentryMetric('sable.push.suppressed_visible', 1, {
       sync_healthy: visibleClient.syncHealthy,
+      visibility_state: visibleClient.visibilityState ?? 'unknown',
+      focused: visibleClient.focused ?? false,
+      mobile: visibleClient.mobile ?? false,
       client_count: clients.length,
     }).catch(() => undefined);
     if (!visibleClient.syncHealthy) {

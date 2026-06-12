@@ -153,6 +153,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const showClientUrlPreview = room.hasEncryptionStateEvent()
     ? clientUrlPreview && encClientUrlPreview
     : clientUrlPreview;
+  const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
+  const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
+  const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
 
   // Memoized parsing options
   const linkifyOpts = useMemo<LinkifyOpts>(
@@ -704,6 +707,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       showUrlPreview,
       showClientUrlPreview,
       showBundledPreview,
+      showMaps,
       autoplayStickers,
       hideMemberInReadOnly,
       isReadOnly,

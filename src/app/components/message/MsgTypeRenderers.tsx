@@ -35,6 +35,11 @@ import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
 import { LINKINPUTREGEX } from '$components/editor';
 import { MATRIX_TO_BASE } from '$plugins/matrix-to';
+import { copyToClipboard } from '$utils/dom';
+import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import type { LatLngExpression } from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import * as css from './MsgTypeRenderers.css';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -636,30 +641,69 @@ export function MFile({ content, renderFileContent, outlined }: MFileProps) {
 
 type MLocationProps = {
   content: IContent;
+  showMaps?: boolean;
 };
-export function MLocation({ content }: MLocationProps) {
+export function MLocation({ content, showMaps }: MLocationProps) {
   const geoUri = content.geo_uri;
   if (typeof geoUri !== 'string') {
     return <BrokenContent body={typeof content.body === 'string' ? content.body : undefined} />;
   }
   const location = parseGeoUri(geoUri);
   if (!location) return <BrokenContent />;
-
+  const coords: LatLngExpression = [Number(location.latitude), Number(location.longitude)];
   return (
-    <Box direction="Column" alignItems="Start" gap="100">
-      <Text size="T400">{geoUri}</Text>
-      <Chip
-        as="a"
-        size="400"
-        href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
-        target="_blank"
-        rel="noreferrer noopener"
-        variant="Primary"
-        radii="Pill"
-        before={<Icon src={Icons.External} size="50" />}
+    <Box
+      direction="Column"
+      className={css.LocationRendererBody}
+      onPointerMove={(evt) => evt.stopPropagation()}
+    >
+      <Box
+        direction="Row"
+        alignItems="Center"
+        gap="100"
+        justifyContent="SpaceBetween"
+        className={css.LocationRendererHeader}
       >
-        <Text size="B300">Open Location</Text>
-      </Chip>
+        <Chip
+          size="400"
+          variant="SurfaceVariant"
+          onClick={() => copyToClipboard(`${location.latitude}, ${location.longitude}`)}
+          before={<Icon size="50" src={Icons.Link} />}
+          className={css.LocationCoordsChip}
+        >
+          <Text size="T400">{`${location.latitude}, ${location.longitude}`}</Text>
+        </Chip>
+
+        <Chip
+          as="a"
+          size="400"
+          href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          variant="Primary"
+          radii="Pill"
+          className={css.LocationExternalChip}
+          before={<Icon src={Icons.External} size="50" />}
+        >
+          <Text size="B300">Open Location</Text>
+        </Chip>
+      </Box>
+      {showMaps && (
+        <MapContainer
+          center={coords}
+          zoom={16}
+          scrollWheelZoom={true}
+          className={css.LocationMapContainer}
+          attributionControl
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+
+          <Marker position={coords}></Marker>
+        </MapContainer>
+      )}
     </Box>
   );
 }

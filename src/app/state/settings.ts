@@ -116,6 +116,8 @@ export interface Settings {
   clientUrlPreview: boolean;
   encClientUrlPreview: boolean;
   clientPreviewYoutube: boolean;
+  showInteractiveMap: boolean;
+  showEncInteractiveMap: boolean;
 
   usePushNotifications: boolean;
   useInAppNotifications: boolean;
@@ -249,6 +251,8 @@ export const defaultSettings: Settings = {
   clientUrlPreview: false,
   encClientUrlPreview: false,
   clientPreviewYoutube: false,
+  showInteractiveMap: true,
+  showEncInteractiveMap: false,
   showHiddenEvents: false,
   showTombstoneEvents: false,
   legacyUsernameColor: false,

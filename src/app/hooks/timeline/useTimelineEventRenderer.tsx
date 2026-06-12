@@ -273,6 +273,7 @@ export interface TimelineEventRendererOptions {
     showUrlPreview: boolean;
     showBundledPreview: boolean;
     showClientUrlPreview: boolean;
+    showMaps?: boolean;
     autoplayStickers: boolean;
     hideMemberInReadOnly: boolean;
     isReadOnly: boolean;
@@ -330,6 +331,7 @@ export function useTimelineEventRenderer({
     showBundledPreview,
     showUrlPreview,
     showClientUrlPreview,
+    showMaps,
     autoplayStickers,
     hideMemberInReadOnly,
     isReadOnly,
@@ -512,6 +514,7 @@ export function useTimelineEventRenderer({
                 urlPreview={showUrlPreview}
                 bundledPreview={showBundledPreview}
                 clientUrlPreview={showClientUrlPreview}
+                showMaps={showMaps}
                 htmlReactParserOptions={htmlReactParserOptions}
                 linkifyOpts={linkifyOpts}
                 outlineAttachment={messageLayout === MessageLayout.Bubble}

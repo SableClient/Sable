@@ -985,18 +985,31 @@ function SyncNotificationSettingsWithServiceWorker() {
  */
 function SyncStateWithServiceWorker() {
   const mx = useMatrixClient();
+  const lastPostedHealthyRef = useRef<boolean | undefined>(undefined);
 
-  const postSyncHealth = useCallback((healthy: boolean) => {
-    const msg = {
+  const postSyncHealth = useCallback((healthy: boolean, force = false) => {
+    const visibleHealthy = healthy && document.visibilityState === 'visible';
+    if (!force && lastPostedHealthyRef.current === visibleHealthy) return;
+    lastPostedHealthyRef.current = visibleHealthy;
+    postToServiceWorker({
       type: 'setSyncState',
-      healthy: healthy && document.visibilityState === 'visible',
-    };
-    postToServiceWorker(msg);
+      healthy: visibleHealthy,
+    });
   }, []);
 
   useEffect(() => {
+    lastPostedHealthyRef.current = undefined;
     const current = mx.getSyncState();
-    postSyncHealth(isMatrixSyncHealthy(current));
+    postSyncHealth(isMatrixSyncHealthy(current), true);
+  }, [mx, postSyncHealth]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      postSyncHealth(isMatrixSyncHealthy(mx.getSyncState()), true);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [mx, postSyncHealth]);
 
   useSyncState(

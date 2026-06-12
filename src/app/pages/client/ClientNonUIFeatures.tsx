@@ -103,6 +103,7 @@ import {
 import {
   buildPushVisibilityResult,
   isMatrixSyncHealthy,
+  resolvePushVisibilityState,
   resolvePushFallbackBanner,
 } from './serviceWorkerPushState';
 
@@ -1122,7 +1123,10 @@ function ServiceWorkerPushMessages() {
         const { requestId } = data as { requestId?: unknown };
         if (typeof requestId !== 'string') return;
         postToServiceWorker(
-          buildPushVisibilityResult(requestId, document.visibilityState, mx.getSyncState())
+          buildPushVisibilityResult(requestId, document.visibilityState, mx.getSyncState(), {
+            focused: document.hasFocus(),
+            mobile: mobileOrTablet(),
+          })
         );
         return;
       }
@@ -1229,13 +1233,18 @@ function HandleDecryptPushEvent() {
         }
 
         const decryptMs = Math.round(performance.now() - decryptStart);
-        const visible = document.visibilityState === 'visible';
-        const syncHealthy = visible && isMatrixSyncHealthy(mx.getSyncState());
+        const visibility = resolvePushVisibilityState(document.visibilityState, mx.getSyncState(), {
+          focused: document.hasFocus(),
+          mobile: mobileOrTablet(),
+        });
         pushRelayLog.info('notification', 'Push relay decryption succeeded', {
           eventType: mxEvent.getType(),
           decryptMs,
-          appVisible: visible,
-          syncHealthy,
+          appVisible: visibility.visible,
+          syncHealthy: visibility.syncHealthy,
+          visibilityState: visibility.visibilityState,
+          focused: visibility.focused,
+          mobile: visibility.mobile,
         });
 
         postToServiceWorker({
@@ -1246,8 +1255,7 @@ function HandleDecryptPushEvent() {
           content: mxEvent.getContent(),
           sender_display_name: senderName,
           room_name: room?.name ?? '',
-          visibilityState: document.visibilityState,
-          syncHealthy,
+          ...visibility,
         });
       } catch (err) {
         console.warn('[ClientFeatures] HandleDecryptPushEvent: failed to decrypt push event', err);
@@ -1277,13 +1285,15 @@ function HandleDecryptPushEvent() {
           // when the event is viewed in the timeline
         }
 
+        const visibility = resolvePushVisibilityState(document.visibilityState, mx.getSyncState(), {
+          focused: document.hasFocus(),
+          mobile: mobileOrTablet(),
+        });
         postToServiceWorker({
           type: 'pushDecryptResult',
           eventId,
           success: false,
-          visibilityState: document.visibilityState,
-          syncHealthy:
-            document.visibilityState === 'visible' && isMatrixSyncHealthy(mx.getSyncState()),
+          ...visibility,
         });
       }
     };

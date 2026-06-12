@@ -24,7 +24,7 @@ import {
   Badge,
   Spinner,
 } from 'folds';
-import { useNavigate } from 'react-router-dom';
+import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import {
   Direction,
@@ -61,7 +61,12 @@ import {
   mxcUrlToHttp,
   removeRoomIdFromMDirect,
 } from '$utils/matrix';
-import { type SearchPathSearchParams } from '$pages/paths';
+import {
+  DIRECT_ROOM_PATH,
+  HOME_ROOM_PATH,
+  SPACE_ROOM_PATH,
+  type SearchPathSearchParams,
+} from '$pages/paths';
 import { useRoomUnread, useRoomsUnread } from '$state/hooks/unread';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { markAsRead } from '$utils/notifications';
@@ -105,8 +110,6 @@ import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
-import { useHomeSelected } from '$hooks/router/useHomeSelected';
-import { useDirectSelected } from '$hooks/router/useDirectSelected';
 import {
   useDirects,
   useOrphanRooms,
@@ -363,14 +366,16 @@ RoomMenu.displayName = 'RoomMenu';
 
 export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const navigate = useNavigate();
+  const location = useLocation();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const screenSize = useScreenSizeContext();
   const room = useRoom();
   const space = useSpaceOptionally();
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
-  const directSelected = useDirectSelected();
-  const homeSelected = useHomeSelected();
+  const homeRoomSelected = !!matchPath({ path: HOME_ROOM_PATH, end: false }, location.pathname);
+  const directRoomSelected = !!matchPath({ path: DIRECT_ROOM_PATH, end: false }, location.pathname);
+  const spaceRoomSelected = !!matchPath({ path: SPACE_ROOM_PATH, end: false }, location.pathname);
   const mDirects = useAtomValue(mDirectAtom);
   const roomToParents = useAtomValue(roomToParentsAtom);
   const directRooms = useDirects(mx, allRoomsAtom, mDirects);
@@ -381,11 +386,19 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const homeUnread = useRoomsUnread(homeRooms, roomToUnreadAtom);
   const spaceUnread = useRoomsUnread(spaceChildRooms, roomToUnreadAtom);
   const backTargetUnread = useMemo(() => {
-    if (space) return spaceUnread;
-    if (directSelected) return directUnread;
-    if (homeSelected) return homeUnread;
+    if (spaceRoomSelected) return spaceUnread;
+    if (directRoomSelected) return directUnread;
+    if (homeRoomSelected) return homeUnread;
     return unread;
-  }, [directSelected, directUnread, homeSelected, homeUnread, space, spaceUnread, unread]);
+  }, [
+    directRoomSelected,
+    directUnread,
+    homeRoomSelected,
+    homeUnread,
+    spaceRoomSelected,
+    spaceUnread,
+    unread,
+  ]);
   const highlightedUnreadCount = backTargetUnread?.highlight ?? 0;
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();

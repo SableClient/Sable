@@ -578,6 +578,10 @@ export const initClient = async (
   // 100 listeners: large apps render many components that each register one
   // RoomStateEvent.Events handler via useStateEventCallback. 50 was too low.
   mx.setMaxListeners(100);
+  // MatrixRTC session state is observed by room rows, room headers, call views,
+  // and the global call-signaling hook. Default EventEmitter limits are too low
+  // for a large visible room list and produce noisy false-positive warnings.
+  mx.matrixRTC?.setMaxListeners?.(100);
   return mx;
 };
 

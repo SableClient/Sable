@@ -1,5 +1,5 @@
 import type { MouseEventHandler } from 'react';
-import { forwardRef, useCallback, useEffect, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
 import type { RectCords } from 'folds';
@@ -62,10 +62,12 @@ import {
   removeRoomIdFromMDirect,
 } from '$utils/matrix';
 import { type SearchPathSearchParams } from '$pages/paths';
-import { useRoomUnread } from '$state/hooks/unread';
+import { useRoomUnread, useRoomsUnread } from '$state/hooks/unread';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { markAsRead } from '$utils/notifications';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
+import { allRoomsAtom } from '$state/room-list/roomList';
+import { roomToParentsAtom } from '$state/room/roomToParents';
 import { copyToClipboard } from '$utils/dom';
 import { LeaveRoomPrompt } from '$components/leave-room-prompt';
 import { useRoomAvatar, useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
@@ -103,6 +105,14 @@ import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { useHomeSelected } from '$hooks/router/useHomeSelected';
+import { useDirectSelected } from '$hooks/router/useDirectSelected';
+import {
+  useDirects,
+  useOrphanRooms,
+  useRecursiveChildScopeFactory,
+  useSpaceChildren,
+} from '$state/hooks/roomList';
 
 const log = createLogger('RoomViewHeader');
 
@@ -359,7 +369,24 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const room = useRoom();
   const space = useSpaceOptionally();
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
-  const highlightedUnreadCount = unread?.highlight ?? 0;
+  const directSelected = useDirectSelected();
+  const homeSelected = useHomeSelected();
+  const mDirects = useAtomValue(mDirectAtom);
+  const roomToParents = useAtomValue(roomToParentsAtom);
+  const directRooms = useDirects(mx, allRoomsAtom, mDirects);
+  const homeRooms = useOrphanRooms(mx, allRoomsAtom, mDirects, roomToParents);
+  const spaceChildrenScope = useRecursiveChildScopeFactory(mx, roomToParents);
+  const spaceChildRooms = useSpaceChildren(allRoomsAtom, space?.roomId ?? '', spaceChildrenScope);
+  const directUnread = useRoomsUnread(directRooms, roomToUnreadAtom);
+  const homeUnread = useRoomsUnread(homeRooms, roomToUnreadAtom);
+  const spaceUnread = useRoomsUnread(spaceChildRooms, roomToUnreadAtom);
+  const backTargetUnread = useMemo(() => {
+    if (space) return spaceUnread;
+    if (directSelected) return directUnread;
+    if (homeSelected) return homeUnread;
+    return unread;
+  }, [directSelected, directUnread, homeSelected, homeUnread, space, spaceUnread, unread]);
+  const highlightedUnreadCount = backTargetUnread?.highlight ?? 0;
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();
   const direct = useIsDirectRoom();

@@ -8,9 +8,9 @@ permissions: {}
 
 jobs:
   prepare-release:
-    if: >-
+    if: |
       !contains(github.event.head_commit.message, 'chore: prepare release') &&
-      !(startsWith(github.event.head_commit.message, 'Merge pull request') && endsWith(github.event.head_commit.message, '/release'))
+      !contains(github.event.head_commit.message, 'from Just-Insane/release')
     runs-on: ubuntu-latest
     permissions:
       contents: write

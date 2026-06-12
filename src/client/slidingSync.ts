@@ -317,6 +317,8 @@ export class SlidingSyncManager {
 
   private readonly onConnectionChange: () => void;
 
+  private lastOnlineState = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
   private readonly onLifecycle: (state: SlidingSyncState, resp: unknown, err?: Error) => void;
 
   private readonly onMembershipLeave: (
@@ -853,6 +855,8 @@ export class SlidingSyncManager {
 
     this.onConnectionChange = () => {
       const isOnline = navigator.onLine;
+      const wasOnline = this.lastOnlineState;
+      this.lastOnlineState = isOnline;
       const connectionInfo =
         typeof navigator !== 'undefined'
           ? (navigator as unknown as { connection?: NetworkInformation }).connection
@@ -862,6 +866,7 @@ export class SlidingSyncManager {
 
       debugLog.info('network', `Network connectivity changed: ${isOnline ? 'online' : 'offline'}`, {
         online: isOnline,
+        wasOnline,
         effectiveType,
         downlink: downlink ? `${downlink} Mbps` : undefined,
       });
@@ -870,11 +875,17 @@ export class SlidingSyncManager {
         debugLog.warn('network', 'Device went offline - sync paused', {
           syncNumber: this.syncCount,
         });
-      } else {
+      } else if (!wasOnline) {
         debugLog.info('network', 'Device back online - triggering immediate resync', {
           syncNumber: this.syncCount,
         });
         this.slidingSync.resend();
+      } else {
+        debugLog.info('network', 'Online network change observed - keeping current sync request', {
+          syncNumber: this.syncCount,
+          effectiveType,
+          downlink: downlink ? `${downlink} Mbps` : undefined,
+        });
       }
     };
   }

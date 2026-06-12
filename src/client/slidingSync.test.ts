@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
     stop: vi.fn<() => void>(),
     modifyRoomSubscriptions: vi.fn<() => void>(),
     modifyRoomSubscriptionInfo: vi.fn<() => void>(),
+    resend: vi.fn<() => void>(),
     addCustomSubscription: vi.fn<() => void>(),
     useCustomSubscription: vi.fn<() => void>(),
     registerExtension: vi.fn<() => void>(),
@@ -84,6 +85,13 @@ function makeMockMx(overrides: Record<string, unknown> = {}) {
 function makeManager(mx: ReturnType<typeof makeMockMx>): SlidingSyncManager {
   const config: SlidingSyncConfig = {};
   return new SlidingSyncManager(mx, 'https://sliding.example.com', config);
+}
+
+function setNavigatorOnline(value: boolean): void {
+  Object.defineProperty(window.navigator, 'onLine', {
+    configurable: true,
+    value,
+  });
 }
 
 beforeEach(() => {
@@ -208,5 +216,64 @@ describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
     expect(firstCall).toBeDefined();
     const [rooms] = firstCall as unknown as [Set<string>];
     expect([...rooms].toSorted()).toEqual(['!a:example.com', '!b:example.com']);
+  });
+});
+
+// ── network changes: avoid foreground resend cascades ───────────────────────
+
+describe('SlidingSyncManager — network change handling', () => {
+  function installConnectionMock(): { fireConnectionChange: () => void } {
+    let onChange: (() => void) | undefined;
+    Object.defineProperty(window.navigator, 'connection', {
+      configurable: true,
+      value: {
+        effectiveType: '4g',
+        downlink: 10,
+        addEventListener: vi.fn<(event: string, cb: () => void) => void>((event, cb) => {
+          if (event === 'change') onChange = cb;
+        }),
+        removeEventListener: vi.fn<() => void>(),
+        onchange: null,
+      },
+    });
+    return {
+      fireConnectionChange: () => {
+        if (!onChange) throw new Error('connection change listener not registered');
+        onChange();
+      },
+    };
+  }
+
+  afterEach(() => {
+    setNavigatorOnline(true);
+    Object.defineProperty(window.navigator, 'connection', {
+      configurable: true,
+      value: undefined,
+    });
+  });
+
+  it('does not resend on an online-only network change', () => {
+    setNavigatorOnline(true);
+    const { fireConnectionChange } = installConnectionMock();
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+
+    fireConnectionChange();
+
+    expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
+  });
+
+  it('resends when the browser transitions from offline to online', () => {
+    setNavigatorOnline(true);
+    const { fireConnectionChange } = installConnectionMock();
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+
+    setNavigatorOnline(false);
+    fireConnectionChange();
+    setNavigatorOnline(true);
+    fireConnectionChange();
+
+    expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
   });
 });

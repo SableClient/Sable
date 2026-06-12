@@ -100,6 +100,11 @@ import {
   resolvePreferredNotificationTransportProvider,
   type NotificationTransportPlatform,
 } from '../../features/settings/notifications/NotificationTransport';
+import {
+  buildPushVisibilityResult,
+  isMatrixSyncHealthy,
+  resolvePushFallbackBanner,
+} from './serviceWorkerPushState';
 
 const pushRelayLog = createDebugLogger('push-relay');
 const transportLog = createDebugLogger('push-transport');
@@ -123,6 +128,19 @@ function postToServiceWorker(data: unknown): void {
       postToWorker(registration.installing);
     })
     .catch(() => undefined);
+}
+
+function navigateToServiceWorkerUrl(navigate: ReturnType<typeof useNavigate>, url: string): void {
+  try {
+    const target = new URL(url, window.location.origin);
+    if (target.origin === window.location.origin) {
+      navigate(`${target.pathname}${target.search}${target.hash}`);
+      return;
+    }
+  } catch {
+    // Fall through to browser navigation for malformed/relative strings.
+  }
+  window.location.assign(url);
 }
 
 function SystemEmojiFeature() {
@@ -710,23 +728,78 @@ function ServiceWorkerMetricsHandler() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;
 
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type !== 'sentryMetric') return;
-
-      const { metricName, value, attributes } = event.data as {
-        metricName: string;
-        value: number;
-        attributes?: Record<string, string | number | boolean>;
-      };
-
-      // Record the metric via Sentry
-      Sentry.metrics.distribution(metricName, value, {
-        attributes: attributes ?? {},
+    const requestTelemetryDrain = () => {
+      if (document.visibilityState !== 'visible') return;
+      postToServiceWorker({
+        type: 'drainPushTelemetry',
+        requestId: `push-telemetry-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       });
     };
 
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'sentryMetric') {
+        const { metricName, value, attributes } = event.data as {
+          metricName: string;
+          value: number;
+          attributes?: Record<string, string | number | boolean>;
+        };
+
+        Sentry.metrics.distribution(metricName, value, {
+          attributes: attributes ?? {},
+        });
+        return;
+      }
+
+      if (event.data?.type === 'sentryBreadcrumb') {
+        const { category, message, level, data } = event.data as {
+          category: string;
+          message: string;
+          level?: 'debug' | 'info' | 'warning' | 'error';
+          data?: Record<string, string | number | boolean | undefined>;
+        };
+        Sentry.addBreadcrumb({ category, message, level, data });
+        return;
+      }
+
+      if (event.data?.type === 'pushTelemetryRecords') {
+        const records: unknown[] = Array.isArray(event.data.records) ? event.data.records : [];
+        records.forEach((record) => {
+          const pushRecord = record as {
+            event?: string;
+            timestamp?: number;
+            data?: Record<string, string | number | boolean>;
+          };
+          if (!pushRecord.event) return;
+          Sentry.addBreadcrumb({
+            category: 'service_worker.push',
+            message: `SW push ${pushRecord.event}`,
+            level: pushRecord.event === 'handler_error' ? 'error' : 'info',
+            data: {
+              timestamp: pushRecord.timestamp,
+              ...pushRecord.data,
+            },
+          });
+          Sentry.metrics.count('sable.sw.push_telemetry', 1, {
+            attributes: { event: pushRecord.event },
+          });
+        });
+      }
+    };
+
+    const handleVisibilityChange = () => requestTelemetryDrain();
+    const handlePageShow = () => requestTelemetryDrain();
+
+    requestTelemetryDrain();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
+    navigator.serviceWorker.ready.then(requestTelemetryDrain).catch(() => undefined);
+
     navigator.serviceWorker.addEventListener('message', handleMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
+      navigator.serviceWorker.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   return null;
@@ -748,10 +821,18 @@ export function HandleNotificationClick() {
       const { data } = ev;
       if (!data || data.type !== 'notificationClick') return;
 
-      const { userId, roomId, eventId, isInvite, isReminder } = data as {
+      const {
+        userId,
+        roomId,
+        eventId,
+        navigate: navigateUrl,
+        isInvite,
+        isReminder,
+      } = data as {
         userId?: string;
         roomId?: string;
         eventId?: string;
+        navigate?: string;
         isInvite?: boolean;
         isReminder?: boolean;
       };
@@ -768,7 +849,10 @@ export function HandleNotificationClick() {
         return;
       }
 
-      if (!roomId) return;
+      if (!roomId) {
+        if (navigateUrl) navigateToServiceWorkerUrl(navigate, navigateUrl);
+        return;
+      }
       setPending({ roomId, eventId, targetSessionId: userId });
     };
 
@@ -791,15 +875,25 @@ function SyncNotificationSettingsWithServiceWorker() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;
 
+    const postHiddenState = () => {
+      postToServiceWorker({ type: 'setAppVisible', visible: false });
+      postToServiceWorker({ type: 'setSyncState', healthy: false });
+    };
+
     const postVisibility = () => {
       const visible = document.visibilityState === 'visible';
-      const msg = { type: 'setAppVisible', visible };
-      postToServiceWorker(msg);
+      if (!visible) {
+        postHiddenState();
+        return;
+      }
+      postToServiceWorker({ type: 'setAppVisible', visible: true });
     };
 
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
+    window.addEventListener('pagehide', postHiddenState);
+    document.addEventListener('freeze', postHiddenState);
 
     const keepAliveId = window.setInterval(() => {
       navigator.serviceWorker.controller?.postMessage({ type: 'ping' });
@@ -807,6 +901,8 @@ function SyncNotificationSettingsWithServiceWorker() {
 
     return () => {
       document.removeEventListener('visibilitychange', postVisibility);
+      window.removeEventListener('pagehide', postHiddenState);
+      document.removeEventListener('freeze', postHiddenState);
       window.clearInterval(keepAliveId);
     };
   }, []);
@@ -840,21 +936,23 @@ function SyncStateWithServiceWorker() {
   const mx = useMatrixClient();
 
   const postSyncHealth = useCallback((healthy: boolean) => {
-    const msg = { type: 'setSyncState', healthy };
+    const msg = {
+      type: 'setSyncState',
+      healthy: healthy && document.visibilityState === 'visible',
+    };
     postToServiceWorker(msg);
   }, []);
 
   useEffect(() => {
     const current = mx.getSyncState();
-    postSyncHealth(current === SyncState.Prepared || current === SyncState.Syncing);
+    postSyncHealth(isMatrixSyncHealthy(current));
   }, [mx, postSyncHealth]);
 
   useSyncState(
     mx,
     useCallback(
       (current) => {
-        const healthy = current === SyncState.Prepared || current === SyncState.Syncing;
-        postSyncHealth(healthy);
+        postSyncHealth(isMatrixSyncHealthy(current));
       },
       [postSyncHealth]
     )
@@ -942,6 +1040,97 @@ function SentryTagsFeature() {
   return null;
 }
 
+function ServiceWorkerPushMessages() {
+  const mx = useMatrixClient();
+  const setPending = useSetAtom(pendingNotificationAtom);
+  const setInAppBanner = useSetAtom(inAppBannerAtom);
+  const setActiveSessionId = useSetAtom(activeSessionIdAtom);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const handleMessage = (ev: MessageEvent) => {
+      const { data } = ev;
+      if (!data || typeof data !== 'object') return;
+
+      if (data.type === 'confirmPushVisibility') {
+        const { requestId } = data as { requestId?: unknown };
+        if (typeof requestId !== 'string') return;
+        postToServiceWorker(
+          buildPushVisibilityResult(requestId, document.visibilityState, mx.getSyncState())
+        );
+        return;
+      }
+
+      if (data.type !== 'pushInAppFallback') return;
+
+      const {
+        roomId,
+        eventId,
+        userId,
+        title,
+        body,
+        roomName,
+        senderName,
+        navigate: navigateUrl,
+      } = data as {
+        roomId?: string;
+        eventId?: string;
+        userId?: string;
+        title?: string;
+        body?: string;
+        roomName?: string;
+        senderName?: string;
+        navigate?: string;
+      };
+
+      if (document.visibilityState !== 'visible') return;
+      if (userId) setActiveSessionId(userId);
+
+      const banner = resolvePushFallbackBanner(
+        {
+          roomId,
+          eventId,
+          userId,
+          title,
+          body,
+          roomName,
+          senderName,
+          navigate: navigateUrl,
+        },
+        `push-fallback-${Date.now()}`
+      );
+
+      setInAppBanner({
+        id: banner.id,
+        title: banner.title,
+        roomName: banner.roomName,
+        serverName: banner.serverName,
+        senderName: banner.senderName,
+        body: banner.body,
+        onClick: () => {
+          window.focus();
+          if (banner.roomId) {
+            setPending({
+              roomId: banner.roomId,
+              eventId: banner.eventId,
+              targetSessionId: banner.userId,
+            });
+            return;
+          }
+          if (banner.navigate) navigateToServiceWorkerUrl(navigate, banner.navigate);
+        },
+      });
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, [mx, navigate, setActiveSessionId, setInAppBanner, setPending]);
+
+  return null;
+}
+
 /**
  * Listens for decryptPushEvent messages from the service worker, decrypts the
  * event using the local Olm/Megolm session, then replies with pushDecryptResult
@@ -977,10 +1166,12 @@ function HandleDecryptPushEvent() {
 
         const decryptMs = Math.round(performance.now() - decryptStart);
         const visible = document.visibilityState === 'visible';
+        const syncHealthy = visible && isMatrixSyncHealthy(mx.getSyncState());
         pushRelayLog.info('notification', 'Push relay decryption succeeded', {
           eventType: mxEvent.getType(),
           decryptMs,
           appVisible: visible,
+          syncHealthy,
         });
 
         postToServiceWorker({
@@ -992,6 +1183,7 @@ function HandleDecryptPushEvent() {
           sender_display_name: senderName,
           room_name: room?.name ?? '',
           visibilityState: document.visibilityState,
+          syncHealthy,
         });
       } catch (err) {
         console.warn('[ClientFeatures] HandleDecryptPushEvent: failed to decrypt push event', err);
@@ -1026,6 +1218,8 @@ function HandleDecryptPushEvent() {
           eventId,
           success: false,
           visibilityState: document.visibilityState,
+          syncHealthy:
+            document.visibilityState === 'visible' && isMatrixSyncHealthy(mx.getSyncState()),
         });
       }
     };
@@ -1231,6 +1425,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <NotificationTransportRuntimeFeature />
       <SyncNotificationSettingsWithServiceWorker />
       <SyncStateWithServiceWorker />
+      <ServiceWorkerPushMessages />
       <HandleDecryptPushEvent />
       <ServiceWorkerMetricsHandler />
       <NotificationBanner />

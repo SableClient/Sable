@@ -298,31 +298,16 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   useSyncNicknames(mx);
   useLogoutListener(mx);
-  useAppVisibility(mx);
+  useAppVisibility(mx, activeSession);
   const swUpdateAvailable = useSwUpdateAvailable();
 
-  // Keep the SW session warm so media fetches and push notifications work
-  // reliably after iOS kills and restarts the SW in the background.
-  // - Immediate resync whenever the tab comes back to the foreground.
-  // - Periodic heartbeat (10 min) keeps the persisted session up to date
-  //   while the app is running.
   const swSessionBaseUrl = activeSession?.baseUrl;
   const swSessionAccessToken = activeSession?.accessToken;
-  const swSessionUserId = activeSession?.userId;
   useEffect(() => {
     if (!swSessionBaseUrl || !swSessionAccessToken) return undefined;
     setBlobCacheSession(swSessionAccessToken, swSessionBaseUrl);
-    const resync = () => pushSessionToSW(swSessionBaseUrl, swSessionAccessToken, swSessionUserId);
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') resync();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    const timer = setInterval(resync, 10 * 60 * 1000);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      clearInterval(timer);
-    };
-  }, [swSessionBaseUrl, swSessionAccessToken, swSessionUserId]);
+    return undefined;
+  }, [swSessionBaseUrl, swSessionAccessToken]);
 
   useEffect(
     () => () => {

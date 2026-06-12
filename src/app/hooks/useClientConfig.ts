@@ -8,6 +8,16 @@ export type HashRouterConfig = {
   basename?: string;
 };
 
+export type SessionSyncConfig = {
+  phase1ForegroundResync?: boolean;
+  phase2VisibleHeartbeat?: boolean;
+  phase3AdaptiveBackoffJitter?: boolean;
+  foregroundDebounceMs?: number;
+  heartbeatIntervalMs?: number;
+  resumeHeartbeatSuppressMs?: number;
+  heartbeatMaxBackoffMs?: number;
+};
+
 export type ClientConfig = {
   defaultHomeserver?: number;
   homeserverList?: string[];
@@ -24,6 +34,7 @@ export type ClientConfig = {
     nativePushAppID?: string;
     unifiedPushAppID?: string;
     unifiedPushGatewayUrl?: string;
+    declarativeWebPushFallback?: boolean;
   };
 
   pushTransport?: PushTransportConfig;
@@ -39,6 +50,8 @@ export type ClientConfig = {
     includeInviteList?: boolean;
     probeTimeoutMs?: number;
   };
+
+  sessionSync?: SessionSyncConfig;
 
   featuredCommunities?: {
     openAsDefault?: boolean;

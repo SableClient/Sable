@@ -286,6 +286,7 @@ export interface TimelineEventRendererOptions {
     editId?: string;
     activeReplyId?: string;
     openThreadId?: string;
+    suppressMark?: boolean;
   };
   permissions: {
     canRedact: boolean;
@@ -337,7 +338,7 @@ export function useTimelineEventRenderer({
     showHiddenEvents,
     hideThreadChip,
   },
-  state: { focusItem, editId, activeReplyId, openThreadId },
+  state: { focusItem, editId, activeReplyId, openThreadId, suppressMark },
   permissions: { canRedact, canDeleteOwn, canSendReaction, canPinEvent },
   callbacks: {
     onUserClick,
@@ -375,7 +376,7 @@ export function useTimelineEventRenderer({
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
         const hasReactions = reactions && reactions.length > 0;
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && suppressMark !== true;
 
         const pushActions = pushProcessor.actionsForEvent(mEvent);
         let notifyHighlight: 'silent' | 'loud' | undefined;

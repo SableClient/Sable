@@ -21,6 +21,7 @@ import { cryptoCallbacks } from './secretStorageKeys';
 import type { SlidingSyncConfig, SlidingSyncDiagnostics } from './slidingSync';
 import { SlidingSyncManager } from './slidingSync';
 import { installThreadEventInstrumentation } from './threadEventPatch';
+import { classifyCryptoStoreIndexedDbError } from './cryptoStoreErrors';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
@@ -743,11 +744,8 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       });
       if (state === SyncState.Error || state === SyncState.Reconnecting) {
         const errorMsg = data?.error?.message ?? '';
-        const isCryptoStoreError =
-          errorMsg.includes('without an in-progress transaction') ||
-          errorMsg.includes('database connection is closed') ||
-          errorMsg.includes('InvalidStateError') ||
-          errorMsg.includes('UnknownError');
+        const cryptoStoreErrorType = classifyCryptoStoreIndexedDbError(errorMsg);
+        const isCryptoStoreError = cryptoStoreErrorType !== undefined;
 
         debugLog.warn('sync', `Classic sync problem: ${state}`, {
           state,
@@ -783,11 +781,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
             tags: {
               component: 'crypto-store',
               sync_transport: 'classic',
-              error_type: errorMsg.includes('transaction')
-                ? 'transaction_error'
-                : errorMsg.includes('closed')
-                  ? 'connection_closed'
-                  : 'unknown_idb_error',
+              error_type: cryptoStoreErrorType,
             },
             extra: {
               errorMessage: errorMsg,

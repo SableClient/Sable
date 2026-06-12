@@ -1,9 +1,9 @@
-name: Cloudflare Worker Dev Deploy
+name: Cloudflare Worker Integration Deploy
 
 on:
   push:
     branches:
-      - dev
+      - integration
     paths:
       - 'src/**'
       - 'config.json'
@@ -17,7 +17,7 @@ on:
       - '.github/actions/setup/**'
 
 concurrency:
-  group: cloudflare-worker-dev-deploy
+  group: cloudflare-worker-integration-deploy
   cancel-in-progress: true
 
 jobs:
@@ -78,7 +78,7 @@ jobs:
           command: >
             versions upload
             -c dist/wrangler.json
-            --preview-alias dev
+            --preview-alias integration
             --message "$PREVIEW_MESSAGE"
 
       - name: Publish summary
@@ -93,9 +93,9 @@ jobs:
             const shortSha = process.env.SHORT_SHA?.slice(0, 7);
             const now = new Date().toUTCString().replace(':00 GMT', ' UTC');
 
-            const tableRow = "| ✅ Dev deployment successful! | <a href='" + deploymentUrl + "'>" + deploymentUrl + "</a> | " + shortSha + " | `dev` | " + now + " |";
+            const tableRow = "| ✅ Integration deployment successful! | <a href='" + deploymentUrl + "'>" + deploymentUrl + "</a> | " + shortSha + " | `integration` | " + now + " |";
             const comment = [
-              `## Deploying with &nbsp;<a href="https://workers.dev"><img alt="Cloudflare Workers" src="https://workers.cloudflare.com/logo.svg" width="16"></a> &nbsp;Cloudflare Workers (dev → production config)`,
+              `## Deploying with &nbsp;<a href="https://workers.dev"><img alt="Cloudflare Workers" src="https://workers.cloudflare.com/logo.svg" width="16"></a> &nbsp;Cloudflare Workers (integration → production config)`,
               ``,
               `| Status | URL | Commit | Alias | Updated (UTC) |`,
               `| - | - | - | - | - |`,

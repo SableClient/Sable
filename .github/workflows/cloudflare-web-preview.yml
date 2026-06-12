@@ -13,28 +13,13 @@ on:
       - 'tsconfig.json'
       - '.github/workflows/cloudflare-web-preview.yml'
       - '.github/actions/setup/**'
-  push:
-    branches:
-      - integration
-    paths:
-      - 'src/**'
-      - 'config.json'
-      - 'index.html'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'scripts/inject-client-config.js'
-      - 'vite.config.ts'
-      - 'tsconfig.json'
-      - '.github/workflows/cloudflare-web-preview.yml'
-      - '.github/actions/setup/**'
-
 concurrency:
   group: cloudflare-worker-preview-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     environment: preview
     permissions:

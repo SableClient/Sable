@@ -1,76 +1,75 @@
 ---
-name: normalize integration commits
-description: Move unique integration commits onto proper branches based on dev
+name: normalize integration tracking
+description: Reconcile fork-local branches and PRs with integration as the active trunk
 ---
 
-Normalize the `integration` branch so it contains no unique feature work.
+Normalize branch tracking around the `integration` trunk.
 
 ## Goal
 
-Ensure that all meaningful commits currently present only on `integration` are moved onto appropriate feature/fix/personal branches based on updated `dev`.
+Ensure `integration` remains the fork's active trunk and that fork-local work is represented by clean branches and PRs targeting `integration`.
 
-`integration` should become a rebuildable branch composed only from `dev` plus explicitly merged branches.
+`dev` is a clean mirror of `upstream/dev`. Do not use it as the base for normal fork-local work.
 
 ## Required Process
 
 1. Inspect the current git state.
 2. Ensure the working tree is clean.
 3. Fetch all remotes.
-4. Update local `dev` from `upstream/dev`.
-5. Push updated `dev` to `origin/dev`.
-6. Compare:
-   - `integration` vs `dev`
-   - `origin/integration` vs `origin/dev`
+4. Confirm local `dev`, `origin/dev`, and `upstream/dev` match when upstream mirroring is relevant.
+5. Compare:
+   - `origin/integration` vs local `integration`
+   - open `origin` PR heads vs `origin/integration`
    - local branches vs `integration`
+6. Identify branches or PRs that still target `dev`.
+7. Identify branches whose code is already present on `integration` but whose ancestry is stale.
+8. Group branches by purpose: active feature/fix work, tracking-only PR, upstream sync, release, or obsolete.
 
-7. Identify commits that exist only on `integration`.
-8. Group unique commits by feature, fix, or purpose.
-9. Determine whether each unique commit already belongs to an existing branch.
-
-## Branch Normalization Plan
+## Normalization Plan
 
 Before making changes, produce a plan showing:
 
-- unique commits found on `integration`
-- suggested destination branch for each commit
-- whether to create a new branch or update an existing one
-- branch base commit
-- cherry-pick order
-- likely conflicts
-- validation needed per branch
+- PRs targeting the wrong base
+- branches already represented on `integration`
+- branches that still contain unique work
+- branches that can become tracking-only marker branches
+- branches that should remain active implementation branches
+- branches that appear obsolete
+- required pushes, force-with-lease updates, or deletions
 
-Do not move commits until I confirm the plan.
+Do not rewrite or delete branches until I confirm the plan.
 
 ## Implementation Rules
 
 When approved:
 
-- create a backup branch of `integration` before making changes
-- create/update destination branches from latest `dev`
-- cherry-pick or recreate commits carefully
-- preserve commit history where reasonable
-- resolve conflicts intentionally
+- prefer `integration` as the base for fork-local branches
+- use explicit `sync/upstream-dev-YYYY-MM-DD` branches for upstream intake
+- use marker commits only for tracking PRs whose code is already on `integration`
+- preserve active implementation work on real feature/fix branches
+- retarget fork-local PRs to `integration`
+- preserve `dev` as the upstream mirror
 - do not drop commits silently
 - do not make unrelated cleanup changes
-- push each resulting branch to `origin`
 
 ## Validation
 
-For each created or updated branch:
+For each updated branch or PR:
 
-1. Run appropriate tests/checks.
-2. Report failures.
-3. Push to `origin` only after validation passes or after I explicitly approve.
+1. Confirm the PR targets `integration`.
+2. Confirm tracking-only branches are exactly one marker commit ahead of `origin/integration`.
+3. Confirm active implementation branches have an intentional diff against `integration`.
+4. Report any merge conflicts, dirty status, or stale remote refs.
 
-After all unique commits are moved:
+After normalization:
 
-1. Rebuild `integration` from `dev`.
-2. Merge the normalized branches back into `integration`.
-3. Confirm `integration` has no unique commits not present on component branches.
-4. Push `integration` to `origin/integration` only after approval.
+1. Show the final open PR summary.
+2. Show any branches deleted or left untouched.
+3. Show whether `dev`, `origin/dev`, and `upstream/dev` still match.
+4. Push only after validation passes or after I explicitly approve known issues.
 
 ## Important
 
 Do not delete or overwrite unique work.
 
-If any commit purpose is unclear, stop and ask me where it belongs.
+If any branch purpose is unclear, stop and ask me where it belongs.

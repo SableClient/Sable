@@ -5,6 +5,13 @@
 import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
 
 import { createPushNotifications } from './sw/pushNotification';
+import {
+  buildDeclarativeNotificationOptions,
+  buildInAppFallbackPayload,
+  isDeclarativeWebPushPayload,
+  isMinimalPushPayload,
+  type InAppPushFallbackPayload,
+} from './sw/pushRouting';
 import { readPersistedSession } from './sw-session-persistence';
 
 declare const self: ServiceWorkerGlobalScope;
@@ -36,8 +43,30 @@ const SW_SETTINGS_URL = '/sw-settings-meta';
 const SW_SESSION_CACHE = 'sable-sw-session-v1';
 const SW_SESSION_URL = '/sw-session-meta';
 
+/** Cache key used to persist push telemetry until a window can drain it into Sentry. */
+const SW_PUSH_TELEMETRY_CACHE = 'sable-sw-push-telemetry-v1';
+const SW_PUSH_TELEMETRY_URL = '/sw-push-telemetry';
+const SW_PUSH_TELEMETRY_LIMIT = 50;
+
 /** Cache for authenticated Matrix media responses — keyed by URL. */
 const SW_MEDIA_CACHE = 'sable-media-sw-v2';
+
+type PushTelemetryEvent =
+  | 'received'
+  | 'confirmed_visible'
+  | 'suppressed_visible'
+  | 'in_app_fallback'
+  | 'shown_os'
+  | 'decrypt_timeout'
+  | 'fetch_fallback'
+  | 'handler_error';
+
+type PushTelemetryRecord = {
+  id: string;
+  event: PushTelemetryEvent;
+  timestamp: number;
+  data?: Record<string, string | number | boolean>;
+};
 
 async function persistSettings() {
   try {
@@ -301,6 +330,61 @@ async function postSentryBreadcrumb(
   }
 }
 
+const createRecordId = (prefix: string): string =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+async function readPushTelemetryRecords(): Promise<PushTelemetryRecord[]> {
+  try {
+    const cache = await self.caches.open(SW_PUSH_TELEMETRY_CACHE);
+    const response = await cache.match(SW_PUSH_TELEMETRY_URL);
+    if (!response) return [];
+    const records = await response.json();
+    return Array.isArray(records) ? (records as PushTelemetryRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writePushTelemetryRecords(records: PushTelemetryRecord[]): Promise<void> {
+  try {
+    const cache = await self.caches.open(SW_PUSH_TELEMETRY_CACHE);
+    await cache.put(
+      SW_PUSH_TELEMETRY_URL,
+      new Response(JSON.stringify(records.slice(-SW_PUSH_TELEMETRY_LIMIT)), {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+  } catch {
+    // Telemetry must never affect push delivery.
+  }
+}
+
+async function recordPushTelemetry(
+  event: PushTelemetryEvent,
+  data?: Record<string, string | number | boolean>
+): Promise<void> {
+  const records = await readPushTelemetryRecords();
+  records.push({
+    id: createRecordId('push'),
+    event,
+    timestamp: Date.now(),
+    data,
+  });
+  await writePushTelemetryRecords(records);
+}
+
+async function drainPushTelemetryRecords(): Promise<PushTelemetryRecord[]> {
+  const records = await readPushTelemetryRecords();
+  if (records.length === 0) return [];
+  await writePushTelemetryRecords([]);
+  return records;
+}
+
+function pushTelemetryPayloadType(pushData: unknown): string {
+  if (isDeclarativeWebPushPayload(pushData)) return 'declarative';
+  return isMinimalPushPayload(pushData) ? 'minimal' : 'full';
+}
+
 /**
  * Prefetch sliding sync data on SW activation to warm the browser's HTTP cache.
  * This makes the first sync response arrive faster when the app opens.
@@ -514,9 +598,23 @@ type DecryptionResult = {
   sender_display_name?: string;
   room_name?: string;
   visibilityState?: string;
+  syncHealthy?: boolean;
+  clientId?: string;
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
+
+type PushVisibilityResult = {
+  clientId: string;
+  visible: boolean;
+  syncHealthy: boolean;
+};
+
+const pushVisibilityPendingMap = new Map<
+  string,
+  (result: PushVisibilityResult | undefined) => void
+>();
+const PUSH_VISIBILITY_CONFIRM_TIMEOUT_MS = 300;
 
 async function fetchRawEvent(
   baseUrl: string,
@@ -649,6 +747,82 @@ function mxidLocalpart(userId: string): string {
   return userId.match(/^@([^:]+):/)?.[1] ?? userId;
 }
 
+function requestPushVisibilityFromClient(
+  client: Client
+): Promise<PushVisibilityResult | undefined> {
+  const requestId = createRecordId('push-vis');
+
+  return new Promise<PushVisibilityResult | undefined>((resolve) => {
+    let settled = false;
+    const finish = (result: PushVisibilityResult | undefined) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      pushVisibilityPendingMap.delete(requestId);
+      // oxlint-disable-next-line eslint-plugin-promise/no-multiple-resolved
+      resolve(result);
+    };
+
+    const timeout = setTimeout(() => finish(undefined), PUSH_VISIBILITY_CONFIRM_TIMEOUT_MS);
+
+    pushVisibilityPendingMap.set(requestId, (result) => {
+      finish(result);
+    });
+
+    try {
+      client.postMessage({ type: 'confirmPushVisibility', requestId });
+    } catch {
+      finish(undefined);
+    }
+  });
+}
+
+async function confirmVisiblePushClient(
+  windowClients: readonly Client[]
+): Promise<PushVisibilityResult | undefined> {
+  if (windowClients.length === 0) return undefined;
+
+  const visibilityChecks = windowClients.map((client) => requestPushVisibilityFromClient(client));
+
+  return new Promise<PushVisibilityResult | undefined>((resolve) => {
+    let remaining = visibilityChecks.length;
+    visibilityChecks.forEach((check) => {
+      check
+        .then((result) => {
+          if (result?.visible) {
+            resolve(result);
+            return;
+          }
+          remaining -= 1;
+          if (remaining === 0) resolve(undefined);
+        })
+        .catch(() => {
+          remaining -= 1;
+          if (remaining === 0) resolve(undefined);
+        });
+    });
+  });
+}
+
+async function postPushInAppFallback(
+  visibility: PushVisibilityResult,
+  payload: InAppPushFallbackPayload,
+  payloadType: string
+): Promise<void> {
+  const client = await self.clients.get(visibility.clientId);
+  if (!client) return;
+
+  client.postMessage({
+    type: 'pushInAppFallback',
+    ...payload,
+  });
+  await recordPushTelemetry('in_app_fallback', {
+    payload_type: payloadType,
+    has_room_id: !!payload.roomId,
+    has_event_id: !!payload.eventId,
+  });
+}
+
 /**
  * Post a decryptPushEvent request to one of the open window clients and wait
  * up to 8 s for the pushDecryptResult reply.
@@ -741,6 +915,12 @@ async function handleMinimalPushPayload(
       renotify: true,
       data: { room_id: roomId, event_id: eventId },
     } as NotificationOptions);
+    await recordPushTelemetry('fetch_fallback', {
+      payload_type: 'minimal',
+      reason: 'missing_session',
+      has_clients: windowClients.length > 0,
+    });
+    await recordPushTelemetry('shown_os', { payload_type: 'minimal', fallback: true });
     return;
   }
 
@@ -766,6 +946,12 @@ async function handleMinimalPushPayload(
       renotify: true,
       data: { room_id: roomId, event_id: eventId, user_id: session.userId },
     } as NotificationOptions);
+    await recordPushTelemetry('fetch_fallback', {
+      payload_type: 'minimal',
+      reason: 'raw_event_fetch_failed',
+      has_clients: windowClients.length > 0,
+    });
+    await recordPushTelemetry('shown_os', { payload_type: 'minimal', fallback: true });
     return;
   }
 
@@ -802,13 +988,43 @@ async function handleMinimalPushPayload(
     postSentryMetric('sable.push.decrypt_relay', 1, {
       success: result?.success ?? false,
       app_visible: result?.visibilityState === 'visible',
+      sync_healthy: result?.syncHealthy ?? false,
       has_clients: windowClients.length > 0,
       timed_out: result === undefined && windowClients.length > 0,
     }).catch(() => undefined);
 
-    // If the relay responded and the app is currently visible, the in-app UI is already
-    // displaying the message — skip the OS notification entirely.
-    if (result?.visibilityState === 'visible') return;
+    if (result === undefined && windowClients.length > 0) {
+      await recordPushTelemetry('decrypt_timeout', { payload_type: 'minimal' });
+    }
+
+    if (result?.visibilityState === 'visible') {
+      await recordPushTelemetry('confirmed_visible', {
+        payload_type: 'minimal',
+        sync_healthy: result.syncHealthy === true,
+      });
+      await recordPushTelemetry('suppressed_visible', {
+        payload_type: 'minimal',
+        sync_healthy: result.syncHealthy === true,
+      });
+      if (result.syncHealthy === false && result.clientId) {
+        await postPushInAppFallback(
+          {
+            clientId: result.clientId,
+            visible: true,
+            syncHealthy: false,
+          },
+          buildInAppFallbackPayload({
+            room_id: roomId,
+            event_id: eventId,
+            user_id: session.userId,
+            sender_display_name: result.sender_display_name || senderDisplay,
+            room_name: result.room_name || resolvedRoomName,
+          }),
+          'minimal'
+        );
+      }
+      return;
+    }
 
     if (result?.success) {
       await postSentryBreadcrumb(
@@ -832,6 +1048,7 @@ async function handleMinimalPushPayload(
         room_name: result.room_name || resolvedRoomName,
         room_avatar_url: notificationAvatarUrl,
       });
+      await recordPushTelemetry('shown_os', { payload_type: 'minimal', encrypted: true });
     } else {
       await postSentryBreadcrumb(
         'notification.push',
@@ -851,6 +1068,11 @@ async function handleMinimalPushPayload(
         room_name: resolvedRoomName,
         room_avatar_url: notificationAvatarUrl,
       });
+      await recordPushTelemetry('shown_os', {
+        payload_type: 'minimal',
+        encrypted: true,
+        fallback: true,
+      });
     }
   } else {
     // Unencrypted event — we have the plaintext, show it.
@@ -862,6 +1084,7 @@ async function handleMinimalPushPayload(
       room_name: resolvedRoomName,
       room_avatar_url: notificationAvatarUrl,
     });
+    await recordPushTelemetry('shown_os', { payload_type: 'minimal', encrypted: false });
   }
 }
 
@@ -984,9 +1207,44 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       const resolve = decryptionPendingMap.get(eventId);
       if (resolve) {
         decryptionPendingMap.delete(eventId);
-        resolve(data as DecryptionResult);
+        resolve({ ...(data as DecryptionResult), clientId: client.id });
       }
     }
+  }
+  if (type === 'pushVisibilityResult') {
+    const {
+      requestId,
+      visible,
+      syncHealthy: resultSyncHealthy,
+    } = data as {
+      requestId?: unknown;
+      visible?: unknown;
+      syncHealthy?: unknown;
+    };
+    if (
+      typeof requestId === 'string' &&
+      typeof visible === 'boolean' &&
+      typeof resultSyncHealthy === 'boolean'
+    ) {
+      const resolve = pushVisibilityPendingMap.get(requestId);
+      if (resolve) {
+        pushVisibilityPendingMap.delete(requestId);
+        resolve({ clientId: client.id, visible, syncHealthy: resultSyncHealthy });
+      }
+    }
+  }
+  if (type === 'drainPushTelemetry') {
+    const { requestId } = data as { requestId?: unknown };
+    event.waitUntil(
+      (async () => {
+        const records = await drainPushTelemetryRecords();
+        client.postMessage({
+          type: 'pushTelemetryRecords',
+          requestId: typeof requestId === 'string' ? requestId : undefined,
+          records,
+        });
+      })()
+    );
   }
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
@@ -1405,14 +1663,6 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   );
 });
 
-// Detect a minimal (event_id_only) payload: has room_id + event_id but no
-// event type field — meaning the homeserver stripped the event content.
-function isMinimalPushPayload(data: unknown): data is { room_id: string; event_id: string } {
-  if (!data || typeof data !== 'object') return false;
-  const d = data as Record<string, unknown>;
-  return typeof d.room_id === 'string' && typeof d.event_id === 'string' && !d.type;
-}
-
 const onPushNotification = async (event: PushEvent) => {
   if (!event?.data) return;
 
@@ -1425,12 +1675,6 @@ const onPushNotification = async (event: PushEvent) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
 
-  // If the app is open, visible, and sync is healthy, skip the OS push
-  // notification — the in-app pill notification handles the alert instead.
-  // Require both signals so stale iOS Safari matchAll() visibility cannot drop
-  // background notifications after the worker restarts.
-  const hasVisibleClient =
-    appIsVisible && syncIsHealthy && clients.some((client) => client.visibilityState === 'visible');
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
@@ -1439,45 +1683,78 @@ const onPushNotification = async (event: PushEvent) => {
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
-  console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
-  if (hasVisibleClient) {
-    console.debug('[SW push] suppressing OS notification — app is visible and sync is healthy');
-    postSentryBreadcrumb(
-      'notification.push',
-      'OS push notification suppressed because visible client sync is healthy',
-      'info',
-      {
-        appVisible: appIsVisible,
-        syncHealthy: syncIsHealthy,
-        clientCount: clients.length,
-      }
-    ).catch(() => undefined);
-    postSentryMetric('sable.push.suppressed_visible', 1, {
-      sync_healthy: syncIsHealthy,
-      client_count: clients.length,
-    }).catch(() => undefined);
-    return;
-  }
 
   const pushData = event.data.json();
+  const payloadType = pushTelemetryPayloadType(pushData);
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
   // Track push notification arrival
+  await recordPushTelemetry('received', {
+    app_visible: appIsVisible,
+    sync_healthy: syncIsHealthy,
+    has_clients: clients.length > 0,
+    payload_type: payloadType,
+  });
   postSentryMetric('sable.push.received', 1, {
     app_visible: appIsVisible,
     sync_healthy: syncIsHealthy,
     has_clients: clients.length > 0,
-    payload_type: isMinimalPushPayload(pushData) ? 'minimal' : 'full',
+    payload_type: payloadType,
   }).catch(() => undefined);
   postSentryBreadcrumb('notification.push', 'Push received by service worker', 'info', {
     appVisible: appIsVisible,
     syncHealthy: syncIsHealthy,
     clientCount: clients.length,
-    payloadType: isMinimalPushPayload(pushData) ? 'minimal' : 'full',
+    payloadType,
   }).catch(() => undefined);
 
+  const visibleClient = await confirmVisiblePushClient(clients);
+  if (visibleClient?.visible) {
+    console.debug('[SW push] suppressing OS notification — visible client confirmed');
+    await recordPushTelemetry('confirmed_visible', {
+      payload_type: payloadType,
+      sync_healthy: visibleClient.syncHealthy,
+    });
+    await recordPushTelemetry('suppressed_visible', {
+      payload_type: payloadType,
+      sync_healthy: visibleClient.syncHealthy,
+    });
+    postSentryBreadcrumb(
+      'notification.push',
+      'OS push notification suppressed because visible client confirmed foreground state',
+      'info',
+      {
+        appVisible: appIsVisible,
+        syncHealthy: visibleClient.syncHealthy,
+        clientCount: clients.length,
+      }
+    ).catch(() => undefined);
+    postSentryMetric('sable.push.suppressed_visible', 1, {
+      sync_healthy: visibleClient.syncHealthy,
+      client_count: clients.length,
+    }).catch(() => undefined);
+    if (!visibleClient.syncHealthy) {
+      await postPushInAppFallback(visibleClient, buildInAppFallbackPayload(pushData), payloadType);
+    }
+    return;
+  }
+
   try {
-    if (typeof pushData?.unread === 'number') {
+    const declarativeBadge =
+      isDeclarativeWebPushPayload(pushData) && pushData.notification.app_badge !== undefined
+        ? Number(pushData.notification.app_badge)
+        : undefined;
+    if (typeof declarativeBadge === 'number' && Number.isFinite(declarativeBadge)) {
+      if (declarativeBadge <= 0) {
+        await (
+          self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+        ).clearAppBadge?.();
+      } else {
+        await (
+          self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+        ).setAppBadge?.(declarativeBadge);
+      }
+    } else if (typeof pushData?.unread === 'number') {
       if (pushData.unread === 0) {
         // All messages read elsewhere — clear the home-screen badge and,
         // if the user opted in, dismiss outstanding lock-screen notifications.
@@ -1504,6 +1781,13 @@ const onPushNotification = async (event: PushEvent) => {
     // Badging API absent (Firefox/Gecko) — continue to show the notification.
   }
 
+  if (isDeclarativeWebPushPayload(pushData)) {
+    const { title, options } = buildDeclarativeNotificationOptions(pushData);
+    await self.registration.showNotification(title, options);
+    await recordPushTelemetry('shown_os', { payload_type: 'declarative' });
+    return;
+  }
+
   // event_id_only format: fetch the event ourselves and (for E2EE rooms) try
   // to relay decryption to an open app tab.
   if (isMinimalPushPayload(pushData)) {
@@ -1513,13 +1797,26 @@ const onPushNotification = async (event: PushEvent) => {
   }
 
   await handlePushNotificationPushData(pushData);
+  await recordPushTelemetry('shown_os', { payload_type: 'full' });
 };
 
 // ---------------------------------------------------------------------------
 // Push handler
 // ---------------------------------------------------------------------------
 
-self.addEventListener('push', (event: PushEvent) => event.waitUntil(onPushNotification(event)));
+self.addEventListener('push', (event: PushEvent) =>
+  event.waitUntil(
+    onPushNotification(event).catch(async (error: unknown) => {
+      await recordPushTelemetry('handler_error', {
+        error_type: error instanceof Error ? error.name : 'unknown',
+      });
+      await postSentryBreadcrumb('notification.push', 'Push handler failed', 'error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    })
+  )
+);
 
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
@@ -1530,6 +1827,8 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   const pushUserId: string | undefined = data?.user_id ?? undefined;
   const pushRoomId: string | undefined = data?.room_id ?? undefined;
   const pushEventId: string | undefined = data?.event_id ?? undefined;
+  const pushNavigate: string | undefined =
+    typeof data?.navigate === 'string' ? data.navigate : undefined;
   const isInvite = data?.content?.membership === 'invite';
 
   console.debug('[SW notificationclick] notification data:', JSON.stringify(data, null, 2));
@@ -1537,6 +1836,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     pushUserId,
     pushRoomId,
     pushEventId,
+    pushNavigate,
     isInvite,
     scope,
   });
@@ -1563,6 +1863,8 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
       ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
       : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
     targetUrl = new URL(segments, scope).href;
+  } else if (pushNavigate) {
+    targetUrl = new URL(pushNavigate, scope).href;
   } else {
     // Fallback: no room ID or no user ID in payload.
     targetUrl = new URL('inbox/notifications/', scope).href;
@@ -1607,6 +1909,13 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
       for (const wc of clientList) {
         console.debug('[SW notificationclick] postMessage to existing client:', wc.url);
         try {
+          if (pushNavigate && !pushRoomId && typeof wc.navigate === 'function') {
+            // oxlint-disable-next-line no-await-in-loop
+            await wc.navigate(targetUrl);
+            // oxlint-disable-next-line no-await-in-loop
+            await wc.focus();
+            return;
+          }
           // Post notification data directly to the running app so its
           // ServiceWorkerClickHandler can call setActiveSessionId + setPending
           // (same path as the pill-style in-app banner) without navigating to
@@ -1616,6 +1925,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             userId: pushUserId,
             roomId: pushRoomId,
             eventId: pushEventId,
+            navigate: pushNavigate,
             isInvite,
             isCall,
           });

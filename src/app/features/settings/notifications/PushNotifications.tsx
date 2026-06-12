@@ -95,6 +95,9 @@ export async function enablePushNotifications(
   });
 
   try {
+    const declarativeWebPushFallback =
+      clientConfig.pushNotificationDetails?.declarativeWebPushFallback === true;
+
     /* Self-Healing Check. Effectively checks if the browser has invalidated our subscription and recreates it
      only when necessary. This prevents us from needing an external call to get back the web push info.
   */
@@ -117,6 +120,7 @@ export async function enablePushNotifications(
           endpoint: pushSubAtom.endpoint,
           p256dh: keys.p256dh,
           auth: keys.auth,
+          ...(declarativeWebPushFallback ? { declarative_web_push: true } : {}),
         },
         append: false,
       };
@@ -173,6 +177,7 @@ export async function enablePushNotifications(
         endpoint: newSubscription.endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
+        ...(declarativeWebPushFallback ? { declarative_web_push: true } : {}),
       },
       append: false,
     };

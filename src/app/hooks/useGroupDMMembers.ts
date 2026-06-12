@@ -7,6 +7,9 @@ export type GroupMemberInfo = {
   avatarUrl?: string;
 };
 
+const loadedMemberRoomIds = new Set<string>();
+const memberLoadPromises = new Map<string, Promise<void>>();
+
 // Filter out bridge bots (not bridged users)
 const isBridgeBot = (userId: string): boolean => {
   const localpart = userId.split(':')[0]?.substring(1) ?? '';
@@ -18,6 +21,26 @@ const isBridgeBot = (userId: string): boolean => {
 
   return false;
 };
+
+async function loadRoomMembersOnce(room: Room): Promise<void> {
+  const { roomId } = room;
+  if (loadedMemberRoomIds.has(roomId)) return;
+
+  let loadPromise = memberLoadPromises.get(roomId);
+  if (!loadPromise) {
+    loadPromise = room
+      .loadMembersIfNeeded()
+      .then(() => {
+        loadedMemberRoomIds.add(roomId);
+      })
+      .finally(() => {
+        memberLoadPromises.delete(roomId);
+      });
+    memberLoadPromises.set(roomId, loadPromise);
+  }
+
+  await loadPromise;
+}
 
 /**
  * Read member info synchronously from already-loaded room state.
@@ -44,9 +67,8 @@ function getInitialMembers(
 
 /**
  * Fetches member information for a group DM.
- * Gets already-synced joined members from room state and fetches their profiles.
- * This hook is used by room-list previews, so it must not call
- * loadMembersIfNeeded() for every rendered group DM.
+ * Starts from already-synced room state, then loads members once per room if
+ * lazy-loaded state is too sparse to render a group-DM avatar.
  * Sorts members by who last sent messages (most recent first), with members who haven't sent messages last.
  */
 export const useGroupDMMembers = (
@@ -72,15 +94,27 @@ export const useGroupDMMembers = (
       try {
         const currentUserId = mx.getUserId();
 
-        // Use local member state only. Fetching full members here causes an
-        // N+1 /members request pattern while rendering room lists.
-        const allMembers = room.getMembers();
+        let allMembers = room.getMembers();
 
-        const allUserIds = allMembers
-          .filter(
+        let joinedMembers = allMembers.filter(
+          (m) => m.membership === 'join' && m.userId !== currentUserId && !isBridgeBot(m.userId)
+        );
+        const expectedVisibleMembers = Math.min(
+          maxMembers,
+          Math.max(0, room.getJoinedMemberCount() - 1)
+        );
+
+        if (joinedMembers.length < expectedVisibleMembers) {
+          await loadRoomMembersOnce(room);
+          if (cancelled) return;
+
+          allMembers = room.getMembers();
+          joinedMembers = allMembers.filter(
             (m) => m.membership === 'join' && m.userId !== currentUserId && !isBridgeBot(m.userId)
-          )
-          .map((m) => m.userId);
+          );
+        }
+
+        const allUserIds = joinedMembers.map((m) => m.userId);
 
         // Get last message senders from timeline for sorting
         const timeline = room.getLiveTimeline();

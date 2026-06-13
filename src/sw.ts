@@ -7,10 +7,8 @@ import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-
 import { createPushNotifications } from './sw/pushNotification';
 import {
   buildDeclarativeNotificationOptions,
-  buildInAppFallbackPayload,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
-  type InAppPushFallbackPayload,
 } from './sw/pushRouting';
 import { readPersistedSession } from './sw-session-persistence';
 
@@ -21,7 +19,6 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
-let syncIsHealthy = false;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -55,7 +52,6 @@ type PushTelemetryEvent =
   | 'received'
   | 'confirmed_visible'
   | 'suppressed_visible'
-  | 'in_app_fallback'
   | 'shown_os'
   | 'decrypt_timeout'
   | 'fetch_fallback'
@@ -110,7 +106,6 @@ async function loadPersistedSettings() {
       const ageMs = Date.now() - s.appVisibleAt;
       if (ageMs < 2_000) {
         appIsVisible = true;
-        syncIsHealthy = false;
         console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
       }
     }
@@ -598,29 +593,9 @@ type DecryptionResult = {
   sender_display_name?: string;
   room_name?: string;
   visibilityState?: string;
-  visible?: boolean;
-  focused?: boolean;
-  mobile?: boolean;
-  syncHealthy?: boolean;
-  clientId?: string;
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
-
-type PushVisibilityResult = {
-  clientId: string;
-  visible: boolean;
-  syncHealthy: boolean;
-  visibilityState?: string;
-  focused?: boolean;
-  mobile?: boolean;
-};
-
-const pushVisibilityPendingMap = new Map<
-  string,
-  (result: PushVisibilityResult | undefined) => void
->();
-const PUSH_VISIBILITY_CONFIRM_TIMEOUT_MS = 300;
 
 async function fetchRawEvent(
   baseUrl: string,
@@ -751,82 +726,6 @@ function getAnyStoredSession(): SessionInfo | undefined {
  */
 function mxidLocalpart(userId: string): string {
   return userId.match(/^@([^:]+):/)?.[1] ?? userId;
-}
-
-function requestPushVisibilityFromClient(
-  client: Client
-): Promise<PushVisibilityResult | undefined> {
-  const requestId = createRecordId('push-vis');
-
-  return new Promise<PushVisibilityResult | undefined>((resolve) => {
-    let settled = false;
-    const finish = (result: PushVisibilityResult | undefined) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      pushVisibilityPendingMap.delete(requestId);
-      // oxlint-disable-next-line eslint-plugin-promise/no-multiple-resolved
-      resolve(result);
-    };
-
-    const timeout = setTimeout(() => finish(undefined), PUSH_VISIBILITY_CONFIRM_TIMEOUT_MS);
-
-    pushVisibilityPendingMap.set(requestId, (result) => {
-      finish(result);
-    });
-
-    try {
-      client.postMessage({ type: 'confirmPushVisibility', requestId });
-    } catch {
-      finish(undefined);
-    }
-  });
-}
-
-async function confirmVisiblePushClient(
-  windowClients: readonly Client[]
-): Promise<PushVisibilityResult | undefined> {
-  if (windowClients.length === 0) return undefined;
-
-  const visibilityChecks = windowClients.map((client) => requestPushVisibilityFromClient(client));
-
-  return new Promise<PushVisibilityResult | undefined>((resolve) => {
-    let remaining = visibilityChecks.length;
-    visibilityChecks.forEach((check) => {
-      check
-        .then((result) => {
-          if (result?.visible) {
-            resolve(result);
-            return;
-          }
-          remaining -= 1;
-          if (remaining === 0) resolve(undefined);
-        })
-        .catch(() => {
-          remaining -= 1;
-          if (remaining === 0) resolve(undefined);
-        });
-    });
-  });
-}
-
-async function postPushInAppFallback(
-  visibility: PushVisibilityResult,
-  payload: InAppPushFallbackPayload,
-  payloadType: string
-): Promise<void> {
-  const client = await self.clients.get(visibility.clientId);
-  if (!client) return;
-
-  client.postMessage({
-    type: 'pushInAppFallback',
-    ...payload,
-  });
-  await recordPushTelemetry('in_app_fallback', {
-    payload_type: payloadType,
-    has_room_id: !!payload.roomId,
-    has_event_id: !!payload.eventId,
-  });
 }
 
 /**
@@ -993,11 +892,7 @@ async function handleMinimalPushPayload(
     // Track decryption relay results
     postSentryMetric('sable.push.decrypt_relay', 1, {
       success: result?.success ?? false,
-      app_visible: result?.visible === true,
-      sync_healthy: result?.syncHealthy ?? false,
       visibility_state: result?.visibilityState ?? 'unknown',
-      focused: result?.focused ?? false,
-      mobile: result?.mobile ?? false,
       has_clients: windowClients.length > 0,
       timed_out: result === undefined && windowClients.length > 0,
     }).catch(() => undefined);
@@ -1006,38 +901,15 @@ async function handleMinimalPushPayload(
       await recordPushTelemetry('decrypt_timeout', { payload_type: 'minimal' });
     }
 
-    if (result?.visible === true) {
+    if (result?.visibilityState === 'visible') {
       await recordPushTelemetry('confirmed_visible', {
         payload_type: 'minimal',
-        sync_healthy: result.syncHealthy === true,
         visibility_state: result.visibilityState ?? 'unknown',
-        focused: result.focused ?? false,
-        mobile: result.mobile ?? false,
       });
       await recordPushTelemetry('suppressed_visible', {
         payload_type: 'minimal',
-        sync_healthy: result.syncHealthy === true,
         visibility_state: result.visibilityState ?? 'unknown',
-        focused: result.focused ?? false,
-        mobile: result.mobile ?? false,
       });
-      if (result.syncHealthy === false && result.clientId) {
-        await postPushInAppFallback(
-          {
-            clientId: result.clientId,
-            visible: true,
-            syncHealthy: false,
-          },
-          buildInAppFallbackPayload({
-            room_id: roomId,
-            event_id: eventId,
-            user_id: session.userId,
-            sender_display_name: result.sender_display_name || senderDisplay,
-            room_name: result.room_name || resolvedRoomName,
-          }),
-          'minimal'
-        );
-      }
       return;
     }
 
@@ -1223,42 +1095,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       const resolve = decryptionPendingMap.get(eventId);
       if (resolve) {
         decryptionPendingMap.delete(eventId);
-        resolve({ ...(data as DecryptionResult), clientId: client.id });
-      }
-    }
-  }
-  if (type === 'pushVisibilityResult') {
-    const {
-      requestId,
-      visible,
-      syncHealthy: resultSyncHealthy,
-      visibilityState,
-      focused,
-      mobile,
-    } = data as {
-      requestId?: unknown;
-      visible?: unknown;
-      syncHealthy?: unknown;
-      visibilityState?: unknown;
-      focused?: unknown;
-      mobile?: unknown;
-    };
-    if (
-      typeof requestId === 'string' &&
-      typeof visible === 'boolean' &&
-      typeof resultSyncHealthy === 'boolean'
-    ) {
-      const resolve = pushVisibilityPendingMap.get(requestId);
-      if (resolve) {
-        pushVisibilityPendingMap.delete(requestId);
-        resolve({
-          clientId: client.id,
-          visible,
-          syncHealthy: resultSyncHealthy,
-          visibilityState: typeof visibilityState === 'string' ? visibilityState : undefined,
-          focused: typeof focused === 'boolean' ? focused : undefined,
-          mobile: typeof mobile === 'boolean' ? mobile : undefined,
-        });
+        resolve(data as DecryptionResult);
       }
     }
   }
@@ -1284,16 +1121,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
         })
       );
       event.waitUntil(persistSettings());
-    }
-  }
-  if (type === 'setSyncState') {
-    if (typeof (data as { healthy?: unknown }).healthy === 'boolean') {
-      syncIsHealthy = (data as { healthy: boolean }).healthy;
-      event.waitUntil(
-        postSentryBreadcrumb('service_worker.sync', 'Sync health updated in SW', 'info', {
-          syncHealthy: syncIsHealthy,
-        })
-      );
     }
   }
   if (type === 'ping') {
@@ -1707,8 +1534,6 @@ const onPushNotification = async (event: PushEvent) => {
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
-    '| syncIsHealthy:',
-    syncIsHealthy,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
@@ -1720,63 +1545,45 @@ const onPushNotification = async (event: PushEvent) => {
   // Track push notification arrival
   await recordPushTelemetry('received', {
     app_visible: appIsVisible,
-    sync_healthy: syncIsHealthy,
     has_clients: clients.length > 0,
     payload_type: payloadType,
   });
   postSentryMetric('sable.push.received', 1, {
     app_visible: appIsVisible,
-    sync_healthy: syncIsHealthy,
     has_clients: clients.length > 0,
     payload_type: payloadType,
   }).catch(() => undefined);
   postSentryBreadcrumb('notification.push', 'Push received by service worker', 'info', {
     appVisible: appIsVisible,
-    syncHealthy: syncIsHealthy,
     clientCount: clients.length,
     payloadType,
   }).catch(() => undefined);
 
-  const visibleClient = await confirmVisiblePushClient(clients);
-  if (visibleClient?.visible) {
-    console.debug('[SW push] suppressing OS notification — visible client confirmed');
+  const hasVisibleClient =
+    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+  if (hasVisibleClient) {
+    console.debug('[SW push] suppressing OS notification — app is visible');
     await recordPushTelemetry('confirmed_visible', {
       payload_type: payloadType,
-      sync_healthy: visibleClient.syncHealthy,
-      visibility_state: visibleClient.visibilityState ?? 'unknown',
-      focused: visibleClient.focused ?? false,
-      mobile: visibleClient.mobile ?? false,
+      app_visible: appIsVisible,
     });
     await recordPushTelemetry('suppressed_visible', {
       payload_type: payloadType,
-      sync_healthy: visibleClient.syncHealthy,
-      visibility_state: visibleClient.visibilityState ?? 'unknown',
-      focused: visibleClient.focused ?? false,
-      mobile: visibleClient.mobile ?? false,
+      app_visible: appIsVisible,
     });
     postSentryBreadcrumb(
       'notification.push',
-      'OS push notification suppressed because visible client confirmed foreground state',
+      'OS push notification suppressed because app is visible',
       'info',
       {
         appVisible: appIsVisible,
-        syncHealthy: visibleClient.syncHealthy,
-        visibilityState: visibleClient.visibilityState,
-        focused: visibleClient.focused,
-        mobile: visibleClient.mobile,
         clientCount: clients.length,
       }
     ).catch(() => undefined);
     postSentryMetric('sable.push.suppressed_visible', 1, {
-      sync_healthy: visibleClient.syncHealthy,
-      visibility_state: visibleClient.visibilityState ?? 'unknown',
-      focused: visibleClient.focused ?? false,
-      mobile: visibleClient.mobile ?? false,
+      app_visible: appIsVisible,
       client_count: clients.length,
     }).catch(() => undefined);
-    if (!visibleClient.syncHealthy) {
-      await postPushInAppFallback(visibleClient, buildInAppFallbackPayload(pushData), payloadType);
-    }
     return;
   }
 

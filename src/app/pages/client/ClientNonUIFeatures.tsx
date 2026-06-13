@@ -52,7 +52,6 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
-import { useSyncState } from '$hooks/useSyncState';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
@@ -100,13 +99,6 @@ import {
   resolvePreferredNotificationTransportProvider,
   type NotificationTransportPlatform,
 } from '../../features/settings/notifications/NotificationTransport';
-import {
-  buildPushVisibilityResult,
-  isMatrixSyncHealthy,
-  resolvePushVisibilityState,
-  resolvePushFallbackBanner,
-} from './serviceWorkerPushState';
-
 const pushRelayLog = createDebugLogger('push-relay');
 const transportLog = createDebugLogger('push-transport');
 
@@ -927,39 +919,16 @@ function SyncNotificationSettingsWithServiceWorker() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;
 
-    const postHiddenState = () => {
-      postToServiceWorker({ type: 'setAppVisible', visible: false });
-      postToServiceWorker({ type: 'setSyncState', healthy: false });
-    };
-
     const postVisibility = () => {
       const visible = document.visibilityState === 'visible';
-      if (!visible) {
-        postHiddenState();
-        return;
-      }
-      postToServiceWorker({ type: 'setAppVisible', visible: true });
+      postToServiceWorker({ type: 'setAppVisible', visible });
     };
 
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    window.addEventListener('pagehide', postHiddenState);
-    document.addEventListener('freeze', postHiddenState);
-    window.addEventListener('blur', postHiddenState);
-    window.addEventListener('focus', postVisibility);
-
-    const keepAliveId = window.setInterval(() => {
-      navigator.serviceWorker.controller?.postMessage({ type: 'ping' });
-    }, 20_000);
-
     return () => {
       document.removeEventListener('visibilitychange', postVisibility);
-      window.removeEventListener('pagehide', postHiddenState);
-      document.removeEventListener('freeze', postHiddenState);
-      window.removeEventListener('blur', postHiddenState);
-      window.removeEventListener('focus', postVisibility);
-      window.clearInterval(keepAliveId);
     };
   }, []);
 
@@ -978,54 +947,6 @@ function SyncNotificationSettingsWithServiceWorker() {
 
     postToServiceWorker(payload);
   }, [showMessageContent, showEncryptedMessageContent, clearNotificationsOnRead, focusMode]);
-
-  return null;
-}
-
-/**
- * Tells the service worker whether the Matrix sync connection is healthy.
- * When sync is in Reconnecting or Error state the in-app notification path is
- * broken, so the SW must not suppress OS push notifications even while the app
- * is visible.
- */
-function SyncStateWithServiceWorker() {
-  const mx = useMatrixClient();
-  const lastPostedHealthyRef = useRef<boolean | undefined>(undefined);
-
-  const postSyncHealth = useCallback((healthy: boolean, force = false) => {
-    const visibleHealthy = healthy && document.visibilityState === 'visible';
-    if (!force && lastPostedHealthyRef.current === visibleHealthy) return;
-    lastPostedHealthyRef.current = visibleHealthy;
-    postToServiceWorker({
-      type: 'setSyncState',
-      healthy: visibleHealthy,
-    });
-  }, []);
-
-  useEffect(() => {
-    lastPostedHealthyRef.current = undefined;
-    const current = mx.getSyncState();
-    postSyncHealth(isMatrixSyncHealthy(current), true);
-  }, [mx, postSyncHealth]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      postSyncHealth(isMatrixSyncHealthy(mx.getSyncState()), true);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [mx, postSyncHealth]);
-
-  useSyncState(
-    mx,
-    useCallback(
-      (current) => {
-        postSyncHealth(isMatrixSyncHealthy(current));
-      },
-      [postSyncHealth]
-    )
-  );
 
   return null;
 }
@@ -1109,129 +1030,6 @@ function SentryTagsFeature() {
   return null;
 }
 
-function ServiceWorkerPushMessages() {
-  const mx = useMatrixClient();
-  const setPending = useSetAtom(pendingNotificationAtom);
-  const setInAppBanner = useSetAtom(inAppBannerAtom);
-  const setActiveSessionId = useSetAtom(activeSessionIdAtom);
-  const navigate = useNavigate();
-  const lifecycleActiveRef = useRef(
-    document.visibilityState === 'visible' && (!mobileOrTablet() || document.hasFocus())
-  );
-
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return undefined;
-
-    const markLifecycleActive = () => {
-      lifecycleActiveRef.current = true;
-    };
-    const markLifecycleInactive = () => {
-      lifecycleActiveRef.current = false;
-    };
-    const handleLifecycleVisibility = () => {
-      if (document.visibilityState === 'visible') markLifecycleActive();
-      else markLifecycleInactive();
-    };
-
-    const handleMessage = (ev: MessageEvent) => {
-      const { data } = ev;
-      if (!data || typeof data !== 'object') return;
-
-      if (data.type === 'confirmPushVisibility') {
-        const { requestId } = data as { requestId?: unknown };
-        if (typeof requestId !== 'string') return;
-        postToServiceWorker(
-          buildPushVisibilityResult(requestId, document.visibilityState, mx.getSyncState(), {
-            focused: document.hasFocus(),
-            mobile: mobileOrTablet(),
-            lifecycleActive: lifecycleActiveRef.current,
-          })
-        );
-        return;
-      }
-
-      if (data.type !== 'pushInAppFallback') return;
-
-      const {
-        roomId,
-        eventId,
-        userId,
-        title,
-        body,
-        roomName,
-        senderName,
-        navigate: navigateUrl,
-      } = data as {
-        roomId?: string;
-        eventId?: string;
-        userId?: string;
-        title?: string;
-        body?: string;
-        roomName?: string;
-        senderName?: string;
-        navigate?: string;
-      };
-
-      if (document.visibilityState !== 'visible') return;
-      if (userId) setActiveSessionId(userId);
-
-      const banner = resolvePushFallbackBanner(
-        {
-          roomId,
-          eventId,
-          userId,
-          title,
-          body,
-          roomName,
-          senderName,
-          navigate: navigateUrl,
-        },
-        `push-fallback-${Date.now()}`
-      );
-
-      setInAppBanner({
-        id: banner.id,
-        title: banner.title,
-        roomName: banner.roomName,
-        serverName: banner.serverName,
-        senderName: banner.senderName,
-        body: banner.body,
-        onClick: () => {
-          window.focus();
-          if (banner.roomId) {
-            setPending({
-              roomId: banner.roomId,
-              eventId: banner.eventId,
-              targetSessionId: banner.userId,
-            });
-            return;
-          }
-          if (banner.navigate) navigateToServiceWorkerUrl(navigate, banner.navigate);
-        },
-      });
-    };
-
-    document.addEventListener('visibilitychange', handleLifecycleVisibility);
-    window.addEventListener('pageshow', markLifecycleActive);
-    window.addEventListener('focus', markLifecycleActive);
-    window.addEventListener('pagehide', markLifecycleInactive);
-    window.addEventListener('blur', markLifecycleInactive);
-    document.addEventListener('freeze', markLifecycleInactive);
-    navigator.serviceWorker.addEventListener('message', handleMessage);
-    return () => {
-      document.removeEventListener('visibilitychange', handleLifecycleVisibility);
-      window.removeEventListener('pageshow', markLifecycleActive);
-      window.removeEventListener('focus', markLifecycleActive);
-      window.removeEventListener('pagehide', markLifecycleInactive);
-      window.removeEventListener('blur', markLifecycleInactive);
-      document.removeEventListener('freeze', markLifecycleInactive);
-      navigator.serviceWorker.removeEventListener('message', handleMessage);
-    };
-  }, [mx, navigate, setActiveSessionId, setInAppBanner, setPending]);
-
-  return null;
-}
-
 /**
  * Listens for decryptPushEvent messages from the service worker, decrypts the
  * event using the local Olm/Megolm session, then replies with pushDecryptResult
@@ -1266,18 +1064,10 @@ function HandleDecryptPushEvent() {
         }
 
         const decryptMs = Math.round(performance.now() - decryptStart);
-        const visibility = resolvePushVisibilityState(document.visibilityState, mx.getSyncState(), {
-          focused: document.hasFocus(),
-          mobile: mobileOrTablet(),
-        });
         pushRelayLog.info('notification', 'Push relay decryption succeeded', {
           eventType: mxEvent.getType(),
           decryptMs,
-          appVisible: visibility.visible,
-          syncHealthy: visibility.syncHealthy,
-          visibilityState: visibility.visibilityState,
-          focused: visibility.focused,
-          mobile: visibility.mobile,
+          appVisible: document.visibilityState === 'visible',
         });
 
         postToServiceWorker({
@@ -1288,7 +1078,7 @@ function HandleDecryptPushEvent() {
           content: mxEvent.getContent(),
           sender_display_name: senderName,
           room_name: room?.name ?? '',
-          ...visibility,
+          visibilityState: document.visibilityState,
         });
       } catch (err) {
         console.warn('[ClientFeatures] HandleDecryptPushEvent: failed to decrypt push event', err);
@@ -1318,15 +1108,11 @@ function HandleDecryptPushEvent() {
           // when the event is viewed in the timeline
         }
 
-        const visibility = resolvePushVisibilityState(document.visibilityState, mx.getSyncState(), {
-          focused: document.hasFocus(),
-          mobile: mobileOrTablet(),
-        });
         postToServiceWorker({
           type: 'pushDecryptResult',
           eventId,
           success: false,
-          ...visibility,
+          visibilityState: document.visibilityState,
         });
       }
     };
@@ -1531,8 +1317,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <BackgroundNotifications />
       <NotificationTransportRuntimeFeature />
       <SyncNotificationSettingsWithServiceWorker />
-      <SyncStateWithServiceWorker />
-      <ServiceWorkerPushMessages />
       <HandleDecryptPushEvent />
       <ServiceWorkerMetricsHandler />
       <NotificationBanner />

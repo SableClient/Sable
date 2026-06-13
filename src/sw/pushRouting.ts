@@ -3,17 +3,6 @@ import {
   DEFAULT_NOTIFICATION_ICON,
 } from '../app/utils/notificationStyle';
 
-export type InAppPushFallbackPayload = {
-  roomId?: string;
-  eventId?: string;
-  userId?: string;
-  title: string;
-  body?: string;
-  roomName?: string;
-  senderName?: string;
-  navigate?: string;
-};
-
 export type DeclarativeWebPushPayload = {
   web_push: 8030;
   notification: {
@@ -31,14 +20,6 @@ export type DeclarativeWebPushPayload = {
   };
 };
 
-type MatrixLikePushPayload = {
-  room_id?: unknown;
-  event_id?: unknown;
-  user_id?: unknown;
-  sender_display_name?: unknown;
-  room_name?: unknown;
-};
-
 export function isMinimalPushPayload(data: unknown): data is { room_id: string; event_id: string } {
   if (!data || typeof data !== 'object') return false;
   const d = data as Record<string, unknown>;
@@ -52,38 +33,6 @@ export function isDeclarativeWebPushPayload(data: unknown): data is DeclarativeW
   const notification = payload.notification;
   if (!notification || typeof notification !== 'object') return false;
   return typeof (notification as Record<string, unknown>).title === 'string';
-}
-
-const stringOrUndefined = (value: unknown): string | undefined =>
-  typeof value === 'string' && value.trim() ? value : undefined;
-
-export function buildInAppFallbackPayload(data: unknown): InAppPushFallbackPayload {
-  if (isDeclarativeWebPushPayload(data)) {
-    const { notification } = data;
-    const nestedData =
-      notification.data && typeof notification.data === 'object' ? notification.data : {};
-    return {
-      roomId: stringOrUndefined(nestedData.room_id),
-      eventId: stringOrUndefined(nestedData.event_id),
-      userId: stringOrUndefined(nestedData.user_id),
-      title: notification.title || 'New Message',
-      body: stringOrUndefined(notification.body) ?? 'New message received.',
-      navigate: stringOrUndefined(notification.navigate),
-    };
-  }
-
-  const pushData = data as MatrixLikePushPayload;
-  const senderName = stringOrUndefined(pushData?.sender_display_name);
-  const roomName = stringOrUndefined(pushData?.room_name);
-  return {
-    roomId: stringOrUndefined(pushData?.room_id),
-    eventId: stringOrUndefined(pushData?.event_id),
-    userId: stringOrUndefined(pushData?.user_id),
-    title: roomName ?? 'New Message',
-    body: senderName ? `${senderName} sent a message.` : 'New message received.',
-    roomName,
-    senderName,
-  };
 }
 
 export function buildDeclarativeNotificationOptions(payload: DeclarativeWebPushPayload): {

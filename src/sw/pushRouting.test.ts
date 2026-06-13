@@ -18,7 +18,7 @@ describe('service worker push routing helpers', () => {
     const payload = {
       web_push: 8030,
       notification: {
-        title: 'Sable',
+        title: 'Charm',
         body: 'New message',
         navigate: '/to/%40alice%3Aexample/%21room%3Aexample',
         app_badge: 4,
@@ -33,7 +33,7 @@ describe('service worker push routing helpers', () => {
     expect(isDeclarativeWebPushPayload(payload)).toBe(true);
 
     const { title, options } = buildDeclarativeNotificationOptions(payload);
-    expect(title).toBe('Sable');
+    expect(title).toBe('Charm');
     expect(options.body).toBe('New message');
     expect(options.data).toMatchObject({
       navigate: '/to/%40alice%3Aexample/%21room%3Aexample',

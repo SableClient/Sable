@@ -148,7 +148,7 @@ function EmailNotification() {
             device_display_name: email,
             lang: 'en',
             data: {
-              brand: 'Sable',
+              brand: 'Charm',
             },
             append: true,
           });

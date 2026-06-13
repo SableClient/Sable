@@ -1,6 +1,7 @@
 # Charm Branding
 
 Charm is the independently maintained personal Matrix client hosted under the CloudHub domain.
+It is based on Sable, which is itself based on Cinny.
 
 ## Required attribution
 
@@ -31,3 +32,12 @@ Do not imply that the Sable maintainers officially ship, review, or support this
 ## Icon direction
 
 The current icon is a generated Charm mark: a speech bubble framed like a small talisman or sigil. It is intentionally separate from the Sable bird silhouette so users see this as an independent distribution.
+
+## Compatibility names that stay as-is
+
+Some internal namespaces are intentionally not renamed yet:
+
+- `sable_*` localStorage keys, because they preserve existing user diagnostics and settings choices.
+- `moe.sable.*` Matrix account-data/event types, because renaming them would fork synced settings and room metadata.
+- `.sable.css`, `@sable-theme`, and `@sable-tweak`, because these are theme ecosystem compatibility names.
+- `@sableclient/*` dependencies and SableClient GitHub URLs, because those still point to upstream packages this fork consumes.

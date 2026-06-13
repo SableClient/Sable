@@ -1275,11 +1275,11 @@ export function Sync() {
                 </a>
                 .{' '}
                 <a
-                  href="https://github.com/SableClient/Sable/issues/39"
+                  href="https://github.com/Just-Insane/Sable/issues/39"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Known issues (Sable GitHub)
+                  Known issues (Charm GitHub)
                 </a>
                 .
               </>
@@ -1369,7 +1369,7 @@ function SettingsSyncSection() {
         <SettingTile
           title="Sync across devices"
           focusId="sync-across-devices"
-          description="Store your settings in your Matrix account so they follow you to any Sable instance. Notification and zoom preferences are kept per-device."
+          description="Store your settings in your Matrix account so they follow you to any Charm instance. Notification and zoom preferences are kept per-device."
           after={<Switch variant="Primary" value={syncEnabled} onChange={setSyncEnabled} />}
         />
         {syncEnabled && (
@@ -1469,7 +1469,7 @@ function DiagnosticsAndPrivacy() {
           focusId="error-reporting"
           description={
             isSentryConfigured
-              ? 'Send anonymous crash reports to help improve Sable. No messages, room names, or personal data are included.'
+              ? 'Send anonymous crash reports to help improve Charm. No messages, room names, or personal data are included.'
               : 'Error reporting is not configured for this build.'
           }
           after={
@@ -1499,7 +1499,7 @@ function DiagnosticsAndPrivacy() {
       <Box gap="200" wrap="Wrap" style={{ paddingTop: '4px' }}>
         <Button
           as="a"
-          href="https://github.com/SableClient/Sable/blob/dev/docs/PRIVACY.md"
+          href="https://github.com/Just-Insane/Sable/blob/integration/docs/PRIVACY.md"
           rel="noreferrer noopener"
           target="_blank"
           variant="Secondary"

@@ -1,6 +1,6 @@
-# Sable Bug Investigation
+# Charm Bug Investigation
 
-You are investigating a bug in the Sable codebase.
+You are investigating a bug in the Charm codebase.
 
 Do NOT implement changes yet.
 

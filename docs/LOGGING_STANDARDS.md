@@ -1,10 +1,10 @@
-# Sable Logging Standards
+# Charm Logging Standards
 
-Comprehensive guide for logging practices across the Sable codebase.
+Comprehensive guide for logging practices across the Charm codebase.
 
 ## Overview
 
-Sable uses a structured logging system with two primary utilities:
+Charm uses a structured logging system with two primary utilities:
 
 1. **Simple Logger** (`createLogger`) - For basic debug logging
 2. **Enhanced Logger** (`createDebugLogger`) - For categorized logging with Sentry integration

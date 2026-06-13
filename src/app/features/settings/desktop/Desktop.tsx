@@ -45,9 +45,9 @@ export function Desktop({ requestBack, requestClose }: DesktopProps) {
                   gap="400"
                 >
                   <SettingTile
-                    title="Close button keeps Sable running"
+                    title="Close button keeps Charm running"
                     focusId="close-to-background-on-close"
-                    description="When enabled, closing the window keeps Sable running instead of exiting. If the tray icon is enabled and available, Sable stays in the system tray. Otherwise it continues running in the background."
+                    description="When enabled, closing the window keeps Charm running instead of exiting. If the tray icon is enabled and available, Charm stays in the system tray. Otherwise it continues running in the background."
                     after={
                       <Switch
                         aria-label="close-to-background-on-close"
@@ -69,11 +69,11 @@ export function Desktop({ requestBack, requestClose }: DesktopProps) {
                     description={
                       trayFallback ? (
                         <Text as="span" style={{ color: color.Warning.Main }} size="T200">
-                          System tray is unavailable on this system. Sable can still keep running in
+                          System tray is unavailable on this system. Charm can still keep running in
                           the background without it.
                         </Text>
                       ) : (
-                        'Show a system tray icon while Sable is running. Disable this if you want Sable to stay available without a tray icon.'
+                        'Show a system tray icon while Charm is running. Disable this if you want Charm to stay available without a tray icon.'
                       )
                     }
                     after={

@@ -15,7 +15,7 @@ export function SearchIndexToggle() {
         <SettingTile
           focusId="encrypted-search-index"
           title="Build a local search index"
-          description="Indexes messages from all rooms in the background for deeper search history and chip filters (Has: Image, File, etc.). Message bodies are stored as plain text in IndexedDB on this device — Sable does not add extra encryption, though browsers sandbox and restrict access to this storage."
+          description="Indexes messages from all rooms in the background for deeper search history and chip filters (Has: Image, File, etc.). Message bodies are stored as plain text in IndexedDB on this device — Charm does not add extra encryption, though browsers sandbox and restrict access to this storage."
           after={
             <Switch
               variant="Primary"

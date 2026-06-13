@@ -7,7 +7,7 @@ Review open pull requests against the upstream repository.
 
 ## Goal
 
-Identify upstream PRs that may be useful, relevant, risky, or conflicting for Sable.
+Identify upstream PRs that may be useful, relevant, risky, or conflicting for Charm.
 
 Do not merge anything yet.
 
@@ -24,15 +24,15 @@ Do not merge anything yet.
    - commits
    - affected subsystems
    - merge status
-   - whether it touches areas Sable has modified
+   - whether it touches areas Charm has modified
 
 ## Review Criteria
 
 For each PR, classify it as:
 
-- likely useful for Sable
+- likely useful for Charm
 - potentially useful but needs review
-- risky due to conflicts with Sable changes
+- risky due to conflicts with Charm changes
 - not relevant
 - already effectively included
 - should be avoided
@@ -56,8 +56,8 @@ Produce a report with:
 
 1. Summary of open upstream PRs reviewed.
 2. Recommended PRs to cherry-pick, merge, or monitor.
-3. PRs likely to conflict with Sable.
-4. PRs touching files modified by Sable.
+3. PRs likely to conflict with Charm.
+4. PRs touching files modified by Charm.
 5. Suggested order of adoption.
 6. Risks and testing requirements.
 7. Follow-up implementation prompt for applying selected PRs.

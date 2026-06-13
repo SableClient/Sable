@@ -42,7 +42,7 @@ describe('TelemetryConsentBanner', () => {
     vi.stubEnv('VITE_SENTRY_DSN', TEST_DSN);
     render(<TelemetryConsentBanner />);
     expect(screen.getByRole('region', { name: /crash reporting prompt/i })).toBeInTheDocument();
-    expect(screen.getByText(/help improve sable/i)).toBeInTheDocument();
+    expect(screen.getByText(/help improve charm/i)).toBeInTheDocument();
   });
 
   // ── accessibility ─────────────────────────────────────────────────────────

@@ -81,7 +81,7 @@ export function ThemeCatalogOnboarding({ open, onEnable, onDecline }: ThemeCatal
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
               <Text priority="400">
-                Load themes from the official Sable theme catalog on GitHub? You can browse
+                Load themes from the Sable-compatible theme catalog on GitHub? You can browse
                 previews, save favorites locally, and sync them with light and dark mode. If you
                 choose not to, you can keep using the built-in Light and Dark themes only.
               </Text>

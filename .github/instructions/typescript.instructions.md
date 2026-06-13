@@ -26,4 +26,4 @@ applyTo: 'src/**'
 
 - Every user-visible new feature must be gated behind a feature flag in `config.json` / `useClientConfig`.
 - Flags default to `false` (opt-in) unless the feature is a bug fix or a non-breaking improvement with no regressions.
-- Document the flag in `config.json` and in the Sable-Docs documentation repo.
+- Document the flag in `config.json` and the Charm documentation.

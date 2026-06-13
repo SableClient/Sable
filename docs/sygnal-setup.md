@@ -305,10 +305,10 @@ Update the `pushNotificationDetails` section with the information from your serv
 - **`pushNotifyUrl`**: The public URL of your new Sygnal instance.
 - **`vapidPublicKey`**: The public key you generated in step 3.1.
 - **`webPushAppID`**: The application ID you defined in your `sygnal.yaml`. This must match exactly.
-- **`declarativeWebPushFallback`**: Optional. When set to `true`, Sable adds
+- **`declarativeWebPushFallback`**: Optional. When set to `true`, Charm adds
   `declarative_web_push: true` to the Matrix web push pusher data so a compatible
   push gateway can emit WebKit Declarative Web Push JSON payloads.
 
 After configuring your client, it will register for push notifications with your Sygnal instance, which will then handle delivering them.
 
-Declarative Web Push requires gateway support. Sable can register the opt-in metadata and handle declarative JSON fallback payloads in browsers that run the JavaScript service worker, but it cannot make APNs receive declarative fallback content unless your configured push gateway emits the `{ "web_push": 8030, "notification": { ... } }` payload.
+Declarative Web Push requires gateway support. Charm can register the opt-in metadata and handle declarative JSON fallback payloads in browsers that run the JavaScript service worker, but it cannot make APNs receive declarative fallback content unless your configured push gateway emits the `{ "web_push": 8030, "notification": { ... } }` payload.

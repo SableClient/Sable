@@ -36,7 +36,7 @@ async function buildWebPushPusherData(
     kind: 'http' as const,
     app_id: appId,
     pushkey: keys.p256dh,
-    app_display_name: 'Sable',
+    app_display_name: 'Charm',
     device_display_name: deviceDisplayName,
     lang: navigator.language || 'en',
     data: {

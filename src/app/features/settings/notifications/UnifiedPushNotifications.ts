@@ -172,7 +172,7 @@ export async function tryEnableUnifiedPush(
     kind: 'http',
     app_id: resolvedConfig.appId,
     pushkey: endpoint,
-    app_display_name: 'Sable (UnifiedPush)',
+    app_display_name: 'Charm (UnifiedPush)',
     device_display_name:
       (await mx.getDevice(mx.getDeviceId() ?? '')).display_name ?? 'Android Device',
     lang: navigator.language || 'en',

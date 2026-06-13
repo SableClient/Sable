@@ -1,6 +1,6 @@
 # Testing Guide
 
-Sable uses [Vitest](https://vitest.dev/) as its test runner and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) for component tests. Tests run in a [jsdom](https://github.com/jsdom/jsdom) environment and coverage is collected via V8.
+Charm uses [Vitest](https://vitest.dev/) as its test runner and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) for component tests. Tests run in a [jsdom](https://github.com/jsdom/jsdom) environment and coverage is collected via V8.
 
 ---
 

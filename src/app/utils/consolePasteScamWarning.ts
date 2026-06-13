@@ -31,7 +31,7 @@ export function installConsolePasteScamWarning(): void {
       } else {
         window.setTimeout(() => {
           console.warn(
-            "%cIf you know what you're doing, check out our GitHub and contribute: https://github.com/Just-Insane/Charm",
+            "%cIf you know what you're doing, check out our GitHub and contribute: https://github.com/CloudHub-Social/Charm",
             CONTRIBUTE_STYLE
           );
         }, betweenPairsMs);

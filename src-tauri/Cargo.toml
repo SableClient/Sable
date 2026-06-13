@@ -2,9 +2,9 @@
 name = "charm"
 version = "0.1.0"
 description = "A personal Matrix client with a little magic"
-authors = ["Evie Gauthier"]
+authors = ["CloudHub Social Team"]
 license = ""
-repository = "https://github.com/Just-Insane/Charm"
+repository = "https://github.com/CloudHub-Social/Charm"
 edition = "2021"
 rust-version = "1.88.0"
 

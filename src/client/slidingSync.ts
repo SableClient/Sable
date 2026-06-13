@@ -58,8 +58,6 @@ const DEFAULT_LIST_TIMELINE_LIMIT = 20;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
-const NETWORK_RECOVERY_RESEND_DELAY_MS = 2500;
-const NETWORK_RECOVERY_RECENT_SYNC_GRACE_MS = 5000;
 
 // ---------------------------------------------------------------------------
 // Strategy 3: Sliding Sync List State Caching
@@ -321,10 +319,6 @@ export class SlidingSyncManager {
   private readonly onConnectionChange: () => void;
 
   private lastOnlineState = typeof navigator !== 'undefined' ? navigator.onLine : true;
-
-  private networkRecoveryResendTimer: ReturnType<typeof setTimeout> | undefined;
-
-  private lastSuccessfulSyncAt: number | undefined;
 
   private readonly onLifecycle: (state: SlidingSyncState, resp: unknown, err?: Error) => void;
 
@@ -762,8 +756,6 @@ export class SlidingSyncManager {
 
       if (err || !resp || state !== SlidingSyncState.Complete) return;
 
-      this.lastSuccessfulSyncAt = Date.now();
-
       // Track what changed in this sync cycle
       const changes: Record<string, { previous: number; current: number; delta: number }> = {};
       let totalRoomCount = 0;
@@ -874,16 +866,14 @@ export class SlidingSyncManager {
       });
 
       if (!isOnline) {
-        this.clearNetworkRecoveryResend();
-        debugLog.warn('network', 'Device went offline - waiting for transport recovery', {
+        debugLog.warn('network', 'Device went offline - sync paused', {
           syncNumber: this.syncCount,
         });
       } else if (!wasOnline) {
-        debugLog.info('network', 'Device back online - scheduling transport recovery check', {
+        debugLog.info('network', 'Device back online - triggering immediate resync', {
           syncNumber: this.syncCount,
-          delayMs: NETWORK_RECOVERY_RESEND_DELAY_MS,
         });
-        this.scheduleNetworkRecoveryResend();
+        this.slidingSync.resend();
       } else {
         debugLog.info('network', 'Online network change observed - keeping current sync request', {
           syncNumber: this.syncCount,
@@ -958,7 +948,6 @@ export class SlidingSyncManager {
       clearTimeout(this.roomSubscriptionFlushTimer);
       this.roomSubscriptionFlushTimer = undefined;
     }
-    this.clearNetworkRecoveryResend();
 
     this.disposed = true;
     // Stop the SDK's internal polling loop and abort any in-flight requests.
@@ -987,46 +976,6 @@ export class SlidingSyncManager {
     debugLog.info('sync', 'Sliding sync disposed successfully', {
       totalSyncCycles: this.syncCount,
     });
-  }
-
-  private clearNetworkRecoveryResend(): void {
-    if (!this.networkRecoveryResendTimer) return;
-    clearTimeout(this.networkRecoveryResendTimer);
-    this.networkRecoveryResendTimer = undefined;
-  }
-
-  private scheduleNetworkRecoveryResend(): void {
-    this.clearNetworkRecoveryResend();
-    this.networkRecoveryResendTimer = setTimeout(() => {
-      this.networkRecoveryResendTimer = undefined;
-      if (this.disposed) return;
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        debugLog.info('network', 'Skipped network recovery resend because device is offline', {
-          syncNumber: this.syncCount,
-        });
-        return;
-      }
-
-      const now = Date.now();
-      const msSinceLastSuccess =
-        this.lastSuccessfulSyncAt === undefined ? undefined : now - this.lastSuccessfulSyncAt;
-      if (
-        msSinceLastSuccess !== undefined &&
-        msSinceLastSuccess < NETWORK_RECOVERY_RECENT_SYNC_GRACE_MS
-      ) {
-        debugLog.info('network', 'Skipped network recovery resend because sync recovered', {
-          syncNumber: this.syncCount,
-          msSinceLastSuccess,
-        });
-        return;
-      }
-
-      debugLog.info('network', 'Triggering delayed network recovery resync', {
-        syncNumber: this.syncCount,
-        msSinceLastSuccess,
-      });
-      this.slidingSync.resend();
-    }, NETWORK_RECOVERY_RESEND_DELAY_MS);
   }
 
   /**

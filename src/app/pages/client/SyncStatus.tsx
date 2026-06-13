@@ -30,6 +30,7 @@ const DEMO_STATUS_SEQUENCE: readonly (TitlebarStatusView | null)[] = [
   { text: 'Connection Lost!', variant: 'Critical' },
   null,
 ];
+const DEGRADED_STATUS_DELAY_MS = 1200;
 
 const isSyncStatusDemoEnabled = (): boolean => {
   if (import.meta.env.VITE_DEMO_SYNC_STATUS === '1') return true;
@@ -42,6 +43,7 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     current: null,
     previous: undefined,
   });
+  const [displayStatus, setDisplayStatus] = useState<TitlebarStatusView | null>(null);
   const [demoIndex, setDemoIndex] = useState(0);
   const useDemoStatusLoop = isSyncStatusDemoEnabled();
   const setTitlebarStatus = useSetAtom(titlebarStatusAtom);
@@ -82,21 +84,46 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     };
   }, [useDemoStatusLoop]);
 
-  const statusView = useMemo(() => {
+  const rawStatusView = useMemo(() => {
     if (useDemoStatusLoop) return DEMO_STATUS_SEQUENCE[demoIndex] ?? null;
     return getSyncConnectionStatusView(current, previous);
   }, [current, demoIndex, previous, useDemoStatusLoop]);
 
+  useEffect(() => {
+    if (useDemoStatusLoop) {
+      setDisplayStatus(rawStatusView);
+      return undefined;
+    }
+
+    if (!rawStatusView) {
+      setDisplayStatus(null);
+      return undefined;
+    }
+
+    if (rawStatusView.variant !== 'Warning' && rawStatusView.variant !== 'Critical') {
+      setDisplayStatus(rawStatusView);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDisplayStatus(rawStatusView);
+    }, DEGRADED_STATUS_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [rawStatusView, useDemoStatusLoop]);
+
   const useTitlebarSlot = isTauri() && osType() === 'windows';
   useEffect(() => {
     if (!useTitlebarSlot) return undefined;
-    setTitlebarStatus(statusView);
+    setTitlebarStatus(displayStatus);
     return () => {
       setTitlebarStatus(null);
     };
-  }, [statusView, setTitlebarStatus, useTitlebarSlot]);
+  }, [displayStatus, setTitlebarStatus, useTitlebarSlot]);
 
   if (useTitlebarSlot) return null;
 
-  return <SyncConnectionStatusBanner status={statusView} />;
+  return <SyncConnectionStatusBanner status={displayStatus} />;
 }

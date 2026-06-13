@@ -16,11 +16,13 @@ export function getSyncConnectionStatusView(
   current: SyncState | null,
   previous: SyncState | null | undefined
 ): TitlebarStatusView | null {
+  const wasDegraded = previous === SyncState.Reconnecting || previous === SyncState.Error;
   if (
     (current === SyncState.Prepared ||
       current === SyncState.Syncing ||
       current === SyncState.Catchup) &&
-    previous !== SyncState.Syncing
+    previous !== SyncState.Syncing &&
+    !wasDegraded
   ) {
     return { text: 'Connecting...', variant: 'Success' };
   }

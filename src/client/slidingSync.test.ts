@@ -17,7 +17,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
-import { SlidingSyncEvent, SlidingSyncState } from '$types/matrix-sdk';
 
 import { SlidingSyncManager, type SlidingSyncConfig } from './slidingSync';
 
@@ -245,18 +244,6 @@ describe('SlidingSyncManager — network change handling', () => {
     };
   }
 
-  function fireLifecycle(state: SlidingSyncState, resp: unknown = {}) {
-    const lifecycleCall = mocks.slidingSyncInstance.on.mock.calls.find(
-      (args: unknown[]) => args[0] === SlidingSyncEvent.Lifecycle
-    );
-    if (!lifecycleCall) throw new Error('lifecycle listener not registered');
-    const [, handler] = lifecycleCall as unknown as [
-      SlidingSyncEvent,
-      (state: SlidingSyncState, resp: unknown, err?: Error) => void,
-    ];
-    handler(state, resp);
-  }
-
   afterEach(() => {
     setNavigatorOnline(true);
     Object.defineProperty(window.navigator, 'connection', {
@@ -276,7 +263,7 @@ describe('SlidingSyncManager — network change handling', () => {
     expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
   });
 
-  it('delays resend when the browser transitions from offline to online', () => {
+  it('resends when the browser transitions from offline to online', () => {
     setNavigatorOnline(true);
     const { fireConnectionChange } = installConnectionMock();
     const manager = makeManager(makeMockMx());
@@ -287,44 +274,6 @@ describe('SlidingSyncManager — network change handling', () => {
     setNavigatorOnline(true);
     fireConnectionChange();
 
-    expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(2499);
-    expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
     expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
-  });
-
-  it('skips the delayed resend when sync recovers before the grace period', () => {
-    setNavigatorOnline(true);
-    const { fireConnectionChange } = installConnectionMock();
-    const manager = makeManager(makeMockMx());
-    manager.attach();
-
-    setNavigatorOnline(false);
-    fireConnectionChange();
-    setNavigatorOnline(true);
-    fireConnectionChange();
-
-    vi.advanceTimersByTime(1000);
-    fireLifecycle(SlidingSyncState.Complete);
-    vi.advanceTimersByTime(1500);
-
-    expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
-  });
-
-  it('clears a pending network recovery resend on dispose', () => {
-    setNavigatorOnline(true);
-    const { fireConnectionChange } = installConnectionMock();
-    const manager = makeManager(makeMockMx());
-    manager.attach();
-
-    setNavigatorOnline(false);
-    fireConnectionChange();
-    setNavigatorOnline(true);
-    fireConnectionChange();
-    manager.dispose();
-    vi.advanceTimersByTime(2500);
-
-    expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
   });
 });

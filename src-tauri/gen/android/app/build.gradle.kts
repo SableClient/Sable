@@ -19,7 +19,7 @@ android {
     namespace = "moe.sable.client"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "moe.sable.client"
+        applicationId = "social.cloudhub.charm"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()

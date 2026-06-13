@@ -1,7 +1,7 @@
 {
-  "name": "Sable",
-  "short_name": "Sable",
-  "description": "An almost stable Matrix client",
+  "name": "Charm",
+  "short_name": "Charm",
+  "description": "A personal Matrix client with a little magic.",
   "dir": "auto",
   "lang": "en-US",
   "display": "standalone",

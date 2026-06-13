@@ -1,4 +1,4 @@
 account_id    = "replace-with-cloudflare-account-id"
 zone_id       = "replace-with-cloudflare-zone-id"
-worker_name   = "sable"
-custom_domain = "app.sable.moe"
+worker_name   = "charm"
+custom_domain = "charm.cloudhub.social"

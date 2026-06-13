@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "sable",
+  "productName": "Charm",
   "version": "0.1.0",
-  "identifier": "moe.sable.client",
+  "identifier": "social.cloudhub.charm",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:8080",
@@ -43,11 +43,11 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["sable"]
+        "schemes": ["charm"]
       },
       "mobile": [
         {
-          "scheme": ["sable"],
+          "scheme": ["charm"],
           "appLink": false
         }
       ]

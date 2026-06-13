@@ -1,5 +1,5 @@
 ## Base
-FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS base
+FROM --platform=$BUILDPLATFORM node:26.3.0-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable

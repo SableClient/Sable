@@ -85,17 +85,27 @@ jobs:
     if: github.head_ref != 'release'
     permissions:
       contents: read
+      code-quality: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup app
         uses: ./.github/actions/setup
 
-      - name: Run tests
-        run: pnpm run test:run
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
+
+      - name: Upload coverage report
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3 # v1
+        with:
+          file: coverage/cobertura-coverage.xml
+          language: JavaScript
+          label: code-coverage/vitest
 
   build:
     name: Build

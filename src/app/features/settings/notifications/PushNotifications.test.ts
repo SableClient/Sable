@@ -91,7 +91,7 @@ afterEach(() => {
 });
 
 describe('web push notifications', () => {
-  it('updates the Matrix pusher directly when reusing a browser subscription', async () => {
+  it('updates the Matrix pusher directly and removes the legacy Sable pusher when reusing a browser subscription', async () => {
     const subscription = makeSubscription();
     const { controllerPostMessage } = installWebPush(subscription);
     const mx = makeMatrixClient();
@@ -114,11 +114,16 @@ describe('web push notifications', () => {
         }),
       })
     );
+    expect(mx.setPusher).toHaveBeenCalledWith({
+      kind: null,
+      app_id: 'moe.sable.app.sygnal',
+      pushkey: 'p256dh-key',
+    });
     expect(controllerPostMessage).not.toHaveBeenCalled();
     expect(setSubscription).toHaveBeenCalledWith(subscription);
   });
 
-  it('deletes the Matrix pusher directly when disabling web push', async () => {
+  it('deletes current and legacy Matrix pushers directly when disabling web push', async () => {
     installWebPush(null);
     const mx = makeMatrixClient();
 
@@ -136,6 +141,32 @@ describe('web push notifications', () => {
     expect(mx.setPusher).toHaveBeenCalledWith({
       kind: null,
       app_id: 'moe.sable.web',
+      pushkey: 'p256dh-key',
+    });
+    expect(mx.setPusher).toHaveBeenCalledWith({
+      kind: null,
+      app_id: 'moe.sable.app.sygnal',
+      pushkey: 'p256dh-key',
+    });
+  });
+
+  it('removes the legacy pusher before replacing an existing browser subscription', async () => {
+    const subscription = makeSubscription();
+    const { subscribe } = installWebPush(subscription);
+    const mx = makeMatrixClient();
+
+    await enablePushNotifications(mx, clientConfig, [null, vi.fn<() => void>()]);
+
+    expect(subscription.unsubscribe).toHaveBeenCalled();
+    expect(subscribe).toHaveBeenCalled();
+    expect(mx.setPusher).toHaveBeenCalledWith({
+      kind: null,
+      app_id: 'moe.sable.web',
+      pushkey: 'p256dh-key',
+    });
+    expect(mx.setPusher).toHaveBeenCalledWith({
+      kind: null,
+      app_id: 'moe.sable.app.sygnal',
       pushkey: 'p256dh-key',
     });
   });

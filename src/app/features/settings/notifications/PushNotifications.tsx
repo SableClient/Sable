@@ -13,6 +13,34 @@ type PushSubscriptionState = [
 
 type WebPushPusherData = Parameters<MatrixClient['setPusher']>[0];
 
+const LEGACY_WEB_PUSH_APP_IDS = ['moe.sable.app.sygnal'];
+
+const getWebPushAppIds = (clientConfig: ClientConfig): string[] => [
+  ...new Set(
+    [clientConfig.pushNotificationDetails?.webPushAppID, ...LEGACY_WEB_PUSH_APP_IDS].filter(
+      (appId): appId is string => !!appId
+    )
+  ),
+];
+
+const deleteWebPushPushers = async (
+  mx: MatrixClient,
+  appIds: string[],
+  pushkey?: string
+): Promise<void> => {
+  if (!pushkey) return;
+
+  await Promise.allSettled(
+    appIds.map((appId) =>
+      mx.setPusher({
+        kind: null,
+        app_id: appId,
+        pushkey,
+      } as unknown as Parameters<typeof mx.setPusher>[0])
+    )
+  );
+};
+
 async function buildWebPushPusherData(
   mx: MatrixClient,
   clientConfig: ClientConfig,
@@ -137,6 +165,7 @@ export async function enablePushNotifications(
         await getDeviceDisplayName(mx)
       );
       await mx.setPusher(pusherData);
+      await deleteWebPushPushers(mx, LEGACY_WEB_PUSH_APP_IDS, pusherData.pushkey);
 
       span.setAttribute('push.endpoint', pushSubAtom.endpoint);
       span.setAttribute('push.success', true);
@@ -150,6 +179,11 @@ export async function enablePushNotifications(
 
     if (currentBrowserSub) {
       debugLog.info('notification', 'Unsubscribing old push subscription');
+      await deleteWebPushPushers(
+        mx,
+        getWebPushAppIds(clientConfig),
+        currentBrowserSub.toJSON().keys?.p256dh
+      );
       await currentBrowserSub.unsubscribe();
     }
 
@@ -212,17 +246,11 @@ export async function disablePushNotifications(
 
   debugLog.info('notification', 'Disabling push notifications');
   const [pushSubAtom] = pushSubscriptionAtom;
-  const appId = clientConfig.pushNotificationDetails?.webPushAppID;
   const pushkey = pushSubAtom?.keys?.p256dh;
-  if (!appId || !pushkey) return;
+  const appIds = getWebPushAppIds(clientConfig);
+  if (appIds.length === 0 || !pushkey) return;
 
-  const pusherData = {
-    kind: null,
-    app_id: appId,
-    pushkey,
-  };
-
-  await mx.setPusher(pusherData as unknown as Parameters<typeof mx.setPusher>[0]);
+  await deleteWebPushPushers(mx, appIds, pushkey);
 }
 
 export async function deRegisterAllPushers(mx: MatrixClient): Promise<void> {

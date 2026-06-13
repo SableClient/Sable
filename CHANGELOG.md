@@ -1,5 +1,57 @@
 # Sable Client Changelog
 
+## 1.18.0 (2026-06-13)
+
+### Features
+
+* Added configurable max pronoun pill count and max pill length rendering settings. (`a2f2707`)
+* Adds the ability to hover/tap over `...` to see the rest of someone's pronouns. (`79cd9bd`)
+* Highlight message that you are about to reply to! (`39bfed2`)
+* Add build-time experiment flag injection, typed deterministic bucketing helpers, and a DevTools panel to force-rotate Megolm encryption sessions per room. (`d571afe`)
+* Show group DM composite avatars in the sidebar DM list. (`e33ab68`)
+* Add experimental Discord-style edit-in-input toggle. (`c44fb3a`)
+* Add Ctrl+Alt+Up/Down keyboard shortcuts to cycle through editable messages. (`2343408`)
+* Add IndexedDB-backed persistent search index for all rooms via a MiniSearch web worker with multi-tab write safety and LRU eviction. Note: indexed message text is stored unencrypted in IndexedDB. (`a575e52`)
+* Add in-memory encrypted message search with room/DM scoping, member picker avatars, and > quick-switcher prefix. (`0492776`)
+* Add persistent Cache API for media storage; skip caching failed media requests. (`893009b`)
+* Add message bookmarks (MSC4438). Users can bookmark messages for easy retrieval via a new Bookmarks section in the home sidebar. Gated by an operator `config.json` experiment flag (`experiments.messageBookmarks`) and a per-user experimental settings toggle. (`0d5e1ab`)
+* Add configurable message grouping time threshold setting. (`ffa7b98`)
+* Add poll duration picker with hour presets and custom date input to PollCreator. (`bba01df`)
+* Show topic and last-message preview below room and DM names in the sidebar. (`33f9f99`)
+* Prefetch recently-visited rooms on sliding sync complete. (`0c77953`)
+* Add experimental Tiptap-based message composer behind a settings toggle. (`e26b468`)
+
+### Fixes
+
+* Preserve addAccount parameter through SSO redirect. (`7464983`)
+* Change image rendering to allow enabling anti-aliasing in the image viewer (`9b33efc`)
+* Route DM rooms to /direct before checking space parents to fix incorrect navigation. (`2b056b9`)
+* Skip displayCheck on FocusTrap activation in the emoji board to prevent focus trap errors. (`848356b`)
+* Fix crash during scrubbing before duration duration appears. (`898d22c`)
+* Fixed lists rendering `p` html tags on new lines. (`b0349b4`)
+* Fix math parsing inside of color blocks not being parsed properly. (`b706cb9`)
+* Fixed nested lists having wrong indentation levels when editing. (`ee575c0`)
+* Fix phantom unread dot badges when server reports zero unreads or when you sent the latest message. (`0a2eb4f`)
+* Fix missing filename breaking edits, and missing a fallback, and codeblock titles overflowing (`0487b72`)
+* Fix unset User Profile cards having incorectly colored text. (`e02f127`)
+* Fix iOS PWA foreground lifecycle churn by avoiding forced sync retries, removing unused bfcache sync pause helpers, and stopping visibility-driven web pusher re-registration. (`7651a01`)
+* Fix iOS sync resume, network latency retries, iPad layout, and connecting banner during fast-path sync. Add missing items to mobile long-press message menu; fix bookmark toggle and iOS keyboard cover. (`0db1f0d`)
+* Pause mobile search backfill unless the PWA is foreground-focused to reduce background network pressure on Matrix sync. (`5894435`)
+* Require focused mobile pages before suppressing service-worker push notifications, including encrypted minimal-push relay responses. (`d9baed7`)
+* Fix notification routing, in-app banners for All Messages rooms, and background audio for loud non-DM rooms. (`04d08aa`)
+* Fix presence: optimistic badge updates, own-status sync, idle timer on desktop, and REST API fallback. (`af70caf`)
+* Fix mobile PWA push reliability by confirming visible clients before suppressing OS notifications, buffering SW push telemetry, supporting declarative Web Push fallback payloads, and restoring foreground SW session refresh. ([#42](<https://github.com/Just-Insane/Sable/pull/42>) by @Just-Insane)
+* Exclude enterForNewline from cross-device settings sync. (`8faf1e6`)
+* Avoid aborting sliding-sync requests for online-only network change events; retry immediately only after a real offline-to-online transition. (`03f69bd`)
+* Reduce mobile sync diagnostic noise by de-duplicating service-worker sync-health updates and raising the MatrixRTC listener threshold for large room lists. (`fffb312`)
+* Fix timeline scroll recovery, loading spinner position, autopag loop, blank notification room, and ArrowUp-to-edit routing. (`5365f80`)
+
+### Notes
+
+* Rebrand the fork-local app distribution from Sable to Charm while preserving attribution to Sable and Cinny. ([#45](<https://github.com/Just-Insane/Sable/pull/45>) by @Just-Insane)
+* Fix integration-trunk release automation so Knope only versions `package.json` and does not prepare a new release from release-PR merge commits. ([#36](<https://github.com/Just-Insane/Sable/pull/36>) by @Just-Insane)
+* Move fork-local CI, release, deployment, and branch workflow automation from `dev` to the `integration` trunk. ([#35](<https://github.com/Just-Insane/Sable/pull/35>) by @Just-Insane)
+
 ## 1.17.0 (2026-05-22)
 
 ### Features

@@ -25,19 +25,25 @@ type WebPushPusherDeleteRequest = {
 
 const deleteWebPushPushers = async (
   mx: MatrixClient,
-  pushers: WebPushPusherDeleteRequest[]
+  pushers: WebPushPusherDeleteRequest[],
+  settleFailures = false
 ): Promise<void> => {
   if (pushers.length === 0) return;
 
-  await Promise.allSettled(
-    pushers.map((pusher) =>
-      mx.setPusher({
-        kind: null,
-        app_id: pusher.app_id,
-        pushkey: pusher.pushkey,
-      } as unknown as Parameters<typeof mx.setPusher>[0])
-    )
+  const deletionPromises = pushers.map((pusher) =>
+    mx.setPusher({
+      kind: null,
+      app_id: pusher.app_id,
+      pushkey: pusher.pushkey,
+    } as unknown as Parameters<typeof mx.setPusher>[0])
   );
+
+  if (settleFailures) {
+    await Promise.allSettled(deletionPromises);
+    return;
+  }
+
+  await Promise.all(deletionPromises);
 };
 
 const deleteWebPushPushersByPushkey = async (
@@ -60,7 +66,7 @@ const deleteLegacyWebPushPushers = async (mx: MatrixClient): Promise<void> => {
       .filter((pusher) => LEGACY_WEB_PUSH_APP_IDS.has(pusher.app_id) && !!pusher.pushkey)
       .map((pusher) => ({ app_id: pusher.app_id, pushkey: pusher.pushkey }));
 
-    await deleteWebPushPushers(mx, legacyPushers);
+    await deleteWebPushPushers(mx, legacyPushers, true);
   } catch (error) {
     debugLog.warn('notification', 'Failed to inspect legacy web pushers for cleanup', {
       error: error instanceof Error ? error.message : String(error),

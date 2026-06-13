@@ -179,6 +179,70 @@ describe('web push notifications', () => {
     });
   });
 
+  it('propagates failures when deleting the current web push pusher', async () => {
+    installWebPush(null);
+    const mx = makeMatrixClient();
+    vi.mocked(mx.setPusher).mockImplementation((pusher) => {
+      if (pusher.app_id === 'moe.sable.web') {
+        return Promise.reject(new Error('homeserver unavailable'));
+      }
+      return Promise.resolve({});
+    });
+
+    await expect(
+      disablePushNotifications(mx, clientConfig, [
+        {
+          endpoint: 'https://push.example.com/sub',
+          keys: {
+            p256dh: 'p256dh-key',
+            auth: 'auth-key',
+          },
+        },
+        vi.fn<() => void>(),
+      ])
+    ).rejects.toThrow('homeserver unavailable');
+
+    expect(mx.getPushers).not.toHaveBeenCalled();
+  });
+
+  it('keeps legacy web pusher cleanup best-effort when deleting legacy pushers fails', async () => {
+    installWebPush(null);
+    const mx = makeMatrixClient();
+    vi.mocked(mx.getPushers).mockResolvedValue({
+      pushers: [makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key')],
+    });
+    vi.mocked(mx.setPusher).mockImplementation((pusher) => {
+      if (pusher.app_id === 'moe.sable.app.sygnal') {
+        return Promise.reject(new Error('legacy pusher already gone'));
+      }
+      return Promise.resolve({});
+    });
+
+    await expect(
+      disablePushNotifications(mx, clientConfig, [
+        {
+          endpoint: 'https://push.example.com/sub',
+          keys: {
+            p256dh: 'p256dh-key',
+            auth: 'auth-key',
+          },
+        },
+        vi.fn<() => void>(),
+      ])
+    ).resolves.toBeUndefined();
+
+    expect(mx.setPusher).toHaveBeenCalledWith({
+      kind: null,
+      app_id: 'moe.sable.web',
+      pushkey: 'p256dh-key',
+    });
+    expect(mx.setPusher).toHaveBeenCalledWith({
+      kind: null,
+      app_id: 'moe.sable.app.sygnal',
+      pushkey: 'old-sable-p256dh-key',
+    });
+  });
+
   it('removes the legacy pusher before replacing an existing browser subscription', async () => {
     const subscription = makeSubscription();
     const { subscribe } = installWebPush(subscription);

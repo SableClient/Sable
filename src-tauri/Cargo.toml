@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A personal Matrix client with a little magic"
 authors = ["Evie Gauthier"]
 license = ""
-repository = "https://github.com/Just-Insane/Sable"
+repository = "https://github.com/Just-Insane/Charm"
 edition = "2021"
 rust-version = "1.88.0"
 

@@ -35,7 +35,7 @@ export function MSC4438MessageBookmarks() {
               </a>
               .{' '}
               <a
-                href="https://github.com/Just-Insane/Sable/issues/600"
+                href="https://github.com/Just-Insane/Charm/issues/600"
                 target="_blank"
                 rel="noreferrer"
               >

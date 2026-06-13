@@ -48,7 +48,7 @@ export function TelemetryConsentBanner() {
               Optionally send anonymous crash reports to help us fix bugs faster. No messages, room
               names, or personal data are included.{' '}
               <a
-                href="https://github.com/Just-Insane/Sable/blob/integration/docs/PRIVACY.md"
+                href="https://github.com/Just-Insane/Charm/blob/integration/docs/PRIVACY.md"
                 target="_blank"
                 rel="noreferrer noopener"
               >

@@ -30,6 +30,9 @@ const clientConfig: ClientConfig = {
 function makeMatrixClient(): MatrixClient {
   return {
     setPusher: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    getPushers: vi
+      .fn<() => Promise<{ pushers: { app_id: string; pushkey: string }[] }>>()
+      .mockResolvedValue({ pushers: [] }),
     getDevice: vi
       .fn<() => Promise<{ display_name?: string }>>()
       .mockResolvedValue({ display_name: 'Phone' }),
@@ -49,6 +52,18 @@ function makeSubscription(endpoint = 'https://push.example.com/sub') {
     }),
     unsubscribe: vi.fn<() => Promise<boolean>>().mockResolvedValue(true),
   } as unknown as PushSubscription;
+}
+
+function makePusher(appId: string, pushkey: string) {
+  return {
+    app_display_name: 'Charm',
+    app_id: appId,
+    data: {},
+    device_display_name: 'Phone',
+    kind: 'http',
+    lang: 'en',
+    pushkey,
+  };
 }
 
 function installWebPush(subscription: PushSubscription | null): {
@@ -95,6 +110,12 @@ describe('web push notifications', () => {
     const subscription = makeSubscription();
     const { controllerPostMessage } = installWebPush(subscription);
     const mx = makeMatrixClient();
+    vi.mocked(mx.getPushers).mockResolvedValue({
+      pushers: [
+        makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key'),
+        makePusher('moe.sable.web', 'other-device-p256dh-key'),
+      ],
+    });
     const setSubscription = vi.fn<() => void>();
 
     await enablePushNotifications(mx, clientConfig, [subscription.toJSON(), setSubscription]);
@@ -117,6 +138,11 @@ describe('web push notifications', () => {
     expect(mx.setPusher).toHaveBeenCalledWith({
       kind: null,
       app_id: 'moe.sable.app.sygnal',
+      pushkey: 'old-sable-p256dh-key',
+    });
+    expect(mx.setPusher).not.toHaveBeenCalledWith({
+      kind: null,
+      app_id: 'moe.sable.app.sygnal',
       pushkey: 'p256dh-key',
     });
     expect(controllerPostMessage).not.toHaveBeenCalled();
@@ -126,6 +152,9 @@ describe('web push notifications', () => {
   it('deletes current and legacy Matrix pushers directly when disabling web push', async () => {
     installWebPush(null);
     const mx = makeMatrixClient();
+    vi.mocked(mx.getPushers).mockResolvedValue({
+      pushers: [makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key')],
+    });
 
     await disablePushNotifications(mx, clientConfig, [
       {
@@ -146,7 +175,7 @@ describe('web push notifications', () => {
     expect(mx.setPusher).toHaveBeenCalledWith({
       kind: null,
       app_id: 'moe.sable.app.sygnal',
-      pushkey: 'p256dh-key',
+      pushkey: 'old-sable-p256dh-key',
     });
   });
 
@@ -154,6 +183,9 @@ describe('web push notifications', () => {
     const subscription = makeSubscription();
     const { subscribe } = installWebPush(subscription);
     const mx = makeMatrixClient();
+    vi.mocked(mx.getPushers).mockResolvedValue({
+      pushers: [makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key')],
+    });
 
     await enablePushNotifications(mx, clientConfig, [null, vi.fn<() => void>()]);
 
@@ -167,7 +199,7 @@ describe('web push notifications', () => {
     expect(mx.setPusher).toHaveBeenCalledWith({
       kind: null,
       app_id: 'moe.sable.app.sygnal',
-      pushkey: 'p256dh-key',
+      pushkey: 'old-sable-p256dh-key',
     });
   });
 });

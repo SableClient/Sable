@@ -10,7 +10,7 @@ describe('buildGitHubUrl', () => {
     );
 
     expect(url.origin).toBe('https://github.com');
-    expect(url.pathname).toBe('/Just-Insane/Sable/issues/new');
+    expect(url.pathname).toBe('/Just-Insane/Charm/issues/new');
     expect(url.searchParams.get('template')).toBe('bug_report.yml');
     expect(url.searchParams.get('description')).toBe('The callback does not open the app.');
     expect(url.searchParams.get('info')).toContain('- Charm: vtest-dev');

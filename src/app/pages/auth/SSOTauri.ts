@@ -2,19 +2,20 @@ import { SSO_CALLBACK_PATH } from '$pages/paths';
 import { APP_SUPPORT_URL } from '$app/config/brand';
 import { type as osType } from '@tauri-apps/plugin-os';
 
-const TAURI_SSO_PROTOCOL = 'charm:';
-const TAURI_SSO_HOST = 'login';
+export const TAURI_SSO_PROTOCOL = 'charm:';
+export const TAURI_SSO_HOST = 'login';
+export const TAURI_SSO_CALLBACK_BASE = `${TAURI_SSO_PROTOCOL}//${TAURI_SSO_HOST}`;
 
 const getAppBaseUrl = (): string => {
   const os = osType();
   if (os === 'ios' || os === 'android') {
-    return `${TAURI_SSO_PROTOCOL}//${TAURI_SSO_HOST}`;
+    return TAURI_SSO_CALLBACK_BASE;
   }
 
   if (import.meta.env.DEV) {
     // TODO: disabled for now since it causes issues with the SSO flow. We should find a better solution for this in the future.
     // return window.location.origin;
-    return `${TAURI_SSO_PROTOCOL}//${TAURI_SSO_HOST}`;
+    return TAURI_SSO_CALLBACK_BASE;
   }
 
   return APP_SUPPORT_URL;

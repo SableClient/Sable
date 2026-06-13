@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Spinner, Text, color } from 'folds';
+import { TAURI_SSO_CALLBACK_BASE } from './SSOTauri';
 import { AuthShell } from './AuthShell';
 
 type SSOCallbackState = 'redirecting' | 'waiting' | 'done' | 'error';
@@ -16,7 +17,7 @@ export function SSOCallback() {
       return undefined;
     }
 
-    window.location.href = `sable://login${search}`;
+    window.location.href = `${TAURI_SSO_CALLBACK_BASE}${search}`;
 
     const loadedAt = Date.now();
     const handleHide = () => {
@@ -47,7 +48,7 @@ export function SSOCallback() {
             <Box gap="200" alignItems="Center">
               <Spinner size="100" variant="Secondary" />
               <Text size="T300" style={{ color: color.Secondary.Main }}>
-                Opening Sable...
+                Opening Charm...
               </Text>
             </Box>
           </Box>
@@ -62,13 +63,13 @@ export function SSOCallback() {
               </Text>
             </Box>
             <Text size="T300" priority="300">
-              Your browser should be showing a confirmation dialog asking to open Sable. Click{' '}
+              Your browser should be showing a confirmation dialog asking to open Charm. Click{' '}
               <strong>Open</strong> or <strong>Allow</strong> to continue logging in.
             </Text>
             <Text size="T300" priority="300">
               If nothing appeared,{' '}
               <a
-                href={`sable://login${window.location.search}`}
+                href={`${TAURI_SSO_CALLBACK_BASE}${window.location.search}`}
                 style={{ color: color.Primary.Main }}
               >
                 click here to try again
@@ -81,7 +82,7 @@ export function SSOCallback() {
         {state === 'done' && (
           <Box direction="Column" gap="300">
             <Text size="T300" style={{ color: color.Success?.Main }}>
-              ✓ Sable opened successfully.
+              ✓ Charm opened successfully.
             </Text>
             <Text size="T300" priority="300">
               You are now logged in. You can close this tab.
@@ -95,7 +96,7 @@ export function SSOCallback() {
               Something went wrong — no login token was found in the URL.
             </Text>
             <Text size="T300" priority="300">
-              Please return to Sable and try logging in again.
+              Please return to Charm and try logging in again.
             </Text>
           </Box>
         )}

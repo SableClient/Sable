@@ -1275,7 +1275,7 @@ export function Sync() {
                 </a>
                 .{' '}
                 <a
-                  href="https://github.com/Just-Insane/Sable/issues/39"
+                  href="https://github.com/CloudHub-Social/Charm/issues/39"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -1499,7 +1499,7 @@ function DiagnosticsAndPrivacy() {
       <Box gap="200" wrap="Wrap" style={{ paddingTop: '4px' }}>
         <Button
           as="a"
-          href="https://github.com/Just-Insane/Sable/blob/integration/docs/PRIVACY.md"
+          href="https://github.com/CloudHub-Social/Charm/blob/integration/docs/PRIVACY.md"
           rel="noreferrer noopener"
           target="_blank"
           variant="Secondary"

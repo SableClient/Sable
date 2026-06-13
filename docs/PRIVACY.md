@@ -2,14 +2,14 @@
 
 **Effective date:** 2026-03-15
 
-Charm is an independently maintained personal Matrix client distribution by Evie Gauthier.
+Charm is an independently maintained personal Matrix client distribution by the CloudHub Social Team.
 It is based on Sable, an AGPLv3 Matrix client forked from Cinny.
 
 It is designed to keep data collection to a minimum. Most of the app works on your device and communicates directly with the Matrix homeserver you choose.
 
 ## Who is responsible
 
-For Charm builds distributed through the CloudHub domain, the data controller is **Evie Gauthier**.
+For Charm builds distributed through the CloudHub domain, the data controller is **CloudHub Social Team**.
 
 Contact: **privacy@cloudhub.social**
 

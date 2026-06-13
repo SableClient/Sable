@@ -234,6 +234,7 @@ export async function enablePushNotifications(
       await getDeviceDisplayName(mx)
     );
     await mx.setPusher(pusherData);
+    await deleteLegacyWebPushPushers(mx);
 
     span.setAttribute('push.endpoint', newSubscription.endpoint);
     span.setAttribute('push.success', true);

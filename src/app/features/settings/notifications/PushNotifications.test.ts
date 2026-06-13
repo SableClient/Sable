@@ -202,4 +202,28 @@ describe('web push notifications', () => {
       pushkey: 'old-sable-p256dh-key',
     });
   });
+
+  it('removes the legacy pusher after creating a first browser subscription', async () => {
+    const { subscribe } = installWebPush(null);
+    const mx = makeMatrixClient();
+    vi.mocked(mx.getPushers).mockResolvedValue({
+      pushers: [makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key')],
+    });
+
+    await enablePushNotifications(mx, clientConfig, [null, vi.fn<() => void>()]);
+
+    expect(subscribe).toHaveBeenCalled();
+    expect(mx.setPusher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'http',
+        app_id: 'moe.sable.web',
+        pushkey: 'p256dh-key',
+      })
+    );
+    expect(mx.setPusher).toHaveBeenCalledWith({
+      kind: null,
+      app_id: 'moe.sable.app.sygnal',
+      pushkey: 'old-sable-p256dh-key',
+    });
+  });
 });

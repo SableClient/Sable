@@ -1,13 +1,13 @@
 # Charm Branding
 
-Charm is the independently maintained personal Matrix client hosted under the CloudHub domain.
+Charm is the independently maintained personal Matrix client hosted under the CloudHub domain by the CloudHub Social Team.
 It is based on Sable, which is itself based on Cinny.
 
 ## Required attribution
 
 Use this wording in visible user-facing surfaces where practical:
 
-> Independently maintained by Evie Gauthier. Based on Sable, an AGPLv3 Matrix client forked from Cinny.
+> Maintained by the CloudHub Social Team. Based on Sable, an AGPLv3 Matrix client forked from Cinny.
 
 Do not imply that the Sable maintainers officially ship, review, or support this distribution.
 

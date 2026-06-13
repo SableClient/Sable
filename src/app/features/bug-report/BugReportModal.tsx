@@ -25,6 +25,7 @@ import { useCloseBugReportModal, useBugReportModalOpen } from '$state/hooks/bugR
 import { stopPropagation } from '$utils/keyboard';
 import { getDebugLogger } from '$utils/debugLogger';
 import { fetch } from '$utils/fetch';
+import { APP_NAME, APP_SOURCE_URL } from '$app/config/brand';
 
 type ReportType = 'bug' | 'feature';
 
@@ -34,7 +35,7 @@ type SimilarIssue = {
   html_url: string;
 };
 
-const GITHUB_REPO = 'SableClient/Sable';
+const GITHUB_REPO = new URL(APP_SOURCE_URL).pathname.replace(/^\/|\/$/g, '');
 
 async function searchSimilarIssues(query: string, signal: AbortSignal): Promise<SimilarIssue[]> {
   // Split into individual words, drop very short ones, and join with OR so that
@@ -73,7 +74,7 @@ export function buildGitHubUrl(
     if (fields.reproduction) params.reproduction = fields.reproduction;
     if (fields['expected-behavior']) params['expected-behavior'] = fields['expected-behavior'];
     // Auto-populate the platform/versions field
-    params.info = `- OS: ${navigator.platform || 'unknown'}\n- Browser: ${navigator.userAgent}\n- Sable: ${version}`;
+    params.info = `- OS: ${navigator.platform || 'unknown'}\n- Browser: ${navigator.userAgent}\n- ${APP_NAME}: ${version}`;
     if (fields.context) params.context = fields.context;
   } else {
     params.template = 'feature_request.yml';

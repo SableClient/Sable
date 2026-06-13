@@ -1,6 +1,6 @@
 # Charm
 
-Charm is a personal Matrix client distribution maintained by Evie Gauthier for the
+Charm is a personal Matrix client distribution maintained by the CloudHub Social Team for the
 CloudHub domain. It is based on [Sable](https://github.com/SableClient/Sable), an
 AGPLv3 Matrix client forked from [Cinny](https://github.com/cinnyapp/cinny/).
 
@@ -8,10 +8,10 @@ The hosted web app lives at [charm.cloudhub.social](https://charm.cloudhub.socia
 
 ## Attribution
 
-Charm is independently maintained and is not an official Sable or Cinny release.
+Charm is maintained by CloudHub Social and is not an official Sable or Cinny release.
 When describing this distribution, use:
 
-> Independently maintained by Evie Gauthier. Based on Sable, an AGPLv3 Matrix
+> Maintained by the CloudHub Social Team. Based on Sable, an AGPLv3 Matrix
 > client forked from Cinny.
 
 ## Self-hosting

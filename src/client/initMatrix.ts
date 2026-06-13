@@ -53,6 +53,10 @@ type SyncTransportMeta = {
 const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
 const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
 const MATRIX_DEVICE_ID_SENTRY_TAG = 'matrix.device_id';
+type MatrixClientScope = 'app' | 'background';
+let activeAppClient: MatrixClient | undefined;
+let activeAppClientStartPromise: Promise<void> | undefined;
+let activeAppClientStopPromise: Promise<void> | undefined;
 // Reduced from 20s to 8s to improve perceived cold launch performance.
 // 8 seconds is sufficient for most networks while still allowing time for
 // slow connections. If the bootstrap times out, sliding sync takes over.
@@ -610,6 +614,7 @@ export type StartClientConfig = {
   sessionSlidingSyncOptIn?: boolean;
   pollTimeoutMs?: number;
   timelineLimit?: number;
+  clientScope?: MatrixClientScope;
 };
 
 export type ClientSyncDiagnostics = SyncTransportMeta & {
@@ -627,7 +632,7 @@ const disposeSlidingSync = (mx: MatrixClient): void => {
 export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | undefined =>
   slidingSyncByClient.get(mx);
 
-export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
+const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
   setSentryMatrixDeviceContext(mx);
   debugLog.info('sync', 'Starting Matrix client', { userId: mx.getUserId() });
   Sentry.addBreadcrumb({
@@ -1046,7 +1051,67 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
   }
 };
 
-export const stopClient = (mx: MatrixClient): void => {
+export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
+  const clientScope = config?.clientScope ?? 'app';
+  if (clientScope !== 'app') {
+    await startClientInternal(mx, config);
+    return;
+  }
+
+  if (activeAppClientStopPromise) {
+    await activeAppClientStopPromise;
+  }
+
+  if (activeAppClient === mx && activeAppClientStartPromise) {
+    debugLog.warn('sync', 'Matrix client start already in progress; reusing pending start', {
+      userId: mx.getUserId(),
+    });
+    Sentry.metrics.count('sable.sync.duplicate_start_suppressed', 1);
+    await activeAppClientStartPromise;
+    return;
+  }
+
+  if (activeAppClient && activeAppClient !== mx) {
+    debugLog.warn('sync', 'Stopping previous app Matrix client before starting replacement', {
+      previousUserId: activeAppClient.getUserId(),
+      nextUserId: mx.getUserId(),
+      previousSyncState: activeAppClient.getSyncState(),
+      previousRunning: activeAppClient.clientRunning,
+    });
+    Sentry.addBreadcrumb({
+      category: 'sync.lifecycle',
+      message: 'Stopping previous app Matrix client before replacement start',
+      level: 'warning',
+      data: {
+        previousUserId: activeAppClient.getUserId(),
+        nextUserId: mx.getUserId(),
+        previousSyncState: activeAppClient.getSyncState(),
+        previousRunning: activeAppClient.clientRunning,
+      },
+    });
+    Sentry.metrics.count('sable.sync.previous_app_client_stopped', 1);
+    await stopClient(activeAppClient);
+  }
+
+  activeAppClient = mx;
+  const startPromise = startClientInternal(mx, config);
+  activeAppClientStartPromise = startPromise;
+  try {
+    await startPromise;
+  } finally {
+    if (activeAppClientStartPromise === startPromise) {
+      activeAppClientStartPromise = undefined;
+    }
+  }
+};
+
+const settleClientStop = async (): Promise<void> => {
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
+};
+
+export const stopClient = (mx: MatrixClient): Promise<void> => {
   log.log('stopClient', mx.getUserId());
   debugLog.info('sync', 'Stopping client', { userId: mx.getUserId() });
   const meta = syncTransportByClient.get(mx);
@@ -1084,11 +1149,24 @@ export const stopClient = (mx: MatrixClient): void => {
   mx.stopClient();
   mx.removeAllListeners();
   syncTransportByClient.delete(mx);
+
+  const stopPromise = settleClientStop();
+  if (activeAppClient === mx) {
+    activeAppClient = undefined;
+    activeAppClientStartPromise = undefined;
+    activeAppClientStopPromise = stopPromise;
+    stopPromise.finally(() => {
+      if (activeAppClientStopPromise === stopPromise) {
+        activeAppClientStopPromise = undefined;
+      }
+    });
+  }
+  return stopPromise;
 };
 
 export const clearCacheAndReload = async (mx: MatrixClient) => {
   log.log('clearCacheAndReload', mx.getUserId());
-  stopClient(mx);
+  await stopClient(mx);
   clearNavToActivePathStore(mx.getSafeUserId());
   await mx.store.deleteAllData();
   window.location.reload();
@@ -1123,7 +1201,7 @@ export const logoutClient = async (mx: MatrixClient, session?: Session) => {
   });
   debugLog.info('general', 'Logging out client', { userId: mx.getUserId() });
   pushSessionToSW();
-  stopClient(mx);
+  await stopClient(mx);
   try {
     await mx.logout();
     debugLog.info('general', 'Logout successful', { userId: mx.getUserId() });

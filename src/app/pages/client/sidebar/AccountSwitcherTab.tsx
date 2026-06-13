@@ -294,8 +294,9 @@ export function AccountSwitcherTab() {
   const handleAddAccount = () => {
     const url = withSearchParam(getLoginPath(), { addAccount: '1' });
     setMenuAnchor(undefined);
-    stopClient(mx);
-    setTimeout(() => window.location.assign(url), 100);
+    void stopClient(mx).finally(() => {
+      window.location.assign(url);
+    });
   };
 
   const handleOpenSettings = () => {

@@ -10,6 +10,7 @@ import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { getMemberDisplayName, getEditedEvent } from '$utils/room';
 import { createMentionElement, moveCursor } from '$components/editor';
 import * as prefix from '$unstable/prefixes';
+import { M_TEXT } from 'matrix-js-sdk';
 
 export interface UseTimelineActionsOptions {
   room: Room;
@@ -144,6 +145,7 @@ export function useTimelineActions({
 
       const content: IContent = (editedNewContent ?? replyEvt.getContent()) as IContent;
       const { body, formatted_body: formattedBody } = content;
+      const msc1767body = content[M_TEXT.name];
 
       const { 'm.relates_to': relation } = startThread
         ? { 'm.relates_to': { rel_type: 'm.thread', event_id: replyId } }
@@ -155,7 +157,11 @@ export function useTimelineActions({
         setReplyDraft({
           userId: senderId,
           eventId: replyId,
-          body: typeof body === 'string' ? body : '',
+          body:
+            (body as string) ??
+            (msc1767body as string) ??
+            (msc1767body as { body: string }).body ??
+            '',
           formattedBody: typeof formattedBody === 'string' ? formattedBody : '',
           relation,
         });

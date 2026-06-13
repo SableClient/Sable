@@ -59,6 +59,7 @@ const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
 const FORCE_RESUBSCRIPTION_RESTORE_TIMEOUT_MS = 5000;
+const TIMELINE_RECOVERY_COOLDOWN_MS = 60_000;
 
 // ---------------------------------------------------------------------------
 // Strategy 3: Sliding Sync List State Caching
@@ -359,6 +360,8 @@ export class SlidingSyncManager {
 
   private pendingResubscriptionRestoreTimer: ReturnType<typeof setTimeout> | undefined;
 
+  private readonly timelineRecoveryLastAt = new Map<string, number>();
+
   /**
    * One-shot RoomData listeners keyed by roomId, used to measure the latency
    * between subscribeToRoom() and the first data arriving for that room.
@@ -614,7 +617,7 @@ export class SlidingSyncManager {
               localEvents: localEvents.length,
               serverEvents: serverEvents.length,
             });
-            timelineSet.resetLiveTimeline();
+            this.resetRoomTimelines(roomId, isPTRMode ? 'ptr_initial' : 'stale_initial');
 
             // If this was a PTR refresh, remove from the set now that reset is complete
             if (isPTRMode) {
@@ -622,10 +625,12 @@ export class SlidingSyncManager {
             }
           });
 
-        // Process timeline events with thread support before SDK's default handler runs.
-        // The SDK's addEventToTimeline rejects events with threadId=undefined (by design),
-        // causing thread reply events to be silently dropped. We intercept here to extract
-        // threadId from m.relates_to and route events to the correct timeline set.
+        // Process timeline events with room/thread metadata before the SDK's
+        // default handler runs. MatrixEvent instances from sliding-sync timeline
+        // buckets may not include room_id, and direct EventTimelineSet insertion
+        // bypasses the SDK's relation-parent recovery path. Route through
+        // Room.addLiveEvents() so thread partitioning, parent fetches, relation
+        // aggregation, and canContain() behaviour stay consistent with the SDK.
         Object.entries(rooms).forEach(([roomId, roomData]) => {
           const room = this.mx.getRoom(roomId);
           if (!room) return;
@@ -633,107 +638,58 @@ export class SlidingSyncManager {
           const rawEvents = roomData.timeline ?? [];
           if (rawEvents.length === 0) return;
 
-          let threadEventsProcessed = 0;
-          let rootEventsProcessed = 0;
-          let threadEventsDropped = 0;
+          const events = rawEvents.map((rawEvent) =>
+            this.createRoomTimelineEvent(roomId, rawEvent)
+          );
+          const [roomTimelineEvents, threadedEvents, unknownRelations] =
+            room.partitionThreadedEvents(events);
 
-          // Process each event and route to the correct timeline set based on threadId
-          for (const rawEvent of rawEvents) {
-            // Create MatrixEvent from raw server payload
-            const event = new MatrixEvent(rawEvent);
-            const threadId = getThreadIdFromEvent(event);
-
-            // Track dropped thread events where threadId resolution failed
-            const relatesTo = event.getContent()?.['m.relates_to'];
-            if (!threadId && relatesTo?.rel_type === 'm.thread') {
-              threadEventsDropped += 1;
-              Sentry.metrics.count('sable.timeline.thread_event_dropped', 1, {
-                attributes: {
-                  room_id: roomId,
-                  reason: 'threadId_undefined',
-                  encrypted: String(event.getType() === 'm.room.encrypted'),
-                },
-              });
-              console.warn('[SlidingSync] Thread event dropped — threadId unresolvable', {
-                eventId: event.getId(),
-                roomId,
-                relatesTo,
-              });
-              // Skip this event — cannot route to timeline without threadId
-              continue;
-            }
-
-            // Get the appropriate timeline set (thread-specific or root)
-            let timelineSet;
-            if (threadId) {
-              const thread = room.getThread(threadId);
-              if (!thread) {
-                // Thread doesn't exist yet - track and skip
-                threadEventsDropped += 1;
-                Sentry.metrics.count('sable.timeline.thread_event_dropped', 1, {
-                  attributes: {
-                    room_id: roomId,
-                    reason: 'thread_not_found',
-                    encrypted: String(event.getType() === 'm.room.encrypted'),
-                  },
-                });
-                console.warn('[SlidingSync] Thread event dropped — thread not found', {
-                  eventId: event.getId(),
-                  roomId,
-                  threadId,
-                  relatesTo,
-                });
-                continue;
-              }
-              timelineSet = thread.timelineSet;
-            } else {
-              timelineSet = room.getUnfilteredTimelineSet();
-            }
-
-            const timeline = timelineSet.getLiveTimeline();
-
-            // Add event to the correct timeline with threadId parameter
-            timelineSet.addEventToTimeline(event, timeline, {
-              toStartOfTimeline: false,
-              addToState: true,
-              ...(threadId && { threadId }),
+          if (unknownRelations.length > 0) {
+            this.recoverRoomTimeline(roomId, 'unknown_relation', {
+              unknownRelations: unknownRelations.length,
+              eventCount: events.length,
             });
-
-            if (threadId) {
-              threadEventsProcessed += 1;
-            } else {
-              rootEventsProcessed += 1;
-            }
           }
+
+          void room
+            .addLiveEvents(events, {
+              fromCache: true,
+              addToState: false,
+            })
+            .catch((error: unknown) => {
+              this.recoverRoomTimeline(roomId, 'add_live_events_error', {
+                error: error instanceof Error ? error.message : String(error),
+                eventCount: events.length,
+              });
+            });
 
           // Clear the timeline array so SDK doesn't try to re-add these events
           roomData.timeline = [];
 
-          if (threadEventsProcessed > 0 || threadEventsDropped > 0) {
+          if (threadedEvents.length > 0 || unknownRelations.length > 0) {
             debugLog.info('sync', 'Processed thread events with threadId routing', {
               roomId,
-              threadEvents: threadEventsProcessed,
-              rootEvents: rootEventsProcessed,
-              droppedEvents: threadEventsDropped,
+              threadEvents: threadedEvents.length,
+              rootEvents: roomTimelineEvents.length,
+              unknownRelations: unknownRelations.length,
               syncCycle: this.syncCount,
             });
             Sentry.addBreadcrumb({
               category: 'sync.threadEvents',
               message: 'Thread events routed to correct timeline sets',
-              level: threadEventsDropped > 0 ? 'warning' : 'info',
+              level: unknownRelations.length > 0 ? 'warning' : 'info',
               data: {
                 roomId,
-                threadEvents: threadEventsProcessed,
-                rootEvents: rootEventsProcessed,
-                droppedEvents: threadEventsDropped,
+                threadEvents: threadedEvents.length,
+                rootEvents: roomTimelineEvents.length,
+                unknownRelations: unknownRelations.length,
               },
             });
 
-            // Report per-sync thread drop count
-            if (threadEventsDropped > 0) {
+            if (unknownRelations.length > 0) {
               Sentry.metrics.distribution(
-                'sable.timeline.thread_drops_per_sync',
-                threadEventsDropped,
+                'sable.timeline.unknown_relations_per_sync',
+                unknownRelations.length,
                 { attributes: { room_id: roomId } }
               );
             }
@@ -1011,7 +967,10 @@ export class SlidingSyncManager {
     // Mark these rooms as undergoing PTR refresh so the reset logic allows
     // timeline resets even for visited rooms.
     this.ptrRefreshRooms.clear();
-    this.pendingResubscriptions.forEach((roomId) => this.ptrRefreshRooms.add(roomId));
+    this.pendingResubscriptions.forEach((roomId) => {
+      this.ptrRefreshRooms.add(roomId);
+      this.resetRoomTimelines(roomId, 'force_reset');
+    });
 
     // Clear subscriptions so the next sync request carries an empty
     // room_subscriptions map.  When RequestFinished fires, the subscriptions
@@ -1047,6 +1006,65 @@ export class SlidingSyncManager {
     // Without this, modifyRoomSubscriptions alone may not trigger a new
     // request if the sync loop is idle.
     this.slidingSync.resend();
+  }
+
+  private createRoomTimelineEvent(roomId: string, rawEvent: MSC3575RoomData['timeline'][number]) {
+    const event = new MatrixEvent({
+      ...rawEvent,
+      room_id: typeof rawEvent.room_id === 'string' ? rawEvent.room_id : roomId,
+    });
+    const threadId = getThreadIdFromEvent(event);
+    if (threadId) event.setThreadId(threadId);
+    return event;
+  }
+
+  private resetRoomTimelines(roomId: string, reason: string): boolean {
+    const room = this.mx.getRoom(roomId);
+    if (!room) return false;
+    room.resetLiveTimeline();
+    Sentry.metrics.count('sable.timeline.room_reset', 1, {
+      attributes: { room_id: roomId, reason },
+    });
+    Sentry.addBreadcrumb({
+      category: 'sync.timeline',
+      message: 'Room timeline reset',
+      level: 'warning',
+      data: { roomId, reason, syncNumber: this.syncCount },
+    });
+    return true;
+  }
+
+  private recoverRoomTimeline(
+    roomId: string,
+    reason: 'unknown_relation' | 'add_live_events_error',
+    data: Record<string, string | number>
+  ): void {
+    const now = Date.now();
+    const lastRecoveryAt = this.timelineRecoveryLastAt.get(roomId) ?? 0;
+    if (now - lastRecoveryAt < TIMELINE_RECOVERY_COOLDOWN_MS) return;
+    this.timelineRecoveryLastAt.set(roomId, now);
+
+    if (!this.resetRoomTimelines(roomId, reason)) return;
+    if (this.activeRoomSubscriptions.has(roomId)) {
+      this.ptrRefreshRooms.add(roomId);
+      this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+      this.slidingSync.resend();
+    }
+
+    debugLog.warn('sync', 'Recovered room timeline after rejected events', {
+      roomId,
+      reason,
+      ...data,
+    });
+    Sentry.metrics.count('sable.timeline.room_recovery', 1, {
+      attributes: { room_id: roomId, reason },
+    });
+    Sentry.addBreadcrumb({
+      category: 'sync.timeline',
+      message: 'Room timeline recovery scheduled',
+      level: 'warning',
+      data: { roomId, reason, ...data },
+    });
   }
 
   public setPresenceEnabled(enabled: boolean): void {

@@ -1558,36 +1558,6 @@ const onPushNotification = async (event: PushEvent) => {
     payloadType,
   }).catch(() => undefined);
 
-  if (focusedClientCount > 0) {
-    console.debug('[SW push] suppressing OS notification — app has a focused client');
-    await recordPushTelemetry('confirmed_visible', {
-      payload_type: payloadType,
-      focused_client_count: focusedClientCount,
-      browser_visible_client_count: browserVisibleClientCount,
-    });
-    await recordPushTelemetry('suppressed_visible', {
-      payload_type: payloadType,
-      focused_client_count: focusedClientCount,
-      browser_visible_client_count: browserVisibleClientCount,
-    });
-    postSentryBreadcrumb(
-      'notification.push',
-      'OS push notification suppressed because app has a focused client',
-      'info',
-      {
-        clientCount: clients.length,
-        focusedClientCount,
-        browserVisibleClientCount,
-      }
-    ).catch(() => undefined);
-    postSentryMetric('sable.push.suppressed_visible', 1, {
-      client_count: clients.length,
-      focused_client_count: focusedClientCount,
-      browser_visible_client_count: browserVisibleClientCount,
-    }).catch(() => undefined);
-    return;
-  }
-
   try {
     const declarativeBadge =
       isDeclarativeWebPushPayload(pushData) && pushData.notification.app_badge !== undefined

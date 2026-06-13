@@ -174,7 +174,7 @@ const useLogoutListener = (mx?: MatrixClient) => {
         message: 'Session forcibly logged out by server',
         level: 'warning',
       });
-      if (mx) stopClient(mx);
+      if (mx) await stopClient(mx);
       await mx?.clearStores();
       window.localStorage.clear();
       window.location.reload();
@@ -260,24 +260,34 @@ export function ClientRoot({ children }: ClientRootProps) {
   );
 
   useEffect(() => {
-    if (!activeSession) return;
-    if (loadedUserIdRef.current && loadedUserIdRef.current !== activeSession.userId) {
-      log.log(
-        'session changed from',
-        loadedUserIdRef.current,
-        '→',
-        activeSession.userId,
-        '— reloading client'
-      );
-      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
-      if (mx?.clientRunning) {
-        stopClient(mx);
-      }
-      loadedUserIdRef.current = undefined;
-      setLoading(true);
-      setLoadState({ status: AsyncStatus.Idle });
-      navigate(getLandingPath(defaultLandingScreen), { replace: true });
+    let disposed = false;
+    if (
+      activeSession &&
+      loadedUserIdRef.current &&
+      loadedUserIdRef.current !== activeSession.userId
+    ) {
+      void (async () => {
+        log.log(
+          'session changed from',
+          loadedUserIdRef.current,
+          '→',
+          activeSession.userId,
+          '— reloading client'
+        );
+        pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
+        if (mx) {
+          await stopClient(mx);
+        }
+        if (disposed) return;
+        loadedUserIdRef.current = undefined;
+        setLoading(true);
+        setLoadState({ status: AsyncStatus.Idle });
+        navigate(getLandingPath(defaultLandingScreen), { replace: true });
+      })();
     }
+    return () => {
+      disposed = true;
+    };
   }, [activeSession, mx, navigate, setLoadState, defaultLandingScreen]);
 
   // Remember the last visited path so we can restore it on next app open
@@ -313,7 +323,7 @@ export function ClientRoot({ children }: ClientRootProps) {
     () => () => {
       if (mx?.clientRunning) {
         log.log('ClientRoot unmounting — stopping client', mx.getUserId());
-        stopClient(mx);
+        void stopClient(mx);
       }
     },
     [mx]
@@ -326,10 +336,10 @@ export function ClientRoot({ children }: ClientRootProps) {
   }, [loadState, loadMatrix]);
 
   useEffect(() => {
-    if (mx && !mx.clientRunning) {
-      startMatrix(mx);
+    if (mx && !mx.clientRunning && startState.status !== AsyncStatus.Loading) {
+      void startMatrix(mx);
     }
-  }, [mx, startMatrix]);
+  }, [mx, startMatrix, startState.status]);
 
   // Helper to check if the app is fully ready: sync must be in a ready state,
   // and for sliding sync, either we have warm cache (show immediately) or

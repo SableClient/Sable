@@ -119,6 +119,7 @@ const startBackgroundClient = async (
     sessionSlidingSyncOptIn: session.slidingSyncOptIn,
     pollTimeoutMs: BACKGROUND_SYNC_POLL_TIMEOUT_MS,
     timelineLimit: 1,
+    clientScope: 'background' as const,
   };
 
   await startClient(mx, startOpts);
@@ -182,6 +183,7 @@ export function BackgroundNotifications() {
   const focusModeRef = useRef(focusMode);
   focusModeRef.current = focusMode;
   const clientsRef = useRef(new Map());
+  const startingClientsRef = useRef(new Set<string>());
   const notifiedEventsRef = useRef(new Set());
   const setPending = useSetAtom(pendingNotificationAtom);
   const setBackgroundUnreads = useSetAtom(backgroundUnreadCountsAtom);
@@ -290,7 +292,7 @@ export function BackgroundNotifications() {
       if (!activeIds.has(userId)) {
         clientCleanupRef.current.get(userId)?.();
         clientCleanupRef.current.delete(userId);
-        stopClient(mx);
+        void stopClient(mx);
         current.delete(userId);
         Sentry.metrics.gauge('sable.background.client_count', current.size);
         // Clear the background unread badge when this session is no longer a background account.
@@ -306,6 +308,10 @@ export function BackgroundNotifications() {
     // Using a named function (vs. inline .then) lets the .catch() schedule a
     // fresh retry referencing the latest session from inactiveSessionsRef.
     const startSession = (session: Session, attempt = 0): void => {
+      if (current.has(session.userId) || startingClientsRef.current.has(session.userId)) {
+        return;
+      }
+      startingClientsRef.current.add(session.userId);
       let sessionMx: MatrixClient | undefined;
       const initTime = Date.now();
 
@@ -319,6 +325,14 @@ export function BackgroundNotifications() {
       startBackgroundClient(session, clientConfig.slidingSync)
         .then(async (mx) => {
           sessionMx = mx;
+          startingClientsRef.current.delete(session.userId);
+          if (
+            current.has(session.userId) ||
+            !inactiveSessionsRef.current.some((s) => s.userId === session.userId)
+          ) {
+            void stopClient(mx);
+            return;
+          }
           current.set(session.userId, mx);
           Sentry.metrics.gauge('sable.background.client_count', current.size);
 
@@ -648,6 +662,7 @@ export function BackgroundNotifications() {
           });
         })
         .catch((err) => {
+          startingClientsRef.current.delete(session.userId);
           log.error('failed to start background client for', session.userId, err);
           debugLog.error('notification', 'Failed to start background client', {
             userId: session.userId,
@@ -678,7 +693,7 @@ export function BackgroundNotifications() {
             clientCleanupRef.current.get(session.userId)?.();
             clientCleanupRef.current.delete(session.userId);
             current.delete(session.userId);
-            stopClient(sessionMx);
+            void stopClient(sessionMx);
           }
 
           // Retry with exponential backoff, up to 5 attempts (5s, 10s, 20s, 40s, 60s cap).
@@ -716,7 +731,7 @@ export function BackgroundNotifications() {
         if (!activeUserIds.has(userId)) {
           cleanupMap.get(userId)?.();
           cleanupMap.delete(userId);
-          stopClient(mx);
+          void stopClient(mx);
           current.delete(userId);
         }
       });

@@ -134,6 +134,30 @@ jobs:
             const shortSha = process.env.SHORT_SHA?.slice(0, 7);
             const now = new Date().toUTCString().replace(':00 GMT', ' UTC');
 
+            async function publishPrComment(body) {
+              if (context.eventName !== 'pull_request') return;
+
+              try {
+                const { owner, repo } = context.repo;
+                const issue_number = context.issue.number;
+                const comments = await github.paginate(github.rest.issues.listComments, {
+                  owner, repo, issue_number,
+                });
+                const existing = comments.find(
+                  (c) => c.user.type === "Bot" && c.body.includes(marker),
+                );
+                if (existing) {
+                  await github.rest.issues.deleteComment({
+                    owner, repo, comment_id: existing.id,
+                  });
+                }
+
+                await github.rest.issues.createComment({ owner, repo, issue_number, body });
+              } catch (error) {
+                core.warning(`Worker preview uploaded, but the PR comment could not be updated: ${error.message}`);
+              }
+            }
+
             if (!previewUrl) {
               const message = [
                 marker,
@@ -147,24 +171,7 @@ jobs:
               ].join("\n");
 
               await core.summary.addRaw(message.replace(marker + "\n", "")).write();
-
-              if (context.eventName !== 'pull_request') return;
-
-              const { owner, repo } = context.repo;
-              const issue_number = context.issue.number;
-              const comments = await github.paginate(github.rest.issues.listComments, {
-                owner, repo, issue_number,
-              });
-              const existing = comments.find(
-                (c) => c.user.type === "Bot" && c.body.includes(marker),
-              );
-              if (existing) {
-                await github.rest.issues.deleteComment({
-                  owner, repo, comment_id: existing.id,
-                });
-              }
-
-              await github.rest.issues.createComment({ owner, repo, issue_number, body: message });
+              await publishPrComment(message);
               return;
             }
 
@@ -179,21 +186,4 @@ jobs:
             ].join("\n");
 
             await core.summary.addRaw(comment.replace(marker + "\n", "")).write();
-
-            if (context.eventName !== 'pull_request') return;
-
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner, repo, issue_number,
-            });
-            const existing = comments.find(
-              (c) => c.user.type === "Bot" && c.body.includes(marker),
-            );
-            if (existing) {
-              await github.rest.issues.deleteComment({
-                owner, repo, comment_id: existing.id,
-              });
-            }
-
-            await github.rest.issues.createComment({ owner, repo, issue_number, body: comment });
+            await publishPrComment(comment);

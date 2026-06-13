@@ -13,6 +13,67 @@ type PushSubscriptionState = [
 
 type WebPushPusherData = Parameters<MatrixClient['setPusher']>[0];
 
+const LEGACY_WEB_PUSH_APP_IDS = new Set(['moe.sable.app.sygnal']);
+
+const getCurrentWebPushAppIds = (clientConfig: ClientConfig): string[] =>
+  [clientConfig.pushNotificationDetails?.webPushAppID].filter((appId): appId is string => !!appId);
+
+type WebPushPusherDeleteRequest = {
+  app_id: string;
+  pushkey: string;
+};
+
+const deleteWebPushPushers = async (
+  mx: MatrixClient,
+  pushers: WebPushPusherDeleteRequest[],
+  settleFailures = false
+): Promise<void> => {
+  if (pushers.length === 0) return;
+
+  const deletionPromises = pushers.map((pusher) =>
+    mx.setPusher({
+      kind: null,
+      app_id: pusher.app_id,
+      pushkey: pusher.pushkey,
+    } as unknown as Parameters<typeof mx.setPusher>[0])
+  );
+
+  if (settleFailures) {
+    await Promise.allSettled(deletionPromises);
+    return;
+  }
+
+  await Promise.all(deletionPromises);
+};
+
+const deleteWebPushPushersByPushkey = async (
+  mx: MatrixClient,
+  appIds: string[],
+  pushkey?: string
+): Promise<void> => {
+  if (!pushkey) return;
+
+  await deleteWebPushPushers(
+    mx,
+    appIds.map((appId) => ({ app_id: appId, pushkey }))
+  );
+};
+
+const deleteLegacyWebPushPushers = async (mx: MatrixClient): Promise<void> => {
+  try {
+    const response = await mx.getPushers();
+    const legacyPushers = (response.pushers ?? [])
+      .filter((pusher) => LEGACY_WEB_PUSH_APP_IDS.has(pusher.app_id) && !!pusher.pushkey)
+      .map((pusher) => ({ app_id: pusher.app_id, pushkey: pusher.pushkey }));
+
+    await deleteWebPushPushers(mx, legacyPushers, true);
+  } catch (error) {
+    debugLog.warn('notification', 'Failed to inspect legacy web pushers for cleanup', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
 async function buildWebPushPusherData(
   mx: MatrixClient,
   clientConfig: ClientConfig,
@@ -137,6 +198,7 @@ export async function enablePushNotifications(
         await getDeviceDisplayName(mx)
       );
       await mx.setPusher(pusherData);
+      await deleteLegacyWebPushPushers(mx);
 
       span.setAttribute('push.endpoint', pushSubAtom.endpoint);
       span.setAttribute('push.success', true);
@@ -150,6 +212,12 @@ export async function enablePushNotifications(
 
     if (currentBrowserSub) {
       debugLog.info('notification', 'Unsubscribing old push subscription');
+      await deleteWebPushPushersByPushkey(
+        mx,
+        getCurrentWebPushAppIds(clientConfig),
+        currentBrowserSub.toJSON().keys?.p256dh
+      );
+      await deleteLegacyWebPushPushers(mx);
       await currentBrowserSub.unsubscribe();
     }
 
@@ -172,6 +240,7 @@ export async function enablePushNotifications(
       await getDeviceDisplayName(mx)
     );
     await mx.setPusher(pusherData);
+    await deleteLegacyWebPushPushers(mx);
 
     span.setAttribute('push.endpoint', newSubscription.endpoint);
     span.setAttribute('push.success', true);
@@ -212,17 +281,11 @@ export async function disablePushNotifications(
 
   debugLog.info('notification', 'Disabling push notifications');
   const [pushSubAtom] = pushSubscriptionAtom;
-  const appId = clientConfig.pushNotificationDetails?.webPushAppID;
   const pushkey = pushSubAtom?.keys?.p256dh;
-  if (!appId || !pushkey) return;
+  const appIds = getCurrentWebPushAppIds(clientConfig);
 
-  const pusherData = {
-    kind: null,
-    app_id: appId,
-    pushkey,
-  };
-
-  await mx.setPusher(pusherData as unknown as Parameters<typeof mx.setPusher>[0]);
+  await deleteWebPushPushersByPushkey(mx, appIds, pushkey);
+  await deleteLegacyWebPushPushers(mx);
 }
 
 export async function deRegisterAllPushers(mx: MatrixClient): Promise<void> {

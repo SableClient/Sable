@@ -48,7 +48,7 @@ function isBot(user) {
 function parseRepository() {
   const repoEnv = process.env.GITHUB_REPOSITORY;
   if (!repoEnv?.includes('/')) {
-    throw new Error('Set GITHUB_REPOSITORY to owner/repo (e.g. Just-Insane/Sable).');
+    throw new Error('Set GITHUB_REPOSITORY to owner/repo (e.g. CloudHub-Social/Charm).');
   }
   const [owner, repo] = repoEnv.split('/');
   return { owner, repo };

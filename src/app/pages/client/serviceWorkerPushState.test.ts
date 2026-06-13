@@ -63,6 +63,24 @@ describe('service worker push state helpers', () => {
     });
   });
 
+  it('does not confirm mobile visibility after a lifecycle background event', () => {
+    expect(
+      buildPushVisibilityResult('req-5', 'visible', SyncState.Syncing, {
+        focused: true,
+        mobile: true,
+        lifecycleActive: false,
+      })
+    ).toEqual({
+      type: 'pushVisibilityResult',
+      requestId: 'req-5',
+      visible: false,
+      syncHealthy: false,
+      visibilityState: 'visible',
+      focused: true,
+      mobile: true,
+    });
+  });
+
   it('resolves fallback banner data for a room-targeted push', () => {
     expect(
       resolvePushFallbackBanner(

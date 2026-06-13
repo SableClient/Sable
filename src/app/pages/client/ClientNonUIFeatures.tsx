@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -43,6 +43,7 @@ import { useInboxNotificationsSelected } from '$hooks/router/useInbox';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { registrationAtom } from '$state/serviceWorkerRegistration';
+import { pushSubscriptionAtom } from '$state/pushSubscription';
 import { pendingNotificationAtom, inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
 import {
   buildRoomMessageNotification,
@@ -53,6 +54,7 @@ import { createDebugLogger } from '$utils/debugLogger';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { useSyncState } from '$hooks/useSyncState';
+import { useClientConfig } from '$hooks/useClientConfig';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
@@ -100,6 +102,7 @@ import {
   resolvePreferredNotificationTransportProvider,
   type NotificationTransportPlatform,
 } from '../../features/settings/notifications/NotificationTransport';
+import { enablePushNotifications } from '../../features/settings/notifications/PushNotifications';
 import {
   buildPushVisibilityResult,
   isMatrixSyncHealthy,
@@ -946,6 +949,8 @@ function SyncNotificationSettingsWithServiceWorker() {
     document.addEventListener('visibilitychange', postVisibility);
     window.addEventListener('pagehide', postHiddenState);
     document.addEventListener('freeze', postHiddenState);
+    window.addEventListener('blur', postHiddenState);
+    window.addEventListener('focus', postVisibility);
 
     const keepAliveId = window.setInterval(() => {
       navigator.serviceWorker.controller?.postMessage({ type: 'ping' });
@@ -955,6 +960,8 @@ function SyncNotificationSettingsWithServiceWorker() {
       document.removeEventListener('visibilitychange', postVisibility);
       window.removeEventListener('pagehide', postHiddenState);
       document.removeEventListener('freeze', postHiddenState);
+      window.removeEventListener('blur', postHiddenState);
+      window.removeEventListener('focus', postVisibility);
       window.clearInterval(keepAliveId);
     };
   }, []);
@@ -1022,6 +1029,67 @@ function SyncStateWithServiceWorker() {
       [postSyncHealth]
     )
   );
+
+  return null;
+}
+
+function WebPushPusherReconciler() {
+  const mx = useMatrixClient();
+  const clientConfig = useClientConfig();
+  const pushSubAtom = useAtom(pushSubscriptionAtom);
+  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
+  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
+  const repairInFlightRef = useRef(false);
+  const lastRepairAtRef = useRef(0);
+
+  useEffect(() => {
+    if (isTauri()) return undefined;
+    if (!usePushNotifications || !backgroundPushEnabled) return undefined;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return undefined;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return undefined;
+
+    const reconcile = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (repairInFlightRef.current || now - lastRepairAtRef.current < 5 * 60 * 1000) return;
+      repairInFlightRef.current = true;
+      lastRepairAtRef.current = now;
+
+      enablePushNotifications(mx, clientConfig, pushSubAtom)
+        .then(() => {
+          Sentry.metrics.count('sable.push.pusher_reconcile', 1, {
+            attributes: { outcome: 'success' },
+          });
+        })
+        .catch((err) => {
+          Sentry.metrics.count('sable.push.pusher_reconcile', 1, {
+            attributes: {
+              outcome: 'failed',
+              error_type: err instanceof Error ? err.name : 'unknown',
+            },
+          });
+          Sentry.addBreadcrumb({
+            category: 'push',
+            message: 'Background web push pusher reconcile failed',
+            level: 'warning',
+            data: { error: err instanceof Error ? err.message : String(err) },
+          });
+        })
+        .finally(() => {
+          repairInFlightRef.current = false;
+        });
+    };
+
+    reconcile();
+    document.addEventListener('visibilitychange', reconcile);
+    window.addEventListener('pageshow', reconcile);
+    window.addEventListener('focus', reconcile);
+    return () => {
+      document.removeEventListener('visibilitychange', reconcile);
+      window.removeEventListener('pageshow', reconcile);
+      window.removeEventListener('focus', reconcile);
+    };
+  }, [backgroundPushEnabled, clientConfig, mx, pushSubAtom, usePushNotifications]);
 
   return null;
 }
@@ -1111,9 +1179,23 @@ function ServiceWorkerPushMessages() {
   const setInAppBanner = useSetAtom(inAppBannerAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const navigate = useNavigate();
+  const lifecycleActiveRef = useRef(
+    document.visibilityState === 'visible' && (!mobileOrTablet() || document.hasFocus())
+  );
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;
+
+    const markLifecycleActive = () => {
+      lifecycleActiveRef.current = true;
+    };
+    const markLifecycleInactive = () => {
+      lifecycleActiveRef.current = false;
+    };
+    const handleLifecycleVisibility = () => {
+      if (document.visibilityState === 'visible') markLifecycleActive();
+      else markLifecycleInactive();
+    };
 
     const handleMessage = (ev: MessageEvent) => {
       const { data } = ev;
@@ -1126,6 +1208,7 @@ function ServiceWorkerPushMessages() {
           buildPushVisibilityResult(requestId, document.visibilityState, mx.getSyncState(), {
             focused: document.hasFocus(),
             mobile: mobileOrTablet(),
+            lifecycleActive: lifecycleActiveRef.current,
           })
         );
         return;
@@ -1192,8 +1275,22 @@ function ServiceWorkerPushMessages() {
       });
     };
 
+    document.addEventListener('visibilitychange', handleLifecycleVisibility);
+    window.addEventListener('pageshow', markLifecycleActive);
+    window.addEventListener('focus', markLifecycleActive);
+    window.addEventListener('pagehide', markLifecycleInactive);
+    window.addEventListener('blur', markLifecycleInactive);
+    document.addEventListener('freeze', markLifecycleInactive);
     navigator.serviceWorker.addEventListener('message', handleMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+    return () => {
+      document.removeEventListener('visibilitychange', handleLifecycleVisibility);
+      window.removeEventListener('pageshow', markLifecycleActive);
+      window.removeEventListener('focus', markLifecycleActive);
+      window.removeEventListener('pagehide', markLifecycleInactive);
+      window.removeEventListener('blur', markLifecycleInactive);
+      document.removeEventListener('freeze', markLifecycleInactive);
+      navigator.serviceWorker.removeEventListener('message', handleMessage);
+    };
   }, [mx, navigate, setActiveSessionId, setInAppBanner, setPending]);
 
   return null;
@@ -1499,6 +1596,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <NotificationTransportRuntimeFeature />
       <SyncNotificationSettingsWithServiceWorker />
       <SyncStateWithServiceWorker />
+      <WebPushPusherReconciler />
       <ServiceWorkerPushMessages />
       <HandleDecryptPushEvent />
       <ServiceWorkerMetricsHandler />

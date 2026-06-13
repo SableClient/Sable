@@ -45,11 +45,13 @@ export function resolvePushVisibilityState(
   options: {
     focused?: boolean;
     mobile?: boolean;
+    lifecycleActive?: boolean;
   } = {}
 ): PushVisibilityState {
   const focused = options.focused ?? true;
   const mobile = options.mobile ?? false;
-  const visible = visibilityState === 'visible' && (!mobile || focused);
+  const lifecycleActive = options.lifecycleActive ?? true;
+  const visible = visibilityState === 'visible' && (!mobile || (focused && lifecycleActive));
   return {
     visible,
     syncHealthy: visible && isMatrixSyncHealthy(syncState),
@@ -66,6 +68,7 @@ export function buildPushVisibilityResult(
   options?: {
     focused?: boolean;
     mobile?: boolean;
+    lifecycleActive?: boolean;
   }
 ): PushVisibilityMessage {
   return {

@@ -19,7 +19,6 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
-let appVisibleUpdatedAt = 0;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -45,7 +44,6 @@ const SW_SESSION_URL = '/sw-session-meta';
 const SW_PUSH_TELEMETRY_CACHE = 'sable-sw-push-telemetry-v1';
 const SW_PUSH_TELEMETRY_URL = '/sw-push-telemetry';
 const SW_PUSH_TELEMETRY_LIMIT = 50;
-const APP_VISIBLE_SUPPRESS_MAX_AGE_MS = 15_000;
 
 /** Cache for authenticated Matrix media responses — keyed by URL. */
 const SW_MEDIA_CACHE = 'sable-media-sw-v2';
@@ -78,7 +76,7 @@ async function persistSettings() {
           showEncryptedMessageContent,
           clearNotificationsOnRead,
           focusMode,
-          appVisibleAt: appIsVisible ? appVisibleUpdatedAt : 0,
+          appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
       )
@@ -106,31 +104,14 @@ async function loadPersistedSettings() {
     }
     if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
       const ageMs = Date.now() - s.appVisibleAt;
-      if (ageMs < APP_VISIBLE_SUPPRESS_MAX_AGE_MS) {
+      if (ageMs < 2_000) {
         appIsVisible = true;
-        appVisibleUpdatedAt = s.appVisibleAt;
         console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
-      } else {
-        appIsVisible = false;
-        appVisibleUpdatedAt = 0;
       }
-    } else {
-      appIsVisible = false;
-      appVisibleUpdatedAt = 0;
     }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
   }
-}
-
-function appVisibleAgeMs(): number | undefined {
-  if (!appIsVisible || appVisibleUpdatedAt <= 0) return undefined;
-  return Date.now() - appVisibleUpdatedAt;
-}
-
-function isAppVisibleForPushSuppression(): boolean {
-  const ageMs = appVisibleAgeMs();
-  return ageMs !== undefined && ageMs < APP_VISIBLE_SUPPRESS_MAX_AGE_MS;
 }
 
 async function persistSession(session: SessionInfo): Promise<void> {
@@ -920,19 +901,14 @@ async function handleMinimalPushPayload(
       await recordPushTelemetry('decrypt_timeout', { payload_type: 'minimal' });
     }
 
-    if (isAppVisibleForPushSuppression()) {
-      const ageMs = appVisibleAgeMs();
+    if (result?.visibilityState === 'visible') {
       await recordPushTelemetry('confirmed_visible', {
         payload_type: 'minimal',
-        app_visible: appIsVisible,
-        app_visible_age_ms: ageMs ?? -1,
-        visibility_state: result?.visibilityState ?? 'unknown',
+        visibility_state: result.visibilityState ?? 'unknown',
       });
       await recordPushTelemetry('suppressed_visible', {
         payload_type: 'minimal',
-        app_visible: appIsVisible,
-        app_visible_age_ms: ageMs ?? -1,
-        visibility_state: result?.visibilityState ?? 'unknown',
+        visibility_state: result.visibilityState ?? 'unknown',
       });
       return;
     }
@@ -1139,11 +1115,9 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
-      appVisibleUpdatedAt = appIsVisible ? Date.now() : 0;
       event.waitUntil(
         postSentryBreadcrumb('service_worker.visibility', 'App visibility updated in SW', 'info', {
           appVisible: appIsVisible,
-          appVisibleAgeMs: appVisibleAgeMs() ?? -1,
         })
       );
       event.waitUntil(persistSettings());
@@ -1556,11 +1530,6 @@ const onPushNotification = async (event: PushEvent) => {
     loadPersistedSession(),
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
-  const appVisibleForSuppression = isAppVisibleForPushSuppression();
-  const appVisibleAge = appVisibleAgeMs();
-  const browserVisibleClientCount = clients.filter(
-    (client) => client.visibilityState === 'visible'
-  ).length;
 
   console.debug(
     '[SW push] appIsVisible:',
@@ -1576,41 +1545,31 @@ const onPushNotification = async (event: PushEvent) => {
   // Track push notification arrival
   await recordPushTelemetry('received', {
     app_visible: appIsVisible,
-    app_visible_for_suppression: appVisibleForSuppression,
-    app_visible_age_ms: appVisibleAge ?? -1,
     has_clients: clients.length > 0,
-    browser_visible_client_count: browserVisibleClientCount,
     payload_type: payloadType,
   });
   postSentryMetric('sable.push.received', 1, {
     app_visible: appIsVisible,
-    app_visible_for_suppression: appVisibleForSuppression,
     has_clients: clients.length > 0,
-    browser_visible_client_count: browserVisibleClientCount,
     payload_type: payloadType,
   }).catch(() => undefined);
   postSentryBreadcrumb('notification.push', 'Push received by service worker', 'info', {
     appVisible: appIsVisible,
-    appVisibleForSuppression,
-    appVisibleAgeMs: appVisibleAge ?? -1,
     clientCount: clients.length,
-    browserVisibleClientCount,
     payloadType,
   }).catch(() => undefined);
 
-  if (appVisibleForSuppression) {
+  const hasVisibleClient =
+    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+  if (hasVisibleClient) {
     console.debug('[SW push] suppressing OS notification — app is visible');
     await recordPushTelemetry('confirmed_visible', {
       payload_type: payloadType,
       app_visible: appIsVisible,
-      app_visible_age_ms: appVisibleAge ?? -1,
-      browser_visible_client_count: browserVisibleClientCount,
     });
     await recordPushTelemetry('suppressed_visible', {
       payload_type: payloadType,
       app_visible: appIsVisible,
-      app_visible_age_ms: appVisibleAge ?? -1,
-      browser_visible_client_count: browserVisibleClientCount,
     });
     postSentryBreadcrumb(
       'notification.push',
@@ -1618,16 +1577,12 @@ const onPushNotification = async (event: PushEvent) => {
       'info',
       {
         appVisible: appIsVisible,
-        appVisibleAgeMs: appVisibleAge ?? -1,
         clientCount: clients.length,
-        browserVisibleClientCount,
       }
     ).catch(() => undefined);
     postSentryMetric('sable.push.suppressed_visible', 1, {
       app_visible: appIsVisible,
-      app_visible_age_ms: appVisibleAge ?? -1,
       client_count: clients.length,
-      browser_visible_client_count: browserVisibleClientCount,
     }).catch(() => undefined);
     return;
   }

@@ -101,7 +101,6 @@ import {
 } from '../../features/settings/notifications/NotificationTransport';
 const pushRelayLog = createDebugLogger('push-relay');
 const transportLog = createDebugLogger('push-transport');
-const SW_VISIBLE_HEARTBEAT_MS = 5_000;
 
 function postToServiceWorker(data: unknown): void {
   if (!('serviceWorker' in navigator)) return;
@@ -920,47 +919,16 @@ function SyncNotificationSettingsWithServiceWorker() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;
 
-    let heartbeatId: number | undefined;
-
-    const clearHeartbeat = () => {
-      if (heartbeatId === undefined) return;
-      window.clearInterval(heartbeatId);
-      heartbeatId = undefined;
-    };
-
-    const postVisibility = (visible = document.visibilityState === 'visible') => {
+    const postVisibility = () => {
+      const visible = document.visibilityState === 'visible';
       postToServiceWorker({ type: 'setAppVisible', visible });
     };
 
-    const syncVisibility = () => {
-      const visible = document.visibilityState === 'visible';
-      postVisibility(visible);
-      clearHeartbeat();
-      if (visible) {
-        heartbeatId = window.setInterval(() => {
-          if (document.visibilityState === 'visible') postVisibility(true);
-          else clearHeartbeat();
-        }, SW_VISIBLE_HEARTBEAT_MS);
-      }
-    };
-
-    const postHidden = () => {
-      clearHeartbeat();
-      postVisibility(false);
-    };
-
     // Report initial visibility immediately, then track changes.
-    syncVisibility();
-    document.addEventListener('visibilitychange', syncVisibility);
-    document.addEventListener('freeze', postHidden);
-    window.addEventListener('pagehide', postHidden);
-    window.addEventListener('pageshow', syncVisibility);
+    postVisibility();
+    document.addEventListener('visibilitychange', postVisibility);
     return () => {
-      clearHeartbeat();
-      document.removeEventListener('visibilitychange', syncVisibility);
-      document.removeEventListener('freeze', postHidden);
-      window.removeEventListener('pagehide', postHidden);
-      window.removeEventListener('pageshow', syncVisibility);
+      document.removeEventListener('visibilitychange', postVisibility);
     };
   }, []);
 

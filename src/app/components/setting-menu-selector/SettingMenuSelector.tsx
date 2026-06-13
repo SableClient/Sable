@@ -1,7 +1,7 @@
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
 import { Box, Button, config, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
-import { CaretDown, iconAt } from '$components/icons/phosphor';
+import { CaretDown, sizedIcon } from '$components/icons/phosphor';
 import {
   type ComponentPropsWithoutRef,
   type MouseEventHandler,
@@ -97,7 +97,7 @@ export function SettingMenuSelector<T extends string>({
       outlined
       fill="Soft"
       radii="300"
-      after={loading ? <Spinner variant="Secondary" size="300" /> : iconAt(CaretDown, '300')}
+      after={loading ? <Spinner variant="Secondary" size="300" /> : sizedIcon(CaretDown, '300')}
       onClick={handleOpenMenu}
       disabled={isDisabled}
     >

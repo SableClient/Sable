@@ -6,7 +6,7 @@ import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-re
 import type { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, IconButton, Scroll, Text, toRem } from 'folds';
-import { CaretDown, CaretUp, ChatCircle, Check, GearSix, iconAt } from '$components/icons/phosphor';
+import { CaretDown, CaretUp, ChatCircle, Check, GearSix, sizedIcon } from '$components/icons/phosphor';
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';
@@ -249,7 +249,7 @@ export const renderMatrixMention = (
         data-mention-via={viaServers?.join(',')}
       >
         <span aria-hidden="true" className={css.MentionIcon}>
-          {iconAt(ChatCircle, '50')}
+          {sizedIcon(ChatCircle, '50')}
         </span>
         {label}
       </a>
@@ -278,7 +278,7 @@ const renderSettingsLink = ({
     data-settings-link-focus={focus}
   >
     <span aria-hidden="true" className={css.MentionIcon}>
-      {iconAt(GearSix, '50')}
+      {sizedIcon(GearSix, '50')}
     </span>
     {getSettingsLinkChipLabel(section, focus)}
   </a>
@@ -453,7 +453,7 @@ export function CodeBlock({
             fill="None"
             radii="Pill"
             onClick={handleCopy}
-            before={copied && iconAt(Check, '50')}
+            before={copied && sizedIcon(Check, '50')}
           >
             <Text size="B300">{copied ? 'Copied' : 'Copy'}</Text>
           </Chip>
@@ -466,7 +466,7 @@ export function CodeBlock({
               onClick={toggleExpand}
               aria-label={expanded ? 'Collapse' : 'Expand'}
             >
-              {iconAt(expanded ? CaretUp : CaretDown, '50')}
+              {sizedIcon(expanded ? CaretUp : CaretDown, '50')}
             </IconButton>
           )}
         </Box>
@@ -797,7 +797,7 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'img') {
           // Guard: img without a src survives sanitisation (fix for crash #1731)
-          // but we can't convert it — skip rendering rather than passing
+          // but we can't convert it  Eskip rendering rather than passing
           // undefined into mxcUrlToHttp where it would throw.
           if (!props.src) return null;
 

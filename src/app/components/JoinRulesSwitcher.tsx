@@ -5,7 +5,7 @@ import { config, Box, MenuItem, Text, PopOut, Menu, Button, Spinner } from 'fold
 import { JoinRule } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
-import { CaretDown, iconAt } from '$components/icons/phosphor';
+import { CaretDown, sizedIcon } from '$components/icons/phosphor';
 import { getRoomIconComponent, type RoomPhosphorIcon } from '$components/icons/roomIcons';
 
 export type ExtraJoinRules = 'knock_restricted';
@@ -98,7 +98,7 @@ export function JoinRulesSwitcher<T extends ExtendedJoinRules[]>({
                   radii="300"
                   aria-pressed={value === rule}
                   onClick={() => handleChange(rule)}
-                  before={iconAt(icons[rule], '100')}
+                  before={sizedIcon(icons[rule], '100')}
                   disabled={disabled}
                 >
                   <Box grow="Yes">
@@ -117,12 +117,12 @@ export function JoinRulesSwitcher<T extends ExtendedJoinRules[]>({
         fill="Soft"
         radii="300"
         outlined
-        before={iconAt(icons[value] ?? icons[JoinRule.Restricted], '100')}
+        before={sizedIcon(icons[value] ?? icons[JoinRule.Restricted], '100')}
         after={
           changing ? (
             <Spinner size="100" variant="Secondary" fill="Soft" />
           ) : (
-            iconAt(CaretDown, '100')
+            sizedIcon(CaretDown, '100')
           )
         }
         onClick={handleOpenMenu}

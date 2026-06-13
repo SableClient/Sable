@@ -15,7 +15,7 @@ import {
   config,
   color,
 } from 'folds';
-import { iconAt, menuIcon, Trash, X } from '$components/icons/phosphor';
+import { sizedIcon, menuIcon, Trash, X } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { modalAtom, ModalType } from '$state/modal';
@@ -31,7 +31,7 @@ export function MessageDeleteItem({ room, mEvent }: { room: Room; mEvent: Matrix
   return (
     <MenuItem
       size="300"
-      after={iconAt(Trash, '100')}
+      after={sizedIcon(Trash, '100')}
       radii="300"
       fill="None"
       variant="Critical"

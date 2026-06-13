@@ -24,7 +24,7 @@ import {
   Info,
   Warning,
   composerIcon,
-  iconAt,
+  sizedIcon,
 } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
@@ -381,7 +381,7 @@ function InviteFilters({
         aria-selected={isKnown}
         outlined={!isKnown}
         onClick={() => onFilter(InviteFilter.Known)}
-        before={isKnown && iconAt(Check, '100')}
+        before={isKnown && sizedIcon(Check, '100')}
         after={
           knownInvites.length > 0 && (
             <Badge variant={isKnown ? 'Success' : 'Secondary'} fill="Solid" radii="Pill">
@@ -397,7 +397,7 @@ function InviteFilters({
         aria-selected={isUnknown}
         outlined={!isUnknown}
         onClick={() => onFilter(InviteFilter.Unknown)}
-        before={isUnknown && iconAt(Check, '100')}
+        before={isUnknown && sizedIcon(Check, '100')}
         after={
           unknownInvites.length > 0 && (
             <Badge variant={isUnknown ? 'Warning' : 'Secondary'} fill="Solid" radii="Pill">
@@ -413,7 +413,7 @@ function InviteFilters({
         aria-selected={isSpam}
         outlined={!isSpam}
         onClick={() => onFilter(InviteFilter.Spam)}
-        before={isSpam && iconAt(Check, '100')}
+        before={isSpam && sizedIcon(Check, '100')}
         after={
           spamInvites.length > 0 && (
             <Badge variant={isSpam ? 'Critical' : 'Secondary'} fill="Solid" radii="Pill">
@@ -463,7 +463,7 @@ function KnownInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={iconAt(EnvelopeSimple, '600')}
+              icon={sizedIcon(EnvelopeSimple, '600')}
               title="No Invites"
               subTitle="When someone you share a room with sends you an invite, it’ll show up here."
             />
@@ -536,7 +536,7 @@ function UnknownInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={iconAt(Info, '600')}
+              icon={sizedIcon(Info, '600')}
               title="No Invites"
               subTitle="Invites from people outside your rooms will appear here."
             />
@@ -611,7 +611,7 @@ function SpamInvites({
           >
             <PageHeroSection>
               <PageHero
-                icon={iconAt(Warning, '600')}
+                icon={sizedIcon(Warning, '600')}
                 title={`${invites.length} Spam Invites`}
                 subTitle="Some of the following invites may contain harmful content or have been sent by banned users."
               >
@@ -668,7 +668,7 @@ function SpamInvites({
                   variant="Secondary"
                   fill="Soft"
                   radii="Pill"
-                  before={iconAt(showInvites ? CaretUp : CaretDown, '100')}
+                  before={sizedIcon(showInvites ? CaretUp : CaretDown, '100')}
                   onClick={() => setShowInvites(!showInvites)}
                 >
                   <Text size="B300">{showInvites ? 'Hide All' : 'View All'}</Text>
@@ -693,7 +693,7 @@ function SpamInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={iconAt(Warning, '600')}
+              icon={sizedIcon(Warning, '600')}
               title="No Spam Invites"
               subTitle="Invites detected as spam appear here."
             />
@@ -771,7 +771,7 @@ export function Invites() {
             )}
           </Box>
           <Box alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && iconAt(EnvelopeSimple, '400')}
+            {screenSize !== ScreenSize.Mobile && sizedIcon(EnvelopeSimple, '400')}
             <Text size="H3" truncate>
               Invites
             </Text>

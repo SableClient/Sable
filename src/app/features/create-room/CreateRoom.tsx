@@ -28,7 +28,7 @@ import {
   CaretDown,
   CaretUp,
   Hash,
-  iconAt,
+  sizedIcon,
   SpeakerHigh,
   Warning,
   type IconSizeToken,
@@ -55,15 +55,15 @@ const getCreateRoomAccessToIcon = (
   if (access === CreateRoomAccess.Restricted) joinRule = JoinRule.Restricted;
   if (access === CreateRoomAccess.Private) joinRule = JoinRule.Knock;
 
-  return iconAt(
+  return sizedIcon(
     getRoomStandaloneIconComponent(isVoiceRoom ? RoomType.UnstableCall : undefined, joinRule),
     size
   );
 };
 
 const getCreateRoomTypeToIcon = (type: CreateRoomType): ReactNode => {
-  if (type === CreateRoomType.VoiceRoom) return iconAt(SpeakerHigh, '400');
-  return iconAt(Hash, '400');
+  if (type === CreateRoomType.VoiceRoom) return sizedIcon(SpeakerHigh, '400');
+  return sizedIcon(Hash, '400');
 };
 
 type CreateRoomFormProps = {
@@ -238,7 +238,7 @@ export function CreateRoomForm({
           <Box grow="Yes" justifyContent="End">
             <Chip
               radii="Pill"
-              before={iconAt(advance ? CaretUp : CaretDown, '50')}
+              before={sizedIcon(advance ? CaretUp : CaretDown, '50')}
               onClick={() => setAdvance(!advance)}
               type="button"
             >
@@ -336,7 +336,7 @@ export function CreateRoomForm({
 
       {error && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="200">
-          {iconAt(Warning, '100', { filled: true })}
+          {sizedIcon(Warning, '100', { filled: true })}
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
               {error instanceof MatrixError && error.name === (ErrorCode.M_LIMIT_EXCEEDED as string)

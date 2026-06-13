@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { forwardRef, useEffect, useState } from 'react';
 import type { IconProps } from '@phosphor-icons/react';
 import classNames from 'classnames';
-import { iconAt, type IconSizeToken } from '$components/icons/phosphor';
+import { sizedIcon, type IconSizeToken } from '$components/icons/phosphor';
 import {
   getRoomIconComponent,
   getRoomIconOverlay,
@@ -71,7 +71,7 @@ export const RoomIcon = forwardRef<
       return (
         <span ref={ref} className={classNames(css.RoomIconRoot, className)} style={style}>
           <span className={css.RoomIconComposite}>
-            {iconAt(Icon, size, { ...props, filled })}
+            {sizedIcon(Icon, size, { ...props, filled })}
             <span
               className={classNames(css.RoomIconBadge, css.RoomIconBadgeShape[overlay])}
               aria-hidden
@@ -87,7 +87,7 @@ export const RoomIcon = forwardRef<
 
     return (
       <span ref={ref} className={classNames(css.RoomIconRoot, className)} style={style}>
-        {iconAt(Icon, size, { ...props, filled })}
+        {sizedIcon(Icon, size, { ...props, filled })}
       </span>
     );
   }

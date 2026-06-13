@@ -22,7 +22,7 @@ import {
   MagnifyingGlass,
   X,
   composerIcon,
-  iconAt,
+  sizedIcon,
   menuIcon,
 } from '$components/icons/phosphor';
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
@@ -328,7 +328,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                                   )}
                                 </Avatar>
                               }
-                              after={selectedItem && iconAt(Check, '200')}
+                              after={selectedItem && sizedIcon(Check, '200')}
                             >
                               <Box grow="Yes">
                                 <Text truncate size="T400">

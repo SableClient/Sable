@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useMemo } from 'react';
 import { Box, Chip, Text, toRem } from 'folds';
-import { ArrowSquareOut, iconAt, Link } from '$components/icons/phosphor';
+import { ArrowSquareOut, sizedIcon, Link } from '$components/icons/phosphor';
 import type { IContent, IPreviewUrlResponse, MatrixClient } from '$types/matrix-sdk';
 import { JUMBO_EMOJI_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
@@ -698,7 +698,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
           size="400"
           variant="SurfaceVariant"
           onClick={() => copyToClipboard(`${location.latitude}, ${location.longitude}`)}
-          before={iconAt(Link, '50')}
+          before={sizedIcon(Link, '50')}
           className={css.LocationCoordsChip}
         >
           <Text size="T400">{`${location.latitude}, ${location.longitude}`}</Text>
@@ -713,7 +713,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
           variant="Primary"
           radii="Pill"
           className={css.LocationExternalChip}
-          before={iconAt(ArrowSquareOut, '50')}
+          before={sizedIcon(ArrowSquareOut, '50')}
         >
           <Text size="B300">Open Location</Text>
         </Chip>

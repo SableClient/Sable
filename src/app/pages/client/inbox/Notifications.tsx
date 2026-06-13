@@ -8,7 +8,7 @@ import {
   Check,
   Checks,
   composerIcon,
-  iconAt,
+  sizedIcon,
 } from '$components/icons/phosphor';
 import { useSearchParams } from 'react-router-dom';
 import type { INotification, INotificationsResponse, IRoomEvent, Room } from '$types/matrix-sdk';
@@ -462,7 +462,7 @@ function RoomNotificationsGroupComp({
               variant="Primary"
               radii="Pill"
               onClick={handleMarkAsRead}
-              before={iconAt(Checks, '100')}
+              before={sizedIcon(Checks, '100')}
             >
               <Text size="T200">Mark as Read</Text>
             </Chip>
@@ -668,7 +668,7 @@ export function Notifications() {
             )}
           </Box>
           <Box alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && iconAt(ChatCircle, '400')}
+            {screenSize !== ScreenSize.Mobile && sizedIcon(ChatCircle, '400')}
             <Text size="H3" truncate>
               Notification Messages
             </Text>
@@ -690,7 +690,7 @@ export function Notifications() {
                       onClick={() => setOnlyHighlighted(false)}
                       variant={onlyHighlight ? 'Surface' : 'Success'}
                       aria-pressed={!onlyHighlight}
-                      before={!onlyHighlight && iconAt(Check, '100')}
+                      before={!onlyHighlight && sizedIcon(Check, '100')}
                       outlined
                     >
                       <Text size="T200">All Notifications</Text>
@@ -699,7 +699,7 @@ export function Notifications() {
                       onClick={() => setOnlyHighlighted(true)}
                       variant={onlyHighlight ? 'Success' : 'Surface'}
                       aria-pressed={onlyHighlight}
-                      before={onlyHighlight && iconAt(Check, '100')}
+                      before={onlyHighlight && sizedIcon(Check, '100')}
                       outlined
                     >
                       <Text size="T200">Highlighted</Text>

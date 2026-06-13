@@ -19,7 +19,7 @@ import {
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { getRoomIconComponent } from '$components/icons/roomIcons';
-import { Check, iconAt, PlusCircle, SortAscending, X } from '$components/icons/phosphor';
+import { Check, sizedIcon, PlusCircle, SortAscending, X } from '$components/icons/phosphor';
 import { SearchOrderBy } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -93,7 +93,7 @@ function OrderButton({ order, onChange }: OrderButtonProps) {
       <Chip
         variant="SurfaceVariant"
         radii="Pill"
-        after={iconAt(SortAscending, '50')}
+        after={sizedIcon(SortAscending, '50')}
         onClick={handleOpenMenu}
       >
         {rankOrder ? <Text size="T200">Relevance</Text> : <Text size="T200">Recent</Text>}
@@ -262,7 +262,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                             size="300"
                             radii="300"
                             aria-pressed={selected}
-                            before={iconAt(
+                            before={sizedIcon(
                               getRoomIconComponent(room.getType(), room.getJoinRule()),
                               '50'
                             )}
@@ -306,7 +306,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
         onClick={handleOpenMenu}
         variant="SurfaceVariant"
         radii="Pill"
-        before={iconAt(PlusCircle, '100')}
+        before={sizedIcon(PlusCircle, '100')}
       >
         <Text size="T200">Select Rooms</Text>
       </Chip>
@@ -345,7 +345,7 @@ export function SearchFilters({
         <Chip
           variant={!global ? 'Success' : 'Surface'}
           aria-pressed={!global}
-          before={!global && iconAt(Check, '100')}
+          before={!global && sizedIcon(Check, '100')}
           outlined
           onClick={() => onGlobalChange()}
         >
@@ -355,7 +355,7 @@ export function SearchFilters({
           <Chip
             variant={global ? 'Success' : 'Surface'}
             aria-pressed={global}
-            before={global && iconAt(Check, '100')}
+            before={global && sizedIcon(Check, '100')}
             outlined
             onClick={() => onGlobalChange(true)}
           >
@@ -378,8 +378,8 @@ export function SearchFilters({
               variant="Success"
               onClick={() => onSelectedRoomsChange(selectedRooms.filter((rId) => rId !== roomId))}
               radii="Pill"
-              before={iconAt(getRoomIconComponent(room.getType(), room.getJoinRule()), '50')}
-              after={iconAt(X, '50')}
+              before={sizedIcon(getRoomIconComponent(room.getType(), room.getJoinRule()), '50')}
+              after={sizedIcon(X, '50')}
             >
               <Text size="T200">{room.name}</Text>
             </Chip>

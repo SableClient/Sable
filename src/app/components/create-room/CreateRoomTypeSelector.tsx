@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Box, Text, config } from 'folds';
-import { Check, iconAt } from '$components/icons/phosphor';
+import { Check, sizedIcon } from '$components/icons/phosphor';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
@@ -33,7 +33,7 @@ export function CreateRoomTypeSelector({
       >
         <SettingTile
           before={getIcon(CreateRoomType.TextRoom)}
-          after={value === CreateRoomType.TextRoom && iconAt(Check)}
+          after={value === CreateRoomType.TextRoom && sizedIcon(Check)}
         >
           <Box gap="200" alignItems="Baseline">
             <Text size="H6" style={{ flexShrink: 0 }}>
@@ -58,7 +58,7 @@ export function CreateRoomTypeSelector({
       >
         <SettingTile
           before={getIcon(CreateRoomType.VoiceRoom)}
-          after={value === CreateRoomType.VoiceRoom && iconAt(Check)}
+          after={value === CreateRoomType.VoiceRoom && sizedIcon(Check)}
         >
           <Box gap="200" alignItems="Baseline">
             <Text size="H6" style={{ flexShrink: 0 }}>

@@ -1,6 +1,6 @@
 import type { FormEventHandler, RefObject } from 'react';
 import { Box, Text, Input, Spinner, Chip, config } from 'folds';
-import { iconAt, MagnifyingGlass, X } from '$components/icons/phosphor';
+import { sizedIcon, MagnifyingGlass, X } from '$components/icons/phosphor';
 
 type SearchProps = {
   active?: boolean;
@@ -39,7 +39,7 @@ export function SearchInput({ active, loading, searchInputRef, onSearch, onReset
           active && loading ? (
             <Spinner variant="Secondary" size="200" />
           ) : (
-            iconAt(MagnifyingGlass, '200')
+            sizedIcon(MagnifyingGlass, '200')
           )
         }
         after={
@@ -51,7 +51,7 @@ export function SearchInput({ active, loading, searchInputRef, onSearch, onReset
               size="400"
               radii="Pill"
               outlined
-              after={iconAt(X, '50')}
+              after={sizedIcon(X, '50')}
               onClick={onReset}
             >
               <Text size="B300">Clear</Text>

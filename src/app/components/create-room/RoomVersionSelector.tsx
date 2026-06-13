@@ -2,7 +2,7 @@ import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import type { RectCords } from 'folds';
 import { Box, Button, Chip, config, Menu, PopOut, Text, toRem } from 'folds';
-import { CaretDown, CaretUp, iconAt } from '$components/icons/phosphor';
+import { CaretDown, CaretUp, sizedIcon } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { SettingTile } from '$components/setting-tile';
@@ -95,7 +95,7 @@ export function RoomVersionSelector({
               fill="Soft"
               radii="300"
               aria-pressed={!!menuCords}
-              before={iconAt(menuCords ? CaretUp : CaretDown, '50')}
+              before={sizedIcon(menuCords ? CaretUp : CaretDown, '50')}
               disabled={disabled}
             >
               <Text size="B300">{value}</Text>

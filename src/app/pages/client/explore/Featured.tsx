@@ -1,5 +1,5 @@
 import { Box, IconButton, Scroll, Text } from 'folds';
-import { ArrowLeft, Info, Lightbulb, composerIcon, iconAt } from '$components/icons/phosphor';
+import { ArrowLeft, Info, Lightbulb, composerIcon, sizedIcon } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { RoomCard, RoomCardGrid } from '$components/room-card';
@@ -44,7 +44,7 @@ export function FeaturedRooms() {
               <Box direction="Column" gap="200">
                 <PageHeroSection>
                   <PageHero
-                    icon={iconAt(Lightbulb, '600')}
+                    icon={sizedIcon(Lightbulb, '600')}
                     title="Featured by Client"
                     subTitle="Find and explore public rooms and spaces featured by client provider."
                   />
@@ -119,7 +119,7 @@ export function FeaturedRooms() {
                       alignItems="Center"
                       gap="200"
                     >
-                      {iconAt(Info, '400')}
+                      {sizedIcon(Info, '400')}
                       <Text size="T300" align="Center">
                         No rooms or spaces featured by client provider.
                       </Text>

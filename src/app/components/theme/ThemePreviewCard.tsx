@@ -1,6 +1,6 @@
 import { type ReactNode, useCallback, useMemo } from 'react';
 import { Box, Button, IconButton, Text, Tooltip, TooltipProvider, toRem, config } from 'folds';
-import { Check, Download, Link, Star, Warning, iconAt } from '$components/icons/phosphor';
+import { Check, Download, Link, Star, Warning, sizedIcon } from '$components/icons/phosphor';
 
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { copyToClipboard } from '$utils/dom';
@@ -108,7 +108,7 @@ export function ThemePreviewCard({
                       display: 'inline-flex',
                     }}
                   >
-                    {iconAt(Warning, '100', { filled: true })}
+                    {sizedIcon(Warning, '100', { filled: true })}
                   </span>
                 )}
               </TooltipProvider>
@@ -134,7 +134,7 @@ export function ThemePreviewCard({
                 handleCopy().catch(() => undefined);
               }}
             >
-              {iconAt(copied ? Check : Link, '200')}
+              {sizedIcon(copied ? Check : Link, '200')}
             </IconButton>
           )}
 
@@ -150,7 +150,7 @@ export function ThemePreviewCard({
                 onExport();
               }}
             >
-              {iconAt(Download, '200')}
+              {sizedIcon(Download, '200')}
             </IconButton>
           )}
 
@@ -166,7 +166,7 @@ export function ThemePreviewCard({
                 Promise.resolve(onToggleFavorite()).catch(() => undefined);
               }}
             >
-              {iconAt(Star, '200', { filled: isFavorited })}
+              {sizedIcon(Star, '200', { filled: isFavorited })}
             </IconButton>
           )}
         </Box>

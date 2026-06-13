@@ -31,7 +31,7 @@ import { useRestoreBackupOnVerification } from '$hooks/useRestoreBackupOnVerific
 import {
   Download,
   DotsThreeOutlineVerticalIcon,
-  iconAt,
+  sizedIcon,
   menuIcon,
 } from '$components/icons/phosphor';
 import { InfoCard } from './info-card';
@@ -237,7 +237,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
                           ? undefined
                           : handleRestore
                       }
-                      before={iconAt(Download, '100')}
+                      before={sizedIcon(Download, '100')}
                     >
                       <Text size="B300">Restore Backup</Text>
                     </Button>

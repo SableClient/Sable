@@ -4,7 +4,7 @@ import { Avatar, Box, Text } from 'folds';
 import {
   CaretDown,
   CaretUp,
-  iconAt,
+  sizedIcon,
   userFallbackIcon,
   VideoCameraSlash,
 } from '$components/icons/phosphor';
@@ -78,7 +78,7 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
             {name}
           </Text>
         </Box>
-        {audioOnly && iconAt(VideoCameraSlash, '100')}
+        {audioOnly && sizedIcon(VideoCameraSlash, '100')}
       </Box>
     </SequenceCard>
   );
@@ -120,7 +120,7 @@ export function CallMemberRenderer({
               </Text>
             )}
           </Box>
-          {iconAt(viewMore ? CaretUp : CaretDown, '100')}
+          {sizedIcon(viewMore ? CaretUp : CaretDown, '100')}
         </SequenceCard>
       )}
     </>

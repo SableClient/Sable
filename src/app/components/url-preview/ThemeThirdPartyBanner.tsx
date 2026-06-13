@@ -1,5 +1,5 @@
 import { Box, Text, toRem, config } from 'folds';
-import { Warning, iconAt } from '$components/icons/phosphor';
+import { Warning, sizedIcon } from '$components/icons/phosphor';
 
 type ThemeThirdPartyBannerProps = {
   hostLabel: string;
@@ -27,7 +27,7 @@ export function ThemeThirdPartyBanner({ hostLabel, kind = 'theme' }: ThemeThirdP
       }}
     >
       <Box direction="Row" gap="200" alignItems="Start">
-        {iconAt(Warning, '100', { filled: true })}
+        {sizedIcon(Warning, '100', { filled: true })}
         <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
           <Text size="T300" style={{ fontWeight: 600 }}>
             {title}

@@ -2,7 +2,7 @@ import { IconButton, Line, Text, Tooltip, TooltipProvider } from 'folds';
 import {
   ChatCircle,
   Headphones,
-  iconAt,
+  sizedIcon,
   Microphone,
   MicrophoneSlash,
   ShareNetwork,
@@ -45,7 +45,7 @@ export function MicrophoneButton({ enabled, onToggle }: MicrophoneButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          {iconAt(enabled ? Microphone : MicrophoneSlash, '400', { filled: !enabled })}
+          {sizedIcon(enabled ? Microphone : MicrophoneSlash, '400', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -77,7 +77,7 @@ export function SoundButton({ enabled, onToggle }: SoundButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          {iconAt(enabled ? Headphones : SpeakerSlash, '400', { filled: !enabled })}
+          {sizedIcon(enabled ? Headphones : SpeakerSlash, '400', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -109,7 +109,7 @@ export function VideoButton({ enabled, onToggle }: VideoButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          {iconAt(enabled ? VideoCamera : VideoCameraSlash, '400', { filled: enabled })}
+          {sizedIcon(enabled ? VideoCamera : VideoCameraSlash, '400', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -141,7 +141,7 @@ export function ScreenShareButton({ enabled, onToggle }: ScreenShareButtonProps)
           onClick={() => onToggle()}
           outlined
         >
-          {iconAt(ShareNetwork, '400', { filled: enabled })}
+          {sizedIcon(ShareNetwork, '400', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -171,7 +171,7 @@ export function ChatButton() {
           onClick={() => setChat(!chat)}
           outlined
         >
-          {iconAt(ChatCircle, '400', { filled: chat })}
+          {sizedIcon(ChatCircle, '400', { filled: chat })}
         </IconButton>
       )}
     </TooltipProvider>

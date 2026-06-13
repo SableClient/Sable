@@ -1,5 +1,5 @@
 import { Avatar, Box, Text, toRem } from 'folds';
-import { ChatCircleDots, EnvelopeSimple, Tray, iconAt } from '$components/icons/phosphor';
+import { ChatCircleDots, EnvelopeSimple, Tray, sizedIcon } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import { NavCategory, NavItem, NavItemContent, NavLink } from '$components/nav';
 import { getInboxInvitesPath, getInboxNotificationsPath } from '$pages/pathUtils';
@@ -34,7 +34,7 @@ function InvitesNavItem({ hideText }: { hideText?: boolean }) {
               radii="400"
               style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
             >
-              {iconAt(EnvelopeSimple, '100', { filled: invitesSelected })}
+              {sizedIcon(EnvelopeSimple, '100', { filled: invitesSelected })}
             </Avatar>
             {!hideText && (
               <Box as="span" grow="Yes">
@@ -83,7 +83,7 @@ export function Inbox() {
                 </Text>
               </Box>
             ) : (
-              iconAt(Tray, '200', { filled: true })
+              sizedIcon(Tray, '200', { filled: true })
             )}
           </Box>
         </PageNavHeader>
@@ -100,7 +100,7 @@ export function Inbox() {
                         radii="400"
                         style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                       >
-                        {iconAt(ChatCircleDots, '100', { filled: notificationsSelected })}
+                        {sizedIcon(ChatCircleDots, '100', { filled: notificationsSelected })}
                       </Avatar>
                       {!hideText && (
                         <Box as="span" grow="Yes">

@@ -27,7 +27,7 @@ import {
   X,
   chipIcon,
   composerIcon,
-  iconAt,
+  sizedIcon,
   menuIcon,
 } from '$components/icons/phosphor';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -129,7 +129,7 @@ function Search({ active, loading, searchInputRef, onSearch, onReset }: Readonly
               size="400"
               radii="Pill"
               outlined
-              after={iconAt(X, '50')}
+              after={sizedIcon(X, '50')}
               onClick={onReset}
             >
               <Text size="B300">Clear</Text>
@@ -491,7 +491,7 @@ export function PublicRooms() {
             </Box>
 
             <Box grow="No" justifyContent="Center" alignItems="Center" gap="200">
-              {screenSize !== ScreenSize.Mobile && iconAt(MagnifyingGlass, '400')}
+              {screenSize !== ScreenSize.Mobile && sizedIcon(MagnifyingGlass, '400')}
               <Text size="H3" truncate>
                 Search
               </Text>
@@ -508,7 +508,7 @@ export function PublicRooms() {
               )}
             </Box>
             <Box grow="Yes" justifyContent="Center" alignItems="Center" gap="200">
-              {screenSize !== ScreenSize.Mobile && iconAt(HardDrives, '400')}
+              {screenSize !== ScreenSize.Mobile && sizedIcon(HardDrives, '400')}
               <Text size="H3" truncate>
                 {server}
               </Text>
@@ -545,7 +545,7 @@ export function PublicRooms() {
                           data-room-filter={filter.value}
                           variant={filter.value === serverSearchParams.type ? 'Success' : 'Surface'}
                           aria-pressed={filter.value === serverSearchParams.type}
-                          before={filter.value === serverSearchParams.type && iconAt(Check, '100')}
+                          before={filter.value === serverSearchParams.type && sizedIcon(Check, '100')}
                           outlined
                         >
                           <Text size="T200">{filter.title}</Text>
@@ -647,7 +647,7 @@ export function PublicRooms() {
                         alignItems="Center"
                         gap="200"
                       >
-                        {iconAt(Info, '400')}
+                        {sizedIcon(Info, '400')}
                         <Text size="T300" align="Center">
                           No communities found!
                         </Text>

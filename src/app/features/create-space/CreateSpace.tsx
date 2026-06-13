@@ -31,7 +31,7 @@ import { getRoomIconComponent } from '$components/icons/roomIcons';
 import {
   CaretDown,
   CaretUp,
-  iconAt,
+  sizedIcon,
   Warning,
   type IconSizeToken,
 } from '$components/icons/phosphor';
@@ -46,7 +46,7 @@ const getCreateSpaceAccessToIcon = (
   if (access === CreateRoomAccess.Restricted) joinRule = JoinRule.Restricted;
   if (access === CreateRoomAccess.Private) joinRule = JoinRule.Knock;
 
-  return iconAt(getRoomIconComponent(RoomType.Space, joinRule), size);
+  return sizedIcon(getRoomIconComponent(RoomType.Space, joinRule), size);
 };
 
 type CreateSpaceFormProps = {
@@ -183,7 +183,7 @@ export function CreateSpaceForm({ defaultAccess, space, onCreate }: CreateSpaceF
           <Box grow="Yes" justifyContent="End">
             <Chip
               radii="Pill"
-              before={iconAt(advance ? CaretUp : CaretDown, '50')}
+              before={sizedIcon(advance ? CaretUp : CaretDown, '50')}
               onClick={() => setAdvance(!advance)}
               type="button"
             >
@@ -253,7 +253,7 @@ export function CreateSpaceForm({ defaultAccess, space, onCreate }: CreateSpaceF
 
       {error && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="200">
-          {iconAt(Warning, '100', { filled: true })}
+          {sizedIcon(Warning, '100', { filled: true })}
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
               {error instanceof MatrixError && error.name === (ErrorCode.M_LIMIT_EXCEEDED as string)

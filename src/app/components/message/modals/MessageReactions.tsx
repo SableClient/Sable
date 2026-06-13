@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react';
 import type { Room, Relations } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import { Text, MenuItem } from 'folds';
-import { iconAt, Smiley } from '$components/icons/phosphor';
+import { sizedIcon, Smiley } from '$components/icons/phosphor';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 import { ReactionViewer } from '$features/room/reaction-viewer';
@@ -13,7 +13,7 @@ export function MessageAllReactionItem({ room, relations }: { room: Room; relati
   return (
     <MenuItem
       size="300"
-      after={iconAt(Smiley, '100')}
+      after={sizedIcon(Smiley, '100')}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();

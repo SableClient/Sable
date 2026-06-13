@@ -25,7 +25,7 @@ import {
   Plus,
   X,
   composerIcon,
-  iconAt,
+  sizedIcon,
   menuIcon,
 } from '$components/icons/phosphor';
 import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';
@@ -159,7 +159,7 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
         </Button>
       ) : (
         <IconButton aria-pressed variant="Background" onClick={() => setDialog(true)}>
-          {iconAt(Plus, '200', { filled: true })}
+          {sizedIcon(Plus, '200', { filled: true })}
         </IconButton>
       )}
     </>
@@ -206,7 +206,7 @@ export function Explore() {
                 </Text>
               </Box>
             ) : (
-              iconAt(Compass, '200', { filled: true })
+              sizedIcon(Compass, '200', { filled: true })
             )}
           </Box>
         </PageNavHeader>
@@ -223,7 +223,7 @@ export function Explore() {
                         radii="400"
                         style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                       >
-                        {iconAt(Lightbulb, '100', { filled: featuredSelected })}
+                        {sizedIcon(Lightbulb, '100', { filled: featuredSelected })}
                       </Avatar>
                       {!hideText && (
                         <Box as="span" grow="Yes">
@@ -250,7 +250,7 @@ export function Explore() {
                           radii="400"
                           style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                         >
-                          {iconAt(HardDrives, '100', { filled: selectedServer === userServer })}
+                          {sizedIcon(HardDrives, '100', { filled: selectedServer === userServer })}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
@@ -289,7 +289,7 @@ export function Explore() {
                             radii="400"
                             style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                           >
-                            {iconAt(HardDrives, '100', { filled: server === selectedServer })}
+                            {sizedIcon(HardDrives, '100', { filled: server === selectedServer })}
                           </Avatar>
                           {!hideText && (
                             <Box as="span" grow="Yes">

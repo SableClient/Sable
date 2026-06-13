@@ -13,7 +13,7 @@ import {
   Text,
   toRem,
 } from 'folds';
-import { Plus, X, iconAt } from '$components/icons/phosphor';
+import { Plus, X, sizedIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { getMxIdServer } from '$utils/mxIdHelper';
@@ -160,7 +160,7 @@ export function AdditionalCreatorInput({
               key={creator}
               variant="Secondary"
               radii="Pill"
-              after={iconAt(X, '50')}
+              after={sizedIcon(X, '50')}
               onClick={() => onRemove(creator)}
               disabled={disabled}
             >
@@ -283,7 +283,7 @@ export function AdditionalCreatorInput({
               aria-pressed={!!menuCords}
               disabled={disabled}
             >
-              {iconAt(Plus, '50')}
+              {sizedIcon(Plus, '50')}
             </Chip>
           </PopOut>
         </Box>

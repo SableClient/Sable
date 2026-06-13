@@ -16,7 +16,7 @@ import {
   Text,
   config,
 } from 'folds';
-import { iconAt, Info } from '$components/icons/phosphor';
+import { sizedIcon, Info } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { Link } from 'react-router-dom';
 import { getMxIdLocalPart, isUserId } from '$utils/matrix';
@@ -97,7 +97,7 @@ function UsernameHint({ server }: { server: string }) {
         radii="300"
         aria-pressed={!!anchor}
       >
-        {iconAt(Info, '100', { style: { opacity: config.opacity.P300 } })}
+        {sizedIcon(Info, '100', { style: { opacity: config.opacity.P300 } })}
       </IconButton>
     </PopOut>
   );

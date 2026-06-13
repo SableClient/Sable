@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import { MenuItem, Text } from 'folds';
-import { Checks, iconAt } from '$components/icons/phosphor';
+import { Checks, sizedIcon } from '$components/icons/phosphor';
 import { modalAtom, ModalType } from '$state/modal';
 import { EventReaders } from '$components/event-readers';
 import * as css from '$features/room/message/styles.css';
@@ -13,7 +13,7 @@ export function MessageReadReceiptItem({ room, eventId }: { room: Room; eventId:
   return (
     <MenuItem
       size="300"
-      after={iconAt(Checks, '100')}
+      after={sizedIcon(Checks, '100')}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();

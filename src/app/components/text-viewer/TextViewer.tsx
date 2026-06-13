@@ -2,7 +2,7 @@ import type { ComponentProps, HTMLAttributes } from 'react';
 import { forwardRef } from 'react';
 import classNames from 'classnames';
 import { Box, Chip, Header, IconButton, Scroll, Text, as } from 'folds';
-import { ArrowLeft, iconAt } from '$components/icons/phosphor';
+import { ArrowLeft, sizedIcon } from '$components/icons/phosphor';
 import { CodeHighlightRenderer } from '$components/code-highlight';
 import { copyToClipboard } from '$utils/dom';
 import * as css from './TextViewer.css';
@@ -49,7 +49,7 @@ export const TextViewer = as<'div', TextViewerProps>(
         <Header className={css.TextViewerHeader} size="400">
           <Box grow="Yes" alignItems="Center" gap="200">
             <IconButton size="300" radii="300" onClick={requestClose}>
-              {iconAt(ArrowLeft, '50')}
+              {sizedIcon(ArrowLeft, '50')}
             </IconButton>
             <Text size="T300" truncate>
               {name}

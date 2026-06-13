@@ -9,7 +9,7 @@ import {
   Image,
   Minus,
   Plus,
-  iconAt,
+  sizedIcon,
 } from '$components/icons/phosphor';
 import { useImageGestures } from '$hooks/useImageGestures';
 import { useSetting } from '$state/hooks/settings';
@@ -92,7 +92,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
         <Header className={css.ImageViewerHeader} size="400">
           <Box grow="Yes" alignItems="Center" gap="200">
             <IconButton size="300" radii="300" onClick={requestClose}>
-              {iconAt(ArrowLeft, '200')}
+              {sizedIcon(ArrowLeft, '200')}
             </IconButton>
             <Text size="T300" truncate>
               {alt}
@@ -125,7 +125,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               aria-label="View Original Size"
               title="View Original Size"
             >
-              {iconAt(Image, '200')}
+              {sizedIcon(Image, '200')}
             </IconButton>
             <IconButton
               variant="Surface"
@@ -146,7 +146,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               aria-label="Reset Zoom"
               title="Zoom to Fill Container"
             >
-              {iconAt(ArrowsClockwise, '200')}
+              {sizedIcon(ArrowsClockwise, '200')}
             </IconButton>
             <IconButton
               variant={transforms.zoom < 1 ? 'Success' : 'SurfaceVariant'}
@@ -157,7 +157,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               aria-label="Zoom Out"
               title="Zoom Out"
             >
-              {iconAt(Minus, '50')}
+              {sizedIcon(Minus, '50')}
             </IconButton>
             <Chip
               variant="SurfaceVariant"
@@ -225,13 +225,13 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               aria-label="Zoom In"
               title="Zoom In"
             >
-              {iconAt(Plus, '50')}
+              {sizedIcon(Plus, '50')}
             </IconButton>
             <Chip
               variant="Primary"
               onClick={handleDownload}
               radii="300"
-              before={iconAt(Download, '50')}
+              before={sizedIcon(Download, '50')}
               outlined
             >
               <Text size="B300">Download</Text>

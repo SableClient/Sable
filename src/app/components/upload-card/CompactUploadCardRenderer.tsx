@@ -7,7 +7,7 @@ import {
   Play,
   VideoCamera,
   X,
-  iconAt,
+  sizedIcon,
   type PhosphorIcon,
 } from '$components/icons/phosphor';
 import type { TUploadAtom, UploadSuccess } from '$state/upload';
@@ -66,7 +66,7 @@ export function CompactUploadCardRenderer({
       compact
       outlined
       radii="300"
-      before={iconAt(getFileTypeIconComponent(file.type))}
+      before={sizedIcon(getFileTypeIconComponent(file.type))}
       after={
         <>
           {upload.status === UploadStatus.Error && (
@@ -88,7 +88,7 @@ export function CompactUploadCardRenderer({
             radii="Pill"
             size="300"
           >
-            {iconAt(X, '200')}
+            {sizedIcon(X, '200')}
           </IconButton>
         </>
       }
@@ -98,7 +98,7 @@ export function CompactUploadCardRenderer({
           <Text size="H6" truncate>
             {file.name}
           </Text>
-          {iconAt(Check, '100', { style: { color: color.Success.Main } })}
+          {sizedIcon(Check, '100', { style: { color: color.Success.Main } })}
         </>
       ) : (
         <>

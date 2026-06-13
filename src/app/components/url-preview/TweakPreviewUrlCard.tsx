@@ -11,7 +11,7 @@ import {
   config,
   toRem,
 } from 'folds';
-import { Check, Link, Star, Warning, iconAt } from '$components/icons/phosphor';
+import { Check, Link, Star, Warning, sizedIcon } from '$components/icons/phosphor';
 
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
@@ -293,7 +293,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
                       display: 'inline-flex',
                     }}
                   >
-                    {iconAt(Warning, '100', { filled: true })}
+                    {sizedIcon(Warning, '100', { filled: true })}
                   </span>
                 )}
               </TooltipProvider>
@@ -321,7 +321,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
               handleCopy().catch(() => undefined);
             }}
           >
-            {iconAt(copied ? Check : Link, '200')}
+            {sizedIcon(copied ? Check : Link, '200')}
           </IconButton>
           <IconButton
             size="300"
@@ -334,7 +334,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
               toggleFavorite().catch(() => undefined);
             }}
           >
-            {iconAt(Star, '200', { filled: isFav })}
+            {sizedIcon(Star, '200', { filled: isFav })}
           </IconButton>
           <Switch
             variant="Primary"

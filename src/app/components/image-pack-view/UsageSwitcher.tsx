@@ -2,7 +2,7 @@ import type { MouseEventHandler } from 'react';
 import { useMemo, useState } from 'react';
 import type { RectCords } from 'folds';
 import { Box, Button, config, Menu, MenuItem, PopOut, Text } from 'folds';
-import { CaretDown, iconAt } from '$components/icons/phosphor';
+import { CaretDown, sizedIcon } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { stopPropagation } from '$utils/keyboard';
@@ -79,7 +79,7 @@ export function UsageSwitcher({ usage, onChange, canEdit }: UsageSwitcherProps) 
         type="button"
         outlined
         aria-disabled={!canEdit}
-        after={canEdit && iconAt(CaretDown, '100')}
+        after={canEdit && sizedIcon(CaretDown, '100')}
         onClick={canEdit ? handleSelectUsage : undefined}
       >
         <Text size="B300">{getUsageStr(usage)}</Text>

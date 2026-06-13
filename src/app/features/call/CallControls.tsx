@@ -16,7 +16,7 @@ import {
 import {
   composerIcon,
   DotsThreeOutlineVerticalIcon,
-  iconAt,
+  sizedIcon,
   PhoneDisconnect,
 } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
@@ -224,7 +224,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
               exiting ? (
                 <Spinner variant="Critical" fill="Solid" size="200" />
               ) : (
-                iconAt(PhoneDisconnect, '200', { filled: true })
+                sizedIcon(PhoneDisconnect, '200', { filled: true })
               )
             }
             disabled={exiting}

@@ -1,7 +1,7 @@
 import type { MutableRefObject, ReactNode } from 'react';
 import { useImperativeHandle, useRef } from 'react';
 import { Badge, Box, Chip, Header, Spinner, Text, as, percent } from 'folds';
-import { CaretRight, CaretUp, PaperPlaneTilt, X, iconAt } from '$components/icons/phosphor';
+import { CaretRight, CaretUp, PaperPlaneTilt, X, sizedIcon } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
 
@@ -88,7 +88,7 @@ export function UploadBoardHeader({
         grow="Yes"
         gap="100"
       >
-        {iconAt(open ? CaretUp : CaretRight, '50')}
+        {sizedIcon(open ? CaretUp : CaretRight, '50')}
         <Text size="H6">Files</Text>
       </Box>
       <Box className={css.UploadBoardHeaderContent} alignItems="Center" gap="100">
@@ -99,7 +99,7 @@ export function UploadBoardHeader({
             variant="Primary"
             radii="Pill"
             outlined
-            after={iconAt(PaperPlaneTilt, '50', { filled: true })}
+            after={sizedIcon(PaperPlaneTilt, '50', { filled: true })}
           >
             <Text size="B300">Send</Text>
           </Chip>
@@ -123,7 +123,7 @@ export function UploadBoardHeader({
             onClick={handleCancel}
             variant="SurfaceVariant"
             radii="Pill"
-            after={iconAt(X, '50')}
+            after={sizedIcon(X, '50')}
           >
             <Text size="B300">{uploads.length === 1 ? 'Remove' : 'Remove All'}</Text>
           </Chip>

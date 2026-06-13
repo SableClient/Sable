@@ -1,5 +1,5 @@
 import { Box, Button, color, config, Dialog, Header, IconButton, Text } from 'folds';
-import { Warning, composerIcon, iconAt, X } from '$components/icons/phosphor';
+import { Warning, composerIcon, sizedIcon, X } from '$components/icons/phosphor';
 import { useCallback, useEffect, useState } from 'react';
 import type { StageComponentProps } from './types';
 
@@ -71,7 +71,7 @@ export function SSOStage({
         </Text>
         {errorCode && (
           <Box alignItems="Center" gap="100" style={{ color: color.Critical.Main }}>
-            {iconAt(Warning, '50', { filled: true })}
+            {sizedIcon(Warning, '50', { filled: true })}
             <Text size="T200">
               <b>{`${errorCode}: ${error}`}</b>
             </Text>

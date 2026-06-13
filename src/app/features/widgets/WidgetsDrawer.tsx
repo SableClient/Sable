@@ -19,7 +19,7 @@ import {
   ArrowLeft,
   composerIcon,
   GridFour,
-  iconAt,
+  sizedIcon,
   Plus,
   Trash,
   X,
@@ -204,7 +204,7 @@ function WidgetListItemView({ widget, onSelect, onRemove, canRemove }: WidgetLis
                 fill="None"
                 onClick={handleRemove}
               >
-                {iconAt(Trash, '100')}
+                {sizedIcon(Trash, '100')}
               </IconButton>
             )}
           </TooltipProvider>
@@ -323,7 +323,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
                       variant="Primary"
                       fill="Soft"
                       onClick={() => setShowIntegrationManager(true)}
-                      before={iconAt(GridFour, '100')}
+                      before={sizedIcon(GridFour, '100')}
                     >
                       <Text size="B300">Integration Manager</Text>
                     </Button>
@@ -332,7 +332,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
                       variant="Secondary"
                       fill="Soft"
                       onClick={() => setShowAddForm(true)}
-                      before={iconAt(Plus, '100')}
+                      before={sizedIcon(Plus, '100')}
                     >
                       <Text size="B300">Add Custom Widget</Text>
                     </Button>

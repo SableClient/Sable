@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Box, IconButton, Text } from 'folds';
-import { Check, Link, iconAt } from '$components/icons/phosphor';
+import { Check, Link, sizedIcon } from '$components/icons/phosphor';
 import { BreakWord } from '$styles/Text.css';
 import { buildSettingsLink } from '$features/settings/settingsLink';
 import { copyToClipboard } from '$utils/dom';
@@ -59,7 +59,7 @@ function SettingTileSettingLinkAction({
       fill="None"
       radii="Inherit"
     >
-      {iconAt(copied ? Check : Link, '50')}
+      {sizedIcon(copied ? Check : Link, '50')}
     </IconButton>
   );
 }

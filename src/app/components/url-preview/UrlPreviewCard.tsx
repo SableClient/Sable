@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 import type { IPreviewUrlResponse } from '$types/matrix-sdk';
 import { Box, IconButton, Scroll, Spinner, Text, as, color, config, toRem } from 'folds';
-import { ArrowLeft, ArrowRight, iconAt } from '$components/icons/phosphor';
+import { ArrowLeft, ArrowRight, sizedIcon } from '$components/icons/phosphor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp, downloadMedia } from '$utils/matrix';
@@ -24,7 +24,7 @@ const linkStyles = { color: color.Success.Main };
 // Module-level in-flight deduplication: prevents N+1 concurrent requests when a
 // large event batch renders many UrlPreviewCard instances for the same URL.
 // Scoped by MatrixClient to avoid cross-account dedup if multiple clients exist.
-// Inner cache keyed by URL only (not ts) â€” the same URL shows the same preview
+// Inner cache keyed by URL only (not ts) â€ Ethe same URL shows the same preview
 // regardless of which message referenced it. Promises are evicted after settling
 // so a later render can retry after network recovery.
 const previewRequestCache = new WeakMap<MatrixClient, Map<string, Promise<IPreviewUrlResponse>>>();
@@ -450,7 +450,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                 outlined
                 onClick={handleScrollBack}
               >
-                {iconAt(ArrowLeft, '300')}
+                {sizedIcon(ArrowLeft, '300')}
               </IconButton>
             </>
           )}
@@ -475,7 +475,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                 outlined
                 onClick={handleScrollFront}
               >
-                {iconAt(ArrowRight, '300')}
+                {sizedIcon(ArrowRight, '300')}
               </IconButton>
             </>
           )}

@@ -11,7 +11,7 @@ import {
   TextArea,
   Chip,
 } from 'folds';
-import { iconAt, PencilSimple } from '$components/icons/phosphor';
+import { sizedIcon, PencilSimple } from '$components/icons/phosphor';
 import Linkify from 'linkify-react';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -76,7 +76,7 @@ export function ImagePackProfile({ meta, canEdit, onEdit }: ImagePackProfileProp
               variant="Secondary"
               fill="Soft"
               radii="300"
-              before={iconAt(PencilSimple, '50')}
+              before={sizedIcon(PencilSimple, '50')}
               onClick={onEdit}
               outlined
             >

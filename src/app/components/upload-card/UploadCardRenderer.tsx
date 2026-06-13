@@ -21,7 +21,7 @@ import {
   PencilSimple,
   VideoCamera,
   X,
-  iconAt,
+  sizedIcon,
   type PhosphorIcon,
 } from '$components/icons/phosphor';
 import type { HTMLReactParserOptions } from 'html-react-parser';
@@ -225,7 +225,7 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
       setCurrentTime(targetTime);
     } else {
       // Metadata not yet loaded (Firefox, first scrub before load() resolves).
-      // Do NOT call load() again here — that resets currentTime to 0 and
+      // Do NOT call load() again here  Ethat resets currentTime to 0 and
       // restarts the fetch. load() was already called in the useEffect;
       // just wait for the in-flight loadedmetadata event.
       el.addEventListener(
@@ -354,7 +354,7 @@ function MediaPreview({ fileItem, onSpoiler, children }: MediaPreviewProps) {
           fill="Soft"
           radii="Pill"
           aria-pressed={metadata.markedAsSpoiler}
-          before={iconAt(EyeSlash, '50')}
+          before={sizedIcon(EyeSlash, '50')}
           onClick={() => onSpoiler(!metadata.markedAsSpoiler)}
         >
           <Text size="B300">Spoiler</Text>
@@ -447,7 +447,7 @@ export function UploadCardRenderer({
   return (
     <UploadCard
       radii="300"
-      before={iconAt(getFileTypeIconComponent(file.type))}
+      before={sizedIcon(getFileTypeIconComponent(file.type))}
       after={
         <>
           {upload.status === UploadStatus.Error && (
@@ -472,7 +472,7 @@ export function UploadCardRenderer({
               radii="Pill"
               size="300"
             >
-              {iconAt(PencilSimple, '50')}
+              {sizedIcon(PencilSimple, '50')}
             </IconButton>
           )}
           {isDescribed && (
@@ -488,7 +488,7 @@ export function UploadCardRenderer({
                 </Tooltip>
               }
             >
-              {(triggerRef) => <span ref={triggerRef}>{iconAt(Info, '50')}</span>}
+              {(triggerRef) => <span ref={triggerRef}>{sizedIcon(Info, '50')}</span>}
             </TooltipProvider>
           )}
 
@@ -499,7 +499,7 @@ export function UploadCardRenderer({
             radii="Pill"
             size="300"
           >
-            {iconAt(X, '200')}
+            {sizedIcon(X, '200')}
           </IconButton>
         </>
       }
@@ -580,7 +580,7 @@ export function UploadCardRenderer({
         {file.name}
       </Text>
       {upload.status === UploadStatus.Success &&
-        iconAt(Check, '100', { style: { color: color.Success.Main } })}
+        sizedIcon(Check, '100', { style: { color: color.Success.Main } })}
     </UploadCard>
   );
 }

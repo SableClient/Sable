@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Box, Text, config } from 'folds';
-import { Check, iconAt } from '$components/icons/phosphor';
+import { Check, sizedIcon } from '$components/icons/phosphor';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { CreateRoomAccess } from './types';
@@ -35,7 +35,7 @@ export function CreateRoomAccessSelector({
         >
           <SettingTile
             before={getIcon(CreateRoomAccess.Restricted)}
-            after={value === CreateRoomAccess.Restricted && iconAt(Check)}
+            after={value === CreateRoomAccess.Restricted && sizedIcon(Check)}
           >
             <Text size="H6">Restricted</Text>
             <Text size="T300" priority="300">
@@ -57,7 +57,7 @@ export function CreateRoomAccessSelector({
       >
         <SettingTile
           before={getIcon(CreateRoomAccess.Private)}
-          after={value === CreateRoomAccess.Private && iconAt(Check)}
+          after={value === CreateRoomAccess.Private && sizedIcon(Check)}
         >
           <Text size="H6">Private</Text>
           <Text size="T300" priority="300">
@@ -78,7 +78,7 @@ export function CreateRoomAccessSelector({
       >
         <SettingTile
           before={getIcon(CreateRoomAccess.Public)}
-          after={value === CreateRoomAccess.Public && iconAt(Check)}
+          after={value === CreateRoomAccess.Public && sizedIcon(Check)}
         >
           <Text size="H6">Public</Text>
           <Text size="T300" priority="300">

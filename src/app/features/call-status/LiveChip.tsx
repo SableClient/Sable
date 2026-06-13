@@ -14,7 +14,7 @@ import {
   Text,
   toRem,
 } from 'folds';
-import { CaretDown, CaretUp, iconAt, userFallbackIcon } from '$components/icons/phosphor';
+import { CaretDown, CaretUp, sizedIcon, userFallbackIcon } from '$components/icons/phosphor';
 import type { CallMembership } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import type { Room } from '$types/matrix-sdk';
@@ -124,7 +124,7 @@ export function LiveChip({ count, room, members }: LiveChipProps) {
         variant="Surface"
         fill="Soft"
         before={<Badge variant="Critical" fill="Solid" size="200" />}
-        after={iconAt(cords ? CaretDown : CaretUp, '50')}
+        after={sizedIcon(cords ? CaretDown : CaretUp, '50')}
         radii="Pill"
         onClick={handleOpenMenu}
       >

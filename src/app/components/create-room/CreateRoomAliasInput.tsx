@@ -2,7 +2,7 @@ import type { FormEventHandler, KeyboardEventHandler } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MatrixError } from '$types/matrix-sdk';
 import { Box, color, Input, Spinner, Text, toRem } from 'folds';
-import { Hash, Warning, iconAt } from '$components/icons/phosphor';
+import { Hash, Warning, sizedIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { replaceSpaceWithDash } from '$utils/common';
@@ -85,7 +85,7 @@ export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {
           aliasAvail.status === AsyncStatus.Loading ? (
             <Spinner size="100" variant="Secondary" />
           ) : (
-            iconAt(Hash, '100')
+            sizedIcon(Hash, '100')
           )
         }
         after={
@@ -103,7 +103,7 @@ export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {
       />
       {aliasAvailable === false && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="100">
-          {iconAt(Warning, '50', { filled: true })}
+          {sizedIcon(Warning, '50', { filled: true })}
           <Text size="T200">
             <b>This address is already taken. Please select a different one.</b>
           </Text>

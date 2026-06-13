@@ -36,7 +36,7 @@ import {
   CodeBlock,
   composerIcon,
   EyeSlash,
-  iconAt,
+  sizedIcon,
   ListBullets,
   ListNumbers,
   Quotes,
@@ -92,7 +92,7 @@ function MarkdownInlineButton({ marker, icon, tooltip }: MarkdownInlineButtonPro
           size="400"
           radii="300"
         >
-          {iconAt(icon, '200')}
+          {sizedIcon(icon, '200')}
         </IconButton>
       )}
     </TooltipProvider>
@@ -123,7 +123,7 @@ function MarkdownBlockButton({ prefix, icon, tooltip }: MarkdownBlockButtonProps
           size="400"
           radii="300"
         >
-          {iconAt(icon, '200')}
+          {sizedIcon(icon, '200')}
         </IconButton>
       )}
     </TooltipProvider>
@@ -175,7 +175,7 @@ function MarkdownHeadingButton() {
                     size="400"
                     radii="300"
                   >
-                    {iconAt(TextHOne, '200')}
+                    {sizedIcon(TextHOne, '200')}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -190,7 +190,7 @@ function MarkdownHeadingButton() {
                     size="400"
                     radii="300"
                   >
-                    {iconAt(TextHTwo, '200')}
+                    {sizedIcon(TextHTwo, '200')}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -205,7 +205,7 @@ function MarkdownHeadingButton() {
                     size="400"
                     radii="300"
                   >
-                    {iconAt(TextHThree, '200')}
+                    {sizedIcon(TextHThree, '200')}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -223,8 +223,8 @@ function MarkdownHeadingButton() {
         aria-haspopup="menu"
         aria-expanded={!!anchor}
       >
-        {iconAt(TextHOne, '200')}
-        {iconAt(CaretDown, '200')}
+        {sizedIcon(TextHOne, '200')}
+        {sizedIcon(CaretDown, '200')}
       </IconButton>
     </PopOut>
   );

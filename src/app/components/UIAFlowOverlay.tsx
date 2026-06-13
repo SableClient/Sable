@@ -10,7 +10,7 @@ import {
   Chip,
   IconButton,
 } from 'folds';
-import { iconAt, X } from '$components/icons/phosphor';
+import { sizedIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 
 export type UIAFlowOverlayProps = {
@@ -59,7 +59,7 @@ export function UIAFlowOverlay({
                   radii="Pill"
                   outlined
                 >
-                  {iconAt(X, '50')}
+                  {sizedIcon(X, '50')}
                 </IconButton>
               )}
             </TooltipProvider>

@@ -1,7 +1,7 @@
 import { Box, Chip, IconButton, Spinner, Text, Tooltip, TooltipProvider } from 'folds';
 import {
   Headphones,
-  iconAt,
+  sizedIcon,
   Microphone,
   MicrophoneSlash,
   PhoneDisconnect,
@@ -44,7 +44,7 @@ function MicrophoneButton({ enabled, onToggle, disabled }: MicrophoneButtonProps
           outlined
           disabled={disabled}
         >
-          {iconAt(enabled ? Microphone : MicrophoneSlash, '100', { filled: !enabled })}
+          {sizedIcon(enabled ? Microphone : MicrophoneSlash, '100', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -77,7 +77,7 @@ function SoundButton({ enabled, onToggle, disabled }: SoundButtonProps) {
           outlined
           disabled={disabled}
         >
-          {iconAt(enabled ? Headphones : SpeakerSlash, '100', { filled: !enabled })}
+          {sizedIcon(enabled ? Headphones : SpeakerSlash, '100', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -110,7 +110,7 @@ function VideoButton({ enabled, onToggle, disabled }: VideoButtonProps) {
           outlined
           disabled={disabled}
         >
-          {iconAt(enabled ? VideoCamera : VideoCameraSlash, '100', { filled: enabled })}
+          {sizedIcon(enabled ? VideoCamera : VideoCameraSlash, '100', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -143,7 +143,7 @@ function ScreenShareButton({ enabled, onToggle, disabled }: ScreenShareButtonPro
           outlined
           disabled={disabled}
         >
-          {iconAt(ShareNetwork, '100', { filled: enabled })}
+          {sizedIcon(ShareNetwork, '100', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -212,7 +212,7 @@ export function CallControl({
           exiting ? (
             <Spinner variant="Critical" fill="Soft" size="50" />
           ) : (
-            iconAt(PhoneDisconnect, '50', { filled: true })
+            sizedIcon(PhoneDisconnect, '50', { filled: true })
           )
         }
         disabled={exiting}

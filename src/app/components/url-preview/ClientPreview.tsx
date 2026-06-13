@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Box, Badge, IconButton, Spinner, Text, as, toRem } from 'folds';
-import { Link, iconAt } from '$components/icons/phosphor';
+import { Link, sizedIcon } from '$components/icons/phosphor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -67,7 +67,7 @@ type EmbedOpenButtonProps = {
 export function EmbedOpenButton({ url }: EmbedOpenButtonProps) {
   return (
     <IconButton size="300" radii="300" onClick={() => window.open(url, '_blank')}>
-      {iconAt(Link, '100')}
+      {sizedIcon(Link, '100')}
     </IconButton>
   );
 }

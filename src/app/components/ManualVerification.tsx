@@ -2,7 +2,7 @@ import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import type { RectCords } from 'folds';
 import { Box, Text, Chip, PopOut, Menu, config, MenuItem, color } from 'folds';
-import { CaretDown, iconAt } from '$components/icons/phosphor';
+import { CaretDown, sizedIcon } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import type { SecretStorageKeyContent } from '$types/matrix/accountData';
 import { storePrivateKey } from '$client/secretStorageKeys';
@@ -42,7 +42,7 @@ export function ManualVerificationMethodSwitcher({
         variant="Secondary"
         fill="Soft"
         radii="Pill"
-        before={iconAt(CaretDown, '100')}
+        before={sizedIcon(CaretDown, '100')}
         onClick={handleMenu}
       >
         <Text as="span" size="B300">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Icon, Icons, Text, as } from 'folds';
+import { Box, Text, as } from 'folds';
+import { iconAt, Warning } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { getHexcodeForEmoji, getShortcodeFor } from '$plugins/emoji';
@@ -39,7 +40,7 @@ export const Reaction = as<
                 // reaction button still renders correctly and the user can see
                 // something went wrong rather than a browser broken-image icon.
                 <span title="Failed to load emoji image" aria-label="Failed to load emoji image">
-                  <Icon size="100" src={Icons.Warning} style={{ opacity: 0.5 }} />
+                  {iconAt(Warning, '100', { style: { opacity: 0.5 } })}
                 </span>
               );
             return (

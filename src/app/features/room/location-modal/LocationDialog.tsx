@@ -9,13 +9,12 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Button,
   Input,
   Chip,
 } from 'folds';
 import { ClipboardIcon, MapPinAreaIcon, MapPinLineIcon } from '@phosphor-icons/react';
+import { chipIcon, composerIcon, Warning, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
 import type { IContent, MatrixClient, Room } from 'matrix-js-sdk';
 import * as css from './LocationDialog.css';
@@ -276,7 +275,7 @@ export function LocationDialog({
                 title="Cancel Sharing Location"
                 aria-label="Cancel Sharing Location"
               >
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box direction="Column" gap="200" className={css.LocationDialogItems}>
@@ -311,7 +310,7 @@ export function LocationDialog({
               </Box>
               {locationError !== LocationErrors.none && (
                 <Box className={css.LocationDialogErrorText}>
-                  <Icon size="50" src={Icons.Warning} />
+                  {chipIcon(Warning)}
                   <Text size="L400">{locationError}</Text>
                 </Box>
               )}

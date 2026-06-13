@@ -5,8 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   Modal,
@@ -21,6 +19,7 @@ import {
   config,
   toRem,
 } from 'folds';
+import { Eye, EyeSlash, iconAt, Image, Warning } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
 import FocusTrap from 'focus-trap-react';
@@ -272,7 +271,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               radii="300"
               size="300"
               onClick={loadSrc}
-              before={<Icon size="Inherit" src={Icons.Photo} filled />}
+              before={iconAt(Image, 'Inherit', { filled: true })}
             >
               <Text size="B300">View</Text>
             </Button>
@@ -364,7 +363,7 @@ export const ImageContent = as<'div', ImageContentProps>(
                   outlined
                   radii="300"
                   onClick={handleRetry}
-                  before={<Icon size="Inherit" src={Icons.Warning} filled />}
+                  before={iconAt(Warning, 'Inherit', { filled: true })}
                 >
                   <Text size="B300">Retry</Text>
                 </Button>
@@ -377,7 +376,7 @@ export const ImageContent = as<'div', ImageContentProps>(
             <Menu style={{ padding: config.space.S0 }}>
               <MenuItem
                 size="300"
-                after={<Icon size="200" src={blurred ? Icons.Eye : Icons.EyeBlind} />}
+                after={iconAt(blurred ? Eye : EyeSlash, '200')}
                 radii="300"
                 fill="Soft"
                 variant="Secondary"

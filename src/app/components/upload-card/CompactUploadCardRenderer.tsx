@@ -1,12 +1,30 @@
 import { useEffect } from 'react';
-import { Chip, Icon, IconButton, Icons, Text, color } from 'folds';
+import { Chip, IconButton, Text, color } from 'folds';
+import {
+  Check,
+  File,
+  Image,
+  Play,
+  VideoCamera,
+  X,
+  iconAt,
+  type PhosphorIcon,
+} from '$components/icons/phosphor';
 import type { TUploadAtom, UploadSuccess } from '$state/upload';
 import { UploadStatus, useBindUploadAtom } from '$state/upload';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { TUploadContent } from '$utils/matrix';
-import { bytesToSize, getFileTypeIcon } from '$utils/common';
+import { bytesToSize } from '$utils/common';
 import { useMediaConfig } from '$hooks/useMediaConfig';
 import { UploadCard, UploadCardError, CompactUploadCardProgress } from './UploadCard';
+
+function getFileTypeIconComponent(fileType: string): PhosphorIcon {
+  const type = fileType.toLowerCase();
+  if (type.startsWith('audio')) return Play;
+  if (type.startsWith('video')) return VideoCamera;
+  if (type.startsWith('image')) return Image;
+  return File;
+}
 
 type CompactUploadCardRendererProps = {
   isEncrypted?: boolean;
@@ -48,7 +66,7 @@ export function CompactUploadCardRenderer({
       compact
       outlined
       radii="300"
-      before={<Icon src={getFileTypeIcon(Icons, file.type)} />}
+      before={iconAt(getFileTypeIconComponent(file.type))}
       after={
         <>
           {upload.status === UploadStatus.Error && (
@@ -70,7 +88,7 @@ export function CompactUploadCardRenderer({
             radii="Pill"
             size="300"
           >
-            <Icon src={Icons.Cross} size="200" />
+            {iconAt(X, '200')}
           </IconButton>
         </>
       }
@@ -80,7 +98,7 @@ export function CompactUploadCardRenderer({
           <Text size="H6" truncate>
             {file.name}
           </Text>
-          <Icon style={{ color: color.Success.Main }} src={Icons.Check} size="100" />
+          {iconAt(Check, '100', { style: { color: color.Success.Main } })}
         </>
       ) : (
         <>

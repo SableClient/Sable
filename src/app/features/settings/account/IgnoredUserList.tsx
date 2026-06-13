@@ -1,6 +1,7 @@
 import type { ChangeEventHandler, FormEventHandler } from 'react';
 import { useCallback, useState } from 'react';
-import { Box, Button, Chip, Icon, IconButton, Icons, Input, Spinner, Text, config } from 'folds';
+import { Box, Button, Chip, IconButton, Input, Spinner, Text, config } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -74,7 +75,7 @@ function IgnoreUserInput({ userList }: { userList: string[] }) {
                 radii="300"
                 variant="Secondary"
               >
-                <Icon src={Icons.Cross} size="100" />
+                {menuIcon(X)}
               </IconButton>
             )
           }
@@ -112,13 +113,7 @@ function IgnoredUserChip({ userId, userList }: { userId: string; userList: strin
     <Chip
       variant="Secondary"
       radii="Pill"
-      after={
-        unIgnoring ? (
-          <Spinner variant="Secondary" size="100" />
-        ) : (
-          <Icon src={Icons.Cross} size="100" />
-        )
-      }
+      after={unIgnoring ? <Spinner variant="Secondary" size="100" /> : menuIcon(X)}
       onClick={handleUnignore}
       disabled={unIgnoring}
     >

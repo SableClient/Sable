@@ -2,7 +2,8 @@ import type { KeyboardEventHandler } from 'react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, config } from 'folds';
+import { Box, Chip, IconButton, PopOut, Spinner, Text, config } from 'folds';
+import { Smiley, iconAt } from '$components/icons/phosphor';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -229,7 +230,7 @@ export function DescriptionEditor({
                           radii="300"
                           onClick={(evt) => setAnchor(evt.currentTarget.getBoundingClientRect())}
                         >
-                          <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                          {iconAt(Smiley, '400', { filled: anchor !== undefined })}
                         </IconButton>
                       </PopOut>
                     )}

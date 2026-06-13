@@ -5,8 +5,6 @@ import {
   Box,
   Text,
   Chip,
-  Icon,
-  Icons,
   IconButton,
   Scroll,
   Button,
@@ -19,6 +17,15 @@ import {
   TooltipProvider,
   Tooltip,
 } from 'folds';
+import {
+  ArrowLeft,
+  chipIcon,
+  composerIcon,
+  menuIcon,
+  SmileySticker,
+  Trash,
+  X,
+} from '$components/icons/phosphor';
 import { HexColorPicker } from 'react-colorful';
 import { useAtomValue } from 'jotai';
 import { Page, PageContent, PageHeader } from '$components/page';
@@ -254,7 +261,7 @@ function EditPower({ maxPower, power, tag, onSave, onClose }: Readonly<EditPower
                         variant="Secondary"
                         fill="Soft"
                         radii="300"
-                        before={<Icon size="50" src={Icons.SmilePlus} />}
+                        before={chipIcon(SmileySticker)}
                       >
                         <Text size="B300">Pick</Text>
                       </Button>
@@ -377,18 +384,13 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
       <PageHeader outlined={false} balance>
         <Box alignItems="Center" grow="Yes" gap="200">
           <Box alignItems="Inherit" grow="Yes" gap="200">
-            <Chip
-              size="500"
-              radii="Pill"
-              onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
-            >
+            <Chip size="500" radii="Pill" onClick={requestClose} before={menuIcon(ArrowLeft)}>
               <Text size="T300">Permissions</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>
@@ -514,7 +516,7 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
                                               : () => handleToggleDelete(power)
                                           }
                                         >
-                                          <Icon size="50" src={Icons.Delete} />
+                                          {chipIcon(Trash)}
                                         </Chip>
                                       )}
                                     </TooltipProvider>

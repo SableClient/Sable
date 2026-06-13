@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Icon, Icons, Text } from 'folds';
+import { Text } from 'folds';
 import type { MatrixClient } from '$types/matrix-sdk';
+import { menuIcon, Warning } from '$components/icons/phosphor';
 import { scaleSystemEmoji } from '$plugins/react-custom-html-parser';
 import { mxcUrlToHttp } from '$utils/matrix';
 import * as css from './Reaction.css';
@@ -35,7 +36,7 @@ export function ReactionKeyInline({
     if (imgError) {
       return (
         <span title="Failed to load emoji image" aria-label="Failed to load emoji image">
-          <Icon size="100" src={Icons.Warning} style={{ opacity: 0.5 }} />
+          {menuIcon(Warning, { style: { opacity: 0.5 } })}
         </span>
       );
     }

@@ -1,7 +1,8 @@
 import { useAtom } from 'jotai';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Box, Icon, IconButton, Icons, Text } from 'folds';
+import { Box, IconButton, Text } from 'folds';
+import { iconAt, X } from '$components/icons/phosphor';
 import { createLogger } from '$utils/debug';
 import type { InAppBannerNotification } from '$state/sessions';
 import { inAppBannerAtom } from '$state/sessions';
@@ -157,7 +158,7 @@ function BannerItem({ notification, onDismiss }: BannerItemProps) {
           }}
           aria-label="Dismiss notification"
         >
-          <Icon size="100" src={Icons.Cross} />
+          {iconAt(X, '100')}
         </IconButton>
       </Box>
       <div

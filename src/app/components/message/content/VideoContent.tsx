@@ -5,8 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   Spinner,
@@ -16,6 +14,7 @@ import {
   as,
   config,
 } from 'folds';
+import { Eye, EyeSlash, iconAt, Play, Warning } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
@@ -147,7 +146,7 @@ export const VideoContent = as<'div', VideoContentProps>(
               radii="300"
               size="300"
               onClick={loadSrc}
-              before={<Icon size="Inherit" src={Icons.Play} filled />}
+              before={iconAt(Play, 'Inherit', { filled: true })}
             >
               <Text size="B300">Watch</Text>
             </Button>
@@ -229,7 +228,7 @@ export const VideoContent = as<'div', VideoContentProps>(
                   outlined
                   radii="300"
                   onClick={handleRetry}
-                  before={<Icon size="Inherit" src={Icons.Warning} filled />}
+                  before={iconAt(Warning, 'Inherit', { filled: true })}
                 >
                   <Text size="B300">Retry</Text>
                 </Button>
@@ -242,7 +241,7 @@ export const VideoContent = as<'div', VideoContentProps>(
             <Menu style={{ padding: config.space.S0 }}>
               <MenuItem
                 size="300"
-                after={<Icon size="200" src={blurred ? Icons.Eye : Icons.EyeBlind} />}
+                after={iconAt(blurred ? Eye : EyeSlash, '200')}
                 radii="300"
                 fill="Soft"
                 variant="Secondary"

@@ -1,5 +1,6 @@
-import type { IconSrc } from 'folds';
-import { Box, Text, Icon, Icons, config } from 'folds';
+import type { ReactNode } from 'react';
+import { Box, Text, config } from 'folds';
+import { Check, iconAt } from '$components/icons/phosphor';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { CreateRoomAccess } from './types';
@@ -9,7 +10,7 @@ type CreateRoomAccessSelectorProps = {
   onSelect: (value: CreateRoomAccess) => void;
   canRestrict?: boolean;
   disabled?: boolean;
-  getIcon: (access: CreateRoomAccess) => IconSrc;
+  getIcon: (access: CreateRoomAccess) => ReactNode;
 };
 export function CreateRoomAccessSelector({
   value,
@@ -33,8 +34,8 @@ export function CreateRoomAccessSelector({
           disabled={disabled}
         >
           <SettingTile
-            before={<Icon size="400" src={getIcon(CreateRoomAccess.Restricted)} />}
-            after={value === CreateRoomAccess.Restricted && <Icon src={Icons.Check} />}
+            before={getIcon(CreateRoomAccess.Restricted)}
+            after={value === CreateRoomAccess.Restricted && iconAt(Check)}
           >
             <Text size="H6">Restricted</Text>
             <Text size="T300" priority="300">
@@ -55,8 +56,8 @@ export function CreateRoomAccessSelector({
         disabled={disabled}
       >
         <SettingTile
-          before={<Icon size="400" src={getIcon(CreateRoomAccess.Private)} />}
-          after={value === CreateRoomAccess.Private && <Icon src={Icons.Check} />}
+          before={getIcon(CreateRoomAccess.Private)}
+          after={value === CreateRoomAccess.Private && iconAt(Check)}
         >
           <Text size="H6">Private</Text>
           <Text size="T300" priority="300">
@@ -76,8 +77,8 @@ export function CreateRoomAccessSelector({
         disabled={disabled}
       >
         <SettingTile
-          before={<Icon size="400" src={getIcon(CreateRoomAccess.Public)} />}
-          after={value === CreateRoomAccess.Public && <Icon src={Icons.Check} />}
+          before={getIcon(CreateRoomAccess.Public)}
+          after={value === CreateRoomAccess.Public && iconAt(Check)}
         >
           <Text size="H6">Public</Text>
           <Text size="T300" priority="300">

@@ -1,19 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 import type { IPreviewUrlResponse } from '$types/matrix-sdk';
-import {
-  Box,
-  Icon,
-  IconButton,
-  Icons,
-  Scroll,
-  Spinner,
-  Text,
-  as,
-  color,
-  config,
-  toRem,
-} from 'folds';
+import { Box, IconButton, Scroll, Spinner, Text, as, color, config, toRem } from 'folds';
+import { ArrowLeft, ArrowRight, iconAt } from '$components/icons/phosphor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp, downloadMedia } from '$utils/matrix';
@@ -461,7 +450,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                 outlined
                 onClick={handleScrollBack}
               >
-                <Icon size="300" src={Icons.ArrowLeft} />
+                {iconAt(ArrowLeft, '300')}
               </IconButton>
             </>
           )}
@@ -486,7 +475,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                 outlined
                 onClick={handleScrollFront}
               >
-                <Icon size="300" src={Icons.ArrowRight} />
+                {iconAt(ArrowRight, '300')}
               </IconButton>
             </>
           )}

@@ -1,4 +1,5 @@
-import { as, Box, Header, Icon, IconButton, Icons, Modal, Scroll, Text } from 'folds';
+import { as, Box, Header, IconButton, Modal, Scroll, Text } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import Linkify from 'linkify-react';
 import { LINKIFY_OPTS, scaleSystemEmoji } from '$plugins/react-custom-html-parser';
@@ -26,7 +27,7 @@ export const RoomTopicViewer = as<
         </Text>
       </Box>
       <IconButton size="300" onClick={requestClose} radii="300">
-        <Icon src={Icons.Cross} />
+        {composerIcon(X)}
       </IconButton>
     </Header>
     <Scroll data-room-topic className={css.ModalScroll} size="300" hideTrack>

@@ -15,7 +15,20 @@ import { NotificationCountType, RoomEvent, ThreadEvent, EventType } from '$types
 import type { SessionMembershipData } from '$types/matrix-sdk';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
-import { Box, Chip, Avatar, Text, Icons, config, toRem, Icon } from 'folds';
+import { Box, Chip, Avatar, Text, config, toRem } from 'folds';
+import {
+  Code,
+  Hash,
+  menuIcon,
+  PencilSimple,
+  Phone,
+  PhoneDisconnect,
+  PushPin,
+  PushPinSlash,
+  Smiley,
+  timelineIcon,
+  Trash,
+} from '$components/icons/phosphor';
 import type { ResolvedHiddenEventSettings } from '$state/hooks/settings';
 import { MessageLayout, type MessageSpacing } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
@@ -442,7 +455,7 @@ export function useTimelineEventRenderer({
         <EventContent
           messageLayout={messageLayout}
           time={timeJSX}
-          iconSrc={Icons.Pencil}
+          icon={timelineIcon(PencilSimple)}
           content={
             <Box grow="Yes" direction="Column">
               {targetReply}
@@ -1139,7 +1152,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={parsed.icon}
+              icon={parsed.icon}
               content={
                 <Text size="T300" priority="300">
                   <Box direction="Row" style={{ flexWrap: 'wrap', columnGap: toRem(6) }}>
@@ -1185,7 +1198,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={Icons.Hash}
+              icon={timelineIcon(Hash)}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -1233,7 +1246,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={Icons.Hash}
+              icon={timelineIcon(Hash)}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -1281,7 +1294,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={Icons.Hash}
+              icon={timelineIcon(Hash)}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -1336,7 +1349,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={callJoined ? Icons.Phone : Icons.PhoneDown}
+              icon={callJoined ? timelineIcon(Phone) : timelineIcon(PhoneDisconnect)}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -1402,7 +1415,7 @@ export function useTimelineEventRenderer({
               <EventContent
                 messageLayout={messageLayout}
                 time={timeJSX}
-                iconSrc={Icons.Delete}
+                icon={timelineIcon(Trash)}
                 content={
                   <Box grow="Yes" direction="Column">
                     {targetReply}
@@ -1444,7 +1457,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={Icons.Smile}
+              icon={timelineIcon(Smiley)}
               content={
                 <Box grow="Yes" direction="Column">
                   {targetReply}
@@ -1518,7 +1531,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={Icons.Delete}
+              icon={timelineIcon(Trash)}
               content={
                 <Box grow="Yes" direction="Column">
                   {targetReply}
@@ -1579,7 +1592,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={Icons.Pin}
+              icon={timelineIcon(PushPin)}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -1599,21 +1612,18 @@ export function useTimelineEventRenderer({
                       `:`}
                   </Text>
                   {pinPreviewIds.length > 0 &&
-                    pinPreviewIds.slice(0, 4).map((x: string) => (
-                      <Reply
-                        key={x}
-                        style={{ opacity: '80%' }}
-                        room={room}
-                        replyEventId={x}
-                        onClick={handleOpenReply}
-                        replyIcon={
-                          <>
-                            <Icon size="100" src={Icons.Pin} />
-                            <Icon size="100" src={pinnedSet.has(x) ? Icons.Plus : Icons.Minus} />
-                          </>
-                        }
-                      />
-                    ))}
+                    pinPreviewIds
+                      .slice(0, 4)
+                      .map((x: string) => (
+                        <Reply
+                          key={x}
+                          style={{ opacity: '80%' }}
+                          room={room}
+                          replyEventId={x}
+                          onClick={handleOpenReply}
+                          replyIcon={<>{menuIcon(pinnedSet.has(x) ? PushPin : PushPinSlash)}</>}
+                        />
+                      ))}
                 </Box>
               }
             />
@@ -1657,7 +1667,7 @@ export function useTimelineEventRenderer({
           <EventContent
             messageLayout={messageLayout}
             time={timeJSX}
-            iconSrc={Icons.Code}
+            icon={timelineIcon(Code)}
             content={
               <Box grow="Yes" direction="Column">
                 <Text size="T300" priority="300">
@@ -1712,7 +1722,7 @@ export function useTimelineEventRenderer({
           <EventContent
             messageLayout={messageLayout}
             time={timeJSX}
-            iconSrc={Icons.Code}
+            icon={timelineIcon(Code)}
             content={
               <Box grow="Yes" direction="Column">
                 <Text size="T300" priority="300">

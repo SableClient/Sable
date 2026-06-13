@@ -1,8 +1,16 @@
 import type { JoinRule } from '$types/matrix-sdk';
-import { AvatarFallback, Icon, Icons, color } from 'folds';
-import type { ComponentProps, ReactNode } from 'react';
+import { AvatarFallback, color } from 'folds';
+import type { ReactNode } from 'react';
 import { forwardRef, useEffect, useState } from 'react';
-import { getRoomIconSrc } from '$utils/room';
+import type { IconProps } from '@phosphor-icons/react';
+import classNames from 'classnames';
+import { iconAt, type IconSizeToken } from '$components/icons/phosphor';
+import {
+  getRoomIconComponent,
+  getRoomIconOverlay,
+  getRoomIconOverlayComponent,
+  getRoomStandaloneIconComponent,
+} from '$components/icons/roomIcons';
 import colorMXID from '$utils/colorMXID';
 import * as css from './RoomAvatar.css';
 import { AvatarImage } from './AvatarImage';
@@ -39,11 +47,48 @@ export function RoomAvatar({ roomId, src, alt, renderFallback, uniformIcons }: R
 }
 
 export const RoomIcon = forwardRef<
-  SVGSVGElement,
-  Omit<ComponentProps<typeof Icon>, 'src'> & {
+  HTMLSpanElement,
+  Omit<IconProps, 'ref'> & {
     joinRule?: JoinRule;
     roomType?: string;
+    size?: IconSizeToken;
+    filled?: boolean;
+    withOverlay?: boolean;
   }
->(({ joinRule, roomType, ...props }, ref) => (
-  <Icon src={getRoomIconSrc(Icons, roomType, joinRule)} {...props} ref={ref} />
-));
+>(
+  (
+    { joinRule, roomType, size = '200', filled, withOverlay = true, className, style, ...props },
+    ref
+  ) => {
+    const Icon = withOverlay
+      ? getRoomIconComponent(roomType, joinRule)
+      : getRoomStandaloneIconComponent(roomType, joinRule);
+    const overlay = withOverlay ? getRoomIconOverlay(roomType, joinRule) : undefined;
+
+    if (overlay) {
+      const OverlayIcon = getRoomIconOverlayComponent(overlay);
+      const overlayWeight = filled ? 'fill' : 'regular';
+      return (
+        <span ref={ref} className={classNames(css.RoomIconRoot, className)} style={style}>
+          <span className={css.RoomIconComposite}>
+            {iconAt(Icon, size, { ...props, filled })}
+            <span
+              className={classNames(css.RoomIconBadge, css.RoomIconBadgeShape[overlay])}
+              aria-hidden
+            >
+              <span className={css.RoomIconBadgeIcon}>
+                <OverlayIcon size="100%" weight={overlayWeight} color={props.color} />
+              </span>
+            </span>
+          </span>
+        </span>
+      );
+    }
+
+    return (
+      <span ref={ref} className={classNames(css.RoomIconRoot, className)} style={style}>
+        {iconAt(Icon, size, { ...props, filled })}
+      </span>
+    );
+  }
+);

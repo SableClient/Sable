@@ -1,6 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Header, Icon, IconButton, Icons, Scroll, Spinner, Text, config, toRem } from 'folds';
+import { Box, Header, IconButton, Scroll, Spinner, Text, config, toRem } from 'folds';
+import { Chats, composerIcon, X } from '$components/icons/phosphor';
 import type { IEvent, Room } from '$types/matrix-sdk';
 import {
   Direction,
@@ -778,7 +779,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       {/* Header */}
       <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
         <Box grow="Yes" alignItems="Center" gap="200">
-          <Icon size="200" src={Icons.Thread} />
+          {composerIcon(Chats)}
           <Text size="H4" truncate>
             Thread
           </Text>
@@ -791,7 +792,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
             radii="300"
             aria-label="Close thread"
           >
-            <Icon size="200" src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Box>
       </Header>
@@ -871,7 +872,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
                   justifyContent="Center"
                   style={{ padding: config.space.S400, gap: config.space.S200 }}
                 >
-                  <Icon size="400" src={Icons.Thread} />
+                  {composerIcon(Chats, { style: { opacity: 0.6 } })}
                   <Text size="T300" align="Center">
                     No replies yet. Start the thread below!
                   </Text>

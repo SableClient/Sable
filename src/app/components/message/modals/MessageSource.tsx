@@ -1,7 +1,8 @@
 import type { MouseEvent } from 'react';
 import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
-import { MenuItem, Icon, Icons, Text } from 'folds';
+import { MenuItem, Text } from 'folds';
+import { CodeBlock, iconAt } from '$components/icons/phosphor';
 import { TextViewer } from '$components/text-viewer';
 import { getEventEdits } from '$utils/room';
 import { modalAtom, ModalType } from '$state/modal';
@@ -13,7 +14,7 @@ export function MessageSourceCodeItem({ room, mEvent }: { room: Room; mEvent: Ma
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.BlockCode} />}
+      after={iconAt(CodeBlock, '100')}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();

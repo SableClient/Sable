@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { Icon, Icons } from 'folds';
 import { useAtomValue } from 'jotai';
 import {
   SidebarAvatar,
@@ -17,6 +16,7 @@ import {
 import { useInboxSelected } from '$hooks/router/useInbox';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
+import { PHOSPHOR_SIZE, Tray } from '$components/icons/phosphor';
 
 export function InboxTab() {
   const screenSize = useScreenSizeContext();
@@ -46,7 +46,7 @@ export function InboxTab() {
       <SidebarItemTooltip tooltip="Inbox">
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleInboxClick}>
-            <Icon src={Icons.Inbox} filled={inboxSelected} />
+            <Tray size={PHOSPHOR_SIZE.toolbar} weight={inboxSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

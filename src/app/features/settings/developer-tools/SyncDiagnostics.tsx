@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Icon, Icons, Text } from 'folds';
+import { Box, Button, Text } from 'folds';
+import { CaretDown, CaretUp, menuIcon } from '$components/icons/phosphor';
 import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getClientSyncDiagnostics } from '$client/initMatrix';
@@ -192,7 +193,7 @@ export function SyncDiagnostics() {
                   fill="Soft"
                   outlined
                   radii="300"
-                  before={<Icon src={expandSliding ? Icons.ChevronTop : Icons.ChevronBottom} />}
+                  before={menuIcon(expandSliding ? CaretUp : CaretDown)}
                   onClick={() => setExpandSliding((v) => !v)}
                 >
                   <Text size="B300">{expandSliding ? 'Collapse' : 'Expand'}</Text>

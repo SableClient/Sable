@@ -5,9 +5,7 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -17,6 +15,17 @@ import {
   color,
   config,
 } from 'folds';
+import {
+  ArrowLeft,
+  CaretDown,
+  CaretUp,
+  Check,
+  EnvelopeSimple,
+  Info,
+  Warning,
+  composerIcon,
+  iconAt,
+} from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import type { RoomTopicEventContent, MatrixClient, MatrixError, Room } from '$types/matrix-sdk';
@@ -372,7 +381,7 @@ function InviteFilters({
         aria-selected={isKnown}
         outlined={!isKnown}
         onClick={() => onFilter(InviteFilter.Known)}
-        before={isKnown && <Icon size="100" src={Icons.Check} />}
+        before={isKnown && iconAt(Check, '100')}
         after={
           knownInvites.length > 0 && (
             <Badge variant={isKnown ? 'Success' : 'Secondary'} fill="Solid" radii="Pill">
@@ -388,7 +397,7 @@ function InviteFilters({
         aria-selected={isUnknown}
         outlined={!isUnknown}
         onClick={() => onFilter(InviteFilter.Unknown)}
-        before={isUnknown && <Icon size="100" src={Icons.Check} />}
+        before={isUnknown && iconAt(Check, '100')}
         after={
           unknownInvites.length > 0 && (
             <Badge variant={isUnknown ? 'Warning' : 'Secondary'} fill="Solid" radii="Pill">
@@ -404,7 +413,7 @@ function InviteFilters({
         aria-selected={isSpam}
         outlined={!isSpam}
         onClick={() => onFilter(InviteFilter.Spam)}
-        before={isSpam && <Icon size="100" src={Icons.Check} />}
+        before={isSpam && iconAt(Check, '100')}
         after={
           spamInvites.length > 0 && (
             <Badge variant={isSpam ? 'Critical' : 'Secondary'} fill="Solid" radii="Pill">
@@ -454,7 +463,7 @@ function KnownInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={<Icon size="600" src={Icons.Mail} />}
+              icon={iconAt(EnvelopeSimple, '600')}
               title="No Invites"
               subTitle="When someone you share a room with sends you an invite, it’ll show up here."
             />
@@ -527,7 +536,7 @@ function UnknownInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={<Icon size="600" src={Icons.Info} />}
+              icon={iconAt(Info, '600')}
               title="No Invites"
               subTitle="Invites from people outside your rooms will appear here."
             />
@@ -602,7 +611,7 @@ function SpamInvites({
           >
             <PageHeroSection>
               <PageHero
-                icon={<Icon size="600" src={Icons.Warning} />}
+                icon={iconAt(Warning, '600')}
                 title={`${invites.length} Spam Invites`}
                 subTitle="Some of the following invites may contain harmful content or have been sent by banned users."
               >
@@ -659,9 +668,7 @@ function SpamInvites({
                   variant="Secondary"
                   fill="Soft"
                   radii="Pill"
-                  before={
-                    <Icon size="100" src={showInvites ? Icons.ChevronTop : Icons.ChevronBottom} />
-                  }
+                  before={iconAt(showInvites ? CaretUp : CaretDown, '100')}
                   onClick={() => setShowInvites(!showInvites)}
                 >
                   <Text size="B300">{showInvites ? 'Hide All' : 'View All'}</Text>
@@ -686,7 +693,7 @@ function SpamInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={<Icon size="600" src={Icons.Warning} />}
+              icon={iconAt(Warning, '600')}
               title="No Spam Invites"
               subTitle="Invites detected as spam appear here."
             />
@@ -759,16 +766,12 @@ export function Invites() {
           <Box grow="Yes" basis="No">
             {screenSize === ScreenSize.Mobile && (
               <BackRouteHandler>
-                {(onBack) => (
-                  <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
-                  </IconButton>
-                )}
+                {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
               </BackRouteHandler>
             )}
           </Box>
           <Box alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Mail} />}
+            {screenSize !== ScreenSize.Mobile && iconAt(EnvelopeSimple, '400')}
             <Text size="H3" truncate>
               Invites
             </Text>

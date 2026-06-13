@@ -1,5 +1,4 @@
-import type { IconSrc } from 'folds';
-import { Box, Chip, Icon, Icons, Text, as, color, toRem } from 'folds';
+import { Box, Chip, Text, as, color, toRem } from 'folds';
 import type { EventTimelineSet, IMentions, Room, SessionMembershipData } from '$types/matrix-sdk';
 import { EventType, MsgType } from '$types/matrix-sdk';
 import type { MouseEventHandler, ReactNode } from 'react';
@@ -8,6 +7,23 @@ import { useQueryClient } from '@tanstack/react-query';
 import classNames from 'classnames';
 import parse from 'html-react-parser';
 import { useAtomValue } from 'jotai';
+import {
+  ArrowBendUpRightIcon,
+  ArrowsClockwise,
+  At,
+  ChatCircle,
+  chipIcon,
+  Code,
+  Hash,
+  ListBullets,
+  menuIcon,
+  Phone,
+  PhoneDisconnect,
+  PushPin,
+  timelineIcon,
+  Trash,
+  Smiley,
+} from '$components/icons/phosphor';
 import {
   getMemberDisplayName,
   getReactionKey,
@@ -153,7 +169,7 @@ export const replyPreviewBodyForTimelineEvent = (
 type ReplyLayoutProps = {
   userColor?: string;
   username?: ReactNode;
-  icon?: IconSrc;
+  icon?: ReactNode;
   mentioned: boolean;
   replyIcon?: JSX.Element;
 };
@@ -167,11 +183,11 @@ export const ReplyLayout = as<'div', ReplyLayoutProps>(
       ref={ref}
     >
       <Box style={{ color: userColor }} alignItems="Center" shrink="No">
-        {replyIcon || <Icon size="100" src={Icons.ReplyArrow} />}
+        {replyIcon ?? menuIcon(ArrowBendUpRightIcon)}
       </Box>
-      {!!icon && <Icon style={{ opacity: 0.6 }} size="50" src={icon} />}
+      {icon}
       <Box style={{ color: userColor, maxWidth: toRem(200) }} alignItems="Center" shrink="No">
-        {mentioned && <Icon size="100" src={Icons.Mention} />}
+        {mentioned && menuIcon(At)}
         {username}
       </Box>
       <Box grow="Yes" className={css.ReplyContent}>
@@ -190,7 +206,7 @@ export const ThreadIndicator = as<'div'>(({ ...props }, ref) => (
     {...props}
     ref={ref}
   >
-    <Icon size="50" src={Icons.Thread} />
+    {chipIcon(ChatCircle)}
     <Text size="L400">Thread</Text>
   </Box>
 ));
@@ -312,7 +328,7 @@ export const Reply = as<'div', ReplyProps>(
       !replyEvent.getClearContent();
 
     let bodyJSX: ReactNode = fallbackBody;
-    let image: IconSrc | undefined;
+    let image: ReactNode | undefined;
     let mentioned = sender != null && (mentions?.user_ids?.includes(sender) ?? false);
 
     const replyLinkifyOpts = useMemo(
@@ -339,7 +355,7 @@ export const Reply = as<'div', ReplyProps>(
           question: { [M_TEXT.name]?: string; body?: string };
         }
       )?.question;
-      image = Icons.UnorderList;
+      image = timelineIcon(ListBullets);
       bodyJSX = `'s poll asking ${(question[M_TEXT.name] as string) ?? question.body ?? ''}`;
     } else if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
@@ -378,20 +394,20 @@ export const Reply = as<'div', ReplyProps>(
         </Box>
       );
     } else if (eventType === EventType.RoomName) {
-      image = Icons.Hash;
+      image = timelineIcon(Hash);
       bodyJSX = t('Organisms.RoomCommon.changed_room_name');
     } else if (eventType === EventType.RoomTopic) {
-      image = Icons.Hash;
+      image = timelineIcon(Hash);
       bodyJSX = ' changed room topic';
     } else if (eventType === EventType.RoomAvatar) {
-      image = Icons.Hash;
+      image = timelineIcon(Hash);
       bodyJSX = ' changed room avatar';
     } else if (eventType === EventType.GroupCallMemberPrefix && !!replyEvent) {
       const callJoined = replyEvent.getContent<SessionMembershipData>().application;
-      image = callJoined ? Icons.Phone : Icons.PhoneDown;
+      image = callJoined ? timelineIcon(Phone) : timelineIcon(PhoneDisconnect);
       bodyJSX = callJoined ? ' joined the call' : ' ended the call';
     } else if (eventType === EventType.RoomRedaction && replyEvent) {
-      image = Icons.Delete;
+      image = timelineIcon(Trash);
       const redactionTargetId = getRedactionTargetId(replyEvent);
       const redactionTarget = redactionTargetId
         ? (timelineSet?.findEventById(redactionTargetId) ??
@@ -403,7 +419,7 @@ export const Reply = as<'div', ReplyProps>(
           ? ' redacted a reaction'
           : ' redacted a message';
     } else if (eventType === EventType.Reaction && !!replyEvent) {
-      image = isRedacted ? Icons.Delete : Icons.Smile;
+      image = isRedacted ? timelineIcon(Trash) : timelineIcon(Smiley);
       if (isRedacted) {
         bodyJSX = (
           <ReactionDeletedContent
@@ -436,7 +452,7 @@ export const Reply = as<'div', ReplyProps>(
         prevPinned && pinned && pinned.filter((x: string) => !prevPinned.includes(x));
       const pinsRemoved =
         prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x));
-      image = Icons.Pin;
+      image = timelineIcon(PushPin);
       bodyJSX = (
         <>
           {(pinsAdded?.length > 0 &&
@@ -460,7 +476,7 @@ export const Reply = as<'div', ReplyProps>(
       if (timelinePreview !== undefined) {
         bodyJSX = timelinePreview;
       } else if (replyEvent.isState()) {
-        image = Icons.Code;
+        image = timelineIcon(Code);
         bodyJSX = (
           <>
             {' sent '}
@@ -527,7 +543,7 @@ export const Reply = as<'div', ReplyProps>(
           <Chip
             variant="Critical"
             radii="Pill"
-            before={<Icon size="50" src={Icons.Reload} />}
+            before={menuIcon(ArrowsClockwise)}
             onClick={(evt) => {
               evt.stopPropagation();
               void queryClient.invalidateQueries({

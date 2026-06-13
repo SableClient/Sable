@@ -3,8 +3,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Scroll,
   Button,
   config,
@@ -13,6 +11,7 @@ import {
   PopOut,
   type RectCords,
 } from 'folds';
+import { CaretDown, composerIcon, X } from '$components/icons/phosphor';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -51,7 +50,7 @@ export function SelectShowPerRoomRoomIcon({ roomId }: { roomId: string }) {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -115,7 +114,7 @@ export function Appearance({ requestClose }: AppearanceProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

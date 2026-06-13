@@ -1,5 +1,6 @@
 import type { Room } from '$types/matrix-sdk';
-import { Box, Icon, Icons, Text } from 'folds';
+import { Box, Text } from 'folds';
+import { iconAt, Microphone } from '$components/icons/phosphor';
 import { getMemberDisplayName } from '../../utils/room';
 import { getMxIdLocalPart } from '../../utils/matrix';
 
@@ -13,7 +14,7 @@ export function MemberSpeaking({ room, speakers }: MemberSpeakingProps) {
   );
   return (
     <Box alignItems="Center" gap="100">
-      <Icon size="100" src={Icons.Mic} filled />
+      {iconAt(Microphone, '100', { filled: true })}
       <Text size="T200" truncate>
         {speakingNames.length === 1 && (
           <>

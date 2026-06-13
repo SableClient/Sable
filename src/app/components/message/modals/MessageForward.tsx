@@ -2,7 +2,8 @@
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { modalAtom, ModalType } from '$state/modal';
-import { Icon, Icons, MenuItem, Text, as } from 'folds';
+import { MenuItem, Text, as } from 'folds';
+import { ArrowRight, iconAt } from '$components/icons/phosphor';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -38,7 +39,7 @@ export const MessageForwardItem = as<'button', MessageForwardItemProps>(
     return (
       <MenuItem
         size="300"
-        after={<Icon size="100" src={Icons.ArrowRight} />}
+        after={iconAt(ArrowRight, '100')}
         radii="300"
         {...props}
         onClick={handleClick}

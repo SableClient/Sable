@@ -192,6 +192,7 @@ export interface Settings {
   closeFoldersByDefault: boolean;
   perRoomShowRoomIcon: PerRoomShowRoomIcon[];
   showRoomIcon: ShowRoomIcon;
+  roomIconOverlay: boolean;
   showRoomBanners: boolean;
   roomSidebarWidth: number;
   roomBannerHeight: number;
@@ -338,6 +339,7 @@ export const defaultSettings: Settings = {
   closeFoldersByDefault: false,
   perRoomShowRoomIcon: [],
   showRoomIcon: ShowRoomIcon.Smart,
+  roomIconOverlay: true,
   showRoomBanners: true,
   roomSidebarWidth: 256,
   roomBannerHeight: 190,

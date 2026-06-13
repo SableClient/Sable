@@ -3,8 +3,6 @@ import { useCallback, useState } from 'react';
 import {
   Box,
   Button,
-  Icon,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -15,6 +13,7 @@ import {
   TooltipProvider,
   as,
 } from 'folds';
+import { ArrowRight, Download, iconAt, Warning } from '$components/icons/phosphor';
 import FileSaver from 'file-saver';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FocusTrap from 'focus-trap-react';
@@ -52,7 +51,7 @@ const renderErrorButton = (retry: () => void, text: string) => (
         outlined
         radii="300"
         onClick={retry}
-        before={<Icon size="100" src={Icons.Warning} filled />}
+        before={iconAt(Warning, '100', { filled: true })}
       >
         <Text size="B400" truncate>
           {text}
@@ -141,7 +140,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
             textState.status === AsyncStatus.Loading ? (
               <Spinner fill="Solid" size="100" variant="Secondary" />
             ) : (
-              <Icon size="100" src={Icons.ArrowRight} filled />
+              iconAt(ArrowRight, '100', { filled: true })
             )
           }
         >
@@ -225,7 +224,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
             pdfState.status === AsyncStatus.Loading ? (
               <Spinner fill="Solid" size="100" variant="Secondary" />
             ) : (
-              <Icon size="100" src={Icons.ArrowRight} filled />
+              iconAt(ArrowRight, '100', { filled: true })
             )
           }
         >
@@ -281,7 +280,7 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
         downloadState.status === AsyncStatus.Loading ? (
           <Spinner fill="Soft" size="100" variant="Secondary" />
         ) : (
-          <Icon size="100" src={Icons.Download} filled />
+          iconAt(Download, '100', { filled: true })
         )
       }
     >

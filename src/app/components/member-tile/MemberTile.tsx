@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { as, Avatar, Box, Icon, Icons, Text } from 'folds';
+import { as, Avatar, Box, Text } from 'folds';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
@@ -44,7 +45,7 @@ export const MemberTile = as<'button', MemberTileProps>(
             userId={member.userId}
             src={avatarUrl ?? undefined}
             alt={name}
-            renderFallback={() => <Icon size="300" src={Icons.User} filled />}
+            renderFallback={() => userFallbackIcon('xl')}
           />
         </Avatar>
         <Box grow="Yes" as="span" direction="Column">

@@ -6,14 +6,13 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Text,
 } from 'folds';
+import { iconAt, X } from '$components/icons/phosphor';
 import { useStore } from 'jotai/react';
 
 import { useOptionalClientConfig } from '$hooks/useClientConfig';
@@ -116,7 +115,7 @@ export function ThemeMigrationBanner() {
                 disabled={busy}
                 aria-label="Close"
               >
-                <Icon src={Icons.Cross} size="100" />
+                {iconAt(X, '100')}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

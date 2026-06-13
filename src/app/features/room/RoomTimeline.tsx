@@ -16,20 +16,8 @@ import classNames from 'classnames';
 import type { VListHandle } from 'virtua';
 import { VList } from 'virtua';
 import type { ContainerColor } from 'folds';
-import {
-  as,
-  Box,
-  Chip,
-  Icon,
-  Icons,
-  Line,
-  Text,
-  Badge,
-  color,
-  config,
-  toRem,
-  Spinner,
-} from 'folds';
+import { as, Box, Chip, Line, Text, Badge, color, config, toRem, Spinner } from 'folds';
+import { ArrowDown, ChatTeardropDots, Checks, chipIcon } from '$components/icons/phosphor';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -873,7 +861,7 @@ export function RoomTimeline({
             variant="Primary"
             radii="Pill"
             outlined
-            before={<Icon size="50" src={Icons.MessageUnread} />}
+            before={chipIcon(ChatTeardropDots)}
             onClick={() => timelineSync.loadEventTimeline(unreadInfo.readUptoEventId)}
           >
             <Text size="L400">Jump to Unread</Text>
@@ -882,7 +870,7 @@ export function RoomTimeline({
             variant="SurfaceVariant"
             radii="Pill"
             outlined
-            before={<Icon size="50" src={Icons.CheckTwice} />}
+            before={chipIcon(Checks)}
             onClick={() => markAsRead(mx, room.roomId, hideReads)}
           >
             <Text size="L400">Mark as Read</Text>
@@ -1035,7 +1023,7 @@ export function RoomTimeline({
             variant="SurfaceVariant"
             radii="Pill"
             outlined
-            before={<Icon size="50" src={Icons.ArrowBottom} />}
+            before={chipIcon(ArrowDown)}
             onClick={() => {
               if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
               timelineSync.setTimeline(getInitialTimeline(room));

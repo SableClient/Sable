@@ -4,8 +4,6 @@ import {
   Box,
   Text,
   Button,
-  Icon,
-  Icons,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -17,6 +15,7 @@ import {
   IconButton,
   Menu,
 } from 'folds';
+import { composerIcon, menuIcon, Plus, Sticker, X } from '$components/icons/phosphor';
 import type { MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import type { ImagePack, PackAddress, PackContent } from '$plugins/custom-emoji';
@@ -219,7 +218,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                     onClick={() => handleUndoRemove(address)}
                     disabled={applyingChanges}
                   >
-                    <Icon src={Icons.Plus} size="100" />
+                    {menuIcon(Plus)}
                   </IconButton>
                 ) : (
                   <IconButton
@@ -229,16 +228,14 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                     onClick={() => handleRemove(address)}
                     disabled={applyingChanges}
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    {menuIcon(X)}
                   </IconButton>
                 ))}
               <Avatar size="300" radii="300">
                 {avatarUrl ? (
                   <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
                 ) : (
-                  <AvatarFallback>
-                    <Icon size="400" src={Icons.Sticker} filled />
-                  </AvatarFallback>
+                  <AvatarFallback>{composerIcon(Sticker, { weight: 'fill' })}</AvatarFallback>
                 )}
               </Avatar>
             </Box>

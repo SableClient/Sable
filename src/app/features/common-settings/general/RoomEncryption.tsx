@@ -6,15 +6,14 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Spinner,
   Text,
 } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { useCallback, useState } from 'react';
 import type { MatrixError, StateEvents } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
@@ -125,7 +124,7 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
                       <Text size="H4">Enable Encryption</Text>
                     </Box>
                     <IconButton size="300" onClick={() => setPrompt(false)} radii="300">
-                      <Icon src={Icons.Cross} />
+                      {composerIcon(X)}
                     </IconButton>
                   </Header>
                   <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

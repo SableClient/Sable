@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
-  Icon,
   IconButton,
-  Icons,
   Spinner,
   Switch,
   Text,
@@ -13,6 +11,7 @@ import {
   config,
   toRem,
 } from 'folds';
+import { Check, Link, Star, Warning, iconAt } from '$components/icons/phosphor';
 
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
@@ -285,14 +284,17 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
                 }
               >
                 {(triggerRef) => (
-                  <Icon
+                  <span
                     ref={triggerRef}
-                    src={Icons.Warning}
-                    size="100"
-                    filled
-                    style={{ color: 'var(--sable-warn-on-container)', flexShrink: 0 }}
                     aria-label="Third-party tweak"
-                  />
+                    style={{
+                      color: 'var(--sable-warn-on-container)',
+                      flexShrink: 0,
+                      display: 'inline-flex',
+                    }}
+                  >
+                    {iconAt(Warning, '100', { filled: true })}
+                  </span>
                 )}
               </TooltipProvider>
             )}
@@ -319,7 +321,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
               handleCopy().catch(() => undefined);
             }}
           >
-            <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+            {iconAt(copied ? Check : Link, '200')}
           </IconButton>
           <IconButton
             size="300"
@@ -332,7 +334,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
               toggleFavorite().catch(() => undefined);
             }}
           >
-            <Icon size="200" src={Icons.Star} filled={isFav} />
+            {iconAt(Star, '200', { filled: isFav })}
           </IconButton>
           <Switch
             variant="Primary"

@@ -3,9 +3,7 @@ import {
   Avatar,
   Box,
   config,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Line,
   MenuItem,
@@ -16,6 +14,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { MagnifyingGlass, X, composerIcon, menuIcon } from '$components/icons/phosphor';
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -310,7 +309,7 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
                   aria-label="Close"
                   disabled={pickRoom.busy}
                 >
-                  <Icon src={Icons.Cross} />
+                  {composerIcon(X)}
                 </IconButton>
               </Box>
             )}
@@ -333,7 +332,7 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
                 radii="400"
                 outlined
                 placeholder={pickRoom ? 'Search rooms' : 'Search'}
-                before={<Icon size="200" src={Icons.Search} />}
+                before={menuIcon(MagnifyingGlass)}
                 onChange={handleInputChange}
                 onKeyDown={handleInputKeyDown}
                 disabled={pickRoom?.busy}

@@ -5,9 +5,7 @@ import {
   Button,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -19,6 +17,14 @@ import {
   Spinner,
   Text,
 } from 'folds';
+import {
+  Check,
+  MagnifyingGlass,
+  X,
+  composerIcon,
+  iconAt,
+  menuIcon,
+} from '$components/icons/phosphor';
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
@@ -220,7 +226,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                 </Box>
                 <Box shrink="No">
                   <IconButton size="300" radii="300" onClick={requestClose}>
-                    <Icon src={Icons.Cross} />
+                    {composerIcon(X)}
                   </IconButton>
                 </Box>
               </Header>
@@ -241,7 +247,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                     >
                       <Input
                         onChange={handleSearchChange}
-                        before={<Icon size="200" src={Icons.Search} />}
+                        before={menuIcon(MagnifyingGlass)}
                         placeholder="Search"
                         size="400"
                         variant="Background"
@@ -322,7 +328,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                                   )}
                                 </Avatar>
                               }
-                              after={selectedItem && <Icon size="200" src={Icons.Check} />}
+                              after={selectedItem && iconAt(Check, '200')}
                             >
                               <Box grow="Yes">
                                 <Text truncate size="T400">

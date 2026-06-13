@@ -1,6 +1,13 @@
 import type { CallMembership, SessionMembershipData } from '$types/matrix-sdk';
 import { useState } from 'react';
-import { Avatar, Box, Icon, Icons, Text } from 'folds';
+import { Avatar, Box, Text } from 'folds';
+import {
+  CaretDown,
+  CaretUp,
+  iconAt,
+  userFallbackIcon,
+  VideoCameraSlash,
+} from '$components/icons/phosphor';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
@@ -63,7 +70,7 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
             userId={userId}
             src={avatarUrl}
             alt={name}
-            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+            renderFallback={() => userFallbackIcon('sm')}
           />
         </Avatar>
         <Box grow="Yes">
@@ -71,7 +78,7 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
             {name}
           </Text>
         </Box>
-        {audioOnly && <Icon src={Icons.VideoCameraMute} size="100" />}
+        {audioOnly && iconAt(VideoCameraSlash, '100')}
       </Box>
     </SequenceCard>
   );
@@ -113,7 +120,7 @@ export function CallMemberRenderer({
               </Text>
             )}
           </Box>
-          <Icon src={viewMore ? Icons.ChevronTop : Icons.ChevronBottom} size="100" />
+          {iconAt(viewMore ? CaretUp : CaretDown, '100')}
         </SequenceCard>
       )}
     </>

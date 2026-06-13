@@ -1,18 +1,15 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Avatar, Box, Chip, Header, IconButton, Scroll, Text, config, toRem } from 'folds';
 import {
-  Avatar,
-  Box,
-  Chip,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Scroll,
-  Text,
-  config,
-  toRem,
-} from 'folds';
+  ArrowLeft,
+  CaretUp,
+  ChatCircle,
+  Check,
+  Checks,
+  composerIcon,
+  iconAt,
+} from '$components/icons/phosphor';
 import { useSearchParams } from 'react-router-dom';
 import type { INotification, INotificationsResponse, IRoomEvent, Room } from '$types/matrix-sdk';
 import type { IImageContent } from '$types/matrix/common';
@@ -73,6 +70,7 @@ import { markAsRead } from '$utils/notifications';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { VirtualTile } from '$components/virtualizer';
 import { UserAvatar } from '$components/user-avatar';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import { EncryptedContent } from '$features/room/message';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
@@ -464,7 +462,7 @@ function RoomNotificationsGroupComp({
               variant="Primary"
               radii="Pill"
               onClick={handleMarkAsRead}
-              before={<Icon size="100" src={Icons.CheckTwice} />}
+              before={iconAt(Checks, '100')}
             >
               <Text size="T200">Mark as Read</Text>
             </Chip>
@@ -526,7 +524,7 @@ function RoomNotificationsGroupComp({
                             : undefined
                         }
                         alt={displayName}
-                        renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+                        renderFallback={() => userFallbackIcon('lg')}
                       />
                     </Avatar>
                   </AvatarBase>
@@ -665,16 +663,12 @@ export function Notifications() {
           <Box grow="Yes" basis="No">
             {screenSize === ScreenSize.Mobile && (
               <BackRouteHandler>
-                {(onBack) => (
-                  <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
-                  </IconButton>
-                )}
+                {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
               </BackRouteHandler>
             )}
           </Box>
           <Box alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Message} />}
+            {screenSize !== ScreenSize.Mobile && iconAt(ChatCircle, '400')}
             <Text size="H3" truncate>
               Notification Messages
             </Text>
@@ -696,7 +690,7 @@ export function Notifications() {
                       onClick={() => setOnlyHighlighted(false)}
                       variant={onlyHighlight ? 'Surface' : 'Success'}
                       aria-pressed={!onlyHighlight}
-                      before={!onlyHighlight && <Icon size="100" src={Icons.Check} />}
+                      before={!onlyHighlight && iconAt(Check, '100')}
                       outlined
                     >
                       <Text size="T200">All Notifications</Text>
@@ -705,7 +699,7 @@ export function Notifications() {
                       onClick={() => setOnlyHighlighted(true)}
                       variant={onlyHighlight ? 'Success' : 'Surface'}
                       aria-pressed={onlyHighlight}
-                      before={onlyHighlight && <Icon size="100" src={Icons.Check} />}
+                      before={onlyHighlight && iconAt(Check, '100')}
                       outlined
                     >
                       <Text size="T200">Highlighted</Text>
@@ -721,7 +715,7 @@ export function Notifications() {
                     size="300"
                     aria-label="Scroll to Top"
                   >
-                    <Icon src={Icons.ChevronTop} size="300" />
+                    {composerIcon(CaretUp)}
                   </IconButton>
                 </ScrollTopContainer>
                 <div

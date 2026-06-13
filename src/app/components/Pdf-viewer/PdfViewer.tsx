@@ -7,9 +7,7 @@ import {
   Button,
   Chip,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   PopOut,
@@ -19,6 +17,16 @@ import {
   as,
   config,
 } from 'folds';
+import {
+  ArrowLeft,
+  CaretLeft,
+  CaretRight,
+  Download,
+  Minus,
+  Plus,
+  Warning,
+  iconAt,
+} from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import FileSaver from 'file-saver';
 import { AsyncStatus } from '$hooks/useAsyncCallback';
@@ -120,7 +128,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
         <Header className={css.PdfViewerHeader} size="400">
           <Box grow="Yes" alignItems="Center" gap="200">
             <IconButton size="300" radii="300" onClick={requestClose}>
-              <Icon size="50" src={Icons.ArrowLeft} />
+              {iconAt(ArrowLeft, '50')}
             </IconButton>
             <Text size="T300" truncate>
               {name}
@@ -135,7 +143,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
               onClick={zoomOut}
               aria-label="Zoom Out"
             >
-              <Icon size="50" src={Icons.Minus} />
+              {iconAt(Minus, '50')}
             </IconButton>
             <Chip variant="SurfaceVariant" radii="Pill" onClick={() => setZoom(zoom === 1 ? 2 : 1)}>
               <Text size="B300">{Math.round(zoom * 100)}%</Text>
@@ -148,13 +156,13 @@ export const PdfViewer = as<'div', PdfViewerProps>(
               onClick={zoomIn}
               aria-label="Zoom In"
             >
-              <Icon size="50" src={Icons.Plus} />
+              {iconAt(Plus, '50')}
             </IconButton>
             <Chip
               variant="Primary"
               onClick={handleDownload}
               radii="300"
-              before={<Icon size="50" src={Icons.Download} />}
+              before={iconAt(Download, '50')}
             >
               <Text size="B300">Download</Text>
             </Chip>
@@ -170,7 +178,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
                 fill="Soft"
                 size="300"
                 radii="300"
-                before={<Icon src={Icons.Warning} size="50" />}
+                before={iconAt(Warning, '50')}
                 onClick={loadPdfJS}
               >
                 <Text size="B300">Retry</Text>
@@ -201,7 +209,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
             <Chip
               variant="Secondary"
               radii="300"
-              before={<Icon size="50" src={Icons.ChevronLeft} />}
+              before={iconAt(CaretLeft, '50')}
               onClick={handlePrevPage}
               aria-disabled={pageNo <= 1}
             >
@@ -263,7 +271,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
             <Chip
               variant="Primary"
               radii="300"
-              after={<Icon size="50" src={Icons.ChevronRight} />}
+              after={iconAt(CaretRight, '50')}
               onClick={handleNextPage}
               aria-disabled={pageNo >= docState.data.numPages}
             >

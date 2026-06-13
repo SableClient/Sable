@@ -1,4 +1,5 @@
-import { Box, Button, Dialog, Icon, Icons, Text, color, config } from 'folds';
+import { Box, Button, Dialog, Text, color, config } from 'folds';
+import { Warning, iconAt } from '$components/icons/phosphor';
 import * as Sentry from '@sentry/react';
 import { SplashScreen } from '$components/splash-screen';
 import { buildGitHubUrl } from '$features/bug-report/BugReportModal';
@@ -48,12 +49,7 @@ export function ErrorPage({ error, eventId }: ErrorPageProps) {
           <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
             <Box direction="Column" gap="100">
               <Box alignItems="Center" gap="200">
-                <Icon
-                  size="300"
-                  src={Icons.Warning}
-                  filled
-                  style={{ color: color.Critical.Main }}
-                />
+                {iconAt(Warning, '300', { filled: true, style: { color: color.Critical.Main } })}
                 <Text size="H2">Oops! Something went wrong</Text>
               </Box>
               <Text size="T300">

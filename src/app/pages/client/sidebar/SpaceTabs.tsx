@@ -1,5 +1,6 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode, RefObject, ChangeEvent } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
 import {
@@ -7,9 +8,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Line,
   Menu,
@@ -22,7 +21,19 @@ import {
   config,
   toRem,
 } from 'folds';
-import { useAtom, useAtomValue } from 'jotai';
+import {
+  CaretUp,
+  Checks,
+  composerIcon,
+  GearSix,
+  Link,
+  menuIcon,
+  navIcon,
+  PencilSimple,
+  PushPinSlash,
+  UserPlus,
+  X,
+} from '$components/icons/phosphor';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
 import {
   draggable,
@@ -158,7 +169,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
           <MenuItem
             onClick={handleMarkAsRead}
             size="300"
-            after={<Icon size="100" src={Icons.CheckTwice} />}
+            after={menuIcon(Checks)}
             radii="300"
             disabled={!unread}
           >
@@ -167,12 +178,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
             </Text>
           </MenuItem>
           {onUnpin && (
-            <MenuItem
-              size="300"
-              radii="300"
-              onClick={handleUnpin}
-              after={<Icon size="100" src={Icons.Pin} />}
-            >
+            <MenuItem size="300" radii="300" onClick={handleUnpin} after={menuIcon(PushPinSlash)}>
               <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
                 Unpin
               </Text>
@@ -186,7 +192,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
             variant="Primary"
             fill="None"
             size="300"
-            after={<Icon size="100" src={Icons.UserPlus} />}
+            after={menuIcon(UserPlus)}
             radii="300"
             aria-pressed={invitePrompt}
             disabled={!canInvite}
@@ -195,22 +201,12 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
               Invite
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleCopyLink}
-            size="300"
-            after={<Icon size="100" src={Icons.Link} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Copy Link
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleRoomSettings}
-            size="300"
-            after={<Icon size="100" src={Icons.Setting} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleRoomSettings} size="300" after={menuIcon(GearSix)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Space Settings
             </Text>
@@ -236,7 +232,7 @@ const FolderMenu = forwardRef<HTMLDivElement, FolderMenuProps>(
             onRename();
             requestClose();
           }}
-          after={<Icon size="100" src={Icons.Pencil} />}
+          after={menuIcon(PencilSimple)}
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Rename
@@ -296,7 +292,7 @@ function RenameFolderDialog({ mx, folder, onClose, onSave }: Readonly<RenameFold
                 <Text size="H4">Rename Folder</Text>
               </Box>
               <IconButton size="300" onClick={onClose} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box
@@ -644,7 +640,7 @@ function OpenedSpaceFolder({
       <SidebarFolderDropTarget ref={aboveTargetRef} position="Top" />
       <SidebarAvatar size="300" onContextMenu={onFolderContextMenu}>
         <IconButton data-id={folder.id} size="300" variant="Background" onClick={onClose}>
-          <Icon size="400" src={Icons.ChevronTop} filled />
+          {navIcon(CaretUp, { weight: 'fill' })}
         </IconButton>
       </SidebarAvatar>
       {children}

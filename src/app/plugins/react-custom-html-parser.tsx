@@ -5,7 +5,8 @@ import type { HTMLReactParserOptions } from 'html-react-parser';
 import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
 import type { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
-import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
+import { Box, Chip, config, Header, IconButton, Scroll, Text, toRem } from 'folds';
+import { CaretDown, CaretUp, ChatCircle, Check, GearSix, iconAt } from '$components/icons/phosphor';
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';
@@ -248,7 +249,7 @@ export const renderMatrixMention = (
         data-mention-via={viaServers?.join(',')}
       >
         <span aria-hidden="true" className={css.MentionIcon}>
-          <Icon size="50" src={Icons.Message} />
+          {iconAt(ChatCircle, '50')}
         </span>
         {label}
       </a>
@@ -277,7 +278,7 @@ const renderSettingsLink = ({
     data-settings-link-focus={focus}
   >
     <span aria-hidden="true" className={css.MentionIcon}>
-      <Icon size="50" src={Icons.Setting} />
+      {iconAt(GearSix, '50')}
     </span>
     {getSettingsLinkChipLabel(section, focus)}
   </a>
@@ -452,7 +453,7 @@ export function CodeBlock({
             fill="None"
             radii="Pill"
             onClick={handleCopy}
-            before={copied && <Icon size="50" src={Icons.Check} />}
+            before={copied && iconAt(Check, '50')}
           >
             <Text size="B300">{copied ? 'Copied' : 'Copy'}</Text>
           </Chip>
@@ -465,7 +466,7 @@ export function CodeBlock({
               onClick={toggleExpand}
               aria-label={expanded ? 'Collapse' : 'Expand'}
             >
-              <Icon size="50" src={expanded ? Icons.ChevronTop : Icons.ChevronBottom} />
+              {iconAt(expanded ? CaretUp : CaretDown, '50')}
             </IconButton>
           )}
         </Box>

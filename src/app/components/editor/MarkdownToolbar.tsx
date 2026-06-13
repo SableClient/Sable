@@ -1,12 +1,10 @@
 import FocusTrap from 'focus-trap-react';
-import type { IconSrc, RectCords } from 'folds';
+import type { RectCords } from 'folds';
 import {
   Badge,
   Box,
   config,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   PopOut,
@@ -32,6 +30,26 @@ import {
   INLINE_HOTKEYS,
 } from './keyboard';
 import * as css from './Editor.css';
+import {
+  CaretDown,
+  Code,
+  CodeBlock,
+  composerIcon,
+  EyeSlash,
+  iconAt,
+  ListBullets,
+  ListNumbers,
+  Quotes,
+  TextAa,
+  TextB,
+  TextHOne,
+  TextHThree,
+  TextHTwo,
+  TextItalic,
+  TextStrikethrough,
+  TextUnderline,
+  type PhosphorIcon,
+} from '$components/icons/phosphor';
 
 function BtnTooltip({ text, shortCode }: { text: string; shortCode?: string }) {
   return (
@@ -52,7 +70,7 @@ function BtnTooltip({ text, shortCode }: { text: string; shortCode?: string }) {
 
 type MarkdownInlineButtonProps = {
   marker: string;
-  icon: IconSrc;
+  icon: PhosphorIcon;
   tooltip: ReactNode;
 };
 
@@ -74,7 +92,7 @@ function MarkdownInlineButton({ marker, icon, tooltip }: MarkdownInlineButtonPro
           size="400"
           radii="300"
         >
-          <Icon size="200" src={icon} />
+          {iconAt(icon, '200')}
         </IconButton>
       )}
     </TooltipProvider>
@@ -83,7 +101,7 @@ function MarkdownInlineButton({ marker, icon, tooltip }: MarkdownInlineButtonPro
 
 type MarkdownBlockButtonProps = {
   prefix: string;
-  icon: IconSrc;
+  icon: PhosphorIcon;
   tooltip: ReactNode;
 };
 
@@ -105,7 +123,7 @@ function MarkdownBlockButton({ prefix, icon, tooltip }: MarkdownBlockButtonProps
           size="400"
           radii="300"
         >
-          <Icon size="200" src={icon} />
+          {iconAt(icon, '200')}
         </IconButton>
       )}
     </TooltipProvider>
@@ -157,7 +175,7 @@ function MarkdownHeadingButton() {
                     size="400"
                     radii="300"
                   >
-                    <Icon size="200" src={Icons.Heading1} />
+                    {iconAt(TextHOne, '200')}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -172,7 +190,7 @@ function MarkdownHeadingButton() {
                     size="400"
                     radii="300"
                   >
-                    <Icon size="200" src={Icons.Heading2} />
+                    {iconAt(TextHTwo, '200')}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -187,7 +205,7 @@ function MarkdownHeadingButton() {
                     size="400"
                     radii="300"
                   >
-                    <Icon size="200" src={Icons.Heading3} />
+                    {iconAt(TextHThree, '200')}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -205,8 +223,8 @@ function MarkdownHeadingButton() {
         aria-haspopup="menu"
         aria-expanded={!!anchor}
       >
-        <Icon size="200" src={Icons.Heading1} />
-        <Icon size="200" src={Icons.ChevronBottom} />
+        {iconAt(TextHOne, '200')}
+        {iconAt(CaretDown, '200')}
       </IconButton>
     </PopOut>
   );
@@ -222,32 +240,32 @@ export function MarkdownToolbar() {
           <Box shrink="No" gap="100">
             <MarkdownInlineButton
               marker={INLINE_HOTKEYS['mod+b']!}
-              icon={Icons.Bold}
+              icon={TextB}
               tooltip={<BtnTooltip text="Bold" shortCode={`${modKey} + B`} />}
             />
             <MarkdownInlineButton
               marker={INLINE_HOTKEYS['mod+i']!}
-              icon={Icons.Italic}
+              icon={TextItalic}
               tooltip={<BtnTooltip text="Italic" shortCode={`${modKey} + I`} />}
             />
             <MarkdownInlineButton
               marker={INLINE_HOTKEYS['mod+u']!}
-              icon={Icons.Underline}
+              icon={TextUnderline}
               tooltip={<BtnTooltip text="Underline" shortCode={`${modKey} + U`} />}
             />
             <MarkdownInlineButton
               marker={INLINE_HOTKEYS['mod+s']!}
-              icon={Icons.Strike}
+              icon={TextStrikethrough}
               tooltip={<BtnTooltip text="Strike Through" shortCode={`${modKey} + S`} />}
             />
             <MarkdownInlineButton
               marker={INLINE_HOTKEYS['mod+[']!}
-              icon={Icons.Code}
+              icon={Code}
               tooltip={<BtnTooltip text="Inline Code" shortCode={`${modKey} + [`} />}
             />
             <MarkdownInlineButton
               marker={INLINE_HOTKEYS['mod+h']!}
-              icon={Icons.EyeBlind}
+              icon={EyeSlash}
               tooltip={<BtnTooltip text="Spoiler" shortCode={`${modKey} + H`} />}
             />
           </Box>
@@ -255,22 +273,22 @@ export function MarkdownToolbar() {
           <Box shrink="No" gap="100">
             <MarkdownBlockButton
               prefix={BLOCK_HOTKEYS["mod+'"]!}
-              icon={Icons.BlockQuote}
+              icon={Quotes}
               tooltip={<BtnTooltip text="Block Quote" shortCode={`${modKey} + '`} />}
             />
             <MarkdownBlockButton
               prefix={BLOCK_HOTKEYS['mod+;']!}
-              icon={Icons.BlockCode}
+              icon={CodeBlock}
               tooltip={<BtnTooltip text="Block Code" shortCode={`${modKey} + ;`} />}
             />
             <MarkdownBlockButton
               prefix={BLOCK_HOTKEYS['mod+7']!}
-              icon={Icons.OrderList}
+              icon={ListNumbers}
               tooltip={<BtnTooltip text="Ordered List" shortCode={`${modKey} + 7`} />}
             />
             <MarkdownBlockButton
               prefix={BLOCK_HOTKEYS['mod+8']!}
-              icon={Icons.UnorderList}
+              icon={ListBullets}
               tooltip={<BtnTooltip text="Unordered List" shortCode={`${modKey} + 8`} />}
             />
             <MarkdownHeadingButton />
@@ -310,7 +328,7 @@ export function MarkdownFormattingToolbarToggle({
       aria-label={composerToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
       onClick={() => setComposerToolbarOpen(!composerToolbarOpen)}
     >
-      <Icon src={composerToolbarOpen ? Icons.AlphabetUnderline : Icons.Alphabet} />
+      {composerToolbarOpen ? composerIcon(TextUnderline) : composerIcon(TextAa)}
     </IconButton>
   );
 }

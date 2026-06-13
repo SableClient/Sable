@@ -15,10 +15,6 @@ import { readPersistedSession } from './sw-session-persistence';
 declare const self: ServiceWorkerGlobalScope;
 
 let notificationSoundEnabled = true;
-// Tracks whether a page client has reported itself as visible.
-// The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
-// so we use this explicit flag as a fallback.
-let appIsVisible = false;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -76,7 +72,6 @@ async function persistSettings() {
           showEncryptedMessageContent,
           clearNotificationsOnRead,
           focusMode,
-          appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
       )
@@ -102,16 +97,17 @@ async function loadPersistedSettings() {
     if (s.focusMode === 'off' || s.focusMode === 'focus' || s.focusMode === 'dnd') {
       focusMode = s.focusMode;
     }
-    if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
-      const ageMs = Date.now() - s.appVisibleAt;
-      if (ageMs < 2_000) {
-        appIsVisible = true;
-        console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
-      }
-    }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
   }
+}
+
+function focusedWindowClientCount(clients: readonly Client[]): number {
+  return clients.filter((client) => (client as WindowClient).focused).length;
+}
+
+function visibleWindowClientCount(clients: readonly Client[]): number {
+  return clients.filter((client) => (client as WindowClient).visibilityState === 'visible').length;
 }
 
 async function persistSession(session: SessionInfo): Promise<void> {
@@ -775,13 +771,8 @@ async function requestDecryptionFromClient(
     Promise.resolve(undefined) as Promise<DecryptionResult | undefined>
   );
 
-  // If all clients timed out, the page is likely crashed/unresponsive.
-  // Mark appIsVisible=false and persist so future push notifications aren't
-  // suppressed by a stale appVisibleAt timestamp in the cache.
   if (!result && windowClients.length > 0) {
-    console.warn('[SW] All clients timed out — marking app as not visible');
-    appIsVisible = false;
-    persistSettings().catch(() => undefined);
+    console.warn('[SW] All clients timed out waiting for push decryption');
   }
 
   return result;
@@ -901,14 +892,20 @@ async function handleMinimalPushPayload(
       await recordPushTelemetry('decrypt_timeout', { payload_type: 'minimal' });
     }
 
-    if (result?.visibilityState === 'visible') {
+    const focusedClientCount = focusedWindowClientCount(windowClients);
+    const browserVisibleClientCount = visibleWindowClientCount(windowClients);
+    if (focusedClientCount > 0) {
       await recordPushTelemetry('confirmed_visible', {
         payload_type: 'minimal',
-        visibility_state: result.visibilityState ?? 'unknown',
+        focused_client_count: focusedClientCount,
+        browser_visible_client_count: browserVisibleClientCount,
+        visibility_state: result?.visibilityState ?? 'unknown',
       });
       await recordPushTelemetry('suppressed_visible', {
         payload_type: 'minimal',
-        visibility_state: result.visibilityState ?? 'unknown',
+        focused_client_count: focusedClientCount,
+        browser_visible_client_count: browserVisibleClientCount,
+        visibility_state: result?.visibilityState ?? 'unknown',
       });
       return;
     }
@@ -919,7 +916,8 @@ async function handleMinimalPushPayload(
         'Encrypted push decrypted through window client',
         'info',
         {
-          appVisible: result.visibilityState === 'visible',
+          hasFocusedClient: focusedClientCount > 0,
+          browserVisibleClientCount,
           visible: false,
           hasWindowClients: windowClients.length > 0,
         }
@@ -1111,17 +1109,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
         });
       })()
     );
-  }
-  if (type === 'setAppVisible') {
-    if (typeof (data as { visible?: unknown }).visible === 'boolean') {
-      appIsVisible = (data as { visible: boolean }).visible;
-      event.waitUntil(
-        postSentryBreadcrumb('service_worker.visibility', 'App visibility updated in SW', 'info', {
-          appVisible: appIsVisible,
-        })
-      );
-      event.waitUntil(persistSettings());
-    }
   }
   if (type === 'ping') {
     event.waitUntil(Promise.resolve());
@@ -1531,11 +1518,20 @@ const onPushNotification = async (event: PushEvent) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
 
+  const focusedClientCount = focusedWindowClientCount(clients);
+  const browserVisibleClientCount = visibleWindowClientCount(clients);
+
   console.debug(
-    '[SW push] appIsVisible:',
-    appIsVisible,
+    '[SW push] focusedClientCount:',
+    focusedClientCount,
+    '| browserVisibleClientCount:',
+    browserVisibleClientCount,
     '| clients:',
-    clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
+    clients.map((c) => ({
+      url: c.url,
+      visibility: c.visibilityState,
+      focused: c.focused,
+    }))
   );
 
   const pushData = event.data.json();
@@ -1544,45 +1540,50 @@ const onPushNotification = async (event: PushEvent) => {
 
   // Track push notification arrival
   await recordPushTelemetry('received', {
-    app_visible: appIsVisible,
     has_clients: clients.length > 0,
+    focused_client_count: focusedClientCount,
+    browser_visible_client_count: browserVisibleClientCount,
     payload_type: payloadType,
   });
   postSentryMetric('sable.push.received', 1, {
-    app_visible: appIsVisible,
     has_clients: clients.length > 0,
+    focused_client_count: focusedClientCount,
+    browser_visible_client_count: browserVisibleClientCount,
     payload_type: payloadType,
   }).catch(() => undefined);
   postSentryBreadcrumb('notification.push', 'Push received by service worker', 'info', {
-    appVisible: appIsVisible,
     clientCount: clients.length,
+    focusedClientCount,
+    browserVisibleClientCount,
     payloadType,
   }).catch(() => undefined);
 
-  const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
-  if (hasVisibleClient) {
-    console.debug('[SW push] suppressing OS notification — app is visible');
+  if (focusedClientCount > 0) {
+    console.debug('[SW push] suppressing OS notification — app has a focused client');
     await recordPushTelemetry('confirmed_visible', {
       payload_type: payloadType,
-      app_visible: appIsVisible,
+      focused_client_count: focusedClientCount,
+      browser_visible_client_count: browserVisibleClientCount,
     });
     await recordPushTelemetry('suppressed_visible', {
       payload_type: payloadType,
-      app_visible: appIsVisible,
+      focused_client_count: focusedClientCount,
+      browser_visible_client_count: browserVisibleClientCount,
     });
     postSentryBreadcrumb(
       'notification.push',
-      'OS push notification suppressed because app is visible',
+      'OS push notification suppressed because app has a focused client',
       'info',
       {
-        appVisible: appIsVisible,
         clientCount: clients.length,
+        focusedClientCount,
+        browserVisibleClientCount,
       }
     ).catch(() => undefined);
     postSentryMetric('sable.push.suppressed_visible', 1, {
-      app_visible: appIsVisible,
       client_count: clients.length,
+      focused_client_count: focusedClientCount,
+      browser_visible_client_count: browserVisibleClientCount,
     }).catch(() => undefined);
     return;
   }

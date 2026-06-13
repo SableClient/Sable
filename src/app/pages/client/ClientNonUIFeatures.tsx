@@ -917,22 +917,6 @@ function SyncNotificationSettingsWithServiceWorker() {
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return undefined;
-
-    const postVisibility = () => {
-      const visible = document.visibilityState === 'visible';
-      postToServiceWorker({ type: 'setAppVisible', visible });
-    };
-
-    // Report initial visibility immediately, then track changes.
-    postVisibility();
-    document.addEventListener('visibilitychange', postVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', postVisibility);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!('serviceWorker' in navigator) || isTauri()) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).
@@ -1067,7 +1051,6 @@ function HandleDecryptPushEvent() {
         pushRelayLog.info('notification', 'Push relay decryption succeeded', {
           eventType: mxEvent.getType(),
           decryptMs,
-          appVisible: document.visibilityState === 'visible',
         });
 
         postToServiceWorker({
@@ -1078,7 +1061,6 @@ function HandleDecryptPushEvent() {
           content: mxEvent.getContent(),
           sender_display_name: senderName,
           room_name: room?.name ?? '',
-          visibilityState: document.visibilityState,
         });
       } catch (err) {
         console.warn('[ClientFeatures] HandleDecryptPushEvent: failed to decrypt push event', err);
@@ -1112,7 +1094,6 @@ function HandleDecryptPushEvent() {
           type: 'pushDecryptResult',
           eventId,
           success: false,
-          visibilityState: document.visibilityState,
         });
       }
     };

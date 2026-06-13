@@ -112,8 +112,8 @@ jobs:
           fi
 
           if ! printf '%s\n' "$preview_url" | grep -Eq "$alias_url_pattern"; then
-            echo "Failed to resolve aliased Worker preview URL." >&2
-            exit 1
+            echo "::warning::Failed to resolve aliased Worker preview URL from Wrangler output."
+            preview_url=""
           fi
 
           echo "preview_url=${preview_url}" >> "$GITHUB_OUTPUT"
@@ -135,7 +135,36 @@ jobs:
             const now = new Date().toUTCString().replace(':00 GMT', ' UTC');
 
             if (!previewUrl) {
-              core.setFailed("Missing preview URL from Cloudflare deploy step.");
+              const message = [
+                marker,
+                `## Deploying with &nbsp;<a href="https://workers.dev"><img alt="Cloudflare Workers" src="https://workers.cloudflare.com/logo.svg" width="16"></a> &nbsp;Cloudflare Workers`,
+                ``,
+                `✅ Worker preview upload completed, but Wrangler did not return a resolvable aliased preview URL.`,
+                ``,
+                `Alias: \`${previewAlias}\``,
+                `Commit: \`${shortSha}\``,
+                `Updated: ${now}`,
+              ].join("\n");
+
+              await core.summary.addRaw(message.replace(marker + "\n", "")).write();
+
+              if (context.eventName !== 'pull_request') return;
+
+              const { owner, repo } = context.repo;
+              const issue_number = context.issue.number;
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number,
+              });
+              const existing = comments.find(
+                (c) => c.user.type === "Bot" && c.body.includes(marker),
+              );
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner, repo, comment_id: existing.id,
+                });
+              }
+
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: message });
               return;
             }
 

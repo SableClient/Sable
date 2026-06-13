@@ -34,7 +34,7 @@
     "lint:normalize-imports": "node scripts/normalize-imports.js"
   },
   "keywords": [],
-  "author": "Evie Gauthier",
+  "author": "CloudHub Social Team",
   "license": "AGPL-3.0-only",
   "dependencies": {
     "@arborium/arborium": "^2.16.0",

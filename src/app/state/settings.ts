@@ -109,6 +109,7 @@ export interface Settings {
   memberSortFilterIndex: number;
   enterForNewline: boolean;
   editorToolbar: boolean;
+  editorOldAddFile: boolean;
   composerToolbarOpen: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
@@ -126,6 +127,8 @@ export interface Settings {
   clientUrlPreview: boolean;
   encClientUrlPreview: boolean;
   clientPreviewYoutube: boolean;
+  showInteractiveMap: boolean;
+  showEncInteractiveMap: boolean;
 
   usePushNotifications: boolean;
   useUnifiedPush: boolean;
@@ -271,6 +274,7 @@ export const defaultSettings: Settings = {
   memberSortFilterIndex: 0,
   enterForNewline: false,
   editorToolbar: false,
+  editorOldAddFile: false,
   composerToolbarOpen: false,
   messageLayout: 0,
   messageSpacing: '400',
@@ -284,6 +288,8 @@ export const defaultSettings: Settings = {
   clientUrlPreview: false,
   encClientUrlPreview: false,
   clientPreviewYoutube: false,
+  showInteractiveMap: true,
+  showEncInteractiveMap: false,
   showHiddenEvents: false,
   showTombstoneEvents: false,
   legacyUsernameColor: false,

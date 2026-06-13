@@ -70,6 +70,7 @@ import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollo
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { M_TEXT } from 'matrix-js-sdk';
 
 /**
  * Resolve the list of reply events to show in the thread drawer.
@@ -208,6 +209,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const showClientUrlPreview = room.hasEncryptionStateEvent()
     ? clientUrlPreview && encClientUrlPreview
     : clientUrlPreview;
+  const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
+  const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
+  const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
 
   // Memoized parsing options
   const linkifyOpts = useMemo<LinkifyOpts>(
@@ -285,6 +289,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(threadRootId));
   const replyDraft = useAtomValue(roomIdToReplyDraftAtomFamily(threadRootId));
   const activeReplyId = replyDraft?.eventId;
+  const suppressMark = !replyDraft?.body;
   // Keep a ref so handleReplyClick can read the latest draft without being
   // recreated on every keystroke (which would re-render all Message instances).
   const replyDraftRef = useRef(replyDraft);
@@ -875,12 +880,17 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       const editedReply = getEditedEvent(replyId, replyEvt, room.getUnfilteredTimelineSet());
       const content = editedReply?.getContent()['m.new_content'] ?? replyEvt.getContent();
       const { body, formatted_body: formattedBody } = content;
+      const msc1767body = content[M_TEXT.name];
       const senderId = replyEvt.getSender();
       if (senderId) {
         const draft: IReplyDraft = {
           userId: senderId,
           eventId: replyId,
-          body: typeof body === 'string' ? body : '',
+          body:
+            (body as string) ??
+            (msc1767body as string) ??
+            (msc1767body as { body: string }).body ??
+            '',
           formattedBody,
           relation: { rel_type: RelationType.Thread, event_id: threadRootId },
         };
@@ -1008,6 +1018,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       showUrlPreview,
       showClientUrlPreview,
       showBundledPreview,
+      showMaps,
       autoplayStickers,
       hideMemberInReadOnly,
       isReadOnly,
@@ -1021,6 +1032,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       editId: editInInput ? undefined : editId,
       activeReplyId,
       openThreadId: threadRootId,
+      suppressMark,
     },
     permissions: {
       canRedact,

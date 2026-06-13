@@ -206,6 +206,10 @@ export function RoomTimeline({
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
   const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
 
+  const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
+  const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
+  const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
+
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
     ? clientUrlPreview && encClientUrlPreview
@@ -1090,6 +1094,7 @@ export function RoomTimeline({
       showBundledPreview,
       showUrlPreview,
       showClientUrlPreview,
+      showMaps,
       autoplayStickers,
       hideMemberInReadOnly,
       isReadOnly,

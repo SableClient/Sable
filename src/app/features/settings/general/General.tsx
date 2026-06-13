@@ -416,6 +416,7 @@ function DateAndTime() {
 function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [editorToolbar, setEditorToolbar] = useSetting(settingsAtom, 'editorToolbar');
+  const [editorOldAddFile, setEditorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
@@ -451,6 +452,16 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           focusId="composer-formatting-toolbar"
           description="Enable the formatting toolbar in the message composer."
           after={<Switch variant="Primary" value={editorToolbar} onChange={setEditorToolbar} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Hide Add Menu in the Editor"
+          focusId="hide-add-menu"
+          description="Make the Plus button in the editor only add files. You may still send the special items using commands such as /poll and /location"
+          after={
+            <Switch variant="Primary" value={editorOldAddFile} onChange={setEditorOldAddFile} />
+          }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
@@ -1110,6 +1121,14 @@ function Embeds() {
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
+  const [showInteractiveMap, setShowInteractiveMap] = useSetting(
+    settingsAtom,
+    'showInteractiveMap'
+  );
+  const [showEncInteractiveMap, setEncShowInteractiveMap] = useSetting(
+    settingsAtom,
+    'showEncInteractiveMap'
+  );
   const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
     settingsAtom,
     'encClientUrlPreview'
@@ -1170,48 +1189,72 @@ function Embeds() {
           }
         />
       </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        style={clientUrlPreview ? {} : { display: 'none' }}
-      >
+      {clientUrlPreview && (
+        <>
+          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+            <SettingTile
+              title="Client-side Embeds in Encrypted Rooms"
+              focusId="encrypted-room-embeds"
+              after={
+                <Switch
+                  variant="Primary"
+                  value={encClientUrlPreview}
+                  onChange={setEncClientUrlPreview}
+                  title={
+                    encClientUrlPreview
+                      ? 'Disable client-side embeds in encrypted rooms'
+                      : 'Enable client-side embeds in encrypted rooms'
+                  }
+                />
+              }
+            />
+          </SequenceCard>
+          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+            <SettingTile
+              title="Embed YouTube Links"
+              focusId="embed-youtube-links"
+              after={
+                <Switch
+                  variant="Primary"
+                  value={clientPreviewYoutube}
+                  onChange={setClientPreviewYoutube}
+                  title={
+                    clientPreviewYoutube
+                      ? 'Disable client-side Youtube video embeds'
+                      : 'Enable client-side Youtube video embeds'
+                  }
+                />
+              }
+            />
+          </SequenceCard>
+        </>
+      )}
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Client-side Embeds in Encrypted Rooms"
-          focusId="encrypted-room-embeds"
+          title="Show Interactive maps"
+          focusId="show-interactive-map"
+          description="Show an interactive map in messages. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
           after={
             <Switch
               variant="Primary"
-              value={encClientUrlPreview}
-              onChange={setEncClientUrlPreview}
-              title={
-                encClientUrlPreview
-                  ? 'Disable client-side embeds in encrypted rooms'
-                  : 'Enable client-side embeds in encrypted rooms'
-              }
+              value={showInteractiveMap}
+              onChange={setShowInteractiveMap}
+              title={showInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
             />
           }
         />
       </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        style={clientUrlPreview ? {} : { display: 'none' }}
-      >
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Embed YouTube Links"
-          focusId="embed-youtube-links"
+          title="Show Interactive maps in Encrypted Rooms"
+          focusId="show-interactive-map-enc"
+          description="Show an interactive map in Encrypted rooms. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
           after={
             <Switch
               variant="Primary"
-              value={clientPreviewYoutube}
-              onChange={setClientPreviewYoutube}
-              title={
-                clientPreviewYoutube
-                  ? 'Disable client-side Youtube video embeds'
-                  : 'Enable client-side Youtube video embeds'
-              }
+              value={showEncInteractiveMap}
+              onChange={setEncShowInteractiveMap}
+              title={showEncInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
             />
           }
         />

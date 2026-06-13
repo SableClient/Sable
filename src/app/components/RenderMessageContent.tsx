@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { memo, useMemo, useCallback } from 'react';
-import type { IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -46,6 +46,7 @@ import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
+import { M_TEXT } from 'matrix-js-sdk';
 import type { IImageInfo } from '$types/matrix/common';
 
 type RenderMessageContentProps = {
@@ -58,11 +59,15 @@ type RenderMessageContentProps = {
   bundledPreview?: boolean;
   urlPreview?: boolean;
   clientUrlPreview?: boolean;
+  showMaps?: boolean;
   highlightRegex?: RegExp;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
   outlineAttachment?: boolean;
   hideCaption?: boolean;
+  mEvent?: MatrixEvent;
+  mx?: MatrixClient;
+  room?: Room;
 };
 
 const getMediaType = (url: string) => {
@@ -90,6 +95,7 @@ function RenderMessageContentInternal({
   bundledPreview,
   urlPreview,
   clientUrlPreview,
+  showMaps,
   highlightRegex,
   htmlReactParserOptions,
   linkifyOpts,
@@ -422,7 +428,8 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === (MsgType.File as string)) return renderFile();
-  if (msgType === (MsgType.Location as string)) return <MLocation content={content} />;
+  if (msgType === (MsgType.Location as string))
+    return <MLocation showMaps={showMaps} content={content} />;
   if (msgType === 'm.bad.encrypted') return <MBadEncrypted />;
 
   // cute events
@@ -447,7 +454,16 @@ function RenderMessageContentInternal({
         }
       />
     );
-  return <UnsupportedContent body={(content as { body?: string }).body ?? ''} />;
+  return (
+    <UnsupportedContent
+      body={
+        (content as { body?: string }).body ??
+        (content as { [M_TEXT.name]?: string })[M_TEXT.name] ??
+        (content as { [M_TEXT.name]?: { body: string } })[M_TEXT.name]?.body ??
+        ''
+      }
+    />
+  );
 }
 
 export const RenderMessageContent = memo(RenderMessageContentInternal);

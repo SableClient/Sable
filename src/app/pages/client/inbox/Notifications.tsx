@@ -286,7 +286,8 @@ function RoomNotificationsGroupComp({
         if (event.unsigned?.redacted_because) {
           return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
         }
-
+        const evtTimeline = room.getTimelineForEvent(event.event_id);
+        const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === event.event_id);
         return (
           <RenderMessageContent
             displayName={displayName}
@@ -298,6 +299,9 @@ function RoomNotificationsGroupComp({
             htmlReactParserOptions={htmlReactParserOptions}
             linkifyOpts={linkifyOpts}
             outlineAttachment
+            mx={mx}
+            room={room}
+            mEvent={mEvent}
           />
         );
       },
@@ -356,6 +360,9 @@ function RoomNotificationsGroupComp({
                     urlPreview={urlPreview}
                     htmlReactParserOptions={htmlReactParserOptions}
                     linkifyOpts={linkifyOpts}
+                    mx={mx}
+                    room={room}
+                    mEvent={mEvent}
                   />
                 );
               }

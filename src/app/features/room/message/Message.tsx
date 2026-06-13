@@ -820,7 +820,10 @@ function MessageInternal(
     </AvatarBase>
   );
 
-  const stableContent = useMemo(() => mEvent.getContent().body || '', [mEvent]);
+  const stableContent = useMemo(
+    () => mEvent.getContent().body || mEvent.getContent()['org.matrix.msc3381.poll.start'] || '',
+    [mEvent]
+  );
   const isPendingSend =
     sendStatus === EventStatus.ENCRYPTING ||
     sendStatus === EventStatus.QUEUED ||

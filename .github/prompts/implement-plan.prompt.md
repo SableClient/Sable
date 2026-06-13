@@ -1,6 +1,6 @@
-# Sable Implementation Task
+# Charm Implementation Task
 
-You are implementing an approved plan in the Sable codebase.
+You are implementing an approved plan in the Charm codebase.
 
 Your goal is to make the smallest, safest set of changes required.
 

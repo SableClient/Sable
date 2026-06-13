@@ -1,4 +1,4 @@
-# Sable Architecture Review
+# Charm Architecture Review
 
 You are acting as a senior software architect reviewing a proposed feature or architectural change.
 

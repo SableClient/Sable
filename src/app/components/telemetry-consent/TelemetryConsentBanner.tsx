@@ -43,12 +43,12 @@ export function TelemetryConsentBanner() {
         <div className={css.Header}>
           <Icon src={Icons.Shield} size="400" />
           <div className={css.HeaderText}>
-            <Text size="H4">Help improve Sable</Text>
+            <Text size="H4">Help improve Charm</Text>
             <Text size="T300" priority="300">
               Optionally send anonymous crash reports to help us fix bugs faster. No messages, room
               names, or personal data are included.{' '}
               <a
-                href="https://github.com/SableClient/Sable/blob/dev/docs/PRIVACY.md"
+                href="https://github.com/Just-Insane/Sable/blob/integration/docs/PRIVACY.md"
                 target="_blank"
                 rel="noreferrer noopener"
               >

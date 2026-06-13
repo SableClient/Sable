@@ -1,7 +1,7 @@
 /**
  * Keyboard Shortcuts settings page.
  *
- * Lists all keyboard shortcuts available in Sable in a semantic,
+ * Lists all keyboard shortcuts available in Charm in a semantic,
  * screen-reader-friendly dl/dt/dd structure.
  */
 import { Box, Scroll, Text, config } from 'folds';

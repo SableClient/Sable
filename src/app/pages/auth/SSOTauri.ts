@@ -1,7 +1,8 @@
 import { SSO_CALLBACK_PATH } from '$pages/paths';
+import { APP_SUPPORT_URL } from '$app/config/brand';
 import { type as osType } from '@tauri-apps/plugin-os';
 
-const TAURI_SSO_PROTOCOL = 'sable:';
+const TAURI_SSO_PROTOCOL = 'charm:';
 const TAURI_SSO_HOST = 'login';
 
 const getAppBaseUrl = (): string => {
@@ -16,7 +17,7 @@ const getAppBaseUrl = (): string => {
     return `${TAURI_SSO_PROTOCOL}//${TAURI_SSO_HOST}`;
   }
 
-  return 'https://app.sable.moe';
+  return APP_SUPPORT_URL;
 };
 
 type TauriSsoCallback = {

@@ -21,7 +21,7 @@ export function SplashScreen({ children }: SplashScreenProps) {
         justifyContent="Center"
       >
         <Text size="H2" align="Center">
-          Sable
+          Charm
         </Text>
       </Box>
     </Box>

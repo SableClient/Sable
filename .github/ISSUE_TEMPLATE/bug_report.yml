@@ -6,9 +6,9 @@ body:
     attributes:
       value: |
         ## First of all
-        1. Please search for [existing issues](https://github.com/SableClient/Sable/issues?q=is%3Aissue) about this problem first.
-        2. Make sure Sable is up to date.
-        3. Make sure it's an issue with Sable and not something else you are using.
+        1. Please search for [existing issues](https://github.com/Just-Insane/Sable/issues?q=is%3Aissue) about this problem first.
+        2. Make sure Charm is up to date.
+        3. Make sure it's an issue with Charm and not something else you are using.
         4. Remember to be friendly.
 
   - type: textarea
@@ -40,11 +40,11 @@ body:
     id: info
     attributes:
       label: Platform and versions
-      description: 'Provide OS, browser and Sable version with your Homeserver.'
+      description: 'Provide OS, browser and Charm version with your Homeserver.'
       placeholder: |
         1. OS: [e.g. Windows 10, MacOS]
         2. Browser: [e.g. chrome 99.5, firefox 97.2]
-        3. Sable version: [e.g. 1.8.1 (app.cinny.in)]
+        3. Charm version: [e.g. 1.17.0 (charm.cloudhub.social)]
         4. Matrix homeserver: [e.g. matrix.org]
       render: shell
     validations:

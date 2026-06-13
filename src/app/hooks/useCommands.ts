@@ -859,7 +859,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           } catch (e: unknown) {
             if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
               sendFeedback(
-                'Permission Denied. An admin must enable "Room Colors" in Settings > Cosmetics in app.sable.moe or another supported client.',
+                'Permission Denied. An admin must enable "Room Colors" in Settings > Cosmetics in Charm or another supported client.',
                 room,
                 userId
               );
@@ -915,7 +915,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           } catch (e: unknown) {
             if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
               sendFeedback(
-                'Permission Denied. An admin must enable "Space-Wide Colors" in Settings > Cosmetics in app.sable.moe or another supported client.',
+                'Permission Denied. An admin must enable "Space-Wide Colors" in Settings > Cosmetics in Charm or another supported client.',
                 room,
                 userId
               );
@@ -958,7 +958,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           } catch (e: unknown) {
             if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
               sendFeedback(
-                'Permission Denied. An admin must enable "Room Fonts" in Settings > Cosmetics in app.sable.moe or another supported client.',
+                'Permission Denied. An admin must enable "Room Fonts" in Settings > Cosmetics in Charm or another supported client.',
                 room,
                 userId
               );
@@ -1006,7 +1006,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           } catch (e: unknown) {
             if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
               sendFeedback(
-                'Permission Denied. An admin must enable "Space-Wide Fonts" in Settings > Cosmetics in app.sable.moe or another supported client.',
+                'Permission Denied. An admin must enable "Space-Wide Fonts" in Settings > Cosmetics in Charm or another supported client.',
                 room,
                 userId
               );

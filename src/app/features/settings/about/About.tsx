@@ -4,6 +4,14 @@ import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import LogoSVG from '$public/res/svg/logo.svg';
+import {
+  APP_ATTRIBUTION,
+  APP_DESCRIPTION,
+  APP_NAME,
+  APP_SOURCE_URL,
+  APP_SUPPORT_URL,
+  APP_UPSTREAM_URL,
+} from '$app/config/brand';
 import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
@@ -195,22 +203,23 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                   <img
                     style={{ width: toRem(60), height: toRem(60) }}
                     src={LogoSVG}
-                    alt="Sable logo"
+                    alt={`${APP_NAME} logo`}
                   />
                 </Box>
                 <Box direction="Column" gap="300">
                   <Box direction="Column" gap="100">
                     <Box gap="100" alignItems="End">
-                      <Text size="H3">Sable</Text>
+                      <Text size="H3">{APP_NAME}</Text>
                       <Text size="T200">{`v${APP_VERSION}${devLabel}${buildLabel}`}</Text>
                     </Box>
-                    <Text>An almost stable Matrix client.</Text>
+                    <Text>{APP_DESCRIPTION}</Text>
+                    <Text priority="300">{APP_ATTRIBUTION}</Text>
                   </Box>
 
                   <Box gap="200" wrap="Wrap">
                     <Button
                       as="a"
-                      href="https://github.com/SableClient/Sable"
+                      href={APP_SOURCE_URL}
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Secondary"
@@ -223,7 +232,20 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                     </Button>
                     <Button
                       as="a"
-                      href="https://opencollective.com/sable"
+                      href={APP_UPSTREAM_URL}
+                      rel="noreferrer noopener"
+                      target="_blank"
+                      variant="Secondary"
+                      fill="Soft"
+                      size="300"
+                      radii="300"
+                      before={<Icon src={Icons.Code} size="100" filled />}
+                    >
+                      <Text size="B300">Upstream</Text>
+                    </Button>
+                    <Button
+                      as="a"
+                      href={APP_SUPPORT_URL}
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Critical"

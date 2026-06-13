@@ -29,7 +29,7 @@ Cloudflare API token permissions:
 
 - `Account > Workers Scripts > Edit`
 - Scope the token to the specific Cloudflare account that owns the Worker.
-- Scope the token to the specific zone that serves `app.sable.moe`.
+- Scope the token to the specific zone that serves `charm.cloudhub.social`.
 - Do not grant Pages or DNS edit permissions here. The Worker script upload and
   custom-domain attach endpoints used by this repo accept Workers Scripts Write, and
   Cloudflare creates the DNS record for the Worker custom domain automatically.
@@ -101,4 +101,4 @@ Production deploys:
 - That PR plan job only runs for same-repo PRs, not fork PRs, because it needs repo secrets.
 - The same workflow applies production on pushes to `dev` or manual dispatch.
 - `tofu apply` uploads `dist/` through `cloudflare_worker_version` and promotes it with `cloudflare_workers_deployment`.
-- Production lives on `app.sable.moe`.
+- Production lives on `charm.cloudhub.social`.

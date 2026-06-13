@@ -17,6 +17,7 @@
       "$plugins/*": ["./src/app/plugins/*"],
       "$components/*": ["./src/app/components/*"],
       "$features/*": ["./src/app/features/*"],
+      "$app/*": ["./src/app/*"],
       "$state/*": ["./src/app/state/*"],
       "$styles/*": ["./src/app/styles/*"],
       "$utils/*": ["./src/app/utils/*"],

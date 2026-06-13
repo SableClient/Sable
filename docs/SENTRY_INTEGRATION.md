@@ -1,11 +1,11 @@
-# Sentry Integration for Sable
+# Sentry Integration for Charm
 
-This document describes the Sentry error tracking and monitoring integration added to Sable.
+This document describes the Sentry error tracking and monitoring integration added to Charm.
 For a detailed breakdown of what data is collected and how it is protected, see [SENTRY_PRIVACY.md](./SENTRY_PRIVACY.md).
 
 ## Overview
 
-Sentry is integrated with Sable to provide:
+Sentry is integrated with Charm to provide:
 
 - **Error tracking**: Automatic capture and reporting of errors and exceptions
 - **Performance monitoring**: Track application performance and identify bottlenecks
@@ -166,7 +166,7 @@ SENTRY_PROJECT=your-project-slug
 
 ### Self-Hosting with Docker
 
-Sable is compiled at build time, so `VITE_*` variables must be passed as Docker
+Charm is compiled at build time, so `VITE_*` variables must be passed as Docker
 **build arguments** — they cannot be injected at container runtime via a plain
 `docker run -e` flag. The easiest way for self-hosters to supply them is with
 a `.env` file and `docker-compose`.
@@ -189,7 +189,7 @@ stage so Vite can embed them in the bundle:
 
 ```yaml
 services:
-  sable:
+  charm:
     build:
       context: .
       args:
@@ -226,7 +226,7 @@ If you use plain `docker build`, pass build args directly:
 docker build \
   --build-arg VITE_SENTRY_DSN="https://your-key@oXXXXX.ingest.sentry.io/XXXXXXX" \
   --build-arg VITE_SENTRY_ENVIRONMENT="production" \
-  -t sable .
+  -t charm .
 ```
 
 > **Security note:** DSN values embedded in the JavaScript bundle are visible
@@ -286,7 +286,7 @@ Or use the UI in Settings → General → Diagnostics & Privacy.
 
 ## Custom Instrumentation
 
-Beyond automatic error capture, Sable has hand-crafted monitoring at key
+Beyond automatic error capture, Charm has hand-crafted monitoring at key
 lifecycle points. See [SENTRY_PRIVACY.md](./SENTRY_PRIVACY.md) for the full
 metrics reference. Key areas:
 

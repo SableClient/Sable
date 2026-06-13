@@ -155,6 +155,7 @@ export default defineConfig(({ command }) => ({
       $plugins: path.resolve(__dirname, 'src/app/plugins'),
       $components: path.resolve(__dirname, 'src/app/components'),
       $features: path.resolve(__dirname, 'src/app/features'),
+      $app: path.resolve(__dirname, 'src/app'),
       $state: path.resolve(__dirname, 'src/app/state'),
       $styles: path.resolve(__dirname, 'src/app/styles'),
       $utils: path.resolve(__dirname, 'src/app/utils'),

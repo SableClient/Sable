@@ -76,7 +76,7 @@ vi.mock('$hooks/useMentionClickHandler', () => ({
 }));
 
 vi.mock('$features/settings/useSettingsLinkBaseUrl', () => ({
-  useSettingsLinkBaseUrl: () => 'https://app.sable.moe',
+  useSettingsLinkBaseUrl: () => 'https://charm.cloudhub.social',
 }));
 
 vi.mock('$utils/room', async (importActual) => {

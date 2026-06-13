@@ -13,7 +13,7 @@ variable "custom_domain" {
 variable "worker_name" {
   description = "Cloudflare Worker name"
   type        = string
-  default     = "sable"
+  default     = "charm"
 }
 
 variable "workers_message" {

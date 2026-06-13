@@ -15,6 +15,7 @@ import * as PatternsCss from '$styles/Patterns.css';
 import { clientAllowedServer, clientDefaultServer, useClientConfig } from '$hooks/useClientConfig';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import LogoSVG from '$public/res/svg/logo.svg';
+import { APP_NAME } from '$app/config/brand';
 import { SpecVersionsLoader } from '$components/SpecVersionsLoader';
 import { SpecVersionsProvider } from '$hooks/useSpecVersions';
 import { AutoDiscoveryInfoProvider } from '$hooks/useAutoDiscoveryInfo';
@@ -137,8 +138,8 @@ export function AuthLayout() {
         <Box direction="Column" className={css.AuthCard}>
           <Header className={css.AuthHeader} size="600" variant="Surface">
             <Box grow="Yes" direction="Row" gap="300" alignItems="Center">
-              <img className={css.AuthLogo} src={LogoSVG} alt="Sable Logo" />
-              <Text size="H3">Sable</Text>
+              <img className={css.AuthLogo} src={LogoSVG} alt={`${APP_NAME} logo`} />
+              <Text size="H3">{APP_NAME}</Text>
             </Box>
             {isAddingAccount && (
               <Box gap="200" alignItems="Center" style={{ marginLeft: 'auto' }}>

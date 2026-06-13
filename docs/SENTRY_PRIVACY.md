@@ -14,7 +14,7 @@ in to by users** at any time via Settings → General → Diagnostics & Privacy.
 ### First-Login Consent Notice
 
 When Sentry is configured, the app shows a dismissible notice the first time a
-user loads Sable. The notice explains that crash reporting is available and
+user loads Charm. The notice explains that crash reporting is available and
 provides a one-click opt-in before any data is sent.
 
 | Action                           | Effect                                                                                                                      |
@@ -24,6 +24,9 @@ provides a one-click opt-in before any data is sent.
 
 The preference persists in `localStorage` and can be changed at any time in
 **Settings → General → Diagnostics & Privacy**.
+
+The storage key keeps the `sable_` prefix for compatibility with existing
+installations and is not a current product-name signal.
 
 **Code:** `src/app/components/telemetry-consent/TelemetryConsentBanner.tsx`
 

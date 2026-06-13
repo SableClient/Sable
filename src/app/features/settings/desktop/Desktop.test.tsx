@@ -76,16 +76,16 @@ describe('Desktop', () => {
 
     const { container } = renderDesktop();
 
-    expect(screen.getByText('Close button keeps Sable running')).toBeInTheDocument();
+    expect(screen.getByText('Close button keeps Charm running')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'When enabled, closing the window keeps Sable running instead of exiting. If the tray icon is enabled and available, Sable stays in the system tray. Otherwise it continues running in the background.'
+        'When enabled, closing the window keeps Charm running instead of exiting. If the tray icon is enabled and available, Charm stays in the system tray. Otherwise it continues running in the background.'
       )
     ).toBeInTheDocument();
     expect(screen.getByText('Show system tray icon')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Show a system tray icon while Sable is running. Disable this if you want Sable to stay available without a tray icon.'
+        'Show a system tray icon while Charm is running. Disable this if you want Charm to stay available without a tray icon.'
       )
     ).toBeInTheDocument();
     expect(container.getElementsByClassName(SequenceCardStyle)).toHaveLength(2);
@@ -96,7 +96,7 @@ describe('Desktop', () => {
 
     expect(
       screen.getByText(
-        'System tray is unavailable on this system. Sable can still keep running in the background without it.'
+        'System tray is unavailable on this system. Charm can still keep running in the background without it.'
       )
     ).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'show-system-tray-icon' })).toBeDisabled();
@@ -109,7 +109,7 @@ describe('Desktop', () => {
 
     expect(
       screen.queryByText(
-        'System tray is unavailable on this system. Sable can still keep running in the background without it.'
+        'System tray is unavailable on this system. Charm can still keep running in the background without it.'
       )
     ).not.toBeInTheDocument();
   });
@@ -123,7 +123,7 @@ describe('Desktop', () => {
 
     expect(
       screen.queryByText(
-        'System tray is unavailable on this system. Sable can still keep running in the background without it.'
+        'System tray is unavailable on this system. Charm can still keep running in the background without it.'
       )
     ).not.toBeInTheDocument();
   });

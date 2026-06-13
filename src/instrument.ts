@@ -15,6 +15,7 @@ import {
   createRoutesFromChildren,
   matchRoutes,
 } from 'react-router-dom';
+import { APP_NAME } from './app/config/brand';
 import { scrubMatrixIds, scrubDataObject, scrubMatrixUrl } from './app/utils/sentryScrubbers';
 
 const dsn = import.meta.env.VITE_SENTRY_DSN;
@@ -280,7 +281,7 @@ if (dsn && sentryEnabled) {
   // Expose Sentry globally for debugging and console testing
   // Set app-wide attributes on the global scope so they appear on all events and logs
   Sentry.getGlobalScope().setAttributes({
-    'app.name': 'sable',
+    'app.name': APP_NAME,
     'app.version': release ?? 'unknown',
   });
 

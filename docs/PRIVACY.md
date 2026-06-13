@@ -2,18 +2,20 @@
 
 **Effective date:** 2026-03-15
 
-Sable is an open-source Matrix client developed by 7w1.
+Charm is an independently maintained personal Matrix client distribution by Evie Gauthier.
+It is based on Sable, an AGPLv3 Matrix client forked from Cinny.
 
 It is designed to keep data collection to a minimum. Most of the app works on your device and communicates directly with the Matrix homeserver you choose.
 
 ## Who is responsible
 
-For official Sable builds distributed by the project, the data controller is **7w1**.
+For Charm builds distributed through the CloudHub domain, the data controller is **Evie Gauthier**.
 
-Contact: **privacy@sable.moe**  
-Project website: [**https://sable.moe**](https://sable.moe)
+Contact: **privacy@cloudhub.social**
 
-If you use a self-hosted, modified, or third-party build of Sable, that operator may use different diagnostics settings and may be responsible for their own privacy practices.
+Project website: [**https://charm.cloudhub.social**](https://charm.cloudhub.social)
+
+If you use a self-hosted, modified, or third-party build of Charm, that operator may use different diagnostics settings and may be responsible for their own privacy practices.
 
 ## What we collect
 
@@ -32,7 +34,7 @@ Before any diagnostic data is sent, sensitive values are scrubbed in the browser
 
 ## What we do not collect
 
-Sable is designed not to collect or transmit:
+Charm is designed not to collect or transmit:
 
 - Matrix message content
 - Room names or aliases
@@ -63,15 +65,15 @@ Submitting a bug report is voluntary, and the app shows what will be sent before
 
 ## Third-party services
 
-Sable uses **Sentry** for crash reporting and performance diagnostics.
+Charm uses **Sentry** for crash reporting and performance diagnostics.
 
 Sentry receives only the diagnostic data described in this policy.
 
 Sentry handles that data under its own privacy policy:  
 [**https://sentry.io/privacy/**](https://sentry.io/privacy/)
 
-Technical details about Sable's Sentry integration are documented here:  
-[**https://github.com/SableClient/Sable/dev/docs/SENTRY_PRIVACY.md**](https://github.com/SableClient/Sable/dev/docs/SENTRY_PRIVACY.md)
+Technical details about Charm's Sentry integration are documented in
+[`docs/SENTRY_PRIVACY.md`](./SENTRY_PRIVACY.md).
 
 If a Sentry DSN is not configured, Sentry is inactive and no Sentry data is sent.
 
@@ -85,7 +87,7 @@ Depending on the build, you can disable error reporting, enable or disable sessi
 
 ### First-time consent notice
 
-When a build has crash reporting configured, a notice appears the first time you open Sable. It explains that Sable can send anonymous crash reports to help fix bugs, and gives you the option to enable it. Dismissing the notice without enabling keeps crash reporting off.
+When a build has crash reporting configured, a notice appears the first time you open Charm. It explains that Charm can send anonymous crash reports to help fix bugs, and gives you the option to enable it. Dismissing the notice without enabling keeps crash reporting off.
 
 This notice only appears once. Your choice is saved and can be changed at any time in **Settings → General → Diagnostics & Privacy**.
 
@@ -99,24 +101,24 @@ For users in the European Economic Area, diagnostic data is processed on the bas
 
 Diagnostic data is stored by Sentry according to the retention settings of the Sentry project.
 
-The Sable project does not keep a separate copy of that diagnostic data.
+The Charm project does not keep a separate copy of that diagnostic data.
 
 Because Sentry is a cloud service, diagnostic data may be processed outside your country of residence. Sentry states that it provides safeguards such as Standard Contractual Clauses where required.
 
 ## Children
 
-Sable is not directed to children under 13.
+Charm is not directed to children under 13.
 
 We do not knowingly collect personal information from children through the app.
 
-If you believe a child has submitted information through Sable, contact **privacy@sable.moe** so it can be removed.
+If you believe a child has submitted information through Charm, contact **privacy@cloudhub.social** so it can be removed.
 
 ## Changes to this policy
 
 We may update this Privacy Policy from time to time.
 
-When we do, we will publish the updated version at [**https://github.com/SableClient/Sable/blob/dev/docs/PRIVACY.md**](https://github.com/SableClient/Sable/blob/dev/docs/PRIVACY.md) and/or [**https://sable.moe**](https://sable.moe).
+When we do, we will publish the updated version in this repository and/or at [**https://charm.cloudhub.social**](https://charm.cloudhub.social).
 
 ## Contact
 
-If you have questions about this Privacy Policy or want to request deletion of data connected to a bug report, contact **privacy@sable.moe**.
+If you have questions about this Privacy Policy or want to request deletion of data connected to a bug report, contact **privacy@cloudhub.social**.

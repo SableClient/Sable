@@ -10,8 +10,8 @@ export function ThemeThirdPartyBanner({ hostLabel, kind = 'theme' }: ThemeThirdP
   const title = kind === 'tweak' ? 'Third-party tweak' : 'Third-party theme';
   const body =
     kind === 'tweak'
-      ? `This tweak is hosted on ${hostLabel}, outside the Sable catalog allowlist. Saving or enabling applies CSS from that host. Only use tweaks from providers you trust.`
-      : `This preview is hosted on ${hostLabel}, outside the Sable catalog allowlist. Saving or applying installs full theme CSS from that host. Only use themes from providers you trust.`;
+      ? `This tweak is hosted on ${hostLabel}, outside the theme catalog allowlist. Saving or enabling applies CSS from that host. Only use tweaks from providers you trust.`
+      : `This preview is hosted on ${hostLabel}, outside the theme catalog allowlist. Saving or applying installs full theme CSS from that host. Only use themes from providers you trust.`;
 
   return (
     <Box

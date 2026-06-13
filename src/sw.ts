@@ -1715,7 +1715,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   // Build a canonical deep-link URL.
   //
   // Room messages: /to/:user_id/:room_id/:event_id?
-  //   e.g. https://sable.cloudhub.social/to/%40alice%3Aserver/%21room%3Aserver/%24event%3Aserver
+  //   e.g. https://charm.cloudhub.social/to/%40alice%3Aserver/%21room%3Aserver/%24event%3Aserver
   //   The :user_id segment ensures ToRoomEvent switches to the correct account
   //   before navigating — required for background-account notifications.
   //

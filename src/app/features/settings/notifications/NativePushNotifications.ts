@@ -160,7 +160,7 @@ export async function enableNativePush(
     kind: 'http',
     app_id: appId,
     pushkey: registration.token,
-    app_display_name: 'Sable (Native Push)',
+    app_display_name: 'Charm (Native Push)',
     device_display_name:
       (await mx.getDevice(mx.getDeviceId() ?? '')).display_name ?? 'Mobile Device',
     lang: navigator.language || 'en',

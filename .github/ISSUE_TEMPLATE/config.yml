@@ -1,4 +1,4 @@
 contact_links:
-  - name: 💬 Matrix Chat
-    url: https://matrix.to/#/#sable:sable.moe
-    about: Ask questions and talk to other Sable users and the maintainers
+  - name: Charm Web App
+    url: https://charm.cloudhub.social
+    about: Open the hosted Charm client

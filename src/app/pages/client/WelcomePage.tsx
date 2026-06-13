@@ -1,6 +1,13 @@
 import { Box, Button, Icon, Icons, Text, config, toRem } from 'folds';
 import { Page, PageHero, PageHeroSection } from '$components/page';
 import LogoSVG from '$public/res/svg/logo.svg';
+import {
+  APP_ATTRIBUTION,
+  APP_DESCRIPTION,
+  APP_NAME,
+  APP_SOURCE_URL,
+  APP_SUPPORT_URL,
+} from '$app/config/brand';
 
 export function WelcomePage() {
   return (
@@ -13,16 +20,12 @@ export function WelcomePage() {
       >
         <PageHeroSection>
           <PageHero
-            icon={<img width="70" height="70" src={LogoSVG} alt="Sable Logo" />}
-            title="Welcome to Sable"
+            icon={<img width="70" height="70" src={LogoSVG} alt={`${APP_NAME} logo`} />}
+            title={`Welcome to ${APP_NAME}`}
             subTitle={
               <span>
-                An almost stable Matrix client.{' '}
-                <a
-                  href="https://github.com/SableClient/Sable"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
+                {APP_DESCRIPTION} {APP_ATTRIBUTION}{' '}
+                <a href={APP_SOURCE_URL} target="_blank" rel="noreferrer noopener">
                   {`v${APP_VERSION}${IS_RELEASE_TAG ? '' : `-dev${BUILD_HASH ? ` (${BUILD_HASH})` : ''}`}`}
                 </a>
               </span>
@@ -32,7 +35,7 @@ export function WelcomePage() {
               <Box grow="Yes" style={{ maxWidth: toRem(300) }} direction="Column" gap="300">
                 <Button
                   as="a"
-                  href="https://github.com/SableClient/Sable"
+                  href={APP_SOURCE_URL}
                   target="_blank"
                   rel="noreferrer noopener"
                   before={<Icon size="200" src={Icons.Code} />}
@@ -43,7 +46,7 @@ export function WelcomePage() {
                 </Button>
                 <Button
                   as="a"
-                  href="https://opencollective.com/sable"
+                  href={APP_SUPPORT_URL}
                   target="_blank"
                   rel="noreferrer noopener"
                   fill="Soft"

@@ -1,4 +1,4 @@
-# Sable – GitHub Copilot Instructions
+# Charm – GitHub Copilot Instructions
 
 Universal rules that apply to every session. Detailed guidance lives in `.github/instructions/` and `AGENTS.md`.
 

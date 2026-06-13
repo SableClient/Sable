@@ -1,7 +1,8 @@
 import { Box, Header, Scroll, Text } from 'folds';
 import classNames from 'classnames';
 import * as PatternsCss from '$styles/Patterns.css';
-import CinnySVG from '$public/favicon.png';
+import LogoSVG from '$public/res/svg/logo.svg';
+import { APP_NAME } from '$app/config/brand';
 import { AuthFooter } from './AuthFooter';
 import * as css from './styles.css';
 
@@ -24,8 +25,8 @@ export function AuthShell({ children, isAddingAccount }: AuthShellProps) {
         <Box direction="Column" className={css.AuthCard}>
           <Header className={css.AuthHeader} size="600" variant="Surface">
             <Box grow="Yes" direction="Row" gap="300" alignItems="Center">
-              <img className={css.AuthLogo} src={CinnySVG} alt="Cinny Logo" />
-              <Text size="H3">Sable</Text>
+              <img className={css.AuthLogo} src={LogoSVG} alt={`${APP_NAME} logo`} />
+              <Text size="H3">{APP_NAME}</Text>
             </Box>
             {isAddingAccount && (
               <Text size="T200" priority="300" style={{ marginLeft: 'auto', marginRight: 4 }}>

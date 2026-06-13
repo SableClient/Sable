@@ -1,72 +1,40 @@
-# Sable
+# Charm
 
-A Matrix client built to enhance the user experience with quality-of-life features, cosmetics, utilities, and sheer usability. See the [changelog](https://github.com/SableClient/Sable/blob/dev/CHANGELOG.md).
+Charm is a personal Matrix client distribution maintained by Evie Gauthier for the
+CloudHub domain. It is based on [Sable](https://github.com/SableClient/Sable), an
+AGPLv3 Matrix client forked from [Cinny](https://github.com/cinnyapp/cinny/).
 
-Soon to be replaced desktop apps can be downloaded [here](https://github.com/7w1/sable/releases/tag/1.0.0). They auto-update by pulling the website.
+The hosted web app lives at [charm.cloudhub.social](https://charm.cloudhub.social/).
 
-Join our matrix space [here](https://matrix.to/#/#sable:sable.moe) to discuss features, issues, or meowing.
+## Attribution
 
-Forked from [Cinny](https://github.com/cinnyapp/cinny/).
+Charm is independently maintained and is not an official Sable or Cinny release.
+When describing this distribution, use:
 
-## Getting started
-The web app is available at [app.sable.moe](https://app.sable.moe/) and gets updated on frequently, as soon as a feature is deemed stable.
-
-You can also download our desktop app for windows and linux from [releases](https://github.com/SableClient/Sable/releases/latest).
+> Independently maintained by Evie Gauthier. Based on Sable, an AGPLv3 Matrix
+> client forked from Cinny.
 
 ## Self-hosting
-You have a few options for self hosting, you can:
-1. Run the prebuilt docker container.
-2. Deploy on a site like GitLab Pages. Jae has a [guide here](https://docs.j4.lc/Tutorials/Deploying-Sable-on-GitLab-Pages).
-3. Build it yourself.
 
-### Docker
-
-Prebuilt images are published to `ghcr.io/sableclient/sable`.
-
-- `latest` tracks the current `dev` branch image.
-- `X.Y.Z` tags are versioned releases.
-- `X.Y` tags float within a release line.
-- Pushes to `dev` also publish a short commit SHA tag.
-
-Run the latest image with:
+You can self-host Charm by building the web app and serving the `dist/` directory
+from any static web server.
 
 ```sh
-docker run --rm -p 8080:8080 ghcr.io/sableclient/sable:latest
+pnpm i
+pnpm run build
 ```
 
-Then open `http://localhost:8080`.
+The runtime configuration is loaded from [`config.json`](config.json). You can
+use it to change default homeservers, featured rooms and spaces, the account
+switcher, push notification settings, and experimental feature toggles.
 
-If you want to override the bundled [`config.json`](config.json), mount your own
-file at `/app/config.json`:
+### Optional default client settings
 
-```yaml
-services:
-  sable:
-    image: ghcr.io/sableclient/sable:latest
-    ports:
-      - '8080:8080'
-    volumes:
-      - ./config.json:/app/config.json:ro
-```
-
-### Build it yourself
-
-To build and serve Sable yourself with nginx, clone this repo and build it:
-
-```sh
-pnpm i # Installs all dependencies
-pnpm run build # Compiles the app into the dist/ directory
-```
-
-After that, you can copy the dist/ directory to your server and serve it.
-
-* In the [`config.json`](config.json), you can modify the default homeservers, feature rooms/spaces, toggle the account switcher, and toggle experimental simplified slilding sync support.
-
-#### Optional default client settings
-
-While the default settings are recommended for most users, you can optionally add a top-level `"settingsDefaults"` object whose keys match [client settings](src/app/state/settings.ts) (only fields you want to override) to override them. The default settings for any new logins will match these. Existing keys in local storage or users who chose to sync settings with their account data will still have their settings set.
-
-For example:
+While the default settings are recommended for most users, you can optionally
+add a top-level `"settingsDefaults"` object whose keys match
+[client settings](src/app/state/settings.ts). Only fields you include are
+overridden. Existing local settings and Matrix account-data synced settings keep
+their current values.
 
 ```json
 {
@@ -84,27 +52,41 @@ For example:
 
 Invalid or unknown keys are ignored.
 
-* To deploy on subdirectory, you need to rebuild the app youself after updating the `base` path in [`build.config.ts`](build.config.ts).
-    * For example, if you want to deploy on `https://sable.moe/app`, then set `base: '/app'`.
+To deploy under a subdirectory, update the `base` path in
+[`build.config.ts`](build.config.ts) and rebuild the app.
 
 ## Local development
-> [!TIP]
-> We recommend using a version manager as versions change quickly. [fnm](https://github.com/Schniz/fnm) is a great cross-platform option (Windows, macOS, and Linux). [NVM on Windows](https://github.com/coreybutler/nvm-windows#installation--upgrades) and [nvm](https://github.com/nvm-sh/nvm) on Linux/macOS are also good choices. Use the version defined in [`.node-version`](.node-version).
 
-Execute the following commands to start a development server:
+> [!TIP]
+> Use the Node version defined in [`.node-version`](.node-version). A version
+> manager such as [fnm](https://github.com/Schniz/fnm) keeps this reproducible.
+
 ```sh
-fnm use --corepack-enabled # Activates the Node version and enables corepack
-# If you not using fnm, install corepack manually: npm install --global corepack@latest
-corepack install # Installs the pnpm version specified in package.json
-pnpm i # Installs all dependencies
-pnpm run dev # Serve a development version
+fnm use --corepack-enabled
+corepack install
+pnpm i
+pnpm run dev
 ```
 
 To build the app:
+
 ```sh
-pnpm run build # Compiles the app into the dist/ directory
+pnpm run build
 ```
 
 ## Deployment and infrastructure
-Deployment workflows and infrastructure details live in
+
+Deployment workflows and Cloudflare infrastructure details live in
 [`infra/README.md`](infra/README.md).
+
+## Compatibility notes
+
+Some internal names intentionally still use Sable namespaces:
+
+- `sable_*` localStorage keys preserve existing diagnostics and settings choices.
+- `moe.sable.*` Matrix account-data/event namespaces preserve synced settings
+  compatibility.
+- `.sable.css` theme filenames and `@sable-theme` metadata remain compatible
+  with the Sable theme ecosystem.
+- Dependencies published under `@sableclient/*` and SableClient GitHub URLs stay
+  pinned until Charm-specific forks exist.

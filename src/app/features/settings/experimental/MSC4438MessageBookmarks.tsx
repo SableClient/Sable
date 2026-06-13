@@ -35,11 +35,11 @@ export function MSC4438MessageBookmarks() {
               </a>
               .{' '}
               <a
-                href="https://github.com/SableClient/Sable/issues/600"
+                href="https://github.com/Just-Insane/Sable/issues/600"
                 target="_blank"
                 rel="noreferrer"
               >
-                Known issues (Sable GitHub)
+                Known issues (Charm GitHub)
               </a>
               .
             </>

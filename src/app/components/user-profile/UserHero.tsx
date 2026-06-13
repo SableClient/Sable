@@ -235,7 +235,7 @@ export function UserHeroName({ displayName, userId, customHeroCards }: UserHeroN
   const username = getMxIdLocalPart(userId);
   const nick = useNickname(userId);
 
-  // Sable username color and fonts
+  // Sable-compatible username color and fonts
   const { color, font } = useSableCosmetics(userId, useRoom(), customHeroCards);
   const shownName = nick ?? displayName ?? username ?? userId;
 

@@ -1536,7 +1536,7 @@ export function ThemeCatalogSettings({
             <SettingTile
               title="Theme & tweak links in chat"
               focusId="theme-chat-sable-widgets"
-              description="When disabled, messages do not show theme or tweak cards (or placeholders) for Sable CSS links, only a plain link."
+              description="When disabled, messages do not show theme or tweak cards (or placeholders) for Sable-compatible CSS links, only a plain link."
               after={
                 <Switch variant="Primary" value={sableChatWidgets} onChange={setSableChatWidgets} />
               }
@@ -1566,7 +1566,7 @@ export function ThemeCatalogSettings({
             <SettingTile
               title="Theme & tweak previews from any URL"
               focusId="theme-chat-auto-any"
-              description="Strongy discouraged. When enabled, potentially dangerous third-party Sable CSS links also fetch automatically. When disabled, those links never load until you use Load preview on the card."
+              description="Strongy discouraged. When enabled, potentially dangerous third-party Sable-compatible CSS links also fetch automatically. When disabled, those links never load until you use Load preview on the card."
               after={
                 <Switch
                   variant="Primary"

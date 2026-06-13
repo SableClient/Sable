@@ -1,10 +1,10 @@
 [package]
-name = "sable"
+name = "charm"
 version = "0.1.0"
-description = "Yet another matrix client but better"
-authors = ["you"]
+description = "A personal Matrix client with a little magic"
+authors = ["Evie Gauthier"]
 license = ""
-repository = ""
+repository = "https://github.com/Just-Insane/Sable"
 edition = "2021"
 rust-version = "1.88.0"
 

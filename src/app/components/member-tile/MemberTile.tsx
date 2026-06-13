@@ -36,7 +36,7 @@ export const MemberTile = as<'button', MemberTileProps>(
       ? (convertMxc(mx, avatarMxcUrl, useAuthentication, 100, 100, 'crop') ?? undefined)
       : undefined;
 
-    // Sable username color and fonts
+    // Sable-compatible username color and fonts
     const { color, font } = useSableCosmetics(member.userId, room);
 
     return (

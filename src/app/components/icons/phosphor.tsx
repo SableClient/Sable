@@ -114,6 +114,7 @@ import {
   UserCircle,
   UserMinus,
   UserPlus,
+  UsersThree,
   VideoCamera,
   VideoCameraSlash,
   Warning,
@@ -177,6 +178,10 @@ export function composerIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
 
 export function chipIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
   return <Icon size={PHOSPHOR_SIZE.inline} {...props} />;
+}
+
+export function profileIcon(Icon: PhosphorIcon, props?: IconAtProps): ReactNode {
+  return iconAt(Icon, '100', props);
 }
 
 /** Caret in chip `after` slots — flex-centered so Phosphor glyphs align with label text. */
@@ -339,6 +344,7 @@ export {
   UserCircle,
   UserMinus,
   UserPlus,
+  UsersThree,
   VideoCamera,
   VideoCameraSlash,
   Warning,

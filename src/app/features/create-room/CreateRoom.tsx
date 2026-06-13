@@ -1,16 +1,16 @@
-import type { ReactNode, FormEventHandler } from 'react';
-import { useCallback, useEffect, useState } from 'react';
-import type { Room } from '$types/matrix-sdk';
-import { MatrixError, JoinRule, RoomType } from '$types/matrix-sdk';
-import { Box, Button, Chip, color, config, Input, Spinner, Switch, Text, TextArea } from 'folds';
-import { SettingTile } from '$components/setting-tile';
-import { SequenceCard } from '$components/sequence-card';
-import { useMatrixClient } from '$hooks/useMatrixClient';
-import { millisecondsToMinutes, replaceSpaceWithDash } from '$utils/common';
-import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { useCapabilities } from '$hooks/useCapabilities';
-import { useAlive } from '$hooks/useAlive';
-import type { CreateRoomData } from '$components/create-room';
+import type { ReactNode, FormEventHandler } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { Room } from "$types/matrix-sdk";
+import { MatrixError, JoinRule, RoomType } from "$types/matrix-sdk";
+import { Box, Button, Chip, color, config, Input, Spinner, Switch, Text, TextArea } from "folds";
+import { SettingTile } from "$components/setting-tile";
+import { SequenceCard } from "$components/sequence-card";
+import { useMatrixClient } from "$hooks/useMatrixClient";
+import { millisecondsToMinutes, replaceSpaceWithDash } from "$utils/common";
+import { AsyncStatus, useAsyncCallback } from "$hooks/useAsyncCallback";
+import { useCapabilities } from "$hooks/useCapabilities";
+import { useAlive } from "$hooks/useAlive";
+import type { CreateRoomData } from "$components/create-room";
 import {
   AdditionalCreatorInput,
   createRoom,
@@ -20,10 +20,10 @@ import {
   RoomVersionSelector,
   useAdditionalCreators,
   CreateRoomType,
-} from '$components/create-room';
+} from "$components/create-room";
 
-import { CreateRoomTypeSelector } from '$components/create-room/CreateRoomTypeSelector';
-import { getRoomIconComponent } from '$components/icons/roomIcons';
+import { CreateRoomTypeSelector } from "$components/create-room/CreateRoomTypeSelector";
+import { getRoomStandaloneIconComponent } from "$components/icons/roomIcons";
 import {
   CaretDown,
   CaretUp,
@@ -32,22 +32,22 @@ import {
   SpeakerHigh,
   Warning,
   type IconSizeToken,
-} from '$components/icons/phosphor';
-import { createDebugLogger } from '$utils/debugLogger';
+} from "$components/icons/phosphor";
+import { createDebugLogger } from "$utils/debugLogger";
 import {
   restrictedSupported,
   creatorsSupported,
   knockSupported,
   knockRestrictedSupported,
-} from '$utils/roomSupport';
-import { ErrorCode } from '../../cs-errorcode';
+} from "$utils/roomSupport";
+import { ErrorCode } from "../../cs-errorcode";
 
-const debugLog = createDebugLogger('CreateRoom');
+const debugLog = createDebugLogger("CreateRoom");
 
 const getCreateRoomAccessToIcon = (
   access: CreateRoomAccess,
   type?: CreateRoomType,
-  size: IconSizeToken = '400'
+  size: IconSizeToken = "400",
 ): ReactNode => {
   const isVoiceRoom = type === CreateRoomType.VoiceRoom;
 
@@ -56,14 +56,14 @@ const getCreateRoomAccessToIcon = (
   if (access === CreateRoomAccess.Private) joinRule = JoinRule.Knock;
 
   return iconAt(
-    getRoomIconComponent(isVoiceRoom ? RoomType.UnstableCall : undefined, joinRule),
-    size
+    getRoomStandaloneIconComponent(isVoiceRoom ? RoomType.UnstableCall : undefined, joinRule),
+    size,
   );
 };
 
 const getCreateRoomTypeToIcon = (type: CreateRoomType): ReactNode => {
-  if (type === CreateRoomType.VoiceRoom) return iconAt(SpeakerHigh, '400');
-  return iconAt(Hash, '400');
+  if (type === CreateRoomType.VoiceRoom) return iconAt(SpeakerHigh, "400");
+  return iconAt(Hash, "400");
 };
 
 type CreateRoomFormProps = {
@@ -82,18 +82,18 @@ export function CreateRoomForm({
   const alive = useAlive();
 
   const capabilities = useCapabilities();
-  const roomVersions = capabilities['m.room_versions'];
-  const [selectedRoomVersion, selectRoomVersion] = useState(roomVersions?.default ?? '1');
+  const roomVersions = capabilities["m.room_versions"];
+  const [selectedRoomVersion, selectRoomVersion] = useState(roomVersions?.default ?? "1");
   useEffect(() => {
     // capabilities load async
-    selectRoomVersion(roomVersions?.default ?? '1');
+    selectRoomVersion(roomVersions?.default ?? "1");
   }, [roomVersions?.default]);
 
   const allowRestricted = space && restrictedSupported(selectedRoomVersion);
 
   const [type, setType] = useState(defaultType ?? CreateRoomType.TextRoom);
   const [access, setAccess] = useState(
-    defaultAccess ?? (allowRestricted ? CreateRoomAccess.Restricted : CreateRoomAccess.Private)
+    defaultAccess ?? (allowRestricted ? CreateRoomAccess.Restricted : CreateRoomAccess.Private),
   );
   const allowAdditionalCreators = creatorsSupported(selectedRoomVersion);
   const { additionalCreators, addAdditionalCreator, removeAdditionalCreator } =
@@ -115,7 +115,7 @@ export function CreateRoomForm({
   };
 
   const [createState, create] = useAsyncCallback<string, Error | MatrixError, [CreateRoomData]>(
-    useCallback((data) => createRoom(mx, data), [mx])
+    useCallback((data) => createRoom(mx, data), [mx]),
   );
   const loading = createState.status === AsyncStatus.Loading;
   const error = createState.status === AsyncStatus.Error ? createState.error : undefined;
@@ -147,7 +147,7 @@ export function CreateRoomForm({
     let roomType: RoomType | undefined;
     if (type === CreateRoomType.VoiceRoom) roomType = RoomType.UnstableCall;
 
-    debugLog.info('ui', 'Create room button clicked', {
+    debugLog.info("ui", "Create room button clicked", {
       roomName,
       access,
       type,
@@ -170,7 +170,7 @@ export function CreateRoomForm({
       allowFederation: federation,
       additionalCreators: allowAdditionalCreators ? additionalCreators : undefined,
     }).then((roomId) => {
-      debugLog.info('ui', 'Room created successfully', {
+      debugLog.info("ui", "Room created successfully", {
         roomId,
         roomName,
         access,
@@ -209,7 +209,7 @@ export function CreateRoomForm({
         <Text size="L400">Name</Text>
         <Input
           required
-          before={getCreateRoomAccessToIcon(access, type, '100')}
+          before={getCreateRoomAccessToIcon(access, type, "100")}
           name="nameInput"
           autoFocus
           size="500"
@@ -238,7 +238,7 @@ export function CreateRoomForm({
           <Box grow="Yes" justifyContent="End">
             <Chip
               radii="Pill"
-              before={iconAt(advance ? CaretUp : CaretDown, '50')}
+              before={iconAt(advance ? CaretUp : CaretDown, "50")}
               onClick={() => setAdvance(!advance)}
               type="button"
             >
@@ -326,7 +326,7 @@ export function CreateRoomForm({
         </SequenceCard>
         {advance && (
           <RoomVersionSelector
-            versions={roomVersions?.available ? Object.keys(roomVersions.available) : ['1']}
+            versions={roomVersions?.available ? Object.keys(roomVersions.available) : ["1"]}
             value={selectedRoomVersion}
             onChange={handleRoomVersionChange}
             disabled={disabled}
@@ -336,12 +336,12 @@ export function CreateRoomForm({
 
       {error && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="200">
-          {iconAt(Warning, '100', { filled: true })}
+          {iconAt(Warning, "100", { filled: true })}
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
               {error instanceof MatrixError && error.name === (ErrorCode.M_LIMIT_EXCEEDED as string)
                 ? `Server rate-limited your request for ${millisecondsToMinutes(
-                    (error.data.retry_after_ms as number | undefined) ?? 0
+                    (error.data.retry_after_ms as number | undefined) ?? 0,
                   )} minutes!`
                 : error.message}
             </b>

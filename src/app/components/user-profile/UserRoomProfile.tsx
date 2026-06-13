@@ -11,10 +11,9 @@ import {
   CaretDown,
   CaretUp,
   ChatCircle,
-  chipIcon,
   Clock,
   Heart,
-  iconAt,
+  profileIcon,
   User,
 } from '$components/icons/phosphor';
 import { mxcUrlToHttp } from '$utils/matrix';
@@ -206,7 +205,7 @@ function UserExtendedSection({
           }}
           onClick={() => handleMiscSelector(-1)}
         >
-          {iconAt(CaretUp, '50')}
+          {profileIcon(CaretUp)}
           <Text>Show less</Text>
         </MenuItem>
         {unknownFields.map(([key], index) => (
@@ -232,7 +231,7 @@ function UserExtendedSection({
           size="300"
           className={css.MiscDataToggleButton}
           onClick={() => setShowMisc(!showMisc)}
-          after={iconAt(miscDataIndex === -1 ? CaretDown : CaretUp, '50')}
+          after={profileIcon(miscDataIndex === -1 ? CaretDown : CaretUp)}
           style={{
             padding: '1rem',
             justifyContent: 'flex-start',
@@ -258,7 +257,7 @@ function UserExtendedSection({
         <Box alignItems="Center" gap="300" wrap="Wrap">
           {pronouns && (
             <Box alignItems="Center" gap="100">
-              {chipIcon(User, { style: { opacity: 0.5 } })}
+              {profileIcon(User, { style: { opacity: 0.5 } })}
               <Text size="T200" priority="400">
                 {pronouns}
               </Text>
@@ -266,7 +265,7 @@ function UserExtendedSection({
           )}
           {localTime && profile.timezone && (
             <Box alignItems="Center" gap="100">
-              {iconAt(Clock, '50', { style: { opacity: 0.5 } })}
+              {profileIcon(Clock, { style: { opacity: 0.5 } })}
               <Text size="T200" priority="400">
                 {localTime} ({profile.timezone.replaceAll(/^["']|["']$/g, '')})
               </Text>
@@ -274,7 +273,7 @@ function UserExtendedSection({
           )}
           {catStatusText && (
             <Box alignItems="Center" gap="100">
-              {iconAt(Heart, '50', { style: { opacity: 0.5 } })}
+              {profileIcon(Heart, { style: { opacity: 0.5 } })}
               <Text size="T200" priority="400">
                 {catStatusText}
               </Text>
@@ -343,7 +342,7 @@ function UserExtendedSection({
                     }
                     style={{ color: textColor }}
                   >
-                    {iconAt(ArrowLeft, '50')}
+                    {profileIcon(ArrowLeft)}
                   </Button>
                 )}
                 {miscHeader}
@@ -355,7 +354,7 @@ function UserExtendedSection({
                     onClick={() => setMiscDataIndex((miscDataIndex + 1) % unknownFields.length)}
                     style={{ color: textColor }}
                   >
-                    {iconAt(ArrowRight, '50')}
+                    {profileIcon(ArrowRight)}
                   </Button>
                 )}
               </Box>
@@ -589,7 +588,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 variant="Primary"
                 fill="Solid"
                 radii="300"
-                before={iconAt(ChatCircle, '50', { filled: true })}
+                before={profileIcon(ChatCircle, { filled: true })}
                 onClick={handleMessage}
                 className={showCustomHeroCard ? css.UserHeroChipThemed : css.UserHeroChip}
                 style={{

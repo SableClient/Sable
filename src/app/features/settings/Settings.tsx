@@ -42,6 +42,7 @@ import {
   Smiley,
   Terminal,
   User,
+  UsersThree,
   X,
 } from '$components/icons/phosphor';
 import { About } from './about';
@@ -90,7 +91,7 @@ const settingsMenuIcons: Record<
 > = {
   general: { icon: GearSix },
   account: { icon: User },
-  persona: { icon: User },
+  persona: { icon: UsersThree },
   appearance: { icon: Palette },
   notifications: { icon: Bell },
   devices: { icon: DevicesIcon },

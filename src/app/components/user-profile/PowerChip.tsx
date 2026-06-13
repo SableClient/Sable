@@ -18,7 +18,7 @@ import {
   Text,
   toRem,
 } from 'folds';
-import { CaretDown, iconAt, menuIcon, X } from '$components/icons/phosphor';
+import { CaretDown, menuIcon, profileIcon, X } from '$components/icons/phosphor';
 import type { CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
@@ -367,7 +367,7 @@ export function PowerChip({
           }
           before={
             cords ? (
-              iconAt(CaretDown, '50')
+              profileIcon(CaretDown)
             ) : (
               <>
                 {!changing && <PowerColorBadge color={tag.color} />}

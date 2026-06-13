@@ -1,5 +1,5 @@
 import { Box, Button, color, config, Spinner, Text, Input } from 'folds';
-import { ArrowLeft, ArrowRight, iconAt, Prohibit } from '$components/icons/phosphor';
+import { ArrowLeft, ArrowRight, profileIcon, Prohibit } from '$components/icons/phosphor';
 import { useCallback, useRef } from 'react';
 import { useRoom } from '$hooks/useRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -296,7 +296,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
                 inviteState.status === AsyncStatus.Loading ? (
                   <Spinner size="50" variant="Secondary" fill="Soft" />
                 ) : (
-                  iconAt(ArrowRight, '50')
+                  profileIcon(ArrowRight)
                 )
               }
               onClick={invite}
@@ -316,7 +316,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
                 kickState.status === AsyncStatus.Loading ? (
                   <Spinner size="50" variant="Critical" fill="Soft" />
                 ) : (
-                  iconAt(ArrowLeft, '50')
+                  profileIcon(ArrowLeft)
                 )
               }
               onClick={kick}
@@ -336,7 +336,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
                 banState.status === AsyncStatus.Loading ? (
                   <Spinner size="50" variant="Critical" fill="Solid" />
                 ) : (
-                  iconAt(Prohibit, '50')
+                  profileIcon(Prohibit)
                 )
               }
               onClick={ban}

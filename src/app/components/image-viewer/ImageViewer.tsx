@@ -92,7 +92,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
         <Header className={css.ImageViewerHeader} size="400">
           <Box grow="Yes" alignItems="Center" gap="200">
             <IconButton size="300" radii="300" onClick={requestClose}>
-              {iconAt(ArrowLeft, '50')}
+              {iconAt(ArrowLeft, '200')}
             </IconButton>
             <Text size="T300" truncate>
               {alt}
@@ -125,7 +125,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               aria-label="View Original Size"
               title="View Original Size"
             >
-              {iconAt(Image, '50')}
+              {iconAt(Image, '200')}
             </IconButton>
             <IconButton
               variant="Surface"
@@ -146,7 +146,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               aria-label="Reset Zoom"
               title="Zoom to Fill Container"
             >
-              {iconAt(ArrowsClockwise, '50')}
+              {iconAt(ArrowsClockwise, '200')}
             </IconButton>
             <IconButton
               variant={transforms.zoom < 1 ? 'Success' : 'SurfaceVariant'}

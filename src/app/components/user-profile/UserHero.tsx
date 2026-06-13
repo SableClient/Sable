@@ -27,7 +27,7 @@ import { useBlobCache } from '$hooks/useBlobCache';
 import { ImageViewer } from '$components/image-viewer';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { UserAvatar } from '$components/user-avatar';
-import { CaretDown, CaretUp, iconAt, userFallbackIcon } from '$components/icons/phosphor';
+import { CaretDown, CaretUp, profileIcon, userFallbackIcon } from '$components/icons/phosphor';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { shadeColor, areColorsTooSimilar } from '$utils/shadeColor';
@@ -213,7 +213,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                       alignSelf: isFullStatus ? 'flex-start' : 'center',
                     }}
                   >
-                    {iconAt(isFullStatus ? CaretUp : CaretDown, '50')}
+                    {profileIcon(isFullStatus ? CaretUp : CaretDown)}
                   </Box>
                 )}
               </Box>

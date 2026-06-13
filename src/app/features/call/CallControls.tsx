@@ -1,6 +1,6 @@
-import type { MouseEventHandler } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { RectCords } from 'folds';
+import type { MouseEventHandler } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { RectCords } from "folds";
 import {
   Box,
   Button,
@@ -12,23 +12,23 @@ import {
   Spinner,
   Text,
   toRem,
-} from 'folds';
+} from "folds";
 import {
   composerIcon,
   DotsThreeOutlineVerticalIcon,
   iconAt,
   PhoneDisconnect,
-} from '$components/icons/phosphor';
-import FocusTrap from 'focus-trap-react';
-import { SequenceCard } from '$components/sequence-card';
-import type { CallEmbed } from '$plugins/call';
-import { useCallControlState } from '$plugins/call';
-import { stopPropagation } from '$utils/keyboard';
-import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { useRoom } from '$hooks/useRoom';
-import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { useCallPreferences } from '$state/hooks/callPreferences';
-import * as css from './styles.css';
+} from "$components/icons/phosphor";
+import FocusTrap from "focus-trap-react";
+import { SequenceCard } from "$components/sequence-card";
+import type { CallEmbed } from "$plugins/call";
+import { useCallControlState } from "$plugins/call";
+import { stopPropagation } from "$utils/keyboard";
+import { AsyncStatus, useAsyncCallback } from "$hooks/useAsyncCallback";
+import { useRoom } from "$hooks/useRoom";
+import { ScreenSize, useScreenSizeContext } from "$hooks/useScreenSize";
+import { useCallPreferences } from "$state/hooks/callPreferences";
+import * as css from "./styles.css";
 import {
   ChatButton,
   ControlDivider,
@@ -36,7 +36,7 @@ import {
   ScreenShareButton,
   SoundButton,
   VideoButton,
-} from './Controls';
+} from "./Controls";
 
 type CallControlsProps = {
   callEmbed: CallEmbed;
@@ -49,7 +49,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
   const compact = screenSize === ScreenSize.Mobile;
 
   const { microphone, video, sound, screenshare, spotlight } = useCallControlState(
-    callEmbed.control
+    callEmbed.control,
   );
 
   const { setPreferences } = useCallPreferences();
@@ -80,7 +80,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
   };
 
   const [hangupState, hangup] = useAsyncCallback(
-    useCallback(() => callEmbed.hangup(), [callEmbed])
+    useCallback(() => callEmbed.hangup(), [callEmbed]),
   );
   const exiting =
     hangupState.status === AsyncStatus.Loading || hangupState.status === AsyncStatus.Success;
@@ -92,15 +92,15 @@ export function CallControls({ callEmbed }: CallControlsProps) {
       justifyContent="Center"
       alignItems="Center"
       style={{
-        maxWidth: '100%',
+        maxWidth: "100%",
         padding: compact ? `0 ${toRem(8)}` : undefined,
-        overflowX: 'auto',
+        overflowX: "auto",
       }}
     >
       <SequenceCard
         className={css.ControlCard}
         variant="SurfaceVariant"
-        gap={compact ? '100' : '200'}
+        gap={compact ? "100" : "200"}
         radii="500"
         alignItems="Center"
         justifyContent="Center"
@@ -110,7 +110,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
           shrink="No"
           alignItems="Center"
           justifyContent="Center"
-          gap={compact ? '100' : '200'}
+          gap={compact ? "100" : "200"}
           direction="Row"
         >
           <MicrophoneButton
@@ -126,7 +126,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
           shrink="No"
           alignItems="Center"
           justifyContent="Center"
-          gap={compact ? '100' : '200'}
+          gap={compact ? "100" : "200"}
           direction="Row"
         >
           <VideoButton enabled={video} onToggle={() => callEmbed.control.toggleVideo()} />
@@ -140,7 +140,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
           shrink="No"
           alignItems="Center"
           justifyContent="Center"
-          gap={compact ? '100' : '200'}
+          gap={compact ? "100" : "200"}
           direction="Row"
         >
           {room?.isCallRoom() && <ChatButton />}
@@ -155,8 +155,8 @@ export function CallControls({ callEmbed }: CallControlsProps) {
                   initialFocus: false,
                   onDeactivate: () => setCords(undefined),
                   clickOutsideDeactivates: true,
-                  isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                  isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+                  isKeyForward: (evt: KeyboardEvent) => evt.key === "ArrowDown",
+                  isKeyBackward: (evt: KeyboardEvent) => evt.key === "ArrowUp",
                   escapeDeactivates: stopPropagation,
                 }}
               >
@@ -169,7 +169,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
                       onClick={handleSpotlightClick}
                     >
                       <Text size="B300" truncate>
-                        {spotlight ? 'Grid View' : 'Spotlight View'}
+                        {spotlight ? "Grid View" : "Spotlight View"}
                       </Text>
                     </MenuItem>
                     <MenuItem
@@ -207,7 +207,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
               aria-pressed={!!cords}
             >
               {composerIcon(DotsThreeOutlineVerticalIcon, {
-                weight: cords ? 'fill' : 'regular',
+                weight: cords ? "fill" : "regular",
               })}
             </IconButton>
           </PopOut>
@@ -224,7 +224,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
               exiting ? (
                 <Spinner variant="Critical" fill="Solid" size="200" />
               ) : (
-                iconAt(PhoneDisconnect, '200', { filled: true })
+                iconAt(PhoneDisconnect, "200", { filled: true })
               )
             }
             disabled={exiting}

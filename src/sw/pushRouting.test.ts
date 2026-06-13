@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDeclarativeNotificationOptions,
+  getEncryptedMinimalPushFocusDecision,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
 } from './pushRouting';
@@ -40,5 +41,10 @@ describe('service worker push routing helpers', () => {
       event_id: '$event',
       user_id: '@alice:example',
     });
+  });
+
+  it('ignores focused clients for encrypted minimal push suppression', () => {
+    expect(getEncryptedMinimalPushFocusDecision(0)).toBe('no_focused_client');
+    expect(getEncryptedMinimalPushFocusDecision(1)).toBe('ignore_stale_focus');
   });
 });

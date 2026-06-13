@@ -35,6 +35,14 @@ export function isDeclarativeWebPushPayload(data: unknown): data is DeclarativeW
   return typeof (notification as Record<string, unknown>).title === 'string';
 }
 
+export type EncryptedMinimalPushFocusDecision = 'ignore_stale_focus' | 'no_focused_client';
+
+export function getEncryptedMinimalPushFocusDecision(
+  focusedClientCount: number
+): EncryptedMinimalPushFocusDecision {
+  return focusedClientCount > 0 ? 'ignore_stale_focus' : 'no_focused_client';
+}
+
 export function buildDeclarativeNotificationOptions(payload: DeclarativeWebPushPayload): {
   title: string;
   options: NotificationOptions;

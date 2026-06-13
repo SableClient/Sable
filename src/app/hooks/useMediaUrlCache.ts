@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 
 /**
@@ -46,54 +46,57 @@ export const useMediaUrlCache = () => {
     };
   }, []);
 
-  return {
-    get: (
-      mx: MatrixClient,
-      mxcUrl: string,
-      useAuthentication: boolean,
-      width?: number,
-      height?: number,
-      resizeMethod?: string,
-      allowDirectLinks?: boolean
-    ): string | null => {
-      const key = createCacheKey(mxcUrl, useAuthentication, width, height, resizeMethod);
-      const cached = cacheRef.current.get(key);
-      if (cached !== undefined) {
-        return cached;
-      }
+  return useMemo(
+    () => ({
+      get: (
+        mx: MatrixClient,
+        mxcUrl: string,
+        useAuthentication: boolean,
+        width?: number,
+        height?: number,
+        resizeMethod?: string,
+        allowDirectLinks?: boolean
+      ): string | null => {
+        const key = createCacheKey(mxcUrl, useAuthentication, width, height, resizeMethod);
+        const cached = cacheRef.current.get(key);
+        if (cached !== undefined) {
+          return cached;
+        }
 
-      // Convert and cache
-      const httpUrl = mx.mxcUrlToHttp(
-        mxcUrl.replace(/^["']|["']$/g, ''),
-        width,
-        height,
-        resizeMethod,
-        allowDirectLinks,
-        undefined,
-        useAuthentication
-      );
+        // Convert and cache
+        const httpUrl = mx.mxcUrlToHttp(
+          mxcUrl.replace(/^["']|["']$/g, ''),
+          width,
+          height,
+          resizeMethod,
+          allowDirectLinks,
+          undefined,
+          useAuthentication
+        );
 
-      cacheRef.current.set(key, httpUrl);
-      return httpUrl;
-    },
+        cacheRef.current.set(key, httpUrl);
+        return httpUrl;
+      },
 
-    getBlob: (mxcUrl: string, isEncrypted: boolean, params?: string): string | undefined => {
-      const key = createBlobCacheKey(mxcUrl, isEncrypted, params);
-      return cacheRef.current.get(key) ?? undefined;
-    },
+      getBlob: (mxcUrl: string, isEncrypted: boolean, params?: string): string | undefined => {
+        const key = createBlobCacheKey(mxcUrl, isEncrypted, params);
+        return cacheRef.current.get(key) ?? undefined;
+      },
 
-    setBlob: (mxcUrl: string, isEncrypted: boolean, blobUrl: string, params?: string): void => {
-      const key = createBlobCacheKey(mxcUrl, isEncrypted, params);
-      cacheRef.current.set(key, blobUrl);
-      blobUrlsRef.current.add(blobUrl);
-    },
+      setBlob: (mxcUrl: string, isEncrypted: boolean, blobUrl: string, params?: string): void => {
+        const key = createBlobCacheKey(mxcUrl, isEncrypted, params);
+        cacheRef.current.set(key, blobUrl);
+        blobUrlsRef.current.add(blobUrl);
+      },
 
-    clear: () => {
-      blobUrlsRef.current.forEach((url) => {
-        URL.revokeObjectURL(url);
-      });
-      blobUrlsRef.current.clear();
-      cacheRef.current.clear();
-    },
-  };
+      clear: () => {
+        blobUrlsRef.current.forEach((url) => {
+          URL.revokeObjectURL(url);
+        });
+        blobUrlsRef.current.clear();
+        cacheRef.current.clear();
+      },
+    }),
+    []
+  );
 };

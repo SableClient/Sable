@@ -7,6 +7,7 @@ import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-
 import { createPushNotifications } from './sw/pushNotification';
 import {
   buildDeclarativeNotificationOptions,
+  getEncryptedMinimalPushFocusDecision,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
 } from './sw/pushRouting';
@@ -48,6 +49,7 @@ type PushTelemetryEvent =
   | 'received'
   | 'confirmed_visible'
   | 'suppressed_visible'
+  | 'stale_focus_ignored'
   | 'shown_os'
   | 'decrypt_timeout'
   | 'fetch_fallback'
@@ -894,20 +896,16 @@ async function handleMinimalPushPayload(
 
     const focusedClientCount = focusedWindowClientCount(windowClients);
     const browserVisibleClientCount = visibleWindowClientCount(windowClients);
-    if (focusedClientCount > 0) {
-      await recordPushTelemetry('confirmed_visible', {
+    if (getEncryptedMinimalPushFocusDecision(focusedClientCount) === 'ignore_stale_focus') {
+      // iOS standalone PWAs can report a bfcached/background page as focused.
+      // A push event is our only reliable wake-up path in that state, so do not
+      // let stale WindowClient focus suppress the OS notification.
+      await recordPushTelemetry('stale_focus_ignored', {
         payload_type: 'minimal',
         focused_client_count: focusedClientCount,
         browser_visible_client_count: browserVisibleClientCount,
         visibility_state: result?.visibilityState ?? 'unknown',
       });
-      await recordPushTelemetry('suppressed_visible', {
-        payload_type: 'minimal',
-        focused_client_count: focusedClientCount,
-        browser_visible_client_count: browserVisibleClientCount,
-        visibility_state: result?.visibilityState ?? 'unknown',
-      });
-      return;
     }
 
     if (result?.success) {

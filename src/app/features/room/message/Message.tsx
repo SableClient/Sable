@@ -945,7 +945,7 @@ function MessageInternal(
   const edits =
     evtTimeline &&
     getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
-  const isEdited = edits !== undefined;
+  const isEdited = !!edits?.length;
 
   return (
     <MessageBase
@@ -1462,7 +1462,7 @@ export const Event = as<'div', EventProps>(
     const edits =
       evtTimeline &&
       getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
-    const isEdited = edits !== undefined;
+    const isEdited = !!edits?.length;
 
     return (
       <MessageBase

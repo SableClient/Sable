@@ -106,6 +106,12 @@ export interface Settings {
   hideNickAvatarEvents: boolean;
   showHiddenEvents: boolean;
   showTombstoneEvents: boolean;
+  hiddenEventEdits: boolean;
+  hiddenEventRedactionTimeline: boolean;
+  hiddenEventReactions: boolean;
+  hiddenEventReactionTombstone: boolean;
+  hiddenEventReactionRedactionTimeline: boolean;
+  hiddenEventOther: boolean;
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
@@ -255,6 +261,12 @@ export const defaultSettings: Settings = {
   showEncInteractiveMap: false,
   showHiddenEvents: false,
   showTombstoneEvents: false,
+  hiddenEventEdits: false,
+  hiddenEventRedactionTimeline: false,
+  hiddenEventReactions: false,
+  hiddenEventReactionTombstone: false,
+  hiddenEventReactionRedactionTimeline: false,
+  hiddenEventOther: true,
   legacyUsernameColor: false,
 
   enableMSC4268CMD: false,
@@ -404,6 +416,10 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   }
   delete parsed.themeChatPreviewAnyUrl;
   delete parsed.themeChatPreviewApprovedCatalogOnly;
+
+  if (parsed.showTombstoneEvents === true && parsed.showHiddenEvents !== true) {
+    parsed.showHiddenEvents = true;
+  }
 }
 
 export function mergePersistedSettings(

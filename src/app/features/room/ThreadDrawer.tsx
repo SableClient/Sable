@@ -36,7 +36,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { nicknamesAtom } from '$state/nicknames';
 import { settingsAtom } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
+import { useHiddenEventSettings, useSetting } from '$state/hooks/settings';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { createMentionElement, moveCursor, useEditor } from '$components/editor';
@@ -145,8 +145,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const [encClientUrlPreview] = useSetting(settingsAtom, 'encClientUrlPreview');
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
-  const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
-  const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
+  const hiddenEvents = useHiddenEventSettings(settingsAtom);
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
   const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
@@ -258,8 +257,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     linkedTimelines,
     skipThreadFilter: true,
     ignoredUsersSet,
-    showHiddenEvents,
-    showTombstoneEvents,
+    hiddenEvents,
     mxUserId: mx.getUserId(),
     readUptoEventId: undefined,
     hideMembershipEvents: true,
@@ -713,7 +711,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       isReadOnly,
       hideMembershipEvents: true,
       hideNickAvatarEvents: true,
-      showHiddenEvents,
+      hiddenEvents,
       hideThreadChip: true,
     },
     state: { focusItem, editId, activeReplyId, openThreadId: threadRootId, suppressMark },

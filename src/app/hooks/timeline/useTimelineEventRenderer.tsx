@@ -16,8 +16,8 @@ import type { SessionMembershipData } from '$types/matrix-sdk';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { Box, Chip, Avatar, Text, Icons, config, toRem, Icon } from 'folds';
-import type { MessageSpacing } from '$state/settings';
-import { MessageLayout } from '$state/settings';
+import type { ResolvedHiddenEventSettings } from '$state/hooks/settings';
+import { MessageLayout, type MessageSpacing } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import type { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import type { useMemberEventParser } from '$hooks/useMemberEventParser';
@@ -28,10 +28,13 @@ import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import {
   EventContent,
   ImageContent,
+  InlineTextDiff,
   MessageNotDecryptedContent,
   MSticker,
   RedactedContent,
+  RedactedReactionContent,
   Reply,
+  ReactionKeyInline,
   Time,
 } from '$components/message';
 import { Image } from '$components/media';
@@ -44,8 +47,19 @@ import type { GetContentCallback } from '$types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import {
   getEditedEvent,
+  getEditChain,
+  getEditDiffBodies,
+  getEditTargetId,
   getEventReactions,
   getMemberDisplayName,
+  getPreviousEditId,
+  getRedactionTargetEvent,
+  getRedactionTargetId,
+  getReactionKey,
+  getReactionShortcode,
+  getReactionAnnotationTargetId,
+  getRedactionReason,
+  isEditEvent,
   isMembershipChanged,
   isThreadRelationEvent,
   reactionOrEditEvent,
@@ -279,7 +293,7 @@ export interface TimelineEventRendererOptions {
     isReadOnly: boolean;
     hideMembershipEvents: boolean;
     hideNickAvatarEvents: boolean;
-    showHiddenEvents: boolean;
+    hiddenEvents: ResolvedHiddenEventSettings;
     hideThreadChip?: boolean;
   };
   state: {
@@ -337,7 +351,7 @@ export function useTimelineEventRenderer({
     isReadOnly,
     hideMembershipEvents,
     hideNickAvatarEvents,
-    showHiddenEvents,
+    hiddenEvents,
     hideThreadChip,
   },
   state: { focusItem, editId, activeReplyId, openThreadId, suppressMark },
@@ -356,10 +370,101 @@ export function useTimelineEventRenderer({
   utils: { htmlReactParserOptions, linkifyOpts, getMemberPowerTag, parseMemberEvent },
 }: TimelineEventRendererOptions) {
   const { t } = useTranslation();
+  const {
+    hiddenEventEdits,
+    hiddenEventRedactionTimeline,
+    hiddenEventReactions,
+    hiddenEventReactionTombstone,
+    hiddenEventReactionRedactionTimeline,
+    hiddenEventOther,
+  } = hiddenEvents;
+  const useAuthentication = useMediaAuthentication();
+
+  const renderEditTimelineEvent = (
+    mEventId: string,
+    mEvent: MatrixEvent,
+    item: number,
+    timelineSet: EventTimelineSet,
+    collapse: boolean
+  ) => {
+    if (!hiddenEventEdits) return null;
+
+    const highlighted = focusItem?.index === item && focusItem.highlight;
+    const marked = activeReplyId === mEventId && suppressMark !== true;
+    const senderId = mEvent.getSender() ?? '';
+    const senderName =
+      getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
+    const editTargetId = getEditTargetId(mEvent);
+    const chain = editTargetId && getEditChain(timelineSet, editTargetId, mEvent.getType(), room);
+    const previousEditId = chain ? getPreviousEditId(mEvent, chain) : undefined;
+    const replyEventId = previousEditId ?? editTargetId;
+    const { oldBody, newBody } = getEditDiffBodies(mEvent, timelineSet, room);
+    const canShowDiff =
+      typeof oldBody === 'string' && typeof newBody === 'string' && oldBody !== newBody;
+
+    const timeJSX = (
+      <Time
+        ts={mEvent.getTs()}
+        compact={messageLayout === MessageLayout.Compact}
+        hour24Clock={hour24Clock}
+        dateFormatString={dateFormatString}
+      />
+    );
+
+    const targetReply =
+      typeof replyEventId === 'string' ? (
+        <Reply
+          style={{ opacity: '80%' }}
+          room={room}
+          timelineSet={timelineSet}
+          replyEventId={replyEventId}
+          previewBodyOverride={oldBody}
+          onClick={handleOpenReply}
+        />
+      ) : null;
+
+    return (
+      <Event
+        key={mEventId}
+        data-message-item={item}
+        data-message-id={mEventId}
+        room={room}
+        mEvent={mEvent}
+        highlight={highlighted}
+        isMarked={marked}
+        collapse={collapse}
+        canDelete={false}
+        onReplyClick={onReplyClick}
+        hideReadReceipts={hideReads}
+        showDeveloperTools={showDeveloperTools}
+        messageSpacing={messageSpacing}
+      >
+        <EventContent
+          messageLayout={messageLayout}
+          time={timeJSX}
+          iconSrc={Icons.Pencil}
+          content={
+            <Box grow="Yes" direction="Column">
+              {targetReply}
+              <Text size="T300" priority="300">
+                <DecoratedUser userId={senderId} userName={senderName} room={room} />
+                {canShowDiff ? ' edited a message:' : ' edited a message'}
+              </Text>
+              {canShowDiff && <InlineTextDiff oldText={oldBody} newText={newBody} />}
+            </Box>
+          }
+        />
+      </Event>
+    );
+  };
 
   return useMatrixEventRenderer<[string, MatrixEvent, number, EventTimelineSet, boolean]>(
     {
       [EventType.RoomMessage]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        if (isEditEvent(mEvent)) {
+          return renderEditTimelineEvent(mEventId, mEvent, item, timelineSet, collapse);
+        }
+
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
         const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);
         const actualThreadRootId = isThreadRel ? threadRootId : undefined;
@@ -526,6 +631,10 @@ export function useTimelineEventRenderer({
         );
       },
       [EventType.RoomMessageEncrypted]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        if (isEditEvent(mEvent)) {
+          return renderEditTimelineEvent(mEventId, mEvent, item, timelineSet, collapse);
+        }
+
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
         const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);
         const actualThreadRootId = isThreadRel ? threadRootId : undefined;
@@ -1240,8 +1349,191 @@ export function useTimelineEventRenderer({
           </Event>
         );
       },
+      [EventType.Reaction]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
+        const senderId = mEvent.getSender() ?? '';
+        const senderName =
+          getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
+        const targetId = getReactionAnnotationTargetId(mEvent) ?? mEvent.getRelation()?.event_id;
+
+        const timeJSX = (
+          <Time
+            ts={mEvent.getTs()}
+            compact={messageLayout === MessageLayout.Compact}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          />
+        );
+
+        const targetReply =
+          typeof targetId === 'string' ? (
+            <Reply
+              style={{ opacity: '80%' }}
+              room={room}
+              timelineSet={timelineSet}
+              replyEventId={targetId}
+              onClick={handleOpenReply}
+            />
+          ) : null;
+
+        if (mEvent.isRedacted()) {
+          if (!hiddenEventReactionTombstone) return null;
+          const reactionKey = getReactionKey(mEvent);
+          const reactionShortcode = getReactionShortcode(mEvent);
+          const removalReason = getRedactionReason(mEvent);
+
+          return (
+            <Event
+              key={mEventId}
+              data-message-item={item}
+              data-message-id={mEventId}
+              room={room}
+              mEvent={mEvent}
+              highlight={highlighted}
+              isMarked={marked}
+              collapse={collapse}
+              canDelete={canRedact || senderId === mx.getUserId()}
+              onReplyClick={onReplyClick}
+              hideReadReceipts={hideReads}
+              showDeveloperTools={showDeveloperTools}
+              messageSpacing={messageSpacing}
+            >
+              <EventContent
+                messageLayout={messageLayout}
+                time={timeJSX}
+                iconSrc={Icons.Delete}
+                content={
+                  <Box grow="Yes" direction="Column">
+                    {targetReply}
+                    <RedactedReactionContent
+                      reactionKey={reactionKey}
+                      shortcode={reactionShortcode}
+                      mx={mx}
+                      useAuthentication={useAuthentication}
+                      reason={removalReason}
+                    />
+                  </Box>
+                }
+              />
+            </Event>
+          );
+        }
+
+        if (!hiddenEventReactions) return null;
+
+        const reactionKey = getReactionKey(mEvent) ?? mEvent.getRelation()?.key ?? '';
+        const reactionShortcode = getReactionShortcode(mEvent);
+
+        return (
+          <Event
+            key={mEventId}
+            data-message-item={item}
+            data-message-id={mEventId}
+            room={room}
+            mEvent={mEvent}
+            highlight={highlighted}
+            isMarked={marked}
+            collapse={collapse}
+            canDelete={canRedact || senderId === mx.getUserId()}
+            onReplyClick={onReplyClick}
+            hideReadReceipts={hideReads}
+            showDeveloperTools={showDeveloperTools}
+            messageSpacing={messageSpacing}
+          >
+            <EventContent
+              messageLayout={messageLayout}
+              time={timeJSX}
+              iconSrc={Icons.Smile}
+              content={
+                <Box grow="Yes" direction="Column">
+                  {targetReply}
+                  <Text size="T300" priority="300">
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
+                    {' reacted with '}
+                    <ReactionKeyInline
+                      mx={mx}
+                      reactionKey={reactionKey}
+                      shortcode={reactionShortcode}
+                      useAuthentication={useAuthentication}
+                    />
+                  </Text>
+                </Box>
+              }
+            />
+          </Event>
+        );
+      },
+      [EventType.RoomRedaction]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        const target = getRedactionTargetEvent(timelineSet, mEvent);
+        const isReactionRedaction = target?.getType() === (EventType.Reaction as string);
+        if (isReactionRedaction) {
+          if (!hiddenEventReactionRedactionTimeline) return null;
+        } else if (!hiddenEventRedactionTimeline) {
+          return null;
+        }
+
+        const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
+        const senderId = mEvent.getSender() ?? '';
+        const senderName =
+          getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
+        const targetId = getRedactionTargetId(mEvent);
+
+        const timeJSX = (
+          <Time
+            ts={mEvent.getTs()}
+            compact={messageLayout === MessageLayout.Compact}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          />
+        );
+
+        const targetReply = targetId ? (
+          <Reply
+            style={{ opacity: '80%' }}
+            room={room}
+            timelineSet={timelineSet}
+            replyEventId={targetId}
+            onClick={handleOpenReply}
+          />
+        ) : null;
+
+        return (
+          <Event
+            key={mEventId}
+            data-message-item={item}
+            data-message-id={mEventId}
+            room={room}
+            mEvent={mEvent}
+            highlight={highlighted}
+            isMarked={marked}
+            collapse={collapse}
+            canDelete={false}
+            onReplyClick={onReplyClick}
+            hideReadReceipts={hideReads}
+            showDeveloperTools={showDeveloperTools}
+            messageSpacing={messageSpacing}
+          >
+            <EventContent
+              messageLayout={messageLayout}
+              time={timeJSX}
+              iconSrc={Icons.Delete}
+              content={
+                <Box grow="Yes" direction="Column">
+                  {targetReply}
+                  <Text size="T300" priority="300">
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
+                    {isReactionRedaction ? ' redacted a reaction' : ' redacted a message'}
+                  </Text>
+                </Box>
+              }
+            />
+          </Event>
+        );
+      },
       [EventType.RoomPinnedEvents]: (mEventId, mEvent, item, timelineSet, collapse) => {
-        if (!showHiddenEvents) return null;
+        if (!hiddenEventOther) return null;
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const marked = activeReplyId === mEventId;
         const senderId = mEvent.getSender() ?? '';
@@ -1330,7 +1622,7 @@ export function useTimelineEventRenderer({
       },
     },
     (mEventId, mEvent, item, timelineSet, collapse) => {
-      if (!showHiddenEvents) return null;
+      if (!hiddenEventOther) return null;
       const highlighted = focusItem?.index === item && focusItem.highlight;
       const marked = activeReplyId === mEventId;
       const senderId = mEvent.getSender() ?? '';
@@ -1381,7 +1673,7 @@ export function useTimelineEventRenderer({
       );
     },
     (mEventId, mEvent, item, timelineSet, collapse) => {
-      if (!showHiddenEvents) return null;
+      if (!hiddenEventOther) return null;
       if (Object.keys(mEvent.getContent()).length === 0) return null;
       if (mEvent.getRelation()) return null;
       if (mEvent.isRedaction()) return null;

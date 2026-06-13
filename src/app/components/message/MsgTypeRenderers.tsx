@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useMemo } from 'react';
 import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
-import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { IContent, IPreviewUrlResponse, MatrixClient } from '$types/matrix-sdk';
 import { JUMBO_EMOJI_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
 import type {
@@ -30,6 +30,7 @@ import {
   MessageDeletedContent,
   MessageEditedContent,
   MessageUnsupportedContent,
+  ReactionDeletedContent,
 } from './content';
 import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
@@ -60,6 +61,34 @@ export function RedactedContent({ reason }: RedactedContentProps) {
   return (
     <Text>
       <MessageDeletedContent reason={reason} />
+    </Text>
+  );
+}
+
+type RedactedReactionContentProps = {
+  reactionKey?: string;
+  shortcode?: string;
+  mx?: MatrixClient;
+  useAuthentication?: boolean;
+  reason?: string;
+};
+export function RedactedReactionContent({
+  reactionKey,
+  shortcode,
+  mx,
+  useAuthentication,
+  reason,
+}: RedactedReactionContentProps) {
+  return (
+    <Text>
+      <ReactionDeletedContent
+        reactionKey={reactionKey}
+        shortcode={shortcode}
+        mx={mx}
+        useAuthentication={useAuthentication}
+        reason={reason}
+        hideIcon
+      />
     </Text>
   );
 }

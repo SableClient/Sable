@@ -1,5 +1,7 @@
 import { Box, Icon, Icons, Text, as, color, config } from 'folds';
+import type { MatrixClient } from '$types/matrix-sdk';
 
+import { ReactionKeyInline } from '../ReactionKeyInline';
 import { BreakWord } from '$styles/Text.css';
 
 const warningStyle = { color: color.Warning.Main, opacity: config.opacity.P300 };
@@ -17,6 +19,43 @@ export const MessageDeletedContent = as<'div', { children?: never; reason?: stri
     </Box>
   )
 );
+
+export const ReactionDeletedContent = as<
+  'div',
+  {
+    children?: never;
+    reactionKey?: string;
+    shortcode?: string;
+    mx?: MatrixClient;
+    useAuthentication?: boolean;
+    reason?: string;
+    hideIcon?: boolean;
+  }
+>(({ reactionKey, shortcode, mx, useAuthentication, reason, hideIcon, ...props }, ref) => (
+  <Box as="span" alignItems="Center" gap="100" style={warningStyle} {...props} ref={ref}>
+    {!hideIcon && <Icon size="50" src={Icons.Delete} />}
+    {reactionKey || shortcode ? (
+      <i>
+        This reaction has been removed:{' '}
+        {mx ? (
+          <ReactionKeyInline
+            mx={mx}
+            reactionKey={reactionKey}
+            shortcode={shortcode}
+            useAuthentication={useAuthentication}
+          />
+        ) : (
+          (reactionKey ?? `:${shortcode}:`)
+        )}
+        {reason ? ` ${reason}` : ''}
+      </i>
+    ) : reason ? (
+      <i>This reaction has been removed. {reason}</i>
+    ) : (
+      <i>This reaction has been removed</i>
+    )}
+  </Box>
+));
 
 export const MessageUnsupportedContent = as<'div', { children?: never; body?: string }>(
   ({ body, ...props }, ref) => (

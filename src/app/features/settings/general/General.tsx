@@ -382,10 +382,7 @@ function SelectDateFormat() {
   );
 }
 
-function getTombstoneSettingToggleTitle(showHidden: boolean, showTombstone: boolean): string {
-  if (showHidden) {
-    return 'Tombstone events are always shown when "Show Hidden Events" is enabled.';
-  }
+function getTombstoneSettingToggleTitle(showTombstone: boolean): string {
   if (showTombstone) {
     return 'Disable to hide redacted messages entirely instead of showing a tombstone.';
   }
@@ -909,6 +906,22 @@ function Messages() {
     settingsAtom,
     'showTombstoneEvents'
   );
+  const [hiddenEventEdits, setHiddenEventEdits] = useSetting(settingsAtom, 'hiddenEventEdits');
+  const [hiddenEventRedactionTimeline, setHiddenEventRedactionTimeline] = useSetting(
+    settingsAtom,
+    'hiddenEventRedactionTimeline'
+  );
+  const [hiddenEventReactions, setHiddenEventReactions] = useSetting(
+    settingsAtom,
+    'hiddenEventReactions'
+  );
+  const [hiddenEventReactionTombstone, setHiddenEventReactionTombstone] = useSetting(
+    settingsAtom,
+    'hiddenEventReactionTombstone'
+  );
+  const [hiddenEventReactionRedactionTimeline, setHiddenEventReactionRedactionTimeline] =
+    useSetting(settingsAtom, 'hiddenEventReactionRedactionTimeline');
+  const [hiddenEventOther, setHiddenEventOther] = useSetting(settingsAtom, 'hiddenEventOther');
   const [hideMembershipInReadOnly, setHideMembershipInReadOnly] = useSetting(
     settingsAtom,
     'hideMembershipInReadOnly'
@@ -1013,6 +1026,7 @@ function Messages() {
         <SettingTile
           title="Show Hidden Events"
           focusId="show-hidden-events"
+          description="Reveal additional timeline events that are normally filtered out."
           after={
             <Switch
               variant="Primary"
@@ -1027,17 +1041,143 @@ function Messages() {
           }
         />
       </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
         <SettingTile
-          title="Show Tombstones for Redacted Messages"
-          focusId="show-redacted-message-tombstones"
+          title="Show Edit Events"
+          focusId="hidden-event-edits"
+          description="Show message edits as separate timeline events with a link to the previous version."
           after={
             <Switch
               variant="Primary"
-              value={showTombstoneEvents || showHiddenEvents}
+              value={hiddenEventEdits}
+              onChange={setHiddenEventEdits}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Tombstones for Redacted Messages"
+          focusId="show-redacted-message-tombstones"
+          description="Show a tombstone in place of redacted messages instead of hiding them entirely."
+          after={
+            <Switch
+              variant="Primary"
+              value={showTombstoneEvents}
               onChange={setShowTombstoneEvents}
-              disabled={showHiddenEvents}
-              title={getTombstoneSettingToggleTitle(showHiddenEvents, showTombstoneEvents)}
+              title={getTombstoneSettingToggleTitle(showTombstoneEvents)}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Redaction Events"
+          focusId="hidden-event-redaction-timeline"
+          description="Show when a message was redacted as a timeline event with a link to the original message."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventRedactionTimeline}
+              onChange={setHiddenEventRedactionTimeline}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Reaction Events"
+          focusId="hidden-event-reactions"
+          description="Show reactions as separate timeline events with a link to the target message."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventReactions}
+              onChange={setHiddenEventReactions}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Tombstones for Redacted Reactions"
+          focusId="hidden-event-reaction-tombstones"
+          description="Show a tombstone in place of redacted reactions instead of hiding them entirely."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventReactionTombstone}
+              onChange={setHiddenEventReactionTombstone}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Reaction Redaction Events"
+          focusId="hidden-event-reaction-redaction-timeline"
+          description="Show when a reaction was removed as a timeline event with a link to the target message."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventReactionRedactionTimeline}
+              onChange={setHiddenEventReactionRedactionTimeline}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Other Hidden Events"
+          focusId="hidden-event-other"
+          description="Show generic state events and other unrecognized timeline events."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventOther}
+              onChange={setHiddenEventOther}
+              disabled={!showHiddenEvents}
             />
           }
         />

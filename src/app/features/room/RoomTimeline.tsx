@@ -61,7 +61,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { settingsAtom, MessageLayout } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
+import { useHiddenEventSettings, useSetting } from '$state/hooks/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
@@ -147,8 +147,7 @@ export function RoomTimeline({
   const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
   const [encClientUrlPreview] = useSetting(settingsAtom, 'encClientUrlPreview');
-  const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
-  const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
+  const hiddenEvents = useHiddenEventSettings(settingsAtom);
   const [showDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
@@ -619,7 +618,7 @@ export function RoomTimeline({
       isReadOnly,
       hideMembershipEvents,
       hideNickAvatarEvents,
-      showHiddenEvents,
+      hiddenEvents,
     },
     state: { focusItem: timelineSync.focusItem, editId, activeReplyId, openThreadId },
     permissions: {
@@ -780,8 +779,7 @@ export function RoomTimeline({
     items: vListIndices,
     linkedTimelines: timelineSync.timeline.linkedTimelines,
     ignoredUsersSet,
-    showHiddenEvents,
-    showTombstoneEvents,
+    hiddenEvents,
     mxUserId: mx.getUserId(),
     readUptoEventId: readUptoEventIdRef.current,
     hideMembershipEvents,

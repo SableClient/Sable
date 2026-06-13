@@ -484,7 +484,7 @@ describe('SlidingSyncManager — network change handling', () => {
     });
   });
 
-  it('does not resend on an online-only network change', () => {
+  it('resends on an online-only network change', () => {
     setNavigatorOnline(true);
     const { fireConnectionChange } = installConnectionMock();
     const manager = makeManager(makeMockMx());
@@ -492,7 +492,7 @@ describe('SlidingSyncManager — network change handling', () => {
 
     fireConnectionChange();
 
-    expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
+    expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
   });
 
   it('resends when the browser transitions from offline to online', () => {

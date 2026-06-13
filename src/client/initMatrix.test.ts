@@ -26,6 +26,7 @@ vi.mock('@sentry/react', () => ({
 }));
 
 type MockMatrixClient = MatrixClient & {
+  retryImmediately: ReturnType<typeof vi.fn<() => boolean>>;
   startClient: ReturnType<typeof vi.fn<() => Promise<void>>>;
   stopClient: ReturnType<typeof vi.fn<() => void>>;
 };
@@ -48,6 +49,7 @@ const makeClient = (
     on: vi.fn<(...args: unknown[]) => void>(),
     removeAllListeners: vi.fn<() => void>(),
     removeListener: vi.fn<(...args: unknown[]) => void>(),
+    retryImmediately: vi.fn<() => boolean>(() => true),
     startClient: vi.fn<() => Promise<void>>(() => startPromise),
     stopClient: vi.fn<() => void>(),
   }) as unknown as MockMatrixClient;
@@ -158,5 +160,19 @@ describe('startClient app singleton gate', () => {
 
     deferred.resolve();
     await Promise.all([firstStart, secondStart]);
+  });
+
+  it('retries classic sync when the browser reports the network is online again', async () => {
+    const mx = makeClient('@alice:example.com');
+
+    await startClassicClient(mx);
+    window.dispatchEvent(new Event('online'));
+
+    expect(mx.retryImmediately).toHaveBeenCalledOnce();
+
+    await stopClient(mx);
+    window.dispatchEvent(new Event('online'));
+
+    expect(mx.retryImmediately).toHaveBeenCalledOnce();
   });
 });

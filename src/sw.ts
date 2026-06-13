@@ -594,6 +594,38 @@ type DecryptionResult = {
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
+const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+async function fetchWithNetworkRetry(
+  url: string,
+  init: RequestInit,
+  label: string,
+  attempt = 0
+): Promise<Response | undefined> {
+  try {
+    const res = await fetch(url, init);
+    if (res.ok || res.status < 500 || attempt >= SW_FETCH_RETRY_DELAYS_MS.length) {
+      return res;
+    }
+    console.warn(`[SW ${label}] HTTP ${res.status}; retrying`, { attempt });
+  } catch (err) {
+    if (attempt >= SW_FETCH_RETRY_DELAYS_MS.length) {
+      console.warn(`[SW ${label}] network error`, err);
+      return undefined;
+    }
+    console.warn(`[SW ${label}] network error; retrying`, { attempt, err });
+  }
+
+  const retryDelay = SW_FETCH_RETRY_DELAYS_MS[attempt];
+  if (retryDelay === undefined) return undefined;
+  await sleep(retryDelay);
+  return fetchWithNetworkRetry(url, init, label, attempt + 1);
+}
 
 async function fetchRawEvent(
   baseUrl: string,
@@ -603,9 +635,14 @@ async function fetchRawEvent(
 ): Promise<Record<string, unknown> | undefined> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/event/${encodeURIComponent(eventId)}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const res = await fetchWithNetworkRetry(
+      url,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+      'fetchRawEvent'
+    );
+    if (!res) return undefined;
     if (!res.ok) {
       console.warn('[SW fetchRawEvent] HTTP', res.status, 'for', eventId);
       return undefined;
@@ -628,9 +665,14 @@ async function fetchRoomName(
 ): Promise<string | undefined> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.name`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const res = await fetchWithNetworkRetry(
+      url,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+      'fetchRoomName'
+    );
+    if (!res) return undefined;
     if (!res.ok) return undefined;
     const data = (await res.json()) as Record<string, unknown>;
     const { name } = data;
@@ -657,9 +699,14 @@ async function fetchMemberInfo(
 ): Promise<MemberInfo> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.member/${encodeURIComponent(userId)}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const res = await fetchWithNetworkRetry(
+      url,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+      'fetchMemberInfo'
+    );
+    if (!res) return { displayname: undefined, avatarUrl: undefined };
     if (!res.ok) return { displayname: undefined, avatarUrl: undefined };
     const data = (await res.json()) as Record<string, unknown>;
     const displayname =
@@ -687,9 +734,14 @@ async function fetchRoomAvatar(
 ): Promise<string | undefined> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.avatar`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const res = await fetchWithNetworkRetry(
+      url,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+      'fetchRoomAvatar'
+    );
+    if (!res) return undefined;
     if (!res.ok) return undefined;
     const data = (await res.json()) as Record<string, unknown>;
     const avatarUrl = data.url;

@@ -52,6 +52,7 @@ type SyncTransportMeta = {
 };
 const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
 const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
+const classicSyncNetworkCleanupByClient = new WeakMap<MatrixClient, () => void>();
 const MATRIX_DEVICE_ID_SENTRY_TAG = 'matrix.device_id';
 type MatrixClientScope = 'app' | 'background';
 let activeAppClient: MatrixClient | undefined;
@@ -65,6 +66,13 @@ const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 8000;
 type FetchRoomEventResult = Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>;
 type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
   fetchRoomEvent: (roomId: string, eventId: string) => Promise<FetchRoomEventResult>;
+};
+
+type BrowserNetworkInformation = {
+  effectiveType?: string;
+  downlink?: number;
+  addEventListener?: (type: 'change', listener: () => void) => void;
+  removeEventListener?: (type: 'change', listener: () => void) => void;
 };
 
 type MatrixDeviceContextClient = Pick<MatrixClient, 'getDeviceId'>;
@@ -629,6 +637,52 @@ const disposeSlidingSync = (mx: MatrixClient): void => {
   slidingSyncByClient.delete(mx);
 };
 
+const installClassicSyncNetworkReconnect = (mx: MatrixClient): void => {
+  classicSyncNetworkCleanupByClient.get(mx)?.();
+  let lastOnlineState = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  const connectionInfo =
+    typeof navigator !== 'undefined'
+      ? (navigator as unknown as { connection?: BrowserNetworkInformation }).connection
+      : undefined;
+
+  const retrySync = () => {
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const wasOnline = lastOnlineState;
+    lastOnlineState = isOnline;
+
+    if (!isOnline) {
+      debugLog.warn('network', 'Device went offline - classic sync waiting for reconnect', {
+        userId: mx.getUserId(),
+        syncState: mx.getSyncState(),
+      });
+      return;
+    }
+
+    const retried = mx.retryImmediately();
+    debugLog.info('network', 'Network change triggered classic sync retry', {
+      userId: mx.getUserId(),
+      syncState: mx.getSyncState(),
+      wasOnline,
+      retried,
+      effectiveType: connectionInfo?.effectiveType,
+      downlink: connectionInfo?.downlink ? `${connectionInfo.downlink} Mbps` : undefined,
+    });
+    Sentry.metrics.count('sable.sync.network_retry', 1, {
+      attributes: { transport: 'classic', retried: String(retried) },
+    });
+  };
+
+  window.addEventListener('online', retrySync);
+  window.addEventListener('offline', retrySync);
+  connectionInfo?.addEventListener?.('change', retrySync);
+
+  classicSyncNetworkCleanupByClient.set(mx, () => {
+    window.removeEventListener('online', retrySync);
+    window.removeEventListener('offline', retrySync);
+    connectionInfo?.removeEventListener?.('change', retrySync);
+  });
+};
+
 export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | undefined =>
   slidingSyncByClient.get(mx);
 
@@ -720,6 +774,7 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
     }
 
     installStartupFetchRoomEventPatch(mx, { stubOnCacheMiss: true });
+    installClassicSyncNetworkReconnect(mx);
 
     let syncStarted: Promise<void>;
     try {
@@ -1135,6 +1190,8 @@ export const stopClient = (mx: MatrixClient): Promise<void> => {
     },
   });
   fetchRoomEventStartupCleanupByClient.get(mx)?.();
+  classicSyncNetworkCleanupByClient.get(mx)?.();
+  classicSyncNetworkCleanupByClient.delete(mx);
   disposeSlidingSync(mx);
   const classicSyncListener = classicSyncObserverByClient.get(mx);
   if (classicSyncListener) {

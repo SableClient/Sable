@@ -60,8 +60,8 @@ function createIndicator(): HTMLDivElement {
  * When the user pulls down from the very top of the list, a CSS transform
  * is applied to the container for visual feedback, and a circular indicator
  * slides into view. On release, if the pull exceeded PULL_THRESHOLD,
- * `mx.retryImmediately()` and `SlidingSyncManager.retryNow()` are called to
- * force a network re-sync.
+ * `mx.retryImmediately()` and `SlidingSyncManager.scheduleForceReset()` are
+ * called to force a network re-sync.
  */
 export function usePullToRefresh(
   scrollRef: React.RefObject<HTMLDivElement | null>,
@@ -118,6 +118,11 @@ export function usePullToRefresh(
       refreshingRef.current = true;
 
       showRefreshing();
+
+      // Abort/retry the SDK's current /sync request. This covers classic sync
+      // and also helps when a mobile network drop leaves a long-poll wedged
+      // without a clean offline-to-online browser event.
+      mx.retryImmediately();
 
       // Temporarily clear all active room subscriptions so the server sees
       // an empty-subscription request.  On the following cycle, subscriptions

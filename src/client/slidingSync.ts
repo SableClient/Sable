@@ -825,11 +825,12 @@ export class SlidingSyncManager {
         });
         this.slidingSync.resend();
       } else {
-        debugLog.info('network', 'Online network change observed - keeping current sync request', {
+        debugLog.info('network', 'Online network change observed - triggering immediate resync', {
           syncNumber: this.syncCount,
           effectiveType,
           downlink: downlink ? `${downlink} Mbps` : undefined,
         });
+        this.slidingSync.resend();
       }
     };
   }

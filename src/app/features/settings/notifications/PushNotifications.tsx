@@ -11,25 +11,52 @@ type PushSubscriptionState = [
   (subscription: PushSubscription | null) => void,
 ];
 
-function postToServiceWorker(data: unknown): void {
-  if (!('serviceWorker' in navigator)) return;
+type WebPushPusherData = Parameters<MatrixClient['setPusher']>[0];
 
-  const posted = new Set<ServiceWorker>();
-  const postToWorker = (worker: ServiceWorker | null | undefined) => {
-    if (!worker || posted.has(worker)) return;
-    posted.add(worker);
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin
-    worker.postMessage(data);
-  };
+async function buildWebPushPusherData(
+  mx: MatrixClient,
+  clientConfig: ClientConfig,
+  subscription: PushSubscriptionJSON,
+  deviceDisplayName: string
+): Promise<WebPushPusherData> {
+  const { endpoint, keys } = subscription;
+  if (!endpoint || !keys?.p256dh || !keys.auth) {
+    throw new Error('Push subscription keys missing.');
+  }
+  const appId = clientConfig.pushNotificationDetails?.webPushAppID;
+  const pushNotifyUrl = clientConfig.pushNotificationDetails?.pushNotifyUrl;
+  if (!appId || !pushNotifyUrl) {
+    throw new Error('Push notification config is incomplete.');
+  }
 
-  postToWorker(navigator.serviceWorker.controller);
-  navigator.serviceWorker.ready
-    .then((registration) => {
-      postToWorker(registration.active);
-      postToWorker(registration.waiting);
-      postToWorker(registration.installing);
-    })
-    .catch(() => undefined);
+  const declarativeWebPushFallback =
+    clientConfig.pushNotificationDetails?.declarativeWebPushFallback === true;
+
+  return {
+    kind: 'http' as const,
+    app_id: appId,
+    pushkey: keys.p256dh,
+    app_display_name: 'Sable',
+    device_display_name: deviceDisplayName,
+    lang: navigator.language || 'en',
+    data: {
+      url: pushNotifyUrl,
+      format: 'event_id_only' as const,
+      endpoint,
+      p256dh: keys.p256dh,
+      auth: keys.auth,
+      ...(declarativeWebPushFallback ? { declarative_web_push: true } : {}),
+    },
+    append: false,
+  } as unknown as WebPushPusherData;
+}
+
+async function getDeviceDisplayName(mx: MatrixClient): Promise<string> {
+  try {
+    return (await mx.getDevice(mx.getDeviceId() ?? '')).display_name ?? 'Unknown Device';
+  } catch {
+    return 'Unknown Device';
+  }
 }
 
 export async function requestBrowserNotificationPermission(): Promise<NotificationPermission> {
@@ -95,9 +122,6 @@ export async function enablePushNotifications(
   });
 
   try {
-    const declarativeWebPushFallback =
-      clientConfig.pushNotificationDetails?.declarativeWebPushFallback === true;
-
     /* Self-Healing Check. Effectively checks if the browser has invalidated our subscription and recreates it
      only when necessary. This prevents us from needing an external call to get back the web push info.
   */
@@ -105,31 +129,14 @@ export async function enablePushNotifications(
       debugLog.info('notification', 'Push subscription already exists and is valid - reusing', {
         endpoint: pushSubAtom.endpoint,
       });
-      const { keys } = pushSubAtom;
-      if (!keys?.p256dh || !keys.auth) return;
-      const pusherData = {
-        kind: 'http' as const,
-        app_id: clientConfig.pushNotificationDetails?.webPushAppID,
-        pushkey: keys.p256dh,
-        app_display_name: 'Sable',
-        device_display_name: 'This Browser',
-        lang: navigator.language || 'en',
-        data: {
-          url: clientConfig.pushNotificationDetails?.pushNotifyUrl,
-          format: 'event_id_only' as const,
-          endpoint: pushSubAtom.endpoint,
-          p256dh: keys.p256dh,
-          auth: keys.auth,
-          ...(declarativeWebPushFallback ? { declarative_web_push: true } : {}),
-        },
-        append: false,
-      };
-      postToServiceWorker({
-        url: mx.baseUrl,
-        type: 'togglePush',
-        pusherData,
-        token: mx.getAccessToken(),
-      });
+      setPushSubscription(currentBrowserSub);
+      const pusherData = await buildWebPushPusherData(
+        mx,
+        clientConfig,
+        currentBrowserSub.toJSON(),
+        await getDeviceDisplayName(mx)
+      );
+      await mx.setPusher(pusherData);
 
       span.setAttribute('push.endpoint', pushSubAtom.endpoint);
       span.setAttribute('push.success', true);
@@ -158,36 +165,13 @@ export async function enablePushNotifications(
     setPushSubscription(newSubscription);
 
     const subJson = newSubscription.toJSON();
-    const { keys } = subJson;
-    if (!keys?.p256dh || !keys.auth) {
-      debugLog.error('notification', 'Push subscription missing required keys');
-      throw new Error('Push subscription keys missing.');
-    }
-    const pusherData = {
-      kind: 'http' as const,
-      app_id: clientConfig.pushNotificationDetails?.webPushAppID,
-      pushkey: keys.p256dh,
-      app_display_name: 'Sable',
-      device_display_name:
-        (await mx.getDevice(mx.getDeviceId() ?? '')).display_name ?? 'Unknown Device',
-      lang: navigator.language || 'en',
-      data: {
-        url: clientConfig.pushNotificationDetails?.pushNotifyUrl,
-        format: 'event_id_only' as const,
-        endpoint: newSubscription.endpoint,
-        p256dh: keys.p256dh,
-        auth: keys.auth,
-        ...(declarativeWebPushFallback ? { declarative_web_push: true } : {}),
-      },
-      append: false,
-    };
-
-    postToServiceWorker({
-      url: mx.baseUrl,
-      type: 'togglePush',
-      pusherData,
-      token: mx.getAccessToken(),
-    });
+    const pusherData = await buildWebPushPusherData(
+      mx,
+      clientConfig,
+      subJson,
+      await getDeviceDisplayName(mx)
+    );
+    await mx.setPusher(pusherData);
 
     span.setAttribute('push.endpoint', newSubscription.endpoint);
     span.setAttribute('push.success', true);
@@ -228,19 +212,17 @@ export async function disablePushNotifications(
 
   debugLog.info('notification', 'Disabling push notifications');
   const [pushSubAtom] = pushSubscriptionAtom;
+  const appId = clientConfig.pushNotificationDetails?.webPushAppID;
+  const pushkey = pushSubAtom?.keys?.p256dh;
+  if (!appId || !pushkey) return;
 
   const pusherData = {
     kind: null,
-    app_id: clientConfig.pushNotificationDetails?.webPushAppID,
-    pushkey: pushSubAtom?.keys?.p256dh,
+    app_id: appId,
+    pushkey,
   };
 
-  postToServiceWorker({
-    url: mx.baseUrl,
-    type: 'togglePush',
-    pusherData,
-    token: mx.getAccessToken(),
-  });
+  await mx.setPusher(pusherData as unknown as Parameters<typeof mx.setPusher>[0]);
 }
 
 export async function deRegisterAllPushers(mx: MatrixClient): Promise<void> {

@@ -58,6 +58,7 @@ const DEFAULT_LIST_TIMELINE_LIMIT = 20;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
+const FORCE_RESUBSCRIPTION_RESTORE_TIMEOUT_MS = 5000;
 
 // ---------------------------------------------------------------------------
 // Strategy 3: Sliding Sync List State Caching
@@ -355,6 +356,8 @@ export class SlidingSyncManager {
    * backward-pagination tokens.
    */
   private pendingResubscriptions: Set<string> | null = null;
+
+  private pendingResubscriptionRestoreTimer: ReturnType<typeof setTimeout> | undefined;
 
   /**
    * One-shot RoomData listeners keyed by roomId, used to measure the latency
@@ -742,16 +745,7 @@ export class SlidingSyncManager {
         // request.  On the next sync cycle the server will treat these as new
         // subscriptions and return initial:true with fresh data and backward-
         // pagination tokens, which the block above will then handle.
-        if (this.pendingResubscriptions !== null) {
-          const toRestore = this.pendingResubscriptions;
-          this.pendingResubscriptions = null;
-          toRestore.forEach((roomId) => this.activeRoomSubscriptions.add(roomId));
-          this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
-          // Explicitly trigger a sync to fetch fresh data with initial:true.
-          // Without this, modifyRoomSubscriptions alone may not trigger a new
-          // request if the sync loop is idle.
-          this.slidingSync.resend();
-        }
+        this.restorePendingResubscriptions('request_finished');
       }
 
       if (err || !resp || state !== SlidingSyncState.Complete) return;
@@ -948,6 +942,10 @@ export class SlidingSyncManager {
       clearTimeout(this.roomSubscriptionFlushTimer);
       this.roomSubscriptionFlushTimer = undefined;
     }
+    if (this.pendingResubscriptionRestoreTimer) {
+      clearTimeout(this.pendingResubscriptionRestoreTimer);
+      this.pendingResubscriptionRestoreTimer = undefined;
+    }
 
     this.disposed = true;
     // Stop the SDK's internal polling loop and abort any in-flight requests.
@@ -1003,6 +1001,10 @@ export class SlidingSyncManager {
    */
   public scheduleForceReset(): void {
     if (this.disposed) return;
+    if (this.pendingResubscriptionRestoreTimer) {
+      clearTimeout(this.pendingResubscriptionRestoreTimer);
+      this.pendingResubscriptionRestoreTimer = undefined;
+    }
     // Save the current subscriptions before modifying anything.
     this.pendingResubscriptions = new Set(this.activeRoomSubscriptions);
 
@@ -1018,6 +1020,32 @@ export class SlidingSyncManager {
     // The timeline resets will happen automatically when initial:true arrives.
     this.activeRoomSubscriptions.clear();
     this.slidingSync.modifyRoomSubscriptions(new Set());
+    this.slidingSync.resend();
+    this.pendingResubscriptionRestoreTimer = setTimeout(() => {
+      this.pendingResubscriptionRestoreTimer = undefined;
+      this.restorePendingResubscriptions('timeout');
+    }, FORCE_RESUBSCRIPTION_RESTORE_TIMEOUT_MS);
+  }
+
+  private restorePendingResubscriptions(reason: 'request_finished' | 'timeout'): void {
+    if (this.disposed || this.pendingResubscriptions === null) return;
+    if (this.pendingResubscriptionRestoreTimer) {
+      clearTimeout(this.pendingResubscriptionRestoreTimer);
+      this.pendingResubscriptionRestoreTimer = undefined;
+    }
+
+    const toRestore = this.pendingResubscriptions;
+    this.pendingResubscriptions = null;
+    toRestore.forEach((roomId) => this.activeRoomSubscriptions.add(roomId));
+    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+    debugLog.info('sync', 'Restored force-reset room subscriptions', {
+      reason,
+      roomCount: this.activeRoomSubscriptions.size,
+      syncNumber: this.syncCount,
+    });
+    // Explicitly trigger a sync to fetch fresh data with initial:true.
+    // Without this, modifyRoomSubscriptions alone may not trigger a new
+    // request if the sync loop is idle.
     this.slidingSync.resend();
   }
 

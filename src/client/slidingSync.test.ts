@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { MatrixClient } from '$types/matrix-sdk';
+import { SlidingSyncEvent, SlidingSyncState, type MatrixClient } from '$types/matrix-sdk';
 
 import { SlidingSyncManager, type SlidingSyncConfig } from './slidingSync';
 
@@ -85,6 +85,18 @@ function makeMockMx(overrides: Record<string, unknown> = {}) {
 function makeManager(mx: ReturnType<typeof makeMockMx>): SlidingSyncManager {
   const config: SlidingSyncConfig = {};
   return new SlidingSyncManager(mx, 'https://sliding.example.com', config);
+}
+
+function fireLifecycle(state: SlidingSyncState, resp: unknown = {}) {
+  const lifecycleCall = mocks.slidingSyncInstance.on.mock.calls.find(
+    (args: unknown[]) => args[0] === SlidingSyncEvent.Lifecycle
+  );
+  if (!lifecycleCall) throw new Error('lifecycle listener not registered');
+  const [, handler] = lifecycleCall as unknown as [
+    SlidingSyncEvent,
+    (state: SlidingSyncState, resp: unknown, err?: Error) => void,
+  ];
+  handler(state, resp);
 }
 
 function setNavigatorOnline(value: boolean): void {
@@ -216,6 +228,58 @@ describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
     expect(firstCall).toBeDefined();
     const [rooms] = firstCall as unknown as [Set<string>];
     expect([...rooms].toSorted()).toEqual(['!a:example.com', '!b:example.com']);
+  });
+});
+
+// ── pull-to-refresh force reset ──────────────────────────────────────────────
+
+describe('SlidingSyncManager.scheduleForceReset()', () => {
+  it('restores room subscriptions when the empty cycle finishes', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+    manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
+    mocks.slidingSyncInstance.modifyRoomSubscriptions.mockClear();
+    mocks.slidingSyncInstance.resend.mockClear();
+
+    manager.scheduleForceReset();
+    fireLifecycle(SlidingSyncState.RequestFinished, { rooms: {} });
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(2);
+    const [emptySet] = mocks.slidingSyncInstance.modifyRoomSubscriptions.mock
+      .calls[0] as unknown as [Set<string>];
+    const [restoredSet] = mocks.slidingSyncInstance.modifyRoomSubscriptions.mock
+      .calls[1] as unknown as [Set<string>];
+    expect([...emptySet]).toEqual([]);
+    expect([...restoredSet]).toEqual(['!room:example.com']);
+    expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledTimes(2);
+
+    vi.advanceTimersByTime(5000);
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(2);
+  });
+
+  it('restores room subscriptions if the empty cycle never finishes', () => {
+    const manager = makeManager(makeMockMx());
+    manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
+    mocks.slidingSyncInstance.modifyRoomSubscriptions.mockClear();
+    mocks.slidingSyncInstance.resend.mockClear();
+
+    manager.scheduleForceReset();
+    vi.advanceTimersByTime(4999);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(1);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(2);
+    const [emptySet] = mocks.slidingSyncInstance.modifyRoomSubscriptions.mock
+      .calls[0] as unknown as [Set<string>];
+    const [restoredSet] = mocks.slidingSyncInstance.modifyRoomSubscriptions.mock
+      .calls[1] as unknown as [Set<string>];
+    expect([...emptySet]).toEqual([]);
+    expect([...restoredSet]).toEqual(['!room:example.com']);
+    expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledTimes(2);
   });
 });
 

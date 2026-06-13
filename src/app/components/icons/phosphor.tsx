@@ -1,4 +1,4 @@
-import type { IconProps } from "@phosphor-icons/react";
+import type { IconProps } from '@phosphor-icons/react';
 import {
   ArrowsDownUp,
   ArrowBendUpRightIcon,
@@ -119,8 +119,8 @@ import {
   VideoCameraSlash,
   Warning,
   X,
-} from "@phosphor-icons/react";
-import type { ComponentType, ReactNode } from "react";
+} from '@phosphor-icons/react';
+import type { ComponentType, ReactNode } from 'react';
 
 /** Inline (20px), toolbar (24px), and empty-state (40px) icon sizes. */
 export const PHOSPHOR_SIZE = {
@@ -130,16 +130,16 @@ export const PHOSPHOR_SIZE = {
 } as const;
 
 /** Icon size tokens for `sizedIcon()` mapped to pixel values. */
-export type IconSizeToken = "50" | "100" | "200" | "300" | "400" | "500" | "600" | "Inherit";
+export type IconSizeToken = '50' | '100' | '200' | '300' | '400' | '500' | '600' | 'Inherit';
 
-const ICON_SIZE_PX: Record<Exclude<IconSizeToken, "Inherit">, number> = {
-  "50": 12,
-  "100": 16,
-  "200": 20,
-  "300": 24,
-  "400": 32,
-  "500": 40,
-  "600": 48,
+const ICON_SIZE_PX: Record<Exclude<IconSizeToken, 'Inherit'>, number> = {
+  '50': 12,
+  '100': 16,
+  '200': 20,
+  '300': 24,
+  '400': 32,
+  '500': 40,
+  '600': 48,
 };
 
 const timelineMutedStyle = { opacity: 0.6 } as const;
@@ -153,12 +153,12 @@ type SizedIconProps = IconProps & {
 
 export function sizedIcon(
   Icon: PhosphorIcon,
-  size: IconSizeToken = "200",
-  props?: SizedIconProps,
+  size: IconSizeToken = '200',
+  props?: SizedIconProps
 ): ReactNode {
   const { filled, weight, style, ...rest } = props ?? {};
-  const resolvedWeight = weight ?? (filled ? "fill" : "regular");
-  if (size === "Inherit") {
+  const resolvedWeight = weight ?? (filled ? 'fill' : 'regular');
+  if (size === 'Inherit') {
     return <Icon size="1em" weight={resolvedWeight} style={style} {...rest} />;
   }
   return <Icon size={ICON_SIZE_PX[size]} weight={resolvedWeight} style={style} {...rest} />;
@@ -181,7 +181,7 @@ export function chipIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
 }
 
 export function profileIcon(Icon: PhosphorIcon, props?: SizedIconProps): ReactNode {
-  return sizedIcon(Icon, "100", props);
+  return sizedIcon(Icon, '100', props);
 }
 
 /** Caret in chip `after` slots — flex-centered so Phosphor glyphs align with label text. */
@@ -190,14 +190,14 @@ export function chipCaretIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode 
   return (
     <span
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         lineHeight: 0,
         flexShrink: 0,
       }}
     >
-      <Icon size={PHOSPHOR_SIZE.inline} style={{ display: "block", ...style }} {...rest} />
+      <Icon size={PHOSPHOR_SIZE.inline} style={{ display: 'block', ...style }} {...rest} />
     </span>
   );
 }
@@ -212,10 +212,10 @@ export function dropzoneIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
 }
 
 export function settingsNavIcon(Icon: PhosphorIcon, active: boolean, props?: IconProps): ReactNode {
-  return <Icon size={PHOSPHOR_SIZE.inline} weight={active ? "fill" : "regular"} {...props} />;
+  return <Icon size={PHOSPHOR_SIZE.inline} weight={active ? 'fill' : 'regular'} {...props} />;
 }
 
-export type UserFallbackSize = "sm" | "md" | "lg" | "xl" | "hero";
+export type UserFallbackSize = 'sm' | 'md' | 'lg' | 'xl' | 'hero';
 
 const USER_FALLBACK_SIZE = {
   sm: PHOSPHOR_SIZE.inline,
@@ -225,7 +225,7 @@ const USER_FALLBACK_SIZE = {
   hero: PHOSPHOR_SIZE.empty,
 } as const;
 
-export function userFallbackIcon(size: UserFallbackSize = "md", props?: IconProps): ReactNode {
+export function userFallbackIcon(size: UserFallbackSize = 'md', props?: IconProps): ReactNode {
   return <User size={USER_FALLBACK_SIZE[size]} weight="regular" {...props} />;
 }
 

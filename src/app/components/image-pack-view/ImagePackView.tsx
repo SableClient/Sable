@@ -19,7 +19,12 @@ export function ImagePackView({ address, requestClose }: ImagePackViewProps) {
       <PageHeader outlined={false} balance>
         <Box alignItems="Center" grow="Yes" gap="200">
           <Box alignItems="Inherit" grow="Yes" gap="200">
-            <Chip size="500" radii="Pill" onClick={requestClose} before={sizedIcon(ArrowLeft, '100')}>
+            <Chip
+              size="500"
+              radii="Pill"
+              onClick={requestClose}
+              before={sizedIcon(ArrowLeft, '100')}
+            >
               <Text size="T300">Emojis & Stickers</Text>
             </Chip>
           </Box>

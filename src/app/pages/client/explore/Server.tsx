@@ -545,7 +545,9 @@ export function PublicRooms() {
                           data-room-filter={filter.value}
                           variant={filter.value === serverSearchParams.type ? 'Success' : 'Surface'}
                           aria-pressed={filter.value === serverSearchParams.type}
-                          before={filter.value === serverSearchParams.type && sizedIcon(Check, '100')}
+                          before={
+                            filter.value === serverSearchParams.type && sizedIcon(Check, '100')
+                          }
                           outlined
                         >
                           <Text size="T200">{filter.title}</Text>

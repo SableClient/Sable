@@ -6,7 +6,14 @@ import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-re
 import type { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, IconButton, Scroll, Text, toRem } from 'folds';
-import { CaretDown, CaretUp, ChatCircle, Check, GearSix, sizedIcon } from '$components/icons/phosphor';
+import {
+  CaretDown,
+  CaretUp,
+  ChatCircle,
+  Check,
+  GearSix,
+  sizedIcon,
+} from '$components/icons/phosphor';
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';

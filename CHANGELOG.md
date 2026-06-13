@@ -45,6 +45,9 @@
 * Avoid aborting sliding-sync requests for online-only network change events; retry immediately only after a real offline-to-online transition. (`03f69bd`)
 * Reduce mobile sync diagnostic noise by de-duplicating service-worker sync-health updates and raising the MatrixRTC listener threshold for large room lists. (`fffb312`)
 * Fix timeline scroll recovery, loading spinner position, autopag loop, blank notification room, and ArrowUp-to-edit routing. (`5365f80`)
+* Restore the dotted splash background during the early boot loading screen.
+* Fix Charm rebrand follow-ups for desktop SSO callbacks, fork bug-report routing, and legacy Sable web-push pusher cleanup.
+* Recheck system theme on PWA foreground restores to avoid transient opposite-theme flashes.
 
 ### Notes
 

@@ -52,6 +52,7 @@ type SyncTransportMeta = {
 };
 const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
 const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
+const MATRIX_DEVICE_ID_SENTRY_TAG = 'matrix.device_id';
 // Reduced from 20s to 8s to improve perceived cold launch performance.
 // 8 seconds is sufficient for most networks while still allowing time for
 // slow connections. If the bootstrap times out, sliding sync takes over.
@@ -61,6 +62,21 @@ type FetchRoomEventResult = Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>;
 type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
   fetchRoomEvent: (roomId: string, eventId: string) => Promise<FetchRoomEventResult>;
 };
+
+type MatrixDeviceContextClient = Pick<MatrixClient, 'getDeviceId'>;
+
+export function setSentryMatrixDeviceContext(
+  mx?: MatrixDeviceContextClient | null,
+  session?: Pick<Session, 'deviceId'> | null
+): void {
+  const deviceId = mx?.getDeviceId() ?? session?.deviceId;
+  if (!deviceId) return;
+  Sentry.setTag(MATRIX_DEVICE_ID_SENTRY_TAG, deviceId);
+}
+
+export function clearSentryMatrixDeviceContext(): void {
+  Sentry.setTag(MATRIX_DEVICE_ID_SENTRY_TAG, 'none');
+}
 
 type StartupFetchRoomEventPatchOptions = {
   stubOnCacheMiss: boolean;
@@ -460,6 +476,7 @@ const buildClient = async (
     }),
   });
   mxRef = mx;
+  setSentryMatrixDeviceContext(mx, session);
 
   // Return both client and store startup promise for parallel initialization
   return { mx, storeStartup: indexedDBStore.startup() };
@@ -470,6 +487,7 @@ export const initClient = async (
   onTokenRefresh?: (newAccessToken: string, newRefreshToken?: string) => void
 ): Promise<MatrixClient> => {
   const storeName = getSessionStoreName(session);
+  setSentryMatrixDeviceContext(null, session);
   debugLog.info('sync', 'Initializing Matrix client', {
     userId: session.userId,
     baseUrl: session.baseUrl,
@@ -610,6 +628,7 @@ export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | un
   slidingSyncByClient.get(mx);
 
 export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
+  setSentryMatrixDeviceContext(mx);
   debugLog.info('sync', 'Starting Matrix client', { userId: mx.getUserId() });
   Sentry.addBreadcrumb({
     category: 'sync.lifecycle',
@@ -1125,6 +1144,7 @@ export const logoutClient = async (mx: MatrixClient, session?: Session) => {
 };
 
 export const clearLoginData = async () => {
+  clearSentryMatrixDeviceContext();
   debugLog.info('general', 'Clearing all login data and reloading');
   const dbs = await window.indexedDB.databases();
   dbs.forEach((idbInfo) => {

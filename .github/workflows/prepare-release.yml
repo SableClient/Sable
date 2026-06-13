@@ -21,7 +21,7 @@ jobs:
           HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           first_line="${HEAD_COMMIT_MESSAGE%%$'\n'*}"
-          if [[ "$first_line" =~ ^Merge\ pull\ request\ \#[0-9]+\ from\ Just-Insane/release$ ]]; then
+          if [[ "$first_line" =~ ^Merge\ pull\ request\ \#[0-9]+\ from\ CloudHub-Social/release$ ]]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"

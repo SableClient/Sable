@@ -2,11 +2,16 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 import * as Sentry from '@sentry/react';
 import type { Session } from '$state/sessions';
+import { useAtom } from 'jotai';
 import { appEvents } from '../utils/appEvents';
 import { useClientConfig, useExperimentVariant } from './useClientConfig';
 import { createDebugLogger } from '../utils/debugLogger';
 import { mobileOrTablet } from '$utils/user-agent';
 import { pushSessionToSW } from '../../sw-session';
+import { useSetting } from '../state/hooks/settings';
+import { settingsAtom } from '../state/settings';
+import { pushSubscriptionAtom } from '../state/pushSubscription';
+import { togglePusher } from '../features/settings/notifications/PushNotifications';
 
 const debugLog = createDebugLogger('AppVisibility');
 
@@ -17,6 +22,9 @@ const DEFAULT_HEARTBEAT_MAX_BACKOFF_MS = 30 * 60 * 1000;
 
 export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: Session) {
   const clientConfig = useClientConfig();
+  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
+  const pushSubAtom = useAtom(pushSubscriptionAtom);
+  const isMobile = mobileOrTablet();
   const sessionSyncConfig = clientConfig.sessionSync;
   const sessionSyncVariant = useExperimentVariant('sessionSyncStrategy', activeSession?.userId);
   const hasDirectSessionSyncConfig = sessionSyncConfig !== undefined;
@@ -164,6 +172,38 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!mx) return undefined;
+
+    const syncPusherForVisibility = (isVisible: boolean) => {
+      togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile).catch(
+        (err) => {
+          Sentry.metrics.count('sable.push.visibility_toggle', 1, {
+            attributes: {
+              outcome: 'failed',
+              visible: isVisible,
+              mobile: isMobile,
+              error_type: err instanceof Error ? err.name : 'unknown',
+            },
+          });
+          Sentry.addBreadcrumb({
+            category: 'push',
+            message: 'Visibility pusher toggle failed',
+            level: 'warning',
+            data: {
+              visible: isVisible,
+              mobile: isMobile,
+              error: err instanceof Error ? err.message : String(err),
+            },
+          });
+        }
+      );
+    };
+
+    syncPusherForVisibility(document.visibilityState === 'visible');
+    return appEvents.onVisibilityChange(syncPusherForVisibility);
+  }, [clientConfig, isMobile, mx, pushSubAtom, usePushNotifications]);
 
   useEffect(() => {
     if (!phase1ForegroundResync) return undefined;

@@ -259,3 +259,21 @@ export async function deRegisterAllPushers(mx: MatrixClient): Promise<void> {
 
   await Promise.allSettled(deletionPromises);
 }
+
+export async function togglePusher(
+  mx: MatrixClient,
+  clientConfig: ClientConfig,
+  visible: boolean,
+  usePushNotifications: boolean,
+  pushSubscriptionAtom: PushSubscriptionState,
+  keepEnabledWhenVisible = false
+): Promise<void> {
+  if (!usePushNotifications) return;
+
+  if (visible && !keepEnabledWhenVisible) {
+    await disablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
+    return;
+  }
+
+  await enablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
+}

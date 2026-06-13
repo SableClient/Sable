@@ -1,4 +1,4 @@
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -43,7 +43,6 @@ import { useInboxNotificationsSelected } from '$hooks/router/useInbox';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { registrationAtom } from '$state/serviceWorkerRegistration';
-import { pushSubscriptionAtom } from '$state/pushSubscription';
 import { pendingNotificationAtom, inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
 import {
   buildRoomMessageNotification,
@@ -54,7 +53,6 @@ import { createDebugLogger } from '$utils/debugLogger';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { useSyncState } from '$hooks/useSyncState';
-import { useClientConfig } from '$hooks/useClientConfig';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
@@ -102,7 +100,6 @@ import {
   resolvePreferredNotificationTransportProvider,
   type NotificationTransportPlatform,
 } from '../../features/settings/notifications/NotificationTransport';
-import { enablePushNotifications } from '../../features/settings/notifications/PushNotifications';
 import {
   buildPushVisibilityResult,
   isMatrixSyncHealthy,
@@ -1033,67 +1030,6 @@ function SyncStateWithServiceWorker() {
   return null;
 }
 
-function WebPushPusherReconciler() {
-  const mx = useMatrixClient();
-  const clientConfig = useClientConfig();
-  const pushSubAtom = useAtom(pushSubscriptionAtom);
-  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
-  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
-  const repairInFlightRef = useRef(false);
-  const lastRepairAtRef = useRef(0);
-
-  useEffect(() => {
-    if (isTauri()) return undefined;
-    if (!usePushNotifications || !backgroundPushEnabled) return undefined;
-    if (!('Notification' in window) || Notification.permission !== 'granted') return undefined;
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return undefined;
-
-    const reconcile = () => {
-      if (document.visibilityState !== 'visible') return;
-      const now = Date.now();
-      if (repairInFlightRef.current || now - lastRepairAtRef.current < 5 * 60 * 1000) return;
-      repairInFlightRef.current = true;
-      lastRepairAtRef.current = now;
-
-      enablePushNotifications(mx, clientConfig, pushSubAtom)
-        .then(() => {
-          Sentry.metrics.count('sable.push.pusher_reconcile', 1, {
-            attributes: { outcome: 'success' },
-          });
-        })
-        .catch((err) => {
-          Sentry.metrics.count('sable.push.pusher_reconcile', 1, {
-            attributes: {
-              outcome: 'failed',
-              error_type: err instanceof Error ? err.name : 'unknown',
-            },
-          });
-          Sentry.addBreadcrumb({
-            category: 'push',
-            message: 'Background web push pusher reconcile failed',
-            level: 'warning',
-            data: { error: err instanceof Error ? err.message : String(err) },
-          });
-        })
-        .finally(() => {
-          repairInFlightRef.current = false;
-        });
-    };
-
-    reconcile();
-    document.addEventListener('visibilitychange', reconcile);
-    window.addEventListener('pageshow', reconcile);
-    window.addEventListener('focus', reconcile);
-    return () => {
-      document.removeEventListener('visibilitychange', reconcile);
-      window.removeEventListener('pageshow', reconcile);
-      window.removeEventListener('focus', reconcile);
-    };
-  }, [backgroundPushEnabled, clientConfig, mx, pushSubAtom, usePushNotifications]);
-
-  return null;
-}
-
 function SlidingSyncActiveRoomSubscriber() {
   useSlidingSyncActiveRoom();
   return null;
@@ -1596,7 +1532,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <NotificationTransportRuntimeFeature />
       <SyncNotificationSettingsWithServiceWorker />
       <SyncStateWithServiceWorker />
-      <WebPushPusherReconciler />
       <ServiceWorkerPushMessages />
       <HandleDecryptPushEvent />
       <ServiceWorkerMetricsHandler />

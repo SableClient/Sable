@@ -60,7 +60,7 @@ import type { StateEvents } from '$types/matrix-sdk';
 
 import { PowerIcon } from '$components/power';
 import {
-  ArrowBendUpRightIcon,
+  ArrowBendUpLeftIcon,
   ChatCircleDots,
   DotsThreeOutlineVerticalIcon,
   Info,
@@ -1028,7 +1028,7 @@ function MessageInternal(
                 size="300"
                 radii="300"
               >
-                {menuIcon(ArrowBendUpRightIcon)}
+                {menuIcon(ArrowBendUpLeftIcon)}
               </IconButton>
               {!isThreadedMessage && (
                 <IconButton
@@ -1135,7 +1135,7 @@ function MessageInternal(
                         {relations && <MessageAllReactionItem room={room} relations={relations} />}
                         <MenuItem
                           size="300"
-                          after={menuIcon(ArrowBendUpRightIcon)}
+                          after={menuIcon(ArrowBendUpLeftIcon)}
                           radii="300"
                           data-event-id={mEvent.getId()}
                           onClick={(evt: React.MouseEvent) => {
@@ -1518,7 +1518,7 @@ export const Event = as<'div', EventProps>(
                           <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
                             <MenuItem
                               size="300"
-                              after={menuIcon(ArrowBendUpRightIcon)}
+                              after={menuIcon(ArrowBendUpLeftIcon)}
                               radii="300"
                               data-event-id={mEvent.getId()}
                               onClick={(evt: React.MouseEvent) => {
@@ -1580,7 +1580,7 @@ export const Event = as<'div', EventProps>(
                       size="300"
                       radii="300"
                     >
-                      {menuIcon(ArrowBendUpRightIcon)}
+                      {menuIcon(ArrowBendUpLeftIcon)}
                     </IconButton>
                     <IconButton
                       variant="SurfaceVariant"

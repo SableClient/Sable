@@ -65,6 +65,57 @@ describe('mediaMetadata', () => {
     unsubscribe();
   });
 
+  it('persists scoped metadata keys as valid cache requests', async () => {
+    const cache = {
+      delete: vi.fn(async () => true),
+      keys: vi.fn(async () => []),
+      put: vi.fn(async () => undefined),
+    };
+    vi.stubGlobal('caches', {
+      open: vi.fn(async () => cache),
+    });
+    const { storeMediaMetadataForBlob } = await import('./mediaMetadata');
+    const scopedKey = '@alice:example.org:https://example.org/image.png';
+
+    await storeMediaMetadataForBlob(scopedKey, new Blob(['image'], { type: 'image/png' }));
+
+    expect(cache.put).toHaveBeenCalledOnce();
+    expect(cache.put).toHaveBeenCalledWith(expect.any(Request), expect.any(Response));
+    const request = (cache.put.mock.calls[0] as unknown[])[0];
+    expect(request).toBeInstanceOf(Request);
+    expect((request as Request).url).toBe(
+      `https://sable.local/media-metadata/${encodeURIComponent(scopedKey)}`
+    );
+  });
+
+  it('reads persisted metadata through encoded cache requests', async () => {
+    const cachedMetadata = {
+      cachedAt: 123,
+      height: 60,
+      kind: 'image',
+      mimeType: 'image/png',
+      width: 120,
+    };
+    const cache = {
+      match: vi.fn(async () => new Response(JSON.stringify(cachedMetadata))),
+    };
+    vi.stubGlobal('caches', {
+      open: vi.fn(async () => cache),
+    });
+    const { getMediaMetadata } = await import('./mediaMetadata');
+    const scopedKey = '@alice:example.org:https://example.org/image.png';
+
+    await expect(getMediaMetadata(scopedKey)).resolves.toMatchObject(cachedMetadata);
+
+    expect(cache.match).toHaveBeenCalledOnce();
+    expect(cache.match).toHaveBeenCalledWith(expect.any(Request));
+    const request = (cache.match.mock.calls[0] as unknown[])[0];
+    expect(request).toBeInstanceOf(Request);
+    expect((request as Request).url).toBe(
+      `https://sable.local/media-metadata/${encodeURIComponent(scopedKey)}`
+    );
+  });
+
   it('times out stalled video metadata reads and revokes the object url', async () => {
     vi.useFakeTimers();
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:video-metadata');

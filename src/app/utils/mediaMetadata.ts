@@ -11,6 +11,7 @@ export type CachedMediaMetadata = {
 };
 
 const METADATA_CACHE_NAME = 'sable-media-metadata-v1';
+const METADATA_CACHE_REQUEST_PREFIX = 'https://sable.local/media-metadata/';
 const MAX_METADATA_ENTRIES = 1000;
 const VIDEO_METADATA_TIMEOUT_MS = 10_000;
 
@@ -50,6 +51,10 @@ async function evictMetadataIfNeeded(cache: Cache): Promise<void> {
   }
 }
 
+function getMetadataCacheRequest(cacheKey: string): Request {
+  return new Request(`${METADATA_CACHE_REQUEST_PREFIX}${encodeURIComponent(cacheKey)}`);
+}
+
 function normalizeMediaMetadata(metadata: unknown): CachedMediaMetadata | undefined {
   if (!metadata || typeof metadata !== 'object') return undefined;
   const raw = metadata as Partial<CachedMediaMetadata>;
@@ -82,7 +87,7 @@ async function putMediaMetadata(cacheKey: string, metadata: CachedMediaMetadata)
   if (!cache) return;
   try {
     await cache.put(
-      cacheKey,
+      getMetadataCacheRequest(cacheKey),
       new Response(JSON.stringify(metadata), {
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +113,7 @@ export async function getMediaMetadata(
   if (!cache) return undefined;
 
   try {
-    const response = await cache.match(cacheKey);
+    const response = await cache.match(getMetadataCacheRequest(cacheKey));
     if (!response) return undefined;
 
     const metadata = normalizeMediaMetadata(await response.json());

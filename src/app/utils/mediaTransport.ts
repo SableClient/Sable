@@ -1,7 +1,11 @@
 import { hasControllingServiceWorker } from '$utils/platform';
 import { fetch } from '$utils/fetch';
 import { getFromMediaCache, putInMediaCache } from './mediaCache';
-import { storeMediaMetadataForBlob } from './mediaMetadata';
+import {
+  getMediaMetadata,
+  getMediaMetadataSnapshot,
+  storeMediaMetadataForBlob,
+} from './mediaMetadata';
 
 type StoredSession = {
   userId: string;
@@ -180,6 +184,16 @@ async function fetchMediaResponse(
   return fetch(url, init);
 }
 
+async function storeMediaMetadataIfMissing(
+  cacheKey: string | undefined,
+  blob: Blob
+): Promise<void> {
+  if (!cacheKey) return;
+  if (getMediaMetadataSnapshot(cacheKey)) return;
+  if (await getMediaMetadata(cacheKey)) return;
+  await storeMediaMetadataForBlob(cacheKey, blob);
+}
+
 async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptions): Promise<Blob> {
   const cacheMode = options?.cache ?? 'default';
   const scopedCacheKey = getScopedMediaCacheKey(url, resolveSessionScope(options));
@@ -189,7 +203,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
   if (cacheMode === 'default') {
     const cachedBlob = await getFromMediaCache(scopedCacheKey);
     if (cachedBlob) {
-      if (metadataCacheKey) void storeMediaMetadataForBlob(metadataCacheKey, cachedBlob);
+      void storeMediaMetadataIfMissing(metadataCacheKey, cachedBlob);
       return cachedBlob;
     }
   }

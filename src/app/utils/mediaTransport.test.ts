@@ -16,6 +16,8 @@ const mediaCache = vi.hoisted(() => {
   };
 });
 const mediaMetadata = vi.hoisted(() => ({
+  getMediaMetadata: vi.fn(async () => undefined),
+  getMediaMetadataSnapshot: vi.fn(() => undefined),
   storeMediaMetadataForBlob: vi.fn(async () => undefined),
 }));
 
@@ -33,6 +35,10 @@ describe('fetchMediaBlob', () => {
     mediaCache.cache.clear();
     mediaCache.getFromMediaCache.mockClear();
     mediaCache.putInMediaCache.mockClear();
+    mediaMetadata.getMediaMetadata.mockClear();
+    mediaMetadata.getMediaMetadata.mockResolvedValue(undefined);
+    mediaMetadata.getMediaMetadataSnapshot.mockClear();
+    mediaMetadata.getMediaMetadataSnapshot.mockReturnValue(undefined);
     mediaMetadata.storeMediaMetadataForBlob.mockClear();
     localStorage.clear();
     vi.stubGlobal('fetch', vi.fn());
@@ -53,6 +59,51 @@ describe('fetchMediaBlob', () => {
       expect(mediaCache.getFromMediaCache).toHaveBeenCalledWith(scopedUrl);
       expect(fetch).not.toHaveBeenCalled();
       expect(mediaCache.putInMediaCache).not.toHaveBeenCalled();
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
+    'does not remeasure cached blobs when metadata is already in memory',
+    async () => {
+      const { fetchMediaBlob } = await import('./mediaTransport');
+      const url = 'https://example.org/media.png';
+      const cachedBlob = new Blob(['cached'], { type: 'image/png' });
+      const scopedUrl = `anonymous:${url}`;
+      mediaCache.cache.set(scopedUrl, cachedBlob);
+      mediaMetadata.getMediaMetadataSnapshot.mockReturnValue({
+        cachedAt: Date.now(),
+        height: 60,
+        width: 120,
+      } as never);
+
+      await expect(fetchMediaBlob(url)).resolves.toBe(cachedBlob);
+
+      expect(mediaMetadata.getMediaMetadataSnapshot).toHaveBeenCalledWith(scopedUrl);
+      expect(mediaMetadata.getMediaMetadata).not.toHaveBeenCalled();
+      expect(mediaMetadata.storeMediaMetadataForBlob).not.toHaveBeenCalled();
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
+    'does not remeasure cached blobs when metadata is already persisted',
+    async () => {
+      const { fetchMediaBlob } = await import('./mediaTransport');
+      const url = 'https://example.org/media.png';
+      const cachedBlob = new Blob(['cached'], { type: 'image/png' });
+      const scopedUrl = `anonymous:${url}`;
+      mediaCache.cache.set(scopedUrl, cachedBlob);
+      mediaMetadata.getMediaMetadata.mockResolvedValue({
+        cachedAt: Date.now(),
+        height: 60,
+        width: 120,
+      } as never);
+
+      await expect(fetchMediaBlob(url)).resolves.toBe(cachedBlob);
+
+      expect(mediaMetadata.getMediaMetadata).toHaveBeenCalledWith(scopedUrl);
+      expect(mediaMetadata.storeMediaMetadataForBlob).not.toHaveBeenCalled();
     },
     TEST_TIMEOUT
   );

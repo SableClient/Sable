@@ -85,20 +85,21 @@ once instead.
 Preview builds:
 
 - `infra/web/main.tf` enables preview URL capability with `subdomain.previews_enabled = true`.
-- Previews are handled by Cloudflare Workers Builds, not GitHub Actions.
-- Connect the repo once in Cloudflare Workers Builds.
-- Set the Cloudflare Builds deploy command to `npx wrangler versions upload`.
-- This disables automatic deployments while still allowing Cloudflare to build PRs/branches and save them as preview versions.
-- That keeps Cloudflare from promoting `dev` commits to production. Production stays on the OpenTofu/GitHub Actions path in this repo.
+- Pull request previews are handled by `.github/workflows/cloudflare-web-preview.yml`.
+- The preview workflow uploads immutable Worker versions with aliases like `pr-60`.
+- It does not promote preview versions to production.
 
 ```bash
-npx wrangler versions upload
+npx wrangler versions upload -c dist/wrangler.json --preview-alias pr-60
 ```
 
 Production deploys:
 
 - `.github/workflows/cloudflare-web-deploy.yml` comments PR plans for `infra/web` changes.
 - That PR plan job only runs for same-repo PRs, not fork PRs, because it needs repo secrets.
-- The same workflow applies production on pushes to `dev` or manual dispatch.
-- `tofu apply` uploads `dist/` through `cloudflare_worker_version` and promotes it with `cloudflare_workers_deployment`.
-- Production lives on `charm.cloudhub.social`.
+- Fast-moving production deploys are handled by `.github/workflows/cloudflare-dev-deploy.yml`.
+- Every push to `integration` that touches app or deploy inputs builds `dist/` and runs `wrangler deploy -c dist/wrangler.json`.
+- That updates the production Worker served from `charm.cloudhub.social` once the custom domain has been attached.
+- The stable release path remains available through `.github/workflows/cloudflare-web-deploy.yml` on `v*` tags or manual dispatch.
+- `tofu apply` uploads `dist/` through `cloudflare_worker_version`, promotes it with `cloudflare_workers_deployment`, and manages the Worker custom domain.
+- To swap back to a release-only site, disable the `integration` production deploy workflow or change it back to `wrangler versions upload`, then use the OpenTofu workflow for tag/manual production deploys.

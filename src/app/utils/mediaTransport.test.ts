@@ -15,9 +15,13 @@ const mediaCache = vi.hoisted(() => {
     }),
   };
 });
+const mediaMetadata = vi.hoisted(() => ({
+  storeMediaMetadataForBlob: vi.fn(async () => undefined),
+}));
 
 vi.mock('$utils/platform', () => platform);
 vi.mock('./mediaCache', () => mediaCache);
+vi.mock('./mediaMetadata', () => mediaMetadata);
 
 describe('fetchMediaBlob', () => {
   const TEST_TIMEOUT = 20_000;
@@ -29,6 +33,7 @@ describe('fetchMediaBlob', () => {
     mediaCache.cache.clear();
     mediaCache.getFromMediaCache.mockClear();
     mediaCache.putInMediaCache.mockClear();
+    mediaMetadata.storeMediaMetadataForBlob.mockClear();
     localStorage.clear();
     vi.stubGlobal('fetch', vi.fn());
   });

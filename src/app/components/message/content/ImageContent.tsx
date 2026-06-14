@@ -39,6 +39,9 @@ import {
 } from '$utils/matrix';
 import { getDecryptedBlob, storeDecryptedBlob } from '$hooks/useBlobCache';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaMetadata } from '$hooks/useMediaMetadata';
+import { getScopedMediaCacheKey } from '$utils/mediaTransport';
+import { storeMediaMetadataForBlob } from '$utils/mediaMetadata';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
@@ -137,13 +140,30 @@ export const ImageContent = as<'div', ImageContentProps>(
       if (url.startsWith('http')) return url;
       return mxcUrlToHttp(mx, url, useAuthentication) ?? undefined;
     }, [mx, url, useAuthentication]);
+    const mediaMetadataKey = useMemo(() => {
+      if (encInfo) return getScopedMediaCacheKey(url);
+      return rawMediaUrl ? getScopedMediaCacheKey(rawMediaUrl) : undefined;
+    }, [encInfo, rawMediaUrl, url]);
+    const mediaMetadata = useMediaMetadata(mediaMetadataKey);
+    const imageW =
+      typeof info?.w === 'number' && Number.isFinite(info.w) && info.w > 0
+        ? info.w
+        : mediaMetadata?.width;
+    const imageH =
+      typeof info?.h === 'number' && Number.isFinite(info.h) && info.h > 0
+        ? info.h
+        : mediaMetadata?.height;
+    const imageSize =
+      typeof info?.size === 'number' && Number.isFinite(info.size) && info.size > 0
+        ? info.size
+        : mediaMetadata?.byteSize;
 
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
         if (url.startsWith('http')) return url;
 
         if (typeof matrixThumbnailMaxEdge === 'number' && matrixThumbnailMaxEdge > 0 && !encInfo) {
-          const { tw, th } = thumbnailDimsForMaxEdge(matrixThumbnailMaxEdge, info?.w, info?.h);
+          const { tw, th } = thumbnailDimsForMaxEdge(matrixThumbnailMaxEdge, imageW, imageH);
           const thumbUrl = mediaUrlCache.get(mx, url, useAuthentication, tw, th, 'scale', false);
           if (thumbUrl) {
             const cachedBlob = mediaUrlCache.getBlob(url, false, `thumb:${tw}x${th}:scale`);
@@ -152,6 +172,7 @@ export const ImageContent = as<'div', ImageContentProps>(
             const thumbContent = await downloadMedia(thumbUrl, mx.getAccessToken());
             const thumbBlobUrl = URL.createObjectURL(thumbContent);
             mediaUrlCache.setBlob(url, false, thumbBlobUrl, `thumb:${tw}x${th}:scale`);
+            void storeMediaMetadataForBlob(mediaMetadataKey, thumbContent, 'image');
             return thumbBlobUrl;
           }
         }
@@ -168,6 +189,7 @@ export const ImageContent = as<'div', ImageContentProps>(
           if (persistedBlob) {
             const blobUrl = URL.createObjectURL(persistedBlob);
             mediaUrlCache.setBlob(url, true, blobUrl, mimeType);
+            void storeMediaMetadataForBlob(mediaMetadataKey, persistedBlob, 'image');
             return blobUrl;
           }
 
@@ -181,6 +203,7 @@ export const ImageContent = as<'div', ImageContentProps>(
           mediaUrlCache.setBlob(url, true, blobUrl, mimeType);
           // Persist the decrypted blob so subsequent loads skip decrypt
           void storeDecryptedBlob(url, fileContent);
+          void storeMediaMetadataForBlob(mediaMetadataKey, fileContent, 'image');
           return blobUrl;
         }
         const cachedBlob = mediaUrlCache.getBlob(url, false, mimeType);
@@ -189,12 +212,14 @@ export const ImageContent = as<'div', ImageContentProps>(
         const fileContent = await downloadMedia(mediaUrl, mx.getAccessToken());
         const blobUrl = URL.createObjectURL(fileContent);
         mediaUrlCache.setBlob(url, false, blobUrl, mimeType);
+        void storeMediaMetadataForBlob(mediaMetadataKey, fileContent, 'image');
         return blobUrl;
       }, [
         encInfo,
-        info?.h,
-        info?.w,
+        imageH,
+        imageW,
         matrixThumbnailMaxEdge,
+        mediaMetadataKey,
         mediaUrlCache,
         mimeType,
         mx,
@@ -263,8 +288,6 @@ export const ImageContent = as<'div', ImageContentProps>(
       return () => clearTimeout(timeoutId);
     }, [srcState.status, load, error, url, onError]);
 
-    const imageW = info?.w;
-    const imageH = info?.h;
     const hasDimensions = typeof imageW === 'number' && typeof imageH === 'number';
     const isContained = mediaLayout === 'contained';
     const fillsSlot = Boolean(fillsPreviewSlot && isContained);
@@ -370,8 +393,8 @@ export const ImageContent = as<'div', ImageContentProps>(
               alt: body,
               title: body,
               src: srcState.data,
-              ...(typeof info?.w === 'number' && Number.isFinite(info.w) ? { width: info.w } : {}),
-              ...(typeof info?.h === 'number' && Number.isFinite(info.h) ? { height: info.h } : {}),
+              ...(typeof imageW === 'number' && Number.isFinite(imageW) ? { width: imageW } : {}),
+              ...(typeof imageH === 'number' && Number.isFinite(imageH) ? { height: imageH } : {}),
               onLoad: handleLoad,
               onError: handleError,
               onClick: () => {
@@ -476,10 +499,10 @@ export const ImageContent = as<'div', ImageContentProps>(
             </Menu>
           </Box>
         )}
-        {!load && typeof info?.size === 'number' && (
+        {!load && typeof imageSize === 'number' && (
           <Box className={css.AbsoluteFooter} justifyContent="End" alignContent="Center" gap="200">
             <Badge variant="Secondary" fill="Soft">
-              <Text size="L400">{bytesToSize(info.size)}</Text>
+              <Text size="L400">{bytesToSize(imageSize)}</Text>
             </Badge>
           </Box>
         )}

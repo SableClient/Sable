@@ -1,6 +1,7 @@
 import { hasControllingServiceWorker } from '$utils/platform';
 import { fetch } from '$utils/fetch';
 import { getFromMediaCache, putInMediaCache } from './mediaCache';
+import { storeMediaMetadataForBlob } from './mediaMetadata';
 
 type StoredSession = {
   userId: string;
@@ -184,7 +185,10 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
 
   if (cacheMode === 'default') {
     const cachedBlob = await getFromMediaCache(scopedCacheKey);
-    if (cachedBlob) return cachedBlob;
+    if (cachedBlob) {
+      void storeMediaMetadataForBlob(scopedCacheKey, cachedBlob);
+      return cachedBlob;
+    }
   }
 
   const useServiceWorker = hasControllingServiceWorker() && !hasExplicitMediaAuthOverride(options);
@@ -196,6 +200,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     const blob = await response.blob();
     if (cacheMode !== 'bypass') {
       await putInMediaCache(scopedCacheKey, blob);
+      void storeMediaMetadataForBlob(scopedCacheKey, blob);
     }
     return blob;
   };

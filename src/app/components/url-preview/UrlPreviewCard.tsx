@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 import type { IPreviewUrlResponse } from '$types/matrix-sdk';
 import { Box, IconButton, Scroll, Spinner, Text, as, color, config, toRem } from 'folds';
@@ -18,6 +18,8 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import type { IImageInfo } from '$types/matrix/common';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '$unstable/prefixes';
+import { useMediaMetadata } from '$hooks/useMediaMetadata';
+import { getScopedMediaCacheKey } from '$utils/mediaTransport';
 
 const linkStyles = { color: color.Success.Main };
 
@@ -129,6 +131,31 @@ export const UrlPreviewCard = as<
     loadPreview().catch(() => undefined);
   }, [url, loadPreview]);
 
+  const previewData =
+    previewStatus.status === AsyncStatus.Success ? (previewStatus.data ?? undefined) : undefined;
+  const previewImageUrl = useMemo(() => {
+    if (!previewData?.['og:image']) return undefined;
+    return mxcUrlToHttp(mx, previewData['og:image'], useAuthentication, 256, 256, 'scale', false);
+  }, [mx, previewData, useAuthentication]);
+  const previewImageMetadataUrl = useMemo(() => {
+    if (!previewData?.['og:image']) return undefined;
+    return mxcUrlToHttp(mx, previewData['og:image'], useAuthentication);
+  }, [mx, previewData, useAuthentication]);
+  const previewVideoUrl = useMemo(() => {
+    const raw = previewData?.['og:video'];
+    if (typeof raw !== 'string') return undefined;
+    const videoUrl = raw.trim();
+    if (!videoUrl) return undefined;
+    if (videoUrl.startsWith('mxc://')) return mxcUrlToHttp(mx, videoUrl, useAuthentication);
+    return videoUrl.startsWith('http') ? videoUrl : undefined;
+  }, [mx, previewData, useAuthentication]);
+  const previewImageMetadata = useMediaMetadata(
+    previewImageMetadataUrl ? getScopedMediaCacheKey(previewImageMetadataUrl) : undefined
+  );
+  const previewVideoMetadata = useMediaMetadata(
+    previewVideoUrl ? getScopedMediaCacheKey(previewVideoUrl) : undefined
+  );
+
   // Reset imageError when URL changes
   useEffect(() => {
     setImageError(false);
@@ -138,15 +165,7 @@ export const UrlPreviewCard = as<
     const siteName = prev['og:site_name'];
     const title = prev['og:title'];
     const description = prev['og:description'];
-    const imgUrl = mxcUrlToHttp(
-      mx,
-      prev['og:image'] || '',
-      useAuthentication,
-      256,
-      256,
-      'scale',
-      false
-    );
+    const imgUrl = previewImageUrl;
     const handleAuxClick = (ev: React.MouseEvent) => {
       if (!prev['og:image']) {
         console.warn('[UrlPreview] No image available');
@@ -167,13 +186,21 @@ export const UrlPreviewCard = as<
     const videoH = prev['og:video'] ? ogPositiveDimension(prev['og:video:height']) : undefined;
     const ogImgW = ogPositiveDimension(prev['og:image:width']);
     const ogImgH = ogPositiveDimension(prev['og:image:height']);
+    const cachedVideoW = prev['og:video'] ? previewVideoMetadata?.width : undefined;
+    const cachedVideoH = prev['og:video'] ? previewVideoMetadata?.height : undefined;
+    const cachedImgW = prev['og:image'] ? previewImageMetadata?.width : undefined;
+    const cachedImgH = prev['og:image'] ? previewImageMetadata?.height : undefined;
 
     const aspectRatio =
       videoW && videoH
         ? `${videoW} / ${videoH}`
-        : ogImgW && ogImgH
-          ? `${ogImgW} / ${ogImgH}`
-          : undefined;
+        : cachedVideoW && cachedVideoH
+          ? `${cachedVideoW} / ${cachedVideoH}`
+          : ogImgW && ogImgH
+            ? `${ogImgW} / ${ogImgH}`
+            : cachedImgW && cachedImgH
+              ? `${cachedImgW} / ${cachedImgH}`
+              : undefined;
 
     const previewBlurRaw =
       typeof prev['matrix:image:blurhash'] === 'string' ? prev['matrix:image:blurhash'].trim() : '';
@@ -182,11 +209,14 @@ export const UrlPreviewCard = as<
       const matrixSize = prev['matrix:image:size'];
       const size =
         typeof matrixSize === 'number' && Number.isFinite(matrixSize) ? matrixSize : undefined;
-      if (ogImgW && ogImgH) {
+      const resolvedImageW = ogImgW ?? cachedImgW;
+      const resolvedImageH = ogImgH ?? cachedImgH;
+      if (resolvedImageW && resolvedImageH) {
         return {
-          w: ogImgW,
-          h: ogImgH,
+          w: resolvedImageW,
+          h: resolvedImageH,
           ...(size !== undefined ? { size } : {}),
+          ...(previewImageMetadata?.mimeType ? { mimetype: previewImageMetadata.mimeType } : {}),
           ...(previewBlurRaw ? { [MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]: previewBlurRaw } : {}),
         };
       }

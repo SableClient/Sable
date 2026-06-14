@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import { createDebugLogger } from '$utils/debugLogger';
 import { getScopedMediaCacheKey } from '$utils/mediaTransport';
+import { clearMediaMetadataCache } from '$utils/mediaMetadata';
 
 const debugLog = createDebugLogger('blob-cache');
 
@@ -225,7 +226,11 @@ export function clearInMemoryBlobCache(): void {
  */
 export async function clearMediaCache(): Promise<void> {
   try {
-    await Promise.all([caches.delete(CACHE_NAME), caches.delete(LEGACY_AVATAR_CACHE_NAME)]);
+    await Promise.all([
+      caches.delete(CACHE_NAME),
+      caches.delete(LEGACY_AVATAR_CACHE_NAME),
+      clearMediaMetadataCache(),
+    ]);
     cacheMetadata = [];
     metadataLoaded = false;
     clearInMemoryBlobCache();

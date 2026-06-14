@@ -382,6 +382,7 @@ const VIRTUAL_OVER_SCAN = 2;
 const MEDIA_WARMUP_DELAY_MS = 500;
 const MEDIA_WARMUP_CONCURRENCY = 3;
 const MEDIA_WARMUP_MAX_ITEMS = 240;
+const MEDIA_WARMUP_MAX_FULL_SIZE_STICKERS = 48;
 
 type IdleWindow = Window &
   typeof globalThis & {
@@ -425,13 +426,14 @@ const getPackImageUrls = (
   const urls = new Set<string>();
   const width = usage === ImageUsage.Sticker ? 125 : 32;
   const height = usage === ImageUsage.Sticker ? 125 : 32;
-  const warmupPackImages = usage !== ImageUsage.Sticker || saveStickerEmojiBandwidth;
+  const maxItems =
+    usage === ImageUsage.Sticker && !saveStickerEmojiBandwidth
+      ? MEDIA_WARMUP_MAX_FULL_SIZE_STICKERS
+      : MEDIA_WARMUP_MAX_ITEMS;
 
   imagePacks.forEach((pack) => {
     const avatarUrl = mxcUrlToHttp(mx, pack.getAvatarUrl(usage) ?? '', useAuthentication, 36, 36);
     if (avatarUrl) urls.add(avatarUrl);
-
-    if (!warmupPackImages) return;
 
     pack.getImages(usage).forEach((image) => {
       const url = getPackImageSrc(
@@ -446,7 +448,7 @@ const getPackImageUrls = (
     });
   });
 
-  return Array.from(urls).slice(0, MEDIA_WARMUP_MAX_ITEMS);
+  return Array.from(urls).slice(0, maxItems);
 };
 
 type EmojiBoardProps = {

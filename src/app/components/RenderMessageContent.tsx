@@ -49,6 +49,7 @@ import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
 import { M_TEXT } from 'matrix-js-sdk';
 import type { IImageInfo } from '$types/matrix/common';
+import { PollEvent } from '$features/room/poll/PollEvent';
 
 type RenderMessageContentProps = {
   displayName: string;
@@ -102,6 +103,9 @@ function RenderMessageContentInternal({
   linkifyOpts,
   outlineAttachment,
   hideCaption,
+  mEvent,
+  mx,
+  room,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
@@ -456,6 +460,11 @@ function RenderMessageContentInternal({
         }
       />
     );
+  if (content['org.matrix.msc3381.poll.start']) {
+    if (mEvent && mx && room)
+      //set canEnd to false here because the browser is really not place to end polls regardless and adding it would increase the complexity a lot
+      return <PollEvent mEvent={mEvent} room={room} canEnd={false} />;
+  }
   return (
     <UnsupportedContent
       body={

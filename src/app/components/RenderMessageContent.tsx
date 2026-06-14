@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { memo, useMemo, useCallback } from 'react';
 import type { IPreviewUrlResponse, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { MsgType } from '$types/matrix-sdk';
+import { M_POLL_START, MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
@@ -460,7 +460,7 @@ function RenderMessageContentInternal({
         }
       />
     );
-  if (content['org.matrix.msc3381.poll.start']) {
+  if (content[M_POLL_START.name]) {
     if (mEvent && mx && room)
       //set canEnd to false here because the browser is really not place to end polls regardless and adding it would increase the complexity a lot
       return <PollEvent mEvent={mEvent} room={room} canEnd={false} />;

@@ -72,6 +72,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   answers.forEach((item) => (votes[item.id] = 0));
 
   const [ViewVotersAnswer, setViewVotersAnswer] = useState<PollAnswerItem | undefined>(undefined);
+  const [isSnooping, setIsSnooping] = useState<boolean>(false);
 
   // This should technically request the permissions at the time of the end of the event but that doesnt seem to be supported by the sdk
   const getEndIndex = useCallback(
@@ -164,6 +165,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
     ? userSelectionContent[M_POLL_RESPONSE.name]?.answers
     : undefined;
   const hasVoted = userSelection?.length > 0;
+  const showAnswers = (isDisclosed && (hasVoted || isSnooping)) || isEnded;
 
   function handleNewVote(id: string) {
     if (!eventId || !roomId || maxSelections < 1) return;
@@ -263,7 +265,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
                   <Box justifyContent="SpaceBetween" grow="Yes" alignItems="Center">
                     <Text>{optionBody}</Text>
 
-                    {((isDisclosed && hasVoted) || isEnded) && (
+                    {showAnswers && (
                       <Text
                         size="T200"
                         className={css.PollAnswerCount}
@@ -277,7 +279,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
                 {(isDisclosed || isEnded) && (
                   <ProgressBar
                     size="400"
-                    value={hasVoted || isEnded ? (voteCount ?? 0) / voters.size : 0}
+                    value={showAnswers ? (voteCount ?? 0) / voters.size : 0}
                     max={1}
                     variant={isSelected ? 'Primary' : 'Secondary'}
                     title={voteCount ? `${Math.round((voteCount / voters.size) * 100)}%` : '0%'}
@@ -288,12 +290,17 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
             );
           })}
           <Box gap="200" grow="Yes" shrink="No" justifyContent="SpaceBetween" alignItems="Center">
-            <Text size="T200">
-              {(isDisclosed && hasVoted) || isEnded
-                ? `${totalVotes} vote${totalVotes !== 1 ? 's' : ''} ${totalVotes !== voters.size ? `by ${voters.size} voter${voters.size !== 1 ? 's' : ''}` : ''}`
-                : (isDisclosed && 'Cast a vote to see ongoing results') ||
-                  'Results will be shown when the poll is over'}
-            </Text>
+            {showAnswers ? (
+              <Text size="T200">
+                {`${totalVotes} vote${totalVotes !== 1 ? 's' : ''} ${totalVotes !== voters.size ? `by ${voters.size} voter${voters.size !== 1 ? 's' : ''}` : ''}`}
+              </Text>
+            ) : isDisclosed ? (
+              <Text onClick={() => setIsSnooping(true)} style={{ cursor: 'pointer' }} size="T200">
+                Click here to show results
+              </Text>
+            ) : (
+              <Text size="T200">Results will be shown when the poll is over </Text>
+            )}
             <Box alignItems="Center" gap="200">
               <Text size="T200">
                 {maxSelections !== 1 && maxSelections !== answers.length

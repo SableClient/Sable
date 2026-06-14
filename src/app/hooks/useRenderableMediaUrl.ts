@@ -146,9 +146,8 @@ function retainObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
   return entry;
 }
 
-function releaseObjectUrlEntry(cacheKey: string): void {
-  const entry = objectUrlCache.get(cacheKey);
-  if (!entry) return;
+function releaseObjectUrlEntry(cacheKey: string, entry: ObjectUrlEntry): void {
+  if (objectUrlCache.get(cacheKey) !== entry) return;
 
   entry.refs = Math.max(0, entry.refs - 1);
   touchObjectUrlEntry(entry);
@@ -242,7 +241,7 @@ export function useRenderableMediaUrl(url: string | undefined): string | undefin
 
     return () => {
       cancelled = true;
-      releaseObjectUrlEntry(objectUrlCacheKey);
+      releaseObjectUrlEntry(objectUrlCacheKey, entry);
     };
   }, [objectUrlCacheKey, renderableUrl, usesExistingObjectUrl]);
 

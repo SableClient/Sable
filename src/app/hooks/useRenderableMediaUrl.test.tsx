@@ -11,12 +11,18 @@ const mediaTransport = vi.hoisted(() => ({
 
 vi.mock('$utils/mediaTransport', () => mediaTransport);
 
-const makeDeferred = <T,>(): { promise: Promise<T>; resolve: (value: T) => void } => {
+const makeDeferred = <T,>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+} => {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 };
 
 describe('useRenderableMediaUrl', () => {
@@ -252,6 +258,44 @@ describe('useRenderableMediaUrl', () => {
       expect(result.current).toBe('blob:new-rendered-media');
     });
 
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
+  });
+
+  it('does not let a failed old consumer release a newer cache entry', async () => {
+    const firstFetch = makeDeferred<Blob>();
+    const secondFetch = makeDeferred<Blob>();
+    mediaTransport.fetchMediaBlob
+      .mockReturnValueOnce(firstFetch.promise)
+      .mockReturnValueOnce(secondFetch.promise);
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:new-rendered-media');
+
+    const { clearRenderableMediaUrlCache, getRenderableMediaUrlStats, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
+
+    const first = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
+    firstFetch.reject(new Error('network failed'));
+
+    await waitFor(() => {
+      expect(first.result.current).toBeUndefined();
+      expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(1);
+      expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 0, inflightCount: 0 });
+    });
+
+    const second = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
+    expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(2);
+
+    first.unmount();
+
+    secondFetch.resolve(new Blob(['new-media'], { type: 'image/png' }));
+
+    await waitFor(() => {
+      expect(second.result.current).toBe('blob:new-rendered-media');
+    });
+
+    clearRenderableMediaUrlCache();
+
+    expect(second.result.current).toBe('blob:new-rendered-media');
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:new-rendered-media');
     expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
   });
 });

@@ -1207,7 +1207,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       const normalizedVisibilityState =
         typeof visibilityState === 'string' ? visibilityState : undefined;
       if (
-        resolve &&
+        typeof resolve === 'function' &&
         shouldSuppressOsPushForForegroundState({ visibilityState: normalizedVisibilityState })
       ) {
         resolve({

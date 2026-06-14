@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { SyncState } from '$types/matrix-sdk';
 import type { Session } from '$state/sessions';
+import { appEvents } from '../utils/appEvents';
 import { useAppVisibility } from './useAppVisibility';
 
 const mocks = vi.hoisted(() => ({
@@ -227,5 +228,40 @@ describe('useAppVisibility', () => {
     });
 
     expect(mocks.pushSessionToSW).not.toHaveBeenCalled();
+  });
+
+  it('emits an initial visible event for timeline refresh without retrying sync', () => {
+    const mx = makeClient(SyncState.Syncing);
+    const visibilityHandler = vi.fn<(visible: boolean) => void>();
+    const unsubscribe = appEvents.onVisibilityChange(visibilityHandler);
+
+    renderHook(() => useAppVisibility(mx, session));
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(visibilityHandler).toHaveBeenCalledWith(true);
+    expect(mx.retryImmediately).not.toHaveBeenCalled();
+
+    unsubscribe();
+  });
+
+  it('emits visible on bfcache restore without retrying sync', () => {
+    const mx = makeClient(SyncState.Syncing);
+    const visibilityHandler = vi.fn<(visible: boolean) => void>();
+    const unsubscribe = appEvents.onVisibilityChange(visibilityHandler);
+
+    renderHook(() => useAppVisibility(mx, session));
+    visibilityHandler.mockClear();
+
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    });
+
+    expect(visibilityHandler).toHaveBeenCalledWith(true);
+    expect(mx.retryImmediately).not.toHaveBeenCalled();
+
+    unsubscribe();
   });
 });

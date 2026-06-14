@@ -220,6 +220,26 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   }, [clientConfig, isMobile, mx, pushSubAtom, usePushNotifications]);
 
   useEffect(() => {
+    const emitVisible = () => {
+      if (document.visibilityState === 'visible') {
+        appEvents.emitVisibilityChange(true);
+      }
+    };
+
+    const handlePageShow = (ev: PageTransitionEvent) => {
+      if (ev.persisted) emitVisible();
+    };
+
+    const timeoutId = window.setTimeout(emitVisible, 100);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!phase2VisibleHeartbeat) return undefined;
 
     let timeoutId: number | undefined;

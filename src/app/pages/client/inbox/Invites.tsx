@@ -430,7 +430,7 @@ function InviteFilters({
   const isKnown = filter === InviteFilter.Known;
   const isUnknown = filter === InviteFilter.Unknown;
   const isSpam = filter === InviteFilter.Spam;
-  const isIgnored = filter === InviteFilter.Ignored;
+  const isDismissed = filter === InviteFilter.Ignored;
 
   return (
     <Box gap="200">
@@ -483,11 +483,11 @@ function InviteFilters({
         <Text size="T200">Spam</Text>
       </Chip>
       <Chip
-        variant={isIgnored ? 'Primary' : 'Surface'}
-        aria-selected={isIgnored}
-        outlined={!isIgnored}
+        variant={isDismissed ? 'Primary' : 'Surface'}
+        aria-selected={isDismissed}
+        outlined={!isDismissed}
         onClick={() => onFilter(InviteFilter.Ignored)}
-        before={isKnown && sizedIcon(Check, '100')}
+        before={isDismissed && sizedIcon(Check, '100')}
       >
         <Text size="T200">Dismissed</Text>
       </Chip>

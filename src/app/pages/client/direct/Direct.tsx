@@ -228,18 +228,25 @@ export function Direct() {
   // is internal SDK state not tracked by React dependencies.
   const [activityCounter, setActivityCounter] = useState(0);
   const directsSetRef = useRef(directs);
+  const timelineActivityStartRef = useRef(Date.now());
   directsSetRef.current = directs;
 
   useEffect(() => {
     const handleTimeline: RoomEventHandlerMap[RoomEvent.Timeline] = (
-      _event,
-      _room,
+      mEvent,
+      room,
       _toStartOfTimeline,
       _removed,
       data
     ) => {
-      if (!data.liveEvent) return;
-      // Increment counter to trigger re-sort when a live timeline event happens.
+      const eventId = mEvent.getId();
+      const isRecentSlidingSyncEvent =
+        !!room &&
+        !!eventId &&
+        mEvent.getTs() >= timelineActivityStartRef.current - 60 * 1000 &&
+        !room.hasUserReadEvent(mx.getSafeUserId(), eventId);
+      if (!data.liveEvent && !isRecentSlidingSyncEvent) return;
+      // Increment counter to trigger re-sort when a new timeline event arrives.
       setActivityCounter((prev) => prev + 1);
     };
 

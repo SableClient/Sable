@@ -995,6 +995,8 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
     mx.on(ClientEvent.Sync, classicSyncListener);
   };
 
+  let slidingWarmCacheAtStart = mx.getRooms().length > 0;
+
   const shouldBootstrapClassicOnColdCache = async (): Promise<boolean> => {
     if (slidingConfig?.bootstrapClassicOnColdCache === false) return false;
     const userId = mx.getUserId();
@@ -1025,6 +1027,7 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
     // Prioritize rooms in memory as the most reliable signal.
     // Fall back to the persisted sync snapshot if rooms aren't loaded yet.
     const hasWarmCache = hasRoomsInMemory || hasStoredSync;
+    slidingWarmCacheAtStart = hasWarmCache;
 
     const cacheStatus = {
       userId,
@@ -1143,11 +1146,16 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
     level: 'info',
   });
 
-  const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
-    ...slidingConfig,
-    includeInviteList: true,
-    pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
-  });
+  const manager = new SlidingSyncManager(
+    mx,
+    resolvedProxyBaseUrl,
+    {
+      ...slidingConfig,
+      includeInviteList: true,
+      pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
+    },
+    slidingWarmCacheAtStart
+  );
   manager.attach();
   slidingSyncByClient.set(mx, manager);
   syncTransportByClient.set(mx, {

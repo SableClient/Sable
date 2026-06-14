@@ -322,6 +322,8 @@ export class SlidingSyncManager {
 
   private readonly initialRoomCount: number;
 
+  private readonly initialWarmCache: boolean;
+
   private readonly loadedRoomIds = new Set<string>();
 
   private lastOnlineState = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -389,7 +391,8 @@ export class SlidingSyncManager {
   public constructor(
     private readonly mx: MatrixClient,
     private readonly proxyBaseUrl: string,
-    config: SlidingSyncConfig
+    config: SlidingSyncConfig,
+    initialWarmCache?: boolean
   ) {
     const listPageSize = clampPositive(config.listPageSize, DEFAULT_LIST_PAGE_SIZE);
     const pollTimeoutMs = clampPositive(config.pollTimeoutMs, DEFAULT_POLL_TIMEOUT_MS);
@@ -402,6 +405,7 @@ export class SlidingSyncManager {
     const roomTimelineLimit = clampPositive(config.timelineLimit, ACTIVE_ROOM_TIMELINE_LIMIT);
     this.roomTimelineLimit = roomTimelineLimit;
     this.initialRoomCount = mx.getRooms().length;
+    this.initialWarmCache = initialWarmCache ?? this.initialRoomCount > 0;
 
     const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
     const cachedRoomCount = this.initialRoomCount;
@@ -1159,7 +1163,7 @@ export class SlidingSyncManager {
    * If true, we can show the UI while sync continues in the background.
    */
   public hasWarmCache(): boolean {
-    return this.initialRoomCount > 0;
+    return this.initialWarmCache;
   }
 
   /**

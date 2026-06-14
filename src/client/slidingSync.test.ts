@@ -147,6 +147,40 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+// ── startup cache detection ─────────────────────────────────────────────────
+
+describe('SlidingSyncManager.hasWarmCache()', () => {
+  it('uses the persisted-cache startup signal when rooms are not in memory yet', () => {
+    const manager = new SlidingSyncManager(
+      makeMockMx({ getRooms: vi.fn<() => unknown[]>().mockReturnValue([]) }),
+      'https://sliding.example.com',
+      {},
+      true
+    );
+
+    expect(manager.hasWarmCache()).toBe(true);
+  });
+
+  it('keeps cold-cache starts cold when no startup warm-cache signal exists', () => {
+    const manager = new SlidingSyncManager(
+      makeMockMx({ getRooms: vi.fn<() => unknown[]>().mockReturnValue([]) }),
+      'https://sliding.example.com',
+      {},
+      false
+    );
+
+    expect(manager.hasWarmCache()).toBe(false);
+  });
+
+  it('falls back to initial in-memory rooms when no startup signal is supplied', () => {
+    const manager = makeManager(
+      makeMockMx({ getRooms: vi.fn<() => unknown[]>().mockReturnValue([{}]) })
+    );
+
+    expect(manager.hasWarmCache()).toBe(true);
+  });
+});
+
 // ── dispose() ────────────────────────────────────────────────────────────────
 
 describe('SlidingSyncManager.dispose()', () => {

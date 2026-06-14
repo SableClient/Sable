@@ -6,6 +6,9 @@ import { fetchMediaBlob, getCurrentMediaSessionScope } from '$utils/mediaTranspo
 type ObjectUrlEntry = {
   refs: number;
   settled: boolean;
+  disposed: boolean;
+  clearOnRelease: boolean;
+  lastUsed: number;
   objectUrl?: string;
   promise: Promise<string>;
 };
@@ -17,6 +20,8 @@ type ResolvedMediaUrlState = {
 
 const objectUrlCache = new Map<string, ObjectUrlEntry>();
 const inflightRequests = new Map<string, Promise<string>>();
+const MAX_OBJECT_URL_CACHE_ENTRIES = 500;
+let lastUsedCounter = 0;
 
 function getObjectUrlCacheKey(sessionScope: string, url: string): string {
   return `${sessionScope}\x00${url}`;
@@ -38,27 +43,94 @@ function normalizeRenderableMediaUrl(url: string | undefined): string | undefine
   return undefined;
 }
 
+function touchObjectUrlEntry(entry: ObjectUrlEntry): void {
+  lastUsedCounter += 1;
+  entry.lastUsed = lastUsedCounter;
+}
+
+function revokeObjectUrlEntry(entry: ObjectUrlEntry): void {
+  entry.disposed = true;
+  if (entry.objectUrl) {
+    URL.revokeObjectURL(entry.objectUrl);
+    entry.objectUrl = undefined;
+  }
+}
+
+function deleteObjectUrlEntryIfCurrent(cacheKey: string, entry: ObjectUrlEntry): void {
+  if (objectUrlCache.get(cacheKey) === entry) {
+    objectUrlCache.delete(cacheKey);
+  }
+}
+
+function deleteInflightRequestIfCurrent(cacheKey: string, entry: ObjectUrlEntry): void {
+  if (inflightRequests.get(cacheKey) === entry.promise) {
+    inflightRequests.delete(cacheKey);
+  }
+}
+
+function removeObjectUrlEntry(cacheKey: string, entry: ObjectUrlEntry): void {
+  revokeObjectUrlEntry(entry);
+  deleteObjectUrlEntryIfCurrent(cacheKey, entry);
+  deleteInflightRequestIfCurrent(cacheKey, entry);
+}
+
+function pruneObjectUrlCache(): void {
+  if (objectUrlCache.size <= MAX_OBJECT_URL_CACHE_ENTRIES) return;
+
+  const evictable = Array.from(objectUrlCache.entries())
+    .filter(([, entry]) => entry.refs === 0 && entry.settled && entry.objectUrl)
+    .toSorted(([, a], [, b]) => a.lastUsed - b.lastUsed);
+
+  for (const [cacheKey, entry] of evictable) {
+    if (objectUrlCache.size <= MAX_OBJECT_URL_CACHE_ENTRIES) return;
+
+    removeObjectUrlEntry(cacheKey, entry);
+  }
+}
+
 function createObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
   const entry = {
     refs: 0,
     settled: false,
+    disposed: false,
+    clearOnRelease: false,
+    lastUsed: 0,
     objectUrl: undefined,
     promise: Promise.resolve(''),
   } as ObjectUrlEntry;
+  touchObjectUrlEntry(entry);
 
   entry.promise = fetchMediaBlob(url)
     .then((blob) => {
       const objectUrl = URL.createObjectURL(blob);
+      if (entry.disposed) {
+        URL.revokeObjectURL(objectUrl);
+        throw new Error('Renderable media cache entry was cleared');
+      }
+
       entry.objectUrl = objectUrl;
+      touchObjectUrlEntry(entry);
       return objectUrl;
+    })
+    .catch((error) => {
+      deleteObjectUrlEntryIfCurrent(cacheKey, entry);
+      throw error;
     })
     .finally(() => {
       entry.settled = true;
-      inflightRequests.delete(cacheKey);
-      if (entry.refs === 0 && entry.objectUrl) {
-        URL.revokeObjectURL(entry.objectUrl);
-        objectUrlCache.delete(cacheKey);
+      deleteInflightRequestIfCurrent(cacheKey, entry);
+
+      if (!entry.objectUrl) {
+        deleteObjectUrlEntryIfCurrent(cacheKey, entry);
+        return;
       }
+
+      if (entry.clearOnRelease && entry.refs === 0) {
+        removeObjectUrlEntry(cacheKey, entry);
+        return;
+      }
+
+      pruneObjectUrlCache();
     });
 
   objectUrlCache.set(cacheKey, entry);
@@ -70,23 +142,53 @@ function createObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
 function retainObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
   const entry = objectUrlCache.get(cacheKey) ?? createObjectUrlEntry(cacheKey, url);
   entry.refs += 1;
+  touchObjectUrlEntry(entry);
   return entry;
 }
 
-function releaseObjectUrlEntry(cacheKey: string): void {
-  const entry = objectUrlCache.get(cacheKey);
-  if (!entry) return;
+function releaseObjectUrlEntry(cacheKey: string, entry: ObjectUrlEntry): void {
+  if (objectUrlCache.get(cacheKey) !== entry) return;
 
-  entry.refs -= 1;
-  if (entry.refs > 0 || !entry.settled) return;
-  if (entry.objectUrl) {
-    URL.revokeObjectURL(entry.objectUrl);
+  entry.refs = Math.max(0, entry.refs - 1);
+  touchObjectUrlEntry(entry);
+  if (entry.refs === 0 && entry.clearOnRelease && entry.settled) {
+    removeObjectUrlEntry(cacheKey, entry);
+    return;
   }
-  objectUrlCache.delete(cacheKey);
+  pruneObjectUrlCache();
 }
 
 export function getRenderableMediaUrlStats(): { cacheSize: number; inflightCount: number } {
   return { cacheSize: objectUrlCache.size, inflightCount: inflightRequests.size };
+}
+
+export function clearRenderableMediaUrlCache(): void {
+  objectUrlCache.forEach((entry, cacheKey) => {
+    if (entry.refs > 0) {
+      entry.clearOnRelease = true;
+      touchObjectUrlEntry(entry);
+      return;
+    }
+
+    removeObjectUrlEntry(cacheKey, entry);
+  });
+}
+
+export async function prewarmRenderableMediaUrls(
+  urls: string[],
+  sessionScope = getCurrentMediaSessionScope()
+): Promise<void> {
+  const entries = urls.flatMap((url) => {
+    const renderableUrl = normalizeRenderableMediaUrl(url);
+    if (!renderableUrl || renderableUrl.startsWith('blob:')) return [];
+
+    const cacheKey = getObjectUrlCacheKey(sessionScope, renderableUrl);
+    const entry = objectUrlCache.get(cacheKey) ?? createObjectUrlEntry(cacheKey, renderableUrl);
+    touchObjectUrlEntry(entry);
+    return [entry];
+  });
+
+  await Promise.allSettled(entries.map((entry) => entry.promise));
 }
 
 export function useRenderableMediaUrl(url: string | undefined): string | undefined {
@@ -139,7 +241,7 @@ export function useRenderableMediaUrl(url: string | undefined): string | undefin
 
     return () => {
       cancelled = true;
-      releaseObjectUrlEntry(objectUrlCacheKey);
+      releaseObjectUrlEntry(objectUrlCacheKey, entry);
     };
   }, [objectUrlCacheKey, renderableUrl, usesExistingObjectUrl]);
 

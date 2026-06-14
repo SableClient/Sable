@@ -28,7 +28,7 @@ import { useDebounce } from '$hooks/useDebounce';
 import { useThrottle } from '$hooks/useThrottle';
 import { addRecentEmoji } from '$plugins/recent-emoji';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { fetchMediaBlob } from '$utils/mediaTransport';
+import { prewarmRenderableMediaUrls } from '$hooks/useRenderableMediaUrl';
 import type { ImagePack, PackImageReader } from '$plugins/custom-emoji';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { getEmoticonSearchStr } from '$plugins/utils';
@@ -521,7 +521,7 @@ export function EmojiBoard({
       const batch = urls.splice(0, MEDIA_WARMUP_CONCURRENCY);
       if (batch.length === 0) return;
 
-      Promise.allSettled(batch.map((url) => fetchMediaBlob(url))).finally(() => {
+      prewarmRenderableMediaUrls(batch, mx.getUserId() ?? undefined).finally(() => {
         if (cancelled || urls.length === 0) return;
         idleId = requestIdleWork(warmNext);
       });

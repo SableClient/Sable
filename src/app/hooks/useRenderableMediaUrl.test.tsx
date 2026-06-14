@@ -11,9 +11,24 @@ const mediaTransport = vi.hoisted(() => ({
 
 vi.mock('$utils/mediaTransport', () => mediaTransport);
 
+const makeDeferred = <T,>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+} => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, reject, resolve };
+};
+
 describe('useRenderableMediaUrl', () => {
   beforeEach(() => {
     vi.resetModules();
+    window.localStorage.clear();
     mediaTransport.fetchMediaBlob.mockReset();
     mediaTransport.getCurrentMediaSessionScope.mockReset();
     mediaTransport.getCurrentMediaSessionScope.mockReturnValue('anonymous');
@@ -127,9 +142,10 @@ describe('useRenderableMediaUrl', () => {
     );
   });
 
-  it('revokes the object url when the last consumer unmounts', async () => {
+  it('retains the object url when the last consumer unmounts', async () => {
     mediaTransport.fetchMediaBlob.mockResolvedValue(new Blob(['media'], { type: 'image/png' }));
-    const { useRenderableMediaUrl } = await import('./useRenderableMediaUrl');
+    const { getRenderableMediaUrlStats, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
 
     const first = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
     const second = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
@@ -143,6 +159,143 @@ describe('useRenderableMediaUrl', () => {
     expect(URL.revokeObjectURL).not.toHaveBeenCalled();
 
     second.unmount();
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
+  });
+
+  it('revokes retained object urls when the cache is cleared', async () => {
+    mediaTransport.fetchMediaBlob.mockResolvedValue(new Blob(['media'], { type: 'image/png' }));
+    const { clearRenderableMediaUrlCache, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
+
+    const { result, unmount } = renderHook(() =>
+      useRenderableMediaUrl('https://example.org/media.png')
+    );
+
+    await waitFor(() => {
+      expect(result.current).toBe('blob:rendered-media');
+    });
+
+    unmount();
+    clearRenderableMediaUrlCache();
+
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:rendered-media');
+  });
+
+  it('keeps mounted object urls usable when the cache is cleared', async () => {
+    mediaTransport.fetchMediaBlob.mockResolvedValue(new Blob(['media'], { type: 'image/png' }));
+    const { clearRenderableMediaUrlCache, getRenderableMediaUrlStats, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
+
+    const { result, unmount } = renderHook(() =>
+      useRenderableMediaUrl('https://example.org/media.png')
+    );
+
+    await waitFor(() => {
+      expect(result.current).toBe('blob:rendered-media');
+    });
+
+    clearRenderableMediaUrlCache();
+
+    expect(result.current).toBe('blob:rendered-media');
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
+
+    unmount();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:rendered-media');
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 0, inflightCount: 0 });
+  });
+
+  it('prewarms renderable media urls for later consumers', async () => {
+    mediaTransport.fetchMediaBlob.mockResolvedValue(new Blob(['media'], { type: 'image/png' }));
+    const { getRenderableMediaUrlStats, prewarmRenderableMediaUrls, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
+
+    await prewarmRenderableMediaUrls(['https://example.org/media.png']);
+
+    expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(1);
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
+
+    const { result } = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
+
+    await waitFor(() => {
+      expect(result.current).toBe('blob:rendered-media');
+    });
+    expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let a cleared in-flight request delete a newer cache entry', async () => {
+    const firstFetch = makeDeferred<Blob>();
+    const secondFetch = makeDeferred<Blob>();
+    mediaTransport.fetchMediaBlob
+      .mockReturnValueOnce(firstFetch.promise)
+      .mockReturnValueOnce(secondFetch.promise);
+    vi.mocked(URL.createObjectURL)
+      .mockReturnValueOnce('blob:old-rendered-media')
+      .mockReturnValueOnce('blob:new-rendered-media');
+
+    const {
+      clearRenderableMediaUrlCache,
+      getRenderableMediaUrlStats,
+      prewarmRenderableMediaUrls,
+      useRenderableMediaUrl,
+    } = await import('./useRenderableMediaUrl');
+
+    const warmup = prewarmRenderableMediaUrls(['https://example.org/media.png']);
+    clearRenderableMediaUrlCache();
+
+    const { result } = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
+    expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(2);
+
+    firstFetch.resolve(new Blob(['old-media'], { type: 'image/png' }));
+    await warmup;
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:old-rendered-media');
+
+    secondFetch.resolve(new Blob(['new-media'], { type: 'image/png' }));
+
+    await waitFor(() => {
+      expect(result.current).toBe('blob:new-rendered-media');
+    });
+
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
+  });
+
+  it('does not let a failed old consumer release a newer cache entry', async () => {
+    const firstFetch = makeDeferred<Blob>();
+    const secondFetch = makeDeferred<Blob>();
+    mediaTransport.fetchMediaBlob
+      .mockReturnValueOnce(firstFetch.promise)
+      .mockReturnValueOnce(secondFetch.promise);
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:new-rendered-media');
+
+    const { clearRenderableMediaUrlCache, getRenderableMediaUrlStats, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
+
+    const first = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
+    firstFetch.reject(new Error('network failed'));
+
+    await waitFor(() => {
+      expect(first.result.current).toBeUndefined();
+      expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(1);
+      expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 0, inflightCount: 0 });
+    });
+
+    const second = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
+    expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(2);
+
+    first.unmount();
+
+    secondFetch.resolve(new Blob(['new-media'], { type: 'image/png' }));
+
+    await waitFor(() => {
+      expect(second.result.current).toBe('blob:new-rendered-media');
+    });
+
+    clearRenderableMediaUrlCache();
+
+    expect(second.result.current).toBe('blob:new-rendered-media');
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:new-rendered-media');
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
   });
 });

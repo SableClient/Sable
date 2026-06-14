@@ -2,7 +2,8 @@ import type { ChangeEventHandler, FormEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import type { IPushRule, IPushRules } from '$types/matrix-sdk';
 import { PushRuleKind, EventType } from '$types/matrix-sdk';
-import { Box, Text, Badge, Button, Input, config, IconButton, Icons, Icon, Spinner } from 'folds';
+import { Box, Text, Badge, Button, Input, config, IconButton, Spinner } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 import { useAccountData } from '$hooks/useAccountData';
 
 import { SequenceCard } from '$components/sequence-card';
@@ -87,7 +88,7 @@ function KeywordInput() {
                 radii="300"
                 variant="Secondary"
               >
-                <Icon src={Icons.Cross} size="100" />
+                {menuIcon(X)}
               </IconButton>
             )
           }
@@ -125,7 +126,7 @@ function KeywordCross({ pushRule }: PushRulesProps) {
   const removing = removeState.status === AsyncStatus.Loading;
   return (
     <IconButton onClick={remove} size="300" radii="Pill" variant="Secondary" disabled={removing}>
-      {removing ? <Spinner size="100" /> : <Icon src={Icons.Cross} size="100" />}
+      {removing ? <Spinner size="100" /> : menuIcon(X)}
     </IconButton>
   );
 }

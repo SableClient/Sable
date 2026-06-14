@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useMemo } from 'react';
-import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
-import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
+import { Box, Chip, Text, toRem } from 'folds';
+import { ArrowSquareOut, sizedIcon, Link } from '$components/icons/phosphor';
+import type { IContent, IPreviewUrlResponse, MatrixClient } from '$types/matrix-sdk';
 import { JUMBO_EMOJI_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
 import type {
@@ -30,6 +31,7 @@ import {
   MessageDeletedContent,
   MessageEditedContent,
   MessageUnsupportedContent,
+  ReactionDeletedContent,
 } from './content';
 import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
@@ -60,6 +62,34 @@ export function RedactedContent({ reason }: RedactedContentProps) {
   return (
     <Text>
       <MessageDeletedContent reason={reason} />
+    </Text>
+  );
+}
+
+type RedactedReactionContentProps = {
+  reactionKey?: string;
+  shortcode?: string;
+  mx?: MatrixClient;
+  useAuthentication?: boolean;
+  reason?: string;
+};
+export function RedactedReactionContent({
+  reactionKey,
+  shortcode,
+  mx,
+  useAuthentication,
+  reason,
+}: RedactedReactionContentProps) {
+  return (
+    <Text>
+      <ReactionDeletedContent
+        reactionKey={reactionKey}
+        shortcode={shortcode}
+        mx={mx}
+        useAuthentication={useAuthentication}
+        reason={reason}
+        hideIcon
+      />
     </Text>
   );
 }
@@ -668,7 +698,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
           size="400"
           variant="SurfaceVariant"
           onClick={() => copyToClipboard(`${location.latitude}, ${location.longitude}`)}
-          before={<Icon size="50" src={Icons.Link} />}
+          before={sizedIcon(Link, '50')}
           className={css.LocationCoordsChip}
         >
           <Text size="T400">{`${location.latitude}, ${location.longitude}`}</Text>
@@ -683,7 +713,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
           variant="Primary"
           radii="Pill"
           className={css.LocationExternalChip}
-          before={<Icon src={Icons.External} size="50" />}
+          before={sizedIcon(ArrowSquareOut, '50')}
         >
           <Text size="B300">Open Location</Text>
         </Chip>

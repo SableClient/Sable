@@ -6,9 +6,7 @@ import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -59,6 +57,19 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
+import {
+  Checks,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  dropzoneIcon,
+  Globe,
+  Hash,
+  House,
+  Link,
+  MagnifyingGlass,
+  menuIcon,
+  Plus,
+} from '$components/icons/phosphor';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
@@ -90,7 +101,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={menuIcon(Checks)}
           radii="300"
           aria-disabled={!unread}
         >
@@ -101,7 +112,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         <MenuItem
           onClick={() => setIsShowingAllRoomsInHome(!isShowingAllRoomsInHome)}
           size="300"
-          after={<Icon size="100" src={isShowingAllRoomsInHome ? Icons.Home : Icons.Globe} />}
+          after={menuIcon(isShowingAllRoomsInHome ? House : Globe)}
           radii="300"
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -130,7 +141,7 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
         {hideText ? (
           <Box alignItems="Center" grow="Yes" justifyContent="Center">
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.Home} size="200" filled={!!menuAnchor} />
+              {composerIcon(House, { weight: menuAnchor ? 'fill' : 'regular' })}
             </IconButton>
           </Box>
         ) : (
@@ -142,7 +153,9 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
             </Box>
             <Box shrink="No">
               <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-                <Icon src={Icons.VerticalDots} size="200" filled={!!menuAnchor} />
+                {composerIcon(DotsThreeOutlineVerticalIcon, {
+                  weight: menuAnchor ? 'fill' : 'regular',
+                })}
               </IconButton>
             </Box>
           </Box>
@@ -179,7 +192,7 @@ function HomeEmpty() {
   return (
     <NavEmptyCenter>
       <NavEmptyLayout
-        icon={<Icon size="600" src={Icons.Hash} />}
+        icon={dropzoneIcon(Hash)}
         title={
           <Text size="H5" align="Center">
             No Rooms
@@ -311,7 +324,7 @@ export function Home() {
                           radii="400"
                           style={hideText ? { width: '100%', padding: '0' } : undefined}
                         >
-                          <Icon src={Icons.Plus} size="100" />
+                          {menuIcon(Plus)}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
@@ -342,7 +355,7 @@ export function Home() {
                                 radii="400"
                                 style={hideText ? { width: '100%', padding: '0' } : undefined}
                               >
-                                <Icon src={Icons.Link} size="100" />
+                                {menuIcon(Link)}
                               </Avatar>
                               {!hideText && (
                                 <Box as="span" grow="Yes">
@@ -389,7 +402,9 @@ export function Home() {
                           radii="400"
                           style={hideText ? { width: '100%' } : undefined}
                         >
-                          <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                          {menuIcon(MagnifyingGlass, {
+                            weight: searchSelected ? 'fill' : 'regular',
+                          })}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">

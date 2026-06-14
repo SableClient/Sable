@@ -4,9 +4,7 @@ import {
   Box,
   Button,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Line,
   MenuItem,
   Scroll,
@@ -21,6 +19,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
+import { composerIcon, userFallbackIcon, X } from '$components/icons/phosphor';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
@@ -106,7 +105,7 @@ export const PollResponsesViewer = as<'div', PollResponsesViewerProps>(
               </Text>
             </Box>
             <IconButton size="300" onClick={onClose}>
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Header>
 
@@ -152,7 +151,7 @@ export const PollResponsesViewer = as<'div', PollResponsesViewerProps>(
                             userId={senderId}
                             src={avatarUrl ?? undefined}
                             alt={name}
-                            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                            renderFallback={() => userFallbackIcon('sm')}
                           />
                         </Avatar>
                       }

@@ -7,8 +7,6 @@ import {
   Box,
   Chip,
   config,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -16,6 +14,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { CaretDown, CaretUp, sizedIcon, userFallbackIcon } from '$components/icons/phosphor';
 import type { CallMembership } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import type { Room } from '$types/matrix-sdk';
@@ -103,7 +102,7 @@ export function LiveChip({ count, room, members }: LiveChipProps) {
                               userId={userId}
                               src={avatarUrl}
                               alt={name}
-                              renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                              renderFallback={() => userFallbackIcon('sm')}
                             />
                           </Avatar>
                         }
@@ -125,7 +124,7 @@ export function LiveChip({ count, room, members }: LiveChipProps) {
         variant="Surface"
         fill="Soft"
         before={<Badge variant="Critical" fill="Solid" size="200" />}
-        after={<Icon size="50" src={cords ? Icons.ChevronBottom : Icons.ChevronTop} />}
+        after={sizedIcon(cords ? CaretDown : CaretUp, '50')}
         radii="Pill"
         onClick={handleOpenMenu}
       >

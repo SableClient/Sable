@@ -1,4 +1,5 @@
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
@@ -35,7 +36,7 @@ export function General({ requestClose }: GeneralProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

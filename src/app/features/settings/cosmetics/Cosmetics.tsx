@@ -5,8 +5,6 @@ import {
   Box,
   Button,
   config,
-  Icon,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -16,6 +14,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { CaretDown, composerIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
@@ -150,7 +149,7 @@ function SelectJumboEmojiSize() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">{currentSizeName}</Text>
@@ -226,7 +225,7 @@ function SelectRenderCustomProfileCards() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">{currentLabel}</Text>

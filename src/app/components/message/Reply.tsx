@@ -1,5 +1,4 @@
-import type { IconSrc } from 'folds';
-import { Box, Chip, Icon, Icons, Text, as, color, toRem } from 'folds';
+import { Box, Chip, Text, as, color, toRem } from 'folds';
 import type { EventTimelineSet, IMentions, Room, SessionMembershipData } from '$types/matrix-sdk';
 import { EventType, MsgType } from '$types/matrix-sdk';
 import type { MouseEventHandler, ReactNode } from 'react';
@@ -8,7 +7,30 @@ import { useQueryClient } from '@tanstack/react-query';
 import classNames from 'classnames';
 import parse from 'html-react-parser';
 import { useAtomValue } from 'jotai';
-import { getMemberDisplayName, trimReplyFromBody, trimReplyFromFormattedBody } from '$utils/room';
+import {
+  ArrowBendUpRightIcon,
+  ArrowsClockwise,
+  ChatCircle,
+  chipIcon,
+  Code,
+  Hash,
+  ListBullets,
+  menuIcon,
+  Phone,
+  PhoneDisconnect,
+  PushPin,
+  timelineIcon,
+  Trash,
+  Smiley,
+} from '$components/icons/phosphor';
+import {
+  getMemberDisplayName,
+  getReactionKey,
+  getReactionShortcode,
+  getRedactionTargetId,
+  trimReplyFromBody,
+  trimReplyFromFormattedBody,
+} from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { randomNumberBetween } from '$utils/common';
 import { sanitizeCustomHtml } from '$utils/sanitize';
@@ -41,15 +63,19 @@ import {
   MessageEmptyContent,
   MessageFailedContent,
   MessageUnsupportedContent,
+  ReactionDeletedContent,
 } from './content';
 import * as css from './Reply.css';
 import { LinePlaceholder } from './placeholder';
+import { ReactionKeyInline } from './ReactionKeyInline';
 import { M_POLL_START, M_TEXT } from 'matrix-js-sdk';
 
 const ROOM_REPLY_TIMELINE_EVENT_TYPES = new Set<string>([
   EventType.RoomMessage as string,
   EventType.RoomMessageEncrypted as string,
   EventType.Sticker as string,
+  EventType.Reaction as string,
+  EventType.RoomRedaction as string,
 ]);
 
 const nonEmptyTrimmed = (v: unknown): string | undefined => {
@@ -77,25 +103,44 @@ export const replyPreviewBodyForTimelineEvent = (
   content: Record<string, unknown>,
   isRedacted: boolean
 ): ReactNode | undefined => {
-  if (!eventType || !ROOM_REPLY_TIMELINE_EVENT_TYPES.has(eventType)) return undefined;
+  if (!eventType) return undefined;
+
+  if (eventType === (EventType.RoomRedaction as string)) {
+    return 'redacted a message';
+  }
+
+  if (eventType === (EventType.Reaction as string)) {
+    if (isRedacted) {
+      return <ReactionDeletedContent hideIcon />;
+    }
+    return undefined;
+  }
+
+  if (!ROOM_REPLY_TIMELINE_EVENT_TYPES.has(eventType)) return undefined;
+
+  const effectiveContent =
+    content['m.new_content'] != null && typeof content['m.new_content'] === 'object'
+      ? (content['m.new_content'] as Record<string, unknown>)
+      : content;
+
   if (isRedacted) return <MessageDeletedContent />;
 
   if (eventType === (EventType.Sticker as string)) {
-    const stickerBody = nonEmptyTrimmed(content.body);
+    const stickerBody = nonEmptyTrimmed(effectiveContent.body);
     if (stickerBody) return scaleSystemEmoji(stickerBody);
     return 'Sticker';
   }
 
-  const rawMsgtype = content.msgtype;
+  const rawMsgtype = effectiveContent.msgtype;
   if (typeof rawMsgtype !== 'string') {
     return <MessageUnsupportedContent />;
   }
   const msgtype = rawMsgtype as MsgType;
 
   const trimmedBody = nonEmptyTrimmed(
-    typeof content.body === 'string' ? trimReplyFromBody(content.body) : ''
+    typeof effectiveContent.body === 'string' ? trimReplyFromBody(effectiveContent.body) : ''
   );
-  const filename = nonEmptyTrimmed(content.filename);
+  const filename = nonEmptyTrimmed(effectiveContent.filename);
   if (trimmedBody) return undefined;
 
   const attachmentLabel = filename;
@@ -123,7 +168,7 @@ export const replyPreviewBodyForTimelineEvent = (
 type ReplyLayoutProps = {
   userColor?: string;
   username?: ReactNode;
-  icon?: IconSrc;
+  icon?: ReactNode;
   mentioned: boolean;
   replyIcon?: JSX.Element;
 };
@@ -137,11 +182,11 @@ export const ReplyLayout = as<'div', ReplyLayoutProps>(
       ref={ref}
     >
       <Box style={{ color: userColor }} alignItems="Center" shrink="No">
-        {replyIcon || <Icon size="100" src={Icons.ReplyArrow} />}
+        {replyIcon ?? menuIcon(ArrowBendUpRightIcon)}
       </Box>
-      {!!icon && <Icon style={{ opacity: 0.6 }} size="50" src={icon} />}
+      {icon}
       <Box style={{ color: userColor, maxWidth: toRem(200) }} alignItems="Center" shrink="No">
-        {mentioned && <Icon size="100" src={Icons.Mention} />}
+        {mentioned && '@'}
         {username}
       </Box>
       <Box grow="Yes" className={css.ReplyContent}>
@@ -160,7 +205,7 @@ export const ThreadIndicator = as<'div'>(({ ...props }, ref) => (
     {...props}
     ref={ref}
   >
-    <Icon size="50" src={Icons.Thread} />
+    {chipIcon(ChatCircle)}
     <Text size="L400">Thread</Text>
   </Box>
 ));
@@ -173,6 +218,7 @@ type ReplyProps = {
   mentions?: IMentions;
   onClick?: MouseEventHandler;
   replyIcon?: JSX.Element;
+  previewBodyOverride?: string;
 };
 
 export const sanitizeReplyFormattedPreview = (formattedBody: string): string => {
@@ -190,7 +236,17 @@ export const sanitizeReplyFormattedPreview = (formattedBody: string): string => 
 
 export const Reply = as<'div', ReplyProps>(
   (
-    { room, timelineSet, replyEventId, threadRootId, mentions, onClick, replyIcon, ...props },
+    {
+      room,
+      timelineSet,
+      replyEventId,
+      threadRootId,
+      mentions,
+      onClick,
+      replyIcon,
+      previewBodyOverride,
+      ...props
+    },
     ref
   ) => {
     const placeholderWidth = useMemo(() => randomNumberBetween(40, 400), []);
@@ -203,19 +259,25 @@ export const Reply = as<'div', ReplyProps>(
 
     const mx = useMatrixClient();
 
-    const { body, formatted_body: formattedBody, format } = replyEvent?.getContent() ?? {};
-    const extensibleContent = replyEvent?.getContent()[M_TEXT.name] as
+    const rawContent = replyEvent?.getContent() ?? {};
+    const contentForPreview =
+      rawContent['m.new_content'] != null && typeof rawContent['m.new_content'] === 'object'
+        ? (rawContent['m.new_content'] as Record<string, unknown>)
+        : rawContent;
+
+    const { body, formatted_body: formattedBody, format } = contentForPreview;
+    const extensibleContent = contentForPreview[M_TEXT.name] as
       | string
       | { body: string }
       | undefined;
     const extensibleBody = (extensibleContent as { body: string })?.body ?? extensibleContent;
     const sender = replyEvent?.getSender();
     const eventType = replyEvent?.getType();
+    const isRedacted = replyEvent?.isRedacted() === true;
 
     const ignoredUsers = useIgnoredUsers();
     const isBlockedSender = !!sender && ignoredUsers.includes(sender);
     const { t } = useTranslation();
-    const isRedacted = replyEvent?.isRedacted() === true;
 
     const parseMemberEvent = useMemberEventParser();
 
@@ -232,7 +294,20 @@ export const Reply = as<'div', ReplyProps>(
       'incomingInlineImagesMaxHeight'
     );
 
-    const fallbackBody = isRedacted ? <MessageDeletedContent /> : <MessageFailedContent />;
+    const fallbackBody =
+      isRedacted && eventType === (EventType.Reaction as string) ? (
+        <ReactionDeletedContent
+          mx={mx}
+          reactionKey={replyEvent ? getReactionKey(replyEvent) : undefined}
+          shortcode={replyEvent ? getReactionShortcode(replyEvent) : undefined}
+          useAuthentication={useAuthentication}
+          hideIcon
+        />
+      ) : isRedacted ? (
+        <MessageDeletedContent />
+      ) : (
+        <MessageFailedContent />
+      );
 
     const badEncryption = replyEvent?.getContent().msgtype === 'm.bad.encrypted';
     const mentionClickHandler = useMentionClickHandler(room.roomId);
@@ -252,7 +327,7 @@ export const Reply = as<'div', ReplyProps>(
       !replyEvent.getClearContent();
 
     let bodyJSX: ReactNode = fallbackBody;
-    let image: IconSrc | undefined;
+    let image: ReactNode | undefined;
     let mentioned = sender != null && (mentions?.user_ids?.includes(sender) ?? false);
 
     const replyLinkifyOpts = useMemo(
@@ -279,7 +354,7 @@ export const Reply = as<'div', ReplyProps>(
           question: { [M_TEXT.name]?: string; body?: string };
         }
       )?.question;
-      image = Icons.UnorderList;
+      image = timelineIcon(ListBullets);
       bodyJSX = `'s poll asking ${(question[M_TEXT.name] as string) ?? question.body ?? ''}`;
     } else if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
@@ -318,18 +393,57 @@ export const Reply = as<'div', ReplyProps>(
         </Box>
       );
     } else if (eventType === EventType.RoomName) {
-      image = Icons.Hash;
+      image = timelineIcon(Hash);
       bodyJSX = t('Organisms.RoomCommon.changed_room_name');
     } else if (eventType === EventType.RoomTopic) {
-      image = Icons.Hash;
+      image = timelineIcon(Hash);
       bodyJSX = ' changed room topic';
     } else if (eventType === EventType.RoomAvatar) {
-      image = Icons.Hash;
+      image = timelineIcon(Hash);
       bodyJSX = ' changed room avatar';
     } else if (eventType === EventType.GroupCallMemberPrefix && !!replyEvent) {
       const callJoined = replyEvent.getContent<SessionMembershipData>().application;
-      image = callJoined ? Icons.Phone : Icons.PhoneDown;
+      image = callJoined ? timelineIcon(Phone) : timelineIcon(PhoneDisconnect);
       bodyJSX = callJoined ? ' joined the call' : ' ended the call';
+    } else if (eventType === EventType.RoomRedaction && replyEvent) {
+      image = timelineIcon(Trash);
+      const redactionTargetId = getRedactionTargetId(replyEvent);
+      const redactionTarget = redactionTargetId
+        ? (timelineSet?.findEventById(redactionTargetId) ??
+          room.findEventById(redactionTargetId) ??
+          null)
+        : null;
+      bodyJSX =
+        redactionTarget?.getType() === (EventType.Reaction as string)
+          ? ' redacted a reaction'
+          : ' redacted a message';
+    } else if (eventType === EventType.Reaction && !!replyEvent) {
+      image = isRedacted ? timelineIcon(Trash) : timelineIcon(Smiley);
+      if (isRedacted) {
+        bodyJSX = (
+          <ReactionDeletedContent
+            mx={mx}
+            reactionKey={getReactionKey(replyEvent)}
+            shortcode={getReactionShortcode(replyEvent)}
+            useAuthentication={useAuthentication}
+            hideIcon
+          />
+        );
+      } else {
+        const reactionKey = getReactionKey(replyEvent);
+        const reactionShortcode = getReactionShortcode(replyEvent);
+        bodyJSX = (
+          <>
+            {' reacted with '}
+            <ReactionKeyInline
+              mx={mx}
+              reactionKey={reactionKey}
+              shortcode={reactionShortcode}
+              useAuthentication={useAuthentication}
+            />
+          </>
+        );
+      }
     } else if (eventType === EventType.RoomPinnedEvents && replyEvent) {
       const { pinned } = replyEvent.getContent();
       const prevPinned = replyEvent.getPrevContent().pinned;
@@ -337,7 +451,7 @@ export const Reply = as<'div', ReplyProps>(
         prevPinned && pinned && pinned.filter((x: string) => !prevPinned.includes(x));
       const pinsRemoved =
         prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x));
-      image = Icons.Pin;
+      image = timelineIcon(PushPin);
       bodyJSX = (
         <>
           {(pinsAdded?.length > 0 &&
@@ -361,7 +475,7 @@ export const Reply = as<'div', ReplyProps>(
       if (timelinePreview !== undefined) {
         bodyJSX = timelinePreview;
       } else if (replyEvent.isState()) {
-        image = Icons.Code;
+        image = timelineIcon(Code);
         bodyJSX = (
           <>
             {' sent '}
@@ -373,6 +487,14 @@ export const Reply = as<'div', ReplyProps>(
         bodyJSX = <MessageUnsupportedContent />;
       }
     }
+    if (typeof previewBodyOverride === 'string' && previewBodyOverride.length > 0 && !isRedacted) {
+      const strippedOverride = trimReplyFromBody(previewBodyOverride).replaceAll(
+        /(?:\r\n|\r|\n)/g,
+        ' '
+      );
+      bodyJSX = scaleSystemEmoji(strippedOverride);
+    }
+
     let replyContent = bodyJSX;
     if (isBlockedSender) {
       replyContent = <MessageBlockedContent />;
@@ -407,22 +529,20 @@ export const Reply = as<'div', ReplyProps>(
               {replyContent}
             </Text>
           ) : (
-            (isRedacted && <MessageDeletedContent />) || (
-              <LinePlaceholder
-                style={{
-                  backgroundColor: color.SurfaceVariant.ContainerActive,
-                  width: toRem(placeholderWidth),
-                  maxWidth: '100%',
-                }}
-              />
-            )
+            <LinePlaceholder
+              style={{
+                backgroundColor: color.SurfaceVariant.ContainerActive,
+                width: toRem(placeholderWidth),
+                maxWidth: '100%',
+              }}
+            />
           )}
         </ReplyLayout>
         {replyEvent === null && (
           <Chip
             variant="Critical"
             radii="Pill"
-            before={<Icon size="50" src={Icons.Reload} />}
+            before={menuIcon(ArrowsClockwise)}
             onClick={(evt) => {
               evt.stopPropagation();
               void queryClient.invalidateQueries({

@@ -8,8 +8,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Button,
   Input,
   Chip,
@@ -17,6 +15,7 @@ import {
   color,
   Scroll,
 } from 'folds';
+import { chipIcon, composerIcon, ListBullets, Minus, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
 import { useCallback, useRef, useState } from 'react';
@@ -168,7 +167,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
           <Dialog variant="Surface" className={css.PollDialogBody}>
             <Header className={css.PollDialogHeader} variant="Surface" size="500">
               <Box grow="Yes" gap="200">
-                <Icon src={Icons.UnorderList} />
+                {composerIcon(ListBullets)}
                 <Text size="H4">{`New Poll ${replyDraft ? '(reply / thread)' : ''}`} </Text>
               </Box>
               <IconButton
@@ -178,7 +177,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
                 title="Cancel Creating Poll"
                 aria-label="Cancel Creating Poll"
               >
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box direction="Column" gap="500" className={css.PollDialogTitle}>
@@ -247,7 +246,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
                             aria-label="Remove Option"
                             onClick={() => delOption(item.id)}
                           >
-                            <Icon size="50" src={Icons.Minus} />
+                            {chipIcon(Minus)}
                           </IconButton>
                         }
                       />

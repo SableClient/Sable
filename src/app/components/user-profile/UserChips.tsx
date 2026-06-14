@@ -14,14 +14,22 @@ import {
   Text,
   Line,
   Chip,
-  Icon,
-  Icons,
   Spinner,
   toRem,
   Box,
   Scroll,
   Avatar,
 } from 'folds';
+import {
+  CaretDown,
+  Check,
+  DotsThree,
+  HardDrives,
+  Link,
+  PencilSimple,
+  profileIcon,
+  Prohibit,
+} from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
@@ -187,13 +195,7 @@ export function ServerChip({
       <Chip
         variant={cardColor ? undefined : myServer === server ? 'SurfaceVariant' : 'Warning'}
         radii="Pill"
-        before={
-          cords ? (
-            <Icon size="50" src={Icons.ChevronBottom} />
-          ) : (
-            <Icon size="50" src={copied ? Icons.Check : Icons.Server} />
-          )
-        }
+        before={cords ? profileIcon(CaretDown) : profileIcon(copied ? Check : HardDrives)}
         onClick={open}
         aria-pressed={!!cords}
         className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
@@ -307,13 +309,7 @@ export function ShareChip({
       <Chip
         variant={copied ? 'Success' : cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
-        before={
-          cords ? (
-            <Icon size="50" src={Icons.ChevronBottom} />
-          ) : (
-            <Icon size="50" src={copied ? Icons.Check : Icons.Link} />
-          )
-        }
+        before={cords ? profileIcon(CaretDown) : profileIcon(copied ? Check : Link)}
         onClick={open}
         aria-pressed={!!cords}
         className={!copied && cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
@@ -730,7 +726,7 @@ export function OptionsChip({
                     fill="None"
                     size="300"
                     radii="300"
-                    before={<Icon size="50" src={Icons.Pencil} />}
+                    before={profileIcon(PencilSimple)}
                     onClick={() => setEditingNick(true)}
                     className={css.UserHeroMenuItem}
                     style={heroMenuItemStyle(
@@ -756,11 +752,7 @@ export function OptionsChip({
                   className={css.UserHeroMenuItem}
                   style={heroMenuItemStyle({ backgroundColor: menuItemBg }, chipHoverBrightness)}
                   before={
-                    ignoring ? (
-                      <Spinner variant="Critical" size="50" />
-                    ) : (
-                      <Icon size="50" src={Icons.Prohibited} />
-                    )
+                    ignoring ? <Spinner variant="Critical" size="50" /> : profileIcon(Prohibit)
                   }
                   disabled={ignoring}
                 >
@@ -785,11 +777,7 @@ export function OptionsChip({
           chipHoverBrightness
         )}
       >
-        {ignoring ? (
-          <Spinner variant="Secondary" size="50" />
-        ) : (
-          <Icon size="50" src={Icons.HorizontalDots} />
-        )}
+        {ignoring ? <Spinner variant="Secondary" size="50" /> : profileIcon(DotsThree)}
       </Chip>
     </PopOut>
   );

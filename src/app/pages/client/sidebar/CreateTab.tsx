@@ -1,7 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import type { RectCords } from 'folds';
-import { Box, config, Icon, Icons, Menu, PopOut, Text } from 'folds';
+import { Box, config, Menu, PopOut, Text } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
@@ -17,6 +17,7 @@ import {
 } from '$pages/pathUtils';
 import { useCreateSelected } from '$hooks/router/useCreateSelected';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
+import { composerIcon, Link, PHOSPHOR_SIZE, Plus, SquaresFour } from '$components/icons/phosphor';
 
 export function CreateTab() {
   const createSelected = useCreateSelected();
@@ -73,7 +74,7 @@ export function CreateTab() {
                       type="button"
                       onClick={handleCreateSpace}
                     >
-                      <SettingTile before={<Icon size="400" src={Icons.Space} />}>
+                      <SettingTile before={composerIcon(SquaresFour)}>
                         <Text size="H6">Create Space</Text>
                         <Text size="T300" priority="300">
                           Build a space for your community.
@@ -90,7 +91,7 @@ export function CreateTab() {
                       type="button"
                       onClick={handleJoinWithAddress}
                     >
-                      <SettingTile before={<Icon size="400" src={Icons.Link} />}>
+                      <SettingTile before={composerIcon(Link)}>
                         <Text size="H6">Join with Address</Text>
                         <Text size="T300" priority="300">
                           Become a part of existing community.
@@ -109,7 +110,7 @@ export function CreateTab() {
               outlined
               onClick={handleMenu}
             >
-              <Icon src={Icons.Plus} />
+              <Plus size={PHOSPHOR_SIZE.toolbar} />
             </SidebarAvatar>
             {joinAddress && (
               <JoinAddressPrompt

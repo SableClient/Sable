@@ -7,8 +7,6 @@ import {
   Dialog,
   Header,
   IconButton,
-  Icon,
-  Icons,
   Text,
   Input,
   Button,
@@ -17,6 +15,7 @@ import {
   config,
   color,
 } from 'folds';
+import { menuIcon, Trash, X } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { modalAtom, ModalType } from '$state/modal';
@@ -32,7 +31,7 @@ export function MessageDeleteItem({ room, mEvent }: { room: Room; mEvent: Matrix
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Delete} />}
+      after={menuIcon(Trash)}
       radii="300"
       fill="None"
       variant="Critical"
@@ -115,7 +114,7 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
           <Text size="H4">Delete Message</Text>
         </Box>
         <IconButton size="300" onClick={onClose} radii="300">
-          <Icon src={Icons.Cross} />
+          {menuIcon(X)}
         </IconButton>
       </Header>
       <Box

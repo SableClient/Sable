@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
+import { EventType } from '$types/matrix-sdk';
 import {
   getTimelineAndBaseIndex,
   getTimelineRelativeIndex,
@@ -12,6 +13,7 @@ import {
   isReactionEvent,
   isRedactableMessageType,
   shouldShowRedactionTimelineEvent,
+  getRedactionTargetEvent,
   collectRelationReactionEvents,
   collectRelationEditEvents,
 } from '$utils/room';
@@ -150,9 +152,13 @@ const mergeRelationReactions = (
   ignoredUsersSet: Set<string>,
   hiddenEventReactions: boolean,
   hiddenEventReactionTombstone: boolean,
+  hideMemberInReadOnly: boolean,
+  isReadOnly: boolean,
   mxUserId: string | null,
   readUptoEventId: string | undefined
 ): ProcessedEvent[] => {
+  if (hideMemberInReadOnly && isReadOnly) return result;
+
   const existingIds = new Set(result.map((event) => event.id));
   const extras = collectRelationReactionEvents(
     linkedTimelines,
@@ -272,6 +278,16 @@ export function useProcessedTimeline({
       const isEdit = isEditEvent(mEvent);
       const isReaction = isReactionEvent(mEvent);
       const isRedactionEvt = mEvent.isRedaction();
+
+      if (hideMemberInReadOnly && isReadOnly) {
+        if (isReaction) return acc;
+        if (
+          isRedactionEvt &&
+          getRedactionTargetEvent(timelineSet, mEvent)?.getType() === (EventType.Reaction as string)
+        ) {
+          return acc;
+        }
+      }
 
       if (mEvent.isRedacted()) {
         const showMessageTombstone = showTombstoneEvents && isRedactableMessageType(type);
@@ -409,6 +425,8 @@ export function useProcessedTimeline({
         ignoredUsersSet,
         hiddenEventReactions,
         hiddenEventReactionTombstone,
+        hideMemberInReadOnly,
+        isReadOnly,
         mxUserId,
         readUptoEventId
       ),

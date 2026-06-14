@@ -1,5 +1,16 @@
 # Sable Client Changelog
 
+## 1.18.1 (2026-06-14)
+
+### Fixes
+
+* Added some icon size settings. ([#941](<https://github.com/SableClient/Sable/pull/941>) by @7w1)
+* Add 'Show Results' to show their poll's result before casting an answer ([#939](<https://github.com/SableClient/Sable/pull/939>) by @nushea)
+* Fix edit events collapsing with normal messages. ([#941](<https://github.com/SableClient/Sable/pull/941>) by @7w1)
+* Make more Icon changes ([#940](<https://github.com/SableClient/Sable/pull/940>) by @nushea)
+* Fix missing the mark icon on Map, and the mark moving around when clicked ([#937](<https://github.com/SableClient/Sable/pull/937>) by @nushea)
+* Hide membership events in read only rooms now also hides reactions and reaction redactions. ([#941](<https://github.com/SableClient/Sable/pull/941>) by @7w1)
+
 ## 1.18.0 (2026-06-14)
 
 ### Features

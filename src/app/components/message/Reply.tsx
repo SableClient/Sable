@@ -8,7 +8,7 @@ import classNames from 'classnames';
 import parse from 'html-react-parser';
 import { useAtomValue } from 'jotai';
 import {
-  ArrowBendUpRightIcon,
+  ArrowBendUpLeftIcon,
   ArrowsClockwise,
   ChatCircle,
   chipIcon,
@@ -182,7 +182,7 @@ export const ReplyLayout = as<'div', ReplyLayoutProps>(
       ref={ref}
     >
       <Box style={{ color: userColor }} alignItems="Center" shrink="No">
-        {replyIcon ?? menuIcon(ArrowBendUpRightIcon)}
+        {replyIcon ?? menuIcon(ArrowBendUpLeftIcon)}
       </Box>
       {icon}
       <Box style={{ color: userColor, maxWidth: toRem(200) }} alignItems="Center" shrink="No">

@@ -12,6 +12,7 @@ export type CachedMediaMetadata = {
 
 const METADATA_CACHE_NAME = 'sable-media-metadata-v1';
 const MAX_METADATA_ENTRIES = 1000;
+const VIDEO_METADATA_TIMEOUT_MS = 10_000;
 
 const memoryMetadata = new Map<string, CachedMediaMetadata>();
 const metadataListeners = new Map<
@@ -194,7 +195,12 @@ async function measureVideoBlob(blob: Blob): Promise<Partial<CachedMediaMetadata
   return await new Promise<Partial<CachedMediaMetadata>>((resolve) => {
     const objectUrl = URL.createObjectURL(blob);
     const video = document.createElement('video');
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      resolve({});
+    }, VIDEO_METADATA_TIMEOUT_MS);
     const cleanup = () => {
+      window.clearTimeout(timeoutId);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('error', handleError);
       video.removeAttribute('src');

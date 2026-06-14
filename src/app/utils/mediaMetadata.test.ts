@@ -15,7 +15,9 @@ describe('mediaMetadata', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('stores measured image dimensions in memory', async () => {
@@ -61,5 +63,44 @@ describe('mediaMetadata', () => {
     expect(listener).toHaveBeenCalledWith(undefined);
 
     unsubscribe();
+  });
+
+  it('times out stalled video metadata reads and revokes the object url', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:video-metadata');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    const video = {
+      addEventListener: vi.fn(),
+      load: vi.fn(),
+      preload: '',
+      removeAttribute: vi.fn(),
+      removeEventListener: vi.fn(),
+      set src(_value: string) {},
+    };
+    vi.spyOn(document, 'createElement').mockReturnValue(video as unknown as HTMLVideoElement);
+
+    const { getMediaMetadataSnapshot, storeMediaMetadataForBlob } = await import('./mediaMetadata');
+
+    const metadataPromise = storeMediaMetadataForBlob(
+      'session:https://example.org/video.mp4',
+      new Blob(['video'], { type: 'video/mp4' }),
+      'video'
+    );
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(metadataPromise).resolves.toMatchObject({
+      byteSize: 5,
+      kind: 'video',
+      mimeType: 'video/mp4',
+    });
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:video-metadata');
+    expect(video.removeAttribute).toHaveBeenCalledWith('src');
+    expect(video.load).toHaveBeenCalled();
+    expect(getMediaMetadataSnapshot('session:https://example.org/video.mp4')).toMatchObject({
+      byteSize: 5,
+      kind: 'video',
+    });
   });
 });

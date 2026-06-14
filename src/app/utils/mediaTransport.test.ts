@@ -209,6 +209,32 @@ describe('fetchMediaBlob', () => {
     expect(mediaCache.putInMediaCache).not.toHaveBeenCalled();
   });
 
+  it('stores metadata under a caller-provided metadata key', async () => {
+    const { fetchMediaBlob } = await import('./mediaTransport');
+    const url = 'https://example.org/media.png';
+    const metadataCacheKey = '@alice:example.org:mxc://example.org/media';
+    const freshBlob = new Blob(['fresh'], { type: 'image/png' });
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(freshBlob, { status: 200 }));
+
+    await expect(fetchMediaBlob(url, { metadataCacheKey })).resolves.toEqual(freshBlob);
+
+    expect(mediaMetadata.storeMediaMetadataForBlob).toHaveBeenCalledWith(
+      metadataCacheKey,
+      freshBlob
+    );
+  });
+
+  it('skips metadata storage when metadata keying is disabled', async () => {
+    const { fetchMediaBlob } = await import('./mediaTransport');
+    const url = 'https://example.org/media.png';
+    const freshBlob = new Blob(['fresh'], { type: 'image/png' });
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(freshBlob, { status: 200 }));
+
+    await expect(fetchMediaBlob(url, { metadataCacheKey: null })).resolves.toEqual(freshBlob);
+
+    expect(mediaMetadata.storeMediaMetadataForBlob).not.toHaveBeenCalled();
+  });
+
   it('dedupes inflight requests for the same url and cache mode', async () => {
     const { fetchMediaBlob } = await import('./mediaTransport');
     const url = 'https://example.org/media.png';

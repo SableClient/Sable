@@ -14,6 +14,7 @@ export type MediaTransportOptions = {
   cache?: MediaFetchCacheMode;
   accessToken?: string | null;
   getAccessToken?: () => string | null | undefined;
+  metadataCacheKey?: string | null;
   sessionScope?: string;
 };
 
@@ -182,11 +183,13 @@ async function fetchMediaResponse(
 async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptions): Promise<Blob> {
   const cacheMode = options?.cache ?? 'default';
   const scopedCacheKey = getScopedMediaCacheKey(url, resolveSessionScope(options));
+  const metadataCacheKey =
+    options?.metadataCacheKey === null ? undefined : (options?.metadataCacheKey ?? scopedCacheKey);
 
   if (cacheMode === 'default') {
     const cachedBlob = await getFromMediaCache(scopedCacheKey);
     if (cachedBlob) {
-      void storeMediaMetadataForBlob(scopedCacheKey, cachedBlob);
+      if (metadataCacheKey) void storeMediaMetadataForBlob(metadataCacheKey, cachedBlob);
       return cachedBlob;
     }
   }
@@ -200,7 +203,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     const blob = await response.blob();
     if (cacheMode !== 'bypass') {
       await putInMediaCache(scopedCacheKey, blob);
-      void storeMediaMetadataForBlob(scopedCacheKey, blob);
+      if (metadataCacheKey) void storeMediaMetadataForBlob(metadataCacheKey, blob);
     }
     return blob;
   };

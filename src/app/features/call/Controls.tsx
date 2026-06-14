@@ -5,10 +5,10 @@ import {
   sizedIcon,
   Microphone,
   MicrophoneSlash,
-  ShareNetwork,
   SpeakerSlash,
   VideoCamera,
   VideoCameraSlash,
+  ScreenShare,
 } from '$components/icons/phosphor';
 import { useAtom } from 'jotai';
 import * as css from './styles.css';
@@ -45,7 +45,7 @@ export function MicrophoneButton({ enabled, onToggle }: MicrophoneButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          {sizedIcon(enabled ? Microphone : MicrophoneSlash, '400', { filled: !enabled })}
+          {sizedIcon(enabled ? Microphone : MicrophoneSlash, '300', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -77,7 +77,7 @@ export function SoundButton({ enabled, onToggle }: SoundButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          {sizedIcon(enabled ? Headphones : SpeakerSlash, '400', { filled: !enabled })}
+          {sizedIcon(enabled ? Headphones : SpeakerSlash, '300', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -109,7 +109,7 @@ export function VideoButton({ enabled, onToggle }: VideoButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          {sizedIcon(enabled ? VideoCamera : VideoCameraSlash, '400', { filled: enabled })}
+          {sizedIcon(enabled ? VideoCamera : VideoCameraSlash, '300', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -141,7 +141,7 @@ export function ScreenShareButton({ enabled, onToggle }: ScreenShareButtonProps)
           onClick={() => onToggle()}
           outlined
         >
-          {sizedIcon(ShareNetwork, '400', { filled: enabled })}
+          {sizedIcon(ScreenShare, '300', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -171,7 +171,7 @@ export function ChatButton() {
           onClick={() => setChat(!chat)}
           outlined
         >
-          {sizedIcon(ChatCircle, '400', { filled: chat })}
+          {sizedIcon(ChatCircle, '300', { filled: chat })}
         </IconButton>
       )}
     </TooltipProvider>

@@ -21,6 +21,7 @@ export const PollEventSeparator = style({
 export const PollAnswerCount = style({
   color: color.SurfaceVariant.OnContainer,
   paddingLeft: config.space.S100,
+  cursor: 'pointer',
 });
 // These are only here for the potential modding of event by themes
 export const PollAnswersBody = style({});

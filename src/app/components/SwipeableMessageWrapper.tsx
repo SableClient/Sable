@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { config } from 'folds';
-import { ArrowBendUpRightIcon, getPhosphorSize } from '$components/icons/phosphor';
+import { ArrowBendUpLeftIcon, getPhosphorSize } from '$components/icons/phosphor';
 import { mobileOrTablet } from '$utils/user-agent';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
 
@@ -50,7 +50,7 @@ function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onRepl
         }}
       >
         <motion.div style={{ opacity: iconOpacity }}>
-          <ArrowBendUpRightIcon
+          <ArrowBendUpLeftIcon
             size={getPhosphorSize().toolbar}
             style={{
               color: isReady

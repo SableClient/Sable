@@ -519,7 +519,7 @@ export function MobileMessageMenu({
                 if (!body || mEvent.isRedacted()) return null;
                 return (
                   <ActionItem
-                    icon={<Icon src={Icons.Alphabet} size="200" />}
+                    icon={<Icon src={Icons.ClipboardText} size="200" />}
                     label="Copy Text"
                     onClick={() => {
                       copyToClipboard(body);

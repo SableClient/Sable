@@ -21,12 +21,12 @@ import {
   CaretLeft,
   CaretRight,
   CaretUp,
-  ChatCenteredText,
   ChatCircle,
   ChatCircleDots,
-  ChatCircleText,
+  ChatsCircle,
   Check,
   Checks,
+  ClipboardText,
   Clock,
   ClockCounterClockwise,
   Code,
@@ -225,6 +225,7 @@ export type IconName =
   | 'Markdown'
   | 'Attachment'
   | 'Alphabet'
+  | 'ClipboardText'
   | 'AlphabetUnderline'
   | 'Text'
   | 'Heading1'
@@ -314,10 +315,10 @@ export const Icons = {
   Funnel,
   Bookmark,
   Inbox: Tray,
-  Thread: ChatCenteredText,
-  ThreadPlus: ChatCircleText,
+  Thread: ChatsCircle,
+  ThreadPlus: ChatsCircle,
   ThreadUnread: ChatCircleDots,
-  ThreadReply: ChatCenteredText,
+  ThreadReply: ChatsCircle,
   Monitor,
   ScreenShare: Screencast,
   Server: HardDrives,
@@ -362,6 +363,7 @@ export const Icons = {
   Markdown: MarkdownLogo,
   Attachment: Paperclip,
   Alphabet: TextAa,
+  ClipboardText,
   AlphabetUnderline: TextAa,
   Text: TextT,
   Heading1: TextHOne,

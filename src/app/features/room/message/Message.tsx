@@ -61,8 +61,9 @@ import type { StateEvents } from '$types/matrix-sdk';
 
 import { PowerIcon } from '$components/power';
 import {
-  ArrowBendUpRightIcon,
-  ChatCircleDots,
+  ArrowBendUpLeftIcon,
+  ChatsCircle,
+  ClipboardText,
   DotsThreeOutlineVerticalIcon,
   Info,
   Link,
@@ -199,7 +200,7 @@ export const MessageCopyTextItem = as<
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Alphabet} />}
+      after={menuIcon(ClipboardText)}
       radii="300"
       onClick={handleCopy}
       {...props}
@@ -1151,7 +1152,7 @@ function MessageInternal(
                 size="300"
                 radii="300"
               >
-                {menuIcon(ArrowBendUpRightIcon)}
+                {menuIcon(ArrowBendUpLeftIcon)}
               </IconButton>
               {!isThreadedMessage && (
                 <IconButton
@@ -1167,7 +1168,7 @@ function MessageInternal(
                   size="300"
                   radii="300"
                 >
-                  {menuIcon(ChatCircleDots)}
+                  {menuIcon(ChatsCircle)}
                 </IconButton>
               )}
               {canEditEvent(mx, mEvent) && onEditId && (
@@ -1258,7 +1259,7 @@ function MessageInternal(
                         {relations && <MessageAllReactionItem room={room} relations={relations} />}
                         <MenuItem
                           size="300"
-                          after={menuIcon(ArrowBendUpRightIcon)}
+                          after={menuIcon(ArrowBendUpLeftIcon)}
                           radii="300"
                           data-event-id={mEvent.getId()}
                           onClick={(evt: React.MouseEvent) => {
@@ -1275,7 +1276,7 @@ function MessageInternal(
                         {!isThreadedMessage && (
                           <MenuItem
                             size="300"
-                            after={menuIcon(ChatCircleDots)}
+                            after={menuIcon(ChatsCircle)}
                             radii="300"
                             data-event-id={mEvent.getId()}
                             onClick={(evt: React.MouseEvent) => {
@@ -1654,7 +1655,7 @@ export const Event = as<'div', EventProps>(
                           <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
                             <MenuItem
                               size="300"
-                              after={menuIcon(ArrowBendUpRightIcon)}
+                              after={menuIcon(ArrowBendUpLeftIcon)}
                               radii="300"
                               data-event-id={mEvent.getId()}
                               onClick={(evt: React.MouseEvent) => {
@@ -1724,7 +1725,7 @@ export const Event = as<'div', EventProps>(
                       size="300"
                       radii="300"
                     >
-                      {menuIcon(ArrowBendUpRightIcon)}
+                      {menuIcon(ArrowBendUpLeftIcon)}
                     </IconButton>
                     <IconButton
                       variant="SurfaceVariant"

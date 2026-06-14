@@ -25,8 +25,8 @@ import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
 import {
   userFallbackIcon,
-  ArrowBendUpRightIcon,
-  ChatTeardropDots,
+  ArrowBendUpLeftIcon,
+  ChatsCircle,
   composerIcon,
   menuIcon,
   Trash,
@@ -138,7 +138,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
         <Menu className={css.MenuOptions}>
           <MenuItem
             size="300"
-            after={menuIcon(ArrowBendUpRightIcon)}
+            after={menuIcon(ArrowBendUpLeftIcon)}
             radii="300"
             fill="None"
             variant="Secondary"
@@ -153,7 +153,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
           />
           <MenuItem
             size="300"
-            after={menuIcon(ChatTeardropDots)}
+            after={menuIcon(ChatsCircle)}
             radii="300"
             fill="None"
             variant="Secondary"

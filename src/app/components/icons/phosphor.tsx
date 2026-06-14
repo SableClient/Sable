@@ -1,6 +1,7 @@
 import type { IconProps } from '@phosphor-icons/react';
 import {
   ArrowsDownUpIcon,
+  ArrowBendUpLeftIcon,
   ArrowBendUpRightIcon,
   ArrowDownIcon,
   ArrowLeftIcon,
@@ -12,6 +13,7 @@ import {
   BasketballIcon,
   BellIcon,
   BellRingingIcon,
+  BellSimpleIcon,
   BellSlashIcon,
   BookmarkIcon,
   CaretDownIcon,
@@ -20,6 +22,7 @@ import {
   CaretUpIcon,
   ChatCircleIcon,
   ChatCircleDotsIcon,
+  ChatsCircleIcon,
   ChatsIcon,
   ChatTeardropDotsIcon,
   CheckIcon,
@@ -28,6 +31,7 @@ import {
   ClockCounterClockwiseIcon,
   CodeIcon,
   CodeBlockIcon,
+  ClipboardTextIcon,
   CoffeeIcon,
   CompassIcon,
   DatabaseIcon,
@@ -232,6 +236,7 @@ export function userFallbackIcon(size: UserFallbackSize = 'md', props?: IconProp
 
 export {
   ArrowsDownUpIcon as ArrowsDownUp,
+  ArrowBendUpLeftIcon,
   ArrowBendUpRightIcon,
   ArrowDownIcon as ArrowDown,
   ArrowLeftIcon as ArrowLeft,
@@ -243,6 +248,7 @@ export {
   BasketballIcon as Basketball,
   BellIcon as Bell,
   BellRingingIcon as BellRinging,
+  BellSimpleIcon as BellSimple,
   BellSlashIcon as BellSlash,
   BookmarkIcon as Bookmark,
   CaretDownIcon as CaretDown,
@@ -251,6 +257,7 @@ export {
   CaretUpIcon as CaretUp,
   ChatCircleIcon as ChatCircle,
   ChatCircleDotsIcon as ChatCircleDots,
+  ChatsCircleIcon as ChatsCircle,
   ChatsIcon as Chats,
   ChatTeardropDotsIcon as ChatTeardropDots,
   CheckIcon as Check,
@@ -259,6 +266,7 @@ export {
   ClockCounterClockwiseIcon as ClockCounterClockwise,
   CodeIcon as Code,
   CodeBlockIcon as CodeBlock,
+  ClipboardTextIcon as ClipboardText,
   CoffeeIcon as Coffee,
   CompassIcon as Compass,
   DatabaseIcon as Database,

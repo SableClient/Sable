@@ -3,7 +3,14 @@ import type { ReactNode } from 'react';
 import type { IPushRules, MatrixClient } from '$types/matrix-sdk';
 import { ConditionKind, PushRuleKind, EventType } from '$types/matrix-sdk';
 import type { IconProps } from '@phosphor-icons/react';
-import { Bell, BellRinging, BellSlash, chipIcon, menuIcon } from '$components/icons/phosphor';
+import {
+  Bell,
+  BellRinging,
+  BellSimple,
+  BellSlash,
+  menuIcon,
+  sizedIcon,
+} from '$components/icons/phosphor';
 
 import { isRoomId } from '$utils/matrix';
 import { useAccountData } from './useAccountData';
@@ -107,18 +114,20 @@ export const roomNotificationModeIcon = (
   props?: IconProps
 ): ReactNode => {
   if (mode === RoomNotificationMode.Mute) return menuIcon(BellSlash, props);
-  if (mode === RoomNotificationMode.SpecialMessages) return menuIcon(Bell, props);
+  if (mode === RoomNotificationMode.SpecialMessages)
+    return menuIcon(Bell, { ...props, weight: 'fill' });
   if (mode === RoomNotificationMode.AllMessages) return menuIcon(BellRinging, props);
 
-  return menuIcon(Bell, props);
+  return menuIcon(BellSimple, props);
 };
 
 export const roomNotificationModeChipIcon = (mode?: RoomNotificationMode): ReactNode => {
-  if (mode === RoomNotificationMode.Mute) return chipIcon(BellSlash);
-  if (mode === RoomNotificationMode.SpecialMessages) return chipIcon(Bell);
-  if (mode === RoomNotificationMode.AllMessages) return chipIcon(BellRinging);
+  if (mode === RoomNotificationMode.Mute) return sizedIcon(BellSlash, '100');
+  if (mode === RoomNotificationMode.SpecialMessages)
+    return sizedIcon(Bell, '100', { weight: 'fill' });
+  if (mode === RoomNotificationMode.AllMessages) return sizedIcon(BellRinging, '100');
 
-  return chipIcon(Bell);
+  return sizedIcon(BellSimple, '100');
 };
 
 export const setRoomNotificationPreference = async (

@@ -50,7 +50,10 @@ export const LINKIFY_OPTS: LinkifyOpts = {
     rel: 'noreferrer noopener',
   },
   validate: {
-    url: (value) => /^(https|http|ftp|mailto|magnet)?:/.test(value),
+    url: (value) => {
+      if (/^matrix:/i.test(value)) return testMatrixUri(value);
+      return /^(https|http|ftp|mailto|magnet)?:/.test(value);
+    },
   },
   ignoreTags: ['span'],
 };
@@ -305,7 +308,11 @@ export const factoryRenderLinkifyWithMention = (
     const encodedHref = attributes.href;
     const decodedHref = encodedHref && safeDecodeUrl(encodedHref);
 
-    if (tagName === 'a' && decodedHref && (testMatrixTo(decodedHref) || testMatrixUri(decodedHref))) {
+    if (
+      tagName === 'a' &&
+      decodedHref &&
+      (testMatrixTo(decodedHref) || testMatrixUri(decodedHref))
+    ) {
       const mention = mentionRender(decodedHref);
       if (mention) return mention;
     }

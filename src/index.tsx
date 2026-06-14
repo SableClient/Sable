@@ -23,9 +23,11 @@ import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './a
 import { createLogger } from './app/utils/debug';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 import { installConsolePasteScamWarning } from './app/utils/consolePasteScamWarning';
+import { registerMatrixUriProtocol } from './app/plugins/matrix-uri';
 
 enableMapSet();
 installConsolePasteScamWarning();
+registerMatrixUriProtocol();
 const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);

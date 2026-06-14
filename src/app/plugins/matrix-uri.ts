@@ -1,5 +1,5 @@
-import { registerCustomProtocol } from "linkifyjs";
-import type { MatrixToRoom, MatrixToRoomEvent } from "./matrix-to";
+import { registerCustomProtocol } from 'linkifyjs';
+import type { MatrixToRoom, MatrixToRoomEvent } from './matrix-to';
 
 /**
  * Parser for the `matrix:` URI scheme
@@ -7,25 +7,25 @@ import type { MatrixToRoom, MatrixToRoomEvent } from "./matrix-to";
  */
 
 const SIGIL_BY_TYPE: Record<string, string> = {
-  u: "@",
-  user: "@",
-  r: "#",
-  room: "#",
-  roomid: "!",
-  e: "$",
-  event: "$",
+  u: '@',
+  user: '@',
+  r: '#',
+  room: '#',
+  roomid: '!',
+  e: '$',
+  event: '$',
 };
 
-const isRoomType = (type: string): boolean => type === "r" || type === "room" || type === "roomid";
+const isRoomType = (type: string): boolean => type === 'r' || type === 'room' || type === 'roomid';
 
-const isEventType = (type: string): boolean => type === "e" || type === "event";
+const isEventType = (type: string): boolean => type === 'e' || type === 'event';
 
-const isUserType = (type: string): boolean => type === "u" || type === "user";
+const isUserType = (type: string): boolean => type === 'u' || type === 'user';
 
 export type MatrixUriEntity =
-  | { kind: "user"; userId: string }
-  | { kind: "room"; room: MatrixToRoom }
-  | { kind: "event"; event: MatrixToRoomEvent };
+  | { kind: 'user'; userId: string }
+  | { kind: 'room'; room: MatrixToRoom }
+  | { kind: 'event'; event: MatrixToRoomEvent };
 
 const tryDecodeSegment = (segment: string): string => {
   try {
@@ -46,12 +46,12 @@ export const parseMatrixUri = (href: string): MatrixUriEntity | undefined => {
     return undefined;
   }
 
-  if (url.protocol !== "matrix:") return undefined;
+  if (url.protocol !== 'matrix:') return undefined;
 
-  const path = url.pathname.replace(/^\/+/, "");
+  const path = url.pathname.replace(/^\/+/, '');
   if (!path) return undefined;
 
-  const rawSegments = path.split("/");
+  const rawSegments = path.split('/');
   if (rawSegments.length < 2) return undefined;
 
   const type1 = rawSegments[0]!.toLowerCase();
@@ -59,12 +59,12 @@ export const parseMatrixUri = (href: string): MatrixUriEntity | undefined => {
   const sigil1 = SIGIL_BY_TYPE[type1];
   if (!sigil1 || !id1) return undefined;
 
-  const viaServers = url.searchParams.getAll("via");
+  const viaServers = url.searchParams.getAll('via');
   const via = viaServers.length > 0 ? viaServers : undefined;
 
   if (isUserType(type1)) {
     if (rawSegments.length > 2) return undefined;
-    return { kind: "user", userId: `${sigil1}${id1}` };
+    return { kind: 'user', userId: `${sigil1}${id1}` };
   }
 
   if (!isRoomType(type1)) return undefined;
@@ -76,14 +76,14 @@ export const parseMatrixUri = (href: string): MatrixUriEntity | undefined => {
     const id2 = tryDecodeSegment(rawSegments[3]!);
     if (!isEventType(type2) || !id2) return undefined;
     return {
-      kind: "event",
+      kind: 'event',
       event: { roomIdOrAlias, eventId: `$${id2}`, viaServers: via },
     };
   }
 
   if (rawSegments.length !== 2) return undefined;
 
-  return { kind: "room", room: { roomIdOrAlias, viaServers: via } };
+  return { kind: 'room', room: { roomIdOrAlias, viaServers: via } };
 };
 
 export const testMatrixUri = (href: string): boolean => parseMatrixUri(href) !== undefined;
@@ -91,16 +91,16 @@ export const testMatrixUri = (href: string): boolean => parseMatrixUri(href) !==
 export const matrixUriKey = (href: string): string | undefined => {
   const entity = parseMatrixUri(href);
   if (!entity) return undefined;
-  if (entity.kind === "user") return `u:${entity.userId.toLowerCase()}`;
-  if (entity.kind === "room") return `r:${entity.room.roomIdOrAlias.toLowerCase()}`;
+  if (entity.kind === 'user') return `u:${entity.userId.toLowerCase()}`;
+  if (entity.kind === 'room') return `r:${entity.room.roomIdOrAlias.toLowerCase()}`;
   return `e:${entity.event.roomIdOrAlias.toLowerCase()}/${entity.event.eventId.toLowerCase()}`;
 };
 
 export const isRedundantMatrixUriAnchorText = (
   href: string,
-  anchorText: string | undefined,
+  anchorText: string | undefined
 ): boolean => {
-  if (anchorText == null || anchorText.trim() === "") return true;
+  if (anchorText == null || anchorText.trim() === '') return true;
   const keyHref = matrixUriKey(href);
   if (!keyHref) return false;
   const keyText = matrixUriKey(anchorText.trim());
@@ -113,7 +113,7 @@ let matrixProtocolRegistered = false;
 export const registerMatrixUriProtocol = (): void => {
   if (matrixProtocolRegistered) return;
   try {
-    registerCustomProtocol("matrix");
+    registerCustomProtocol('matrix', true);
     matrixProtocolRegistered = true;
   } catch {
     matrixProtocolRegistered = true;

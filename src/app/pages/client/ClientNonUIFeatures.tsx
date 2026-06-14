@@ -123,6 +123,14 @@ function postToServiceWorker(data: unknown): void {
     .catch(() => undefined);
 }
 
+function postToServiceWorkerSource(source: MessageEventSource | null, data: unknown): boolean {
+  if (!(source instanceof ServiceWorker)) return false;
+
+  // oxlint-disable-next-line unicorn/require-post-message-target-origin
+  source.postMessage(data);
+  return true;
+}
+
 function navigateToServiceWorkerUrl(navigate: ReturnType<typeof useNavigate>, url: string): void {
   try {
     const target = new URL(url, window.location.origin);
@@ -1034,12 +1042,13 @@ function HandleDecryptPushEvent() {
         const { requestId } = data as { requestId?: unknown };
         if (typeof requestId !== 'string') return;
 
-        postToServiceWorker({
+        const response = {
           type: 'foregroundStateResult',
           requestId,
           visibilityState: document.visibilityState,
           focused: document.hasFocus(),
-        });
+        };
+        if (!postToServiceWorkerSource(ev.source, response)) postToServiceWorker(response);
         return;
       }
 
@@ -1068,7 +1077,7 @@ function HandleDecryptPushEvent() {
           decryptMs,
         });
 
-        postToServiceWorker({
+        const response = {
           type: 'pushDecryptResult',
           eventId,
           success: true,
@@ -1078,7 +1087,8 @@ function HandleDecryptPushEvent() {
           room_name: room?.name ?? '',
           visibilityState: document.visibilityState,
           focused: document.hasFocus(),
-        });
+        };
+        if (!postToServiceWorkerSource(ev.source, response)) postToServiceWorker(response);
       } catch (err) {
         console.warn('[ClientFeatures] HandleDecryptPushEvent: failed to decrypt push event', err);
         pushRelayLog.error(
@@ -1107,13 +1117,14 @@ function HandleDecryptPushEvent() {
           // when the event is viewed in the timeline
         }
 
-        postToServiceWorker({
+        const response = {
           type: 'pushDecryptResult',
           eventId,
           success: false,
           visibilityState: document.visibilityState,
           focused: document.hasFocus(),
-        });
+        };
+        if (!postToServiceWorkerSource(ev.source, response)) postToServiceWorker(response);
       }
     };
 

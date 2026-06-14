@@ -62,8 +62,8 @@ help_text = "Create a new change file to be included in the next release"
 type = "CreateChangeFile"
 
 [github]
-owner = "Just-Insane"
-repo = "Sable"
+owner = "CloudHub-Social"
+repo = "Charm"
 
 [release_notes]
 # The <!-- commit:$commit_hash --> marker is used by prepare-release.yml

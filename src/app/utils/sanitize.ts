@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import { isMatrixHexColor } from './matrixHtml';
+import { testMatrixUri } from '../plugins/matrix-uri';
 
 const MAX_TAG_NESTING = 100;
 const INTERNAL_IMG_SRC_ATTR = 'data-sable-img-src';
@@ -77,7 +78,7 @@ const forbiddenContentTags = ['mx-reply', 'script', 'style', 'textarea', 'option
 
 const codeLanguageClassRegex = /^language-[A-Za-z0-9_-]+$/;
 const orderedListStartRegex = /^-?\d+$/;
-const allowedUriRegex = /^(?:https?|ftp|mailto|magnet|mxc):/i;
+const allowedUriRegex = /^(?:https?|ftp|mailto|magnet|mxc|matrix):/i;
 
 export function sanitizeText(body: string): string {
   const tagsToReplace: Record<string, string> = {
@@ -105,6 +106,10 @@ function isAllowedAbsoluteLink(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isAllowedMatrixUri(value: string): boolean {
+  return testMatrixUri(value);
 }
 
 function isAllowedMxcUri(value: string): boolean {
@@ -152,7 +157,12 @@ function getValidatedAttributeValue(
     return undefined;
   }
 
-  if (tagName === 'a' && attrName === 'href' && !isAllowedAbsoluteLink(attrValue)) {
+  if (
+    tagName === 'a' &&
+    attrName === 'href' &&
+    !isAllowedAbsoluteLink(attrValue) &&
+    !isAllowedMatrixUri(attrValue)
+  ) {
     return undefined;
   }
 

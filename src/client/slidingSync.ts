@@ -320,6 +320,10 @@ export class SlidingSyncManager {
 
   private readonly onConnectionChange: () => void;
 
+  private readonly initialRoomCount: number;
+
+  private readonly loadedRoomIds = new Set<string>();
+
   private lastOnlineState = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
   private readonly onLifecycle: (state: SlidingSyncState, resp: unknown, err?: Error) => void;
@@ -397,9 +401,10 @@ export class SlidingSyncManager {
 
     const roomTimelineLimit = clampPositive(config.timelineLimit, ACTIVE_ROOM_TIMELINE_LIMIT);
     this.roomTimelineLimit = roomTimelineLimit;
+    this.initialRoomCount = mx.getRooms().length;
 
     const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
-    const cachedRoomCount = mx.getRooms().length;
+    const cachedRoomCount = this.initialRoomCount;
     const lists = buildLists(
       listPageSize,
       includeInviteList,
@@ -538,6 +543,7 @@ export class SlidingSyncManager {
       // range that includes older events not in the local timeline).
       if (state === SlidingSyncState.RequestFinished && resp && !err) {
         const rooms = (resp as MSC3575SlidingSyncResponse).rooms ?? {};
+        Object.keys(rooms).forEach((roomId) => this.loadedRoomIds.add(roomId));
         Object.entries(rooms)
           .filter(([, roomData]) => roomData.initial || roomData.limited)
           .filter(([roomId]) => this.activeRoomSubscriptions.has(roomId))
@@ -1149,25 +1155,24 @@ export class SlidingSyncManager {
   }
 
   /**
-   * Check if we have minimum data to show UI. Returns true as soon as we have
-   * any rooms loaded from the sync. This enables progressive UI loading for faster
-   * cold launch perception - the UI shows immediately with initial rooms and
-   * continues loading the rest in the background.
+   * Check if we have a warm cache (existing rooms loaded from IndexedDB).
+   * If true, we can show the UI while sync continues in the background.
    */
-  public hasMinimumData(): boolean {
-    // If we're fully loaded, we definitely have minimum data
+  public hasWarmCache(): boolean {
+    return this.initialRoomCount > 0;
+  }
+
+  /**
+   * Check if enough sliding-sync list coverage has loaded to show a cold cache
+   * without first rendering a tiny partial list that immediately jumps around.
+   */
+  public hasSufficientRoomsLoaded(): boolean {
     if (this.listsFullyLoaded) return true;
 
-    // Check if any list has reported rooms
-    for (const key of this.listKeys) {
-      const listData = this.slidingSync.getListData(key);
-      if (listData && listData.joinedCount > 0) {
-        return true;
-      }
-    }
+    const targetCount = Math.max(200, Math.min(this.initialRoomCount, 500));
+    const loadedCount = this.loadedRoomIds.size;
 
-    // Fallback: check if the Matrix client has any rooms loaded
-    return this.mx.getRooms().length > 0;
+    return loadedCount >= targetCount;
   }
 
   private expandListsToKnownCount(): void {

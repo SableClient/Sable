@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -63,6 +63,13 @@ function thumbnailDimsForMaxEdge(
     th: Math.max(1, Math.round(ih * scale)),
   };
 }
+
+type ThumbnailRequest = {
+  key: string;
+  tw: number;
+  th: number;
+  cacheParam: string;
+};
 
 type RenderViewerProps = {
   src: string;
@@ -153,6 +160,9 @@ export const ImageContent = as<'div', ImageContentProps>(
       typeof info?.h === 'number' && Number.isFinite(info.h) && info.h > 0
         ? info.h
         : mediaMetadata?.height;
+    const imageDimensionsRef = useRef({ w: imageW, h: imageH });
+    imageDimensionsRef.current = { w: imageW, h: imageH };
+    const thumbnailRequestRef = useRef<ThumbnailRequest>();
     const imageSize =
       typeof info?.size === 'number' && Number.isFinite(info.size) && info.size > 0
         ? info.size
@@ -163,16 +173,29 @@ export const ImageContent = as<'div', ImageContentProps>(
         if (url.startsWith('http')) return url;
 
         if (typeof matrixThumbnailMaxEdge === 'number' && matrixThumbnailMaxEdge > 0 && !encInfo) {
-          const { tw, th } = thumbnailDimsForMaxEdge(matrixThumbnailMaxEdge, imageW, imageH);
+          const requestKey = `${url}|${useAuthentication ? 'auth' : 'noauth'}|${matrixThumbnailMaxEdge}`;
+          let request = thumbnailRequestRef.current;
+          if (request?.key !== requestKey) {
+            const { w, h } = imageDimensionsRef.current;
+            const { tw, th } = thumbnailDimsForMaxEdge(matrixThumbnailMaxEdge, w, h);
+            request = {
+              key: requestKey,
+              tw,
+              th,
+              cacheParam: `thumb:${tw}x${th}:scale`,
+            };
+            thumbnailRequestRef.current = request;
+          }
+          const { tw, th, cacheParam } = request;
           const thumbUrl = mediaUrlCache.get(mx, url, useAuthentication, tw, th, 'scale', false);
           if (thumbUrl) {
-            const cachedBlob = mediaUrlCache.getBlob(url, false, `thumb:${tw}x${th}:scale`);
+            const cachedBlob = mediaUrlCache.getBlob(url, false, cacheParam);
             if (cachedBlob) return cachedBlob;
 
             const thumbContent = await downloadMedia(thumbUrl, mx.getAccessToken());
             const thumbBlobUrl = URL.createObjectURL(thumbContent);
-            mediaUrlCache.setBlob(url, false, thumbBlobUrl, `thumb:${tw}x${th}:scale`);
-            void storeMediaMetadataForBlob(mediaMetadataKey, thumbContent, 'image');
+            mediaUrlCache.setBlob(url, false, thumbBlobUrl, cacheParam);
+            void storeMediaMetadataForBlob(getScopedMediaCacheKey(thumbUrl), thumbContent, 'image');
             return thumbBlobUrl;
           }
         }
@@ -216,8 +239,6 @@ export const ImageContent = as<'div', ImageContentProps>(
         return blobUrl;
       }, [
         encInfo,
-        imageH,
-        imageW,
         matrixThumbnailMaxEdge,
         mediaMetadataKey,
         mediaUrlCache,
@@ -269,8 +290,8 @@ export const ImageContent = as<'div', ImageContentProps>(
     };
 
     useEffect(() => {
-      if (autoPlay) loadSrc();
-    }, [autoPlay, loadSrc]);
+      if (autoPlay && srcState.status === AsyncStatus.Idle) loadSrc();
+    }, [autoPlay, loadSrc, srcState.status]);
 
     // Safety timeout: if the image src is ready but hasn't loaded within 30s,
     // treat it as an error. This prevents infinite spinners when the browser

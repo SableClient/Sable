@@ -113,7 +113,7 @@ function getRequestKey(url: string, cacheMode: MediaFetchCacheMode): string {
   return `${cacheMode}:${url}`;
 }
 
-function getScopedMediaCacheKey(url: string, sessionScope?: string): string {
+export function getScopedMediaCacheKey(url: string, sessionScope?: string): string {
   return `${sessionScope ?? getCurrentMediaSessionScope()}:${url}`;
 }
 

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import { createDebugLogger } from '$utils/debugLogger';
+import { getScopedMediaCacheKey } from '$utils/mediaTransport';
 
 const debugLog = createDebugLogger('blob-cache');
 
 const CACHE_NAME = 'sable-media-v1';
+const LEGACY_AVATAR_CACHE_NAME = 'sable-avatars-v1';
 const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_CACHE_SIZE_MB = 500; // Configurable limit
 
@@ -223,7 +225,7 @@ export function clearInMemoryBlobCache(): void {
  */
 export async function clearMediaCache(): Promise<void> {
   try {
-    await caches.delete(CACHE_NAME);
+    await Promise.all([caches.delete(CACHE_NAME), caches.delete(LEGACY_AVATAR_CACHE_NAME)]);
     cacheMetadata = [];
     metadataLoaded = false;
     clearInMemoryBlobCache();
@@ -267,7 +269,7 @@ export async function getBlobCacheStatsAsync(): Promise<ReturnType<typeof getBlo
  * can skip the download+decrypt round-trip.
  */
 export async function storeDecryptedBlob(url: string, blob: Blob): Promise<void> {
-  await cacheMedia(url, blob);
+  await cacheMedia(getScopedMediaCacheKey(url), blob);
 }
 
 /**
@@ -275,7 +277,7 @@ export async function storeDecryptedBlob(url: string, blob: Blob): Promise<void>
  * Returns undefined on a miss or if the cached entry has expired.
  */
 export async function getDecryptedBlob(url: string): Promise<Blob | undefined> {
-  return getCachedMedia(url);
+  return getCachedMedia(getScopedMediaCacheKey(url));
 }
 
 /**
@@ -283,17 +285,24 @@ export async function getDecryptedBlob(url: string): Promise<Blob | undefined> {
  * Checks in-memory cache first, then Cache API, then fetches from network.
  */
 export function useBlobCache(url?: string): string | undefined {
-  const [cacheState, setCacheState] = useState<{ sourceUrl?: string; blobUrl?: string }>({
+  const cacheKey = url ? getScopedMediaCacheKey(url) : undefined;
+  const [cacheState, setCacheState] = useState<{
+    sourceUrl?: string;
+    sourceCacheKey?: string;
+    blobUrl?: string;
+  }>({
     sourceUrl: url,
-    blobUrl: url ? imageBlobCache.get(url) : undefined,
+    sourceCacheKey: cacheKey,
+    blobUrl: cacheKey ? imageBlobCache.get(cacheKey) : undefined,
   });
   // Incremented when the SW is reclaimed, so auth-failed URLs are retried.
   const [retryToken, setRetryToken] = useState(0);
 
-  if (url !== cacheState.sourceUrl) {
+  if (url !== cacheState.sourceUrl || cacheKey !== cacheState.sourceCacheKey) {
     setCacheState({
       sourceUrl: url,
-      blobUrl: url ? imageBlobCache.get(url) : undefined,
+      sourceCacheKey: cacheKey,
+      blobUrl: cacheKey ? imageBlobCache.get(cacheKey) : undefined,
     });
   }
 
@@ -301,19 +310,19 @@ export function useBlobCache(url?: string): string | undefined {
   // previously failed only because the SW had no session yet.
   useEffect(() => {
     const onRestored = () => {
-      if (url && !imageBlobCache.has(url)) setRetryToken((n) => n + 1);
+      if (cacheKey && !imageBlobCache.has(cacheKey)) setRetryToken((n) => n + 1);
     };
     onSwRestored.add(onRestored);
     return () => {
       onSwRestored.delete(onRestored);
     };
-  }, [url]);
+  }, [cacheKey]);
 
   useEffect(() => {
-    if (!url) return undefined;
+    if (!url || !cacheKey) return undefined;
 
     // SABLE-4Y fix: Skip URLs that previously failed auth
-    if (authFailedUrls.has(url)) {
+    if (authFailedUrls.has(cacheKey)) {
       return undefined;
     }
 
@@ -321,13 +330,13 @@ export function useBlobCache(url?: string): string | undefined {
     // Fetching a blob: URL just to create another blob URL is redundant and
     // causes the N+1 API call pattern when many components mount simultaneously.
     if (url.startsWith('blob:')) {
-      imageBlobCache.set(url, url);
-      setCacheState({ sourceUrl: url, blobUrl: url });
+      imageBlobCache.set(cacheKey, url);
+      setCacheState({ sourceUrl: url, sourceCacheKey: cacheKey, blobUrl: url });
       return undefined;
     }
 
     // Check memory cache first (instant)
-    if (imageBlobCache.has(url)) {
+    if (imageBlobCache.has(cacheKey)) {
       Sentry.metrics.count('blob_cache.request', 1, {
         attributes: { result: 'hit', cacheType: 'memory' },
       });
@@ -338,10 +347,12 @@ export function useBlobCache(url?: string): string | undefined {
 
     const fetchBlob = async () => {
       // Check if another component is already fetching this URL
-      if (inflightRequests.has(url)) {
+      if (inflightRequests.has(cacheKey)) {
         try {
-          const existingBlobUrl = await inflightRequests.get(url);
-          if (isMounted) setCacheState({ sourceUrl: url, blobUrl: existingBlobUrl });
+          const existingBlobUrl = await inflightRequests.get(cacheKey);
+          if (isMounted) {
+            setCacheState({ sourceUrl: url, sourceCacheKey: cacheKey, blobUrl: existingBlobUrl });
+          }
         } catch {
           // Inflight request failed, silently ignore
         }
@@ -352,13 +363,13 @@ export function useBlobCache(url?: string): string | undefined {
         await acquireFetchSlot();
         try {
           // Check persistent cache (fast, survives reloads)
-          const cachedBlob = await getCachedMedia(url);
+          const cachedBlob = await getCachedMedia(cacheKey);
           if (cachedBlob) {
             Sentry.metrics.count('blob_cache.request', 1, {
               attributes: { result: 'hit', cacheType: 'persistent' },
             });
             const objectUrl = URL.createObjectURL(cachedBlob);
-            imageBlobCache.set(url, objectUrl);
+            imageBlobCache.set(cacheKey, objectUrl);
             return objectUrl;
           }
 
@@ -382,8 +393,8 @@ export function useBlobCache(url?: string): string | undefined {
               if (directRes.ok) {
                 const blob = await directRes.blob();
                 const objectUrl = URL.createObjectURL(blob);
-                imageBlobCache.set(url, objectUrl);
-                cacheMedia(url, blob);
+                imageBlobCache.set(cacheKey, objectUrl);
+                cacheMedia(cacheKey, blob);
                 return objectUrl;
               }
             }
@@ -397,8 +408,8 @@ export function useBlobCache(url?: string): string | undefined {
               data: { url: url.substring(0, 100) },
             });
             // Mark URL as auth-failed to prevent retries
-            authFailedUrls.add(url);
-            inflightRequests.delete(url);
+            authFailedUrls.add(cacheKey);
+            inflightRequests.delete(cacheKey);
             // Throw a specific error to bypass Sentry exception capture
             throw new Error('AUTH_FAILED_401');
           }
@@ -415,8 +426,8 @@ export function useBlobCache(url?: string): string | undefined {
               data: { url: url.substring(0, 100) },
             });
             // Mark URL as auth-failed to prevent retries (reusing same set for any non-retryable error)
-            authFailedUrls.add(url);
-            inflightRequests.delete(url);
+            authFailedUrls.add(cacheKey);
+            inflightRequests.delete(cacheKey);
             // Throw a specific error to bypass Sentry exception capture
             throw new Error('BAD_REQUEST_400');
           }
@@ -428,8 +439,8 @@ export function useBlobCache(url?: string): string | undefined {
           const objectUrl = URL.createObjectURL(blob);
 
           // Store in both caches
-          imageBlobCache.set(url, objectUrl);
-          cacheMedia(url, blob); // Non-blocking persistent storage
+          imageBlobCache.set(cacheKey, objectUrl);
+          cacheMedia(cacheKey, blob); // Non-blocking persistent storage
 
           return objectUrl;
         } catch (e) {
@@ -451,24 +462,24 @@ export function useBlobCache(url?: string): string | undefined {
               },
             });
           }
-          inflightRequests.delete(url);
+          inflightRequests.delete(cacheKey);
           throw e;
         } finally {
           releaseFetchSlot();
         }
       })();
 
-      inflightRequests.set(url, requestPromise);
+      inflightRequests.set(cacheKey, requestPromise);
 
       try {
         const finalBlobUrl = await requestPromise;
         if (isMounted) {
-          setCacheState({ sourceUrl: url, blobUrl: finalBlobUrl });
+          setCacheState({ sourceUrl: url, sourceCacheKey: cacheKey, blobUrl: finalBlobUrl });
         }
       } catch {
         // silency fail... mrow
       } finally {
-        inflightRequests.delete(url);
+        inflightRequests.delete(cacheKey);
       }
     };
 
@@ -477,11 +488,11 @@ export function useBlobCache(url?: string): string | undefined {
     return () => {
       isMounted = false;
     };
-  }, [url, retryToken]);
+  }, [url, cacheKey, retryToken]);
 
   // SABLE-4Y fix: Don't return original URL as fallback for auth-failed URLs
   // (would cause browser to attempt direct fetch, which also fails with 401)
-  if (url && authFailedUrls.has(url)) {
+  if (cacheKey && authFailedUrls.has(cacheKey)) {
     return undefined;
   }
 

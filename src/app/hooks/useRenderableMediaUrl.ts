@@ -55,6 +55,12 @@ function revokeObjectUrlEntry(entry: ObjectUrlEntry): void {
   }
 }
 
+function deleteObjectUrlEntryIfCurrent(cacheKey: string, entry: ObjectUrlEntry): void {
+  if (objectUrlCache.get(cacheKey) === entry) {
+    objectUrlCache.delete(cacheKey);
+  }
+}
+
 function pruneObjectUrlCache(): void {
   if (objectUrlCache.size <= MAX_OBJECT_URL_CACHE_ENTRIES) return;
 
@@ -94,15 +100,17 @@ function createObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
       return objectUrl;
     })
     .catch((error) => {
-      objectUrlCache.delete(cacheKey);
+      deleteObjectUrlEntryIfCurrent(cacheKey, entry);
       throw error;
     })
     .finally(() => {
       entry.settled = true;
-      inflightRequests.delete(cacheKey);
+      if (inflightRequests.get(cacheKey) === entry.promise) {
+        inflightRequests.delete(cacheKey);
+      }
 
       if (!entry.objectUrl) {
-        objectUrlCache.delete(cacheKey);
+        deleteObjectUrlEntryIfCurrent(cacheKey, entry);
         return;
       }
 

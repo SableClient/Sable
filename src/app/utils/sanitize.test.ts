@@ -91,11 +91,21 @@ describe('sanitizeCustomHtml', () => {
     );
 
     expect(sanitizeCustomHtml('<a href="/relative">relative</a>')).toBe('<a>relative</a>');
-    expect(sanitizeCustomHtml('<a href="matrix:u/alice:example.com">matrix</a>')).toBe(
-      '<a>matrix</a>'
-    );
     expect(sanitizeCustomHtml('<a href="javascript:alert(1)">bad</a>')).toBe('<a>bad</a>');
     expect(sanitizeCustomHtml('<a href="vbscript:msgbox(1)">bad</a>')).toBe('<a>bad</a>');
+  });
+
+  it('keeps valid matrix: URIs but strips malformed ones', () => {
+    expect(sanitizeCustomHtml('<a href="matrix:u/alice:example.com">matrix</a>')).toContain(
+      'href="matrix:u/alice:example.com"'
+    );
+    expect(
+      sanitizeCustomHtml('<a href="matrix:roomid/room:example.com/e/event">matrix</a>')
+    ).toContain('href="matrix:roomid/room:example.com/e/event"');
+
+    // Malformed matrix: URIs (unknown type, missing id) are dropped.
+    expect(sanitizeCustomHtml('<a href="matrix:nonsense">bad</a>')).toBe('<a>bad</a>');
+    expect(sanitizeCustomHtml('<a href="matrix:u/">bad</a>')).toBe('<a>bad</a>');
   });
 
   it('keeps only mxc image sources and preserves custom-emote markers', () => {

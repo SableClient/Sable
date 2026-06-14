@@ -425,14 +425,23 @@ const getPackImageUrls = (
   const urls = new Set<string>();
   const width = usage === ImageUsage.Sticker ? 125 : 32;
   const height = usage === ImageUsage.Sticker ? 125 : 32;
-  const warmupThumbnails = usage === ImageUsage.Sticker ? true : saveStickerEmojiBandwidth;
+  const warmupPackImages = usage !== ImageUsage.Sticker || saveStickerEmojiBandwidth;
 
   imagePacks.forEach((pack) => {
     const avatarUrl = mxcUrlToHttp(mx, pack.getAvatarUrl(usage) ?? '', useAuthentication, 36, 36);
     if (avatarUrl) urls.add(avatarUrl);
 
+    if (!warmupPackImages) return;
+
     pack.getImages(usage).forEach((image) => {
-      const url = getPackImageSrc(mx, image, useAuthentication, warmupThumbnails, width, height);
+      const url = getPackImageSrc(
+        mx,
+        image,
+        useAuthentication,
+        saveStickerEmojiBandwidth,
+        width,
+        height
+      );
       if (url) urls.add(url);
     });
   });

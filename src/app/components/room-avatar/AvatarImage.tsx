@@ -4,91 +4,23 @@ import { useState, useEffect } from 'react';
 import bgColorImg from '$utils/bgColorImg';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { fetchMediaBlob } from '$utils/mediaTransport';
 import * as css from './RoomAvatar.css';
 
-const AVATAR_CACHE_NAME = 'sable-avatars-v1';
-
-// Module-level in-memory cache: maps a Matrix media URL → blob URL so that
+// Module-level in-memory cache: maps a Matrix media URL -> blob URL so that
 // avatars of any type only need to be fetched once per session. MXC URLs are
 // content-addressed and never change, so this mapping is stable for the
 // lifetime of the page and eliminates N+1 fetches as virtual-list items
 // unmount and remount.
 const avatarBlobCache = new Map<string, string>();
 
-// -------------------------------------------------------------------------
-// Persistent Cache API helpers
-// -------------------------------------------------------------------------
-
-async function getAvatarFromPersistentCache(src: string): Promise<Blob | undefined> {
-  try {
-    const cache = await caches.open(AVATAR_CACHE_NAME);
-    const response = await cache.match(src);
-    if (!response) return undefined;
-    return await response.blob();
-  } catch {
-    return undefined;
-  }
-}
-
-async function storeAvatarInPersistentCache(src: string, blob: Blob): Promise<void> {
-  try {
-    const cache = await caches.open(AVATAR_CACHE_NAME);
-    await cache.put(
-      src,
-      new Response(blob, {
-        headers: {
-          'Content-Type': blob.type,
-          'X-Size': blob.size.toString(),
-        },
-      })
-    );
-  } catch {
-    // Quota exceeded or storage unavailable — continue without persisting
-  }
-}
-
-// -------------------------------------------------------------------------
-// Public API
-// -------------------------------------------------------------------------
-
 /**
- * Get avatar cache statistics from the persistent Cache API store.
- * Counts entries and sums their stored sizes.
+ * Clear processed avatar object URLs held for this page session.
+ * Persistent avatar bytes live in the shared media cache.
  */
-export async function getAvatarCacheStatsAsync(): Promise<{ count: number; sizeMB: number }> {
-  try {
-    const cache = await caches.open(AVATAR_CACHE_NAME);
-    const requests = await cache.keys();
-    const responses = await Promise.all(requests.map((r) => cache.match(r)));
-    const totalBytes = responses.reduce((sum, resp) => {
-      if (!resp) return sum;
-      return sum + parseInt(resp.headers.get('X-Size') ?? '0', 10);
-    }, 0);
-    return { count: requests.length, sizeMB: totalBytes / (1024 * 1024) };
-  } catch {
-    return { count: avatarBlobCache.size, sizeMB: 0 };
-  }
-}
-
-/**
- * Get the number of avatars held in the in-memory cache this session.
- */
-export function getAvatarCacheSize(): number {
-  return avatarBlobCache.size;
-}
-
-/**
- * Clear all avatar caches: revoke in-memory blob URLs and delete the
- * persistent on-device store.
- */
-export async function clearAvatarCache(): Promise<void> {
+export function clearProcessedAvatarCache(): void {
   avatarBlobCache.forEach((blobUrl) => URL.revokeObjectURL(blobUrl));
   avatarBlobCache.clear();
-  try {
-    await caches.delete(AVATAR_CACHE_NAME);
-  } catch {
-    // ignore
-  }
 }
 
 /**
@@ -96,14 +28,16 @@ export async function clearAvatarCache(): Promise<void> {
  *
  * Caching layers (fastest → slowest):
  *   1. In-memory Map  — instant, lives for this page session
- *   2. Cache API      — fast, survives page reloads (on-device)
- *   3. Network fetch  — SW adds Bearer auth; response stored in both layers
+ *   2. Shared media cache — fast, survives page reloads (on-device)
+ *   3. Network fetch — SW or direct auth adds Bearer auth
  *
  * SVG avatars are additionally processed to ensure animations loop
  * indefinitely before being stored.
  */
 export function useProcessedAvatarSrc(src?: string): string | undefined {
-  const [processedSrc, setProcessedSrc] = useState<string | undefined>(src);
+  const [processedSrc, setProcessedSrc] = useState<string | undefined>(() =>
+    src ? avatarBlobCache.get(src) : undefined
+  );
 
   useEffect(() => {
     if (!src) {
@@ -112,6 +46,7 @@ export function useProcessedAvatarSrc(src?: string): string | undefined {
     }
 
     let isMounted = true;
+    setProcessedSrc(avatarBlobCache.get(src));
 
     const processImage = async () => {
       // Layer 1: in-memory hit — return immediately without any async work.
@@ -122,24 +57,14 @@ export function useProcessedAvatarSrc(src?: string): string | undefined {
       }
 
       try {
-        // Layer 2: persistent on-device cache.
-        const persistedBlob = await getAvatarFromPersistentCache(src);
-        if (persistedBlob) {
-          const blobUrl = URL.createObjectURL(persistedBlob);
-          avatarBlobCache.set(src, blobUrl);
-          if (isMounted) setProcessedSrc(blobUrl);
-          return;
-        }
-
-        // Layer 3: network fetch (SW intercepts and adds Bearer auth).
-        const res = await fetch(src, { mode: 'cors' });
-        const contentType = res.headers.get('content-type') ?? '';
-
-        let blob: Blob;
+        // Layer 2/3: authenticated media transport. This shares the app-wide
+        // media cache and falls back to direct auth when the SW is not ready.
+        const fetchedBlob = await fetchMediaBlob(src);
+        const contentType = fetchedBlob.type;
 
         if (contentType.includes('image/svg+xml')) {
           // Process SVG to ensure animations loop indefinitely.
-          const text = await res.text();
+          const text = await fetchedBlob.text();
           const parser = new DOMParser();
           const doc = parser.parseFromString(text, 'image/svg+xml');
 
@@ -151,16 +76,17 @@ export function useProcessedAvatarSrc(src?: string): string | undefined {
           doc.documentElement.appendChild(style);
 
           const serializer = new XMLSerializer();
-          blob = new Blob([serializer.serializeToString(doc)], { type: 'image/svg+xml' });
-        } else {
-          // Raster or other image type — use the raw fetched bytes.
-          blob = await res.blob();
+          const blob = new Blob([serializer.serializeToString(doc)], {
+            type: 'image/svg+xml',
+          });
+          const blobUrl = URL.createObjectURL(blob);
+          avatarBlobCache.set(src, blobUrl);
+          if (isMounted) setProcessedSrc(blobUrl);
+          return;
         }
 
-        const blobUrl = URL.createObjectURL(blob);
+        const blobUrl = URL.createObjectURL(fetchedBlob);
         avatarBlobCache.set(src, blobUrl);
-        // Persist on-device so subsequent page loads skip the network entirely.
-        storeAvatarInPersistentCache(src, blob).catch(() => undefined);
         if (isMounted) setProcessedSrc(blobUrl);
       } catch {
         // Network or processing failure — fall back to the original URL so the

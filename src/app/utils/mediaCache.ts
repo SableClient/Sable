@@ -35,7 +35,7 @@ async function evictIfNeeded(cache: Cache): Promise<void> {
 }
 
 // Cache contract:
-// - keyed by the final media URL
+// - keyed by a session-scoped media URL
 // - stores successful responses only
 // - persists blobs, never error responses or intermediate auth state
 export async function putInMediaCache(url: string, blob: Blob): Promise<void> {
@@ -45,7 +45,11 @@ export async function putInMediaCache(url: string, blob: Blob): Promise<void> {
     await cache.put(
       url,
       new Response(blob, {
-        headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+        headers: {
+          'Content-Type': blob.type || 'application/octet-stream',
+          'X-Cached-At': Date.now().toString(),
+          'X-Size': blob.size.toString(),
+        },
       })
     );
     await evictIfNeeded(cache);

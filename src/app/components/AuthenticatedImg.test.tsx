@@ -146,6 +146,62 @@ describe('AuthenticatedImg', () => {
     expect(screen.queryByAltText('missing media')).not.toBeInTheDocument();
   });
 
+  it('keeps lazy images in load mode when the source changes after intersection', () => {
+    let handleIntersection: IntersectionObserverCallback | undefined;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      vi.fn(function MockIntersectionObserver(callback: IntersectionObserverCallback) {
+        handleIntersection = callback;
+        return {
+          observe: vi.fn(),
+          disconnect: vi.fn(),
+          unobserve: vi.fn(),
+          takeRecords: vi.fn(() => []),
+        };
+      })
+    );
+    renderableMedia.useRenderableMediaUrl.mockImplementation((url: string | undefined) =>
+      url ? `blob:${url}` : undefined
+    );
+
+    const { rerender } = render(
+      <AuthenticatedImg src="https://example.org/first.png" alt="lazy media" loading="lazy" />
+    );
+
+    const placeholder = screen.getByAltText('lazy media');
+    expect(renderableMedia.useRenderableMediaUrl).toHaveBeenLastCalledWith(undefined);
+
+    act(() => {
+      handleIntersection?.(
+        [
+          {
+            isIntersecting: true,
+            intersectionRatio: 1,
+            target: placeholder,
+          } as unknown as IntersectionObserverEntry,
+        ],
+        {} as IntersectionObserver
+      );
+    });
+
+    expect(screen.getByAltText('lazy media')).toHaveAttribute(
+      'src',
+      'blob:https://example.org/first.png'
+    );
+
+    rerender(
+      <AuthenticatedImg src="https://example.org/second.png" alt="lazy media" loading="lazy" />
+    );
+
+    expect(renderableMedia.useRenderableMediaUrl).toHaveBeenLastCalledWith(
+      'https://example.org/second.png'
+    );
+    expect(screen.getByAltText('lazy media')).toHaveAttribute(
+      'src',
+      'blob:https://example.org/second.png'
+    );
+  });
+
   it('retries after an error when the resolved media URL changes', async () => {
     let resolvedUrl = 'blob:https://example.org/first-image';
     renderableMedia.useRenderableMediaUrl.mockImplementation(() => resolvedUrl);

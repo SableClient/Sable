@@ -16,7 +16,10 @@ export function AuthenticatedImg({ src, fallback, onError, ...props }: Authentic
   const imageSrc = useRenderableMediaUrl(shouldLoad ? src : undefined);
 
   useEffect(() => {
-    setShouldLoad(!shouldDeferLoad || !src);
+    setShouldLoad((currentShouldLoad) => {
+      if (!shouldDeferLoad || !src) return true;
+      return currentShouldLoad;
+    });
   }, [shouldDeferLoad, src]);
 
   useEffect(() => {

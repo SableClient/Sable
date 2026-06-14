@@ -1,13 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
-import { ClientEvent, SyncState } from '$types/matrix-sdk';
+import { SyncState } from '$types/matrix-sdk';
 import type { Session } from '$state/sessions';
 import { useAppVisibility } from './useAppVisibility';
 
 const mocks = vi.hoisted(() => ({
-  getSlidingSyncManager: vi.fn<() => { retryNow: () => void } | undefined>(),
-  retryNow: vi.fn<() => void>(),
   pushSessionToSW: vi.fn<() => void>(),
   togglePusher: vi.fn<() => Promise<void>>(() => Promise.resolve()),
   usePushNotifications: false,
@@ -19,10 +17,6 @@ vi.mock('@sentry/react', () => ({
     count: vi.fn<() => void>(),
     distribution: vi.fn<() => void>(),
   },
-}));
-
-vi.mock('$client/initMatrix', () => ({
-  getSlidingSyncManager: mocks.getSlidingSyncManager,
 }));
 
 vi.mock('$utils/user-agent', () => ({
@@ -87,25 +81,13 @@ function makeClient(syncState: SyncState): MatrixClient & {
   retryImmediately: ReturnType<typeof vi.fn<() => boolean>>;
 } {
   let currentSyncState = syncState;
-  const syncListeners = new Set<(state: SyncState) => void>();
   const retryImmediately = vi.fn<() => boolean>(() => true);
 
   return {
     getSyncState: () => currentSyncState,
     retryImmediately,
-    on: vi.fn<(event: ClientEvent, listener: (state: SyncState) => void) => void>(
-      (event, listener) => {
-        if (event === ClientEvent.Sync) syncListeners.add(listener);
-      }
-    ),
-    removeListener: vi.fn<(event: ClientEvent, listener: (state: SyncState) => void) => void>(
-      (event, listener) => {
-        if (event === ClientEvent.Sync) syncListeners.delete(listener);
-      }
-    ),
     emitSyncState: (state: SyncState) => {
       currentSyncState = state;
-      syncListeners.forEach((listener) => listener(state));
     },
   } as unknown as MatrixClient & {
     emitSyncState: (state: SyncState) => void;
@@ -118,8 +100,6 @@ describe('useAppVisibility', () => {
     vi.useFakeTimers();
     setVisibilityState('visible');
     setOnline(true);
-    mocks.getSlidingSyncManager.mockReturnValue({ retryNow: mocks.retryNow });
-    mocks.retryNow.mockClear();
     mocks.pushSessionToSW.mockClear();
     mocks.togglePusher.mockClear();
     mocks.togglePusher.mockImplementation(() => Promise.resolve());
@@ -140,10 +120,9 @@ describe('useAppVisibility', () => {
     });
 
     expect(mx.retryImmediately).not.toHaveBeenCalled();
-    expect(mocks.retryNow).not.toHaveBeenCalled();
   });
 
-  it('retries once when sync becomes degraded without starting a retry loop', () => {
+  it('does not automatically retry when sync becomes degraded', () => {
     const mx = makeClient(SyncState.Syncing);
 
     renderHook(() => useAppVisibility(mx, session));
@@ -152,15 +131,13 @@ describe('useAppVisibility', () => {
       mx.emitSyncState(SyncState.Reconnecting);
     });
 
-    expect(mx.retryImmediately).toHaveBeenCalledOnce();
-    expect(mocks.retryNow).toHaveBeenCalledOnce();
+    expect(mx.retryImmediately).not.toHaveBeenCalled();
 
     act(() => {
       vi.advanceTimersByTime(20_000);
     });
 
-    expect(mx.retryImmediately).toHaveBeenCalledOnce();
-    expect(mocks.retryNow).toHaveBeenCalledOnce();
+    expect(mx.retryImmediately).not.toHaveBeenCalled();
   });
 
   it('does not retry immediately on mount when sync is still connecting', () => {
@@ -169,7 +146,6 @@ describe('useAppVisibility', () => {
     renderHook(() => useAppVisibility(mx, session));
 
     expect(mx.retryImmediately).not.toHaveBeenCalled();
-    expect(mocks.retryNow).not.toHaveBeenCalled();
   });
 
   it('dedupes pusher visibility toggles while visible state is unchanged', () => {
@@ -238,5 +214,18 @@ describe('useAppVisibility', () => {
     });
 
     expect(mocks.togglePusher).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not push the service worker session on focus or online events', () => {
+    const mx = makeClient(SyncState.Syncing);
+
+    renderHook(() => useAppVisibility(mx, session));
+
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+      window.dispatchEvent(new Event('online'));
+    });
+
+    expect(mocks.pushSessionToSW).not.toHaveBeenCalled();
   });
 });

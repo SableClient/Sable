@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
-import { ClientEvent, SyncState } from '$types/matrix-sdk';
 import * as Sentry from '@sentry/react';
 import type { Session } from '$state/sessions';
 import { useAtom } from 'jotai';
-import { getSlidingSyncManager } from '$client/initMatrix';
 import { appEvents } from '../utils/appEvents';
 import { useClientConfig, useExperimentVariant } from './useClientConfig';
 import { createDebugLogger } from '../utils/debugLogger';
@@ -17,14 +15,9 @@ import { togglePusher } from '../features/settings/notifications/PushNotificatio
 
 const debugLog = createDebugLogger('AppVisibility');
 
-const DEFAULT_FOREGROUND_DEBOUNCE_MS = 1500;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
-const DEFAULT_RESUME_HEARTBEAT_SUPPRESS_MS = 60 * 1000;
-const DEFAULT_HEARTBEAT_MAX_BACKOFF_MS = 30 * 60 * 1000;
-const FOREGROUND_SYNC_RETRY_DEBOUNCE_MS = 5_000;
 
-type SessionSyncReason = 'foreground' | 'focus' | 'pageshow' | 'heartbeat' | 'network';
-type VisibleSyncRetryReason = 'foreground' | 'focus' | 'pageshow' | 'network' | 'sync_degraded';
+type SessionSyncReason = 'heartbeat';
 
 export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: Session) {
   const clientConfig = useClientConfig();
@@ -35,12 +28,6 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   const sessionSyncVariant = useExperimentVariant('sessionSyncStrategy', activeSession?.userId);
   const hasDirectSessionSyncConfig = sessionSyncConfig !== undefined;
 
-  const phase1ForegroundResync = sessionSyncVariant.inExperiment
-    ? sessionSyncVariant.variant === 'session-sync-heartbeat' ||
-      sessionSyncVariant.variant === 'session-sync-adaptive'
-    : hasDirectSessionSyncConfig
-      ? sessionSyncConfig?.phase1ForegroundResync === true
-      : true;
   const phase2VisibleHeartbeat = sessionSyncVariant.inExperiment
     ? sessionSyncVariant.variant === 'session-sync-heartbeat' ||
       sessionSyncVariant.variant === 'session-sync-adaptive'
@@ -51,27 +38,11 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     ? sessionSyncVariant.variant === 'session-sync-adaptive'
     : sessionSyncConfig?.phase3AdaptiveBackoffJitter === true;
 
-  const foregroundDebounceMs = Math.max(
-    0,
-    sessionSyncConfig?.foregroundDebounceMs ?? DEFAULT_FOREGROUND_DEBOUNCE_MS
-  );
   const heartbeatIntervalMs = Math.max(
     1000,
     sessionSyncConfig?.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS
   );
-  const resumeHeartbeatSuppressMs = Math.max(
-    0,
-    sessionSyncConfig?.resumeHeartbeatSuppressMs ?? DEFAULT_RESUME_HEARTBEAT_SUPPRESS_MS
-  );
-  const heartbeatMaxBackoffMs = Math.max(
-    heartbeatIntervalMs,
-    sessionSyncConfig?.heartbeatMaxBackoffMs ?? DEFAULT_HEARTBEAT_MAX_BACKOFF_MS
-  );
 
-  const lastForegroundPushAtRef = useRef(0);
-  const lastVisibleSyncRetryAtRef = useRef(0);
-  const suppressHeartbeatUntilRef = useRef(0);
-  const heartbeatFailuresRef = useRef(0);
   const lastPusherVisibilityRef = useRef<boolean | undefined>(undefined);
   const pusherToggleInFlightRef = useRef<boolean | undefined>(undefined);
   const pusherToggleClientRef = useRef<MatrixClient | undefined>(undefined);
@@ -104,14 +75,12 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       Sentry.metrics.count('sable.sw.session_sync', 1, {
         attributes: {
           reason,
-          phase1_foreground_resync: phase1ForegroundResync,
           phase2_visible_heartbeat: phase2VisibleHeartbeat,
           phase3_adaptive_backoff_jitter: phase3AdaptiveBackoffJitter,
         },
       });
       debugLog.info('network', 'Pushed session to SW', {
         reason,
-        phase1ForegroundResync,
         phase2VisibleHeartbeat,
         phase3AdaptiveBackoffJitter,
       });
@@ -121,48 +90,9 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       activeSession?.accessToken,
       activeSession?.baseUrl,
       activeSession?.userId,
-      phase1ForegroundResync,
       phase2VisibleHeartbeat,
       phase3AdaptiveBackoffJitter,
     ]
-  );
-
-  const retryVisibleSyncNow = useCallback(
-    (reason: VisibleSyncRetryReason): 'retried' | 'skipped' => {
-      if (!mx) return 'skipped';
-      if (document.visibilityState !== 'visible') return 'skipped';
-      if (!navigator.onLine) return 'skipped';
-
-      const syncState = mx.getSyncState();
-      const syncIsDegraded = syncState === SyncState.Reconnecting || syncState === SyncState.Error;
-      if (!syncIsDegraded) return 'skipped';
-
-      const now = Date.now();
-      if (now - lastVisibleSyncRetryAtRef.current < FOREGROUND_SYNC_RETRY_DEBOUNCE_MS) {
-        return 'skipped';
-      }
-      lastVisibleSyncRetryAtRef.current = now;
-
-      const classicRetried = mx.retryImmediately();
-      const slidingSyncManager = getSlidingSyncManager(mx);
-      slidingSyncManager?.retryNow();
-
-      debugLog.info('network', 'Visible app sync retry requested', {
-        reason,
-        classicRetried,
-        hasSlidingSync: !!slidingSyncManager,
-        syncState,
-      });
-      Sentry.metrics.count('sable.sync.visible_retry', 1, {
-        attributes: {
-          reason,
-          classic_retried: String(classicRetried),
-          sliding_sync: String(!!slidingSyncManager),
-        },
-      });
-      return 'retried';
-    },
-    [mx]
   );
 
   useEffect(() => {
@@ -290,84 +220,19 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   }, [clientConfig, isMobile, mx, pushSubAtom, usePushNotifications]);
 
   useEffect(() => {
-    if (!phase1ForegroundResync) return undefined;
-
-    const pushForegroundSession = (reason: Exclude<SessionSyncReason, 'heartbeat'>) => {
-      if (reason !== 'network' && document.visibilityState !== 'visible') return;
-      if (reason === 'network' && !navigator.onLine) return;
-      const now = Date.now();
-      if (now - lastForegroundPushAtRef.current < foregroundDebounceMs) return;
-      lastForegroundPushAtRef.current = now;
-
-      if (
-        pushSessionNow(reason) === 'sent' &&
-        phase3AdaptiveBackoffJitter &&
-        phase2VisibleHeartbeat
-      ) {
-        suppressHeartbeatUntilRef.current = now + resumeHeartbeatSuppressMs;
-      }
-    };
-
-    const handleVisibilityChange = () => pushForegroundSession('foreground');
-    const handleFocus = () => pushForegroundSession('focus');
-    const handleNetworkChange = () => pushForegroundSession('network');
-    const handlePageShow = (ev: PageTransitionEvent) => {
-      if (ev.persisted) pushForegroundSession('pageshow');
-    };
-
-    if (document.visibilityState === 'visible') {
-      pushForegroundSession('foreground');
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('online', handleNetworkChange);
-    window.addEventListener('pageshow', handlePageShow);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('online', handleNetworkChange);
-      window.removeEventListener('pageshow', handlePageShow);
-    };
-  }, [
-    foregroundDebounceMs,
-    phase1ForegroundResync,
-    phase2VisibleHeartbeat,
-    phase3AdaptiveBackoffJitter,
-    pushSessionNow,
-    resumeHeartbeatSuppressMs,
-  ]);
-
-  useEffect(() => {
     if (!phase2VisibleHeartbeat) return undefined;
-
-    heartbeatFailuresRef.current = 0;
-    suppressHeartbeatUntilRef.current = 0;
 
     let timeoutId: number | undefined;
     const getDelayMs = (): number => {
       if (!phase3AdaptiveBackoffJitter) return heartbeatIntervalMs;
 
-      const failures = heartbeatFailuresRef.current;
-      const backoffFactor = Math.min(2 ** failures, heartbeatMaxBackoffMs / heartbeatIntervalMs);
-      const backoffDelay = Math.min(
-        heartbeatMaxBackoffMs,
-        Math.round(heartbeatIntervalMs * backoffFactor)
-      );
       const jitter = 0.8 + Math.random() * 0.4;
-      return Math.max(1000, Math.round(backoffDelay * jitter));
+      return Math.max(1000, Math.round(heartbeatIntervalMs * jitter));
     };
 
     const tick = () => {
-      const now = Date.now();
-
       if (document.visibilityState === 'visible' && navigator.onLine) {
-        if (!phase3AdaptiveBackoffJitter || now >= suppressHeartbeatUntilRef.current) {
-          const result = pushSessionNow('heartbeat');
-          if (phase3AdaptiveBackoffJitter && result === 'sent') {
-            heartbeatFailuresRef.current = 0;
-          }
-        }
+        pushSessionNow('heartbeat');
       }
 
       timeoutId = window.setTimeout(tick, getDelayMs());
@@ -377,97 +242,5 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     return () => {
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
     };
-  }, [
-    heartbeatIntervalMs,
-    heartbeatMaxBackoffMs,
-    phase2VisibleHeartbeat,
-    phase3AdaptiveBackoffJitter,
-    pushSessionNow,
-  ]);
-
-  // Handle app foreground/background events for timeline refresh and visibility tracking.
-  // iOS can suspend/abort a long-poll while the page is backgrounded without a clean
-  // network event. When the app becomes visible again, explicitly poke the active
-  // sync transport so it does not wait on a stale request before recovering.
-  useEffect(() => {
-    if (!mx) return undefined;
-
-    const handleForeground = (reason: VisibleSyncRetryReason) => {
-      if (document.visibilityState !== 'visible') return;
-      debugLog.info('general', 'App foregrounded');
-
-      // Emit visibility event so timeline and other components can refresh.
-      try {
-        appEvents.emitVisibilityChange(true);
-      } catch (err) {
-        debugLog.error('general', 'Failed to emit visibility change', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      retryVisibleSyncNow(reason);
-    };
-
-    // pageshow fires when the page is restored from the browser's back-forward
-    // cache (bfcache). On some iOS versions the PWA can be restored from bfcache
-    // without a visibilitychange event, so this acts as an extra safety net.
-    const handlePageShow = (ev: PageTransitionEvent) => {
-      if (ev.persisted) {
-        debugLog.info('general', 'App restored from bfcache');
-        try {
-          appEvents.emitVisibilityChange(true);
-        } catch (err) {
-          debugLog.error('general', 'Failed to handle bfcache restore', {
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-        retryVisibleSyncNow('pageshow');
-      }
-    };
-    const handleVisibilityChange = () => handleForeground('foreground');
-    const handleFocus = () => handleForeground('focus');
-    const handleNetworkChange = () => retryVisibleSyncNow('network');
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('online', handleNetworkChange);
-    window.addEventListener('pageshow', handlePageShow);
-
-    // Emit initial visibility state on mount to ensure all listeners
-    // (including timeline refresh) are aware of current state.
-    if (document.visibilityState === 'visible') {
-      const timeoutId = setTimeout(() => {
-        appEvents.emitVisibilityChange(true);
-      }, 100);
-      return () => {
-        clearTimeout(timeoutId);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('focus', handleFocus);
-        window.removeEventListener('online', handleNetworkChange);
-        window.removeEventListener('pageshow', handlePageShow);
-      };
-    }
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('online', handleNetworkChange);
-      window.removeEventListener('pageshow', handlePageShow);
-    };
-  }, [mx, retryVisibleSyncNow]);
-
-  useEffect(() => {
-    if (!mx) return undefined;
-
-    const handleSyncState = (state: SyncState | null) => {
-      if (state === SyncState.Reconnecting || state === SyncState.Error) {
-        retryVisibleSyncNow('sync_degraded');
-      }
-    };
-
-    mx.on(ClientEvent.Sync, handleSyncState);
-
-    return () => {
-      mx.removeListener(ClientEvent.Sync, handleSyncState);
-    };
-  }, [mx, retryVisibleSyncNow]);
+  }, [heartbeatIntervalMs, phase2VisibleHeartbeat, phase3AdaptiveBackoffJitter, pushSessionNow]);
 }

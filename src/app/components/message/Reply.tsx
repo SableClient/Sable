@@ -10,7 +10,6 @@ import { useAtomValue } from 'jotai';
 import {
   ArrowBendUpRightIcon,
   ArrowsClockwise,
-  At,
   ChatCircle,
   chipIcon,
   Code,
@@ -187,7 +186,7 @@ export const ReplyLayout = as<'div', ReplyLayoutProps>(
       </Box>
       {icon}
       <Box style={{ color: userColor, maxWidth: toRem(200) }} alignItems="Center" shrink="No">
-        {mentioned && menuIcon(At)}
+        {mentioned && '@'}
         {username}
       </Box>
       <Box grow="Yes" className={css.ReplyContent}>

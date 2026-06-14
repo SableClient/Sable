@@ -604,10 +604,14 @@ type ForegroundStateResult = {
   clientId?: string;
 };
 
-const foregroundStatePendingMap = new Map<
-  string,
-  (result: ForegroundStateResult | undefined) => void
->();
+type ForegroundStatePending = {
+  expectedResponseCount: number;
+  responseCount: number;
+  lastResult?: ForegroundStateResult;
+  resolve: (result: ForegroundStateResult | undefined) => void;
+};
+
+const foregroundStatePendingMap = new Map<string, ForegroundStatePending>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
 
 const sleep = (ms: number): Promise<void> =>
@@ -855,10 +859,15 @@ async function requestForegroundStateFromClients(
   const requestId = createRecordId('foreground');
 
   const response = new Promise<ForegroundStateResult | undefined>((resolve) => {
-    foregroundStatePendingMap.set(requestId, resolve);
+    foregroundStatePendingMap.set(requestId, {
+      expectedResponseCount: 0,
+      responseCount: 0,
+      resolve,
+    });
   });
 
   let posted = false;
+  let postedCount = 0;
   windowClients.forEach((client) => {
     try {
       client.postMessage({
@@ -866,6 +875,7 @@ async function requestForegroundStateFromClients(
         requestId,
       });
       posted = true;
+      postedCount += 1;
     } catch (err) {
       console.warn('[SW push] foreground state postMessage error', err);
     }
@@ -875,6 +885,9 @@ async function requestForegroundStateFromClients(
     foregroundStatePendingMap.delete(requestId);
     return undefined;
   }
+
+  const pending = foregroundStatePendingMap.get(requestId);
+  if (pending) pending.expectedResponseCount = postedCount;
 
   const result = await Promise.race([response, sleep(timeoutMs).then(() => undefined)]);
   foregroundStatePendingMap.delete(requestId);
@@ -1203,19 +1216,29 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       focused?: unknown;
     };
     if (typeof requestId === 'string') {
-      const resolve = foregroundStatePendingMap.get(requestId);
+      const pending = foregroundStatePendingMap.get(requestId);
       const normalizedVisibilityState =
         typeof visibilityState === 'string' ? visibilityState : undefined;
-      if (
-        typeof resolve === 'function' &&
-        shouldSuppressOsPushForForegroundState({ visibilityState: normalizedVisibilityState })
-      ) {
-        resolve({
+      if (pending) {
+        const result = {
           requestId,
           visibilityState: normalizedVisibilityState,
           focused: focused === true,
           clientId: client.id,
-        });
+        };
+
+        if (shouldSuppressOsPushForForegroundState(result)) {
+          foregroundStatePendingMap.delete(requestId);
+          pending.resolve(result);
+          return;
+        }
+
+        pending.responseCount += 1;
+        pending.lastResult = result;
+        if (pending.responseCount >= pending.expectedResponseCount) {
+          foregroundStatePendingMap.delete(requestId);
+          pending.resolve(pending.lastResult);
+        }
       }
     }
   }

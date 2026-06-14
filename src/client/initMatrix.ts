@@ -68,13 +68,6 @@ type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
   fetchRoomEvent: (roomId: string, eventId: string) => Promise<FetchRoomEventResult>;
 };
 
-type BrowserNetworkInformation = {
-  effectiveType?: string;
-  downlink?: number;
-  addEventListener?: (type: 'change', listener: () => void) => void;
-  removeEventListener?: (type: 'change', listener: () => void) => void;
-};
-
 type MatrixDeviceContextClient = Pick<MatrixClient, 'getDeviceId'>;
 
 export function setSentryMatrixDeviceContext(
@@ -640,10 +633,6 @@ const disposeSlidingSync = (mx: MatrixClient): void => {
 const installClassicSyncNetworkReconnect = (mx: MatrixClient): void => {
   classicSyncNetworkCleanupByClient.get(mx)?.();
   let lastOnlineState = typeof navigator !== 'undefined' ? navigator.onLine : true;
-  const connectionInfo =
-    typeof navigator !== 'undefined'
-      ? (navigator as unknown as { connection?: BrowserNetworkInformation }).connection
-      : undefined;
 
   const retrySync = () => {
     const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -658,14 +647,20 @@ const installClassicSyncNetworkReconnect = (mx: MatrixClient): void => {
       return;
     }
 
+    if (wasOnline) {
+      debugLog.info('network', 'Ignored classic sync retry while already online', {
+        userId: mx.getUserId(),
+        syncState: mx.getSyncState(),
+      });
+      return;
+    }
+
     const retried = mx.retryImmediately();
     debugLog.info('network', 'Network change triggered classic sync retry', {
       userId: mx.getUserId(),
       syncState: mx.getSyncState(),
       wasOnline,
       retried,
-      effectiveType: connectionInfo?.effectiveType,
-      downlink: connectionInfo?.downlink ? `${connectionInfo.downlink} Mbps` : undefined,
     });
     Sentry.metrics.count('sable.sync.network_retry', 1, {
       attributes: { transport: 'classic', retried: String(retried) },
@@ -674,12 +669,10 @@ const installClassicSyncNetworkReconnect = (mx: MatrixClient): void => {
 
   window.addEventListener('online', retrySync);
   window.addEventListener('offline', retrySync);
-  connectionInfo?.addEventListener?.('change', retrySync);
 
   classicSyncNetworkCleanupByClient.set(mx, () => {
     window.removeEventListener('online', retrySync);
     window.removeEventListener('offline', retrySync);
-    connectionInfo?.removeEventListener?.('change', retrySync);
   });
 };
 

@@ -272,17 +272,6 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     const handlePageShow = (ev: PageTransitionEvent) => {
       if (ev.persisted) pushForegroundSession('pageshow');
     };
-    const connectionInfo =
-      typeof navigator !== 'undefined'
-        ? (
-            navigator as unknown as {
-              connection?: {
-                addEventListener?: (type: 'change', listener: () => void) => void;
-                removeEventListener?: (type: 'change', listener: () => void) => void;
-              };
-            }
-          ).connection
-        : undefined;
 
     if (document.visibilityState === 'visible') {
       pushForegroundSession('foreground');
@@ -290,14 +279,12 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('online', handleNetworkChange);
-    connectionInfo?.addEventListener?.('change', handleNetworkChange);
     window.addEventListener('pageshow', handlePageShow);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('online', handleNetworkChange);
-      connectionInfo?.removeEventListener?.('change', handleNetworkChange);
       window.removeEventListener('pageshow', handlePageShow);
     };
   }, [
@@ -398,22 +385,9 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     const handleFocus = () => handleForeground('focus');
     const handleNetworkChange = () => retryVisibleSyncNow('network');
 
-    const connectionInfo =
-      typeof navigator !== 'undefined'
-        ? (
-            navigator as unknown as {
-              connection?: {
-                addEventListener?: (type: 'change', listener: () => void) => void;
-                removeEventListener?: (type: 'change', listener: () => void) => void;
-              };
-            }
-          ).connection
-        : undefined;
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('online', handleNetworkChange);
-    connectionInfo?.addEventListener?.('change', handleNetworkChange);
     window.addEventListener('pageshow', handlePageShow);
 
     // Emit initial visibility state on mount to ensure all listeners
@@ -427,7 +401,6 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('focus', handleFocus);
         window.removeEventListener('online', handleNetworkChange);
-        connectionInfo?.removeEventListener?.('change', handleNetworkChange);
         window.removeEventListener('pageshow', handlePageShow);
       };
     }
@@ -436,7 +409,6 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('online', handleNetworkChange);
-      connectionInfo?.removeEventListener?.('change', handleNetworkChange);
       window.removeEventListener('pageshow', handlePageShow);
     };
   }, [mx, retryVisibleSyncNow]);

@@ -162,10 +162,24 @@ describe('startClient app singleton gate', () => {
     await Promise.all([firstStart, secondStart]);
   });
 
-  it('retries classic sync when the browser reports the network is online again', async () => {
+  it('retries classic sync when the browser transitions from offline to online', async () => {
     const mx = makeClient('@alice:example.com');
 
     await startClassicClient(mx);
+
+    window.dispatchEvent(new Event('online'));
+    expect(mx.retryImmediately).not.toHaveBeenCalled();
+
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    });
+    window.dispatchEvent(new Event('offline'));
+
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: true,
+    });
     window.dispatchEvent(new Event('online'));
 
     expect(mx.retryImmediately).toHaveBeenCalledOnce();

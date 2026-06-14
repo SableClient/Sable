@@ -72,6 +72,7 @@ import {
   getReactionShortcode,
   getReactionAnnotationTargetId,
   getRedactionReason,
+  isMembershipChanged,
   isEditEvent,
   isThreadRelationEvent,
   reactionOrEditEvent,
@@ -360,6 +361,10 @@ export function useTimelineEventRenderer({
     showClientUrlPreview,
     showMaps,
     autoplayStickers,
+    hideMemberInReadOnly,
+    isReadOnly,
+    hideMembershipEvents,
+    hideNickAvatarEvents,
     hiddenEvents,
     hideThreadChip,
   },
@@ -376,7 +381,7 @@ export function useTimelineEventRenderer({
     setOpenThread,
     handleOpenReply,
   },
-  utils: { htmlReactParserOptions, linkifyOpts, getMemberPowerTag },
+  utils: { htmlReactParserOptions, linkifyOpts, getMemberPowerTag, parseMemberEvent },
 }: TimelineEventRendererOptions) {
   const { t } = useTranslation();
   const {
@@ -1171,6 +1176,57 @@ export function useTimelineEventRenderer({
         );
       },
 
+      [EventType.RoomMember]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        const membershipChanged = isMembershipChanged(mEvent);
+        if (hideMemberInReadOnly && isReadOnly) return null;
+        if (membershipChanged && hideMembershipEvents) return null;
+        if (!membershipChanged && hideNickAvatarEvents) return null;
+
+        const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId && !suppressMark;
+        const parsed = parseMemberEvent(mEvent);
+
+        const timeJSX = (
+          <Time
+            ts={mEvent.getTs()}
+            compact={messageLayout === MessageLayout.Compact}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          />
+        );
+
+        return (
+          <Event
+            key={mEventId}
+            data-message-item={item}
+            data-message-id={mEventId}
+            room={room}
+            mEvent={mEvent}
+            highlight={highlighted}
+            isMarked={marked}
+            collapse={collapse}
+            canDelete={canRedact || mEvent.getSender() === mx.getUserId()}
+            onReplyClick={onReplyClick}
+            hideReadReceipts={hideReads}
+            showDeveloperTools={showDeveloperTools}
+            messageSpacing={messageSpacing}
+          >
+            <EventContent
+              messageLayout={messageLayout}
+              time={timeJSX}
+              icon={parsed.icon}
+              content={
+                <Text size="T300" priority="300">
+                  <Box direction="Row" style={{ flexWrap: 'wrap', columnGap: toRem(6) }}>
+                    {parsed.body}
+                  </Box>
+                </Text>
+              }
+            />
+          </Event>
+        );
+      },
+
       [EventType.RoomName]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const marked = activeReplyId === mEventId && !suppressMark;
@@ -1498,7 +1554,9 @@ export function useTimelineEventRenderer({
         const senderId = mEvent.getSender() ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
-        const targetId = getRedactionTargetId(mEvent);
+        const targetId = isReactionRedaction
+          ? target && getReactionAnnotationTargetId(target)
+          : getRedactionTargetId(mEvent);
 
         const timeJSX = (
           <Time

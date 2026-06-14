@@ -795,6 +795,7 @@ export const collectRelationEditEvents = (
 
         const sender = editEvent.getSender();
         if (sender && ignoredUsersSet.has(sender)) continue;
+        if (sender !== parent.getSender()) continue;
 
         extras.push({ mEvent: editEvent, timelineSet });
       }

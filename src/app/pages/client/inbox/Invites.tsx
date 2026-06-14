@@ -180,7 +180,9 @@ const dismissInvite = (mx: MatrixClient, roomId: string, onDismiss: () => void) 
     const newDismissList = dismissedInvites ? [...dismissedInvites.roomIds, roomId] : [roomId];
     mx.setAccountData(CustomAccountDataEvent.SableDismissedInvites as keyof AccountDataEvents, {
       roomIds: newDismissList,
-    }).finally(onDismiss);
+    })
+      .then(onDismiss)
+      .catch(() => undefined);
   }
 };
 
@@ -191,11 +193,13 @@ const undismissInvite = (mx: MatrixClient, roomId: string, onDismiss: () => void
   )?.getContent<{
     roomIds: string[];
   }>();
-  const newIgnores = dismissedInvites?.roomIds.filter((item) => roomId != item);
-  if (newIgnores !== dismissedInvites) {
+  if (dismissedInvites?.roomIds.includes(roomId)) {
+    const newIgnores = dismissedInvites.roomIds.filter((item) => roomId != item);
     mx.setAccountData(CustomAccountDataEvent.SableDismissedInvites as keyof AccountDataEvents, {
       roomIds: newIgnores,
-    }).finally(onDismiss);
+    })
+      .then(onDismiss)
+      .catch(() => undefined);
   }
 };
 

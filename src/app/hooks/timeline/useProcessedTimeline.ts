@@ -88,7 +88,8 @@ type ProcessedEventDraft = Omit<
 const computeCollapseAndDividers = (
   drafts: ProcessedEventDraft[],
   mxUserId: string | null,
-  readUptoEventId: string | undefined
+  readUptoEventId: string | undefined,
+  messageGroupingThreshold: number
 ): ProcessedEvent[] => {
   let prevEvent: MatrixEvent | undefined;
   let isPrevRendered = false;
@@ -113,7 +114,9 @@ const computeCollapseAndDividers = (
     let collapsed = false;
     if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
       if (isMessageEvent) {
-        const withinTimeThreshold = minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
+        const withinTimeThreshold =
+          messageGroupingThreshold > 0 &&
+          minuteDifference(prevEvent.getTs(), mEvent.getTs()) < messageGroupingThreshold;
         const senderMatch = prevEvent.getSender() === eventSender;
         const typeMatch = normalizeMessageType(prevEvent.getType()) === normalizeMessageType(type);
         const dividerOk = !newDivider || eventSender === mxUserId;
@@ -154,7 +157,8 @@ const mergeRelationReactions = (
   hiddenEventReactions: boolean,
   hiddenEventReactionTombstone: boolean,
   mxUserId: string | null,
-  readUptoEventId: string | undefined
+  readUptoEventId: string | undefined,
+  messageGroupingThreshold: number
 ): ProcessedEvent[] => {
   const existingIds = new Set(result.map((event) => event.id));
   const extras = collectRelationReactionEvents(
@@ -183,7 +187,12 @@ const mergeRelationReactions = (
     }),
   ].toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
 
-  return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
+  return computeCollapseAndDividers(
+    mergedDrafts,
+    mxUserId,
+    readUptoEventId,
+    messageGroupingThreshold
+  );
 };
 
 const mergeRelationEdits = (
@@ -192,7 +201,8 @@ const mergeRelationEdits = (
   ignoredUsersSet: Set<string>,
   hiddenEventEdits: boolean,
   mxUserId: string | null,
-  readUptoEventId: string | undefined
+  readUptoEventId: string | undefined,
+  messageGroupingThreshold: number
 ): ProcessedEvent[] => {
   const existingIds = new Set(result.map((event) => event.id));
   const extras = collectRelationEditEvents(
@@ -220,7 +230,12 @@ const mergeRelationEdits = (
     }),
   ].toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
 
-  return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
+  return computeCollapseAndDividers(
+    mergedDrafts,
+    mxUserId,
+    readUptoEventId,
+    messageGroupingThreshold
+  );
 };
 
 export function useProcessedTimeline({
@@ -459,13 +474,15 @@ export function useProcessedTimeline({
         hiddenEventReactions,
         hiddenEventReactionTombstone,
         mxUserId,
-        readUptoEventId
+        readUptoEventId,
+        messageGroupingThreshold
       ),
       linkedTimelines,
       ignoredUsersSet,
       hiddenEventEdits,
       mxUserId,
-      readUptoEventId
+      readUptoEventId,
+      messageGroupingThreshold
     );
   }, [
     items,

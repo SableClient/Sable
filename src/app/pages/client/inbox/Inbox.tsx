@@ -1,10 +1,8 @@
 import { Avatar, Box, Icon, Icons, Text, toRem } from 'folds';
-import { useAtomValue } from 'jotai';
 import { NavCategory, NavItem, NavItemContent, NavLink } from '$components/nav';
 import { getInboxInvitesPath, getInboxNotificationsPath } from '$pages/pathUtils';
 import { useInboxInvitesSelected, useInboxNotificationsSelected } from '$hooks/router/useInbox';
 import { UnreadBadge } from '$components/unread-badge';
-import { allInvitesAtom } from '$state/room-list/inviteList';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
@@ -12,11 +10,11 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useEffect, useState } from 'react';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { useInviteCount } from '$hooks/useInviteCount';
 
 function InvitesNavItem({ hideText }: { hideText?: boolean }) {
   const invitesSelected = useInboxInvitesSelected();
-  const allInvites = useAtomValue(allInvitesAtom);
-  const inviteCount = allInvites.length;
+  const inviteCount = useInviteCount();
 
   return (
     <NavItem

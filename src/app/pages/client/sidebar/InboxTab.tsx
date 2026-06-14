@@ -7,7 +7,6 @@ import {
   SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
-import { allInvitesAtom } from '$state/room-list/inviteList';
 import {
   getInboxInvitesPath,
   getInboxNotificationsPath,
@@ -17,14 +16,14 @@ import {
 import { useInboxSelected } from '$hooks/router/useInbox';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
+import { useInviteCount } from '$hooks/useInviteCount';
 
 export function InboxTab() {
   const screenSize = useScreenSizeContext();
   const navigate = useNavigate();
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const inboxSelected = useInboxSelected();
-  const allInvites = useAtomValue(allInvitesAtom);
-  const inviteCount = allInvites.length;
+  const inviteCount = useInviteCount();
 
   const handleInboxClick = () => {
     if (screenSize === ScreenSize.Mobile) {

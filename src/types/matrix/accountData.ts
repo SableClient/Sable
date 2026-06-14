@@ -10,6 +10,7 @@ export const CustomAccountDataEvent = {
   SablePerProfileMessageProfiles:
     prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME,
   SableSettings: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME,
+  SableDismissedInvites: prefix.MATRIX_SABLE_UNSTABLE_DISMISSED_INVITES,
 } as const;
 export type CustomAccountDataEvent =
   (typeof CustomAccountDataEvent)[keyof typeof CustomAccountDataEvent];

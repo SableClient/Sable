@@ -17,9 +17,15 @@ import {
   color,
   config,
 } from 'folds';
-import { useAtomValue } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
-import type { RoomTopicEventContent, MatrixClient, MatrixError, Room } from '$types/matrix-sdk';
+import type {
+  RoomTopicEventContent,
+  MatrixClient,
+  MatrixError,
+  Room,
+  AccountDataEvents,
+} from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import {
   Page,
@@ -35,6 +41,7 @@ import { allInvitesAtom } from '$state/room-list/inviteList';
 import { SequenceCard } from '$components/sequence-card';
 import {
   bannedInRooms,
+  getAccountData,
   getCommonRooms,
   getDirectRoomAvatarUrl,
   getMemberDisplayName,
@@ -68,10 +75,13 @@ import { useReportRoomSupported } from '$hooks/useReportRoomSupported';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { EventType } from '$types/matrix-sdk';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { updateInviteList } from '$state/updateInvites';
+import { useDismissedInviteList } from '$hooks/useDismissedInvites';
 
 const COMPACT_CARD_WIDTH = 548;
 
-type InviteData = {
+export type InviteData = {
   room: Room;
   roomId: string;
   roomName: string;
@@ -89,7 +99,7 @@ type InviteData = {
   isEncrypted: boolean;
 };
 
-const makeInviteData = (
+export const makeInviteData = (
   mx: MatrixClient,
   room: Room,
   useAuthentication: boolean,
@@ -147,6 +157,36 @@ const hasBadWords = (invite: InviteData): boolean =>
   testBadWords(invite.senderId) ||
   testBadWords(invite.reason || '');
 
+const dismissInvite = (mx: MatrixClient, roomId: string, onDismiss: () => void) => {
+  const dismissedInvites = getAccountData(
+    mx,
+    CustomAccountDataEvent.SableDismissedInvites
+  )?.getContent<{
+    roomIds: string[];
+  }>();
+  if (!dismissedInvites?.roomIds.includes(roomId)) {
+    const newDismissList = dismissedInvites ? [...dismissedInvites.roomIds, roomId] : [roomId];
+    mx.setAccountData(CustomAccountDataEvent.SableDismissedInvites as keyof AccountDataEvents, {
+      roomIds: newDismissList,
+    }).finally(onDismiss);
+  }
+};
+
+const undismissInvite = (mx: MatrixClient, roomId: string, onDismiss: () => void) => {
+  const dismissedInvites = getAccountData(
+    mx,
+    CustomAccountDataEvent.SableDismissedInvites
+  )?.getContent<{
+    roomIds: string[];
+  }>();
+  const newIgnores = dismissedInvites?.roomIds.filter((item) => roomId != item);
+  if (newIgnores !== dismissedInvites) {
+    mx.setAccountData(CustomAccountDataEvent.SableDismissedInvites as keyof AccountDataEvents, {
+      roomIds: newIgnores,
+    }).finally(onDismiss);
+  }
+};
+
 type NavigateHandler = (roomId: string, space: boolean) => void;
 
 type InviteCardProps = {
@@ -156,6 +196,8 @@ type InviteCardProps = {
   dateFormatString: string;
   onNavigate: NavigateHandler;
   hideAvatar: boolean;
+  isDismissed?: boolean;
+  onDismiss: () => void;
 };
 function InviteCard({
   invite,
@@ -164,6 +206,8 @@ function InviteCard({
   dateFormatString,
   onNavigate,
   hideAvatar,
+  isDismissed,
+  onDismiss,
 }: InviteCardProps) {
   const mx = useMatrixClient();
   const userId = mx.getSafeUserId();
@@ -288,6 +332,18 @@ function InviteCard({
           </Box>
           <Box gap="200" shrink="No" alignItems="Center">
             <Button
+              onClick={
+                isDismissed
+                  ? () => undismissInvite(mx, invite.roomId, onDismiss)
+                  : () => dismissInvite(mx, invite.roomId, onDismiss)
+              }
+              size="300"
+              radii="300"
+              fill="Soft"
+            >
+              <Text size="B300">{isDismissed ? 'Undismiss' : 'Dismiss'}</Text>
+            </Button>
+            <Button
               onClick={leave}
               size="300"
               variant="Secondary"
@@ -342,10 +398,11 @@ function InviteCard({
   );
 }
 
-enum InviteFilter {
+export enum InviteFilter {
   Known,
   Unknown,
   Spam,
+  Ignored,
 }
 type InviteFiltersProps = {
   filter: InviteFilter;
@@ -364,6 +421,7 @@ function InviteFilters({
   const isKnown = filter === InviteFilter.Known;
   const isUnknown = filter === InviteFilter.Unknown;
   const isSpam = filter === InviteFilter.Spam;
+  const isIgnored = filter === InviteFilter.Ignored;
 
   return (
     <Box gap="200">
@@ -415,16 +473,26 @@ function InviteFilters({
       >
         <Text size="T200">Spam</Text>
       </Chip>
+      <Chip
+        variant={isIgnored ? 'Primary' : 'Surface'}
+        aria-selected={isIgnored}
+        outlined={!isIgnored}
+        onClick={() => onFilter(InviteFilter.Ignored)}
+        before={isIgnored && <Icon size="100" src={Icons.Check} />}
+      >
+        <Text size="T200">Dismissed</Text>
+      </Chip>
     </Box>
   );
 }
 
-type KnownInvitesProps = {
+type InvitesProps = {
   invites: InviteData[];
   handleNavigate: NavigateHandler;
   compact: boolean;
   hour24Clock: boolean;
   dateFormatString: string;
+  onDismiss: () => void;
 };
 function KnownInvites({
   invites,
@@ -432,7 +500,8 @@ function KnownInvites({
   compact,
   hour24Clock,
   dateFormatString,
-}: KnownInvitesProps) {
+  onDismiss,
+}: InvitesProps) {
   return (
     <Box direction="Column" gap="200">
       <Text size="H4">Primary</Text>
@@ -447,6 +516,7 @@ function KnownInvites({
               dateFormatString={dateFormatString}
               onNavigate={handleNavigate}
               hideAvatar={false}
+              onDismiss={onDismiss}
             />
           ))}
         </Box>
@@ -465,20 +535,14 @@ function KnownInvites({
   );
 }
 
-type UnknownInvitesProps = {
-  invites: InviteData[];
-  handleNavigate: NavigateHandler;
-  compact: boolean;
-  hour24Clock: boolean;
-  dateFormatString: string;
-};
 function UnknownInvites({
   invites,
   handleNavigate,
   compact,
   hour24Clock,
   dateFormatString,
-}: UnknownInvitesProps) {
+  onDismiss,
+}: InvitesProps) {
   const mx = useMatrixClient();
 
   const [declineAllStatus, declineAll] = useAsyncCallback(
@@ -520,6 +584,7 @@ function UnknownInvites({
               dateFormatString={dateFormatString}
               onNavigate={handleNavigate}
               hideAvatar
+              onDismiss={onDismiss}
             />
           ))}
         </Box>
@@ -538,20 +603,14 @@ function UnknownInvites({
   );
 }
 
-type SpamInvitesProps = {
-  invites: InviteData[];
-  handleNavigate: NavigateHandler;
-  compact: boolean;
-  hour24Clock: boolean;
-  dateFormatString: string;
-};
 function SpamInvites({
   invites,
   handleNavigate,
   compact,
   hour24Clock,
   dateFormatString,
-}: SpamInvitesProps) {
+  onDismiss,
+}: InvitesProps) {
   const mx = useMatrixClient();
   const [showInvites, setShowInvites] = useState(false);
 
@@ -679,6 +738,7 @@ function SpamInvites({
                 dateFormatString={dateFormatString}
                 onNavigate={handleNavigate}
                 hideAvatar
+                onDismiss={onDismiss}
               />
             ))}
         </Box>
@@ -697,6 +757,75 @@ function SpamInvites({
   );
 }
 
+function DismissedInvites({
+  invites,
+  handleNavigate,
+  compact,
+  hour24Clock,
+  dateFormatString,
+  onDismiss,
+}: InvitesProps) {
+  const mx = useMatrixClient();
+
+  const [declineAllStatus, declineAll] = useAsyncCallback(
+    useCallback(async () => {
+      const roomIds = invites.map((invite) => invite.roomId);
+
+      await rateLimitedActions(roomIds, (roomId) => mx.leave(roomId));
+    }, [mx, invites])
+  );
+
+  const declining = declineAllStatus.status === AsyncStatus.Loading;
+
+  return (
+    <Box direction="Column" gap="200">
+      <Box gap="200" justifyContent="SpaceBetween" alignItems="Center">
+        <Text size="H4">Dismissed</Text>
+        <Box>
+          {invites.length > 0 && (
+            <Chip
+              variant="SurfaceVariant"
+              onClick={declineAll}
+              before={declining && <Spinner size="50" variant="Secondary" fill="Soft" />}
+              disabled={declining}
+              radii="Pill"
+            >
+              <Text size="T200">Decline All</Text>
+            </Chip>
+          )}
+        </Box>
+      </Box>
+      {invites.length > 0 ? (
+        <Box direction="Column" gap="100">
+          {invites.map((invite) => (
+            <InviteCard
+              key={invite.roomId}
+              invite={invite}
+              compact={compact}
+              hour24Clock={hour24Clock}
+              dateFormatString={dateFormatString}
+              onNavigate={handleNavigate}
+              hideAvatar
+              isDismissed
+              onDismiss={onDismiss}
+            />
+          ))}
+        </Box>
+      ) : (
+        <PageHeroEmpty>
+          <PageHeroSection>
+            <PageHero
+              icon={<Icon size="600" src={Icons.Info} />}
+              title="No Dismissed"
+              subTitle="If you ever choose to dismiss an invite it will appear here."
+            />
+          </PageHeroSection>
+        </PageHeroEmpty>
+      )}
+    </Box>
+  );
+}
+
 export function Invites() {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -704,6 +833,9 @@ export function Invites() {
   const allRooms = useAtomValue(allRoomsAtom);
   const allInviteIds = useAtomValue(allInvitesAtom);
   const nicknames = useAtomValue(nicknamesAtom);
+  const [updateInvites, setUpdateInvites] = useAtom(updateInviteList);
+
+  const dismissedInvitesIds = useDismissedInviteList();
 
   const [filter, setFilter] = useState(InviteFilter.Known);
 
@@ -712,11 +844,17 @@ export function Invites() {
     .filter((inviteRoom) => !!inviteRoom)
     .map((inviteRoom) => makeInviteData(mx, inviteRoom, useAuthentication, nicknames));
 
-  const [knownInvites, unknownInvites, spamInvites] = useMemo(() => {
+  const [knownInvites, unknownInvites, spamInvites, dismissedInvites] = useMemo(() => {
     const known: InviteData[] = [];
     const unknown: InviteData[] = [];
     const spam: InviteData[] = [];
+    const ignored: InviteData[] = [];
     invitesData.forEach((invite) => {
+      if (dismissedInvitesIds?.includes(invite.roomId)) {
+        ignored.push(invite);
+        return;
+      }
+
       if (hasBadWords(invite) || bannedInRooms(mx, allRooms, invite.senderId)) {
         spam.push(invite);
         return;
@@ -730,8 +868,8 @@ export function Invites() {
       known.push(invite);
     });
 
-    return [known, unknown, spam];
-  }, [mx, allRooms, invitesData]);
+    return [known, unknown, spam, ignored];
+  }, [mx, allRooms, invitesData, dismissedInvitesIds]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(document.body.clientWidth <= COMPACT_CARD_WIDTH);
@@ -799,6 +937,9 @@ export function Invites() {
                     hour24Clock={hour24Clock}
                     dateFormatString={dateFormatString}
                     handleNavigate={handleNavigate}
+                    onDismiss={() => {
+                      setUpdateInvites((updateInvites + 1) % 2);
+                    }}
                   />
                 )}
 
@@ -809,6 +950,9 @@ export function Invites() {
                     hour24Clock={hour24Clock}
                     dateFormatString={dateFormatString}
                     handleNavigate={handleNavigate}
+                    onDismiss={() => {
+                      setUpdateInvites((updateInvites + 1) % 2);
+                    }}
                   />
                 )}
 
@@ -819,6 +963,21 @@ export function Invites() {
                     hour24Clock={hour24Clock}
                     dateFormatString={dateFormatString}
                     handleNavigate={handleNavigate}
+                    onDismiss={() => {
+                      setUpdateInvites((updateInvites + 1) % 2);
+                    }}
+                  />
+                )}
+                {filter === InviteFilter.Ignored && (
+                  <DismissedInvites
+                    invites={dismissedInvites}
+                    compact={compact}
+                    hour24Clock={hour24Clock}
+                    dateFormatString={dateFormatString}
+                    handleNavigate={handleNavigate}
+                    onDismiss={() => {
+                      setUpdateInvites((updateInvites + 1) % 2);
+                    }}
                   />
                 )}
               </Box>

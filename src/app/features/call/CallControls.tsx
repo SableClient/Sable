@@ -14,7 +14,6 @@ import {
   toRem,
 } from 'folds';
 import {
-  composerIcon,
   DotsThreeOutlineVerticalIcon,
   sizedIcon,
   PhoneDisconnect,
@@ -206,9 +205,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
               outlined
               aria-pressed={!!cords}
             >
-              {composerIcon(DotsThreeOutlineVerticalIcon, {
-                weight: cords ? 'fill' : 'regular',
-              })}
+              {sizedIcon(DotsThreeOutlineVerticalIcon, '300', { filled: !!cords })}
             </IconButton>
           </PopOut>
 

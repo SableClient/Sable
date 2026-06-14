@@ -26,6 +26,7 @@ import {
   Warning,
   composerIcon,
   sizedIcon,
+  Recycle,
 } from '$components/icons/phosphor';
 import { nicknamesAtom } from '$state/nicknames';
 import type {
@@ -829,7 +830,7 @@ function DismissedInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={sizedIcon(Warning, '600')}
+              icon={sizedIcon(Recycle, '600')}
               title="No Dismissed"
               subTitle="If you ever choose to dismiss an invite it will appear here."
             />

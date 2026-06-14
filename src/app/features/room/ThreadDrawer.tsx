@@ -25,10 +25,11 @@ import {
   renderMatrixMention,
 } from '$plugins/react-custom-html-parser';
 import {
-  getEditedEvent,
+  extractReplyDraftBody,
   getMemberDisplayName,
   isThreadRelationEvent,
   reactionOrEditEvent,
+  resolveReplyDraftTarget,
   unwrapRelationJumpTarget,
 } from '$utils/room';
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
@@ -67,7 +68,6 @@ import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollo
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
-import { M_TEXT } from 'matrix-js-sdk';
 
 /**
  * Resolve the list of reply events to show in the thread drawer.
@@ -569,28 +569,25 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         });
         return;
       }
-      const replyEvt = room.findEventById(replyId);
-      if (!replyEvt) return;
-      const editedReply = getEditedEvent(replyId, replyEvt, room.getUnfilteredTimelineSet());
-      const content = editedReply?.getContent()['m.new_content'] ?? replyEvt.getContent();
-      const { body, formatted_body: formattedBody } = content;
-      const msc1767body = content[M_TEXT.name];
+      const resolved = resolveReplyDraftTarget(room, replyId);
+      if (!resolved) return;
+      const { eventId: draftEventId, replyEvt } = resolved;
+      const { body, formattedBody } = extractReplyDraftBody(
+        replyEvt,
+        room.getUnfilteredTimelineSet()
+      );
       const senderId = replyEvt.getSender();
       if (senderId) {
         const draft: IReplyDraft = {
           userId: senderId,
-          eventId: replyId,
-          body:
-            (body as string) ??
-            (msc1767body as string) ??
-            (msc1767body as { body: string }).body ??
-            '',
+          eventId: draftEventId,
+          body,
           formattedBody,
           relation: { rel_type: RelationType.Thread, event_id: threadRootId },
         };
         // Only toggle off if we're actively replying to this event (non-empty body distinguishes
         // a real reply draft from the seeded base-thread draft, which has body: '').
-        if (activeReplyId === replyId && replyDraft?.body) {
+        if (activeReplyId === draftEventId && replyDraft?.body) {
           // Toggle off — reset to base thread draft
           setReplyDraft({
             userId: mx.getUserId() ?? '',

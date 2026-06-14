@@ -20,9 +20,15 @@ import type {
 import * as prefix from '$unstable/prefixes';
 import { FALLBACK_MIMETYPE, getBlobSafeMimeType } from '$utils/mimeTypes';
 import { parseGeoUri, scaleYDimension } from '$utils/common';
+import { mxcUrlToHttp } from '$utils/matrix';
+import { getScopedMediaCacheKey } from '$utils/mediaTransport';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaMetadata } from '$hooks/useMediaMetadata';
+import type { CachedMediaMetadata } from '$utils/mediaMetadata';
 import { Attachment, AttachmentBox, AttachmentContent, AttachmentHeader } from './attachment';
 import { FileHeader, FileDownloadButton } from './FileHeader';
 import {
@@ -48,6 +54,73 @@ import { markerIcon } from '$features/room/location-modal/LocationDialog';
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
 }
+
+const positiveMediaDimension = (value: number | undefined): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+
+const mergeImageInfoWithMetadata = (
+  info: IImageInfo | undefined,
+  metadata: CachedMediaMetadata | undefined
+): IImageInfo | undefined => {
+  if (!metadata) return info;
+
+  const width = positiveMediaDimension(info?.w) ?? metadata.width;
+  const height = positiveMediaDimension(info?.h) ?? metadata.height;
+  const size = positiveMediaDimension(info?.size) ?? metadata.byteSize;
+  const mimetype = info?.mimetype ?? metadata.mimeType;
+
+  if (!width && !height && !size && !mimetype) return info;
+
+  return {
+    ...info,
+    ...(width ? { w: width } : {}),
+    ...(height ? { h: height } : {}),
+    ...(size ? { size } : {}),
+    ...(mimetype ? { mimetype } : {}),
+  };
+};
+
+const mergeVideoInfoWithMetadata = (
+  info: (IVideoInfo & IThumbnailContent) | undefined,
+  metadata: CachedMediaMetadata | undefined
+): (IVideoInfo & IThumbnailContent) | undefined => {
+  if (!metadata) return info;
+
+  const width = positiveMediaDimension(info?.w) ?? metadata.width;
+  const height = positiveMediaDimension(info?.h) ?? metadata.height;
+  const size = positiveMediaDimension(info?.size) ?? metadata.byteSize;
+  const duration = positiveMediaDimension(info?.duration) ?? metadata.duration;
+  const mimetype =
+    info?.mimetype ?? metadata.mimeType ?? (metadata.kind === 'video' ? 'video/mp4' : undefined);
+
+  if (!width && !height && !size && !duration && !mimetype) return info;
+
+  return {
+    ...info,
+    ...(width ? { w: width } : {}),
+    ...(height ? { h: height } : {}),
+    ...(size ? { size } : {}),
+    ...(duration ? { duration } : {}),
+    ...(mimetype ? { mimetype } : {}),
+  };
+};
+
+const useAttachmentMetadataKey = (
+  mxcUrl: string | undefined,
+  encrypted: boolean
+): string | undefined => {
+  const mx = useMatrixClient();
+  const useAuthentication = useMediaAuthentication();
+
+  return useMemo(() => {
+    if (!mxcUrl) return undefined;
+    if (encrypted) return getScopedMediaCacheKey(mxcUrl);
+    if (mxcUrl.startsWith('http')) return getScopedMediaCacheKey(mxcUrl);
+
+    const mediaUrl = mxcUrlToHttp(mx, mxcUrl, useAuthentication);
+    return mediaUrl ? getScopedMediaCacheKey(mediaUrl) : undefined;
+  }, [encrypted, mx, mxcUrl, useAuthentication]);
+};
 
 export function MBadEncrypted() {
   return (
@@ -442,8 +515,14 @@ type MImageProps = {
   outlined?: boolean;
 };
 export function MImage({ content, renderImageContent, outlined }: MImageProps) {
-  const imgInfo = content?.info;
   const mxcUrl = content.file?.url ?? content.url;
+  const mediaMetadataKey = useAttachmentMetadataKey(
+    typeof mxcUrl === 'string' ? mxcUrl : undefined,
+    Boolean(content.file)
+  );
+  const mediaMetadata = useMediaMetadata(mediaMetadataKey);
+  const imgInfo = mergeImageInfoWithMetadata(content?.info, mediaMetadata);
+
   if (typeof mxcUrl !== 'string') {
     return <BrokenContent body={content.body ?? content.filename} />;
   }
@@ -499,8 +578,13 @@ type MVideoProps = {
   outlined?: boolean;
 };
 export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: MVideoProps) {
-  const videoInfo = content?.info;
   const mxcUrl = content.file?.url ?? content.url;
+  const mediaMetadataKey = useAttachmentMetadataKey(
+    typeof mxcUrl === 'string' ? mxcUrl : undefined,
+    Boolean(content.file)
+  );
+  const mediaMetadata = useMediaMetadata(mediaMetadataKey);
+  const videoInfo = mergeVideoInfoWithMetadata(content?.info, mediaMetadata);
   const safeMimeType = getBlobSafeMimeType(videoInfo?.mimetype ?? '');
 
   if (!videoInfo || !safeMimeType.startsWith('video') || typeof mxcUrl !== 'string') {

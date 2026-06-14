@@ -481,7 +481,7 @@ export const downloadEncryptedMedia = async (
   /** Forwarded to {@link downloadMedia} — see its doc for context. */
   accessToken?: string | null
 ): Promise<Blob> => {
-  const encryptedContent = await downloadMedia(src, { accessToken });
+  const encryptedContent = await downloadMedia(src, { accessToken, metadataCacheKey: null });
   const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
 
   if (!decryptedContent) {

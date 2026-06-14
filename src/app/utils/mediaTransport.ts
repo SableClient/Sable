@@ -1,6 +1,11 @@
 import { hasControllingServiceWorker } from '$utils/platform';
 import { fetch } from '$utils/fetch';
 import { getFromMediaCache, putInMediaCache } from './mediaCache';
+import {
+  getMediaMetadata,
+  getMediaMetadataSnapshot,
+  storeMediaMetadataForBlob,
+} from './mediaMetadata';
 
 type StoredSession = {
   userId: string;
@@ -13,6 +18,7 @@ export type MediaTransportOptions = {
   cache?: MediaFetchCacheMode;
   accessToken?: string | null;
   getAccessToken?: () => string | null | undefined;
+  metadataCacheKey?: string | null;
   sessionScope?: string;
 };
 
@@ -178,13 +184,28 @@ async function fetchMediaResponse(
   return fetch(url, init);
 }
 
+async function storeMediaMetadataIfMissing(
+  cacheKey: string | undefined,
+  blob: Blob
+): Promise<void> {
+  if (!cacheKey) return;
+  if (getMediaMetadataSnapshot(cacheKey)) return;
+  if (await getMediaMetadata(cacheKey)) return;
+  await storeMediaMetadataForBlob(cacheKey, blob);
+}
+
 async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptions): Promise<Blob> {
   const cacheMode = options?.cache ?? 'default';
   const scopedCacheKey = getScopedMediaCacheKey(url, resolveSessionScope(options));
+  const metadataCacheKey =
+    options?.metadataCacheKey === null ? undefined : (options?.metadataCacheKey ?? scopedCacheKey);
 
   if (cacheMode === 'default') {
     const cachedBlob = await getFromMediaCache(scopedCacheKey);
-    if (cachedBlob) return cachedBlob;
+    if (cachedBlob) {
+      void storeMediaMetadataIfMissing(metadataCacheKey, cachedBlob);
+      return cachedBlob;
+    }
   }
 
   const useServiceWorker = hasControllingServiceWorker() && !hasExplicitMediaAuthOverride(options);
@@ -196,6 +217,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     const blob = await response.blob();
     if (cacheMode !== 'bypass') {
       await putInMediaCache(scopedCacheKey, blob);
+      if (metadataCacheKey) void storeMediaMetadataForBlob(metadataCacheKey, blob);
     }
     return blob;
   };

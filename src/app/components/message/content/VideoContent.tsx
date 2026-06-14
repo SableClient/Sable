@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -25,6 +25,9 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
 import { decryptFileSafe, downloadEncryptedMedia, downloadMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaMetadata } from '$hooks/useMediaMetadata';
+import { getScopedMediaCacheKey } from '$utils/mediaTransport';
+import { storeMediaMetadataForBlob } from '$utils/mediaMetadata';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../../unstable/prefixes';
@@ -71,6 +74,24 @@ export const VideoContent = as<'div', VideoContentProps>(
     const useAuthentication = useMediaAuthentication();
     const mediaUrlCache = useMediaUrlCacheContext();
     const blurHash = validBlurHash(info.thumbnail_info?.[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]);
+    const rawMediaUrl = useMemo(() => {
+      if (url.startsWith('http')) return url;
+      return mediaUrlCache.get(mx, url, useAuthentication) ?? undefined;
+    }, [mediaUrlCache, mx, url, useAuthentication]);
+    const mediaMetadataKey = encInfo
+      ? getScopedMediaCacheKey(url)
+      : rawMediaUrl
+        ? getScopedMediaCacheKey(rawMediaUrl)
+        : undefined;
+    const mediaMetadata = useMediaMetadata(mediaMetadataKey);
+    const duration =
+      typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 0
+        ? info.duration
+        : mediaMetadata?.duration;
+    const byteSize =
+      typeof info.size === 'number' && Number.isFinite(info.size) && info.size > 0
+        ? info.size
+        : mediaMetadata?.byteSize;
 
     const [load, setLoad] = useState(false);
     const [error, setError] = useState(false);
@@ -81,7 +102,7 @@ export const VideoContent = as<'div', VideoContentProps>(
       useCallback(async () => {
         if (url.startsWith('http')) return url;
 
-        const mediaUrl = mediaUrlCache.get(mx, url, useAuthentication);
+        const mediaUrl = rawMediaUrl;
         if (!mediaUrl) throw new Error('Invalid media URL');
 
         // Check blob cache first
@@ -99,8 +120,9 @@ export const VideoContent = as<'div', VideoContentProps>(
 
         const blobUrl = URL.createObjectURL(fileContent);
         mediaUrlCache.setBlob(url, isEncrypted, blobUrl, mimeType);
+        void storeMediaMetadataForBlob(mediaMetadataKey, fileContent, 'video');
         return blobUrl;
-      }, [mx, url, useAuthentication, mimeType, encInfo, mediaUrlCache])
+      }, [mx, url, rawMediaUrl, mimeType, encInfo, mediaMetadataKey, mediaUrlCache])
     );
 
     // When the source download succeeds, reset video-element error state so the
@@ -285,7 +307,7 @@ export const VideoContent = as<'div', VideoContentProps>(
             </Menu>
           </Box>
         )}
-        {!load && typeof info.size === 'number' && (
+        {!load && typeof byteSize === 'number' && (
           <Box
             className={css.AbsoluteFooter}
             justifyContent="SpaceBetween"
@@ -293,10 +315,10 @@ export const VideoContent = as<'div', VideoContentProps>(
             gap="200"
           >
             <Badge variant="Secondary" fill="Soft">
-              <Text size="L400">{millisecondsToMinutesAndSeconds(info.duration ?? 0)}</Text>
+              <Text size="L400">{millisecondsToMinutesAndSeconds(duration ?? 0)}</Text>
             </Badge>
             <Badge variant="Secondary" fill="Soft">
-              <Text size="L400">{bytesToSize(info.size)}</Text>
+              <Text size="L400">{bytesToSize(byteSize)}</Text>
             </Badge>
           </Box>
         )}

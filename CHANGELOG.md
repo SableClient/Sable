@@ -1,5 +1,57 @@
 # Sable Client Changelog
 
+## 1.18.0 (2026-06-14)
+
+### Features
+
+* Added configurable max pronoun pill count and max pill length rendering settings. ([#904](<https://github.com/SableClient/Sable/pull/904>) by @7w1)
+* Adds the ability to hover/tap over `...` to see the rest of someone's pronouns. ([#904](<https://github.com/SableClient/Sable/pull/904>) by @7w1)
+* Support rendering `matrix:` URIs in incoming messages. ([#935](<https://github.com/SableClient/Sable/pull/935>) by @7w1)
+* Added an inline add-reaction button at the end of message reaction lists. ([#934](<https://github.com/SableClient/Sable/pull/934>) by @7w1)
+* Add button to silently dismiss Invite ([#936](<https://github.com/SableClient/Sable/pull/936>) by @nushea)
+* Highlight message that you are about to reply to! ([#897](<https://github.com/SableClient/Sable/pull/897>) by @nushea)
+* Add Location styling with a modal! ([#927](<https://github.com/SableClient/Sable/pull/927>) by @nushea)
+
+#### Added more hidden timeline events with settings and rendering. ([#934](<https://github.com/SableClient/Sable/pull/934>) by @7w1)
+
+##### Settings
+
+- Added a master Show Hidden Events toggle with per-type sub-toggles for message edits, redactions, reactions, and other unrecognized events
+- Sub-toggles stay visible beneath the master toggle and are disabled while hidden events are off
+
+##### Timeline rendering
+
+- Show message edits as timeline events with reply navigation and an inline word/line diff between versions
+- Show reactions, message redactions, and reaction redactions as timeline events
+- Keep redacted reactions in the timeline as tombstones with redaction events linking back to them when possible
+- Improve reply-chip previews for edits, redactions, reactions, and redacted targets
+
+##### Safeguards
+
+- Hide forward, delete, and other message actions on timeline meta events that cannot be forwarded or meaningfully deleted
+- Disallow forwarding deleted messages and other non-message event types
+
+#### Add polls! ([#916](<https://github.com/SableClient/Sable/pull/916>) by @nushea)
+
+##### Add Polls with a new Menu for adding items
+
+- The polls have a simple style for showing and interfacing with poll events
+- There is now a simple interface for creating polls which integrates the spec
+- Now the Plus button on the bottom left can open a menu for selecting what to send, which will be useful for future options as well
+- For the people that prefer to only add files with that button they can disable the menu and still create polls with the /poll command
+- You can see who voted for what in a clear menu
+
+### Fixes
+
+* Change image rendering to allow enabling anti-aliasing in the image viewer ([#919](<https://github.com/SableClient/Sable/pull/919>) by @nushea)
+* Fix crash during scrubbing before duration duration appears. ([#902](<https://github.com/SableClient/Sable/pull/902>) by @7w1)
+* Fixed lists rendering `p` html tags on new lines. ([#906](<https://github.com/SableClient/Sable/pull/906>) by @7w1)
+* Fix math parsing inside of color blocks not being parsed properly. ([#910](<https://github.com/SableClient/Sable/pull/910>) by @7w1)
+* Fixed nested lists having wrong indentation levels when editing. ([#906](<https://github.com/SableClient/Sable/pull/906>) by @7w1)
+* Fix missing filename breaking edits, and missing a fallback, and codeblock titles overflowing ([#917](<https://github.com/SableClient/Sable/pull/917>) by @nushea)
+* Fix unset User Profile cards having incorectly colored text. ([#896](<https://github.com/SableClient/Sable/pull/896>) by @nushea)
+* Migrated all icons to Phosphor Icons and added a setting to display globe/lock icon instead of the hash tag for the room sidebar. ([#934](<https://github.com/SableClient/Sable/pull/934>) by @7w1)
+
 ## 1.17.0 (2026-05-22)
 
 ### Features

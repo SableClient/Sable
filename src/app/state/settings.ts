@@ -261,12 +261,12 @@ export const defaultSettings: Settings = {
   showInteractiveMap: true,
   showEncInteractiveMap: false,
   showHiddenEvents: false,
-  showTombstoneEvents: false,
-  hiddenEventEdits: false,
-  hiddenEventRedactionTimeline: false,
-  hiddenEventReactions: false,
-  hiddenEventReactionTombstone: false,
-  hiddenEventReactionRedactionTimeline: false,
+  showTombstoneEvents: true,
+  hiddenEventEdits: true,
+  hiddenEventRedactionTimeline: true,
+  hiddenEventReactions: true,
+  hiddenEventReactionTombstone: true,
+  hiddenEventReactionRedactionTimeline: true,
   hiddenEventOther: true,
   legacyUsernameColor: false,
 
@@ -418,10 +418,6 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   }
   delete parsed.themeChatPreviewAnyUrl;
   delete parsed.themeChatPreviewApprovedCatalogOnly;
-
-  if (parsed.showTombstoneEvents === true && parsed.showHiddenEvents !== true) {
-    parsed.showHiddenEvents = true;
-  }
 }
 
 export function mergePersistedSettings(

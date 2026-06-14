@@ -123,8 +123,7 @@ export const roomNotificationModeIcon = (
 
 export const roomNotificationModeChipIcon = (mode?: RoomNotificationMode): ReactNode => {
   if (mode === RoomNotificationMode.Mute) return sizedIcon(BellSlash, '100');
-  if (mode === RoomNotificationMode.SpecialMessages)
-    return sizedIcon(Bell, '100', { weight: 'fill' });
+  if (mode === RoomNotificationMode.SpecialMessages) return sizedIcon(Bell, '100');
   if (mode === RoomNotificationMode.AllMessages) return sizedIcon(BellRinging, '100');
 
   return sizedIcon(BellSimple, '100');

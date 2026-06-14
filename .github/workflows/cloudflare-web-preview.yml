@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'src/**'
+      - 'public/**'
       - 'config.json'
       - 'index.html'
       - 'package.json'

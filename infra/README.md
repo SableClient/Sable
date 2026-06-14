@@ -100,6 +100,8 @@ Production deploys:
 - Fast-moving production deploys are handled by `.github/workflows/cloudflare-dev-deploy.yml`.
 - Every push to `integration` that touches app or deploy inputs builds `dist/` and runs `wrangler deploy -c dist/wrangler.json`.
 - That updates the production Worker served from `charm.cloudhub.social` once the custom domain has been attached.
+- Worker observability and persisted invocation logs are enabled in both OpenTofu and the generated Wrangler config.
+- Static asset headers are managed through `public/_headers`; Vite copies that file into `dist/` before Wrangler/OpenTofu upload the Worker assets.
 - The stable release path remains available through `.github/workflows/cloudflare-web-deploy.yml` on `v*` tags or manual dispatch.
 - `tofu apply` uploads `dist/` through `cloudflare_worker_version`, promotes it with `cloudflare_workers_deployment`, and manages the Worker custom domain.
 - To swap back to a release-only site, disable the `integration` production deploy workflow or change it back to `wrangler versions upload`, then use the OpenTofu workflow for tag/manual production deploys.

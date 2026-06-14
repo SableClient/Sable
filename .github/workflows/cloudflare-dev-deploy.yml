@@ -6,6 +6,7 @@ on:
       - integration
     paths:
       - 'src/**'
+      - 'public/**'
       - 'config.json'
       - 'index.html'
       - 'package.json'

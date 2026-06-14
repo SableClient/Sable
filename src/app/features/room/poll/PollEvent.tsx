@@ -311,6 +311,24 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
   else if (isExpiredByTime) timeStatusText = 'Poll expired';
   else if (closesAt !== undefined) timeStatusText = `Closes ${formatExpiry(closesAt)}`;
 
+  let winnerStatusText = '';
+  if (effectivelyEnded && showResults && totalVotes > 0) {
+    const answerResults = answers.map((answer) => ({
+      answer,
+      voteCount: tally.get(answer.id)?.size ?? 0,
+    }));
+    const winningVoteCount = Math.max(...answerResults.map((result) => result.voteCount));
+    const winners = answerResults.filter((result) => result.voteCount === winningVoteCount);
+    const winnerNames = winners.map(({ answer }) => answer.text || '(no option)');
+    const visibleWinnerNames = winnerNames.slice(0, 3);
+    const hiddenWinnerCount = winnerNames.length - visibleWinnerNames.length;
+    const winnerList = `${visibleWinnerNames.join(', ')}${
+      hiddenWinnerCount > 0 ? ` +${hiddenWinnerCount}` : ''
+    }`;
+
+    winnerStatusText = `${winners.length === 1 ? 'Winner' : 'Winners'}: ${winnerList}`;
+  }
+
   return (
     <Box
       direction="Column"
@@ -420,9 +438,16 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
           alignItems="Center"
           className={css.PollFooter}
         >
-          <Text size="T200" priority="300">
-            {resultStatusText}
-          </Text>
+          <Box direction="Column" gap="100">
+            <Text size="T200" priority="300">
+              {resultStatusText}
+            </Text>
+            {winnerStatusText && (
+              <Text size="T200" priority="300" title={winnerStatusText} truncate>
+                {winnerStatusText}
+              </Text>
+            )}
+          </Box>
           <Box alignItems="Center" gap="200" className={css.PollFooterMeta}>
             {timeStatusText && (
               <Text size="T200" priority="300">

@@ -18,7 +18,7 @@ const isAnimatedPackImage = (image: PackImageReader): boolean => {
   return !!body && (body.endsWith('.gif') || body.endsWith('.webp') || body.endsWith('.apng'));
 };
 
-const getPackImageSrc = (
+export const getPackImageSrc = (
   mx: MatrixClient,
   image: PackImageReader,
   useAuthentication: boolean | undefined,

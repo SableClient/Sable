@@ -18,7 +18,7 @@ import {
 import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { getAvatarCacheStatsAsync, clearAvatarCache } from '$components/room-avatar/AvatarImage';
+import { clearProcessedAvatarCache } from '$components/room-avatar/AvatarImage';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
@@ -28,6 +28,7 @@ import { SentrySettings } from './SentrySettings';
 import { SearchIndexCache } from './SearchIndexCache';
 
 const JOIN_MEMBERSHIP: string = KnownMembership.Join;
+const SW_MEDIA_CACHE_NAME = 'sable-media-sw-v2';
 
 type DeveloperToolsProps = {
   requestBack?: () => void;
@@ -39,7 +40,6 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
   const [cacheStats, setCacheStats] = useState(() => getBlobCacheStats());
-  const [avatarCacheStats, setAvatarCacheStats] = useState({ count: 0, sizeMB: 0 });
   const [swCacheStats, setSwCacheStats] = useState({ count: 0, sizeMB: 0 });
 
   useEffect(() => {
@@ -47,12 +47,9 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
     getBlobCacheStatsAsync()
       .then(setCacheStats)
       .catch(() => undefined);
-    getAvatarCacheStatsAsync()
-      .then(setAvatarCacheStats)
-      .catch(() => undefined);
     // Read SW media cache from page context (same origin, shared with the SW)
     caches
-      .open('sable-media-sw-v1')
+      .open(SW_MEDIA_CACHE_NAME)
       .then(async (cache) => {
         const requests = await cache.keys();
         const responses = await Promise.all(requests.map((req) => cache.match(req)));
@@ -61,7 +58,10 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
           const cl = resp.headers.get('content-length');
           return cl ? sum + parseInt(cl, 10) : sum;
         }, 0);
-        setSwCacheStats({ count: requests.length, sizeMB: totalBytes / (1024 * 1024) });
+        setSwCacheStats({
+          count: requests.length,
+          sizeMB: totalBytes / (1024 * 1024),
+        });
       })
       .catch(() => undefined);
   }, []);
@@ -69,25 +69,20 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [clearCacheState, clearMediaCacheAction] = useAsyncCallback<void, Error, []>(
     useCallback(async () => {
       await clearMediaCache();
-      setCacheStats(getBlobCacheStats());
+      clearProcessedAvatarCache();
+      setCacheStats(await getBlobCacheStatsAsync());
     }, [])
   );
 
   const clearInMemoryAction = useCallback(() => {
     clearInMemoryBlobCache();
+    clearProcessedAvatarCache();
     setCacheStats(getBlobCacheStats());
   }, []);
 
-  const [clearAvatarCacheState, clearAvatarCacheAction] = useAsyncCallback<void, Error, []>(
-    useCallback(async () => {
-      await clearAvatarCache();
-      setAvatarCacheStats(await getAvatarCacheStatsAsync());
-    }, [])
-  );
-
   const [clearSwCacheState, clearSwCacheAction] = useAsyncCallback<void, Error, []>(
     useCallback(async () => {
-      await caches.delete('sable-media-sw-v1');
+      await caches.delete(SW_MEDIA_CACHE_NAME);
       setSwCacheStats({ count: 0, sizeMB: 0 });
     }, [])
   );
@@ -295,47 +290,9 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                     gap="400"
                   >
                     <SettingTile
-                      focusId="avatar-cache"
-                      title="Avatar Cache"
-                      description={`${avatarCacheStats.count} ${avatarCacheStats.count === 1 ? 'item' : 'items'} · ${avatarCacheStats.sizeMB.toFixed(1)} MB · avatars persisted on-device; SVG animations processed on first load`}
-                      after={
-                        <Button
-                          onClick={clearAvatarCacheAction}
-                          variant="Secondary"
-                          fill="Soft"
-                          size="300"
-                          radii="300"
-                          outlined
-                          disabled={clearAvatarCacheState.status === AsyncStatus.Loading}
-                          before={
-                            clearAvatarCacheState.status === AsyncStatus.Loading && (
-                              <Spinner size="100" variant="Secondary" />
-                            )
-                          }
-                        >
-                          <Text size="B300">
-                            {clearAvatarCacheState.status === AsyncStatus.Loading
-                              ? 'Clearing…'
-                              : 'Clear'}
-                          </Text>
-                        </Button>
-                      }
-                    >
-                      {clearAvatarCacheState.status === AsyncStatus.Success && (
-                        <Text size="T200" style={{ color: color.Success.Main }}>
-                          Avatar cache cleared.
-                        </Text>
-                      )}
-                      {clearAvatarCacheState.status === AsyncStatus.Error && (
-                        <Text size="T200" style={{ color: color.Critical.Main }}>
-                          {clearAvatarCacheState.error.message}
-                        </Text>
-                      )}
-                    </SettingTile>
-                    <SettingTile
                       focusId="clear-in-memory-cache"
                       title="In-Memory Media Cache"
-                      description={`${cacheStats.cacheSize} ${cacheStats.cacheSize === 1 ? 'item' : 'items'} · authenticated media blob URLs held for this session · cleared on reload`}
+                      description={`${cacheStats.cacheSize} ${cacheStats.cacheSize === 1 ? 'item' : 'items'} · authenticated media and processed avatar blob URLs held for this session · cleared on reload`}
                       after={
                         <Button
                           onClick={clearInMemoryAction}
@@ -390,7 +347,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                     <SettingTile
                       focusId="clear-media-cache"
                       title="Persistent Media Cache"
-                      description={`${cacheStats.persistentCacheCount} ${cacheStats.persistentCacheCount === 1 ? 'file' : 'files'} · ${cacheStats.persistentCacheSizeMB.toFixed(1)} MB · authenticated media blobs persisted between sessions`}
+                      description={`${cacheStats.persistentCacheCount} ${cacheStats.persistentCacheCount === 1 ? 'file' : 'files'} · ${cacheStats.persistentCacheSizeMB.toFixed(1)} MB · authenticated media blobs for avatars, emoji, stickers, and attachments persisted between sessions`}
                       after={
                         <Button
                           onClick={clearMediaCacheAction}

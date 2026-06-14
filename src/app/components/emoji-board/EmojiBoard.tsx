@@ -10,7 +10,7 @@ import { Box, config, Scroll } from 'folds';
 import { ClockCounterClockwise } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
-import type { Room } from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import type { PrimitiveAtom } from 'jotai';
 import { atom, useAtom, useSetAtom } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -28,6 +28,7 @@ import { useDebounce } from '$hooks/useDebounce';
 import { useThrottle } from '$hooks/useThrottle';
 import { addRecentEmoji } from '$plugins/recent-emoji';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { fetchMediaBlob } from '$utils/mediaTransport';
 import type { ImagePack, PackImageReader } from '$plugins/custom-emoji';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { getEmoticonSearchStr } from '$plugins/utils';
@@ -51,6 +52,7 @@ import {
   CustomEmojiItem,
   ImageGroupIcon,
   GroupIcon,
+  getPackImageSrc,
   getEmojiItemInfo,
   EmojiGroup,
   EmojiBoardLayout,
@@ -364,7 +366,10 @@ function EmojiGroupHolder({
   );
 }
 
-const DefaultEmojiPreview: PreviewData = { key: '🙂', shortcode: 'slight_smile' };
+const DefaultEmojiPreview: PreviewData = {
+  key: '🙂',
+  shortcode: 'slight_smile',
+};
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,
@@ -374,6 +379,72 @@ const SEARCH_OPTIONS: UseAsyncSearchOptions = {
 };
 
 const VIRTUAL_OVER_SCAN = 2;
+const MEDIA_WARMUP_DELAY_MS = 500;
+const MEDIA_WARMUP_CONCURRENCY = 3;
+const MEDIA_WARMUP_MAX_ITEMS = 240;
+
+type IdleWindow = Window &
+  typeof globalThis & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+
+const getIdleWindow = (): IdleWindow | undefined =>
+  typeof globalThis.window === 'undefined' ? undefined : (globalThis.window as IdleWindow);
+
+const requestIdleWork = (callback: () => void): number => {
+  const idleWindow = getIdleWindow();
+  if (!idleWindow) return 0;
+
+  if (idleWindow.requestIdleCallback) {
+    return idleWindow.requestIdleCallback(callback, { timeout: 2000 });
+  }
+
+  return idleWindow.setTimeout(callback, 0);
+};
+
+const cancelIdleWork = (id: number): void => {
+  const idleWindow = getIdleWindow();
+  if (!idleWindow || id === 0) return;
+
+  if (idleWindow.cancelIdleCallback) {
+    idleWindow.cancelIdleCallback(id);
+    return;
+  }
+
+  idleWindow.clearTimeout(id);
+};
+
+const getPackImageUrls = (
+  mx: MatrixClient,
+  imagePacks: ImagePack[],
+  usage: ImageUsage,
+  useAuthentication: boolean | undefined,
+  saveStickerEmojiBandwidth: boolean
+): string[] => {
+  const urls = new Set<string>();
+  const width = usage === ImageUsage.Sticker ? 125 : 32;
+  const height = usage === ImageUsage.Sticker ? 125 : 32;
+
+  imagePacks.forEach((pack) => {
+    const avatarUrl = mxcUrlToHttp(mx, pack.getAvatarUrl(usage) ?? '', useAuthentication, 36, 36);
+    if (avatarUrl) urls.add(avatarUrl);
+
+    pack.getImages(usage).forEach((image) => {
+      const url = getPackImageSrc(
+        mx,
+        image,
+        useAuthentication,
+        saveStickerEmojiBandwidth,
+        width,
+        height
+      );
+      if (url) urls.add(url);
+    });
+  });
+
+  return Array.from(urls).slice(0, MEDIA_WARMUP_MAX_ITEMS);
+};
 
 type EmojiBoardProps = {
   tab?: EmojiBoardTab;
@@ -405,6 +476,7 @@ export function EmojiBoard({
 }: Readonly<EmojiBoardProps>) {
   const mx = useMatrixClient();
   const [saveStickerEmojiBandwidth] = useSetting(settingsAtom, 'saveStickerEmojiBandwidth');
+  const useAuthentication = useMediaAuthentication();
 
   const emojiTab = tab === EmojiBoardTab.Emoji;
   const usage = emojiTab ? ImageUsage.Emoticon : ImageUsage.Sticker;
@@ -419,6 +491,47 @@ export function EmojiBoard({
   const [emojiGroupItems, stickerGroupItems] = useGroups(tab, imagePacks);
   const groups = emojiTab ? emojiGroupItems : stickerGroupItems;
   const renderItem = useItemRenderer(tab, saveStickerEmojiBandwidth);
+
+  useEffect(() => {
+    if (!active || imagePacks.length === 0) return undefined;
+
+    const idleWindow = getIdleWindow();
+    if (!idleWindow) return undefined;
+
+    let cancelled = false;
+    let idleId = 0;
+    const urls = getPackImageUrls(
+      mx,
+      imagePacks,
+      usage,
+      useAuthentication,
+      saveStickerEmojiBandwidth
+    );
+
+    if (urls.length === 0) return undefined;
+
+    const warmNext = () => {
+      if (cancelled) return;
+
+      const batch = urls.splice(0, MEDIA_WARMUP_CONCURRENCY);
+      if (batch.length === 0) return;
+
+      Promise.allSettled(batch.map((url) => fetchMediaBlob(url))).finally(() => {
+        if (cancelled || urls.length === 0) return;
+        idleId = requestIdleWork(warmNext);
+      });
+    };
+
+    const delayId = idleWindow.setTimeout(() => {
+      idleId = requestIdleWork(warmNext);
+    }, MEDIA_WARMUP_DELAY_MS);
+
+    return () => {
+      cancelled = true;
+      idleWindow.clearTimeout(delayId);
+      cancelIdleWork(idleId);
+    };
+  }, [active, imagePacks, mx, saveStickerEmojiBandwidth, usage, useAuthentication]);
 
   const searchList = useMemo(() => {
     let list: Array<PackImageReader | IEmoji> = [];

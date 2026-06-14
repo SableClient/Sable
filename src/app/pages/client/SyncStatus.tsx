@@ -25,6 +25,7 @@ type SyncStatusProps = {
 const DEMO_STATUS_STEP_MS = 1500;
 export const CONNECTING_STATUS_DISPLAY_MS = 1500;
 const PERSISTENT_DEGRADED_CAPTURE_MS = 30_000;
+export const RECONNECTING_STATUS_DISPLAY_MS = 10_000;
 const DEMO_STATUS_SEQUENCE: readonly (TitlebarStatusView | null)[] = [
   { text: 'Connecting...', variant: 'Success' },
   null,
@@ -33,7 +34,7 @@ const DEMO_STATUS_SEQUENCE: readonly (TitlebarStatusView | null)[] = [
   { text: 'Connection Lost!', variant: 'Critical' },
   null,
 ];
-const DEGRADED_STATUS_DELAY_MS = 1200;
+const ERROR_STATUS_DISPLAY_MS = 1200;
 
 const isSyncStatusDemoEnabled = (): boolean => {
   if (import.meta.env.VITE_DEMO_SYNC_STATUS === '1') return true;
@@ -182,14 +183,16 @@ export function SyncStatus({ mx }: SyncStatusProps) {
       };
     }
 
+    const degradedDisplayDelayMs =
+      current === SyncState.Reconnecting ? RECONNECTING_STATUS_DISPLAY_MS : ERROR_STATUS_DISPLAY_MS;
     const timeoutId = window.setTimeout(() => {
       setDisplayStatus(rawStatusView);
-    }, DEGRADED_STATUS_DELAY_MS);
+    }, degradedDisplayDelayMs);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [rawStatusView, useDemoStatusLoop]);
+  }, [current, rawStatusView, useDemoStatusLoop]);
 
   const useTitlebarSlot = isTauri() && osType() === 'windows';
   useEffect(() => {

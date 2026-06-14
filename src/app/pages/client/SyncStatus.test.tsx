@@ -2,7 +2,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { SyncState } from '$types/matrix-sdk';
-import { CONNECTING_STATUS_DISPLAY_MS, SyncStatus } from './SyncStatus';
+import {
+  CONNECTING_STATUS_DISPLAY_MS,
+  RECONNECTING_STATUS_DISPLAY_MS,
+  SyncStatus,
+} from './SyncStatus';
 
 type SyncStateSubscriber = (current: SyncState, previous: SyncState | null) => void;
 
@@ -97,5 +101,55 @@ describe('SyncStatus', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(mx.retryImmediately).toHaveBeenCalledOnce();
+  });
+
+  it('does not show the reconnecting banner during the first reconnect grace window', () => {
+    const mx = makeMx(SyncState.Reconnecting);
+    render(<SyncStatus mx={mx} />);
+
+    act(() => {
+      emitSyncState(SyncState.Reconnecting, SyncState.Syncing);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(RECONNECTING_STATUS_DISPLAY_MS - 1);
+    });
+
+    expect(screen.queryByText('Connection Lost! Reconnecting...')).not.toBeInTheDocument();
+  });
+
+  it('shows the reconnecting banner after reconnecting remains degraded', () => {
+    const mx = makeMx(SyncState.Reconnecting);
+    render(<SyncStatus mx={mx} />);
+
+    act(() => {
+      emitSyncState(SyncState.Reconnecting, SyncState.Syncing);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(RECONNECTING_STATUS_DISPLAY_MS);
+    });
+
+    expect(screen.getByText('Connection Lost! Reconnecting...')).toBeInTheDocument();
+  });
+
+  it('does not show reconnecting if sync recovers during the reconnect grace window', () => {
+    const mx = makeMx(SyncState.Syncing);
+    render(<SyncStatus mx={mx} />);
+
+    act(() => {
+      emitSyncState(SyncState.Reconnecting, SyncState.Syncing);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(RECONNECTING_STATUS_DISPLAY_MS / 2);
+      emitSyncState(SyncState.Syncing, SyncState.Reconnecting);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(RECONNECTING_STATUS_DISPLAY_MS);
+    });
+
+    expect(screen.queryByText('Connection Lost! Reconnecting...')).not.toBeInTheDocument();
   });
 });

@@ -14,6 +14,10 @@ import * as css from './RoomAvatar.css';
 // unmount and remount.
 const avatarBlobCache = new Map<string, string>();
 
+export function getProcessedAvatarCacheStats(): { cacheSize: number } {
+  return { cacheSize: avatarBlobCache.size };
+}
+
 /**
  * Clear processed avatar object URLs held for this page session.
  * Persistent avatar bytes live in the shared media cache.

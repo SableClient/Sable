@@ -15,10 +15,17 @@ import {
   getBlobCacheStats,
   getBlobCacheStatsAsync,
 } from '$hooks/useBlobCache';
+import {
+  clearRenderableMediaUrlCache,
+  getRenderableMediaUrlStats,
+} from '$hooks/useRenderableMediaUrl';
 import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { clearProcessedAvatarCache } from '$components/room-avatar/AvatarImage';
+import {
+  clearProcessedAvatarCache,
+  getProcessedAvatarCacheStats,
+} from '$components/room-avatar/AvatarImage';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
@@ -40,7 +47,22 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
   const [cacheStats, setCacheStats] = useState(() => getBlobCacheStats());
+  const [renderableCacheStats, setRenderableCacheStats] = useState(() =>
+    getRenderableMediaUrlStats()
+  );
+  const [processedAvatarCacheStats, setProcessedAvatarCacheStats] = useState(() =>
+    getProcessedAvatarCacheStats()
+  );
   const [swCacheStats, setSwCacheStats] = useState({ count: 0, sizeMB: 0 });
+
+  const refreshInMemoryCacheStats = useCallback(() => {
+    setCacheStats(getBlobCacheStats());
+    setRenderableCacheStats(getRenderableMediaUrlStats());
+    setProcessedAvatarCacheStats(getProcessedAvatarCacheStats());
+  }, []);
+
+  const inMemoryCacheSize =
+    cacheStats.cacheSize + renderableCacheStats.cacheSize + processedAvatarCacheStats.cacheSize;
 
   useEffect(() => {
     // Async-load persistent cache metadata (requires Cache API).
@@ -66,19 +88,36 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
       .catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(refreshInMemoryCacheStats, 1500);
+    return () => window.clearInterval(intervalId);
+  }, [refreshInMemoryCacheStats]);
+
   const [clearCacheState, clearMediaCacheAction] = useAsyncCallback<void, Error, []>(
     useCallback(async () => {
       await clearMediaCache();
+      clearRenderableMediaUrlCache();
       clearProcessedAvatarCache();
       setCacheStats(await getBlobCacheStatsAsync());
+      setRenderableCacheStats(getRenderableMediaUrlStats());
+      setProcessedAvatarCacheStats(getProcessedAvatarCacheStats());
     }, [])
   );
 
   const clearInMemoryAction = useCallback(() => {
     clearInMemoryBlobCache();
+    clearRenderableMediaUrlCache();
     clearProcessedAvatarCache();
-    setCacheStats(getBlobCacheStats());
-  }, []);
+    refreshInMemoryCacheStats();
+  }, [refreshInMemoryCacheStats]);
+
+  const inMemoryCacheItemLabel = inMemoryCacheSize === 1 ? 'item' : 'items';
+  const renderableCacheItemLabel = renderableCacheStats.cacheSize === 1 ? 'item' : 'items';
+  const renderableInflightLabel = renderableCacheStats.inflightCount === 1 ? 'fetch' : 'fetches';
+  const processedAvatarItemLabel = processedAvatarCacheStats.cacheSize === 1 ? 'avatar' : 'avatars';
+  const legacyBlobItemLabel = cacheStats.cacheSize === 1 ? 'legacy blob' : 'legacy blobs';
+
+  const inMemoryCacheDescription = `${inMemoryCacheSize} ${inMemoryCacheItemLabel} · ${renderableCacheStats.cacheSize} renderable ${renderableCacheItemLabel}, ${processedAvatarCacheStats.cacheSize} processed ${processedAvatarItemLabel}, ${cacheStats.cacheSize} ${legacyBlobItemLabel}, ${renderableCacheStats.inflightCount} active ${renderableInflightLabel} · cleared on reload`;
 
   const [clearSwCacheState, clearSwCacheAction] = useAsyncCallback<void, Error, []>(
     useCallback(async () => {
@@ -292,7 +331,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                     <SettingTile
                       focusId="clear-in-memory-cache"
                       title="In-Memory Media Cache"
-                      description={`${cacheStats.cacheSize} ${cacheStats.cacheSize === 1 ? 'item' : 'items'} · authenticated media and processed avatar blob URLs held for this session · cleared on reload`}
+                      description={inMemoryCacheDescription}
                       after={
                         <Button
                           onClick={clearInMemoryAction}

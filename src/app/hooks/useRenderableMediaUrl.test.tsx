@@ -14,6 +14,7 @@ vi.mock('$utils/mediaTransport', () => mediaTransport);
 describe('useRenderableMediaUrl', () => {
   beforeEach(() => {
     vi.resetModules();
+    window.localStorage.clear();
     mediaTransport.fetchMediaBlob.mockReset();
     mediaTransport.getCurrentMediaSessionScope.mockReset();
     mediaTransport.getCurrentMediaSessionScope.mockReturnValue('anonymous');
@@ -127,9 +128,10 @@ describe('useRenderableMediaUrl', () => {
     );
   });
 
-  it('revokes the object url when the last consumer unmounts', async () => {
+  it('retains the object url when the last consumer unmounts', async () => {
     mediaTransport.fetchMediaBlob.mockResolvedValue(new Blob(['media'], { type: 'image/png' }));
-    const { useRenderableMediaUrl } = await import('./useRenderableMediaUrl');
+    const { getRenderableMediaUrlStats, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
 
     const first = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
     const second = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
@@ -143,6 +145,44 @@ describe('useRenderableMediaUrl', () => {
     expect(URL.revokeObjectURL).not.toHaveBeenCalled();
 
     second.unmount();
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
+  });
+
+  it('revokes retained object urls when the cache is cleared', async () => {
+    mediaTransport.fetchMediaBlob.mockResolvedValue(new Blob(['media'], { type: 'image/png' }));
+    const { clearRenderableMediaUrlCache, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
+
+    const { result, unmount } = renderHook(() =>
+      useRenderableMediaUrl('https://example.org/media.png')
+    );
+
+    await waitFor(() => {
+      expect(result.current).toBe('blob:rendered-media');
+    });
+
+    unmount();
+    clearRenderableMediaUrlCache();
+
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:rendered-media');
+  });
+
+  it('prewarms renderable media urls for later consumers', async () => {
+    mediaTransport.fetchMediaBlob.mockResolvedValue(new Blob(['media'], { type: 'image/png' }));
+    const { getRenderableMediaUrlStats, prewarmRenderableMediaUrls, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
+
+    await prewarmRenderableMediaUrls(['https://example.org/media.png']);
+
+    expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(1);
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
+
+    const { result } = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
+
+    await waitFor(() => {
+      expect(result.current).toBe('blob:rendered-media');
+    });
+    expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(1);
   });
 });

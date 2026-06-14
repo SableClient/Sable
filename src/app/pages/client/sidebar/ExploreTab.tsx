@@ -1,4 +1,3 @@
-import { Icon, Icons } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
@@ -14,6 +13,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { Compass, PHOSPHOR_SIZE } from '$components/icons/phosphor';
 
 export function ExploreTab() {
   const mx = useMatrixClient();
@@ -54,7 +54,7 @@ export function ExploreTab() {
       <SidebarItemTooltip tooltip="Explore Community">
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleExploreClick}>
-            <Icon src={Icons.Explore} filled={exploreSelected} />
+            <Compass size={PHOSPHOR_SIZE.toolbar} weight={exploreSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

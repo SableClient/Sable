@@ -6,9 +6,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -20,6 +18,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { CaretDown, menuIcon, profileIcon, X } from '$components/icons/phosphor';
 import type { CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
@@ -76,7 +75,7 @@ function SelfDemoteAlert({ power, onCancel, onChange }: SelfDemoteAlertProps) {
                 <Text size="H4">Self Demotion</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                {menuIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400, paddingTop: 0 }} direction="Column" gap="500">
@@ -126,7 +125,7 @@ function SharedPowerAlert({ power, onCancel, onChange }: SharedPowerAlertProps) 
                 <Text size="H4">Shared Power</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                {menuIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400, paddingTop: 0 }} direction="Column" gap="500">
@@ -368,7 +367,7 @@ export function PowerChip({
           }
           before={
             cords ? (
-              <Icon size="50" src={Icons.ChevronBottom} />
+              profileIcon(CaretDown)
             ) : (
               <>
                 {!changing && <PowerColorBadge color={tag.color} />}

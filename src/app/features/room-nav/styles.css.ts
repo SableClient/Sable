@@ -5,5 +5,9 @@ export const CategoryButton = style({
   flexGrow: 1,
 });
 export const CategoryButtonIcon = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  lineHeight: 0,
   opacity: config.opacity.P400,
 });

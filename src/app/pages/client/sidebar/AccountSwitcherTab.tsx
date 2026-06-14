@@ -6,8 +6,6 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -45,6 +43,7 @@ import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
+import { Check, chipIcon, GearSix, menuIcon, Plus } from '$components/icons/phosphor';
 
 const log = createLogger('AccountSwitcherTab');
 const debugLog = createDebugLogger('AccountSwitcherTab');
@@ -97,9 +96,7 @@ function AccountRow({
               <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
             </UnreadBadgeCenter>
           )}
-          {isActive && (
-            <Icon size="200" src={Icons.Check} style={{ color: 'var(--mx-c-success)' }} />
-          )}
+          {isActive && chipIcon(Check, { style: { color: 'var(--mx-c-success)' } })}
           {isBusy ? (
             <Spinner size="200" variant="Secondary" />
           ) : (
@@ -342,19 +339,14 @@ export function AccountSwitcherTab() {
                     />
                   );
                 })}
-                <MenuItem
-                  size="300"
-                  radii="300"
-                  before={<Icon size="50" src={Icons.Plus} />}
-                  onClick={handleAddAccount}
-                >
+                <MenuItem size="300" radii="300" before={chipIcon(Plus)} onClick={handleAddAccount}>
                   <Text size="T300">Add Account</Text>
                 </MenuItem>
                 <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
                 <MenuItem
                   size="300"
                   radii="300"
-                  before={<Icon size="200" src={Icons.Setting} />}
+                  before={menuIcon(GearSix)}
                   onClick={handleOpenSettings}
                 >
                   <Text size="T300">Settings</Text>

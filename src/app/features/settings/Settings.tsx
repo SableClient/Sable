@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
-import type { IconSrc } from 'folds';
+import type { ComponentType } from 'react';
+import type { IconProps } from '@phosphor-icons/react';
 import {
   Avatar,
   Box,
   Button,
   config,
-  Icon,
   IconButton,
-  Icons,
   MenuItem,
   Overlay,
   OverlayBackdrop,
@@ -28,6 +27,24 @@ import { stopPropagation } from '$utils/keyboard';
 import { LogoutDialog } from '$components/LogoutDialog';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import {
+  Bell,
+  composerIcon,
+  Devices as DevicesIcon,
+  Flask,
+  GearSix,
+  Info,
+  Keyboard,
+  menuIcon,
+  settingsNavIcon,
+  SignOut,
+  Palette,
+  Smiley,
+  Terminal,
+  User,
+  UsersThree,
+  X,
+} from '$components/icons/phosphor';
 import { About } from './about';
 import { Account } from './account';
 import { Cosmetics } from './cosmetics/Cosmetics';
@@ -59,28 +76,30 @@ export enum SettingsPages {
   KeyboardShortcutsPage,
 }
 
+type PhosphorIcon = ComponentType<IconProps>;
+
 type SettingsMenuItem = {
   id: SettingsSectionId;
   name: string;
-  icon: IconSrc;
-  activeIcon?: IconSrc;
+  icon: PhosphorIcon;
+  activeIcon?: PhosphorIcon;
 };
 
 const settingsMenuIcons: Record<
   SettingsSectionId,
   Pick<SettingsMenuItem, 'icon' | 'activeIcon'>
 > = {
-  general: { icon: Icons.Setting },
-  account: { icon: Icons.User },
-  persona: { icon: Icons.User },
-  appearance: { icon: Icons.Alphabet, activeIcon: Icons.AlphabetUnderline },
-  notifications: { icon: Icons.Bell },
-  devices: { icon: Icons.Monitor },
-  emojis: { icon: Icons.Smile },
-  'developer-tools': { icon: Icons.Terminal },
-  experimental: { icon: Icons.Funnel },
-  about: { icon: Icons.Info },
-  'keyboard-shortcuts': { icon: Icons.BlockCode },
+  general: { icon: GearSix },
+  account: { icon: User },
+  persona: { icon: UsersThree },
+  appearance: { icon: Palette },
+  notifications: { icon: Bell },
+  devices: { icon: DevicesIcon },
+  emojis: { icon: Smiley },
+  'developer-tools': { icon: Terminal },
+  experimental: { icon: Flask },
+  about: { icon: Info },
+  'keyboard-shortcuts': { icon: Keyboard },
 };
 
 const settingsPageToSectionId: Record<SettingsPages, SettingsSectionId> = {
@@ -270,7 +289,7 @@ export function Settings({
                       onClick={handleRequestClose}
                       variant="Background"
                     >
-                      <Icon src={Icons.Cross} />
+                      {composerIcon(X)}
                     </IconButton>
                   )}
                 </Box>
@@ -280,28 +299,21 @@ export function Settings({
               <PageNavContent>
                 <div style={{ flexGrow: 1 }}>
                   {menuItems.map((item) => {
-                    const currentIcon =
-                      visibleSection === item.id && item.activeIcon ? item.activeIcon : item.icon;
+                    const active = visibleSection === item.id;
+                    const IconComponent = active && item.activeIcon ? item.activeIcon : item.icon;
 
                     return (
                       <MenuItem
                         key={item.id}
                         variant="Background"
                         radii="400"
-                        aria-pressed={visibleSection === item.id}
-                        before={
-                          <Icon
-                            src={currentIcon}
-                            size={screenSize === ScreenSize.Mobile ? '200' : '100'}
-                            filled={visibleSection === item.id}
-                          />
-                        }
+                        aria-pressed={active}
+                        before={settingsNavIcon(IconComponent, active)}
                         onClick={() => handleSelectSection(item.id)}
                       >
                         <Text
                           style={{
-                            fontWeight:
-                              visibleSection === item.id ? config.fontWeight.W600 : undefined,
+                            fontWeight: active ? config.fontWeight.W600 : undefined,
                           }}
                           size={screenSize === ScreenSize.Mobile ? 'T400' : 'T300'}
                           truncate
@@ -322,7 +334,7 @@ export function Settings({
                         variant="Critical"
                         fill="None"
                         radii="Pill"
-                        before={<Icon src={Icons.Power} size="100" />}
+                        before={menuIcon(SignOut)}
                         onClick={() => setLogout(true)}
                       >
                         <Text size="B400">Logout</Text>

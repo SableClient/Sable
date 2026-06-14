@@ -1,4 +1,5 @@
-import { Box, Button, Icon, Icons, Text, config, toRem } from 'folds';
+import { Box, Button, Text, config, toRem } from 'folds';
+import { Code, Heart, menuIcon } from '$components/icons/phosphor';
 import { Page, PageHero, PageHeroSection } from '$components/page';
 import LogoSVG from '$public/res/svg/logo.svg';
 
@@ -35,7 +36,7 @@ export function WelcomePage() {
                   href="https://github.com/SableClient/Sable"
                   target="_blank"
                   rel="noreferrer noopener"
-                  before={<Icon size="200" src={Icons.Code} />}
+                  before={menuIcon(Code)}
                 >
                   <Text as="span" size="B400" truncate>
                     Source Code
@@ -47,7 +48,7 @@ export function WelcomePage() {
                   target="_blank"
                   rel="noreferrer noopener"
                   fill="Soft"
-                  before={<Icon size="200" src={Icons.Heart} />}
+                  before={menuIcon(Heart)}
                 >
                   <Text as="span" size="B400" truncate>
                     Support
@@ -61,7 +62,7 @@ export function WelcomePage() {
                 href="https://github.com/SableClient/Sable/blob/dev/CHANGELOG.md"
                 target="_blank"
                 rel="noreferrer noopener"
-                before={<Icon size="200" src={Icons.Code} />}
+                before={menuIcon(Code)}
               >
                 <Text as="span" size="B400" truncate>
                   Features

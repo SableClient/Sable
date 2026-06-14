@@ -1,9 +1,18 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback } from 'react';
-import type { IconSrc } from 'folds';
-import { Icons, Text } from 'folds';
+import { Text } from 'folds';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import type { IMemberContent } from '$types/matrix/room';
+import {
+  At,
+  EnvelopeSimple,
+  SignIn,
+  SignOut,
+  timelineIcon,
+  User,
+  UserMinus,
+  UserPlus,
+} from '$components/icons/phosphor';
 
 import { getMxIdLocalPart } from '$utils/matrix';
 import { isMembershipChanged } from '$utils/room';
@@ -41,7 +50,7 @@ function DecoratedUser({ roomId, userId, userName }: DecoratedUserProps) {
 }
 
 export type ParsedResult = {
-  icon: IconSrc;
+  icon: ReactNode;
   body: ReactNode;
 };
 
@@ -58,7 +67,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
     if (!senderId || !userId)
       return {
-        icon: Icons.User,
+        icon: timelineIcon(User),
         body: 'Broken membership event',
       };
 
@@ -72,7 +81,7 @@ export const useMemberEventParser = (): MemberEventParser => {
       if (content.membership === KnownMembership.Invite) {
         if (prevContent.membership === KnownMembership.Knock) {
           return {
-            icon: Icons.ArrowGoRightPlus,
+            icon: timelineIcon(UserPlus),
             body: (
               <>
                 <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
@@ -88,7 +97,7 @@ export const useMemberEventParser = (): MemberEventParser => {
         }
 
         return {
-          icon: Icons.ArrowGoRightPlus,
+          icon: timelineIcon(UserPlus),
           body: (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
@@ -102,7 +111,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
       if (content.membership === KnownMembership.Knock) {
         return {
-          icon: Icons.Mail,
+          icon: timelineIcon(EnvelopeSimple),
           body: (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
@@ -117,7 +126,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
       if (content.membership === KnownMembership.Join) {
         return {
-          icon: Icons.ArrowGoRight,
+          icon: timelineIcon(SignIn),
           body: (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
@@ -130,7 +139,7 @@ export const useMemberEventParser = (): MemberEventParser => {
       if (content.membership === KnownMembership.Leave) {
         if (prevContent.membership === KnownMembership.Invite) {
           return {
-            icon: Icons.ArrowGoRightCross,
+            icon: timelineIcon(UserMinus),
             body:
               senderId === userId ? (
                 <>
@@ -156,7 +165,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
         if (prevContent.membership === KnownMembership.Knock) {
           return {
-            icon: Icons.ArrowGoRightCross,
+            icon: timelineIcon(UserMinus),
             body:
               senderId === userId ? (
                 <>
@@ -182,7 +191,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
         if (prevContent.membership === KnownMembership.Ban) {
           return {
-            icon: Icons.ArrowGoLeft,
+            icon: timelineIcon(SignOut),
             body: (
               <>
                 <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
@@ -195,7 +204,7 @@ export const useMemberEventParser = (): MemberEventParser => {
         }
 
         return {
-          icon: Icons.ArrowGoLeft,
+          icon: timelineIcon(SignOut),
           body:
             senderId === userId ? (
               <>
@@ -218,7 +227,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
       if (content.membership === KnownMembership.Ban) {
         return {
-          icon: Icons.ArrowGoLeft,
+          icon: timelineIcon(SignOut),
           body: (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
@@ -238,7 +247,7 @@ export const useMemberEventParser = (): MemberEventParser => {
           : getMxIdLocalPart(userId);
 
       return {
-        icon: Icons.Mention,
+        icon: timelineIcon(At),
         body:
           typeof content.displayname === 'string' ? (
             <>
@@ -256,7 +265,7 @@ export const useMemberEventParser = (): MemberEventParser => {
     }
     if (content.avatar_url !== prevContent.avatar_url) {
       return {
-        icon: Icons.User,
+        icon: timelineIcon(User),
         body:
           content.avatar_url && typeof content.avatar_url === 'string' ? (
             <>
@@ -273,7 +282,7 @@ export const useMemberEventParser = (): MemberEventParser => {
     }
 
     return {
-      icon: Icons.User,
+      icon: timelineIcon(User),
       body: 'Membership event with no changes',
     };
   };

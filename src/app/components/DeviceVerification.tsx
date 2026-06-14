@@ -8,15 +8,14 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Spinner,
   Text,
 } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import * as Sentry from '@sentry/react';
 import {
@@ -273,7 +272,7 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
                 <Text size="H4">Device Verification</Text>
               </Box>
               <IconButton size="300" radii="300" onClick={handleCancel}>
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

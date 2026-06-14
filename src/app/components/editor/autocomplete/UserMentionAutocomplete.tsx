@@ -2,7 +2,8 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useEffect } from 'react';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
-import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
+import { Avatar, MenuItem, Text } from 'folds';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 
 import { useRoomMembers } from '$hooks/useRoomMembers';
@@ -55,10 +56,7 @@ function UnknownMentionItem({
       onClick={() => handleAutocomplete(userId, name)}
       before={
         <Avatar size="200">
-          <UserAvatar
-            userId={userId}
-            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
-          />
+          <UserAvatar userId={userId} renderFallback={() => userFallbackIcon('sm')} />
         </Avatar>
       }
     >
@@ -198,7 +196,7 @@ export function UserMentionAutocomplete({
                     userId={roomMember.userId}
                     src={avatarUrl ?? undefined}
                     alt={getName(roomMember)}
-                    renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                    renderFallback={() => userFallbackIcon('sm')}
                   />
                 </Avatar>
               }

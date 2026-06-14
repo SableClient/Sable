@@ -4,9 +4,7 @@ import {
   Button,
   config,
   Dialog,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -48,6 +46,7 @@ import {
 import { createLogger } from '$utils/debug';
 import { useSyncNicknames } from '$hooks/useNickname';
 import { useAppVisibility } from '$hooks/useAppVisibility';
+import { composerIcon, DotsThreeOutlineVerticalIcon } from '$components/icons/phosphor';
 import { getHomePath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { pushSessionToSW } from '../../../sw-session';
@@ -95,9 +94,12 @@ function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
       }}
       variant="Background"
       fill="None"
+      aria-pressed={!!menuAnchor}
       onClick={handleToggle}
     >
-      <Icon size="200" src={Icons.VerticalDots} />
+      {composerIcon(DotsThreeOutlineVerticalIcon, {
+        weight: menuAnchor ? 'fill' : 'regular',
+      })}
       <PopOut
         anchor={menuAnchor}
         position="Bottom"

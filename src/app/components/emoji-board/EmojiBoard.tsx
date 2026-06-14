@@ -6,7 +6,8 @@ import type {
   RefObject,
 } from 'react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Box, config, Icons, Scroll } from 'folds';
+import { Box, config, Scroll } from 'folds';
+import { ClockCounterClockwise } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import type { Room } from '$types/matrix-sdk';
@@ -201,7 +202,7 @@ function EmojiSidebar({
           active={activeGroupId === RECENT_GROUP_ID}
           id={RECENT_GROUP_ID}
           label="Recent"
-          icon={Icons.RecentClock}
+          icon={ClockCounterClockwise}
           onClick={handleScrollToGroup}
         />
       </SidebarStack>

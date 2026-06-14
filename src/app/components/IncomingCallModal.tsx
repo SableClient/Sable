@@ -3,8 +3,6 @@ import {
   Dialog,
   Header,
   IconButton,
-  Icon,
-  Icons,
   Text,
   Button,
   Avatar,
@@ -29,6 +27,7 @@ import {
 } from '$state/callEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
 import { RoomAvatar } from './room-avatar';
+import { composerIcon, menuIcon, Phone, userFallbackIcon, X } from '$components/icons/phosphor';
 
 const debugLog = createDebugLogger('IncomingCall');
 
@@ -85,7 +84,7 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
           <Text size="H4">Incoming Call</Text>
         </Box>
         <IconButton size="300" onClick={onClose} radii="300">
-          <Icon src={Icons.Cross} />
+          {composerIcon(X)}
         </IconButton>
       </Header>
 
@@ -95,7 +94,7 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
             roomId={room.roomId}
             src={avatarUrl ?? undefined}
             alt={roomName}
-            renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+            renderFallback={() => userFallbackIcon('lg')}
           />
         </Avatar>
 
@@ -122,7 +121,7 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
             variant="Primary"
             style={{ minWidth: '110px' }}
             onClick={handleAnswer}
-            before={<Icon size="100" src={Icons.Phone} />}
+            before={menuIcon(Phone)}
           >
             <Text size="B400">Answer</Text>
           </Button>

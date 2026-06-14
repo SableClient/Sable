@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { DefaultReset, config, toRem } from 'folds';
+import { DefaultReset, FocusOutline, color, config, toRem } from 'folds';
 
 export const MessageBase = style({
   position: 'relative',
@@ -56,6 +56,38 @@ export const ReactionsContainer = style({
 export const ReactionsTooltipText = style({
   wordBreak: 'break-word',
 });
+
+export const ReactionAdd = style([
+  FocusOutline,
+  {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    padding: `${toRem(2)} ${config.space.S200}`,
+    minHeight: toRem(24),
+    backgroundColor: color.SurfaceVariant.Container,
+    border: `${config.borderWidth.B300} solid ${color.SurfaceVariant.ContainerLine}`,
+    borderRadius: config.radii.R300,
+    color: color.SurfaceVariant.OnContainer,
+    opacity: config.opacity.P500,
+    cursor: 'pointer',
+
+    selectors: {
+      '&:hover, &:focus-visible': {
+        backgroundColor: color.SurfaceVariant.ContainerHover,
+        opacity: 1,
+      },
+      '&:active': {
+        backgroundColor: color.SurfaceVariant.ContainerActive,
+      },
+      '&[aria-pressed=true]': {
+        opacity: 1,
+        backgroundColor: color.SurfaceVariant.ContainerHover,
+      },
+    },
+  },
+]);
 
 export const MessagePending = style({
   opacity: config.opacity.Placeholder,

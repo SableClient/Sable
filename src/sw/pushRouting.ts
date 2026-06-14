@@ -43,6 +43,42 @@ export function getEncryptedMinimalPushFocusDecision(
   return focusedClientCount > 0 ? 'ignore_stale_focus' : 'no_focused_client';
 }
 
+export type ForegroundPushState = {
+  visibilityState?: string;
+  focused?: boolean;
+};
+
+export function shouldSuppressOsPushForForegroundState(
+  state: ForegroundPushState | undefined
+): boolean {
+  return state?.visibilityState === 'visible' && state.focused === true;
+}
+
+function resolvePushNotificationData(data: unknown): Record<string, unknown> | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+  if (isDeclarativeWebPushPayload(data)) {
+    const notificationData = data.notification.data;
+    return notificationData && typeof notificationData === 'object' ? notificationData : undefined;
+  }
+  return data as Record<string, unknown>;
+}
+
+export function isForegroundSuppressionExemptPushPayload(data: unknown): boolean {
+  const payload = resolvePushNotificationData(data);
+  if (!payload) return false;
+
+  const { type, content } = payload;
+  if (type === 'org.matrix.msc4075.call.notify') return true;
+  if (type === 'org.matrix.msc4075.rtc.notification') return true;
+
+  return (
+    type === 'm.room.member' &&
+    !!content &&
+    typeof content === 'object' &&
+    (content as Record<string, unknown>).membership === 'invite'
+  );
+}
+
 export function buildDeclarativeNotificationOptions(payload: DeclarativeWebPushPayload): {
   title: string;
   options: NotificationOptions;

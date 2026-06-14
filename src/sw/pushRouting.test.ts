@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDeclarativeNotificationOptions,
   getEncryptedMinimalPushFocusDecision,
+  isForegroundSuppressionExemptPushPayload,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
+  shouldSuppressOsPushForForegroundState,
 } from './pushRouting';
 
 describe('service worker push routing helpers', () => {
@@ -46,5 +48,49 @@ describe('service worker push routing helpers', () => {
   it('ignores focused clients for encrypted minimal push suppression', () => {
     expect(getEncryptedMinimalPushFocusDecision(0)).toBe('no_focused_client');
     expect(getEncryptedMinimalPushFocusDecision(1)).toBe('ignore_stale_focus');
+  });
+
+  it('suppresses OS push only when a live client confirms visible focused foreground state', () => {
+    expect(
+      shouldSuppressOsPushForForegroundState({ visibilityState: 'visible', focused: true })
+    ).toBe(true);
+    expect(
+      shouldSuppressOsPushForForegroundState({ visibilityState: 'visible', focused: false })
+    ).toBe(false);
+    expect(shouldSuppressOsPushForForegroundState({ visibilityState: 'hidden' })).toBe(false);
+    expect(shouldSuppressOsPushForForegroundState(undefined)).toBe(false);
+  });
+
+  it('exempts call and invite pushes from foreground suppression', () => {
+    expect(
+      isForegroundSuppressionExemptPushPayload({
+        type: 'org.matrix.msc4075.call.notify',
+        content: { notification_type: 'ring' },
+      })
+    ).toBe(true);
+    expect(
+      isForegroundSuppressionExemptPushPayload({
+        type: 'm.room.member',
+        content: { membership: 'invite' },
+      })
+    ).toBe(true);
+    expect(
+      isForegroundSuppressionExemptPushPayload({
+        web_push: 8030,
+        notification: {
+          title: 'Charm',
+          data: {
+            type: 'm.room.member',
+            content: { membership: 'invite' },
+          },
+        },
+      })
+    ).toBe(true);
+    expect(
+      isForegroundSuppressionExemptPushPayload({
+        type: 'm.room.message',
+        content: { body: 'hello' },
+      })
+    ).toBe(false);
   });
 });

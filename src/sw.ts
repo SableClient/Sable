@@ -8,8 +8,10 @@ import { createPushNotifications } from './sw/pushNotification';
 import {
   buildDeclarativeNotificationOptions,
   getEncryptedMinimalPushFocusDecision,
+  isForegroundSuppressionExemptPushPayload,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
+  shouldSuppressOsPushForForegroundState,
 } from './sw/pushRouting';
 import { readPersistedSession } from './sw-session-persistence';
 
@@ -591,9 +593,26 @@ type DecryptionResult = {
   sender_display_name?: string;
   room_name?: string;
   visibilityState?: string;
+  focused?: boolean;
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
+
+type ForegroundStateResult = {
+  requestId: string;
+  visibilityState?: string;
+  focused?: boolean;
+  clientId?: string;
+};
+
+type ForegroundStatePending = {
+  expectedResponseCount: number;
+  responseCount: number;
+  lastResult?: ForegroundStateResult;
+  resolve: (result: ForegroundStateResult | undefined) => void;
+};
+
+const foregroundStatePendingMap = new Map<string, ForegroundStatePending>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
 
 const sleep = (ms: number): Promise<void> =>
@@ -832,6 +851,90 @@ async function requestDecryptionFromClient(
   return result;
 }
 
+async function requestForegroundStateFromClients(
+  windowClients: readonly Client[],
+  timeoutMs = 700
+): Promise<ForegroundStateResult | undefined> {
+  if (windowClients.length === 0) return undefined;
+
+  const requestId = createRecordId('foreground');
+
+  const response = new Promise<ForegroundStateResult | undefined>((resolve) => {
+    foregroundStatePendingMap.set(requestId, {
+      expectedResponseCount: 0,
+      responseCount: 0,
+      resolve,
+    });
+  });
+
+  let posted = false;
+  let postedCount = 0;
+  windowClients.forEach((client) => {
+    try {
+      client.postMessage({
+        type: 'getForegroundState',
+        requestId,
+      });
+      posted = true;
+      postedCount += 1;
+    } catch (err) {
+      console.warn('[SW push] foreground state postMessage error', err);
+    }
+  });
+
+  if (!posted) {
+    foregroundStatePendingMap.delete(requestId);
+    return undefined;
+  }
+
+  const pending = foregroundStatePendingMap.get(requestId);
+  if (pending) pending.expectedResponseCount = postedCount;
+
+  const result = await Promise.race([response, sleep(timeoutMs).then(() => undefined)]);
+  foregroundStatePendingMap.delete(requestId);
+  return result;
+}
+
+async function recordForegroundPushSuppression(
+  payloadType: string,
+  foregroundState: ForegroundStateResult,
+  focusedClientCount: number,
+  browserVisibleClientCount: number,
+  extraData: Record<string, string | number | boolean> = {}
+): Promise<void> {
+  await recordPushTelemetry('confirmed_visible', {
+    payload_type: payloadType,
+    focused: foregroundState.focused === true,
+    ...extraData,
+  });
+  await recordPushTelemetry('suppressed_visible', {
+    payload_type: payloadType,
+    focused_client_count: focusedClientCount,
+    browser_visible_client_count: browserVisibleClientCount,
+    foreground_focused: foregroundState.focused === true,
+    ...extraData,
+  });
+  postSentryMetric('sable.push.suppressed_visible', 1, {
+    payload_type: payloadType,
+    focused_client_count: focusedClientCount,
+    browser_visible_client_count: browserVisibleClientCount,
+    foreground_focused: foregroundState.focused === true,
+    ...extraData,
+  }).catch(() => undefined);
+  await postSentryBreadcrumb(
+    'notification.push',
+    'Suppressed OS push notification for foreground client',
+    'info',
+    {
+      payloadType,
+      focusedClientCount,
+      browserVisibleClientCount,
+      foregroundFocused: foregroundState.focused === true,
+      ...extraData,
+    }
+  );
+}
+
 /**
  * Handle a minimal push payload (event_id_only format).
  * Fetches the event from the homeserver and shows a notification.
@@ -840,7 +943,8 @@ async function requestDecryptionFromClient(
 async function handleMinimalPushPayload(
   roomId: string,
   eventId: string,
-  windowClients: readonly Client[]
+  windowClients: readonly Client[],
+  foregroundState: ForegroundStateResult | undefined
 ): Promise<void> {
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
@@ -906,6 +1010,21 @@ async function handleMinimalPushPayload(
   }
 
   const eventType = rawEvent.type as string | undefined;
+  if (
+    foregroundState &&
+    shouldSuppressOsPushForForegroundState(foregroundState) &&
+    !isForegroundSuppressionExemptPushPayload(rawEvent)
+  ) {
+    await recordForegroundPushSuppression(
+      'minimal',
+      foregroundState,
+      focusedWindowClientCount(windowClients),
+      visibleWindowClientCount(windowClients),
+      { event_type: eventType ?? 'unknown' }
+    );
+    return;
+  }
+
   const sender = rawEvent.sender as string | undefined;
   // Fetch sender's member state — gives us both display name and avatar URL.
   const memberInfo = sender
@@ -1144,6 +1263,39 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       if (resolve) {
         decryptionPendingMap.delete(eventId);
         resolve(data as DecryptionResult);
+      }
+    }
+  }
+  if (type === 'foregroundStateResult') {
+    const { requestId, visibilityState, focused } = data as {
+      requestId?: unknown;
+      visibilityState?: unknown;
+      focused?: unknown;
+    };
+    if (typeof requestId === 'string') {
+      const pending = foregroundStatePendingMap.get(requestId);
+      const normalizedVisibilityState =
+        typeof visibilityState === 'string' ? visibilityState : undefined;
+      if (pending) {
+        const result = {
+          requestId,
+          visibilityState: normalizedVisibilityState,
+          focused: focused === true,
+          clientId: client.id,
+        };
+
+        if (shouldSuppressOsPushForForegroundState(result)) {
+          foregroundStatePendingMap.delete(requestId);
+          pending.resolve(result);
+          return;
+        }
+
+        pending.responseCount += 1;
+        pending.lastResult = result;
+        if (pending.responseCount >= pending.expectedResponseCount) {
+          foregroundStatePendingMap.delete(requestId);
+          pending.resolve(pending.lastResult);
+        }
       }
     }
   }
@@ -1650,6 +1802,22 @@ const onPushNotification = async (event: PushEvent) => {
     // Badging API absent (Firefox/Gecko) — continue to show the notification.
   }
 
+  const foregroundState = await requestForegroundStateFromClients(clients);
+  if (
+    foregroundState &&
+    shouldSuppressOsPushForForegroundState(foregroundState) &&
+    !isMinimalPushPayload(pushData) &&
+    !isForegroundSuppressionExemptPushPayload(pushData)
+  ) {
+    await recordForegroundPushSuppression(
+      payloadType,
+      foregroundState,
+      focusedClientCount,
+      browserVisibleClientCount
+    );
+    return;
+  }
+
   if (isDeclarativeWebPushPayload(pushData)) {
     const { title, options } = buildDeclarativeNotificationOptions(pushData);
     await self.registration.showNotification(title, options);
@@ -1661,7 +1829,7 @@ const onPushNotification = async (event: PushEvent) => {
   // to relay decryption to an open app tab.
   if (isMinimalPushPayload(pushData)) {
     console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
-    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
+    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients, foregroundState);
     return;
   }
 

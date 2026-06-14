@@ -4,7 +4,7 @@ import type { IEventWithRoomId, Room } from '$types/matrix-sdk';
 import { JoinRule, RelationType, EventType } from '$types/matrix-sdk';
 import type { IImageContent } from '$types/matrix/common';
 import type { HTMLReactParserOptions } from 'html-react-parser';
-import { Avatar, Box, Chip, Header, Icon, Icons, Text, config } from 'folds';
+import { Avatar, Box, Chip, Header, Text, config } from 'folds';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
@@ -59,6 +59,7 @@ import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUr
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import type { ResultItem } from './useMessageSearch';
+import { Icon, Icons } from '$app/icons';
 
 type SearchResultGroupProps = {
   room: Room;

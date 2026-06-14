@@ -9,9 +9,7 @@ import {
   color,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   Scroll,
   Spinner,
@@ -98,6 +96,7 @@ import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { EventType } from '$types/matrix-sdk';
 import { M_POLL_START } from 'matrix-js-sdk';
 import { PollEvent } from '../poll/PollEvent';
+import { Icon, Icons } from '$app/icons';
 
 const log = createLogger('RoomPinMenu');
 

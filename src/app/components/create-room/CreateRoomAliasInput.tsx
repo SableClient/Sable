@@ -1,7 +1,7 @@
 import type { FormEventHandler, KeyboardEventHandler } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MatrixError } from '$types/matrix-sdk';
-import { Box, color, Icon, Icons, Input, Spinner, Text, toRem } from 'folds';
+import { Box, color, Input, Spinner, Text, toRem } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { replaceSpaceWithDash } from '$utils/common';
@@ -9,6 +9,7 @@ import type { AsyncState } from '$hooks/useAsyncCallback';
 import { AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
 import { useDebounce } from '$hooks/useDebounce';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { Icon, Icons } from '$app/icons';
 
 export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {
   const mx = useMatrixClient();

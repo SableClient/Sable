@@ -6,9 +6,7 @@ import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
-  Icon,
   IconButton,
-  Icons,
   Text,
   Menu,
   MenuItem,
@@ -79,6 +77,7 @@ import * as css from './styles.css';
 import { useRoomLastMessage } from '$hooks/useRoomLastMessage';
 import { RoomNavUser } from './RoomNavUser';
 import { SidebarUnreadBadge } from '$components/sidebar';
+import { Icon, Icons } from '$app/icons';
 
 /**
  * Reactively checks whether a room has unread messages.

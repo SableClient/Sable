@@ -1,4 +1,5 @@
-import { Box, toRem, config, Icons, Icon, Text } from 'folds';
+import { Box, toRem, config, Text } from 'folds';
+import { Icons, Icon } from '$app/icons';
 
 export function NoStickerPacks() {
   return (

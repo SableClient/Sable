@@ -1,17 +1,5 @@
 import classNames from 'classnames';
-import {
-  Avatar,
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  MenuItem,
-  Scroll,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Avatar, Box, Header, IconButton, MenuItem, Scroll, Text, as, config } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { getMemberDisplayName } from '$utils/room';
@@ -25,6 +13,7 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
 import * as css from './EventReaders.css';
+import { Icon, Icons } from '$app/icons';
 
 export type EventReadersProps = {
   room: Room;

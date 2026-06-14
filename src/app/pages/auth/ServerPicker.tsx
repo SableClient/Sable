@@ -6,22 +6,12 @@ import type {
 } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
-import {
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  Menu,
-  MenuItem,
-  PopOut,
-  Text,
-  config,
-} from 'folds';
+import { Header, IconButton, Input, Menu, MenuItem, PopOut, Text, config } from 'folds';
 import FocusTrap from 'focus-trap-react';
 
 import { useDebounce } from '$hooks/useDebounce';
 import { stopPropagation } from '$utils/keyboard';
+import { Icon, Icons } from '$app/icons';
 
 export function ServerPicker({
   server,

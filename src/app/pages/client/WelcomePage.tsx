@@ -1,4 +1,4 @@
-import { Box, Button, Icon, Icons, Text, config, toRem } from 'folds';
+import { Box, Button, Text, config, toRem } from 'folds';
 import { Page, PageHero, PageHeroSection } from '$components/page';
 import LogoSVG from '$public/res/svg/logo.svg';
 import {
@@ -8,6 +8,7 @@ import {
   APP_SOURCE_URL,
   APP_SUPPORT_URL,
 } from '$app/config/brand';
+import { Icon, Icons } from '$app/icons';
 
 export function WelcomePage() {
   return (

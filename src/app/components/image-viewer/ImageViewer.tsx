@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import FileSaver from 'file-saver';
 import classNames from 'classnames';
-import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
+import { Box, Chip, Header, IconButton, Text, as } from 'folds';
 import { useImageGestures } from '$hooks/useImageGestures';
 import { useSetting } from '$state/hooks/settings';
 import { isPixelatedRendering, settingsAtom } from '$state/settings';
@@ -9,6 +9,7 @@ import { downloadMedia } from '$utils/matrix';
 import * as css from './ImageViewer.css';
 import type { IImageInfo } from '$types/matrix/common';
 import { CheckerboardIcon } from '@phosphor-icons/react';
+import { Icon, Icons } from '$app/icons';
 
 export type ImageViewerProps = {
   alt: string;

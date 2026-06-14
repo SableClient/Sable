@@ -4,8 +4,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Scroll,
   Switch,
   Avatar,
@@ -57,6 +55,7 @@ import { PronounEditor } from '$features/settings/account/PronounEditor';
 import type { PronounSet } from '$utils/pronouns';
 import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
+import { Icon, Icons } from '$app/icons';
 
 const log = createLogger('Cosmetics');
 

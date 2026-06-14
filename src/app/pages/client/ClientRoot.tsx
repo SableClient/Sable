@@ -4,9 +4,7 @@ import {
   Button,
   config,
   Dialog,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -66,6 +64,7 @@ import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
 import { AutoDiscovery } from './AutoDiscovery';
 import { ContainerColor } from '$styles/ContainerColor.css';
+import { Icon, Icons } from '$app/icons';
 
 const log = createLogger('ClientRoot');
 

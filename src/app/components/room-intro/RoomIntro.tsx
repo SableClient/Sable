@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Avatar, Box, Button, Icon, Icons, Spinner, Text, as } from 'folds';
+import { Avatar, Box, Button, Spinner, Text, as } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import type { IRoomCreateContent } from '$types/matrix/room';
@@ -23,6 +23,7 @@ import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { InfoCard } from '$components/info-card';
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { EventType, KnownMembership } from '$types/matrix-sdk';
+import { Icon, Icons } from '$app/icons';
 
 export type RoomIntroProps = {
   room: Room;

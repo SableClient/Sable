@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Text, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
+import { Box, Text, Scroll, Button, config, toRem, Spinner } from 'folds';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -18,6 +18,7 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { SettingsSectionPage } from '../SettingsSectionPage';
+import { Icon, Icons } from '$app/icons';
 
 type VersionResult =
   | { error: { message: string } }

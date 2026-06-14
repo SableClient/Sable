@@ -1,19 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 import type { IPreviewUrlResponse } from '$types/matrix-sdk';
-import {
-  Box,
-  Icon,
-  IconButton,
-  Icons,
-  Scroll,
-  Spinner,
-  Text,
-  as,
-  color,
-  config,
-  toRem,
-} from 'folds';
+import { Box, IconButton, Scroll, Spinner, Text, as, color, config, toRem } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp, downloadMedia } from '$utils/matrix';
@@ -29,6 +17,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import type { IImageInfo } from '$types/matrix/common';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '$unstable/prefixes';
+import { Icon, Icons } from '$app/icons';
 
 const linkStyles = { color: color.Success.Main };
 

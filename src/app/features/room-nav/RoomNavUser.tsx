@@ -1,4 +1,4 @@
-import { Avatar, Box, Icon, Icons, Text } from 'folds';
+import { Avatar, Box, Text } from 'folds';
 import type { MouseEventHandler } from 'react';
 import { useAtomValue } from 'jotai';
 import type { Room, CallMembership } from '$types/matrix-sdk';
@@ -12,6 +12,7 @@ import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { nicknamesAtom } from '$state/nicknames';
 import { useCallEmbed } from '$hooks/useCallEmbed';
+import { Icon, Icons } from '$app/icons';
 
 type RoomNavUserProps = {
   room: Room;

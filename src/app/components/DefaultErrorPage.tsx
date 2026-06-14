@@ -1,7 +1,8 @@
-import { Box, Button, Dialog, Icon, Icons, Text, color, config } from 'folds';
+import { Box, Button, Dialog, Text, color, config } from 'folds';
 import * as Sentry from '@sentry/react';
 import { SplashScreen } from '$components/splash-screen';
 import { buildGitHubUrl } from '$features/bug-report/BugReportModal';
+import { Icon, Icons } from '$app/icons';
 
 type ErrorPageProps = {
   error: Error;

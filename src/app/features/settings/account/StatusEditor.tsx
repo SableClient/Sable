@@ -1,7 +1,8 @@
 import type { ChangeEventHandler, FormEventHandler } from 'react';
 import { useEffect, useState } from 'react';
-import { Box, Text, Button, Input, IconButton, Icon, Icons, Spinner, config } from 'folds';
+import { Box, Text, Button, Input, IconButton, Spinner, config } from 'folds';
 import { SettingTile } from '$components/setting-tile';
+import { Icon, Icons } from '$app/icons';
 
 type StatusEditorProps = {
   current?: string;

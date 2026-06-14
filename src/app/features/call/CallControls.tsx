@@ -5,9 +5,7 @@ import {
   Box,
   Button,
   config,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -33,6 +31,7 @@ import {
   SoundButton,
   VideoButton,
 } from './Controls';
+import { Icon, Icons } from '$app/icons';
 
 type CallControlsProps = {
   callEmbed: CallEmbed;

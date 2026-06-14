@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Text, Box, Icon, Icons, config, Spinner, IconButton, Line, toRem } from 'folds';
+import { Text, Box, config, Spinner, IconButton, Line, toRem } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -28,6 +28,7 @@ import { SearchResultGroup } from './SearchResultGroup';
 import { SearchResultTimelineItem } from './SearchResultTimelineItem';
 import { SearchInput } from './SearchInput';
 import { SearchFilters } from './SearchFilters';
+import { Icon, Icons } from '$app/icons';
 
 const useSearchPathSearchParams = (searchParams: URLSearchParams): SearchPathSearchParams =>
   useMemo(

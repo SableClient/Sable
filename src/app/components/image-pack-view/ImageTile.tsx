@@ -1,6 +1,6 @@
 import type { FormEventHandler, ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { Badge, Box, Button, Chip, Icon, Icons, Input, Text } from 'folds';
+import { Badge, Box, Button, Chip, Input, Text } from 'folds';
 import { mxcUrlToHttp } from '$utils/matrix';
 import type { ImageUsage } from '$plugins/custom-emoji';
 import { imageUsageEqual, PackImageReader } from '$plugins/custom-emoji';
@@ -13,6 +13,7 @@ import { SettingTile } from '$components/setting-tile';
 import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import * as css from './style.css';
 import { UsageSwitcher, useUsageStr } from './UsageSwitcher';
+import { Icon, Icons } from '$app/icons';
 
 type ImageTileProps = {
   defaultShortcode: string;

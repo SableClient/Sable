@@ -2,9 +2,7 @@ import {
   Box,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -20,6 +18,7 @@ import type { CreateRoomModalState } from '$state/createRoomModal';
 import { stopPropagation } from '$utils/keyboard';
 import { CreateRoomType } from '$components/create-room/types';
 import { CreateRoomForm } from './CreateRoom';
+import { Icon, Icons } from '$app/icons';
 
 type CreateRoomModalProps = {
   state: CreateRoomModalState;

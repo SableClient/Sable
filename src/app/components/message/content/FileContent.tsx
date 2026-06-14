@@ -3,8 +3,6 @@ import { useCallback, useState } from 'react';
 import {
   Box,
   Button,
-  Icon,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -37,6 +35,7 @@ import {
 } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
+import { Icon, Icons } from '$app/icons';
 
 const renderErrorButton = (retry: () => void, text: string) => (
   <TooltipProvider

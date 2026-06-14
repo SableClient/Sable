@@ -1,5 +1,5 @@
 import { useAtomValue } from 'jotai';
-import { Box, Icon, Icons, Text, as, config } from 'folds';
+import { Box, Text, as, config } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtom } from 'jotai';
@@ -12,6 +12,7 @@ import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { modalAtom, ModalType } from '$state/modal';
 import { nicknamesAtom } from '$state/nicknames';
 import * as css from './RoomViewFollowing.css';
+import { Icon, Icons } from '$app/icons';
 
 export function RoomViewFollowingPlaceholder() {
   return <div className={css.RoomViewFollowingPlaceholder} />;

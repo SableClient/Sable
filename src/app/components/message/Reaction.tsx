@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Icon, Icons, Text, as } from 'folds';
+import { Box, Text, as } from 'folds';
 import classNames from 'classnames';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { getHexcodeForEmoji, getShortcodeFor } from '$plugins/emoji';
@@ -9,6 +9,7 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import * as css from './Reaction.css';
+import { Icon, Icons } from '$app/icons';
 
 export const Reaction = as<
   'button',

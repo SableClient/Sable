@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Button, Icon, Icons, Text } from 'folds';
+import { Box, Button, Text } from 'folds';
 import * as css from './TelemetryConsentBanner.css';
+import { Icon, Icons } from '$app/icons';
 
 const SENTRY_KEY = 'sable_sentry_enabled';
 

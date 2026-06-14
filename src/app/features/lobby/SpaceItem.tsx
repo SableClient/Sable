@@ -6,8 +6,6 @@ import {
   Avatar,
   Text,
   Chip,
-  Icon,
-  Icons,
   as,
   Badge,
   toRem,
@@ -38,6 +36,7 @@ import FocusTrap from 'focus-trap-react';
 import * as css from './SpaceItem.css';
 import * as styleCss from './style.css';
 import { useDraggableItem } from './DnD';
+import { Icon, Icons } from '$app/icons';
 
 function SpaceProfileLoading() {
   return (

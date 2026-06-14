@@ -12,8 +12,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   color,
   Button,
   Spinner,
@@ -33,6 +31,7 @@ import { getToday, getYesterday, timeDayMonthYear, timeHourMinute } from '$utils
 import { DatePicker, TimePicker } from '$components/time-date';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { Icon, Icons } from '$app/icons';
 
 type JumpToTimeProps = {
   onCancel: () => void;

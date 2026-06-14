@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Box, Text, Chip, Icon, Icons, IconButton } from 'folds';
+import { Box, Text, Chip, IconButton } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -15,6 +15,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SchedulePickerDialog } from './SchedulePickerDialog';
 import * as css from './ScheduledMessagesList.css';
+import { Icon, Icons } from '$app/icons';
 
 type ScheduledMessagesListProps = {
   room: Room;

@@ -5,9 +5,7 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Line,
   Menu,
@@ -38,6 +36,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import * as css from './style.css';
+import { Icon, Icons } from '$app/icons';
 
 const useServerSearchParams = (searchParams: URLSearchParams): ExploreServerPathSearchParams =>
   useMemo(

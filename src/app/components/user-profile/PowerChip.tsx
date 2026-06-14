@@ -6,9 +6,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -48,6 +46,7 @@ import { PowerColorBadge, PowerIcon } from '$components/power';
 import { EventType } from '$types/matrix-sdk';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
+import { Icon, Icons } from '$app/icons';
 
 type SelfDemoteAlertProps = {
   power: number;

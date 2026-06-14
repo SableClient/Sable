@@ -2,7 +2,7 @@ import type { KeyboardEventHandler } from 'react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, config } from 'folds';
+import { Box, Chip, IconButton, PopOut, Spinner, Text, config } from 'folds';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -30,6 +30,7 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { EmojiBoard } from '$components/emoji-board';
 import { mobileOrTablet } from '$utils/user-agent';
 import * as css from './UploadDescriptionEditor.css';
+import { Icon, Icons } from '$app/icons';
 
 type DescriptionEditorProps = {
   value?: string;

@@ -16,20 +16,7 @@ import classNames from 'classnames';
 import type { VListHandle } from 'virtua';
 import { VList } from 'virtua';
 import type { ContainerColor } from 'folds';
-import {
-  as,
-  Box,
-  Chip,
-  Icon,
-  Icons,
-  Line,
-  Text,
-  Badge,
-  color,
-  config,
-  toRem,
-  Spinner,
-} from 'folds';
+import { as, Box, Chip, Line, Text, Badge, color, config, toRem, Spinner } from 'folds';
 import * as Sentry from '@sentry/react';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
 import { RoomIntro } from '$components/room-intro';
@@ -93,6 +80,7 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
+import { Icon, Icons } from '$app/icons';
 
 const log = createLogger('RoomTimeline');
 

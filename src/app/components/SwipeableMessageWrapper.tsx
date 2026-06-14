@@ -3,9 +3,10 @@ import { useDrag } from '@use-gesture/react';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { config, Icon, Icons } from 'folds';
+import { config } from 'folds';
 import { mobileOrTablet } from '$utils/user-agent';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
+import { Icon, Icons } from '$app/icons';
 
 function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onReply: () => void }) {
   const x = useMotionValue(0);

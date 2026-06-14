@@ -6,8 +6,6 @@ import {
   Box,
   Chip,
   Text,
-  Icon,
-  Icons,
   Line,
   config,
   PopOut,
@@ -20,7 +18,7 @@ import {
   Input,
   Badge,
 } from 'folds';
-import type { IconSrc } from 'folds';
+
 import { SearchOrderBy } from '$types/matrix-sdk';
 import type { RoomMember } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
@@ -40,6 +38,8 @@ import { stopPropagation } from '$utils/keyboard';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { SearchHasType } from './useMessageSearch';
+import type { IconSrc } from '$app/icons';
+import { Icon, Icons } from '$app/icons';
 
 type GroupButtonProps = {
   grouped?: boolean;

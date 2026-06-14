@@ -3,9 +3,7 @@ import {
   Avatar,
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   Scroll,
@@ -42,6 +40,7 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import * as css from './EventHistory.css';
 import { EventType } from '$types/matrix-sdk';
+import { Icon, Icons } from '$app/icons';
 
 export type EventHistoryProps = {
   room: Room;

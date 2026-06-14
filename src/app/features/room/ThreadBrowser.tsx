@@ -3,9 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Scroll,
   Spinner,
@@ -55,6 +53,7 @@ import * as css from './ThreadDrawer.css';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { Icon, Icons } from '$app/icons';
 
 type ThreadPreviewProps = {
   room: Room;

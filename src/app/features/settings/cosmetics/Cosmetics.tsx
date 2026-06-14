@@ -5,8 +5,6 @@ import {
   Box,
   Button,
   config,
-  Icon,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -29,6 +27,7 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
+import { Icon, Icons } from '$app/icons';
 
 function PronounPillMaxCountInput({ disabled }: { disabled: boolean }) {
   const [maxCount, setMaxCount] = useSetting(settingsAtom, 'pronounPillMaxCount');

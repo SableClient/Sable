@@ -5,8 +5,6 @@ import {
   Box,
   Text,
   Chip,
-  Icon,
-  Icons,
   IconButton,
   Scroll,
   Button,
@@ -48,6 +46,7 @@ import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { creatorsSupported } from '$utils/roomSupport';
+import { Icon, Icons } from '$app/icons';
 
 type EditPowerProps = {
   maxPower: number;

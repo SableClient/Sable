@@ -4,7 +4,7 @@ import type { HTMLReactParserOptions } from 'html-react-parser';
 import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
 import type { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
-import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
+import { Box, Chip, config, Header, IconButton, Scroll, Text, toRem } from 'folds';
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';
@@ -36,6 +36,7 @@ import {
   testMatrixTo,
 } from './matrix-to';
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
+import { Icon, Icons } from '$app/icons';
 
 const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
 

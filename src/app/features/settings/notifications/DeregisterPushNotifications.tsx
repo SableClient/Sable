@@ -7,9 +7,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -24,6 +22,7 @@ import { settingsAtom } from '../../../state/settings';
 import { pushSubscriptionAtom } from '../../../state/pushSubscription';
 import { deRegisterAllPushers } from './PushNotifications';
 import { SettingTile } from '../../../components/setting-tile';
+import { Icon, Icons } from '$app/icons';
 
 type ConfirmDeregisterDialogProps = {
   onClose: () => void;

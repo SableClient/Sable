@@ -4,8 +4,6 @@ import {
   Button,
   Chip,
   config,
-  Icon,
-  Icons,
   Input,
   Line,
   Menu,
@@ -28,6 +26,7 @@ import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { SettingTile } from '$components/setting-tile';
+import { Icon, Icons } from '$app/icons';
 
 export const useAdditionalCreators = (defaultCreators?: string[]) => {
   const mx = useMatrixClient();

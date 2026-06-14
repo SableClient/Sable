@@ -5,9 +5,7 @@ import {
   Box,
   Button,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   Overlay,
@@ -35,6 +33,7 @@ import { deviceDisplayName } from '$utils/user-agent';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import type { CustomLoginResponse } from './loginUtil';
 import { LoginError, factoryGetBaseUrl, login, useLoginComplete } from './loginUtil';
+import { Icon, Icons } from '$app/icons';
 
 function UsernameHint({ server }: { server: string }) {
   const [anchor, setAnchor] = useState<RectCords>();

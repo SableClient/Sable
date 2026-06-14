@@ -1,6 +1,6 @@
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import { Box, Button, config, Icon, Icons, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
+import { Box, Button, config, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
 import {
   type ComponentPropsWithoutRef,
   type MouseEventHandler,
@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import { stopPropagation } from '$utils/keyboard';
+import { Icon, Icons } from '$app/icons';
 
 export type SettingMenuOption<T extends string> = {
   value: T;

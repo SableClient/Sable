@@ -1,4 +1,5 @@
-import { Box, Icon, Icons, Text, toRem, config } from 'folds';
+import { Box, Text, toRem, config } from 'folds';
+import { Icon, Icons } from '$app/icons';
 
 type ThemeThirdPartyBannerProps = {
   hostLabel: string;

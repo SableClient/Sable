@@ -1,18 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import {
-  Box,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-  Scroll,
-  Switch,
-  Button,
-  MenuItem,
-  config,
-  color,
-} from 'folds';
+import { Box, Text, IconButton, Scroll, Switch, Button, MenuItem, config, color } from 'folds';
 import { EventType, NotificationCountType } from '$types/matrix-sdk';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -36,6 +24,7 @@ import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SendRoomEvent } from './SendRoomEvent';
 import type { StateEventInfo } from './StateEventEditor';
 import { StateEventEditor } from './StateEventEditor';
+import { Icon, Icons } from '$app/icons';
 
 const formatSyncReason = (reason: string): string => {
   if (reason === 'sliding_active') return 'Sliding Sync active';

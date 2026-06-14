@@ -5,9 +5,7 @@ import {
   Button,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -46,6 +44,7 @@ import { getViaServers } from '$plugins/via-servers';
 import { rateLimitedActions } from '$utils/matrix';
 import { useAlive } from '$hooks/useAlive';
 import { EventType } from '$types/matrix-sdk';
+import { Icon, Icons } from '$app/icons';
 
 const SEARCH_OPTS: UseAsyncSearchOptions = {
   limit: 500,

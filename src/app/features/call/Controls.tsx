@@ -1,7 +1,8 @@
-import { Icon, IconButton, Icons, Line, Text, Tooltip, TooltipProvider } from 'folds';
+import { IconButton, Line, Text, Tooltip, TooltipProvider } from 'folds';
 import { useAtom } from 'jotai';
 import * as css from './styles.css';
 import { callChatAtom } from '../../state/callEmbed';
+import { Icon, Icons } from '$app/icons';
 
 export function ControlDivider() {
   return (

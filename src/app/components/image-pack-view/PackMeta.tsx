@@ -7,8 +7,6 @@ import {
   AvatarImage,
   AvatarFallback,
   Button,
-  Icon,
-  Icons,
   Input,
   TextArea,
   Chip,
@@ -28,6 +26,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { PackMetaReader } from '$plugins/custom-emoji';
 import { CompactUploadCardRenderer } from '$components/upload-card';
+import { Icon, Icons } from '$app/icons';
 
 type ImagePackAvatarProps = {
   url?: string;

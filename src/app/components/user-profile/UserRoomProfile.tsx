@@ -1,16 +1,4 @@
-import {
-  Box,
-  Button,
-  color,
-  config,
-  Icon,
-  Icons,
-  Menu,
-  MenuItem,
-  Scroll,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Button, color, config, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
 import type { CSSProperties, SyntheticEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -63,6 +51,7 @@ import { UserHero, UserHeroName } from './UserHero';
 import { KnownMembership } from '$types/matrix-sdk';
 import * as css from './styles.css';
 import * as prefix from '$unstable/prefixes';
+import { Icon, Icons } from '$app/icons';
 
 const KNOWN_KEYS = new Set([
   prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME,

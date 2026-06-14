@@ -2,7 +2,7 @@ import type { KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, as, config } from 'folds';
+import { Box, Chip, IconButton, PopOut, Spinner, Text, as, config } from 'folds';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import type {
@@ -67,6 +67,7 @@ import {
   readdAngleBracketsForHiddenPreviews,
   stripMarkdownEscapesForHiddenPreviews,
 } from './hiddenLinkPreviews';
+import { Icon, Icons } from '$app/icons';
 
 type MessageEditorProps = {
   roomId: string;

@@ -2,7 +2,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCallback, useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
-import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
+import { Avatar, MenuItem, Text } from 'folds';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { JoinRule } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
@@ -23,6 +23,7 @@ import { createMentionElement, moveCursor, replaceWithElement } from '$component
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { AutocompleteMenu } from './AutocompleteMenu';
 import type { AutocompleteQuery } from './autocompleteQuery';
+import { Icon, Icons } from '$app/icons';
 
 type MentionAutoCompleteHandler = (roomAliasOrId: string, name: string) => void;
 

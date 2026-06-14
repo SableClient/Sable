@@ -1,9 +1,10 @@
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import type { RectCords } from 'folds';
-import { Box, config, Header, Icon, IconButton, Icons, Menu, PopOut, Text } from 'folds';
+import { Box, config, Header, IconButton, Menu, PopOut, Text } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
+import { Icon, Icons } from '$app/icons';
 
 export function NotificationLevelsHint() {
   const [anchor, setAnchor] = useState<RectCords>();

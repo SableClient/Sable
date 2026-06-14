@@ -1,4 +1,4 @@
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
@@ -12,6 +12,7 @@ import {
 } from '$features/common-settings/general';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
+import { Icon, Icons } from '$app/icons';
 
 type GeneralProps = {
   requestClose: () => void;

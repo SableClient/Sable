@@ -1,5 +1,4 @@
-import type { IconSrc } from 'folds';
-import { Box, Chip, Icon, Icons, Text, as, color, toRem } from 'folds';
+import { Box, Chip, Text, as, color, toRem } from 'folds';
 import type { EventTimelineSet, IMentions, Room, SessionMembershipData } from '$types/matrix-sdk';
 import { EventType, MsgType } from '$types/matrix-sdk';
 import type { MouseEventHandler, ReactNode } from 'react';
@@ -45,6 +44,8 @@ import {
 import * as css from './Reply.css';
 import { LinePlaceholder } from './placeholder';
 import { M_POLL_START, M_TEXT } from 'matrix-js-sdk';
+import type { IconSrc } from '$app/icons';
+import { Icon, Icons } from '$app/icons';
 
 const ROOM_REPLY_TIMELINE_EVENT_TYPES = new Set<string>([
   EventType.RoomMessage as string,

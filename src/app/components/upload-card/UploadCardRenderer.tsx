@@ -3,9 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Scroll,
   Text,
   Tooltip,
@@ -36,6 +34,7 @@ import { settingsAtom } from '$state/settings';
 import { UploadCard, UploadCardError, UploadCardProgress } from './UploadCard';
 import * as css from './UploadCard.css';
 import { DescriptionEditor } from './UploadDescriptionEditor';
+import { Icon, Icons } from '$app/icons';
 
 type PreviewImageProps = {
   fileItem: TUploadItem;

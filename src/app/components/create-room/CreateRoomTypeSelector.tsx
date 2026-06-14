@@ -1,9 +1,10 @@
-import type { IconSrc } from 'folds';
-import { Box, Text, Icon, Icons, config } from 'folds';
+import { Box, Text, config } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { CreateRoomType } from './types';
+import type { IconSrc } from '$app/icons';
+import { Icon, Icons } from '$app/icons';
 
 type CreateRoomTypeSelectorProps = {
   value?: CreateRoomType;

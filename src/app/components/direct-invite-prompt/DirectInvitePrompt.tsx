@@ -4,9 +4,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -16,6 +14,7 @@ import {
   config,
 } from 'folds';
 import { stopPropagation } from '$utils/keyboard';
+import { Icon, Icons } from '$app/icons';
 
 type DirectInvitePromptProps = {
   onCancel: () => void;

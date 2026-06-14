@@ -1,7 +1,8 @@
 import type { ComponentProps } from 'react';
 import { forwardRef } from 'react';
-import { Icon, IconButton, Input, config, Icons } from 'folds';
+import { IconButton, Input, config } from 'folds';
 import { UseStateProvider } from '$components/UseStateProvider';
+import { Icon, Icons } from '$app/icons';
 
 type PasswordInputProps = Omit<ComponentProps<typeof Input>, 'type' | 'size'> & {
   size: '400' | '500';

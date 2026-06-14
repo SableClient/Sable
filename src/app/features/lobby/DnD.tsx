@@ -8,9 +8,10 @@ import {
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import classNames from 'classnames';
-import { Box, Icon, Icons, as } from 'folds';
+import { Box, as } from 'folds';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import * as css from './DnD.css';
+import { Icon, Icons } from '$app/icons';
 
 export type DropContainerData = {
   item: HierarchyItem;

@@ -4,8 +4,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Input,
   Avatar,
   Button,
@@ -54,6 +52,7 @@ import { NameColorEditor } from './NameColorEditor';
 import { StatusEditor } from './StatusEditor';
 import { AnimalCosmetics } from './AnimalCosmetics';
 import * as prefix from '$unstable/prefixes';
+import { Icon, Icons } from '$app/icons';
 
 type PronounSet = {
   summary: string;

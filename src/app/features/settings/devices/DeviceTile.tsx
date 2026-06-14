@@ -4,8 +4,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Chip,
   Input,
   Button,
@@ -30,6 +28,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
+import { Icon, Icons } from '$app/icons';
 
 export function DeviceTilePlaceholder() {
   return (

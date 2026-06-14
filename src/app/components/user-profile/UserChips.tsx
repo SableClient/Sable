@@ -14,8 +14,6 @@ import {
   Text,
   Line,
   Chip,
-  Icon,
-  Icons,
   Spinner,
   toRem,
   Box,
@@ -50,6 +48,7 @@ import { SettingTile } from '$components/setting-tile';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
+import { Icon, Icons } from '$app/icons';
 
 export function ServerChip({
   server,

@@ -1,7 +1,8 @@
 import type { ChangeEventHandler } from 'react';
 import { useRef } from 'react';
-import { Input, Chip, Icon, Icons, Text } from 'folds';
+import { Input, Chip, Text } from 'folds';
 import { mobileOrTablet } from '$utils/user-agent';
+import { Icon, Icons } from '$app/icons';
 
 type SearchInputProps = {
   query?: string;

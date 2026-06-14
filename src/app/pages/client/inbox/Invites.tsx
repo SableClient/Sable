@@ -5,9 +5,7 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -70,6 +68,7 @@ import { useReportRoomSupported } from '$hooks/useReportRoomSupported';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { EventType } from '$types/matrix-sdk';
+import { Icon, Icons } from '$app/icons';
 
 const COMPACT_CARD_WIDTH = 548;
 

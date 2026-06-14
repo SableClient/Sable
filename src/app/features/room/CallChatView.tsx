@@ -1,6 +1,6 @@
 import { useSetAtom } from 'jotai';
 import { useParams } from 'react-router-dom';
-import { Box, Text, TooltipProvider, Tooltip, Icon, Icons, IconButton, toRem } from 'folds';
+import { Box, Text, TooltipProvider, Tooltip, IconButton, toRem } from 'folds';
 import { Page, PageHeader } from '../../components/page';
 import { callChatAtom } from '../../state/callEmbed';
 import { RoomView } from './RoomView';
@@ -10,6 +10,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useState, useEffect } from 'react';
+import { Icon, Icons } from '$app/icons';
 
 export function CallChatView() {
   const { eventId } = useParams();

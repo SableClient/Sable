@@ -1,10 +1,11 @@
 import type { MouseEvent } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
-import { MenuItem, Icon, Icons, Text } from 'folds';
+import { MenuItem, Text } from 'folds';
 import { modalAtom, ModalType } from '$state/modal';
 import { EventReaders } from '$components/event-readers';
 import * as css from '$features/room/message/styles.css';
+import { Icon, Icons } from '$app/icons';
 
 export function MessageReadReceiptItem({ room, eventId }: { room: Room; eventId: string }) {
   const setModal = useSetAtom(modalAtom);

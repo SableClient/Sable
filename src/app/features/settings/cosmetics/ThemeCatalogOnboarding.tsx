@@ -6,9 +6,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -16,6 +14,7 @@ import {
 } from 'folds';
 
 import { stopPropagation } from '$utils/keyboard';
+import { Icon, Icons } from '$app/icons';
 
 type ThemeCatalogOnboardingProps = {
   open: boolean;

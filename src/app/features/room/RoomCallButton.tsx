@@ -1,10 +1,11 @@
-import { IconButton, Icon, Icons, TooltipProvider, Tooltip, Text } from 'folds';
+import { IconButton, TooltipProvider, Tooltip, Text } from 'folds';
 import { useAtomValue } from 'jotai';
 import type { Room, TimelineEvents } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
 import { callEmbedAtom } from '$state/callEmbed';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useCallPreferences } from '$state/hooks/callPreferences';
+import { Icon, Icons } from '$app/icons';
 
 interface RoomCallButtonProps {
   room: Room;

@@ -1,10 +1,11 @@
 import type { MouseEventHandler } from 'react';
 import { useMemo, useState } from 'react';
 import type { RectCords } from 'folds';
-import { Box, Button, config, Icon, Icons, Menu, MenuItem, PopOut, Text } from 'folds';
+import { Box, Button, config, Menu, MenuItem, PopOut, Text } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { stopPropagation } from '$utils/keyboard';
+import { Icon, Icons } from '$app/icons';
 
 export const useUsageStr = (): ((usage: ImageUsage[]) => string) => {
   const getUsageStr = (usage: ImageUsage[]): string => {

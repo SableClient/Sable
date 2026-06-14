@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useRef } from 'react';
-import { Avatar, Badge, Box, Chip, Icon, Icons, as, Text } from 'folds';
+import { Avatar, Badge, Box, Chip, as, Text } from 'folds';
 import classNames from 'classnames';
 import type { IHierarchyRoom, MatrixClient, Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -16,6 +16,7 @@ import { getSpaceLobbyPath } from '$pages/pathUtils';
 import { InaccessibleSpaceProfile, UnjoinedSpaceProfile } from './SpaceItem';
 import * as css from './SpaceNavItem.css';
 import { useDraggableItem } from './DnD';
+import { Icon, Icons } from '$app/icons';
 
 type SpaceProfileProps = {
   roomId: string;

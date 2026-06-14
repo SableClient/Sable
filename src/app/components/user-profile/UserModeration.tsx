@@ -1,4 +1,4 @@
-import { Box, Button, color, config, Icon, Icons, Spinner, Text, Input } from 'folds';
+import { Box, Button, color, config, Spinner, Text, Input } from 'folds';
 import { useCallback, useRef } from 'react';
 import { useRoom } from '$hooks/useRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -9,6 +9,7 @@ import { settingsAtom } from '$state/settings';
 import { timeDayMonYear, timeHourMinute } from '$utils/time';
 import { SettingTile } from '$components/setting-tile';
 import { CutoutCard } from '$components/cutout-card';
+import { Icon, Icons } from '$app/icons';
 
 type UserKickAlertProps = {
   reason?: string;

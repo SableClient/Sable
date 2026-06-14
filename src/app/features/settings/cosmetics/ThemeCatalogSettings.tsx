@@ -6,9 +6,7 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Scroll,
   Spinner,
@@ -48,6 +46,7 @@ import {
   type SableThemeContrast,
 } from '../../../theme/metadata';
 import { previewUrlFromFullThemeUrl } from '../../../theme/previewUrls';
+import { Icon, Icons } from '$app/icons';
 
 export type CatalogPreviewRow = ThemePair & {
   previewText: string;

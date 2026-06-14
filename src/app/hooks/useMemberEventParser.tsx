@@ -1,7 +1,7 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback } from 'react';
-import type { IconSrc } from 'folds';
-import { Icons, Text } from 'folds';
+
+import { Text } from 'folds';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import type { IMemberContent } from '$types/matrix/room';
 
@@ -11,6 +11,8 @@ import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSableCosmetics } from './useSableCosmetics';
 import { useMatrixClient } from './useMatrixClient';
 import { KnownMembership } from '$types/matrix-sdk';
+import { Icons } from '$app/icons';
+import type { IconSrc } from '$app/icons';
 
 type DecoratedUserProps = {
   roomId: string;

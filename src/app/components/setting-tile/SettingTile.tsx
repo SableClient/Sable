@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Box, Icon, IconButton, Icons, Text } from 'folds';
+import { Box, IconButton, Text } from 'folds';
 import { BreakWord } from '$styles/Text.css';
 import { buildSettingsLink } from '$features/settings/settingsLink';
 import { copyToClipboard } from '$utils/dom';
@@ -15,6 +15,7 @@ import {
   settingTileRoot,
   settingTileTitleRow,
 } from './SettingTile.css';
+import { Icon, Icons } from '$app/icons';
 
 type SettingTileProps = {
   focusId?: string;

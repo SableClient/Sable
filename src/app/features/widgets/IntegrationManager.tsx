@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -16,6 +14,7 @@ import type { Room } from '$types/matrix-sdk';
 
 import { useIntegrationManager, buildIntegrationManagerUrl } from '$hooks/useIntegrationManager';
 import * as css from './IntegrationManager.css';
+import { Icon, Icons } from '$app/icons';
 
 interface IntegrationManagerProps {
   room: Room;

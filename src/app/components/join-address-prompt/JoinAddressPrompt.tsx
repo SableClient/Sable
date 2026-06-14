@@ -11,8 +11,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Button,
   Input,
   color,
@@ -20,6 +18,7 @@ import {
 import { stopPropagation } from '$utils/keyboard';
 import { isRoomAlias, isRoomId } from '$utils/matrix';
 import { parseMatrixToRoom, parseMatrixToRoomEvent, testMatrixTo } from '$plugins/matrix-to';
+import { Icon, Icons } from '$app/icons';
 
 type JoinAddressProps = {
   onOpen: (roomIdOrAlias: string, via?: string[], eventId?: string) => void;

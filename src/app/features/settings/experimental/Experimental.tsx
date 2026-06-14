@@ -1,4 +1,4 @@
-import { Box, Text, Icon, Icons, Scroll, Switch } from 'folds';
+import { Box, Text, Scroll, Switch } from 'folds';
 import { PageContent } from '$components/page';
 import { InfoCard } from '$components/info-card';
 import { settingsAtom } from '$state/settings';
@@ -15,6 +15,7 @@ import { SearchIndexToggle } from './SearchIndexToggle';
 import { EditInInput } from './EditInInput';
 import { MessageGrouping } from './MessageGrouping';
 import { MSC4438MessageBookmarks } from './MSC4438MessageBookmarks';
+import { Icon, Icons } from '$app/icons';
 
 function PersonaToggle() {
   const [showPersonaSetting, setShowPersonaSetting] = useSetting(

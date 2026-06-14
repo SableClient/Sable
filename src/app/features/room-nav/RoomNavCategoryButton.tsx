@@ -1,6 +1,7 @@
-import { as, Chip, Icon, IconButton, Icons, Text } from 'folds';
+import { as, Chip, IconButton, Text } from 'folds';
 import classNames from 'classnames';
 import * as css from './styles.css';
+import { Icon, Icons } from '$app/icons';
 
 export const RoomNavCategoryButton = as<'button', { closed?: boolean }>(
   ({ className, closed, children, ...props }, ref) => {

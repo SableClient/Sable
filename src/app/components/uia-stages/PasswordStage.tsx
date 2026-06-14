@@ -1,9 +1,10 @@
-import { Box, Button, color, config, Dialog, Header, Icon, IconButton, Icons, Text } from 'folds';
+import { Box, Button, color, config, Dialog, Header, IconButton, Text } from 'folds';
 import type { FormEventHandler } from 'react';
 import { AuthType } from '$types/matrix-sdk';
 import { PasswordInput } from '$components/password-input';
 import type { StageComponentProps } from './types';
 import { ErrorCode } from '../../cs-errorcode';
+import { Icon, Icons } from '$app/icons';
 
 export function PasswordStage({
   stageData,

@@ -1,6 +1,7 @@
 import classNames from 'classnames';
-import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
+import { Box, Chip, Header, IconButton, Text, as } from 'folds';
 import * as css from './ImageEditor.css';
+import { Icon, Icons } from '$app/icons';
 
 export type ImageEditorProps = {
   name: string;

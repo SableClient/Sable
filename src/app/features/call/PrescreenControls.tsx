@@ -1,4 +1,4 @@
-import { Box, Button, Icon, Icons, Spinner, Text, toRem } from 'folds';
+import { Box, Button, Spinner, Text, toRem } from 'folds';
 import { SequenceCard } from '../../components/sequence-card';
 import * as css from './styles.css';
 import { ChatButton, ControlDivider, MicrophoneButton, SoundButton, VideoButton } from './Controls';
@@ -6,6 +6,7 @@ import { useIsDirectRoom, useRoom } from '../../hooks/useRoom';
 import { useCallEmbed, useCallJoined, useCallStart } from '../../hooks/useCallEmbed';
 import { useCallPreferences } from '../../state/hooks/callPreferences';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
+import { Icon, Icons } from '$app/icons';
 
 type PrescreenControlsProps = {
   canJoin?: boolean;

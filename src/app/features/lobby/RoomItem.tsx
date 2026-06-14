@@ -5,8 +5,6 @@ import {
   Badge,
   Box,
   Chip,
-  Icon,
-  Icons,
   Line,
   Overlay,
   OverlayBackdrop,
@@ -40,6 +38,7 @@ import { formatCompactNumber } from '$utils/formatCompactNumber';
 import { ItemDraggableTarget, useDraggableItem } from './DnD';
 import * as styleCss from './style.css';
 import * as css from './RoomItem.css';
+import { Icon, Icons } from '$app/icons';
 
 type RoomJoinButtonProps = {
   roomId: string;

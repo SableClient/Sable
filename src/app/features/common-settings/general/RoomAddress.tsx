@@ -8,8 +8,6 @@ import {
   Chip,
   color,
   config,
-  Icon,
-  Icons,
   Input,
   Spinner,
   Text,
@@ -35,6 +33,7 @@ import { getMxIdServer } from '$utils/mxIdHelper';
 
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { EventType } from '$types/matrix-sdk';
+import { Icon, Icons } from '$app/icons';
 
 type RoomPublishedAddressesProps = {
   permissions: RoomPermissionsAPI;

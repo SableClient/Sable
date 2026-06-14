@@ -6,9 +6,7 @@ import {
   Chip,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Modal,
   Overlay,
@@ -26,6 +24,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { getDebugLogger } from '$utils/debugLogger';
 import { fetch } from '$utils/fetch';
 import { APP_NAME, APP_SOURCE_URL } from '$app/config/brand';
+import { Icon, Icons } from '$app/icons';
 
 type ReportType = 'bug' | 'feature';
 

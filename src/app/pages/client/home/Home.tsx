@@ -6,9 +6,7 @@ import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -67,6 +65,7 @@ import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTabletLayout } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { usePullToRefresh } from '$hooks/usePullToRefresh';
+import { Icon, Icons } from '$app/icons';
 
 type HomeMenuProps = {
   requestClose: () => void;

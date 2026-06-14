@@ -8,9 +8,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Overlay,
   OverlayBackdrop,
@@ -35,6 +33,7 @@ import { useSetting } from '$state/hooks/settings';
 import { mobileOrTabletLayout } from '$utils/user-agent';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { Icon, Icons } from '$app/icons';
 
 export function AddServer({ hideText }: { hideText?: boolean }) {
   const mx = useMatrixClient();

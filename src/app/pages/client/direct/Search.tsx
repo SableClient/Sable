@@ -1,10 +1,11 @@
 import { useRef } from 'react';
-import { Box, Icon, Icons, Text, Scroll, IconButton } from 'folds';
+import { Box, Text, Scroll, IconButton } from 'folds';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { MessageSearch } from '$features/message-search';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useDirectRooms } from './useDirectRooms';
+import { Icon, Icons } from '$app/icons';
 
 export function DirectSearch() {
   const scrollRef = useRef<HTMLDivElement>(null);

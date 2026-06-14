@@ -4,9 +4,7 @@ import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -39,6 +37,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import * as css from './LobbyHeader.css';
+import { Icon, Icons } from '$app/icons';
 
 type LobbyMenuProps = {
   powerLevels: IPowerLevels;

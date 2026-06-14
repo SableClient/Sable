@@ -3,9 +3,7 @@ import {
   Avatar,
   Box,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -89,6 +87,7 @@ import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageP
 import { MessageEditor } from './MessageEditor';
 import { MobileMessageMenu } from './MobileMessageMenu';
 import * as css from './styles.css';
+import { Icon, Icons } from '$app/icons';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 

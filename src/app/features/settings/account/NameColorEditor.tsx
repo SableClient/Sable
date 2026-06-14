@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Box, Button, config, Text, Input, IconButton, Icon, Icons } from 'folds';
+import { Box, Button, config, Text, Input, IconButton } from 'folds';
 import { HexColorPicker } from 'react-colorful';
 import { SettingTile } from '$components/setting-tile';
 import { HexColorPickerPopOut } from '$components/HexColorPickerPopOut';
+import { Icon, Icons } from '$app/icons';
 
 type NameColorEditorProps = {
   title: string;

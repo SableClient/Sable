@@ -1,7 +1,8 @@
 import type { ChangeEvent } from 'react';
 import { useMemo, useState, useEffect } from 'react';
-import { Box, IconButton, Button, Icon, Icons, Input, Text } from 'folds';
+import { Box, IconButton, Button, Input, Text } from 'folds';
 import { SettingTile } from '$components/setting-tile';
+import { Icon, Icons } from '$app/icons';
 
 interface IntlWithSupportedValues {
   supportedValuesOf(key: 'timeZone' | (string & {})): string[];

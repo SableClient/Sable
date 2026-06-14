@@ -1,6 +1,7 @@
-import { Box, Icon, Icons, Text, as, color, config } from 'folds';
+import { Box, Text, as, color, config } from 'folds';
 
 import { BreakWord } from '$styles/Text.css';
+import { Icon, Icons } from '$app/icons';
 
 const warningStyle = { color: color.Warning.Main, opacity: config.opacity.P300 };
 const criticalStyle = { color: color.Critical.Main, opacity: config.opacity.P300 };

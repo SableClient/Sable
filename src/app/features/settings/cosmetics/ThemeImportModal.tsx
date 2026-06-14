@@ -6,9 +6,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Overlay,
   OverlayBackdrop,
@@ -34,6 +32,7 @@ import {
 } from '../../../theme/processThemeImport';
 
 import { usePatchSettings } from './themeSettingsPatch';
+import { Icon, Icons } from '$app/icons';
 
 type ThemeImportModalProps = {
   open: boolean;

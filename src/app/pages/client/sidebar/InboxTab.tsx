@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Icon, Icons } from 'folds';
+
 import { useAtomValue } from 'jotai';
 import {
   SidebarAvatar,
@@ -17,6 +17,7 @@ import {
 import { useInboxSelected } from '$hooks/router/useInbox';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
+import { Icon, Icons } from '$app/icons';
 
 export function InboxTab() {
   const screenSize = useScreenSizeContext();

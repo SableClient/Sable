@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { usePowerLevels } from '$hooks/usePowerLevels';
@@ -11,6 +11,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { usePermissionGroups } from './usePermissionItems';
 import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
+import { Icon, Icons } from '$app/icons';
 
 type PermissionsProps = {
   requestClose: () => void;

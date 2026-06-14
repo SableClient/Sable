@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Chip, Icon, IconButton, Icons, Text, color } from 'folds';
+import { Chip, IconButton, Text, color } from 'folds';
 import type { TUploadAtom, UploadSuccess } from '$state/upload';
 import { UploadStatus, useBindUploadAtom } from '$state/upload';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -7,6 +7,7 @@ import type { TUploadContent } from '$utils/matrix';
 import { bytesToSize, getFileTypeIcon } from '$utils/common';
 import { useMediaConfig } from '$hooks/useMediaConfig';
 import { UploadCard, UploadCardError, CompactUploadCardProgress } from './UploadCard';
+import { Icon, Icons } from '$app/icons';
 
 type CompactUploadCardRendererProps = {
   isEncrypted?: boolean;

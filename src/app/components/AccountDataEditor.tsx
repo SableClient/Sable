@@ -3,8 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Text,
-  Icon,
-  Icons,
   IconButton,
   Input,
   Button,
@@ -24,6 +22,7 @@ import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { Page, PageHeader } from './page';
 import { SequenceCard } from './sequence-card';
 import { TextViewerContent } from './text-viewer';
+import { Icon, Icons } from '$app/icons';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 

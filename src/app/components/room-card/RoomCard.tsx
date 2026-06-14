@@ -8,8 +8,6 @@ import {
   Box,
   Button,
   Dialog,
-  Icon,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -41,6 +39,7 @@ import * as css from './style.css';
 import type { RoomBannerContent } from '$types/matrix-sdk-events';
 import { CustomStateEvent } from '$types/matrix/room';
 import colorMXID from '$utils/colorMXID';
+import { Icon, Icons } from '$app/icons';
 
 type GridColumnCount = '1' | '2' | '3';
 const getGridColumnCount = (gridWidth: number): GridColumnCount => {

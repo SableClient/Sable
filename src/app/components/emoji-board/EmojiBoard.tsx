@@ -6,7 +6,7 @@ import type {
   RefObject,
 } from 'react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Box, config, Icons, Scroll } from 'folds';
+import { Box, config, Scroll } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import type { Room } from '$types/matrix-sdk';
@@ -55,6 +55,7 @@ import {
   EmojiBoardLayout,
 } from './components';
 import { EmojiBoardTab, EmojiType } from './types';
+import { Icons } from '$app/icons';
 
 const RECENT_GROUP_ID = 'recent_group';
 const SEARCH_GROUP_ID = 'search_group';

@@ -22,9 +22,7 @@ import {
   color,
   config,
   Dialog,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   Overlay,
@@ -169,6 +167,7 @@ import { AudioMessageRecorder } from './AudioMessageRecorder';
 import { PollCreator } from './PollCreator';
 import * as prefix from '$unstable/prefixes';
 import { LocationDialog } from './location-modal';
+import { Icon, Icons } from '$app/icons';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.

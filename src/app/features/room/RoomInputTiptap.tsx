@@ -29,7 +29,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { Editor as TiptapEditorInstance } from '@tiptap/core';
 import type { Room } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
-import { Box, Icon, IconButton, Icons, Text, config, color } from 'folds';
+import { Box, IconButton, Text, config, color } from 'folds';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useSetting } from '$state/hooks/settings';
@@ -51,6 +51,7 @@ import { TiptapMentionAutocomplete } from './tiptap-autocomplete/TiptapMentionAu
 import { TiptapRoomMentionAutocomplete } from './tiptap-autocomplete/TiptapRoomMentionAutocomplete';
 import { TiptapEmoticonAutocomplete } from './tiptap-autocomplete/TiptapEmoticonAutocomplete';
 import { mobileOrTablet } from '$utils/user-agent';
+import { Icon, Icons } from '$app/icons';
 
 // ─── Autocomplete detection ──────────────────────────────────────────────────
 

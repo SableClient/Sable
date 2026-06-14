@@ -14,8 +14,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   color,
   Button,
   Chip,
@@ -26,6 +24,7 @@ import { timeDayMonthYear, timeHourMinute, hoursToMs, daysToMs } from '$utils/ti
 import { DatePicker, TimePicker } from '$components/time-date';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { Icon, Icons } from '$app/icons';
 
 type SchedulePickerDialogProps = {
   initialTime?: number;

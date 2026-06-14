@@ -1,11 +1,12 @@
 import type { MouseEvent } from 'react';
 import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
-import { MenuItem, Icon, Icons, Text } from 'folds';
+import { MenuItem, Text } from 'folds';
 import { getEventEdits } from '$utils/room';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 import { EventHistory } from '$components/event-history';
+import { Icon, Icons } from '$app/icons';
 
 export function MessageEditHistoryItem({
   room,

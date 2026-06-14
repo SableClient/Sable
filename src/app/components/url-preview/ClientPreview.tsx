@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Box, Badge, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
+import { Box, Badge, IconButton, Spinner, Text, as, toRem } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -11,6 +11,7 @@ import { Image } from '../media';
 import { UrlPreview } from './UrlPreview';
 import { VideoContent } from '../message';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../unstable/prefixes';
+import { Icon, Icons } from '$app/icons';
 
 interface OEmbed {
   type: 'photo' | 'video' | 'link' | 'rich';

@@ -5,8 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   Modal,
@@ -44,6 +42,7 @@ import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../../unstable/prefixes';
+import { Icon, Icons } from '$app/icons';
 
 function thumbnailDimsForMaxEdge(
   maxEdge: number,

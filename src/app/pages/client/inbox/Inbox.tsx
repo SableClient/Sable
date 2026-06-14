@@ -1,4 +1,4 @@
-import { Avatar, Box, Icon, Icons, Text, toRem } from 'folds';
+import { Avatar, Box, Text, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { NavCategory, NavItem, NavItemContent, NavLink } from '$components/nav';
 import {
@@ -21,6 +21,7 @@ import { settingsAtom } from '$state/settings';
 import { useEffect, useState } from 'react';
 import { mobileOrTabletLayout } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { Icon, Icons } from '$app/icons';
 
 function InvitesNavItem({ hideText }: { hideText?: boolean }) {
   const invitesSelected = useInboxInvitesSelected();

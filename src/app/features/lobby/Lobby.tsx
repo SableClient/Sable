@@ -1,18 +1,6 @@
 import type { MouseEventHandler, ReactElement } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  Scroll,
-  Spinner,
-  Text,
-  color,
-  config,
-} from 'folds';
+import { Box, Chip, IconButton, Line, Scroll, Spinner, Text, color, config } from 'folds';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
@@ -75,6 +63,7 @@ import { LobbyHero } from './LobbyHero';
 import { LobbyHeader } from './LobbyHeader';
 import { SpaceHierarchyNavItem } from './SpaceHierarchyNavItem';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { Icon, Icons } from '$app/icons';
 
 const useCanDropLobbyItem = (
   space: Room,

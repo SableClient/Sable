@@ -9,8 +9,6 @@ import {
   config,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Input,
   Button,
   Spinner,
@@ -37,6 +35,7 @@ import { BreakWord } from '$styles/Text.css';
 import { useAlive } from '$hooks/useAlive';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { KnownMembership } from '$types/matrix-sdk';
+import { Icon, Icons } from '$app/icons';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,

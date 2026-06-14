@@ -7,12 +7,11 @@ import {
   Text,
   TooltipProvider,
   Tooltip,
-  Icons,
-  Icon,
   Chip,
   IconButton,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
+import { Icon, Icons } from '$app/icons';
 
 export type UIAFlowOverlayProps = {
   currentStep: number;

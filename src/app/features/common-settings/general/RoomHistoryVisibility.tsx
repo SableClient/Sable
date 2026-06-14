@@ -1,7 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import type { RectCords } from 'folds';
-import { Button, color, config, Icon, Icons, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
+import { Button, color, config, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
 import type {
   MatrixError,
   RoomHistoryVisibilityEventContent,
@@ -19,6 +19,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { Icon, Icons } from '$app/icons';
 
 const useVisibilityStr = () =>
   useMemo(

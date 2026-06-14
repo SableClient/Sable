@@ -1,7 +1,7 @@
 /* oxlint-disable jsx-a11y/media-has-caption */
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Badge, Chip, Icon, IconButton, Icons, ProgressBar, Spinner, Text, toRem } from 'folds';
+import { Badge, Chip, IconButton, ProgressBar, Spinner, Text, toRem } from 'folds';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -25,6 +25,7 @@ import {
 } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { MEDIA_VOLUME_KEY } from '$components/media';
+import { Icon, Icons } from '$app/icons';
 
 const PLAY_TIME_THROTTLE_OPS = {
   wait: 500,

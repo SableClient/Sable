@@ -9,8 +9,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Button,
   Input,
   Chip,
@@ -30,6 +28,7 @@ import type { RoomMessageEventContent } from '$types/matrix-sdk';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import classNames from 'classnames';
+import { Icon, Icons } from '$app/icons';
 
 export function filterLocationString(result: string) {
   // OSM format

@@ -1,8 +1,9 @@
-import type { IconSrc } from 'folds';
-import { Box, Icon } from 'folds';
+import { Box } from 'folds';
 import type { ReactNode } from 'react';
 import { MessageLayout } from '$state/settings';
 import { BubbleLayout, CompactLayout, ModernLayout } from '$components/message/layout';
+import type { IconSrc } from '$app/icons';
+import { Icon } from '$app/icons';
 
 export type EventContentProps = {
   messageLayout: number;

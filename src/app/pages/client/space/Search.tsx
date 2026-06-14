@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Box, Icon, Icons, Text, Scroll, IconButton } from 'folds';
+import { Box, Text, Scroll, IconButton } from 'folds';
 import { useAtomValue } from 'jotai';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { MessageSearch } from '$features/message-search';
@@ -11,6 +11,7 @@ import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
+import { Icon, Icons } from '$app/icons';
 
 export function SpaceSearch() {
   const mx = useMatrixClient();

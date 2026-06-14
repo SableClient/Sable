@@ -7,8 +7,6 @@ import {
   Box,
   Chip,
   config,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -29,6 +27,7 @@ import { useCachedMxcConverter } from '../../hooks/useCachedMxcConverter';
 import { UserAvatar } from '../../components/user-avatar';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
 import { getMouseEventCords } from '../../utils/dom';
+import { Icon, Icons } from '$app/icons';
 
 type LiveChipProps = {
   room: Room;

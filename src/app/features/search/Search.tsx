@@ -3,9 +3,7 @@ import {
   Avatar,
   Box,
   config,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Line,
   MenuItem,
@@ -54,6 +52,7 @@ import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { getHomeSearchPath, getDirectSearchPath, getSpaceSearchPath } from '$pages/pathUtils';
 import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
+import { Icon, Icons } from '$app/icons';
 
 enum SearchRoomType {
   Rooms = '#',

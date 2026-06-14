@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
-  Icon,
   IconButton,
-  Icons,
   Spinner,
   Switch,
   Text,
@@ -27,6 +25,7 @@ import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../.
 import { isApprovedCatalogHostUrl, isThirdPartyThemeUrl } from '../../theme/themeApproval';
 import { SableChatPreviewPlaceholder } from './SableChatPreviewPlaceholder';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
+import { Icon, Icons } from '$app/icons';
 
 function baseLabel(url: string): string {
   try {

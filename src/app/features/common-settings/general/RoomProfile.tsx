@@ -7,9 +7,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Overlay,
   OverlayBackdrop,
@@ -53,6 +51,7 @@ import { CustomStateEvent } from '$types/matrix/room';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import FocusTrap from 'focus-trap-react';
+import { Icon, Icons } from '$app/icons';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;

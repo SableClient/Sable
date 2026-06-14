@@ -1,19 +1,6 @@
 import type { FormEventHandler } from 'react';
 import { forwardRef, useCallback, useState } from 'react';
-import {
-  Dialog,
-  Header,
-  Box,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-  config,
-  Button,
-  Chip,
-  color,
-  Spinner,
-} from 'folds';
+import { Dialog, Header, Box, Text, IconButton, config, Button, Chip, color, Spinner } from 'folds';
 import FileSaver from 'file-saver';
 import to from 'await-to-js';
 import type { AuthDict, IAuthData, UIAuthCallback } from '$types/matrix-sdk';
@@ -27,6 +14,7 @@ import { useAlive } from '$hooks/useAlive';
 import { PasswordInput } from './password-input';
 import { ActionUIA, ActionUIAFlowsLoader } from './ActionUIA';
 import { UseStateProvider } from './UseStateProvider';
+import { Icon, Icons } from '$app/icons';
 
 type UIACallback<T> = (
   authDict: AuthDict | null

@@ -9,9 +9,7 @@ import {
   Button,
   color,
   config,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   percent,
   PopOut,
@@ -31,6 +29,7 @@ import {
 import { stopPropagation } from '$utils/keyboard';
 import { useRestoreBackupOnVerification } from '$hooks/useRestoreBackupOnVerification';
 import { InfoCard } from './info-card';
+import { Icon, Icons } from '$app/icons';
 
 type BackupStatusProps = {
   enabled: boolean;

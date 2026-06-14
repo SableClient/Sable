@@ -7,9 +7,7 @@ import {
   Box,
   Chip,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   MenuItem,
   PopOut,
@@ -60,6 +58,7 @@ import * as css from './MembersDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTabletLayout } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { Icon, Icons } from '$app/icons';
 
 type MemberDrawerHeaderProps = {
   room: Room;

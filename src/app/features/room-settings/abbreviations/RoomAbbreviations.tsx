@@ -1,19 +1,7 @@
 import type { FormEventHandler } from 'react';
 import { useCallback, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
-import {
-  Box,
-  Button,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  Scroll,
-  Spinner,
-  Text,
-  config,
-} from 'folds';
+import { Box, Button, Chip, IconButton, Input, Scroll, Spinner, Text, config } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -33,6 +21,7 @@ import { getAllParents, getStateEvent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { CustomStateEvent } from '$types/matrix/room';
+import { Icon, Icons } from '$app/icons';
 
 type AbbreviationsProps = {
   requestClose: () => void;

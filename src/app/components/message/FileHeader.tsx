@@ -1,4 +1,4 @@
-import { Badge, Box, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
+import { Badge, Box, IconButton, Spinner, Text, as, toRem } from 'folds';
 import type { ReactNode } from 'react';
 import { useCallback } from 'react';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
@@ -13,6 +13,7 @@ import {
   downloadMedia,
   mxcUrlToHttp,
 } from '$utils/matrix';
+import { Icon, Icons } from '$app/icons';
 
 const badgeStyles = { maxWidth: toRem(100) };
 

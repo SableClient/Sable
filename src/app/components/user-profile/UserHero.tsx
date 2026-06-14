@@ -4,8 +4,6 @@ import {
   Avatar,
   Box,
   color as standardColors,
-  Icon,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -33,6 +31,7 @@ import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { shadeColor, areColorsTooSimilar } from '$utils/shadeColor';
 import * as css from './styles.css';
+import { Icon, Icons } from '$app/icons';
 
 type UserHeroProps = {
   userId: string;

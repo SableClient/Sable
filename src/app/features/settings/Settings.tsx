@@ -1,13 +1,11 @@
 import { useMemo, useState, type ComponentType } from 'react';
-import type { IconSrc } from 'folds';
+
 import {
   Avatar,
   Box,
   Button,
   config,
-  Icon,
   IconButton,
-  Icons,
   MenuItem,
   Overlay,
   OverlayBackdrop,
@@ -51,6 +49,8 @@ import { settingsHeader } from './styles.css';
 import { useSettingsFocus } from './useSettingsFocus';
 import { SettingsLinkProvider } from './SettingsLinkContext';
 import { useSettingsLinkBaseUrl } from './useSettingsLinkBaseUrl';
+import { Icon, Icons } from '$app/icons';
+import type { IconSrc } from '$app/icons';
 
 export enum SettingsPages {
   GeneralPage,

@@ -1,5 +1,3 @@
-import type { IconName, IconSrc } from 'folds';
-
 import type {
   AccountDataEvents,
   EventTimelineSet,
@@ -31,6 +29,7 @@ import {
 import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
 import { NotificationType } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';
+import type { IconName, IconSrc } from '$app/icons';
 
 export const getStateEvent = (
   room: Room,

@@ -2,7 +2,7 @@
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { modalAtom, ModalType } from '$state/modal';
-import { Icon, Icons, MenuItem, Text, as } from 'folds';
+import { MenuItem, Text, as } from 'folds';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import { useCallback, useMemo, useState } from 'react';
@@ -16,6 +16,7 @@ import * as Sentry from '@sentry/react';
 import { isRoomPrivate } from '$utils/roomVisibility';
 import * as prefix from '$unstable/prefixes';
 import { RoomSearchModal } from '$features/search';
+import { Icon, Icons } from '$app/icons';
 const debugLog = createDebugLogger('MessageForward');
 
 // Message forwarding component

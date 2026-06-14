@@ -1,9 +1,10 @@
-import { Box, IconButton, Text, Icon, Icons, Scroll, Chip } from 'folds';
+import { Box, IconButton, Text, Scroll, Chip } from 'folds';
 import type { PackAddress } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { Page, PageHeader, PageContent } from '$components/page';
 import { RoomImagePack } from './RoomImagePack';
 import { UserImagePack } from './UserImagePack';
+import { Icon, Icons } from '$app/icons';
 
 type ImagePackViewProps = {
   address: PackAddress | undefined;

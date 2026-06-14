@@ -1,19 +1,10 @@
 import type { ReactNode } from 'react';
-import type { IconSrc } from 'folds';
-import {
-  Box,
-  Scroll,
-  Line,
-  as,
-  TooltipProvider,
-  Tooltip,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-} from 'folds';
+
+import { Box, Scroll, Line, as, TooltipProvider, Tooltip, Text, IconButton } from 'folds';
 import classNames from 'classnames';
 import * as css from './styles.css';
+import { Icon, Icons } from '$app/icons';
+import type { IconSrc } from '$app/icons';
 
 export function Sidebar({ children }: { children: ReactNode }) {
   return (

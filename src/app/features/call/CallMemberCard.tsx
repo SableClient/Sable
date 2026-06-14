@@ -1,6 +1,6 @@
 import type { CallMembership, SessionMembershipData } from '$types/matrix-sdk';
 import { useState } from 'react';
-import { Avatar, Box, Icon, Icons, Text } from 'folds';
+import { Avatar, Box, Text } from 'folds';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
@@ -11,6 +11,7 @@ import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
 import { UserAvatar } from '../../components/user-avatar';
 import { getMouseEventCords } from '../../utils/dom';
 import * as css from './styles.css';
+import { Icon, Icons } from '$app/icons';
 
 interface MemberWithMembershipData {
   membershipData?: SessionMembershipData & {

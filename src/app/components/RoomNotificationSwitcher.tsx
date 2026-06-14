@@ -1,4 +1,4 @@
-import { Box, Icon, Text } from 'folds';
+import { Box, Text } from 'folds';
 import type { ReactNode } from 'react';
 import { type MouseEventHandler } from 'react';
 import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
@@ -8,6 +8,7 @@ import {
   useSetRoomNotificationPreference,
 } from '$hooks/useRoomsNotificationPreferences';
 import { AsyncStatus } from '$hooks/useAsyncCallback';
+import { Icon } from '$app/icons';
 
 const ROOM_NOTIFICATION_MODE_LABELS: Record<RoomNotificationMode, string> = {
   [RoomNotificationMode.Unset]: 'Default',

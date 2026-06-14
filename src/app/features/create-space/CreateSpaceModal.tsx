@@ -2,9 +2,7 @@ import {
   Box,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -19,6 +17,7 @@ import { useCloseCreateSpaceModal, useCreateSpaceModalState } from '$state/hooks
 import type { CreateSpaceModalState } from '$state/createSpaceModal';
 import { stopPropagation } from '$utils/keyboard';
 import { CreateSpaceForm } from './CreateSpace';
+import { Icon, Icons } from '$app/icons';
 
 type CreateSpaceModalProps = {
   state: CreateSpaceModalState;

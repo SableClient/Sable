@@ -1,20 +1,7 @@
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
-import {
-  Box,
-  Chip,
-  config,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  PopOut,
-  Scroll,
-  Spinner,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Chip, config, IconButton, Input, PopOut, Scroll, Spinner, Text, toRem } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { RoomMember } from '$types/matrix-sdk';
 import { Page, PageContent, PageHeader } from '$components/page';
@@ -45,6 +32,7 @@ import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '$hooks/useMembe
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { getMouseEventCords } from '$utils/dom';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { Icon, Icons } from '$app/icons';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,

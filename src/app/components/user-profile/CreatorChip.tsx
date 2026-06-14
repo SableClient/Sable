@@ -1,5 +1,5 @@
 import type { RectCords } from 'folds';
-import { Chip, config, Icon, Icons, Menu, MenuItem, PopOut, Text } from 'folds';
+import { Chip, config, Menu, MenuItem, PopOut, Text } from 'folds';
 import type { CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
@@ -19,6 +19,7 @@ import { RoomSettingsPage } from '$state/roomSettings';
 import { PowerColorBadge, PowerIcon } from '$components/power';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
+import { Icon, Icons } from '$app/icons';
 
 export function CreatorChip({
   innerColor,

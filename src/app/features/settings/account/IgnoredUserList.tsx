@@ -1,6 +1,6 @@
 import type { ChangeEventHandler, FormEventHandler } from 'react';
 import { useCallback, useState } from 'react';
-import { Box, Button, Chip, Icon, IconButton, Icons, Input, Spinner, Text, config } from 'folds';
+import { Box, Button, Chip, IconButton, Input, Spinner, Text, config } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -9,6 +9,7 @@ import { isUserId } from '$utils/matrix';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useAlive } from '$hooks/useAlive';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { Icon, Icons } from '$app/icons';
 
 function IgnoreUserInput({ userList }: { userList: string[] }) {
   const mx = useMatrixClient();

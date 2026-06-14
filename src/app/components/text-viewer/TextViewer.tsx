@@ -1,10 +1,11 @@
 import type { ComponentProps, HTMLAttributes } from 'react';
 import { forwardRef } from 'react';
 import classNames from 'classnames';
-import { Box, Chip, Header, Icon, IconButton, Icons, Scroll, Text, as } from 'folds';
+import { Box, Chip, Header, IconButton, Scroll, Text, as } from 'folds';
 import { CodeHighlightRenderer } from '$components/code-highlight';
 import { copyToClipboard } from '$utils/dom';
 import * as css from './TextViewer.css';
+import { Icon, Icons } from '$app/icons';
 
 type TextViewerContentProps = {
   text: string;

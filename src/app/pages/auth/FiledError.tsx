@@ -1,4 +1,5 @@
-import { Box, Icon, Icons, color, Text } from 'folds';
+import { Box, color, Text } from 'folds';
+import { Icon, Icons } from '$app/icons';
 
 export function FieldError({ message }: { message: string }) {
   return (

@@ -1,7 +1,7 @@
-import { Icon, Icons } from 'folds';
 import { useAtom } from 'jotai';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
 import { searchModalAtom } from '$state/searchModal';
+import { Icon, Icons } from '$app/icons';
 
 export function SearchTab() {
   const [opened, setOpen] = useAtom(searchModalAtom);

@@ -3,8 +3,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Scroll,
   Button,
   config,
@@ -25,6 +23,7 @@ import type { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { stopPropagation } from '$utils/keyboard';
 import FocusTrap from 'focus-trap-react';
+import { Icon, Icons } from '$app/icons';
 
 export function SelectShowPerRoomRoomIcon({ roomId }: { roomId: string }) {
   const [menuCords, setMenuCords] = useState<RectCords>();

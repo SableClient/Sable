@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useMemo } from 'react';
-import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
+import { Box, Chip, Text, toRem } from 'folds';
 import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
 import { JUMBO_EMOJI_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
@@ -40,6 +40,7 @@ import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as css from './MsgTypeRenderers.css';
+import { Icon, Icons } from '$app/icons';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;

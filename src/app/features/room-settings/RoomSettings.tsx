@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import type { IconSrc } from 'folds';
-import { Avatar, Box, config, Icon, IconButton, Icons, MenuItem, Text } from 'folds';
+
+import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -23,6 +23,8 @@ import { useSetting } from '$state/hooks/settings';
 import { Permissions } from './permissions';
 import { General } from './general';
 import { RoomAbbreviations } from './abbreviations/RoomAbbreviations';
+import { Icon, Icons } from '$app/icons';
+import type { IconSrc } from '$app/icons';
 
 type RoomSettingsMenuItem = {
   page: RoomSettingsPage;

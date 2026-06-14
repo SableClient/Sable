@@ -1,12 +1,10 @@
 import FocusTrap from 'focus-trap-react';
-import type { IconSrc, RectCords } from 'folds';
+import type { RectCords } from 'folds';
 import {
   Badge,
   Box,
   config,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   PopOut,
@@ -32,6 +30,8 @@ import {
   INLINE_HOTKEYS,
 } from './keyboard';
 import * as css from './Editor.css';
+import type { IconSrc } from '$app/icons';
+import { Icon, Icons } from '$app/icons';
 
 function BtnTooltip({ text, shortCode }: { text: string; shortCode?: string }) {
   return (

@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Box, Text, Icon, Icons, Button, MenuItem } from 'folds';
+import { Box, Text, Button, MenuItem } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { CutoutCard } from '$components/cutout-card';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { Icon, Icons } from '$app/icons';
 
 type AccountDataProps = {
   expand: boolean;

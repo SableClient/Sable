@@ -4,8 +4,6 @@ import type { MatrixError, StateEvents, TimelineEvents } from '$types/matrix-sdk
 import {
   Box,
   Chip,
-  Icon,
-  Icons,
   IconButton,
   Text,
   config,
@@ -23,6 +21,7 @@ import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { syntaxErrorPosition } from '$utils/dom';
 import { Cursor } from '$plugins/text-area';
+import { Icon, Icons } from '$app/icons';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 

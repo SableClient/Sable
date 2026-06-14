@@ -1,4 +1,4 @@
-import { Box, Icon, IconButton, Icons, Text, as } from 'folds';
+import { Box, IconButton, Text, as } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useSetAtom, useAtomValue } from 'jotai';
@@ -10,6 +10,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { nicknamesAtom } from '$state/nicknames';
 import * as css from './RoomViewTyping.css';
+import { Icon, Icons } from '$app/icons';
 
 export type RoomViewTypingProps = {
   room: Room;

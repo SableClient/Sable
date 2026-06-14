@@ -10,8 +10,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   color,
   Button,
   Spinner,
@@ -21,6 +19,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
 import { createDebugLogger } from '$utils/debugLogger';
+import { Icon, Icons } from '$app/icons';
 
 const debugLog = createDebugLogger('LeaveRoomPrompt');
 

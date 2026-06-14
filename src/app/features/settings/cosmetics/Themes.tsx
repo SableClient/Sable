@@ -5,8 +5,6 @@ import {
   Button,
   Chip,
   config,
-  Icon,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -39,6 +37,7 @@ import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
 import type { PanelSizetItem } from '$hooks/usePanelSizes';
 import { usePanelSizeItems } from '$hooks/usePanelSizes';
 import { SelectShowPerRoomRoomIcon } from '$features/common-settings/appearance/Appearance';
+import { Icon, Icons } from '$app/icons';
 
 const clampIncomingInlineImageHeight = (n: number) => Math.max(1, Math.min(4096, n));
 

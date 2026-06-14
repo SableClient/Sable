@@ -1,20 +1,10 @@
 import { type ReactNode, useCallback, useMemo } from 'react';
-import {
-  Box,
-  Button,
-  Icon,
-  IconButton,
-  Icons,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  toRem,
-  config,
-} from 'folds';
+import { Box, Button, IconButton, Text, Tooltip, TooltipProvider, toRem, config } from 'folds';
 
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { copyToClipboard } from '$utils/dom';
 import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../../theme/previewCss';
+import { Icon, Icons } from '$app/icons';
 
 export type ThemePreviewCardProps = {
   title: string;

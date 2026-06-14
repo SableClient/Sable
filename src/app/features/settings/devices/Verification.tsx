@@ -7,8 +7,6 @@ import {
   Button,
   Chip,
   config,
-  Icon,
-  Icons,
   Spinner,
   Text,
   Overlay,
@@ -37,6 +35,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useAuthMetadata } from '$hooks/useAuthMetadata';
 import { withSearchParam } from '$pages/pathUtils';
 import { useAccountManagementActions } from '$hooks/useAccountManagement';
+import { Icon, Icons } from '$app/icons';
 
 type VerificationStatusBadgeProps = {
   verificationStatus: VerificationStatus;

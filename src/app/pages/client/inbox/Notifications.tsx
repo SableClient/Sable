@@ -1,18 +1,6 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Avatar,
-  Box,
-  Chip,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Scroll,
-  Text,
-  config,
-  toRem,
-} from 'folds';
+import { Avatar, Box, Chip, Header, IconButton, Scroll, Text, config, toRem } from 'folds';
 import { useSearchParams } from 'react-router-dom';
 import type { INotification, INotificationsResponse, IRoomEvent, Room } from '$types/matrix-sdk';
 import type { IImageContent } from '$types/matrix/common';
@@ -94,6 +82,7 @@ import {
 } from '$hooks/useMemberPowerTag';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
+import { Icon, Icons } from '$app/icons';
 
 type RoomNotificationsGroup = {
   roomId: string;

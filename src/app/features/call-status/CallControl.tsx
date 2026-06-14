@@ -1,4 +1,4 @@
-import { Box, Chip, Icon, IconButton, Icons, Spinner, Text, Tooltip, TooltipProvider } from 'folds';
+import { Box, Chip, IconButton, Spinner, Text, Tooltip, TooltipProvider } from 'folds';
 import { useCallback } from 'react';
 import { useSetAtom } from 'jotai';
 import { StatusDivider } from './components';
@@ -6,6 +6,7 @@ import type { CallEmbed } from '../../plugins/call';
 import { useCallControlState } from '../../plugins/call';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { callEmbedAtom } from '../../state/callEmbed';
+import { Icon, Icons } from '$app/icons';
 
 type MicrophoneButtonProps = {
   enabled: boolean;

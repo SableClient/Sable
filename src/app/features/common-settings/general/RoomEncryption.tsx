@@ -6,9 +6,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -29,6 +27,7 @@ import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { EventType } from '$types/matrix-sdk';
+import { Icon, Icons } from '$app/icons';
 
 const ROOM_ENC_ALGO = 'm.megolm.v1.aes-sha2';
 

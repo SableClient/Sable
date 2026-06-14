@@ -7,9 +7,7 @@ import {
   Button,
   Chip,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   PopOut,
@@ -26,6 +24,7 @@ import { useImageGestures } from '$hooks/useImageGestures';
 import { createPage, usePdfDocumentLoader, usePdfJSLoader } from '$plugins/pdfjs-dist';
 import { stopPropagation } from '$utils/keyboard';
 import * as css from './PdfViewer.css';
+import { Icon, Icons } from '$app/icons';
 
 export type PdfViewerProps = {
   name: string;

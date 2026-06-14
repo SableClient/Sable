@@ -6,9 +6,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -26,6 +24,7 @@ import { usePatchSettings } from '$features/settings/cosmetics/themeSettingsPatc
 import { DEFAULT_THEME_CATALOG_BASE } from '../../theme/catalogDefaults';
 import { needsLegacyThemeMigration } from '../../theme/legacyToCatalogMap';
 import { runLegacyThemeMigration } from '../../theme/migrateLegacyThemes';
+import { Icon, Icons } from '$app/icons';
 
 export function ThemeMigrationBanner() {
   const store = useStore();

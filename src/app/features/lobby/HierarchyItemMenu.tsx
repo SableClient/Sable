@@ -2,20 +2,7 @@ import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import {
-  Box,
-  IconButton,
-  Icon,
-  Icons,
-  PopOut,
-  Menu,
-  MenuItem,
-  Text,
-  config,
-  Line,
-  Spinner,
-  toRem,
-} from 'folds';
+import { Box, IconButton, PopOut, Menu, MenuItem, Text, config, Line, Spinner, toRem } from 'folds';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { MSpaceChildContent } from '$types/matrix/room';
@@ -37,6 +24,7 @@ import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useNavigate } from 'react-router-dom';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
 import { EventType } from '$types/matrix-sdk';
+import { Icon, Icons } from '$app/icons';
 
 type HierarchyItemWithParent = HierarchyItem & {
   parentId: string;

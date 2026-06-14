@@ -15,7 +15,7 @@ import { NotificationCountType, RoomEvent, ThreadEvent, EventType } from '$types
 import type { SessionMembershipData } from '$types/matrix-sdk';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
-import { Box, Chip, Avatar, Text, Icons, config, toRem, Icon } from 'folds';
+import { Box, Chip, Avatar, Text, config, toRem } from 'folds';
 import type { MessageSpacing } from '$state/settings';
 import { MessageLayout } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
@@ -60,6 +60,7 @@ import { PollEvent } from '$features/room/poll/PollEvent';
 import { M_POLL_START } from '$types/matrix-sdk';
 
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
+import { Icon, Icons } from '$app/icons';
 
 function DecoratedUser({ room, userId, userName }: DecoratedUserProps) {
   const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));

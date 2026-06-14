@@ -1,8 +1,6 @@
 import { createContext, useCallback, useContext, useMemo } from 'react';
 import type { IPushRules, MatrixClient } from '$types/matrix-sdk';
 import { ConditionKind, PushRuleKind, EventType } from '$types/matrix-sdk';
-import type { IconSrc } from 'folds';
-import { Icons } from 'folds';
 
 import { isRoomId } from '$utils/matrix';
 import { useAccountData } from './useAccountData';
@@ -13,6 +11,8 @@ import {
 } from './useNotificationMode';
 import { useAsyncCallback } from './useAsyncCallback';
 import { useMatrixClient } from './useMatrixClient';
+import { Icons } from '$app/icons';
+import type { IconSrc } from '$app/icons';
 
 export type RoomsNotificationPreferences = {
   mute: Set<string>;

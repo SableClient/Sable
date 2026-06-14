@@ -1,5 +1,6 @@
 import type { FormEventHandler, RefObject } from 'react';
-import { Box, Text, Input, Icon, Icons, Spinner, Chip, config } from 'folds';
+import { Box, Text, Input, Spinner, Chip, config } from 'folds';
+import { Icon, Icons } from '$app/icons';
 
 type SearchProps = {
   active?: boolean;

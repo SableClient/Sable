@@ -11,8 +11,6 @@ import {
   OverlayCenter,
   OverlayBackdrop,
   IconButton,
-  Icon,
-  Icons,
   Tooltip,
   TooltipProvider,
   Menu,
@@ -105,6 +103,7 @@ import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { useSelectedRooms } from '$state/hooks/roomList';
+import { Icon, Icons } from '$app/icons';
 
 const log = createLogger('RoomViewHeader');
 

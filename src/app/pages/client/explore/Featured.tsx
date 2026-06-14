@@ -1,4 +1,4 @@
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
 import { useAtomValue } from 'jotai';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { RoomCard, RoomCardGrid } from '$components/room-card';
@@ -17,6 +17,7 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import * as css from './style.css';
+import { Icon, Icons } from '$app/icons';
 
 export function FeaturedRooms() {
   const { featuredCommunities } = useClientConfig();

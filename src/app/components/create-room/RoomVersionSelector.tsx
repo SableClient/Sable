@@ -1,11 +1,12 @@
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import type { RectCords } from 'folds';
-import { Box, Button, Chip, config, Icon, Icons, Menu, PopOut, Text, toRem } from 'folds';
+import { Box, Button, Chip, config, Menu, PopOut, Text, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
+import { Icon, Icons } from '$app/icons';
 
 export function RoomVersionSelector({
   versions,

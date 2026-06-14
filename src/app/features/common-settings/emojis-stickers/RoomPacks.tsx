@@ -4,8 +4,6 @@ import {
   Box,
   Text,
   Button,
-  Icon,
-  Icons,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -38,6 +36,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { CustomStateEvent } from '$types/matrix/room';
+import { Icon, Icons } from '$app/icons';
 
 function PackAvatarImage({ url }: { url: string }) {
   const resolved = useRenderableMediaUrl(url);

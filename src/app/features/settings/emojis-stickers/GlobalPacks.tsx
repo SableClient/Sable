@@ -5,8 +5,6 @@ import {
   Box,
   Text,
   Button,
-  Icon,
-  Icons,
   IconButton,
   Avatar,
   AvatarImage,
@@ -42,6 +40,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { Icon, Icons } from '$app/icons';
 
 function PackAvatarImage({ url }: { url: string }) {
   const resolved = useRenderableMediaUrl(url);

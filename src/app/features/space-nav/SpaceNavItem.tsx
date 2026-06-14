@@ -2,10 +2,11 @@ import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
-import { Box, Icon, Icons, Text, config, Avatar } from 'folds';
+import { Box, Text, config, Avatar } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import { NavButton, NavItem, NavItemContent } from '$components/nav';
 import { useRoomName } from '$hooks/useRoomMeta';
+import { Icon, Icons } from '$app/icons';
 
 type SpaceNavItemProps = {
   room: Room;

@@ -1,4 +1,3 @@
-import { Icon, Icons } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
@@ -14,6 +13,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { Icon, Icons } from '$app/icons';
 
 export function ExploreTab() {
   const mx = useMatrixClient();

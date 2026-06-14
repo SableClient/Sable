@@ -7,8 +7,6 @@ import {
   Dialog,
   Header,
   IconButton,
-  Icon,
-  Icons,
   Text,
   Input,
   Button,
@@ -23,6 +21,7 @@ import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
+import { Icon, Icons } from '$app/icons';
 
 const debugLog = createDebugLogger('MessageDelete');
 

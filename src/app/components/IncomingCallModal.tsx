@@ -3,8 +3,6 @@ import {
   Dialog,
   Header,
   IconButton,
-  Icon,
-  Icons,
   Text,
   Button,
   Avatar,
@@ -29,6 +27,7 @@ import {
 } from '$state/callEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
 import { RoomAvatar } from './room-avatar';
+import { Icon, Icons } from '$app/icons';
 
 const debugLog = createDebugLogger('IncomingCall');
 

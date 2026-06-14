@@ -6,9 +6,7 @@ import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -97,6 +95,7 @@ import { ModalWide } from '$styles/Modal.css';
 import { ImageViewer } from '$components/image-viewer';
 import * as css from './styles.css';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
+import { Icon, Icons } from '$app/icons';
 
 const debugLog = createDebugLogger('Space');
 

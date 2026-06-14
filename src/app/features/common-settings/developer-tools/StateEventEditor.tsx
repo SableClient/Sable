@@ -3,8 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Text,
-  Icon,
-  Icons,
   IconButton,
   Chip,
   Scroll,
@@ -32,6 +30,7 @@ import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { Icon, Icons } from '$app/icons';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 

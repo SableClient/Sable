@@ -1,4 +1,4 @@
-import { Box, config, Icon, Icons, Text } from 'folds';
+import { Box, config, Text } from 'folds';
 import type { CallMembership } from '$types/matrix-sdk';
 import type { Room } from '$types/matrix-sdk';
 import { UserAvatar } from '../../components/user-avatar';
@@ -10,6 +10,7 @@ import { StackedAvatar } from '../../components/stacked-avatar';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
 import { getMouseEventCords } from '../../utils/dom';
 import * as css from './styles.css';
+import { Icon, Icons } from '$app/icons';
 
 type MemberGlanceProps = {
   room: Room;

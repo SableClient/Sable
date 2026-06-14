@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Box, Icon, IconButton, Icons, Text } from 'folds';
+import { Box, IconButton, Text } from 'folds';
 import { Page, PageHeader } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { settingsHeader } from './styles.css';
+import { Icon, Icons } from '$app/icons';
 
 type SettingsSectionPageProps = {
   title: ReactNode;

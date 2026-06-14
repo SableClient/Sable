@@ -5,9 +5,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Overlay,
   OverlayBackdrop,
@@ -25,6 +23,7 @@ import {
 } from 'matrix-js-sdk/lib/@types/polls';
 import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { Icon, Icons } from '$app/icons';
 
 const MIN_ANSWERS = 2;
 const MAX_ANSWERS = 20;

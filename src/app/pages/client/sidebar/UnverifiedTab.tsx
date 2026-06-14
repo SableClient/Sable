@@ -1,4 +1,4 @@
-import { Badge, color, Icon, Icons, Text } from 'folds';
+import { Badge, color, Text } from 'folds';
 import {
   SidebarAvatar,
   SidebarItem,
@@ -15,6 +15,7 @@ import {
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
 import { useOpenSettings } from '$features/settings';
 import * as css from './UnverifiedTab.css';
+import { Icon, Icons } from '$app/icons';
 
 function UnverifiedIndicator() {
   const mx = useMatrixClient();

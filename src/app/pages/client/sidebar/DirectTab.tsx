@@ -2,7 +2,7 @@ import type { MouseEventHandler } from 'react';
 import { forwardRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
+import { Box, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { useDirects } from '$state/hooks/roomList';
@@ -27,6 +27,7 @@ import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
+import { Icon, Icons } from '$app/icons';
 
 type DirectMenuProps = {
   requestClose: () => void;

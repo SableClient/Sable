@@ -1,6 +1,6 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Header, Icon, IconButton, Icons, Scroll, Spinner, Text, config, toRem } from 'folds';
+import { Box, Header, IconButton, Scroll, Spinner, Text, config, toRem } from 'folds';
 import type { IEvent, Room } from '$types/matrix-sdk';
 import {
   Direction,
@@ -71,6 +71,7 @@ import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
 import { M_TEXT } from 'matrix-js-sdk';
+import { Icon, Icons } from '$app/icons';
 
 /**
  * Resolve the list of reply events to show in the thread drawer.

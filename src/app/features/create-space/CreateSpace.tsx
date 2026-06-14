@@ -2,20 +2,7 @@ import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { MatrixError, RoomType } from '$types/matrix-sdk';
-import {
-  Box,
-  Button,
-  Chip,
-  color,
-  config,
-  Icon,
-  Icons,
-  Input,
-  Spinner,
-  Switch,
-  Text,
-  TextArea,
-} from 'folds';
+import { Box, Button, Chip, color, config, Input, Spinner, Switch, Text, TextArea } from 'folds';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -41,6 +28,7 @@ import {
 } from '$utils/roomSupport';
 
 import { ErrorCode } from '../../cs-errorcode';
+import { Icon, Icons } from '$app/icons';
 
 const getCreateSpaceAccessToIcon = (access: CreateRoomAccess) => {
   if (access === CreateRoomAccess.Private) return Icons.SpaceLock;

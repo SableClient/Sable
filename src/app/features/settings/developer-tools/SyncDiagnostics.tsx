@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Icon, Icons, Text } from 'folds';
+import { Box, Button, Text } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getClientSyncDiagnostics } from '$client/initMatrix';
@@ -8,6 +8,7 @@ import { Direction, EventType, NotificationCountType, KnownMembership } from '$t
 
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { getUnreadInfo, isNotificationEvent } from '$utils/room';
+import { Icon, Icons } from '$app/icons';
 
 type RoomRenderingDiagnostics = {
   totalRooms: number;

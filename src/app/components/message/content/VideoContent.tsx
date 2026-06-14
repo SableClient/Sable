@@ -5,8 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   Spinner,
@@ -29,6 +27,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../../unstable/prefixes';
+import { Icon, Icons } from '$app/icons';
 
 type RenderVideoProps = {
   title: string;

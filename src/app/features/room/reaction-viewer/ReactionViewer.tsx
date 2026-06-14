@@ -1,19 +1,6 @@
 import { useCallback, useState } from 'react';
 import classNames from 'classnames';
-import {
-  Avatar,
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  MenuItem,
-  Scroll,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Avatar, Box, Header, IconButton, Line, MenuItem, Scroll, Text, as, config } from 'folds';
 import type { MatrixEvent, Room, RoomMember, Relations } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { eventWithShortcode, getMxIdLocalPart } from '$utils/matrix';
@@ -30,6 +17,7 @@ import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { getMouseEventCords } from '$utils/dom';
 import * as css from './ReactionViewer.css';
+import { Icon, Icons } from '$app/icons';
 
 export type ReactionViewerProps = {
   room: Room;

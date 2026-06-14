@@ -13,9 +13,7 @@ import {
   Button,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -47,6 +45,7 @@ import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 import { SettingsSectionPage } from '../SettingsSectionPage';
+import { Icon, Icons } from '$app/icons';
 
 type DateHintProps = {
   hasChanges: boolean;

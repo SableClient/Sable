@@ -2,7 +2,7 @@ import type { MouseEventHandler } from 'react';
 import { forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
+import { Box, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
 import { useOrphanRooms } from '$state/hooks/roomList';
@@ -27,6 +27,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useHomeRooms } from '$pages/client/home/useHomeRooms';
+import { Icon, Icons } from '$app/icons';
 
 type HomeMenuProps = {
   requestClose: () => void;

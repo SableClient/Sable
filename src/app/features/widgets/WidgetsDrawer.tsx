@@ -3,9 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   MenuItem,
   Scroll,
@@ -37,6 +35,7 @@ import { IntegrationManager } from './IntegrationManager';
 import { CustomStateEvent } from '$types/matrix/room';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { Icon, Icons } from '$app/icons';
 
 type WidgetsDrawerHeaderProps = {
   activeWidget: RoomWidget | null;

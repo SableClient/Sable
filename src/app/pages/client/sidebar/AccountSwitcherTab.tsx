@@ -7,8 +7,6 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -51,6 +49,7 @@ import type { Presence } from '$hooks/useUserPresence';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
+import { Icon, Icons } from '$app/icons';
 
 const log = createLogger('AccountSwitcherTab');
 const debugLog = createDebugLogger('AccountSwitcherTab');

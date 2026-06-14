@@ -1,4 +1,4 @@
-import { Box, Button, color, config, Icon, Icons, Input, Spinner, Switch, Text } from 'folds';
+import { Box, Button, color, config, Input, Spinner, Switch, Text } from 'folds';
 import type { FormEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import type { ICreateRoomStateEvent } from '$types/matrix-sdk';
@@ -14,6 +14,7 @@ import { createRoomEncryptionState } from '$components/create-room';
 import { useAlive } from '$hooks/useAlive';
 import { getDirectRoomPath } from '$pages/pathUtils';
 import { ErrorCode } from '../../cs-errorcode';
+import { Icon, Icons } from '$app/icons';
 
 type CreateChatProps = {
   defaultUserId?: string;

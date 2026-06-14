@@ -1,6 +1,6 @@
 import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Box, Button, color, Icon, Icons, Spinner, Text, toRem } from 'folds';
+import { Box, Button, color, Spinner, Text, toRem } from 'folds';
 import FileSaver from 'file-saver';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -16,6 +16,7 @@ import {
 import { useAlive } from '$hooks/useAlive';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { Icon, Icons } from '$app/icons';
 
 type LocalBackupError = Error | FriendlyError;
 

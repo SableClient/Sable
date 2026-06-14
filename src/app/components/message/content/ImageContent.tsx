@@ -170,7 +170,7 @@ export const ImageContent = as<'div', ImageContentProps>(
         ? info.size
         : mediaMetadata?.byteSize;
 
-    const [srcState, loadSrc] = useAsyncCallback(
+    const [srcState, loadSrc, setSrcState] = useAsyncCallback(
       useCallback(async () => {
         if (url.startsWith('http')) return url;
 
@@ -294,6 +294,18 @@ export const ImageContent = as<'div', ImageContentProps>(
       setError(false);
       loadSrc();
     };
+
+    const currentUrlRef = useRef(url);
+    useEffect(() => {
+      if (currentUrlRef.current === url) return;
+      currentUrlRef.current = url;
+      thumbnailRequestRef.current = undefined;
+      setSrcState({ status: AsyncStatus.Idle });
+      setLoad(false);
+      setError(false);
+      setViewer(false);
+      setViewerFullSrc(null);
+    }, [setSrcState, url]);
 
     useEffect(() => {
       if (autoPlay && srcState.status === AsyncStatus.Idle) loadSrc();

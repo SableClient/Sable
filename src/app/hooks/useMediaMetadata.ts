@@ -21,7 +21,7 @@ export function useMediaMetadata(cacheKey: string | undefined): CachedMediaMetad
 
     getMediaMetadata(cacheKey)
       .then((nextMetadata) => {
-        if (!disposed) setMetadata(nextMetadata);
+        if (!disposed) setMetadata(getMediaMetadataSnapshot(cacheKey) ?? nextMetadata);
       })
       .catch(() => undefined);
 

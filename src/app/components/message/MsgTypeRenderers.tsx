@@ -41,7 +41,9 @@ import { copyToClipboard } from '$utils/dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
 import * as css from './MsgTypeRenderers.css';
+import { markerIcon } from '$features/room/location-modal/LocationDialog';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -681,6 +683,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
   const location = parseGeoUri(geoUri);
   if (!location) return <BrokenContent />;
   const coords: LatLngExpression = [Number(location.latitude), Number(location.longitude)];
+
   return (
     <Box
       direction="Column"
@@ -730,8 +733,16 @@ export function MLocation({ content, showMaps }: MLocationProps) {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-
-          <Marker position={coords}></Marker>
+          <Marker
+            position={coords}
+            eventHandlers={{
+              mousedown: (e) => {
+                e.originalEvent.preventDefault();
+                e.originalEvent.stopPropagation();
+              },
+            }}
+            icon={markerIcon}
+          />
         </MapContainer>
       )}
     </Box>

@@ -90,7 +90,8 @@ const mergeVideoInfoWithMetadata = (
   const height = positiveMediaDimension(info?.h) ?? metadata.height;
   const size = positiveMediaDimension(info?.size) ?? metadata.byteSize;
   const duration = positiveMediaDimension(info?.duration) ?? metadata.duration;
-  const mimetype = info?.mimetype ?? metadata.mimeType;
+  const mimetype =
+    info?.mimetype ?? metadata.mimeType ?? (metadata.kind === 'video' ? 'video/mp4' : undefined);
 
   if (!width && !height && !size && !duration && !mimetype) return info;
 

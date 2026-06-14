@@ -151,7 +151,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     }, [mx, url, useAuthentication]);
     const mediaMetadataKey = useMemo(() => {
       if (encInfo) return getScopedMediaCacheKey(url);
-      return rawMediaUrl ? getScopedMediaCacheKey(rawMediaUrl) : undefined;
+      return getScopedMediaCacheKey(rawMediaUrl ?? url);
     }, [encInfo, rawMediaUrl, url]);
     const mediaMetadata = useMediaMetadata(mediaMetadataKey);
     const imageW =
@@ -305,7 +305,8 @@ export const ImageContent = as<'div', ImageContentProps>(
       setError(false);
       setViewer(false);
       setViewerFullSrc(null);
-    }, [setSrcState, url]);
+      if (autoPlay) void loadSrc();
+    }, [autoPlay, loadSrc, setSrcState, url]);
 
     useEffect(() => {
       if (autoPlay && srcState.status === AsyncStatus.Idle) loadSrc();

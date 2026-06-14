@@ -1,3 +1,4 @@
+import type * as SettingsModule from '$state/settings';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { ClientConfigProvider } from '$hooks/useClientConfig';
@@ -28,9 +29,13 @@ vi.mock('$state/hooks/settings', () => ({
   useSetting: () => [true, vi.fn<() => void>()] as const,
 }));
 
-vi.mock('$state/settings', () => ({
-  settingsAtom: {},
-}));
+vi.mock('$state/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof SettingsModule>();
+  return {
+    ...actual,
+    settingsAtom: {},
+  };
+});
 
 vi.mock('./useSettingsFocus', () => ({
   useSettingsFocus: () => {},

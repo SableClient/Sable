@@ -28,7 +28,6 @@ import {
   GearSix,
   Link,
   menuIcon,
-  navIcon,
   PencilSimple,
   PushPinSlash,
   UserPlus,
@@ -640,7 +639,7 @@ function OpenedSpaceFolder({
       <SidebarFolderDropTarget ref={aboveTargetRef} position="Top" />
       <SidebarAvatar size="300" onContextMenu={onFolderContextMenu}>
         <IconButton data-id={folder.id} size="300" variant="Background" onClick={onClose}>
-          {navIcon(CaretUp, { weight: 'fill' })}
+          {composerIcon(CaretUp, { weight: 'fill' })}
         </IconButton>
       </SidebarAvatar>
       {children}

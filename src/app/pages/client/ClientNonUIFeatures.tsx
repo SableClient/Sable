@@ -25,6 +25,7 @@ import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { IconSizesProvider } from '$components/icons/phosphor';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -883,7 +884,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />
-      {children}
+      <IconSizesProvider>{children}</IconSizesProvider>
     </>
   );
 }

@@ -43,7 +43,7 @@ import { UserAvatar } from '$components/user-avatar';
 import {
   dropzoneIcon,
   menuIcon,
-  navIcon,
+  composerIcon,
   PushPin,
   userFallbackIcon,
   X,
@@ -588,7 +588,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
             </Box>
             <Box shrink="No">
               <IconButton size="300" onClick={requestClose} radii="300">
-                {navIcon(X)}
+                {composerIcon(X)}
               </IconButton>
             </Box>
           </Header>

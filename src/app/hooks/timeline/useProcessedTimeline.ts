@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
+import { EventType } from '$types/matrix-sdk';
 import {
   getTimelineAndBaseIndex,
   getTimelineRelativeIndex,
@@ -12,6 +13,7 @@ import {
   isReactionEvent,
   isRedactableMessageType,
   shouldShowRedactionTimelineEvent,
+  getRedactionTargetEvent,
   collectRelationReactionEvents,
   collectRelationEditEvents,
 } from '$utils/room';
@@ -71,6 +73,9 @@ const MESSAGE_EVENT_TYPES = new Set([
 const normalizeMessageType = (t: string): string =>
   t === 'm.room.encrypted' || t === 'm.room.message.encrypted' ? 'm.room.message' : t;
 
+const isMessageRow = (mEvent: MatrixEvent): boolean =>
+  MESSAGE_EVENT_TYPES.has(mEvent.getType()) && !isEditEvent(mEvent);
+
 const getPmpId = (ev: MatrixEvent): string | null =>
   ev.getContent()?.['com.beeper.per_message_profile']?.id ?? null;
 
@@ -102,7 +107,7 @@ const computeCollapseAndDividers = (
       dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
     }
 
-    const isMessageEvent = MESSAGE_EVENT_TYPES.has(type);
+    const isMessageEvent = isMessageRow(mEvent);
 
     let collapsed = false;
     if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
@@ -114,13 +119,13 @@ const computeCollapseAndDividers = (
 
         collapsed =
           dividerOk &&
+          isMessageRow(prevEvent) &&
           senderMatch &&
           typeMatch &&
           withinTimeThreshold &&
           getPmpId(prevEvent) === getPmpId(mEvent);
       } else {
-        const prevIsMessageEvent = MESSAGE_EVENT_TYPES.has(prevEvent.getType());
-        collapsed = !prevIsMessageEvent;
+        collapsed = !isMessageRow(prevEvent);
       }
     }
 
@@ -147,9 +152,13 @@ const mergeRelationReactions = (
   ignoredUsersSet: Set<string>,
   hiddenEventReactions: boolean,
   hiddenEventReactionTombstone: boolean,
+  hideMemberInReadOnly: boolean,
+  isReadOnly: boolean,
   mxUserId: string | null,
   readUptoEventId: string | undefined
 ): ProcessedEvent[] => {
+  if (hideMemberInReadOnly && isReadOnly) return result;
+
   const existingIds = new Set(result.map((event) => event.id));
   const extras = collectRelationReactionEvents(
     linkedTimelines,
@@ -270,6 +279,16 @@ export function useProcessedTimeline({
       const isReaction = isReactionEvent(mEvent);
       const isRedactionEvt = mEvent.isRedaction();
 
+      if (hideMemberInReadOnly && isReadOnly) {
+        if (isReaction) return acc;
+        if (
+          isRedactionEvt &&
+          getRedactionTargetEvent(timelineSet, mEvent)?.getType() === (EventType.Reaction as string)
+        ) {
+          return acc;
+        }
+      }
+
       if (mEvent.isRedacted()) {
         const showMessageTombstone = showTombstoneEvents && isRedactableMessageType(type);
         const showReactionTombstone = hiddenEventReactionTombstone && isReaction;
@@ -353,7 +372,7 @@ export function useProcessedTimeline({
         dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
       }
 
-      const isMessageEvent = MESSAGE_EVENT_TYPES.has(type);
+      const isMessageEvent = isMessageRow(mEvent);
 
       let collapsed = false;
       if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
@@ -366,13 +385,13 @@ export function useProcessedTimeline({
 
           collapsed =
             dividerOk &&
+            isMessageRow(prevEvent) &&
             senderMatch &&
             typeMatch &&
             withinTimeThreshold &&
             getPmpId(prevEvent) === getPmpId(mEvent);
         } else {
-          const prevIsMessageEvent = MESSAGE_EVENT_TYPES.has(prevEvent.getType());
-          collapsed = !prevIsMessageEvent;
+          collapsed = !isMessageRow(prevEvent);
         }
       }
 
@@ -406,6 +425,8 @@ export function useProcessedTimeline({
         ignoredUsersSet,
         hiddenEventReactions,
         hiddenEventReactionTombstone,
+        hideMemberInReadOnly,
+        isReadOnly,
         mxUserId,
         readUptoEventId
       ),

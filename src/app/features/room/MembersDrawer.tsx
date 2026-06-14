@@ -46,7 +46,6 @@ import {
   composerIcon,
   Funnel,
   MagnifyingGlass,
-  navIcon,
   userFallbackIcon,
   X,
 } from '$components/icons/phosphor';
@@ -472,7 +471,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                     size="300"
                     aria-label="Scroll to Top"
                   >
-                    {navIcon(CaretUp)}
+                    {composerIcon(CaretUp)}
                   </IconButton>
                 </ScrollTopContainer>
 

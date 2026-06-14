@@ -17,7 +17,7 @@ import {
 } from '$pages/pathUtils';
 import { useCreateSelected } from '$hooks/router/useCreateSelected';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
-import { composerIcon, Link, PHOSPHOR_SIZE, Plus, SquaresFour } from '$components/icons/phosphor';
+import { composerIcon, Link, getPhosphorSize, Plus, SquaresFour } from '$components/icons/phosphor';
 
 export function CreateTab() {
   const createSelected = useCreateSelected();
@@ -110,7 +110,7 @@ export function CreateTab() {
               outlined
               onClick={handleMenu}
             >
-              <Plus size={PHOSPHOR_SIZE.toolbar} />
+              <Plus size={getPhosphorSize().toolbar} />
             </SidebarAvatar>
             {joinAddress && (
               <JoinAddressPrompt

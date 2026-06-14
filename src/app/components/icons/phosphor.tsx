@@ -124,33 +124,86 @@ import {
   XIcon,
 } from '@phosphor-icons/react';
 import type { ComponentType, ReactNode } from 'react';
+import { useLayoutEffect } from 'react';
+import { useSetting } from '$state/hooks/settings';
+import { getSettings, settingsAtom } from '$state/settings';
 
-/** Inline (20px), toolbar (24px), and empty-state (40px) icon sizes. */
-export const PHOSPHOR_SIZE = {
+export const DEFAULT_PHOSPHOR_SIZES = {
+  compact: 16,
   inline: 20,
   toolbar: 24,
-  empty: 40,
+  empty: 32,
 } as const;
 
-/** Icon size tokens for `sizedIcon()` mapped to pixel values. */
+export type PhosphorRoleSizes = {
+  compact: number;
+  inline: number;
+  toolbar: number;
+  empty: number;
+};
+
+let runtimePhosphorSizes: PhosphorRoleSizes | null = null;
+
+export function getPhosphorSize(): PhosphorRoleSizes {
+  if (runtimePhosphorSizes) return runtimePhosphorSizes;
+  const settings = getSettings();
+  return {
+    compact: settings.iconCompactSizePx,
+    inline: settings.iconInlineSizePx,
+    toolbar: settings.iconToolbarSizePx,
+    empty: settings.iconEmptySizePx,
+  };
+}
+
+export function IconSizesProvider({ children }: { children: ReactNode }) {
+  const [compact] = useSetting(settingsAtom, 'iconCompactSizePx');
+  const [inline] = useSetting(settingsAtom, 'iconInlineSizePx');
+  const [toolbar] = useSetting(settingsAtom, 'iconToolbarSizePx');
+  const [empty] = useSetting(settingsAtom, 'iconEmptySizePx');
+
+  runtimePhosphorSizes = { compact, inline, toolbar, empty };
+
+  useLayoutEffect(
+    () => () => {
+      runtimePhosphorSizes = null;
+    },
+    []
+  );
+
+  return children;
+}
+
 export type IconSizeToken = '50' | '100' | '200' | '300' | '400' | '500' | '600' | 'Inherit';
 
-const ICON_SIZE_PX: Record<Exclude<IconSizeToken, 'Inherit'>, number> = {
-  '50': 12,
-  '100': 16,
-  '200': 20,
-  '300': 24,
-  '400': 32,
-  '500': 40,
-  '600': 48,
-};
+function resolveIconTokenPx(
+  token: Exclude<IconSizeToken, 'Inherit'>,
+  sizes: PhosphorRoleSizes
+): number {
+  switch (token) {
+    case '50':
+      return Math.round((sizes.compact * 12) / DEFAULT_PHOSPHOR_SIZES.compact);
+    case '100':
+      return sizes.compact;
+    case '200':
+      return sizes.inline;
+    case '300':
+      return sizes.toolbar;
+    case '400':
+      return Math.round((sizes.toolbar + sizes.empty) / 2);
+    case '500':
+      return sizes.empty;
+    case '600':
+      return Math.round((sizes.empty * 48) / DEFAULT_PHOSPHOR_SIZES.empty);
+    default:
+      return sizes.inline;
+  }
+}
 
 const timelineMutedStyle = { opacity: 0.6 } as const;
 
 export type PhosphorIcon = ComponentType<IconProps>;
 
 type SizedIconProps = IconProps & {
-  /** Folds `Icon` `filled` prop — maps to Phosphor `fill` weight. */
   filled?: boolean;
 };
 
@@ -164,30 +217,36 @@ export function sizedIcon(
   if (size === 'Inherit') {
     return <Icon size="1em" weight={resolvedWeight} style={style} {...rest} />;
   }
-  return <Icon size={ICON_SIZE_PX[size]} weight={resolvedWeight} style={style} {...rest} />;
+  return (
+    <Icon
+      size={resolveIconTokenPx(size, getPhosphorSize())}
+      weight={resolvedWeight}
+      style={style}
+      {...rest}
+    />
+  );
 }
 
 export function timelineIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
-  return <Icon size={PHOSPHOR_SIZE.inline} style={timelineMutedStyle} {...props} />;
+  return <Icon size={getPhosphorSize().inline} style={timelineMutedStyle} {...props} />;
 }
 
 export function menuIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
-  return <Icon size={PHOSPHOR_SIZE.inline} {...props} />;
+  return <Icon size={getPhosphorSize().inline} {...props} />;
 }
 
 export function composerIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
-  return <Icon size={PHOSPHOR_SIZE.toolbar} {...props} />;
+  return <Icon size={getPhosphorSize().toolbar} {...props} />;
 }
 
 export function chipIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
-  return <Icon size={PHOSPHOR_SIZE.inline} {...props} />;
+  return <Icon size={getPhosphorSize().inline} {...props} />;
 }
 
 export function profileIcon(Icon: PhosphorIcon, props?: SizedIconProps): ReactNode {
   return sizedIcon(Icon, '100', props);
 }
 
-/** Caret in chip `after` slots — flex-centered so Phosphor glyphs align with label text. */
 export function chipCaretIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
   const { style, ...rest } = props ?? {};
   return (
@@ -200,36 +259,31 @@ export function chipCaretIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode 
         flexShrink: 0,
       }}
     >
-      <Icon size={PHOSPHOR_SIZE.inline} style={{ display: 'block', ...style }} {...rest} />
+      <Icon size={getPhosphorSize().inline} style={{ display: 'block', ...style }} {...rest} />
     </span>
   );
 }
 
-/** @deprecated Prefer composerIcon — same toolbar size. */
-export function navIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
-  return composerIcon(Icon, props);
-}
-
 export function dropzoneIcon(Icon: PhosphorIcon, props?: IconProps): ReactNode {
-  return <Icon size={PHOSPHOR_SIZE.empty} {...props} />;
+  return <Icon size={getPhosphorSize().empty} {...props} />;
 }
 
 export function settingsNavIcon(Icon: PhosphorIcon, active: boolean, props?: IconProps): ReactNode {
-  return <Icon size={PHOSPHOR_SIZE.inline} weight={active ? 'fill' : 'regular'} {...props} />;
+  return <Icon size={getPhosphorSize().inline} weight={active ? 'fill' : 'regular'} {...props} />;
 }
 
 export type UserFallbackSize = 'sm' | 'md' | 'lg' | 'xl' | 'hero';
 
-const USER_FALLBACK_SIZE = {
-  sm: PHOSPHOR_SIZE.inline,
-  md: PHOSPHOR_SIZE.inline,
-  lg: PHOSPHOR_SIZE.toolbar,
-  xl: PHOSPHOR_SIZE.toolbar,
-  hero: PHOSPHOR_SIZE.empty,
-} as const;
-
 export function userFallbackIcon(size: UserFallbackSize = 'md', props?: IconProps): ReactNode {
-  return <UserIcon size={USER_FALLBACK_SIZE[size]} weight="regular" {...props} />;
+  const sizes = getPhosphorSize();
+  const px = {
+    sm: sizes.inline,
+    md: sizes.inline,
+    lg: sizes.toolbar,
+    xl: sizes.toolbar,
+    hero: sizes.empty,
+  }[size];
+  return <UserIcon size={px} weight="regular" {...props} />;
 }
 
 export {

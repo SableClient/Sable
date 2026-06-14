@@ -4,8 +4,6 @@ import {
   Avatar,
   Box,
   color as standardColors,
-  Icon,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -29,6 +27,7 @@ import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { ImageViewer } from '$components/image-viewer';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { UserAvatar } from '$components/user-avatar';
+import { CaretDown, CaretUp, profileIcon, userFallbackIcon } from '$components/icons/phosphor';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { shadeColor, areColorsTooSimilar } from '$utils/shadeColor';
@@ -125,7 +124,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                 userId={userId}
                 src={avatarUrl}
                 alt={userId}
-                renderFallback={() => <Icon size="500" src={Icons.User} filled />}
+                renderFallback={() => userFallbackIcon('hero')}
               />
             </Avatar>
           </AvatarPresence>
@@ -214,7 +213,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                       alignSelf: isFullStatus ? 'flex-start' : 'center',
                     }}
                   >
-                    <Icon size="50" src={isFullStatus ? Icons.ChevronTop : Icons.ChevronBottom} />
+                    {profileIcon(isFullStatus ? CaretUp : CaretDown)}
                   </Box>
                 )}
               </Box>

@@ -3,9 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Scroll,
   Spinner,
@@ -28,6 +26,14 @@ import { nicknamesAtom } from '$state/nicknames';
 import { getMemberAvatarMxc, getMemberDisplayName, reactionOrEditEvent } from '$utils/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
+import {
+  Chats,
+  chipIcon,
+  composerIcon,
+  MagnifyingGlass,
+  userFallbackIcon,
+  X,
+} from '$components/icons/phosphor';
 import {
   AvatarBase,
   ModernLayout,
@@ -189,7 +195,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
                     : undefined
                 }
                 alt={displayName}
-                renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+                renderFallback={() => userFallbackIcon('lg')}
               />
             </Avatar>
           </AvatarBase>
@@ -472,7 +478,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
       )}
       <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
         <Box grow="Yes" alignItems="Center" gap="200">
-          <Icon size="200" src={Icons.Thread} />
+          {composerIcon(Chats)}
           <Text size="H4" truncate>
             Threads
           </Text>
@@ -485,7 +491,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
             radii="300"
             aria-label="Close threads"
           >
-            <Icon size="200" src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Box>
       </Header>
@@ -504,7 +510,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           variant="Surface"
           size="400"
           radii="400"
-          before={<Icon size="50" src={Icons.Search} />}
+          before={chipIcon(MagnifyingGlass)}
           after={
             query ? (
               <IconButton
@@ -517,7 +523,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                 }}
                 aria-label="Clear search"
               >
-                <Icon size="50" src={Icons.Cross} />
+                {chipIcon(X)}
               </IconButton>
             ) : undefined
           }
@@ -553,7 +559,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                   justifyContent="Center"
                   style={{ padding: config.space.S400, gap: config.space.S200 }}
                 >
-                  <Icon size="400" src={Icons.Thread} />
+                  {composerIcon(Chats, { style: { opacity: 0.6 } })}
                   <Text size="T300" align="Center">
                     {lowerQuery ? 'No threads match your search.' : 'No threads yet.'}
                   </Text>

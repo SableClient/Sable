@@ -1,13 +1,13 @@
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { RectCords } from 'folds';
+import type { IconSrc, RectCords } from 'folds';
 import {
   Avatar,
   Box,
   Chip,
-  Text,
   Icon,
   Icons,
+  Text,
   Line,
   config,
   PopOut,
@@ -20,16 +20,16 @@ import {
   Input,
   Badge,
 } from 'folds';
-import type { IconSrc } from 'folds';
-import { SearchOrderBy } from '$types/matrix-sdk';
 import type { RoomMember } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
+import { getRoomIconComponent } from '$components/icons/roomIcons';
+import { Check, Lock, sizedIcon, PlusCircle, SortAscending, X } from '$components/icons/phosphor';
+import { SearchOrderBy } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAtomValue } from 'jotai';
 import { settingsAtom } from '$state/settings';
 import { useClientConfig } from '$hooks/useClientConfig';
-import { getRoomIconSrc } from '$utils/room';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
 import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
@@ -173,7 +173,7 @@ function OrderButton({ order, onChange }: OrderButtonProps) {
       <Chip
         variant="SurfaceVariant"
         radii="Pill"
-        after={<Icon size="50" src={Icons.Sort} />}
+        after={sizedIcon(SortAscending, '50')}
         onClick={handleOpenMenu}
       >
         {rankOrder ? <Text size="T200">Relevance</Text> : <Text size="T200">Recent</Text>}
@@ -345,16 +345,14 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                             size="300"
                             radii="300"
                             aria-pressed={selected}
-                            before={
-                              <Icon
-                                size="50"
-                                src={getRoomIconSrc(Icons, room.getType(), room.getJoinRule())}
-                              />
-                            }
+                            before={sizedIcon(
+                              getRoomIconComponent(room.getType(), room.getJoinRule()),
+                              '50'
+                            )}
                             after={
                               encryptedSearchActive && mx.isRoomEncrypted(roomId) ? (
                                 <span title="Encrypted — searched from local cache">
-                                  <Icon size="50" src={Icons.Lock} />
+                                  {sizedIcon(Lock, '50')}
                                 </span>
                               ) : null
                             }
@@ -398,7 +396,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
         onClick={handleOpenMenu}
         variant="SurfaceVariant"
         radii="Pill"
-        before={<Icon size="100" src={Icons.PlusCircle} />}
+        before={sizedIcon(PlusCircle, '100')}
       >
         <Text size="T200">Select Rooms</Text>
       </Chip>
@@ -694,7 +692,7 @@ export function SearchFilters({
         <Chip
           variant={!global ? 'Success' : 'Surface'}
           aria-pressed={!global}
-          before={!global && <Icon size="100" src={Icons.Check} />}
+          before={!global && sizedIcon(Check, '100')}
           outlined
           onClick={() => onGlobalChange()}
         >
@@ -704,7 +702,7 @@ export function SearchFilters({
           <Chip
             variant={global ? 'Success' : 'Surface'}
             aria-pressed={global}
-            before={global && <Icon size="100" src={Icons.Check} />}
+            before={global && sizedIcon(Check, '100')}
             outlined
             onClick={() => onGlobalChange(true)}
           >
@@ -727,10 +725,8 @@ export function SearchFilters({
               variant="Success"
               onClick={() => onSelectedRoomsChange(selectedRooms.filter((rId) => rId !== roomId))}
               radii="Pill"
-              before={
-                <Icon size="50" src={getRoomIconSrc(Icons, room.getType(), room.getJoinRule())} />
-              }
-              after={<Icon size="50" src={Icons.Cross} />}
+              before={sizedIcon(getRoomIconComponent(room.getType(), room.getJoinRule()), '50')}
+              after={sizedIcon(X, '50')}
             >
               <Text size="T200">{room.name}</Text>
             </Chip>

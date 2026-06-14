@@ -5,6 +5,7 @@ import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
+import { testMatrixUri } from '$plugins/matrix-uri';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
 import type { HTMLReactParserOptions } from 'html-react-parser';
@@ -133,7 +134,8 @@ function RenderMessageContentInternal({
   const renderUrlsPreview = useCallback(
     (urls: string[]) => {
       const filteredUrls = urls.filter(
-        (url) => !testMatrixTo(url) && !parseSettingsLink(settingsLinkBaseUrl, url)
+        (url) =>
+          !testMatrixTo(url) && !testMatrixUri(url) && !parseSettingsLink(settingsLinkBaseUrl, url)
       );
       if (filteredUrls.length === 0) return undefined;
 

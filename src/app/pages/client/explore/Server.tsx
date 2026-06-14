@@ -5,9 +5,7 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Line,
   Menu,
@@ -19,6 +17,19 @@ import {
   config,
   toRem,
 } from 'folds';
+import {
+  ArrowLeft,
+  CaretDown,
+  Check,
+  HardDrives,
+  Info,
+  MagnifyingGlass,
+  X,
+  chipIcon,
+  composerIcon,
+  sizedIcon,
+  menuIcon,
+} from '$components/icons/phosphor';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
@@ -108,11 +119,7 @@ function Search({ active, loading, searchInputRef, onSearch, onReset }: Readonly
         variant="Background"
         placeholder="Search for keyword"
         before={
-          active && loading ? (
-            <Spinner variant="Secondary" size="200" />
-          ) : (
-            <Icon size="200" src={Icons.Search} />
-          )
+          active && loading ? <Spinner variant="Secondary" size="200" /> : menuIcon(MagnifyingGlass)
         }
         after={
           active ? (
@@ -122,7 +129,7 @@ function Search({ active, loading, searchInputRef, onSearch, onReset }: Readonly
               size="400"
               radii="Pill"
               outlined
-              after={<Icon size="50" src={Icons.Cross} />}
+              after={sizedIcon(X, '50')}
               onClick={onReset}
             >
               <Text size="B300">Clear</Text>
@@ -231,7 +238,7 @@ function ThirdPartyProtocolsSelector({
         radii="Pill"
         size="400"
         variant={instanceId ? 'Success' : 'SurfaceVariant'}
-        after={<Icon size="100" src={Icons.ChevronBottom} />}
+        after={chipIcon(CaretDown)}
       >
         <Text size="T200" truncate>
           {selectedInstance?.desc ?? DEFAULT_INSTANCE_NAME}
@@ -326,7 +333,7 @@ function LimitButton({ limit, onLimitChange }: Readonly<LimitButtonProps>) {
         radii="Pill"
         size="400"
         variant="SurfaceVariant"
-        after={<Icon size="100" src={Icons.ChevronBottom} />}
+        after={chipIcon(CaretDown)}
       >
         <Text size="T200" truncate>{`Page Limit: ${limit}`}</Text>
       </Chip>
@@ -476,7 +483,7 @@ export function PublicRooms() {
                 size="500"
                 variant="Surface"
                 radii="Pill"
-                before={<Icon size="100" src={Icons.ArrowLeft} />}
+                before={chipIcon(ArrowLeft)}
                 onClick={handleSearchClear}
               >
                 <Text size="T300">{server}</Text>
@@ -484,7 +491,7 @@ export function PublicRooms() {
             </Box>
 
             <Box grow="No" justifyContent="Center" alignItems="Center" gap="200">
-              {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Search} />}
+              {screenSize !== ScreenSize.Mobile && sizedIcon(MagnifyingGlass, '400')}
               <Text size="H3" truncate>
                 Search
               </Text>
@@ -496,16 +503,12 @@ export function PublicRooms() {
             <Box grow="Yes" basis="No">
               {screenSize === ScreenSize.Mobile && (
                 <BackRouteHandler>
-                  {(onBack) => (
-                    <IconButton onClick={onBack}>
-                      <Icon src={Icons.ArrowLeft} />
-                    </IconButton>
-                  )}
+                  {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
                 </BackRouteHandler>
               )}
             </Box>
             <Box grow="Yes" justifyContent="Center" alignItems="Center" gap="200">
-              {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Server} />}
+              {screenSize !== ScreenSize.Mobile && sizedIcon(HardDrives, '400')}
               <Text size="H3" truncate>
                 {server}
               </Text>
@@ -543,9 +546,7 @@ export function PublicRooms() {
                           variant={filter.value === serverSearchParams.type ? 'Success' : 'Surface'}
                           aria-pressed={filter.value === serverSearchParams.type}
                           before={
-                            filter.value === serverSearchParams.type && (
-                              <Icon size="100" src={Icons.Check} />
-                            )
+                            filter.value === serverSearchParams.type && sizedIcon(Check, '100')
                           }
                           outlined
                         >
@@ -648,7 +649,7 @@ export function PublicRooms() {
                         alignItems="Center"
                         gap="200"
                       >
-                        <Icon size="400" src={Icons.Info} />
+                        {sizedIcon(Info, '400')}
                         <Text size="T300" align="Center">
                           No communities found!
                         </Text>

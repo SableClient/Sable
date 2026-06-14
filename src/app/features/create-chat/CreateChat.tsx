@@ -1,4 +1,5 @@
-import { Box, Button, color, config, Icon, Icons, Input, Spinner, Switch, Text } from 'folds';
+import { Box, Button, color, config, Input, Spinner, Switch, Text } from 'folds';
+import { sizedIcon, Warning } from '$components/icons/phosphor';
 import type { FormEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import type { ICreateRoomStateEvent } from '$types/matrix-sdk';
@@ -95,7 +96,7 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
         />
         {invalidUserId && (
           <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="100">
-            <Icon src={Icons.Warning} filled size="50" />
+            {sizedIcon(Warning, '50', { filled: true })}
             <Text size="T200" style={{ color: color.Critical.Main }}>
               <b>Please enter a valid User ID.</b>
             </Text>
@@ -126,7 +127,7 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
       </Box>
       {error && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="200">
-          <Icon src={Icons.Warning} filled size="100" />
+          {sizedIcon(Warning, '100', { filled: true })}
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
               {error instanceof MatrixError && error.name === (ErrorCode.M_LIMIT_EXCEEDED as string)

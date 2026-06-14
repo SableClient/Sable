@@ -1,4 +1,3 @@
-// oxlint-disable no-console
 import FocusTrap from 'focus-trap-react';
 import {
   Dialog,
@@ -9,13 +8,12 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Button,
   Input,
   Chip,
 } from 'folds';
 import { ClipboardIcon, MapPinAreaIcon, MapPinLineIcon } from '@phosphor-icons/react';
+import { chipIcon, composerIcon, Warning, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
 import type { IContent, MatrixClient, Room } from 'matrix-js-sdk';
 import * as css from './LocationDialog.css';
@@ -30,7 +28,14 @@ import type { RoomMessageEventContent } from '$types/matrix-sdk';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import classNames from 'classnames';
+import markerIconPng from 'leaflet/dist/images/marker-icon.png';
+import { Icon } from 'leaflet';
 
+export const markerIcon = new Icon({
+  iconUrl: markerIconPng,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 export function filterLocationString(result: string) {
   // OSM format
   if (result.toLowerCase().includes('lat=') && result.toLowerCase().includes('lon=')) {
@@ -168,7 +173,14 @@ export function LocationDialog({
           map.removeLayer(layer);
         }
       });
-      L.marker(pos).addTo(map);
+      const marker = L.marker(pos).addTo(map);
+      marker.on({
+        mousedown: (e) => {
+          e.originalEvent.preventDefault();
+          e.originalEvent.stopPropagation();
+        },
+      });
+      marker.setIcon(markerIcon);
       map.panTo(pos);
     },
     [map]
@@ -308,7 +320,7 @@ export function LocationDialog({
                 title="Cancel Sharing Location"
                 aria-label="Cancel Sharing Location"
               >
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box direction="Column" gap="200" className={css.LocationDialogItems}>
@@ -343,7 +355,7 @@ export function LocationDialog({
               </Box>
               {locationError !== LocationErrors.none && (
                 <Box className={css.LocationDialogErrorText}>
-                  <Icon size="50" src={Icons.Warning} />
+                  {chipIcon(Warning)}
                   <Text size="L400">{locationError}</Text>
                 </Box>
               )}
@@ -393,6 +405,18 @@ export function LocationDialog({
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     {hasSelectedLocation && <Marker position={pinPosition} />}
+                    {hasSelectedLocation && (
+                      <Marker
+                        position={pinPosition}
+                        eventHandlers={{
+                          mousedown: (e) => {
+                            e.originalEvent.preventDefault();
+                            e.originalEvent.stopPropagation();
+                          },
+                        }}
+                        icon={markerIcon}
+                      />
+                    )}
 
                     <MapEvents />
                   </MapContainer>

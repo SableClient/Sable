@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Box, Button, Chip, config, Icon, Icons, Menu, Spinner, Text } from 'folds';
+import { Badge, Box, Button, Chip, config, Menu, Spinner, Text } from 'folds';
+import { CaretDown, CaretUp, chipIcon } from '$components/icons/phosphor';
 import { produce } from 'immer';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -147,11 +148,7 @@ export function PermissionGroups({
                         <Badge size="200" variant="Success" fill="Solid" radii="Pill" />
                       )
                     }
-                    before={
-                      canEdit && (
-                        <Icon size="50" src={opened ? Icons.ChevronTop : Icons.ChevronBottom} />
-                      )
-                    }
+                    before={canEdit && chipIcon(opened ? CaretUp : CaretDown)}
                     onClick={handleOpen}
                   >
                     <Text size="B300" truncate>
@@ -211,14 +208,7 @@ export function PermissionGroups({
                               <Badge size="200" variant="Success" fill="Solid" radii="Pill" />
                             )
                           }
-                          before={
-                            canEdit && (
-                              <Icon
-                                size="50"
-                                src={opened ? Icons.ChevronTop : Icons.ChevronBottom}
-                              />
-                            )
-                          }
+                          before={canEdit && chipIcon(opened ? CaretUp : CaretDown)}
                           onClick={handleOpen}
                         >
                           <Text size="B300" truncate>

@@ -7,9 +7,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Overlay,
   OverlayBackdrop,
@@ -18,6 +16,14 @@ import {
   Text,
   TextArea,
 } from 'folds';
+import {
+  ArrowsClockwise,
+  chipIcon,
+  composerIcon,
+  menuIcon,
+  PencilSimple,
+  X,
+} from '$components/icons/phosphor';
 import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
@@ -264,7 +270,7 @@ export function RoomProfileEdit({
               disabled={submitting}
               title="Reset DM Name"
             >
-              <Icon src={Icons.Reload} size="100" />
+              {menuIcon(ArrowsClockwise)}
             </Button>
           )}
         </Box>
@@ -469,7 +475,7 @@ function RoomBannerEdit({ bannerURI, permissions }: Readonly<ProfileProps>) {
                   <Text size="H4">Remove Banner</Text>
                 </Box>
                 <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-                  <Icon src={Icons.Cross} />
+                  {composerIcon(X)}
                 </IconButton>
               </Header>
               <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -559,7 +565,7 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
                     variant="Secondary"
                     fill="Soft"
                     radii="300"
-                    before={<Icon size="50" src={Icons.Pencil} />}
+                    before={chipIcon(PencilSimple)}
                     onClick={() => setEdit(true)}
                     outlined
                   >

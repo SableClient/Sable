@@ -55,5 +55,6 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_NICKNAMES_PROPERTY_NAME]: Record<string, string>;
     [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_PRESENCE_PROPERTY_NAME]: Record<string, unknown>;
     [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME]: Record<string, unknown>;
+    [prefix.MATRIX_SABLE_UNSTABLE_DISMISSED_INVITES]: { roomIds: string[] };
   }
 }

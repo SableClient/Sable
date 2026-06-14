@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Avatar, Box, Button, Icon, Icons, Spinner, Text, as } from 'folds';
+import { Avatar, Box, Button, Spinner, Text, as } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import type { IRoomCreateContent } from '$types/matrix/room';
@@ -21,6 +21,7 @@ import { settingsAtom } from '$state/settings';
 import { RoomAvatar } from '$components/room-avatar';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { InfoCard } from '$components/info-card';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { EventType, KnownMembership } from '$types/matrix-sdk';
 
@@ -121,7 +122,7 @@ export const RoomIntro = as<'div', RoomIntroProps>(({ room, ...props }, ref) => 
           {isDirectConversation && (
             <InfoCard
               variant="Primary"
-              before={<Icon size="100" src={Icons.User} />}
+              before={userFallbackIcon('md')}
               beforeAlign="Center"
               description="This is a direct message"
               after={

@@ -6,9 +6,7 @@ import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
-  Icon,
   IconButton,
-  Icons,
   Text,
   Menu,
   MenuItem,
@@ -51,8 +49,21 @@ import { settingsAtom } from '$state/settings';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import {
-  getRoomNotificationModeIcon,
+  ChatCircleDots,
+  Checks,
+  chipIcon,
+  DotsThreeOutlineVerticalIcon,
+  GearSix,
+  Link,
+  menuIcon,
+  Phone,
+  SignOut,
+  UserPlus,
+} from '$components/icons/phosphor';
+import {
   RoomNotificationMode,
+  roomNotificationModeChipIcon,
+  roomNotificationModeIcon,
 } from '$hooks/useRoomsNotificationPreferences';
 import { RoomNotificationModeSwitcher } from '$components/RoomNotificationSwitcher';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -157,7 +168,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
           <MenuItem
             onClick={handleMarkAsRead}
             size="300"
-            after={<Icon size="100" src={Icons.CheckTwice} />}
+            after={menuIcon(Checks)}
             radii="300"
             disabled={!unread}
           >
@@ -173,7 +184,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
                   changing ? (
                     <Spinner size="100" variant="Secondary" />
                   ) : (
-                    <Icon size="100" src={getRoomNotificationModeIcon(notificationMode)} />
+                    roomNotificationModeIcon(notificationMode)
                   )
                 }
                 radii="300"
@@ -194,7 +205,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
             variant="Primary"
             fill="None"
             size="300"
-            after={<Icon size="100" src={Icons.UserPlus} />}
+            after={menuIcon(UserPlus)}
             radii="300"
             aria-pressed={invitePrompt}
             disabled={!canInvite}
@@ -203,22 +214,12 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
               Invite
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleCopyLink}
-            size="300"
-            after={<Icon size="100" src={Icons.Link} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Copy Link
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleRoomSettings}
-            size="300"
-            after={<Icon size="100" src={Icons.Setting} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleRoomSettings} size="300" after={menuIcon(GearSix)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Room Settings
             </Text>
@@ -234,7 +235,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
                   variant="Critical"
                   fill="None"
                   size="300"
-                  after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                  after={menuIcon(SignOut)}
                   radii="300"
                   aria-pressed={promptLeave}
                 >
@@ -308,6 +309,7 @@ export function RoomNavItem({
   // Keep hook call unconditional; pass undefined when not a group DM so the hook no-ops.
   const groupMembers = useGroupDMMembers(mx, isGroupDM ? room : undefined, 3);
 
+  const [roomIconOverlay] = useSetting(settingsAtom, 'roomIconOverlay');
   const nicknames = useAtomValue(nicknamesAtom);
   const dmUserId = direct ? room.getAvatarFallbackMember()?.userId : undefined;
   const matrixRoomName = useRoomName(room);
@@ -526,9 +528,10 @@ export function RoomNavItem({
                                     : config.opacity.P300,
                               }}
                               filled={selected || isActiveCall}
-                              size="100"
+                              size={hideText ? '200' : '100'}
                               joinRule={room.getJoinRule()}
                               roomType={room.getType()}
+                              withOverlay={roomIconOverlay}
                             />
                           )}
                         </Avatar>
@@ -594,18 +597,16 @@ export function RoomNavItem({
                           </UnreadBadgeCenter>
                         )}
                         {!optionsVisible && notificationMode !== RoomNotificationMode.Unset && (
-                          <Icon
-                            size="50"
-                            src={getRoomNotificationModeIcon(notificationMode)}
-                            aria-label={notificationMode}
-                          />
+                          <span aria-label={notificationMode}>
+                            {roomNotificationModeChipIcon(notificationMode)}
+                          </span>
                         )}
                         {(room.isCallRoom() || direct) &&
                           callMembers.length > 0 &&
                           !optionsVisible && (
                             <Badge variant="Critical" fill="Solid" size="400">
                               <Box alignItems="Center" gap="100">
-                                <Icon size="50" src={Icons.Phone} color="Inherit" />
+                                {chipIcon(Phone)}
                                 <Text as="span" size="L400" truncate>
                                   {direct ? 'Calling' : `${callMembers.length} Live`}
                                 </Text>
@@ -643,7 +644,7 @@ export function RoomNavItem({
                       size="300"
                       radii="300"
                     >
-                      <Icon size="50" src={Icons.Message} filled={isChatOpen} />
+                      {chipIcon(ChatCircleDots, { weight: isChatOpen ? 'fill' : 'regular' })}
                     </IconButton>
                   )}
                 </TooltipProvider>
@@ -687,7 +688,9 @@ export function RoomNavItem({
                     size="300"
                     radii="300"
                   >
-                    <Icon size="50" src={Icons.VerticalDots} />
+                    {chipIcon(DotsThreeOutlineVerticalIcon, {
+                      weight: menuAnchor ? 'fill' : 'regular',
+                    })}
                   </IconButton>
                 )}
               </PopOut>

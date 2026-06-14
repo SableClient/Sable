@@ -6,9 +6,7 @@ import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -60,6 +58,19 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
+import {
+  Checks,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  dropzoneIcon,
+  Globe,
+  Hash,
+  House,
+  Link,
+  MagnifyingGlass,
+  menuIcon,
+  Plus,
+} from '$components/icons/phosphor';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
@@ -69,40 +80,64 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { usePullToRefresh } from '$hooks/usePullToRefresh';
 
 type HomeMenuProps = {
+  isShowingAllRoomsInHome: boolean;
   requestClose: () => void;
+  setIsShowingAllRoomsInHome: (show: boolean) => void;
 };
-const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, ref) => {
-  const orphanRooms = useHomeRooms();
-  const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
-  const mx = useMatrixClient();
+const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(
+  ({ isShowingAllRoomsInHome, requestClose, setIsShowingAllRoomsInHome }, ref) => {
+    const orphanRooms = useHomeRooms(isShowingAllRoomsInHome);
+    const [hideReads] = useSetting(settingsAtom, 'hideReads');
+    const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
+    const mx = useMatrixClient();
 
-  const handleMarkAsRead = () => {
-    if (!unread) return;
-    orphanRooms.forEach((rId) => markAsRead(mx, rId, hideReads));
-    requestClose();
-  };
+    const handleMarkAsRead = () => {
+      if (!unread) return;
+      orphanRooms.forEach((rId) => markAsRead(mx, rId, hideReads));
+      requestClose();
+    };
 
-  return (
-    <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleMarkAsRead}
-          size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
-          radii="300"
-          aria-disabled={!unread}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Mark as Read
-          </Text>
-        </MenuItem>
-      </Box>
-    </Menu>
-  );
-});
+    return (
+      <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
+        <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+          <MenuItem
+            onClick={handleMarkAsRead}
+            size="300"
+            after={menuIcon(Checks)}
+            radii="300"
+            aria-disabled={!unread}
+          >
+            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+              Mark as Read
+            </Text>
+          </MenuItem>
+          <MenuItem
+            onClick={() => setIsShowingAllRoomsInHome(!isShowingAllRoomsInHome)}
+            size="300"
+            after={menuIcon(isShowingAllRoomsInHome ? House : Globe)}
+            radii="300"
+          >
+            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+              {isShowingAllRoomsInHome ? 'Show Home Rooms' : 'Show All Rooms'}
+            </Text>
+          </MenuItem>
+        </Box>
+      </Menu>
+    );
+  }
+);
 
-function HomeHeader({ hideText }: { hideText?: boolean }) {
+type HomeHeaderProps = {
+  hideText?: boolean;
+  isShowingAllRoomsInHome: boolean;
+  setIsShowingAllRoomsInHome: (show: boolean) => void;
+};
+
+function HomeHeader({
+  hideText,
+  isShowingAllRoomsInHome,
+  setIsShowingAllRoomsInHome,
+}: HomeHeaderProps) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -119,7 +154,7 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
         {hideText ? (
           <Box alignItems="Center" grow="Yes" justifyContent="Center">
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.Home} size="200" filled={!!menuAnchor} />
+              {composerIcon(House, { weight: menuAnchor ? 'fill' : 'regular' })}
             </IconButton>
           </Box>
         ) : (
@@ -131,7 +166,9 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
             </Box>
             <Box shrink="No">
               <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-                <Icon src={Icons.VerticalDots} size="200" filled={!!menuAnchor} />
+                {composerIcon(DotsThreeOutlineVerticalIcon, {
+                  weight: menuAnchor ? 'fill' : 'regular',
+                })}
               </IconButton>
             </Box>
           </Box>
@@ -154,7 +191,11 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <HomeMenu requestClose={() => setMenuAnchor(undefined)} />
+            <HomeMenu
+              isShowingAllRoomsInHome={isShowingAllRoomsInHome}
+              requestClose={() => setMenuAnchor(undefined)}
+              setIsShowingAllRoomsInHome={setIsShowingAllRoomsInHome}
+            />
           </FocusTrap>
         }
       />
@@ -168,7 +209,7 @@ function HomeEmpty() {
   return (
     <NavEmptyCenter>
       <NavEmptyLayout
-        icon={<Icon size="600" src={Icons.Hash} />}
+        icon={dropzoneIcon(Hash)}
         title={
           <Text size="H5" align="Center">
             No Rooms
@@ -208,7 +249,8 @@ export function Home() {
   const mx = useMatrixClient();
   useNavToActivePathMapper('home');
   const scrollRef = useRef<HTMLDivElement>(null);
-  const rooms = useHomeRooms();
+  const [isShowingAllRoomsInHome, setIsShowingAllRoomsInHome] = useState(false);
+  const rooms = useHomeRooms(isShowingAllRoomsInHome);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const mDirects = useAtomValue(mDirectAtom);
@@ -280,7 +322,11 @@ export function Home() {
       }}
     >
       <PageNav>
-        <HomeHeader hideText={hideText} />
+        <HomeHeader
+          hideText={hideText}
+          isShowingAllRoomsInHome={isShowingAllRoomsInHome}
+          setIsShowingAllRoomsInHome={setIsShowingAllRoomsInHome}
+        />
         {noRoomToDisplay ? (
           <HomeEmpty />
         ) : (
@@ -302,7 +348,7 @@ export function Home() {
                           radii="400"
                           style={hideText ? { width: '100%', padding: '0' } : undefined}
                         >
-                          <Icon src={Icons.Plus} size="100" />
+                          {menuIcon(Plus)}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
@@ -333,7 +379,7 @@ export function Home() {
                                 radii="400"
                                 style={hideText ? { width: '100%', padding: '0' } : undefined}
                               >
-                                <Icon src={Icons.Link} size="100" />
+                                {menuIcon(Link)}
                               </Avatar>
                               {!hideText && (
                                 <Box as="span" grow="Yes">
@@ -380,7 +426,9 @@ export function Home() {
                           radii="400"
                           style={hideText ? { width: '100%' } : undefined}
                         >
-                          <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                          {menuIcon(MagnifyingGlass, {
+                            weight: searchSelected ? 'fill' : 'regular',
+                          })}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">

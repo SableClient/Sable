@@ -15,7 +15,7 @@ import {
   config,
   color,
 } from 'folds';
-import { sizedIcon, menuIcon, Warning, X } from '$components/icons/phosphor';
+import { menuIcon, Warning, X } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import * as css from '$features/room/message/styles.css';
@@ -33,7 +33,7 @@ export function MessageReportItem({ room, mEvent }: { room: Room; mEvent: Matrix
       size="300"
       variant="Critical"
       fill="None"
-      after={sizedIcon(Warning, '100')}
+      after={menuIcon(Warning)}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();

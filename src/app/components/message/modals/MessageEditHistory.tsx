@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react';
 import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import { MenuItem, Text } from 'folds';
-import { Clock, sizedIcon } from '$components/icons/phosphor';
+import { Clock, menuIcon } from '$components/icons/phosphor';
 import { getEventEdits } from '$utils/room';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
@@ -22,7 +22,7 @@ export function MessageEditHistoryItem({
   return (
     <MenuItem
       size="300"
-      after={sizedIcon(Clock, '100')}
+      after={menuIcon(Clock)}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();

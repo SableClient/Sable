@@ -19,7 +19,7 @@ import {
   config,
   toRem,
 } from 'folds';
-import { Eye, EyeSlash, sizedIcon, Image, Warning } from '$components/icons/phosphor';
+import { Eye, EyeSlash, menuIcon, sizedIcon, Image, Warning } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
 import FocusTrap from 'focus-trap-react';
@@ -376,7 +376,7 @@ export const ImageContent = as<'div', ImageContentProps>(
             <Menu style={{ padding: config.space.S0 }}>
               <MenuItem
                 size="300"
-                after={sizedIcon(blurred ? Eye : EyeSlash, '200')}
+                after={menuIcon(blurred ? Eye : EyeSlash)}
                 radii="300"
                 fill="Soft"
                 variant="Secondary"

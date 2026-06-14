@@ -606,6 +606,7 @@ export function useTimelineEventRenderer({
                       mEventId={mEventId}
                       canSendReaction={canSendReaction}
                       canDeleteOwn={canDeleteOwn}
+                      imagePackRooms={imagePackRooms}
                       onReactionToggle={onReactionToggle}
                     />
                   )}
@@ -737,6 +738,7 @@ export function useTimelineEventRenderer({
                       mEventId={mEventId}
                       canSendReaction={canSendReaction}
                       canDeleteOwn={canDeleteOwn}
+                      imagePackRooms={imagePackRooms}
                       onReactionToggle={onReactionToggle}
                     />
                   )}
@@ -908,6 +910,7 @@ export function useTimelineEventRenderer({
                       mEventId={mEventId}
                       canSendReaction={canSendReaction}
                       canDeleteOwn={canDeleteOwn}
+                      imagePackRooms={imagePackRooms}
                       onReactionToggle={onReactionToggle}
                     />
                   )}
@@ -1077,6 +1080,7 @@ export function useTimelineEventRenderer({
                       mEventId={mEventId}
                       canSendReaction={canSendReaction}
                       canDeleteOwn={canDeleteOwn}
+                      imagePackRooms={imagePackRooms}
                       onReactionToggle={onReactionToggle}
                     />
                   )}

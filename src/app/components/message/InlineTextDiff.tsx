@@ -18,7 +18,7 @@ type CodeDiffRow = Exclude<MessageDiffRow, { type: 'skip' }>;
 const renderInlineParts = (parts: TextDiffPart[]) =>
   parts.map((part, index) => {
     const content = scaleSystemEmoji(part.value);
-    const key = `${index}-${part.type}-${part.value}`;
+    const key = `diff-${index}-${part.type}`;
     if (part.type === 'delete') {
       return (
         <span key={key} className={css.DiffInlineDelete}>

@@ -4,6 +4,7 @@ import {
   getEncryptedMinimalPushFocusDecision,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
+  shouldSuppressOsPushForForegroundState,
 } from './pushRouting';
 
 describe('service worker push routing helpers', () => {
@@ -46,5 +47,11 @@ describe('service worker push routing helpers', () => {
   it('ignores focused clients for encrypted minimal push suppression', () => {
     expect(getEncryptedMinimalPushFocusDecision(0)).toBe('no_focused_client');
     expect(getEncryptedMinimalPushFocusDecision(1)).toBe('ignore_stale_focus');
+  });
+
+  it('suppresses OS push only when a live client confirms visible foreground state', () => {
+    expect(shouldSuppressOsPushForForegroundState({ visibilityState: 'visible' })).toBe(true);
+    expect(shouldSuppressOsPushForForegroundState({ visibilityState: 'hidden' })).toBe(false);
+    expect(shouldSuppressOsPushForForegroundState(undefined)).toBe(false);
   });
 });

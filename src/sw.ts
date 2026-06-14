@@ -10,6 +10,7 @@ import {
   getEncryptedMinimalPushFocusDecision,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
+  shouldSuppressOsPushForForegroundState,
 } from './sw/pushRouting';
 import { readPersistedSession } from './sw-session-persistence';
 
@@ -591,9 +592,22 @@ type DecryptionResult = {
   sender_display_name?: string;
   room_name?: string;
   visibilityState?: string;
+  focused?: boolean;
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
+
+type ForegroundStateResult = {
+  requestId: string;
+  visibilityState?: string;
+  focused?: boolean;
+  clientId?: string;
+};
+
+const foregroundStatePendingMap = new Map<
+  string,
+  (result: ForegroundStateResult | undefined) => void
+>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
 
 const sleep = (ms: number): Promise<void> =>
@@ -829,6 +843,41 @@ async function requestDecryptionFromClient(
     console.warn('[SW] All clients timed out waiting for push decryption');
   }
 
+  return result;
+}
+
+async function requestForegroundStateFromClients(
+  windowClients: readonly Client[],
+  timeoutMs = 700
+): Promise<ForegroundStateResult | undefined> {
+  if (windowClients.length === 0) return undefined;
+
+  const requestId = createRecordId('foreground');
+
+  const response = new Promise<ForegroundStateResult | undefined>((resolve) => {
+    foregroundStatePendingMap.set(requestId, resolve);
+  });
+
+  let posted = false;
+  windowClients.forEach((client) => {
+    try {
+      client.postMessage({
+        type: 'getForegroundState',
+        requestId,
+      });
+      posted = true;
+    } catch (err) {
+      console.warn('[SW push] foreground state postMessage error', err);
+    }
+  });
+
+  if (!posted) {
+    foregroundStatePendingMap.delete(requestId);
+    return undefined;
+  }
+
+  const result = await Promise.race([response, sleep(timeoutMs).then(() => undefined)]);
+  foregroundStatePendingMap.delete(requestId);
   return result;
 }
 
@@ -1144,6 +1193,29 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       if (resolve) {
         decryptionPendingMap.delete(eventId);
         resolve(data as DecryptionResult);
+      }
+    }
+  }
+  if (type === 'foregroundStateResult') {
+    const { requestId, visibilityState, focused } = data as {
+      requestId?: unknown;
+      visibilityState?: unknown;
+      focused?: unknown;
+    };
+    if (typeof requestId === 'string') {
+      const resolve = foregroundStatePendingMap.get(requestId);
+      const normalizedVisibilityState =
+        typeof visibilityState === 'string' ? visibilityState : undefined;
+      if (
+        resolve &&
+        shouldSuppressOsPushForForegroundState({ visibilityState: normalizedVisibilityState })
+      ) {
+        resolve({
+          requestId,
+          visibilityState: normalizedVisibilityState,
+          focused: focused === true,
+          clientId: client.id,
+        });
       }
     }
   }
@@ -1648,6 +1720,38 @@ const onPushNotification = async (event: PushEvent) => {
     }
   } catch {
     // Badging API absent (Firefox/Gecko) — continue to show the notification.
+  }
+
+  const foregroundState = await requestForegroundStateFromClients(clients);
+  if (foregroundState && shouldSuppressOsPushForForegroundState(foregroundState)) {
+    await recordPushTelemetry('confirmed_visible', {
+      payload_type: payloadType,
+      focused: foregroundState.focused === true,
+    });
+    await recordPushTelemetry('suppressed_visible', {
+      payload_type: payloadType,
+      focused_client_count: focusedClientCount,
+      browser_visible_client_count: browserVisibleClientCount,
+      foreground_focused: foregroundState.focused === true,
+    });
+    postSentryMetric('sable.push.suppressed_visible', 1, {
+      payload_type: payloadType,
+      focused_client_count: focusedClientCount,
+      browser_visible_client_count: browserVisibleClientCount,
+      foreground_focused: foregroundState.focused === true,
+    }).catch(() => undefined);
+    await postSentryBreadcrumb(
+      'notification.push',
+      'Suppressed OS push notification for foreground client',
+      'info',
+      {
+        payloadType,
+        focusedClientCount,
+        browserVisibleClientCount,
+        foregroundFocused: foregroundState.focused === true,
+      }
+    );
+    return;
   }
 
   if (isDeclarativeWebPushPayload(pushData)) {

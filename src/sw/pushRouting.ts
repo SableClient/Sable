@@ -43,6 +43,16 @@ export function getEncryptedMinimalPushFocusDecision(
   return focusedClientCount > 0 ? 'ignore_stale_focus' : 'no_focused_client';
 }
 
+export type ForegroundPushState = {
+  visibilityState?: string;
+};
+
+export function shouldSuppressOsPushForForegroundState(
+  state: ForegroundPushState | undefined
+): boolean {
+  return state?.visibilityState === 'visible';
+}
+
 export function buildDeclarativeNotificationOptions(payload: DeclarativeWebPushPayload): {
   title: string;
   options: NotificationOptions;

@@ -1028,7 +1028,22 @@ function HandleDecryptPushEvent() {
 
     const handleMessage = async (ev: MessageEvent) => {
       const { data } = ev;
-      if (!data || data.type !== 'decryptPushEvent') return;
+      if (!data) return;
+
+      if (data.type === 'getForegroundState') {
+        const { requestId } = data as { requestId?: unknown };
+        if (typeof requestId !== 'string') return;
+
+        postToServiceWorker({
+          type: 'foregroundStateResult',
+          requestId,
+          visibilityState: document.visibilityState,
+          focused: document.hasFocus(),
+        });
+        return;
+      }
+
+      if (data.type !== 'decryptPushEvent') return;
 
       const { rawEvent } = data as { rawEvent: Record<string, unknown> };
       const eventId = rawEvent.event_id as string;
@@ -1061,6 +1076,8 @@ function HandleDecryptPushEvent() {
           content: mxEvent.getContent(),
           sender_display_name: senderName,
           room_name: room?.name ?? '',
+          visibilityState: document.visibilityState,
+          focused: document.hasFocus(),
         });
       } catch (err) {
         console.warn('[ClientFeatures] HandleDecryptPushEvent: failed to decrypt push event', err);
@@ -1094,6 +1111,8 @@ function HandleDecryptPushEvent() {
           type: 'pushDecryptResult',
           eventId,
           success: false,
+          visibilityState: document.visibilityState,
+          focused: document.hasFocus(),
         });
       }
     };

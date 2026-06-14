@@ -176,6 +176,31 @@ describe('useRenderableMediaUrl', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:rendered-media');
   });
 
+  it('keeps mounted object urls usable when the cache is cleared', async () => {
+    mediaTransport.fetchMediaBlob.mockResolvedValue(new Blob(['media'], { type: 'image/png' }));
+    const { clearRenderableMediaUrlCache, getRenderableMediaUrlStats, useRenderableMediaUrl } =
+      await import('./useRenderableMediaUrl');
+
+    const { result, unmount } = renderHook(() =>
+      useRenderableMediaUrl('https://example.org/media.png')
+    );
+
+    await waitFor(() => {
+      expect(result.current).toBe('blob:rendered-media');
+    });
+
+    clearRenderableMediaUrlCache();
+
+    expect(result.current).toBe('blob:rendered-media');
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 1, inflightCount: 0 });
+
+    unmount();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:rendered-media');
+    expect(getRenderableMediaUrlStats()).toEqual({ cacheSize: 0, inflightCount: 0 });
+  });
+
   it('prewarms renderable media urls for later consumers', async () => {
     mediaTransport.fetchMediaBlob.mockResolvedValue(new Blob(['media'], { type: 'image/png' }));
     const { getRenderableMediaUrlStats, prewarmRenderableMediaUrls, useRenderableMediaUrl } =

@@ -7,6 +7,7 @@ type ObjectUrlEntry = {
   refs: number;
   settled: boolean;
   disposed: boolean;
+  clearOnRelease: boolean;
   lastUsed: number;
   objectUrl?: string;
   promise: Promise<string>;
@@ -61,6 +62,18 @@ function deleteObjectUrlEntryIfCurrent(cacheKey: string, entry: ObjectUrlEntry):
   }
 }
 
+function deleteInflightRequestIfCurrent(cacheKey: string, entry: ObjectUrlEntry): void {
+  if (inflightRequests.get(cacheKey) === entry.promise) {
+    inflightRequests.delete(cacheKey);
+  }
+}
+
+function removeObjectUrlEntry(cacheKey: string, entry: ObjectUrlEntry): void {
+  revokeObjectUrlEntry(entry);
+  deleteObjectUrlEntryIfCurrent(cacheKey, entry);
+  deleteInflightRequestIfCurrent(cacheKey, entry);
+}
+
 function pruneObjectUrlCache(): void {
   if (objectUrlCache.size <= MAX_OBJECT_URL_CACHE_ENTRIES) return;
 
@@ -71,8 +84,7 @@ function pruneObjectUrlCache(): void {
   for (const [cacheKey, entry] of evictable) {
     if (objectUrlCache.size <= MAX_OBJECT_URL_CACHE_ENTRIES) return;
 
-    revokeObjectUrlEntry(entry);
-    objectUrlCache.delete(cacheKey);
+    removeObjectUrlEntry(cacheKey, entry);
   }
 }
 
@@ -81,6 +93,7 @@ function createObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
     refs: 0,
     settled: false,
     disposed: false,
+    clearOnRelease: false,
     lastUsed: 0,
     objectUrl: undefined,
     promise: Promise.resolve(''),
@@ -105,12 +118,15 @@ function createObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
     })
     .finally(() => {
       entry.settled = true;
-      if (inflightRequests.get(cacheKey) === entry.promise) {
-        inflightRequests.delete(cacheKey);
-      }
+      deleteInflightRequestIfCurrent(cacheKey, entry);
 
       if (!entry.objectUrl) {
         deleteObjectUrlEntryIfCurrent(cacheKey, entry);
+        return;
+      }
+
+      if (entry.clearOnRelease && entry.refs === 0) {
+        removeObjectUrlEntry(cacheKey, entry);
         return;
       }
 
@@ -136,6 +152,10 @@ function releaseObjectUrlEntry(cacheKey: string): void {
 
   entry.refs = Math.max(0, entry.refs - 1);
   touchObjectUrlEntry(entry);
+  if (entry.refs === 0 && entry.clearOnRelease && entry.settled) {
+    removeObjectUrlEntry(cacheKey, entry);
+    return;
+  }
   pruneObjectUrlCache();
 }
 
@@ -144,9 +164,15 @@ export function getRenderableMediaUrlStats(): { cacheSize: number; inflightCount
 }
 
 export function clearRenderableMediaUrlCache(): void {
-  objectUrlCache.forEach(revokeObjectUrlEntry);
-  objectUrlCache.clear();
-  inflightRequests.clear();
+  objectUrlCache.forEach((entry, cacheKey) => {
+    if (entry.refs > 0) {
+      entry.clearOnRelease = true;
+      touchObjectUrlEntry(entry);
+      return;
+    }
+
+    removeObjectUrlEntry(cacheKey, entry);
+  });
 }
 
 export async function prewarmRenderableMediaUrls(

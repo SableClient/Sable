@@ -75,6 +75,15 @@ export const AnswerCountButton = style([
   },
 ]);
 
+export const ShowResultsButton = style({
+  padding: 0,
+  background: 'none',
+  border: 'none',
+  color: color.Primary.Main,
+  cursor: 'pointer',
+  textAlign: 'left',
+});
+
 export const PollFooter = style({
   flexWrap: 'wrap',
 });

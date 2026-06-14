@@ -178,6 +178,7 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
   const pollEventId = mEvent.getId() ?? '';
   const [tick, incrementTick] = useReducer((n: number) => n + 1, 0);
   const [, forceExpiry] = useReducer((n: number) => n + 1, 0);
+  const [isSnooping, setIsSnooping] = useState(false);
 
   const pollData = useMemo(() => extractPollData(mEvent), [mEvent]);
 
@@ -234,7 +235,9 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
 
   const isExpiredByTime = pollData?.closesAt !== undefined && Date.now() >= pollData.closesAt;
   const effectivelyEnded = isEnded || isExpiredByTime;
-  const showResults = effectivelyEnded || (pollData?.isDisclosed ?? false);
+  const hasVoted = myVote.length > 0;
+  const showResults =
+    effectivelyEnded || ((pollData?.isDisclosed ?? false) && (hasVoted || isSnooping));
 
   const totalVoters = useMemo(
     () => new Set([...tally.values()].flatMap((s) => [...s])).size,
@@ -439,9 +442,19 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
           className={css.PollFooter}
         >
           <Box direction="Column" gap="100">
-            <Text size="T200" priority="300">
-              {resultStatusText}
-            </Text>
+            {isDisclosed && !showResults ? (
+              <button
+                type="button"
+                className={css.ShowResultsButton}
+                onClick={() => setIsSnooping(true)}
+              >
+                <Text size="T200">Show results</Text>
+              </button>
+            ) : (
+              <Text size="T200" priority="300">
+                {resultStatusText}
+              </Text>
+            )}
             {winnerStatusText && (
               <Text size="T200" priority="300" title={winnerStatusText} truncate>
                 {winnerStatusText}

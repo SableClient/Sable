@@ -8,6 +8,7 @@ import { createPushNotifications } from './sw/pushNotification';
 import {
   buildDeclarativeNotificationOptions,
   getEncryptedMinimalPushFocusDecision,
+  isForegroundSuppressionExemptPushPayload,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
   shouldSuppressOsPushForForegroundState,
@@ -894,6 +895,46 @@ async function requestForegroundStateFromClients(
   return result;
 }
 
+async function recordForegroundPushSuppression(
+  payloadType: string,
+  foregroundState: ForegroundStateResult,
+  focusedClientCount: number,
+  browserVisibleClientCount: number,
+  extraData: Record<string, string | number | boolean> = {}
+): Promise<void> {
+  await recordPushTelemetry('confirmed_visible', {
+    payload_type: payloadType,
+    focused: foregroundState.focused === true,
+    ...extraData,
+  });
+  await recordPushTelemetry('suppressed_visible', {
+    payload_type: payloadType,
+    focused_client_count: focusedClientCount,
+    browser_visible_client_count: browserVisibleClientCount,
+    foreground_focused: foregroundState.focused === true,
+    ...extraData,
+  });
+  postSentryMetric('sable.push.suppressed_visible', 1, {
+    payload_type: payloadType,
+    focused_client_count: focusedClientCount,
+    browser_visible_client_count: browserVisibleClientCount,
+    foreground_focused: foregroundState.focused === true,
+    ...extraData,
+  }).catch(() => undefined);
+  await postSentryBreadcrumb(
+    'notification.push',
+    'Suppressed OS push notification for foreground client',
+    'info',
+    {
+      payloadType,
+      focusedClientCount,
+      browserVisibleClientCount,
+      foregroundFocused: foregroundState.focused === true,
+      ...extraData,
+    }
+  );
+}
+
 /**
  * Handle a minimal push payload (event_id_only format).
  * Fetches the event from the homeserver and shows a notification.
@@ -902,7 +943,8 @@ async function requestForegroundStateFromClients(
 async function handleMinimalPushPayload(
   roomId: string,
   eventId: string,
-  windowClients: readonly Client[]
+  windowClients: readonly Client[],
+  foregroundState: ForegroundStateResult | undefined
 ): Promise<void> {
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
@@ -968,6 +1010,21 @@ async function handleMinimalPushPayload(
   }
 
   const eventType = rawEvent.type as string | undefined;
+  if (
+    foregroundState &&
+    shouldSuppressOsPushForForegroundState(foregroundState) &&
+    !isForegroundSuppressionExemptPushPayload(rawEvent)
+  ) {
+    await recordForegroundPushSuppression(
+      'minimal',
+      foregroundState,
+      focusedWindowClientCount(windowClients),
+      visibleWindowClientCount(windowClients),
+      { event_type: eventType ?? 'unknown' }
+    );
+    return;
+  }
+
   const sender = rawEvent.sender as string | undefined;
   // Fetch sender's member state — gives us both display name and avatar URL.
   const memberInfo = sender
@@ -1746,33 +1803,17 @@ const onPushNotification = async (event: PushEvent) => {
   }
 
   const foregroundState = await requestForegroundStateFromClients(clients);
-  if (foregroundState && shouldSuppressOsPushForForegroundState(foregroundState)) {
-    await recordPushTelemetry('confirmed_visible', {
-      payload_type: payloadType,
-      focused: foregroundState.focused === true,
-    });
-    await recordPushTelemetry('suppressed_visible', {
-      payload_type: payloadType,
-      focused_client_count: focusedClientCount,
-      browser_visible_client_count: browserVisibleClientCount,
-      foreground_focused: foregroundState.focused === true,
-    });
-    postSentryMetric('sable.push.suppressed_visible', 1, {
-      payload_type: payloadType,
-      focused_client_count: focusedClientCount,
-      browser_visible_client_count: browserVisibleClientCount,
-      foreground_focused: foregroundState.focused === true,
-    }).catch(() => undefined);
-    await postSentryBreadcrumb(
-      'notification.push',
-      'Suppressed OS push notification for foreground client',
-      'info',
-      {
-        payloadType,
-        focusedClientCount,
-        browserVisibleClientCount,
-        foregroundFocused: foregroundState.focused === true,
-      }
+  if (
+    foregroundState &&
+    shouldSuppressOsPushForForegroundState(foregroundState) &&
+    !isMinimalPushPayload(pushData) &&
+    !isForegroundSuppressionExemptPushPayload(pushData)
+  ) {
+    await recordForegroundPushSuppression(
+      payloadType,
+      foregroundState,
+      focusedClientCount,
+      browserVisibleClientCount
     );
     return;
   }
@@ -1788,7 +1829,7 @@ const onPushNotification = async (event: PushEvent) => {
   // to relay decryption to an open app tab.
   if (isMinimalPushPayload(pushData)) {
     console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
-    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
+    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients, foregroundState);
     return;
   }
 

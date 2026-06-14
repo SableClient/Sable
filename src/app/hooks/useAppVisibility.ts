@@ -72,6 +72,10 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   const lastVisibleSyncRetryAtRef = useRef(0);
   const suppressHeartbeatUntilRef = useRef(0);
   const heartbeatFailuresRef = useRef(0);
+  const lastPusherVisibilityRef = useRef<boolean | undefined>(undefined);
+  const pusherToggleInFlightRef = useRef<boolean | undefined>(undefined);
+  const pusherToggleClientRef = useRef<MatrixClient | undefined>(undefined);
+  const pusherToggleSequenceRef = useRef(0);
 
   const pushSessionNow = useCallback(
     (reason: SessionSyncReason): 'sent' | 'skipped' => {
@@ -222,28 +226,63 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     if (!mx) return undefined;
 
     const syncPusherForVisibility = (isVisible: boolean) => {
-      togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile).catch(
-        (err) => {
-          Sentry.metrics.count('sable.push.visibility_toggle', 1, {
-            attributes: {
-              outcome: 'failed',
-              visible: isVisible,
-              mobile: isMobile,
-              error_type: err instanceof Error ? err.name : 'unknown',
-            },
-          });
-          Sentry.addBreadcrumb({
-            category: 'push',
-            message: 'Visibility pusher toggle failed',
-            level: 'warning',
-            data: {
-              visible: isVisible,
-              mobile: isMobile,
-              error: err instanceof Error ? err.message : String(err),
-            },
-          });
-        }
-      );
+      if (!usePushNotifications) {
+        lastPusherVisibilityRef.current = undefined;
+        pusherToggleInFlightRef.current = undefined;
+        return;
+      }
+
+      if (pusherToggleClientRef.current !== mx) {
+        pusherToggleClientRef.current = mx;
+        lastPusherVisibilityRef.current = undefined;
+        pusherToggleInFlightRef.current = undefined;
+        pusherToggleSequenceRef.current += 1;
+      }
+
+      if (
+        lastPusherVisibilityRef.current === isVisible ||
+        pusherToggleInFlightRef.current === isVisible
+      ) {
+        return;
+      }
+
+      pusherToggleInFlightRef.current = isVisible;
+      const toggleSequence = ++pusherToggleSequenceRef.current;
+      togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile)
+        .then(
+          () => {
+            if (pusherToggleSequenceRef.current !== toggleSequence) return;
+            lastPusherVisibilityRef.current = isVisible;
+          },
+          (err) => {
+            Sentry.metrics.count('sable.push.visibility_toggle', 1, {
+              attributes: {
+                outcome: 'failed',
+                visible: isVisible,
+                mobile: isMobile,
+                error_type: err instanceof Error ? err.name : 'unknown',
+              },
+            });
+            Sentry.addBreadcrumb({
+              category: 'push',
+              message: 'Visibility pusher toggle failed',
+              level: 'warning',
+              data: {
+                visible: isVisible,
+                mobile: isMobile,
+                error: err instanceof Error ? err.message : String(err),
+              },
+            });
+          }
+        )
+        .finally(() => {
+          if (
+            pusherToggleSequenceRef.current === toggleSequence &&
+            pusherToggleInFlightRef.current === isVisible
+          ) {
+            pusherToggleInFlightRef.current = undefined;
+          }
+        });
     };
 
     syncPusherForVisibility(document.visibilityState === 'visible');
@@ -426,7 +465,6 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     };
 
     mx.on(ClientEvent.Sync, handleSyncState);
-    handleSyncState(mx.getSyncState());
 
     return () => {
       mx.removeListener(ClientEvent.Sync, handleSyncState);

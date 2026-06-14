@@ -1,5 +1,5 @@
 import classNames from 'classnames';
-import { Box, config, Line, Text } from 'folds';
+import { Box, Button, config, Line, Text } from 'folds';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { SyncState } from '$types/matrix-sdk';
 import { type TitlebarStatusView } from '$state/titlebarStatus';
@@ -10,6 +10,7 @@ const TITLEBAR_EASE_OUT_SOFT: [number, number, number, number] = [0.24, 0.72, 0.
 
 type SyncConnectionStatusProps = {
   status: TitlebarStatusView | null;
+  onRetry?: () => void;
 };
 
 export function getSyncConnectionStatusView(
@@ -38,8 +39,15 @@ export function getSyncConnectionStatusView(
   return null;
 }
 
-export function SyncConnectionStatusBanner({ status }: SyncConnectionStatusProps) {
+export function SyncConnectionStatusBanner({ status, onRetry }: SyncConnectionStatusProps) {
   if (!status) return null;
+
+  const retryButton =
+    onRetry && (status.variant === 'Warning' || status.variant === 'Critical') ? (
+      <Button size="300" variant="Secondary" fill="Soft" onClick={onRetry}>
+        Retry
+      </Button>
+    ) : null;
 
   return (
     <Box direction="Column" shrink="No">
@@ -48,8 +56,10 @@ export function SyncConnectionStatusBanner({ status }: SyncConnectionStatusProps
         style={{ padding: `${config.space.S100} 0` }}
         alignItems="Center"
         justifyContent="Center"
+        gap="200"
       >
         <Text size="L400">{status.text}</Text>
+        {retryButton}
       </Box>
       <Line variant={status.variant} size="300" />
     </Box>
@@ -69,7 +79,11 @@ export function SyncConnectionStatusTitlebar({ status }: SyncConnectionStatusPro
           opacity: 0,
           transition: {
             when: 'afterChildren' as const,
-            opacity: { duration: 0.1, delay: 0.08, ease: TITLEBAR_EASE_OUT_SOFT },
+            opacity: {
+              duration: 0.1,
+              delay: 0.08,
+              ease: TITLEBAR_EASE_OUT_SOFT,
+            },
           },
         },
       }
@@ -101,7 +115,11 @@ export function SyncConnectionStatusTitlebar({ status }: SyncConnectionStatusPro
             scaleX: { duration: 0.2, ease: TITLEBAR_EASE_OUT },
             scaleY: { duration: 0.2, ease: TITLEBAR_EASE_OUT },
             clipPath: { duration: 0.2, ease: TITLEBAR_EASE_OUT },
-            opacity: { duration: 0.1, delay: 0.08, ease: TITLEBAR_EASE_OUT_SOFT },
+            opacity: {
+              duration: 0.1,
+              delay: 0.08,
+              ease: TITLEBAR_EASE_OUT_SOFT,
+            },
           },
         },
       };
@@ -122,7 +140,11 @@ export function SyncConnectionStatusTitlebar({ status }: SyncConnectionStatusPro
         hidden: { opacity: 0 },
         visible: {
           opacity: 1,
-          transition: { duration: 0.12, delay: 0.04, ease: TITLEBAR_EASE_OUT_SOFT },
+          transition: {
+            duration: 0.12,
+            delay: 0.04,
+            ease: TITLEBAR_EASE_OUT_SOFT,
+          },
         },
         exit: {
           opacity: 0,

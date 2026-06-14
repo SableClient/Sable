@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { SyncState } from '$types/matrix-sdk';
@@ -35,16 +35,24 @@ vi.mock('$client/initMatrix', () => ({
     syncState: 'SYNCING',
     transport: 'classic',
   }),
+  getSlidingSyncManager: () => ({
+    retryNow: vi.fn<() => void>(),
+  }),
 }));
 
 function emitSyncState(current: SyncState, previous: SyncState | null | undefined = null): void {
   syncStateSubscribers.forEach((subscriber) => subscriber(current, previous ?? null));
 }
 
-function makeMx(syncState: SyncState | null = SyncState.Syncing): MatrixClient {
+function makeMx(syncState: SyncState | null = SyncState.Syncing): MatrixClient & {
+  retryImmediately: ReturnType<typeof vi.fn<() => boolean>>;
+} {
   return {
     getSyncState: () => syncState,
-  } as unknown as MatrixClient;
+    retryImmediately: vi.fn<() => boolean>(() => true),
+  } as unknown as MatrixClient & {
+    retryImmediately: ReturnType<typeof vi.fn<() => boolean>>;
+  };
 }
 
 describe('SyncStatus', () => {
@@ -72,5 +80,22 @@ describe('SyncStatus', () => {
     });
 
     expect(screen.queryByText('Connecting...')).not.toBeInTheDocument();
+  });
+
+  it('offers a manual retry while sync is degraded', () => {
+    const mx = makeMx(SyncState.Error);
+    render(<SyncStatus mx={mx} />);
+
+    act(() => {
+      emitSyncState(SyncState.Error, SyncState.Reconnecting);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(1200);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(mx.retryImmediately).toHaveBeenCalledOnce();
   });
 });

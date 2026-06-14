@@ -176,6 +176,9 @@ const deleteSessionStores = async (storeName: SessionStoreName): Promise<void> =
   ]);
 };
 
+const toMatrixSdkIndexedDbName = (dbName: string): string =>
+  dbName.startsWith('matrix-js-sdk:') ? dbName : `matrix-js-sdk:${dbName}`;
+
 /**
  * Reads the account stored in an IndexedDB sync store without opening a full MatrixClient.
  * Returns undefined if the database doesn't exist or has no account record.
@@ -239,6 +242,16 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
 
 const databaseExists = async (dbName: string): Promise<boolean> => {
   try {
+    const exists = await IndexedDBStore.exists(window.indexedDB, dbName);
+    debugLog.info('sync', `databaseExists(${dbName}):`, { exists, source: 'sdk' });
+    return exists;
+  } catch (err) {
+    debugLog.warn('sync', `IndexedDBStore.exists(${dbName}) failed:`, {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  try {
     // indexedDB.databases() is not widely supported (missing in Safari < 14,
     // private browsing, some privacy settings). Log availability.
     if (!window.indexedDB.databases) {
@@ -251,7 +264,8 @@ const databaseExists = async (dbName: string): Promise<boolean> => {
       return false;
     }
     const dbs = await window.indexedDB.databases();
-    const exists = dbs.some((db) => db.name === dbName);
+    const sdkDbName = toMatrixSdkIndexedDbName(dbName);
+    const exists = dbs.some((db) => db.name === sdkDbName);
     debugLog.info('sync', `databaseExists(${dbName}):`, { exists, totalDbs: dbs.length });
     return exists;
   } catch (err) {
@@ -266,6 +280,86 @@ const databaseExists = async (dbName: string): Promise<boolean> => {
     });
     return false;
   }
+};
+
+type StoredSyncSummary = {
+  nextBatch: boolean;
+  joinedRooms: number;
+  inviteRooms: number;
+  leftRooms: number;
+  totalRooms: number;
+};
+
+const readStoredSyncSummary = async (dbName: string): Promise<StoredSyncSummary | undefined> => {
+  if (!(await databaseExists(dbName))) return undefined;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: StoredSyncSummary | undefined, reason?: string) => {
+      if (settled) return;
+      settled = true;
+      debugLog.info('sync', `readStoredSyncSummary(${dbName}):`, {
+        ...value,
+        reason: reason ?? 'success',
+      });
+      resolve(value);
+    };
+
+    const req = window.indexedDB.open(toMatrixSdkIndexedDbName(dbName));
+    req.addEventListener('error', () => finish(undefined, 'open_error'));
+    req.addEventListener('success', () => {
+      const db = req.result;
+      try {
+        if (!db.objectStoreNames.contains('sync')) {
+          db.close();
+          finish(undefined, 'no_sync_store');
+          return;
+        }
+
+        const tx = db.transaction('sync', 'readonly');
+        const store = tx.objectStore('sync');
+        // matrix-js-sdk declares this store with keyPath: ['clobber'], so the IDB key is an array.
+        const getReq = store.get(['-']);
+        getReq.addEventListener('success', () => {
+          db.close();
+          const record = getReq.result;
+          const roomsData = record?.roomsData;
+          const joinedRooms = Object.keys(roomsData?.join ?? {}).length;
+          const inviteRooms = Object.keys(roomsData?.invite ?? {}).length;
+          const leftRooms = Object.keys(roomsData?.leave ?? {}).length;
+          const totalRooms = joinedRooms + inviteRooms + leftRooms;
+          finish(
+            {
+              nextBatch: typeof record?.nextBatch === 'string' && record.nextBatch.length > 0,
+              joinedRooms,
+              inviteRooms,
+              leftRooms,
+              totalRooms,
+            },
+            record ? 'found' : 'no_record'
+          );
+        });
+        getReq.addEventListener('error', () => {
+          db.close();
+          finish(undefined, 'get_error');
+        });
+      } catch {
+        try {
+          db.close();
+        } catch {
+          /* ignore */
+        }
+        finish(undefined, 'exception');
+      }
+    });
+  });
+};
+
+const sessionUsesFallbackStore = (userId: string): boolean => {
+  const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+  return sessions.some(
+    (session) => session.userId === userId && session.fallbackSdkStores === true
+  );
 };
 
 const isClientReadyForUi = (syncState: string | null): boolean =>
@@ -912,43 +1006,38 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
     const roomCount = mx.getRooms().length;
     const hasRoomsInMemory = roomCount > 0;
 
-    // Secondary signals: check if IndexedDB stores exist and contain our account.
-    // These are less reliable (especially databaseExists on Safari/iOS where
-    // indexedDB.databases() may not be available), but provide additional confirmation.
-    const [storeHasAccount, fallbackStoreHasAccount, hasStoreDb, hasFallbackStoreDb] =
-      await Promise.all([
-        readStoredAccount(`sync${userId}`),
-        readStoredAccount('web-sync-store'),
-        databaseExists(`sync${userId}`),
-        databaseExists('web-sync-store'),
-      ]);
+    // Secondary signal: inspect the SDK's persisted /sync snapshot directly.
+    // MatrixClient.startClient() restores this data after this decision point,
+    // so mx.getRooms() can still be empty even when the IndexedDB cache is warm.
+    const shouldCheckFallbackSync = sessionUsesFallbackStore(userId);
+    const [storedSync, fallbackStoredSync] = await Promise.all([
+      readStoredSyncSummary(`sync${userId}`),
+      shouldCheckFallbackSync
+        ? readStoredSyncSummary('web-sync-store')
+        : Promise.resolve(undefined),
+    ]);
+    const hasStoredSync =
+      storedSync?.nextBatch === true ||
+      fallbackStoredSync?.nextBatch === true ||
+      (storedSync?.totalRooms ?? 0) > 0 ||
+      (fallbackStoredSync?.totalRooms ?? 0) > 0;
 
     // Prioritize rooms in memory as the most reliable signal.
-    // Fall back to account checks if rooms aren't loaded yet (edge case: empty account).
-    const hasWarmCache =
-      hasRoomsInMemory ||
-      storeHasAccount === userId ||
-      fallbackStoreHasAccount === userId ||
-      (hasStoreDb && storeHasAccount !== undefined) ||
-      (hasFallbackStoreDb && fallbackStoreHasAccount !== undefined);
+    // Fall back to the persisted sync snapshot if rooms aren't loaded yet.
+    const hasWarmCache = hasRoomsInMemory || hasStoredSync;
 
     const cacheStatus = {
       userId,
       roomCount,
       hasRoomsInMemory,
-      storeHasAccount: storeHasAccount === userId,
-      fallbackStoreHasAccount: fallbackStoreHasAccount === userId,
-      hasStoreDb,
-      hasFallbackStoreDb,
+      storedSyncRooms: storedSync?.totalRooms ?? 0,
+      checkedFallbackStore: shouldCheckFallbackSync,
+      fallbackStoredSyncRooms: fallbackStoredSync?.totalRooms ?? 0,
+      storedSyncNextBatch: storedSync?.nextBatch === true,
+      fallbackStoredSyncNextBatch: fallbackStoredSync?.nextBatch === true,
       hasWarmCache,
       willBootstrapClassic: !hasWarmCache,
-      detection: hasRoomsInMemory
-        ? 'rooms_in_memory'
-        : storeHasAccount === userId || fallbackStoreHasAccount === userId
-          ? 'account_found'
-          : hasStoreDb || hasFallbackStoreDb
-            ? 'database_exists'
-            : 'no_cache',
+      detection: hasRoomsInMemory ? 'rooms_in_memory' : hasStoredSync ? 'stored_sync' : 'no_cache',
     };
 
     debugLog.info('sync', 'Cold cache detection', cacheStatus);

@@ -342,6 +342,7 @@ export const UrlPreviewCard = as<
               url={prev['og:image']}
               info={ogImageInfo}
               matrixThumbnailMaxEdge={previewThumbMaxEdge}
+              cacheThumbnailMetadataAsMedia
               onError={() => setImageError(true)}
               suppressErrorUI
               renderViewer={(p) => <ImageViewer {...p} />}

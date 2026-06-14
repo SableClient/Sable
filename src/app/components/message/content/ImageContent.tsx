@@ -100,6 +100,7 @@ export type ImageContentProps = {
   renderViewer: (props: RenderViewerProps) => ReactNode;
   renderImage: (props: RenderImageProps) => ReactNode;
   matrixThumbnailMaxEdge?: number;
+  cacheThumbnailMetadataAsMedia?: boolean;
   mediaLayout?: 'default' | 'contained';
   containedStripMinPx?: number;
   fillsPreviewSlot?: boolean;
@@ -122,6 +123,7 @@ export const ImageContent = as<'div', ImageContentProps>(
       renderViewer,
       renderImage,
       matrixThumbnailMaxEdge,
+      cacheThumbnailMetadataAsMedia,
       mediaLayout = 'default',
       containedStripMinPx,
       fillsPreviewSlot,
@@ -196,6 +198,9 @@ export const ImageContent = as<'div', ImageContentProps>(
             const thumbBlobUrl = URL.createObjectURL(thumbContent);
             mediaUrlCache.setBlob(url, false, thumbBlobUrl, cacheParam);
             void storeMediaMetadataForBlob(getScopedMediaCacheKey(thumbUrl), thumbContent, 'image');
+            if (cacheThumbnailMetadataAsMedia) {
+              void storeMediaMetadataForBlob(mediaMetadataKey, thumbContent, 'image');
+            }
             return thumbBlobUrl;
           }
         }
@@ -239,6 +244,7 @@ export const ImageContent = as<'div', ImageContentProps>(
         return blobUrl;
       }, [
         encInfo,
+        cacheThumbnailMetadataAsMedia,
         matrixThumbnailMaxEdge,
         mediaMetadataKey,
         mediaUrlCache,

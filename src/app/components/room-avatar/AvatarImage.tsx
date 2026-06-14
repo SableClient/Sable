@@ -35,7 +35,9 @@ export function clearProcessedAvatarCache(): void {
  * indefinitely before being stored.
  */
 export function useProcessedAvatarSrc(src?: string): string | undefined {
-  const [processedSrc, setProcessedSrc] = useState<string | undefined>(src);
+  const [processedSrc, setProcessedSrc] = useState<string | undefined>(() =>
+    src ? avatarBlobCache.get(src) : undefined
+  );
 
   useEffect(() => {
     if (!src) {
@@ -44,6 +46,7 @@ export function useProcessedAvatarSrc(src?: string): string | undefined {
     }
 
     let isMounted = true;
+    setProcessedSrc(avatarBlobCache.get(src));
 
     const processImage = async () => {
       // Layer 1: in-memory hit — return immediately without any async work.

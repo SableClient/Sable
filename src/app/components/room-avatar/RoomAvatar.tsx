@@ -67,7 +67,6 @@ export const RoomIcon = forwardRef<
 
     if (overlay) {
       const OverlayIcon = getRoomIconOverlayComponent(overlay);
-      const overlayWeight = filled ? 'fill' : 'regular';
       return (
         <span ref={ref} className={classNames(css.RoomIconRoot, className)} style={style}>
           <span className={css.RoomIconComposite}>
@@ -77,7 +76,7 @@ export const RoomIcon = forwardRef<
               aria-hidden
             >
               <span className={css.RoomIconBadgeIcon}>
-                <OverlayIcon size="100%" weight={overlayWeight} color={props.color} />
+                <OverlayIcon size="100%" weight="regular" color={props.color} />
               </span>
             </span>
           </span>

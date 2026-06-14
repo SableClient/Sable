@@ -23,6 +23,7 @@ type SyncStatusProps = {
 };
 
 const DEMO_STATUS_STEP_MS = 1500;
+export const CONNECTING_STATUS_DISPLAY_MS = 1500;
 const PERSISTENT_DEGRADED_CAPTURE_MS = 30_000;
 const DEMO_STATUS_SEQUENCE: readonly (TitlebarStatusView | null)[] = [
   { text: 'Connecting...', variant: 'Success' },
@@ -142,7 +143,18 @@ export function SyncStatus({ mx }: SyncStatusProps) {
 
     if (rawStatusView.variant !== 'Warning' && rawStatusView.variant !== 'Critical') {
       setDisplayStatus(rawStatusView);
-      return undefined;
+      const timeoutId = window.setTimeout(() => {
+        setDisplayStatus((currentStatus) =>
+          currentStatus?.text === rawStatusView.text &&
+          currentStatus.variant === rawStatusView.variant
+            ? null
+            : currentStatus
+        );
+      }, CONNECTING_STATUS_DISPLAY_MS);
+
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
     }
 
     const timeoutId = window.setTimeout(() => {

@@ -22,7 +22,6 @@ const DEFAULT_HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
 const DEFAULT_RESUME_HEARTBEAT_SUPPRESS_MS = 60 * 1000;
 const DEFAULT_HEARTBEAT_MAX_BACKOFF_MS = 30 * 60 * 1000;
 const FOREGROUND_SYNC_RETRY_DEBOUNCE_MS = 5_000;
-const DEGRADED_SYNC_RETRY_INTERVAL_MS = 5_000;
 
 type SessionSyncReason = 'foreground' | 'focus' | 'pageshow' | 'heartbeat' | 'network';
 type VisibleSyncRetryReason = 'foreground' | 'focus' | 'pageshow' | 'network' | 'sync_degraded';
@@ -130,6 +129,10 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       if (document.visibilityState !== 'visible') return 'skipped';
       if (!navigator.onLine) return 'skipped';
 
+      const syncState = mx.getSyncState();
+      const syncIsDegraded = syncState === SyncState.Reconnecting || syncState === SyncState.Error;
+      if (!syncIsDegraded) return 'skipped';
+
       const now = Date.now();
       if (now - lastVisibleSyncRetryAtRef.current < FOREGROUND_SYNC_RETRY_DEBOUNCE_MS) {
         return 'skipped';
@@ -144,7 +147,7 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
         reason,
         classicRetried,
         hasSlidingSync: !!slidingSyncManager,
-        syncState: mx.getSyncState(),
+        syncState,
       });
       Sentry.metrics.count('sable.sync.visible_retry', 1, {
         attributes: {
@@ -416,33 +419,9 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   useEffect(() => {
     if (!mx) return undefined;
 
-    let retryIntervalId: number | undefined;
-    const stopRetryLoop = () => {
-      if (retryIntervalId === undefined) return;
-      window.clearInterval(retryIntervalId);
-      retryIntervalId = undefined;
-    };
-
-    const startRetryLoop = () => {
-      if (retryIntervalId !== undefined) return;
-      retryIntervalId = window.setInterval(() => {
-        retryVisibleSyncNow('sync_degraded');
-      }, DEGRADED_SYNC_RETRY_INTERVAL_MS);
-    };
-
     const handleSyncState = (state: SyncState | null) => {
       if (state === SyncState.Reconnecting || state === SyncState.Error) {
         retryVisibleSyncNow('sync_degraded');
-        startRetryLoop();
-        return;
-      }
-
-      if (
-        state === SyncState.Prepared ||
-        state === SyncState.Syncing ||
-        state === SyncState.Catchup
-      ) {
-        stopRetryLoop();
       }
     };
 
@@ -450,7 +429,6 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     handleSyncState(mx.getSyncState());
 
     return () => {
-      stopRetryLoop();
       mx.removeListener(ClientEvent.Sync, handleSyncState);
     };
   }, [mx, retryVisibleSyncNow]);

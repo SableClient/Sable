@@ -146,6 +146,15 @@ function retainObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
   return entry;
 }
 
+function getCachedObjectUrl(cacheKey: string | undefined): string | undefined {
+  if (!cacheKey) return undefined;
+
+  const entry = objectUrlCache.get(cacheKey);
+  if (!entry?.objectUrl || entry.disposed) return undefined;
+
+  return entry.objectUrl;
+}
+
 function releaseObjectUrlEntry(cacheKey: string, entry: ObjectUrlEntry): void {
   if (objectUrlCache.get(cacheKey) !== entry) return;
 
@@ -202,7 +211,7 @@ export function useRenderableMediaUrl(url: string | undefined): string | undefin
   const usesExistingObjectUrl = renderableUrl?.startsWith('blob:') ?? false;
   const [resolvedState, setResolvedState] = useState<ResolvedMediaUrlState>(() => ({
     cacheKey: objectUrlCacheKey,
-    url: usesExistingObjectUrl ? renderableUrl : undefined,
+    url: usesExistingObjectUrl ? renderableUrl : getCachedObjectUrl(objectUrlCacheKey),
   }));
 
   useEffect(() => {
@@ -250,8 +259,8 @@ export function useRenderableMediaUrl(url: string | undefined): string | undefin
   }
 
   if (resolvedState.cacheKey !== objectUrlCacheKey) {
-    return undefined;
+    return getCachedObjectUrl(objectUrlCacheKey);
   }
 
-  return resolvedState.url;
+  return resolvedState.url ?? getCachedObjectUrl(objectUrlCacheKey);
 }

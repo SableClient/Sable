@@ -219,9 +219,7 @@ describe('useRenderableMediaUrl', () => {
 
     const { result } = renderHook(() => useRenderableMediaUrl('https://example.org/media.png'));
 
-    await waitFor(() => {
-      expect(result.current).toBe('blob:rendered-media');
-    });
+    expect(result.current).toBe('blob:rendered-media');
     expect(mediaTransport.fetchMediaBlob).toHaveBeenCalledTimes(1);
   });
 

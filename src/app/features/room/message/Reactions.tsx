@@ -163,7 +163,7 @@ export const Reactions = as<'div', ReactionsProps>(
                   aria-pressed={!!emojiBoardAnchor}
                   onClick={handleOpenEmojiBoard}
                 >
-                  {sizedIcon(Smiley, '100')}
+                  {sizedIcon(Smiley, '100', { filled: !!emojiBoardAnchor })}
                 </Box>
               )}
             </TooltipProvider>

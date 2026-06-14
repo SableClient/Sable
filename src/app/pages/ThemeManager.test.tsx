@@ -53,7 +53,7 @@ vi.mock('$state/hooks/settings', () => ({
 
 vi.mock('$state/settings', () => ({
   settingsAtom: {},
-  settingsInitializedAtom: atom(true),
+  settingsInitializedAtom: atom(false),
 }));
 
 vi.mock('$plugins/arborium', () => ({
@@ -106,5 +106,22 @@ describe('ThemeManager', () => {
 
     expect(document.body).toHaveClass('test-dark-theme');
     expect(document.body).not.toHaveClass('test-light-theme');
+  });
+
+  it('applies the active theme before synced settings initialize', () => {
+    activeTheme = {
+      id: 'test-dark',
+      kind: ThemeKind.Dark,
+      classNames: ['test-dark-theme'],
+    };
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    expect(document.documentElement.dataset.sableBootTheme).toBe('dark');
+    expect(document.body).toHaveClass('test-dark-theme');
   });
 });

@@ -1,10 +1,11 @@
 import type { MatrixClient } from '$types/matrix-sdk';
 import { SyncState } from '$types/matrix-sdk';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSetAtom } from 'jotai';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 import * as Sentry from '@sentry/react';
+import { getClientSyncDiagnostics } from '$client/initMatrix';
 import { useSyncState } from '$hooks/useSyncState';
 import { titlebarStatusAtom, type TitlebarStatusView } from '$state/titlebarStatus';
 import {
@@ -22,6 +23,7 @@ type SyncStatusProps = {
 };
 
 const DEMO_STATUS_STEP_MS = 1500;
+const PERSISTENT_DEGRADED_CAPTURE_MS = 30_000;
 const DEMO_STATUS_SEQUENCE: readonly (TitlebarStatusView | null)[] = [
   { text: 'Connecting...', variant: 'Success' },
   null,
@@ -48,6 +50,8 @@ export function SyncStatus({ mx }: SyncStatusProps) {
   const useDemoStatusLoop = isSyncStatusDemoEnabled();
   const setTitlebarStatus = useSetAtom(titlebarStatusAtom);
   const { current, previous } = stateData;
+  const degradedSinceRef = useRef<number | undefined>(undefined);
+  const degradedReportedRef = useRef(false);
 
   useSyncState(
     mx,
@@ -83,6 +87,42 @@ export function SyncStatus({ mx }: SyncStatusProps) {
       window.clearInterval(intervalId);
     };
   }, [useDemoStatusLoop]);
+
+  useEffect(() => {
+    const degraded = current === SyncState.Reconnecting || current === SyncState.Error;
+    if (!degraded) {
+      degradedSinceRef.current = undefined;
+      degradedReportedRef.current = false;
+      return undefined;
+    }
+
+    degradedSinceRef.current ??= Date.now();
+    const timeoutId = window.setTimeout(() => {
+      const syncState = mx.getSyncState();
+      const stillDegraded = syncState === SyncState.Reconnecting || syncState === SyncState.Error;
+      if (!stillDegraded || degradedReportedRef.current) return;
+
+      degradedReportedRef.current = true;
+      const diagnostics = getClientSyncDiagnostics(mx);
+      Sentry.captureMessage('Sync remained degraded', {
+        level: 'warning',
+        tags: {
+          sync_state: syncState ?? 'unknown',
+          transport: diagnostics.transport,
+        },
+        extra: {
+          diagnostics,
+          degradedMs: Date.now() - (degradedSinceRef.current ?? Date.now()),
+          visibilityState: document.visibilityState,
+          online: navigator.onLine,
+        },
+      });
+    }, PERSISTENT_DEGRADED_CAPTURE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [current, mx]);
 
   const rawStatusView = useMemo(() => {
     if (useDemoStatusLoop) return DEMO_STATUS_SEQUENCE[demoIndex] ?? null;

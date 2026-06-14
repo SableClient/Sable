@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { Page, PageContent, PageHeader } from '$components/page';
 import type { ImagePack } from '$plugins/custom-emoji';
 import { ImagePackView } from '$components/image-pack-view';
@@ -30,7 +31,7 @@ export function EmojisStickers({ requestClose }: EmojisStickersProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

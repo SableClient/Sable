@@ -1,7 +1,8 @@
 /* oxlint-disable jsx-a11y/media-has-caption */
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Badge, Chip, Icon, IconButton, Icons, ProgressBar, Spinner, Text, toRem } from 'folds';
+import { Badge, Chip, IconButton, ProgressBar, Spinner, Text, toRem } from 'folds';
+import { sizedIcon, Pause, Play, SpeakerHigh, SpeakerSlash } from '$components/icons/phosphor';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -182,7 +183,7 @@ export function AudioContent({
             srcState.status === AsyncStatus.Loading || loading ? (
               <Spinner variant="Secondary" size="50" />
             ) : (
-              <Icon src={playing ? Icons.Pause : Icons.Play} size="50" filled={playing} />
+              sizedIcon(playing ? Pause : Play, '50', { filled: playing })
             )
           }
         >
@@ -203,7 +204,7 @@ export function AudioContent({
           onClick={() => setMute(!mute)}
           aria-pressed={mute}
         >
-          <Icon src={mute ? Icons.VolumeMute : Icons.VolumeHigh} size="50" />
+          {sizedIcon(mute ? SpeakerSlash : SpeakerHigh, '50')}
         </IconButton>
         <Range
           step={0.1}

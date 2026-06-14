@@ -1,5 +1,6 @@
 import { SequenceCard } from '$components/sequence-card';
-import { Box, Button, Text, Avatar, config, Icon, IconButton, Icons, Input } from 'folds';
+import { Box, Button, Text, Avatar, config, IconButton, Input } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo, useState } from 'react';
 import { mxcUrlToHttp } from '$utils/matrix';
@@ -374,7 +375,7 @@ export function PerMessageProfileEditor({
                     aria-label="Reset display name"
                     title="Reset display name"
                   >
-                    <Icon src={Icons.Cross} size="100" aria-label="Reset icon" />
+                    {menuIcon(X)}
                   </IconButton>
                 )
               }
@@ -421,7 +422,7 @@ export function PerMessageProfileEditor({
                     aria-label="Reset pronouns"
                     title="Reset pronouns"
                   >
-                    <Icon src={Icons.Cross} size="100" aria-label="Reset icon" />
+                    {menuIcon(X)}
                   </IconButton>
                 )
               }

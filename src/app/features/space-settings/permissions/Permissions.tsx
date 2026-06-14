@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { composerIcon, X } from '$components/icons/phosphor';
 
 import { PermissionGroups, Powers, PowersEditor } from '$features/common-settings/permissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -48,7 +49,7 @@ export function Permissions({ requestClose }: PermissionsProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

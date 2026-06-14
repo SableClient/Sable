@@ -5,15 +5,24 @@ import {
   getTimelineRelativeIndex,
   getTimelineEvent,
 } from '$utils/timeline';
-import { isMembershipChanged, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
+import {
+  isMembershipChanged,
+  isThreadRelationEvent,
+  isEditEvent,
+  isReactionEvent,
+  isRedactableMessageType,
+  shouldShowRedactionTimelineEvent,
+  collectRelationReactionEvents,
+  collectRelationEditEvents,
+} from '$utils/room';
 import { inSameDay, minuteDifference } from '$utils/time';
+import type { ResolvedHiddenEventSettings } from '$state/hooks/settings';
 
 export interface UseProcessedTimelineOptions {
   items: number[];
   linkedTimelines: EventTimeline[];
   ignoredUsersSet: Set<string>;
-  showHiddenEvents: boolean;
-  showTombstoneEvents: boolean;
+  hiddenEvents: ResolvedHiddenEventSettings;
   mxUserId: string | null;
   readUptoEventId: string | undefined;
   hideMembershipEvents: boolean;
@@ -71,12 +80,154 @@ const normalizeMessageType = (t: string): string =>
 const getPmpId = (ev: MatrixEvent): string | null =>
   ev.getContent()?.['com.beeper.per_message_profile']?.id ?? null;
 
+type ProcessedEventDraft = Omit<
+  ProcessedEvent,
+  'collapsed' | 'willRenderNewDivider' | 'willRenderDayDivider'
+>;
+
+const computeCollapseAndDividers = (
+  drafts: ProcessedEventDraft[],
+  mxUserId: string | null,
+  readUptoEventId: string | undefined
+): ProcessedEvent[] => {
+  let prevEvent: MatrixEvent | undefined;
+  let isPrevRendered = false;
+  let newDivider = false;
+  let dayDivider = false;
+
+  return drafts.map((draft) => {
+    const { mEvent, eventSender } = draft;
+    const type = mEvent.getType();
+
+    if (!newDivider && readUptoEventId) {
+      const prevId = prevEvent ? prevEvent.getId() : undefined;
+      newDivider = prevId === readUptoEventId;
+    }
+
+    if (!dayDivider) {
+      dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
+    }
+
+    const isMessageEvent = MESSAGE_EVENT_TYPES.has(type);
+
+    let collapsed = false;
+    if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
+      if (isMessageEvent) {
+        const withinTimeThreshold = minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
+        const senderMatch = prevEvent.getSender() === eventSender;
+        const typeMatch = normalizeMessageType(prevEvent.getType()) === normalizeMessageType(type);
+        const dividerOk = !newDivider || eventSender === mxUserId;
+
+        collapsed =
+          dividerOk &&
+          senderMatch &&
+          typeMatch &&
+          withinTimeThreshold &&
+          getPmpId(prevEvent) === getPmpId(mEvent);
+      } else {
+        const prevIsMessageEvent = MESSAGE_EVENT_TYPES.has(prevEvent.getType());
+        collapsed = !prevIsMessageEvent;
+      }
+    }
+
+    const willRenderNewDivider = newDivider && eventSender !== mxUserId;
+    const willRenderDayDivider = dayDivider;
+
+    prevEvent = mEvent;
+    isPrevRendered = true;
+    if (willRenderNewDivider) newDivider = false;
+    if (willRenderDayDivider) dayDivider = false;
+
+    return {
+      ...draft,
+      collapsed,
+      willRenderNewDivider,
+      willRenderDayDivider,
+    };
+  });
+};
+
+const mergeRelationReactions = (
+  result: ProcessedEvent[],
+  linkedTimelines: EventTimeline[],
+  ignoredUsersSet: Set<string>,
+  hiddenEventReactions: boolean,
+  hiddenEventReactionTombstone: boolean,
+  mxUserId: string | null,
+  readUptoEventId: string | undefined
+): ProcessedEvent[] => {
+  const existingIds = new Set(result.map((event) => event.id));
+  const extras = collectRelationReactionEvents(
+    linkedTimelines,
+    existingIds,
+    ignoredUsersSet,
+    hiddenEventReactions,
+    hiddenEventReactionTombstone
+  );
+
+  if (extras.length === 0) return result;
+
+  const mergedDrafts: ProcessedEventDraft[] = [
+    ...result.map(
+      ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
+    ),
+    ...extras.map(({ mEvent, timelineSet }) => {
+      const mEventId = mEvent.getId()!;
+      return {
+        id: mEventId,
+        itemIndex: -1,
+        mEvent,
+        timelineSet,
+        eventSender: mEvent.getSender() ?? null,
+      };
+    }),
+  ].toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
+
+  return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
+};
+
+const mergeRelationEdits = (
+  result: ProcessedEvent[],
+  linkedTimelines: EventTimeline[],
+  ignoredUsersSet: Set<string>,
+  hiddenEventEdits: boolean,
+  mxUserId: string | null,
+  readUptoEventId: string | undefined
+): ProcessedEvent[] => {
+  const existingIds = new Set(result.map((event) => event.id));
+  const extras = collectRelationEditEvents(
+    linkedTimelines,
+    existingIds,
+    ignoredUsersSet,
+    hiddenEventEdits
+  );
+
+  if (extras.length === 0) return result;
+
+  const mergedDrafts: ProcessedEventDraft[] = [
+    ...result.map(
+      ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
+    ),
+    ...extras.map(({ mEvent, timelineSet }) => {
+      const mEventId = mEvent.getId()!;
+      return {
+        id: mEventId,
+        itemIndex: -1,
+        mEvent,
+        timelineSet,
+        eventSender: mEvent.getSender() ?? null,
+      };
+    }),
+  ].toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
+
+  return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
+};
+
 export function useProcessedTimeline({
   items,
   linkedTimelines,
   ignoredUsersSet,
-  showHiddenEvents,
-  showTombstoneEvents,
+  hiddenEvents,
   mxUserId,
   readUptoEventId,
   hideMembershipEvents,
@@ -86,6 +237,17 @@ export function useProcessedTimeline({
   skipThreadFilter,
   messageGroupingThreshold,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
+  const {
+    showHiddenEvents,
+    showTombstoneEvents,
+    hiddenEventEdits,
+    hiddenEventRedactionTimeline,
+    hiddenEventReactions,
+    hiddenEventReactionTombstone,
+    hiddenEventReactionRedactionTimeline,
+    hiddenEventOther,
+  } = hiddenEvents;
+
   return useMemo(() => {
     // Sort items by origin_server_ts so events always render in chronological
     // order even when the SDK stores them in receipt order.  This is visible
@@ -126,9 +288,17 @@ export function useProcessedTimeline({
       const eventSender = mEvent.getSender() ?? null;
 
       if (eventSender && ignoredUsersSet.has(eventSender)) return acc;
-      if (mEvent.isRedacted() && !(showHiddenEvents || showTombstoneEvents)) return acc;
 
       const type = mEvent.getType();
+      const isEdit = isEditEvent(mEvent);
+      const isReaction = isReactionEvent(mEvent);
+      const isRedactionEvt = mEvent.isRedaction();
+
+      if (mEvent.isRedacted()) {
+        const showMessageTombstone = showTombstoneEvents && isRedactableMessageType(type);
+        const showReactionTombstone = hiddenEventReactionTombstone && isReaction;
+        if (!showMessageTombstone && !showReactionTombstone) return acc;
+      }
 
       if (type === 'm.room.member') {
         const membershipChanged = isMembershipChanged(mEvent);
@@ -137,7 +307,19 @@ export function useProcessedTimeline({
         if (!membershipChanged && hideNickAvatarEvents) return acc;
       }
 
-      if (!showHiddenEvents) {
+      const allowSpecificHiddenEvent =
+        (isEdit && hiddenEventEdits) ||
+        (isReaction && !mEvent.isRedacted() && hiddenEventReactions) ||
+        (isReaction && mEvent.isRedacted() && hiddenEventReactionTombstone) ||
+        (isRedactionEvt &&
+          shouldShowRedactionTimelineEvent(
+            mEvent,
+            timelineSet,
+            hiddenEventRedactionTimeline,
+            hiddenEventReactionRedactionTimeline
+          ));
+
+      if (!(showHiddenEvents && hiddenEventOther)) {
         const isStandardRendered = [
           'm.room.message',
           'm.room.message.encrypted',
@@ -150,9 +332,12 @@ export function useProcessedTimeline({
         ].includes(type);
 
         if (!isStandardRendered) {
-          if (Object.keys(mEvent.getContent()).length === 0) return acc;
-          if (mEvent.getRelation()) return acc;
-          if (mEvent.isRedaction()) return acc;
+          if (Object.keys(mEvent.getContent()).length === 0 && !allowSpecificHiddenEvent)
+            return acc;
+          if (!allowSpecificHiddenEvent) {
+            if (mEvent.getRelation()) return acc;
+            if (mEvent.isRedaction()) return acc;
+          }
         }
       }
 
@@ -184,8 +369,24 @@ export function useProcessedTimeline({
       )
         return acc;
 
-      const isReactionOrEdit = reactionOrEditEvent(mEvent);
-      if (isReactionOrEdit) return acc;
+      if (isEdit && !hiddenEventEdits) return acc;
+      if (isReaction) {
+        if (mEvent.isRedacted()) {
+          if (!hiddenEventReactionTombstone) return acc;
+        } else if (!hiddenEventReactions) {
+          return acc;
+        }
+      }
+      if (
+        isRedactionEvt &&
+        !shouldShowRedactionTimelineEvent(
+          mEvent,
+          timelineSet,
+          hiddenEventRedactionTimeline,
+          hiddenEventReactionRedactionTimeline
+        )
+      )
+        return acc;
 
       if (!newDivider && readUptoEventId) {
         const prevId = prevEvent ? prevEvent.getId() : undefined;
@@ -249,13 +450,35 @@ export function useProcessedTimeline({
       acc.push(processed);
       return acc;
     }, []);
-    return result;
+
+    return mergeRelationEdits(
+      mergeRelationReactions(
+        result,
+        linkedTimelines,
+        ignoredUsersSet,
+        hiddenEventReactions,
+        hiddenEventReactionTombstone,
+        mxUserId,
+        readUptoEventId
+      ),
+      linkedTimelines,
+      ignoredUsersSet,
+      hiddenEventEdits,
+      mxUserId,
+      readUptoEventId
+    );
   }, [
     items,
     linkedTimelines,
     ignoredUsersSet,
     showHiddenEvents,
     showTombstoneEvents,
+    hiddenEventEdits,
+    hiddenEventRedactionTimeline,
+    hiddenEventReactions,
+    hiddenEventReactionTombstone,
+    hiddenEventReactionRedactionTimeline,
+    hiddenEventOther,
     mxUserId,
     readUptoEventId,
     hideMembershipEvents,

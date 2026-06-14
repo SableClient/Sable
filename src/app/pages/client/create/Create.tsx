@@ -1,4 +1,5 @@
-import { Box, Icon, Icons, Scroll } from 'folds';
+import { Box, Scroll } from 'folds';
+import { SquaresFour, sizedIcon } from '$components/icons/phosphor';
 import { Page, PageContent, PageContentCenter, PageHero, PageHeroSection } from '$components/page';
 import { CreateSpaceForm } from '$features/create-space';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -15,7 +16,7 @@ export function Create() {
               <PageHeroSection>
                 <Box direction="Column" gap="700">
                   <PageHero
-                    icon={<Icon size="600" src={Icons.Space} />}
+                    icon={sizedIcon(SquaresFour, '600')}
                     title="Create Space"
                     subTitle="Build a space for your community."
                   />

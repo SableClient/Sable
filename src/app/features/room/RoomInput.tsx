@@ -23,8 +23,8 @@ import {
   config,
   Dialog,
   Icon,
-  IconButton,
   Icons,
+  IconButton,
   Menu,
   MenuItem,
   Overlay,
@@ -136,7 +136,25 @@ import {
   convertPerMessageProfileToBeeperFormat,
   getCurrentlyUsedPerMessageProfileForRoom,
 } from '$hooks/usePerMessageProfile';
-import { Microphone, Stop, MapPinPlusIcon } from '@phosphor-icons/react';
+import {
+  Bell,
+  BellSlash,
+  CaretDown,
+  chipIcon,
+  Clock,
+  composerIcon,
+  dropzoneIcon,
+  File as FileIcon,
+  ListBullets,
+  MapPinPlusIcon,
+  menuIcon,
+  Microphone,
+  PaperPlaneTilt,
+  PHOSPHOR_SIZE,
+  PlusCircle,
+  Stop,
+  X,
+} from '$components/icons/phosphor';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { ErrorCode } from '../../cs-errorcode';
 import { sanitizeText } from '$utils/sanitize';
@@ -1545,7 +1563,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 gap="500"
                 style={{ padding: toRem(60) }}
               >
-                <Icon size="600" src={Icons.File} />
+                {dropzoneIcon(FileIcon)}
                 <Text size="H4" align="Center">
                   {`Drop Files in "${room?.name || 'Room'}"`}
                 </Text>
@@ -1642,10 +1660,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       radii="300"
                       title="schedule message send"
                     >
-                      <Icon src={Icons.Cross} size="50" />
+                      {chipIcon(X)}
                     </IconButton>
                     <Box direction="Row" gap="200" alignItems="Center">
-                      <Icon size="100" src={Icons.Clock} />
+                      {menuIcon(Clock)}
                       <Text size="T300">
                         Scheduled for {timeDayMonthYear(scheduledTime.getTime())} at{' '}
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
@@ -1736,7 +1754,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       aria-label="Cancel reply"
                       title="Cancel reply"
                     >
-                      <Icon src={Icons.Cross} size="50" />
+                      {chipIcon(X)}
                     </IconButton>
                     <Box
                       direction="Row"
@@ -1770,8 +1788,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         }
                         onClick={() => setSilentReply(!silentReply)}
                       >
-                        {!silentReply && <Icon src={Icons.BellPing} />}
-                        {silentReply && <Icon src={Icons.BellMute} />}
+                        {!silentReply && composerIcon(Bell)}
+                        {silentReply && composerIcon(BellSlash)}
                       </IconButton>
                     </Box>
                   </Box>
@@ -1804,7 +1822,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             setAddMenuAnchor(undefined);
                             setPollCreatorOpen(true);
                           }}
-                          before={<Icon size="100" src={Icons.UnorderList} />}
+                          before={menuIcon(ListBullets)}
                         >
                           <Text size="B300">Create Poll</Text>
                         </MenuItem>
@@ -1815,7 +1833,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             setAddMenuAnchor(undefined);
                             setShowLocationPicker(true);
                           }}
-                          before={<MapPinPlusIcon size="20" />}
+                          before={menuIcon(MapPinPlusIcon)}
                         >
                           <Text size="B300">Add Location</Text>
                         </MenuItem>
@@ -1826,7 +1844,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             pickFile('*');
                             setAddMenuAnchor(undefined);
                           }}
-                          before={<Icon size="100" src={Icons.PlusCircle} />}
+                          before={menuIcon(PlusCircle)}
                         >
                           <Text size="B300">Add File</Text>
                         </MenuItem>
@@ -1847,7 +1865,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 title={editorOldAddFile ? 'Upload File' : 'Add'}
                 aria-label={editorOldAddFile ? 'Upload and attach a File' : 'Add new Item'}
               >
-                <Icon src={Icons.PlusCircle} />
+                {composerIcon(PlusCircle)}
               </IconButton>
             </>
           }
@@ -1898,9 +1916,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 }}
               >
                 {showAudioRecorder ? (
-                  <Stop size={20} weight="fill" style={{ color: color.Critical.Main }} />
+                  <Stop
+                    size={PHOSPHOR_SIZE.toolbar}
+                    weight="fill"
+                    style={{ color: color.Critical.Main }}
+                  />
                 ) : (
-                  <Microphone size={20} />
+                  composerIcon(Microphone)
                 )}
               </IconButton>
 
@@ -1995,7 +2017,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             setScheduleMenuAnchor(undefined);
                             submit();
                           }}
-                          before={<Icon size="100" src={Icons.Send} />}
+                          before={menuIcon(PaperPlaneTilt)}
                         >
                           <Text size="B300">Send Now</Text>
                         </MenuItem>
@@ -2006,7 +2028,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             setScheduleMenuAnchor(undefined);
                             setShowSchedulePicker(true);
                           }}
-                          before={<Icon size="100" src={Icons.Clock} />}
+                          before={menuIcon(Clock)}
                         >
                           <Text size="B300">Schedule Send</Text>
                         </MenuItem>
@@ -2053,7 +2075,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   radii="0"
                   className={delayedEventsSupported ? css.SplitSendButton : undefined}
                 >
-                  <Icon src={scheduledTime ? Icons.Clock : Icons.Send} />
+                  {scheduledTime ? composerIcon(Clock) : composerIcon(PaperPlaneTilt)}
                 </IconButton>
                 {delayedEventsSupported && !mobileOrTablet() && (
                   <IconButton
@@ -2067,7 +2089,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     radii="0"
                     className={css.SplitChevronButton}
                   >
-                    <Icon size="50" src={Icons.ChevronBottom} />
+                    {chipIcon(CaretDown)}
                   </IconButton>
                 )}
               </Box>

@@ -117,6 +117,12 @@ export interface Settings {
   hideNickAvatarEvents: boolean;
   showHiddenEvents: boolean;
   showTombstoneEvents: boolean;
+  hiddenEventEdits: boolean;
+  hiddenEventRedactionTimeline: boolean;
+  hiddenEventReactions: boolean;
+  hiddenEventReactionTombstone: boolean;
+  hiddenEventReactionRedactionTimeline: boolean;
+  hiddenEventOther: boolean;
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
@@ -214,6 +220,7 @@ export interface Settings {
   closeFoldersByDefault: boolean;
   perRoomShowRoomIcon: PerRoomShowRoomIcon[];
   showRoomIcon: ShowRoomIcon;
+  roomIconOverlay: boolean;
   showRoomBanners: boolean;
   roomSidebarWidth: number;
   roomBannerHeight: number;
@@ -291,7 +298,13 @@ export const defaultSettings: Settings = {
   showInteractiveMap: false,
   showEncInteractiveMap: false,
   showHiddenEvents: false,
-  showTombstoneEvents: false,
+  showTombstoneEvents: true,
+  hiddenEventEdits: true,
+  hiddenEventRedactionTimeline: true,
+  hiddenEventReactions: true,
+  hiddenEventReactionTombstone: true,
+  hiddenEventReactionRedactionTimeline: true,
+  hiddenEventOther: true,
   legacyUsernameColor: false,
 
   enableMSC4268CMD: false,
@@ -379,6 +392,7 @@ export const defaultSettings: Settings = {
   closeFoldersByDefault: false,
   perRoomShowRoomIcon: [],
   showRoomIcon: ShowRoomIcon.Smart,
+  roomIconOverlay: true,
   showRoomBanners: true,
   roomSidebarWidth: 256,
   roomBannerHeight: 190,

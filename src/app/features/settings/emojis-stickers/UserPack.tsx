@@ -1,4 +1,5 @@
-import { Avatar, AvatarFallback, AvatarImage, Box, Button, Icon, Icons, Text } from 'folds';
+import { Avatar, AvatarFallback, AvatarImage, Box, Button, Text } from 'folds';
+import { composerIcon, Sticker } from '$components/icons/phosphor';
 import { useUserImagePack } from '$hooks/useImagePacks';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -51,9 +52,7 @@ export function UserPack({ onViewPack }: UserPackProps) {
                   src={resolvedAvatarUrl ?? avatarUrl}
                 />
               ) : (
-                <AvatarFallback>
-                  <Icon size="400" src={Icons.Sticker} filled />
-                </AvatarFallback>
+                <AvatarFallback>{composerIcon(Sticker, { weight: 'fill' })}</AvatarFallback>
               )}
             </Avatar>
           }

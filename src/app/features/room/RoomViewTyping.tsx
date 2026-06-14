@@ -1,4 +1,5 @@
-import { Box, Icon, IconButton, Icons, Text, as } from 'folds';
+import { Box, IconButton, Text, as } from 'folds';
+import { chipIcon, X } from '$components/icons/phosphor';
 import type { Room } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useSetAtom, useAtomValue } from 'jotai';
@@ -115,7 +116,7 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
             )}
           </Text>
           <IconButton title="Drop Typing Status" size="300" radii="Pill" onClick={handleDropAll}>
-            <Icon size="50" src={Icons.Cross} />
+            {chipIcon(X)}
           </IconButton>
         </Box>
       </div>

@@ -5,8 +5,6 @@ import {
   Box,
   Text,
   Button,
-  Icon,
-  Icons,
   IconButton,
   Avatar,
   AvatarImage,
@@ -22,6 +20,7 @@ import {
   Line,
   Chip,
 } from 'folds';
+import { composerIcon, menuIcon, Plus, Sticker, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
@@ -199,7 +198,7 @@ function GlobalPackSelector({
                                   <PackAvatarImage url={avatarUrl} />
                                 ) : (
                                   <AvatarFallback>
-                                    <Icon size="400" src={Icons.Sticker} filled />
+                                    {composerIcon(Sticker, { weight: 'fill' })}
                                   </AvatarFallback>
                                 )}
                               </Avatar>
@@ -384,7 +383,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                   onClick={() => handleUndoRemove(address)}
                   disabled={applyingChanges}
                 >
-                  <Icon src={Icons.Plus} size="100" />
+                  {menuIcon(Plus)}
                 </IconButton>
               ) : (
                 <IconButton
@@ -394,16 +393,14 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                   onClick={() => handleRemove(address)}
                   disabled={applyingChanges}
                 >
-                  <Icon src={Icons.Cross} size="100" />
+                  {menuIcon(X)}
                 </IconButton>
               )}
               <Avatar size="300" radii="300">
                 {avatarUrl ? (
                   <PackAvatarImage url={avatarUrl} />
                 ) : (
-                  <AvatarFallback>
-                    <Icon size="400" src={Icons.Sticker} filled />
-                  </AvatarFallback>
+                  <AvatarFallback>{composerIcon(Sticker, { weight: 'fill' })}</AvatarFallback>
                 )}
               </Avatar>
             </Box>

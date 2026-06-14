@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useMemo } from 'react';
-import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
-import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
+import { Box, Chip, Text, toRem } from 'folds';
+import { ArrowSquareOut, sizedIcon, Link } from '$components/icons/phosphor';
+import type { IContent, IPreviewUrlResponse, MatrixClient } from '$types/matrix-sdk';
 import { JUMBO_EMOJI_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
 import type {
@@ -30,6 +31,7 @@ import {
   MessageDeletedContent,
   MessageEditedContent,
   MessageUnsupportedContent,
+  ReactionDeletedContent,
 } from './content';
 import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
@@ -39,7 +41,9 @@ import { copyToClipboard } from '$utils/dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
 import * as css from './MsgTypeRenderers.css';
+import { markerIcon } from '$features/room/location-modal/LocationDialog';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -60,6 +64,34 @@ export function RedactedContent({ reason }: RedactedContentProps) {
   return (
     <Text>
       <MessageDeletedContent reason={reason} />
+    </Text>
+  );
+}
+
+type RedactedReactionContentProps = {
+  reactionKey?: string;
+  shortcode?: string;
+  mx?: MatrixClient;
+  useAuthentication?: boolean;
+  reason?: string;
+};
+export function RedactedReactionContent({
+  reactionKey,
+  shortcode,
+  mx,
+  useAuthentication,
+  reason,
+}: RedactedReactionContentProps) {
+  return (
+    <Text>
+      <ReactionDeletedContent
+        reactionKey={reactionKey}
+        shortcode={shortcode}
+        mx={mx}
+        useAuthentication={useAuthentication}
+        reason={reason}
+        hideIcon
+      />
     </Text>
   );
 }
@@ -692,7 +724,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
           size="400"
           variant="SurfaceVariant"
           onClick={() => copyToClipboard(`${latitude}, ${longitude}`)}
-          before={<Icon size="50" src={Icons.Link} />}
+          before={sizedIcon(Link, '50')}
           className={css.LocationCoordsChip}
         >
           <Text size="T400">{`${latitude}, ${longitude}`}</Text>
@@ -707,7 +739,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
           variant="Primary"
           radii="Pill"
           className={css.LocationExternalChip}
-          before={<Icon src={Icons.External} size="50" />}
+          before={sizedIcon(ArrowSquareOut, '50')}
         >
           <Text size="B300">Open Location</Text>
         </Chip>
@@ -724,8 +756,16 @@ export function MLocation({ content, showMaps }: MLocationProps) {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-
-          <Marker position={coords}></Marker>
+          <Marker
+            position={coords}
+            eventHandlers={{
+              mousedown: (e) => {
+                e.originalEvent.preventDefault();
+                e.originalEvent.stopPropagation();
+              },
+            }}
+            icon={markerIcon}
+          />
         </MapContainer>
       )}
     </Box>

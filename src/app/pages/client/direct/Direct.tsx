@@ -7,8 +7,8 @@ import {
   Box,
   Button,
   Icon,
-  IconButton,
   Icons,
+  IconButton,
   Menu,
   MenuItem,
   PopOut,
@@ -16,6 +16,17 @@ import {
   config,
   toRem,
 } from 'folds';
+import {
+  At,
+  Checks,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  dropzoneIcon,
+  menuIcon,
+  PHOSPHOR_SIZE,
+  Plus,
+  User,
+} from '$components/icons/phosphor';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
@@ -81,7 +92,7 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={menuIcon(Checks)}
           radii="300"
           aria-disabled={!unread}
         >
@@ -110,7 +121,7 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
         {hideText ? (
           <Box alignItems="Center" grow="Yes" justifyContent="Center">
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.User} size="200" filled={!!menuAnchor} />
+              <User size={PHOSPHOR_SIZE.toolbar} weight={menuAnchor ? 'fill' : 'regular'} />
             </IconButton>
           </Box>
         ) : (
@@ -122,7 +133,9 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
             </Box>
             <Box shrink="No">
               <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-                <Icon src={Icons.VerticalDots} size="200" filled={!!menuAnchor} />
+                {composerIcon(DotsThreeOutlineVerticalIcon, {
+                  weight: menuAnchor ? 'fill' : 'regular',
+                })}
               </IconButton>
             </Box>
           </Box>
@@ -159,7 +172,7 @@ function DirectEmpty() {
   return (
     <NavEmptyCenter>
       <NavEmptyLayout
-        icon={<Icon size="600" src={Icons.Mention} />}
+        icon={dropzoneIcon(At)}
         title={
           <Text size="H5" align="Center">
             No Direct Messages
@@ -293,7 +306,7 @@ export function Direct() {
                         justifyContent="Center"
                       >
                         <Avatar size="200" radii="400">
-                          <Icon src={Icons.Plus} size="100" />
+                          {menuIcon(Plus)}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">

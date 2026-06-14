@@ -8,8 +8,6 @@ import {
   Box,
   Button,
   Dialog,
-  Icon,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -22,6 +20,7 @@ import {
 } from 'folds';
 import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { nameInitials } from '$utils/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -286,7 +285,7 @@ export const RoomCard = as<'div', RoomCardProps>(
           </Box>
           {typeof joinedMemberCount === 'number' && (
             <Box gap="100">
-              <Icon size="50" src={Icons.User} />
+              {userFallbackIcon('sm')}
               <Text size="T200">{`${formatCompactNumber(joinedMemberCount)} Members`}</Text>
             </Box>
           )}

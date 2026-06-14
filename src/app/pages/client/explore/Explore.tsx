@@ -8,9 +8,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Overlay,
   OverlayBackdrop,
@@ -20,6 +18,16 @@ import {
   config,
   toRem,
 } from 'folds';
+import {
+  Compass,
+  HardDrives,
+  Lightbulb,
+  Plus,
+  X,
+  composerIcon,
+  sizedIcon,
+  menuIcon,
+} from '$components/icons/phosphor';
 import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';
 import { getExploreFeaturedPath, getExploreServerPath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
@@ -95,7 +103,7 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
                   <Text size="H4">Add Server</Text>
                 </Box>
                 <IconButton size="300" onClick={() => setDialog(false)} radii="300">
-                  <Icon src={Icons.Cross} />
+                  {composerIcon(X)}
                 </IconButton>
               </Header>
               <Box
@@ -143,7 +151,7 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
           variant="Secondary"
           fill="Soft"
           size="300"
-          before={<Icon size="100" src={Icons.Plus} />}
+          before={menuIcon(Plus)}
           onClick={() => setDialog(true)}
         >
           <Text size="B300" truncate>
@@ -152,7 +160,7 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
         </Button>
       ) : (
         <IconButton aria-pressed variant="Background" onClick={() => setDialog(true)}>
-          <Icon src={Icons.Plus} size="200" filled />
+          {sizedIcon(Plus, '200', { filled: true })}
         </IconButton>
       )}
     </>
@@ -199,7 +207,7 @@ export function Explore() {
                 </Text>
               </Box>
             ) : (
-              <Icon src={Icons.Explore} size="200" filled />
+              sizedIcon(Compass, '200', { filled: true })
             )}
           </Box>
         </PageNavHeader>
@@ -216,7 +224,7 @@ export function Explore() {
                         radii="400"
                         style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                       >
-                        <Icon src={Icons.Bulb} size="100" filled={featuredSelected} />
+                        {sizedIcon(Lightbulb, '100', { filled: featuredSelected })}
                       </Avatar>
                       {!hideText && (
                         <Box as="span" grow="Yes">
@@ -243,11 +251,7 @@ export function Explore() {
                           radii="400"
                           style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                         >
-                          <Icon
-                            src={Icons.Server}
-                            size="100"
-                            filled={selectedServer === userServer}
-                          />
+                          {sizedIcon(HardDrives, '100', { filled: selectedServer === userServer })}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
@@ -286,11 +290,7 @@ export function Explore() {
                             radii="400"
                             style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                           >
-                            <Icon
-                              src={Icons.Server}
-                              size="100"
-                              filled={server === selectedServer}
-                            />
+                            {sizedIcon(HardDrives, '100', { filled: server === selectedServer })}
                           </Avatar>
                           {!hideText && (
                             <Box as="span" grow="Yes">

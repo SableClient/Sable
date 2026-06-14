@@ -1,16 +1,6 @@
 import { type ReactNode, useCallback, useMemo } from 'react';
-import {
-  Box,
-  Button,
-  Icon,
-  IconButton,
-  Icons,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  toRem,
-  config,
-} from 'folds';
+import { Box, Button, IconButton, Text, Tooltip, TooltipProvider, toRem, config } from 'folds';
+import { Check, Download, Link, Star, Warning, sizedIcon } from '$components/icons/phosphor';
 
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { copyToClipboard } from '$utils/dom';
@@ -109,14 +99,17 @@ export function ThemePreviewCard({
                 }
               >
                 {(triggerRef) => (
-                  <Icon
+                  <span
                     ref={triggerRef}
-                    src={Icons.Warning}
-                    size="100"
-                    filled
-                    style={{ color: 'var(--sable-warn-on-container)', flexShrink: 0 }}
                     aria-label="Third-party theme"
-                  />
+                    style={{
+                      color: 'var(--sable-warn-on-container)',
+                      flexShrink: 0,
+                      display: 'inline-flex',
+                    }}
+                  >
+                    {sizedIcon(Warning, '100', { filled: true })}
+                  </span>
                 )}
               </TooltipProvider>
             )}
@@ -141,7 +134,7 @@ export function ThemePreviewCard({
                 handleCopy().catch(() => undefined);
               }}
             >
-              <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+              {sizedIcon(copied ? Check : Link, '200')}
             </IconButton>
           )}
 
@@ -157,7 +150,7 @@ export function ThemePreviewCard({
                 onExport();
               }}
             >
-              <Icon size="200" src={Icons.Download} />
+              {sizedIcon(Download, '200')}
             </IconButton>
           )}
 
@@ -173,7 +166,7 @@ export function ThemePreviewCard({
                 Promise.resolve(onToggleFavorite()).catch(() => undefined);
               }}
             >
-              <Icon size="200" src={Icons.Star} filled={isFavorited} />
+              {sizedIcon(Star, '200', { filled: isFavorited })}
             </IconButton>
           )}
         </Box>

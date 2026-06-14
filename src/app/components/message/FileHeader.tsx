@@ -1,4 +1,5 @@
-import { Badge, Box, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
+import { Badge, Box, IconButton, Spinner, Text, as, toRem } from 'folds';
+import { Download, sizedIcon } from '$components/icons/phosphor';
 import type { ReactNode } from 'react';
 import { useCallback } from 'react';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
@@ -57,7 +58,7 @@ export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDow
       {downloading ? (
         <Spinner size="100" variant={hasError ? 'Critical' : 'Secondary'} />
       ) : (
-        <Icon size="100" src={Icons.Download} />
+        sizedIcon(Download, '100')
       )}
     </IconButton>
   );

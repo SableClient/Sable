@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
+import { Box, Text, IconButton, Scroll, Switch, Button, MenuItem, config, color } from 'folds';
 import {
-  Box,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-  Scroll,
-  Switch,
-  Button,
-  MenuItem,
-  config,
-  color,
-} from 'folds';
+  CaretDown,
+  CaretRight,
+  CaretUp,
+  chipIcon,
+  composerIcon,
+  menuIcon,
+  Plus,
+  X,
+} from '$components/icons/phosphor';
 import { EventType, NotificationCountType } from '$types/matrix-sdk';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -194,7 +192,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>
@@ -293,13 +291,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                           size="300"
                           radii="300"
                           outlined
-                          before={
-                            <Icon
-                              src={expandState ? Icons.ChevronTop : Icons.ChevronBottom}
-                              size="100"
-                              filled
-                            />
-                          }
+                          before={menuIcon(expandState ? CaretUp : CaretDown, { weight: 'fill' })}
                         >
                           <Text size="B300">{expandState ? 'Collapse' : 'Expand'}</Text>
                         </Button>
@@ -325,17 +317,9 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                 size="300"
                                 radii="300"
                                 outlined
-                                before={
-                                  <Icon
-                                    src={
-                                      expandUnreadDiagnostics
-                                        ? Icons.ChevronTop
-                                        : Icons.ChevronBottom
-                                    }
-                                    size="100"
-                                    filled
-                                  />
-                                }
+                                before={menuIcon(expandUnreadDiagnostics ? CaretUp : CaretDown, {
+                                  weight: 'fill',
+                                })}
                               >
                                 <Text size="B300">
                                   {expandUnreadDiagnostics ? 'Collapse' : 'Expand'}
@@ -410,17 +394,9 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                 size="300"
                                 radii="300"
                                 outlined
-                                before={
-                                  <Icon
-                                    src={
-                                      expandSlidingDiagnostics
-                                        ? Icons.ChevronTop
-                                        : Icons.ChevronBottom
-                                    }
-                                    size="100"
-                                    filled
-                                  />
-                                }
+                                before={menuIcon(expandSlidingDiagnostics ? CaretUp : CaretDown, {
+                                  weight: 'fill',
+                                })}
                               >
                                 <Text size="B300">
                                   {expandSlidingDiagnostics ? 'Collapse' : 'Expand'}
@@ -483,7 +459,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             fill="None"
                             size="300"
                             radii="0"
-                            before={<Icon size="50" src={Icons.Plus} />}
+                            before={chipIcon(Plus)}
                           >
                             <Box grow="Yes">
                               <Text size="T200" truncate>
@@ -508,12 +484,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                     fill="None"
                                     size="300"
                                     radii="0"
-                                    before={
-                                      <Icon
-                                        size="50"
-                                        src={expanded ? Icons.ChevronBottom : Icons.ChevronRight}
-                                      />
-                                    }
+                                    before={chipIcon(expanded ? CaretDown : CaretRight)}
                                     after={<Text size="L400">{stateKeyToEvents.size}</Text>}
                                   >
                                     <Box grow="Yes">
@@ -540,7 +511,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                         fill="None"
                                         size="300"
                                         radii="0"
-                                        before={<Icon size="50" src={Icons.Plus} />}
+                                        before={chipIcon(Plus)}
                                       >
                                         <Box grow="Yes">
                                           <Text size="T200" truncate>
@@ -563,7 +534,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                             fill="None"
                                             size="300"
                                             radii="0"
-                                            after={<Icon size="50" src={Icons.ChevronRight} />}
+                                            after={chipIcon(CaretRight)}
                                           >
                                             <Box grow="Yes">
                                               <Text size="T200" truncate>
@@ -598,13 +569,9 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                           size="300"
                           radii="300"
                           outlined
-                          before={
-                            <Icon
-                              src={expandAccountData ? Icons.ChevronTop : Icons.ChevronBottom}
-                              size="100"
-                              filled
-                            />
-                          }
+                          before={menuIcon(expandAccountData ? CaretUp : CaretDown, {
+                            weight: 'fill',
+                          })}
                         >
                           <Text size="B300">{expandAccountData ? 'Collapse' : 'Expand'}</Text>
                         </Button>
@@ -622,7 +589,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             fill="None"
                             size="300"
                             radii="0"
-                            before={<Icon size="50" src={Icons.Plus} />}
+                            before={chipIcon(Plus)}
                             onClick={() => setAccountDataType(null)}
                           >
                             <Box grow="Yes">
@@ -640,7 +607,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                 fill="None"
                                 size="300"
                                 radii="0"
-                                after={<Icon size="50" src={Icons.ChevronRight} />}
+                                after={chipIcon(CaretRight)}
                                 onClick={() => setAccountDataType(type)}
                               >
                                 <Box grow="Yes">

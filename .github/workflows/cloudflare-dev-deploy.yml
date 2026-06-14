@@ -6,6 +6,7 @@ on:
       - integration
     paths:
       - 'src/**'
+      - 'public/**'
       - 'config.json'
       - 'index.html'
       - 'package.json'
@@ -67,24 +68,24 @@ jobs:
         with:
           build: 'true'
 
-      - name: Upload Worker preview
+      - name: Deploy Worker to production
         id: deploy
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         env:
-          PREVIEW_MESSAGE: ${{ steps.metadata.outputs.preview_message }}
+          DEPLOY_MESSAGE: ${{ steps.metadata.outputs.preview_message }}
         with:
           apiToken: ${{ secrets.TF_CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.TF_VAR_ACCOUNT_ID }}
           command: >
-            versions upload
+            deploy
             -c dist/wrangler.json
-            --preview-alias integration
-            --message "$PREVIEW_MESSAGE"
+            --keep-vars
+            --message "$DEPLOY_MESSAGE"
 
       - name: Publish summary
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs['deployment-url'] || 'https://charm.cloudhub.social' }}
           SHORT_SHA: ${{ github.sha }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -93,11 +94,11 @@ jobs:
             const shortSha = process.env.SHORT_SHA?.slice(0, 7);
             const now = new Date().toUTCString().replace(':00 GMT', ' UTC');
 
-            const tableRow = "| ✅ Integration deployment successful! | <a href='" + deploymentUrl + "'>" + deploymentUrl + "</a> | " + shortSha + " | `integration` | " + now + " |";
+            const tableRow = "| ✅ Production deployment successful! | <a href='" + deploymentUrl + "'>" + deploymentUrl + "</a> | " + shortSha + " | `integration` | " + now + " |";
             const comment = [
-              `## Deploying with &nbsp;<a href="https://workers.dev"><img alt="Cloudflare Workers" src="https://workers.cloudflare.com/logo.svg" width="16"></a> &nbsp;Cloudflare Workers (integration → production config)`,
+              `## Deploying with &nbsp;<a href="https://workers.dev"><img alt="Cloudflare Workers" src="https://workers.cloudflare.com/logo.svg" width="16"></a> &nbsp;Cloudflare Workers (integration → production)`,
               ``,
-              `| Status | URL | Commit | Alias | Updated (UTC) |`,
+              `| Status | URL | Commit | Source | Updated (UTC) |`,
               `| - | - | - | - | - |`,
               tableRow,
             ].join("\n");

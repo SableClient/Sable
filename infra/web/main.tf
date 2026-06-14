@@ -2,6 +2,14 @@ resource "cloudflare_worker" "site" {
   account_id = var.account_id
   name       = var.worker_name
 
+  observability = {
+    enabled = true
+    logs = {
+      enabled         = true
+      invocation_logs = true
+    }
+  }
+
   subdomain = {
     enabled          = true
     previews_enabled = true
@@ -37,11 +45,10 @@ resource "cloudflare_workers_deployment" "site" {
 }
 
 resource "cloudflare_workers_custom_domain" "site" {
-  account_id  = var.account_id
-  environment = "production"
-  hostname    = var.custom_domain
-  service     = cloudflare_worker.site.name
-  zone_id     = var.zone_id
+  account_id = var.account_id
+  hostname   = var.custom_domain
+  service    = cloudflare_worker.site.name
+  zone_id    = var.zone_id
 
   depends_on = [cloudflare_workers_deployment.site]
 }

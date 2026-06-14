@@ -95,6 +95,10 @@ const copyFiles = {
       dest: '',
     },
     {
+      src: 'public/_headers',
+      dest: '',
+    },
+    {
       src: 'public/res/logo-maskable',
       dest: 'public/',
     },
@@ -238,6 +242,9 @@ export default defineConfig(({ command }) => ({
           cloudflare({
             config: {
               compatibility_date: '2026-03-03',
+              observability: {
+                enabled: true,
+              },
               assets: {
                 not_found_handling: 'single-page-application',
               },

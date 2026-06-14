@@ -29,7 +29,6 @@ import {
   DotsThreeOutlineVerticalIcon,
   GearSix,
   menuIcon,
-  navIcon,
   SignOut,
   UserCircle,
   UserPlus,
@@ -251,7 +250,9 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
                 ref={triggerRef}
                 aria-pressed={!!menuAnchor}
               >
-                {navIcon(DotsThreeOutlineVerticalIcon, { weight: menuAnchor ? 'fill' : 'regular' })}
+                {composerIcon(DotsThreeOutlineVerticalIcon, {
+                  weight: menuAnchor ? 'fill' : 'regular',
+                })}
               </IconButton>
             )}
           </TooltipProvider>

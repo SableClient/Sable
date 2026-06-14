@@ -1,0 +1,187 @@
+name: Upstream Sync PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: Upstream branch, tag, or ref to merge
+        required: false
+        default: dev
+      base_branch:
+        description: Fork branch to sync into
+        required: false
+        default: integration
+      draft:
+        description: Open the pull request as a draft
+        required: false
+        default: 'true'
+      update_dev_mirror:
+        description: Force-update origin/dev to upstream_ref when syncing upstream dev
+        required: false
+        default: 'true'
+  schedule:
+    - cron: '17 */2 * * *'
+
+permissions: {}
+
+concurrency:
+  group: upstream-sync-pr
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      UPSTREAM_REF: ${{ github.event.inputs.upstream_ref || 'dev' }}
+      BASE_BRANCH: ${{ github.event.inputs.base_branch || 'integration' }}
+      DRAFT_PR: ${{ github.event.inputs.draft || 'true' }}
+      UPDATE_DEV_MIRROR: ${{ github.event.inputs.update_dev_mirror || 'true' }}
+    steps:
+      - name: Generate bot token
+        id: generate-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ steps.generate-token.outputs.token }}
+
+      - name: Configure Git user
+        uses: fregante/setup-git-user@024bc0b8e177d7e77203b48dab6fb45666854b35 # v2.0.2
+
+      - name: Fetch upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git remote get-url upstream >/dev/null 2>&1; then
+            git remote set-url upstream https://github.com/SableClient/Sable.git
+          else
+            git remote add upstream https://github.com/SableClient/Sable.git
+          fi
+          git fetch --prune origin "+refs/heads/*:refs/remotes/origin/*"
+          git fetch --prune --tags upstream "+refs/heads/*:refs/remotes/upstream/*"
+
+      - name: Create sync branch
+        id: sync
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git rev-parse --verify --quiet "refs/remotes/upstream/${UPSTREAM_REF}" >/dev/null; then
+            upstream_commit="$(git rev-parse "refs/remotes/upstream/${UPSTREAM_REF}")"
+          else
+            upstream_commit="$(git rev-parse "${UPSTREAM_REF}")"
+          fi
+          base_ref="refs/remotes/origin/${BASE_BRANCH}"
+          base_commit="$(git rev-parse "${base_ref}")"
+
+          if git merge-base --is-ancestor "${upstream_commit}" "${base_commit}"; then
+            echo "No upstream changes to sync."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "${UPDATE_DEV_MIRROR}" == "true" && "${UPSTREAM_REF}" == "dev" ]]; then
+            current_dev="$(git rev-parse refs/remotes/origin/dev 2>/dev/null || true)"
+            if [[ -n "${current_dev}" ]]; then
+              git push origin "${upstream_commit}:refs/heads/dev" --force-with-lease="refs/heads/dev:${current_dev}"
+            else
+              git push origin "${upstream_commit}:refs/heads/dev"
+            fi
+          fi
+
+          safe_ref="$(echo "${UPSTREAM_REF}" | tr '/[:upper:]' '-[:lower:]' | tr -cd 'a-z0-9._-')"
+          short_sha="$(git rev-parse --short "${upstream_commit}")"
+          branch="sync/upstream-${safe_ref}-$(date -u +%Y-%m-%d)"
+
+          git checkout -B "${branch}" "${base_ref}"
+          if ! git merge --no-edit "${upstream_commit}"; then
+            echo "::error::Upstream sync has merge conflicts. Resolve locally from ${branch} against ${upstream_commit}."
+            git status --short
+            exit 1
+          fi
+
+          if git diff --quiet "${base_ref}..HEAD"; then
+            echo "Merge produced no diff against ${BASE_BRANCH}."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git push origin "${branch}" --force-with-lease
+
+          {
+            echo "has_changes=true"
+            echo "branch=${branch}"
+            echo "upstream_commit=${upstream_commit}"
+            echo "upstream_short_sha=${short_sha}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open or update pull request
+        if: steps.sync.outputs.has_changes == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          BRANCH: ${{ steps.sync.outputs.branch }}
+          UPSTREAM_COMMIT: ${{ steps.sync.outputs.upstream_commit }}
+          UPSTREAM_SHORT_SHA: ${{ steps.sync.outputs.upstream_short_sha }}
+        run: |
+          set -euo pipefail
+
+          body_file="$(mktemp)"
+          cat > "${body_file}" <<EOF
+          ### Description
+
+          Syncs \`${UPSTREAM_REF}\` from \`SableClient/Sable\` into \`${BASE_BRANCH}\`.
+
+          Upstream commit: \`${UPSTREAM_SHORT_SHA}\`
+
+          Fixes #
+
+          #### Type of change
+
+          - [x] Bug fix (non-breaking change which fixes an issue)
+          - [x] New feature (non-breaking change which adds functionality)
+          - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+          - [ ] This change requires a documentation update
+
+          ### Checklist:
+
+          - [ ] My code follows the style guidelines of this project
+          - [ ] I have performed a self-review of my own code
+          - [ ] I have commented my code, particularly in hard-to-understand areas
+          - [ ] I have made corresponding changes to the documentation
+          - [ ] My changes generate no new warnings
+
+          ### AI disclosure:
+
+          - [ ] Partially AI assisted (clarify which code was AI assisted and briefly explain what it does).
+          - [ ] Fully AI generated (explain what all the generated code does in moderate detail).
+          EOF
+
+          existing="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${BRANCH}" --base "${BASE_BRANCH}" --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "${existing}" ]]; then
+            gh pr edit "${existing}" --repo "${GITHUB_REPOSITORY}" --title "sync: pull upstream ${UPSTREAM_REF} (${UPSTREAM_SHORT_SHA})" --body-file "${body_file}"
+            echo "Updated PR #${existing}"
+            exit 0
+          fi
+
+          draft_args=()
+          if [[ "${DRAFT_PR}" == "true" ]]; then
+            draft_args+=(--draft)
+          fi
+
+          gh pr create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --base "${BASE_BRANCH}" \
+            --head "${BRANCH}" \
+            --title "sync: pull upstream ${UPSTREAM_REF} (${UPSTREAM_SHORT_SHA})" \
+            --body-file "${body_file}" \
+            "${draft_args[@]}"

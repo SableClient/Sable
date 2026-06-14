@@ -1090,6 +1090,7 @@ function Messages() {
         <SettingTile
           title="Hide Member Events in Read-Only Rooms"
           focusId="hide-member-events-read-only-rooms"
+          description="Hide membership changes, reactions, and reaction redactions in read-only rooms such as announcement channels."
           after={
             <Switch
               variant="Primary"

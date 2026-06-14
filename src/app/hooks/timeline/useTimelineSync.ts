@@ -160,7 +160,9 @@ const useTimelinePagination = (
       const topTimeline = linkedTimelines[0];
       if (!topTimeline) return;
       const newLTimelines = getLinkedTimelines(topTimeline);
-      setTimeline(() => ({ linkedTimelines: newLTimelines }));
+      const nextTimeline = { linkedTimelines: newLTimelines };
+      timelineRef.current = nextTimeline;
+      setTimeline(() => nextTimeline);
     };
 
     return async (backwards: boolean) => {

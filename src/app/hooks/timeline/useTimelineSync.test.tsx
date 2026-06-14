@@ -129,21 +129,28 @@ describe('useTimelineSync', () => {
   });
 
   it('continues sparse forward pagination using the newest linked timeline token', async () => {
-    const olderTimeline = createTimeline(Array.from({ length: 10 }, () => ({})));
     const newerEvents: unknown[] = [{}];
     let paginationCalls = 0;
-    const newerTimeline = {
+    let newerTimeline: FakeTimeline;
+    const olderTimeline = {
+      ...createTimeline(Array.from({ length: 10 }, () => ({}))),
+      getNeighbouringTimeline: (direction?: unknown) =>
+        direction === 'f' && paginationCalls > 0 ? newerTimeline : undefined,
+      getPaginationToken: (direction?: unknown) =>
+        direction === 'f' && paginationCalls === 0 ? 'old-forward-token' : undefined,
+      getRoomId: () => '!older:test',
+    };
+    newerTimeline = {
       ...createTimeline(newerEvents),
+      getRoomId: () => '!newer:test',
       getPaginationToken: (direction?: unknown) =>
         direction === 'f' && paginationCalls < 2 ? 'forward-token' : undefined,
     };
-    olderTimeline.getNeighbouringTimeline = (direction?: unknown) =>
-      direction === 'f' ? newerTimeline : undefined;
     newerTimeline.getNeighbouringTimeline = (direction?: unknown) =>
       direction === 'b' ? olderTimeline : undefined;
 
     const timelineSet = new EventEmitter() as FakeTimelineSet;
-    timelineSet.getLiveTimeline = () => newerTimeline;
+    timelineSet.getLiveTimeline = () => olderTimeline;
     timelineSet.getTimelineForEvent = () => undefined;
 
     const roomEmitter = new EventEmitter();
@@ -153,7 +160,7 @@ describe('useTimelineSync', () => {
       emit: roomEmitter.emit.bind(roomEmitter),
       roomId: '!room:test',
       getUnfilteredTimelineSet: () => timelineSet as never,
-      getLiveTimeline: () => newerTimeline,
+      getLiveTimeline: () => olderTimeline,
       getEventReadUpTo: () => null,
       getThread: () => null,
       getUnreadNotificationCount: () => 0,
@@ -163,14 +170,18 @@ describe('useTimelineSync', () => {
       },
     } as unknown as FakeRoom;
 
+    const paginatedRoomIds: string[] = [];
     const mx = {
       ...createMx(),
       getRoom: () => ({ hasEncryptionStateEvent: () => false }),
-      paginateEventTimeline: vi.fn<() => Promise<boolean>>(async () => {
-        paginationCalls += 1;
-        newerEvents.push({});
-        return true;
-      }),
+      paginateEventTimeline: vi.fn<(timeline: FakeTimeline) => Promise<boolean>>(
+        async (timeline) => {
+          paginatedRoomIds.push(timeline.getRoomId());
+          paginationCalls += 1;
+          newerEvents.push({});
+          return true;
+        }
+      ),
     };
 
     const { result } = renderHook(() =>
@@ -192,6 +203,7 @@ describe('useTimelineSync', () => {
     });
 
     expect(mx.paginateEventTimeline).toHaveBeenCalledTimes(2);
+    expect(paginatedRoomIds).toEqual(['!older:test', '!newer:test']);
   });
 
   it('reloads event context on TimelineReset when eventId is set', async () => {

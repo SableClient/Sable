@@ -14,8 +14,8 @@ import {
 } from '$hooks/useDeviceVerificationStatus';
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
 import { useOpenSettings } from '$features/settings';
+import { PHOSPHOR_SIZE, ShieldWarning } from '$components/icons/phosphor';
 import * as css from './UnverifiedTab.css';
-import { Icon, Icons } from '$app/icons';
 
 function UnverifiedIndicator() {
   const mx = useMatrixClient();
@@ -55,11 +55,11 @@ function UnverifiedIndicator() {
                 outlined
                 onClick={() => openSettings('devices')}
               >
-                <Icon
+                <ShieldWarning
                   style={{
                     color: unverified ? color.Critical.Main : color.Warning.Main,
                   }}
-                  src={Icons.ShieldUser}
+                  size={PHOSPHOR_SIZE.toolbar}
                 />
               </SidebarAvatar>
             )}

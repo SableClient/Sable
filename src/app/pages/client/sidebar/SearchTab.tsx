@@ -1,7 +1,7 @@
 import { useAtom } from 'jotai';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
 import { searchModalAtom } from '$state/searchModal';
-import { Icon, Icons } from '$app/icons';
+import { MagnifyingGlass, PHOSPHOR_SIZE } from '$components/icons/phosphor';
 
 export function SearchTab() {
   const [opened, setOpen] = useAtom(searchModalAtom);
@@ -13,7 +13,7 @@ export function SearchTab() {
       <SidebarItemTooltip tooltip="Search">
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={open}>
-            <Icon src={Icons.Search} filled={opened} />
+            <MagnifyingGlass size={PHOSPHOR_SIZE.toolbar} weight={opened ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

@@ -56,6 +56,7 @@ import { createLogger } from '$utils/debug';
 import { useSyncNicknames } from '$hooks/useNickname';
 import { useAppVisibility } from '$hooks/useAppVisibility';
 import { getLandingPath, rememberLastVisitedPath } from '$pages/pathUtils';
+import { composerIcon, DotsThreeOutlineVerticalIcon } from '$components/icons/phosphor';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { getSettings } from '$state/settings';
 import { pushSessionToSW } from '../../../sw-session';
@@ -64,7 +65,6 @@ import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
 import { AutoDiscovery } from './AutoDiscovery';
 import { ContainerColor } from '$styles/ContainerColor.css';
-import { Icon, Icons } from '$app/icons';
 
 const log = createLogger('ClientRoot');
 
@@ -110,9 +110,12 @@ function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
       }}
       variant="Background"
       fill="None"
+      aria-pressed={!!menuAnchor}
       onClick={handleToggle}
     >
-      <Icon size="200" src={Icons.VerticalDots} />
+      {composerIcon(DotsThreeOutlineVerticalIcon, {
+        weight: menuAnchor ? 'fill' : 'regular',
+      })}
       <PopOut
         anchor={menuAnchor}
         position="Bottom"

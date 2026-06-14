@@ -1,8 +1,8 @@
 import type { ChangeEventHandler, FormEventHandler } from 'react';
 import { useEffect, useState } from 'react';
 import { Box, Text, Button, Input, IconButton, Spinner, config } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 import { SettingTile } from '$components/setting-tile';
-import { Icon, Icons } from '$app/icons';
 
 type StatusEditorProps = {
   current?: string;
@@ -64,7 +64,7 @@ export function StatusEditor({ current = '', onSave }: StatusEditorProps) {
                     radii="300"
                     variant="Secondary"
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    {menuIcon(X)}
                   </IconButton>
                 )
               }

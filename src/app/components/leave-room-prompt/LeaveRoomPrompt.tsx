@@ -17,9 +17,9 @@ import {
 import type { MatrixError } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
 import { createDebugLogger } from '$utils/debugLogger';
-import { Icon, Icons } from '$app/icons';
 
 const debugLog = createDebugLogger('LeaveRoomPrompt');
 
@@ -73,7 +73,7 @@ export function LeaveRoomPrompt({ roomId, onDone, onCancel }: LeaveRoomPromptPro
                 <Text size="H4">Leave Room</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

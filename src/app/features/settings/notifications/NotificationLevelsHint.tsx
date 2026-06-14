@@ -2,9 +2,9 @@ import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import type { RectCords } from 'folds';
 import { Box, config, Header, IconButton, Menu, PopOut, Text } from 'folds';
+import { Info, menuIcon } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
-import { Icon, Icons } from '$app/icons';
 
 export function NotificationLevelsHint() {
   const [anchor, setAnchor] = useState<RectCords>();
@@ -66,7 +66,7 @@ export function NotificationLevelsHint() {
         radii="300"
         aria-pressed={!!anchor}
       >
-        <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.Info} />
+        {menuIcon(Info, { style: { opacity: config.opacity.P300 } })}
       </IconButton>
     </PopOut>
   );

@@ -18,16 +18,32 @@ import {
   Input,
   Badge,
 } from 'folds';
-
-import { SearchOrderBy } from '$types/matrix-sdk';
 import type { RoomMember } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
+import { getRoomIconComponent } from '$components/icons/roomIcons';
+import type { PhosphorIcon } from '$components/icons/phosphor';
+import {
+  Check,
+  Clock,
+  File,
+  Hash,
+  Image,
+  Link,
+  Lock,
+  Play,
+  sizedIcon,
+  PlusCircle,
+  SortAscending,
+  SpeakerHigh,
+  User,
+  X,
+} from '$components/icons/phosphor';
+import { SearchOrderBy } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAtomValue } from 'jotai';
 import { settingsAtom } from '$state/settings';
 import { useClientConfig } from '$hooks/useClientConfig';
-import { getRoomIconSrc } from '$utils/room';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
 import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
@@ -38,8 +54,6 @@ import { stopPropagation } from '$utils/keyboard';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { SearchHasType } from './useMessageSearch';
-import type { IconSrc } from '$app/icons';
-import { Icon, Icons } from '$app/icons';
 
 type GroupButtonProps = {
   grouped?: boolean;
@@ -103,7 +117,7 @@ function GroupButton({ grouped = true, onChange }: GroupButtonProps) {
         onClick={handleOpenMenu}
         variant="SurfaceVariant"
         radii="Pill"
-        before={<Icon size="100" src={grouped ? Icons.Hash : Icons.Clock} />}
+        before={sizedIcon(grouped ? Hash : Clock, '100')}
       >
         <Text size="T200">{grouped ? 'Grouped' : 'Timeline'}</Text>
       </Chip>
@@ -173,7 +187,7 @@ function OrderButton({ order, onChange }: OrderButtonProps) {
       <Chip
         variant="SurfaceVariant"
         radii="Pill"
-        after={<Icon size="50" src={Icons.Sort} />}
+        after={sizedIcon(SortAscending, '50')}
         onClick={handleOpenMenu}
       >
         {rankOrder ? <Text size="T200">Relevance</Text> : <Text size="T200">Recent</Text>}
@@ -345,16 +359,14 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                             size="300"
                             radii="300"
                             aria-pressed={selected}
-                            before={
-                              <Icon
-                                size="50"
-                                src={getRoomIconSrc(Icons, room.getType(), room.getJoinRule())}
-                              />
-                            }
+                            before={sizedIcon(
+                              getRoomIconComponent(room.getType(), room.getJoinRule()),
+                              '50'
+                            )}
                             after={
                               encryptedSearchActive && mx.isRoomEncrypted(roomId) ? (
                                 <span title="Encrypted — searched from local cache">
-                                  <Icon size="50" src={Icons.Lock} />
+                                  {sizedIcon(Lock, '50')}
                                 </span>
                               ) : null
                             }
@@ -398,7 +410,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
         onClick={handleOpenMenu}
         variant="SurfaceVariant"
         radii="Pill"
-        before={<Icon size="100" src={Icons.PlusCircle} />}
+        before={sizedIcon(PlusCircle, '100')}
       >
         <Text size="T200">Select Rooms</Text>
       </Chip>
@@ -406,12 +418,12 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
   );
 }
 
-const HAS_FILTER_OPTIONS: { type: SearchHasType; label: string; icon: IconSrc }[] = [
-  { type: 'image', label: 'Image', icon: Icons.Photo },
-  { type: 'file', label: 'File', icon: Icons.File },
-  { type: 'audio', label: 'Audio', icon: Icons.VolumeHigh },
-  { type: 'video', label: 'Video', icon: Icons.Play },
-  { type: 'link', label: 'Link', icon: Icons.Link },
+const HAS_FILTER_OPTIONS: { type: SearchHasType; label: string; icon: PhosphorIcon }[] = [
+  { type: 'image', label: 'Image', icon: Image },
+  { type: 'file', label: 'File', icon: File },
+  { type: 'audio', label: 'Audio', icon: SpeakerHigh },
+  { type: 'video', label: 'Video', icon: Play },
+  { type: 'link', label: 'Link', icon: Link },
 ];
 
 type HasFilterChipsProps = {
@@ -437,7 +449,7 @@ function HasFilterChips({ hasTypes, onChange }: HasFilterChipsProps) {
             key={type}
             variant={active ? 'Success' : 'Surface'}
             aria-pressed={active}
-            before={active ? <Icon size="100" src={Icons.Check} /> : <Icon size="100" src={icon} />}
+            before={active ? sizedIcon(Check, '100') : sizedIcon(icon, '100')}
             outlined
             onClick={() => toggle(type)}
           >
@@ -611,7 +623,7 @@ function SelectSenderButton({ roomList, selectedSenders, onChange }: SelectSende
                                       : undefined
                                   }
                                   alt={getMemberDisplayName(member)}
-                                  renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                                  renderFallback={() => sizedIcon(User, '50', { filled: true })}
                                 />
                               </Avatar>
                             }
@@ -640,7 +652,7 @@ function SelectSenderButton({ roomList, selectedSenders, onChange }: SelectSende
         onClick={handleOpenMenu}
         variant="SurfaceVariant"
         radii="Pill"
-        before={<Icon size="100" src={Icons.PlusCircle} />}
+        before={sizedIcon(PlusCircle, '100')}
       >
         <Text size="T200">Add Sender</Text>
       </Chip>
@@ -694,7 +706,7 @@ export function SearchFilters({
         <Chip
           variant={!global ? 'Success' : 'Surface'}
           aria-pressed={!global}
-          before={!global && <Icon size="100" src={Icons.Check} />}
+          before={!global && sizedIcon(Check, '100')}
           outlined
           onClick={() => onGlobalChange()}
         >
@@ -704,7 +716,7 @@ export function SearchFilters({
           <Chip
             variant={global ? 'Success' : 'Surface'}
             aria-pressed={global}
-            before={global && <Icon size="100" src={Icons.Check} />}
+            before={global && sizedIcon(Check, '100')}
             outlined
             onClick={() => onGlobalChange(true)}
           >
@@ -727,10 +739,8 @@ export function SearchFilters({
               variant="Success"
               onClick={() => onSelectedRoomsChange(selectedRooms.filter((rId) => rId !== roomId))}
               radii="Pill"
-              before={
-                <Icon size="50" src={getRoomIconSrc(Icons, room.getType(), room.getJoinRule())} />
-              }
-              after={<Icon size="50" src={Icons.Cross} />}
+              before={sizedIcon(getRoomIconComponent(room.getType(), room.getJoinRule()), '50')}
+              after={sizedIcon(X, '50')}
             >
               <Text size="T200">{room.name}</Text>
             </Chip>
@@ -768,8 +778,8 @@ export function SearchFilters({
               onSendersChange(next.length > 0 ? next : undefined);
             }}
             radii="Pill"
-            before={<Icon size="50" src={Icons.User} />}
-            after={<Icon size="50" src={Icons.Cross} />}
+            before={sizedIcon(User, '50')}
+            after={sizedIcon(X, '50')}
           >
             <Text size="T200">{mx.getUser(sender)?.displayName ?? sender}</Text>
           </Chip>

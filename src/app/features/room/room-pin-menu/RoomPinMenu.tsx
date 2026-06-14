@@ -40,6 +40,14 @@ import {
   UsernameBold,
 } from '$components/message';
 import { UserAvatar } from '$components/user-avatar';
+import {
+  dropzoneIcon,
+  menuIcon,
+  navIcon,
+  PushPin,
+  userFallbackIcon,
+  X,
+} from '$components/icons/phosphor';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
@@ -96,7 +104,6 @@ import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { EventType } from '$types/matrix-sdk';
 import { M_POLL_START } from 'matrix-js-sdk';
 import { PollEvent } from '../poll/PollEvent';
-import { Icon, Icons } from '$app/icons';
 
 const log = createLogger('RoomPinMenu');
 
@@ -163,7 +170,7 @@ function PinnedMessageActiveContent(
                   : undefined
               }
               alt={displayName}
-              renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+              renderFallback={() => userFallbackIcon('lg')}
             />
           </Avatar>
         </AvatarBase>
@@ -196,7 +203,7 @@ function PinnedMessageActiveContent(
           onClick={handleOpenClick}
         />
       )}
-      <Box onClick={handleOpenClick}>
+      <Box direction="Column" grow="Yes" style={{ minWidth: 0 }} onClick={handleOpenClick}>
         {renderContent(pinnedEvent.getType(), false, pinnedEvent, displayName, getContent)}
       </Box>
     </ModernLayout>
@@ -264,11 +271,7 @@ function PinnedMessage(props: PinnedMessageProps) {
           onClick={unpinState.status === AsyncStatus.Loading ? undefined : handleUnpinClick}
           aria-disabled={unpinState.status === AsyncStatus.Loading}
         >
-          {unpinState.status === AsyncStatus.Loading ? (
-            <Spinner size="100" />
-          ) : (
-            <Icon src={Icons.Cross} size="100" />
-          )}
+          {unpinState.status === AsyncStatus.Loading ? <Spinner size="100" /> : menuIcon(X)}
         </IconButton>
       )}
     </Box>
@@ -579,7 +582,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
             </Box>
             <Box shrink="No">
               <IconButton size="300" onClick={requestClose} radii="300">
-                <Icon src={Icons.Cross} size="400" />
+                {navIcon(X)}
               </IconButton>
             </Box>
           </Header>
@@ -657,7 +660,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
                     justifyContent="Center"
                     alignItems="Center"
                   >
-                    <Icon src={Icons.Pin} size="600" />
+                    {dropzoneIcon(PushPin)}
                     <Box
                       style={{ maxWidth: toRem(300) }}
                       direction="Column"

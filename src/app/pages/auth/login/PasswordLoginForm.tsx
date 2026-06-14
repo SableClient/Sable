@@ -16,6 +16,7 @@ import {
   Text,
   config,
 } from 'folds';
+import { sizedIcon, Info } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { Link } from 'react-router-dom';
 import { getMxIdLocalPart, isUserId } from '$utils/matrix';
@@ -33,7 +34,6 @@ import { deviceDisplayName } from '$utils/user-agent';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import type { CustomLoginResponse } from './loginUtil';
 import { LoginError, factoryGetBaseUrl, login, useLoginComplete } from './loginUtil';
-import { Icon, Icons } from '$app/icons';
 
 function UsernameHint({ server }: { server: string }) {
   const [anchor, setAnchor] = useState<RectCords>();
@@ -97,7 +97,7 @@ function UsernameHint({ server }: { server: string }) {
         radii="300"
         aria-pressed={!!anchor}
       >
-        <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.Info} />
+        {sizedIcon(Info, '100', { style: { opacity: config.opacity.P300 } })}
       </IconButton>
     </PopOut>
   );

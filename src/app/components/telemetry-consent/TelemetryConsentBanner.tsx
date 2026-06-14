@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Text } from 'folds';
+import { Shield, sizedIcon } from '$components/icons/phosphor';
 import * as css from './TelemetryConsentBanner.css';
-import { Icon, Icons } from '$app/icons';
 
 const SENTRY_KEY = 'sable_sentry_enabled';
 
@@ -42,7 +42,7 @@ export function TelemetryConsentBanner() {
         aria-label="Crash reporting prompt"
       >
         <div className={css.Header}>
-          <Icon src={Icons.Shield} size="400" />
+          {sizedIcon(Shield, '400')}
           <div className={css.HeaderText}>
             <Text size="H4">Help improve Charm</Text>
             <Text size="T300" priority="300">

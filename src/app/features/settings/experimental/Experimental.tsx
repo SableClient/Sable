@@ -1,4 +1,5 @@
 import { Box, Text, Scroll, Switch } from 'folds';
+import { menuIcon, Warning } from '$components/icons/phosphor';
 import { PageContent } from '$components/page';
 import { InfoCard } from '$components/info-card';
 import { settingsAtom } from '$state/settings';
@@ -15,7 +16,6 @@ import { SearchIndexToggle } from './SearchIndexToggle';
 import { EditInInput } from './EditInInput';
 import { MessageGrouping } from './MessageGrouping';
 import { MSC4438MessageBookmarks } from './MSC4438MessageBookmarks';
-import { Icon, Icons } from '$app/icons';
 
 function PersonaToggle() {
   const [showPersonaSetting, setShowPersonaSetting] = useSetting(
@@ -71,7 +71,7 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
         <Scroll hideTrack visibility="Hover">
           <PageContent>
             <InfoCard
-              before=<Icon src={Icons.Warning} size="100" filled />
+              before={menuIcon(Warning, { weight: 'fill' })}
               variant="Warning"
               description={
                 <>

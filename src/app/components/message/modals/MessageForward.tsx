@@ -3,9 +3,10 @@
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { modalAtom, ModalType } from '$state/modal';
 import { MenuItem, Text, as } from 'folds';
+import { ArrowRight, menuIcon } from '$components/icons/phosphor';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { factoryRoomIdByActivity } from '$utils/sort';
@@ -14,15 +15,17 @@ import { sanitizeCustomHtml, sanitizeText } from '$utils/sanitize';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 import { isRoomPrivate } from '$utils/roomVisibility';
+import { canForwardEvent } from '$utils/room';
 import * as prefix from '$unstable/prefixes';
 import { RoomSearchModal } from '$features/search';
-import { Icon, Icons } from '$app/icons';
 const debugLog = createDebugLogger('MessageForward');
 
 // Message forwarding component
 export const MessageForwardItem = as<'button', MessageForwardItemProps>(
   ({ room, mEvent, onClose, ...props }: MessageForwardItemProps) => {
     const setModal = useSetAtom(modalAtom);
+
+    if (!canForwardEvent(mEvent)) return null;
 
     const handleClick = () => {
       setModal({
@@ -36,7 +39,7 @@ export const MessageForwardItem = as<'button', MessageForwardItemProps>(
     return (
       <MenuItem
         size="300"
-        after={<Icon size="100" src={Icons.ArrowRight} />}
+        after={menuIcon(ArrowRight)}
         radii="300"
         {...props}
         onClick={handleClick}
@@ -98,12 +101,17 @@ export function MessageForwardInternal({
   onClose,
 }: Readonly<MessageForwardInternalProps>) {
   const mx = useMatrixClient();
-
+  const forwardable = canForwardEvent(mEvent);
   const [isForwarding, setIsForwarding] = useState(false);
   const [forwardError, setForwardError] = useState<string | null>(null);
   const allRooms = useAtomValue(allRoomsAtom);
   const allJoinedRooms = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allJoinedRooms);
+
+  useEffect(() => {
+    if (!forwardable) onClose();
+  }, [forwardable, onClose]);
+
   // possible targets to forward the message to
   const forwardTargets = useMemo(
     () =>
@@ -264,6 +272,8 @@ export function MessageForwardInternal({
     }),
     [forwardError, forwardTargets, forwardToRoom, isForwarding]
   );
+
+  if (!forwardable) return null;
 
   return <RoomSearchModal requestClose={onClose} pickRoom={pickRoom} />;
 }

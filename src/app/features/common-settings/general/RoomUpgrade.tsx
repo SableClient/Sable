@@ -13,6 +13,7 @@ import {
   Box,
   IconButton,
 } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import type { MatrixError, RoomTombstoneEventContent } from '$types/matrix-sdk';
 import { Method, EventType } from '$types/matrix-sdk';
@@ -38,7 +39,6 @@ import { useAlive } from '$hooks/useAlive';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { BreakWord } from '$styles/Text.css';
 import { creatorsSupported } from '$utils/roomSupport';
-import { Icon, Icons } from '$app/icons';
 
 function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
   const mx = useMatrixClient();
@@ -106,7 +106,7 @@ function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
                 <Text size="H4">{room.isSpaceRoom() ? 'Space Upgrade' : 'Room Upgrade'}</Text>
               </Box>
               <IconButton size="300" onClick={requestClose} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

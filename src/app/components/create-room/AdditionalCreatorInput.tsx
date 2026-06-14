@@ -13,6 +13,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { Plus, X, sizedIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { getMxIdServer } from '$utils/mxIdHelper';
@@ -26,7 +27,6 @@ import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { SettingTile } from '$components/setting-tile';
-import { Icon, Icons } from '$app/icons';
 
 export const useAdditionalCreators = (defaultCreators?: string[]) => {
   const mx = useMatrixClient();
@@ -160,7 +160,7 @@ export function AdditionalCreatorInput({
               key={creator}
               variant="Secondary"
               radii="Pill"
-              after={<Icon size="50" src={Icons.Cross} />}
+              after={sizedIcon(X, '50')}
               onClick={() => onRemove(creator)}
               disabled={disabled}
             >
@@ -283,7 +283,7 @@ export function AdditionalCreatorInput({
               aria-pressed={!!menuCords}
               disabled={disabled}
             >
-              <Icon size="50" src={Icons.Plus} />
+              {sizedIcon(Plus, '50')}
             </Chip>
           </PopOut>
         </Box>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Box, Text, as } from 'folds';
+import { sizedIcon, Warning } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { getHexcodeForEmoji, getShortcodeFor } from '$plugins/emoji';
@@ -9,7 +10,6 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import * as css from './Reaction.css';
-import { Icon, Icons } from '$app/icons';
 
 export const Reaction = as<
   'button',
@@ -37,11 +37,11 @@ export const Reaction = as<
           (() => {
             if (imgError)
               return (
-                // Image loaded but fetch failed — show a small warning icon so the
+                // Image loaded but fetch failed  Eshow a small warning icon so the
                 // reaction button still renders correctly and the user can see
                 // something went wrong rather than a browser broken-image icon.
                 <span title="Failed to load emoji image" aria-label="Failed to load emoji image">
-                  <Icon size="100" src={Icons.Warning} style={{ opacity: 0.5 }} />
+                  {sizedIcon(Warning, '100', { style: { opacity: 0.5 } })}
                 </span>
               );
             return (

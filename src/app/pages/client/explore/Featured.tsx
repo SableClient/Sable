@@ -1,4 +1,5 @@
 import { Box, IconButton, Scroll, Text } from 'folds';
+import { ArrowLeft, Info, Lightbulb, composerIcon, sizedIcon } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { RoomCard, RoomCardGrid } from '$components/room-card';
@@ -17,7 +18,6 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import * as css from './style.css';
-import { Icon, Icons } from '$app/icons';
 
 export function FeaturedRooms() {
   const { featuredCommunities } = useClientConfig();
@@ -32,11 +32,7 @@ export function FeaturedRooms() {
         <PageHeader>
           <Box shrink="No">
             <BackRouteHandler>
-              {(onBack) => (
-                <IconButton onClick={onBack}>
-                  <Icon src={Icons.ArrowLeft} />
-                </IconButton>
-              )}
+              {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
             </BackRouteHandler>
           </Box>
         </PageHeader>
@@ -48,7 +44,7 @@ export function FeaturedRooms() {
               <Box direction="Column" gap="200">
                 <PageHeroSection>
                   <PageHero
-                    icon={<Icon size="600" src={Icons.Bulb} />}
+                    icon={sizedIcon(Lightbulb, '600')}
                     title="Featured by Client"
                     subTitle="Find and explore public rooms and spaces featured by client provider."
                   />
@@ -123,7 +119,7 @@ export function FeaturedRooms() {
                       alignItems="Center"
                       gap="200"
                     >
-                      <Icon size="400" src={Icons.Info} />
+                      {sizedIcon(Info, '400')}
                       <Text size="T300" align="Center">
                         No rooms or spaces featured by client provider.
                       </Text>

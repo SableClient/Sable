@@ -3,6 +3,37 @@ import { selectAtom } from 'jotai/utils';
 import { useMemo } from 'react';
 import type { Settings, settingsAtom as sAtom } from '$state/settings';
 
+export type ResolvedHiddenEventSettings = {
+  showHiddenEvents: boolean;
+  showTombstoneEvents: boolean;
+  hiddenEventEdits: boolean;
+  hiddenEventRedactionTimeline: boolean;
+  hiddenEventReactions: boolean;
+  hiddenEventReactionTombstone: boolean;
+  hiddenEventReactionRedactionTimeline: boolean;
+  hiddenEventOther: boolean;
+};
+
+export const resolveHiddenEventSettings = (settings: Settings): ResolvedHiddenEventSettings => {
+  const { showHiddenEvents } = settings;
+  return {
+    showHiddenEvents,
+    showTombstoneEvents: settings.showTombstoneEvents,
+    hiddenEventEdits: showHiddenEvents && settings.hiddenEventEdits,
+    hiddenEventRedactionTimeline: showHiddenEvents && settings.hiddenEventRedactionTimeline,
+    hiddenEventReactions: showHiddenEvents && settings.hiddenEventReactions,
+    hiddenEventReactionTombstone: showHiddenEvents && settings.hiddenEventReactionTombstone,
+    hiddenEventReactionRedactionTimeline:
+      showHiddenEvents && settings.hiddenEventReactionRedactionTimeline,
+    hiddenEventOther: showHiddenEvents && settings.hiddenEventOther,
+  };
+};
+
+export const useHiddenEventSettings = (settingsAtom: typeof sAtom): ResolvedHiddenEventSettings => {
+  const selector = useMemo(() => resolveHiddenEventSettings, []);
+  return useAtomValue(selectAtom(settingsAtom, selector));
+};
+
 export type SettingSetter<K extends keyof Settings> =
   | Settings[K]
   | ((s: Settings[K]) => Settings[K]);

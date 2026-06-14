@@ -1,6 +1,7 @@
 import type { FormEventHandler } from 'react';
 import { forwardRef, useCallback, useState } from 'react';
 import { Dialog, Header, Box, Text, IconButton, config, Button, Chip, color, Spinner } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import FileSaver from 'file-saver';
 import to from 'await-to-js';
 import type { AuthDict, IAuthData, UIAuthCallback } from '$types/matrix-sdk';
@@ -14,7 +15,6 @@ import { useAlive } from '$hooks/useAlive';
 import { PasswordInput } from './password-input';
 import { ActionUIA, ActionUIAFlowsLoader } from './ActionUIA';
 import { UseStateProvider } from './UseStateProvider';
-import { Icon, Icons } from '$app/icons';
 
 type UIACallback<T> = (
   authDict: AuthDict | null
@@ -292,7 +292,7 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
             <Text size="H4">Setup Device Verification</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
-            <Icon src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Header>
         <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -327,7 +327,7 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
             <Text size="H4">Reset Device Verification</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
-            <Icon src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Header>
         {reset ? (

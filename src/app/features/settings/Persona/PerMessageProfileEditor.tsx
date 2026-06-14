@@ -1,5 +1,6 @@
 import { SequenceCard } from '$components/sequence-card';
 import { Box, Button, Text, Avatar, config, IconButton, Input } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo, useState } from 'react';
 import { mxcUrlToHttp } from '$utils/matrix';
@@ -17,7 +18,6 @@ import {
 import type { PronounSet } from '$utils/pronouns';
 import { parsePronounsStringToPronounsSetArray } from '$utils/pronouns';
 import { SequenceCardStyle } from '../styles.css';
-import { Icon, Icons } from '$app/icons';
 
 /**
  * the props we use for the per-message profile editor, which is used to edit a per-message profile. This is used in the settings page when the user wants to edit a profile.
@@ -375,7 +375,7 @@ export function PerMessageProfileEditor({
                     aria-label="Reset display name"
                     title="Reset display name"
                   >
-                    <Icon src={Icons.Cross} size="100" aria-label="Reset icon" />
+                    {menuIcon(X)}
                   </IconButton>
                 )
               }
@@ -422,7 +422,7 @@ export function PerMessageProfileEditor({
                     aria-label="Reset pronouns"
                     title="Reset pronouns"
                   >
-                    <Icon src={Icons.Cross} size="100" aria-label="Reset icon" />
+                    {menuIcon(X)}
                   </IconButton>
                 )
               }

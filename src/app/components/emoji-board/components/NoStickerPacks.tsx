@@ -1,5 +1,5 @@
 import { Box, toRem, config, Text } from 'folds';
-import { Icons, Icon } from '$app/icons';
+import { dropzoneIcon, Sticker } from '$components/icons/phosphor';
 
 export function NoStickerPacks() {
   return (
@@ -10,7 +10,7 @@ export function NoStickerPacks() {
       direction="Column"
       gap="300"
     >
-      <Icon size="600" src={Icons.Sticker} />
+      {dropzoneIcon(Sticker)}
       <Box direction="Inherit">
         <Text align="Center">No Sticker Packs!</Text>
         <Text priority="300" align="Center" size="T200">

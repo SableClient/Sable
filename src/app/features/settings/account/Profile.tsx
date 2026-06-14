@@ -16,6 +16,7 @@ import {
   config,
   Spinner,
 } from 'folds';
+import { composerIcon, menuIcon, Star, Sun, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { useSetAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
@@ -52,7 +53,6 @@ import { NameColorEditor } from './NameColorEditor';
 import { StatusEditor } from './StatusEditor';
 import { AnimalCosmetics } from './AnimalCosmetics';
 import * as prefix from '$unstable/prefixes';
-import { Icon, Icons } from '$app/icons';
 
 type PronounSet = {
   summary: string;
@@ -198,7 +198,7 @@ function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
                   <Text size="H4">Remove Avatar</Text>
                 </Box>
                 <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-                  <Icon src={Icons.Cross} />
+                  {composerIcon(X)}
                 </IconButton>
               </Header>
               <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -372,7 +372,7 @@ function ProfileBanner({ profile }: Readonly<Pick<ProfileProps, 'profile'>>) {
                   <Text size="H4">Remove Banner</Text>
                 </Box>
                 <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-                  <Icon src={Icons.Cross} />
+                  {composerIcon(X)}
                 </IconButton>
               </Header>
               <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -457,7 +457,7 @@ function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
                     radii="300"
                     variant="Secondary"
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    {menuIcon(X)}
                   </IconButton>
                 )
               }
@@ -703,10 +703,9 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
             <Text truncate>
               {profile?.heroColorScheme?.brightness === 'dark' ? 'Dark Mode' : 'Light Mode'}
             </Text>
-            <Icon
-              src={profile?.heroColorScheme?.brightness === 'dark' ? Icons.Star : Icons.Sun}
-              size="200"
-            />
+            {profile?.heroColorScheme?.brightness === 'dark'
+              ? menuIcon(Star, { weight: 'fill' })
+              : menuIcon(Sun)}
           </Box>
         </IconButton>
       </SequenceCard>

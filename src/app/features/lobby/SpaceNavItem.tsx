@@ -16,7 +16,7 @@ import { getSpaceLobbyPath } from '$pages/pathUtils';
 import { InaccessibleSpaceProfile, UnjoinedSpaceProfile } from './SpaceItem';
 import * as css from './SpaceNavItem.css';
 import { useDraggableItem } from './DnD';
-import { Icon, Icons } from '$app/icons';
+import { chipIcon, SquaresFour } from '$components/icons/phosphor';
 
 type SpaceProfileProps = {
   roomId: string;
@@ -56,7 +56,7 @@ function SpaceNavProfile({
           />
         </Avatar>
       }
-      after={<Icon src={Icons.Space} size="50" />}
+      after={chipIcon(SquaresFour)}
     >
       <Box alignItems="Center" gap="200">
         <Text size="H4" truncate>

@@ -13,6 +13,12 @@ import {
   Text,
   toRem,
 } from 'folds';
+import {
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  sizedIcon,
+  PhoneDisconnect,
+} from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import type { CallEmbed } from '$plugins/call';
@@ -31,7 +37,6 @@ import {
   SoundButton,
   VideoButton,
 } from './Controls';
-import { Icon, Icons } from '$app/icons';
 
 type CallControlsProps = {
   callEmbed: CallEmbed;
@@ -201,7 +206,9 @@ export function CallControls({ callEmbed }: CallControlsProps) {
               outlined
               aria-pressed={!!cords}
             >
-              <Icon size="400" src={Icons.VerticalDots} />
+              {composerIcon(DotsThreeOutlineVerticalIcon, {
+                weight: cords ? 'fill' : 'regular',
+              })}
             </IconButton>
           </PopOut>
 
@@ -217,7 +224,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
               exiting ? (
                 <Spinner variant="Critical" fill="Solid" size="200" />
               ) : (
-                <Icon src={Icons.PhoneDown} size="200" filled />
+                sizedIcon(PhoneDisconnect, '200', { filled: true })
               )
             }
             disabled={exiting}

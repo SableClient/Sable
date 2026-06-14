@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Box, Text, Scroll, IconButton } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
 import { useAtomValue } from 'jotai';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { MessageSearch } from '$features/message-search';
@@ -11,7 +11,7 @@ import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
-import { Icon, Icons } from '$app/icons';
+import { ArrowLeft, composerIcon, dropzoneIcon, MagnifyingGlass } from '$components/icons/phosphor';
 
 export function SpaceSearch() {
   const mx = useMatrixClient();
@@ -34,16 +34,12 @@ export function SpaceSearch() {
           <Box grow="Yes" basis="No">
             {screenSize === ScreenSize.Mobile && (
               <BackRouteHandler>
-                {(onBack) => (
-                  <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
-                  </IconButton>
-                )}
+                {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
               </BackRouteHandler>
             )}
           </Box>
           <Box justifyContent="Center" alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Search} />}
+            {screenSize !== ScreenSize.Mobile && dropzoneIcon(MagnifyingGlass)}
             <Text size="H3" truncate>
               Message Search
             </Text>

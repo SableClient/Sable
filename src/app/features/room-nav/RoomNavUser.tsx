@@ -1,4 +1,5 @@
 import { Avatar, Box, Text } from 'folds';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import type { MouseEventHandler } from 'react';
 import { useAtomValue } from 'jotai';
 import type { Room, CallMembership } from '$types/matrix-sdk';
@@ -12,7 +13,6 @@ import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { nicknamesAtom } from '$state/nicknames';
 import { useCallEmbed } from '$hooks/useCallEmbed';
-import { Icon, Icons } from '$app/icons';
 
 type RoomNavUserProps = {
   room: Room;
@@ -55,7 +55,7 @@ export function RoomNavUser({ room, callMembership, hideText }: RoomNavUserProps
                   userId={userId}
                   src={avatarUrl ?? undefined}
                   alt={name}
-                  renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                  renderFallback={() => userFallbackIcon('sm')}
                 />
               </Avatar>
               {!hideText && (

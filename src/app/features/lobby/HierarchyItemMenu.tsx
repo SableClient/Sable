@@ -24,7 +24,12 @@ import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useNavigate } from 'react-router-dom';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
 import { EventType } from '$types/matrix-sdk';
-import { Icon, Icons } from '$app/icons';
+import {
+  chipIcon,
+  DotsThreeOutlineVerticalIcon,
+  menuIcon,
+  SignOut,
+} from '$components/icons/phosphor';
 
 type HierarchyItemWithParent = HierarchyItem & {
   parentId: string;
@@ -243,7 +248,7 @@ export function HierarchyItemMenu({
         radii="300"
         aria-pressed={!!menuAnchor}
       >
-        <Icon size="50" src={Icons.VerticalDots} />
+        {chipIcon(DotsThreeOutlineVerticalIcon, { weight: menuAnchor ? 'fill' : 'regular' })}
       </IconButton>
       {menuAnchor && (
         <PopOut
@@ -304,7 +309,7 @@ export function HierarchyItemMenu({
                             variant="Critical"
                             fill="None"
                             size="300"
-                            after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                            after={menuIcon(SignOut)}
                             radii="300"
                             aria-pressed={promptLeave}
                           >

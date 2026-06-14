@@ -15,6 +15,7 @@ import {
   IconButton,
   Menu,
 } from 'folds';
+import { composerIcon, menuIcon, Plus, Sticker, X } from '$components/icons/phosphor';
 import type { MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import type { ImagePack, PackAddress, PackContent } from '$plugins/custom-emoji';
@@ -36,7 +37,6 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { CustomStateEvent } from '$types/matrix/room';
-import { Icon, Icons } from '$app/icons';
 
 function PackAvatarImage({ url }: { url: string }) {
   const resolved = useRenderableMediaUrl(url);
@@ -227,7 +227,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                     onClick={() => handleUndoRemove(address)}
                     disabled={applyingChanges}
                   >
-                    <Icon src={Icons.Plus} size="100" />
+                    {menuIcon(Plus)}
                   </IconButton>
                 ) : (
                   <IconButton
@@ -237,16 +237,14 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                     onClick={() => handleRemove(address)}
                     disabled={applyingChanges}
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    {menuIcon(X)}
                   </IconButton>
                 ))}
               <Avatar size="300" radii="300">
                 {avatarUrl ? (
                   <PackAvatarImage url={avatarUrl} />
                 ) : (
-                  <AvatarFallback>
-                    <Icon size="400" src={Icons.Sticker} filled />
-                  </AvatarFallback>
+                  <AvatarFallback>{composerIcon(Sticker, { weight: 'fill' })}</AvatarFallback>
                 )}
               </Avatar>
             </Box>

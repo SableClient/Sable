@@ -1,6 +1,7 @@
 import type { FormEventHandler, ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { Badge, Box, Button, Chip, Input, Text } from 'folds';
+import { sizedIcon, Trash } from '$components/icons/phosphor';
 import { mxcUrlToHttp } from '$utils/matrix';
 import type { ImageUsage } from '$plugins/custom-emoji';
 import { imageUsageEqual, PackImageReader } from '$plugins/custom-emoji';
@@ -13,7 +14,6 @@ import { SettingTile } from '$components/setting-tile';
 import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import * as css from './style.css';
 import { UsageSwitcher, useUsageStr } from './UsageSwitcher';
-import { Icon, Icons } from '$app/icons';
 
 type ImageTileProps = {
   defaultShortcode: string;
@@ -76,7 +76,7 @@ export function ImageTile({
               radii="Pill"
               onClick={() => onDeleteToggle?.(defaultShortcode)}
             >
-              {deleted ? <Text size="B300">Undo</Text> : <Icon size="50" src={Icons.Delete} />}
+              {deleted ? <Text size="B300">Undo</Text> : sizedIcon(Trash, '50')}
             </Chip>
             {!deleted && (
               <Chip

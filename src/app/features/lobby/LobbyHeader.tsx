@@ -17,12 +17,23 @@ import {
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { PageHeader } from '$components/page';
-import { useSetSetting } from '$state/hooks/settings';
+import { useSetSetting, useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useRoomAvatar, useRoomName } from '$hooks/useRoomMeta';
 import { useSpace } from '$hooks/useSpace';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomAvatar } from '$components/room-avatar';
+import {
+  ArrowLeft,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  GearSix,
+  menuIcon,
+  navIcon,
+  SignOut,
+  UserCircle,
+  UserPlus,
+} from '$components/icons/phosphor';
 import { nameInitials } from '$utils/common';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -37,7 +48,6 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import * as css from './LobbyHeader.css';
-import { Icon, Icons } from '$app/icons';
 
 type LobbyMenuProps = {
   powerLevels: IPowerLevels;
@@ -81,7 +91,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
             variant="Primary"
             fill="None"
             size="300"
-            after={<Icon size="100" src={Icons.UserPlus} />}
+            after={menuIcon(UserPlus)}
             radii="300"
             aria-pressed={invitePrompt}
             disabled={!canInvite}
@@ -90,12 +100,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
               Invite
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleRoomSettings}
-            size="300"
-            after={<Icon size="100" src={Icons.Setting} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleRoomSettings} size="300" after={menuIcon(GearSix)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Space Settings
             </Text>
@@ -111,7 +116,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
                   variant="Critical"
                   fill="None"
                   size="300"
-                  after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                  after={menuIcon(SignOut)}
                   radii="300"
                   aria-pressed={promptLeave}
                 >
@@ -144,6 +149,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
   const useAuthentication = useMediaAuthentication();
   const space = useSpace();
   const setPeopleDrawer = useSetSetting(settingsAtom, 'isPeopleDrawer');
+  const [peopleDrawer] = useSetting(settingsAtom, 'isPeopleDrawer');
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const screenSize = useScreenSizeContext();
 
@@ -166,7 +172,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
               <BackRouteHandler>
                 {(onBack) => (
                   <IconButton fill="None" onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
+                    {composerIcon(ArrowLeft)}
                   </IconButton>
                 )}
               </BackRouteHandler>
@@ -213,7 +219,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
               offset={4}
               tooltip={
                 <Tooltip>
-                  <Text>Members</Text>
+                  <Text>{peopleDrawer ? 'Hide Members' : 'Show Members'}</Text>
                 </Tooltip>
               }
             >
@@ -223,7 +229,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
                   ref={triggerRef}
                   onClick={() => setPeopleDrawer((drawer) => !drawer)}
                 >
-                  <Icon size="400" src={Icons.User} />
+                  {composerIcon(UserCircle, { weight: peopleDrawer ? 'fill' : 'regular' })}
                 </IconButton>
               )}
             </TooltipProvider>
@@ -245,7 +251,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
                 ref={triggerRef}
                 aria-pressed={!!menuAnchor}
               >
-                <Icon size="400" src={Icons.VerticalDots} filled={!!menuAnchor} />
+                {navIcon(DotsThreeOutlineVerticalIcon, { weight: menuAnchor ? 'fill' : 'regular' })}
               </IconButton>
             )}
           </TooltipProvider>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { Avatar, MenuItem, Text } from 'folds';
+import { Hash, sizedIcon } from '$components/icons/phosphor';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { JoinRule } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
@@ -23,7 +24,6 @@ import { createMentionElement, moveCursor, replaceWithElement } from '$component
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { AutocompleteMenu } from './AutocompleteMenu';
 import type { AutocompleteQuery } from './autocompleteQuery';
-import { Icon, Icons } from '$app/icons';
 
 type MentionAutoCompleteHandler = (roomAliasOrId: string, name: string) => void;
 
@@ -50,11 +50,7 @@ function UnknownRoomMentionItem({
       radii="300"
       onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) => onTabPress(evt, handleSelect)}
       onClick={handleSelect}
-      before={
-        <Avatar size="200">
-          <Icon src={Icons.Hash} size="100" />
-        </Avatar>
-      }
+      before={<Avatar size="200">{sizedIcon(Hash, '100')}</Avatar>}
     >
       <Text style={{ flexGrow: 1 }} size="B400">
         {roomAlias}

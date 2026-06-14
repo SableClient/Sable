@@ -14,6 +14,7 @@ import {
   OverlayBackdrop,
   OverlayCenter,
 } from 'folds';
+import { CaretDown, CaretRight, chipIcon, Trash } from '$components/icons/phosphor';
 import type { CryptoApi, IMyDevice, MatrixError } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SettingTile } from '$components/setting-tile';
@@ -28,7 +29,6 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
-import { Icon, Icons } from '$app/icons';
 
 export function DeviceTilePlaceholder() {
   return (
@@ -254,7 +254,7 @@ export function DeviceDeleteBtn({
       onClick={() => onDeleteToggle(deviceId)}
       disabled={disabled}
     >
-      <Icon size="50" src={Icons.Delete} />
+      {chipIcon(Trash)}
     </Chip>
   );
 }
@@ -295,7 +295,7 @@ export function DeviceTile({
             radii="300"
             onClick={() => setDetails(!details)}
           >
-            <Icon size="50" src={details ? Icons.ChevronBottom : Icons.ChevronRight} />
+            {chipIcon(details ? CaretDown : CaretRight)}
           </IconButton>
         }
         after={

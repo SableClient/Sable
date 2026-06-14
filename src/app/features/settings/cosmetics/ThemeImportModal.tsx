@@ -14,6 +14,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 
 import { useSetting } from '$state/hooks/settings';
 import {
@@ -32,7 +33,6 @@ import {
 } from '../../../theme/processThemeImport';
 
 import { usePatchSettings } from './themeSettingsPatch';
-import { Icon, Icons } from '$app/icons';
 
 type ThemeImportModalProps = {
   open: boolean;
@@ -249,7 +249,7 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
                 disabled={importBusy}
                 aria-label="Close"
               >
-                <Icon src={Icons.Cross} size="100" />
+                {menuIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

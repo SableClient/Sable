@@ -2,6 +2,7 @@ import type { FormEventHandler } from 'react';
 import { useCallback, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
 import { Box, Button, Chip, IconButton, Input, Scroll, Spinner, Text, config } from 'folds';
+import { composerIcon, menuIcon, Trash, X } from '$components/icons/phosphor';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -21,7 +22,6 @@ import { getAllParents, getStateEvent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { CustomStateEvent } from '$types/matrix/room';
-import { Icon, Icons } from '$app/icons';
 
 type AbbreviationsProps = {
   requestClose: () => void;
@@ -143,7 +143,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>
@@ -276,7 +276,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
                                     disabled={saving}
                                     aria-label={`Remove abbreviation ${entry.term}`}
                                   >
-                                    <Icon src={Icons.Delete} size="100" />
+                                    {menuIcon(Trash)}
                                   </IconButton>
                                 </Box>
                               )}

@@ -4,6 +4,7 @@ import { Page, PageContent, PageHeader } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { composerIcon, X } from '$components/icons/phosphor';
 
 import { PermissionGroups, Powers, PowersEditor } from '$features/common-settings/permissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -11,7 +12,6 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { usePermissionGroups } from './usePermissionItems';
 import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
-import { Icon, Icons } from '$app/icons';
 
 type PermissionsProps = {
   requestClose: () => void;
@@ -49,7 +49,7 @@ export function Permissions({ requestClose }: PermissionsProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

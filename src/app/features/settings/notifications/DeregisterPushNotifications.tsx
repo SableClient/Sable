@@ -14,6 +14,7 @@ import {
   Spinner,
   Text,
 } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 import { useAtom } from 'jotai';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
@@ -22,7 +23,6 @@ import { settingsAtom } from '../../../state/settings';
 import { pushSubscriptionAtom } from '../../../state/pushSubscription';
 import { deRegisterAllPushers } from './PushNotifications';
 import { SettingTile } from '../../../components/setting-tile';
-import { Icon, Icons } from '$app/icons';
 
 type ConfirmDeregisterDialogProps = {
   onClose: () => void;
@@ -46,7 +46,7 @@ function ConfirmDeregisterDialog({ onClose, onConfirm, isLoading }: ConfirmDereg
                 <Text size="H4">Reset All Push Notifications</Text>
               </Box>
               <IconButton size="300" radii="300" onClick={onClose} disabled={isLoading}>
-                <Icon size="100" src={Icons.Cross} />
+                {menuIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

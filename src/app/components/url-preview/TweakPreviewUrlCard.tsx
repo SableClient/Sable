@@ -11,6 +11,7 @@ import {
   config,
   toRem,
 } from 'folds';
+import { Check, Link, Star, Warning, sizedIcon } from '$components/icons/phosphor';
 
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
@@ -25,7 +26,6 @@ import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../.
 import { isApprovedCatalogHostUrl, isThirdPartyThemeUrl } from '../../theme/themeApproval';
 import { SableChatPreviewPlaceholder } from './SableChatPreviewPlaceholder';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
-import { Icon, Icons } from '$app/icons';
 
 function baseLabel(url: string): string {
   try {
@@ -284,14 +284,17 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
                 }
               >
                 {(triggerRef) => (
-                  <Icon
+                  <span
                     ref={triggerRef}
-                    src={Icons.Warning}
-                    size="100"
-                    filled
-                    style={{ color: 'var(--sable-warn-on-container)', flexShrink: 0 }}
                     aria-label="Third-party tweak"
-                  />
+                    style={{
+                      color: 'var(--sable-warn-on-container)',
+                      flexShrink: 0,
+                      display: 'inline-flex',
+                    }}
+                  >
+                    {sizedIcon(Warning, '100', { filled: true })}
+                  </span>
                 )}
               </TooltipProvider>
             )}
@@ -318,7 +321,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
               handleCopy().catch(() => undefined);
             }}
           >
-            <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+            {sizedIcon(copied ? Check : Link, '200')}
           </IconButton>
           <IconButton
             size="300"
@@ -331,7 +334,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
               toggleFavorite().catch(() => undefined);
             }}
           >
-            <Icon size="200" src={Icons.Star} filled={isFav} />
+            {sizedIcon(Star, '200', { filled: isFav })}
           </IconButton>
           <Switch
             variant="Primary"

@@ -10,8 +10,8 @@ import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import classNames from 'classnames';
 import { Box, as } from 'folds';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
+import { chipIcon, DotsThreeOutlineVerticalIcon } from '$components/icons/phosphor';
 import * as css from './DnD.css';
-import { Icon, Icons } from '$app/icons';
 
 export type DropContainerData = {
   item: HierarchyItem;
@@ -59,7 +59,7 @@ export const ItemDraggableTarget = as<'div'>(({ className, ...props }, ref) => (
     ref={ref}
     {...props}
   >
-    <Icon size="50" src={Icons.VerticalDots} />
+    {chipIcon(DotsThreeOutlineVerticalIcon)}
   </Box>
 ));
 

@@ -40,6 +40,7 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { SequenceCard } from '$components/sequence-card';
 import { UserAvatar } from '$components/user-avatar';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -59,7 +60,6 @@ import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUr
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import type { ResultItem } from './useMessageSearch';
-import { Icon, Icons } from '$app/icons';
 
 type SearchResultGroupProps = {
   room: Room;
@@ -309,7 +309,7 @@ export function SearchResultGroup({
                             : undefined
                         }
                         alt={displayName}
-                        renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+                        renderFallback={() => userFallbackIcon('lg')}
                       />
                     </Avatar>
                   </AvatarBase>

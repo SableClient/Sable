@@ -36,9 +36,17 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { formatCompactNumber } from '$utils/formatCompactNumber';
 import { ItemDraggableTarget, useDraggableItem } from './DnD';
+import * as dndCss from './DnD.css';
+import {
+  ArrowRight,
+  chipIcon,
+  composerIcon,
+  EnvelopeSimple,
+  Plus,
+  Warning,
+} from '$components/icons/phosphor';
 import * as styleCss from './style.css';
 import * as css from './RoomItem.css';
-import { Icon, Icons } from '$app/icons';
 
 type RoomJoinButtonProps = {
   roomId: string;
@@ -68,15 +76,14 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
           }
         >
           {(triggerRef) => (
-            <Icon
+            <Box
               ref={triggerRef}
-              style={{ color: color.Critical.Main, cursor: 'pointer' }}
-              src={Icons.Warning}
-              size="400"
-              filled
+              style={{ color: color.Critical.Main, cursor: 'pointer', display: 'flex' }}
               tabIndex={0}
               aria-label={joinState.error.data?.error || joinState.error.message}
-            />
+            >
+              {composerIcon(Warning, { weight: 'fill' })}
+            </Box>
           )}
         </TooltipProvider>
       )}
@@ -85,9 +92,7 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
         fill="Soft"
         size="400"
         radii="Pill"
-        before={
-          canJoin ? <Icon src={Icons.Plus} size="50" /> : <Spinner variant="Secondary" size="100" />
-        }
+        before={canJoin ? chipIcon(Plus) : <Spinner variant="Secondary" size="100" />}
         onClick={join}
         disabled={!canJoin}
       >
@@ -107,7 +112,7 @@ function RoomKnockButton({ roomId, via }: RoomJoinButtonProps) {
             fill="Soft"
             size="400"
             radii="Pill"
-            before={<Icon src={Icons.MailPlus} size="50" />}
+            before={chipIcon(EnvelopeSimple)}
             onClick={() => setKnocking(true)}
           >
             <Text size="B300">Knock</Text>
@@ -376,7 +381,11 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
         ref={ref}
       >
         {before}
-        <Box ref={canReorder ? targetRef : null} grow="Yes">
+        <Box
+          ref={canReorder ? targetRef : null}
+          grow="Yes"
+          className={canReorder ? dndCss.ReorderableContent : undefined}
+        >
           {canReorder && <ItemDraggableTarget ref={targetHandleRef} />}
           {room ? (
             <LocalRoomSummaryLoader room={room}>
@@ -406,7 +415,7 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                           radii="Pill"
                           aria-label="Open Room"
                         >
-                          <Icon size="50" src={Icons.ArrowRight} />
+                          {chipIcon(ArrowRight)}
                         </Chip>
                       </Box>
                     ) : (

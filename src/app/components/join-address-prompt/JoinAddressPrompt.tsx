@@ -15,10 +15,10 @@ import {
   Input,
   color,
 } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
 import { isRoomAlias, isRoomId } from '$utils/matrix';
 import { parseMatrixToRoom, parseMatrixToRoomEvent, testMatrixTo } from '$plugins/matrix-to';
-import { Icon, Icons } from '$app/icons';
 
 type JoinAddressProps = {
   onOpen: (roomIdOrAlias: string, via?: string[], eventId?: string) => void;
@@ -83,7 +83,7 @@ export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
                 <Text size="H4">Join with Address</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box

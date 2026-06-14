@@ -12,6 +12,7 @@ import {
   OverlayCenter,
   Text,
 } from 'folds';
+import { sizedIcon, X } from '$components/icons/phosphor';
 import { useStore } from 'jotai/react';
 
 import { useOptionalClientConfig } from '$hooks/useClientConfig';
@@ -24,7 +25,6 @@ import { usePatchSettings } from '$features/settings/cosmetics/themeSettingsPatc
 import { DEFAULT_THEME_CATALOG_BASE } from '../../theme/catalogDefaults';
 import { needsLegacyThemeMigration } from '../../theme/legacyToCatalogMap';
 import { runLegacyThemeMigration } from '../../theme/migrateLegacyThemes';
-import { Icon, Icons } from '$app/icons';
 
 export function ThemeMigrationBanner() {
   const store = useStore();
@@ -115,7 +115,7 @@ export function ThemeMigrationBanner() {
                 disabled={busy}
                 aria-label="Close"
               >
-                <Icon src={Icons.Cross} size="100" />
+                {sizedIcon(X, '100')}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

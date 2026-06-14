@@ -17,6 +17,14 @@ import {
   Spinner,
   Text,
 } from 'folds';
+import {
+  Check,
+  MagnifyingGlass,
+  X,
+  composerIcon,
+  sizedIcon,
+  menuIcon,
+} from '$components/icons/phosphor';
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
@@ -44,7 +52,6 @@ import { getViaServers } from '$plugins/via-servers';
 import { rateLimitedActions } from '$utils/matrix';
 import { useAlive } from '$hooks/useAlive';
 import { EventType } from '$types/matrix-sdk';
-import { Icon, Icons } from '$app/icons';
 
 const SEARCH_OPTS: UseAsyncSearchOptions = {
   limit: 500,
@@ -219,7 +226,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                 </Box>
                 <Box shrink="No">
                   <IconButton size="300" radii="300" onClick={requestClose}>
-                    <Icon src={Icons.Cross} />
+                    {composerIcon(X)}
                   </IconButton>
                 </Box>
               </Header>
@@ -240,7 +247,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                     >
                       <Input
                         onChange={handleSearchChange}
-                        before={<Icon size="200" src={Icons.Search} />}
+                        before={menuIcon(MagnifyingGlass)}
                         placeholder="Search"
                         size="400"
                         variant="Background"
@@ -321,7 +328,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                                   )}
                                 </Avatar>
                               }
-                              after={selectedItem && <Icon size="200" src={Icons.Check} />}
+                              after={selectedItem && sizedIcon(Check, '200')}
                             >
                               <Box grow="Yes">
                                 <Text truncate size="T400">

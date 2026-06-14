@@ -2,10 +2,10 @@ import type { MouseEvent } from 'react';
 import type { Room, Relations } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import { Text, MenuItem } from 'folds';
+import { menuIcon, Smiley } from '$components/icons/phosphor';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 import { ReactionViewer } from '$features/room/reaction-viewer';
-import { Icon, Icons } from '$app/icons';
 
 export function MessageAllReactionItem({ room, relations }: { room: Room; relations: Relations }) {
   const setModal = useSetAtom(modalAtom);
@@ -13,7 +13,7 @@ export function MessageAllReactionItem({ room, relations }: { room: Room; relati
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Smile} />}
+      after={menuIcon(Smiley)}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();

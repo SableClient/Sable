@@ -20,9 +20,11 @@ import './app/styles/overrides/TauriDesktop.css';
 import { createLogger } from './app/utils/debug';
 import { installConsolePasteScamWarning } from './app/utils/consolePasteScamWarning';
 import { registerAppServiceWorker } from './serviceWorkerBootstrap';
+import { registerMatrixUriProtocol } from './app/plugins/matrix-uri';
 
 enableMapSet();
 installConsolePasteScamWarning();
+registerMatrixUriProtocol();
 const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);

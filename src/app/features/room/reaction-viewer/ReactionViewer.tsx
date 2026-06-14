@@ -11,13 +11,13 @@ import { getHexcodeForEmoji, getShortcodeFor } from '$plugins/emoji';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
+import { composerIcon, userFallbackIcon, X } from '$components/icons/phosphor';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { getMouseEventCords } from '$utils/dom';
 import * as css from './ReactionViewer.css';
-import { Icon, Icons } from '$app/icons';
 
 export type ReactionViewerProps = {
   room: Room;
@@ -92,7 +92,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
               <Text size="H3" truncate>{`Reacted with :${selectedShortcode}:`}</Text>
             </Box>
             <IconButton size="300" onClick={requestClose}>
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Header>
 
@@ -130,7 +130,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
                             userId={senderId}
                             src={avatarUrl ?? undefined}
                             alt={name}
-                            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                            renderFallback={() => userFallbackIcon('sm')}
                           />
                         </Avatar>
                       }

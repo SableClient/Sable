@@ -23,11 +23,11 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { markAsRead } from '$utils/notifications';
 import { stopPropagation } from '$utils/keyboard';
+import { Checks, menuIcon, PHOSPHOR_SIZE, User } from '$components/icons/phosphor';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
-import { Icon, Icons } from '$app/icons';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -50,7 +50,7 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={menuIcon(Checks)}
           radii="300"
           aria-disabled={!unread}
         >
@@ -115,7 +115,7 @@ export function DirectTab() {
             onClick={handleDirectClick}
             onContextMenu={handleContextMenu}
           >
-            <Icon src={Icons.User} filled={directSelected} />
+            <User size={PHOSPHOR_SIZE.toolbar} weight={directSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

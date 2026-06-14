@@ -27,7 +27,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useHomeRooms } from '$pages/client/home/useHomeRooms';
-import { Icon, Icons } from '$app/icons';
+import { Checks, House, menuIcon, PHOSPHOR_SIZE } from '$components/icons/phosphor';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -50,7 +50,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={menuIcon(Checks)}
           radii="300"
           aria-disabled={!unread}
         >
@@ -106,7 +106,7 @@ export function HomeTab() {
             onClick={handleHomeClick}
             onContextMenu={handleContextMenu}
           >
-            <Icon src={Icons.Home} filled={homeSelected} />
+            <House size={PHOSPHOR_SIZE.toolbar} weight={homeSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

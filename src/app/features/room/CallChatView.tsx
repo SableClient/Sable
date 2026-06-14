@@ -1,6 +1,7 @@
 import { useSetAtom } from 'jotai';
 import { useParams } from 'react-router-dom';
 import { Box, Text, TooltipProvider, Tooltip, IconButton, toRem } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { Page, PageHeader } from '../../components/page';
 import { callChatAtom } from '../../state/callEmbed';
 import { RoomView } from './RoomView';
@@ -10,7 +11,6 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useState, useEffect } from 'react';
-import { Icon, Icons } from '$app/icons';
 
 export function CallChatView() {
   const { eventId } = useParams();
@@ -71,7 +71,7 @@ export function CallChatView() {
               >
                 {(triggerRef) => (
                   <IconButton ref={triggerRef} variant="Surface" onClick={handleClose}>
-                    <Icon src={Icons.Cross} />
+                    {composerIcon(X)}
                   </IconButton>
                 )}
               </TooltipProvider>

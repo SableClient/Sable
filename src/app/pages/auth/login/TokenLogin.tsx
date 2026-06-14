@@ -1,4 +1,5 @@
 import { Box, Overlay, OverlayBackdrop, OverlayCenter, Spinner, Text, color, config } from 'folds';
+import { sizedIcon, Warning } from '$components/icons/phosphor';
 import { useCallback, useEffect } from 'react';
 import type { MatrixError } from '$types/matrix-sdk';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
@@ -6,7 +7,6 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { deviceDisplayName } from '$utils/user-agent';
 import type { CustomLoginResponse } from './loginUtil';
 import { LoginError, login, useLoginComplete } from './loginUtil';
-import { Icon, Icons } from '$app/icons';
 
 function LoginTokenError({ message }: { message: string }) {
   return (
@@ -21,7 +21,7 @@ function LoginTokenError({ message }: { message: string }) {
       alignItems="Start"
       gap="300"
     >
-      <Icon size="300" filled src={Icons.Warning} />
+      {sizedIcon(Warning, '300', { filled: true })}
       <Box direction="Column" gap="100">
         <Text size="L400">Token Login</Text>
         <Text size="T300">

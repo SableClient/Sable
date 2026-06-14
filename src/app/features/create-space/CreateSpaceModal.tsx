@@ -10,6 +10,7 @@ import {
   Scroll,
   Text,
 } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { SpaceProvider } from '$hooks/useSpace';
@@ -17,7 +18,6 @@ import { useCloseCreateSpaceModal, useCreateSpaceModalState } from '$state/hooks
 import type { CreateSpaceModalState } from '$state/createSpaceModal';
 import { stopPropagation } from '$utils/keyboard';
 import { CreateSpaceForm } from './CreateSpace';
-import { Icon, Icons } from '$app/icons';
 
 type CreateSpaceModalProps = {
   state: CreateSpaceModalState;
@@ -57,7 +57,7 @@ function CreateSpaceModal({ state }: CreateSpaceModalProps) {
                   </Box>
                   <Box shrink="No">
                     <IconButton size="300" radii="300" onClick={closeDialog}>
-                      <Icon src={Icons.Cross} />
+                      {composerIcon(X)}
                     </IconButton>
                   </Box>
                 </Header>

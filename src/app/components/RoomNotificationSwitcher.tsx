@@ -3,12 +3,11 @@ import type { ReactNode } from 'react';
 import { type MouseEventHandler } from 'react';
 import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
 import {
-  getRoomNotificationModeIcon,
+  roomNotificationModeIcon,
   RoomNotificationMode,
   useSetRoomNotificationPreference,
 } from '$hooks/useRoomsNotificationPreferences';
 import { AsyncStatus } from '$hooks/useAsyncCallback';
-import { Icon } from '$app/icons';
 
 const ROOM_NOTIFICATION_MODE_LABELS: Record<RoomNotificationMode, string> = {
   [RoomNotificationMode.Unset]: 'Default',
@@ -62,7 +61,7 @@ export function RoomNotificationModeSwitcher({
           gap="200"
           style={option.value === RoomNotificationMode.Unset ? { minHeight: '48px' } : undefined}
         >
-          <Icon size="100" src={getRoomNotificationModeIcon(option.value)} filled={selected} />
+          {roomNotificationModeIcon(option.value, { weight: selected ? 'fill' : 'regular' })}
           <Box direction="Column" gap="100">
             <Text size="T300">{selected ? <b>{option.label}</b> : option.label}</Text>
             {option.description && (

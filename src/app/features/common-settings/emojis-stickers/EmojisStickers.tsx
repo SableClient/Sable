@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Box, IconButton, Scroll, Text } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { Page, PageContent, PageHeader } from '$components/page';
 import type { ImagePack } from '$plugins/custom-emoji';
 import { ImagePackView } from '$components/image-pack-view';
 import { RoomPacks } from './RoomPacks';
-import { Icon, Icons } from '$app/icons';
 
 type EmojisStickersProps = {
   requestClose: () => void;
@@ -31,7 +31,7 @@ export function EmojisStickers({ requestClose }: EmojisStickersProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

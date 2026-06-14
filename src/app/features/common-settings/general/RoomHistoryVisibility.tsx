@@ -2,6 +2,7 @@ import type { MouseEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import type { RectCords } from 'folds';
 import { Button, color, config, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
+import { CaretDown, menuIcon } from '$components/icons/phosphor';
 import type {
   MatrixError,
   RoomHistoryVisibilityEventContent,
@@ -19,7 +20,6 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
-import { Icon, Icons } from '$app/icons';
 
 const useVisibilityStr = () =>
   useMemo(
@@ -140,13 +140,7 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
               outlined
               disabled={!canEdit || submitting}
               onClick={handleOpenMenu}
-              after={
-                submitting ? (
-                  <Spinner size="100" variant="Secondary" />
-                ) : (
-                  <Icon size="100" src={Icons.ChevronBottom} />
-                )
-              }
+              after={submitting ? <Spinner size="100" variant="Secondary" /> : menuIcon(CaretDown)}
             >
               <Text size="B300">{visibilityStr[historyVisibility]}</Text>
             </Button>

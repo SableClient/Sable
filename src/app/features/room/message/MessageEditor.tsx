@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import type { RectCords } from 'folds';
 import { Box, Chip, IconButton, PopOut, Spinner, Text, as, config } from 'folds';
+import { composerIcon, Smiley } from '$components/icons/phosphor';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import type {
@@ -67,7 +68,6 @@ import {
   readdAngleBracketsForHiddenPreviews,
   stripMarkdownEscapesForHiddenPreviews,
 } from './hiddenLinkPreviews';
-import { Icon, Icons } from '$app/icons';
 
 type MessageEditorProps = {
   roomId: string;
@@ -591,7 +591,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                               size="300"
                               radii="300"
                             >
-                              <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                              {composerIcon(Smiley, {
+                                weight: anchor !== undefined ? 'fill' : 'regular',
+                              })}
                             </IconButton>
                           </PopOut>
                         )}

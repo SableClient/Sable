@@ -14,6 +14,7 @@ import {
   toRem,
   type RectCords,
 } from 'folds';
+import { CaretDown, composerIcon, menuIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 
 import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
@@ -69,7 +70,7 @@ function ThemeTrigger({
       variant={active ? 'Primary' : 'Secondary'}
       outlined={active}
       radii="Pill"
-      after={<Icon size="200" src={Icons.ChevronBottom} />}
+      after={menuIcon(CaretDown)}
       onClick={onClick}
       disabled={disabled}
     >
@@ -588,7 +589,7 @@ function PanelSelector({
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -754,7 +755,7 @@ function SelectShowRoomIcon() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -824,6 +825,7 @@ export function Appearance({
     settingsAtom,
     'roomMessagePreview'
   );
+  const [roomIconOverlay, setRoomIconOverlay] = useSetting(settingsAtom, 'roomIconOverlay');
 
   const [landingMenuCords, setLandingMenuCords] = useState<RectCords>();
 
@@ -1031,6 +1033,16 @@ export function Appearance({
                 focusId="show-room-icons"
                 description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
                 after={<SelectShowRoomIcon />}
+              />
+            </SequenceCard>
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Overlay Room Privacy Icons"
+                focusId="room-icon-overlay"
+                description="When enabled, public and private rooms show a globe or lock badge over the room hash icon in the sidebar. When disabled, show the globe or lock icon alone."
+                after={
+                  <Switch variant="Primary" value={roomIconOverlay} onChange={setRoomIconOverlay} />
+                }
               />
             </SequenceCard>
             {/*THIS SHOULD BE MOVED TO A NEW SETTINGS MENU INSIDE OF THE HOME SETTINGS AS SOON AS THERE IS A REASON TO CREATE A HOME MENU SETTINGS PANEL

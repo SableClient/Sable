@@ -7,11 +7,11 @@ import type {
 import { useEffect, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
 import { Header, IconButton, Input, Menu, MenuItem, PopOut, Text, config } from 'folds';
+import { composerIcon, CaretDown } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 
 import { useDebounce } from '$hooks/useDebounce';
 import { stopPropagation } from '$utils/keyboard';
-import { Icon, Icons } from '$app/icons';
 
 export function ServerPicker({
   server,
@@ -149,7 +149,7 @@ export function ServerPicker({
               aria-pressed={!!serverMenuAnchor}
               radii="300"
             >
-              <Icon src={Icons.ChevronBottom} />
+              {composerIcon(CaretDown)}
             </IconButton>
           </PopOut>
         )

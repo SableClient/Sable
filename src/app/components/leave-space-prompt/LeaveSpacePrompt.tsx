@@ -17,8 +17,8 @@ import {
 import type { MatrixError } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
-import { Icon, Icons } from '$app/icons';
 
 type LeaveSpacePromptProps = {
   roomId: string;
@@ -68,7 +68,7 @@ export function LeaveSpacePrompt({ roomId, onDone, onCancel }: LeaveSpacePromptP
                 <Text size="H4">Leave Space</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

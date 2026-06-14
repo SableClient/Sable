@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, IconButton, Scroll } from 'folds';
+import { ArrowLeft, At, composerIcon, dropzoneIcon } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getDirectCreateSearchParams } from '$pages/pathSearchParam';
 import { getDirectRoomPath } from '$pages/pathUtils';
@@ -17,7 +18,6 @@ import {
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { CreateChat } from '$features/create-chat';
 import { useDirectRooms } from './useDirectRooms';
-import { Icon, Icons } from '$app/icons';
 
 export function DirectCreate() {
   const mx = useMatrixClient();
@@ -44,11 +44,7 @@ export function DirectCreate() {
         <PageHeader balance outlined={false}>
           <Box grow="Yes" alignItems="Center" gap="200">
             <BackRouteHandler>
-              {(onBack) => (
-                <IconButton onClick={onBack}>
-                  <Icon src={Icons.ArrowLeft} />
-                </IconButton>
-              )}
+              {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
             </BackRouteHandler>
           </Box>
         </PageHeader>
@@ -60,7 +56,7 @@ export function DirectCreate() {
               <PageHeroSection>
                 <Box direction="Column" gap="700">
                   <PageHero
-                    icon={<Icon size="600" src={Icons.Mention} />}
+                    icon={dropzoneIcon(At)}
                     title="Create Chat"
                     subTitle="Start a private, encrypted chat by entering a user ID."
                   />

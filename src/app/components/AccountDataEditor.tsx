@@ -13,6 +13,7 @@ import {
   Scroll,
   config,
 } from 'folds';
+import { ArrowLeft, composerIcon, sizedIcon, X } from '$components/icons/phosphor';
 import type { MatrixError } from '$types/matrix-sdk';
 import { Cursor } from '$plugins/text-area';
 import { syntaxErrorPosition } from '$utils/dom';
@@ -22,7 +23,6 @@ import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { Page, PageHeader } from './page';
 import { SequenceCard } from './sequence-card';
 import { TextViewerContent } from './text-viewer';
-import { Icon, Icons } from '$app/icons';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -296,14 +296,14 @@ export function AccountDataEditor({
               size="500"
               radii="Pill"
               onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
+              before={sizedIcon(ArrowLeft, '100')}
             >
               <Text size="T300">Developer Tools</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

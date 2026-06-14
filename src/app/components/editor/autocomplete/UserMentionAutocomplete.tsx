@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { Avatar, MenuItem, Text } from 'folds';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 
 import { useRoomMembers } from '$hooks/useRoomMembers';
@@ -28,7 +29,6 @@ import { getMxIdServer } from '$utils/mxIdHelper';
 import { AutocompleteMenu } from './AutocompleteMenu';
 import type { AutocompleteQuery } from './autocompleteQuery';
 import { KnownMembership } from '$types/matrix-sdk';
-import { Icon, Icons } from '$app/icons';
 
 type MentionAutoCompleteHandler = (userId: string, name: string) => void;
 
@@ -56,10 +56,7 @@ function UnknownMentionItem({
       onClick={() => handleAutocomplete(userId, name)}
       before={
         <Avatar size="200">
-          <UserAvatar
-            userId={userId}
-            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
-          />
+          <UserAvatar userId={userId} renderFallback={() => userFallbackIcon('sm')} />
         </Avatar>
       }
     >
@@ -199,7 +196,7 @@ export function UserMentionAutocomplete({
                     userId={roomMember.userId}
                     src={avatarUrl ?? undefined}
                     alt={getName(roomMember)}
-                    renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                    renderFallback={() => userFallbackIcon('sm')}
                   />
                 </Avatar>
               }

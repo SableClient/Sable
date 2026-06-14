@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Box, Text, Scroll, Button, config, toRem, Spinner } from 'folds';
+import { Code, Heart, menuIcon } from '$components/icons/phosphor';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -18,7 +19,6 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { SettingsSectionPage } from '../SettingsSectionPage';
-import { Icon, Icons } from '$app/icons';
 
 type VersionResult =
   | { error: { message: string } }
@@ -227,7 +227,7 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                       fill="Soft"
                       size="300"
                       radii="300"
-                      before={<Icon src={Icons.Code} size="100" filled />}
+                      before={menuIcon(Code, { weight: 'fill' })}
                     >
                       <Text size="B300">Source Code</Text>
                     </Button>
@@ -240,7 +240,7 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                       fill="Soft"
                       size="300"
                       radii="300"
-                      before={<Icon src={Icons.Code} size="100" filled />}
+                      before={menuIcon(Code, { weight: 'fill' })}
                     >
                       <Text size="B300">Upstream</Text>
                     </Button>
@@ -253,7 +253,7 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                       fill="Soft"
                       size="300"
                       radii="300"
-                      before={<Icon src={Icons.Heart} size="100" filled />}
+                      before={menuIcon(Heart, { weight: 'fill' })}
                     >
                       <Text size="B300">Support</Text>
                     </Button>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Box, IconButton, Text } from 'folds';
+import { Check, Link, sizedIcon } from '$components/icons/phosphor';
 import { BreakWord } from '$styles/Text.css';
 import { buildSettingsLink } from '$features/settings/settingsLink';
 import { copyToClipboard } from '$utils/dom';
@@ -15,7 +16,6 @@ import {
   settingTileRoot,
   settingTileTitleRow,
 } from './SettingTile.css';
-import { Icon, Icons } from '$app/icons';
 
 type SettingTileProps = {
   focusId?: string;
@@ -59,7 +59,7 @@ function SettingTileSettingLinkAction({
       fill="None"
       radii="Inherit"
     >
-      <Icon src={copied ? Icons.Check : Icons.Link} size="50" />
+      {sizedIcon(copied ? Check : Link, '50')}
     </IconButton>
   );
 }

@@ -1,10 +1,10 @@
 import { Box, IconButton, Text, Scroll, Chip } from 'folds';
+import { ArrowLeft, composerIcon, sizedIcon, X } from '$components/icons/phosphor';
 import type { PackAddress } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { Page, PageHeader, PageContent } from '$components/page';
 import { RoomImagePack } from './RoomImagePack';
 import { UserImagePack } from './UserImagePack';
-import { Icon, Icons } from '$app/icons';
 
 type ImagePackViewProps = {
   address: PackAddress | undefined;
@@ -23,14 +23,14 @@ export function ImagePackView({ address, requestClose }: ImagePackViewProps) {
               size="500"
               radii="Pill"
               onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
+              before={sizedIcon(ArrowLeft, '100')}
             >
               <Text size="T300">Emojis & Stickers</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

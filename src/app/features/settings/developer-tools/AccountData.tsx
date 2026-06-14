@@ -1,12 +1,19 @@
 import { useCallback, useState } from 'react';
 import { Box, Text, Button, MenuItem } from 'folds';
+import {
+  CaretDown,
+  CaretRight,
+  CaretUp,
+  chipIcon,
+  menuIcon,
+  Plus,
+} from '$components/icons/phosphor';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { CutoutCard } from '$components/cutout-card';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { Icon, Icons } from '$app/icons';
 
 type AccountDataProps = {
   expand: boolean;
@@ -49,9 +56,7 @@ export function AccountData({ expand, onExpandToggle, onSelect }: AccountDataPro
               size="300"
               radii="300"
               outlined
-              before={
-                <Icon src={expand ? Icons.ChevronTop : Icons.ChevronBottom} size="100" filled />
-              }
+              before={menuIcon(expand ? CaretUp : CaretDown, { weight: 'fill' })}
             >
               <Text size="B300">{expand ? 'Collapse' : 'Expand'}</Text>
             </Button>
@@ -69,7 +74,7 @@ export function AccountData({ expand, onExpandToggle, onSelect }: AccountDataPro
                 fill="None"
                 size="300"
                 radii="0"
-                before={<Icon size="50" src={Icons.Plus} />}
+                before={chipIcon(Plus)}
                 onClick={() => onSelect(null)}
               >
                 <Box grow="Yes">
@@ -85,7 +90,7 @@ export function AccountData({ expand, onExpandToggle, onSelect }: AccountDataPro
                   fill="None"
                   size="300"
                   radii="0"
-                  after={<Icon size="50" src={Icons.ChevronRight} />}
+                  after={chipIcon(CaretRight)}
                   onClick={() => onSelect(type)}
                 >
                   <Box grow="Yes">

@@ -12,6 +12,7 @@ import {
   Spinner,
   Button,
 } from 'folds';
+import { ArrowLeft, composerIcon, menuIcon, X } from '$components/icons/phosphor';
 import type { MatrixError, StateEvents } from '$types/matrix-sdk';
 import { Page, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -30,7 +31,6 @@ import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
-import { Icon, Icons } from '$app/icons';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -265,18 +265,13 @@ export function StateEventEditor({ type, stateKey, requestClose }: StateEventEdi
       <PageHeader outlined={false} balance>
         <Box alignItems="Center" grow="Yes" gap="200">
           <Box alignItems="Inherit" grow="Yes" gap="200">
-            <Chip
-              size="500"
-              radii="Pill"
-              onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
-            >
+            <Chip size="500" radii="Pill" onClick={requestClose} before={menuIcon(ArrowLeft)}>
               <Text size="T300">Developer Tools</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

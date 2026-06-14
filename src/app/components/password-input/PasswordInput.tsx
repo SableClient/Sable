@@ -1,8 +1,8 @@
 import type { ComponentProps } from 'react';
 import { forwardRef } from 'react';
 import { IconButton, Input, config } from 'folds';
+import { Eye, EyeSlash, sizedIcon } from '$components/icons/phosphor';
 import { UseStateProvider } from '$components/UseStateProvider';
-import { Icon, Icons } from '$app/icons';
 
 type PasswordInputProps = Omit<ComponentProps<typeof Input>, 'type' | 'size'> & {
   size: '400' | '500';
@@ -31,11 +31,9 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
                   size="300"
                   radii="300"
                 >
-                  <Icon
-                    style={{ opacity: config.opacity.P300 }}
-                    size="100"
-                    src={visible ? Icons.Eye : Icons.EyeBlind}
-                  />
+                  {sizedIcon(visible ? Eye : EyeSlash, '100', {
+                    style: { opacity: config.opacity.P300 },
+                  })}
                 </IconButton>
               </>
             }

@@ -14,6 +14,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { CaretDown, composerIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
@@ -27,7 +28,6 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
-import { Icon, Icons } from '$app/icons';
 
 function PronounPillMaxCountInput({ disabled }: { disabled: boolean }) {
   const [maxCount, setMaxCount] = useSetting(settingsAtom, 'pronounPillMaxCount');
@@ -149,7 +149,7 @@ function SelectJumboEmojiSize() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">{currentSizeName}</Text>
@@ -225,7 +225,7 @@ function SelectRenderCustomProfileCards() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">{currentLabel}</Text>

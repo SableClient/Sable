@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Box, Badge, IconButton, Spinner, Text, as, toRem } from 'folds';
+import { Link, sizedIcon } from '$components/icons/phosphor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -11,7 +12,6 @@ import { Image } from '../media';
 import { UrlPreview } from './UrlPreview';
 import { VideoContent } from '../message';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../unstable/prefixes';
-import { Icon, Icons } from '$app/icons';
 
 interface OEmbed {
   type: 'photo' | 'video' | 'link' | 'rich';
@@ -73,7 +73,7 @@ type EmbedOpenButtonProps = {
 export function EmbedOpenButton({ url }: EmbedOpenButtonProps) {
   return (
     <IconButton size="300" radii="300" onClick={() => window.open(url, '_blank')}>
-      <Icon size="100" src={Icons.Link} />
+      {sizedIcon(Link, '100')}
     </IconButton>
   );
 }

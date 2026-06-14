@@ -54,6 +54,7 @@ import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useGetRoom } from '$hooks/useGetRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { CaretUp, composerIcon } from '$components/icons/phosphor';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { MembersDrawer } from '$features/room/MembersDrawer';
 import { SpaceHierarchyItem } from './SpaceHierarchyItem';
@@ -63,7 +64,6 @@ import { LobbyHero } from './LobbyHero';
 import { LobbyHeader } from './LobbyHeader';
 import { SpaceHierarchyNavItem } from './SpaceHierarchyNavItem';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
-import { Icon, Icons } from '$app/icons';
 
 const useCanDropLobbyItem = (
   space: Room,
@@ -641,7 +641,7 @@ export function Lobby() {
                       size="300"
                       aria-label="Scroll to Top"
                     >
-                      <Icon src={Icons.ChevronTop} size="300" />
+                      {composerIcon(CaretUp)}
                     </IconButton>
                   </ScrollTopContainer>
                   <div

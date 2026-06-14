@@ -21,9 +21,9 @@ import { settingsAtom } from '$state/settings';
 import { RoomAvatar } from '$components/room-avatar';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { InfoCard } from '$components/info-card';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { EventType, KnownMembership } from '$types/matrix-sdk';
-import { Icon, Icons } from '$app/icons';
 
 export type RoomIntroProps = {
   room: Room;
@@ -122,7 +122,7 @@ export const RoomIntro = as<'div', RoomIntroProps>(({ room, ...props }, ref) => 
           {isDirectConversation && (
             <InfoCard
               variant="Primary"
-              before={<Icon size="100" src={Icons.User} />}
+              before={userFallbackIcon('md')}
               beforeAlign="Center"
               description="This is a direct message"
               after={

@@ -28,8 +28,13 @@ import {
 } from '$hooks/useKeyBackup';
 import { stopPropagation } from '$utils/keyboard';
 import { useRestoreBackupOnVerification } from '$hooks/useRestoreBackupOnVerification';
+import {
+  Download,
+  DotsThreeOutlineVerticalIcon,
+  sizedIcon,
+  menuIcon,
+} from '$components/icons/phosphor';
 import { InfoCard } from './info-card';
-import { Icon, Icons } from '$app/icons';
 
 type BackupStatusProps = {
   enabled: boolean;
@@ -183,7 +188,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
             radii="300"
             onClick={handleMenu}
           >
-            <Icon size="100" src={Icons.VerticalDots} />
+            {menuIcon(DotsThreeOutlineVerticalIcon, { weight: menuCords ? 'fill' : 'regular' })}
           </IconButton>
           <PopOut
             anchor={menuCords}
@@ -232,7 +237,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
                           ? undefined
                           : handleRestore
                       }
-                      before={<Icon size="100" src={Icons.Download} />}
+                      before={sizedIcon(Download, '100')}
                     >
                       <Text size="B300">Restore Backup</Text>
                     </Button>

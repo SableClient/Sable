@@ -1,4 +1,4 @@
-import type { FormEventHandler } from 'react';
+import type { ReactNode, FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { MatrixError, RoomType } from '$types/matrix-sdk';
@@ -26,14 +26,27 @@ import {
   knockSupported,
   knockRestrictedSupported,
 } from '$utils/roomSupport';
+import { JoinRule } from '$types/matrix-sdk';
+import { getRoomIconComponent } from '$components/icons/roomIcons';
+import {
+  CaretDown,
+  CaretUp,
+  sizedIcon,
+  Warning,
+  type IconSizeToken,
+} from '$components/icons/phosphor';
 
 import { ErrorCode } from '../../cs-errorcode';
-import { Icon, Icons } from '$app/icons';
 
-const getCreateSpaceAccessToIcon = (access: CreateRoomAccess) => {
-  if (access === CreateRoomAccess.Private) return Icons.SpaceLock;
-  if (access === CreateRoomAccess.Restricted) return Icons.Space;
-  return Icons.SpaceGlobe;
+const getCreateSpaceAccessToIcon = (
+  access: CreateRoomAccess,
+  size: IconSizeToken = '400'
+): ReactNode => {
+  let joinRule: JoinRule = JoinRule.Public;
+  if (access === CreateRoomAccess.Restricted) joinRule = JoinRule.Restricted;
+  if (access === CreateRoomAccess.Private) joinRule = JoinRule.Knock;
+
+  return sizedIcon(getRoomIconComponent(RoomType.Space, joinRule), size);
 };
 
 type CreateSpaceFormProps = {
@@ -141,7 +154,7 @@ export function CreateSpaceForm({ defaultAccess, space, onCreate }: CreateSpaceF
         <Text size="L400">Name</Text>
         <Input
           required
-          before={<Icon size="100" src={getCreateSpaceAccessToIcon(access)} />}
+          before={getCreateSpaceAccessToIcon(access, '100')}
           name="nameInput"
           autoFocus
           size="500"
@@ -170,7 +183,7 @@ export function CreateSpaceForm({ defaultAccess, space, onCreate }: CreateSpaceF
           <Box grow="Yes" justifyContent="End">
             <Chip
               radii="Pill"
-              before={<Icon src={advance ? Icons.ChevronTop : Icons.ChevronBottom} size="50" />}
+              before={sizedIcon(advance ? CaretUp : CaretDown, '50')}
               onClick={() => setAdvance(!advance)}
               type="button"
             >
@@ -240,7 +253,7 @@ export function CreateSpaceForm({ defaultAccess, space, onCreate }: CreateSpaceF
 
       {error && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="200">
-          <Icon src={Icons.Warning} filled size="100" />
+          {sizedIcon(Warning, '100', { filled: true })}
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
               {error instanceof MatrixError && error.name === (ErrorCode.M_LIMIT_EXCEEDED as string)

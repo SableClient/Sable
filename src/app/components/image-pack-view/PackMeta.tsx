@@ -11,6 +11,7 @@ import {
   TextArea,
   Chip,
 } from 'folds';
+import { sizedIcon, PencilSimple } from '$components/icons/phosphor';
 import Linkify from 'linkify-react';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -26,7 +27,6 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { PackMetaReader } from '$plugins/custom-emoji';
 import { CompactUploadCardRenderer } from '$components/upload-card';
-import { Icon, Icons } from '$app/icons';
 
 type ImagePackAvatarProps = {
   url?: string;
@@ -78,7 +78,7 @@ export function ImagePackProfile({ meta, canEdit, onEdit }: ImagePackProfileProp
               variant="Secondary"
               fill="Soft"
               radii="300"
-              before={<Icon size="50" src={Icons.Pencil} />}
+              before={sizedIcon(PencilSimple, '50')}
               onClick={onEdit}
               outlined
             >

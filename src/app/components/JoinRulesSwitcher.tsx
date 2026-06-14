@@ -5,24 +5,23 @@ import { config, Box, MenuItem, Text, PopOut, Menu, Button, Spinner } from 'fold
 import { JoinRule } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
-import { getRoomIconSrc } from '$utils/room';
-import { Icon, Icons } from '$app/icons';
-import type { IconSrc } from '$app/icons';
+import { CaretDown, sizedIcon } from '$components/icons/phosphor';
+import { getRoomIconComponent, type RoomPhosphorIcon } from '$components/icons/roomIcons';
 
 export type ExtraJoinRules = 'knock_restricted';
 export type ExtendedJoinRules = JoinRule | ExtraJoinRules;
 
-type JoinRuleIcons = Record<ExtendedJoinRules, IconSrc>;
+type JoinRuleIcons = Record<ExtendedJoinRules, RoomPhosphorIcon>;
 
 export const useJoinRuleIcons = (roomType?: string): JoinRuleIcons =>
   useMemo(
     () => ({
-      [JoinRule.Invite]: getRoomIconSrc(Icons, roomType, JoinRule.Invite),
-      [JoinRule.Knock]: getRoomIconSrc(Icons, roomType, JoinRule.Knock),
-      knock_restricted: getRoomIconSrc(Icons, roomType, JoinRule.Restricted),
-      [JoinRule.Restricted]: getRoomIconSrc(Icons, roomType, JoinRule.Restricted),
-      [JoinRule.Public]: getRoomIconSrc(Icons, roomType, JoinRule.Public),
-      [JoinRule.Private]: getRoomIconSrc(Icons, roomType, JoinRule.Private),
+      [JoinRule.Invite]: getRoomIconComponent(roomType, JoinRule.Invite),
+      [JoinRule.Knock]: getRoomIconComponent(roomType, JoinRule.Knock),
+      knock_restricted: getRoomIconComponent(roomType, JoinRule.Restricted),
+      [JoinRule.Restricted]: getRoomIconComponent(roomType, JoinRule.Restricted),
+      [JoinRule.Public]: getRoomIconComponent(roomType, JoinRule.Public),
+      [JoinRule.Private]: getRoomIconComponent(roomType, JoinRule.Private),
     }),
     [roomType]
   );
@@ -99,7 +98,7 @@ export function JoinRulesSwitcher<T extends ExtendedJoinRules[]>({
                   radii="300"
                   aria-pressed={value === rule}
                   onClick={() => handleChange(rule)}
-                  before={<Icon size="100" src={icons[rule]} />}
+                  before={sizedIcon(icons[rule], '100')}
                   disabled={disabled}
                 >
                   <Box grow="Yes">
@@ -118,12 +117,12 @@ export function JoinRulesSwitcher<T extends ExtendedJoinRules[]>({
         fill="Soft"
         radii="300"
         outlined
-        before={<Icon size="100" src={icons[value] ?? icons[JoinRule.Restricted]} />}
+        before={sizedIcon(icons[value] ?? icons[JoinRule.Restricted], '100')}
         after={
           changing ? (
             <Spinner size="100" variant="Secondary" fill="Soft" />
           ) : (
-            <Icon size="100" src={Icons.ChevronBottom} />
+            sizedIcon(CaretDown, '100')
           )
         }
         onClick={handleOpenMenu}

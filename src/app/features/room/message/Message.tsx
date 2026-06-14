@@ -3,6 +3,8 @@ import {
   Avatar,
   Box,
   Chip,
+  Icon,
+  Icons,
   IconButton,
   Line,
   Menu,
@@ -58,6 +60,20 @@ import type { MemberPowerTag } from '$types/matrix/room';
 import type { StateEvents } from '$types/matrix-sdk';
 
 import { PowerIcon } from '$components/power';
+import {
+  ArrowBendUpRightIcon,
+  ChatCircleDots,
+  DotsThreeOutlineVerticalIcon,
+  Info,
+  Link,
+  menuIcon,
+  PencilSimple,
+  PushPin,
+  PushPinSlash,
+  Smiley,
+  Star,
+  userFallbackIcon,
+} from '$components/icons/phosphor';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { SwipeableMessageWrapper } from '$components/SwipeableMessageWrapper';
@@ -87,7 +103,6 @@ import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageP
 import { MessageEditor } from './MessageEditor';
 import { MobileMessageMenu } from './MobileMessageMenu';
 import * as css from './styles.css';
-import { Icon, Icons } from '$app/icons';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -150,7 +165,7 @@ export const MessageCopyLinkItem = as<
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Link} />}
+      after={menuIcon(Link)}
       radii="300"
       onClick={handleCopy}
       {...props}
@@ -225,7 +240,7 @@ export const MessagePinItem = as<
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Pin} />}
+      after={menuIcon(isPinned ? PushPinSlash : PushPin)}
       radii="300"
       onClick={handlePin}
       {...props}
@@ -813,7 +828,7 @@ function MessageInternal(
           userId={senderId}
           src={cachedAvatar}
           alt={cleanedDisplayName}
-          renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+          renderFallback={() => userFallbackIcon('md')}
         />
       </Avatar>
     </AvatarBase>
@@ -968,7 +983,7 @@ function MessageInternal(
       )}
       {isSableFeedback && (
         <Box className={css.SendStatusRow} alignItems="Center" gap="100">
-          <Icon src={Icons.Info} size="100" />
+          {menuIcon(Info)}
           <Text size="T200" priority="300" as="span">
             Only you can see this.
           </Text>
@@ -1065,7 +1080,7 @@ function MessageInternal(
   const edits =
     evtTimeline &&
     getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
-  const isEdited = edits !== undefined;
+  const isEdited = !!edits?.length;
 
   return (
     <MessageBase
@@ -1122,7 +1137,7 @@ function MessageInternal(
                     radii="300"
                     aria-pressed={!!emojiBoardAnchor}
                   >
-                    <Icon src={Icons.SmilePlus} size="100" />
+                    {menuIcon(Smiley)}
                   </IconButton>
                 </PopOut>
               )}
@@ -1136,7 +1151,7 @@ function MessageInternal(
                 size="300"
                 radii="300"
               >
-                <Icon src={Icons.ReplyArrow} size="100" />
+                {menuIcon(ArrowBendUpRightIcon)}
               </IconButton>
               {!isThreadedMessage && (
                 <IconButton
@@ -1152,7 +1167,7 @@ function MessageInternal(
                   size="300"
                   radii="300"
                 >
-                  <Icon src={Icons.ThreadPlus} size="100" />
+                  {menuIcon(ChatCircleDots)}
                 </IconButton>
               )}
               {canEditEvent(mx, mEvent) && onEditId && (
@@ -1165,7 +1180,7 @@ function MessageInternal(
                   size="300"
                   radii="300"
                 >
-                  <Icon src={Icons.Pencil} size="100" />
+                  {menuIcon(PencilSimple)}
                 </IconButton>
               )}
               <PopOut
@@ -1197,7 +1212,7 @@ function MessageInternal(
                         {canSendReaction && (
                           <MenuItem
                             size="300"
-                            after={<Icon size="100" src={Icons.SmilePlus} />}
+                            after={menuIcon(Smiley)}
                             radii="300"
                             onClick={handleAddReactions}
                           >
@@ -1217,7 +1232,7 @@ function MessageInternal(
                           !doesStickerExistInDefaultPack(mx, mEvent.getContent().url) && (
                             <MenuItem
                               size="300"
-                              after={<Icon size="100" src={Icons.Star} />}
+                              after={menuIcon(Star)}
                               radii="300"
                               onClick={() => {
                                 addStickerToDefaultPack(
@@ -1243,7 +1258,7 @@ function MessageInternal(
                         {relations && <MessageAllReactionItem room={room} relations={relations} />}
                         <MenuItem
                           size="300"
-                          after={<Icon size="100" src={Icons.ReplyArrow} />}
+                          after={menuIcon(ArrowBendUpRightIcon)}
                           radii="300"
                           data-event-id={mEvent.getId()}
                           onClick={(evt: React.MouseEvent) => {
@@ -1260,7 +1275,7 @@ function MessageInternal(
                         {!isThreadedMessage && (
                           <MenuItem
                             size="300"
-                            after={<Icon src={Icons.ThreadPlus} size="100" />}
+                            after={menuIcon(ChatCircleDots)}
                             radii="300"
                             data-event-id={mEvent.getId()}
                             onClick={(evt: React.MouseEvent) => {
@@ -1286,7 +1301,7 @@ function MessageInternal(
                         {canEditEvent(mx, mEvent) && onEditId && (
                           <MenuItem
                             size="300"
-                            after={<Icon size="100" src={Icons.Pencil} />}
+                            after={menuIcon(PencilSimple)}
                             radii="300"
                             data-event-id={mEvent.getId()}
                             onClick={() => {
@@ -1392,7 +1407,7 @@ function MessageInternal(
                           ) : (
                             <MenuItem
                               size="300"
-                              after={<Icon size="100" src={Icons.Pencil} />}
+                              after={menuIcon(PencilSimple)}
                               radii="300"
                               onClick={() => {
                                 setNickDraft(nicknames[senderId] ?? '');
@@ -1435,7 +1450,9 @@ function MessageInternal(
                   onClick={handleOpenMenu}
                   aria-pressed={!!menuAnchor}
                 >
-                  <Icon src={Icons.VerticalDots} size="100" />
+                  {menuIcon(DotsThreeOutlineVerticalIcon, {
+                    weight: menuAnchor ? 'fill' : 'regular',
+                  })}
                 </IconButton>
               </PopOut>
             </Box>
@@ -1595,7 +1612,7 @@ export const Event = as<'div', EventProps>(
     const edits =
       evtTimeline &&
       getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
-    const isEdited = edits !== undefined;
+    const isEdited = !!edits?.length;
 
     return (
       <MessageBase
@@ -1637,7 +1654,7 @@ export const Event = as<'div', EventProps>(
                           <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
                             <MenuItem
                               size="300"
-                              after={<Icon size="100" src={Icons.ReplyArrow} />}
+                              after={menuIcon(ArrowBendUpRightIcon)}
                               radii="300"
                               data-event-id={mEvent.getId()}
                               onClick={(evt: React.MouseEvent) => {
@@ -1707,7 +1724,7 @@ export const Event = as<'div', EventProps>(
                       size="300"
                       radii="300"
                     >
-                      <Icon src={Icons.ReplyArrow} size="100" />
+                      {menuIcon(ArrowBendUpRightIcon)}
                     </IconButton>
                     <IconButton
                       variant="SurfaceVariant"
@@ -1716,7 +1733,9 @@ export const Event = as<'div', EventProps>(
                       onClick={handleOpenMenu}
                       aria-pressed={!!menuAnchor}
                     >
-                      <Icon src={Icons.VerticalDots} size="100" />
+                      {menuIcon(DotsThreeOutlineVerticalIcon, {
+                        weight: menuAnchor ? 'fill' : 'regular',
+                      })}
                     </IconButton>
                   </PopOut>
                 )}

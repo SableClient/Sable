@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import { Box, Chip, Header, IconButton, Text, as } from 'folds';
+import { ArrowLeft, sizedIcon } from '$components/icons/phosphor';
 import * as css from './ImageEditor.css';
-import { Icon, Icons } from '$app/icons';
 
 export type ImageEditorProps = {
   name: string;
@@ -25,7 +25,7 @@ export const ImageEditor = as<'div', ImageEditorProps>(
         <Header className={css.ImageEditorHeader} size="400">
           <Box grow="Yes" alignItems="Center" gap="200">
             <IconButton size="300" radii="300" onClick={requestClose}>
-              <Icon size="50" src={Icons.ArrowLeft} />
+              {sizedIcon(ArrowLeft, '50')}
             </IconButton>
             <Text size="T300" truncate>
               Image Editor

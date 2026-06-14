@@ -1,16 +1,16 @@
+import type { ReactNode } from 'react';
 import { Box, Text, config } from 'folds';
+import { Check, sizedIcon } from '$components/icons/phosphor';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { CreateRoomType } from './types';
-import type { IconSrc } from '$app/icons';
-import { Icon, Icons } from '$app/icons';
 
 type CreateRoomTypeSelectorProps = {
   value?: CreateRoomType;
   onSelect: (value: CreateRoomType) => void;
   disabled?: boolean;
-  getIcon: (type: CreateRoomType) => IconSrc;
+  getIcon: (type: CreateRoomType) => ReactNode;
 };
 export function CreateRoomTypeSelector({
   value,
@@ -32,8 +32,8 @@ export function CreateRoomTypeSelector({
         disabled={disabled}
       >
         <SettingTile
-          before={<Icon size="400" src={getIcon(CreateRoomType.TextRoom)} />}
-          after={value === CreateRoomType.TextRoom && <Icon src={Icons.Check} />}
+          before={getIcon(CreateRoomType.TextRoom)}
+          after={value === CreateRoomType.TextRoom && sizedIcon(Check)}
         >
           <Box gap="200" alignItems="Baseline">
             <Text size="H6" style={{ flexShrink: 0 }}>
@@ -57,8 +57,8 @@ export function CreateRoomTypeSelector({
         disabled={disabled}
       >
         <SettingTile
-          before={<Icon size="400" src={getIcon(CreateRoomType.VoiceRoom)} />}
-          after={value === CreateRoomType.VoiceRoom && <Icon src={Icons.Check} />}
+          before={getIcon(CreateRoomType.VoiceRoom)}
+          after={value === CreateRoomType.VoiceRoom && sizedIcon(Check)}
         >
           <Box gap="200" alignItems="Baseline">
             <Text size="H6" style={{ flexShrink: 0 }}>

@@ -1,5 +1,6 @@
 import type { RectCords } from 'folds';
 import { Chip, config, Menu, MenuItem, PopOut, Text } from 'folds';
+import { CaretDown, profileIcon } from '$components/icons/phosphor';
 import type { CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
@@ -19,7 +20,6 @@ import { RoomSettingsPage } from '$state/roomSettings';
 import { PowerColorBadge, PowerIcon } from '$components/power';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
-import { Icon, Icons } from '$app/icons';
 
 export function CreatorChip({
   innerColor,
@@ -107,13 +107,7 @@ export function CreatorChip({
         variant={cardColor ? undefined : 'Success'}
         outlined={!cardColor}
         radii="Pill"
-        before={
-          cords ? (
-            <Icon size="50" src={Icons.ChevronBottom} />
-          ) : (
-            <PowerColorBadge color={tag.color} />
-          )
-        }
+        before={cords ? profileIcon(CaretDown) : <PowerColorBadge color={tag.color} />}
         after={tagIconSrc ? <PowerIcon size="50" iconSrc={tagIconSrc} /> : undefined}
         onClick={open}
         aria-pressed={!!cords}

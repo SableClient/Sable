@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 import { Box, IconButton, Text } from 'folds';
 import { Page, PageHeader } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { ArrowLeft, composerIcon, X } from '$components/icons/phosphor';
 import { settingsHeader } from './styles.css';
-import { Icon, Icons } from '$app/icons';
 
 type SettingsSectionPageProps = {
   title: ReactNode;
@@ -35,7 +35,7 @@ export function SettingsSectionPage({
           <Box grow="Yes" alignItems="Center" gap="200">
             {showBack && (
               <IconButton aria-label={backLabel ?? 'Back'} onClick={requestBack} variant="Surface">
-                <Icon src={Icons.ArrowLeft} />
+                {composerIcon(ArrowLeft)}
               </IconButton>
             )}
             <Text size="H4" as={titleAs} truncate>
@@ -44,7 +44,7 @@ export function SettingsSectionPage({
           </Box>
           <Box shrink="No">
             <IconButton aria-label={closeLabel} onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

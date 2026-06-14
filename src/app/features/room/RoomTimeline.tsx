@@ -18,6 +18,7 @@ import { VList } from 'virtua';
 import type { ContainerColor } from 'folds';
 import { as, Box, Chip, Line, Text, Badge, color, config, toRem, Spinner } from 'folds';
 import * as Sentry from '@sentry/react';
+import { ArrowDown, ChatTeardropDots, Checks, chipIcon } from '$components/icons/phosphor';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -51,7 +52,7 @@ import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useKeyboardHeight } from '$hooks/ios-keyboard-fix';
 import { settingsAtom, MessageLayout } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
+import { useHiddenEventSettings, useSetting } from '$state/hooks/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
@@ -80,7 +81,6 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
-import { Icon, Icons } from '$app/icons';
 
 const log = createLogger('RoomTimeline');
 
@@ -178,8 +178,7 @@ export function RoomTimeline({
   const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
   const [encClientUrlPreview] = useSetting(settingsAtom, 'encClientUrlPreview');
-  const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
-  const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
+  const hiddenEvents = useHiddenEventSettings(settingsAtom);
   const [showDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
@@ -1088,7 +1087,7 @@ export function RoomTimeline({
       isReadOnly,
       hideMembershipEvents,
       hideNickAvatarEvents,
-      showHiddenEvents,
+      hiddenEvents,
     },
     state: {
       focusItem: timelineSync.focusItem,
@@ -1335,8 +1334,7 @@ export function RoomTimeline({
     items: vListIndices,
     linkedTimelines: timelineSync.timeline.linkedTimelines,
     ignoredUsersSet,
-    showHiddenEvents,
-    showTombstoneEvents,
+    hiddenEvents,
     mxUserId: mx.getUserId(),
     readUptoEventId: readUptoEventIdRef.current,
     hideMembershipEvents,
@@ -1473,7 +1471,7 @@ export function RoomTimeline({
             variant="Primary"
             radii="Pill"
             outlined
-            before={<Icon size="50" src={Icons.MessageUnread} />}
+            before={chipIcon(ChatTeardropDots)}
             onClick={() => timelineSync.loadEventTimeline(unreadInfo.readUptoEventId)}
           >
             <Text size="L400">Jump to Unread</Text>
@@ -1482,7 +1480,7 @@ export function RoomTimeline({
             variant="SurfaceVariant"
             radii="Pill"
             outlined
-            before={<Icon size="50" src={Icons.CheckTwice} />}
+            before={chipIcon(Checks)}
             onClick={() => markAsRead(mx, room.roomId, hideReads)}
           >
             <Text size="L400">Mark as Read</Text>
@@ -1631,7 +1629,7 @@ export function RoomTimeline({
               variant="SurfaceVariant"
               radii="Pill"
               outlined
-              before={<Icon size="50" src={Icons.ArrowBottom} />}
+              before={chipIcon(ArrowDown)}
               onClick={() => {
                 if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
                 timelineSync.setTimeline(getInitialTimeline(room));

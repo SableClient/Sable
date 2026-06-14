@@ -1,6 +1,7 @@
 import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Box, Button, color, Spinner, Text, toRem } from 'folds';
+import { ArrowRight, CaretDown, CaretUp, File, menuIcon, X } from '$components/icons/phosphor';
 import FileSaver from 'file-saver';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -16,7 +17,6 @@ import {
 import { useAlive } from '$hooks/useAlive';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { Icon, Icons } from '$app/icons';
 
 type LocalBackupError = Error | FriendlyError;
 
@@ -156,9 +156,7 @@ function ExportKeysTile() {
               fill="Soft"
               outlined
               radii="300"
-              before={
-                <Icon size="100" src={expand ? Icons.ChevronTop : Icons.ChevronBottom} filled />
-              }
+              before={menuIcon(expand ? CaretUp : CaretDown, { weight: 'fill' })}
             >
               <Text as="span" size="B300" truncate>
                 {expand ? 'Collapse' : 'Expand'}
@@ -287,8 +285,8 @@ function ImportKeysTile() {
                 variant="Warning"
                 fill="Solid"
                 radii="300"
-                before={<Icon size="100" src={Icons.File} filled />}
-                after={<Icon size="100" src={Icons.Cross} />}
+                before={menuIcon(File, { weight: 'fill' })}
+                after={menuIcon(X)}
               >
                 <Text as="span" size="B300" truncate>
                   {file.name}
@@ -303,7 +301,7 @@ function ImportKeysTile() {
                 fill="Soft"
                 outlined
                 radii="300"
-                before={<Icon size="100" src={Icons.ArrowRight} />}
+                before={menuIcon(ArrowRight)}
               >
                 <Text as="span" size="B300">
                   Import

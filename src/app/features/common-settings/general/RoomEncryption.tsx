@@ -13,6 +13,7 @@ import {
   Spinner,
   Text,
 } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { useCallback, useState } from 'react';
 import type { MatrixError, StateEvents } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
@@ -27,7 +28,6 @@ import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { EventType } from '$types/matrix-sdk';
-import { Icon, Icons } from '$app/icons';
 
 const ROOM_ENC_ALGO = 'm.megolm.v1.aes-sha2';
 
@@ -124,7 +124,7 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
                       <Text size="H4">Enable Encryption</Text>
                     </Box>
                     <IconButton size="300" onClick={() => setPrompt(false)} radii="300">
-                      <Icon src={Icons.Cross} />
+                      {composerIcon(X)}
                     </IconButton>
                   </Header>
                   <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

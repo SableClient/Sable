@@ -1,4 +1,5 @@
 import { Box, IconButton, Scroll, Text, toRem } from 'folds';
+import { ArrowLeft, composerIcon } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import { RoomCard } from '$components/room-card';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
@@ -9,7 +10,6 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
-import { Icon, Icons } from '$app/icons';
 
 type JoinBeforeNavigateProps = { roomIdOrAlias: string; eventId?: string; viaServers?: string[] };
 export function JoinBeforeNavigate({
@@ -37,11 +37,7 @@ export function JoinBeforeNavigate({
           <Box shrink="No">
             {screenSize === ScreenSize.Mobile && (
               <BackRouteHandler>
-                {(onBack) => (
-                  <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
-                  </IconButton>
-                )}
+                {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
               </BackRouteHandler>
             )}
           </Box>

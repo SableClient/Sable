@@ -15,6 +15,7 @@ import {
   config,
   toRem,
 } from 'folds';
+import { Check, Download, Link, menuIcon, Star } from '$components/icons/phosphor';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { ThemeKind } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
@@ -46,7 +47,6 @@ import {
   type SableThemeContrast,
 } from '../../../theme/metadata';
 import { previewUrlFromFullThemeUrl } from '../../../theme/previewUrls';
-import { Icon, Icons } from '$app/icons';
 
 export type CatalogPreviewRow = ThemePair & {
   previewText: string;
@@ -159,7 +159,7 @@ function CatalogTweakCard({
                   handleCopy().catch(() => undefined);
                 }}
               >
-                <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+                {menuIcon(copied ? Check : Link)}
               </IconButton>
             )}
             {onExport && (
@@ -174,7 +174,7 @@ function CatalogTweakCard({
                   onExport();
                 }}
               >
-                <Icon size="200" src={Icons.Download} />
+                {menuIcon(Download)}
               </IconButton>
             )}
             <IconButton
@@ -188,7 +188,7 @@ function CatalogTweakCard({
                 Promise.resolve(onToggleFavorite()).catch(() => undefined);
               }}
             >
-              <Icon size="200" src={Icons.Star} filled={isFavorited} />
+              {menuIcon(Star, { weight: isFavorited ? 'fill' : 'regular' })}
             </IconButton>
             <Switch variant="Primary" value={isOn} onChange={onSetApplied} />
           </Box>

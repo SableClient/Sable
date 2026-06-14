@@ -1,6 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
+import { CaretDown, chipIcon, composerIcon, X } from '$components/icons/phosphor';
 import type { RectCords } from 'folds';
 import {
   Dialog,
@@ -31,7 +32,6 @@ import { getToday, getYesterday, timeDayMonthYear, timeHourMinute } from '$utils
 import { DatePicker, TimePicker } from '$components/time-date';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { Icon, Icons } from '$app/icons';
 
 type JumpToTimeProps = {
   onCancel: () => void;
@@ -110,7 +110,7 @@ export function JumpToTime({ onCancel, onSubmit }: JumpToTimeProps) {
                 <Text size="H4">Jump to Time</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="500">
@@ -127,7 +127,7 @@ export function JumpToTime({ onCancel, onSubmit }: JumpToTimeProps) {
                       outlined
                       radii="300"
                       aria-pressed={!!timePickerCords}
-                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                      after={chipIcon(CaretDown)}
                       onClick={handleTimePicker}
                     >
                       <Text size="B300">{timeHourMinute(ts, hour24Clock)}</Text>
@@ -168,7 +168,7 @@ export function JumpToTime({ onCancel, onSubmit }: JumpToTimeProps) {
                       outlined
                       radii="300"
                       aria-pressed={!!datePickerCords}
-                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                      after={chipIcon(CaretDown)}
                       onClick={handleDatePicker}
                     >
                       <Text size="B300">{timeDayMonthYear(ts)}</Text>

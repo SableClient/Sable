@@ -1,11 +1,11 @@
 import { IconButton, TooltipProvider, Tooltip, Text } from 'folds';
+import { navIcon, Phone } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import type { Room, TimelineEvents } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
 import { callEmbedAtom } from '$state/callEmbed';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useCallPreferences } from '$state/hooks/callPreferences';
-import { Icon, Icons } from '$app/icons';
 
 interface RoomCallButtonProps {
   room: Room;
@@ -68,7 +68,7 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
           onClick={handleStartCall}
           aria-label="Start Voice Call"
         >
-          <Icon size="400" src={Icons.Phone} />
+          {navIcon(Phone)}
         </IconButton>
       )}
     </TooltipProvider>

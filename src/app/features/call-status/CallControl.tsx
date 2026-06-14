@@ -5,10 +5,10 @@ import {
   Microphone,
   MicrophoneSlash,
   PhoneDisconnect,
-  ShareNetwork,
   SpeakerSlash,
   VideoCamera,
   VideoCameraSlash,
+  ScreenShare,
 } from '$components/icons/phosphor';
 import { useCallback } from 'react';
 import { useSetAtom } from 'jotai';
@@ -143,7 +143,7 @@ function ScreenShareButton({ enabled, onToggle, disabled }: ScreenShareButtonPro
           outlined
           disabled={disabled}
         >
-          {sizedIcon(ShareNetwork, '100', { filled: enabled })}
+          {sizedIcon(ScreenShare, '100', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>

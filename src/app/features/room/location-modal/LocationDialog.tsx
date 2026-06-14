@@ -34,7 +34,7 @@ import classNames from 'classnames';
 export function filterLocationString(result: string) {
   // OSM format
   if (result.toLowerCase().includes('lat=') && result.toLowerCase().includes('lon=')) {
-    const tokenizedResult = result.toLowerCase().split(/[ ,&?;::m]/);
+    const tokenizedResult = result.toLowerCase().split(/[ ,&?;:m]/);
     const coords: { mlat?: string; mlng?: string } = {
       mlat: tokenizedResult.find((item) => item.includes('lat='))?.substring(4),
       mlng: tokenizedResult.find((item) => item.includes('lon='))?.substring(4),

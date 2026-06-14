@@ -318,6 +318,7 @@ const readStoredSyncSummary = async (dbName: string): Promise<StoredSyncSummary 
 
         const tx = db.transaction('sync', 'readonly');
         const store = tx.objectStore('sync');
+        // matrix-js-sdk declares this store with keyPath: ['clobber'], so the IDB key is an array.
         const getReq = store.get(['-']);
         getReq.addEventListener('success', () => {
           db.close();

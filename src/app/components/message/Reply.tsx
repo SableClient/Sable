@@ -280,7 +280,9 @@ export const Reply = as<'div', ReplyProps>(
         }
       )?.question;
       image = Icons.UnorderList;
-      bodyJSX = `'s poll asking ${(question[M_TEXT.name] as string) ?? question.body ?? ''}`;
+      if (question) {
+        bodyJSX = `'s poll asking ${question[M_TEXT.name] ?? question.body ?? ''}`;
+      }
     } else if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
       if (shouldParseReplyFormattedPreview(sanitizedHtml)) {

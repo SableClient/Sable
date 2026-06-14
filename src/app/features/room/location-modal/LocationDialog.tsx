@@ -112,6 +112,19 @@ export type LocationPoint = {
   lon?: number;
 };
 
+function isValidLocationPoint(lat: number | undefined, lon: number | undefined): boolean {
+  return (
+    lat !== undefined &&
+    lon !== undefined &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lon >= -180 &&
+    lon <= 180
+  );
+}
+
 export function LocationDialog({
   onCancel,
   mx,
@@ -125,10 +138,11 @@ export function LocationDialog({
 
   const initCoords = { lat: 43.959971, lng: -59.790623 };
   const [inputPosition, setInputPosition] = useState<{ lat: string; lng: string }>({
-    lat: initCoords.lat.toPrecision(6),
-    lng: initCoords.lng.toPrecision(6),
+    lat: '',
+    lng: '',
   });
   const [pinPosition, setPinPosition] = useState<L.LatLngLiteral>(initCoords);
+  const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
   const zoom = useRef<number>(2);
   const [locationError, setLocationError] = useState<LocationErrors>(LocationErrors.none);
 
@@ -167,6 +181,7 @@ export function LocationDialog({
           movePin(e.latlng);
           setInputPosition({ lat: e.latlng.lat.toFixed(6), lng: e.latlng.lng.toFixed(6) });
           setPinPosition({ lat: e.latlng.lat, lng: e.latlng.lng });
+          setHasSelectedLocation(true);
         }
       },
     });
@@ -175,10 +190,16 @@ export function LocationDialog({
 
   function storeLocation(coords: LocationPoint) {
     setLocationError(coords.status);
-    if (!coords.lat || !coords.lon || coords.status !== LocationErrors.none) return;
-    movePin({ lat: coords.lat, lng: coords.lon });
-    setInputPosition({ lat: coords.lat.toFixed(6), lng: coords.lon.toFixed(6) });
-    setPinPosition({ lat: coords.lat, lng: coords.lon });
+    if (!isValidLocationPoint(coords.lat, coords.lon) || coords.status !== LocationErrors.none)
+      return;
+    const lat = coords.lat;
+    const lon = coords.lon;
+    if (lat === undefined || lon === undefined) return;
+
+    movePin({ lat, lng: lon });
+    setInputPosition({ lat: lat.toFixed(6), lng: lon.toFixed(6) });
+    setPinPosition({ lat, lng: lon });
+    setHasSelectedLocation(true);
     return;
   }
 
@@ -201,7 +222,7 @@ export function LocationDialog({
     function success(pos: GeolocationPosition) {
       const crd = pos.coords;
 
-      if (!crd.latitude || !crd.longitude) {
+      if (!isValidLocationPoint(crd.latitude, crd.longitude)) {
         setLocationError(LocationErrors.unknown);
         return;
       }
@@ -217,25 +238,36 @@ export function LocationDialog({
   }
   const handleLat: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;
-    const parsed = Number.parseFloat(val);
-    setInputPosition({ lat: val, lng: inputPosition.lng });
-    if (!Number.isNaN(parsed) && parsed >= -90 && parsed <= 90) {
-      movePin({ lat: parsed, lng: pinPosition.lng });
-      setPinPosition({ lat: parsed, lng: pinPosition.lng });
+    const nextPosition = { lat: val, lng: inputPosition.lng };
+    const parsedLat = Number.parseFloat(nextPosition.lat);
+    const parsedLng = Number.parseFloat(nextPosition.lng);
+    setInputPosition(nextPosition);
+    if (isValidLocationPoint(parsedLat, parsedLng)) {
+      movePin({ lat: parsedLat, lng: parsedLng });
+      setPinPosition({ lat: parsedLat, lng: parsedLng });
+      setHasSelectedLocation(true);
+    } else {
+      setHasSelectedLocation(false);
     }
   };
 
   const handleLng: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;
-    const parsed = Number.parseFloat(val);
-    setInputPosition({ lat: inputPosition.lat, lng: val });
-    if (!Number.isNaN(parsed) && parsed >= -180 && parsed <= 180) {
-      movePin({ lat: pinPosition.lat, lng: parsed });
-      setPinPosition({ lat: pinPosition.lat, lng: parsed });
+    const nextPosition = { lat: inputPosition.lat, lng: val };
+    const parsedLat = Number.parseFloat(nextPosition.lat);
+    const parsedLng = Number.parseFloat(nextPosition.lng);
+    setInputPosition(nextPosition);
+    if (isValidLocationPoint(parsedLat, parsedLng)) {
+      movePin({ lat: parsedLat, lng: parsedLng });
+      setPinPosition({ lat: parsedLat, lng: parsedLng });
+      setHasSelectedLocation(true);
+    } else {
+      setHasSelectedLocation(false);
     }
   };
 
   const handleSubmit = () => {
+    if (!hasSelectedLocation || !isValidLocationPoint(pinPosition.lat, pinPosition.lng)) return;
     const mlat = pinPosition.lat.toFixed(6);
     const mlon = pinPosition.lng.toFixed(6);
     const content: IContent = {
@@ -324,8 +356,8 @@ export function LocationDialog({
                     size="300"
                     radii="300"
                     type="number"
-                    min={-180}
-                    max={180}
+                    min={-90}
+                    max={90}
                     value={inputPosition.lat}
                     onChange={handleLat}
                     outlined
@@ -360,7 +392,7 @@ export function LocationDialog({
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <Marker position={initCoords} />
+                    {hasSelectedLocation && <Marker position={pinPosition} />}
 
                     <MapEvents />
                   </MapContainer>
@@ -372,6 +404,7 @@ export function LocationDialog({
                 title="Share Location"
                 aria-label="Share Location"
                 onClick={handleSubmit}
+                disabled={!hasSelectedLocation}
               >
                 <Text size="B400">Share Location</Text>
               </Button>

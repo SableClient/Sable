@@ -288,7 +288,7 @@ export const defaultSettings: Settings = {
   clientUrlPreview: false,
   encClientUrlPreview: false,
   clientPreviewYoutube: false,
-  showInteractiveMap: true,
+  showInteractiveMap: false,
   showEncInteractiveMap: false,
   showHiddenEvents: false,
   showTombstoneEvents: false,

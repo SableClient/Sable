@@ -650,6 +650,18 @@ type MLocationProps = {
   content: IContent;
   showMaps?: boolean;
 };
+
+function isValidGeoCoord(latitude: number, longitude: number): boolean {
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180
+  );
+}
+
 export function MLocation({ content, showMaps }: MLocationProps) {
   const geoUri = content.geo_uri;
   if (typeof geoUri !== 'string') {
@@ -657,7 +669,12 @@ export function MLocation({ content, showMaps }: MLocationProps) {
   }
   const location = parseGeoUri(geoUri);
   if (!location) return <BrokenContent />;
-  const coords: LatLngExpression = [Number(location.latitude), Number(location.longitude)];
+  const latitude = Number(location.latitude);
+  const longitude = Number(location.longitude);
+  if (!isValidGeoCoord(latitude, longitude)) {
+    return <BrokenContent body={typeof content.body === 'string' ? content.body : undefined} />;
+  }
+  const coords: LatLngExpression = [latitude, longitude];
   return (
     <Box
       direction="Column"
@@ -674,17 +691,17 @@ export function MLocation({ content, showMaps }: MLocationProps) {
         <Chip
           size="400"
           variant="SurfaceVariant"
-          onClick={() => copyToClipboard(`${location.latitude}, ${location.longitude}`)}
+          onClick={() => copyToClipboard(`${latitude}, ${longitude}`)}
           before={<Icon size="50" src={Icons.Link} />}
           className={css.LocationCoordsChip}
         >
-          <Text size="T400">{`${location.latitude}, ${location.longitude}`}</Text>
+          <Text size="T400">{`${latitude}, ${longitude}`}</Text>
         </Chip>
 
         <Chip
           as="a"
           size="400"
-          href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
+          href={`https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`}
           target="_blank"
           rel="noreferrer noopener"
           variant="Primary"

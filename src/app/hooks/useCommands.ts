@@ -1585,7 +1585,11 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           'Open location sharing menu or share a location as /location <latitude> <longitude>',
         exe: async (payload) => {
           const coords: LocationPoint = filterLocationString(payload);
-          if (!coords.lat || !coords.lon || coords.status !== LocationErrors.none) {
+          if (
+            coords.lat === undefined ||
+            coords.lon === undefined ||
+            coords.status !== LocationErrors.none
+          ) {
             sendFeedback(
               'You need to specify a latitude, and a longitude parameter, as for example: /location 43.959971 -59.790623 or have nothing after the /location to open the map to click which location to share',
               room,
@@ -1597,12 +1601,11 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const mlat = coords.lat;
           const mlon = coords.lon;
 
-          if (mlat && mlon)
-            await mx.sendMessage(room.roomId, {
-              msgtype: 'm.location',
-              geo_uri: `geo:${mlat},${mlon};u=0`,
-              body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
-            } as RoomMessageEventContent);
+          await mx.sendMessage(room.roomId, {
+            msgtype: 'm.location',
+            geo_uri: `geo:${mlat},${mlon};u=0`,
+            body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
+          } as RoomMessageEventContent);
         },
       },
       [Command.ShareMyLocation]: {
@@ -1625,8 +1628,9 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
             const mlat = crd.latitude;
             const mlon = crd.longitude;
-            const malt = crd.altitude;
-            if (!mlat || !mlon) {
+            const malt = Number.isFinite(crd.altitude) ? crd.altitude : undefined;
+            const accuracy = Number.isFinite(crd.accuracy) && crd.accuracy >= 0 ? crd.accuracy : 0;
+            if (!Number.isFinite(mlat) || !Number.isFinite(mlon)) {
               sendFeedback(
                 'Unable to retrieve the location data for an unknown reason',
                 room,
@@ -1636,7 +1640,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             }
             mx.sendMessage(room.roomId, {
               msgtype: 'm.location',
-              geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=0`,
+              geo_uri: `geo:${mlat},${mlon}${malt !== undefined ? `,${malt}` : ''};u=${accuracy}`,
               body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
             } as unknown as RoomMessageEventContent);
           }

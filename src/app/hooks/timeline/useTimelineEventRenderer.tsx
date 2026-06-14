@@ -698,6 +698,7 @@ export function useTimelineEventRenderer({
                       bundledPreview={showBundledPreview}
                       urlPreview={showUrlPreview}
                       clientUrlPreview={showClientUrlPreview}
+                      showMaps={showMaps}
                       htmlReactParserOptions={htmlReactParserOptions}
                       linkifyOpts={linkifyOpts}
                       outlineAttachment={messageLayout === MessageLayout.Bubble}

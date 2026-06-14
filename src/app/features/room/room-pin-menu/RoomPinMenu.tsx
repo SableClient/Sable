@@ -97,6 +97,7 @@ import * as css from './RoomPinMenu.css';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { EventType } from '$types/matrix-sdk';
 import { M_POLL_START } from 'matrix-js-sdk';
+import { PollEvent } from '../poll/PollEvent';
 
 const log = createLogger('RoomPinMenu');
 
@@ -226,6 +227,15 @@ function PinnedMessage(props: PinnedMessageProps) {
 
   const handleOpenClick: MouseEventHandler = useCallback(
     (evt) => {
+      const target = evt.target;
+      if (
+        target instanceof Element &&
+        target.closest(
+          'a, button, input, textarea, select, summary, [role="button"], [role="link"], [contenteditable="true"]'
+        )
+      ) {
+        return;
+      }
       evt.stopPropagation();
       onOpen(room.roomId, eventId);
     },
@@ -524,7 +534,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
             />
           );
         },
-        [M_POLL_START.name]: (event, displayName, getContent) => {
+        [M_POLL_START.name]: (event) => {
           if (event.isRedacted()) {
             const unsigned = event.getUnsigned();
             const redactionContent = unsigned.redacted_because?.content as
@@ -533,23 +543,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
             return <RedactedContent reason={redactionContent?.reason} />;
           }
 
-          return (
-            <RenderMessageContent
-              displayName={displayName}
-              msgType={event.getContent().msgtype ?? ''}
-              ts={event.getTs()}
-              getContent={getContent}
-              edited={!!event.replacingEvent()}
-              mediaAutoLoad={mediaAutoLoad}
-              urlPreview={urlPreview}
-              htmlReactParserOptions={htmlReactParserOptions}
-              linkifyOpts={linkifyOpts}
-              outlineAttachment
-              mEvent={event}
-              mx={mx}
-              room={room}
-            />
-          );
+          return <PollEvent room={room} mEvent={event} canEnd={false} outlined />;
         },
       },
       undefined,

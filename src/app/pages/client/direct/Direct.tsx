@@ -30,6 +30,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
+import type { RoomEventHandlerMap } from '$types/matrix-sdk';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryRoomIdByPriority } from '$utils/sort';
@@ -230,8 +231,15 @@ export function Direct() {
   directsSetRef.current = directs;
 
   useEffect(() => {
-    const handleTimeline = () => {
-      // Increment counter to trigger re-sort when any timeline event happens
+    const handleTimeline: RoomEventHandlerMap[RoomEvent.Timeline] = (
+      _event,
+      _room,
+      _toStartOfTimeline,
+      _removed,
+      data
+    ) => {
+      if (!data.liveEvent) return;
+      // Increment counter to trigger re-sort when a live timeline event happens.
       setActivityCounter((prev) => prev + 1);
     };
 

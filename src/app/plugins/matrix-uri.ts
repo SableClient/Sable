@@ -88,6 +88,26 @@ export const parseMatrixUri = (href: string): MatrixUriEntity | undefined => {
 
 export const testMatrixUri = (href: string): boolean => parseMatrixUri(href) !== undefined;
 
+export const matrixUriKey = (href: string): string | undefined => {
+  const entity = parseMatrixUri(href);
+  if (!entity) return undefined;
+  if (entity.kind === "user") return `u:${entity.userId.toLowerCase()}`;
+  if (entity.kind === "room") return `r:${entity.room.roomIdOrAlias.toLowerCase()}`;
+  return `e:${entity.event.roomIdOrAlias.toLowerCase()}/${entity.event.eventId.toLowerCase()}`;
+};
+
+export const isRedundantMatrixUriAnchorText = (
+  href: string,
+  anchorText: string | undefined,
+): boolean => {
+  if (anchorText == null || anchorText.trim() === "") return true;
+  const keyHref = matrixUriKey(href);
+  if (!keyHref) return false;
+  const keyText = matrixUriKey(anchorText.trim());
+  if (!keyText) return false;
+  return keyHref === keyText;
+};
+
 let matrixProtocolRegistered = false;
 
 export const registerMatrixUriProtocol = (): void => {

@@ -35,6 +35,7 @@ import {
   parseMatrixToUser,
   testMatrixTo,
 } from './matrix-to';
+import { isRedundantMatrixUriAnchorText, parseMatrixUri, testMatrixUri } from './matrix-uri';
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
 
 const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
@@ -156,7 +157,10 @@ const matrixPermalinkDisplayLabel = (
 ): ReactNode => {
   if (customChildren === undefined || customChildren === null) return fallback;
   if (typeof customChildren === 'string') {
-    return isRedundantMatrixToAnchorText(href, customChildren) ? fallback : customChildren;
+    const redundant =
+      isRedundantMatrixToAnchorText(href, customChildren) ||
+      isRedundantMatrixUriAnchorText(href, customChildren);
+    return redundant ? fallback : customChildren;
   }
   return customChildren;
 };
@@ -168,7 +172,10 @@ export const renderMatrixMention = (
   customProps: ComponentPropsWithoutRef<'a'>,
   nicknames?: Nicknames
 ) => {
-  const userId = parseMatrixToUser(href);
+  const matrixUri = parseMatrixUri(href);
+
+  const userId =
+    parseMatrixToUser(href) ?? (matrixUri?.kind === 'user' ? matrixUri.userId : undefined);
   if (userId) {
     const currentRoom = mx.getRoom(currentRoomId);
 
@@ -187,7 +194,8 @@ export const renderMatrixMention = (
     );
   }
 
-  const matrixToRoom = parseMatrixToRoom(href);
+  const matrixToRoom =
+    parseMatrixToRoom(href) ?? (matrixUri?.kind === 'room' ? matrixUri.room : undefined);
   if (matrixToRoom) {
     const { roomIdOrAlias, viaServers } = matrixToRoom;
     const mentionRoom = mx.getRoom(
@@ -212,7 +220,8 @@ export const renderMatrixMention = (
     );
   }
 
-  const matrixToRoomEvent = parseMatrixToRoomEvent(href);
+  const matrixToRoomEvent =
+    parseMatrixToRoomEvent(href) ?? (matrixUri?.kind === 'event' ? matrixUri.event : undefined);
   if (matrixToRoomEvent) {
     const { roomIdOrAlias, eventId, viaServers } = matrixToRoomEvent;
     const mentionRoom = mx.getRoom(
@@ -296,7 +305,7 @@ export const factoryRenderLinkifyWithMention = (
     const encodedHref = attributes.href;
     const decodedHref = encodedHref && safeDecodeUrl(encodedHref);
 
-    if (tagName === 'a' && decodedHref && testMatrixTo(decodedHref)) {
+    if (tagName === 'a' && decodedHref && (testMatrixTo(decodedHref) || testMatrixUri(decodedHref))) {
       const mention = mentionRender(decodedHref);
       if (mention) return mention;
     }
@@ -727,7 +736,7 @@ export const getReactCustomHtmlParser = (
             ? undefined
             : children.map((c) => (c instanceof DOMText ? c.data : '')).join();
 
-          if (decodedHref && testMatrixTo(decodedHref)) {
+          if (decodedHref && (testMatrixTo(decodedHref) || testMatrixUri(decodedHref))) {
             const mention = renderMatrixMention(
               mx,
               roomId,

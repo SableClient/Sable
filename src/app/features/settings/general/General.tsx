@@ -1118,12 +1118,7 @@ function Messages() {
           }
         />
       </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
-      >
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Edit Events"
           focusId="hidden-event-edits"
@@ -1154,7 +1149,6 @@ function Messages() {
               value={showTombstoneEvents}
               onChange={setShowTombstoneEvents}
               title={getTombstoneSettingToggleTitle(showTombstoneEvents)}
-              disabled={!showHiddenEvents}
             />
           }
         />

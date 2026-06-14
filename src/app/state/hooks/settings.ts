@@ -18,7 +18,7 @@ export const resolveHiddenEventSettings = (settings: Settings): ResolvedHiddenEv
   const { showHiddenEvents } = settings;
   return {
     showHiddenEvents,
-    showTombstoneEvents: showHiddenEvents && settings.showTombstoneEvents,
+    showTombstoneEvents: settings.showTombstoneEvents,
     hiddenEventEdits: showHiddenEvents && settings.hiddenEventEdits,
     hiddenEventRedactionTimeline: showHiddenEvents && settings.hiddenEventRedactionTimeline,
     hiddenEventReactions: showHiddenEvents && settings.hiddenEventReactions,

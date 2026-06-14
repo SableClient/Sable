@@ -2,6 +2,7 @@ import type { IconProps } from '@phosphor-icons/react';
 import {
   ArrowsDownUpIcon,
   ArrowBendUpRightIcon,
+  ArrowBendUpLeftIcon,
   ArrowDownIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -232,6 +233,7 @@ export function userFallbackIcon(size: UserFallbackSize = 'md', props?: IconProp
 export {
   ArrowsDownUpIcon as ArrowsDownUp,
   ArrowBendUpRightIcon,
+  ArrowBendUpLeftIcon,
   ArrowDownIcon as ArrowDown,
   ArrowLeftIcon as ArrowLeft,
   ArrowRightIcon as ArrowRight,

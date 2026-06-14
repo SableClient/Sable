@@ -117,6 +117,95 @@ function PronounPillMaxLengthInput({ disabled }: { disabled: boolean }) {
   );
 }
 
+function IconSizePxInput({
+  settingKey,
+  disabled,
+}: {
+  settingKey: 'iconCompactSizePx' | 'iconInlineSizePx' | 'iconToolbarSizePx' | 'iconEmptySizePx';
+  disabled?: boolean;
+}) {
+  const [sizePx, setSizePx] = useSetting(settingsAtom, settingKey);
+  const [inputValue, setInputValue] = useState(sizePx.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed) && parsed >= 0) {
+      setSizePx(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(sizePx.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={Number.parseInt(inputValue, 10) === sizePx ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="0"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      disabled={disabled}
+      outlined
+    />
+  );
+}
+
+function IconSizeSettings() {
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Icon Sizes</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Compact Icon Size"
+          focusId="icon-compact-size"
+          description="Small icons such as profile chips (default 16px)."
+          after={<IconSizePxInput settingKey="iconCompactSizePx" />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Inline Icon Size"
+          focusId="icon-inline-size"
+          description="Menu items and timeline events (default 20px)."
+          after={<IconSizePxInput settingKey="iconInlineSizePx" />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Toolbar Icon Size"
+          focusId="icon-toolbar-size"
+          description="Composer controls and header icons (default 24px)."
+          after={<IconSizePxInput settingKey="iconToolbarSizePx" />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Empty State Icon Size"
+          focusId="icon-empty-size"
+          description="Other stuff (default 32px)."
+          after={<IconSizePxInput settingKey="iconEmptySizePx" />}
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
+
 const emojiSizeItems = [
   { id: 'none', name: 'None (Same size as text)' },
   { id: 'extraSmall', name: 'Extra Small' },
@@ -494,6 +583,7 @@ export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
               {!themeBrowserOpen && (
                 <>
                   <IdentityCosmetics />
+                  <IconSizeSettings />
                   <JumboEmoji />
                   <Privacy />
                   <LanguageSpecificPronouns />

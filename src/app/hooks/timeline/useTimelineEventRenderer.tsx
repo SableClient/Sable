@@ -1426,6 +1426,8 @@ export function useTimelineEventRenderer({
         );
       },
       [EventType.Reaction]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        if (hideMemberInReadOnly && isReadOnly) return null;
+
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const marked = activeReplyId === mEventId;
         const senderId = mEvent.getSender() ?? '';
@@ -1544,6 +1546,7 @@ export function useTimelineEventRenderer({
         const target = getRedactionTargetEvent(timelineSet, mEvent);
         const isReactionRedaction = target?.getType() === (EventType.Reaction as string);
         if (isReactionRedaction) {
+          if (hideMemberInReadOnly && isReadOnly) return null;
           if (!hiddenEventReactionRedactionTimeline) return null;
         } else if (!hiddenEventRedactionTimeline) {
           return null;

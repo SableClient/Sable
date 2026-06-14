@@ -16,7 +16,7 @@ import { useInboxSelected } from '$hooks/router/useInbox';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useInviteCount } from '$hooks/useInviteCount';
-import { PHOSPHOR_SIZE, Tray } from '$components/icons/phosphor';
+import { getPhosphorSize, Tray } from '$components/icons/phosphor';
 
 export function InboxTab() {
   const screenSize = useScreenSizeContext();
@@ -45,7 +45,7 @@ export function InboxTab() {
       <SidebarItemTooltip tooltip="Inbox">
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleInboxClick}>
-            <Tray size={PHOSPHOR_SIZE.toolbar} weight={inboxSelected ? 'fill' : 'regular'} />
+            <Tray size={getPhosphorSize().toolbar} weight={inboxSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

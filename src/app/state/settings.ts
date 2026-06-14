@@ -161,6 +161,10 @@ export interface Settings {
   searchIndexMessageLimit: number;
 
   // Cosmetics!
+  iconCompactSizePx: number;
+  iconInlineSizePx: number;
+  iconToolbarSizePx: number;
+  iconEmptySizePx: number;
   jumboEmojiSize: JumboEmojiSize;
   privacyBlur: boolean;
   privacyBlurAvatars: boolean;
@@ -336,6 +340,10 @@ export const defaultSettings: Settings = {
   searchIndexMessageLimit: 2000,
 
   // Cosmetics!
+  iconCompactSizePx: 16,
+  iconInlineSizePx: 20,
+  iconToolbarSizePx: 24,
+  iconEmptySizePx: 32,
   jumboEmojiSize: 'normal',
   privacyBlur: false,
   privacyBlurAvatars: false,
@@ -497,6 +505,10 @@ const JUMBO_EMOJI_VALUES = new Set<JumboEmojiSize>([
   'extraLarge',
 ]);
 
+function sanitizeIconSizePx(val: unknown): number | undefined {
+  return typeof val === 'number' && Number.isInteger(val) && val >= 0 ? val : undefined;
+}
+
 function sanitizeStringArray(val: unknown): string[] | undefined {
   if (!Array.isArray(val)) return undefined;
   const out = val.filter((x): x is string => typeof x === 'string');
@@ -586,6 +598,11 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         : undefined;
     case 'pixelatedImageRendering':
       return val === 'always' || val === 'smart' || val === 'never' ? val : undefined;
+    case 'iconCompactSizePx':
+    case 'iconInlineSizePx':
+    case 'iconToolbarSizePx':
+    case 'iconEmptySizePx':
+      return sanitizeIconSizePx(val);
     case 'jumboEmojiSize':
       return typeof val === 'string' && JUMBO_EMOJI_VALUES.has(val as JumboEmojiSize)
         ? val

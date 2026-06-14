@@ -150,7 +150,7 @@ import {
   menuIcon,
   Microphone,
   PaperPlaneTilt,
-  PHOSPHOR_SIZE,
+  getPhosphorSize,
   PlusCircle,
   Stop,
   X,
@@ -1917,7 +1917,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               >
                 {showAudioRecorder ? (
                   <Stop
-                    size={PHOSPHOR_SIZE.toolbar}
+                    size={getPhosphorSize().toolbar}
                     weight="fill"
                     style={{ color: color.Critical.Main }}
                   />

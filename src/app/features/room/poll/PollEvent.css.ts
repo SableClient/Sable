@@ -1,5 +1,28 @@
 import { style } from '@vanilla-extract/css';
-import { color, config } from 'folds';
+import { color, config, toRem } from 'folds';
+
+export const PollEvent = style({
+  backgroundColor: color.Background.Container,
+  maxWidth: toRem(500),
+  borderRadius: config.radii.R500,
+  padding: config.space.S200,
+  textAlign: 'justify',
+});
+
+export const PollHeader = style({
+  color: color.Primary.Main,
+});
+
+export const PollEventSeparator = style({
+  width: '99%',
+  alignSelf: 'center',
+});
+
+export const PollAnswersBody = style({});
+
+export const PollAnswerItem = style({});
+
+export const PollAnswerBar = style({});
 
 export const RadioZone = style({
   display: 'flex',
@@ -19,7 +42,6 @@ export const RadioZone = style({
 export const AnswerTextButton = style({
   display: 'flex',
   alignItems: 'center',
-  gap: config.space.S200,
   flexGrow: 1,
   minWidth: 0,
   padding: 0,
@@ -28,12 +50,36 @@ export const AnswerTextButton = style({
   cursor: 'pointer',
   textAlign: 'left',
   color: color.Surface.OnContainer,
+  selectors: {
+    '&:disabled': {
+      cursor: 'default',
+    },
+  },
 });
 
-export const AnswerTextRow = style({
-  display: 'flex',
-  alignItems: 'center',
-  gap: config.space.S200,
-  flexGrow: 1,
-  minWidth: 0,
+export const PollAnswerCount = style({
+  color: color.SurfaceVariant.OnContainer,
+  paddingLeft: config.space.S100,
+  flexShrink: 0,
+});
+
+export const AnswerCountButton = style([
+  PollAnswerCount,
+  {
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+  },
+]);
+
+export const PollFooter = style({
+  flexWrap: 'wrap',
+});
+
+export const PollFooterMeta = style({
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
 });

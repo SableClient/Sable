@@ -274,6 +274,7 @@ export interface TimelineEventRendererOptions {
     showUrlPreview: boolean;
     showBundledPreview: boolean;
     showClientUrlPreview: boolean;
+    showMaps?: boolean;
     autoplayStickers: boolean;
     hideMemberInReadOnly: boolean;
     isReadOnly: boolean;
@@ -287,6 +288,7 @@ export interface TimelineEventRendererOptions {
     editId?: string;
     activeReplyId?: string;
     openThreadId?: string;
+    suppressMark?: boolean;
   };
   permissions: {
     canRedact: boolean;
@@ -330,6 +332,7 @@ export function useTimelineEventRenderer({
     showBundledPreview,
     showUrlPreview,
     showClientUrlPreview,
+    showMaps,
     autoplayStickers,
     hideMemberInReadOnly,
     isReadOnly,
@@ -338,7 +341,7 @@ export function useTimelineEventRenderer({
     showHiddenEvents,
     hideThreadChip,
   },
-  state: { focusItem, editId, activeReplyId, openThreadId },
+  state: { focusItem, editId, activeReplyId, openThreadId, suppressMark },
   permissions: { canRedact, canDeleteOwn, canSendReaction, canPinEvent },
   callbacks: {
     onUserClick,
@@ -376,7 +379,7 @@ export function useTimelineEventRenderer({
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
         const hasReactions = reactions && reactions.length > 0;
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && !suppressMark;
 
         const pushActions = pushProcessor.actionsForEvent(mEvent);
         let notifyHighlight: 'silent' | 'loud' | undefined;
@@ -512,9 +515,12 @@ export function useTimelineEventRenderer({
                 urlPreview={showUrlPreview}
                 bundledPreview={showBundledPreview}
                 clientUrlPreview={showClientUrlPreview}
+                showMaps={showMaps}
                 htmlReactParserOptions={htmlReactParserOptions}
                 linkifyOpts={linkifyOpts}
                 outlineAttachment={messageLayout === MessageLayout.Bubble}
+                mx={mx}
+                room={room}
               />
             )}
           </Message>
@@ -537,7 +543,7 @@ export function useTimelineEventRenderer({
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
         const hasReactions = reactions && reactions.length > 0;
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && !suppressMark;
         const senderId = mEvent.getSender() ?? '';
         const senderDisplayName =
           getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
@@ -679,7 +685,11 @@ export function useTimelineEventRenderer({
                     <RenderMessageContent
                       displayName={senderDisplayName}
                       msgType={
-                        ((editedNewContent ?? safeContent) as { msgtype?: string }).msgtype ?? ''
+                        (
+                          (editedNewContent ?? safeContent) as {
+                            msgtype?: string;
+                          }
+                        ).msgtype ?? ''
                       }
                       ts={mEvent.getTs()}
                       edited={!!editedEvent}
@@ -691,6 +701,8 @@ export function useTimelineEventRenderer({
                       htmlReactParserOptions={htmlReactParserOptions}
                       linkifyOpts={linkifyOpts}
                       outlineAttachment={messageLayout === MessageLayout.Bubble}
+                      mx={mx}
+                      room={room}
                     />
                   );
                 }
@@ -931,7 +943,7 @@ export function useTimelineEventRenderer({
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
         const hasReactions = reactions && reactions.length > 0;
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && !suppressMark;
         const senderId = mEvent.getSender() ?? '';
         const senderDisplayName =
           getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
@@ -1044,7 +1056,7 @@ export function useTimelineEventRenderer({
         if (!membershipChanged && hideNickAvatarEvents) return null;
 
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && !suppressMark;
         const parsed = parseMemberEvent(mEvent);
 
         const timeJSX = (
@@ -1089,7 +1101,7 @@ export function useTimelineEventRenderer({
       },
       [EventType.RoomName]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && !suppressMark;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -1136,7 +1148,7 @@ export function useTimelineEventRenderer({
       },
       [EventType.RoomTopic]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && !suppressMark;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -1184,7 +1196,7 @@ export function useTimelineEventRenderer({
       },
       [EventType.RoomAvatar]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && !suppressMark;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -1232,7 +1244,7 @@ export function useTimelineEventRenderer({
       },
       [EventType.GroupCallMemberPrefix]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && !suppressMark;
         const senderId = mEvent.getSender() ?? '';
         const senderName = getMemberDisplayName(room, senderId) || getMxIdLocalPart(senderId);
 
@@ -1288,7 +1300,7 @@ export function useTimelineEventRenderer({
       [EventType.RoomPinnedEvents]: (mEventId, mEvent, item, timelineSet, collapse) => {
         if (!showHiddenEvents) return null;
         const highlighted = focusItem?.index === item && focusItem.highlight;
-        const marked = activeReplyId === mEventId;
+        const marked = activeReplyId === mEventId && !suppressMark;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -1342,7 +1354,9 @@ export function useTimelineEventRenderer({
                       ''}
                     {(pinsAdded?.length > 0 && pinsRemoved?.length > 0 && ` and `) || ''}
                     {(pinsRemoved?.length > 0 &&
-                      `unpinned ${pinsRemoved.length} message${pinsRemoved.length > 1 ? 's' : ''}`) ||
+                      `unpinned ${pinsRemoved.length} message${
+                        pinsRemoved.length > 1 ? 's' : ''
+                      }`) ||
                       ''}
                     {((!pinsAdded || pinsAdded.length <= 0) &&
                       (!pinsRemoved || pinsRemoved.length <= 0) &&
@@ -1375,7 +1389,7 @@ export function useTimelineEventRenderer({
     (mEventId, mEvent, item, timelineSet, collapse) => {
       if (!showHiddenEvents) return null;
       const highlighted = focusItem?.index === item && focusItem.highlight;
-      const marked = activeReplyId === mEventId;
+      const marked = activeReplyId === mEventId && !suppressMark;
       const senderId = mEvent.getSender() ?? '';
       const senderName =
         getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -1430,7 +1444,7 @@ export function useTimelineEventRenderer({
       if (mEvent.isRedaction()) return null;
 
       const highlighted = focusItem?.index === item && focusItem.highlight;
-      const marked = activeReplyId === mEventId;
+      const marked = activeReplyId === mEventId && !suppressMark;
       const senderId = mEvent.getSender() ?? '';
       const senderName =
         getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);

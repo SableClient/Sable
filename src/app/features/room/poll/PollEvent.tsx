@@ -5,8 +5,6 @@ import {
   Button,
   Checkbox,
   config,
-  Icon,
-  Icons,
   Line,
   Menu,
   PopOut,
@@ -27,12 +25,6 @@ import {
 import type { MatrixEvent, Room, TimelineEvents } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { stopPropagation } from '$utils/keyboard';
-import {
-  Attachment,
-  AttachmentBox,
-  AttachmentContent,
-  AttachmentHeader,
-} from '$components/message/attachment/Attachment';
 import * as css from './PollEvent.css';
 
 type PollAnswer = { id: string; text: string };
@@ -302,160 +294,186 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
   const { question, answers, isDisclosed, closesAt, maxSelections } = pollData;
   const isMultiSelect = maxSelections > 1;
   const voterLabel = `${totalVoters} ${totalVoters === 1 ? 'voter' : 'voters'}`;
+  const totalVotes = [...tally.values()].reduce((sum, voters) => sum + voters.size, 0);
+  const voteLabel = `${totalVotes} vote${totalVotes === 1 ? '' : 's'}`;
 
-  let statusText: string;
-  if (isEnded) statusText = `Poll ended · ${voterLabel}`;
-  else if (isExpiredByTime) statusText = `Poll expired · ${voterLabel}`;
-  else if (closesAt !== undefined && !isDisclosed)
-    statusText = `${voterLabel} · Results hidden until closed · Closes ${formatExpiry(closesAt)}`;
-  else if (closesAt !== undefined) statusText = `${voterLabel} · Closes ${formatExpiry(closesAt)}`;
-  else if (!isDisclosed) statusText = `${voterLabel} · Results hidden until closed`;
-  else statusText = voterLabel;
+  let resultStatusText: string;
+  if (showResults) {
+    resultStatusText = totalVotes !== totalVoters ? `${voteLabel} by ${voterLabel}` : voteLabel;
+  } else {
+    resultStatusText = isDisclosed
+      ? 'Cast a vote to see ongoing results'
+      : 'Results hidden until closed';
+  }
+
+  let timeStatusText = '';
+  if (isEnded) timeStatusText = 'Poll ended';
+  else if (isExpiredByTime) timeStatusText = 'Poll expired';
+  else if (closesAt !== undefined) timeStatusText = `Closes ${formatExpiry(closesAt)}`;
+
+  let winnerStatusText = '';
+  if (effectivelyEnded && showResults && totalVotes > 0) {
+    const answerResults = answers.map((answer) => ({
+      answer,
+      voteCount: tally.get(answer.id)?.size ?? 0,
+    }));
+    const winningVoteCount = Math.max(...answerResults.map((result) => result.voteCount));
+    const winners = answerResults.filter((result) => result.voteCount === winningVoteCount);
+    const winnerNames = winners.map(({ answer }) => answer.text || '(no option)');
+    const visibleWinnerNames = winnerNames.slice(0, 3);
+    const hiddenWinnerCount = winnerNames.length - visibleWinnerNames.length;
+    const winnerList = `${visibleWinnerNames.join(', ')}${
+      hiddenWinnerCount > 0 ? ` +${hiddenWinnerCount}` : ''
+    }`;
+
+    winnerStatusText = `${winners.length === 1 ? 'Winner' : 'Winners'}: ${winnerList}`;
+  }
 
   return (
-    <Attachment outlined={outlined}>
-      <AttachmentHeader>
-        <Box grow="Yes">
-          <Text size="T300" priority="300">
-            {isDisclosed ? 'Poll' : 'Undisclosed Poll'}
-          </Text>
-        </Box>
-        <Text size="T300" priority="300">
-          {voterLabel}
-        </Text>
-      </AttachmentHeader>
-      <AttachmentBox>
-        <AttachmentContent>
-          <Box direction="Column" gap="300">
-            <Text size="H5">{question || '(no question)'}</Text>
-            <Line variant="Surface" size="300" />
-            <Box direction="Column" gap="200">
-              {answers.map((answer) => {
-                const voteCount = tally.get(answer.id)?.size ?? 0;
-                const percent = totalVoters > 0 ? Math.round((voteCount / totalVoters) * 100) : 0;
-                const isSelected = myVote.includes(answer.id);
+    <Box
+      direction="Column"
+      gap="200"
+      className={css.PollEvent}
+      data-poll-outlined={outlined ? 'true' : undefined}
+    >
+      <Box className={css.PollHeader} shrink="No">
+        <Text size="T400">{question || '(no question)'}</Text>
+      </Box>
+      <Line direction="Horizontal" variant="SurfaceVariant" className={css.PollEventSeparator} />
+      <Box direction="Column" gap="300" className={css.PollAnswersBody}>
+        {answers.map((answer) => {
+          const voteCount = tally.get(answer.id)?.size ?? 0;
+          const percent = totalVoters > 0 ? Math.round((voteCount / totalVoters) * 100) : 0;
+          const isSelected = myVote.includes(answer.id);
+          const voteCountText = `(${voteCount} vote${voteCount === 1 ? '' : 's'})`;
 
-                let textZone: ReactNode;
-                if (canShowVoters && voteCount > 0) {
-                  textZone = (
-                    <button
-                      type="button"
-                      className={css.AnswerTextButton}
-                      onClick={(e) =>
-                        toggleVoters(answer.id, e.currentTarget.getBoundingClientRect())
-                      }
-                      aria-expanded={expandedVoters?.id === answer.id}
-                      aria-label={`${answer.text}, ${percent}%, ${
-                        expandedVoters?.id === answer.id ? 'hide' : 'show'
-                      } voters`}
-                    >
-                      <Text size="T300" style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                        {answer.text}
-                      </Text>
-                      <Text size="T200" priority="300" style={{ flexShrink: 0 }}>
-                        {expandedVoters?.id === answer.id ? '\u25BE' : '\u25B8'} {percent}%
-                      </Text>
-                    </button>
-                  );
-                } else if (!effectivelyEnded) {
-                  textZone = (
-                    <button
-                      type="button"
-                      className={css.AnswerTextButton}
-                      onClick={() => handleAnswerClick(answer.id)}
-                      aria-pressed={isSelected}
-                      aria-label={answer.text}
-                    >
-                      <Text size="T300" style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                        {answer.text}
-                      </Text>
-                      {showResults && (
-                        <Text size="T200" priority="300" style={{ flexShrink: 0 }}>
-                          {percent}%
-                        </Text>
-                      )}
-                    </button>
-                  );
-                } else {
-                  textZone = (
-                    <span className={css.AnswerTextRow}>
-                      <Text size="T300" style={{ flex: 1, minWidth: 0 }}>
-                        {answer.text}
-                      </Text>
-                      {showResults && (
-                        <Text size="T200" priority="300" style={{ flexShrink: 0 }}>
-                          {percent}%
-                        </Text>
-                      )}
-                    </span>
-                  );
-                }
-
-                return (
-                  <Box
-                    key={answer.id}
-                    direction="Column"
-                    gap="100"
-                    style={{ opacity: effectivelyEnded && !isSelected ? 0.7 : 1 }}
-                  >
-                    <Box direction="Row" alignItems="Center" gap="200">
-                      <button
-                        type="button"
-                        className={css.RadioZone}
-                        onClick={() => handleAnswerClick(answer.id)}
-                        disabled={effectivelyEnded}
-                        aria-pressed={isSelected}
-                        aria-label={`Vote for ${answer.text}`}
-                      >
-                        {isMultiSelect ? (
-                          <Checkbox size="50" checked={isSelected} readOnly tabIndex={-1} />
-                        ) : (
-                          <RadioButton size="50" checked={isSelected} readOnly tabIndex={-1} />
-                        )}
-                      </button>
-                      {textZone}
-                    </Box>
-                    {showResults && (
-                      <ProgressBar
-                        value={voteCount}
-                        max={Math.max(totalVoters, 1)}
-                        variant={isSelected ? 'Primary' : 'Secondary'}
-                        fill="Soft"
-                        size="300"
-                        radii="Pill"
-                      />
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
-            <Line variant="Surface" size="300" />
-            <Box
-              direction="Row"
-              alignItems="Center"
-              justifyContent="SpaceBetween"
-              gap="200"
-              style={{ flexWrap: 'wrap' }}
-            >
-              <Text size="T200" priority="300">
-                {statusText}
-              </Text>
-              {!effectivelyEnded && canEnd && (
-                <Button
+          let countZone: ReactNode = null;
+          if (showResults) {
+            if (canShowVoters && voteCount > 0) {
+              countZone = (
+                <button
                   type="button"
-                  variant="Critical"
-                  size="300"
-                  radii="300"
-                  before={<Icon size="100" src={Icons.Cross} />}
-                  onClick={endPoll}
+                  className={css.AnswerCountButton}
+                  title={`${percent}%`}
+                  onClick={(e) => toggleVoters(answer.id, e.currentTarget.getBoundingClientRect())}
+                  aria-expanded={expandedVoters?.id === answer.id}
+                  aria-label={`${voteCountText} for ${answer.text}, ${percent}%, ${
+                    expandedVoters?.id === answer.id ? 'hide' : 'show'
+                  } voters`}
                 >
-                  <Text size="B300">End Poll</Text>
-                </Button>
+                  <Text size="T200">{voteCountText}</Text>
+                </button>
+              );
+            } else {
+              countZone = (
+                <Text size="T200" className={css.PollAnswerCount} title={`${percent}%`}>
+                  {voteCountText}
+                </Text>
+              );
+            }
+          }
+
+          return (
+            <Box key={answer.id} gap="100" direction="Column" className={css.PollAnswerItem}>
+              <Box gap="100" alignItems="Center">
+                <button
+                  type="button"
+                  className={css.RadioZone}
+                  onClick={() => handleAnswerClick(answer.id)}
+                  disabled={effectivelyEnded}
+                  aria-pressed={isSelected}
+                  aria-label={`Vote for ${answer.text}`}
+                >
+                  {isMultiSelect ? (
+                    <Checkbox
+                      size="100"
+                      variant={isSelected ? 'Primary' : 'Secondary'}
+                      checked={isSelected}
+                      readOnly
+                      tabIndex={-1}
+                    />
+                  ) : (
+                    <RadioButton
+                      size="100"
+                      variant={isSelected ? 'Primary' : 'Secondary'}
+                      checked={isSelected}
+                      readOnly
+                      tabIndex={-1}
+                    />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className={css.AnswerTextButton}
+                  onClick={() => handleAnswerClick(answer.id)}
+                  disabled={effectivelyEnded}
+                  aria-pressed={isSelected}
+                  aria-label={answer.text}
+                >
+                  <Text size="T300" truncate>
+                    {answer.text}
+                  </Text>
+                </button>
+                {countZone}
+              </Box>
+              {showResults && (
+                <ProgressBar
+                  value={voteCount}
+                  max={Math.max(totalVoters, 1)}
+                  variant={isSelected ? 'Primary' : 'Secondary'}
+                  fill="Soft"
+                  size="400"
+                  title={`${percent}%`}
+                  className={css.PollAnswerBar}
+                />
               )}
             </Box>
+          );
+        })}
+        <Box
+          gap="200"
+          grow="Yes"
+          shrink="No"
+          justifyContent="SpaceBetween"
+          alignItems="Center"
+          className={css.PollFooter}
+        >
+          <Box direction="Column" gap="100">
+            <Text size="T200" priority="300">
+              {resultStatusText}
+            </Text>
+            {winnerStatusText && (
+              <Text size="T200" priority="300" title={winnerStatusText} truncate>
+                {winnerStatusText}
+              </Text>
+            )}
           </Box>
-        </AttachmentContent>
-      </AttachmentBox>
+          <Box alignItems="Center" gap="200" className={css.PollFooterMeta}>
+            {timeStatusText && (
+              <Text size="T200" priority="300">
+                {timeStatusText}
+              </Text>
+            )}
+            {maxSelections !== 1 && maxSelections !== answers.length && (
+              <Text size="T200" priority="300">
+                Max {maxSelections} options.
+              </Text>
+            )}
+            {!effectivelyEnded && canEnd && (
+              <Button
+                type="button"
+                variant="Critical"
+                fill="Soft"
+                size="300"
+                radii="400"
+                onClick={endPoll}
+              >
+                <Text size="B300">End Poll</Text>
+              </Button>
+            )}
+          </Box>
+        </Box>
+      </Box>
       {expandedVoters && canShowVoters && (
         <PopOut
           anchor={expandedVoters.anchor}
@@ -502,6 +520,6 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
           }
         />
       )}
-    </Attachment>
+    </Box>
   );
 }

@@ -70,4 +70,27 @@ describe('useMediaMetadata', () => {
 
     expect(result.current).toBe(freshMetadata);
   });
+
+  it('does not return stale metadata when the cache key changes', async () => {
+    const firstMetadata = {
+      cachedAt: Date.now(),
+      height: 60,
+      kind: 'image' as const,
+      width: 120,
+    };
+    mediaMetadata.emit(firstMetadata);
+    mediaMetadata.getMediaMetadata.mockResolvedValue(undefined);
+    const { useMediaMetadata } = await import('./useMediaMetadata');
+
+    const { rerender, result } = renderHook(({ cacheKey }) => useMediaMetadata(cacheKey), {
+      initialProps: { cacheKey: 'session:https://example.org/first.png' },
+    });
+
+    expect(result.current).toBe(firstMetadata);
+
+    mediaMetadata.clear();
+    rerender({ cacheKey: 'session:https://example.org/second.png' });
+
+    expect(result.current).toBeUndefined();
+  });
 });

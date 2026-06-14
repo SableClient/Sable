@@ -65,6 +65,40 @@ describe('mediaMetadata', () => {
     unsubscribe();
   });
 
+  it('merges later metadata without dropping existing dimensions', async () => {
+    const { getMediaMetadataSnapshot, storeMediaMetadataForBlob } = await import('./mediaMetadata');
+    const cacheKey = 'session:https://example.org/image.png';
+
+    await storeMediaMetadataForBlob(cacheKey, new Blob(['image'], { type: 'image/png' }), 'image');
+    await storeMediaMetadataForBlob(
+      cacheKey,
+      new Blob(['generic'], { type: 'application/octet-stream' })
+    );
+
+    expect(getMediaMetadataSnapshot(cacheKey)).toMatchObject({
+      byteSize: 7,
+      height: 60,
+      kind: 'image',
+      width: 120,
+    });
+  });
+
+  it('can store measured dimensions without aliasing thumbnail byte size', async () => {
+    const { getMediaMetadataSnapshot, storeMediaMetadataForBlob } = await import('./mediaMetadata');
+    const cacheKey = 'session:https://example.org/preview.png';
+
+    await storeMediaMetadataForBlob(cacheKey, new Blob(['thumb'], { type: 'image/png' }), 'image', {
+      includeByteSize: false,
+    });
+
+    expect(getMediaMetadataSnapshot(cacheKey)).toMatchObject({
+      height: 60,
+      kind: 'image',
+      width: 120,
+    });
+    expect(getMediaMetadataSnapshot(cacheKey)?.byteSize).toBeUndefined();
+  });
+
   it('persists scoped metadata keys as valid cache requests', async () => {
     const cache = {
       delete: vi.fn(async () => true),

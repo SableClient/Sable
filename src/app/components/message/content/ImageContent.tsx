@@ -175,10 +175,10 @@ export const ImageContent = as<'div', ImageContentProps>(
         if (url.startsWith('http')) return url;
 
         if (typeof matrixThumbnailMaxEdge === 'number' && matrixThumbnailMaxEdge > 0 && !encInfo) {
-          const requestKey = `${url}|${useAuthentication ? 'auth' : 'noauth'}|${matrixThumbnailMaxEdge}`;
+          const { w, h } = imageDimensionsRef.current;
+          const requestKey = `${url}|${useAuthentication ? 'auth' : 'noauth'}|${matrixThumbnailMaxEdge}|${w ?? 'auto'}x${h ?? 'auto'}`;
           let request = thumbnailRequestRef.current;
           if (request?.key !== requestKey) {
-            const { w, h } = imageDimensionsRef.current;
             const { tw, th } = thumbnailDimsForMaxEdge(matrixThumbnailMaxEdge, w, h);
             request = {
               key: requestKey,
@@ -199,7 +199,9 @@ export const ImageContent = as<'div', ImageContentProps>(
             mediaUrlCache.setBlob(url, false, thumbBlobUrl, cacheParam);
             void storeMediaMetadataForBlob(getScopedMediaCacheKey(thumbUrl), thumbContent, 'image');
             if (cacheThumbnailMetadataAsMedia) {
-              void storeMediaMetadataForBlob(mediaMetadataKey, thumbContent, 'image');
+              void storeMediaMetadataForBlob(mediaMetadataKey, thumbContent, 'image', {
+                includeByteSize: false,
+              });
             }
             return thumbBlobUrl;
           }
@@ -305,12 +307,11 @@ export const ImageContent = as<'div', ImageContentProps>(
       setError(false);
       setViewer(false);
       setViewerFullSrc(null);
-      if (autoPlay) void loadSrc();
-    }, [autoPlay, loadSrc, setSrcState, url]);
+    }, [setSrcState, url]);
 
     useEffect(() => {
-      if (autoPlay && srcState.status === AsyncStatus.Idle) loadSrc();
-    }, [autoPlay, loadSrc, srcState.status]);
+      if (autoPlay) void loadSrc();
+    }, [autoPlay, loadSrc]);
 
     // Safety timeout: if the image src is ready but hasn't loaded within 30s,
     // treat it as an error. This prevents infinite spinners when the browser

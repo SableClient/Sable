@@ -10,6 +10,10 @@ export type CachedMediaMetadata = {
   cachedAt: number;
 };
 
+export type StoreMediaMetadataOptions = {
+  includeByteSize?: boolean;
+};
+
 const METADATA_CACHE_NAME = 'sable-media-metadata-v1';
 const METADATA_CACHE_REQUEST_PREFIX = 'https://sable.local/media-metadata/';
 const MAX_METADATA_ENTRIES = 1000;
@@ -79,19 +83,31 @@ function normalizeMediaMetadata(metadata: unknown): CachedMediaMetadata | undefi
   };
 }
 
+function mergeMediaMetadata(
+  previous: CachedMediaMetadata | undefined,
+  next: CachedMediaMetadata
+): CachedMediaMetadata {
+  return {
+    ...previous,
+    ...next,
+  };
+}
+
 async function putMediaMetadata(cacheKey: string, metadata: CachedMediaMetadata): Promise<void> {
-  memoryMetadata.set(cacheKey, metadata);
-  notifyMetadataListeners(cacheKey, metadata);
+  const mergedMetadata = mergeMediaMetadata(memoryMetadata.get(cacheKey), metadata);
+  memoryMetadata.set(cacheKey, mergedMetadata);
+  notifyMetadataListeners(cacheKey, mergedMetadata);
 
   const cache = await openMetadataCache();
   if (!cache) return;
   try {
+    const latestMetadata = memoryMetadata.get(cacheKey) ?? mergedMetadata;
     await cache.put(
       getMetadataCacheRequest(cacheKey),
-      new Response(JSON.stringify(metadata), {
+      new Response(JSON.stringify(latestMetadata), {
         headers: {
           'Content-Type': 'application/json',
-          'X-Cached-At': metadata.cachedAt.toString(),
+          'X-Cached-At': latestMetadata.cachedAt.toString(),
         },
       })
     );
@@ -237,7 +253,8 @@ async function measureVideoBlob(blob: Blob): Promise<Partial<CachedMediaMetadata
 export async function storeMediaMetadataForBlob(
   cacheKey: string | undefined,
   blob: Blob,
-  kind?: MediaMetadataKind
+  kind?: MediaMetadataKind,
+  options: StoreMediaMetadataOptions = {}
 ): Promise<CachedMediaMetadata | undefined> {
   if (!cacheKey) return undefined;
 
@@ -260,7 +277,7 @@ export async function storeMediaMetadataForBlob(
   const metadata = normalizeMediaMetadata({
     ...measured,
     ...(mimeType ? { mimeType } : {}),
-    byteSize: blob.size,
+    ...(options.includeByteSize === false ? {} : { byteSize: blob.size }),
     ...(resolvedKind ? { kind: resolvedKind } : {}),
     cachedAt: Date.now(),
   });

@@ -1,5 +1,5 @@
 import { IconButton, TooltipProvider, Tooltip, Text } from 'folds';
-import { navIcon, Phone } from '$components/icons/phosphor';
+import { composerIcon, Phone } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import type { Room, TimelineEvents } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
@@ -68,7 +68,7 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
           onClick={handleStartCall}
           aria-label="Start Voice Call"
         >
-          {navIcon(Phone)}
+          {composerIcon(Phone)}
         </IconButton>
       )}
     </TooltipProvider>

@@ -64,4 +64,28 @@ describe('sanitizeSettingsDefaults', () => {
     });
     expect(sanitizeSettingsDefaults({ rightSwipeAction: 'nope' })).toEqual({});
   });
+
+  it('accepts icon base size px values from 0 upward', () => {
+    expect(
+      sanitizeSettingsDefaults({
+        iconCompactSizePx: 16,
+        iconInlineSizePx: 20,
+        iconToolbarSizePx: 24,
+        iconEmptySizePx: 32,
+      })
+    ).toEqual({
+      iconCompactSizePx: 16,
+      iconInlineSizePx: 20,
+      iconToolbarSizePx: 24,
+      iconEmptySizePx: 32,
+    });
+    expect(sanitizeSettingsDefaults({ iconInlineSizePx: 0 })).toEqual({
+      iconInlineSizePx: 0,
+    });
+    expect(sanitizeSettingsDefaults({ iconToolbarSizePx: 200 })).toEqual({
+      iconToolbarSizePx: 200,
+    });
+    expect(sanitizeSettingsDefaults({ iconEmptySizePx: -1 })).toEqual({});
+    expect(sanitizeSettingsDefaults({ iconEmptySizePx: 32.5 })).toEqual({});
+  });
 });

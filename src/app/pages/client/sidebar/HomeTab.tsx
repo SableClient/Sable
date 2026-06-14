@@ -27,7 +27,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useHomeRooms } from '$pages/client/home/useHomeRooms';
-import { Checks, House, menuIcon, PHOSPHOR_SIZE } from '$components/icons/phosphor';
+import { Checks, House, menuIcon, getPhosphorSize } from '$components/icons/phosphor';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -106,7 +106,7 @@ export function HomeTab() {
             onClick={handleHomeClick}
             onContextMenu={handleContextMenu}
           >
-            <House size={PHOSPHOR_SIZE.toolbar} weight={homeSelected ? 'fill' : 'regular'} />
+            <House size={getPhosphorSize().toolbar} weight={homeSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

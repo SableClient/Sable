@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   retryNow: vi.fn<() => void>(),
   pushSessionToSW: vi.fn<() => void>(),
   togglePusher: vi.fn<() => Promise<void>>(() => Promise.resolve()),
+  usePushNotifications: false,
 }));
 
 vi.mock('@sentry/react', () => ({
@@ -37,7 +38,7 @@ vi.mock('../features/settings/notifications/PushNotifications', () => ({
 }));
 
 vi.mock('../state/hooks/settings', () => ({
-  useSetting: () => [false],
+  useSetting: () => [mocks.usePushNotifications],
 }));
 
 vi.mock('../state/settings', () => ({
@@ -121,6 +122,8 @@ describe('useAppVisibility', () => {
     mocks.retryNow.mockClear();
     mocks.pushSessionToSW.mockClear();
     mocks.togglePusher.mockClear();
+    mocks.togglePusher.mockImplementation(() => Promise.resolve());
+    mocks.usePushNotifications = false;
   });
 
   afterEach(() => {
@@ -158,5 +161,82 @@ describe('useAppVisibility', () => {
 
     expect(mx.retryImmediately).toHaveBeenCalledOnce();
     expect(mocks.retryNow).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry immediately on mount when sync is still connecting', () => {
+    const mx = makeClient(SyncState.Reconnecting);
+
+    renderHook(() => useAppVisibility(mx, session));
+
+    expect(mx.retryImmediately).not.toHaveBeenCalled();
+    expect(mocks.retryNow).not.toHaveBeenCalled();
+  });
+
+  it('dedupes pusher visibility toggles while visible state is unchanged', () => {
+    mocks.usePushNotifications = true;
+    mocks.togglePusher.mockImplementation(() => new Promise(() => undefined));
+    const mx = makeClient(SyncState.Syncing);
+
+    renderHook(() => useAppVisibility(mx, session));
+
+    expect(mocks.togglePusher).toHaveBeenCalledOnce();
+    expect(mocks.togglePusher).toHaveBeenLastCalledWith(
+      mx,
+      {},
+      true,
+      true,
+      [undefined, expect.any(Function)],
+      false
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(mocks.togglePusher).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the latest pusher visibility when toggles settle out of order', async () => {
+    mocks.usePushNotifications = true;
+    const resolveToggles: Array<() => void> = [];
+    mocks.togglePusher.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveToggles.push(resolve);
+        })
+    );
+    const mx = makeClient(SyncState.Syncing);
+
+    renderHook(() => useAppVisibility(mx, session));
+
+    act(() => {
+      setVisibilityState('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    act(() => {
+      setVisibilityState('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    expect(mocks.togglePusher).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      resolveToggles[2]?.();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      resolveToggles[1]?.();
+      resolveToggles[0]?.();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    expect(mocks.togglePusher).toHaveBeenCalledTimes(3);
   });
 });

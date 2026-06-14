@@ -5,7 +5,7 @@ import { useSetAtom } from 'jotai';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 import * as Sentry from '@sentry/react';
-import { getClientSyncDiagnostics } from '$client/initMatrix';
+import { getClientSyncDiagnostics, getSlidingSyncManager } from '$client/initMatrix';
 import { useSyncState } from '$hooks/useSyncState';
 import { titlebarStatusAtom, type TitlebarStatusView } from '$state/titlebarStatus';
 import {
@@ -130,6 +130,31 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     return getSyncConnectionStatusView(current, previous);
   }, [current, demoIndex, previous, useDemoStatusLoop]);
 
+  const retrySync = useCallback(() => {
+    const syncState = mx.getSyncState();
+    const classicRetried = mx.retryImmediately();
+    const slidingSyncManager = getSlidingSyncManager(mx);
+    slidingSyncManager?.retryNow();
+
+    Sentry.addBreadcrumb({
+      category: 'sync',
+      message: 'Manual sync retry requested',
+      level: 'info',
+      data: {
+        syncState,
+        classicRetried,
+        slidingSync: !!slidingSyncManager,
+      },
+    });
+    Sentry.metrics.count('sable.sync.manual_retry', 1, {
+      attributes: {
+        sync_state: syncState ?? 'unknown',
+        classic_retried: String(classicRetried),
+        sliding_sync: String(!!slidingSyncManager),
+      },
+    });
+  }, [mx]);
+
   useEffect(() => {
     if (useDemoStatusLoop) {
       setDisplayStatus(rawStatusView);
@@ -177,5 +202,5 @@ export function SyncStatus({ mx }: SyncStatusProps) {
 
   if (useTitlebarSlot) return null;
 
-  return <SyncConnectionStatusBanner status={displayStatus} />;
+  return <SyncConnectionStatusBanner status={displayStatus} onRetry={retrySync} />;
 }

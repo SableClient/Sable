@@ -195,7 +195,7 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
       });
       resolve(value);
     };
-    const req = window.indexedDB.open(toMatrixSdkIndexedDbName(dbName));
+    const req = window.indexedDB.open(dbName);
     req.addEventListener('error', () => {
       debugLog.warn('sync', `readStoredAccount(${dbName}): IDB open error`);
       finish(undefined, 'open_error');
@@ -352,6 +352,13 @@ const readStoredSyncSummary = async (dbName: string): Promise<StoredSyncSummary 
       }
     });
   });
+};
+
+const sessionUsesFallbackStore = (userId: string): boolean => {
+  const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+  return sessions.some(
+    (session) => session.userId === userId && session.fallbackSdkStores === true
+  );
 };
 
 const isClientReadyForUi = (syncState: string | null): boolean =>
@@ -1001,9 +1008,12 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
     // Secondary signal: inspect the SDK's persisted /sync snapshot directly.
     // MatrixClient.startClient() restores this data after this decision point,
     // so mx.getRooms() can still be empty even when the IndexedDB cache is warm.
+    const shouldCheckFallbackSync = sessionUsesFallbackStore(userId);
     const [storedSync, fallbackStoredSync] = await Promise.all([
       readStoredSyncSummary(`sync${userId}`),
-      readStoredSyncSummary('web-sync-store'),
+      shouldCheckFallbackSync
+        ? readStoredSyncSummary('web-sync-store')
+        : Promise.resolve(undefined),
     ]);
     const hasStoredSync =
       storedSync?.nextBatch === true ||
@@ -1020,6 +1030,7 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
       roomCount,
       hasRoomsInMemory,
       storedSyncRooms: storedSync?.totalRooms ?? 0,
+      checkedFallbackStore: shouldCheckFallbackSync,
       fallbackStoredSyncRooms: fallbackStoredSync?.totalRooms ?? 0,
       storedSyncNextBatch: storedSync?.nextBatch === true,
       fallbackStoredSyncNextBatch: fallbackStoredSync?.nextBatch === true,

@@ -1,4 +1,3 @@
-// oxlint-disable no-console
 import FocusTrap from 'focus-trap-react';
 import {
   Dialog,
@@ -29,7 +28,14 @@ import type { RoomMessageEventContent } from '$types/matrix-sdk';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import classNames from 'classnames';
+import markerIconPng from 'leaflet/dist/images/marker-icon.png';
+import { Icon } from 'leaflet';
 
+export const markerIcon = new Icon({
+  iconUrl: markerIconPng,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 export function filterLocationString(result: string) {
   // OSM format
   if (result.toLowerCase().includes('lat=') && result.toLowerCase().includes('lon=')) {
@@ -153,7 +159,14 @@ export function LocationDialog({
           map.removeLayer(layer);
         }
       });
-      L.marker(pos).addTo(map);
+      const marker = L.marker(pos).addTo(map);
+      marker.on({
+        mousedown: (e) => {
+          e.originalEvent.preventDefault();
+          e.originalEvent.stopPropagation();
+        },
+      });
+      marker.setIcon(markerIcon);
       map.panTo(pos);
     },
     [map]
@@ -359,7 +372,16 @@ export function LocationDialog({
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <Marker position={initCoords} />
+                    <Marker
+                      position={initCoords}
+                      eventHandlers={{
+                        mousedown: (e) => {
+                          e.originalEvent.preventDefault();
+                          e.originalEvent.stopPropagation();
+                        },
+                      }}
+                      icon={markerIcon}
+                    />
 
                     <MapEvents />
                   </MapContainer>

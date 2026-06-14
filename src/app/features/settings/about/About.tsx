@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Text, Scroll, Button, config, Icon, Icons, toRem, Spinner } from 'folds';
+import { Box, Text, Scroll, Button, config, toRem, Spinner } from 'folds';
 import { Code, Heart, menuIcon } from '$components/icons/phosphor';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -240,7 +240,7 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                       fill="Soft"
                       size="300"
                       radii="300"
-                      before={<Icon src={Icons.Code} size="100" filled />}
+                      before={menuIcon(Code, { weight: 'fill' })}
                     >
                       <Text size="B300">Upstream</Text>
                     </Button>

@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Text, Box, config, Icon, Icons, Spinner, IconButton, Line, toRem } from 'folds';
+import { Text, Box, config, Spinner, IconButton, Line, toRem } from 'folds';
 import { CaretUp, ChatCircle, dropzoneIcon, sizedIcon, Info } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -320,7 +320,7 @@ export function MessageSearch({
           alignItems="Center"
           gap="200"
         >
-          <Icon size="200" src={Icons.Info} />
+          {sizedIcon(Info, '200')}
           <Text size="T300">
             {`${inMemoryRoomCount} ${inMemoryRoomCount === 1 ? 'room' : 'rooms'} searched from local cache only.`}
           </Text>

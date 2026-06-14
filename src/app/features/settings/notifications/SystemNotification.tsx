@@ -7,9 +7,7 @@ import {
   Button,
   color,
   config,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -68,6 +66,7 @@ import {
   setUnifiedPushDistributorSelection,
   switchUnifiedPushDistributorSelection,
 } from './UnifiedPushTransport';
+import { Icon, Icons } from '$app/icons';
 
 type BackgroundPushKind = NotificationTransportProvider;
 type BackgroundPushPlatform = NotificationTransportPlatform;

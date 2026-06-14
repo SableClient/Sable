@@ -1,6 +1,6 @@
 import type { KeyboardEvent as ReactKbEvent } from 'react';
 import { useEffect } from 'react';
-import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
+import { Avatar, MenuItem, Text } from 'folds';
 import type { Room, RoomMember } from '$types/matrix-sdk';
 import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -16,6 +16,7 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { KnownMembership } from '$types/matrix-sdk';
 import { TiptapAutocompleteMenu } from './TiptapAutocompleteMenu';
+import { Icon, Icons } from '$app/icons';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = { limit: 1000, matchOptions: { contain: true } };
 const mxIdToName = (id: string) => getMxIdLocalPart(id) ?? id;

@@ -6,9 +6,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Line,
   Overlay,
@@ -55,6 +53,7 @@ import {
   useBookmarkReminders,
   useBookmarkReminderActions,
 } from '$features/bookmarks/useBookmarks';
+import { Icon, Icons } from '$app/icons';
 
 const REMINDER_PRESETS = [
   { label: '30 min', ms: 30 * 60 * 1000 },

@@ -1,5 +1,11 @@
-import { Avatar, Box, Icon, Icons, Text, toRem } from 'folds';
-import { ChatCircleDots, EnvelopeSimple, Tray, sizedIcon } from '$components/icons/phosphor';
+import { Avatar, Box, Text, toRem } from 'folds';
+import {
+  Bookmark,
+  ChatCircleDots,
+  EnvelopeSimple,
+  Tray,
+  sizedIcon,
+} from '$components/icons/phosphor';
 import { NavCategory, NavItem, NavItemContent, NavLink } from '$components/nav';
 import {
   getInboxBookmarksPath,
@@ -71,7 +77,7 @@ function BookmarksNavItem({ hideText }: { hideText?: boolean }) {
               radii="400"
               style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
             >
-              <Icon src={Icons.Bookmark} size="100" filled={bookmarksSelected} />
+              {sizedIcon(Bookmark, '100', { filled: bookmarksSelected })}
             </Avatar>
             {!hideText && (
               <Box as="span" grow="Yes">

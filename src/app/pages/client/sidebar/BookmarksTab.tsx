@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Icon, Icons } from 'folds';
+
 import {
   SidebarAvatar,
   SidebarItem,
@@ -11,6 +11,7 @@ import { useInboxBookmarksSelected } from '$hooks/router/useInbox';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useFiredReminderCount } from '$features/bookmarks/useBookmarks';
+import { Icon, Icons } from '$app/icons';
 
 export function BookmarksTab() {
   const navigate = useNavigate();

@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { Icon, Icons, MenuItem, Text } from 'folds';
+import { MenuItem, Text } from 'folds';
 import * as messageCss from './styles.css';
 import type { MouseEventHandler, ReactNode, TouchEvent as ReactTouchEvent } from 'react';
 import { useEffect, useCallback, useRef, useState } from 'react';
@@ -29,6 +29,7 @@ import { useIsBookmarked, useBookmarkActions } from '$features/bookmarks/useBook
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import * as css from './MobileMessageMenu.css';
+import { Icon, Icons } from '$app/icons';
 
 export type MobileMessageMenuProps = {
   room: Room;

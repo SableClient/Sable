@@ -31,7 +31,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
-import { ClientEvent, RoomEvent } from '$types/matrix-sdk';
+import { RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryRoomIdByActivity } from '$utils/sort';
 import {
@@ -260,17 +260,6 @@ export function Direct() {
       });
     };
   }, [mx, directs]);
-
-  useEffect(() => {
-    const handleSync = () => {
-      setActivityCounter((prev) => prev + 1);
-    };
-
-    mx.on(ClientEvent.Sync, handleSync);
-    return () => {
-      mx.off(ClientEvent.Sync, handleSync);
-    };
-  }, [mx]);
 
   const sortedDirects = useMemo(() => {
     void activityCounter;

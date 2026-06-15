@@ -80,6 +80,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { usePullToRefresh } from '$hooks/usePullToRefresh';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { LIST_JOINED } from '$client/slidingSync';
+import { allRoomsAtom } from '$state/room-list/roomList';
 
 type HomeMenuProps = {
   isShowingAllRoomsInHome: boolean;
@@ -281,6 +282,7 @@ export function Home() {
   const searchSelected = useHomeSearchSelected();
   const noRoomToDisplay = rooms.length === 0;
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
+  const allRoomCount = useAtomValue(allRoomsAtom).length;
 
   const sortedRooms = useMemo(() => {
     const items = Array.from(rooms).toSorted(
@@ -308,9 +310,16 @@ export function Home() {
   const lastVirtualIndex = virtualItems.at(-1)?.index ?? -1;
 
   useEffect(() => {
-    if (lastVirtualIndex < 0 || lastVirtualIndex < sortedRooms.length - 10) return;
-    getSlidingSyncManager(mx)?.requestListWindow(LIST_JOINED, sortedRooms.length + 29);
-  }, [mx, sortedRooms.length, lastVirtualIndex]);
+    const manager = getSlidingSyncManager(mx);
+    const diagnostics = manager?.getListDiagnostics(LIST_JOINED);
+    if (!manager || !diagnostics) return;
+    const hasMore = diagnostics.rangeEnd + 1 < diagnostics.knownCount;
+    const nearRenderedTail =
+      sortedRooms.length === 0 ||
+      (lastVirtualIndex >= 0 && lastVirtualIndex >= sortedRooms.length - 10);
+    if (!hasMore || !nearRenderedTail) return;
+    manager.requestListWindow(LIST_JOINED, diagnostics.rangeEnd + 30);
+  }, [mx, sortedRooms.length, allRoomCount, lastVirtualIndex]);
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
     closedCategories.has(categoryId)

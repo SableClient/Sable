@@ -94,8 +94,10 @@ function makeMockMx(overrides: Record<string, unknown> = {}) {
   } as unknown as MatrixClient;
 }
 
-function makeManager(mx: ReturnType<typeof makeMockMx>): SlidingSyncManager {
-  const config: SlidingSyncConfig = {};
+function makeManager(
+  mx: ReturnType<typeof makeMockMx>,
+  config: SlidingSyncConfig = {}
+): SlidingSyncManager {
   return new SlidingSyncManager(mx, 'https://sliding.example.com', config);
 }
 
@@ -219,9 +221,9 @@ describe('SlidingSyncManager initial list request shape', () => {
     expect(invites?.ranges).toEqual([[0, 29]]);
     expect(joined?.timeline_limit).toBe(0);
     expect(joined?.slow_get_all_rooms).toBeUndefined();
-    expect(joined?.required_state).not.toContainEqual(['m.space.child', '*']);
+    expect(joined?.required_state).toContainEqual(['m.space.child', '*']);
+    expect(joined?.required_state).toContainEqual(['m.room.canonical_alias', '']);
     expect(joined?.required_state).not.toContainEqual(['im.ponies.room_emotes', '*']);
-    expect(joined?.required_state).not.toContainEqual(['m.room.canonical_alias', '']);
   });
 
   it('uses a tiny list timeline when previews opt in', () => {
@@ -292,6 +294,18 @@ describe('SlidingSyncManager.hasSufficientRoomsLoaded()', () => {
 
     expect(manager.hasSufficientRoomsLoaded()).toBe(true);
   });
+
+  it('treats empty list responses as sufficient for empty accounts', () => {
+    mocks.slidingSyncInstance.getListData.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED || key === LIST_DMS || key === LIST_INVITES) {
+        return { joinedCount: 0 };
+      }
+      return null;
+    });
+    const manager = makeManager(makeMockMx());
+
+    expect(manager.hasSufficientRoomsLoaded()).toBe(true);
+  });
 });
 
 describe('SlidingSyncManager.requestListWindow()', () => {
@@ -320,6 +334,32 @@ describe('SlidingSyncManager.requestListWindow()', () => {
     manager.requestListWindow(LIST_JOINED, 10);
 
     expect(mocks.slidingSyncInstance.setListRanges).not.toHaveBeenCalled();
+  });
+
+  it('preserves the configured maxRooms cap when expanding a list', () => {
+    mocks.slidingSyncInstance.getListData.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED) return { joinedCount: 120 };
+      return null;
+    });
+    const manager = makeManager(makeMockMx(), { maxRooms: 50 });
+
+    manager.requestListWindow(LIST_JOINED, 100);
+
+    expect(mocks.slidingSyncInstance.setListRanges).toHaveBeenCalledWith(LIST_JOINED, [[0, 49]]);
+  });
+
+  it('reports list diagnostics for UI-driven paging decisions', () => {
+    mocks.slidingSyncInstance.getListData.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED) return { joinedCount: 120 };
+      return null;
+    });
+    const manager = makeManager(makeMockMx());
+
+    expect(manager.getListDiagnostics(LIST_JOINED)).toEqual({
+      key: LIST_JOINED,
+      knownCount: 120,
+      rangeEnd: 29,
+    });
   });
 });
 
@@ -518,6 +558,26 @@ describe('SlidingSyncManager.scheduleForceReset()', () => {
     manager.scheduleForceReset();
 
     expect(room.resetLiveTimeline).toHaveBeenCalledOnce();
+  });
+
+  it('does not restore a room unsubscribed while a reset cycle is pending', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+    manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
+    mocks.slidingSyncInstance.modifyRoomSubscriptions.mockClear();
+
+    manager.scheduleForceReset();
+    manager.unsubscribeFromRoom('!room:example.com');
+    fireLifecycle(SlidingSyncState.RequestFinished, { rooms: {} });
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(2);
+    const [emptySet] = mocks.slidingSyncInstance.modifyRoomSubscriptions.mock
+      .calls[0] as unknown as [Set<string>];
+    const [restoredSet] = mocks.slidingSyncInstance.modifyRoomSubscriptions.mock
+      .calls[1] as unknown as [Set<string>];
+    expect([...emptySet]).toEqual([]);
+    expect([...restoredSet]).toEqual([]);
   });
 });
 

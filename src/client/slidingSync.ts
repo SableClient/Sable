@@ -108,10 +108,11 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
 };
 
 // Minimal required_state for list entries; enough to render the room list sidebar,
-// compute unread state, and build the space hierarchy without fetching full room history.
+// compute unread state, build the space hierarchy, and keep alias-based room links
+// available without fetching full room history.
 // Notes:
-//   - RoomName/RoomCanonicalAlias are omitted: sliding sync returns the room name as a
-//     top-level field in every list response, so fetching them as state events is redundant.
+//   - RoomName is omitted: sliding sync returns the room name as a top-level field
+//     in every list response, so fetching it as a state event is redundant.
 //   - MSC3575_STATE_KEY_LAZY is included only when `includeMembers=true` (i.e. when
 //     message previews are enabled and listTimelineLimit > 0). Lazy loading brings in
 //     m.room.member state events for senders of the preview timeline events so that
@@ -120,8 +121,8 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
 //   - m.room.topic is required: topics are displayed for joined child rooms in space
 //     lobby (RoomItem → LocalRoomSummaryLoader → useLocalRoomSummary) and in the
 //     invite list. Without this event the topic always shows as blank for non-active
-//     rooms. Heavier graph/emoji/alias state should be requested by targeted
-//     loaders instead of every list window.
+//     rooms. Emoji packs and other heavyweight room metadata should be requested by
+//     targeted loaders instead of every list window.
 const buildListRequiredState = (
   includeMembers: boolean
 ): MSC3575RoomSubscription['required_state'] => [
@@ -131,7 +132,9 @@ const buildListRequiredState = (
   [EventType.RoomEncryption, ''],
   [EventType.RoomCreate, ''],
   [EventType.RoomTopic, ''],
+  [EventType.RoomCanonicalAlias, ''],
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+  [EventType.SpaceChild, MSC3575_WILDCARD],
   ...(includeMembers ? [[EventType.RoomMember, MSC3575_STATE_KEY_LAZY] as [string, string]] : []),
 ];
 
@@ -975,12 +978,14 @@ export class SlidingSyncManager {
    * than block until hundreds or all rooms have been hydrated.
    */
   public hasSufficientRoomsLoaded(): boolean {
-    let sawKnownList = false;
+    let sawListData = false;
 
     for (const key of this.listKeys) {
-      const knownCount = this.slidingSync.getListData(key)?.joinedCount ?? 0;
+      const listData = this.slidingSync.getListData(key);
+      if (!listData) continue;
+      sawListData = true;
+      const knownCount = listData.joinedCount ?? 0;
       if (knownCount <= 0) continue;
-      sawKnownList = true;
 
       const params = this.slidingSync.getListParams(key);
       const requestedEnd = getListEndIndex(params);
@@ -990,7 +995,7 @@ export class SlidingSyncManager {
       if (rangeEnd < requiredEnd) return false;
     }
 
-    if (sawKnownList) return true;
+    if (sawListData) return true;
 
     return this.loadedRoomIds.size > 0;
   }
@@ -1007,8 +1012,8 @@ export class SlidingSyncManager {
     if (!params) return;
 
     const knownCount = this.slidingSync.getListData(listKey)?.joinedCount ?? 0;
-    const cappedEnd =
-      knownCount > 0 ? Math.min(Math.round(endIndex), knownCount - 1) : Math.round(endIndex);
+    const requestedEnd = Math.min(Math.round(endIndex), this.maxRooms - 1);
+    const cappedEnd = knownCount > 0 ? Math.min(requestedEnd, knownCount - 1) : requestedEnd;
     const currentEnd = getListEndIndex(params);
     if (cappedEnd <= currentEnd) return;
 
@@ -1021,7 +1026,18 @@ export class SlidingSyncManager {
       previousEnd: currentEnd,
       newEnd: cappedEnd,
       knownCount,
+      maxRooms: this.maxRooms,
     });
+  }
+
+  public getListDiagnostics(listKey: string): SlidingSyncListDiagnostics | undefined {
+    const params = this.slidingSync.getListParams(listKey);
+    if (!params) return undefined;
+    return {
+      key: listKey,
+      knownCount: this.slidingSync.getListData(listKey)?.joinedCount ?? 0,
+      rangeEnd: getListEndIndex(params),
+    };
   }
 
   /**
@@ -1037,7 +1053,7 @@ export class SlidingSyncManager {
     let list = this.slidingSync.getListParams(listKey);
     if (!list) {
       list = {
-        ranges: [[0, 20]],
+        ranges: [[0, Math.max(0, this.listPageSize - 1)]],
         sort: LIST_SORT_ORDER,
         timeline_limit: this.listTimelineLimit,
         required_state: buildListRequiredState(this.listTimelineLimit > 0),
@@ -1191,7 +1207,7 @@ export class SlidingSyncManager {
       : { is_invite: false };
     this.ensureListRegistered(LIST_SPACE, {
       filters,
-      ranges: spaceId ? [[0, Math.min(this.listPageSize - 1, 499)]] : [[0, 0]],
+      ranges: spaceId ? [[0, Math.min(this.listPageSize - 1, this.maxRooms - 1)]] : [[0, 0]],
       sort: LIST_SORT_ORDER,
     });
   }
@@ -1287,6 +1303,8 @@ export class SlidingSyncManager {
    */
   public unsubscribeFromRoom(roomId: string): void {
     if (this.disposed) return;
+    this.pendingResubscriptions?.delete(roomId);
+    this.ptrRefreshRooms.delete(roomId);
     if (!this.activeRoomSubscriptions.has(roomId)) return;
     // Clean up any pending first-data latency listener for this room.
     const pendingListener = this.pendingRoomDataListeners.get(roomId);

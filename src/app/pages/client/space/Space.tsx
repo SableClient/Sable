@@ -108,6 +108,8 @@ import { CustomStateEvent } from '$types/matrix/room';
 import type { RoomBannerContent } from '$types/matrix-sdk-events';
 import { ModalWide } from '$styles/Modal.css';
 import { ImageViewer } from '$components/image-viewer';
+import { getSlidingSyncManager } from '$client/initMatrix';
+import { LIST_SPACE } from '$client/slidingSync';
 import * as css from './styles.css';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 
@@ -519,6 +521,12 @@ export function Space() {
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
+  useEffect(() => {
+    const manager = getSlidingSyncManager(mx);
+    manager?.setSpaceScope(space.roomId);
+    return () => manager?.setSpaceScope(null);
+  }, [mx, space.roomId]);
+
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   useEffect(() => {
@@ -827,6 +835,19 @@ export function Space() {
   });
 
   const virtualizedItems = virtualizer.getVirtualItems();
+  const lastVirtualIndex = virtualizedItems.at(-1)?.index ?? -1;
+
+  useEffect(() => {
+    const manager = getSlidingSyncManager(mx);
+    const diagnostics = manager?.getListDiagnostics(LIST_SPACE);
+    if (!manager || !diagnostics) return;
+    const hasMore = diagnostics.rangeEnd + 1 < diagnostics.knownCount;
+    const nearRenderedTail =
+      hierarchy.length === 0 ||
+      (lastVirtualIndex >= 0 && lastVirtualIndex >= hierarchy.length - 10);
+    if (!hasMore || !nearRenderedTail) return;
+    manager.requestListWindow(LIST_SPACE, diagnostics.rangeEnd + 30);
+  }, [mx, hierarchy.length, allRooms.length, lastVirtualIndex]);
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) => {
     const collapsed = closedCategories.has(categoryId);

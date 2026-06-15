@@ -19,13 +19,11 @@ import {
   MSC3575_STATE_KEY_ME,
   EventType,
   User,
-  MatrixEvent,
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import { getRecentRoomIds } from '$utils/recentRooms';
 import * as Sentry from '@sentry/react';
-import { getThreadIdFromEvent } from './threadEventPatch';
 import { classifyCryptoStoreIndexedDbError } from './cryptoStoreErrors';
 
 const log = createLogger('slidingSync');
@@ -59,7 +57,6 @@ const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
 const FORCE_RESUBSCRIPTION_RESTORE_TIMEOUT_MS = 5000;
-const TIMELINE_RECOVERY_COOLDOWN_MS = 60_000;
 
 // ---------------------------------------------------------------------------
 // Strategy 3: Sliding Sync List State Caching
@@ -368,8 +365,6 @@ export class SlidingSyncManager {
 
   private pendingResubscriptionRestoreTimer: ReturnType<typeof setTimeout> | undefined;
 
-  private readonly timelineRecoveryLastAt = new Map<string, number>();
-
   /**
    * One-shot RoomData listeners keyed by roomId, used to measure the latency
    * between subscribeToRoom() and the first data arriving for that room.
@@ -379,6 +374,8 @@ export class SlidingSyncManager {
     string,
     (roomId: string, data: MSC3575RoomData) => void
   >();
+
+  private readonly orderedListRoomIds = new Map<string, string[]>();
 
   /** Wall-clock time recorded in attach() — used to compute true initial-sync latency. */
   private attachTime: number | null = null;
@@ -564,6 +561,12 @@ export class SlidingSyncManager {
             const loadedEnd = start + roomIds.length - 1;
             const previousEnd = this.loadedListCoverageEnd.get(key) ?? -1;
             this.loadedListCoverageEnd.set(key, Math.max(previousEnd, loadedEnd));
+
+            const orderedRoomIds = this.orderedListRoomIds.get(key) ?? [];
+            roomIds.forEach((roomId, index) => {
+              orderedRoomIds[start + index] = roomId;
+            });
+            this.orderedListRoomIds.set(key, orderedRoomIds);
           });
         });
         Object.entries(rooms)
@@ -652,77 +655,6 @@ export class SlidingSyncManager {
               this.ptrRefreshRooms.delete(roomId);
             }
           });
-
-        // Process timeline events with room/thread metadata before the SDK's
-        // default handler runs. MatrixEvent instances from sliding-sync timeline
-        // buckets may not include room_id, and direct EventTimelineSet insertion
-        // bypasses the SDK's relation-parent recovery path. Route through
-        // Room.addLiveEvents() so thread partitioning, parent fetches, relation
-        // aggregation, and canContain() behaviour stay consistent with the SDK.
-        Object.entries(rooms).forEach(([roomId, roomData]) => {
-          const room = this.mx.getRoom(roomId);
-          if (!room) return;
-
-          const rawEvents = roomData.timeline ?? [];
-          if (rawEvents.length === 0) return;
-
-          const events = rawEvents.map((rawEvent) =>
-            this.createRoomTimelineEvent(roomId, rawEvent)
-          );
-          const [roomTimelineEvents, threadedEvents, unknownRelations] =
-            room.partitionThreadedEvents(events);
-
-          if (unknownRelations.length > 0) {
-            this.recoverRoomTimeline(roomId, 'unknown_relation', {
-              unknownRelations: unknownRelations.length,
-              eventCount: events.length,
-            });
-          }
-
-          void room
-            .addLiveEvents(events, {
-              fromCache: true,
-              addToState: false,
-            })
-            .catch((error: unknown) => {
-              this.recoverRoomTimeline(roomId, 'add_live_events_error', {
-                error: error instanceof Error ? error.message : String(error),
-                eventCount: events.length,
-              });
-            });
-
-          // Clear the timeline array so SDK doesn't try to re-add these events
-          roomData.timeline = [];
-
-          if (threadedEvents.length > 0 || unknownRelations.length > 0) {
-            debugLog.info('sync', 'Processed thread events with threadId routing', {
-              roomId,
-              threadEvents: threadedEvents.length,
-              rootEvents: roomTimelineEvents.length,
-              unknownRelations: unknownRelations.length,
-              syncCycle: this.syncCount,
-            });
-            Sentry.addBreadcrumb({
-              category: 'sync.threadEvents',
-              message: 'Thread events routed to correct timeline sets',
-              level: unknownRelations.length > 0 ? 'warning' : 'info',
-              data: {
-                roomId,
-                threadEvents: threadedEvents.length,
-                rootEvents: roomTimelineEvents.length,
-                unknownRelations: unknownRelations.length,
-              },
-            });
-
-            if (unknownRelations.length > 0) {
-              Sentry.metrics.distribution(
-                'sable.timeline.unknown_relations_per_sync',
-                unknownRelations.length,
-                { attributes: { room_id: roomId } }
-              );
-            }
-          }
-        });
 
         // If a force-resubscription cycle was scheduled (pull-to-refresh), restore
         // all subscriptions now that the server has seen the empty-subscription
@@ -1036,16 +968,6 @@ export class SlidingSyncManager {
     this.slidingSync.resend();
   }
 
-  private createRoomTimelineEvent(roomId: string, rawEvent: MSC3575RoomData['timeline'][number]) {
-    const event = new MatrixEvent({
-      ...rawEvent,
-      room_id: typeof rawEvent.room_id === 'string' ? rawEvent.room_id : roomId,
-    });
-    const threadId = getThreadIdFromEvent(event);
-    if (threadId) event.setThreadId(threadId);
-    return event;
-  }
-
   private resetRoomTimelines(roomId: string, reason: string): boolean {
     const room = this.mx.getRoom(roomId);
     if (!room) return false;
@@ -1060,39 +982,6 @@ export class SlidingSyncManager {
       data: { roomId, reason, syncNumber: this.syncCount },
     });
     return true;
-  }
-
-  private recoverRoomTimeline(
-    roomId: string,
-    reason: 'unknown_relation' | 'add_live_events_error',
-    data: Record<string, string | number>
-  ): void {
-    const now = Date.now();
-    const lastRecoveryAt = this.timelineRecoveryLastAt.get(roomId) ?? 0;
-    if (now - lastRecoveryAt < TIMELINE_RECOVERY_COOLDOWN_MS) return;
-    this.timelineRecoveryLastAt.set(roomId, now);
-
-    if (!this.resetRoomTimelines(roomId, reason)) return;
-    if (this.activeRoomSubscriptions.has(roomId)) {
-      this.ptrRefreshRooms.add(roomId);
-      this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
-      this.slidingSync.resend();
-    }
-
-    debugLog.warn('sync', 'Recovered room timeline after rejected events', {
-      roomId,
-      reason,
-      ...data,
-    });
-    Sentry.metrics.count('sable.timeline.room_recovery', 1, {
-      attributes: { room_id: roomId, reason },
-    });
-    Sentry.addBreadcrumb({
-      category: 'sync.timeline',
-      message: 'Room timeline recovery scheduled',
-      level: 'warning',
-      data: { roomId, reason, ...data },
-    });
   }
 
   public setPresenceEnabled(enabled: boolean): void {
@@ -1170,6 +1059,10 @@ export class SlidingSyncManager {
         };
       }),
     };
+  }
+
+  public getOrderedListRoomIds(listKey: string): string[] {
+    return (this.orderedListRoomIds.get(listKey) ?? []).filter(Boolean);
   }
 
   public isFullyLoaded(): boolean {

@@ -70,7 +70,6 @@ const log = createLogger('ClientRoot');
 
 const isClientReady = (syncState: string | null): boolean =>
   syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
-const STARTUP_REVEAL_DELAY_MS = 250;
 
 function ClientRootLoading() {
   return (
@@ -212,7 +211,6 @@ export function ClientRoot({ children }: ClientRootProps) {
   const loadedUserIdRef = useRef<string | undefined>(undefined);
   const syncStartTimeRef = useRef(performance.now());
   const firstSyncReadyRef = useRef(false);
-  const revealTimerRef = useRef<number | undefined>(undefined);
 
   const [loading, setLoading] = useState(true);
 
@@ -244,12 +242,6 @@ export function ClientRoot({ children }: ClientRootProps) {
   );
 
   const mx = loadState.status === AsyncStatus.Success ? loadState.data : undefined;
-
-  const clearRevealTimer = useCallback(() => {
-    if (revealTimerRef.current === undefined) return;
-    window.clearTimeout(revealTimerRef.current);
-    revealTimerRef.current = undefined;
-  }, []);
 
   const [startState, startMatrix] = useAsyncCallback<void, Error, [MatrixClient]>(
     useCallback(
@@ -290,7 +282,6 @@ export function ClientRoot({ children }: ClientRootProps) {
         }
         if (disposed) return;
         loadedUserIdRef.current = undefined;
-        clearRevealTimer();
         setLoading(true);
         setLoadState({ status: AsyncStatus.Idle });
         navigate(getLandingPath(defaultLandingScreen), { replace: true });
@@ -299,7 +290,7 @@ export function ClientRoot({ children }: ClientRootProps) {
     return () => {
       disposed = true;
     };
-  }, [activeSession, mx, navigate, setLoadState, defaultLandingScreen, clearRevealTimer]);
+  }, [activeSession, mx, navigate, setLoadState, defaultLandingScreen]);
 
   // Remember the last visited path so we can restore it on next app open
   // if the user has selected "Last Visited" as their landing screen preference
@@ -360,22 +351,6 @@ export function ClientRoot({ children }: ClientRootProps) {
     (state: string | null) => {
       if (!state || !isClientReady(state)) return;
 
-      const clearSplash = (cacheType: 'warm' | 'cold') => {
-        if (revealTimerRef.current !== undefined) return;
-        revealTimerRef.current = window.setTimeout(() => {
-          revealTimerRef.current = undefined;
-          setLoading(false);
-          if (!firstSyncReadyRef.current) {
-            firstSyncReadyRef.current = true;
-            Sentry.metrics.distribution(
-              'sable.startup.time_to_ui_ms',
-              performance.now() - syncStartTimeRef.current,
-              { attributes: { cache_type: cacheType } }
-            );
-          }
-        }, STARTUP_REVEAL_DELAY_MS);
-      };
-
       const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
       if (slidingSyncManager) {
         const hasWarm = slidingSyncManager.hasWarmCache();
@@ -400,37 +375,58 @@ export function ClientRoot({ children }: ClientRootProps) {
           data: diagnostics,
         });
 
-        if (!isFullyLoaded && !hasSufficient) {
-          log.log('[startup] waiting for stable sliding-sync room lists');
+        if (hasWarm) {
+          log.log('[startup] showing UI immediately (warm cache)');
           Sentry.addBreadcrumb({
             category: 'startup',
-            message: 'Waiting for stable sliding-sync room lists',
+            message: 'Showing UI (warm cache)',
+            level: 'info',
+            data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
+          });
+          setLoading(false);
+          if (!firstSyncReadyRef.current) {
+            firstSyncReadyRef.current = true;
+            Sentry.metrics.distribution(
+              'sable.startup.time_to_ui_ms',
+              performance.now() - syncStartTimeRef.current,
+              { attributes: { cache_type: 'warm' } }
+            );
+          }
+          return;
+        }
+
+        // Cold cache: wait for full load to prevent visual jumping
+        // Strategy 8: Use "sufficient rooms" threshold for faster initial display
+        if (!isFullyLoaded && !hasSufficient) {
+          log.log('[startup] waiting for more rooms (cold cache)');
+          Sentry.addBreadcrumb({
+            category: 'startup',
+            message: 'Waiting for more rooms (cold cache)',
             level: 'info',
             data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
           });
           return;
         }
-        log.log('[startup] showing UI (sliding sync room lists ready)');
+        log.log('[startup] showing UI (cold cache, sufficient rooms loaded)');
         Sentry.addBreadcrumb({
           category: 'startup',
-          message: 'Showing UI (sliding sync room lists ready)',
+          message: 'Showing UI (cold cache)',
           level: 'info',
           data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
         });
-        clearSplash(hasWarm ? 'warm' : 'cold');
-        return;
       }
 
-      clearSplash('cold');
+      setLoading(false);
+      if (!firstSyncReadyRef.current) {
+        firstSyncReadyRef.current = true;
+        Sentry.metrics.distribution(
+          'sable.startup.time_to_ui_ms',
+          performance.now() - syncStartTimeRef.current,
+          { attributes: { cache_type: 'cold' } }
+        );
+      }
     },
     [mx]
-  );
-
-  useEffect(
-    () => () => {
-      clearRevealTimer();
-    },
-    [clearRevealTimer]
   );
 
   useEffect(() => {
@@ -570,38 +566,24 @@ export function ClientRoot({ children }: ClientRootProps) {
               </Dialog>
             </Box>
           </SplashScreen>
+        ) : loading || !mx ? (
+          <ClientRootLoading />
         ) : (
-          <>
-            {mx && (
-              <MatrixClientProvider value={mx}>
-                <MediaUrlCacheProvider>
-                  <ServerConfigsLoader>
-                    {(serverConfigs) => (
-                      <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
-                        <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
-                          <AuthMetadataProvider value={serverConfigs.authMetadata}>
-                            {children}
-                          </AuthMetadataProvider>
-                        </MediaConfigProvider>
-                      </CapabilitiesProvider>
-                    )}
-                  </ServerConfigsLoader>
-                </MediaUrlCacheProvider>
-              </MatrixClientProvider>
-            )}
-            {(loading || !mx) && (
-              <Box
-                style={{
-                  position: 'fixed',
-                  inset: 0,
-                  zIndex: 1000,
-                  display: 'flex',
-                }}
-              >
-                <ClientRootLoading />
-              </Box>
-            )}
-          </>
+          <MatrixClientProvider value={mx}>
+            <MediaUrlCacheProvider>
+              <ServerConfigsLoader>
+                {(serverConfigs) => (
+                  <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
+                    <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
+                      <AuthMetadataProvider value={serverConfigs.authMetadata}>
+                        {children}
+                      </AuthMetadataProvider>
+                    </MediaConfigProvider>
+                  </CapabilitiesProvider>
+                )}
+              </ServerConfigsLoader>
+            </MediaUrlCacheProvider>
+          </MatrixClientProvider>
         )}
       </SpecVersions>
     </AutoDiscovery>

@@ -31,9 +31,11 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
-import { RoomEvent } from '$types/matrix-sdk';
+import { ClientEvent, RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryRoomIdByActivity } from '$utils/sort';
+import { getSlidingSyncManager } from '$client/initMatrix';
+import { LIST_DMS } from '$client/slidingSync';
 import {
   NavButton,
   NavCategory,
@@ -261,9 +263,30 @@ export function Direct() {
     };
   }, [mx, directs]);
 
+  useEffect(() => {
+    const handleSync = () => {
+      setActivityCounter((prev) => prev + 1);
+    };
+
+    mx.on(ClientEvent.Sync, handleSync);
+    return () => {
+      mx.off(ClientEvent.Sync, handleSync);
+    };
+  }, [mx]);
+
   const sortedDirects = useMemo(() => {
     void activityCounter;
-    const items = Array.from(directs).toSorted(factoryRoomIdByActivity(mx));
+    const activitySortedItems = Array.from(directs).toSorted(factoryRoomIdByActivity(mx));
+    const slidingSyncManager = getSlidingSyncManager(mx);
+    const slidingSyncOrder = slidingSyncManager?.getOrderedListRoomIds(LIST_DMS) ?? [];
+    const directRoomIds = new Set(directs);
+    const items =
+      slidingSyncOrder.length > 0
+        ? [
+            ...slidingSyncOrder.filter((roomId) => directRoomIds.has(roomId)),
+            ...activitySortedItems.filter((roomId) => !slidingSyncOrder.includes(roomId)),
+          ]
+        : activitySortedItems;
     const hasUnread = (roomId: string) => {
       const unread = roomToUnread.get(roomId);
       return !!unread && (unread.total > 0 || unread.highlight > 0);

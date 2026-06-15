@@ -1,5 +1,5 @@
-import type { Room } from '$types/matrix-sdk';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { MatrixEvent, type MatrixClient, type Room } from '$types/matrix-sdk';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ImagePack, ImageUsage } from '$plugins/custom-emoji';
 import {
@@ -55,6 +55,40 @@ const imagePackListEqual = (a: ImagePack[], b: ImagePack[]): boolean => {
   return a.every((pack, index) => imagePackEqual(pack, b[index]));
 };
 
+const loadGlobalImagePackState = async (mx: MatrixClient): Promise<boolean> => {
+  const emoteRoomsContent = mx
+    .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
+    ?.getContent();
+  if (typeof emoteRoomsContent !== 'object') return false;
+  const roomIdToPackInfo = emoteRoomsContent.rooms;
+  if (!roomIdToPackInfo || typeof roomIdToPackInfo !== 'object') return false;
+
+  let loaded = false;
+  const requests = Object.entries(roomIdToPackInfo).flatMap(([roomId, packStateKeyToUnknown]) => {
+    if (!packStateKeyToUnknown || typeof packStateKeyToUnknown !== 'object') return [];
+    const room = mx.getRoom(roomId);
+    if (!room) return [];
+    return Object.keys(packStateKeyToUnknown).map(async (stateKey) => {
+      if (getRoomImagePack(room, stateKey)) return;
+      const content = await mx.getStateEvent(roomId, CustomStateEvent.PoniesRoomEmotes, stateKey);
+      const event = new MatrixEvent({
+        content,
+        event_id: `$sable-image-pack-${roomId}-${stateKey}`,
+        origin_server_ts: Date.now(),
+        room_id: roomId,
+        sender: mx.getUserId() ?? '',
+        state_key: stateKey,
+        type: CustomStateEvent.PoniesRoomEmotes,
+      });
+      room.currentState.setStateEvents([event]);
+      loaded = true;
+    });
+  });
+
+  await Promise.allSettled(requests);
+  return loaded;
+};
+
 export const useUserImagePack = (): ImagePack | undefined => {
   const mx = useMatrixClient();
   // Seed from cache during initial state when live data is not available yet.
@@ -91,6 +125,7 @@ export const useUserImagePack = (): ImagePack | undefined => {
 
 export const useGlobalImagePacks = (): ImagePack[] => {
   const mx = useMatrixClient();
+  const loadingGlobalPacksRef = useRef(false);
   // Seed from cache during initial state when live data is not available yet.
   const [globalPacks, setGlobalPacks] = useState<ImagePack[]>(() => {
     const livePacks = getGlobalImagePacks(mx);
@@ -105,6 +140,27 @@ export const useGlobalImagePacks = (): ImagePack[] => {
     const userId = mx.getUserId();
     if (userId) writeCachedPacks(userId, globalPacksScope(), globalPacks);
   }, [mx, globalPacks]);
+
+  useEffect(() => {
+    if (globalPacks.length > 0 || loadingGlobalPacksRef.current) return undefined;
+    loadingGlobalPacksRef.current = true;
+    let cancelled = false;
+    loadGlobalImagePackState(mx)
+      .then((loaded) => {
+        if (cancelled || !loaded) return;
+        setGlobalPacks((prev) => {
+          const next = getGlobalImagePacks(mx);
+          return imagePackListEqual(prev, next) ? prev : next;
+        });
+      })
+      .finally(() => {
+        loadingGlobalPacksRef.current = false;
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mx, globalPacks.length]);
 
   useAccountDataCallback(
     mx,

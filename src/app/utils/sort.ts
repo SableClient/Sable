@@ -4,16 +4,18 @@ import { isDMRoom } from './room';
 
 export type SortFunc<T> = (a: T, b: T) => number;
 
+const getRoomActivityTimestamp = (room: ReturnType<MatrixClient['getRoom']>): number => {
+  if (!room) return Number.MIN_SAFE_INTEGER;
+  return Math.max(room.getLastActiveTimestamp(), room.getBumpStamp() ?? Number.MIN_SAFE_INTEGER);
+};
+
 export const factoryRoomIdByActivity =
   (mx: MatrixClient): SortFunc<string> =>
   (a, b) => {
     const room1 = mx.getRoom(a);
     const room2 = mx.getRoom(b);
 
-    return (
-      (room2?.getLastActiveTimestamp() ?? Number.MIN_SAFE_INTEGER) -
-      (room1?.getLastActiveTimestamp() ?? Number.MIN_SAFE_INTEGER)
-    );
+    return getRoomActivityTimestamp(room2) - getRoomActivityTimestamp(room1);
   };
 
 export const factoryRoomIdByAtoZ =
@@ -111,8 +113,5 @@ export const factoryRoomIdByPriority =
     }
 
     // Within same tier, sort by activity (most recent first)
-    return (
-      (room2?.getLastActiveTimestamp() ?? Number.MIN_SAFE_INTEGER) -
-      (room1?.getLastActiveTimestamp() ?? Number.MIN_SAFE_INTEGER)
-    );
+    return getRoomActivityTimestamp(room2) - getRoomActivityTimestamp(room1);
   };

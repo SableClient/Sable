@@ -35,7 +35,6 @@ describe('NON_SYNCABLE_KEYS', () => {
       'memberSortFilterIndex',
       'isNotificationSounds',
       'developerTools',
-      'progressivePrefetch',
       'enterForNewline',
       'settingsSyncEnabled',
       'searchIndexMessageLimit',

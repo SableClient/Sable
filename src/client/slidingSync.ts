@@ -22,8 +22,8 @@ import {
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
-import { getRecentRoomIds } from '$utils/recentRooms';
 import * as Sentry from '@sentry/react';
+import { CustomStateEvent } from '$types/matrix/room';
 import { classifyCryptoStoreIndexedDbError } from './cryptoStoreErrors';
 
 const log = createLogger('slidingSync');
@@ -46,42 +46,24 @@ export const LIST_ROOM_SEARCH = 'room_search';
 // Dynamic list key used for space-scoped room views.
 export const LIST_SPACE = 'space';
 // No timeline events for list rooms by default: server-provided notification_count
-// Timeline limit for list rooms. Element Web uses 20 events per room which provides
-// enough context for proper notification-dot computation without excessive bandwidth.
+// and summary fields should carry the room list. Message previews can opt into a
+// tiny timeline window, but startup must not hydrate every visible room like
+// classic sync.
 // Value 0 means state-only (no timeline events in list responses).
 // Setting this above 0 triggers decryptCriticalEvents() per sync, so encrypted rooms
 // with many threads/reactions may produce "Decrypted event is not in room" warnings.
 // The message-preview feature can override this via ClientRoot when previews are enabled.
-const DEFAULT_LIST_TIMELINE_LIMIT = 20;
-const DEFAULT_LIST_PAGE_SIZE = 250;
+const DEFAULT_LIST_TIMELINE_LIMIT = 0;
+const DEFAULT_LIST_PAGE_SIZE = 30;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
 const FORCE_RESUBSCRIPTION_RESTORE_TIMEOUT_MS = 5000;
-
-// ---------------------------------------------------------------------------
-// Strategy 3: Sliding Sync List State Caching
-// ---------------------------------------------------------------------------
-
-const SLIDING_SYNC_LIST_CACHE_KEY = 'slidingSyncListCache';
-
-type CachedListState = {
-  timestamp: number;
-  userId: string;
-  lists: Array<{
-    key: string;
-    count: number;
-  }>;
-};
-
-function setCachedListState(state: CachedListState): void {
-  try {
-    localStorage.setItem(SLIDING_SYNC_LIST_CACHE_KEY, JSON.stringify(state));
-  } catch {
-    // Ignore — localStorage may be full or unavailable
-  }
-}
-
-// ---------------------------------------------------------------------------
+const HEALTH_CHECK_INTERVAL_MS = 15_000;
+const HEALTH_STALE_AFTER_MS = 30_000;
+const HEALTH_RETRY_COOLDOWN_MS = 30_000;
+const SPACE_GRAPH_WARMUP_INITIAL_DELAY_MS = 2500;
+const SPACE_GRAPH_WARMUP_INTERVAL_MS = 1500;
+const DEFAULT_SPACE_GRAPH_WARMUP_ROOMS = 300;
 
 // Sort order for MSC4186 (Simplified Sliding Sync): most recently active first,
 // then alphabetical as a tiebreaker. by_notification_level is MSC3575-only and
@@ -110,6 +92,7 @@ export type SlidingSyncConfig = {
   timelineLimit?: number;
   pollTimeoutMs?: number;
   maxRooms?: number;
+  spaceGraphWarmupRooms?: number;
   includeInviteList?: boolean;
   probeTimeoutMs?: number;
 };
@@ -124,6 +107,8 @@ export type SlidingSyncDiagnostics = {
   proxyBaseUrl: string;
   timelineLimit: number;
   listPageSize: number;
+  lastSuccessfulSyncAgeMs: number | null;
+  healthy: boolean;
   lists: SlidingSyncListDiagnostics[];
 };
 
@@ -133,32 +118,24 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
 };
 
 // Minimal required_state for list entries; enough to render the room list sidebar,
-// compute unread state, and build the space hierarchy without fetching full room history.
+// compute unread state, build the space hierarchy, and keep alias-based room links
+// available without fetching full room history.
 // Notes:
-//   - RoomName/RoomCanonicalAlias are omitted: sliding sync returns the room name as a
-//     top-level field in every list response, so fetching them as state events is redundant.
+//   - RoomName is omitted: sliding sync returns the room name as a top-level field
+//     in every list response, so fetching it as a state event is redundant.
 //   - MSC3575_STATE_KEY_LAZY is included only when `includeMembers=true` (i.e. when
 //     message previews are enabled and listTimelineLimit > 0). Lazy loading brings in
 //     m.room.member state events for senders of the preview timeline events so that
 //     display names resolve correctly. When previews are disabled, lazy loading is
 //     omitted to avoid wasteful member fetches for every list entry.
-//   - SpaceChild with wildcard is required: the roomToParents atom reads m.space.child
-//     state events (one per child, keyed by child room ID) to build the space hierarchy.
-//     Without these events the SDK has no parent→child mapping, so all rooms appear as
-//     orphans in the Home view and spaces appear empty.
-//   - im.ponies.room_emotes with wildcard is required: custom emoji/sticker packs are
-//     stored as im.ponies.room_emotes state events (one per pack, keyed by pack state key).
-//     getGlobalImagePacks reads these from pack rooms listed in im.ponies.emote_rooms
-//     account data; imagePackRooms also reads them from parent spaces. Without these
-//     events all list-entry rooms would show no emoji or sticker packs.
 //   - m.room.topic is required: topics are displayed for joined child rooms in space
 //     lobby (RoomItem → LocalRoomSummaryLoader → useLocalRoomSummary) and in the
 //     invite list. Without this event the topic always shows as blank for non-active
 //     rooms.
-//   - m.room.canonical_alias is required: getCanonicalAlias() is used in several places
-//     for non-active rooms — notification serverName extraction, mention autocomplete
-//     alias display, and getCanonicalAliasOrRoomId for navigation. Without it, aliases
-//     fall back silently to room IDs.
+//   - Room emoji packs and abbreviations are inherited from ancestor spaces by the
+//     composer and message renderer. Keep them in state-only list windows so cold
+//     sliding-sync sessions do not lose inherited rendering until a parent space is
+//     opened as the active room.
 const buildListRequiredState = (
   includeMembers: boolean
 ): MSC3575RoomSubscription['required_state'] => [
@@ -170,10 +147,10 @@ const buildListRequiredState = (
   [EventType.RoomTopic, ''],
   [EventType.RoomCanonicalAlias, ''],
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+  [EventType.SpaceChild, MSC3575_WILDCARD],
+  [CustomStateEvent.PoniesRoomEmotes, MSC3575_WILDCARD],
+  [CustomStateEvent.RoomAbbreviations, ''],
   ...(includeMembers ? [[EventType.RoomMember, MSC3575_STATE_KEY_LAZY] as [string, string]] : []),
-  ['m.space.child', MSC3575_WILDCARD],
-  ['im.ponies.room_emotes', MSC3575_WILDCARD],
-  ['moe.sable.room.abbreviations', ''],
 ];
 
 // For an active encrypted room: fetch everything so the client can decrypt all events.
@@ -196,23 +173,21 @@ const buildUnencryptedSubscription = (timelineLimit: number): MSC3575RoomSubscri
 const buildLists = (
   pageSize: number,
   includeInviteList: boolean,
-  listTimelineLimit: number,
-  cachedRoomCount: number = 0
+  listTimelineLimit: number
 ): Map<string, MSC3575List> => {
   const lists = new Map<string, MSC3575List>();
   const listRequiredState = buildListRequiredState(listTimelineLimit > 0);
 
-  // Strategy 5: Adaptive initial range based on cached room count.
-  // Start with enough to cover cached rooms, or at least 100.
-  // This ensures we fetch at least all cached rooms in the first sync response.
-  const initialRange = Math.min(pageSize, Math.max(100, cachedRoomCount));
+  // Start with the visible room-list window only. Sliding sync wins by not
+  // hydrating all cached rooms at startup; follow-up range changes should come
+  // from UI demand such as scrolling, show-more, or a space-filter change.
+  const initialRange = Math.max(1, pageSize);
 
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, initialRange - 1)]],
     sort: LIST_SORT_ORDER,
     timeline_limit: listTimelineLimit,
     required_state: listRequiredState,
-    slow_get_all_rooms: true,
     filters: { is_invite: false },
   });
 
@@ -222,7 +197,6 @@ const buildLists = (
       sort: LIST_SORT_ORDER,
       timeline_limit: listTimelineLimit,
       required_state: listRequiredState,
-      slow_get_all_rooms: true,
       filters: { is_invite: true },
     });
   }
@@ -232,7 +206,6 @@ const buildLists = (
     sort: LIST_SORT_ORDER,
     timeline_limit: listTimelineLimit,
     required_state: listRequiredState,
-    slow_get_all_rooms: true,
     filters: { is_dm: true },
   });
 
@@ -297,9 +270,13 @@ export class SlidingSyncManager {
 
   private readonly maxRooms: number;
 
+  private readonly spaceGraphWarmupRooms: number;
+
   private readonly listKeys: string[];
 
   private readonly activeRoomSubscriptions = new Set<string>();
+
+  private readonly activeRoomSubscriptionRefs = new Map<string, number>();
 
   private readonly ptrRefreshRooms = new Set<string>();
 
@@ -344,15 +321,6 @@ export class SlidingSyncManager {
 
   private previousListCounts: Map<string, number> = new Map();
 
-  /** Whether progressive prefetch is enabled (controlled by experimental setting). */
-  private progressivePrefetchEnabled = false;
-
-  /** Timer ID for progressive prefetch batches. */
-  private progressivePrefetchTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /** Current offset in the recentRoomIds array for progressive prefetch. */
-  private progressivePrefetchOffset = 0;
-
   /**
    * When non-null, contains the set of room IDs that were active subscriptions
    * before a force-reset was scheduled (pull-to-refresh). The rooms are
@@ -364,6 +332,18 @@ export class SlidingSyncManager {
   private pendingResubscriptions: Set<string> | null = null;
 
   private pendingResubscriptionRestoreTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private healthCheckTimer: ReturnType<typeof setInterval> | undefined;
+
+  private spaceGraphWarmupTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private spaceGraphWarmupStarted = false;
+
+  private lastSuccessfulSyncAt = 0;
+
+  private lastHealthRetryAt = 0;
+
+  private attachWallClockAt: number | null = null;
 
   /**
    * One-shot RoomData listeners keyed by roomId, used to measure the latency
@@ -395,6 +375,10 @@ export class SlidingSyncManager {
     const pollTimeoutMs = clampPositive(config.pollTimeoutMs, DEFAULT_POLL_TIMEOUT_MS);
     this.probeTimeoutMs = clampPositive(config.probeTimeoutMs, 5000);
     this.maxRooms = clampPositive(config.maxRooms, DEFAULT_MAX_ROOMS);
+    this.spaceGraphWarmupRooms = Math.min(
+      this.maxRooms,
+      clampPositive(config.spaceGraphWarmupRooms, DEFAULT_SPACE_GRAPH_WARMUP_ROOMS)
+    );
     this.listPageSize = listPageSize;
     const includeInviteList = config.includeInviteList !== false;
     this.listTimelineLimit = clampPositive(config.listTimelineLimit, DEFAULT_LIST_TIMELINE_LIMIT);
@@ -405,13 +389,7 @@ export class SlidingSyncManager {
     this.initialWarmCache = initialWarmCache ?? this.initialRoomCount > 0;
 
     const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
-    const cachedRoomCount = this.initialRoomCount;
-    const lists = buildLists(
-      listPageSize,
-      includeInviteList,
-      this.listTimelineLimit,
-      cachedRoomCount
-    );
+    const lists = buildLists(listPageSize, includeInviteList, this.listTimelineLimit);
     this.listKeys = Array.from(lists.keys());
     this.slidingSync = new SlidingSync(proxyBaseUrl, lists, defaultSubscription, mx, pollTimeoutMs);
 
@@ -528,6 +506,13 @@ export class SlidingSyncManager {
       if (this.disposed) {
         debugLog.warn('sync', 'Sync lifecycle called after disposal', { state });
         return;
+      }
+
+      if (
+        !err &&
+        (state === SlidingSyncState.RequestFinished || state === SlidingSyncState.Complete)
+      ) {
+        this.lastSuccessfulSyncAt = Date.now();
       }
 
       // Before room data is processed, reset live timelines for active rooms that
@@ -723,11 +708,11 @@ export class SlidingSyncManager {
         this.initialSyncSpan?.end();
         this.initialSyncSpan = null;
 
-        // Prefetch recently-visited rooms to warm the cache for likely next navigations
-        this.prefetchRecentRooms();
+        Sentry.metrics.distribution('sable.sync.first_list_window_rooms', this.loadedRoomIds.size, {
+          attributes: { transport: 'sliding' },
+        });
+        this.scheduleSpaceGraphWarmup();
       }
-
-      this.expandListsToKnownCount();
 
       Sentry.metrics.distribution('sable.sync.processing_ms', syncDuration, {
         attributes: { transport: 'sliding' },
@@ -746,7 +731,7 @@ export class SlidingSyncManager {
       if (member.membership !== KnownMembership.Leave && member.membership !== KnownMembership.Ban)
         return;
       if (!this.activeRoomSubscriptions.has(member.roomId)) return;
-      this.unsubscribeFromRoom(member.roomId);
+      this.unsubscribeFromRoom(member.roomId, true);
     };
 
     this.onConnectionChange = () => {
@@ -796,6 +781,7 @@ export class SlidingSyncManager {
     });
 
     this.attachTime = performance.now();
+    this.attachWallClockAt = Date.now();
     this.initialSyncSpan = Sentry.startInactiveSpan({
       name: 'sync.initial',
       op: 'matrix.sync',
@@ -822,6 +808,7 @@ export class SlidingSyncManager {
       window.addEventListener('online', this.onConnectionChange);
       window.addEventListener('offline', this.onConnectionChange);
     }
+    this.healthCheckTimer = setInterval(() => this.checkSyncHealth(), HEALTH_CHECK_INTERVAL_MS);
 
     debugLog.info('sync', 'Sliding sync listeners attached successfully', {
       hasConnectionAPI: !!connection,
@@ -837,12 +824,6 @@ export class SlidingSyncManager {
       initialSyncCompleted: this.initialSyncCompleted,
     });
 
-    // Clean up progressive prefetch timer
-    if (this.progressivePrefetchTimer) {
-      clearTimeout(this.progressivePrefetchTimer);
-      this.progressivePrefetchTimer = null;
-    }
-
     // Clean up pending room-data latency listeners before marking disposed.
     // SlidingSync.stop() will removeAllListeners anyway, but this keeps the Map tidy.
     this.pendingRoomDataListeners.clear();
@@ -853,6 +834,14 @@ export class SlidingSyncManager {
     if (this.pendingResubscriptionRestoreTimer) {
       clearTimeout(this.pendingResubscriptionRestoreTimer);
       this.pendingResubscriptionRestoreTimer = undefined;
+    }
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = undefined;
+    }
+    if (this.spaceGraphWarmupTimer) {
+      clearTimeout(this.spaceGraphWarmupTimer);
+      this.spaceGraphWarmupTimer = undefined;
     }
 
     this.disposed = true;
@@ -891,6 +880,70 @@ export class SlidingSyncManager {
   public retryNow(): void {
     if (this.disposed) return;
     this.slidingSync.resend();
+  }
+
+  private checkSyncHealth(): void {
+    if (this.disposed) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+    const now = Date.now();
+    const fallbackStart = this.attachWallClockAt ?? now;
+    const lastProgressAt =
+      this.lastSuccessfulSyncAt > 0 ? this.lastSuccessfulSyncAt : fallbackStart;
+    const staleForMs = now - lastProgressAt;
+    if (staleForMs < HEALTH_STALE_AFTER_MS) return;
+    if (now - this.lastHealthRetryAt < HEALTH_RETRY_COOLDOWN_MS) return;
+
+    this.lastHealthRetryAt = now;
+    debugLog.warn('sync', 'Sliding sync stale; requesting immediate retry', {
+      staleForMs,
+      syncNumber: this.syncCount,
+    });
+    Sentry.metrics.count('sable.sync.health_retry', 1, {
+      attributes: { transport: 'sliding' },
+    });
+    this.retryNow();
+  }
+
+  private scheduleSpaceGraphWarmup(): void {
+    if (this.disposed || this.spaceGraphWarmupStarted) return;
+    this.spaceGraphWarmupStarted = true;
+    this.spaceGraphWarmupTimer = setTimeout(
+      () => this.expandSpaceGraphWarmup(),
+      SPACE_GRAPH_WARMUP_INITIAL_DELAY_MS
+    );
+  }
+
+  private expandSpaceGraphWarmup(): void {
+    this.spaceGraphWarmupTimer = undefined;
+    if (this.disposed) return;
+
+    const listData = this.slidingSync.getListData(LIST_JOINED);
+    if (!listData) {
+      this.spaceGraphWarmupTimer = setTimeout(
+        () => this.expandSpaceGraphWarmup(),
+        SPACE_GRAPH_WARMUP_INTERVAL_MS
+      );
+      return;
+    }
+
+    const knownCount = listData.joinedCount ?? 0;
+    if (knownCount <= 0) return;
+
+    const currentEnd = getListEndIndex(this.slidingSync.getListParams(LIST_JOINED));
+    const warmupEnd = Math.min(knownCount - 1, this.maxRooms - 1, this.spaceGraphWarmupRooms - 1);
+    if (currentEnd >= warmupEnd) return;
+
+    const nextEnd = Math.min(warmupEnd, currentEnd + this.listPageSize);
+    this.requestListWindow(LIST_JOINED, nextEnd);
+    Sentry.metrics.count('sable.sync.space_graph_warmup_expand', 1, {
+      attributes: { transport: 'sliding' },
+    });
+
+    this.spaceGraphWarmupTimer = setTimeout(
+      () => this.expandSpaceGraphWarmup(),
+      SPACE_GRAPH_WARMUP_INTERVAL_MS
+    );
   }
 
   /**
@@ -981,35 +1034,6 @@ export class SlidingSyncManager {
   }
 
   /**
-   * Enable or disable progressive prefetch. When enabled, after the initial
-   * batch of 25 rooms is prefetched, additional rooms are loaded in the
-   * background in batches of 25 until all rooms are subscribed.
-   */
-  public setProgressivePrefetch(enabled: boolean): void {
-    if (this.progressivePrefetchEnabled === enabled) return;
-    this.progressivePrefetchEnabled = enabled;
-    debugLog.info('sync', `Progressive prefetch ${enabled ? 'enabled' : 'disabled'}`);
-    Sentry.addBreadcrumb({
-      category: 'sync',
-      message: `Progressive prefetch ${enabled ? 'enabled' : 'disabled'}`,
-      level: 'info',
-      data: { enabled, initialSyncCompleted: this.initialSyncCompleted },
-    });
-
-    // If disabling, cancel any pending prefetch
-    if (!enabled && this.progressivePrefetchTimer) {
-      clearTimeout(this.progressivePrefetchTimer);
-      this.progressivePrefetchTimer = null;
-      this.progressivePrefetchOffset = 0;
-    }
-
-    // If enabling and we already completed initial sync, start prefetch
-    if (enabled && this.initialSyncCompleted) {
-      this.scheduleNextProgressivePrefetch();
-    }
-  }
-
-  /**
    * Synthesizes an own-presence update into the SDK store.
    * MSC4186 servers never echo back the client's own m.presence events, so after
    * calling mx.setPresence() we manually build a synthetic event and feed it into
@@ -1037,10 +1061,17 @@ export class SlidingSyncManager {
   }
 
   public getDiagnostics(): SlidingSyncDiagnostics {
+    const lastSuccessfulSyncAgeMs =
+      this.lastSuccessfulSyncAt > 0 ? Date.now() - this.lastSuccessfulSyncAt : null;
     return {
       proxyBaseUrl: this.proxyBaseUrl,
       timelineLimit: this.roomTimelineLimit,
       listPageSize: this.listPageSize,
+      lastSuccessfulSyncAgeMs,
+      healthy:
+        lastSuccessfulSyncAgeMs !== null &&
+        lastSuccessfulSyncAgeMs < HEALTH_STALE_AFTER_MS &&
+        !this.disposed,
       lists: this.listKeys.map((key) => {
         const listData = this.slidingSync.getListData(key);
         const params = this.slidingSync.getListParams(key);
@@ -1066,172 +1097,71 @@ export class SlidingSyncManager {
   }
 
   /**
-   * Check if enough sliding-sync list coverage has loaded to show a cold cache
-   * without first rendering a tiny partial list that immediately jumps around.
+   * Check if the first requested sliding-sync list window has arrived.
+   * The UI should render from server-provided positions and placeholders rather
+   * than block until hundreds or all rooms have been hydrated.
    */
   public hasSufficientRoomsLoaded(): boolean {
-    if (this.listsFullyLoaded) return true;
-
-    const targetListCoverage = Math.min(500, this.maxRooms);
-    let sawKnownList = false;
+    let sawListData = false;
 
     for (const key of this.listKeys) {
-      const knownCount = this.slidingSync.getListData(key)?.joinedCount ?? 0;
+      const listData = this.slidingSync.getListData(key);
+      if (!listData) continue;
+      sawListData = true;
+      const knownCount = listData.joinedCount ?? 0;
       if (knownCount <= 0) continue;
-      sawKnownList = true;
 
-      const requiredEnd = Math.min(knownCount, targetListCoverage) - 1;
+      const params = this.slidingSync.getListParams(key);
+      const requestedEnd = getListEndIndex(params);
+      if (requestedEnd < 0) continue;
+      const requiredEnd = Math.min(knownCount, requestedEnd + 1) - 1;
       const rangeEnd = this.loadedListCoverageEnd.get(key) ?? -1;
       if (rangeEnd < requiredEnd) return false;
     }
 
-    if (sawKnownList) return true;
+    if (sawListData) return true;
 
-    return this.loadedRoomIds.size >= 100;
+    return this.loadedRoomIds.size > 0;
   }
 
-  private expandListsToKnownCount(): void {
-    // Stop expanding once we've loaded all rooms - prevents continuous updates
-    if (this.listsFullyLoaded) return;
+  /**
+   * Expand a list only when the UI needs more rows. This keeps startup
+   * viewport-driven while still allowing virtualized room lists to page forward
+   * as the user approaches the loaded tail.
+   */
+  public requestListWindow(listKey: string, endIndex: number): void {
+    if (this.disposed) return;
+    if (!Number.isFinite(endIndex) || endIndex < 0) return;
+    const params = this.slidingSync.getListParams(listKey);
+    if (!params) return;
 
-    let allListsComplete = true;
-    let expandedAny = false;
+    const knownCount = this.slidingSync.getListData(listKey)?.joinedCount ?? 0;
+    const requestedEnd = Math.min(Math.round(endIndex), this.maxRooms - 1);
+    const cappedEnd = knownCount > 0 ? Math.min(requestedEnd, knownCount - 1) : requestedEnd;
+    const currentEnd = getListEndIndex(params);
+    if (cappedEnd <= currentEnd) return;
 
-    const expansionStartTime = performance.now();
-    const expansionDetails: Record<
-      string,
-      {
-        status: string;
-        knownCount: number;
-        currentEnd?: number;
-        desiredEnd?: number;
-        previousEnd?: number;
-        newEnd?: number;
-        roomsToLoad?: number;
-      }
-    > = {};
-
-    this.listKeys.forEach((key) => {
-      const listData = this.slidingSync.getListData(key);
-      const knownCount = listData?.joinedCount ?? 0;
-      if (knownCount <= 0) {
-        expansionDetails[key] = { status: 'empty', knownCount: 0 };
-        return;
-      }
-
-      const existing = this.slidingSync.getListParams(key);
-      const currentEnd = getListEndIndex(existing);
-
-      // Calculate how many rooms we still need to load
-      const maxEnd = Math.min(knownCount, this.maxRooms) - 1;
-
-      if (currentEnd >= maxEnd) {
-        // This list is fully loaded
-        expansionDetails[key] = { status: 'complete', knownCount, currentEnd };
-        return;
-      }
-
-      allListsComplete = false;
-
-      // Progressive expansion: load in moderate chunks to balance speed with stability
-      // Chunk size reduced to 100 to prevent timeline ordering issues when opening rooms
-      // while lists are still expanding. Rooms should get at least one clean sync from
-      // their list before the active subscription requests a high timeline limit.
-      const chunkSize = 100;
-      const desiredEnd = Math.min(currentEnd + chunkSize, maxEnd);
-
-      if (desiredEnd === currentEnd) {
-        expansionDetails[key] = {
-          status: 'complete',
-          knownCount,
-          currentEnd,
-          desiredEnd,
-        };
-        return;
-      }
-
-      this.slidingSync.setListRanges(key, [[0, desiredEnd]]);
-      expandedAny = true;
-
-      expansionDetails[key] = {
-        status: 'expanding',
-        knownCount,
-        previousEnd: currentEnd,
-        newEnd: desiredEnd,
-        roomsToLoad: desiredEnd - currentEnd,
-      };
-
-      debugLog.info('sync', `Expanding list "${key}" to full range`, {
-        list: key,
-        knownCount,
-        previousEnd: currentEnd,
-        newEnd: desiredEnd,
-        roomsToLoad: desiredEnd - currentEnd,
-      });
-
-      if (knownCount > this.maxRooms) {
-        log.warn(
-          `Sliding Sync list "${key}" capped at ${this.maxRooms}/${knownCount} rooms for ${this.mx.getUserId()}`
-        );
-        debugLog.warn('sync', `List "${key}" exceeds maxRooms limit`, {
-          list: key,
-          knownCount,
-          maxRooms: this.maxRooms,
-          cappedCount: this.maxRooms,
-        });
-      }
+    this.slidingSync.setListRanges(listKey, [[0, cappedEnd]]);
+    Sentry.metrics.count('sable.sync.list_window_expand', 1, {
+      attributes: { list: listKey, transport: 'sliding' },
     });
+    debugLog.info('sync', 'Expanded sliding sync list window on demand', {
+      list: listKey,
+      previousEnd: currentEnd,
+      newEnd: cappedEnd,
+      knownCount,
+      maxRooms: this.maxRooms,
+    });
+  }
 
-    const expansionDuration = performance.now() - expansionStartTime;
-    const hasExpansions = Object.values(expansionDetails).some((d) => d.status === 'expanding');
-
-    // Mark as fully loaded once all lists are complete
-    if (allListsComplete) {
-      this.listsFullyLoaded = true;
-      log.log(`Sliding Sync all lists fully loaded for ${this.mx.getUserId()}`);
-      const totalRooms = this.listKeys.reduce(
-        (sum, key) => sum + (this.slidingSync.getListData(key)?.joinedCount ?? 0),
-        0
-      );
-      const listsLoadedMs =
-        this.attachTime != null ? Math.round(performance.now() - this.attachTime) : 0;
-      Sentry.metrics.distribution('sable.sync.lists_loaded_ms', listsLoadedMs, {
-        attributes: { transport: 'sliding' },
-      });
-      Sentry.metrics.gauge('sable.sync.total_rooms', totalRooms, {
-        attributes: { transport: 'sliding' },
-      });
-
-      // Strategy 3: Cache list state to localStorage for faster next launch
-      const listStateToCache: CachedListState = {
-        timestamp: Date.now(),
-        userId: this.mx.getUserId() ?? '',
-        lists: this.listKeys.map((key) => ({
-          key,
-          count: this.slidingSync.getListData(key)?.joinedCount ?? 0,
-        })),
-      };
-      setCachedListState(listStateToCache);
-    } else if (expandedAny) {
-      log.log(`Sliding Sync lists expanding... for ${this.mx.getUserId()}`);
-    }
-
-    if (hasExpansions) {
-      debugLog.info('sync', 'List expansion completed', {
-        syncNumber: this.syncCount,
-        lists: expansionDetails,
-        timeElapsed: `${expansionDuration.toFixed(2)}ms`,
-      });
-    }
-
-    if (expansionDuration > 500) {
-      debugLog.warn('sync', 'Slow list expansion detected', {
-        duration: `${expansionDuration.toFixed(2)}ms`,
-        expandedLists: Object.keys(expansionDetails).filter(
-          (key) => expansionDetails[key]?.status === 'expanding'
-        ),
-      });
-    }
+  public getListDiagnostics(listKey: string): SlidingSyncListDiagnostics | undefined {
+    const params = this.slidingSync.getListParams(listKey);
+    if (!params) return undefined;
+    return {
+      key: listKey,
+      knownCount: this.slidingSync.getListData(listKey)?.joinedCount ?? 0,
+      rangeEnd: getListEndIndex(params),
+    };
   }
 
   /**
@@ -1247,7 +1177,7 @@ export class SlidingSyncManager {
     let list = this.slidingSync.getListParams(listKey);
     if (!list) {
       list = {
-        ranges: [[0, 20]],
+        ranges: [[0, Math.max(0, this.listPageSize - 1)]],
         sort: LIST_SORT_ORDER,
         timeline_limit: this.listTimelineLimit,
         required_state: buildListRequiredState(this.listTimelineLimit > 0),
@@ -1320,7 +1250,8 @@ export class SlidingSyncManager {
           [EventType.RoomCanonicalAlias, ''],
           [EventType.RoomMember, MSC3575_STATE_KEY_ME],
           ['m.space.child', MSC3575_WILDCARD],
-          ['im.ponies.room_emotes', MSC3575_WILDCARD],
+          [CustomStateEvent.PoniesRoomEmotes, MSC3575_WILDCARD],
+          [CustomStateEvent.RoomAbbreviations, ''],
         ];
 
         while (hasMore) {
@@ -1401,7 +1332,7 @@ export class SlidingSyncManager {
       : { is_invite: false };
     this.ensureListRegistered(LIST_SPACE, {
       filters,
-      ranges: spaceId ? [[0, Math.min(this.listPageSize - 1, 499)]] : [[0, 0]],
+      ranges: spaceId ? [[0, Math.min(this.listPageSize - 1, this.maxRooms - 1)]] : [[0, 0]],
       sort: LIST_SORT_ORDER,
     });
   }
@@ -1418,6 +1349,8 @@ export class SlidingSyncManager {
    */
   public subscribeToRoom(roomId: string): void {
     if (this.disposed) return;
+    const refCount = this.activeRoomSubscriptionRefs.get(roomId) ?? 0;
+    this.activeRoomSubscriptionRefs.set(roomId, refCount + 1);
     if (this.activeRoomSubscriptions.has(roomId)) return;
     const room = this.mx.getRoom(roomId);
     const isEncrypted = this.mx.isRoomEncrypted(roomId);
@@ -1491,221 +1424,20 @@ export class SlidingSyncManager {
   }
 
   /**
-   * Prefetch recently-visited rooms by subscribing to them in a single batched
-   * call to modifyRoomSubscriptions.
-   *
-   * IMPORTANT: This only subscribes to rooms that ALREADY EXIST in the client
-   * (from IndexedDB cache or initial sync response). It does not load/fetch new
-   * rooms. On warm cache launches, all cached rooms load from IndexedDB instantly,
-   * then this method subscribes to them to request fresh timeline content.
-   *
-   * Progressive prefetch (if enabled) continues subscribing to additional cached
-   * rooms in batches of 25 every 3 seconds, spreading server load and avoiding
-   * overwhelming the connection with hundreds of simultaneous subscriptions.
-   *
-   * The "all rooms visible, then content loads, then sort" behavior on warm cache
-   * is CORRECT: rooms appear from cache instantly → progressive prefetch subscribes
-   * in batches → fresh content arrives → rooms re-sort by priority.
-   *
-   * Calling subscribeToRoom() per room would trigger a modifyRoomSubscriptions +
-   * resend() for each room individually (N+1 resend calls), whereas this method
-   * collects all rooms first and issues one call, keeping startup sync churn low.
-   */
-  public prefetchRecentRooms(): void {
-    if (this.disposed) return;
-    const userId = this.mx.getUserId();
-    if (!userId) return;
-
-    const recentRoomIds = getRecentRoomIds(userId);
-    const toPrefetch = recentRoomIds.slice(0, 25); // Top 25 most recent
-
-    if (toPrefetch.length === 0) return;
-
-    debugLog.info('sync', 'Prefetching recent rooms', {
-      count: toPrefetch.length,
-      roomIds: toPrefetch,
-    });
-
-    // Phase 1: batch — add all rooms to activeRoomSubscriptions and set custom
-    // subscriptions, but defer modifyRoomSubscriptions until all are registered.
-    const toSubscribe: string[] = [];
-    for (const roomId of toPrefetch) {
-      const room = this.mx.getRoom(roomId);
-      if (!room || this.activeRoomSubscriptions.has(roomId)) continue;
-      const isEncrypted = this.mx.isRoomEncrypted(roomId);
-      if (!isEncrypted) {
-        this.slidingSync.useCustomSubscription(roomId, UNENCRYPTED_SUBSCRIPTION_KEY);
-      }
-      this.activeRoomSubscriptions.add(roomId);
-      toSubscribe.push(roomId);
-    }
-
-    if (toSubscribe.length === 0) return;
-
-    // Phase 2: single modifyRoomSubscriptions covers all rooms at once.
-    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
-    Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
-      attributes: { transport: 'sliding' },
-    });
-    debugLog.info('sync', 'Batch-subscribed recent rooms (prefetch)', {
-      count: toSubscribe.length,
-      roomIds: toSubscribe,
-      activeSubscriptions: this.activeRoomSubscriptions.size,
-      syncCycle: this.syncCount,
-    });
-
-    // Phase 3: register one-shot latency listeners per room (no modifyRoomSubscriptions needed).
-    const subscribeMs = performance.now();
-    for (const roomId of toSubscribe) {
-      const existingListener = this.pendingRoomDataListeners.get(roomId);
-      if (existingListener) {
-        this.slidingSync.removeListener(SlidingSyncEvent.RoomData, existingListener);
-      }
-      const onFirstRoomData = (dataRoomId: string) => {
-        if (dataRoomId !== roomId) return;
-        const latencyMs = Math.round(performance.now() - subscribeMs);
-        const subscribedRoom = this.mx.getRoom(roomId);
-        const eventCount = subscribedRoom?.getLiveTimeline().getEvents().length ?? 0;
-        debugLog.info('sync', 'Room subscription: first data received (sliding prefetch)', {
-          latencyMs,
-          syncCycle: this.syncCount,
-          eventCount,
-        });
-        Sentry.metrics.distribution('sable.sync.room_sub_latency_ms', latencyMs, {
-          attributes: { transport: 'sliding' },
-        });
-        this.slidingSync.removeListener(SlidingSyncEvent.RoomData, onFirstRoomData);
-        this.pendingRoomDataListeners.delete(roomId);
-      };
-      this.pendingRoomDataListeners.set(roomId, onFirstRoomData);
-      this.slidingSync.on(SlidingSyncEvent.RoomData, onFirstRoomData);
-    }
-
-    // Set offset for progressive prefetch to start after initial batch
-    this.progressivePrefetchOffset = 25;
-
-    // If progressive prefetch is enabled, schedule the next batch
-    if (this.progressivePrefetchEnabled) {
-      debugLog.info('sync', 'Scheduling progressive prefetch after initial batch');
-      Sentry.addBreadcrumb({
-        category: 'sync',
-        message: 'Scheduling progressive prefetch',
-        level: 'info',
-        data: {
-          initialBatchSize: toSubscribe.length,
-          nextOffset: 25,
-          totalRecentRooms: recentRoomIds.length,
-        },
-      });
-      this.scheduleNextProgressivePrefetch();
-    } else {
-      debugLog.info('sync', 'Progressive prefetch disabled, not scheduling next batch');
-      Sentry.addBreadcrumb({
-        category: 'sync',
-        message: 'Progressive prefetch disabled',
-        level: 'info',
-      });
-    }
-  }
-
-  /**
-   * Schedule the next batch of progressive prefetch. Loads rooms in batches
-   * of 25 with a 3-second delay between batches to avoid overwhelming the
-   * server and client. Continues until all rooms are subscribed or maxRooms
-   * is reached.
-   */
-  private scheduleNextProgressivePrefetch(): void {
-    if (this.disposed || !this.progressivePrefetchEnabled) return;
-
-    // Cancel any existing timer
-    if (this.progressivePrefetchTimer) {
-      clearTimeout(this.progressivePrefetchTimer);
-      this.progressivePrefetchTimer = null;
-    }
-
-    const userId = this.mx.getUserId();
-    if (!userId) return;
-
-    const recentRoomIds = getRecentRoomIds(userId);
-    const batchSize = 25;
-    const nextBatch = recentRoomIds.slice(
-      this.progressivePrefetchOffset,
-      this.progressivePrefetchOffset + batchSize
-    );
-
-    if (nextBatch.length === 0) {
-      debugLog.info('sync', 'Progressive prefetch complete', {
-        totalPrefetched: this.progressivePrefetchOffset,
-      });
-      Sentry.addBreadcrumb({
-        category: 'sync',
-        message: 'Progressive prefetch complete',
-        level: 'info',
-        data: { totalPrefetched: this.progressivePrefetchOffset },
-      });
-      return;
-    }
-
-    // Schedule next batch after 3 seconds
-    this.progressivePrefetchTimer = setTimeout(() => {
-      if (this.disposed || !this.progressivePrefetchEnabled) return;
-
-      debugLog.info('sync', 'Progressive prefetch batch', {
-        offset: this.progressivePrefetchOffset,
-        count: nextBatch.length,
-      });
-      Sentry.addBreadcrumb({
-        category: 'sync',
-        message: 'Progressive prefetch batch starting',
-        level: 'info',
-        data: {
-          offset: this.progressivePrefetchOffset,
-          count: nextBatch.length,
-          totalRecentRooms: recentRoomIds.length,
-        },
-      });
-
-      const toSubscribe: string[] = [];
-      for (const roomId of nextBatch) {
-        const room = this.mx.getRoom(roomId);
-        if (!room || this.activeRoomSubscriptions.has(roomId)) continue;
-        const isEncrypted = this.mx.isRoomEncrypted(roomId);
-        if (!isEncrypted) {
-          this.slidingSync.useCustomSubscription(roomId, UNENCRYPTED_SUBSCRIPTION_KEY);
-        }
-        this.activeRoomSubscriptions.add(roomId);
-        toSubscribe.push(roomId);
-      }
-
-      if (toSubscribe.length > 0) {
-        this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
-        Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
-          attributes: { transport: 'sliding' },
-        });
-        debugLog.info('sync', 'Batch-subscribed progressive prefetch rooms', {
-          count: toSubscribe.length,
-          activeSubscriptions: this.activeRoomSubscriptions.size,
-          offset: this.progressivePrefetchOffset,
-        });
-      }
-
-      // Move offset forward
-      this.progressivePrefetchOffset += batchSize;
-
-      // Schedule next batch if progressive prefetch is still enabled
-      if (this.progressivePrefetchEnabled) {
-        this.scheduleNextProgressivePrefetch();
-      }
-    }, 3000); // 3 second delay between batches
-  }
-
-  /**
    * Remove the explicit room subscription for a room.
    * Rooms that are still in a list will continue to receive background updates.
    * This is a no-op after dispose().
    */
-  public unsubscribeFromRoom(roomId: string): void {
+  public unsubscribeFromRoom(roomId: string, force = false): void {
     if (this.disposed) return;
+    this.pendingResubscriptions?.delete(roomId);
+    this.ptrRefreshRooms.delete(roomId);
+    const refCount = this.activeRoomSubscriptionRefs.get(roomId) ?? 0;
+    if (!force && refCount > 1) {
+      this.activeRoomSubscriptionRefs.set(roomId, refCount - 1);
+      return;
+    }
+    this.activeRoomSubscriptionRefs.delete(roomId);
     if (!this.activeRoomSubscriptions.has(roomId)) return;
     // Clean up any pending first-data latency listener for this room.
     const pendingListener = this.pendingRoomDataListeners.get(roomId);

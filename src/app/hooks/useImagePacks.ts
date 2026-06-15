@@ -1,5 +1,5 @@
-import type { Room } from '$types/matrix-sdk';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { MatrixEvent, type MatrixClient, type Room } from '$types/matrix-sdk';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ImagePack, ImageUsage } from '$plugins/custom-emoji';
 import {
@@ -20,6 +20,11 @@ import { useAccountDataCallback } from './useAccountDataCallback';
 import { useStateEventCallback } from './useStateEventCallback';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { CustomStateEvent } from '$types/matrix/room';
+import { getSlidingSyncManager } from '$client/initMatrix';
+
+const GLOBAL_PACK_ROOM_WAIT_MS = 3000;
+const GLOBAL_PACK_ROOM_WAIT_INTERVAL_MS = 250;
+const globalImagePackLoadByKey = new Map<string, Promise<boolean>>();
 
 const imagePackEqual = (a: ImagePack | undefined, b: ImagePack | undefined): boolean => {
   if (!a && !b) return true;
@@ -53,6 +58,93 @@ const imagePackEqual = (a: ImagePack | undefined, b: ImagePack | undefined): boo
 const imagePackListEqual = (a: ImagePack[], b: ImagePack[]): boolean => {
   if (a.length !== b.length) return false;
   return a.every((pack, index) => imagePackEqual(pack, b[index]));
+};
+
+const waitForRoom = async (mx: MatrixClient, roomId: string): Promise<Room | undefined> => {
+  const existing = mx.getRoom(roomId);
+  if (existing) return existing;
+
+  return new Promise((resolve) => {
+    const interval = window.setInterval(() => {
+      const room = mx.getRoom(roomId);
+      if (!room) return;
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+      resolve(room);
+    }, GLOBAL_PACK_ROOM_WAIT_INTERVAL_MS);
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
+      resolve(undefined);
+    }, GLOBAL_PACK_ROOM_WAIT_MS);
+  });
+};
+
+const getGlobalImagePackLoadKey = (mx: MatrixClient): string | undefined => {
+  const userId = mx.getUserId();
+  if (!userId) return undefined;
+  const emoteRoomsContent = mx
+    .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
+    ?.getContent();
+  if (!emoteRoomsContent || typeof emoteRoomsContent !== 'object') return undefined;
+  return `${userId}:${JSON.stringify(emoteRoomsContent.rooms ?? {})}`;
+};
+
+const loadGlobalImagePackState = async (mx: MatrixClient): Promise<boolean> => {
+  const emoteRoomsContent = mx
+    .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
+    ?.getContent();
+  if (!emoteRoomsContent || typeof emoteRoomsContent !== 'object') return false;
+  const roomIdToPackInfo = emoteRoomsContent.rooms;
+  if (!roomIdToPackInfo || typeof roomIdToPackInfo !== 'object') return false;
+
+  let loaded = false;
+  const requests = Object.entries(roomIdToPackInfo).flatMap(([roomId, packStateKeyToUnknown]) => {
+    if (!packStateKeyToUnknown || typeof packStateKeyToUnknown !== 'object') return [];
+    return Object.keys(packStateKeyToUnknown).map(async (stateKey) => {
+      let room: Room | null | undefined = mx.getRoom(roomId);
+      let subscribedForLoad = false;
+      if (!room) {
+        getSlidingSyncManager(mx)?.subscribeToRoom(roomId);
+        subscribedForLoad = true;
+        room = await waitForRoom(mx, roomId);
+      }
+      try {
+        if (!room) return;
+        if (getRoomImagePack(room, stateKey)) return;
+        const content = await mx.getStateEvent(roomId, CustomStateEvent.PoniesRoomEmotes, stateKey);
+        const event = new MatrixEvent({
+          content,
+          event_id: `$sable-image-pack-${roomId}-${stateKey}`,
+          origin_server_ts: Date.now(),
+          room_id: roomId,
+          sender: mx.getUserId() ?? '',
+          state_key: stateKey,
+          type: CustomStateEvent.PoniesRoomEmotes,
+        });
+        room.currentState.setStateEvents([event]);
+        loaded = true;
+      } finally {
+        if (subscribedForLoad) getSlidingSyncManager(mx)?.unsubscribeFromRoom(roomId);
+      }
+    });
+  });
+
+  await Promise.allSettled(requests);
+  return loaded;
+};
+
+const loadGlobalImagePackStateOnce = (mx: MatrixClient): Promise<boolean> => {
+  const key = getGlobalImagePackLoadKey(mx);
+  if (!key) return Promise.resolve(false);
+  const pending = globalImagePackLoadByKey.get(key);
+  if (pending) return pending;
+
+  const next = loadGlobalImagePackState(mx).catch((error: unknown) => {
+    globalImagePackLoadByKey.delete(key);
+    throw error;
+  });
+  globalImagePackLoadByKey.set(key, next);
+  return next;
 };
 
 export const useUserImagePack = (): ImagePack | undefined => {
@@ -91,6 +183,9 @@ export const useUserImagePack = (): ImagePack | undefined => {
 
 export const useGlobalImagePacks = (): ImagePack[] => {
   const mx = useMatrixClient();
+  const loadingGlobalPacksRef = useRef(false);
+  const attemptedGlobalPackLoadVersionRef = useRef<number | undefined>(undefined);
+  const [globalPackLoadVersion, setGlobalPackLoadVersion] = useState(0);
   // Seed from cache during initial state when live data is not available yet.
   const [globalPacks, setGlobalPacks] = useState<ImagePack[]>(() => {
     const livePacks = getGlobalImagePacks(mx);
@@ -106,11 +201,40 @@ export const useGlobalImagePacks = (): ImagePack[] => {
     if (userId) writeCachedPacks(userId, globalPacksScope(), globalPacks);
   }, [mx, globalPacks]);
 
+  useEffect(() => {
+    if (
+      loadingGlobalPacksRef.current ||
+      (globalPacks.length > 0 &&
+        attemptedGlobalPackLoadVersionRef.current === globalPackLoadVersion)
+    ) {
+      return undefined;
+    }
+    loadingGlobalPacksRef.current = true;
+    let cancelled = false;
+    loadGlobalImagePackStateOnce(mx)
+      .then((loaded) => {
+        if (cancelled || !loaded) return;
+        setGlobalPacks((prev) => {
+          const next = getGlobalImagePacks(mx);
+          return imagePackListEqual(prev, next) ? prev : next;
+        });
+      })
+      .finally(() => {
+        attemptedGlobalPackLoadVersionRef.current = globalPackLoadVersion;
+        loadingGlobalPacksRef.current = false;
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mx, globalPacks.length, globalPackLoadVersion]);
+
   useAccountDataCallback(
     mx,
     useCallback(
       (mEvent) => {
         if (mEvent.getType() === (CustomAccountDataEvent.PoniesEmoteRooms as string)) {
+          setGlobalPackLoadVersion((version) => version + 1);
           setGlobalPacks((prev) => {
             const next = getGlobalImagePacks(mx);
             return imagePackListEqual(prev, next) ? prev : next;

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Avatar,
   Badge,
@@ -90,6 +90,8 @@ import { EventType } from '$types/matrix-sdk';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { updateInviteList } from '$state/updateInvites';
 import { useDismissedInviteList } from '$hooks/useDismissedInvites';
+import { getSlidingSyncManager } from '$client/initMatrix';
+import { LIST_INVITES } from '$client/slidingSync';
 
 const COMPACT_CARD_WIDTH = 548;
 
@@ -850,6 +852,14 @@ export function Invites() {
   const allInviteIds = useAtomValue(allInvitesAtom);
   const nicknames = useAtomValue(nicknamesAtom);
   const [updateInvites, setUpdateInvites] = useAtom(updateInviteList);
+
+  useEffect(() => {
+    const manager = getSlidingSyncManager(mx);
+    const diagnostics = manager?.getListDiagnostics(LIST_INVITES);
+    if (!manager || !diagnostics) return;
+    if (diagnostics.knownCount > 0 && diagnostics.rangeEnd + 1 >= diagnostics.knownCount) return;
+    manager.requestListWindow(LIST_INVITES, diagnostics.rangeEnd + 30);
+  }, [mx, allInviteIds.length]);
 
   const dismissedInvitesIds = useDismissedInviteList();
 

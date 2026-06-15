@@ -8,12 +8,9 @@ import { addRecentRoom } from '$utils/recentRooms';
  * Subscribes the currently selected room to the sliding sync "active room"
  * custom subscription (higher timeline limit) for the duration the room is open.
  *
- * Also tracks room visits in localStorage for prefetching optimization.
- *
- * Subscriptions are intentionally never removed on navigation — once a room
- * has been opened it continues receiving background updates so that returning
- * to it is instant. Explicit unsubscription (and timeline pruning) only happens
- * when the user actually leaves the room via `unsubscribeFromRoom()`.
+ * Also tracks room visits in localStorage for recency-driven UI affordances.
+ * The subscription is removed when navigating away so sliding sync does not
+ * become a broad background room hydrator.
  *
  * Safe to call unconditionally — it is a no-op when classic sync is in use
  * (i.e. when there is no SlidingSyncManager for the client).
@@ -35,6 +32,6 @@ export const useSlidingSyncActiveRoom = (): void => {
       addRecentRoom(userId, roomId);
     }
 
-    return undefined;
+    return () => manager.unsubscribeFromRoom(roomId);
   }, [mx, roomId]);
 };

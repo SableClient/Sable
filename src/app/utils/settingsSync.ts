@@ -18,9 +18,8 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'memberSortFilterIndex',
   // Device-specific audio preferences
   'isNotificationSounds',
-  // Developer / diagnostic / experimental performance features
+  // Developer / diagnostic features
   'developerTools',
-  'progressivePrefetch',
   // Per-device search index cache size limit
   'searchIndexMessageLimit',
   // Input behaviour — on mobile the Enter-for-newline toggle is disabled, so syncing a

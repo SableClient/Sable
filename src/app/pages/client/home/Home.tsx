@@ -78,6 +78,10 @@ import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTabletLayout } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { usePullToRefresh } from '$hooks/usePullToRefresh';
+import { getSlidingSyncManager } from '$client/initMatrix';
+import { LIST_JOINED } from '$client/slidingSync';
+import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
+import { allRoomsAtom } from '$state/room-list/roomList';
 
 type HomeMenuProps = {
   isShowingAllRoomsInHome: boolean;
@@ -279,6 +283,8 @@ export function Home() {
   const searchSelected = useHomeSearchSelected();
   const noRoomToDisplay = rooms.length === 0;
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
+  const allRoomCount = useAtomValue(allRoomsAtom).length;
+  const requestedEmptyListExpansionRef = useRef(false);
 
   const sortedRooms = useMemo(() => {
     const items = Array.from(rooms).toSorted(
@@ -302,6 +308,24 @@ export function Home() {
     estimateSize: () => 38,
     overscan: 10,
   });
+  const virtualItems = virtualizer.getVirtualItems();
+  const lastVirtualIndex = virtualItems.at(-1)?.index ?? -1;
+
+  useEffect(() => {
+    const manager = getSlidingSyncManager(mx);
+    const diagnostics = manager?.getListDiagnostics(LIST_JOINED);
+    if (!manager || !diagnostics) return;
+    const allowEmptyExpansion = sortedRooms.length === 0 && !requestedEmptyListExpansionRef.current;
+    const nextEnd = getNextSlidingSyncListWindowEnd({
+      diagnostics,
+      itemCount: sortedRooms.length,
+      lastVirtualIndex,
+      allowEmptyExpansion,
+    });
+    if (nextEnd === undefined) return;
+    if (allowEmptyExpansion) requestedEmptyListExpansionRef.current = true;
+    manager.requestListWindow(LIST_JOINED, nextEnd);
+  }, [mx, sortedRooms.length, allRoomCount, lastVirtualIndex]);
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
     closedCategories.has(categoryId)
@@ -459,7 +483,7 @@ export function Home() {
                     overflow: 'visible',
                   }}
                 >
-                  {virtualizer.getVirtualItems().map((vItem) => {
+                  {virtualItems.map((vItem) => {
                     const roomId = sortedRooms[vItem.index];
                     if (!roomId) return null;
                     const room = mx.getRoom(roomId);

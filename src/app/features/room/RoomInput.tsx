@@ -340,6 +340,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
 
+    const replyDraftBase = useMemo(
+      () =>
+        threadRootId
+          ? {
+              userId: mx.getUserId() ?? '',
+              eventId: threadRootId,
+              body: '',
+              relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+            }
+          : undefined,
+      [mx, threadRootId]
+    );
+
     const sendTypingStatus = useTypingStatusUpdater(mx, roomId, { disabled: !!threadRootId });
 
     const [inputKey, setInputKey] = useState(0);
@@ -597,16 +610,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (contents.length > 0) {
         const replyContent =
           plainText?.length === 0 ? getReplyContent(replyDraft, room) : undefined;
-        if (replyContent) contents[0]!['m.relates_to'] = replyContent;
-        if (threadRootId) {
-          setReplyDraft({
-            userId: mx.getUserId() ?? '',
-            eventId: threadRootId,
-            body: '',
-            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
-          });
-        } else {
-          setReplyDraft(undefined);
+        if (replyContent) {
+          contents[0]!['m.relates_to'] = replyContent;
+          setReplyDraft(replyDraftBase);
         }
       }
 
@@ -978,17 +984,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetEditorHistory(editor);
         setInputKey((prev) => prev + 1);
         imagePacksUsedRef.current.clear();
-        if (threadRootId) {
-          // Re-seed the thread reply draft so the next message also goes to the thread.
-          setReplyDraft({
-            userId: mx.getUserId() ?? '',
-            eventId: threadRootId,
-            body: '',
-            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
-          });
-        } else {
-          setReplyDraft(undefined);
-        }
+        setReplyDraft(replyDraftBase);
         sendTypingStatus(false);
       };
       if (scheduledTime) {
@@ -1115,6 +1111,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setEditingScheduledDelayId,
       setScheduledTime,
       setServerMaxDelayMs,
+      replyDraftBase,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1291,16 +1288,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       if (replyDraft) {
         content['m.relates_to'] = getReplyContent(replyDraft, room);
-        if (threadRootId) {
-          setReplyDraft({
-            userId: mx.getUserId() ?? '',
-            eventId: threadRootId,
-            body: '',
-            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
-          });
-        } else {
-          setReplyDraft(undefined);
-        }
+        setReplyDraft(replyDraftBase);
       }
       mx.sendEvent(roomId, EventType.Sticker, content);
     };
@@ -1876,7 +1864,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             mx={mx}
             room={room}
             replyDraft={replyDraft}
-            clearReplyDraft={() => setReplyDraft(undefined)}
+            clearReplyDraft={() => setReplyDraft(replyDraftBase)}
           />
         )}
         {showLocationPicker && (
@@ -1885,7 +1873,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             mx={mx}
             room={room}
             replyDraft={replyDraft}
-            clearReplyDraft={() => setReplyDraft(undefined)}
+            clearReplyDraft={() => setReplyDraft(replyDraftBase)}
           />
         )}
       </div>

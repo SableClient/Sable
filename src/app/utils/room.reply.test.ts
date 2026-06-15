@@ -15,7 +15,7 @@ const createMessageEvent = (id: string, body: string, sender = '@alice:example.c
     getRelation: () => undefined,
     isRedaction: () => false,
     isRedacted: () => false,
-  }) as MatrixEvent;
+  }) as unknown as MatrixEvent;
 
 const createReactionEvent = (id: string, targetId: string) =>
   ({
@@ -43,7 +43,7 @@ const createReactionEvent = (id: string, targetId: string) =>
     }),
     isRedaction: () => false,
     isRedacted: () => false,
-  }) as MatrixEvent;
+  }) as unknown as MatrixEvent;
 
 const createEditEvent = (id: string, targetId: string, newBody: string) =>
   ({
@@ -70,7 +70,7 @@ const createEditEvent = (id: string, targetId: string, newBody: string) =>
     }),
     isRedaction: () => false,
     isRedacted: () => false,
-  }) as MatrixEvent;
+  }) as unknown as MatrixEvent;
 
 const createTimelineSet = (
   events: Record<string, MatrixEvent>,

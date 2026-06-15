@@ -249,21 +249,23 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
         return;
       }
 
-      // Handle non-live events (initial sync/sliding sync timeline population)
-      // For rooms without read receipts (unvisited in sliding sync), check if they need badges
-      const userId = mx.getUserId();
-      if (!data.liveEvent && userId && !room.getEventReadUpTo(userId)) {
-        // Room has no read receipt - check if timeline activity warrants a badge
+      // Handle non-live events (initial sync/sliding sync timeline population).
+      // Recompute even when only m.fully_read is present: hydrated timelines may
+      // contain events after that marker, and getUnreadInfo() can distinguish
+      // genuine unread activity from stale counts.
+      if (!data.liveEvent && mx.getUserId()) {
         const unreadInfo = getUnreadInfo(room, {
           applyFixup: shouldApplyUnreadFixup(),
           mDirects,
         });
-        if (unreadInfo.total > 0 || unreadInfo.highlight > 0) {
-          setUnreadAtom({
-            type: 'PUT',
-            unreadInfo,
-          });
+        if (unreadInfo.total === 0 && unreadInfo.highlight === 0) {
+          setUnreadAtom({ type: 'DELETE', roomId: room.roomId });
+          return;
         }
+        setUnreadAtom({
+          type: 'PUT',
+          unreadInfo,
+        });
       }
     };
     mx.on(RoomEvent.Timeline, handleTimelineEvent);

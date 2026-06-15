@@ -326,6 +326,8 @@ export class SlidingSyncManager {
 
   private readonly loadedRoomIds = new Set<string>();
 
+  private readonly loadedListCoverageEnd = new Map<string, number>();
+
   private lastOnlineState = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
   private readonly onLifecycle: (state: SlidingSyncState, resp: unknown, err?: Error) => void;
@@ -546,8 +548,24 @@ export class SlidingSyncManager {
       // stale, not just when there's no overlap (server may be sending an extended
       // range that includes older events not in the local timeline).
       if (state === SlidingSyncState.RequestFinished && resp && !err) {
-        const rooms = (resp as MSC3575SlidingSyncResponse).rooms ?? {};
+        const response = resp as MSC3575SlidingSyncResponse & {
+          lists?: Record<
+            string,
+            { ops?: Array<{ range?: [number, number]; room_ids?: string[] }> }
+          >;
+        };
+        const rooms = response.rooms ?? {};
         Object.keys(rooms).forEach((roomId) => this.loadedRoomIds.add(roomId));
+        Object.entries(response.lists ?? {}).forEach(([key, listData]) => {
+          listData.ops?.forEach((op) => {
+            const start = op.range?.[0];
+            const roomIds = op.room_ids ?? [];
+            if (typeof start !== 'number' || roomIds.length === 0) return;
+            const loadedEnd = start + roomIds.length - 1;
+            const previousEnd = this.loadedListCoverageEnd.get(key) ?? -1;
+            this.loadedListCoverageEnd.set(key, Math.max(previousEnd, loadedEnd));
+          });
+        });
         Object.entries(rooms)
           .filter(([, roomData]) => roomData.initial || roomData.limited)
           .filter(([roomId]) => this.activeRoomSubscriptions.has(roomId))
@@ -1173,10 +1191,22 @@ export class SlidingSyncManager {
   public hasSufficientRoomsLoaded(): boolean {
     if (this.listsFullyLoaded) return true;
 
-    const targetCount = Math.max(200, Math.min(this.initialRoomCount, 500));
-    const loadedCount = this.loadedRoomIds.size;
+    const targetListCoverage = Math.min(500, this.maxRooms);
+    let sawKnownList = false;
 
-    return loadedCount >= targetCount;
+    for (const key of this.listKeys) {
+      const knownCount = this.slidingSync.getListData(key)?.joinedCount ?? 0;
+      if (knownCount <= 0) continue;
+      sawKnownList = true;
+
+      const requiredEnd = Math.min(knownCount, targetListCoverage) - 1;
+      const rangeEnd = this.loadedListCoverageEnd.get(key) ?? -1;
+      if (rangeEnd < requiredEnd) return false;
+    }
+
+    if (sawKnownList) return true;
+
+    return this.loadedRoomIds.size >= 100;
   }
 
   private expandListsToKnownCount(): void {

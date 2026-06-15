@@ -713,6 +713,7 @@ export type StartClientConfig = {
 };
 
 export type ClientSyncDiagnostics = SyncTransportMeta & {
+  requestedTransport: SyncTransport;
   syncState: string | null;
   sliding?: SlidingSyncDiagnostics;
 };
@@ -1331,6 +1332,7 @@ export const getClientSyncDiagnostics = (mx: MatrixClient): ClientSyncDiagnostic
   };
   return {
     ...meta,
+    requestedTransport: meta.slidingRequested ? 'sliding' : 'classic',
     syncState: mx.getSyncState(),
     sliding: slidingSyncByClient.get(mx)?.getDiagnostics(),
   };

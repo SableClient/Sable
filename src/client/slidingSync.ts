@@ -375,8 +375,6 @@ export class SlidingSyncManager {
     (roomId: string, data: MSC3575RoomData) => void
   >();
 
-  private readonly orderedListRoomIds = new Map<string, string[]>();
-
   /** Wall-clock time recorded in attach() — used to compute true initial-sync latency. */
   private attachTime: number | null = null;
 
@@ -561,12 +559,6 @@ export class SlidingSyncManager {
             const loadedEnd = start + roomIds.length - 1;
             const previousEnd = this.loadedListCoverageEnd.get(key) ?? -1;
             this.loadedListCoverageEnd.set(key, Math.max(previousEnd, loadedEnd));
-
-            const orderedRoomIds = this.orderedListRoomIds.get(key) ?? [];
-            roomIds.forEach((roomId, index) => {
-              orderedRoomIds[start + index] = roomId;
-            });
-            this.orderedListRoomIds.set(key, orderedRoomIds);
           });
         });
         Object.entries(rooms)
@@ -1059,10 +1051,6 @@ export class SlidingSyncManager {
         };
       }),
     };
-  }
-
-  public getOrderedListRoomIds(listKey: string): string[] {
-    return (this.orderedListRoomIds.get(listKey) ?? []).filter(Boolean);
   }
 
   public isFullyLoaded(): boolean {

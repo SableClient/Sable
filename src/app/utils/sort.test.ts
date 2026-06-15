@@ -14,14 +14,18 @@ import {
 } from './sort';
 
 // Minimal stub that satisfies the MatrixClient shape needed by these sort functions.
-function makeClient(rooms: Record<string, { name: string; ts: number }>): MatrixClient {
+function makeClient(
+  rooms: Record<string, { name: string; ts: number; bumpStamp?: number }>
+): MatrixClient {
   return {
     getRoom: (id: string) => {
       const r = rooms[id];
       if (!r) return null;
-      return { name: r.name, getLastActiveTimestamp: () => r.ts } as unknown as ReturnType<
-        MatrixClient['getRoom']
-      >;
+      return {
+        name: r.name,
+        getLastActiveTimestamp: () => r.ts,
+        getBumpStamp: () => r.bumpStamp,
+      } as unknown as ReturnType<MatrixClient['getRoom']>;
     },
   } as unknown as MatrixClient;
 }
@@ -62,6 +66,15 @@ describe('factoryRoomIdByActivity', () => {
     const mx = makeClient({ '!known:h': { name: 'Known', ts: 1000 } });
     const sort = factoryRoomIdByActivity(mx);
     expect(['!unknown:h', '!known:h'].toSorted(sort)).toEqual(['!known:h', '!unknown:h']);
+  });
+
+  it('uses sliding-sync bump stamps when timeline timestamps are stale', () => {
+    const mx = makeClient({
+      '!timeline:h': { name: 'Timeline', ts: 9000 },
+      '!bumped:h': { name: 'Bumped', ts: 1000, bumpStamp: 10_000 },
+    });
+    const sort = factoryRoomIdByActivity(mx);
+    expect(['!timeline:h', '!bumped:h'].toSorted(sort)).toEqual(['!bumped:h', '!timeline:h']);
   });
 });
 

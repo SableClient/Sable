@@ -254,9 +254,32 @@ export const roomHaveNotification = (room: Room): boolean => {
   return total > 0 || highlight > 0;
 };
 
-export const getRoomReadMarkerId = (room: Room, userId: string): string | undefined =>
-  room.getEventReadUpTo(userId) ??
-  room.getAccountData(EventType.FullyRead)?.getContent<{ event_id?: string }>()?.event_id;
+const findLiveTimelineEventIndex = (room: Room, eventId: string | undefined): number => {
+  if (!eventId) return -1;
+  return room
+    .getLiveTimeline()
+    .getEvents()
+    .findIndex((event) => event.getId() === eventId);
+};
+
+export const getRoomReadMarkerId = (room: Room, userId: string): string | undefined => {
+  const receiptEventId = room.getEventReadUpTo(userId);
+  const fullyReadEventId = room
+    .getAccountData(EventType.FullyRead)
+    ?.getContent<{ event_id?: string }>()?.event_id;
+
+  if (receiptEventId && fullyReadEventId && receiptEventId !== fullyReadEventId) {
+    const receiptIndex = findLiveTimelineEventIndex(room, receiptEventId);
+    const fullyReadIndex = findLiveTimelineEventIndex(room, fullyReadEventId);
+    if (receiptIndex >= 0 && fullyReadIndex >= 0) {
+      return fullyReadIndex > receiptIndex ? fullyReadEventId : receiptEventId;
+    }
+    if (fullyReadIndex >= 0) return fullyReadEventId;
+    if (receiptIndex >= 0) return receiptEventId;
+  }
+
+  return receiptEventId ?? fullyReadEventId;
+};
 
 const isEventAtOrBeforeReadMarker = (
   events: MatrixEvent[],
@@ -310,7 +333,38 @@ type UnreadInfoOptions = {
   mDirects?: Set<string>;
 };
 
+type TimelineUnreadCounts = {
+  total: number;
+  highlight: number;
+};
+
 const unreadInfoFixupInProgress = new WeakSet<Room>();
+
+const getTimelineUnreadCounts = (
+  room: Room,
+  userId: string,
+  readUpToId: string
+): TimelineUnreadCounts | undefined => {
+  const liveEvents = room.getLiveTimeline().getEvents();
+  const readMarkerIndex = liveEvents.findIndex((event) => event.getId() === readUpToId);
+  if (readMarkerIndex < 0) return undefined;
+
+  let total = 0;
+  let highlight = 0;
+  const pushProcessor = new PushProcessor(room.client);
+
+  for (let i = readMarkerIndex + 1; i < liveEvents.length; i += 1) {
+    const event = liveEvents[i];
+    if (!event || event.getSender() === userId) continue;
+    if (!isNotificationEvent(event, room, userId)) continue;
+
+    total += 1;
+    const pushActions = pushProcessor.actionsForEvent(event);
+    if (pushActions?.tweaks?.highlight) highlight += 1;
+  }
+
+  return { total, highlight };
+};
 
 export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadInfo => {
   if (getNotificationType(room.client, room.roomId) === NotificationType.Mute) {
@@ -346,7 +400,18 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
   }
 
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);
-  const highlight = room.getUnreadNotificationCount(NotificationCountType.Highlight);
+  let highlight = room.getUnreadNotificationCount(NotificationCountType.Highlight);
+
+  if (userId && options?.applyFixup && total > 0) {
+    const readMarkerId = getRoomReadMarkerId(room, userId);
+    const timelineUnread = readMarkerId
+      ? getTimelineUnreadCounts(room, userId, readMarkerId)
+      : undefined;
+    if (timelineUnread && timelineUnread.total < total) {
+      total = timelineUnread.total;
+      highlight = Math.min(highlight, timelineUnread.highlight);
+    }
+  }
 
   // Check if this is a DM and what notification type it has (using multiple signals for robustness)
   const isDM = isDMRoom(room, options?.mDirects);

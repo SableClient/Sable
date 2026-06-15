@@ -50,6 +50,7 @@ function makeRoom(params: {
       type === NotificationCountType.Highlight ? (params.highlight ?? 0) : (params.total ?? 0),
     getRoomUnreadNotificationCount: () => params.total ?? 0,
     hasUserReadEvent: (_userId: string, eventId: string) => eventId === params.readUpToId,
+    fixupNotifications: vi.fn<() => void>(),
   } as unknown as Room;
 }
 
@@ -58,6 +59,26 @@ describe('room read markers', () => {
     const room = makeRoom({ fullyReadId: '$event1', events: [makeEvent('$event1')] });
 
     expect(getRoomReadMarkerId(room, USER_ID)).toBe('$event1');
+  });
+
+  it('prefers m.fully_read when it is newer than the receipt in the live timeline', () => {
+    const room = makeRoom({
+      readUpToId: '$event1',
+      fullyReadId: '$event3',
+      events: [makeEvent('$event1'), makeEvent('$event2'), makeEvent('$event3')],
+    });
+
+    expect(getRoomReadMarkerId(room, USER_ID)).toBe('$event3');
+  });
+
+  it('keeps the receipt when it is newer than m.fully_read in the live timeline', () => {
+    const room = makeRoom({
+      readUpToId: '$event3',
+      fullyReadId: '$event1',
+      events: [makeEvent('$event1'), makeEvent('$event2'), makeEvent('$event3')],
+    });
+
+    expect(getRoomReadMarkerId(room, USER_ID)).toBe('$event3');
   });
 
   it('does not treat non-live hydrated events before m.fully_read as unread', () => {
@@ -126,6 +147,20 @@ describe('room read markers', () => {
       roomId: '!room:example.com',
       highlight: 0,
       total: 0,
+    });
+  });
+
+  it('clamps inflated sliding-sync counts to unread events visible after the read marker', () => {
+    const room = makeRoom({
+      fullyReadId: '$event1',
+      events: [makeEvent('$event1'), makeEvent('$event2'), makeEvent('$event3')],
+      total: 30,
+    });
+
+    expect(getUnreadInfo(room, { applyFixup: true })).toEqual({
+      roomId: '!room:example.com',
+      highlight: 0,
+      total: 2,
     });
   });
 });

@@ -34,8 +34,6 @@ import type { RoomEventHandlerMap } from '$types/matrix-sdk';
 import { ClientEvent, RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryRoomIdByActivity } from '$utils/sort';
-import { getSlidingSyncManager } from '$client/initMatrix';
-import { LIST_DMS } from '$client/slidingSync';
 import {
   NavButton,
   NavCategory,
@@ -276,17 +274,7 @@ export function Direct() {
 
   const sortedDirects = useMemo(() => {
     void activityCounter;
-    const activitySortedItems = Array.from(directs).toSorted(factoryRoomIdByActivity(mx));
-    const slidingSyncManager = getSlidingSyncManager(mx);
-    const slidingSyncOrder = slidingSyncManager?.getOrderedListRoomIds(LIST_DMS) ?? [];
-    const directRoomIds = new Set(directs);
-    const items =
-      slidingSyncOrder.length > 0
-        ? [
-            ...slidingSyncOrder.filter((roomId) => directRoomIds.has(roomId)),
-            ...activitySortedItems.filter((roomId) => !slidingSyncOrder.includes(roomId)),
-          ]
-        : activitySortedItems;
+    const items = Array.from(directs).toSorted(factoryRoomIdByActivity(mx));
     const hasUnread = (roomId: string) => {
       const unread = roomToUnread.get(roomId);
       return !!unread && (unread.total > 0 || unread.highlight > 0);

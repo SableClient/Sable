@@ -419,33 +419,9 @@ describe('SlidingSyncManager.scheduleForceReset()', () => {
   });
 });
 
-// ── list ordering and timeline handoff ──────────────────────────────────────
+// ── timeline handoff ────────────────────────────────────────────────────────
 
-describe('SlidingSyncManager — list ordering and timeline handoff', () => {
-  it('tracks the ordered room ids reported for each sliding-sync list', () => {
-    const mx = makeMockMx();
-    const manager = makeManager(mx);
-    manager.attach();
-
-    fireLifecycle(SlidingSyncState.RequestFinished, {
-      rooms: {},
-      lists: {
-        [LIST_DMS]: {
-          ops: [
-            { range: [0, 1], room_ids: ['!recent:example.com', '!older:example.com'] },
-            { range: [3, 3], room_ids: ['!later:example.com'] },
-          ],
-        },
-      },
-    });
-
-    expect(manager.getOrderedListRoomIds(LIST_DMS)).toEqual([
-      '!recent:example.com',
-      '!older:example.com',
-      '!later:example.com',
-    ]);
-  });
-
+describe('SlidingSyncManager — timeline handoff', () => {
   it('leaves timeline events for the SDK sliding-sync handler to process', () => {
     const manager = makeManager(makeMockMx());
     manager.attach();

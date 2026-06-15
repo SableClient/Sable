@@ -70,6 +70,7 @@ const log = createLogger('ClientRoot');
 
 const isClientReady = (syncState: string | null): boolean =>
   syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
+const STARTUP_REVEAL_DELAY_MS = 250;
 
 function ClientRootLoading() {
   return (
@@ -211,6 +212,7 @@ export function ClientRoot({ children }: ClientRootProps) {
   const loadedUserIdRef = useRef<string | undefined>(undefined);
   const syncStartTimeRef = useRef(performance.now());
   const firstSyncReadyRef = useRef(false);
+  const revealTimerRef = useRef<number | undefined>(undefined);
 
   const [loading, setLoading] = useState(true);
 
@@ -351,6 +353,22 @@ export function ClientRoot({ children }: ClientRootProps) {
     (state: string | null) => {
       if (!state || !isClientReady(state)) return;
 
+      const clearSplash = (cacheType: 'warm' | 'cold') => {
+        if (revealTimerRef.current !== undefined) return;
+        revealTimerRef.current = window.setTimeout(() => {
+          revealTimerRef.current = undefined;
+          setLoading(false);
+          if (!firstSyncReadyRef.current) {
+            firstSyncReadyRef.current = true;
+            Sentry.metrics.distribution(
+              'sable.startup.time_to_ui_ms',
+              performance.now() - syncStartTimeRef.current,
+              { attributes: { cache_type: cacheType } }
+            );
+          }
+        }, STARTUP_REVEAL_DELAY_MS);
+      };
+
       const slidingSyncManager = mx ? getSlidingSyncManager(mx) : undefined;
       if (slidingSyncManager) {
         const hasWarm = slidingSyncManager.hasWarmCache();
@@ -375,58 +393,40 @@ export function ClientRoot({ children }: ClientRootProps) {
           data: diagnostics,
         });
 
-        if (hasWarm) {
-          log.log('[startup] showing UI immediately (warm cache)');
-          Sentry.addBreadcrumb({
-            category: 'startup',
-            message: 'Showing UI (warm cache)',
-            level: 'info',
-            data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
-          });
-          setLoading(false);
-          if (!firstSyncReadyRef.current) {
-            firstSyncReadyRef.current = true;
-            Sentry.metrics.distribution(
-              'sable.startup.time_to_ui_ms',
-              performance.now() - syncStartTimeRef.current,
-              { attributes: { cache_type: 'warm' } }
-            );
-          }
-          return;
-        }
-
-        // Cold cache: wait for full load to prevent visual jumping
-        // Strategy 8: Use "sufficient rooms" threshold for faster initial display
         if (!isFullyLoaded && !hasSufficient) {
-          log.log('[startup] waiting for more rooms (cold cache)');
+          log.log('[startup] waiting for stable sliding-sync room lists');
           Sentry.addBreadcrumb({
             category: 'startup',
-            message: 'Waiting for more rooms (cold cache)',
+            message: 'Waiting for stable sliding-sync room lists',
             level: 'info',
             data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
           });
           return;
         }
-        log.log('[startup] showing UI (cold cache, sufficient rooms loaded)');
+        log.log('[startup] showing UI (sliding sync room lists ready)');
         Sentry.addBreadcrumb({
           category: 'startup',
-          message: 'Showing UI (cold cache)',
+          message: 'Showing UI (sliding sync room lists ready)',
           level: 'info',
           data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
         });
+        clearSplash(hasWarm ? 'warm' : 'cold');
+        return;
       }
 
-      setLoading(false);
-      if (!firstSyncReadyRef.current) {
-        firstSyncReadyRef.current = true;
-        Sentry.metrics.distribution(
-          'sable.startup.time_to_ui_ms',
-          performance.now() - syncStartTimeRef.current,
-          { attributes: { cache_type: 'cold' } }
-        );
-      }
+      clearSplash('cold');
     },
     [mx]
+  );
+
+  useEffect(
+    () => () => {
+      if (revealTimerRef.current !== undefined) {
+        window.clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = undefined;
+      }
+    },
+    []
   );
 
   useEffect(() => {
@@ -566,24 +566,38 @@ export function ClientRoot({ children }: ClientRootProps) {
               </Dialog>
             </Box>
           </SplashScreen>
-        ) : loading || !mx ? (
-          <ClientRootLoading />
         ) : (
-          <MatrixClientProvider value={mx}>
-            <MediaUrlCacheProvider>
-              <ServerConfigsLoader>
-                {(serverConfigs) => (
-                  <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
-                    <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
-                      <AuthMetadataProvider value={serverConfigs.authMetadata}>
-                        {children}
-                      </AuthMetadataProvider>
-                    </MediaConfigProvider>
-                  </CapabilitiesProvider>
-                )}
-              </ServerConfigsLoader>
-            </MediaUrlCacheProvider>
-          </MatrixClientProvider>
+          <>
+            {mx && (
+              <MatrixClientProvider value={mx}>
+                <MediaUrlCacheProvider>
+                  <ServerConfigsLoader>
+                    {(serverConfigs) => (
+                      <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
+                        <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
+                          <AuthMetadataProvider value={serverConfigs.authMetadata}>
+                            {children}
+                          </AuthMetadataProvider>
+                        </MediaConfigProvider>
+                      </CapabilitiesProvider>
+                    )}
+                  </ServerConfigsLoader>
+                </MediaUrlCacheProvider>
+              </MatrixClientProvider>
+            )}
+            {(loading || !mx) && (
+              <Box
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 1000,
+                  display: 'flex',
+                }}
+              >
+                <ClientRootLoading />
+              </Box>
+            )}
+          </>
         )}
       </SpecVersions>
     </AutoDiscovery>

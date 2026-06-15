@@ -21,9 +21,11 @@ import {
   M_POLL_KIND_UNDISCLOSED,
   M_POLL_START,
 } from 'matrix-js-sdk/lib/@types/polls';
-import type { Room } from '$types/matrix-sdk';
+import type { IContent, Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { Icon, Icons } from '$app/icons';
+import type { IReplyDraft } from '$app/state/room/roomInputDrafts';
+import { getReplyContent } from './RoomInput';
 
 const MIN_ANSWERS = 2;
 const MAX_ANSWERS = 20;
@@ -51,9 +53,11 @@ type AnswerDraft = { id: string; text: string };
 type PollCreatorProps = {
   room: Room;
   onClose: () => void;
+  replyDraft?: IReplyDraft;
+  clearReplyDraft?: () => void;
 };
 
-export function PollCreator({ room, onClose }: PollCreatorProps) {
+export function PollCreator({ room, onClose, replyDraft, clearReplyDraft }: PollCreatorProps) {
   const mx = useMatrixClient();
 
   const [question, setQuestion] = useState('');
@@ -123,6 +127,13 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
       const pollSubtype = content[M_POLL_START.name];
       if (pollSubtype) pollSubtype.closes_at = closesAt;
     }
+    if (replyDraft && clearReplyDraft) {
+      const content = serialized.content as IContent;
+      if (content) {
+        content['m.relates_to'] = getReplyContent(replyDraft, room);
+        clearReplyDraft();
+      }
+    }
 
     setSending(true);
     setError(undefined);
@@ -157,8 +168,10 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
     durationPresetMs,
     customEndInput,
     mx,
-    room.roomId,
     onClose,
+    clearReplyDraft,
+    replyDraft,
+    room,
   ]);
 
   return (

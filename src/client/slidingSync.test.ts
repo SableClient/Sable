@@ -408,6 +408,17 @@ describe('SlidingSyncManager space graph warmup', () => {
 });
 
 describe('SlidingSyncManager sync health checks', () => {
+  it('does not report healthy before the first successful sliding sync response', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+
+    expect(manager.getDiagnostics().healthy).toBe(false);
+
+    fireLifecycle(SlidingSyncState.RequestFinished, { rooms: {} });
+
+    expect(manager.getDiagnostics().healthy).toBe(true);
+  });
+
   it('resends when sliding sync has not completed a successful poll recently', () => {
     const manager = makeManager(makeMockMx());
     manager.attach();

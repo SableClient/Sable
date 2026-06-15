@@ -343,6 +343,8 @@ export class SlidingSyncManager {
 
   private lastHealthRetryAt = 0;
 
+  private attachWallClockAt: number | null = null;
+
   /**
    * One-shot RoomData listeners keyed by roomId, used to measure the latency
    * between subscribeToRoom() and the first data arriving for that room.
@@ -779,7 +781,7 @@ export class SlidingSyncManager {
     });
 
     this.attachTime = performance.now();
-    this.lastSuccessfulSyncAt = Date.now();
+    this.attachWallClockAt = Date.now();
     this.initialSyncSpan = Sentry.startInactiveSpan({
       name: 'sync.initial',
       op: 'matrix.sync',
@@ -885,7 +887,10 @@ export class SlidingSyncManager {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
 
     const now = Date.now();
-    const staleForMs = now - this.lastSuccessfulSyncAt;
+    const fallbackStart = this.attachWallClockAt ?? now;
+    const lastProgressAt =
+      this.lastSuccessfulSyncAt > 0 ? this.lastSuccessfulSyncAt : fallbackStart;
+    const staleForMs = now - lastProgressAt;
     if (staleForMs < HEALTH_STALE_AFTER_MS) return;
     if (now - this.lastHealthRetryAt < HEALTH_RETRY_COOLDOWN_MS) return;
 

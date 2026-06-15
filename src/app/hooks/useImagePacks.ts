@@ -184,6 +184,8 @@ export const useUserImagePack = (): ImagePack | undefined => {
 export const useGlobalImagePacks = (): ImagePack[] => {
   const mx = useMatrixClient();
   const loadingGlobalPacksRef = useRef(false);
+  const attemptedGlobalPackLoadVersionRef = useRef<number | undefined>(undefined);
+  const [globalPackLoadVersion, setGlobalPackLoadVersion] = useState(0);
   // Seed from cache during initial state when live data is not available yet.
   const [globalPacks, setGlobalPacks] = useState<ImagePack[]>(() => {
     const livePacks = getGlobalImagePacks(mx);
@@ -200,7 +202,13 @@ export const useGlobalImagePacks = (): ImagePack[] => {
   }, [mx, globalPacks]);
 
   useEffect(() => {
-    if (globalPacks.length > 0 || loadingGlobalPacksRef.current) return undefined;
+    if (
+      loadingGlobalPacksRef.current ||
+      (globalPacks.length > 0 &&
+        attemptedGlobalPackLoadVersionRef.current === globalPackLoadVersion)
+    ) {
+      return undefined;
+    }
     loadingGlobalPacksRef.current = true;
     let cancelled = false;
     loadGlobalImagePackStateOnce(mx)
@@ -212,19 +220,21 @@ export const useGlobalImagePacks = (): ImagePack[] => {
         });
       })
       .finally(() => {
+        attemptedGlobalPackLoadVersionRef.current = globalPackLoadVersion;
         loadingGlobalPacksRef.current = false;
       });
 
     return () => {
       cancelled = true;
     };
-  }, [mx, globalPacks.length]);
+  }, [mx, globalPacks.length, globalPackLoadVersion]);
 
   useAccountDataCallback(
     mx,
     useCallback(
       (mEvent) => {
         if (mEvent.getType() === (CustomAccountDataEvent.PoniesEmoteRooms as string)) {
+          setGlobalPackLoadVersion((version) => version + 1);
           setGlobalPacks((prev) => {
             const next = getGlobalImagePacks(mx);
             return imagePackListEqual(prev, next) ? prev : next;

@@ -859,7 +859,7 @@ export function Space() {
     if (nextEnd === undefined) return;
     if (allowEmptyExpansion) requestedEmptySpaceExpansionRef.current = true;
     manager.requestListWindow(LIST_SPACE, nextEnd);
-  }, [mx, hierarchy.length, allRooms.length, lastVirtualIndex, spaceListPagingTick]);
+  }, [mx, space.roomId, hierarchy.length, allRooms.length, lastVirtualIndex, spaceListPagingTick]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {

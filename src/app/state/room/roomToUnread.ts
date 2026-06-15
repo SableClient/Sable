@@ -15,6 +15,7 @@ import { NotificationType } from '$types/matrix/room';
 import {
   getAllParents,
   getNotificationType,
+  getRoomReadMarkerId,
   getUnreadInfo,
   getUnreadInfos,
   isNotificationEvent,
@@ -252,7 +253,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
       // Handle non-live events (initial sync/sliding sync timeline population)
       // For rooms without read receipts (unvisited in sliding sync), check if they need badges
       const userId = mx.getUserId();
-      if (!data.liveEvent && userId && !room.getEventReadUpTo(userId)) {
+      if (!data.liveEvent && userId && !getRoomReadMarkerId(room, userId)) {
         // Room has no read receipt - check if timeline activity warrants a badge
         const unreadInfo = getUnreadInfo(room, {
           applyFixup: shouldApplyUnreadFixup(),

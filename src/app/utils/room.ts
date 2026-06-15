@@ -254,11 +254,15 @@ export const roomHaveNotification = (room: Room): boolean => {
   return total > 0 || highlight > 0;
 };
 
+export const getRoomReadMarkerId = (room: Room, userId: string): string | undefined =>
+  room.getEventReadUpTo(userId) ??
+  room.getAccountData(EventType.FullyRead)?.getContent<{ event_id?: string }>()?.event_id;
+
 export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
   if (getNotificationType(mx, room.roomId) === NotificationType.Mute) return false;
   const userId = mx.getUserId();
   if (!userId) return false;
-  const readUpToId = room.getEventReadUpTo(userId);
+  const readUpToId = getRoomReadMarkerId(room, userId);
   const liveEvents = room.getLiveTimeline().getEvents();
 
   if (!readUpToId) {
@@ -310,7 +314,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
   // implicitly read everything before it when they composed that reply. Return zero
   // to suppress phantom unread badges that arise from stale SDK counters in sliding
   // sync when no explicit read receipt is present.
-  if (userId && !room.getEventReadUpTo(userId)) {
+  if (userId && !getRoomReadMarkerId(room, userId)) {
     const liveEvents = room.getLiveTimeline().getEvents();
     const latestEvent = liveEvents[liveEvents.length - 1];
     if (
@@ -367,7 +371,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
   // messages. Walk the live timeline to compute real counts so the badge number
   // and highlight colour reflect actual state rather than a hard-coded stub.
   if (total === 0 && highlight === 0 && userId && roomHaveUnread(room.client, room)) {
-    const readUpToId = room.getEventReadUpTo(userId);
+    const readUpToId = getRoomReadMarkerId(room, userId);
     const liveEvents = room.getLiveTimeline().getEvents();
     let fallbackTotal = 0;
     let fallbackHighlight = 0;
@@ -400,7 +404,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
   // timeline activity. Check for notification events from others in the timeline to show a
   // badge even when SDK counts are 0 (or unreliable without receipts).
   if (userId) {
-    const readUpToId = room.getEventReadUpTo(userId);
+    const readUpToId = getRoomReadMarkerId(room, userId);
 
     // If we have no read receipt, SDK counts may be unreliable. Always check timeline.
     if (!readUpToId) {

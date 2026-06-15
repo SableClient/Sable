@@ -23,7 +23,13 @@ import {
   type MatrixClient,
 } from '$types/matrix-sdk';
 
-import { SlidingSyncManager, type SlidingSyncConfig } from './slidingSync';
+import {
+  LIST_DMS,
+  LIST_INVITES,
+  LIST_JOINED,
+  SlidingSyncManager,
+  type SlidingSyncConfig,
+} from './slidingSync';
 
 // ── vi.hoisted mocks ─────────────────────────────────────────────────────────
 // Must be defined via vi.hoisted so they're available before vi.mock runs
@@ -40,8 +46,8 @@ const mocks = vi.hoisted(() => ({
     addCustomSubscription: vi.fn<() => void>(),
     useCustomSubscription: vi.fn<() => void>(),
     registerExtension: vi.fn<() => void>(),
-    getListData: vi.fn<() => null>(),
-    getListParams: vi.fn<() => null>(),
+    getListData: vi.fn<(key?: unknown) => { joinedCount: number } | null>(),
+    getListParams: vi.fn<(key?: unknown) => { ranges?: [number, number][] } | null>(),
     setList: vi.fn<() => void>(),
     setListRanges: vi.fn<() => void>(),
   },
@@ -178,6 +184,44 @@ describe('SlidingSyncManager.hasWarmCache()', () => {
     );
 
     expect(manager.hasWarmCache()).toBe(true);
+  });
+});
+
+describe('SlidingSyncManager.hasSufficientRoomsLoaded()', () => {
+  it('waits for each known list to reach stable initial coverage', () => {
+    mocks.slidingSyncInstance.getListData.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED) return { joinedCount: 600 };
+      if (key === LIST_DMS) return { joinedCount: 10 };
+      if (key === LIST_INVITES) return { joinedCount: 0 };
+      return null;
+    });
+    mocks.slidingSyncInstance.getListParams.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED) return { ranges: [[0, 249]] };
+      if (key === LIST_DMS) return { ranges: [[0, 9]] };
+      return null;
+    });
+
+    const manager = makeManager(makeMockMx());
+
+    expect(manager.hasSufficientRoomsLoaded()).toBe(false);
+  });
+
+  it('allows startup once every known list has stable initial coverage', () => {
+    mocks.slidingSyncInstance.getListData.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED) return { joinedCount: 600 };
+      if (key === LIST_DMS) return { joinedCount: 10 };
+      if (key === LIST_INVITES) return { joinedCount: 0 };
+      return null;
+    });
+    mocks.slidingSyncInstance.getListParams.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED) return { ranges: [[0, 499]] };
+      if (key === LIST_DMS) return { ranges: [[0, 9]] };
+      return null;
+    });
+
+    const manager = makeManager(makeMockMx());
+
+    expect(manager.hasSufficientRoomsLoaded()).toBe(true);
   });
 });
 

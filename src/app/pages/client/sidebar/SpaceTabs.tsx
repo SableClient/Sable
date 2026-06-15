@@ -96,7 +96,7 @@ import { copyToClipboard } from '$utils/dom';
 import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
-import { getRoomAvatarUrl } from '$utils/room';
+import { getAllParents, getRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -708,6 +708,8 @@ function ClosedSpaceFolder({
 }: Readonly<ClosedSpaceFolderProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const allRooms = useAtomValue(allRoomsAtom);
+  const roomToParents = useAtomValue(roomToParentsAtom);
   const handlerRef = useRef<HTMLDivElement>(null);
 
   const spaceDraggable: FolderDraggable = useMemo(() => ({ folder }), [folder]);
@@ -717,21 +719,31 @@ function ClosedSpaceFolder({
 
   const tooltipName = folderDefaultDisplayName(mx, folder);
 
-  // Determine whether any space in the folder has loud notifications (Default/AllMessages).
-  // Hardcoding true causes all unreads to render as counts when the setting is on,
-  // regardless of individual room notification modes.
   const notificationPreferences = useRoomsNotificationPreferencesContext();
-  const hasLoudChildren = useMemo(
+
+  const folderChildRooms = useMemo(() => {
+    const folderSpaces = new Set(folder.content);
+    return allRooms.filter((roomId) => {
+      const room = mx.getRoom(roomId);
+      if (!room || room.isSpaceRoom()) return false;
+      const parents = getAllParents(roomToParents, roomId);
+      return [...folderSpaces].some((spaceId) => parents.has(spaceId));
+    });
+  }, [allRooms, folder.content, mx, roomToParents]);
+
+  const loudChildRooms = useMemo(
     () =>
-      folder.content.some((roomId) => {
+      folderChildRooms.filter((roomId) => {
         const mode = getRoomNotificationMode(notificationPreferences, roomId);
         return mode === RoomNotificationMode.Unset || mode === RoomNotificationMode.AllMessages;
       }),
-    [folder.content, notificationPreferences]
+    [folderChildRooms, notificationPreferences]
   );
+  const loudUnread = useRoomsUnread(loudChildRooms, roomToUnreadAtom);
+  const hasLoudChildren = !!loudUnread && (loudUnread.highlight > 0 || loudUnread.total > 0);
 
   return (
-    <RoomsUnreadProvider rooms={folder.content}>
+    <RoomsUnreadProvider rooms={folderChildRooms}>
       {(unread) => (
         <SidebarItem
           active={selected}
@@ -776,7 +788,13 @@ function ClosedSpaceFolder({
           {unread && (
             <SidebarUnreadBadge
               highlight={unread.highlight > 0}
-              count={unread.highlight > 0 ? unread.highlight : unread.total}
+              count={
+                unread.highlight > 0
+                  ? unread.highlight
+                  : hasLoudChildren
+                    ? (loudUnread?.total ?? unread.total)
+                    : unread.total
+              }
               loud={hasLoudChildren}
             />
           )}

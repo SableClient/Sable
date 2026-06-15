@@ -1173,10 +1173,22 @@ export class SlidingSyncManager {
   public hasSufficientRoomsLoaded(): boolean {
     if (this.listsFullyLoaded) return true;
 
-    const targetCount = Math.max(200, Math.min(this.initialRoomCount, 500));
-    const loadedCount = this.loadedRoomIds.size;
+    const targetListCoverage = Math.min(500, this.maxRooms);
+    let sawKnownList = false;
 
-    return loadedCount >= targetCount;
+    for (const key of this.listKeys) {
+      const knownCount = this.slidingSync.getListData(key)?.joinedCount ?? 0;
+      if (knownCount <= 0) continue;
+      sawKnownList = true;
+
+      const requiredEnd = Math.min(knownCount, targetListCoverage) - 1;
+      const rangeEnd = getListEndIndex(this.slidingSync.getListParams(key));
+      if (rangeEnd < requiredEnd) return false;
+    }
+
+    if (sawKnownList) return true;
+
+    return this.loadedRoomIds.size >= 100;
   }
 
   private expandListsToKnownCount(): void {

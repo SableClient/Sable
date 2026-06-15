@@ -2109,7 +2109,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             }}
           />
         )}
-        {pollCreatorOpen && <PollCreator room={room} onClose={() => setPollCreatorOpen(false)} />}
+        {pollCreatorOpen && <PollCreator room={room} onClose={() => setPollCreatorOpen(false)} replyDraft={replyDraft} clearReplyDraft={()=>setReplyDraft(undefined)}/>}
         {showLocationPicker && (
           <LocationDialog
             onCancel={() => setShowLocationPicker(false)}

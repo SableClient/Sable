@@ -276,6 +276,8 @@ export class SlidingSyncManager {
 
   private readonly activeRoomSubscriptions = new Set<string>();
 
+  private readonly activeRoomSubscriptionRefs = new Map<string, number>();
+
   private readonly ptrRefreshRooms = new Set<string>();
 
   private readonly visitedRoomsThisSession = new Set<string>();
@@ -727,7 +729,7 @@ export class SlidingSyncManager {
       if (member.membership !== KnownMembership.Leave && member.membership !== KnownMembership.Ban)
         return;
       if (!this.activeRoomSubscriptions.has(member.roomId)) return;
-      this.unsubscribeFromRoom(member.roomId);
+      this.unsubscribeFromRoom(member.roomId, true);
     };
 
     this.onConnectionChange = () => {
@@ -1342,6 +1344,8 @@ export class SlidingSyncManager {
    */
   public subscribeToRoom(roomId: string): void {
     if (this.disposed) return;
+    const refCount = this.activeRoomSubscriptionRefs.get(roomId) ?? 0;
+    this.activeRoomSubscriptionRefs.set(roomId, refCount + 1);
     if (this.activeRoomSubscriptions.has(roomId)) return;
     const room = this.mx.getRoom(roomId);
     const isEncrypted = this.mx.isRoomEncrypted(roomId);
@@ -1419,10 +1423,16 @@ export class SlidingSyncManager {
    * Rooms that are still in a list will continue to receive background updates.
    * This is a no-op after dispose().
    */
-  public unsubscribeFromRoom(roomId: string): void {
+  public unsubscribeFromRoom(roomId: string, force = false): void {
     if (this.disposed) return;
     this.pendingResubscriptions?.delete(roomId);
     this.ptrRefreshRooms.delete(roomId);
+    const refCount = this.activeRoomSubscriptionRefs.get(roomId) ?? 0;
+    if (!force && refCount > 1) {
+      this.activeRoomSubscriptionRefs.set(roomId, refCount - 1);
+      return;
+    }
+    this.activeRoomSubscriptionRefs.delete(roomId);
     if (!this.activeRoomSubscriptions.has(roomId)) return;
     // Clean up any pending first-data latency listener for this room.
     const pendingListener = this.pendingRoomDataListeners.get(roomId);

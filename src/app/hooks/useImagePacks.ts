@@ -24,6 +24,7 @@ import { getSlidingSyncManager } from '$client/initMatrix';
 
 const GLOBAL_PACK_ROOM_WAIT_MS = 3000;
 const GLOBAL_PACK_ROOM_WAIT_INTERVAL_MS = 250;
+const globalImagePackLoadByKey = new Map<string, Promise<boolean>>();
 
 const imagePackEqual = (a: ImagePack | undefined, b: ImagePack | undefined): boolean => {
   if (!a && !b) return true;
@@ -78,11 +79,21 @@ const waitForRoom = async (mx: MatrixClient, roomId: string): Promise<Room | und
   });
 };
 
+const getGlobalImagePackLoadKey = (mx: MatrixClient): string | undefined => {
+  const userId = mx.getUserId();
+  if (!userId) return undefined;
+  const emoteRoomsContent = mx
+    .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
+    ?.getContent();
+  if (!emoteRoomsContent || typeof emoteRoomsContent !== 'object') return undefined;
+  return `${userId}:${JSON.stringify(emoteRoomsContent.rooms ?? {})}`;
+};
+
 const loadGlobalImagePackState = async (mx: MatrixClient): Promise<boolean> => {
   const emoteRoomsContent = mx
     .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
     ?.getContent();
-  if (typeof emoteRoomsContent !== 'object') return false;
+  if (!emoteRoomsContent || typeof emoteRoomsContent !== 'object') return false;
   const roomIdToPackInfo = emoteRoomsContent.rooms;
   if (!roomIdToPackInfo || typeof roomIdToPackInfo !== 'object') return false;
 
@@ -91,29 +102,49 @@ const loadGlobalImagePackState = async (mx: MatrixClient): Promise<boolean> => {
     if (!packStateKeyToUnknown || typeof packStateKeyToUnknown !== 'object') return [];
     return Object.keys(packStateKeyToUnknown).map(async (stateKey) => {
       let room: Room | null | undefined = mx.getRoom(roomId);
+      let subscribedForLoad = false;
       if (!room) {
         getSlidingSyncManager(mx)?.subscribeToRoom(roomId);
+        subscribedForLoad = true;
         room = await waitForRoom(mx, roomId);
       }
-      if (!room) return;
-      if (getRoomImagePack(room, stateKey)) return;
-      const content = await mx.getStateEvent(roomId, CustomStateEvent.PoniesRoomEmotes, stateKey);
-      const event = new MatrixEvent({
-        content,
-        event_id: `$sable-image-pack-${roomId}-${stateKey}`,
-        origin_server_ts: Date.now(),
-        room_id: roomId,
-        sender: mx.getUserId() ?? '',
-        state_key: stateKey,
-        type: CustomStateEvent.PoniesRoomEmotes,
-      });
-      room.currentState.setStateEvents([event]);
-      loaded = true;
+      try {
+        if (!room) return;
+        if (getRoomImagePack(room, stateKey)) return;
+        const content = await mx.getStateEvent(roomId, CustomStateEvent.PoniesRoomEmotes, stateKey);
+        const event = new MatrixEvent({
+          content,
+          event_id: `$sable-image-pack-${roomId}-${stateKey}`,
+          origin_server_ts: Date.now(),
+          room_id: roomId,
+          sender: mx.getUserId() ?? '',
+          state_key: stateKey,
+          type: CustomStateEvent.PoniesRoomEmotes,
+        });
+        room.currentState.setStateEvents([event]);
+        loaded = true;
+      } finally {
+        if (subscribedForLoad) getSlidingSyncManager(mx)?.unsubscribeFromRoom(roomId);
+      }
     });
   });
 
   await Promise.allSettled(requests);
   return loaded;
+};
+
+const loadGlobalImagePackStateOnce = (mx: MatrixClient): Promise<boolean> => {
+  const key = getGlobalImagePackLoadKey(mx);
+  if (!key) return Promise.resolve(false);
+  const pending = globalImagePackLoadByKey.get(key);
+  if (pending) return pending;
+
+  const next = loadGlobalImagePackState(mx).catch((error: unknown) => {
+    globalImagePackLoadByKey.delete(key);
+    throw error;
+  });
+  globalImagePackLoadByKey.set(key, next);
+  return next;
 };
 
 export const useUserImagePack = (): ImagePack | undefined => {
@@ -172,7 +203,7 @@ export const useGlobalImagePacks = (): ImagePack[] => {
     if (globalPacks.length > 0 || loadingGlobalPacksRef.current) return undefined;
     loadingGlobalPacksRef.current = true;
     let cancelled = false;
-    loadGlobalImagePackState(mx)
+    loadGlobalImagePackStateOnce(mx)
       .then((loaded) => {
         if (cancelled || !loaded) return;
         setGlobalPacks((prev) => {

@@ -535,6 +535,28 @@ describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
     expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps a shared active-room subscription until every caller releases it', () => {
+    const manager = makeManager(makeMockMx());
+    manager.subscribeToRoom('!room:example.com');
+    manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
+    mocks.slidingSyncInstance.modifyRoomSubscriptions.mockClear();
+
+    manager.unsubscribeFromRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).not.toHaveBeenCalled();
+
+    manager.unsubscribeFromRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledOnce();
+    const [rooms] = mocks.slidingSyncInstance.modifyRoomSubscriptions.mock.calls[0] as unknown as [
+      Set<string>,
+    ];
+    expect([...rooms]).toEqual([]);
+  });
+
   it('batches rapid active-room subscriptions into one SDK update', () => {
     const manager = makeManager(makeMockMx());
     manager.subscribeToRoom('!a:example.com');

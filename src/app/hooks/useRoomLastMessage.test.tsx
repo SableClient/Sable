@@ -29,6 +29,8 @@ function makeEvent(overrides: {
     getTs: () => overrides.ts ?? 0,
     isRedacted: () => overrides.redacted ?? false,
     isEncrypted: () => overrides.encrypted ?? false,
+    isBeingDecrypted: () => false,
+    replacingEvent: () => undefined,
     getEffectiveEvent: () => ({ type: overrides.effectiveType ?? type, content }),
   } as never;
 }
@@ -282,7 +284,7 @@ describe('useRoomLastMessage', () => {
     const room = makeRoom([ev]);
     const mx = makeMx();
     const { result } = renderHook(() => useRoomLastMessage(room as never, mx as never));
-    expect(result.current).toBe('You: hello');
+    expect(result.current?.text).toBe('You: hello');
   });
 
   it('updates when a Timeline event fires', () => {
@@ -308,7 +310,7 @@ describe('useRoomLastMessage', () => {
       vi.advanceTimersByTime(350);
     });
 
-    expect(result.current).toBe('You: second');
+    expect(result.current?.text).toBe('You: second');
     vi.useRealTimers();
   });
 });

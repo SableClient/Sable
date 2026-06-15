@@ -90,6 +90,7 @@ import * as css from './styles.css';
 import { useRoomLastMessage } from '$hooks/useRoomLastMessage';
 import { RoomNavUser } from './RoomNavUser';
 import { SidebarUnreadBadge } from '$components/sidebar';
+import { CompactMessagePreview } from '$components/message/CompactMessagePreview';
 
 /**
  * Reactively checks whether a room has unread messages.
@@ -319,8 +320,17 @@ export function RoomNavItem({
   const lastMessage = useRoomLastMessage(showPreview ? room : undefined, mx);
   const getRoomTopic = useRoomTopic(room);
   const roomTopic = direct
-    ? (customDMCards && getRoomTopic) || lastMessage || presence?.status
-    : (roomTopicPreview && getRoomTopic) || (roomMessagePreview ? lastMessage : undefined);
+    ? (customDMCards && getRoomTopic) || presence?.status
+    : roomTopicPreview && getRoomTopic
+      ? getRoomTopic
+      : undefined;
+  const messagePreview = direct
+    ? !customDMCards && lastMessage
+      ? lastMessage
+      : undefined
+    : !roomTopic && roomMessagePreview
+      ? lastMessage
+      : undefined;
 
   const { navigateRoom } = useRoomNavigate();
   const navigate = useNavigate();
@@ -576,6 +586,14 @@ export function RoomNavItem({
                             >
                               {roomTopic}
                             </Text>
+                          )}
+                          {!roomTopic && messagePreview && (
+                            <CompactMessagePreview
+                              senderLabel={messagePreview.senderLabel}
+                              preview={messagePreview.preview}
+                              roomId={room.roomId}
+                              className={css.MessagePreview}
+                            />
                           )}
                         </Box>
                         {!optionsVisible && !unread && !selected && typingMember.length > 0 && (

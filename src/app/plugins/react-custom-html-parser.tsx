@@ -181,7 +181,8 @@ export const renderMatrixMention = (
   currentRoomId: string | undefined,
   href: string,
   customProps: ComponentPropsWithoutRef<'a'>,
-  nicknames?: Nicknames
+  nicknames?: Nicknames,
+  interactive = true
 ) => {
   const matrixUri = parseMatrixUri(href);
 
@@ -189,6 +190,21 @@ export const renderMatrixMention = (
     parseMatrixToUser(href) ?? (matrixUri?.kind === 'user' ? matrixUri.userId : undefined);
   if (userId) {
     const currentRoom = mx.getRoom(currentRoomId);
+    const content = `@${
+      (currentRoom && getMemberDisplayName(currentRoom, userId, nicknames)) ??
+      getMxIdLocalPart(userId)
+    }`;
+
+    if (!interactive) {
+      return (
+        <span
+          className={css.Mention({ highlight: mx.getUserId() === userId })}
+          data-mention-id={userId}
+        >
+          {content}
+        </span>
+      );
+    }
 
     return (
       <a
@@ -197,10 +213,7 @@ export const renderMatrixMention = (
         className={css.Mention({ highlight: mx.getUserId() === userId })}
         data-mention-id={userId}
       >
-        {`@${
-          (currentRoom && getMemberDisplayName(currentRoom, userId, nicknames)) ??
-          getMxIdLocalPart(userId)
-        }`}
+        {content}
       </a>
     );
   }
@@ -215,6 +228,20 @@ export const renderMatrixMention = (
 
     const fallbackContent = mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias;
     const label = matrixPermalinkDisplayLabel(href, customProps.children, fallbackContent);
+
+    if (!interactive) {
+      return (
+        <span
+          className={css.Mention({
+            highlight: currentRoomId === (mentionRoom?.roomId ?? roomIdOrAlias),
+          })}
+          data-mention-id={mentionRoom?.roomId ?? roomIdOrAlias}
+          data-mention-via={viaServers?.join(',')}
+        >
+          {label}
+        </span>
+      );
+    }
 
     return (
       <a
@@ -253,6 +280,33 @@ export const renderMatrixMention = (
     }
     const label = matrixPermalinkDisplayLabel(href, customProps.children, fallbackContent);
 
+    const content = (
+      <>
+        <span aria-hidden="true" className={css.MentionIcon}>
+          {sizedIcon(ChatCircle, '50')}
+        </span>
+        {label}
+      </>
+    );
+
+    if (!interactive) {
+      return (
+        <span
+          className={classNames(
+            css.Mention({
+              highlight: currentRoomId === (mentionRoom?.roomId ?? roomIdOrAlias),
+            }),
+            css.MentionWithIcon
+          )}
+          data-mention-id={mentionRoom?.roomId ?? roomIdOrAlias}
+          data-mention-event-id={eventId}
+          data-mention-via={viaServers?.join(',')}
+        >
+          {content}
+        </span>
+      );
+    }
+
     return (
       <a
         href={href}
@@ -267,10 +321,7 @@ export const renderMatrixMention = (
         data-mention-event-id={eventId}
         data-mention-via={viaServers?.join(',')}
       >
-        <span aria-hidden="true" className={css.MentionIcon}>
-          {sizedIcon(ChatCircle, '50')}
-        </span>
-        {label}
+        {content}
       </a>
     );
   }
@@ -283,30 +334,53 @@ const renderSettingsLink = ({
   section,
   focus,
   handleMentionClick,
+  interactive = true,
 }: {
   href: string;
   section: Parameters<typeof getSettingsLinkChipLabel>[0];
   focus?: string;
   handleMentionClick?: ReactEventHandler<HTMLElement>;
-}) => (
-  <a
-    href={href}
-    {...makeMentionCustomProps(handleMentionClick)}
-    className={classNames(css.Mention({}), css.MentionWithIcon)}
-    data-settings-link-section={section}
-    data-settings-link-focus={focus}
-  >
-    <span aria-hidden="true" className={css.MentionIcon}>
-      {sizedIcon(GearSix, '50')}
-    </span>
-    {getSettingsLinkChipLabel(section, focus)}
-  </a>
-);
+  interactive?: boolean;
+}) => {
+  const content = (
+    <>
+      <span aria-hidden="true" className={css.MentionIcon}>
+        {sizedIcon(GearSix, '50')}
+      </span>
+      {getSettingsLinkChipLabel(section, focus)}
+    </>
+  );
+
+  if (!interactive) {
+    return (
+      <span
+        className={classNames(css.Mention({}), css.MentionWithIcon)}
+        data-settings-link-section={section}
+        data-settings-link-focus={focus}
+      >
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      {...makeMentionCustomProps(handleMentionClick)}
+      className={classNames(css.Mention({}), css.MentionWithIcon)}
+      data-settings-link-section={section}
+      data-settings-link-focus={focus}
+    >
+      {content}
+    </a>
+  );
+};
 
 export const factoryRenderLinkifyWithMention = (
   settingsLinkBaseUrl: string,
   mentionRender: (href: string) => JSX.Element | undefined,
-  handleMentionClick?: ReactEventHandler<HTMLElement>
+  handleMentionClick?: ReactEventHandler<HTMLElement>,
+  interactive = true
 ): OptFn<(ir: IntermediateRepresentation) => unknown> => {
   const renderLink: OptFn<(ir: IntermediateRepresentation) => unknown> = ({
     tagName,
@@ -334,8 +408,13 @@ export const factoryRenderLinkifyWithMention = (
           section,
           focus,
           handleMentionClick,
+          interactive,
         });
       }
+    }
+
+    if (!interactive) {
+      return <span>{content}</span>;
     }
 
     return (
@@ -539,6 +618,8 @@ export const getReactCustomHtmlParser = (
     autoplayEmojis?: boolean;
     incomingInlineImagesDefaultHeight?: number;
     incomingInlineImagesMaxHeight?: number;
+    interactive?: boolean;
+    previewMode?: boolean;
     replaceTextNode?: (
       text: string,
       renderText: (text: string, key?: string) => JSX.Element
@@ -604,6 +685,9 @@ export const getReactCustomHtmlParser = (
         const matrixColorStyle = getMatrixColorStyle(attribs);
 
         if (name === 'h1') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           return (
             <Text {...props} className={css.Heading} size="H2">
               {renderChildren()}
@@ -612,6 +696,9 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'h2') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           return (
             <Text {...props} className={css.Heading} size="H3">
               {renderChildren()}
@@ -620,6 +707,9 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'h3') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           return (
             <Text {...props} className={css.Heading} size="H4">
               {renderChildren()}
@@ -628,6 +718,9 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'h4') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           return (
             <Text {...props} className={css.Heading} size="H4">
               {renderChildren()}
@@ -636,6 +729,9 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'h5') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           return (
             <Text {...props} className={css.Heading} size="H5">
               {renderChildren()}
@@ -644,6 +740,9 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'h6') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           return (
             <Text {...props} className={css.Heading} size="H6">
               {renderChildren()}
@@ -652,6 +751,9 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'p') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           if (parent instanceof Element && parent.name === 'li') {
             return <>{renderChildren()}</>;
           }
@@ -671,10 +773,20 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'hr') {
+          if (params.previewMode) {
+            return null;
+          }
           return <hr {...props} className={css.HorizontalRule} />;
         }
 
         if (name === 'pre') {
+          if (params.previewMode) {
+            return (
+              <Text as="code" size="T300" className={css.Code}>
+                Code block
+              </Text>
+            );
+          }
           return (
             <CodeBlock attribs={attribs} opts={opts}>
               {children}
@@ -683,6 +795,9 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'blockquote') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           return (
             <Text {...props} size="Inherit" as="blockquote" className={css.BlockQuote}>
               {renderChildren()}
@@ -691,6 +806,9 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'ul') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           return (
             <ul {...props} className={css.List}>
               {renderChildren()}
@@ -698,6 +816,9 @@ export const getReactCustomHtmlParser = (
           );
         }
         if (name === 'ol') {
+          if (params.previewMode) {
+            return <span {...props}>{renderChildren()}</span>;
+          }
           return (
             <ol {...props} className={css.OrderedList}>
               {renderChildren()}
@@ -754,7 +875,8 @@ export const getReactCustomHtmlParser = (
               roomId,
               decodedHref,
               makeMentionCustomProps(params.handleMentionClick, content),
-              params.nicknames
+              params.nicknames,
+              params.interactive !== false
             );
 
             if (mention) return mention;
@@ -769,14 +891,22 @@ export const getReactCustomHtmlParser = (
                 section,
                 focus,
                 handleMentionClick: params.handleMentionClick,
+                interactive: params.interactive !== false,
               });
             }
+          }
+
+          if (params.interactive === false) {
+            return <span>{renderedChildren}</span>;
           }
 
           return <a {...anchorProps}>{renderedChildren}</a>;
         }
 
         if (name === 'span' && 'data-mx-spoiler' in props) {
+          if (params.interactive === false) {
+            return <span>{renderChildren()}</span>;
+          }
           return (
             <span
               {...props}
@@ -828,6 +958,9 @@ export const getReactCustomHtmlParser = (
           // Non-mxc images were already converted to <a> links by the sanitiser,
           // but handle the edge case defensively here too.
           if (htmlSrc && !props.src.startsWith('mxc://')) {
+            if (params.interactive === false) {
+              return <span>{props.alt || props.title || htmlSrc}</span>;
+            }
             return (
               <a href={htmlSrc} target="_blank" rel="noreferrer noopener">
                 {props.alt || props.title || htmlSrc}

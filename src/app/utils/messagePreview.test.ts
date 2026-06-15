@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+import { buildMessagePreviewFromContent } from './messagePreview';
+
+describe('buildMessagePreviewFromContent', () => {
+  it('returns plain text preview for text messages', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: { msgtype: 'm.text', body: 'Hello' },
+        eventType: 'm.room.message',
+      })
+    ).toMatchObject({ kind: 'text', text: 'Hello' });
+  });
+
+  it('strips reply fallback from text messages', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: { msgtype: 'm.text', body: '> quote\n\nReal message' },
+        eventType: 'm.room.message',
+      })
+    ).toMatchObject({ text: 'Real message' });
+  });
+
+  it('extracts formatted body and flags block content', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: {
+          msgtype: 'm.text',
+          body: '```ts\nconst x = 1;\n```',
+          formatted_body: '<pre><code>const x = 1;</code></pre>',
+        },
+        eventType: 'm.room.message',
+      })
+    ).toMatchObject({ kind: 'unsupported', hasBlockContent: true, text: '💻 Code Block' });
+  });
+
+  it('returns link placeholder for link-only messages', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: { msgtype: 'm.text', body: 'https://example.com' },
+        eventType: 'm.room.message',
+      })
+    ).toMatchObject({ kind: 'link', text: '🔗 Link', isLinkOnly: true });
+  });
+
+  it('returns media placeholders', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: { msgtype: 'm.image', body: 'image.png' },
+        eventType: 'm.room.message',
+      })
+    ).toMatchObject({ kind: 'image', text: '📷 Image' });
+  });
+});

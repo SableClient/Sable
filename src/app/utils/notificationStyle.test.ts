@@ -1,0 +1,40 @@
+import { describe, expect, it } from 'vitest';
+import { resolveNotificationPreviewText } from './notificationStyle';
+
+describe('resolveNotificationPreviewText', () => {
+  it('uses shared preview placeholders for link-only messages', () => {
+    expect(
+      resolveNotificationPreviewText({
+        content: { msgtype: 'm.text', body: 'https://example.com' },
+        eventType: 'm.room.message',
+        isEncryptedRoom: false,
+        showMessageContent: true,
+        showEncryptedMessageContent: true,
+      })
+    ).toBe('🔗 Link');
+  });
+
+  it('keeps reaction wording notification-specific', () => {
+    expect(
+      resolveNotificationPreviewText({
+        content: { 'm.relates_to': { key: '👍' } },
+        eventType: 'm.reaction',
+        isEncryptedRoom: false,
+        showMessageContent: true,
+        showEncryptedMessageContent: true,
+      })
+    ).toBe('Reacted with 👍');
+  });
+
+  it('still respects privacy gating for encrypted rooms', () => {
+    expect(
+      resolveNotificationPreviewText({
+        content: { msgtype: 'm.text', body: 'secret' },
+        eventType: 'm.room.encrypted',
+        isEncryptedRoom: true,
+        showMessageContent: true,
+        showEncryptedMessageContent: false,
+      })
+    ).toBe('Encrypted message');
+  });
+});

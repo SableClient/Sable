@@ -21,6 +21,7 @@ import {
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { JoinRule } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import {
   Page,
   PageContent,
@@ -37,6 +38,7 @@ import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
+import { useRoomEvent } from '$hooks/useRoomEvent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -54,6 +56,7 @@ import {
   useBookmarkReminderActions,
 } from '$features/bookmarks/useBookmarks';
 import { Icon, Icons } from '$app/icons';
+import { DisplayOnlyMessageContent } from '$components/message/DisplayOnlyMessageContent';
 
 const REMINDER_PRESETS = [
   { label: '30 min', ms: 30 * 60 * 1000 },
@@ -161,7 +164,64 @@ type BookmarkItemRowProps = {
   hour24Clock: boolean;
   dateFormatString: string;
   enableReminders: boolean;
+  mediaAutoLoad?: boolean;
 };
+
+function BookmarkResolvedPreview({
+  roomId,
+  eventId,
+  fallbackText,
+  mediaAutoLoad,
+}: {
+  roomId: string;
+  eventId: string;
+  fallbackText: string;
+  mediaAutoLoad?: boolean;
+}) {
+  const mx = useMatrixClient();
+  const room = mx.getRoom(roomId);
+
+  if (!room) {
+    return (
+      <Text size="T300" priority="400">
+        {fallbackText}
+      </Text>
+    );
+  }
+
+  return (
+    <BookmarkResolvedPreviewBody
+      room={room}
+      eventId={eventId}
+      fallbackText={fallbackText}
+      mediaAutoLoad={mediaAutoLoad}
+    />
+  );
+}
+
+function BookmarkResolvedPreviewBody({
+  room,
+  eventId,
+  fallbackText,
+  mediaAutoLoad,
+}: {
+  room: Room;
+  eventId: string;
+  fallbackText: string;
+  mediaAutoLoad?: boolean;
+}) {
+  const mEvent = useRoomEvent(room, eventId);
+
+  if (mEvent === undefined || mEvent === null) {
+    return (
+      <Text size="T300" priority="400">
+        {fallbackText}
+      </Text>
+    );
+  }
+
+  return <DisplayOnlyMessageContent room={room} mEvent={mEvent} mediaAutoLoad={mediaAutoLoad} />;
+}
 
 function BookmarkItemRow({
   item,
@@ -171,6 +231,7 @@ function BookmarkItemRow({
   hour24Clock,
   dateFormatString,
   enableReminders,
+  mediaAutoLoad,
 }: BookmarkItemRowProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -329,9 +390,20 @@ function BookmarkItemRow({
           </Box>
         </Box>
         {preview && (
-          <Text size="T300" priority="400" style={{ marginTop: config.space.S100 }}>
-            {highlightedPreview}
-          </Text>
+          <Box style={{ marginTop: config.space.S100, minWidth: 0 }}>
+            {!highlight ? (
+              <BookmarkResolvedPreview
+                roomId={item.room_id}
+                eventId={item.event_id}
+                fallbackText={preview}
+                mediaAutoLoad={mediaAutoLoad}
+              />
+            ) : (
+              <Text size="T300" priority="400">
+                {highlightedPreview}
+              </Text>
+            )}
+          </Box>
         )}
       </ModernLayout>
       {enableReminders && reminderPickerOpen && (
@@ -410,6 +482,7 @@ type BookmarkResultGroupProps = {
   hour24Clock: boolean;
   dateFormatString: string;
   enableReminders: boolean;
+  mediaAutoLoad?: boolean;
 };
 
 function BookmarkResultGroup({
@@ -422,6 +495,7 @@ function BookmarkResultGroup({
   hour24Clock,
   dateFormatString,
   enableReminders,
+  mediaAutoLoad,
 }: BookmarkResultGroupProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -464,6 +538,7 @@ function BookmarkResultGroup({
             hour24Clock={hour24Clock}
             dateFormatString={dateFormatString}
             enableReminders={enableReminders}
+            mediaAutoLoad={mediaAutoLoad}
           />
         ))}
       </Box>
@@ -590,6 +665,7 @@ export function BookmarksList() {
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const [enableBookmarkReminders] = useSetting(settingsAtom, 'enableBookmarkReminders');
+  const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
 
   const bookmarks = useBookmarkList();
   const deletedBookmarks = useBookmarkDeletedList();
@@ -746,6 +822,7 @@ export function BookmarksList() {
                         hour24Clock={hour24Clock}
                         dateFormatString={dateFormatString}
                         enableReminders={enableBookmarkReminders}
+                        mediaAutoLoad={mediaAutoLoad}
                       />
                     </Fragment>
                   ))}

@@ -5,7 +5,7 @@ import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { Sidebar, SidebarContent, SidebarStack } from '$components/sidebar';
+import { Sidebar, SidebarContent, SidebarStack, SidebarStackSeparator } from '$components/sidebar';
 import {
   DirectTab,
   DirectDMsList,
@@ -16,6 +16,7 @@ import {
   AccountSwitcherTab,
 } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
+import { SearchTab } from './sidebar/SearchTab';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -121,11 +122,15 @@ export function SidebarNav() {
               <DirectDMsList />
             </SidebarStack>
             <SpaceTabs scrollRef={scrollRef} />
+            <SidebarStackSeparator />
+            <SidebarStack>
+              <CreateTab />
+            </SidebarStack>
           </Scroll>
         }
         sticky={
           <SidebarStack>
-            <CreateTab />
+            <SearchTab />
             <UnverifiedTab />
             <InboxTab />
             <AccountSwitcherTab />

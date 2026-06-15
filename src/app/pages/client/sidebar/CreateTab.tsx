@@ -26,18 +26,16 @@ import {
   Link,
   getPhosphorSize,
   SquaresFour,
-  Compass,
-  MagnifyingGlass,
   UsersThree,
+  Plus,
 } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useClientConfig } from '$hooks/useClientConfig';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { useExploreSelected } from '$hooks/router/useExploreSelected';
-import { searchModalAtom } from '$state/searchModal';
 
 export function CreateTab() {
   const mx = useMatrixClient();
@@ -46,12 +44,11 @@ export function CreateTab() {
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const createSelected = useCreateSelected();
   const exploreSelected = useExploreSelected();
-  const [searchRoom, setSearchRoom] = useAtom(searchModalAtom);
 
   const navigate = useNavigate();
   const [menuCords, setMenuCords] = useState<RectCords>();
   const [joinAddress, setJoinAddress] = useState(false);
-  const isSelected = createSelected || exploreSelected || joinAddress || searchRoom;
+  const isSelected = createSelected || exploreSelected || joinAddress;
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(menuCords ? undefined : evt.currentTarget.getBoundingClientRect());
@@ -96,10 +93,6 @@ export function CreateTab() {
     navigate(getExplorePath());
     setMenuCords(undefined);
   };
-  const openSearchRoom = () => {
-    setSearchRoom(true);
-    setMenuCords(undefined);
-  };
 
   return (
     <SidebarItem active={isSelected}>
@@ -136,7 +129,7 @@ export function CreateTab() {
                       onClick={handleCreateSpace}
                     >
                       <SettingTile before={composerIcon(SquaresFour)}>
-                        <Text size="H6">Create a New Community Space</Text>
+                        <Text size="H6">Create a New Space</Text>
                       </SettingTile>
                     </SequenceCard>
                     <SequenceCard
@@ -164,21 +157,7 @@ export function CreateTab() {
                       onClick={handleExploreClick}
                     >
                       <SettingTile before={composerIcon(UsersThree)}>
-                        <Text size="H6">Explore Recommended Communities</Text>
-                      </SettingTile>
-                    </SequenceCard>
-                    <SequenceCard
-                      style={{ padding: config.space.S300 }}
-                      variant="Surface"
-                      direction="Column"
-                      gap="100"
-                      radii="0"
-                      as="button"
-                      type="button"
-                      onClick={openSearchRoom}
-                    >
-                      <SettingTile before={composerIcon(MagnifyingGlass)}>
-                        <Text size="H6">Search amongst Your Rooms</Text>
+                        <Text size="H6">Explore Recommended Spaces</Text>
                       </SettingTile>
                     </SequenceCard>
                   </Box>
@@ -193,14 +172,13 @@ export function CreateTab() {
               outlined
               onClick={handleMenu}
             >
-              {(searchRoom && <MagnifyingGlass size={getPhosphorSize().toolbar} weight="fill" />) ||
-                (joinAddress && <Link size={getPhosphorSize().toolbar} />) ||
+              {(joinAddress && <Link size={getPhosphorSize().toolbar} />) ||
                 (exploreSelected && (
                   <UsersThree size={getPhosphorSize().toolbar} weight="fill" />
                 )) ||
                 (createSelected && (
                   <SquaresFour size={getPhosphorSize().toolbar} weight="fill" />
-                )) || <Compass size={getPhosphorSize().toolbar} />}
+                )) || <Plus size={getPhosphorSize().toolbar} />}
             </SidebarAvatar>
             {joinAddress && (
               <JoinAddressPrompt

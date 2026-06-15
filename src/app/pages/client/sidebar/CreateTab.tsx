@@ -12,19 +12,46 @@ import { ContainerColor } from '$styles/ContainerColor.css';
 import {
   encodeSearchParamValueArray,
   getCreatePath,
+  getExploreFeaturedPath,
+  getExplorePath,
+  getExploreServerPath,
   getSpacePath,
+  joinPathComponent,
   withSearchParam,
 } from '$pages/pathUtils';
 import { useCreateSelected } from '$hooks/router/useCreateSelected';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
-import { composerIcon, Link, getPhosphorSize, Plus, SquaresFour } from '$components/icons/phosphor';
+import {
+  composerIcon,
+  Link,
+  getPhosphorSize,
+  Plus,
+  SquaresFour,
+  Compass,
+  MagnifyingGlass,
+} from '$components/icons/phosphor';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { useAtom, useAtomValue } from 'jotai';
+import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
+import { getMxIdServer } from '$utils/mxIdHelper';
+import { useExploreSelected } from '$hooks/router/useExploreSelected';
+import { searchModalAtom } from '$state/searchModal';
 
 export function CreateTab() {
+  const mx = useMatrixClient();
+  const screenSize = useScreenSizeContext();
+  const clientConfig = useClientConfig();
+  const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const createSelected = useCreateSelected();
+  const exploreSelected = useExploreSelected();
+  const [searchRoom, setSearchRoom] = useAtom(searchModalAtom);
 
   const navigate = useNavigate();
   const [menuCords, setMenuCords] = useState<RectCords>();
   const [joinAddress, setJoinAddress] = useState(false);
+  const isSelected = createSelected || exploreSelected || joinAddress || searchRoom;
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(menuCords ? undefined : evt.currentTarget.getBoundingClientRect());
@@ -40,8 +67,42 @@ export function CreateTab() {
     setMenuCords(undefined);
   };
 
+  const handleExploreClick = () => {
+    if (screenSize === ScreenSize.Mobile) {
+      navigate(getExplorePath());
+      setMenuCords(undefined);
+      return;
+    }
+
+    const activePath = navToActivePath.get('explore');
+    if (activePath) {
+      navigate(joinPathComponent(activePath));
+      setMenuCords(undefined);
+      return;
+    }
+
+    if (clientConfig.featuredCommunities?.openAsDefault) {
+      navigate(getExploreFeaturedPath());
+      setMenuCords(undefined);
+      return;
+    }
+    const userId = mx.getUserId();
+    const userServer = userId ? getMxIdServer(userId) : undefined;
+    if (userServer) {
+      navigate(getExploreServerPath(userServer));
+      setMenuCords(undefined);
+      return;
+    }
+    navigate(getExplorePath());
+    setMenuCords(undefined);
+  };
+  const openSearchRoom = () => {
+    setSearchRoom(true);
+    setMenuCords(undefined);
+  };
+
   return (
-    <SidebarItem active={createSelected}>
+    <SidebarItem active={isSelected}>
       <SidebarItemTooltip tooltip="Add Space">
         {(triggerRef) => (
           <PopOut
@@ -98,6 +159,40 @@ export function CreateTab() {
                         </Text>
                       </SettingTile>
                     </SequenceCard>
+                    <SequenceCard
+                      style={{ padding: config.space.S300 }}
+                      variant="Surface"
+                      direction="Column"
+                      gap="100"
+                      radii="0"
+                      as="button"
+                      type="button"
+                      onClick={handleExploreClick}
+                    >
+                      <SettingTile before={composerIcon(Compass)}>
+                        <Text size="H6">Explore Community</Text>
+                        <Text size="T300" priority="300">
+                          Explore recommended communities.
+                        </Text>
+                      </SettingTile>
+                    </SequenceCard>
+                    <SequenceCard
+                      style={{ padding: config.space.S300 }}
+                      variant="Surface"
+                      direction="Column"
+                      gap="100"
+                      radii="0"
+                      as="button"
+                      type="button"
+                      onClick={openSearchRoom}
+                    >
+                      <SettingTile before={composerIcon(MagnifyingGlass)}>
+                        <Text size="H6">Search Your Rooms</Text>
+                        <Text size="T300" priority="300">
+                          Search for a room you are in.
+                        </Text>
+                      </SettingTile>
+                    </SequenceCard>
                   </Box>
                 </Menu>
               </FocusTrap>
@@ -110,7 +205,12 @@ export function CreateTab() {
               outlined
               onClick={handleMenu}
             >
-              <Plus size={getPhosphorSize().toolbar} />
+              {(searchRoom && <MagnifyingGlass size={getPhosphorSize().toolbar} weight="fill" />) ||
+                (joinAddress && <Link size={getPhosphorSize().toolbar} />) ||
+                (exploreSelected && <Compass size={getPhosphorSize().toolbar} weight="fill" />) ||
+                (createSelected && (
+                  <SquaresFour size={getPhosphorSize().toolbar} weight="fill" />
+                )) || <Plus size={getPhosphorSize().toolbar} />}
             </SidebarAvatar>
             {joinAddress && (
               <JoinAddressPrompt

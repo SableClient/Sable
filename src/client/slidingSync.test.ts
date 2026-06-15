@@ -419,15 +419,11 @@ describe('SlidingSyncManager.scheduleForceReset()', () => {
   });
 });
 
-// ── timeline event recovery ─────────────────────────────────────────────────
+// ── timeline handoff ────────────────────────────────────────────────────────
 
-describe('SlidingSyncManager — timeline recovery', () => {
-  it('routes sliding-sync timeline events through Room.addLiveEvents with room metadata', async () => {
-    const room = makeMockRoom();
-    const mx = makeMockMx({
-      getRoom: vi.fn<() => unknown>().mockReturnValue(room),
-    });
-    const manager = makeManager(mx);
+describe('SlidingSyncManager — timeline handoff', () => {
+  it('leaves timeline events for the SDK sliding-sync handler to process', () => {
+    const manager = makeManager(makeMockMx());
     manager.attach();
     const response = {
       rooms: {
@@ -446,98 +442,8 @@ describe('SlidingSyncManager — timeline recovery', () => {
     };
 
     fireLifecycle(SlidingSyncState.RequestFinished, response);
-    await Promise.resolve();
 
-    expect(room.addLiveEvents).toHaveBeenCalledOnce();
-    const [events, options] = room.addLiveEvents.mock.calls[0] as unknown as [
-      MatrixEvent[],
-      { fromCache: boolean; addToState: boolean },
-    ];
-    expect(events[0]?.getRoomId()).toBe('!room:example.com');
-    expect(options).toEqual({ fromCache: true, addToState: false });
-    expect(response.rooms['!room:example.com'].timeline).toEqual([]);
-  });
-
-  it('sets thread ids before partitioning timeline events', () => {
-    const partitionThreadedEvents = vi.fn<
-      (events: MatrixEvent[]) => [MatrixEvent[], MatrixEvent[], MatrixEvent[]]
-    >((events) => [[], events, []]);
-    const room = makeMockRoom({ partitionThreadedEvents });
-    const mx = makeMockMx({
-      getRoom: vi.fn<() => unknown>().mockReturnValue(room),
-    });
-    const manager = makeManager(mx);
-    manager.attach();
-
-    fireLifecycle(SlidingSyncState.RequestFinished, {
-      rooms: {
-        '!room:example.com': {
-          timeline: [
-            {
-              event_id: '$reply',
-              type: 'm.room.message',
-              sender: '@alice:example.com',
-              origin_server_ts: 1,
-              content: {
-                body: 'thread reply',
-                msgtype: 'm.text',
-                'm.relates_to': {
-                  rel_type: 'm.thread',
-                  event_id: '$root',
-                },
-              },
-            },
-          ],
-        },
-      },
-    });
-
-    const [events] = partitionThreadedEvents.mock.calls[0] as unknown as [MatrixEvent[]];
-    expect(events[0]?.threadRootId).toBe('$root');
-  });
-
-  it('resets and resends an active room when timeline events cannot be placed', () => {
-    const room = makeMockRoom({
-      partitionThreadedEvents: vi.fn<
-        (events: MatrixEvent[]) => [MatrixEvent[], MatrixEvent[], MatrixEvent[]]
-      >((events) => [[], [], events]),
-    });
-    const mx = makeMockMx({
-      getRoom: vi.fn<() => unknown>().mockReturnValue(room),
-    });
-    const manager = makeManager(mx);
-    manager.attach();
-    manager.subscribeToRoom('!room:example.com');
-    vi.advanceTimersByTime(100);
-    mocks.slidingSyncInstance.modifyRoomSubscriptions.mockClear();
-    mocks.slidingSyncInstance.resend.mockClear();
-    room.resetLiveTimeline.mockClear();
-
-    fireLifecycle(SlidingSyncState.RequestFinished, {
-      rooms: {
-        '!room:example.com': {
-          timeline: [
-            {
-              event_id: '$reaction',
-              type: 'm.reaction',
-              sender: '@alice:example.com',
-              origin_server_ts: 1,
-              content: {
-                'm.relates_to': {
-                  rel_type: 'm.annotation',
-                  event_id: '$missing',
-                  key: '👍',
-                },
-              },
-            },
-          ],
-        },
-      },
-    });
-
-    expect(room.resetLiveTimeline).toHaveBeenCalledOnce();
-    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenCalledOnce();
-    expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
+    expect(response.rooms['!room:example.com'].timeline).toHaveLength(1);
   });
 });
 

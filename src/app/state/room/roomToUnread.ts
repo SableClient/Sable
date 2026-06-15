@@ -180,13 +180,14 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
   const setUnreadAtom = useSetAtom(unreadAtom);
   const roomsNotificationPreferences = useRoomsNotificationPreferencesContext();
   const mDirects = useAtomValue(mDirectAtom);
+  const roomToParents = useAtomValue(roomToParentsAtom);
   const spaceChildResetTimerRef = useRef<number | null>(null);
   const shouldApplyUnreadFixup = useCallback(
     () => getClientSyncDiagnostics(mx).transport === 'sliding',
     [mx]
   );
 
-  useEffect(() => {
+  const resetUnreadState = useCallback(() => {
     const unreadInfos = getUnreadInfos(mx, {
       applyFixup: shouldApplyUnreadFixup(),
       mDirects,
@@ -197,6 +198,10 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     });
   }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
 
+  useEffect(() => {
+    resetUnreadState();
+  }, [resetUnreadState, roomToParents]);
+
   useSyncState(
     mx,
     useCallback(
@@ -205,16 +210,10 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
           (state === SyncState.Prepared && prevState === null) ||
           (state === SyncState.Syncing && prevState !== SyncState.Syncing)
         ) {
-          setUnreadAtom({
-            type: 'RESET',
-            unreadInfos: getUnreadInfos(mx, {
-              applyFixup: shouldApplyUnreadFixup(),
-              mDirects,
-            }),
-          });
+          resetUnreadState();
         }
       },
-      [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]
+      [resetUnreadState]
     )
   );
 
@@ -363,14 +362,8 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
   }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
 
   useEffect(() => {
-    setUnreadAtom({
-      type: 'RESET',
-      unreadInfos: getUnreadInfos(mx, {
-        applyFixup: shouldApplyUnreadFixup(),
-        mDirects,
-      }),
-    });
-  }, [mx, setUnreadAtom, roomsNotificationPreferences, shouldApplyUnreadFixup, mDirects]);
+    resetUnreadState();
+  }, [resetUnreadState, roomsNotificationPreferences]);
 
   useEffect(() => {
     const handleMembershipChange = (room: Room, membership: string) => {
@@ -434,18 +427,12 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
             window.clearTimeout(spaceChildResetTimerRef.current);
           }
           spaceChildResetTimerRef.current = window.setTimeout(() => {
-            setUnreadAtom({
-              type: 'RESET',
-              unreadInfos: getUnreadInfos(mx, {
-                applyFixup: shouldApplyUnreadFixup(),
-                mDirects,
-              }),
-            });
+            resetUnreadState();
             spaceChildResetTimerRef.current = null;
           }, 150);
         }
       },
-      [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]
+      [mx, resetUnreadState]
     )
   );
 };

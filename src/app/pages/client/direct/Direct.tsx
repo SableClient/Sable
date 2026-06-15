@@ -33,7 +33,7 @@ import { useNavigate } from 'react-router-dom';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { factoryRoomIdByPriority } from '$utils/sort';
+import { factoryRoomIdByActivity } from '$utils/sort';
 import {
   NavButton,
   NavCategory,
@@ -51,7 +51,6 @@ import { VirtualTile } from '$components/virtualizer';
 import { RoomNavCategoryButton, RoomNavItem } from '$features/room-nav';
 import { makeNavCategoryId } from '$state/closedNavCategories';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
-import { mDirectAtom } from '$state/mDirectList';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
@@ -203,7 +202,6 @@ export function Direct() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const directs = useDirectRooms();
   const notificationPreferences = useRoomsNotificationPreferencesContext();
-  const mDirects = useAtomValue(mDirectAtom);
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
@@ -227,9 +225,7 @@ export function Direct() {
   // Without this, DMs only re-sort when you switch rooms because getLastActiveTimestamp()
   // is internal SDK state not tracked by React dependencies.
   const [activityCounter, setActivityCounter] = useState(0);
-  const directsSetRef = useRef(directs);
   const timelineActivityStartRef = useRef(Date.now());
-  directsSetRef.current = directs;
 
   useEffect(() => {
     const handleTimeline: RoomEventHandlerMap[RoomEvent.Timeline] = (
@@ -251,13 +247,14 @@ export function Direct() {
     };
 
     // Listen to timeline events only for direct message rooms
-    directsSetRef.current.forEach((roomId) => {
+    const listenedRoomIds = Array.from(directs);
+    listenedRoomIds.forEach((roomId) => {
       const room = mx.getRoom(roomId);
       room?.on(RoomEvent.Timeline, handleTimeline);
     });
 
     return () => {
-      directsSetRef.current.forEach((roomId) => {
+      listenedRoomIds.forEach((roomId) => {
         const room = mx.getRoom(roomId);
         room?.off(RoomEvent.Timeline, handleTimeline);
       });
@@ -266,7 +263,7 @@ export function Direct() {
 
   const sortedDirects = useMemo(() => {
     void activityCounter;
-    const items = Array.from(directs).toSorted(factoryRoomIdByPriority(mx, roomToUnread, mDirects));
+    const items = Array.from(directs).toSorted(factoryRoomIdByActivity(mx));
     const hasUnread = (roomId: string) => {
       const unread = roomToUnread.get(roomId);
       return !!unread && (unread.total > 0 || unread.highlight > 0);
@@ -275,7 +272,7 @@ export function Direct() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, directs, closedCategories, roomToUnread, mDirects, selectedRoomId, activityCounter]);
+  }, [mx, directs, closedCategories, roomToUnread, selectedRoomId, activityCounter]);
 
   const virtualizer = useVirtualizer({
     count: sortedDirects.length,

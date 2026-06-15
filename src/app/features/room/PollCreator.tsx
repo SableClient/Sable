@@ -129,9 +129,10 @@ export function PollCreator({ room, onClose, replyDraft, clearReplyDraft }: Poll
     }
     if (replyDraft && clearReplyDraft) {
       const content = serialized.content as IContent;
-      if(content['m.relates_to'])
-      content['m.relates_to'] = getReplyContent(replyDraft, room);
-      clearReplyDraft();
+      if (content) {
+        content['m.relates_to'] = getReplyContent(replyDraft, room);
+        clearReplyDraft();
+      }
     }
 
     setSending(true);

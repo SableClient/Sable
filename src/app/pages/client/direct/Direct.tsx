@@ -70,6 +70,8 @@ import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTabletLayout } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 import { usePullToRefresh } from '$hooks/usePullToRefresh';
+import { getSlidingSyncManager } from '$client/initMatrix';
+import { LIST_DMS } from '$client/slidingSync';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -280,6 +282,13 @@ export function Direct() {
     estimateSize: () => 38,
     overscan: 10,
   });
+  const virtualItems = virtualizer.getVirtualItems();
+  const lastVirtualIndex = virtualItems.at(-1)?.index ?? -1;
+
+  useEffect(() => {
+    if (lastVirtualIndex < 0 || lastVirtualIndex < sortedDirects.length - 10) return;
+    getSlidingSyncManager(mx)?.requestListWindow(LIST_DMS, sortedDirects.length + 29);
+  }, [mx, sortedDirects.length, lastVirtualIndex]);
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
     closedCategories.has(categoryId)
@@ -377,7 +386,7 @@ export function Direct() {
                     overflow: 'clip',
                   }}
                 >
-                  {virtualizer.getVirtualItems().map((vItem) => {
+                  {virtualItems.map((vItem) => {
                     const roomId = sortedDirects[vItem.index];
                     if (!roomId) return null;
                     const room = mx.getRoom(roomId);

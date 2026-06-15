@@ -799,6 +799,10 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
   const slidingEnabledOnServer = resolveSlidingEnabled(slidingConfig?.enabled);
   const slidingRequested = slidingEnabledOnServer && config?.sessionSlidingSyncOptIn === true;
   const proxyBaseUrl = slidingConfig?.proxyBaseUrl ?? config?.baseUrl;
+  const slidingEndpointSource =
+    slidingConfig?.proxyBaseUrl && slidingConfig.proxyBaseUrl !== config?.baseUrl
+      ? 'legacy_proxy'
+      : 'native_homeserver';
   const hasSlidingProxy = typeof proxyBaseUrl === 'string' && proxyBaseUrl.trim().length > 0;
   log.log('startClient sliding config', {
     userId: mx.getUserId(),
@@ -807,12 +811,14 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
     sessionOptIn: config?.sessionSlidingSyncOptIn === true,
     requestedEnabled: slidingRequested,
     proxyBaseUrl,
+    endpointSource: slidingEndpointSource,
     hasSlidingProxy,
   });
   debugLog.info('sync', 'Sliding sync configuration', {
     enabledOnServer: slidingEnabledOnServer,
     requested: slidingRequested,
     hasProxy: hasSlidingProxy,
+    endpointSource: slidingEndpointSource,
   });
 
   const CLASSIC_SYNC_STARTUP_TIMEOUT_MS = 45_000;
@@ -1173,6 +1179,7 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
       transport: 'sliding',
       reason: 'sliding_active',
       fallback: 'false',
+      endpoint_source: slidingEndpointSource,
     },
   });
 

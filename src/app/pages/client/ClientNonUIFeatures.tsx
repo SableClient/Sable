@@ -53,7 +53,6 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
-import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
 import { useCallSignaling } from '$hooks/useCallSignaling';
@@ -1157,17 +1156,6 @@ function PresenceSyncFeature() {
   return null;
 }
 
-function ProgressivePrefetchFeature() {
-  const mx = useMatrixClient();
-  const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
-
-  useEffect(() => {
-    getSlidingSyncManager(mx)?.setProgressivePrefetch(progressivePrefetch);
-  }, [mx, progressivePrefetch]);
-
-  return null;
-}
-
 function getNotificationTransportRuntimePlatform(): NotificationTransportPlatform {
   if (!isTauri()) return 'web';
 
@@ -1341,7 +1329,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
       <PresenceSyncFeature />
-      <ProgressivePrefetchFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />

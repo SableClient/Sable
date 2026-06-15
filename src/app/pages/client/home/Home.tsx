@@ -78,6 +78,8 @@ import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTabletLayout } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { usePullToRefresh } from '$hooks/usePullToRefresh';
+import { getSlidingSyncManager } from '$client/initMatrix';
+import { LIST_JOINED } from '$client/slidingSync';
 
 type HomeMenuProps = {
   isShowingAllRoomsInHome: boolean;
@@ -302,6 +304,13 @@ export function Home() {
     estimateSize: () => 38,
     overscan: 10,
   });
+  const virtualItems = virtualizer.getVirtualItems();
+  const lastVirtualIndex = virtualItems.at(-1)?.index ?? -1;
+
+  useEffect(() => {
+    if (lastVirtualIndex < 0 || lastVirtualIndex < sortedRooms.length - 10) return;
+    getSlidingSyncManager(mx)?.requestListWindow(LIST_JOINED, sortedRooms.length + 29);
+  }, [mx, sortedRooms.length, lastVirtualIndex]);
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
     closedCategories.has(categoryId)
@@ -459,7 +468,7 @@ export function Home() {
                     overflow: 'visible',
                   }}
                 >
-                  {virtualizer.getVirtualItems().map((vItem) => {
+                  {virtualItems.map((vItem) => {
                     const roomId = sortedRooms[vItem.index];
                     if (!roomId) return null;
                     const room = mx.getRoom(roomId);

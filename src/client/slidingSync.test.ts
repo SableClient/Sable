@@ -195,13 +195,19 @@ describe('SlidingSyncManager.hasSufficientRoomsLoaded()', () => {
       if (key === LIST_INVITES) return { joinedCount: 0 };
       return null;
     });
-    mocks.slidingSyncInstance.getListParams.mockImplementation((key: unknown) => {
-      if (key === LIST_JOINED) return { ranges: [[0, 249]] };
-      if (key === LIST_DMS) return { ranges: [[0, 9]] };
-      return null;
-    });
-
     const manager = makeManager(makeMockMx());
+    manager.attach();
+    fireLifecycle(SlidingSyncState.RequestFinished, {
+      rooms: {},
+      lists: {
+        [LIST_JOINED]: {
+          ops: [{ range: [0, 499], room_ids: Array.from({ length: 250 }, (_, i) => `!j${i}`) }],
+        },
+        [LIST_DMS]: {
+          ops: [{ range: [0, 9], room_ids: Array.from({ length: 10 }, (_, i) => `!d${i}`) }],
+        },
+      },
+    });
 
     expect(manager.hasSufficientRoomsLoaded()).toBe(false);
   });
@@ -213,13 +219,19 @@ describe('SlidingSyncManager.hasSufficientRoomsLoaded()', () => {
       if (key === LIST_INVITES) return { joinedCount: 0 };
       return null;
     });
-    mocks.slidingSyncInstance.getListParams.mockImplementation((key: unknown) => {
-      if (key === LIST_JOINED) return { ranges: [[0, 499]] };
-      if (key === LIST_DMS) return { ranges: [[0, 9]] };
-      return null;
-    });
-
     const manager = makeManager(makeMockMx());
+    manager.attach();
+    fireLifecycle(SlidingSyncState.RequestFinished, {
+      rooms: {},
+      lists: {
+        [LIST_JOINED]: {
+          ops: [{ range: [0, 499], room_ids: Array.from({ length: 500 }, (_, i) => `!j${i}`) }],
+        },
+        [LIST_DMS]: {
+          ops: [{ range: [0, 9], room_ids: Array.from({ length: 10 }, (_, i) => `!d${i}`) }],
+        },
+      },
+    });
 
     expect(manager.hasSufficientRoomsLoaded()).toBe(true);
   });

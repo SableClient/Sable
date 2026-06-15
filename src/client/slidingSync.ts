@@ -326,6 +326,8 @@ export class SlidingSyncManager {
 
   private readonly loadedRoomIds = new Set<string>();
 
+  private readonly loadedListCoverageEnd = new Map<string, number>();
+
   private lastOnlineState = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
   private readonly onLifecycle: (state: SlidingSyncState, resp: unknown, err?: Error) => void;
@@ -546,8 +548,24 @@ export class SlidingSyncManager {
       // stale, not just when there's no overlap (server may be sending an extended
       // range that includes older events not in the local timeline).
       if (state === SlidingSyncState.RequestFinished && resp && !err) {
-        const rooms = (resp as MSC3575SlidingSyncResponse).rooms ?? {};
+        const response = resp as MSC3575SlidingSyncResponse & {
+          lists?: Record<
+            string,
+            { ops?: Array<{ range?: [number, number]; room_ids?: string[] }> }
+          >;
+        };
+        const rooms = response.rooms ?? {};
         Object.keys(rooms).forEach((roomId) => this.loadedRoomIds.add(roomId));
+        Object.entries(response.lists ?? {}).forEach(([key, listData]) => {
+          listData.ops?.forEach((op) => {
+            const start = op.range?.[0];
+            const roomIds = op.room_ids ?? [];
+            if (typeof start !== 'number' || roomIds.length === 0) return;
+            const loadedEnd = start + roomIds.length - 1;
+            const previousEnd = this.loadedListCoverageEnd.get(key) ?? -1;
+            this.loadedListCoverageEnd.set(key, Math.max(previousEnd, loadedEnd));
+          });
+        });
         Object.entries(rooms)
           .filter(([, roomData]) => roomData.initial || roomData.limited)
           .filter(([roomId]) => this.activeRoomSubscriptions.has(roomId))
@@ -1182,7 +1200,7 @@ export class SlidingSyncManager {
       sawKnownList = true;
 
       const requiredEnd = Math.min(knownCount, targetListCoverage) - 1;
-      const rangeEnd = getListEndIndex(this.slidingSync.getListParams(key));
+      const rangeEnd = this.loadedListCoverageEnd.get(key) ?? -1;
       if (rangeEnd < requiredEnd) return false;
     }
 

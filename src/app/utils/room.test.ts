@@ -49,8 +49,7 @@ function makeRoom(params: {
     getUnreadNotificationCount: (type: NotificationCountType) =>
       type === NotificationCountType.Highlight ? (params.highlight ?? 0) : (params.total ?? 0),
     getRoomUnreadNotificationCount: () => params.total ?? 0,
-    hasUserReadEvent: (_userId: string, eventId: string) =>
-      eventId === (params.readUpToId ?? params.fullyReadId),
+    hasUserReadEvent: (_userId: string, eventId: string) => eventId === params.readUpToId,
   } as unknown as Room;
 }
 
@@ -68,6 +67,48 @@ describe('room read markers', () => {
     });
 
     expect(roomHaveUnread(room.client, room)).toBe(false);
+    expect(getUnreadInfo(room, { applyFixup: false })).toEqual({
+      roomId: '!room:example.com',
+      highlight: 0,
+      total: 0,
+    });
+  });
+
+  it('treats hydrated events after m.fully_read as unread', () => {
+    const room = makeRoom({
+      fullyReadId: '$event1',
+      events: [makeEvent('$event1'), makeEvent('$event2')],
+    });
+
+    expect(roomHaveUnread(room.client, room)).toBe(true);
+    expect(getUnreadInfo(room, { applyFixup: false })).toEqual({
+      roomId: '!room:example.com',
+      highlight: 0,
+      total: 1,
+    });
+  });
+
+  it('clamps stale SDK counts when m.fully_read is the only read marker', () => {
+    const room = makeRoom({
+      fullyReadId: '$event2',
+      events: [makeEvent('$event1'), makeEvent('$event2')],
+      total: 1,
+    });
+
+    expect(getUnreadInfo(room, { applyFixup: false })).toEqual({
+      roomId: '!room:example.com',
+      highlight: 0,
+      total: 0,
+    });
+  });
+
+  it('suppresses stale counts when the current user sent the latest hydrated event', () => {
+    const room = makeRoom({
+      fullyReadId: '$event1',
+      events: [makeEvent('$event1'), makeEvent('$event2', USER_ID)],
+      total: 1,
+    });
+
     expect(getUnreadInfo(room, { applyFixup: false })).toEqual({
       roomId: '!room:example.com',
       highlight: 0,

@@ -149,9 +149,10 @@ export function SyncDiagnostics() {
       >
         <Box direction="Column" gap="100" style={{ padding: '12px' }}>
           <Text size="T300">
-            Transport: {diagnostics.transport}
+            Active transport: {diagnostics.transport}
             {diagnostics.fallbackFromSliding ? ' (fallback)' : ''}
           </Text>
+          <Text size="T300">Requested transport: {diagnostics.requestedTransport}</Text>
           <Text size="T300">State: {diagnostics.syncState ?? 'null'}</Text>
           <Text size="T300">
             Sliding configured: {diagnostics.slidingConfigured ? 'yes' : 'no'}

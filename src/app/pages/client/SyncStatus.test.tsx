@@ -13,6 +13,7 @@ type SyncStateSubscriber = (current: SyncState, previous: SyncState | null) => v
 const syncStateSubscribers = new Set<SyncStateSubscriber>();
 const syncDiagnosticsMock = vi.hoisted(() => ({
   transport: 'classic' as 'classic' | 'sliding',
+  slidingHealthy: undefined as boolean | undefined,
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -41,6 +42,10 @@ vi.mock('$client/initMatrix', () => ({
   getClientSyncDiagnostics: () => ({
     syncState: 'SYNCING',
     transport: syncDiagnosticsMock.transport,
+    sliding:
+      syncDiagnosticsMock.slidingHealthy === undefined
+        ? undefined
+        : { healthy: syncDiagnosticsMock.slidingHealthy },
   }),
   getSlidingSyncManager: () => ({
     retryNow: vi.fn<() => void>(),
@@ -66,6 +71,7 @@ describe('SyncStatus', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     syncDiagnosticsMock.transport = 'classic';
+    syncDiagnosticsMock.slidingHealthy = undefined;
     syncStateSubscribers.clear();
   });
 
@@ -127,6 +133,23 @@ describe('SyncStatus', () => {
     });
 
     expect(screen.getByText('Connection Lost!')).toBeInTheDocument();
+  });
+
+  it('suppresses degraded sliding-sync status while polling is still healthy', () => {
+    syncDiagnosticsMock.transport = 'sliding';
+    syncDiagnosticsMock.slidingHealthy = true;
+    const mx = makeMx(SyncState.Error);
+    render(<SyncStatus mx={mx} />);
+
+    act(() => {
+      emitSyncState(SyncState.Error, SyncState.Syncing);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(RECONNECTING_STATUS_DISPLAY_MS + 15_000);
+    });
+
+    expect(screen.queryByText('Connection Lost!')).not.toBeInTheDocument();
   });
 
   it('does not show the reconnecting banner during the first reconnect grace window', () => {

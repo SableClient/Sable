@@ -107,6 +107,8 @@ export type SlidingSyncDiagnostics = {
   proxyBaseUrl: string;
   timelineLimit: number;
   listPageSize: number;
+  lastSuccessfulSyncAgeMs: number | null;
+  healthy: boolean;
   lists: SlidingSyncListDiagnostics[];
 };
 
@@ -1052,10 +1054,17 @@ export class SlidingSyncManager {
   }
 
   public getDiagnostics(): SlidingSyncDiagnostics {
+    const lastSuccessfulSyncAgeMs =
+      this.lastSuccessfulSyncAt > 0 ? Date.now() - this.lastSuccessfulSyncAt : null;
     return {
       proxyBaseUrl: this.proxyBaseUrl,
       timelineLimit: this.roomTimelineLimit,
       listPageSize: this.listPageSize,
+      lastSuccessfulSyncAgeMs,
+      healthy:
+        lastSuccessfulSyncAgeMs !== null &&
+        lastSuccessfulSyncAgeMs < HEALTH_STALE_AFTER_MS &&
+        !this.disposed,
       lists: this.listKeys.map((key) => {
         const listData = this.slidingSync.getListData(key);
         const params = this.slidingSync.getListParams(key);

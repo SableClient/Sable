@@ -36,11 +36,17 @@ const DEMO_STATUS_SEQUENCE: readonly (TitlebarStatusView | null)[] = [
 ];
 const ERROR_STATUS_DISPLAY_MS = 1200;
 const SLIDING_ERROR_STATUS_DISPLAY_MS = RECONNECTING_STATUS_DISPLAY_MS;
+const SLIDING_DEGRADED_RECHECK_MS = 15_000;
 
 const isSyncStatusDemoEnabled = (): boolean => {
   if (import.meta.env.VITE_DEMO_SYNC_STATUS === '1') return true;
   if (typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('demoSyncStatus') === '1';
+};
+
+const isSlidingSyncRecentlyHealthy = (mx: MatrixClient): boolean => {
+  const diagnostics = getClientSyncDiagnostics(mx);
+  return diagnostics.transport === 'sliding' && diagnostics.sliding?.healthy === true;
 };
 
 export function SyncStatus({ mx }: SyncStatusProps) {
@@ -105,8 +111,9 @@ export function SyncStatus({ mx }: SyncStatusProps) {
       const stillDegraded = syncState === SyncState.Reconnecting || syncState === SyncState.Error;
       if (!stillDegraded || degradedReportedRef.current) return;
 
-      degradedReportedRef.current = true;
       const diagnostics = getClientSyncDiagnostics(mx);
+      if (diagnostics.transport === 'sliding' && diagnostics.sliding?.healthy === true) return;
+      degradedReportedRef.current = true;
       Sentry.captureMessage('Sync remained degraded', {
         level: 'warning',
         tags: {
@@ -184,18 +191,33 @@ export function SyncStatus({ mx }: SyncStatusProps) {
       };
     }
 
+    const isSlidingSync = getClientSyncDiagnostics(mx).transport === 'sliding';
     const degradedDisplayDelayMs =
       current === SyncState.Reconnecting
         ? RECONNECTING_STATUS_DISPLAY_MS
-        : getClientSyncDiagnostics(mx).transport === 'sliding'
+        : isSlidingSync
           ? SLIDING_ERROR_STATUS_DISPLAY_MS
           : ERROR_STATUS_DISPLAY_MS;
-    const timeoutId = window.setTimeout(() => {
+    let intervalId: number | undefined;
+    const updateDegradedStatus = () => {
+      const syncState = mx.getSyncState();
+      const stillDegraded = syncState === SyncState.Reconnecting || syncState === SyncState.Error;
+      if (!stillDegraded || (isSlidingSync && isSlidingSyncRecentlyHealthy(mx))) {
+        setDisplayStatus(null);
+        return;
+      }
       setDisplayStatus(rawStatusView);
+    };
+    const timeoutId = window.setTimeout(() => {
+      updateDegradedStatus();
+      if (isSlidingSync) {
+        intervalId = window.setInterval(updateDegradedStatus, SLIDING_DEGRADED_RECHECK_MS);
+      }
     }, degradedDisplayDelayMs);
 
     return () => {
       window.clearTimeout(timeoutId);
+      if (intervalId !== undefined) window.clearInterval(intervalId);
     };
   }, [current, mx, rawStatusView, useDemoStatusLoop]);
 

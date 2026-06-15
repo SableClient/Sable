@@ -245,6 +245,12 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   const mx = loadState.status === AsyncStatus.Success ? loadState.data : undefined;
 
+  const clearRevealTimer = useCallback(() => {
+    if (revealTimerRef.current === undefined) return;
+    window.clearTimeout(revealTimerRef.current);
+    revealTimerRef.current = undefined;
+  }, []);
+
   const [startState, startMatrix] = useAsyncCallback<void, Error, [MatrixClient]>(
     useCallback(
       (m) => {
@@ -284,6 +290,7 @@ export function ClientRoot({ children }: ClientRootProps) {
         }
         if (disposed) return;
         loadedUserIdRef.current = undefined;
+        clearRevealTimer();
         setLoading(true);
         setLoadState({ status: AsyncStatus.Idle });
         navigate(getLandingPath(defaultLandingScreen), { replace: true });
@@ -292,7 +299,7 @@ export function ClientRoot({ children }: ClientRootProps) {
     return () => {
       disposed = true;
     };
-  }, [activeSession, mx, navigate, setLoadState, defaultLandingScreen]);
+  }, [activeSession, mx, navigate, setLoadState, defaultLandingScreen, clearRevealTimer]);
 
   // Remember the last visited path so we can restore it on next app open
   // if the user has selected "Last Visited" as their landing screen preference
@@ -421,12 +428,9 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   useEffect(
     () => () => {
-      if (revealTimerRef.current !== undefined) {
-        window.clearTimeout(revealTimerRef.current);
-        revealTimerRef.current = undefined;
-      }
+      clearRevealTimer();
     },
-    []
+    [clearRevealTimer]
   );
 
   useEffect(() => {

@@ -88,6 +88,19 @@ describe('room read markers', () => {
     });
   });
 
+  it('does not infer unread state from hydrated timeline events without a read marker', () => {
+    const room = makeRoom({
+      events: [makeEvent('$event1')],
+    });
+
+    expect(roomHaveUnread(room.client, room)).toBe(false);
+    expect(getUnreadInfo(room, { applyFixup: false })).toEqual({
+      roomId: '!room:example.com',
+      highlight: 0,
+      total: 0,
+    });
+  });
+
   it('clamps stale SDK counts when m.fully_read is the only read marker', () => {
     const room = makeRoom({
       fullyReadId: '$event2',

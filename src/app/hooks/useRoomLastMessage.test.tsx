@@ -17,6 +17,7 @@ function makeEvent(overrides: {
   redacted?: boolean;
   effectiveType?: string;
   encrypted?: boolean;
+  ts?: number;
 }) {
   const type = overrides.type ?? 'm.room.message';
   const content = overrides.content ?? { msgtype: 'm.text', body: 'hello' };
@@ -25,6 +26,7 @@ function makeEvent(overrides: {
     getContent: () => content,
     getSender: () => overrides.sender ?? '@alice:test',
     getRoomId: () => overrides.roomId ?? '!room:test',
+    getTs: () => overrides.ts ?? 0,
     isRedacted: () => overrides.redacted ?? false,
     isEncrypted: () => overrides.encrypted ?? false,
     getEffectiveEvent: () => ({ type: overrides.effectiveType ?? type, content }),
@@ -228,6 +230,15 @@ describe('getLastMessageText', () => {
 
   it('returns undefined for an empty timeline', () => {
     expect(getLastMessageText(makeLastMessageRoom([]), makeLastMessageMx())).toBeUndefined();
+  });
+
+  it('uses the latest displayable event by timestamp when timeline order is stale', () => {
+    const newer = makeEvent({ content: { msgtype: 'm.text', body: 'newer' }, ts: 2000 });
+    const older = makeEvent({ content: { msgtype: 'm.text', body: 'older' }, ts: 1000 });
+
+    expect(getLastMessageText(makeLastMessageRoom([newer, older]), makeLastMessageMx())).toBe(
+      'You: newer'
+    );
   });
 });
 

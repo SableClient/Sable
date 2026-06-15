@@ -140,11 +140,19 @@ function displayNameFromMxid(mxid: string): string {
 }
 
 function findLastDisplayableEvent(events: MatrixEvent[]): MatrixEvent | undefined {
-  for (let i = events.length - 1; i >= 0; i -= 1) {
-    const event = events[i];
-    if (event && eventToPreviewText(event) !== undefined) return event;
+  let latestEvent: MatrixEvent | undefined;
+  let latestTs = Number.NEGATIVE_INFINITY;
+
+  for (const event of events) {
+    if (!event || eventToPreviewText(event) === undefined) continue;
+    const ts = event.getTs();
+    if (ts >= latestTs) {
+      latestEvent = event;
+      latestTs = ts;
+    }
   }
-  return undefined;
+
+  return latestEvent;
 }
 
 export function getLastMessageText(room: Room, mx: MatrixClient): string | undefined {

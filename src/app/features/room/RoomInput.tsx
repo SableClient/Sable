@@ -385,7 +385,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
 
-    const sendTypingStatus = useTypingStatusUpdater(mx, roomId, { disabled: !!threadRootId });
+    const sendTypingStatus = useTypingStatusUpdater(mx, roomId, {
+      disabled: !!threadRootId,
+    });
 
     const [inputKey, setInputKey] = useState(0);
     const getUploadItemKey = useCallback((fileItem: TUploadItem): string => {
@@ -1327,14 +1329,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           if (isKeyHotkey('arrowdown', evt)) {
             evt.preventDefault();
             autocompleteMenu.dispatchEvent(
-              new CustomEvent('autocomplete-navigate', { detail: { direction: 1 } })
+              new CustomEvent('autocomplete-navigate', {
+                detail: { direction: 1 },
+              })
             );
             return;
           }
           if (isKeyHotkey('arrowup', evt)) {
             evt.preventDefault();
             autocompleteMenu.dispatchEvent(
-              new CustomEvent('autocomplete-navigate', { detail: { direction: -1 } })
+              new CustomEvent('autocomplete-navigate', {
+                detail: { direction: -1 },
+              })
             );
             return;
           }
@@ -1715,7 +1721,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   <Box
                     alignItems="Center"
                     gap="300"
-                    style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
+                    style={{
+                      padding: `${config.space.S200} ${config.space.S300} 0`,
+                    }}
                   >
                     <Text style={{ color: color.Critical.Main }} size="T300">
                       {sendError}
@@ -2114,7 +2122,23 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             room={room}
             onClose={() => setPollCreatorOpen(false)}
             replyDraft={replyDraft}
-            clearReplyDraft={() => setReplyDraft(undefined)}
+            silentReply={silentReply}
+            threadRootId={threadRootId}
+            clearReplyDraft={() => {
+              if (threadRootId) {
+                setReplyDraft({
+                  userId: mx.getUserId() ?? '',
+                  eventId: threadRootId,
+                  body: '',
+                  relation: {
+                    rel_type: RelationType.Thread,
+                    event_id: threadRootId,
+                  },
+                });
+              } else {
+                setReplyDraft(undefined);
+              }
+            }}
           />
         )}
         {showLocationPicker && (

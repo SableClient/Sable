@@ -223,7 +223,8 @@ describe('SlidingSyncManager initial list request shape', () => {
     expect(joined?.slow_get_all_rooms).toBeUndefined();
     expect(joined?.required_state).toContainEqual(['m.space.child', '*']);
     expect(joined?.required_state).toContainEqual(['m.room.canonical_alias', '']);
-    expect(joined?.required_state).not.toContainEqual(['im.ponies.room_emotes', '*']);
+    expect(joined?.required_state).toContainEqual(['im.ponies.room_emotes', '*']);
+    expect(joined?.required_state).toContainEqual(['moe.sable.room.abbreviations', '']);
   });
 
   it('uses a tiny list timeline when previews opt in', () => {

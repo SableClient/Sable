@@ -67,6 +67,7 @@ import { AutoDiscovery } from './AutoDiscovery';
 import { ContainerColor } from '$styles/ContainerColor.css';
 
 const log = createLogger('ClientRoot');
+const MESSAGE_PREVIEW_LIST_TIMELINE_LIMIT = 5;
 
 const isClientReady = (syncState: string | null): boolean =>
   syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
@@ -252,7 +253,9 @@ export function ClientRoot({ children }: ClientRootProps) {
           baseUrl: activeSession?.baseUrl,
           slidingSync: {
             ...clientConfig.slidingSync,
-            listTimelineLimit: needsPreviewTimeline ? 1 : undefined,
+            listTimelineLimit: needsPreviewTimeline
+              ? MESSAGE_PREVIEW_LIST_TIMELINE_LIMIT
+              : undefined,
           },
           sessionSlidingSyncOptIn: activeSession?.slidingSyncOptIn,
         });

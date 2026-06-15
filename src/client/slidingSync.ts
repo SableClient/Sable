@@ -23,6 +23,7 @@ import {
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
+import { CustomStateEvent } from '$types/matrix/room';
 import { classifyCryptoStoreIndexedDbError } from './cryptoStoreErrors';
 
 const log = createLogger('slidingSync');
@@ -128,8 +129,11 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
 //   - m.room.topic is required: topics are displayed for joined child rooms in space
 //     lobby (RoomItem → LocalRoomSummaryLoader → useLocalRoomSummary) and in the
 //     invite list. Without this event the topic always shows as blank for non-active
-//     rooms. Emoji packs and other heavyweight room metadata should be requested by
-//     targeted loaders instead of every list window.
+//     rooms.
+//   - Room emoji packs and abbreviations are inherited from ancestor spaces by the
+//     composer and message renderer. Keep them in state-only list windows so cold
+//     sliding-sync sessions do not lose inherited rendering until a parent space is
+//     opened as the active room.
 const buildListRequiredState = (
   includeMembers: boolean
 ): MSC3575RoomSubscription['required_state'] => [
@@ -142,6 +146,8 @@ const buildListRequiredState = (
   [EventType.RoomCanonicalAlias, ''],
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
   [EventType.SpaceChild, MSC3575_WILDCARD],
+  [CustomStateEvent.PoniesRoomEmotes, MSC3575_WILDCARD],
+  [CustomStateEvent.RoomAbbreviations, ''],
   ...(includeMembers ? [[EventType.RoomMember, MSC3575_STATE_KEY_LAZY] as [string, string]] : []),
 ];
 
@@ -1228,7 +1234,8 @@ export class SlidingSyncManager {
           [EventType.RoomCanonicalAlias, ''],
           [EventType.RoomMember, MSC3575_STATE_KEY_ME],
           ['m.space.child', MSC3575_WILDCARD],
-          ['im.ponies.room_emotes', MSC3575_WILDCARD],
+          [CustomStateEvent.PoniesRoomEmotes, MSC3575_WILDCARD],
+          [CustomStateEvent.RoomAbbreviations, ''],
         ];
 
         while (hasMore) {

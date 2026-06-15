@@ -72,6 +72,7 @@ import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 import { usePullToRefresh } from '$hooks/usePullToRefresh';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { LIST_DMS } from '$client/slidingSync';
+import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
 import { allRoomsAtom } from '$state/room-list/roomList';
 
 type DirectMenuProps = {
@@ -286,17 +287,23 @@ export function Direct() {
   });
   const virtualItems = virtualizer.getVirtualItems();
   const lastVirtualIndex = virtualItems.at(-1)?.index ?? -1;
+  const requestedEmptyListExpansionRef = useRef(false);
 
   useEffect(() => {
     const manager = getSlidingSyncManager(mx);
     const diagnostics = manager?.getListDiagnostics(LIST_DMS);
     if (!manager || !diagnostics) return;
-    const hasMore = diagnostics.rangeEnd + 1 < diagnostics.knownCount;
-    const nearRenderedTail =
-      sortedDirects.length === 0 ||
-      (lastVirtualIndex >= 0 && lastVirtualIndex >= sortedDirects.length - 10);
-    if (!hasMore || !nearRenderedTail) return;
-    manager.requestListWindow(LIST_DMS, diagnostics.rangeEnd + 30);
+    const allowEmptyExpansion =
+      sortedDirects.length === 0 && !requestedEmptyListExpansionRef.current;
+    const nextEnd = getNextSlidingSyncListWindowEnd({
+      diagnostics,
+      itemCount: sortedDirects.length,
+      lastVirtualIndex,
+      allowEmptyExpansion,
+    });
+    if (nextEnd === undefined) return;
+    if (allowEmptyExpansion) requestedEmptyListExpansionRef.current = true;
+    manager.requestListWindow(LIST_DMS, nextEnd);
   }, [mx, sortedDirects.length, allRoomCount, lastVirtualIndex]);
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>

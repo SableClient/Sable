@@ -240,7 +240,7 @@ export function useRoomLastMessage(
 
     // Background paginate when the timeline is sparse and contains no
     // displayable message (typical for sliding sync list rooms which initially
-    // receive only listTimelineLimit=3 events, all of which may be state events).
+    // receive only a small preview window, all of which may be non-message events).
     // The RoomEvent.Timeline listener fires when events are loaded, triggering
     // another update() call that will find and display the preview.
     if (!lastDisplayable && events.length <= 5) {

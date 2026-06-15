@@ -20,6 +20,10 @@ import { useAccountDataCallback } from './useAccountDataCallback';
 import { useStateEventCallback } from './useStateEventCallback';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { CustomStateEvent } from '$types/matrix/room';
+import { getSlidingSyncManager } from '$client/initMatrix';
+
+const GLOBAL_PACK_ROOM_WAIT_MS = 3000;
+const GLOBAL_PACK_ROOM_WAIT_INTERVAL_MS = 250;
 
 const imagePackEqual = (a: ImagePack | undefined, b: ImagePack | undefined): boolean => {
   if (!a && !b) return true;
@@ -55,6 +59,25 @@ const imagePackListEqual = (a: ImagePack[], b: ImagePack[]): boolean => {
   return a.every((pack, index) => imagePackEqual(pack, b[index]));
 };
 
+const waitForRoom = async (mx: MatrixClient, roomId: string): Promise<Room | undefined> => {
+  const existing = mx.getRoom(roomId);
+  if (existing) return existing;
+
+  return new Promise((resolve) => {
+    const interval = window.setInterval(() => {
+      const room = mx.getRoom(roomId);
+      if (!room) return;
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+      resolve(room);
+    }, GLOBAL_PACK_ROOM_WAIT_INTERVAL_MS);
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
+      resolve(undefined);
+    }, GLOBAL_PACK_ROOM_WAIT_MS);
+  });
+};
+
 const loadGlobalImagePackState = async (mx: MatrixClient): Promise<boolean> => {
   const emoteRoomsContent = mx
     .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
@@ -66,9 +89,13 @@ const loadGlobalImagePackState = async (mx: MatrixClient): Promise<boolean> => {
   let loaded = false;
   const requests = Object.entries(roomIdToPackInfo).flatMap(([roomId, packStateKeyToUnknown]) => {
     if (!packStateKeyToUnknown || typeof packStateKeyToUnknown !== 'object') return [];
-    const room = mx.getRoom(roomId);
-    if (!room) return [];
     return Object.keys(packStateKeyToUnknown).map(async (stateKey) => {
+      let room: Room | null | undefined = mx.getRoom(roomId);
+      if (!room) {
+        getSlidingSyncManager(mx)?.subscribeToRoom(roomId);
+        room = await waitForRoom(mx, roomId);
+      }
+      if (!room) return;
       if (getRoomImagePack(room, stateKey)) return;
       const content = await mx.getStateEvent(roomId, CustomStateEvent.PoniesRoomEmotes, stateKey);
       const event = new MatrixEvent({

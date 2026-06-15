@@ -25,10 +25,10 @@ import {
   composerIcon,
   Link,
   getPhosphorSize,
-  Plus,
   SquaresFour,
   Compass,
   MagnifyingGlass,
+  UsersThree,
 } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -163,8 +163,8 @@ export function CreateTab() {
                       type="button"
                       onClick={handleExploreClick}
                     >
-                      <SettingTile before={composerIcon(Compass)}>
-                        <Text size="H6">Explore Recommended Community</Text>
+                      <SettingTile before={composerIcon(UsersThree)}>
+                        <Text size="H6">Explore Recommended Communities</Text>
                       </SettingTile>
                     </SequenceCard>
                     <SequenceCard
@@ -195,10 +195,12 @@ export function CreateTab() {
             >
               {(searchRoom && <MagnifyingGlass size={getPhosphorSize().toolbar} weight="fill" />) ||
                 (joinAddress && <Link size={getPhosphorSize().toolbar} />) ||
-                (exploreSelected && <Compass size={getPhosphorSize().toolbar} weight="fill" />) ||
+                (exploreSelected && (
+                  <UsersThree size={getPhosphorSize().toolbar} weight="fill" />
+                )) ||
                 (createSelected && (
                   <SquaresFour size={getPhosphorSize().toolbar} weight="fill" />
-                )) || <Plus size={getPhosphorSize().toolbar} />}
+                )) || <Compass size={getPhosphorSize().toolbar} />}
             </SidebarAvatar>
             {joinAddress && (
               <JoinAddressPrompt

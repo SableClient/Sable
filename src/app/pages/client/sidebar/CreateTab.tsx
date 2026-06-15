@@ -136,10 +136,7 @@ export function CreateTab() {
                       onClick={handleCreateSpace}
                     >
                       <SettingTile before={composerIcon(SquaresFour)}>
-                        <Text size="H6">Create Space</Text>
-                        <Text size="T300" priority="300">
-                          Build a space for your community.
-                        </Text>
+                        <Text size="H6">Create a New Community Space</Text>
                       </SettingTile>
                     </SequenceCard>
                     <SequenceCard
@@ -153,10 +150,7 @@ export function CreateTab() {
                       onClick={handleJoinWithAddress}
                     >
                       <SettingTile before={composerIcon(Link)}>
-                        <Text size="H6">Join with Address</Text>
-                        <Text size="T300" priority="300">
-                          Become a part of existing community.
-                        </Text>
+                        <Text size="H6">Join Community via Address</Text>
                       </SettingTile>
                     </SequenceCard>
                     <SequenceCard
@@ -170,10 +164,7 @@ export function CreateTab() {
                       onClick={handleExploreClick}
                     >
                       <SettingTile before={composerIcon(Compass)}>
-                        <Text size="H6">Explore Community</Text>
-                        <Text size="T300" priority="300">
-                          Explore recommended communities.
-                        </Text>
+                        <Text size="H6">Explore Recommended Community</Text>
                       </SettingTile>
                     </SequenceCard>
                     <SequenceCard
@@ -187,10 +178,7 @@ export function CreateTab() {
                       onClick={openSearchRoom}
                     >
                       <SettingTile before={composerIcon(MagnifyingGlass)}>
-                        <Text size="H6">Search Your Rooms</Text>
-                        <Text size="T300" priority="300">
-                          Search for a room you are in.
-                        </Text>
+                        <Text size="H6">Search amongst Your Rooms</Text>
                       </SettingTile>
                     </SequenceCard>
                   </Box>

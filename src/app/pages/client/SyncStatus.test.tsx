@@ -11,6 +11,9 @@ import {
 type SyncStateSubscriber = (current: SyncState, previous: SyncState | null) => void;
 
 const syncStateSubscribers = new Set<SyncStateSubscriber>();
+const syncDiagnosticsMock = vi.hoisted(() => ({
+  transport: 'classic' as 'classic' | 'sliding',
+}));
 
 vi.mock('@tauri-apps/api/core', () => ({
   isTauri: () => false,
@@ -37,7 +40,7 @@ vi.mock('$hooks/useSyncState', () => ({
 vi.mock('$client/initMatrix', () => ({
   getClientSyncDiagnostics: () => ({
     syncState: 'SYNCING',
-    transport: 'classic',
+    transport: syncDiagnosticsMock.transport,
   }),
   getSlidingSyncManager: () => ({
     retryNow: vi.fn<() => void>(),
@@ -62,6 +65,7 @@ function makeMx(syncState: SyncState | null = SyncState.Syncing): MatrixClient &
 describe('SyncStatus', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    syncDiagnosticsMock.transport = 'classic';
     syncStateSubscribers.clear();
   });
 
@@ -101,6 +105,28 @@ describe('SyncStatus', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(mx.retryImmediately).toHaveBeenCalledOnce();
+  });
+
+  it('uses the reconnecting grace window for sliding-sync errors', () => {
+    syncDiagnosticsMock.transport = 'sliding';
+    const mx = makeMx(SyncState.Error);
+    render(<SyncStatus mx={mx} />);
+
+    act(() => {
+      emitSyncState(SyncState.Error, SyncState.Reconnecting);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(1200);
+    });
+
+    expect(screen.queryByText('Connection Lost!')).not.toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(RECONNECTING_STATUS_DISPLAY_MS - 1200);
+    });
+
+    expect(screen.getByText('Connection Lost!')).toBeInTheDocument();
   });
 
   it('does not show the reconnecting banner during the first reconnect grace window', () => {

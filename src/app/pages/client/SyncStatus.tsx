@@ -35,6 +35,7 @@ const DEMO_STATUS_SEQUENCE: readonly (TitlebarStatusView | null)[] = [
   null,
 ];
 const ERROR_STATUS_DISPLAY_MS = 1200;
+const SLIDING_ERROR_STATUS_DISPLAY_MS = RECONNECTING_STATUS_DISPLAY_MS;
 
 const isSyncStatusDemoEnabled = (): boolean => {
   if (import.meta.env.VITE_DEMO_SYNC_STATUS === '1') return true;
@@ -184,7 +185,11 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     }
 
     const degradedDisplayDelayMs =
-      current === SyncState.Reconnecting ? RECONNECTING_STATUS_DISPLAY_MS : ERROR_STATUS_DISPLAY_MS;
+      current === SyncState.Reconnecting
+        ? RECONNECTING_STATUS_DISPLAY_MS
+        : getClientSyncDiagnostics(mx).transport === 'sliding'
+          ? SLIDING_ERROR_STATUS_DISPLAY_MS
+          : ERROR_STATUS_DISPLAY_MS;
     const timeoutId = window.setTimeout(() => {
       setDisplayStatus(rawStatusView);
     }, degradedDisplayDelayMs);
@@ -192,7 +197,7 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [current, rawStatusView, useDemoStatusLoop]);
+  }, [current, mx, rawStatusView, useDemoStatusLoop]);
 
   const useTitlebarSlot = isTauri() && osType() === 'windows';
   useEffect(() => {

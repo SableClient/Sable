@@ -128,7 +128,7 @@ function makeMockRoom(overrides: Record<string, unknown> = {}) {
   return room;
 }
 
-function fireLifecycle(state: SlidingSyncState, resp: unknown = {}) {
+function fireLifecycle(state: SlidingSyncState, resp: unknown = {}, err?: Error) {
   const lifecycleCall = mocks.slidingSyncInstance.on.mock.calls.find(
     (args: unknown[]) => args[0] === SlidingSyncEvent.Lifecycle
   );
@@ -137,7 +137,7 @@ function fireLifecycle(state: SlidingSyncState, resp: unknown = {}) {
     SlidingSyncEvent,
     (state: SlidingSyncState, resp: unknown, err?: Error) => void,
   ];
-  handler(state, resp);
+  handler(state, resp, err);
 }
 
 function setNavigatorOnline(value: boolean): void {
@@ -360,6 +360,75 @@ describe('SlidingSyncManager.requestListWindow()', () => {
       knownCount: 120,
       rangeEnd: 29,
     });
+  });
+});
+
+describe('SlidingSyncManager space graph warmup', () => {
+  it('lazily expands the joined list after the first successful sync', () => {
+    mocks.slidingSyncInstance.getListData.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED) return { joinedCount: 120 };
+      return { joinedCount: 0 };
+    });
+    const manager = makeManager(makeMockMx(), { spaceGraphWarmupRooms: 90 });
+    manager.attach();
+
+    fireLifecycle(SlidingSyncState.Complete, {});
+    expect(mocks.slidingSyncInstance.setListRanges).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(2500);
+
+    expect(mocks.slidingSyncInstance.setListRanges).toHaveBeenCalledWith(LIST_JOINED, [[0, 59]]);
+  });
+
+  it('caps lazy space graph warmup below all rooms', () => {
+    mocks.slidingSyncInstance.getListData.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED) return { joinedCount: 5000 };
+      return { joinedCount: 0 };
+    });
+    const manager = makeManager(makeMockMx(), { spaceGraphWarmupRooms: 60 });
+    manager.attach();
+
+    fireLifecycle(SlidingSyncState.Complete, {});
+    vi.advanceTimersByTime(2500);
+
+    expect(mocks.slidingSyncInstance.setListRanges).toHaveBeenCalledWith(LIST_JOINED, [[0, 59]]);
+
+    mocks.slidingSyncInstance.getListParams.mockImplementation((key: unknown) => {
+      if (key === LIST_JOINED) return { ranges: [[0, 59]] };
+      if (key === LIST_DMS || key === LIST_INVITES) return { ranges: [[0, 29]] };
+      return null;
+    });
+    mocks.slidingSyncInstance.setListRanges.mockClear();
+
+    vi.advanceTimersByTime(1500);
+
+    expect(mocks.slidingSyncInstance.setListRanges).not.toHaveBeenCalled();
+  });
+});
+
+describe('SlidingSyncManager sync health checks', () => {
+  it('resends when sliding sync has not completed a successful poll recently', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+
+    vi.advanceTimersByTime(29_999);
+    expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
+
+    vi.advanceTimersByTime(15_000);
+    expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
+  });
+
+  it('does not health-retry while the browser is offline', () => {
+    setNavigatorOnline(false);
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+
+    vi.advanceTimersByTime(30_000);
+
+    expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
   });
 });
 

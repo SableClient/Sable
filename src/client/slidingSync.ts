@@ -57,6 +57,12 @@ const DEFAULT_LIST_PAGE_SIZE = 30;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
 const FORCE_RESUBSCRIPTION_RESTORE_TIMEOUT_MS = 5000;
+const HEALTH_CHECK_INTERVAL_MS = 15_000;
+const HEALTH_STALE_AFTER_MS = 30_000;
+const HEALTH_RETRY_COOLDOWN_MS = 30_000;
+const SPACE_GRAPH_WARMUP_INITIAL_DELAY_MS = 2500;
+const SPACE_GRAPH_WARMUP_INTERVAL_MS = 1500;
+const DEFAULT_SPACE_GRAPH_WARMUP_ROOMS = 300;
 
 // Sort order for MSC4186 (Simplified Sliding Sync): most recently active first,
 // then alphabetical as a tiebreaker. by_notification_level is MSC3575-only and
@@ -85,6 +91,7 @@ export type SlidingSyncConfig = {
   timelineLimit?: number;
   pollTimeoutMs?: number;
   maxRooms?: number;
+  spaceGraphWarmupRooms?: number;
   includeInviteList?: boolean;
   probeTimeoutMs?: number;
 };
@@ -255,6 +262,8 @@ export class SlidingSyncManager {
 
   private readonly maxRooms: number;
 
+  private readonly spaceGraphWarmupRooms: number;
+
   private readonly listKeys: string[];
 
   private readonly activeRoomSubscriptions = new Set<string>();
@@ -314,6 +323,16 @@ export class SlidingSyncManager {
 
   private pendingResubscriptionRestoreTimer: ReturnType<typeof setTimeout> | undefined;
 
+  private healthCheckTimer: ReturnType<typeof setInterval> | undefined;
+
+  private spaceGraphWarmupTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private spaceGraphWarmupStarted = false;
+
+  private lastSuccessfulSyncAt = 0;
+
+  private lastHealthRetryAt = 0;
+
   /**
    * One-shot RoomData listeners keyed by roomId, used to measure the latency
    * between subscribeToRoom() and the first data arriving for that room.
@@ -344,6 +363,10 @@ export class SlidingSyncManager {
     const pollTimeoutMs = clampPositive(config.pollTimeoutMs, DEFAULT_POLL_TIMEOUT_MS);
     this.probeTimeoutMs = clampPositive(config.probeTimeoutMs, 5000);
     this.maxRooms = clampPositive(config.maxRooms, DEFAULT_MAX_ROOMS);
+    this.spaceGraphWarmupRooms = Math.min(
+      this.maxRooms,
+      clampPositive(config.spaceGraphWarmupRooms, DEFAULT_SPACE_GRAPH_WARMUP_ROOMS)
+    );
     this.listPageSize = listPageSize;
     const includeInviteList = config.includeInviteList !== false;
     this.listTimelineLimit = clampPositive(config.listTimelineLimit, DEFAULT_LIST_TIMELINE_LIMIT);
@@ -471,6 +494,13 @@ export class SlidingSyncManager {
       if (this.disposed) {
         debugLog.warn('sync', 'Sync lifecycle called after disposal', { state });
         return;
+      }
+
+      if (
+        !err &&
+        (state === SlidingSyncState.RequestFinished || state === SlidingSyncState.Complete)
+      ) {
+        this.lastSuccessfulSyncAt = Date.now();
       }
 
       // Before room data is processed, reset live timelines for active rooms that
@@ -669,6 +699,7 @@ export class SlidingSyncManager {
         Sentry.metrics.distribution('sable.sync.first_list_window_rooms', this.loadedRoomIds.size, {
           attributes: { transport: 'sliding' },
         });
+        this.scheduleSpaceGraphWarmup();
       }
 
       Sentry.metrics.distribution('sable.sync.processing_ms', syncDuration, {
@@ -738,6 +769,7 @@ export class SlidingSyncManager {
     });
 
     this.attachTime = performance.now();
+    this.lastSuccessfulSyncAt = Date.now();
     this.initialSyncSpan = Sentry.startInactiveSpan({
       name: 'sync.initial',
       op: 'matrix.sync',
@@ -764,6 +796,7 @@ export class SlidingSyncManager {
       window.addEventListener('online', this.onConnectionChange);
       window.addEventListener('offline', this.onConnectionChange);
     }
+    this.healthCheckTimer = setInterval(() => this.checkSyncHealth(), HEALTH_CHECK_INTERVAL_MS);
 
     debugLog.info('sync', 'Sliding sync listeners attached successfully', {
       hasConnectionAPI: !!connection,
@@ -789,6 +822,14 @@ export class SlidingSyncManager {
     if (this.pendingResubscriptionRestoreTimer) {
       clearTimeout(this.pendingResubscriptionRestoreTimer);
       this.pendingResubscriptionRestoreTimer = undefined;
+    }
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = undefined;
+    }
+    if (this.spaceGraphWarmupTimer) {
+      clearTimeout(this.spaceGraphWarmupTimer);
+      this.spaceGraphWarmupTimer = undefined;
     }
 
     this.disposed = true;
@@ -827,6 +868,67 @@ export class SlidingSyncManager {
   public retryNow(): void {
     if (this.disposed) return;
     this.slidingSync.resend();
+  }
+
+  private checkSyncHealth(): void {
+    if (this.disposed) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+    const now = Date.now();
+    const staleForMs = now - this.lastSuccessfulSyncAt;
+    if (staleForMs < HEALTH_STALE_AFTER_MS) return;
+    if (now - this.lastHealthRetryAt < HEALTH_RETRY_COOLDOWN_MS) return;
+
+    this.lastHealthRetryAt = now;
+    debugLog.warn('sync', 'Sliding sync stale; requesting immediate retry', {
+      staleForMs,
+      syncNumber: this.syncCount,
+    });
+    Sentry.metrics.count('sable.sync.health_retry', 1, {
+      attributes: { transport: 'sliding' },
+    });
+    this.retryNow();
+  }
+
+  private scheduleSpaceGraphWarmup(): void {
+    if (this.disposed || this.spaceGraphWarmupStarted) return;
+    this.spaceGraphWarmupStarted = true;
+    this.spaceGraphWarmupTimer = setTimeout(
+      () => this.expandSpaceGraphWarmup(),
+      SPACE_GRAPH_WARMUP_INITIAL_DELAY_MS
+    );
+  }
+
+  private expandSpaceGraphWarmup(): void {
+    this.spaceGraphWarmupTimer = undefined;
+    if (this.disposed) return;
+
+    const listData = this.slidingSync.getListData(LIST_JOINED);
+    if (!listData) {
+      this.spaceGraphWarmupTimer = setTimeout(
+        () => this.expandSpaceGraphWarmup(),
+        SPACE_GRAPH_WARMUP_INTERVAL_MS
+      );
+      return;
+    }
+
+    const knownCount = listData.joinedCount ?? 0;
+    if (knownCount <= 0) return;
+
+    const currentEnd = getListEndIndex(this.slidingSync.getListParams(LIST_JOINED));
+    const warmupEnd = Math.min(knownCount - 1, this.maxRooms - 1, this.spaceGraphWarmupRooms - 1);
+    if (currentEnd >= warmupEnd) return;
+
+    const nextEnd = Math.min(warmupEnd, currentEnd + this.listPageSize);
+    this.requestListWindow(LIST_JOINED, nextEnd);
+    Sentry.metrics.count('sable.sync.space_graph_warmup_expand', 1, {
+      attributes: { transport: 'sliding' },
+    });
+
+    this.spaceGraphWarmupTimer = setTimeout(
+      () => this.expandSpaceGraphWarmup(),
+      SPACE_GRAPH_WARMUP_INTERVAL_MS
+    );
   }
 
   /**

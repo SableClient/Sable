@@ -299,6 +299,10 @@ export function RoomTimeline({
   const [isReady, setIsReady] = useState(false);
   const isReadyRef = useRef(isReady);
   isReadyRef.current = isReady;
+  const jumpRetryIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const jumpRecenterTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const jumpHighlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const jumpAnchorKeyRef = useRef<string | undefined>(undefined);
 
   // Track whether the initial eventId load is in progress. Used to prevent the
   // recovery scroll from firing prematurely when the live timeline loads before
@@ -442,6 +446,10 @@ export function RoomTimeline({
       if (initialScrollTimerRef.current !== undefined) clearTimeout(initialScrollTimerRef.current);
       if (jumpScrollBlockTimerRef.current !== undefined)
         clearTimeout(jumpScrollBlockTimerRef.current);
+      if (jumpRetryIntervalRef.current !== undefined) clearInterval(jumpRetryIntervalRef.current);
+      jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
+      if (jumpHighlightTimeoutRef.current !== undefined)
+        clearTimeout(jumpHighlightTimeoutRef.current);
     },
     []
   );
@@ -498,10 +506,6 @@ export function RoomTimeline({
   }, [timelineSync.backwardStatus]);
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    let retryIntervalId: ReturnType<typeof setInterval> | undefined;
-    const recenterTimeoutIds: ReturnType<typeof setTimeout>[] = [];
-
     if (timelineSync.focusItem) {
       // Mark that the jump succeeded (focusItem was set). This prevents recovery
       // scroll from firing even after focusItem is cleared (highlight ends).
@@ -517,6 +521,22 @@ export function RoomTimeline({
         level: 'info',
         data: { eventId: focusEventId, index, scrollTo, roomId: room.roomId },
       });
+
+      const anchorKey = `${focusEventId ?? 'no-event'}:${index}`;
+      const isNewAnchor = jumpAnchorKeyRef.current !== anchorKey;
+      if (isNewAnchor) {
+        jumpAnchorKeyRef.current = anchorKey;
+        if (jumpRetryIntervalRef.current !== undefined) {
+          clearInterval(jumpRetryIntervalRef.current);
+          jumpRetryIntervalRef.current = undefined;
+        }
+        jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
+        jumpRecenterTimeoutIdsRef.current = [];
+        if (jumpHighlightTimeoutRef.current !== undefined) {
+          clearTimeout(jumpHighlightTimeoutRef.current);
+          jumpHighlightTimeoutRef.current = undefined;
+        }
+      }
 
       let scrollSucceeded = false;
       const resolveProcessedIndex = () => {
@@ -577,29 +597,31 @@ export function RoomTimeline({
         scrollSucceeded = true;
 
         // Stop retry loop now that scroll succeeded
-        if (retryIntervalId !== undefined) {
-          clearInterval(retryIntervalId);
-          retryIntervalId = undefined;
+        if (jumpRetryIntervalRef.current !== undefined) {
+          clearInterval(jumpRetryIntervalRef.current);
+          jumpRetryIntervalRef.current = undefined;
         }
 
         // Media loads and preview expansion can keep shifting layout after the
         // first successful jump. Re-center a few bounded times and resolve the
         // target row fresh each time so the event stays anchored while history
         // and measured heights settle.
-        [150, 600, 1500, 3000].forEach((delay) => {
-          const recenterTimeoutId = setTimeout(() => {
-            const delayedProcessedIndex = resolveProcessedIndex();
-            if (vListRef.current && delayedProcessedIndex !== undefined) {
-              log.log(
-                `[PermalinkJump] Re-centering after delayed settle: processedIndex=${delayedProcessedIndex}, delay=${delay}`
-              );
-              setAtBottom(false);
-              startJumpScrollBlock();
-              vListRef.current.scrollToIndex(delayedProcessedIndex, { align: 'center' });
-            }
-          }, delay);
-          recenterTimeoutIds.push(recenterTimeoutId);
-        });
+        if (jumpRecenterTimeoutIdsRef.current.length === 0) {
+          [150, 600, 1500, 3000].forEach((delay) => {
+            const recenterTimeoutId = setTimeout(() => {
+              const delayedProcessedIndex = resolveProcessedIndex();
+              if (vListRef.current && delayedProcessedIndex !== undefined) {
+                log.log(
+                  `[PermalinkJump] Re-centering after delayed settle: processedIndex=${delayedProcessedIndex}, delay=${delay}`
+                );
+                setAtBottom(false);
+                startJumpScrollBlock();
+                vListRef.current.scrollToIndex(delayedProcessedIndex, { align: 'center' });
+              }
+            }, delay);
+            jumpRecenterTimeoutIdsRef.current.push(recenterTimeoutId);
+          });
+        }
 
         return true;
       };
@@ -609,32 +631,31 @@ export function RoomTimeline({
         // If immediate scroll failed (event not in processedEvents yet), retry periodically.
         // This handles the case where pagination just loaded the event but React hasn't
         // finished processing/rendering it yet.
-        retryIntervalId = setInterval(() => {
+        if (jumpRetryIntervalRef.current !== undefined) {
+          clearInterval(jumpRetryIntervalRef.current);
+        }
+        jumpRetryIntervalRef.current = setInterval(() => {
           if (attemptScroll()) {
-            clearInterval(retryIntervalId);
-            retryIntervalId = undefined;
+            if (jumpRetryIntervalRef.current !== undefined) {
+              clearInterval(jumpRetryIntervalRef.current);
+              jumpRetryIntervalRef.current = undefined;
+            }
           }
         }, 200);
       }
-
-      const paginationLoading =
-        timelineSync.backwardStatus === 'loading' || timelineSync.forwardStatus === 'loading';
-
-      // Keep the highlight alive while surrounding context is still loading. Once
-      // pagination settles, leave the highlight around a bit longer so the target
-      // remains easy to re-find after previews/images finish reflowing.
-      if (!paginationLoading) {
-        const highlightDuration = timelineSync.focusItem.highlight ? 8000 : 4000;
-        timeoutId = setTimeout(() => {
-          timelineSync.setFocusItem(undefined);
-        }, highlightDuration);
+    } else {
+      jumpAnchorKeyRef.current = undefined;
+      if (jumpRetryIntervalRef.current !== undefined) {
+        clearInterval(jumpRetryIntervalRef.current);
+        jumpRetryIntervalRef.current = undefined;
+      }
+      jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
+      jumpRecenterTimeoutIdsRef.current = [];
+      if (jumpHighlightTimeoutRef.current !== undefined) {
+        clearTimeout(jumpHighlightTimeoutRef.current);
+        jumpHighlightTimeoutRef.current = undefined;
       }
     }
-    return () => {
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-      if (retryIntervalId !== undefined) clearInterval(retryIntervalId);
-      recenterTimeoutIds.forEach((id) => clearTimeout(id));
-    };
   }, [
     timelineSync.focusItem,
     timelineSync,
@@ -642,9 +663,42 @@ export function RoomTimeline({
     getRawIndexToProcessedIndex,
     setAtBottom,
     startJumpScrollBlock,
+    room.roomId,
+  ]);
+
+  useEffect(() => {
+    const focusItem = timelineSync.focusItem;
+    if (!focusItem) {
+      if (jumpHighlightTimeoutRef.current !== undefined) {
+        clearTimeout(jumpHighlightTimeoutRef.current);
+        jumpHighlightTimeoutRef.current = undefined;
+      }
+      return;
+    }
+
+    const paginationLoading =
+      timelineSync.backwardStatus === 'loading' || timelineSync.forwardStatus === 'loading';
+
+    if (jumpHighlightTimeoutRef.current !== undefined) {
+      clearTimeout(jumpHighlightTimeoutRef.current);
+      jumpHighlightTimeoutRef.current = undefined;
+    }
+
+    // Keep the highlight alive while surrounding context is still loading. Once
+    // pagination settles, leave the highlight around a bit longer so the target
+    // remains easy to re-find after previews/images finish reflowing.
+    if (paginationLoading) return;
+
+    const highlightDuration = focusItem.highlight ? 8000 : 4000;
+    jumpHighlightTimeoutRef.current = setTimeout(() => {
+      timelineSync.setFocusItem(undefined);
+      jumpHighlightTimeoutRef.current = undefined;
+    }, highlightDuration);
+  }, [
+    timelineSync.focusItem,
     timelineSync.backwardStatus,
     timelineSync.forwardStatus,
-    room.roomId,
+    timelineSync,
   ]);
 
   useEffect(() => {

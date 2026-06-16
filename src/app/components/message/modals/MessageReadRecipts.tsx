@@ -18,6 +18,7 @@ export function MessageReadReceiptItem({ room, eventId }: { room: Room; eventId:
       onClick={(e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        // oxlint-disable-next-line no-console
         setModal({
           type: ModalType.ReadReceipts,
           room,

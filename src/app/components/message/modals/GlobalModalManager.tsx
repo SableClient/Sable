@@ -10,6 +10,7 @@ import { MessageSourceInternal } from './MessageSource';
 import { MessageForwardInternal } from './MessageForward';
 import { MessageAllReactionInternal } from './MessageReactions';
 import { MessageReadReceiptInternal } from './MessageReadRecipts';
+import { MobileOptionsInternal } from './Options';
 
 export function GlobalModalManager() {
   const [modal, setModal] = useAtom(modalAtom);
@@ -34,6 +35,12 @@ export function GlobalModalManager() {
           }}
         >
           <div>
+            {modal.type === ModalType.MobileOptions && (
+              <Modal variant="Surface" size="300">
+                <MobileOptionsInternal options={modal.options} />
+              </Modal>
+            )}
+
             {modal.type === ModalType.Report && (
               <Box>
                 <MessageReportInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />

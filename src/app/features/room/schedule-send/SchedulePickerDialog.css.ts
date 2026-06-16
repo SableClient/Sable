@@ -16,8 +16,3 @@ export const SplitChevronButton = style({
   opacity: 0.7,
   paddingInline: toRem(2),
 });
-
-export const AdjacentScheduleButton = style({
-  borderRadius: config.radii.R300,
-  marginInlineEnd: config.space.S100,
-});

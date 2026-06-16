@@ -372,6 +372,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       selectedFiles.map((f) => f.file)
     );
     const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers>();
+    const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const suppressNextSendClick = useRef(false);
+    const longPressPointerId = useRef<number | null>(null);
+    const longPressStartPoint = useRef<{ x: number; y: number } | null>(null);
 
     const imagePackRooms: Room[] = useImagePackRooms(roomId, roomToParents);
 
@@ -480,11 +484,22 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setScheduleMenuAnchor(undefined);
     }, []);
 
+    const clearLongPressTimer = useCallback(() => {
+      if (longPressTimer.current !== null) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      longPressPointerId.current = null;
+      longPressStartPoint.current = null;
+    }, []);
+
     const openSchedulePicker = useCallback(() => {
       setSendError(undefined);
       setScheduleMenuAnchor(undefined);
       setShowSchedulePicker(true);
     }, []);
+
+    useEffect(() => clearLongPressTimer, [clearLongPressTimer]);
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -2047,24 +2062,51 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 }
               />
               <Box display="Flex" alignItems="Center">
-                {delayedEventsSupported && isMobileLayout && (
-                  <IconButton
-                    onClick={openSchedulePicker}
-                    title="Schedule Message"
-                    aria-label="Schedule message send"
-                    variant={scheduledTime ? 'Primary' : 'SurfaceVariant'}
-                    size="300"
-                    radii="300"
-                    className={css.AdjacentScheduleButton}
-                  >
-                    {composerIcon(Clock)}
-                  </IconButton>
-                )}
                 <IconButton
                   title="Send Message"
                   aria-label="Send your composed Message"
-                  onClick={submit}
+                  onClick={() => {
+                    if (suppressNextSendClick.current) {
+                      suppressNextSendClick.current = false;
+                      return;
+                    }
+                    submit();
+                  }}
                   onMouseDown={(e: MouseEvent) => e.preventDefault()}
+                  onPointerDown={(evt) => {
+                    clearLongPressTimer();
+                    if (!isMobileLayout || !delayedEventsSupported || evt.pointerType === 'mouse') {
+                      return;
+                    }
+
+                    longPressPointerId.current = evt.pointerId;
+                    longPressStartPoint.current = { x: evt.clientX, y: evt.clientY };
+                    longPressTimer.current = setTimeout(() => {
+                      if (longPressPointerId.current !== evt.pointerId) return;
+                      suppressNextSendClick.current = true;
+                      clearLongPressTimer();
+                      openSchedulePicker();
+                    }, 550);
+                  }}
+                  onPointerMove={(evt) => {
+                    if (longPressPointerId.current !== evt.pointerId) return;
+                    const start = longPressStartPoint.current;
+                    if (!start) return;
+                    const movedX = Math.abs(evt.clientX - start.x);
+                    const movedY = Math.abs(evt.clientY - start.y);
+                    if (movedX > 12 || movedY > 12) {
+                      clearLongPressTimer();
+                    }
+                  }}
+                  onPointerUp={() => {
+                    clearLongPressTimer();
+                  }}
+                  onPointerCancel={() => {
+                    clearLongPressTimer();
+                  }}
+                  onPointerLeave={() => {
+                    clearLongPressTimer();
+                  }}
                   variant={scheduledTime ? 'Primary' : 'SurfaceVariant'}
                   size="300"
                   radii="0"

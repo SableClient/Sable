@@ -95,4 +95,13 @@ describe('buildMessagePreviewFromContent', () => {
       })
     ).toMatchObject({ kind: 'encrypted', text: '🔒 Encrypted message' });
   });
+
+  it('uses decrypted room-message content even when the wire type stays encrypted', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: { msgtype: 'm.text', body: 'Decrypted body' },
+        eventType: 'm.room.encrypted',
+      })
+    ).toMatchObject({ kind: 'text', text: 'Decrypted body' });
+  });
 });

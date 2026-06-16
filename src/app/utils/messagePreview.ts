@@ -88,6 +88,10 @@ export function buildMessagePreviewFromContent({
     typeof content.msgtype === 'string' ||
     typeof content.body === 'string' ||
     typeof content.formatted_body === 'string';
+  const previewType =
+    resolvedType === ENCRYPTED_EVENT_TYPE && looksDecryptedRoomMessage
+      ? ROOM_MESSAGE_EVENT_TYPE
+      : resolvedType;
 
   if (resolvedType === REACTION_EVENT_TYPE) return undefined;
 
@@ -95,7 +99,7 @@ export function buildMessagePreviewFromContent({
   if (relType?.rel_type === 'm.replace') return undefined;
 
   if (
-    resolvedType === ENCRYPTED_EVENT_TYPE ||
+    (resolvedType === ENCRYPTED_EVENT_TYPE && !looksDecryptedRoomMessage) ||
     (eventType === ENCRYPTED_EVENT_TYPE && !looksDecryptedRoomMessage)
   ) {
     return {
@@ -104,7 +108,7 @@ export function buildMessagePreviewFromContent({
     };
   }
 
-  if (resolvedType === ROOM_MESSAGE_EVENT_TYPE) {
+  if (previewType === ROOM_MESSAGE_EVENT_TYPE) {
     const msgtype = content.msgtype;
     if (msgtype === MsgType.Text || msgtype === MsgType.Emote || msgtype === MsgType.Notice) {
       const rawBody = content.body;
@@ -160,14 +164,14 @@ export function buildMessagePreviewFromContent({
     }
   }
 
-  if (resolvedType === STICKER_EVENT_TYPE) {
+  if (previewType === STICKER_EVENT_TYPE) {
     return {
       kind: 'sticker',
       text: `🎉 ${typeof content.body === 'string' && content.body.trim() ? content.body : 'Sticker'}`,
     };
   }
 
-  if (resolvedType === 'org.matrix.msc3381.poll.start' || resolvedType === 'm.poll.start') {
+  if (previewType === 'org.matrix.msc3381.poll.start' || previewType === 'm.poll.start') {
     const pollContent = content['org.matrix.msc3381.poll.start'] ?? content['m.poll.start'];
     const question =
       typeof pollContent === 'object' && pollContent !== null
@@ -187,17 +191,17 @@ export function buildMessagePreviewFromContent({
     return { kind: 'poll', text: `📊 ${pollBody}` };
   }
 
-  if (resolvedType === 'org.matrix.msc3401.call' || resolvedType === 'm.call.invite') {
+  if (previewType === 'org.matrix.msc3401.call' || previewType === 'm.call.invite') {
     return { kind: 'call', text: '📞 Started a call' };
   }
-  if (resolvedType === 'm.call.answer') {
+  if (previewType === 'm.call.answer') {
     return { kind: 'call', text: '📞 Answered call' };
   }
-  if (resolvedType === 'm.call.hangup') {
+  if (previewType === 'm.call.hangup') {
     return { kind: 'call', text: '📞 Ended call' };
   }
 
-  if (resolvedType === 'im.vector.modular.widgets') {
+  if (previewType === 'im.vector.modular.widgets') {
     return {
       kind: 'call',
       text: content.type === 'jitsi' ? '📞 Started a Jitsi call' : '🧩 Added a widget',

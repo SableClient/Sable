@@ -1,4 +1,4 @@
-import { style } from '@vanilla-extract/css';
+import { globalStyle, style } from '@vanilla-extract/css';
 import { color, config } from 'folds';
 
 export const CategoryButton = style({
@@ -90,9 +90,36 @@ export const GroupAvatarMiniHideText = style({
 });
 
 export const MessagePreview = style({
+  display: 'block',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
   minWidth: 0,
   pointerEvents: 'none',
+});
+
+globalStyle(`${MessagePreview} p`, {
+  display: 'inline',
+  margin: 0,
+  whiteSpace: 'inherit',
+});
+
+globalStyle(`${MessagePreview} span`, {
+  whiteSpace: 'inherit',
+});
+
+globalStyle(`${MessagePreview} a`, {
+  whiteSpace: 'inherit',
+});
+
+globalStyle(`${MessagePreview} code`, {
+  whiteSpace: 'inherit',
+});
+
+globalStyle(`${MessagePreview} br`, {
+  display: 'none',
+});
+
+globalStyle(`${MessagePreview} img`, {
+  display: 'none',
 });

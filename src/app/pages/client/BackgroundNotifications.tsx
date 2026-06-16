@@ -580,6 +580,7 @@ export function BackgroundNotifications() {
               previewText: resolveNotificationPreviewText({
                 content: mEvent.getContent(),
                 eventType: mEvent.getType(),
+                effectiveType: mEvent.getEffectiveEvent()?.type as string | undefined,
                 isEncryptedRoom,
                 showMessageContent: showMessageContentRef.current,
                 showEncryptedMessageContent: showEncryptedMessageContentRef.current,

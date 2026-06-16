@@ -559,6 +559,12 @@ export function RoomTimeline({
             },
           });
 
+          // An event-targeted jump should no longer be treated as bottom-pinned.
+          // If we leave atBottom=true from the room's previous state, the scroll
+          // handler can immediately "chase" the live bottom after this jump.
+          setAtBottom(false);
+          startJumpScrollBlock();
+
           // Reveal timeline and scroll in the same frame to avoid flash
           setIsReady(true);
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
@@ -654,6 +660,7 @@ export function RoomTimeline({
     timelineSync,
     reducedMotion,
     getRawIndexToProcessedIndex,
+    setAtBottom,
     startJumpScrollBlock,
     room.roomId,
   ]);

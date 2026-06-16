@@ -299,6 +299,10 @@ export function RoomTimeline({
   const [isReady, setIsReady] = useState(false);
   const isReadyRef = useRef(isReady);
   isReadyRef.current = isReady;
+  const jumpRetryIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const jumpRecenterTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const jumpHighlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const jumpAnchorKeyRef = useRef<string | undefined>(undefined);
 
   // Track whether the initial eventId load is in progress. Used to prevent the
   // recovery scroll from firing prematurely when the live timeline loads before
@@ -442,6 +446,10 @@ export function RoomTimeline({
       if (initialScrollTimerRef.current !== undefined) clearTimeout(initialScrollTimerRef.current);
       if (jumpScrollBlockTimerRef.current !== undefined)
         clearTimeout(jumpScrollBlockTimerRef.current);
+      if (jumpRetryIntervalRef.current !== undefined) clearInterval(jumpRetryIntervalRef.current);
+      jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
+      if (jumpHighlightTimeoutRef.current !== undefined)
+        clearTimeout(jumpHighlightTimeoutRef.current);
     },
     []
   );
@@ -498,11 +506,6 @@ export function RoomTimeline({
   }, [timelineSync.backwardStatus]);
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    let retryIntervalId: ReturnType<typeof setInterval> | undefined;
-    let recenterTimeoutId: ReturnType<typeof setTimeout> | undefined;
-    let resizeObserver: ResizeObserver | undefined;
-
     if (timelineSync.focusItem) {
       // Mark that the jump succeeded (focusItem was set). This prevents recovery
       // scroll from firing even after focusItem is cleared (highlight ends).
@@ -519,114 +522,108 @@ export function RoomTimeline({
         data: { eventId: focusEventId, index, scrollTo, roomId: room.roomId },
       });
 
+      const anchorKey = `${focusEventId ?? 'no-event'}:${index}`;
+      const isNewAnchor = jumpAnchorKeyRef.current !== anchorKey;
+      if (isNewAnchor) {
+        jumpAnchorKeyRef.current = anchorKey;
+        if (jumpRetryIntervalRef.current !== undefined) {
+          clearInterval(jumpRetryIntervalRef.current);
+          jumpRetryIntervalRef.current = undefined;
+        }
+        jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
+        jumpRecenterTimeoutIdsRef.current = [];
+        if (jumpHighlightTimeoutRef.current !== undefined) {
+          clearTimeout(jumpHighlightTimeoutRef.current);
+          jumpHighlightTimeoutRef.current = undefined;
+        }
+      }
+
       let scrollSucceeded = false;
+      const resolveProcessedIndex = () => {
+        const currentFocusItem = timelineSyncRef.current.focusItem;
+        if (!currentFocusItem) return undefined;
+
+        let nextProcessedIndex = getRawIndexToProcessedIndex(currentFocusItem.index);
+        if (nextProcessedIndex === undefined && currentFocusItem.eventId) {
+          const found = processedEventsRef.current.findIndex(
+            (e) => e.mEvent.getId() === currentFocusItem.eventId
+          );
+          if (found >= 0) {
+            nextProcessedIndex = found;
+          }
+        }
+
+        return nextProcessedIndex;
+      };
+
       const attemptScroll = () => {
         if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
 
-        let processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
+        const processedIndex = resolveProcessedIndex();
 
-        // Fallback: if index lookup fails but we have an eventId, search by ID.
-        // This handles fragmented timelines from sliding sync where absolute indices
-        // don't align across different timeline contexts.
-        if (processedIndex === undefined && timelineSync.focusItem.eventId) {
-          const found = processedEventsRef.current.findIndex(
-            (e) => e.mEvent.getId() === timelineSync.focusItem!.eventId
-          );
-          if (found >= 0) {
-            processedIndex = found;
-            log.log(
-              `[PermalinkJump] Found event by ID search: eventId=${timelineSync.focusItem.eventId}, processedIndex=${found}`
-            );
-          } else {
+        if (processedIndex === undefined) {
+          if (timelineSync.focusItem.eventId) {
             log.log(
               `[PermalinkJump] Event not found in processedEvents yet: eventId=${timelineSync.focusItem.eventId}, processedEvents.length=${processedEventsRef.current.length}`
             );
           }
+          return false;
         }
 
-        if (processedIndex !== undefined) {
-          log.log(
-            `[PermalinkJump] Scroll succeeded: processedIndex=${processedIndex}, eventId=${timelineSync.focusItem.eventId}`
-          );
-          Sentry.addBreadcrumb({
-            category: 'timeline.permalink',
-            message: 'Scroll succeeded',
-            level: 'info',
-            data: {
-              processedIndex,
-              eventId: timelineSync.focusItem.eventId,
-              roomId: room.roomId,
-            },
+        log.log(
+          `[PermalinkJump] Scroll succeeded: processedIndex=${processedIndex}, eventId=${timelineSync.focusItem.eventId}`
+        );
+        Sentry.addBreadcrumb({
+          category: 'timeline.permalink',
+          message: 'Scroll succeeded',
+          level: 'info',
+          data: {
+            processedIndex,
+            eventId: timelineSync.focusItem.eventId,
+            roomId: room.roomId,
+          },
+        });
+
+        // An event-targeted jump should no longer be treated as bottom-pinned.
+        // If we leave atBottom=true from the room's previous state, the scroll
+        // handler can immediately "chase" the live bottom after this jump.
+        setAtBottom(false);
+        startJumpScrollBlock();
+
+        // Reveal timeline and scroll in the same frame to avoid flash
+        setIsReady(true);
+        vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+        timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
+        scrollSucceeded = true;
+
+        // Stop retry loop now that scroll succeeded
+        if (jumpRetryIntervalRef.current !== undefined) {
+          clearInterval(jumpRetryIntervalRef.current);
+          jumpRetryIntervalRef.current = undefined;
+        }
+
+        // Media loads and preview expansion can keep shifting layout after the
+        // first successful jump. Re-center a few bounded times and resolve the
+        // target row fresh each time so the event stays anchored while history
+        // and measured heights settle.
+        if (jumpRecenterTimeoutIdsRef.current.length === 0) {
+          [150, 600, 1500, 3000].forEach((delay) => {
+            const recenterTimeoutId = setTimeout(() => {
+              const delayedProcessedIndex = resolveProcessedIndex();
+              if (vListRef.current && delayedProcessedIndex !== undefined) {
+                log.log(
+                  `[PermalinkJump] Re-centering after delayed settle: processedIndex=${delayedProcessedIndex}, delay=${delay}`
+                );
+                setAtBottom(false);
+                startJumpScrollBlock();
+                vListRef.current.scrollToIndex(delayedProcessedIndex, { align: 'center' });
+              }
+            }, delay);
+            jumpRecenterTimeoutIdsRef.current.push(recenterTimeoutId);
           });
-
-          // An event-targeted jump should no longer be treated as bottom-pinned.
-          // If we leave atBottom=true from the room's previous state, the scroll
-          // handler can immediately "chase" the live bottom after this jump.
-          setAtBottom(false);
-          startJumpScrollBlock();
-
-          // Reveal timeline and scroll in the same frame to avoid flash
-          setIsReady(true);
-          vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
-          timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
-          scrollSucceeded = true;
-
-          // Stop retry loop now that scroll succeeded
-          if (retryIntervalId !== undefined) {
-            clearInterval(retryIntervalId);
-            retryIntervalId = undefined;
-          }
-
-          // Use ResizeObserver to wait for layout to stabilize (images loading, etc.)
-          // before re-centering. This prevents the scroll target from being pushed out
-          // of view when media loads above it.
-          if (messageListRef.current && 'ResizeObserver' in globalThis) {
-            let resizeDebounceTimer: ReturnType<typeof setTimeout> | undefined;
-
-            resizeObserver = new ResizeObserver(() => {
-              // Clear any pending re-center and schedule a new one after 100ms of no resize
-              if (resizeDebounceTimer !== undefined) {
-                clearTimeout(resizeDebounceTimer);
-              }
-
-              resizeDebounceTimer = setTimeout(() => {
-                // Layout has settled (no resize for 100ms) — re-center now
-                if (vListRef.current && processedIndex !== undefined) {
-                  log.log(
-                    `[PermalinkJump] Re-centering after layout settled: processedIndex=${processedIndex}`
-                  );
-                  vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
-                }
-
-                // Stop observing after first stable re-center
-                if (resizeObserver) {
-                  resizeObserver.disconnect();
-                  resizeObserver = undefined;
-                }
-              }, 100);
-            });
-
-            resizeObserver.observe(messageListRef.current);
-
-            // Fallback: stop observing after 2 seconds regardless
-            recenterTimeoutId = setTimeout(() => {
-              if (resizeObserver) {
-                resizeObserver.disconnect();
-                resizeObserver = undefined;
-              }
-            }, 2000);
-          } else {
-            // Fallback for browsers without ResizeObserver: use timeout
-            recenterTimeoutId = setTimeout(() => {
-              if (vListRef.current && processedIndex !== undefined) {
-                vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
-              }
-            }, 600);
-          }
-
-          return true;
         }
-        return false;
+
+        return true;
       };
 
       // Try immediate scroll
@@ -634,27 +631,31 @@ export function RoomTimeline({
         // If immediate scroll failed (event not in processedEvents yet), retry periodically.
         // This handles the case where pagination just loaded the event but React hasn't
         // finished processing/rendering it yet.
-        retryIntervalId = setInterval(() => {
+        if (jumpRetryIntervalRef.current !== undefined) {
+          clearInterval(jumpRetryIntervalRef.current);
+        }
+        jumpRetryIntervalRef.current = setInterval(() => {
           if (attemptScroll()) {
-            clearInterval(retryIntervalId);
-            retryIntervalId = undefined;
+            if (jumpRetryIntervalRef.current !== undefined) {
+              clearInterval(jumpRetryIntervalRef.current);
+              jumpRetryIntervalRef.current = undefined;
+            }
           }
         }, 200);
       }
-
-      // Clear highlight after scroll settles. Use longer timeout for history jumps
-      // where pagination and rendering may take more time.
-      const highlightDuration = timelineSync.focusItem.highlight ? 4000 : 2000;
-      timeoutId = setTimeout(() => {
-        timelineSync.setFocusItem(undefined);
-      }, highlightDuration);
+    } else {
+      jumpAnchorKeyRef.current = undefined;
+      if (jumpRetryIntervalRef.current !== undefined) {
+        clearInterval(jumpRetryIntervalRef.current);
+        jumpRetryIntervalRef.current = undefined;
+      }
+      jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
+      jumpRecenterTimeoutIdsRef.current = [];
+      if (jumpHighlightTimeoutRef.current !== undefined) {
+        clearTimeout(jumpHighlightTimeoutRef.current);
+        jumpHighlightTimeoutRef.current = undefined;
+      }
     }
-    return () => {
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-      if (retryIntervalId !== undefined) clearInterval(retryIntervalId);
-      if (recenterTimeoutId !== undefined) clearTimeout(recenterTimeoutId);
-      if (resizeObserver) resizeObserver.disconnect();
-    };
   }, [
     timelineSync.focusItem,
     timelineSync,
@@ -663,6 +664,41 @@ export function RoomTimeline({
     setAtBottom,
     startJumpScrollBlock,
     room.roomId,
+  ]);
+
+  useEffect(() => {
+    const focusItem = timelineSync.focusItem;
+    if (!focusItem) {
+      if (jumpHighlightTimeoutRef.current !== undefined) {
+        clearTimeout(jumpHighlightTimeoutRef.current);
+        jumpHighlightTimeoutRef.current = undefined;
+      }
+      return;
+    }
+
+    const paginationLoading =
+      timelineSync.backwardStatus === 'loading' || timelineSync.forwardStatus === 'loading';
+
+    if (jumpHighlightTimeoutRef.current !== undefined) {
+      clearTimeout(jumpHighlightTimeoutRef.current);
+      jumpHighlightTimeoutRef.current = undefined;
+    }
+
+    // Keep the highlight alive while surrounding context is still loading. Once
+    // pagination settles, leave the highlight around a bit longer so the target
+    // remains easy to re-find after previews/images finish reflowing.
+    if (paginationLoading) return;
+
+    const highlightDuration = focusItem.highlight ? 8000 : 4000;
+    jumpHighlightTimeoutRef.current = setTimeout(() => {
+      timelineSync.setFocusItem(undefined);
+      jumpHighlightTimeoutRef.current = undefined;
+    }, highlightDuration);
+  }, [
+    timelineSync.focusItem,
+    timelineSync.backwardStatus,
+    timelineSync.forwardStatus,
+    timelineSync,
   ]);
 
   useEffect(() => {

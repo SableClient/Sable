@@ -12,7 +12,7 @@ vi.mock('focus-trap-react', () => ({
 
 vi.mock('slate-react', () => ({
   ReactEditor: {
-    focus: vi.fn(),
+    focus: vi.fn<() => void>(),
   },
 }));
 
@@ -21,7 +21,7 @@ describe('AutocompleteMenu', () => {
 
   it('marks the first item selected by default', () => {
     render(
-      <AutocompleteMenu headerContent="Test" requestClose={vi.fn()} editor={editor}>
+      <AutocompleteMenu headerContent="Test" requestClose={vi.fn<() => void>()} editor={editor}>
         <button type="button">First</button>
         <button type="button">Second</button>
       </AutocompleteMenu>
@@ -36,7 +36,7 @@ describe('AutocompleteMenu', () => {
 
   it('updates the selected item when autocomplete-navigate is dispatched', () => {
     const { container } = render(
-      <AutocompleteMenu headerContent="Test" requestClose={vi.fn()} editor={editor}>
+      <AutocompleteMenu headerContent="Test" requestClose={vi.fn<() => void>()} editor={editor}>
         <button type="button">First</button>
         <button type="button">Second</button>
         <button type="button">Third</button>

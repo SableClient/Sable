@@ -43,17 +43,11 @@ const requestServiceWorkerClaim = (reason: 'visible_foreground' | 'pageshow_rest
 
   navigator.serviceWorker.ready
     .then((registration) => {
-      const posted = new Set<ServiceWorker>();
-      const postToWorker = (worker: ServiceWorker | null | undefined) => {
-        if (!worker || posted.has(worker)) return;
-        posted.add(worker);
+      const activeWorker = registration.active;
+      if (!activeWorker) return;
+      if (activeWorker.state !== 'activated') return;
         // oxlint-disable-next-line unicorn/require-post-message-target-origin
-        worker.postMessage({ type: 'CLAIM_CLIENTS' });
-      };
-
-      postToWorker(registration.active);
-      postToWorker(registration.waiting);
-      postToWorker(registration.installing);
+      activeWorker.postMessage({ type: 'CLAIM_CLIENTS' });
     })
     .catch((error) => {
       Sentry.addBreadcrumb({

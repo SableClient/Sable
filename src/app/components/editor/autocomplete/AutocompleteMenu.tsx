@@ -69,9 +69,7 @@ export function AutocompleteMenu({
     if (!items || !menuRoot) return undefined;
 
     const handleNavigate = (event: Event) => {
-      const direction = Number(
-        (event as CustomEvent<{ direction?: number }>).detail?.direction ?? 0
-      );
+      const direction = (event as CustomEvent<{ direction?: number }>).detail?.direction ?? 0;
       if (!Number.isFinite(direction) || direction === 0) return;
       applySelectedIndex(selectedIndexRef.current + direction, true);
     };

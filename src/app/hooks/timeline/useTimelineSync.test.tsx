@@ -278,6 +278,53 @@ describe('useTimelineSync', () => {
     expect(result.current.timeline.linkedTimelines).toEqual([contextTimeline]);
   });
 
+  it('does not replace an in-flight event context with the live timeline on ClientEvent.Room', async () => {
+    const { room } = createRoom('!room:test', [{ getId: () => '$live:event' }]);
+    let resolveTimeline: ((timeline: FakeTimeline) => void) | undefined;
+    const pendingTimeline = new Promise<FakeTimeline>((resolve) => {
+      resolveTimeline = resolve;
+    });
+    const targetEvent = { getId: () => '$target:event' };
+    const contextTimeline = createTimeline([targetEvent]);
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockReturnValue(pendingTimeline),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        eventId: '$target:event',
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    expect(result.current.timeline.linkedTimelines).toEqual([]);
+
+    const loadPromise = result.current.loadEventTimeline('$target:event');
+
+    await act(async () => {
+      mx.emit(ClientEvent.Room, room);
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline.linkedTimelines).toEqual([]);
+
+    await act(async () => {
+      resolveTimeline?.(contextTimeline);
+      await loadPromise;
+    });
+
+    expect(result.current.timeline.linkedTimelines).toEqual([contextTimeline]);
+  });
+
   it('preserves a loaded event context when the app returns to foreground', async () => {
     const { room } = createRoom('!room:test', [{ getId: () => '$live:event' }]);
     const targetEvent = { getId: () => '$target:event' };

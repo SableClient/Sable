@@ -293,7 +293,7 @@ importers:
         specifier: ^0.45.0
         version: 0.45.0
       oxlint:
-        specifier: ^1.60.0
+        specifier: ^1.70.0
         version: 1.70.0(oxlint-tsgolint@0.21.1)
       oxlint-tsgolint:
         specifier: ^0.21.0

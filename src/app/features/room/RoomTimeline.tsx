@@ -500,8 +500,7 @@ export function RoomTimeline({
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let retryIntervalId: ReturnType<typeof setInterval> | undefined;
-    let recenterTimeoutId: ReturnType<typeof setTimeout> | undefined;
-    let resizeObserver: ResizeObserver | undefined;
+    const recenterTimeoutIds: ReturnType<typeof setTimeout>[] = [];
 
     if (timelineSync.focusItem) {
       // Mark that the jump succeeded (focusItem was set). This prevents recovery
@@ -577,52 +576,21 @@ export function RoomTimeline({
             retryIntervalId = undefined;
           }
 
-          // Use ResizeObserver to wait for layout to stabilize (images loading, etc.)
-          // before re-centering. This prevents the scroll target from being pushed out
-          // of view when media loads above it.
-          if (messageListRef.current && 'ResizeObserver' in globalThis) {
-            let resizeDebounceTimer: ReturnType<typeof setTimeout> | undefined;
-
-            resizeObserver = new ResizeObserver(() => {
-              // Clear any pending re-center and schedule a new one after 100ms of no resize
-              if (resizeDebounceTimer !== undefined) {
-                clearTimeout(resizeDebounceTimer);
-              }
-
-              resizeDebounceTimer = setTimeout(() => {
-                // Layout has settled (no resize for 100ms) — re-center now
-                if (vListRef.current && processedIndex !== undefined) {
-                  log.log(
-                    `[PermalinkJump] Re-centering after layout settled: processedIndex=${processedIndex}`
-                  );
-                  vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
-                }
-
-                // Stop observing after first stable re-center
-                if (resizeObserver) {
-                  resizeObserver.disconnect();
-                  resizeObserver = undefined;
-                }
-              }, 100);
-            });
-
-            resizeObserver.observe(messageListRef.current);
-
-            // Fallback: stop observing after 2 seconds regardless
-            recenterTimeoutId = setTimeout(() => {
-              if (resizeObserver) {
-                resizeObserver.disconnect();
-                resizeObserver = undefined;
-              }
-            }, 2000);
-          } else {
-            // Fallback for browsers without ResizeObserver: use timeout
-            recenterTimeoutId = setTimeout(() => {
+          // Safari can lock up if we keep mutating scroll position from within a
+          // ResizeObserver-driven layout feedback loop. Use a small, bounded set
+          // of delayed re-centers instead so media/layout growth above the target
+          // can still settle without tying scroll work to every resize tick.
+          [150, 600].forEach((delay) => {
+            const recenterTimeoutId = setTimeout(() => {
               if (vListRef.current && processedIndex !== undefined) {
+                log.log(
+                  `[PermalinkJump] Re-centering after delayed settle: processedIndex=${processedIndex}, delay=${delay}`
+                );
                 vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
               }
-            }, 600);
-          }
+            }, delay);
+            recenterTimeoutIds.push(recenterTimeoutId);
+          });
 
           return true;
         }
@@ -652,8 +620,7 @@ export function RoomTimeline({
     return () => {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
       if (retryIntervalId !== undefined) clearInterval(retryIntervalId);
-      if (recenterTimeoutId !== undefined) clearTimeout(recenterTimeoutId);
-      if (resizeObserver) resizeObserver.disconnect();
+      recenterTimeoutIds.forEach((id) => clearTimeout(id));
     };
   }, [
     timelineSync.focusItem,

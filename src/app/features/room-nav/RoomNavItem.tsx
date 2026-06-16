@@ -319,13 +319,14 @@ export function RoomNavItem({
   const showPreview = direct ? dmMessagePreview : roomMessagePreview;
   const lastMessage = useRoomLastMessage(showPreview ? room : undefined, mx);
   const getRoomTopic = useRoomTopic(room);
+  const customTopic = customDMCards ? getRoomTopic : undefined;
   const roomTopic = direct
-    ? (customDMCards && getRoomTopic) || presence?.status
+    ? customTopic || presence?.status
     : roomTopicPreview && getRoomTopic
       ? getRoomTopic
       : undefined;
   const messagePreview = direct
-    ? !customDMCards && lastMessage
+    ? !customTopic && lastMessage
       ? lastMessage
       : undefined
     : !roomTopic && roomMessagePreview

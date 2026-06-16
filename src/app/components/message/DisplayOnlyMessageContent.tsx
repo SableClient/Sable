@@ -22,6 +22,7 @@ import { buildMessagePreview, getPreviewEventContent } from '$utils/messagePrevi
 type DisplayOnlyMessageContentProps = {
   room: Room;
   mEvent: MatrixEvent;
+  fallbackText: string;
   mediaAutoLoad?: boolean;
   className?: string;
 };
@@ -29,6 +30,7 @@ type DisplayOnlyMessageContentProps = {
 export function DisplayOnlyMessageContent({
   room,
   mEvent,
+  fallbackText,
   mediaAutoLoad,
   className,
 }: DisplayOnlyMessageContentProps) {
@@ -82,7 +84,17 @@ export function DisplayOnlyMessageContent({
   const msgType = typeof content.msgtype === 'string' ? content.msgtype : '';
   const preview = buildMessagePreview(mEvent);
 
-  if (!msgType && preview) {
+  if (!preview) {
+    return (
+      <Box className={className} style={{ pointerEvents: 'none' }}>
+        <Text size="T300" priority="400">
+          {fallbackText}
+        </Text>
+      </Box>
+    );
+  }
+
+  if (!msgType) {
     return (
       <Box className={className} style={{ pointerEvents: 'none' }}>
         <Text size="T300" priority="400">

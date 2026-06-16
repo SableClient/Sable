@@ -220,7 +220,14 @@ function BookmarkResolvedPreviewBody({
     );
   }
 
-  return <DisplayOnlyMessageContent room={room} mEvent={mEvent} mediaAutoLoad={mediaAutoLoad} />;
+  return (
+    <DisplayOnlyMessageContent
+      room={room}
+      mEvent={mEvent}
+      fallbackText={fallbackText}
+      mediaAutoLoad={mediaAutoLoad}
+    />
+  );
 }
 
 function BookmarkItemRow({

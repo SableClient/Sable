@@ -1,6 +1,6 @@
 import { EventType, MsgType } from '$types/matrix-sdk';
 import type { MatrixEvent } from '$types/matrix-sdk';
-import { trimReplyFromBody } from '$utils/room';
+import { trimReplyFromBody, trimReplyFromFormattedBody } from '$utils/room';
 
 const REACTION_EVENT_TYPE: string = EventType.Reaction;
 const ENCRYPTED_EVENT_TYPE: string = EventType.RoomMessageEncrypted;
@@ -106,7 +106,7 @@ export function buildMessagePreviewFromContent({
       const body = stripReplyFallback(rawBody);
       const formattedBody =
         typeof content.formatted_body === 'string'
-          ? trimReplyFromBody(content.formatted_body).trim()
+          ? trimReplyFromFormattedBody(content.formatted_body).trim()
           : undefined;
       const trimmed = body.trim();
 

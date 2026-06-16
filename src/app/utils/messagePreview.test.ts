@@ -33,6 +33,24 @@ describe('buildMessagePreviewFromContent', () => {
     ).toMatchObject({ kind: 'unsupported', hasBlockContent: true, text: '💻 Code Block' });
   });
 
+  it('trims mx-reply wrapper before block detection on formatted replies', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: {
+          msgtype: 'm.text',
+          body: '> <@alice:test> quoted\n\nHello **world**',
+          formatted_body:
+            '<mx-reply><blockquote>quoted</blockquote></mx-reply><p>Hello <strong>world</strong></p>',
+        },
+        eventType: 'm.room.message',
+      })
+    ).toMatchObject({
+      kind: 'text',
+      text: 'Hello **world**',
+      formattedBody: '<p>Hello <strong>world</strong></p>',
+    });
+  });
+
   it('returns link placeholder for link-only messages', () => {
     expect(
       buildMessagePreviewFromContent({

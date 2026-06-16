@@ -508,6 +508,7 @@ function MessageNotifications() {
             previewText: resolveNotificationPreviewText({
               content: mEvent.getContent(),
               eventType: mEvent.getType(),
+              effectiveType: mEvent.getEffectiveEvent()?.type as string | undefined,
               isEncryptedRoom,
               showMessageContent,
               showEncryptedMessageContent,
@@ -596,6 +597,7 @@ function MessageNotifications() {
         const previewText = resolveNotificationPreviewText({
           content: mEvent.getContent(),
           eventType: mEvent.getType(),
+          effectiveType: mEvent.getEffectiveEvent()?.type as string | undefined,
           isEncryptedRoom: false,
           showMessageContent,
           showEncryptedMessageContent,

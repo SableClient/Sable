@@ -27,6 +27,7 @@ type NotificationPayload = {
 type NotificationPreviewInput = {
   content?: unknown;
   eventType?: string;
+  effectiveType?: string;
   isEncryptedRoom?: boolean;
   showMessageContent: boolean;
   showEncryptedMessageContent: boolean;
@@ -41,6 +42,7 @@ const getString = (value: unknown, fallback: string): string => {
 export const resolveNotificationPreviewText = ({
   content,
   eventType,
+  effectiveType,
   isEncryptedRoom,
   showMessageContent,
   showEncryptedMessageContent,
@@ -70,6 +72,7 @@ export const resolveNotificationPreviewText = ({
     content:
       content && typeof content === 'object' ? (content as Record<string, unknown>) : undefined,
     eventType,
+    effectiveType,
   });
   if (preview?.text) return preview.text;
 

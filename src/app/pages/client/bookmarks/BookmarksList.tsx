@@ -210,7 +210,7 @@ function BookmarkResolvedPreviewBody({
   fallbackText: string;
   mediaAutoLoad?: boolean;
 }) {
-  const mEvent = useRoomEvent(room, eventId);
+  const mEvent = useRoomEvent(room, eventId, undefined, false);
 
   if (mEvent === undefined || mEvent === null) {
     return (

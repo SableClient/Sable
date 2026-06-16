@@ -49,4 +49,17 @@ describe('resolveNotificationPreviewText', () => {
       })
     ).toBe('Custom event body');
   });
+
+  it('uses decrypted effective type for encrypted room-message notifications', () => {
+    expect(
+      resolveNotificationPreviewText({
+        content: { msgtype: 'm.text', body: 'Decrypted body' },
+        eventType: 'm.room.encrypted',
+        effectiveType: 'm.room.message',
+        isEncryptedRoom: false,
+        showMessageContent: true,
+        showEncryptedMessageContent: true,
+      })
+    ).toBe('Decrypted body');
+  });
 });

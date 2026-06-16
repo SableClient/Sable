@@ -47,7 +47,8 @@ const useFetchEvent = (room: Room, eventId: string) => {
 export const useRoomEvent = (
   room: Room,
   eventId: string,
-  getLocally?: () => MatrixEvent | undefined
+  getLocally?: () => MatrixEvent | undefined,
+  allowFetch = true
 ) => {
   const mx = useMatrixClient();
 
@@ -96,7 +97,7 @@ export const useRoomEvent = (
     // state, so `event` stays undefined after a successful fetch and this flag
     // remains true on subsequent renders — but staleTime: Infinity prevents
     // any redundant re-fetches.
-    enabled: event === undefined,
+    enabled: allowFetch && event === undefined,
     queryKey: [room.roomId, eventId],
     queryFn: fetchEvent,
     staleTime: Infinity,

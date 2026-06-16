@@ -1,17 +1,11 @@
-import { useCallback, useEffect, useRef } from 'react';
-import type { MatrixClient } from '$types/matrix-sdk';
+import { useCallback, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import type { Session } from '$state/sessions';
-import { useAtom } from 'jotai';
 import { appEvents } from '../utils/appEvents';
 import { useClientConfig, useExperimentVariant } from './useClientConfig';
 import { createDebugLogger } from '../utils/debugLogger';
 import { mobileOrTablet } from '$utils/user-agent';
 import { pushSessionToSW } from '../../sw-session';
-import { useSetting } from '../state/hooks/settings';
-import { settingsAtom } from '../state/settings';
-import { pushSubscriptionAtom } from '../state/pushSubscription';
-import { togglePusher } from '../features/settings/notifications/PushNotifications';
 
 const debugLog = createDebugLogger('AppVisibility');
 
@@ -59,11 +53,8 @@ const requestServiceWorkerClaim = (reason: 'pageshow_restore') => {
     });
 };
 
-export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: Session) {
+export function useAppVisibility(activeSession?: Session) {
   const clientConfig = useClientConfig();
-  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
-  const pushSubAtom = useAtom(pushSubscriptionAtom);
-  const isMobile = mobileOrTablet();
   const sessionSyncConfig = clientConfig.sessionSync;
   const sessionSyncVariant = useExperimentVariant('sessionSyncStrategy', activeSession?.userId);
   const hasDirectSessionSyncConfig = sessionSyncConfig !== undefined;
@@ -82,11 +73,6 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     1000,
     sessionSyncConfig?.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS
   );
-
-  const lastPusherVisibilityRef = useRef<boolean | undefined>(undefined);
-  const pusherToggleInFlightRef = useRef<boolean | undefined>(undefined);
-  const pusherToggleClientRef = useRef<MatrixClient | undefined>(undefined);
-  const pusherToggleSequenceRef = useRef(0);
 
   const pushSessionNow = useCallback(
     (reason: SessionSyncReason): 'sent' | 'skipped' => {
@@ -212,73 +198,6 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
-
-  useEffect(() => {
-    if (!mx) return undefined;
-
-    const syncPusherForVisibility = (isVisible: boolean) => {
-      if (!usePushNotifications) {
-        lastPusherVisibilityRef.current = undefined;
-        pusherToggleInFlightRef.current = undefined;
-        return;
-      }
-
-      if (pusherToggleClientRef.current !== mx) {
-        pusherToggleClientRef.current = mx;
-        lastPusherVisibilityRef.current = undefined;
-        pusherToggleInFlightRef.current = undefined;
-        pusherToggleSequenceRef.current += 1;
-      }
-
-      if (
-        lastPusherVisibilityRef.current === isVisible ||
-        pusherToggleInFlightRef.current === isVisible
-      ) {
-        return;
-      }
-
-      pusherToggleInFlightRef.current = isVisible;
-      const toggleSequence = ++pusherToggleSequenceRef.current;
-      togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile)
-        .then(
-          () => {
-            if (pusherToggleSequenceRef.current !== toggleSequence) return;
-            lastPusherVisibilityRef.current = isVisible;
-          },
-          (err) => {
-            Sentry.metrics.count('sable.push.visibility_toggle', 1, {
-              attributes: {
-                outcome: 'failed',
-                visible: isVisible,
-                mobile: isMobile,
-                error_type: err instanceof Error ? err.name : 'unknown',
-              },
-            });
-            Sentry.addBreadcrumb({
-              category: 'push',
-              message: 'Visibility pusher toggle failed',
-              level: 'warning',
-              data: {
-                visible: isVisible,
-                mobile: isMobile,
-                error: err instanceof Error ? err.message : String(err),
-              },
-            });
-          }
-        )
-        .finally(() => {
-          if (
-            pusherToggleSequenceRef.current === toggleSequence &&
-            pusherToggleInFlightRef.current === isVisible
-          ) {
-            pusherToggleInFlightRef.current = undefined;
-          }
-        });
-    };
-
-    syncPusherForVisibility(document.visibilityState === 'visible');
-    return appEvents.onVisibilityChange(syncPusherForVisibility);
-  }, [clientConfig, isMobile, mx, pushSubAtom, usePushNotifications]);
 
   useEffect(() => {
     const emitVisible = () => {

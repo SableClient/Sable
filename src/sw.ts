@@ -250,7 +250,8 @@ function requestSession(client: Client): Promise<SessionInfo | undefined> {
 
 async function requestSessionWithTimeout(
   clientId: string,
-  timeoutMs = 3000
+  timeoutMs = 3000,
+  options?: { logTimeout?: boolean }
 ): Promise<SessionInfo | undefined> {
   const client = await self.clients.get(clientId);
   if (!client) {
@@ -259,21 +260,28 @@ async function requestSessionWithTimeout(
   }
 
   const sessionPromise = requestSession(client);
+  const { logTimeout = true } = options ?? {};
 
   const timeout = new Promise<undefined>((resolve) => {
     setTimeout(() => {
       console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
-      postSentryBreadcrumb(
-        'service_worker.session',
-        'Session request to client timed out',
-        'warning',
-        {
-          timeoutMs,
-        }
-      ).catch(() => undefined);
-      postSentryMetric('sable.sw.session_request_timeout', 1, {
-        timeout_ms: timeoutMs,
-      }).catch(() => undefined);
+      if (clientToSessionPromise.get(clientId) === sessionPromise) {
+        clientToSessionPromise.delete(clientId);
+        clientToResolve.delete(clientId);
+      }
+      if (logTimeout) {
+        postSentryBreadcrumb(
+          'service_worker.session',
+          'Session request to client timed out',
+          'warning',
+          {
+            timeoutMs,
+          }
+        ).catch(() => undefined);
+        postSentryMetric('sable.sw.session_request_timeout', 1, {
+          timeout_ms: timeoutMs,
+        }).catch(() => undefined);
+      }
       resolve(undefined);
     }, timeoutMs);
   });
@@ -1359,6 +1367,16 @@ async function validateSession(session: SessionInfo): Promise<SessionInfo | unde
   }
 }
 
+async function getValidatedPersistedSession(url: string): Promise<SessionInfo | undefined> {
+  const persisted = await loadPersistedSession();
+  const validated = persisted ? await validateSession(persisted) : undefined;
+  if (validated && validMediaRequest(url, validated.baseUrl)) {
+    return validated;
+  }
+
+  return undefined;
+}
+
 async function getLiveWindowSessions(url: string, clientId: string): Promise<SessionInfo[]> {
   const collected: SessionInfo[] = [];
   const seen = new Set<string>();
@@ -1604,25 +1622,55 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     // leave the fetch hanging indefinitely. 15s is generous enough to allow all
     // fallbacks to complete, but short enough to fail fast if something is stuck.
     Promise.race([
-      requestSessionWithTimeout(clientId).then(async (s) => {
-        // Primary: session received from the live client window.
-        if (s && validMediaRequest(url, s.baseUrl)) {
-          return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+      (async () => {
+        const liveSessionPromise = requestSessionWithTimeout(clientId, 3000, {
+          logTimeout: false,
+        });
+        const persistedSessionPromise = getValidatedPersistedSession(url);
+
+        const resolvedSession =
+          (await Promise.any([
+            liveSessionPromise.then((liveSession) => {
+              if (liveSession && validMediaRequest(url, liveSession.baseUrl)) {
+                return liveSession;
+              }
+              return Promise.reject(new Error('No live session'));
+            }),
+            persistedSessionPromise.then((persistedSession) => {
+              if (persistedSession) return persistedSession;
+              return Promise.reject(new Error('No persisted session'));
+            }),
+          ]).catch(() => undefined)) ??
+          (await liveSessionPromise) ??
+          (await persistedSessionPromise);
+
+        if (resolvedSession && validMediaRequest(url, resolvedSession.baseUrl)) {
+          if (resolvedSession === preloadedSession) {
+            console.debug('[SW fetch] Using preloaded session fallback', { url, clientId });
+          } else if (resolvedSession !== sessions.get(clientId)) {
+            console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
+          }
+          return fetch(url, { ...fetchConfig(resolvedSession.accessToken), redirect });
         }
-        // Fallback: try the persisted session (helps when SW restarts on iOS and
-        // the client window hasn't responded to requestSession yet).
-        const persisted = await loadPersistedSession();
-        const validated = persisted ? await validateSession(persisted) : undefined;
-        if (validated && validMediaRequest(url, validated.baseUrl)) {
-          console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
-          return fetch(url, { ...fetchConfig(validated.accessToken), redirect });
-        }
+
+        await postSentryBreadcrumb(
+          'service_worker.session',
+          'Session request to client timed out',
+          'warning',
+          {
+            timeoutMs: 3000,
+            usedPersistedFallback: false,
+          }
+        ).catch(() => undefined);
+        await postSentryMetric('sable.sw.session_request_timeout', 1, {
+          timeout_ms: 3000,
+          used_persisted_fallback: false,
+        }).catch(() => undefined);
+
         console.warn('[SW fetch] No valid session for media request — returning 401', {
           url,
           clientId,
-          hasSession: !!s,
-          hadPersistedSession: !!persisted,
-          persistedSessionValid: !!validated,
+          hasSession: !!sessions.get(clientId),
         });
         // SABLE-4Y fix: Return synthetic 401 instead of attempting unauthenticated
         // fetch. Prevents network requests that will fail with 401 anyway, and
@@ -1635,7 +1683,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
             headers: { 'Content-Type': 'application/json' },
           }
         );
-      }),
+      })(),
       new Promise<Response>((_, reject) => {
         setTimeout(() => {
           console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });

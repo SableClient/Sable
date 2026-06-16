@@ -890,7 +890,7 @@ function MessageInternal(
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     if (mobileOrTablet()) {
       evt.preventDefault();
-      return;
+      setMobileOptionsOpen(true);
     }
 
     if (evt.altKey || !window.getSelection()?.isCollapsed || edit) return;
@@ -971,6 +971,7 @@ function MessageInternal(
       notifyHighlight={highlightMentions ? notifyHighlight : undefined}
       selected={!!menuAnchor || !!emojiBoardAnchor}
       isMarked={isMarked}
+      mobile={mobileOrTablet()}
       {...props}
       {...hoverProps}
       {...focusWithinProps}
@@ -1413,7 +1414,7 @@ export const Event = as<'div', EventProps>(
     const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
       if (mobileOrTablet()) {
         evt.preventDefault();
-        return;
+        setMobileOptionsOpen(true);
       }
 
       if (evt.altKey || !window.getSelection()?.isCollapsed) return;
@@ -1488,6 +1489,7 @@ export const Event = as<'div', EventProps>(
         notifyHighlight={highlightMentions ? notifyHighlight : undefined}
         selected={!!menuAnchor}
         isMarked={isMarked}
+        mobile={mobileOrTablet()}
         {...props}
         {...hoverProps}
         {...focusWithinProps}

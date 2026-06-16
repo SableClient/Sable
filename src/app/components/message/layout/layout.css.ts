@@ -65,6 +65,15 @@ export const messageJumpHighlight = style({
   animationIterationCount: 'infinite',
 });
 
+const MobileVariant = styleVariants({
+  true: {
+    WebkitUserSelect: 'none',
+    msUserSelect: 'none',
+    userSelect: 'none',
+    MozUserSelect: 'none',
+  },
+});
+
 const HighlightVariant = styleVariants({
   true: [messageJumpHighlight],
 });
@@ -124,6 +133,7 @@ export const MessageBase = recipe({
     notifyHighlight: NotifyHighlightVariant,
     selected: SelectedVariant,
     isMarked: MarkedVariant,
+    mobile: MobileVariant,
   },
   defaultVariants: {
     space: '400',

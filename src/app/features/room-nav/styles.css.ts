@@ -88,3 +88,11 @@ export const GroupAvatarMiniHideText = style({
     },
   },
 });
+
+export const MessagePreview = style({
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  minWidth: 0,
+  pointerEvents: 'none',
+});

@@ -46,7 +46,7 @@ const requestServiceWorkerClaim = (reason: 'visible_foreground' | 'pageshow_rest
       const activeWorker = registration.active;
       if (!activeWorker) return;
       if (activeWorker.state !== 'activated') return;
-        // oxlint-disable-next-line unicorn/require-post-message-target-origin
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin
       activeWorker.postMessage({ type: 'CLAIM_CLIENTS' });
     })
     .catch((error) => {

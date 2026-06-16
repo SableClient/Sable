@@ -48,6 +48,7 @@ function createMx() {
   const mxEmitter = new EventEmitter();
   return {
     getUserId: () => '@alice:test',
+    paginateEventTimeline: vi.fn<() => Promise<boolean>>().mockResolvedValue(false),
     on: mxEmitter.on.bind(mxEmitter),
     off: mxEmitter.off.bind(mxEmitter),
     emit: mxEmitter.emit.bind(mxEmitter),
@@ -316,6 +317,58 @@ describe('useTimelineSync', () => {
     });
 
     expect(result.current.timeline.linkedTimelines).toEqual([]);
+
+    await act(async () => {
+      resolveTimeline?.(contextTimeline);
+      await loadPromise;
+    });
+
+    expect(result.current.timeline.linkedTimelines).toEqual([contextTimeline]);
+  });
+
+  it('marks jump context pending immediately when eventId changes', async () => {
+    const { room } = createRoom('!room:test', [{ getId: () => '$live:event' }]);
+    let resolveTimeline: ((timeline: FakeTimeline) => void) | undefined;
+    const pendingTimeline = new Promise<FakeTimeline>((resolve) => {
+      resolveTimeline = resolve;
+    });
+    const targetEvent = { getId: () => '$target:event' };
+    const contextTimeline = createTimeline([targetEvent]);
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockReturnValue(pendingTimeline),
+    };
+
+    const { result, rerender } = renderHook(
+      ({ eventId }: { eventId: string | undefined }) =>
+        useTimelineSync({
+          room: room as Room,
+          mx: mx as never,
+          eventId,
+          isAtBottom: false,
+          isAtBottomRef: { current: false },
+          scrollToBottom: vi.fn<() => void>(),
+          unreadInfo: undefined,
+          setUnreadInfo: vi.fn<() => void>(),
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        }),
+      { initialProps: { eventId: undefined as string | undefined } }
+    );
+
+    expect(result.current.timeline.linkedTimelines).toHaveLength(1);
+
+    rerender({ eventId: '$target:event' });
+    const loadPromise = result.current.loadEventTimeline('$target:event');
+
+    await act(async () => {
+      mx.emit(ClientEvent.Room, room);
+      appEvents.emitVisibilityChange(true);
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline.linkedTimelines).toHaveLength(1);
+    expect(result.current.timeline.linkedTimelines[0]).not.toBe(contextTimeline);
 
     await act(async () => {
       resolveTimeline?.(contextTimeline);

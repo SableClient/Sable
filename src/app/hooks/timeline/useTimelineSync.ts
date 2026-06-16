@@ -435,6 +435,7 @@ export function useTimelineSync({
   const alive = useAlive();
   const eventContextActiveRef = useRef(false);
   const eventContextPendingRef = useRef(Boolean(eventId));
+  const eventContextEventIdRef = useRef(eventId);
 
   const [timeline, setTimeline] = useState<TimelineState>(() =>
     eventId ? getEmptyTimeline() : { linkedTimelines: getInitialTimeline(room).linkedTimelines }
@@ -454,8 +455,11 @@ export function useTimelineSync({
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
-  const preservingEventContext = Boolean(eventId) && eventContextActiveRef.current;
-  const waitingForEventContext = Boolean(eventId) && eventContextPendingRef.current;
+  const eventTargetChangedAtRender = eventContextEventIdRef.current !== eventId;
+  const preservingEventContext =
+    Boolean(eventId) && !eventTargetChangedAtRender && eventContextActiveRef.current;
+  const waitingForEventContext =
+    Boolean(eventId) && (eventTargetChangedAtRender || eventContextPendingRef.current);
 
   const canPaginateBack =
     typeof timeline.linkedTimelines[0]?.getPaginationToken(Direction.Backward) === 'string';
@@ -519,17 +523,34 @@ export function useTimelineSync({
   timelineRef.current = timeline;
 
   useEffect(() => {
+    const eventTargetChanged = eventContextEventIdRef.current !== eventId;
+    eventContextEventIdRef.current = eventId;
+
     if (!eventId) {
       eventContextActiveRef.current = false;
       eventContextPendingRef.current = false;
       return;
     }
-    eventContextPendingRef.current = timeline.linkedTimelines.length === 0;
-    if (timeline.linkedTimelines.length === 0) return;
-    eventContextActiveRef.current = !liveTimelineLinked;
-    if (eventContextActiveRef.current || liveTimelineLinked) {
-      eventContextPendingRef.current = false;
+
+    if (eventTargetChanged) {
+      eventContextActiveRef.current = false;
+      eventContextPendingRef.current = true;
+      return;
     }
+
+    if (timeline.linkedTimelines.length === 0) {
+      eventContextPendingRef.current = true;
+      return;
+    }
+
+    if (!liveTimelineLinked) {
+      eventContextActiveRef.current = true;
+      eventContextPendingRef.current = false;
+      return;
+    }
+
+    eventContextActiveRef.current = false;
+    eventContextPendingRef.current = false;
   }, [eventId, timeline.linkedTimelines.length, liveTimelineLinked]);
 
   const loadEventTimeline = useEventTimelineLoader(
@@ -757,7 +778,15 @@ export function useTimelineSync({
     return () => {
       mx.off(ClientEvent.Room, handleRoomInitialized);
     };
-  }, [mx, room, eventId, waitingForEventContext, preservingEventContext, timeline.linkedTimelines, eventsLengthRef]);
+  }, [
+    mx,
+    room,
+    eventId,
+    waitingForEventContext,
+    preservingEventContext,
+    timeline.linkedTimelines,
+    eventsLengthRef,
+  ]);
 
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);
@@ -779,8 +808,8 @@ export function useTimelineSync({
   // 2. useLiveEventArrive's 60s gate drops cached events
   // 3. Room didn't change so prevRoomIdRef useEffect doesn't fire
   useEffect(() => {
-      const handleVisibilityChange = (isVisible: boolean) => {
-        if (!isVisible) return; // Only act on foreground events
+    const handleVisibilityChange = (isVisible: boolean) => {
+      if (!isVisible) return; // Only act on foreground events
       if (eventId) {
         if (waitingForEventContext || preservingEventContext) return;
       }
@@ -817,7 +846,14 @@ export function useTimelineSync({
 
     const unsubscribe = appEvents.onVisibilityChange(handleVisibilityChange);
     return unsubscribe;
-  }, [room, eventId, waitingForEventContext, preservingEventContext, timeline.linkedTimelines, eventsLengthRef]);
+  }, [
+    room,
+    eventId,
+    waitingForEventContext,
+    preservingEventContext,
+    timeline.linkedTimelines,
+    eventsLengthRef,
+  ]);
 
   return {
     timeline,

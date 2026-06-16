@@ -433,6 +433,9 @@ export function useTimelineSync({
   readUptoEventIdRef,
 }: UseTimelineSyncOptions) {
   const alive = useAlive();
+  const eventContextActiveRef = useRef(false);
+  const eventContextPendingRef = useRef(Boolean(eventId));
+  const eventContextEventIdRef = useRef(eventId);
 
   const [timeline, setTimeline] = useState<TimelineState>(() =>
     eventId ? getEmptyTimeline() : { linkedTimelines: getInitialTimeline(room).linkedTimelines }
@@ -452,6 +455,11 @@ export function useTimelineSync({
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
+  const eventTargetChangedAtRender = eventContextEventIdRef.current !== eventId;
+  const preservingEventContext =
+    Boolean(eventId) && !eventTargetChangedAtRender && eventContextActiveRef.current;
+  const waitingForEventContext =
+    Boolean(eventId) && (eventTargetChangedAtRender || eventContextPendingRef.current);
 
   const canPaginateBack =
     typeof timeline.linkedTimelines[0]?.getPaginationToken(Direction.Backward) === 'string';
@@ -514,6 +522,37 @@ export function useTimelineSync({
   const timelineRef = useRef(timeline);
   timelineRef.current = timeline;
 
+  useEffect(() => {
+    const eventTargetChanged = eventContextEventIdRef.current !== eventId;
+    eventContextEventIdRef.current = eventId;
+
+    if (!eventId) {
+      eventContextActiveRef.current = false;
+      eventContextPendingRef.current = false;
+      return;
+    }
+
+    if (eventTargetChanged) {
+      eventContextActiveRef.current = false;
+      eventContextPendingRef.current = true;
+      return;
+    }
+
+    if (timeline.linkedTimelines.length === 0) {
+      eventContextPendingRef.current = true;
+      return;
+    }
+
+    if (!liveTimelineLinked) {
+      eventContextActiveRef.current = true;
+      eventContextPendingRef.current = false;
+      return;
+    }
+
+    eventContextActiveRef.current = false;
+    eventContextPendingRef.current = false;
+  }, [eventId, timeline.linkedTimelines.length, liveTimelineLinked]);
+
   const loadEventTimeline = useEventTimelineLoader(
     mx,
     room,
@@ -521,6 +560,8 @@ export function useTimelineSync({
       (evtId, lTimelines, evtAbsIndex) => {
         if (!alive()) return;
 
+        eventContextPendingRef.current = false;
+        eventContextActiveRef.current = true;
         setTimeline({ linkedTimelines: lTimelines });
 
         setFocusItem({
@@ -534,6 +575,8 @@ export function useTimelineSync({
     ),
     useCallback(() => {
       if (!alive()) return;
+      eventContextPendingRef.current = false;
+      eventContextActiveRef.current = false;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       scrollToBottom('instant');
     }, [alive, room, scrollToBottom]),
@@ -654,6 +697,8 @@ export function useTimelineSync({
     // chain still references the old detached timeline. When auto-scroll recovery
     // is pending for a bottom-pinned user, the guard is meaningless lag.
     if (
+      preservingEventContext ||
+      waitingForEventContext ||
       !(isAtBottom || resetAutoScrollPending) ||
       (!liveTimelineLinked && !resetAutoScrollPending) ||
       eventsLength === 0
@@ -664,7 +709,14 @@ export function useTimelineSync({
 
     lastScrolledAtEventsLengthRef.current = eventsLength;
     scrollToBottom('instant');
-  }, [isAtBottom, liveTimelineLinked, eventsLength, scrollToBottom]);
+  }, [
+    preservingEventContext,
+    waitingForEventContext,
+    isAtBottom,
+    liveTimelineLinked,
+    eventsLength,
+    scrollToBottom,
+  ]);
 
   useEffect(() => {
     if (eventId) return;
@@ -693,7 +745,9 @@ export function useTimelineSync({
       if (eventRoom.roomId !== room.roomId) return;
       // Don't update to live timeline when waiting for eventId context to load.
       // The eventId-specific loading path will handle setting the correct timeline.
-      if (eventId) return;
+      if (eventId) {
+        if (waitingForEventContext || preservingEventContext) return;
+      }
       // Only update if the live timeline actually has events now — prevents
       // spurious updates that would reset scroll position during normal sync.
       const liveEvents = getLiveTimeline(room).getEvents();
@@ -724,7 +778,15 @@ export function useTimelineSync({
     return () => {
       mx.off(ClientEvent.Room, handleRoomInitialized);
     };
-  }, [mx, room, eventId, timeline.linkedTimelines, eventsLengthRef]);
+  }, [
+    mx,
+    room,
+    eventId,
+    waitingForEventContext,
+    preservingEventContext,
+    timeline.linkedTimelines,
+    eventsLengthRef,
+  ]);
 
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);
@@ -748,6 +810,9 @@ export function useTimelineSync({
   useEffect(() => {
     const handleVisibilityChange = (isVisible: boolean) => {
       if (!isVisible) return; // Only act on foreground events
+      if (eventId) {
+        if (waitingForEventContext || preservingEventContext) return;
+      }
 
       // Check if SDK has events but React timeline state is empty or stale
       const liveTimeline = getLiveTimeline(room);
@@ -781,7 +846,14 @@ export function useTimelineSync({
 
     const unsubscribe = appEvents.onVisibilityChange(handleVisibilityChange);
     return unsubscribe;
-  }, [room, timeline.linkedTimelines, eventsLengthRef]);
+  }, [
+    room,
+    eventId,
+    waitingForEventContext,
+    preservingEventContext,
+    timeline.linkedTimelines,
+    eventsLengthRef,
+  ]);
 
   return {
     timeline,

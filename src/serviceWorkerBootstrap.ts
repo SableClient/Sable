@@ -10,6 +10,23 @@ import { pushSessionToSW } from './sw-session';
 const log = createLogger('service-worker-bootstrap');
 const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
 
+const recordForcedReload = (reason: string, data?: Record<string, unknown>) => {
+  Sentry.addBreadcrumb({
+    category: 'app.reload',
+    message: 'Forced reload requested',
+    level: 'warning',
+    data: {
+      reason,
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
+      ...data,
+    },
+  });
+  Sentry.metrics.count('sable.app.reload_requested', 1, {
+    attributes: { reason },
+  });
+};
+
 const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
 
@@ -20,8 +37,11 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   // eslint-disable-next-line no-alert
   if (window.confirm('A new version of the app is available. Refresh to update?')) {
     if (registration.waiting) {
+      recordForcedReload('sw_update_prompt_waiting', { hasWaitingWorker: true });
       // oxlint-disable-next-line unicorn/require-post-message-target-origin
       registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
+    } else {
+      recordForcedReload('sw_update_prompt_reload', { hasWaitingWorker: false });
     }
     window.location.reload();
   }
@@ -137,7 +157,18 @@ export function registerAppServiceWorker() {
       category: 'service_worker',
       message: 'Service worker controller changed',
       level: 'warning',
-      data: { visibilityState: document.visibilityState },
+      data: {
+        visibilityState: document.visibilityState,
+        online: navigator.onLine,
+        hasController: !!navigator.serviceWorker.controller,
+      },
+    });
+    Sentry.metrics.count('sable.sw.controller_change', 1, {
+      attributes: {
+        visibility_state: document.visibilityState,
+        online: navigator.onLine,
+        has_controller: !!navigator.serviceWorker.controller,
+      },
     });
   });
 

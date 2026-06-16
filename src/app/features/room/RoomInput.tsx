@@ -373,7 +373,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers>();
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const isLongPress = useRef(false);
+    const suppressNextSendClick = useRef(false);
+    const longPressPointerId = useRef<number | null>(null);
+    const longPressStartPoint = useRef<{ x: number; y: number } | null>(null);
 
     const imagePackRooms: Room[] = useImagePackRooms(roomId, roomToParents);
 
@@ -471,12 +473,36 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const isEncrypted = room.hasEncryptionStateEvent();
 
     const { triggerPreLift } = useKeyboardHeight();
+    const isMobileLayout = mobileOrTablet();
     // Always active on mobile: iOS can apply window.scrollY even with overflow:hidden
     // on body (scroll-prediction bug). The lock snaps scrollY back to 0 immediately
     // on any scroll event, preventing the "header scrolls up then snaps" jank.
     // useKeyboardHeight now manages --sable-visible-height synchronously in its own
     // event handler, so no useEffect here is needed for CSS variable management.
-    useScrollLock(mobileOrTablet());
+    useScrollLock(isMobileLayout);
+
+    const closeSchedulePicker = useCallback(() => {
+      suppressNextSendClick.current = false;
+      setShowSchedulePicker(false);
+      setScheduleMenuAnchor(undefined);
+    }, []);
+
+    const clearLongPressTimer = useCallback(() => {
+      if (longPressTimer.current !== null) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      longPressPointerId.current = null;
+      longPressStartPoint.current = null;
+    }, []);
+
+    const openSchedulePicker = useCallback(() => {
+      setSendError(undefined);
+      setScheduleMenuAnchor(undefined);
+      setShowSchedulePicker(true);
+    }, []);
+
+    useEffect(() => clearLongPressTimer, [clearLongPressTimer]);
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -1520,7 +1546,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     return (
       // eslint-disable-next-line jsx-a11y/no-static-element-interactions
-      <div ref={ref} onMouseDown={mobileOrTablet() ? triggerPreLift : undefined}>
+      <div ref={ref} onMouseDown={isMobileLayout ? triggerPreLift : undefined}>
         {selectedFiles.length > 0 && (
           <UploadBoard
             header={
@@ -2033,8 +2059,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                           size="300"
                           radii="300"
                           onClick={() => {
-                            setScheduleMenuAnchor(undefined);
-                            setShowSchedulePicker(true);
+                            openSchedulePicker();
                           }}
                           before={menuIcon(Clock)}
                         >
@@ -2050,42 +2075,57 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   title="Send Message"
                   aria-label="Send your composed Message"
                   onClick={() => {
-                    if (isLongPress.current) {
-                      isLongPress.current = false;
+                    if (suppressNextSendClick.current) {
+                      suppressNextSendClick.current = false;
                       return;
                     }
                     submit();
                   }}
                   onMouseDown={(e: MouseEvent) => e.preventDefault()}
-                  onPointerDown={() => {
-                    isLongPress.current = false;
-                    if (mobileOrTablet() && delayedEventsSupported) {
-                      longPressTimer.current = setTimeout(() => {
-                        isLongPress.current = true;
-                        setShowSchedulePicker(true);
-                      }, 1000);
+                  onPointerDown={(evt) => {
+                    clearLongPressTimer();
+                    if (!isMobileLayout || !delayedEventsSupported || evt.pointerType === 'mouse') {
+                      return;
+                    }
+
+                    longPressPointerId.current = evt.pointerId;
+                    longPressStartPoint.current = { x: evt.clientX, y: evt.clientY };
+                    longPressTimer.current = setTimeout(() => {
+                      if (longPressPointerId.current !== evt.pointerId) return;
+                      suppressNextSendClick.current = true;
+                      clearLongPressTimer();
+                      openSchedulePicker();
+                    }, 550);
+                  }}
+                  onPointerMove={(evt) => {
+                    if (longPressPointerId.current !== evt.pointerId) return;
+                    const start = longPressStartPoint.current;
+                    if (!start) return;
+                    const movedX = Math.abs(evt.clientX - start.x);
+                    const movedY = Math.abs(evt.clientY - start.y);
+                    if (movedX > 12 || movedY > 12) {
+                      clearLongPressTimer();
                     }
                   }}
                   onPointerUp={() => {
-                    if (longPressTimer.current !== null) {
-                      clearTimeout(longPressTimer.current);
-                      longPressTimer.current = null;
-                    }
+                    clearLongPressTimer();
                   }}
                   onPointerCancel={() => {
-                    if (longPressTimer.current !== null) {
-                      clearTimeout(longPressTimer.current);
-                      longPressTimer.current = null;
-                    }
+                    clearLongPressTimer();
+                  }}
+                  onPointerLeave={() => {
+                    clearLongPressTimer();
                   }}
                   variant={scheduledTime ? 'Primary' : 'SurfaceVariant'}
                   size="300"
                   radii="0"
-                  className={delayedEventsSupported ? css.SplitSendButton : undefined}
+                  className={
+                    delayedEventsSupported && !isMobileLayout ? css.SplitSendButton : undefined
+                  }
                 >
                   {scheduledTime ? composerIcon(Clock) : composerIcon(PaperPlaneTilt)}
                 </IconButton>
-                {delayedEventsSupported && !mobileOrTablet() && (
+                {delayedEventsSupported && !isMobileLayout && (
                   <IconButton
                     onClick={(evt: MouseEvent<HTMLButtonElement>) => {
                       setScheduleMenuAnchor(evt.currentTarget.getBoundingClientRect());
@@ -2109,10 +2149,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           <SchedulePickerDialog
             initialTime={scheduledTime?.getTime()}
             showEncryptionWarning={isEncrypted}
-            onCancel={() => setShowSchedulePicker(false)}
+            onCancel={closeSchedulePicker}
             onSubmit={(date) => {
               setScheduledTime(date);
-              setShowSchedulePicker(false);
+              closeSchedulePicker();
               setSendError(undefined);
             }}
           />

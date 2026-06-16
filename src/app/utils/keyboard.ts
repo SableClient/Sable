@@ -6,12 +6,14 @@ export interface KeyboardEventLike {
   which: number;
   altKey: boolean;
   ctrlKey: boolean;
+  defaultPrevented?: boolean;
   metaKey: boolean;
   shiftKey: boolean;
   preventDefault(): void;
 }
 
 export const onTabPress = (evt: KeyboardEventLike, callback: () => void) => {
+  if (evt.defaultPrevented) return;
   if (isKeyHotkey('tab', evt)) {
     evt.preventDefault();
     callback();

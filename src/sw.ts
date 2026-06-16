@@ -51,6 +51,7 @@ type PushTelemetryEvent =
   | 'received'
   | 'confirmed_visible'
   | 'suppressed_visible'
+  | 'claim_clients'
   | 'stale_focus_ignored'
   | 'shown_os'
   | 'decrypt_timeout'
@@ -1178,6 +1179,10 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
         // sessions Map. Fire-and-forget: responses come via setSession messages.
         const claimedClients = await self.clients.matchAll({ type: 'window' });
         claimedClients.forEach((c) => c.postMessage({ type: 'requestSession' }));
+        await recordPushTelemetry('claim_clients', {
+          client_count: claimedClients.length,
+          duration_ms: Math.round(performance.now() - claimStartedAt),
+        });
         await postSentryBreadcrumb('service_worker', 'Service worker claimed clients', 'warning', {
           claimedClientCount: claimedClients.length,
           durationMs: Math.round(performance.now() - claimStartedAt),

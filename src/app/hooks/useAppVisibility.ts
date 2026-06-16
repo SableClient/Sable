@@ -19,6 +19,46 @@ const DEFAULT_HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
 
 type SessionSyncReason = 'heartbeat';
 
+const requestServiceWorkerClaim = (reason: 'visible_foreground' | 'pageshow_restore') => {
+  if (!('serviceWorker' in navigator)) return;
+  if (navigator.serviceWorker.controller) return;
+
+  Sentry.addBreadcrumb({
+    category: 'service_worker.claim',
+    message: 'Requested service worker client claim',
+    level: 'warning',
+    data: {
+      reason,
+      visibilityState: document.visibilityState,
+      online: navigator.onLine,
+    },
+  });
+  Sentry.metrics.count('sable.sw.claim_requested', 1, {
+    attributes: {
+      reason,
+      visibility_state: document.visibilityState,
+      online: navigator.onLine,
+    },
+  });
+
+  navigator.serviceWorker.ready
+    .then((registration) => {
+      const activeWorker = registration.active;
+      if (!activeWorker) return;
+      if (activeWorker.state !== 'activated') return;
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin
+      activeWorker.postMessage({ type: 'CLAIM_CLIENTS' });
+    })
+    .catch((error) => {
+      Sentry.addBreadcrumb({
+        category: 'service_worker.claim',
+        message: 'Service worker claim request failed',
+        level: 'warning',
+        data: { reason, error: error instanceof Error ? error.message : String(error) },
+      });
+    });
+};
+
 export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: Session) {
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
@@ -140,6 +180,9 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
         }
       );
       appEvents.emitVisibilityChange(isVisible);
+      if (isVisible) {
+        requestServiceWorkerClaim('visible_foreground');
+      }
       if (!isVisible) {
         appEvents.emitVisibilityHidden();
       }
@@ -227,7 +270,27 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     };
 
     const handlePageShow = (ev: PageTransitionEvent) => {
-      if (ev.persisted) emitVisible();
+      if (ev.persisted) {
+        Sentry.addBreadcrumb({
+          category: 'app.visibility',
+          message: 'App restored from pageshow',
+          level: 'info',
+          data: {
+            persisted: ev.persisted,
+            visibilityState: document.visibilityState,
+            online: navigator.onLine,
+          },
+        });
+        Sentry.metrics.count('sable.app.pageshow', 1, {
+          attributes: {
+            persisted: ev.persisted,
+            visibility_state: document.visibilityState,
+            online: navigator.onLine,
+          },
+        });
+        requestServiceWorkerClaim('pageshow_restore');
+        emitVisible();
+      }
     };
 
     const timeoutId = window.setTimeout(emitVisible, 100);

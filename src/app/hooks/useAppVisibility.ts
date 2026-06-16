@@ -19,7 +19,7 @@ const DEFAULT_HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
 
 type SessionSyncReason = 'heartbeat';
 
-const requestServiceWorkerClaim = (reason: 'visible_foreground' | 'pageshow_restore') => {
+const requestServiceWorkerClaim = (reason: 'pageshow_restore') => {
   if (!('serviceWorker' in navigator)) return;
   if (navigator.serviceWorker.controller) return;
 
@@ -181,7 +181,25 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       );
       appEvents.emitVisibilityChange(isVisible);
       if (isVisible) {
-        requestServiceWorkerClaim('visible_foreground');
+        if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
+          Sentry.addBreadcrumb({
+            category: 'service_worker.claim',
+            message: 'Foreground resume without service worker controller',
+            level: 'warning',
+            data: {
+              reason: 'visible_foreground',
+              visibilityState: document.visibilityState,
+              online: navigator.onLine,
+            },
+          });
+          Sentry.metrics.count('sable.sw.claim_skipped', 1, {
+            attributes: {
+              reason: 'visible_foreground',
+              visibility_state: document.visibilityState,
+              online: navigator.onLine,
+            },
+          });
+        }
       }
       if (!isVisible) {
         appEvents.emitVisibilityHidden();

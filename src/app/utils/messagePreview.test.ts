@@ -33,6 +33,23 @@ describe('buildMessagePreviewFromContent', () => {
     ).toMatchObject({ kind: 'unsupported', hasBlockContent: true, text: '💻 Code Block' });
   });
 
+  it('does not classify generic block wrappers as code blocks', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: {
+          msgtype: 'm.text',
+          body: 'Hello world',
+          formatted_body: '<div><strong>Hello</strong> world</div>',
+        },
+        eventType: 'm.room.message',
+      })
+    ).toMatchObject({
+      kind: 'text',
+      text: 'Hello world',
+      formattedBody: '<div><strong>Hello</strong> world</div>',
+    });
+  });
+
   it('trims mx-reply wrapper before block detection on formatted replies', () => {
     expect(
       buildMessagePreviewFromContent({

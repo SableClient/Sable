@@ -52,7 +52,7 @@ export function stripReplyFallback(body: string): string {
 }
 
 const isBlockFormattedBody = (formattedBody: string): boolean =>
-  /<(?:pre|blockquote|ul|ol|li|h[1-6]|hr|table|div)(?:\s|>)/i.test(formattedBody);
+  /<(?:pre)(?:\s|>)/i.test(formattedBody);
 
 export function getPreviewEventContent(ev: MatrixEvent): Record<string, unknown> {
   const content = ev.getContent() as Record<string, unknown>;

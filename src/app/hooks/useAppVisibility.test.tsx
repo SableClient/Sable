@@ -8,6 +8,7 @@ import { useAppVisibility } from './useAppVisibility';
 
 const mocks = vi.hoisted(() => ({
   pushSessionToSW: vi.fn<() => void>(),
+  swPostMessage: vi.fn<() => void>(),
 }));
 
 vi.mock('@sentry/react', () => ({
@@ -80,10 +81,25 @@ describe('useAppVisibility', () => {
     setVisibilityState('visible');
     setOnline(true);
     mocks.pushSessionToSW.mockClear();
+    mocks.swPostMessage.mockClear();
+
+    Object.defineProperty(window.navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: null,
+        ready: Promise.resolve({
+          active: {
+            state: 'activated',
+            postMessage: mocks.swPostMessage,
+          },
+        }),
+      },
+    });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('does not abort a healthy sliding sync poll on focus', () => {
@@ -168,5 +184,22 @@ describe('useAppVisibility', () => {
     expect(mx.retryImmediately).not.toHaveBeenCalled();
 
     unsubscribe();
+  });
+
+  it('requests a service worker claim when the app becomes visible without a controller', async () => {
+    renderHook(() => useAppVisibility(session));
+
+    act(() => {
+      setVisibilityState('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      setVisibilityState('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mocks.swPostMessage).toHaveBeenCalledWith({ type: 'CLAIM_CLIENTS' });
   });
 });

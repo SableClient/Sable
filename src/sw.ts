@@ -1377,6 +1377,42 @@ async function getValidatedPersistedSession(url: string): Promise<SessionInfo | 
   return undefined;
 }
 
+async function resolveFirstUsableMediaSession(
+  url: string,
+  liveSessionPromise: Promise<SessionInfo | undefined>,
+  persistedSessionPromise: Promise<SessionInfo | undefined>
+): Promise<SessionInfo | undefined> {
+  const pendingSettles = [
+    liveSessionPromise.then((session) => ({ session })),
+    persistedSessionPromise.then((session) => ({ session })),
+  ];
+
+  const drainPendingSettles = async (
+    remainingSettles: Array<Promise<{ session: SessionInfo | undefined }>>
+  ): Promise<SessionInfo | undefined> => {
+    if (remainingSettles.length === 0) return undefined;
+
+    const settled = await Promise.race(
+      remainingSettles.map((pending, index) =>
+        pending.then((result) => ({
+          index,
+          result,
+        }))
+      )
+    );
+
+    const nextSettles = remainingSettles.filter((_, index) => index !== settled.index);
+    const { session } = settled.result;
+    if (session && validMediaRequest(url, session.baseUrl)) {
+      return session;
+    }
+
+    return drainPendingSettles(nextSettles);
+  };
+
+  return drainPendingSettles(pendingSettles);
+}
+
 async function getLiveWindowSessions(url: string, clientId: string): Promise<SessionInfo[]> {
   const collected: SessionInfo[] = [];
   const seen = new Set<string>();
@@ -1629,18 +1665,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
         const persistedSessionPromise = getValidatedPersistedSession(url);
 
         const resolvedSession =
-          (await Promise.any([
-            liveSessionPromise.then((liveSession) => {
-              if (liveSession && validMediaRequest(url, liveSession.baseUrl)) {
-                return liveSession;
-              }
-              return Promise.reject(new Error('No live session'));
-            }),
-            persistedSessionPromise.then((persistedSession) => {
-              if (persistedSession) return persistedSession;
-              return Promise.reject(new Error('No persisted session'));
-            }),
-          ]).catch(() => undefined)) ??
+          (await resolveFirstUsableMediaSession(
+            url,
+            liveSessionPromise,
+            persistedSessionPromise
+          )) ??
           (await liveSessionPromise) ??
           (await persistedSessionPromise);
 
@@ -1648,7 +1677,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
           if (resolvedSession === preloadedSession) {
             console.debug('[SW fetch] Using preloaded session fallback', { url, clientId });
           } else if (resolvedSession !== sessions.get(clientId)) {
-            console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
+            console.debug('[SW fetch] Using validated persisted session fallback', {
+              url,
+              clientId,
+            });
           }
           return fetch(url, { ...fetchConfig(resolvedSession.accessToken), redirect });
         }

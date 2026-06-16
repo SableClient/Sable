@@ -269,8 +269,11 @@ function InviteNotifications() {
   useEffect(() => {
     if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
 
-    // SW push (via Sygnal) handles invite notifications when the app is backgrounded.
-    if (document.visibilityState !== 'visible' && usePushNotifications) return;
+    const isForegroundFocusedClient = document.visibilityState === 'visible' && document.hasFocus();
+
+    // When background push is enabled, let the service worker handle invite
+    // notifications unless the current page is the actively focused foreground client.
+    if (!isForegroundFocusedClient && usePushNotifications) return;
 
     // OS notification for invites — desktop only.
     if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {
@@ -483,10 +486,18 @@ function MessageNotifications() {
         if (first) notifiedEventsRef.current.delete(first);
       }
 
-      // On desktop: fire an OS notification whenever system notifications are
-      // enabled and permission is granted — regardless of whether the window is
-      // focused. When the window is also visible the in-app banner fires too,
-      // mirroring the behaviour of apps like Discord.
+      const isForegroundFocusedClient =
+        document.visibilityState === 'visible' && document.hasFocus();
+      if (!isForegroundFocusedClient && usePushNotifications) {
+        // When background push is enabled, defer all non-foreground notification
+        // delivery to the SW path so the page does not duplicate or race it.
+        return;
+      }
+
+      // On desktop: fire an OS notification when system notifications are
+      // enabled and permission is granted, but only for the actively focused
+      // foreground page. Background or unfocused delivery is deferred to the
+      // service worker push path above.
       // The whole block is wrapped in try/catch: window.Notification() can throw
       // in sandboxed environments, browsers with DnD active, or Electron — and
       // an uncaught exception here would abort the handler before setInAppBanner

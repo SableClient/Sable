@@ -37,4 +37,16 @@ describe('resolveNotificationPreviewText', () => {
       })
     ).toBe('Encrypted message');
   });
+
+  it('preserves body text for custom room-message msgtypes', () => {
+    expect(
+      resolveNotificationPreviewText({
+        content: { msgtype: 'com.example.cute', body: 'Custom event body' },
+        eventType: 'm.room.message',
+        isEncryptedRoom: false,
+        showMessageContent: true,
+        showEncryptedMessageContent: true,
+      })
+    ).toBe('Custom event body');
+  });
 });

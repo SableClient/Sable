@@ -73,6 +73,14 @@ export const resolveNotificationPreviewText = ({
   });
   if (preview?.text) return preview.text;
 
+  const fallbackBody =
+    eventType === 'm.room.message' && content && typeof content === 'object'
+      ? (content as Record<string, unknown>).body
+      : undefined;
+  if (typeof fallbackBody === 'string' && fallbackBody.trim()) {
+    return fallbackBody.trim();
+  }
+
   return encryptedContext ? ENCRYPTED_MESSAGE_PREVIEW : DEFAULT_MESSAGE_PREVIEW;
 };
 

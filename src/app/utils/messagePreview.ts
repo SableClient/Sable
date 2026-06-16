@@ -1,6 +1,6 @@
 import { EventType, MsgType } from '$types/matrix-sdk';
 import type { MatrixEvent } from '$types/matrix-sdk';
-import { trimReplyFromBody, trimReplyFromFormattedBody } from '$utils/room';
+import { trimReplyFromFormattedBody } from '$utils/room';
 
 const REACTION_EVENT_TYPE: string = EventType.Reaction;
 const ENCRYPTED_EVENT_TYPE: string = EventType.RoomMessageEncrypted;

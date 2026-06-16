@@ -3,6 +3,7 @@ import { Direction } from '$types/matrix-sdk';
 import {
   isThreadRelationEvent,
   reactionOrEditEvent,
+  getRoomReadMarkerId,
   roomHaveNotification,
   roomHaveUnread,
 } from '$utils/room';
@@ -136,7 +137,7 @@ export const getEmptyTimeline = () => ({
 export const getRoomUnreadInfo = (room: Room, scrollTo = false) => {
   if (!roomHaveNotification(room) && !roomHaveUnread(room.client, room)) return undefined;
 
-  const readUptoEventId = room.getEventReadUpTo(room.client.getUserId() ?? '');
+  const readUptoEventId = getRoomReadMarkerId(room, room.client.getUserId() ?? '');
   if (!readUptoEventId) return undefined;
 
   const evtTimeline = getEventTimeline(room, readUptoEventId);

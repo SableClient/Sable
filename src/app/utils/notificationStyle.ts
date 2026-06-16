@@ -1,3 +1,5 @@
+import { buildMessagePreviewFromContent } from './messagePreview';
+
 export const DEFAULT_NOTIFICATION_ICON = '/public/res/logo-maskable/logo-maskable-180x180.png';
 export const DEFAULT_NOTIFICATION_BADGE = '/public/res/logo-maskable/logo-maskable-72x72.png';
 export const DEFAULT_MESSAGE_PREVIEW = 'new message';
@@ -25,6 +27,7 @@ type NotificationPayload = {
 type NotificationPreviewInput = {
   content?: unknown;
   eventType?: string;
+  effectiveType?: string;
   isEncryptedRoom?: boolean;
   showMessageContent: boolean;
   showEncryptedMessageContent: boolean;
@@ -36,17 +39,10 @@ const getString = (value: unknown, fallback: string): string => {
   return normalized.length > 0 ? normalized : fallback;
 };
 
-const getBodyFromContent = (content: unknown): string | undefined => {
-  if (!content || typeof content !== 'object') return undefined;
-  const { body } = content as Record<string, unknown>;
-  if (typeof body !== 'string') return undefined;
-  const normalized = body.trim();
-  return normalized.length > 0 ? normalized : undefined;
-};
-
 export const resolveNotificationPreviewText = ({
   content,
   eventType,
+  effectiveType,
   isEncryptedRoom,
   showMessageContent,
   showEncryptedMessageContent,
@@ -72,8 +68,21 @@ export const resolveNotificationPreviewText = ({
     return ENCRYPTED_MESSAGE_PREVIEW;
   }
 
-  const body = getBodyFromContent(content);
-  if (body) return body;
+  const preview = buildMessagePreviewFromContent({
+    content:
+      content && typeof content === 'object' ? (content as Record<string, unknown>) : undefined,
+    eventType,
+    effectiveType,
+  });
+  if (preview?.text) return preview.text;
+
+  const fallbackBody =
+    eventType === 'm.room.message' && content && typeof content === 'object'
+      ? (content as Record<string, unknown>).body
+      : undefined;
+  if (typeof fallbackBody === 'string' && fallbackBody.trim()) {
+    return fallbackBody.trim();
+  }
 
   return encryptedContext ? ENCRYPTED_MESSAGE_PREVIEW : DEFAULT_MESSAGE_PREVIEW;
 };

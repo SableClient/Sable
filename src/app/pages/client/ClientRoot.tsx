@@ -67,6 +67,7 @@ import { AutoDiscovery } from './AutoDiscovery';
 import { ContainerColor } from '$styles/ContainerColor.css';
 
 const log = createLogger('ClientRoot');
+const MESSAGE_PREVIEW_LIST_TIMELINE_LIMIT = 5;
 
 const isClientReady = (syncState: string | null): boolean =>
   syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
@@ -252,7 +253,9 @@ export function ClientRoot({ children }: ClientRootProps) {
           baseUrl: activeSession?.baseUrl,
           slidingSync: {
             ...clientConfig.slidingSync,
-            listTimelineLimit: needsPreviewTimeline ? 20 : undefined,
+            listTimelineLimit: needsPreviewTimeline
+              ? MESSAGE_PREVIEW_LIST_TIMELINE_LIMIT
+              : undefined,
           },
           sessionSlidingSyncOptIn: activeSession?.slidingSyncOptIn,
         });
@@ -343,10 +346,8 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [mx, startMatrix, startState.status]);
 
-  // Helper to check if the app is fully ready: sync must be in a ready state,
-  // and for sliding sync, either we have warm cache (show immediately) or
-  // all room lists must be fully loaded to prevent rooms from appearing in
-  // wrong positions or spaces as the list expands.
+  // Helper to check if the app is ready: sync must be in a ready state, and
+  // for cold sliding sync the first requested list window must have arrived.
   const checkReadyAndClearSplash = useCallback(
     (state: string | null) => {
       if (!state || !isClientReady(state)) return;
@@ -395,8 +396,8 @@ export function ClientRoot({ children }: ClientRootProps) {
           return;
         }
 
-        // Cold cache: wait for full load to prevent visual jumping
-        // Strategy 8: Use "sufficient rooms" threshold for faster initial display
+        // Cold cache: wait for the first requested window, then let the
+        // virtualized room list request more rows on demand.
         if (!isFullyLoaded && !hasSufficient) {
           log.log('[startup] waiting for more rooms (cold cache)');
           Sentry.addBreadcrumb({
@@ -434,10 +435,9 @@ export function ClientRoot({ children }: ClientRootProps) {
     checkReadyAndClearSplash(mx.getSyncState());
   }, [mx, checkReadyAndClearSplash]);
 
-  // Wait for the first sync response before hiding the splash, even if cached rooms
-  // exist. This prevents rooms from visibly jumping between spaces as the sort order
-  // stabilizes during the first few sync cycles. For sliding sync, we also wait until
-  // all room lists are fully loaded to ensure stable positioning.
+  // Wait for the first sync response before hiding the splash. For cold sliding
+  // sync, wait only for the first requested list window so startup remains
+  // viewport-driven.
   useSyncState(mx, checkReadyAndClearSplash);
 
   // Set matrix client context: homeserver and sync type (not PII)

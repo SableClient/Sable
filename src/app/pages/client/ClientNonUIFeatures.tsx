@@ -53,7 +53,6 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
-import { getSlidingSyncManager } from '$client/initMatrix';
 import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
 import { useCallSignaling } from '$hooks/useCallSignaling';
@@ -509,6 +508,7 @@ function MessageNotifications() {
             previewText: resolveNotificationPreviewText({
               content: mEvent.getContent(),
               eventType: mEvent.getType(),
+              effectiveType: mEvent.getEffectiveEvent()?.type as string | undefined,
               isEncryptedRoom,
               showMessageContent,
               showEncryptedMessageContent,
@@ -597,6 +597,7 @@ function MessageNotifications() {
         const previewText = resolveNotificationPreviewText({
           content: mEvent.getContent(),
           eventType: mEvent.getType(),
+          effectiveType: mEvent.getEffectiveEvent()?.type as string | undefined,
           isEncryptedRoom: false,
           showMessageContent,
           showEncryptedMessageContent,
@@ -1157,17 +1158,6 @@ function PresenceSyncFeature() {
   return null;
 }
 
-function ProgressivePrefetchFeature() {
-  const mx = useMatrixClient();
-  const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
-
-  useEffect(() => {
-    getSlidingSyncManager(mx)?.setProgressivePrefetch(progressivePrefetch);
-  }, [mx, progressivePrefetch]);
-
-  return null;
-}
-
 function getNotificationTransportRuntimePlatform(): NotificationTransportPlatform {
   if (!isTauri()) return 'web';
 
@@ -1341,7 +1331,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
       <PresenceSyncFeature />
-      <ProgressivePrefetchFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />

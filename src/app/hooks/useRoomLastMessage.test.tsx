@@ -17,6 +17,7 @@ function makeEvent(overrides: {
   redacted?: boolean;
   effectiveType?: string;
   encrypted?: boolean;
+  ts?: number;
 }) {
   const type = overrides.type ?? 'm.room.message';
   const content = overrides.content ?? { msgtype: 'm.text', body: 'hello' };
@@ -25,8 +26,11 @@ function makeEvent(overrides: {
     getContent: () => content,
     getSender: () => overrides.sender ?? '@alice:test',
     getRoomId: () => overrides.roomId ?? '!room:test',
+    getTs: () => overrides.ts ?? 0,
     isRedacted: () => overrides.redacted ?? false,
     isEncrypted: () => overrides.encrypted ?? false,
+    isBeingDecrypted: () => false,
+    replacingEvent: () => undefined,
     getEffectiveEvent: () => ({ type: overrides.effectiveType ?? type, content }),
   } as never;
 }
@@ -229,6 +233,15 @@ describe('getLastMessageText', () => {
   it('returns undefined for an empty timeline', () => {
     expect(getLastMessageText(makeLastMessageRoom([]), makeLastMessageMx())).toBeUndefined();
   });
+
+  it('uses the latest displayable event by timestamp when timeline order is stale', () => {
+    const newer = makeEvent({ content: { msgtype: 'm.text', body: 'newer' }, ts: 2000 });
+    const older = makeEvent({ content: { msgtype: 'm.text', body: 'older' }, ts: 1000 });
+
+    expect(getLastMessageText(makeLastMessageRoom([newer, older]), makeLastMessageMx())).toBe(
+      'You: newer'
+    );
+  });
 });
 
 // -------- useRoomLastMessage hook --------
@@ -271,7 +284,7 @@ describe('useRoomLastMessage', () => {
     const room = makeRoom([ev]);
     const mx = makeMx();
     const { result } = renderHook(() => useRoomLastMessage(room as never, mx as never));
-    expect(result.current).toBe('You: hello');
+    expect(result.current?.text).toBe('You: hello');
   });
 
   it('updates when a Timeline event fires', () => {
@@ -297,7 +310,7 @@ describe('useRoomLastMessage', () => {
       vi.advanceTimersByTime(350);
     });
 
-    expect(result.current).toBe('You: second');
+    expect(result.current?.text).toBe('You: second');
     vi.useRealTimers();
   });
 });

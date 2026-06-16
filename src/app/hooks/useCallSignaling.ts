@@ -4,6 +4,8 @@ import { RoomStateEvent } from '$types/matrix-sdk';
 import { MatrixRTCSession } from '$types/matrix-sdk';
 import { MatrixRTCSessionManagerEvents } from '$types/matrix-sdk';
 import { useSetAtom, useAtomValue } from 'jotai';
+import { getSlidingSyncManager } from '$client/initMatrix';
+import { LIST_DMS } from '$client/slidingSync';
 import { mDirectAtom } from '$state/mDirectList';
 import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import RingtoneSound from '$public/sound/ringtone.webm';
@@ -11,6 +13,8 @@ import { useMatrixClient } from './useMatrixClient';
 import { createDebugLogger } from '../utils/debugLogger';
 
 const debugLog = createDebugLogger('CallSignaling');
+const CALL_SIGNAL_DM_EXPAND_BATCH = 30;
+const CALL_SIGNAL_DM_EXPAND_INTERVAL_MS = 5000;
 
 type CallPhase = 'IDLE' | 'RINGING_OUT' | 'RINGING_IN' | 'ACTIVE' | 'ENDED';
 
@@ -29,6 +33,8 @@ export function useCallSignaling() {
   const ringingRoomIdRef = useRef<string | null>(null);
   const outgoingStartRef = useRef<number | null>(null);
   const callPhaseRef = useRef<Record<string, CallPhase>>({});
+  const callSubscriptionRoomIdRef = useRef<string | null>(null);
+  const dmListExpansionAtRef = useRef(0);
 
   const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
@@ -117,13 +123,17 @@ export function useCallSignaling() {
     const checkDMsForActiveCalls = () => {
       const myUserId = mx.getUserId();
       const now = Date.now();
+      let unloadedDirectRooms = 0;
 
       const signal = Array.from(mDirectsRef.current).reduce<SignalState>(
         (acc, roomId) => {
           if (acc.incoming || mutedRoomIdRef.current === roomId) return acc;
 
           const room = mx.getRoom(roomId);
-          if (!room) return acc;
+          if (!room) {
+            unloadedDirectRooms += 1;
+            return acc;
+          }
 
           const session = mx.matrixRTC.getRoomSession(room);
           const memberships = MatrixRTCSession.sessionMembershipsForRoom(
@@ -226,6 +236,33 @@ export function useCallSignaling() {
         { incoming: null, outgoing: null }
       );
 
+      const slidingSyncManager = getSlidingSyncManager(mx);
+      const activeCallRoomId = signal.incoming ?? signal.outgoing;
+      const previousCallRoomId = callSubscriptionRoomIdRef.current;
+      if (activeCallRoomId && activeCallRoomId !== previousCallRoomId) {
+        if (previousCallRoomId) slidingSyncManager?.unsubscribeFromRoom(previousCallRoomId);
+        slidingSyncManager?.subscribeToRoom(activeCallRoomId);
+        callSubscriptionRoomIdRef.current = activeCallRoomId;
+      } else if (!activeCallRoomId && previousCallRoomId) {
+        slidingSyncManager?.unsubscribeFromRoom(previousCallRoomId);
+        callSubscriptionRoomIdRef.current = null;
+      }
+
+      if (!activeCallRoomId && unloadedDirectRooms > 0 && slidingSyncManager) {
+        const dmDiagnostics = slidingSyncManager.getListDiagnostics(LIST_DMS);
+        const canExpand =
+          dmDiagnostics &&
+          dmDiagnostics.knownCount > 0 &&
+          dmDiagnostics.rangeEnd < dmDiagnostics.knownCount - 1;
+        if (canExpand && now - dmListExpansionAtRef.current >= CALL_SIGNAL_DM_EXPAND_INTERVAL_MS) {
+          dmListExpansionAtRef.current = now;
+          slidingSyncManager.requestListWindow(
+            LIST_DMS,
+            dmDiagnostics.rangeEnd + CALL_SIGNAL_DM_EXPAND_BATCH
+          );
+        }
+      }
+
       if (signal.incoming) {
         playRingingRef.current(signal.incoming);
       } else if (signal.outgoing) {
@@ -257,6 +294,11 @@ export function useCallSignaling() {
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionStarted, handleUpdate);
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionEnded, handleSessionEnded);
       mx.off(RoomStateEvent.Events, handleUpdate);
+      const callRoomId = callSubscriptionRoomIdRef.current;
+      if (callRoomId) {
+        getSlidingSyncManager(mx)?.unsubscribeFromRoom(callRoomId);
+        callSubscriptionRoomIdRef.current = null;
+      }
       stopRingingRef.current();
     };
   }, [mx, setMutedRoomId]); // mDirects and mutedRoomId accessed via refs — do not add here

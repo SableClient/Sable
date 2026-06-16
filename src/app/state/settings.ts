@@ -155,7 +155,6 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
-  progressivePrefetch: boolean;
   encryptedSearch: boolean;
   idbSearchIndex: boolean;
   searchIndexMessageLimit: number;
@@ -334,7 +333,6 @@ export const defaultSettings: Settings = {
 
   developerTools: false,
   settingsSyncEnabled: false,
-  progressivePrefetch: false,
   encryptedSearch: false,
   idbSearchIndex: false,
   searchIndexMessageLimit: 2000,

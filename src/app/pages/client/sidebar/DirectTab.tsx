@@ -23,7 +23,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { markAsRead } from '$utils/notifications';
 import { stopPropagation } from '$utils/keyboard';
-import { Checks, menuIcon, getPhosphorSize, User } from '$components/icons/phosphor';
+import { Checks, menuIcon, getPhosphorIconSize, User } from '$components/icons/phosphor';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
@@ -115,7 +115,10 @@ export function DirectTab() {
             onClick={handleDirectClick}
             onContextMenu={handleContextMenu}
           >
-            <User size={getPhosphorSize().toolbar} weight={directSelected ? 'fill' : 'regular'} />
+            <User
+              size={getPhosphorIconSize('toolbar')}
+              weight={directSelected ? 'fill' : 'regular'}
+            />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

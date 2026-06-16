@@ -9,6 +9,7 @@ import {
   Image,
   Minus,
   Plus,
+  phosphorSizeRem,
   sizedIcon,
 } from '$components/icons/phosphor';
 import { useImageGestures } from '$hooks/useImageGestures';
@@ -107,7 +108,10 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               aria-label="Toggle Pixelation"
               title={`Turn ${isPixelated ? 'Anti-aliasing' : 'Pixelation'} on`}
             >
-              <CheckerboardIcon size={20} weight={isPixelated ? 'duotone' : 'fill'} />
+              <CheckerboardIcon
+                size={phosphorSizeRem(20)}
+                weight={isPixelated ? 'duotone' : 'fill'}
+              />
             </IconButton>
             <IconButton
               variant="Surface"

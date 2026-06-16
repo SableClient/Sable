@@ -108,7 +108,6 @@ import type { RoomBannerContent } from '$types/matrix-sdk-events';
 import { ModalWide } from '$styles/Modal.css';
 import { ImageViewer } from '$components/image-viewer';
 import * as css from './styles.css';
-import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 
 const debugLog = createDebugLogger('Space');
 
@@ -373,14 +372,11 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
       {hasBanner && (
         <>
           <Box shrink="No" className={css.RoomCoverContainer} style={{ height: toRem(curHeight) }}>
-            <ClientSideHoverFreeze src={bannerURI} className={css.RoomCover}>
-              <img
-                className={css.RoomCoverImage}
-                src={bannerURI}
-                alt={`${spaceName}'s banner`}
-                draggable="false"
-                role="button"
-                tabIndex={0}
+            <div className={css.RoomCover}>
+              <button
+                type="button"
+                className={css.RoomCoverImageButton}
+                data-no-button-motion
                 aria-label={`View ${spaceName} banner`}
                 onClick={() => setBannerViewerOpen(true)}
                 onKeyDown={(e) => {
@@ -389,7 +385,9 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                     setBannerViewerOpen(true);
                   }
                 }}
-              />
+              >
+                <img className={css.RoomCoverImage} src={bannerURI} alt="" draggable="false" />
+              </button>
               <SidebarResizer
                 setCurWidth={setCurHeight}
                 sidebarWidth={roomBannerHeight}
@@ -400,7 +398,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                 maxValue={500}
                 topSided
               />
-            </ClientSideHoverFreeze>
+            </div>
           </Box>
         </>
       )}
@@ -502,6 +500,12 @@ export function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProp
     </Box>
   );
 }
+
+const getCategoryPadding = (depth: number): string | undefined => {
+  if (depth === 0) return undefined;
+  if (depth === 1) return config.space.S400;
+  return config.space.S0;
+};
 
 export function Space() {
   const mx = useMatrixClient();
@@ -839,12 +843,6 @@ export function Space() {
 
   const getToLink = (roomId: string) =>
     getSpaceRoomPath(spaceIdOrAlias, getCanonicalAliasOrRoomId(mx, roomId));
-
-  const getCategoryPadding = (depth: number): string | undefined => {
-    if (depth === 0) return undefined;
-    if (depth === 1) return config.space.S400;
-    return config.space.S0;
-  };
 
   const navigate = useNavigate();
   const lastRoomId = useAtomValue(lastVisitedRoomIdAtom);

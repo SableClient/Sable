@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef } from 'react';
+import { lazy, Suspense, useCallback, useRef } from 'react';
 import { Provider as JotaiProvider } from 'jotai';
 import { createStore } from 'jotai/vanilla';
 import { OverlayContainerProvider, PopOutContainerProvider, TooltipContainerProvider } from 'folds';
@@ -56,37 +56,49 @@ function BootstrappedAppShell({ clientConfig, screenSize }: BootstrappedAppShell
   );
 }
 
+function renderSentryErrorFallback({ error, eventId }: { error: unknown; eventId: string | null }) {
+  return (
+    <ErrorPage
+      error={error instanceof Error ? error : new Error(String(error))}
+      eventId={eventId || undefined}
+    />
+  );
+}
+
+function appConfigFallback() {
+  return <ConfigConfigLoading />;
+}
+
+function appConfigError(err: unknown, retry: () => void, ignore: () => void) {
+  return <ConfigConfigError error={err} retry={retry} ignore={ignore} />;
+}
+
+function AppConfigLoaded({ clientConfig, screenSize }: BootstrappedAppShellProps) {
+  setMatrixToBase(clientConfig.matrixToBaseUrl);
+  return <BootstrappedAppShell clientConfig={clientConfig} screenSize={screenSize} />;
+}
+
 function App() {
   const screenSize = useScreenSize();
   useCompositionEndTracking();
   const portalContainer = document.getElementById('portalContainer') ?? undefined;
 
+  const renderAppConfig = useCallback(
+    (clientConfig: ClientConfig) => (
+      <AppConfigLoaded clientConfig={clientConfig} screenSize={screenSize} />
+    ),
+    [screenSize]
+  );
+
   return (
-    <Sentry.ErrorBoundary
-      fallback={({ error, eventId }) => (
-        <ErrorPage
-          error={error instanceof Error ? error : new Error(String(error))}
-          eventId={eventId || undefined}
-        />
-      )}
-    >
+    <Sentry.ErrorBoundary fallback={renderSentryErrorFallback}>
       <TooltipContainerProvider value={portalContainer}>
         <PopOutContainerProvider value={portalContainer}>
           <OverlayContainerProvider value={portalContainer}>
             <ScreenSizeProvider value={screenSize}>
               <FeatureCheck>
-                <ClientConfigLoader
-                  fallback={() => <ConfigConfigLoading />}
-                  error={(err, retry, ignore) => (
-                    <ConfigConfigError error={err} retry={retry} ignore={ignore} />
-                  )}
-                >
-                  {(clientConfig) => {
-                    setMatrixToBase(clientConfig.matrixToBaseUrl);
-                    return (
-                      <BootstrappedAppShell clientConfig={clientConfig} screenSize={screenSize} />
-                    );
-                  }}
+                <ClientConfigLoader fallback={appConfigFallback} error={appConfigError}>
+                  {renderAppConfig}
                 </ClientConfigLoader>
               </FeatureCheck>
             </ScreenSizeProvider>

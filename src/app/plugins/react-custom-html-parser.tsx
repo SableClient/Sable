@@ -387,27 +387,26 @@ export const highlightText = (
     );
   });
 
+const extractTextFromNodes = (n: ChildNode[]): string => {
+  let text = '';
+  n.forEach((node) => {
+    if ((node.type as unknown as string) === 'text') {
+      text += (node as unknown as Text).data;
+    } else if (node instanceof Element && node.children) {
+      text += extractTextFromNodes(node.children);
+    }
+  });
+  return text;
+};
+
 /**
  * Recursively extracts and concatenates all text content from an array of ChildNode objects.
  *
  * @param {ChildNode[]} nodes - An array of ChildNode objects to extract text from.
  * @returns {string} The concatenated plain text content of all descendant text nodes.
  */
-const extractTextFromChildren = (nodes: ChildNode[]): string => {
-  const worker = (n: ChildNode[]): string => {
-    let text = '';
-    n.forEach((node) => {
-      if ((node.type as unknown as string) === 'text') {
-        text += (node as unknown as Text).data;
-      } else if (node instanceof Element && node.children) {
-        text += worker(node.children);
-      }
-    });
-    return text;
-  };
-
-  return worker(nodes).replace(/\n$/, '');
-};
+const extractTextFromChildren = (nodes: ChildNode[]): string =>
+  extractTextFromNodes(nodes).replace(/\n$/, '');
 
 const getLanguageFromClassName = (className?: string): string | undefined => {
   if (!className) return undefined;

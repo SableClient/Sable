@@ -791,19 +791,19 @@ export const shouldShowRedactionTimelineEvent = (
   return hiddenEventRedactionTimeline;
 };
 
+const readReplaceTargetId = (
+  relatesTo: { rel_type?: string; event_id?: string } | undefined
+): string | undefined => {
+  if (relatesTo?.rel_type !== (RelationType.Replace as string)) return undefined;
+  const eventId = relatesTo.event_id;
+  return typeof eventId === 'string' && eventId.length > 0 ? eventId : undefined;
+};
+
 export const getEditTargetId = (editEvent: MatrixEvent): string | undefined => {
   const relationEventId = editEvent.getRelation()?.event_id;
   if (typeof relationEventId === 'string' && relationEventId.length > 0) {
     return relationEventId;
   }
-
-  const readReplaceTargetId = (
-    relatesTo: { rel_type?: string; event_id?: string } | undefined
-  ): string | undefined => {
-    if (relatesTo?.rel_type !== (RelationType.Replace as string)) return undefined;
-    const eventId = relatesTo.event_id;
-    return typeof eventId === 'string' && eventId.length > 0 ? eventId : undefined;
-  };
 
   const content = editEvent.getContent();
   const fromContent = readReplaceTargetId(

@@ -320,7 +320,8 @@ export function RoomNavItem({
   const lastMessage = useRoomLastMessage(showPreview ? room : undefined, mx);
   const getRoomTopic = useRoomTopic(room);
   const customTopic = customDMCards ? getRoomTopic : undefined;
-  const directPresenceFallback = direct && !customTopic && !lastMessage ? presence?.status : undefined;
+  const directPresenceFallback =
+    direct && !customTopic && !lastMessage ? presence?.status : undefined;
   const roomTopic = direct
     ? customTopic || directPresenceFallback
     : roomTopicPreview && getRoomTopic

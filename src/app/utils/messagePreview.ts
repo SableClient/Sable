@@ -84,13 +84,20 @@ export function buildMessagePreviewFromContent({
 
   const resolvedType = effectiveType ?? eventType;
   if (!resolvedType) return undefined;
+  const looksDecryptedRoomMessage =
+    typeof content.msgtype === 'string' ||
+    typeof content.body === 'string' ||
+    typeof content.formatted_body === 'string';
 
   if (resolvedType === REACTION_EVENT_TYPE) return undefined;
 
   const relType = content['m.relates_to'] as Record<string, unknown> | undefined;
   if (relType?.rel_type === 'm.replace') return undefined;
 
-  if (resolvedType === ENCRYPTED_EVENT_TYPE) {
+  if (
+    resolvedType === ENCRYPTED_EVENT_TYPE ||
+    (eventType === ENCRYPTED_EVENT_TYPE && !looksDecryptedRoomMessage)
+  ) {
     return {
       kind: 'encrypted',
       text: '🔒 Encrypted message',

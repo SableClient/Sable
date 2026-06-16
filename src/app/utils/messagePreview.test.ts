@@ -85,4 +85,14 @@ describe('buildMessagePreviewFromContent', () => {
       })
     ).toMatchObject({ kind: 'image', text: '📷 Image' });
   });
+
+  it('returns encrypted placeholder for undecrypted events even if the effective type looks decrypted', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: {},
+        eventType: 'm.room.encrypted',
+        effectiveType: 'm.room.message',
+      })
+    ).toMatchObject({ kind: 'encrypted', text: '🔒 Encrypted message' });
+  });
 });

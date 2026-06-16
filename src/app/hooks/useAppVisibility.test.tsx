@@ -202,4 +202,18 @@ describe('useAppVisibility', () => {
 
     expect(mocks.swPostMessage).toHaveBeenCalledWith({ type: 'CLAIM_CLIENTS' });
   });
+
+  it('requests a service worker claim on bfcache restore without a controller', async () => {
+    renderHook(() => useAppVisibility(session));
+
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mocks.swPostMessage).toHaveBeenCalledWith({ type: 'CLAIM_CLIENTS' });
+  });
 });

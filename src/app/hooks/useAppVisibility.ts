@@ -12,8 +12,9 @@ const debugLog = createDebugLogger('AppVisibility');
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
 
 type SessionSyncReason = 'heartbeat';
+type ServiceWorkerClaimReason = 'pageshow_restore' | 'visible_foreground';
 
-const requestServiceWorkerClaim = (reason: 'pageshow_restore') => {
+const requestServiceWorkerClaim = (reason: ServiceWorkerClaimReason) => {
   if (!('serviceWorker' in navigator)) return;
   if (navigator.serviceWorker.controller) return;
 
@@ -185,6 +186,7 @@ export function useAppVisibility(activeSession?: Session) {
               online: navigator.onLine,
             },
           });
+          requestServiceWorkerClaim('visible_foreground');
         }
       }
       if (!isVisible) {

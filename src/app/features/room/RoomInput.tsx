@@ -482,6 +482,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     useScrollLock(isMobileLayout);
 
     const closeSchedulePicker = useCallback(() => {
+      suppressNextSendClick.current = false;
       setShowSchedulePicker(false);
       setScheduleMenuAnchor(undefined);
     }, []);

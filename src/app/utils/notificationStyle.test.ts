@@ -62,4 +62,16 @@ describe('resolveNotificationPreviewText', () => {
       })
     ).toBe('Decrypted body');
   });
+
+  it('uses decrypted body when encrypted notifications only have decrypted content', () => {
+    expect(
+      resolveNotificationPreviewText({
+        content: { msgtype: 'm.text', body: 'Decrypted body' },
+        eventType: 'm.room.encrypted',
+        isEncryptedRoom: false,
+        showMessageContent: true,
+        showEncryptedMessageContent: true,
+      })
+    ).toBe('Decrypted body');
+  });
 });

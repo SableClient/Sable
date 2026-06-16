@@ -1,4 +1,4 @@
-import type { MouseEventHandler } from 'react';
+import type { MouseEventHandler, ComponentProps } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, Box, Chip, Header, IconButton, Scroll, Text, config, toRem } from 'folds';
 import {
@@ -11,7 +11,13 @@ import {
   sizedIcon,
 } from '$components/icons/phosphor';
 import { useSearchParams } from 'react-router-dom';
-import type { INotification, INotificationsResponse, IRoomEvent, Room } from '$types/matrix-sdk';
+import type {
+  INotification,
+  INotificationsResponse,
+  IRoomEvent,
+  MatrixEvent,
+  Room,
+} from '$types/matrix-sdk';
 import type { IImageContent } from '$types/matrix/common';
 import { JoinRule, Method, RelationType, EventType } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -46,6 +52,7 @@ import {
   Time,
   Username,
   UsernameBold,
+  type RenderImageContentProps,
 } from '$components/message';
 import {
   factoryRenderLinkifyWithMention,
@@ -196,6 +203,182 @@ const useNotificationTimeline = (
   return [notificationTimeline, loadTimeline, silentReloadTimeline];
 };
 
+type NotificationRendererContext = {
+  mx: ReturnType<typeof useMatrixClient>;
+  room: Room;
+  mediaAutoLoad?: boolean;
+  urlPreview?: boolean;
+  htmlReactParserOptions: HTMLReactParserOptions;
+  linkifyOpts: LinkifyOpts;
+};
+
+function NotificationLazyImage(props: ComponentProps<typeof Image>) {
+  return <Image {...props} loading="lazy" />;
+}
+
+function renderNotificationStickerImageContent(
+  mediaAutoLoad: boolean | undefined,
+  props: RenderImageContentProps
+) {
+  return (
+    <ImageContent
+      {...props}
+      autoPlay={mediaAutoLoad}
+      renderImage={NotificationLazyImage}
+      renderViewer={ImageViewer}
+    />
+  );
+}
+
+function renderNotificationRoomMessage(
+  ctx: NotificationRendererContext,
+  event: IRoomEvent,
+  displayName: string,
+  getContent: GetContentCallback
+) {
+  if (event.unsigned?.redacted_because) {
+    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
+  }
+  const evtTimeline = ctx.room.getTimelineForEvent(event.event_id);
+  const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === event.event_id);
+  return (
+    <RenderMessageContent
+      displayName={displayName}
+      msgType={event.content.msgtype ?? ''}
+      ts={event.origin_server_ts}
+      getContent={getContent}
+      mediaAutoLoad={ctx.mediaAutoLoad}
+      urlPreview={ctx.urlPreview}
+      htmlReactParserOptions={ctx.htmlReactParserOptions}
+      linkifyOpts={ctx.linkifyOpts}
+      outlineAttachment
+      mx={ctx.mx}
+      room={ctx.room}
+      mEvent={mEvent}
+    />
+  );
+}
+
+function renderNotificationEncryptedDecrypted(
+  ctx: NotificationRendererContext,
+  evt: IRoomEvent,
+  displayName: string,
+  mEvent: MatrixEvent,
+  evtTimeline: NonNullable<ReturnType<Room['getTimelineForEvent']>>
+) {
+  if (mEvent.isRedacted()) return <RedactedContent />;
+  if (mEvent.getType() === (EventType.Sticker as string)) {
+    return (
+      <MSticker
+        content={mEvent.getContent()}
+        renderImageContent={renderNotificationStickerImageContent.bind(null, ctx.mediaAutoLoad)}
+      />
+    );
+  }
+  if (mEvent.getType() === (EventType.RoomMessage as string)) {
+    const editedEvent = getEditedEvent(evt.event_id, mEvent, evtTimeline.getTimelineSet());
+    const getContent = (() =>
+      editedEvent?.getContent()['m.new_content'] ?? mEvent.getContent()) as GetContentCallback;
+
+    return (
+      <RenderMessageContent
+        displayName={displayName}
+        msgType={mEvent.getContent().msgtype ?? ''}
+        ts={mEvent.getTs()}
+        edited={!!editedEvent}
+        getContent={getContent}
+        mediaAutoLoad={ctx.mediaAutoLoad}
+        urlPreview={ctx.urlPreview}
+        htmlReactParserOptions={ctx.htmlReactParserOptions}
+        linkifyOpts={ctx.linkifyOpts}
+        mx={ctx.mx}
+        room={ctx.room}
+        mEvent={mEvent}
+      />
+    );
+  }
+  if (mEvent.getType() === (EventType.RoomMessageEncrypted as string)) {
+    return (
+      <Text>
+        <MessageNotDecryptedContent />
+      </Text>
+    );
+  }
+  return (
+    <Text>
+      <MessageUnsupportedContent />
+    </Text>
+  );
+}
+
+function renderNotificationEncrypted(
+  ctx: NotificationRendererContext,
+  evt: IRoomEvent,
+  displayName: string
+) {
+  const evtTimeline = ctx.room.getTimelineForEvent(evt.event_id);
+  const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === evt.event_id);
+
+  if (!mEvent || !evtTimeline) {
+    return (
+      <Box grow="Yes" direction="Column">
+        <Text size="T400" priority="300">
+          <code className={customHtmlCss.Code}>{evt.type}</code>
+          {' event'}
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <EncryptedContent mEvent={mEvent}>
+      {renderNotificationEncryptedDecrypted.bind(null, ctx, evt, displayName, mEvent, evtTimeline)}
+    </EncryptedContent>
+  );
+}
+
+function renderNotificationSticker(
+  ctx: NotificationRendererContext,
+  event: IRoomEvent,
+  _displayName: string,
+  getContent: GetContentCallback
+) {
+  if (event.unsigned?.redacted_because) {
+    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
+  }
+  return (
+    <MSticker
+      content={getContent() as IImageContent}
+      renderImageContent={renderNotificationStickerImageContent.bind(null, ctx.mediaAutoLoad)}
+    />
+  );
+}
+
+function renderNotificationTombstone(_ctx: NotificationRendererContext, event: IRoomEvent) {
+  const { content } = event;
+  return (
+    <Box grow="Yes" direction="Column">
+      <Text size="T400" priority="300">
+        Room Tombstone. {content.body}
+      </Text>
+    </Box>
+  );
+}
+
+function renderNotificationFallback(_ctx: NotificationRendererContext, event: IRoomEvent) {
+  if (event.unsigned?.redacted_because) {
+    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
+  }
+  return (
+    <Box grow="Yes" direction="Column">
+      <Text size="T400" priority="300">
+        <code className={customHtmlCss.Code}>{event.type}</code>
+        {' event'}
+      </Text>
+    </Box>
+  );
+}
+
 type RoomNotificationsGroupProps = {
   room: Room;
   appBaseUrl: string;
@@ -278,150 +461,32 @@ function RoomNotificationsGroupComp({
     ]
   );
 
+  const rendererContext = useMemo<NotificationRendererContext>(
+    () => ({
+      mx,
+      room,
+      mediaAutoLoad,
+      urlPreview,
+      htmlReactParserOptions,
+      linkifyOpts,
+    }),
+    [mx, room, mediaAutoLoad, urlPreview, htmlReactParserOptions, linkifyOpts]
+  );
+
+  const matrixEventHandlers = useMemo(
+    () => ({
+      [EventType.RoomMessage]: renderNotificationRoomMessage.bind(null, rendererContext),
+      [EventType.RoomMessageEncrypted]: renderNotificationEncrypted.bind(null, rendererContext),
+      [EventType.Sticker]: renderNotificationSticker.bind(null, rendererContext),
+      [EventType.RoomTombstone]: renderNotificationTombstone.bind(null, rendererContext),
+    }),
+    [rendererContext]
+  );
+
   const renderMatrixEvent = useMatrixEventRenderer<[IRoomEvent, string, GetContentCallback]>(
-    {
-      [EventType.RoomMessage]: (event, displayName, getContent) => {
-        if (event.unsigned?.redacted_because) {
-          return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-        }
-        const evtTimeline = room.getTimelineForEvent(event.event_id);
-        const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === event.event_id);
-        return (
-          <RenderMessageContent
-            displayName={displayName}
-            msgType={event.content.msgtype ?? ''}
-            ts={event.origin_server_ts}
-            getContent={getContent}
-            mediaAutoLoad={mediaAutoLoad}
-            urlPreview={urlPreview}
-            htmlReactParserOptions={htmlReactParserOptions}
-            linkifyOpts={linkifyOpts}
-            outlineAttachment
-            mx={mx}
-            room={room}
-            mEvent={mEvent}
-          />
-        );
-      },
-      [EventType.RoomMessageEncrypted]: (evt, displayName) => {
-        const evtTimeline = room.getTimelineForEvent(evt.event_id);
-
-        const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === evt.event_id);
-
-        if (!mEvent || !evtTimeline) {
-          return (
-            <Box grow="Yes" direction="Column">
-              <Text size="T400" priority="300">
-                <code className={customHtmlCss.Code}>{evt.type}</code>
-                {' event'}
-              </Text>
-            </Box>
-          );
-        }
-
-        return (
-          <EncryptedContent mEvent={mEvent}>
-            {() => {
-              if (mEvent.isRedacted()) return <RedactedContent />;
-              if (mEvent.getType() === (EventType.Sticker as string))
-                return (
-                  <MSticker
-                    content={mEvent.getContent()}
-                    renderImageContent={(props) => (
-                      <ImageContent
-                        {...props}
-                        autoPlay={mediaAutoLoad}
-                        renderImage={(p) => <Image {...p} loading="lazy" />}
-                        renderViewer={(p) => <ImageViewer {...p} />}
-                      />
-                    )}
-                  />
-                );
-              if (mEvent.getType() === (EventType.RoomMessage as string)) {
-                const editedEvent = getEditedEvent(
-                  evt.event_id,
-                  mEvent,
-                  evtTimeline.getTimelineSet()
-                );
-                const getContent = (() =>
-                  editedEvent?.getContent()['m.new_content'] ??
-                  mEvent.getContent()) as GetContentCallback;
-
-                return (
-                  <RenderMessageContent
-                    displayName={displayName}
-                    msgType={mEvent.getContent().msgtype ?? ''}
-                    ts={mEvent.getTs()}
-                    edited={!!editedEvent}
-                    getContent={getContent}
-                    mediaAutoLoad={mediaAutoLoad}
-                    urlPreview={urlPreview}
-                    htmlReactParserOptions={htmlReactParserOptions}
-                    linkifyOpts={linkifyOpts}
-                    mx={mx}
-                    room={room}
-                    mEvent={mEvent}
-                  />
-                );
-              }
-              if (mEvent.getType() === (EventType.RoomMessageEncrypted as string))
-                return (
-                  <Text>
-                    <MessageNotDecryptedContent />
-                  </Text>
-                );
-              return (
-                <Text>
-                  <MessageUnsupportedContent />
-                </Text>
-              );
-            }}
-          </EncryptedContent>
-        );
-      },
-      [EventType.Sticker]: (event, displayName, getContent) => {
-        if (event.unsigned?.redacted_because) {
-          return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-        }
-        return (
-          <MSticker
-            content={getContent() as IImageContent}
-            renderImageContent={(props) => (
-              <ImageContent
-                {...props}
-                autoPlay={mediaAutoLoad}
-                renderImage={(p) => <Image {...p} loading="lazy" />}
-                renderViewer={(p) => <ImageViewer {...p} />}
-              />
-            )}
-          />
-        );
-      },
-      [EventType.RoomTombstone]: (event) => {
-        const { content } = event;
-        return (
-          <Box grow="Yes" direction="Column">
-            <Text size="T400" priority="300">
-              Room Tombstone. {content.body}
-            </Text>
-          </Box>
-        );
-      },
-    },
+    matrixEventHandlers,
     undefined,
-    (event) => {
-      if (event.unsigned?.redacted_because) {
-        return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-      }
-      return (
-        <Box grow="Yes" direction="Column">
-          <Text size="T400" priority="300">
-            <code className={customHtmlCss.Code}>{event.type}</code>
-            {' event'}
-          </Text>
-        </Box>
-      );
-    }
+    renderNotificationFallback.bind(null, rendererContext)
   );
 
   const handleOpenClick: MouseEventHandler = (evt) => {

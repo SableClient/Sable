@@ -2,12 +2,10 @@
   "name": "sable",
   "version": "1.18.1",
   "description": "An almost stable Matrix client",
+  "keywords": [],
+  "license": "AGPL-3.0-only",
+  "author": "7w1",
   "type": "module",
-  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
-  "engines": {
-    "node": "24.x",
-    "pnpm": ">=10"
-  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -27,9 +25,6 @@
     "document-change": "knope document-change",
     "postinstall": "node scripts/install-knope.js"
   },
-  "keywords": [],
-  "author": "7w1",
-  "license": "AGPL-3.0-only",
   "dependencies": {
     "@arborium/arborium": "^2.16.0",
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",
@@ -124,7 +119,7 @@
     "jsdom": "^29.0.0",
     "knip": "5.85.0",
     "oxfmt": "^0.45.0",
-    "oxlint": "^1.60.0",
+    "oxlint": "^1.70.0",
     "oxlint-tsgolint": "^0.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
@@ -135,5 +130,10 @@
     "vite-plugin-top-level-await": "^1.6.0",
     "vitest": "^4.1.0",
     "wrangler": "^4.70.0"
-  }
+  },
+  "engines": {
+    "node": "24.x",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
 }

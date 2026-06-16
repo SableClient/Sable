@@ -49,6 +49,14 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   }
 };
 
+const sendSessionToSW = () => {
+  // Use the active session from the new multi-session store, fall back to legacy
+  const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+  const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
+  const active = sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
+  pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
+};
+
 if ('serviceWorker' in navigator) {
   const isProduction = import.meta.env.MODE === 'production';
   const swUrl = isProduction
@@ -74,15 +82,6 @@ if ('serviceWorker' in navigator) {
       }
     });
   });
-
-  const sendSessionToSW = () => {
-    // Use the active session from the new multi-session store, fall back to legacy
-    const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
-    const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
-    const active =
-      sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
-    pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
-  };
 
   navigator.serviceWorker
     .register(swUrl)

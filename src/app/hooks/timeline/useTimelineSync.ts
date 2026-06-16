@@ -433,6 +433,7 @@ export function useTimelineSync({
   readUptoEventIdRef,
 }: UseTimelineSyncOptions) {
   const alive = useAlive();
+  const eventContextActiveRef = useRef(false);
 
   const [timeline, setTimeline] = useState<TimelineState>(() =>
     eventId ? getEmptyTimeline() : { linkedTimelines: getInitialTimeline(room).linkedTimelines }
@@ -452,6 +453,7 @@ export function useTimelineSync({
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
+  const preservingEventContext = Boolean(eventId) && eventContextActiveRef.current;
 
   const canPaginateBack =
     typeof timeline.linkedTimelines[0]?.getPaginationToken(Direction.Backward) === 'string';
@@ -514,6 +516,15 @@ export function useTimelineSync({
   const timelineRef = useRef(timeline);
   timelineRef.current = timeline;
 
+  useEffect(() => {
+    if (!eventId) {
+      eventContextActiveRef.current = false;
+      return;
+    }
+    if (timeline.linkedTimelines.length === 0) return;
+    eventContextActiveRef.current = !liveTimelineLinked;
+  }, [eventId, timeline.linkedTimelines.length, liveTimelineLinked]);
+
   const loadEventTimeline = useEventTimelineLoader(
     mx,
     room,
@@ -521,6 +532,7 @@ export function useTimelineSync({
       (evtId, lTimelines, evtAbsIndex) => {
         if (!alive()) return;
 
+        eventContextActiveRef.current = true;
         setTimeline({ linkedTimelines: lTimelines });
 
         setFocusItem({
@@ -534,6 +546,7 @@ export function useTimelineSync({
     ),
     useCallback(() => {
       if (!alive()) return;
+      eventContextActiveRef.current = false;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       scrollToBottom('instant');
     }, [alive, room, scrollToBottom]),
@@ -654,6 +667,7 @@ export function useTimelineSync({
     // chain still references the old detached timeline. When auto-scroll recovery
     // is pending for a bottom-pinned user, the guard is meaningless lag.
     if (
+      preservingEventContext ||
       !(isAtBottom || resetAutoScrollPending) ||
       (!liveTimelineLinked && !resetAutoScrollPending) ||
       eventsLength === 0
@@ -664,7 +678,7 @@ export function useTimelineSync({
 
     lastScrolledAtEventsLengthRef.current = eventsLength;
     scrollToBottom('instant');
-  }, [isAtBottom, liveTimelineLinked, eventsLength, scrollToBottom]);
+  }, [preservingEventContext, isAtBottom, liveTimelineLinked, eventsLength, scrollToBottom]);
 
   useEffect(() => {
     if (eventId) return;
@@ -693,7 +707,7 @@ export function useTimelineSync({
       if (eventRoom.roomId !== room.roomId) return;
       // Don't update to live timeline when waiting for eventId context to load.
       // The eventId-specific loading path will handle setting the correct timeline.
-      if (eventId) return;
+      if (preservingEventContext) return;
       // Only update if the live timeline actually has events now — prevents
       // spurious updates that would reset scroll position during normal sync.
       const liveEvents = getLiveTimeline(room).getEvents();
@@ -724,7 +738,7 @@ export function useTimelineSync({
     return () => {
       mx.off(ClientEvent.Room, handleRoomInitialized);
     };
-  }, [mx, room, eventId, timeline.linkedTimelines, eventsLengthRef]);
+  }, [mx, room, preservingEventContext, timeline.linkedTimelines, eventsLengthRef]);
 
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);
@@ -748,6 +762,7 @@ export function useTimelineSync({
   useEffect(() => {
     const handleVisibilityChange = (isVisible: boolean) => {
       if (!isVisible) return; // Only act on foreground events
+      if (preservingEventContext) return;
 
       // Check if SDK has events but React timeline state is empty or stale
       const liveTimeline = getLiveTimeline(room);
@@ -781,7 +796,7 @@ export function useTimelineSync({
 
     const unsubscribe = appEvents.onVisibilityChange(handleVisibilityChange);
     return unsubscribe;
-  }, [room, timeline.linkedTimelines, eventsLengthRef]);
+  }, [room, preservingEventContext, timeline.linkedTimelines, eventsLengthRef]);
 
   return {
     timeline,

@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Room } from '$types/matrix-sdk';
 import { ClientEvent, RoomEvent } from '$types/matrix-sdk';
+import { appEvents } from '$utils/appEvents';
 import { useTimelineSync } from './useTimelineSync';
 
 vi.mock('@sentry/react', () => ({
@@ -239,6 +240,78 @@ describe('useTimelineSync', () => {
     // loadEventTimeline and never calls setTimeline with the live timeline.
     expect(result.current.timeline.linkedTimelines).toBe(timelineBefore);
     expect(scrollToBottom).not.toHaveBeenCalled();
+  });
+
+  it('preserves a loaded event context when ClientEvent.Room fires', async () => {
+    const { room } = createRoom('!room:test', [{ getId: () => '$live:event' }]);
+    const targetEvent = { getId: () => '$target:event' };
+    const contextTimeline = createTimeline([targetEvent]);
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockResolvedValue(contextTimeline),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        eventId: '$target:event',
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadEventTimeline('$target:event');
+    });
+
+    await act(async () => {
+      mx.emit(ClientEvent.Room, room);
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline.linkedTimelines).toEqual([contextTimeline]);
+  });
+
+  it('preserves a loaded event context when the app returns to foreground', async () => {
+    const { room } = createRoom('!room:test', [{ getId: () => '$live:event' }]);
+    const targetEvent = { getId: () => '$target:event' };
+    const contextTimeline = createTimeline([targetEvent]);
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockResolvedValue(contextTimeline),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        eventId: '$target:event',
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadEventTimeline('$target:event');
+    });
+
+    await act(async () => {
+      appEvents.emitVisibilityChange(true);
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline.linkedTimelines).toEqual([contextTimeline]);
   });
 
   it('does not snap a non-bottom user to latest after TimelineReset', async () => {

@@ -232,7 +232,7 @@ export const EmoticonBase = style([
   DefaultReset,
   {
     display: 'inline-block',
-    padding: '0.05rem',
+    padding: 0,
     height: '1em',
     verticalAlign: 'middle',
   },
@@ -248,11 +248,11 @@ export const Emoticon = recipe({
 
       height: '1em',
       minWidth: '1em',
-      fontSize: '1.33em',
+      fontSize: '1em',
       lineHeight: '1em',
       verticalAlign: 'middle',
       position: 'relative',
-      top: '-0.35em',
+      top: 0,
       borderRadius: config.radii.R300,
     },
   ],

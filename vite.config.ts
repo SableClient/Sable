@@ -216,6 +216,9 @@ export default defineConfig(({ command }) => ({
         globIgnores: ['public/element-call/**'],
         // The app's own crypto WASM and main bundle exceed the 2 MiB default.
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MiB
+        // Keep the production worker compatible with browsers that still lack
+        // module service worker support, notably Firefox.
+        rollupFormat: 'iife',
         // SABLE-5G: Ensure web worker chunks (e.g., search-worker-XXXXX.js) are
         // included in the precache manifest. Vite's ?worker suffix builds workers
         // as separate chunks with hashed filenames, and injectManifest should

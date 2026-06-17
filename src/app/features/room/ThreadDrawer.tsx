@@ -1072,7 +1072,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   useEffect(() => {
     setCurHeight(threadRootHeight);
   }, [threadRootHeight]);
-  const hideDynamicFollowingBar = mobileOrTablet() && isKeyboardVisible && !hideReads;
+  const hideFollowingBar = mobileOrTablet() && isKeyboardVisible;
 
   return (
     <Box
@@ -1253,9 +1253,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
             onEditLastMessage={handleEditLastMessage}
           />
         </div>
-        {hideReads ? (
+        {hideFollowingBar ? null : hideReads ? (
           <RoomViewFollowingPlaceholder />
-        ) : hideDynamicFollowingBar ? null : (
+        ) : (
           <RoomViewFollowing
             room={room}
             threadEventId={latestThreadEventId}

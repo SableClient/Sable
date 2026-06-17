@@ -1,6 +1,5 @@
 import classNames from 'classnames';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { Text } from 'folds';
 import { scaleSystemEmoji } from '$plugins/react-custom-html-parser';
 import { buildMessageDiffDisplay, type MessageDiffRow, type TextDiffPart } from '$utils/textDiff';
 
@@ -114,9 +113,9 @@ function DiffSkipRows({ skipIndex, lines, placement, revealed, onReveal }: DiffS
 
 function InlineDiffBlock({ children }: { children: ReactNode }) {
   return (
-    <Text as="pre" size="T200" className={css.DiffCodeBlock}>
+    <pre className={css.DiffCodeBlock}>
       <code className={css.DiffCodeBlockInner}>{children}</code>
-    </Text>
+    </pre>
   );
 }
 

@@ -23,6 +23,7 @@ import {
   X,
   sizedIcon,
   type PhosphorIcon,
+  phosphorSizeRem,
 } from '$components/icons/phosphor';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { Play, Pause } from '@phosphor-icons/react';
@@ -284,7 +285,11 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
         aria-label={isPlaying ? 'Pause' : 'Play voice message'}
         aria-pressed={isPlaying}
       >
-        {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
+        {isPlaying ? (
+          <Pause size={phosphorSizeRem(20)} weight="fill" />
+        ) : (
+          <Play size={phosphorSizeRem(20)} weight="fill" />
+        )}
       </IconButton>
 
       <Box

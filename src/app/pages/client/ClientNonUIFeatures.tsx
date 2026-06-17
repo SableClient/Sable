@@ -1466,7 +1466,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <FaviconUpdater />
       <InviteNotifications />
       <MessageNotifications />
-      <BackgroundNotifications />
       <NotificationTransportRuntimeFeature />
       <SyncNotificationSettingsWithServiceWorker />
       <HandleDecryptPushEvent />

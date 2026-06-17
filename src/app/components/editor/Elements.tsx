@@ -91,7 +91,7 @@ function RenderEmoticonElement({
           css.Emoticon({
             focus: selected && focused,
           }),
-          !element.key.startsWith('mxc://') && css.SystemEmoji
+          !element.key.startsWith('mxc://') && css.EditorSystemEmoji
         )}
         contentEditable={false}
       >

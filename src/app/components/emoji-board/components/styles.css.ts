@@ -83,8 +83,10 @@ export const PreviewSystemEmojiGlyph = style([
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: toRem(40),
-    lineHeight: 1,
+    width: toRem(32),
+    height: toRem(32),
+    fontSize: toRem(36),
+    lineHeight: toRem(32),
   },
 ]);
 export const PreviewImg = style([
@@ -149,8 +151,10 @@ export const SystemEmojiGlyph = style([
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: toRem(42),
-    lineHeight: 1,
+    width: toRem(32),
+    height: toRem(32),
+    fontSize: toRem(36),
+    lineHeight: toRem(32),
   },
 ]);
 

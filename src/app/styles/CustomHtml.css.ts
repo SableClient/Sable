@@ -266,8 +266,13 @@ export const Emoticon = recipe({
 });
 
 export const SystemEmoji = style({
-  fontSize: '1.6em',
-  top: '-0.32em',
+  fontSize: '1.4em',
+  top: '-0.3em',
+});
+
+export const EditorSystemEmoji = style({
+  fontSize: '1.52em',
+  top: '-0.31em',
 });
 
 export const EmoticonImg = style([

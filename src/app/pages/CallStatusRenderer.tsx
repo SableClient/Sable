@@ -1,7 +1,7 @@
-import { useCallEmbed } from '../hooks/useCallEmbed';
-import { CallStatus } from '../features/call-status';
-import { useSelectedRoom } from '../hooks/router/useSelectedRoom';
-import { ScreenSize, useScreenSizeContext } from '../hooks/useScreenSize';
+import { useCallEmbed } from '$hooks/useCallEmbed';
+import { CallStatus } from '$features/call-status';
+import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
 export function CallStatusRenderer() {
   const callEmbed = useCallEmbed();

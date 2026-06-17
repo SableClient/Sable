@@ -1,6 +1,6 @@
 import { Box, Scroll } from 'folds';
 import { PageContent } from '$components/page';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 import { MatrixId } from './MatrixId';
 import { Profile } from './Profile';
 import { ContactInformation } from './ContactInfo';

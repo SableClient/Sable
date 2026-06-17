@@ -10,7 +10,7 @@ import { mDirectAtom } from '$state/mDirectList';
 import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import RingtoneSound from '$public/sound/ringtone.webm';
 import { useMatrixClient } from './useMatrixClient';
-import { createDebugLogger } from '../utils/debugLogger';
+import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('CallSignaling');
 const CALL_SIGNAL_DM_EXPAND_BATCH = 30;

@@ -10,7 +10,7 @@ import type {
 import { useFetchSpaceHierarchyLevel } from '$hooks/useSpaceHierarchy';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { ErrorCode } from '../../cs-errorcode';
+import { ErrorCode } from '$app/cs-errorcode';
 import { SequenceCard } from '$components/sequence-card';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';

@@ -8,7 +8,7 @@ import { profilesCacheAtom } from '$state/userRoomProfile';
 import { Box, Switch, Text } from 'folds';
 import { useSetAtom } from 'jotai';
 import { useCallback } from 'react';
-import { SequenceCardStyle } from '../styles.css';
+import { SequenceCardStyle } from '$features/settings/styles.css';
 import * as prefix from '$unstable/prefixes';
 
 type AnimalCosmeticsProps = {

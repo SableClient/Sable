@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CallEmbed } from '../plugins/call';
+import type { CallEmbed } from '$plugins/call';
 import { useMutationObserver } from './useMutationObserver';
-import { isUserId } from '../utils/matrix';
+import { isUserId } from '$utils/matrix';
 import { useCallMembers, useCallSession } from './useCall';
 import { useCallJoined } from './useCallEmbed';
 

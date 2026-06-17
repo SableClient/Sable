@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { createStore } from 'jotai';
 import { bookmarkIdSetAtom, bookmarkListAtom } from './bookmarks';
-import type { BookmarkItemContent } from '../features/bookmarks/bookmarkDomain';
+import type { BookmarkItemContent } from '$features/bookmarks/bookmarkDomain';
 
 // Helper: minimal valid bookmark item
 function makeItem(id: string): BookmarkItemContent {

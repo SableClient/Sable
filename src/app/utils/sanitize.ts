@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify';
 import { isMatrixHexColor } from './matrixHtml';
-import { testMatrixUri } from '../plugins/matrix-uri';
+import { testMatrixUri } from '$plugins/matrix-uri';
 
 const MAX_TAG_NESTING = 100;
 const INTERNAL_IMG_SRC_ATTR = 'data-sable-img-src';

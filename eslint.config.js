@@ -146,6 +146,36 @@ const projectOverrides = defineConfig([
     },
   },
   {
+    name: 'project/app-alias-import-enforcement',
+    files: ['src/app/**/*.{js,jsx,ts,tsx}'],
+    ignores: [
+      'src/app/hooks/useAppVisibility.ts',
+      'src/app/hooks/useTheme.ts',
+      'src/app/pages/client/ClientNonUIFeatures.tsx',
+      'src/app/pages/client/ClientRoot.tsx',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '../*',
+                '../../*',
+                '../../../*',
+                '../../../../*',
+                '../../../../../*',
+                '../../../../../../*',
+              ],
+              message: 'Use the existing $... aliases for cross-folder imports in src/app.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     name: 'project/typescript-rule-overrides',
     files: tsFiles,
     rules: {

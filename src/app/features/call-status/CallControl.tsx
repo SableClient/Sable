@@ -13,10 +13,10 @@ import {
 import { useCallback } from 'react';
 import { useSetAtom } from 'jotai';
 import { StatusDivider } from './components';
-import type { CallEmbed } from '../../plugins/call';
-import { useCallControlState } from '../../plugins/call';
-import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
-import { callEmbedAtom } from '../../state/callEmbed';
+import type { CallEmbed } from '$plugins/call';
+import { useCallControlState } from '$plugins/call';
+import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { callEmbedAtom } from '$state/callEmbed';
 
 type MicrophoneButtonProps = {
   enabled: boolean;

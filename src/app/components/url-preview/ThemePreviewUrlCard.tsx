@@ -12,11 +12,11 @@ import {
   extractFullThemeUrlFromPreview,
   parseSableThemeMetadata,
   type SableThemeContrast,
-} from '../../theme/metadata';
-import { putCachedThemeCss } from '../../theme/cache';
-import { fullUrlFromPreviewUrl } from '../../theme/previewUrls';
-import { isApprovedCatalogHostUrl } from '../../theme/themeApproval';
-import { ThemePreviewCard } from '../theme/ThemePreviewCard';
+} from '$app/theme/metadata';
+import { putCachedThemeCss } from '$app/theme/cache';
+import { fullUrlFromPreviewUrl } from '$app/theme/previewUrls';
+import { isApprovedCatalogHostUrl } from '$app/theme/themeApproval';
+import { ThemePreviewCard } from '$components/theme/ThemePreviewCard';
 import { SableChatPreviewPlaceholder } from './SableChatPreviewPlaceholder';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
 

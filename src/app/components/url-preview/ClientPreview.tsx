@@ -7,11 +7,11 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { encodeBlurHash } from '$utils/blurHash';
 import { fetch } from '$utils/fetch';
-import { Attachment, AttachmentBox, AttachmentHeader } from '../message/attachment';
-import { Image } from '../media';
+import { Attachment, AttachmentBox, AttachmentHeader } from '$components/message/attachment';
+import { Image } from '$components/media';
 import { UrlPreview } from './UrlPreview';
-import { VideoContent } from '../message';
-import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../unstable/prefixes';
+import { VideoContent } from '$components/message';
+import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '$unstable/prefixes';
 
 interface OEmbed {
   type: 'photo' | 'video' | 'link' | 'rich';

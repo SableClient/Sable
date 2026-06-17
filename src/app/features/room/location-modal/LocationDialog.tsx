@@ -23,7 +23,7 @@ import 'leaflet/dist/leaflet.css';
 import { useCallback, useEffect, useRef, useState, type ChangeEventHandler } from 'react';
 import type { LatLngLiteral, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { getReplyContent } from '../RoomInput';
+import { getReplyContent } from '$features/room/RoomInput';
 import type { RoomMessageEventContent } from '$types/matrix-sdk';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';

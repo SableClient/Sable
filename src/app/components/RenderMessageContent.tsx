@@ -40,7 +40,7 @@ import {
   TweakPreviewUrlCard,
   youtubeUrl,
 } from './url-preview';
-import { isHttpsFullSableCssUrl } from '../theme/previewUrls';
+import { isHttpsFullSableCssUrl } from '$app/theme/previewUrls';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';

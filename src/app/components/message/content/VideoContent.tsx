@@ -30,7 +30,7 @@ import { getScopedMediaCacheKey } from '$utils/mediaTransport';
 import { storeMediaMetadataForBlob } from '$utils/mediaMetadata';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
-import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../../unstable/prefixes';
+import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '$unstable/prefixes';
 
 type RenderVideoProps = {
   title: string;

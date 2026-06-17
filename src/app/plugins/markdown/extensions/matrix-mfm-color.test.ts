@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseMfmColorFnArgs, tryParseMfmColor } from './matrix-mfm-color';
-import { markdownToHtml } from '../markdownToHtml';
-import { htmlToMarkdown } from '../htmlToMarkdown';
+import { markdownToHtml } from '$plugins/markdown/markdownToHtml';
+import { htmlToMarkdown } from '$plugins/markdown/htmlToMarkdown';
 
 describe('tryParseMfmColor', () => {
   it('parses a color function block', () => {

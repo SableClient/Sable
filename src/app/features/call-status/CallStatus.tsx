@@ -4,14 +4,14 @@ import { LiveChip } from './LiveChip';
 import * as css from './styles.css';
 import { CallRoomName } from './CallRoomName';
 import { CallControl } from './CallControl';
-import { ContainerColor } from '../../styles/ContainerColor.css';
-import { useCallMembers, useCallSession } from '../../hooks/useCall';
-import { ScreenSize, useScreenSize } from '../../hooks/useScreenSize';
+import { ContainerColor } from '$styles/ContainerColor.css';
+import { useCallMembers, useCallSession } from '$hooks/useCall';
+import { ScreenSize, useScreenSize } from '$hooks/useScreenSize';
 import { MemberGlance } from './MemberGlance';
 import { StatusDivider } from './components';
-import type { CallEmbed } from '../../plugins/call/CallEmbed';
-import { useCallJoined } from '../../hooks/useCallEmbed';
-import { useCallSpeakers } from '../../hooks/useCallSpeakers';
+import type { CallEmbed } from '$plugins/call/CallEmbed';
+import { useCallJoined } from '$hooks/useCallEmbed';
+import { useCallSpeakers } from '$hooks/useCallSpeakers';
 import { MemberSpeaking } from './MemberSpeaking';
 
 type CallStatusProps = {

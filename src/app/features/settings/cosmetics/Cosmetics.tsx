@@ -25,7 +25,7 @@ import { settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
 

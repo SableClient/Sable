@@ -16,13 +16,13 @@ import {
 } from 'folds';
 import { menuIcon, X } from '$components/icons/phosphor';
 import { useAtom } from 'jotai';
-import { useMatrixClient } from '../../../hooks/useMatrixClient';
-import { AsyncStatus, useAsyncCallback } from '../../../hooks/useAsyncCallback';
-import { useSetting } from '../../../state/hooks/settings';
-import { settingsAtom } from '../../../state/settings';
-import { pushSubscriptionAtom } from '../../../state/pushSubscription';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { pushSubscriptionAtom } from '$state/pushSubscription';
 import { deRegisterAllPushers } from './PushNotifications';
-import { SettingTile } from '../../../components/setting-tile';
+import { SettingTile } from '$components/setting-tile';
 
 type ConfirmDeregisterDialogProps = {
   onClose: () => void;

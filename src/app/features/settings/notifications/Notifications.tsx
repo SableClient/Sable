@@ -1,6 +1,6 @@
 import { Box, Scroll } from 'folds';
 import { PageContent } from '$components/page';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 import { SystemNotification } from './SystemNotification';
 import { AllMessagesNotifications } from './AllMessages';
 import { SpecialMessagesNotifications } from './SpecialMessages';

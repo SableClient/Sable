@@ -10,7 +10,7 @@ import {
   useDesktopSettingsSyncing,
 } from '$state/hooks/desktopSettings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 
 type DesktopProps = {
   requestBack?: () => void;

@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import type { BookmarkItemContent } from '../features/bookmarks/bookmarkDomain';
+import type { BookmarkItemContent } from '$features/bookmarks/bookmarkDomain';
 import type { BookmarkReminder } from '$types/matrix/accountData';
 
 /** Ordered list of active bookmark items (mirrors the server index order). */

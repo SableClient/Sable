@@ -91,21 +91,21 @@ import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { clearLaunchContext } from '../../../launch-context-persistence';
-import { getInboxBookmarksPath, getInboxInvitesPath, getToRoomEventPath } from '../pathUtils';
+import { getInboxBookmarksPath, getInboxInvitesPath, getToRoomEventPath } from '$pages/pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 import {
   NotificationTransportRuntime,
   type NotificationTransportRuntimeContext,
-} from '../../features/settings/notifications/NotificationTransportRuntime';
+} from '$features/settings/notifications/NotificationTransportRuntime';
 import {
   isWebPushSupported,
   reconcilePushNotifications,
-} from '../../features/settings/notifications/PushNotifications';
+} from '$features/settings/notifications/PushNotifications';
 import {
   normalizeNotificationTransportMode,
   resolvePreferredNotificationTransportProvider,
   type NotificationTransportPlatform,
-} from '../../features/settings/notifications/NotificationTransport';
+} from '$features/settings/notifications/NotificationTransport';
 const pushRelayLog = createDebugLogger('push-relay');
 const transportLog = createDebugLogger('push-transport');
 

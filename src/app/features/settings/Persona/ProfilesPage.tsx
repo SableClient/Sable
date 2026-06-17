@@ -1,6 +1,6 @@
 import { PageNavContent } from '$components/page';
 import { Box } from 'folds';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 import { PerMessageProfileOverview } from './PerMessageProfileOverview';
 import { PKCompatSettings } from './PKCompat';
 

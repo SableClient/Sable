@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Box } from 'folds';
 import { matchPath, useLocation } from 'react-router-dom';
 import { useScreenSizeContext } from '$hooks/useScreenSize';
-import { SETTINGS_PATH } from '../paths';
+import { SETTINGS_PATH } from '$pages/paths';
 import { isShallowSettingsRoute } from './ClientRouteOutlet';
 
 type ClientLayoutProps = {

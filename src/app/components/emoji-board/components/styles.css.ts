@@ -87,8 +87,10 @@ export const PreviewSystemEmojiGlyph = style([
     height: toRem(32),
     fontFamily:
       'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-    fontSize: toRem(42),
+    fontSize: toRem(32),
     lineHeight: toRem(32),
+    transform: 'scale(1.28)',
+    transformOrigin: 'center',
   },
 ]);
 export const PreviewImg = style([
@@ -159,8 +161,10 @@ export const SystemEmojiGlyph = style([
     height: toRem(32),
     fontFamily:
       'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-    fontSize: toRem(42),
+    fontSize: toRem(32),
     lineHeight: toRem(32),
+    transform: 'scale(1.28)',
+    transformOrigin: 'center',
   },
 ]);
 

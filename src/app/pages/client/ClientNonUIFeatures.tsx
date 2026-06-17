@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -244,7 +244,7 @@ function WebPushStartupReconciler() {
   const mx = useMatrixClient();
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
-  const pushSubscription = useAtomValue(pushSubscriptionAtom);
+  const store = useStore();
   const setPushSubscription = useSetAtom(pushSubscriptionAtom);
   const reconciledUserIdRef = useRef<string | null>(null);
 
@@ -257,7 +257,7 @@ function WebPushStartupReconciler() {
 
     reconciledUserIdRef.current = userId;
     void reconcilePushNotifications(mx, clientConfig, [
-      pushSubscription,
+      store.get(pushSubscriptionAtom),
       setPushSubscription,
     ]).catch((error) => {
       reconciledUserIdRef.current = null;
@@ -266,7 +266,7 @@ function WebPushStartupReconciler() {
         error: error instanceof Error ? error.message : String(error),
       });
     });
-  }, [mx, clientConfig, pushSubscription, setPushSubscription, usePushNotifications]);
+  }, [mx, clientConfig, store, setPushSubscription, usePushNotifications]);
 
   return null;
 }

@@ -179,13 +179,6 @@ export function useAppVisibility(activeSession?: Session) {
               online: navigator.onLine,
             },
           });
-          Sentry.metrics.count('sable.sw.claim_skipped', 1, {
-            attributes: {
-              reason: 'visible_foreground',
-              visibility_state: document.visibilityState,
-              online: navigator.onLine,
-            },
-          });
           requestServiceWorkerClaim('visible_foreground');
         }
       }

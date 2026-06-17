@@ -274,6 +274,7 @@ export function RoomTimeline({
   // to a wider width (remeasured items would otherwise leave the VList at an
   // unexpected position).
   const scrollOffsetBeforeThreadRef = useRef<number | undefined>(undefined);
+  const wasAtBottomBeforeThreadRef = useRef(false);
 
   const vListRef = useRef<VListHandle>(null);
   const [atBottomState, setAtBottomState] = useState(true);
@@ -302,6 +303,7 @@ export function RoomTimeline({
   // and performs the final scroll + setIsReady when this flag is set.
   const pendingReadyRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
+  const lastRenderedTailRef = useRef<string | undefined>(undefined);
 
   const [isReady, setIsReady] = useState(false);
   const isReadyRef = useRef(isReady);
@@ -456,16 +458,14 @@ export function RoomTimeline({
       timelineSync.liveTimelineLinked &&
       vListRef.current
     ) {
-      vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, {
-        align: 'end',
-      });
+      scrollToBottom();
       // Store in a ref rather than a local so subsequent eventsLength changes
       // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
       // cancel this timer through the useLayoutEffect cleanup.
       initialScrollTimerRef.current = setTimeout(() => {
         initialScrollTimerRef.current = undefined;
         if (processedEventsRef.current.length > 0) {
-          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+          scrollToBottom();
           // Only mark ready once we've successfully scrolled.  If processedEvents
           // was empty when the timer fired (e.g. the onLifecycle reset cleared the
           // timeline within the 80 ms window), defer setIsReady until the recovery
@@ -479,7 +479,13 @@ export function RoomTimeline({
     }
     // No cleanup return — the timer must survive eventsLength fluctuations.
     // It is cancelled on unmount by the dedicated effect below.
-  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId]);
+  }, [
+    timelineSync.eventsLength,
+    timelineSync.liveTimelineLinked,
+    eventId,
+    room.roomId,
+    scrollToBottom,
+  ]);
 
   // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
   // intentionally does not cancel it when deps change).
@@ -519,11 +525,11 @@ export function RoomTimeline({
       setTopSpacerHeight(newH);
       if (prev > 0 && newH === 0 && processedEventsRef.current.length > 0) {
         requestAnimationFrame(() => {
-          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+          scrollToBottom();
         });
       }
     }
-  }, []);
+  }, [scrollToBottom]);
 
   useLayoutEffect(() => {
     const id = requestAnimationFrame(recalcTopSpacer);
@@ -867,8 +873,7 @@ export function RoomTimeline({
       // estimated position (often 0) because every item is still at its default
       // height.  Scroll once immediately to warm up virtua's layout pass, then
       // schedule a second scroll after 80ms when heights are measured.
-      const lastIdx = processedEventsRef.current.length - 1;
-      if (lastIdx >= 0) vListRef.current?.scrollToIndex(lastIdx, { align: 'end' });
+      scrollToBottom();
 
       initialScrollTimerRef.current = setTimeout(() => {
         initialScrollTimerRef.current = undefined;
@@ -878,14 +883,14 @@ export function RoomTimeline({
         if (timelineSyncRef.current.eventsLength === 0) return;
         if (!timelineSyncRef.current.liveTimelineLinked) return;
 
-        const idx = processedEventsRef.current.length - 1;
-        if (idx >= 0) vListRef.current?.scrollToIndex(idx, { align: 'end' });
+        scrollToBottom();
         setIsReady(true);
       }, 80);
     }, 1000);
   }, [
     eventId,
     isReady,
+    scrollToBottom,
     timelineSync.eventsLength,
     timelineSync.focusItem,
     timelineSync.liveTimelineLinked,
@@ -982,16 +987,23 @@ export function RoomTimeline({
   useEffect(() => {
     if (openThreadId) {
       scrollOffsetBeforeThreadRef.current = vListRef.current?.scrollOffset;
+      wasAtBottomBeforeThreadRef.current = atBottomRef.current;
     } else if (scrollOffsetBeforeThreadRef.current !== undefined) {
       const savedOffset = scrollOffsetBeforeThreadRef.current;
       scrollOffsetBeforeThreadRef.current = undefined;
+      const shouldSnapToBottom = wasAtBottomBeforeThreadRef.current;
+      wasAtBottomBeforeThreadRef.current = false;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
+          if (shouldSnapToBottom) {
+            scrollToBottom();
+            return;
+          }
           vListRef.current?.scrollTo(savedOffset);
         });
       });
     }
-  }, [openThreadId]);
+  }, [openThreadId, scrollToBottom]);
 
   const actions = useTimelineActions({
     room,
@@ -1043,6 +1055,10 @@ export function RoomTimeline({
           }
         }
         if (vListRef.current && processedIndex !== undefined) {
+          // A direct jump into already-loaded history should no longer be treated
+          // as bottom-pinned, otherwise the bottom-follow recovery paths can pull
+          // the timeline straight back to latest while this jump is settling.
+          setAtBottom(false);
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           startJumpScrollBlock();
         }
@@ -1440,6 +1456,29 @@ export function RoomTimeline({
 
   processedEventsRef.current = processedEvents;
 
+  useLayoutEffect(() => {
+    const lastEventId = processedEvents.at(-1)?.id;
+    const prevLastEventId = lastRenderedTailRef.current;
+    lastRenderedTailRef.current = lastEventId;
+
+    if (!isReady) return;
+    if (!timelineSync.liveTimelineLinked) return;
+    if (!atBottomRef.current) return;
+    if (jumpScrollBlockRef.current) return;
+    if (!lastEventId || lastEventId === prevLastEventId) return;
+
+    lastProgrammaticBottomPinAtRef.current = Date.now();
+    scrollToBottom();
+
+    requestAnimationFrame(() => {
+      if (!atBottomRef.current) return;
+      const v = vListRef.current;
+      if (!v) return;
+      lastProgrammaticBottomPinAtRef.current = Date.now();
+      v.scrollTo(v.scrollSize);
+    });
+  }, [processedEvents, isReady, timelineSync.liveTimelineLinked, scrollToBottom]);
+
   // Use dummy data for VList when showing loading placeholders, otherwise use actual events.
   const vListData = showLoadingPlaceholders ? placeholderDummyData : processedEvents;
 
@@ -1451,11 +1490,9 @@ export function RoomTimeline({
     if (!pendingReadyRef.current) return;
     if (processedEvents.length === 0) return;
     pendingReadyRef.current = false;
-    vListRef.current?.scrollToIndex(processedEvents.length - 1, {
-      align: 'end',
-    });
+    scrollToBottom();
     setIsReady(true);
-  }, [processedEvents.length]);
+  }, [processedEvents.length, scrollToBottom]);
 
   useEffect(() => {
     if (!isReady || processedEvents.length === 0) return;
@@ -1616,8 +1653,8 @@ export function RoomTimeline({
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
-            paddingLeft: config.space.S400,
-            paddingRight: config.space.S400,
+            paddingLeft: config.space.S0,
+            paddingRight: config.space.S0,
             paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600,
             paddingBottom: config.space.S600,
           }}

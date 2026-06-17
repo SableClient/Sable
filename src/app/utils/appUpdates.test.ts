@@ -35,7 +35,6 @@ const createRegistration = (): MockRegistration => ({
 
 describe('appUpdates', () => {
   let mockRegistration: MockRegistration;
-  let mockControllerChangeListener: EventListener | undefined;
   let mockReload: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -43,7 +42,6 @@ describe('appUpdates', () => {
     mockHasServiceWorker.mockReturnValue(true);
     mockRegistration = createRegistration();
     mockReload = vi.fn();
-    mockControllerChangeListener = undefined;
 
     Object.defineProperty(window, 'navigator', {
       configurable: true,
@@ -52,11 +50,7 @@ describe('appUpdates', () => {
           controller: { postMessage: vi.fn() },
           getRegistration: vi.fn().mockResolvedValue(mockRegistration),
           ready: Promise.resolve(mockRegistration),
-          addEventListener: vi.fn((event: string, listener: EventListener) => {
-            if (event === 'controllerchange') {
-              mockControllerChangeListener = listener;
-            }
-          }),
+          addEventListener: vi.fn(),
         },
       },
     });
@@ -97,17 +91,13 @@ describe('appUpdates', () => {
     expect(mockRegistration.update).toHaveBeenCalledTimes(1);
   });
 
-  it('applies a waiting update and reloads after controllerchange', async () => {
+  it('applies a waiting update and reloads immediately', async () => {
     const waitingWorker = { postMessage: vi.fn() };
     mockRegistration.waiting = waitingWorker;
 
     await applyPendingAppUpdate();
 
     expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
-    expect(mockReload).not.toHaveBeenCalled();
-
-    mockControllerChangeListener?.(new Event('controllerchange'));
-
     expect(mockReload).toHaveBeenCalledTimes(1);
   });
 

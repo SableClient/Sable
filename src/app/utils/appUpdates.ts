@@ -121,14 +121,6 @@ export async function applyPendingAppUpdate(): Promise<void> {
   if (registration.waiting) {
     // oxlint-disable-next-line unicorn/require-post-message-target-origin
     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-    navigator.serviceWorker.addEventListener(
-      'controllerchange',
-      () => {
-        window.location.reload();
-      },
-      { once: true }
-    );
-    return;
   }
 
   window.location.reload();

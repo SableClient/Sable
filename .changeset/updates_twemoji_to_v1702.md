@@ -1,5 +1,5 @@
 ---
-default: minor
+default: patch
 ---
 
 # Updates Twemoji to from v15 to v17 🫪

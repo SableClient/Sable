@@ -265,6 +265,12 @@ export const Emoticon = recipe({
   },
 });
 
+export const SystemEmoji = style({
+  fontFamily: 'var(--font-secondary)',
+  fontSize: '1em',
+  top: 0,
+});
+
 export const CustomEmoticon = recipe({
   base: [
     DefaultReset,

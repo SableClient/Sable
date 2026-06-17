@@ -72,10 +72,25 @@ export const PreviewEmoji = style([
   {
     width: toRem(32),
     height: toRem(32),
+    fontSize: toRem(32),
+    lineHeight: 1,
+  },
+]);
+
+export const PreviewSystemEmojiGlyph = style([
+  DefaultReset,
+  {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: toRem(32),
+    height: toRem(32),
     fontFamily:
       'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
     fontSize: toRem(32),
     lineHeight: 1,
+    position: 'relative',
+    top: '-0.08em',
   },
 ]);
 export const PreviewImg = style([
@@ -125,8 +140,6 @@ export const EmojiItem = style([
   {
     width: toRem(48),
     height: toRem(48),
-    fontFamily:
-      'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
     fontSize: toRem(32),
     lineHeight: 1,
     borderRadius: config.radii.R400,
@@ -135,6 +148,23 @@ export const EmojiItem = style([
     ':hover': {
       backgroundColor: color.Surface.ContainerHover,
     },
+  },
+]);
+
+export const SystemEmojiGlyph = style([
+  DefaultReset,
+  {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: toRem(32),
+    height: toRem(32),
+    fontFamily:
+      'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+    fontSize: toRem(32),
+    lineHeight: 1,
+    position: 'relative',
+    top: '-0.08em',
   },
 ]);
 

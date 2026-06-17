@@ -42,7 +42,7 @@ export function Preview({ previewAtom }: PreviewProps) {
               alt={shortcode}
             />
           ) : (
-            key
+            <span className={css.PreviewSystemEmojiGlyph}>{key}</span>
           )}
         </Box>
       )}

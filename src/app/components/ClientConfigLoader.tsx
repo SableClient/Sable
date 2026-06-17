@@ -29,11 +29,13 @@ const getClientConfig = async (): Promise<ClientConfig> => {
         level: 'info',
       });
 
+      // eslint-disable-next-line no-await-in-loop -- Retries intentionally happen in sequence.
       const config = await fetch(url, { method: 'GET' });
       if (!config.ok) {
         throw new Error(`HTTP ${config.status}: ${config.statusText}`);
       }
 
+      // eslint-disable-next-line no-await-in-loop -- JSON must be parsed for the active attempt before retry logic continues.
       const data = await config.json();
 
       Sentry.addBreadcrumb({
@@ -68,6 +70,7 @@ const getClientConfig = async (): Promise<ClientConfig> => {
 
       // Exponential backoff: 500ms, 1000ms, 2000ms
       const backoffMs = 500 * Math.pow(2, attempt);
+      // eslint-disable-next-line no-await-in-loop -- Backoff delay must complete before the next retry starts.
       await sleep(backoffMs);
     }
   }

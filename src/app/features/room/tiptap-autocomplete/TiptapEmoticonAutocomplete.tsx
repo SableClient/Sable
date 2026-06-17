@@ -25,6 +25,10 @@ function getEmoticonKey(item: EmoticonItem): string {
   return 'url' in item ? item.url : item.unicode;
 }
 
+function getShortcode(item: EmoticonItem): string {
+  return 'shortcode' in item ? (item as PackImageReader).shortcode : (item as IEmoji).shortcode;
+}
+
 type Props = {
   imagePackRooms: Room[];
   useAuthentication: boolean;
@@ -65,10 +69,6 @@ export function TiptapEmoticonAutocomplete({
     if (queryText) search(queryText);
     else resetSearch();
   }, [queryText, search, resetSearch]);
-
-  function getShortcode(item: EmoticonItem): string {
-    return 'shortcode' in item ? (item as PackImageReader).shortcode : (item as IEmoji).shortcode;
-  }
 
   function handleSelect(item: EmoticonItem) {
     const key = getEmoticonKey(item);

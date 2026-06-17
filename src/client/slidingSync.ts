@@ -22,6 +22,7 @@ import {
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import { completeRoomNavigation } from '$utils/perfTelemetry';
 import * as Sentry from '@sentry/react';
 import { CustomStateEvent } from '$types/matrix/room';
 import { classifyCryptoStoreIndexedDbError } from './cryptoStoreErrors';
@@ -64,6 +65,7 @@ const HEALTH_RETRY_COOLDOWN_MS = 30_000;
 const SPACE_GRAPH_WARMUP_INITIAL_DELAY_MS = 2500;
 const SPACE_GRAPH_WARMUP_INTERVAL_MS = 1500;
 const DEFAULT_SPACE_GRAPH_WARMUP_ROOMS = 300;
+const ROOM_PREFETCH_TTL_MS = 12_000;
 
 // Sort order for MSC4186 (Simplified Sliding Sync): most recently active first,
 // then alphabetical as a tiebreaker. by_notification_level is MSC3575-only and
@@ -277,6 +279,13 @@ export class SlidingSyncManager {
   private readonly activeRoomSubscriptions = new Set<string>();
 
   private readonly activeRoomSubscriptionRefs = new Map<string, number>();
+
+  private readonly prefetchedRoomSubscriptions = new Set<string>();
+
+  private readonly prefetchedRoomSubscriptionTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
 
   private readonly ptrRefreshRooms = new Set<string>();
 
@@ -843,6 +852,9 @@ export class SlidingSyncManager {
       clearTimeout(this.spaceGraphWarmupTimer);
       this.spaceGraphWarmupTimer = undefined;
     }
+    this.prefetchedRoomSubscriptionTimers.forEach((timer) => clearTimeout(timer));
+    this.prefetchedRoomSubscriptionTimers.clear();
+    this.prefetchedRoomSubscriptions.clear();
 
     this.disposed = true;
     // Stop the SDK's internal polling loop and abort any in-flight requests.
@@ -1124,6 +1136,20 @@ export class SlidingSyncManager {
     return this.loadedRoomIds.size > 0;
   }
 
+  public isListReady(listKey: string): boolean {
+    const listData = this.slidingSync.getListData(listKey);
+    if (!listData) return false;
+    const knownCount = listData.joinedCount ?? 0;
+    if (knownCount <= 0) return true;
+
+    const params = this.slidingSync.getListParams(listKey);
+    const requestedEnd = getListEndIndex(params);
+    if (requestedEnd < 0) return false;
+    const requiredEnd = Math.min(knownCount, requestedEnd + 1) - 1;
+    const rangeEnd = this.loadedListCoverageEnd.get(listKey) ?? -1;
+    return rangeEnd >= requiredEnd;
+  }
+
   /**
    * Expand a list only when the UI needs more rows. This keeps startup
    * viewport-driven while still allowing virtualized room lists to page forward
@@ -1330,11 +1356,35 @@ export class SlidingSyncManager {
     const filters: MSC3575List['filters'] = spaceId
       ? { is_invite: false, spaces: [spaceId] }
       : { is_invite: false };
+    const initialSpaceRangeEnd = Math.min(
+      Math.max(this.listPageSize * 2 - 1, this.listPageSize - 1),
+      this.maxRooms - 1
+    );
     this.ensureListRegistered(LIST_SPACE, {
       filters,
-      ranges: spaceId ? [[0, Math.min(this.listPageSize - 1, this.maxRooms - 1)]] : [[0, 0]],
+      ranges: spaceId ? [[0, initialSpaceRangeEnd]] : [[0, 0]],
       sort: LIST_SORT_ORDER,
     });
+  }
+
+  public prefetchRoom(roomId: string, ttlMs = ROOM_PREFETCH_TTL_MS): void {
+    if (this.disposed || this.activeRoomSubscriptions.has(roomId)) return;
+
+    const existingTimer = this.prefetchedRoomSubscriptionTimers.get(roomId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    this.prefetchedRoomSubscriptions.add(roomId);
+    this.prefetchedRoomSubscriptionTimers.set(
+      roomId,
+      setTimeout(() => {
+        this.prefetchedRoomSubscriptionTimers.delete(roomId);
+        this.prefetchedRoomSubscriptions.delete(roomId);
+        this.flushRoomSubscriptions();
+      }, ttlMs)
+    );
+    this.flushRoomSubscriptions();
   }
 
   /**
@@ -1349,6 +1399,12 @@ export class SlidingSyncManager {
    */
   public subscribeToRoom(roomId: string): void {
     if (this.disposed) return;
+    const prefetchTimer = this.prefetchedRoomSubscriptionTimers.get(roomId);
+    if (prefetchTimer) {
+      clearTimeout(prefetchTimer);
+      this.prefetchedRoomSubscriptionTimers.delete(roomId);
+    }
+    this.prefetchedRoomSubscriptions.delete(roomId);
     const refCount = this.activeRoomSubscriptionRefs.get(roomId) ?? 0;
     this.activeRoomSubscriptionRefs.set(roomId, refCount + 1);
     if (this.activeRoomSubscriptions.has(roomId)) return;
@@ -1410,6 +1466,7 @@ export class SlidingSyncManager {
       Sentry.metrics.distribution('sable.sync.room_sub_event_count', eventCount, {
         attributes: { transport: 'sliding' },
       });
+      completeRoomNavigation(roomId, 'subscription_data', eventCount);
       Sentry.addBreadcrumb({
         category: 'sync.sliding',
         message: `Room subscription data arrived (${eventCount} events, ${latencyMs}ms)`,
@@ -1467,7 +1524,9 @@ export class SlidingSyncManager {
 
   private flushRoomSubscriptions(): void {
     if (this.disposed) return;
-    const nextSubscriptions = [...this.activeRoomSubscriptions].toSorted();
+    const nextSubscriptions = [
+      ...new Set([...this.activeRoomSubscriptions, ...this.prefetchedRoomSubscriptions]),
+    ].toSorted();
     const nextKey = nextSubscriptions.join('\u0000');
     if (nextKey === this.lastFlushedRoomSubscriptionsKey) return;
 

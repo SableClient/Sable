@@ -82,6 +82,7 @@ import { getSlidingSyncManager } from '$client/initMatrix';
 import { LIST_JOINED } from '$client/slidingSync';
 import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
 import { allRoomsAtom } from '$state/room-list/roomList';
+import { markStartupRoomListReady } from '$utils/perfTelemetry';
 
 type HomeMenuProps = {
   isShowingAllRoomsInHome: boolean;
@@ -326,6 +327,12 @@ export function Home() {
     if (allowEmptyExpansion) requestedEmptyListExpansionRef.current = true;
     manager.requestListWindow(LIST_JOINED, nextEnd);
   }, [mx, sortedRooms.length, allRoomCount, lastVirtualIndex]);
+
+  useEffect(() => {
+    if (sortedRooms.length > 0 || allRoomCount === 0) {
+      markStartupRoomListReady('home', sortedRooms.length);
+    }
+  }, [sortedRooms.length, allRoomCount]);
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
     closedCategories.has(categoryId)

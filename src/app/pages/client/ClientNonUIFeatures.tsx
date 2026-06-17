@@ -1,7 +1,7 @@
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useRef } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchIndexProvider } from '$hooks/useSearchIndex';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
@@ -55,10 +55,10 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
-import { lazy, Suspense } from 'react';
 import { NotificationBanner } from '$components/notification-banner';
 import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getRenderableMediaUrlStats } from '$hooks/useRenderableMediaUrl';
+import { isStartupShellReady, subscribeStartupShellReady } from '$utils/perfTelemetry';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 
@@ -1394,13 +1394,49 @@ function RemindersFeature() {
   );
 }
 
+function useDeferredStartupWork(delayMs = 250): boolean {
+  const [enabled, setEnabled] = useState(() => isStartupShellReady());
+
+  useEffect(() => {
+    if (enabled) return undefined;
+    return subscribeStartupShellReady(() => setEnabled(true));
+  }, [enabled]);
+
+  const [idleEnabled, setIdleEnabled] = useState(() => isStartupShellReady());
+  useEffect(() => {
+    if (!enabled) return undefined;
+    if (idleEnabled) return undefined;
+
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let idleId: number | undefined;
+    const requestIdle = window.requestIdleCallback?.bind(window);
+    const cancelIdle = window.cancelIdleCallback?.bind(window);
+    const enable = () => {
+      if (!cancelled) setIdleEnabled(true);
+    };
+
+    if (requestIdle) {
+      idleId = requestIdle(enable, { timeout: delayMs });
+    } else {
+      timeoutId = setTimeout(enable, delayMs);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      if (idleId !== undefined && cancelIdle) cancelIdle(idleId);
+    };
+  }, [delayMs, enabled, idleEnabled]);
+
+  return idleEnabled;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
+  const deferredStartupWorkEnabled = useDeferredStartupWork();
   return (
     <SearchIndexProvider>
-      <SettingsSyncFeature />
-      <BookmarksFeature />
-      <RemindersFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />
@@ -1421,11 +1457,19 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
         <ThemeMigrationBanner />
       </Suspense>
       <SlidingSyncActiveRoomSubscriber />
-      <PresenceFeature />
-      <PresenceSyncFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />
-      <HealthMonitor />
+      {deferredStartupWorkEnabled && (
+        <>
+          <SettingsSyncFeature />
+          <BookmarksFeature />
+          <RemindersFeature />
+          <BackgroundNotifications />
+          <PresenceFeature />
+          <PresenceSyncFeature />
+          <HealthMonitor />
+        </>
+      )}
       <IconSizesProvider>{children}</IconSizesProvider>
     </SearchIndexProvider>
   );

@@ -42,6 +42,7 @@ export function UserAvatar({ className, userId, src, alt, renderFallback }: User
       className={classNames(css.UserAvatar, className)}
       src={resolvedSrc ?? src}
       alt={alt}
+      loading="lazy"
       onError={() => setError(true)}
       onLoad={handleImageLoad}
       draggable={false}

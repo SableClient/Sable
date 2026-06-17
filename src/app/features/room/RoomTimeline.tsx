@@ -80,6 +80,7 @@ import {
   type ProcessedEvent,
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
+import { completeRoomTimelineRender } from '$utils/perfTelemetry';
 import * as css from './RoomTimeline.css';
 
 const log = createLogger('RoomTimeline');
@@ -336,6 +337,11 @@ export function RoomTimeline({
 
   const processedEventsRef = useRef<ProcessedEvent[]>([]);
   const timelineSyncRef = useRef<typeof timelineSync>(null as unknown as typeof timelineSync);
+  const timelineRenderMetricRoomRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    timelineRenderMetricRoomRef.current = undefined;
+  }, [room.roomId, eventId]);
 
   const scrollToBottom = useCallback(() => {
     if (!vListRef.current) return;
@@ -1403,6 +1409,18 @@ export function RoomTimeline({
     vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
     setIsReady(true);
   }, [processedEvents.length]);
+
+  useEffect(() => {
+    if (!isReady || processedEvents.length === 0) return;
+    const renderKey = `${room.roomId}:${eventId ?? 'live'}`;
+    if (timelineRenderMetricRoomRef.current === renderKey) return;
+    timelineRenderMetricRoomRef.current = renderKey;
+    completeRoomTimelineRender(
+      room.roomId,
+      eventId ? 'permalink_context' : 'live_timeline',
+      processedEvents.length
+    );
+  }, [eventId, isReady, processedEvents.length, room.roomId]);
 
   useEffect(() => {
     if (!onEditLastMessageRef) return;

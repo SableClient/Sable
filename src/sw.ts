@@ -583,6 +583,30 @@ async function prefetchUserProfile(session: SessionInfo): Promise<void> {
   }
 }
 
+type PrefetchPolicy = 'all' | 'core_only' | 'skip';
+
+function getStartupPrefetchPolicy(): { policy: PrefetchPolicy; reason: string } {
+  const connection = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }
+  ).connection as { saveData?: boolean; effectiveType?: string } | undefined;
+
+  if (connection?.saveData) {
+    return { policy: 'skip', reason: 'save_data' };
+  }
+
+  const effectiveType = connection?.effectiveType;
+  if (effectiveType === 'slow-2g' || effectiveType === '2g') {
+    return { policy: 'skip', reason: effectiveType };
+  }
+  if (effectiveType === '3g') {
+    return { policy: 'core_only', reason: effectiveType };
+  }
+
+  return { policy: 'all', reason: effectiveType ?? 'default' };
+}
+
 type DecryptionResult = {
   eventId: string;
   success: boolean;
@@ -1112,12 +1136,22 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // Sliding sync request state is owned by the foreground Matrix client.
       // Fire-and-forget: don't block activation on these optional optimizations.
       if (preloadedSession) {
-        // Prefetch in parallel for maximum speed
-        Promise.allSettled([
-          prefetchWellKnown(preloadedSession),
-          prefetchCapabilities(preloadedSession),
-          prefetchUserProfile(preloadedSession),
-        ]).catch(() => {
+        const { policy, reason } = getStartupPrefetchPolicy();
+        const prefetchTasks =
+          policy === 'skip'
+            ? []
+            : [
+                prefetchWellKnown(preloadedSession),
+                prefetchCapabilities(preloadedSession),
+                ...(policy === 'all' ? [prefetchUserProfile(preloadedSession)] : []),
+              ];
+
+        void postSentryMetric('sable.sw.prefetch_startup_policy', 1, {
+          policy,
+          reason,
+        });
+
+        Promise.allSettled(prefetchTasks).catch(() => {
           // Silently ignore — these are best-effort optimizations
         });
       }

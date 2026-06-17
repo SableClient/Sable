@@ -1,3 +1,5 @@
+import emojiRegex from 'emoji-regex';
+
 /**
  * https://www.npmjs.com/package/escape-string-regexp
  */
@@ -22,5 +24,5 @@ export const EMOJI_PATTERN = `[#*0-9]\uFE0F?\u20E3|[\xA9\xAE\u203C\u2049\u2122\u
 // Thumbs up emoji found to have Variation Selector 16 at the end
 // so included variation selector pattern in regex
 export const JUMBO_EMOJI_REG = new RegExp(
-  `^(((${EMOJI_PATTERN})|(:.+?:))(${VARIATION_SELECTOR_PATTERN}|\\s)*){1,10}$`
+  `^(((${emojiRegex().source})|(:.+?:))(${VARIATION_SELECTOR_PATTERN}|\\s)*){1,10}$`
 );

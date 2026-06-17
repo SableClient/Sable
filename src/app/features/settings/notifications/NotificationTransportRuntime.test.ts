@@ -6,7 +6,7 @@ import { NotificationTransportRuntime } from './NotificationTransportRuntime';
 const unifiedPushListener = vi.hoisted(() => vi.fn());
 const unifiedPushUnregister = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
-vi.mock('./UnifiedPushNotifications', () => ({
+vi.mock('./UnifiedPushRuntime', () => ({
   listenForUnifiedPushMessages: unifiedPushListener,
 }));
 

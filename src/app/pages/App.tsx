@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { QueryClient } from '@tanstack/react-query';
@@ -19,6 +19,21 @@ import { FeatureCheck } from './FeatureCheck';
 import { createRouter } from './Router';
 
 const queryClient = new QueryClient();
+
+const renderAppErrorFallback: NonNullable<
+  ComponentProps<typeof Sentry.ErrorBoundary>['fallback']
+> = ({ error, eventId }) => (
+  <ErrorPage
+    error={error instanceof Error ? error : new Error(String(error))}
+    eventId={eventId || undefined}
+  />
+);
+
+const renderConfigLoading = () => <ConfigConfigLoading />;
+
+const renderConfigError = (err: unknown, retry: () => void, ignore: () => void) => (
+  <ConfigConfigError error={err} retry={retry} ignore={ignore} />
+);
 
 function SettingsStoreBootstrap({
   settingsDefaults,
@@ -61,31 +76,25 @@ function AppWithClientConfig({
   );
 }
 
+function AppClientConfigLoader({ screenSize }: { screenSize: ReturnType<typeof useScreenSize> }) {
+  return (
+    <ClientConfigLoader fallback={renderConfigLoading} error={renderConfigError}>
+      {(clientConfig) => (
+        <AppWithClientConfig clientConfig={clientConfig} screenSize={screenSize} />
+      )}
+    </ClientConfigLoader>
+  );
+}
+
 function App() {
   const screenSize = useScreenSize();
   useCompositionEndTracking();
 
   return (
-    <Sentry.ErrorBoundary
-      fallback={({ error, eventId }) => (
-        <ErrorPage
-          error={error instanceof Error ? error : new Error(String(error))}
-          eventId={eventId || undefined}
-        />
-      )}
-    >
+    <Sentry.ErrorBoundary fallback={renderAppErrorFallback}>
       <AppShell screenSize={screenSize} queryClient={queryClient}>
         <FeatureCheck>
-          <ClientConfigLoader
-            fallback={() => <ConfigConfigLoading />}
-            error={(err, retry, ignore) => (
-              <ConfigConfigError error={err} retry={retry} ignore={ignore} />
-            )}
-          >
-            {(clientConfig) => {
-              return <AppWithClientConfig clientConfig={clientConfig} screenSize={screenSize} />;
-            }}
-          </ClientConfigLoader>
+          <AppClientConfigLoader screenSize={screenSize} />
         </FeatureCheck>
       </AppShell>
     </Sentry.ErrorBoundary>

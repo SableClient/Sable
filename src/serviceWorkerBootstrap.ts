@@ -48,6 +48,13 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   }
 };
 
+function sendActiveSessionToServiceWorker() {
+  const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+  const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
+  const active = sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
+  pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
+}
+
 export function registerAppServiceWorker() {
   if (!hasServiceWorker()) return;
 
@@ -61,15 +68,7 @@ export function registerAppServiceWorker() {
     swRegisterOptions.type = 'module';
   }
 
-  const sendSessionToSW = () => {
-    const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
-    const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
-    const active =
-      sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
-    pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
-  };
-
-  sendSessionToSW();
+  sendActiveSessionToServiceWorker();
 
   void consumeLaunchContext()
     .then((launchContext) => {
@@ -158,7 +157,7 @@ export function registerAppServiceWorker() {
         }
       });
 
-      sendSessionToSW();
+      sendActiveSessionToServiceWorker();
     })
     .catch((err) => {
       Sentry.addBreadcrumb({
@@ -178,7 +177,7 @@ export function registerAppServiceWorker() {
         level: 'info',
         data: { active: !!registration.active, waiting: !!registration.waiting },
       });
-      sendSessionToSW();
+      sendActiveSessionToServiceWorker();
     })
     .catch((err) => {
       Sentry.addBreadcrumb({
@@ -232,7 +231,7 @@ export function registerAppServiceWorker() {
     }
 
     if (type === 'requestSession') {
-      sendSessionToSW();
+      sendActiveSessionToServiceWorker();
     }
 
     if (data.type === 'token' && data.id) {

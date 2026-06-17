@@ -155,21 +155,25 @@ export const AvatarBase = style({
 });
 
 export const ModernBefore = style({
+  width: toRem(36),
   minWidth: toRem(36),
+  flex: `0 0 ${toRem(36)}`,
 });
 
 export const ModernRow = style({
-  display: 'flex',
   alignItems: 'flex-start',
-  gap: config.space.S300,
+  boxSizing: 'border-box',
+  width: '100%',
   minWidth: 0,
   maxWidth: '100%',
+  paddingInlineStart: config.space.S100,
 });
 
 export const ModernContent = style({
   display: 'flex',
   flexDirection: 'column',
   flex: 1,
+  width: '100%',
   minWidth: 0,
 });
 

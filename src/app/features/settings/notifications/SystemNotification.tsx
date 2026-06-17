@@ -284,6 +284,13 @@ export function SystemNotification() {
           description="Play a sound inside the app when a new message arrives."
           after={<Switch value={isNotificationSounds} onChange={setIsNotificationSounds} />}
         />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
         <SettingTile
           title="Background Tab Sound"
           focusId="background-notification-sound"

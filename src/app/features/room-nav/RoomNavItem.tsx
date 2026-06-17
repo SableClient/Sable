@@ -85,6 +85,7 @@ import { Presence, useUserPresence } from '$hooks/useUserPresence';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { RoomNavUser } from './RoomNavUser';
 import { SidebarUnreadBadge } from '$components/sidebar';
+import * as css from './styles.css';
 
 /**
  * Reactively checks whether a room has unread messages.
@@ -526,7 +527,7 @@ export function RoomNavItem({
                           </UnreadBadgeCenter>
                         )}
                         {!optionsVisible && notificationMode !== RoomNotificationMode.Unset && (
-                          <span aria-label={notificationMode}>
+                          <span className={css.NavItemChipIcon} aria-label={notificationMode}>
                             {roomNotificationModeChipIcon(notificationMode)}
                           </span>
                         )}

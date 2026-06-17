@@ -66,7 +66,7 @@ export function EmojiItem({ emoji }: EmojiItemProps) {
       data-emoji-data={emoji.unicode}
       data-emoji-shortcode={emoji.shortcode}
     >
-      <span className={css.SystemEmojiGlyph}>{emoji.unicode}</span>
+      {emoji.unicode}
     </Box>
   );
 }

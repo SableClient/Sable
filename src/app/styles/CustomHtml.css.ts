@@ -269,8 +269,7 @@ export const SystemEmoji = style({
   fontFamily:
     'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
   fontSize: '1em',
-  top: 0,
-  transform: 'translateY(-0.08em)',
+  verticalAlign: '-0.12em',
 });
 
 export const CustomEmoticon = recipe({
@@ -284,10 +283,7 @@ export const CustomEmoticon = recipe({
       minWidth: '1em',
       fontSize: '1.2em',
       lineHeight: '1em',
-      verticalAlign: 'middle',
-      position: 'relative',
-      top: 0,
-      transform: 'translateY(-0.08em)',
+      verticalAlign: '-0.12em',
       borderRadius: config.radii.R300,
     },
   ],

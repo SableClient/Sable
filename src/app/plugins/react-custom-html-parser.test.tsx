@@ -3,6 +3,7 @@ import parse from 'html-react-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
+import { JUMBO_EMOJI_REG } from '$utils/regex';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import {
   LINKIFY_OPTS,
@@ -10,6 +11,7 @@ import {
   getReactCustomHtmlParser,
   makeMentionCustomProps,
   renderMatrixMention,
+  scaleSystemEmoji,
 } from './react-custom-html-parser';
 import { registerMatrixUriProtocol } from './matrix-uri';
 import { markdownToHtml } from './markdown/markdownToHtml';
@@ -152,6 +154,13 @@ describe('react custom html parser', () => {
     const img = container.querySelector('img');
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('height', '32');
+  });
+
+  it('matches newer Unicode emoji for inline scaling and jumbo detection', () => {
+    render(<div data-testid="emoji-root">{scaleSystemEmoji('🫩')}</div>);
+
+    expect(screen.getByTestId('emoji-root').querySelector('span')).toBeInTheDocument();
+    expect(JUMBO_EMOJI_REG.test('🫩')).toBe(true);
   });
 
   it('clamps incoming inline image height to the configured max', () => {

@@ -11,7 +11,7 @@
 
   nixConfig = {
     bash-prompt = "\\[\\e[1;35m\\]sable\\[\\e[0m\\]"; # bold magenta
-    bash-prompt-suffix = " \\[\\e[0;36m\\]>\\[\\e[0m\\] ";  # cyan >
+    bash-prompt-suffix = " \\[\\e[0;36m\\]>\\[\\e[0m\\] "; # cyan >
   };
 
   outputs =
@@ -118,7 +118,7 @@
 
           android = pkgs.mkShell {
             name = "sable dev environment (android)";
-            inherit (baseShell) nativeBuildInputs buildInputs;  # <-- shellHook removed here
+            inherit (baseShell) nativeBuildInputs buildInputs;
 
             packages = baseShell.packages ++ (with pkgs; [
               jdk

@@ -337,7 +337,7 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
-    target: isTauriBuild ? tauriBuildTarget : undefined,
+    target: isTauriBuild ? tauriBuildTarget : 'es2022',
     minify: isTauriBuild ? tauriBuildMinify : undefined,
     sourcemap: isTauriBuild ? isTauriDebug : true,
     outDir: 'dist',

@@ -16,6 +16,7 @@ import {
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';
+import emojiRegex from 'emoji-regex';
 
 import * as css from '$styles/CustomHtml.css';
 import { AuthenticatedImg } from '$components/AuthenticatedImg';
@@ -27,7 +28,7 @@ import {
 } from '$utils/matrix';
 import { getMemberDisplayName } from '$utils/room';
 import type { Nicknames } from '$state/nicknames';
-import { EMOJI_PATTERN, sanitizeForRegex, URL_NEG_LB } from '$utils/regex';
+import { sanitizeForRegex, URL_NEG_LB } from '$utils/regex';
 import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
@@ -46,7 +47,7 @@ import {
 import { isRedundantMatrixUriAnchorText, parseMatrixUri, testMatrixUri } from './matrix-uri';
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
 
-const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
+const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${emojiRegex().source})`, 'g');
 
 const shouldLinkifyDomText = (domNode: DOMText): boolean =>
   !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&

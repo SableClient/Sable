@@ -1600,6 +1600,8 @@ export function RoomTimeline({
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
+            paddingLeft: config.space.S400,
+            paddingRight: config.space.S400,
             paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600,
             paddingBottom: config.space.S600,
           }}

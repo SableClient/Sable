@@ -166,7 +166,7 @@ export const ModernRow = style({
   width: '100%',
   minWidth: 0,
   maxWidth: '100%',
-  paddingInlineStart: config.space.S100,
+  paddingInline: config.space.S200,
 });
 
 export const ModernContent = style({

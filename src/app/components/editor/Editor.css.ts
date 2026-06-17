@@ -68,8 +68,11 @@ export const EditorTextarea = style([
     // Detect text direction per-keystroke so RTL text right-aligns automatically.
     // Matches the unicodeBidi: 'plaintext' pattern used by MessageTextBody.
     unicodeBidi: 'plaintext',
-    padding: `${toRem(13)} 0 0`,
+    padding: `${toRem(13)} 0`,
     selectors: {
+      [`${EditorTextareaScrollMultiline} &`]: {
+        paddingBottom: 0,
+      },
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
       },
@@ -106,8 +109,12 @@ export const EditorPlaceholderTextVisual = style([
   {
     display: 'block',
     paddingTop: toRem(13),
+    paddingBottom: toRem(13),
     paddingLeft: toRem(1),
     selectors: {
+      [`${EditorTextareaScrollMultiline} &`]: {
+        paddingBottom: 0,
+      },
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
       },

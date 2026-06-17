@@ -109,6 +109,17 @@ import {
 const pushRelayLog = createDebugLogger('push-relay');
 const transportLog = createDebugLogger('push-transport');
 
+function clearMediaSessionQuickly(): void {
+  if (!('mediaSession' in navigator)) return;
+  // iOS can register the lock-screen media player as a side effect of
+  // playing short notification sounds. Clear that transient session unless
+  // real media has since claimed it.
+  setTimeout(() => {
+    if (navigator.mediaSession.metadata !== null) return;
+    navigator.mediaSession.playbackState = 'none';
+  }, 500);
+}
+
 function postToServiceWorker(data: unknown): void {
   if (!('serviceWorker' in navigator)) return;
 
@@ -304,6 +315,7 @@ function InviteNotifications() {
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
 
   const notify = useCallback(
     (count: number) => {
@@ -324,7 +336,8 @@ function InviteNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play().catch(() => {});
+    audioElement?.play()?.catch(() => {});
+    clearMediaSessionQuickly();
   }, []);
 
   useEffect(() => {
@@ -341,8 +354,8 @@ function InviteNotifications() {
         // window.Notification may be unavailable in sandboxed environments.
       }
     }
-    // Audio API requires a visible document; skip when hidden.
-    if (document.visibilityState === 'visible' && notificationSound) {
+    const tabVisible = document.visibilityState === 'visible';
+    if (notificationSound && (tabVisible || backgroundNotificationSounds)) {
       playSound();
     }
   }, [
@@ -352,6 +365,7 @@ function InviteNotifications() {
     showSystemNotifications,
     usePushNotifications,
     notificationSound,
+    backgroundNotificationSounds,
     notify,
     playSound,
   ]);
@@ -377,6 +391,7 @@ function MessageNotifications() {
   const [showNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
   const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
   const [showEncryptedMessageContent] = useSetting(
     settingsAtom,
@@ -397,7 +412,8 @@ function MessageNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play().catch(() => {});
+    audioElement?.play()?.catch(() => {});
+    clearMediaSessionQuickly();
   }, []);
 
   useEffect(() => {
@@ -593,8 +609,13 @@ function MessageNotifications() {
         }
       }
 
-      // Everything below requires the page to be visible (in-app UI + audio).
-      if (document.visibilityState !== 'visible') return;
+      const tabVisible = document.visibilityState === 'visible';
+      if (notificationSound && isLoud && (tabVisible || backgroundNotificationSounds)) {
+        playSound();
+      }
+
+      // In-app banner requires a visible tab.
+      if (!tabVisible) return;
 
       // Page is visible — show the themed in-app notification banner.
       // Show banner for: highlighted messages (mentions/keywords), DM messages, or loud notifications.
@@ -678,6 +699,7 @@ function MessageNotifications() {
   }, [
     mx,
     notificationSound,
+    backgroundNotificationSounds,
     notificationSelected,
     showNotifications,
     showSystemNotifications,

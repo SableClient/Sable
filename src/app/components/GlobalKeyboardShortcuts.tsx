@@ -29,7 +29,7 @@ import type { Room } from '$types/matrix-sdk';
 
 // Stable fallback atom used when no room is active — prevents atomFamily from
 // creating a spurious entry under the empty-string key ''.
-const _noopEditNavAtom = atom<IEditNavRequest | undefined>(undefined);
+const noopEditNavAtom = atom<IEditNavRequest | undefined>(undefined);
 
 export function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();
@@ -61,7 +61,7 @@ export function GlobalKeyboardShortcuts() {
   const setReplyDraft = useSetAtom(replyDraftAtomFamily);
 
   const setEditNavRequest = useSetAtom(
-    currentRoom?.roomId ? roomIdToEditNavRequestAtomFamily(currentRoom.roomId) : _noopEditNavAtom
+    currentRoom?.roomId ? roomIdToEditNavRequestAtomFamily(currentRoom.roomId) : noopEditNavAtom
   );
   const editNavNonceRef = useRef(0);
 

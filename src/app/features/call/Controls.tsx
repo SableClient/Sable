@@ -12,7 +12,7 @@ import {
 } from '$components/icons/phosphor';
 import { useAtom } from 'jotai';
 import * as css from './styles.css';
-import { callChatAtom } from '../../state/callEmbed';
+import { callChatAtom } from '$state/callEmbed';
 
 export function ControlDivider() {
   return (

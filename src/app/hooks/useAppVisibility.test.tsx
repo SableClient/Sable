@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
-import { appEvents } from '../utils/appEvents';
+import { appEvents } from '$utils/appEvents';
 import { useAppVisibility } from './useAppVisibility';
 
 const mocks = vi.hoisted(() => ({

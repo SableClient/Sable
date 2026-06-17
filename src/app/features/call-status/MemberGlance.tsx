@@ -1,15 +1,15 @@
 import { Box, config, Text } from 'folds';
 import type { CallMembership } from '$types/matrix-sdk';
 import type { Room } from '$types/matrix-sdk';
-import { UserAvatar } from '../../components/user-avatar';
+import { UserAvatar } from '$components/user-avatar';
 import { userFallbackIcon } from '$components/icons/phosphor';
-import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
-import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
-import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
-import { StackedAvatar } from '../../components/stacked-avatar';
-import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
-import { getMouseEventCords } from '../../utils/dom';
+import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
+import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { StackedAvatar } from '$components/stacked-avatar';
+import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
+import { getMouseEventCords } from '$utils/dom';
 import * as css from './styles.css';
 
 type MemberGlanceProps = {

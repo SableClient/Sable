@@ -1,16 +1,16 @@
 import type { Room } from '$types/matrix-sdk';
 import { Chip, Text } from 'folds';
 import { useAtomValue } from 'jotai';
-import { useRoomName } from '../../hooks/useRoomMeta';
-import { RoomIcon } from '../../components/room-avatar';
-import { roomToParentsAtom } from '../../state/room/roomToParents';
-import { getAllParents, guessPerfectParent } from '../../utils/room';
-import { useOrphanSpaces } from '../../state/hooks/roomList';
-import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { allRoomsAtom } from '../../state/room-list/roomList';
-import { mDirectAtom } from '../../state/mDirectList';
-import { useAllJoinedRoomsSet, useGetRoom } from '../../hooks/useGetRoom';
-import { useRoomNavigate } from '../../hooks/useRoomNavigate';
+import { useRoomName } from '$hooks/useRoomMeta';
+import { RoomIcon } from '$components/room-avatar';
+import { roomToParentsAtom } from '$state/room/roomToParents';
+import { getAllParents, guessPerfectParent } from '$utils/room';
+import { useOrphanSpaces } from '$state/hooks/roomList';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { allRoomsAtom } from '$state/room-list/roomList';
+import { mDirectAtom } from '$state/mDirectList';
+import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
+import { useRoomNavigate } from '$hooks/useRoomNavigate';
 
 type CallRoomNameProps = {
   room: Room;

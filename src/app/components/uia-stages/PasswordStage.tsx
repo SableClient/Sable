@@ -4,7 +4,7 @@ import type { FormEventHandler } from 'react';
 import { AuthType } from '$types/matrix-sdk';
 import { PasswordInput } from '$components/password-input';
 import type { StageComponentProps } from './types';
-import { ErrorCode } from '../../cs-errorcode';
+import { ErrorCode } from '$app/cs-errorcode';
 
 export function PasswordStage({
   stageData,

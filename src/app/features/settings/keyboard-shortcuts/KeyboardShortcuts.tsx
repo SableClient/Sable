@@ -6,7 +6,7 @@
  */
 import { Box, Scroll, Text, config } from 'folds';
 import { PageContent } from '$components/page';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 
 type ShortcutEntry = {
   keys: string;

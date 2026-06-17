@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { Box, Dialog, config, Text, Button, Spinner } from 'folds';
 import { SpecVersionsLoader } from '$components/SpecVersionsLoader';
 import { SpecVersionsProvider } from '$hooks/useSpecVersions';
-import type { SpecVersions } from '../../cs-api';
+import type { SpecVersions } from '$app/cs-api';
 import { SplashScreen } from '$components/splash-screen';
 
 function specVersionsFallback() {

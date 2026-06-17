@@ -48,7 +48,7 @@ import { startClient, stopClient } from '$client/initMatrix';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { mobileOrTablet } from '$utils/user-agent';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
-import { getToRoomEventPath } from '../pathUtils';
+import { getToRoomEventPath } from '$pages/pathUtils';
 
 const log = createLogger('BackgroundNotifications');
 const debugLog = createDebugLogger('BackgroundNotifications');

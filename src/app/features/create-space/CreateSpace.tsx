@@ -36,7 +36,7 @@ import {
   type IconSizeToken,
 } from '$components/icons/phosphor';
 
-import { ErrorCode } from '../../cs-errorcode';
+import { ErrorCode } from '$app/cs-errorcode';
 
 const getCreateSpaceAccessToIcon = (
   access: CreateRoomAccess,

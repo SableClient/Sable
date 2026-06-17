@@ -14,7 +14,7 @@ import { millisecondsToMinutes } from '$utils/common';
 import { createRoomEncryptionState } from '$components/create-room';
 import { useAlive } from '$hooks/useAlive';
 import { getDirectRoomPath } from '$pages/pathUtils';
-import { ErrorCode } from '../../cs-errorcode';
+import { ErrorCode } from '$app/cs-errorcode';
 
 type CreateChatProps = {
   defaultUserId?: string;

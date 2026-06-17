@@ -9,12 +9,12 @@ import {
   WidgetApiToWidgetAction,
 } from 'matrix-widget-api';
 import { CallWidgetDriver } from './CallWidgetDriver';
-import { trimTrailingSlash } from '../../utils/common';
+import { trimTrailingSlash } from '$utils/common';
 import type { ElementCallThemeKind, ElementMediaStateDetail } from './types';
 import { ElementCallIntent, ElementWidgetActions } from './types';
 import { CallControl } from './CallControl';
 import { CallControlState } from './CallControlState';
-import { createDebugLogger } from '../../utils/debugLogger';
+import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('CallEmbed');
 

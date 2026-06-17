@@ -4,7 +4,7 @@ import { Check, Download, Link, Star, Warning, sizedIcon } from '$components/ico
 
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { copyToClipboard } from '$utils/dom';
-import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../../theme/previewCss';
+import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '$app/theme/previewCss';
 
 export type ThemePreviewCardProps = {
   title: string;

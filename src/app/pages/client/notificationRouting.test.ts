@@ -19,9 +19,10 @@ describe('notification routing', () => {
   });
 
   it('defers message delivery to push whenever the client is not actively focused', () => {
-    expect(shouldDeferMessageNotificationToPush(true, 'visible', true)).toBe(false);
-    expect(shouldDeferMessageNotificationToPush(true, 'visible', false)).toBe(true);
-    expect(shouldDeferMessageNotificationToPush(true, 'hidden', false)).toBe(true);
-    expect(shouldDeferMessageNotificationToPush(false, 'hidden', false)).toBe(false);
+    expect(shouldDeferMessageNotificationToPush(true, true, 'visible', true)).toBe(false);
+    expect(shouldDeferMessageNotificationToPush(true, true, 'visible', false)).toBe(true);
+    expect(shouldDeferMessageNotificationToPush(true, true, 'hidden', false)).toBe(true);
+    expect(shouldDeferMessageNotificationToPush(true, false, 'hidden', false)).toBe(false);
+    expect(shouldDeferMessageNotificationToPush(false, false, 'hidden', false)).toBe(false);
   });
 });

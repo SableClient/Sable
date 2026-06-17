@@ -5,23 +5,8 @@ import type { ClientConfig } from '../../../hooks/useClientConfig';
 import {
   disablePushNotifications,
   enablePushNotifications,
-  reconcilePushNotifications,
+  togglePusher,
 } from './PushNotifications';
-
-vi.mock('@sentry/react', () => ({
-  metrics: {
-    count: vi.fn<() => void>(),
-  },
-  startInactiveSpan: vi.fn<() => { setAttribute: () => void; end: () => void }>(() => ({
-    setAttribute: vi.fn<() => void>(),
-    end: vi.fn<() => void>(),
-  })),
-  addBreadcrumb: vi.fn<() => void>(),
-}));
-
-vi.mock('@tauri-apps/api/core', () => ({
-  isTauri: () => false,
-}));
 
 const clientConfig: ClientConfig = {
   pushNotificationDetails: {
@@ -33,14 +18,16 @@ const clientConfig: ClientConfig = {
 
 function makeMatrixClient(): MatrixClient {
   return {
-    setPusher: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    getPushers: vi
-      .fn<() => Promise<{ pushers: { app_id: string; pushkey: string }[] }>>()
-      .mockResolvedValue({ pushers: [] }),
+    baseUrl: 'https://matrix.example.com',
+    getAccessToken: vi.fn<() => string>().mockReturnValue('access-token'),
     getDevice: vi
       .fn<() => Promise<{ display_name?: string }>>()
       .mockResolvedValue({ display_name: 'Phone' }),
     getDeviceId: vi.fn<() => string>().mockReturnValue('DEVICEID'),
+    getPushers: vi
+      .fn<() => Promise<{ pushers: { app_id: string; pushkey: string }[] }>>()
+      .mockResolvedValue({ pushers: [] }),
+    setPusher: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   } as unknown as MatrixClient;
 }
 
@@ -58,18 +45,6 @@ function makeSubscription(endpoint = 'https://push.example.com/sub') {
   } as unknown as PushSubscription;
 }
 
-function makePusher(appId: string, pushkey: string) {
-  return {
-    app_display_name: 'Charm',
-    app_id: appId,
-    data: {},
-    device_display_name: 'Phone',
-    kind: 'http',
-    lang: 'en',
-    pushkey,
-  };
-}
-
 function installWebPush(subscription: PushSubscription | null): {
   controllerPostMessage: ReturnType<typeof vi.fn>;
   subscribe: ReturnType<typeof vi.fn>;
@@ -77,9 +52,6 @@ function installWebPush(subscription: PushSubscription | null): {
   const controllerPostMessage = vi.fn<() => void>();
   const subscribe = vi.fn<() => Promise<PushSubscription>>().mockResolvedValue(makeSubscription());
   const registration = {
-    active: undefined,
-    waiting: undefined,
-    installing: undefined,
     pushManager: {
       getSubscription: vi
         .fn<() => Promise<PushSubscription | null>>()
@@ -92,7 +64,6 @@ function installWebPush(subscription: PushSubscription | null): {
     configurable: true,
     value: {
       controller: {
-        state: 'activated',
         postMessage: controllerPostMessage,
       },
       ready: Promise.resolve(registration),
@@ -110,89 +81,61 @@ afterEach(() => {
 });
 
 describe('web push notifications', () => {
-  it('reconciles an enabled push registration at startup when permission is already granted', async () => {
+  it('reuses an existing browser subscription through the service worker toggle path', async () => {
     const subscription = makeSubscription();
-    installWebPush(subscription);
+    const { controllerPostMessage, subscribe } = installWebPush(subscription);
     const mx = makeMatrixClient();
-
-    vi.stubGlobal('Notification', { permission: 'granted' });
-
-    await expect(
-      reconcilePushNotifications(mx, clientConfig, [subscription.toJSON(), vi.fn<() => void>()])
-    ).resolves.toBe(true);
-
-    expect(mx.setPusher).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'http',
-        app_id: 'moe.sable.web',
-        pushkey: 'p256dh-key',
-      })
-    );
-  });
-
-  it('skips startup reconciliation when notification permission is not granted', async () => {
-    const subscription = makeSubscription();
-    installWebPush(subscription);
-    const mx = makeMatrixClient();
-
-    vi.stubGlobal('Notification', { permission: 'default' });
-
-    await expect(
-      reconcilePushNotifications(mx, clientConfig, [subscription.toJSON(), vi.fn<() => void>()])
-    ).resolves.toBe(false);
-
-    expect(mx.setPusher).not.toHaveBeenCalled();
-  });
-
-  it('updates the Matrix pusher directly and removes the legacy Sable pusher when reusing a browser subscription', async () => {
-    const subscription = makeSubscription();
-    const { controllerPostMessage } = installWebPush(subscription);
-    const mx = makeMatrixClient();
-    vi.mocked(mx.getPushers).mockResolvedValue({
-      pushers: [
-        makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key'),
-        makePusher('moe.sable.web', 'other-device-p256dh-key'),
-      ],
-    });
     const setSubscription = vi.fn<() => void>();
 
     await enablePushNotifications(mx, clientConfig, [subscription.toJSON(), setSubscription]);
 
-    expect(mx.setPusher).toHaveBeenCalledWith(
-      expect.objectContaining({
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(setSubscription).not.toHaveBeenCalled();
+    expect(controllerPostMessage).toHaveBeenCalledWith({
+      url: 'https://matrix.example.com',
+      type: 'togglePush',
+      token: 'access-token',
+      pusherData: expect.objectContaining({
         kind: 'http',
         app_id: 'moe.sable.web',
         pushkey: 'p256dh-key',
-        device_display_name: 'Phone',
         data: expect.objectContaining({
-          url: 'https://push.example.com/_matrix/push/v1/notify',
-          format: 'event_id_only',
           endpoint: 'https://push.example.com/sub',
           p256dh: 'p256dh-key',
           auth: 'auth-key',
         }),
-      })
-    );
-    expect(mx.setPusher).toHaveBeenCalledWith({
-      kind: null,
-      app_id: 'moe.sable.app.sygnal',
-      pushkey: 'old-sable-p256dh-key',
+      }),
     });
-    expect(mx.setPusher).not.toHaveBeenCalledWith({
-      kind: null,
-      app_id: 'moe.sable.app.sygnal',
-      pushkey: 'p256dh-key',
-    });
-    expect(controllerPostMessage).not.toHaveBeenCalled();
-    expect(setSubscription).toHaveBeenCalledWith(subscription);
   });
 
-  it('deletes current and legacy Matrix pushers directly when disabling web push', async () => {
+  it('creates a new subscription and posts the pusher to the service worker', async () => {
+    const { controllerPostMessage, subscribe } = installWebPush(null);
+    const mx = makeMatrixClient();
+    const setSubscription = vi.fn<() => void>();
+
+    await enablePushNotifications(mx, clientConfig, [null, setSubscription]);
+
+    expect(subscribe).toHaveBeenCalledWith({
+      userVisibleOnly: true,
+      applicationServerKey: 'vapid-key',
+    });
+    expect(setSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: 'https://push.example.com/sub',
+      })
+    );
+    expect(controllerPostMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'togglePush',
+        token: 'access-token',
+      })
+    );
+  });
+
+  it('posts a null pusher to disable web push', async () => {
     installWebPush(null);
     const mx = makeMatrixClient();
-    vi.mocked(mx.getPushers).mockResolvedValue({
-      pushers: [makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key')],
-    });
+    const controllerPostMessage = vi.mocked(navigator.serviceWorker.controller!.postMessage);
 
     await disablePushNotifications(mx, clientConfig, [
       {
@@ -205,127 +148,46 @@ describe('web push notifications', () => {
       vi.fn<() => void>(),
     ]);
 
-    expect(mx.setPusher).toHaveBeenCalledWith({
-      kind: null,
-      app_id: 'moe.sable.web',
-      pushkey: 'p256dh-key',
-    });
-    expect(mx.setPusher).toHaveBeenCalledWith({
-      kind: null,
-      app_id: 'moe.sable.app.sygnal',
-      pushkey: 'old-sable-p256dh-key',
-    });
-  });
-
-  it('propagates failures when deleting the current web push pusher', async () => {
-    installWebPush(null);
-    const mx = makeMatrixClient();
-    vi.mocked(mx.setPusher).mockImplementation((pusher) => {
-      if (pusher.app_id === 'moe.sable.web') {
-        return Promise.reject(new Error('homeserver unavailable'));
-      }
-      return Promise.resolve({});
-    });
-
-    await expect(
-      disablePushNotifications(mx, clientConfig, [
-        {
-          endpoint: 'https://push.example.com/sub',
-          keys: {
-            p256dh: 'p256dh-key',
-            auth: 'auth-key',
-          },
-        },
-        vi.fn<() => void>(),
-      ])
-    ).rejects.toThrow('homeserver unavailable');
-
-    expect(mx.getPushers).not.toHaveBeenCalled();
-  });
-
-  it('keeps legacy web pusher cleanup best-effort when deleting legacy pushers fails', async () => {
-    installWebPush(null);
-    const mx = makeMatrixClient();
-    vi.mocked(mx.getPushers).mockResolvedValue({
-      pushers: [makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key')],
-    });
-    vi.mocked(mx.setPusher).mockImplementation((pusher) => {
-      if (pusher.app_id === 'moe.sable.app.sygnal') {
-        return Promise.reject(new Error('legacy pusher already gone'));
-      }
-      return Promise.resolve({});
-    });
-
-    await expect(
-      disablePushNotifications(mx, clientConfig, [
-        {
-          endpoint: 'https://push.example.com/sub',
-          keys: {
-            p256dh: 'p256dh-key',
-            auth: 'auth-key',
-          },
-        },
-        vi.fn<() => void>(),
-      ])
-    ).resolves.toBeUndefined();
-
-    expect(mx.setPusher).toHaveBeenCalledWith({
-      kind: null,
-      app_id: 'moe.sable.web',
-      pushkey: 'p256dh-key',
-    });
-    expect(mx.setPusher).toHaveBeenCalledWith({
-      kind: null,
-      app_id: 'moe.sable.app.sygnal',
-      pushkey: 'old-sable-p256dh-key',
-    });
-  });
-
-  it('removes the legacy pusher before replacing an existing browser subscription', async () => {
-    const subscription = makeSubscription();
-    const { subscribe } = installWebPush(subscription);
-    const mx = makeMatrixClient();
-    vi.mocked(mx.getPushers).mockResolvedValue({
-      pushers: [makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key')],
-    });
-
-    await enablePushNotifications(mx, clientConfig, [null, vi.fn<() => void>()]);
-
-    expect(subscription.unsubscribe).toHaveBeenCalled();
-    expect(subscribe).toHaveBeenCalled();
-    expect(mx.setPusher).toHaveBeenCalledWith({
-      kind: null,
-      app_id: 'moe.sable.web',
-      pushkey: 'p256dh-key',
-    });
-    expect(mx.setPusher).toHaveBeenCalledWith({
-      kind: null,
-      app_id: 'moe.sable.app.sygnal',
-      pushkey: 'old-sable-p256dh-key',
-    });
-  });
-
-  it('removes the legacy pusher after creating a first browser subscription', async () => {
-    const { subscribe } = installWebPush(null);
-    const mx = makeMatrixClient();
-    vi.mocked(mx.getPushers).mockResolvedValue({
-      pushers: [makePusher('moe.sable.app.sygnal', 'old-sable-p256dh-key')],
-    });
-
-    await enablePushNotifications(mx, clientConfig, [null, vi.fn<() => void>()]);
-
-    expect(subscribe).toHaveBeenCalled();
-    expect(mx.setPusher).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'http',
+    expect(controllerPostMessage).toHaveBeenCalledWith({
+      url: 'https://matrix.example.com',
+      type: 'togglePush',
+      token: 'access-token',
+      pusherData: {
+        kind: null,
         app_id: 'moe.sable.web',
         pushkey: 'p256dh-key',
+      },
+    });
+  });
+
+  it('disables push when visible and enables it when hidden', async () => {
+    installWebPush(null);
+    const mx = makeMatrixClient();
+    const pushState: [
+      PushSubscriptionJSON | null,
+      (subscription: PushSubscription | null) => void,
+    ] = [null, vi.fn<() => void>()];
+    const enableSpy = vi.spyOn(navigator.serviceWorker.controller!, 'postMessage');
+
+    await togglePusher(mx, clientConfig, true, true, pushState);
+    await togglePusher(mx, clientConfig, false, true, pushState);
+
+    expect(enableSpy).toHaveBeenNthCalledWith(1, {
+      url: 'https://matrix.example.com',
+      type: 'togglePush',
+      token: 'access-token',
+      pusherData: {
+        kind: null,
+        app_id: 'moe.sable.web',
+        pushkey: undefined,
+      },
+    });
+    expect(enableSpy).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        type: 'togglePush',
+        token: 'access-token',
       })
     );
-    expect(mx.setPusher).toHaveBeenCalledWith({
-      kind: null,
-      app_id: 'moe.sable.app.sygnal',
-      pushkey: 'old-sable-p256dh-key',
-    });
   });
 });

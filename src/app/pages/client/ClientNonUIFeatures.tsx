@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom, useStore } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -31,7 +31,6 @@ import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { usePreviousValue } from '$hooks/usePreviousValue';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useClientConfig } from '$hooks/useClientConfig';
 import {
   getMemberDisplayName,
   getNotificationType,
@@ -46,7 +45,6 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { registrationAtom } from '$state/serviceWorkerRegistration';
 import { pendingNotificationAtom, inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
-import { pushSubscriptionAtom } from '$state/pushSubscription';
 import {
   buildRoomMessageNotification,
   resolveNotificationPreviewText,
@@ -93,14 +91,9 @@ import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 import {
-  shouldDeferInviteNotificationToPush,
-  shouldDeferMessageNotificationToPush,
-} from './notificationRouting';
-import {
   NotificationTransportRuntime,
   type NotificationTransportRuntimeContext,
 } from '../../features/settings/notifications/NotificationTransportRuntime';
-import { reconcilePushNotifications } from '../../features/settings/notifications/PushNotifications';
 import {
   normalizeNotificationTransportMode,
   resolvePreferredNotificationTransportProvider,
@@ -240,54 +233,16 @@ function FaviconUpdater() {
   return null;
 }
 
-function WebPushStartupReconciler() {
-  const mx = useMatrixClient();
-  const clientConfig = useClientConfig();
-  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
-  const store = useStore();
-  const setPushSubscription = useSetAtom(pushSubscriptionAtom);
-  const reconciledUserIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!usePushNotifications || isTauri()) return;
-
-    const userId = mx.getUserId() ?? null;
-    if (!userId) return;
-    if (reconciledUserIdRef.current === userId) return;
-
-    reconciledUserIdRef.current = userId;
-    void reconcilePushNotifications(mx, clientConfig, [
-      store.get(pushSubscriptionAtom),
-      setPushSubscription,
-    ]).catch((error) => {
-      reconciledUserIdRef.current = null;
-      transportLog.warn('notification', 'Web push startup reconciliation failed', {
-        userId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
-  }, [mx, clientConfig, store, setPushSubscription, usePushNotifications]);
-
-  return null;
-}
-
 function InviteNotifications() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const invites = useAtomValue(allInvitesAtom);
   const perviousInviteLen = usePreviousValue(invites.length, 0);
   const mx = useMatrixClient();
-  const pushSubscription = useAtomValue(pushSubscriptionAtom);
-  const registration = useAtomValue(registrationAtom);
 
   const navigate = useNavigate();
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
-  const pushReady =
-    usePushNotifications &&
-    !!pushSubscription &&
-    !!registration &&
-    notificationPermission('granted');
 
   const notify = useCallback(
     (count: number) => {
@@ -314,7 +269,8 @@ function InviteNotifications() {
   useEffect(() => {
     if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
 
-    if (shouldDeferInviteNotificationToPush(usePushNotifications, pushReady)) return;
+    // SW push (via Sygnal) handles invite notifications when the app is backgrounded.
+    if (document.visibilityState !== 'visible' && usePushNotifications) return;
 
     // OS notification for invites — desktop only.
     if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {
@@ -335,7 +291,6 @@ function InviteNotifications() {
     showSystemNotifications,
     usePushNotifications,
     notificationSound,
-    pushReady,
     notify,
     playSound,
   ]);
@@ -360,7 +315,6 @@ function MessageNotifications() {
   const appBaseUrl = useSettingsLinkBaseUrl();
   const [showNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
-  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
   const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
   const [showEncryptedMessageContent] = useSetting(
@@ -528,22 +482,10 @@ function MessageNotifications() {
         if (first) notifiedEventsRef.current.delete(first);
       }
 
-      if (
-        shouldDeferMessageNotificationToPush(
-          usePushNotifications,
-          document.visibilityState,
-          document.hasFocus()
-        )
-      ) {
-        // When background push is enabled, defer all non-foreground notification
-        // delivery to the SW path so the page does not duplicate or race it.
-        return;
-      }
-
-      // On desktop: fire an OS notification when system notifications are
-      // enabled and permission is granted, but only for the actively focused
-      // foreground page. Background or unfocused delivery is deferred to the
-      // service worker push path above.
+      // On desktop: fire an OS notification whenever system notifications are
+      // enabled and permission is granted — regardless of whether the window is
+      // focused. When the window is also visible the in-app banner fires too,
+      // mirroring the behaviour of apps like Discord.
       // The whole block is wrapped in try/catch: window.Notification() can throw
       // in sandboxed environments, browsers with DnD active, or Electron — and
       // an uncaught exception here would abort the handler before setInAppBanner
@@ -572,66 +514,24 @@ function MessageNotifications() {
             }),
             silent: !notificationSound || !isLoud,
             eventId,
-            data: {
-              type: mEvent.getType(),
-              room_id: room.roomId,
-              event_id: eventId,
-              user_id: mx.getUserId() ?? undefined,
-            },
           });
+          const noti = new window.Notification(osPayload.title, osPayload.options);
           const { roomId } = room;
-          const handleClick = () => {
+          noti.addEventListener('click', () => {
             window.focus();
             setPending({
               roomId,
               eventId,
               targetSessionId: mx.getUserId() ?? undefined,
             });
-          };
-          const showWindowNotification = () => {
-            try {
-              const noti = new window.Notification(osPayload.title, osPayload.options);
-              noti.addEventListener('click', () => {
-                handleClick();
-                noti.close();
-              });
-            } catch {
-              // OS notification unavailable or blocked.
-            }
-          };
-          if ('serviceWorker' in navigator) {
-            const readyOrTimeout = Promise.race<ServiceWorkerRegistration | undefined>([
-              navigator.serviceWorker.ready,
-              new Promise<undefined>((resolve) => {
-                setTimeout(() => resolve(undefined), 800);
-              }),
-            ]);
-            void readyOrTimeout
-              .then((reg) =>
-                reg
-                  ? reg.showNotification(osPayload.title, osPayload.options)
-                  : showWindowNotification()
-              )
-              .catch(showWindowNotification);
-          } else {
-            showWindowNotification();
-          }
+            noti.close();
+          });
         } catch {
           // window.Notification unavailable or blocked (sandboxed context, DnD, etc.)
         }
       }
 
-      // Focus mode filter: apply before sound/banners.
-      // This allows focus mode to suppress both audio and visual notifications.
-      if (!shouldShowNotificationInFocusMode(focusMode, isDM, isHighlightByRule)) return;
-
-      // In-app audio: play when notification sounds are enabled AND this notification is loud.
-      // Play sound before the visibility check so audio works even when tab is hidden/backgrounded.
-      if (notificationSound && isLoud) {
-        playSound();
-      }
-
-      // Everything below requires the page to be visible (in-app banners only).
+      // Everything below requires the page to be visible (in-app UI + audio).
       if (document.visibilityState !== 'visible') return;
 
       // Page is visible — show the themed in-app notification banner.
@@ -725,7 +625,6 @@ function MessageNotifications() {
     showSystemNotifications,
     showMessageContent,
     showEncryptedMessageContent,
-    usePushNotifications,
     focusMode,
     playSound,
     setInAppBanner,
@@ -984,6 +883,23 @@ function SyncNotificationSettingsWithServiceWorker() {
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
 
   useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const postVisibility = () => {
+      const visible = document.visibilityState === 'visible';
+      const payload = { type: 'setAppVisible', visible };
+
+      navigator.serviceWorker.controller?.postMessage(payload);
+      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(payload));
+    };
+
+    postVisibility();
+    document.addEventListener('visibilitychange', postVisibility);
+
+    return () => document.removeEventListener('visibilitychange', postVisibility);
+  }, []);
+
+  useEffect(() => {
     if (!('serviceWorker' in navigator) || isTauri()) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).
@@ -1096,20 +1012,6 @@ function HandleDecryptPushEvent() {
     const handleMessage = async (ev: MessageEvent) => {
       const { data } = ev;
       if (!data) return;
-
-      if (data.type === 'getForegroundState') {
-        const { requestId } = data as { requestId?: unknown };
-        if (typeof requestId !== 'string') return;
-
-        const response = {
-          type: 'foregroundStateResult',
-          requestId,
-          visibilityState: document.visibilityState,
-          focused: document.hasFocus(),
-        };
-        if (!postToServiceWorkerSource(ev.source, response)) postToServiceWorker(response);
-        return;
-      }
 
       if (data.type !== 'decryptPushEvent') return;
 
@@ -1370,7 +1272,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />
-      <WebPushStartupReconciler />
       <FaviconUpdater />
       <InviteNotifications />
       <MessageNotifications />

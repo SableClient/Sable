@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { QueryClient } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
@@ -30,10 +30,11 @@ function SettingsStoreBootstrap({
   const store = useStore();
   const bootstrappedDefaultsRef = useRef<ClientConfig['settingsDefaults']>();
 
-  if (bootstrappedDefaultsRef.current !== settingsDefaults) {
+  useLayoutEffect(() => {
+    if (bootstrappedDefaultsRef.current === settingsDefaults) return;
     bootstrapSettingsStore(store, settingsDefaults);
     bootstrappedDefaultsRef.current = settingsDefaults;
-  }
+  }, [settingsDefaults, store]);
 
   return children;
 }

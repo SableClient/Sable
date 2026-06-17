@@ -46,7 +46,9 @@ import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { getSettings } from '$state/settings';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
-import { SearchModalRenderer } from '$features/search';
+const SearchModalRenderer = lazy(() =>
+  import('$features/search').then((m) => ({ default: m.SearchModalRenderer }))
+);
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
 import { CallEmbedProvider } from '$components/CallEmbedProvider';
 import { AuthLayout, Login, Register, ResetPassword } from './auth';
@@ -218,7 +220,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                             </ClientLayout>
                             <CallStatusRenderer />
                           </CallEmbedProvider>
-                          <SearchModalRenderer />
+                          <Suspense fallback={null}>
+                            <SearchModalRenderer />
+                          </Suspense>
                           <UserRoomProfileRenderer />
                           <CreateRoomModalRenderer />
                           <CreateSpaceModalRenderer />

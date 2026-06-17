@@ -5,14 +5,18 @@ import { CallWidgetDriver } from './CallWidgetDriver';
 const downloadMedia = vi.fn();
 const mxcUrlToHttp = vi.fn();
 
+function WidgetDriver() {
+  return undefined;
+}
+
+function SimpleObservable() {
+  return undefined;
+}
+
 vi.mock('matrix-widget-api', () => ({
-  WidgetDriver: function WidgetDriver() {
-    return undefined;
-  },
+  WidgetDriver,
   OpenIDRequestState: { Allowed: 'allowed' },
-  SimpleObservable: function SimpleObservable() {
-    return undefined;
-  },
+  SimpleObservable,
   UpdateDelayedEventAction: {},
 }));
 

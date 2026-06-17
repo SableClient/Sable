@@ -90,6 +90,7 @@ import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
 import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
+import { clearLaunchContext } from '../../../launch-context-persistence';
 import { getInboxBookmarksPath, getInboxInvitesPath, getToRoomEventPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 import {
@@ -203,11 +204,12 @@ function WebPushStartupReconciler() {
 function SystemEmojiFeature() {
   const [twitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
 
-  if (twitterEmoji) {
-    document.documentElement.style.setProperty('--font-emoji', 'Twemoji');
-  } else {
-    document.documentElement.style.setProperty('--font-emoji', 'Twemoji_DISABLED');
-  }
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--font-emoji',
+      twitterEmoji ? 'Twemoji' : 'Twemoji_DISABLED'
+    );
+  }, [twitterEmoji]);
 
   return null;
 }
@@ -215,11 +217,14 @@ function SystemEmojiFeature() {
 function PageZoomFeature() {
   const [pageZoom] = useSetting(settingsAtom, 'pageZoom');
 
-  if (pageZoom === 100) {
-    document.documentElement.style.removeProperty('font-size');
-  } else {
+  useEffect(() => {
+    if (pageZoom === 100) {
+      document.documentElement.style.removeProperty('font-size');
+      return;
+    }
+
     document.documentElement.style.setProperty('font-size', `calc(1em * ${pageZoom / 100})`);
-  }
+  }, [pageZoom]);
 
   return null;
 }
@@ -887,6 +892,8 @@ export function HandleNotificationClick() {
         userId,
         roomId,
         eventId,
+        clickId,
+        targetUrl,
         navigate: navigateUrl,
         isInvite,
         isReminder,
@@ -894,28 +901,63 @@ export function HandleNotificationClick() {
         userId?: string;
         roomId?: string;
         eventId?: string;
+        clickId?: string;
+        targetUrl?: string;
         navigate?: string;
         isInvite?: boolean;
         isReminder?: boolean;
+      };
+
+      const acknowledgeHandledClick = () => {
+        if (typeof clickId === 'string') {
+          if (
+            !postToServiceWorkerSource(ev.source, {
+              type: 'notificationClickHandled',
+              clickId,
+            })
+          ) {
+            postToServiceWorker({
+              type: 'notificationClickHandled',
+              clickId,
+            });
+          }
+        }
+
+        void clearLaunchContext().catch(() => undefined);
       };
 
       if (userId) setActiveSessionId(userId);
 
       if (isInvite) {
         navigate(getInboxInvitesPath());
+        acknowledgeHandledClick();
         return;
       }
 
       if (isReminder) {
         navigate(getInboxBookmarksPath());
+        acknowledgeHandledClick();
         return;
       }
 
       if (!roomId) {
-        if (navigateUrl) navigateToServiceWorkerUrl(navigate, navigateUrl);
+        if (navigateUrl ?? targetUrl) {
+          navigateToServiceWorkerUrl(navigate, navigateUrl ?? targetUrl ?? '');
+          acknowledgeHandledClick();
+        }
         return;
       }
-      navigateToRoomNotificationTarget(navigate, userId, roomId, eventId);
+
+      if (userId) {
+        navigateToRoomNotificationTarget(navigate, userId, roomId, eventId);
+        acknowledgeHandledClick();
+        return;
+      }
+
+      if (targetUrl ?? navigateUrl) {
+        navigateToServiceWorkerUrl(navigate, targetUrl ?? navigateUrl ?? '');
+        acknowledgeHandledClick();
+      }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);

@@ -34,7 +34,6 @@ import { CallView } from '$features/call/CallView';
 import { useRoom } from '$hooks/useRoom';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
 import { RoomInput } from './RoomInput';
-import { RoomInputTiptap } from './RoomInputTiptap';
 import { RoomTombstone } from './RoomTombstone';
 import { RoomViewTyping } from './RoomViewTyping';
 import { RoomTimeline } from './RoomTimeline';
@@ -80,7 +79,6 @@ export function RoomView({ eventId }: { eventId?: string }) {
   const { isKeyboardVisible } = useKeyboardHeight();
   const screenSize = useScreenSizeContext();
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const [useTiptapComposer] = useSetting(settingsAtom, 'useTiptapComposer');
 
   const room = useRoom();
   const { roomId } = room;
@@ -184,15 +182,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
                   />
                 ) : (
                   <>
-                    {canMessage && useTiptapComposer && (
-                      <RoomInputTiptap
-                        key={`${roomId}-tiptap-${editorResetKey}`}
-                        room={room}
-                        roomId={roomId}
-                        fileDropContainerRef={roomViewRef}
-                      />
-                    )}
-                    {canMessage && !useTiptapComposer && (
+                    {canMessage && (
                       <RoomInput
                         key={`${roomId}-${editorResetKey}`}
                         room={room}

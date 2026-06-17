@@ -13,7 +13,7 @@ import {
   VerificationStatus,
 } from '$hooks/useDeviceVerificationStatus';
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
-import { useOpenSettings } from '$features/settings';
+import { useOpenSettings } from '$features/settings/useOpenSettings';
 import { getPhosphorIconSize, ShieldWarning } from '$components/icons/phosphor';
 import * as css from './UnverifiedTab.css';
 

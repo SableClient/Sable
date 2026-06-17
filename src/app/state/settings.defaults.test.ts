@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   defaultSettings,
+  getSettings,
   mergePersistedSettings,
+  primeRuntimeSettingsDefaults,
   sanitizeSettingsDefaults,
   resetRuntimeSettingsDefaults,
 } from '$state/settings';
@@ -87,5 +89,13 @@ describe('sanitizeSettingsDefaults', () => {
     });
     expect(sanitizeSettingsDefaults({ iconEmptySizePx: -1 })).toEqual({});
     expect(sanitizeSettingsDefaults({ iconEmptySizePx: 32.5 })).toEqual({});
+  });
+});
+
+describe('primeRuntimeSettingsDefaults', () => {
+  it('updates getSettings before atoms are bootstrapped', () => {
+    primeRuntimeSettingsDefaults({ defaultLandingScreen: 'direct' });
+
+    expect(getSettings().defaultLandingScreen).toBe('direct');
   });
 });

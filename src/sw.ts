@@ -13,6 +13,16 @@ import {
 } from './sw/pushRouting';
 import { persistLaunchContext } from './launch-context-persistence';
 import { readPersistedSession } from './sw-session-persistence';
+import {
+  selectPersistedSessionCandidate,
+  shouldClearMediaCacheAfterSessionRemoval,
+} from './sw-session-state';
+import {
+  buildNotificationClickTargetUrl,
+  didWindowClientActivationSucceed,
+  rankNotificationClickClients,
+  type ServiceWorkerNotificationClickData,
+} from './sw-notification-click';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -158,11 +168,19 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
 type SessionInfo = {
   accessToken: string;
   baseUrl: string;
-  /** Matrix user ID of the account, used to identify which account a push belongs to. */
   userId?: string;
-  /** Timestamp when this session was persisted to cache. */
   persistedAt?: number;
 };
+
+async function syncPersistedSessionFromLiveSessions(): Promise<void> {
+  const persistedSession = selectPersistedSessionCandidate(sessions.values());
+  if (persistedSession) {
+    await persistSession(persistedSession);
+    return;
+  }
+
+  await clearPersistedSession();
+}
 
 /**
  * Store session per client (tab)
@@ -193,7 +211,14 @@ async function cleanupDeadClients() {
   });
 }
 
-function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, userId?: unknown) {
+async function setSession(
+  clientId: string,
+  accessToken: unknown,
+  baseUrl: unknown,
+  userId?: unknown
+) {
+  await cleanupDeadClients();
+
   if (typeof accessToken === 'string' && typeof baseUrl === 'string') {
     // Only clear the media cache when the token actually changes (new account or
     // token rotation). Normal page reloads with the same token should keep the
@@ -220,12 +245,14 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     }
   } else {
     // Logout or invalid session
+    const removedSession = sessions.get(clientId) ?? preloadedSession;
     sessions.delete(clientId);
     preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
-    clearPersistedSession().catch(() => undefined);
-    // Clear media cache on logout.
-    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
+    syncPersistedSessionFromLiveSessions().catch(() => undefined);
+    if (shouldClearMediaCacheAfterSessionRemoval(removedSession?.accessToken, sessions.values())) {
+      self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
+    }
   }
 
   const resolveSessionWaiters = clientToSessionWaiters.get(clientId);
@@ -568,6 +595,13 @@ type DecryptionResult = {
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
+type NotificationClickWaiter = {
+  resolve: (handled: boolean) => void;
+  settled: boolean;
+  timeoutId: ReturnType<typeof setTimeout>;
+};
+
+const notificationClickPendingMap = new Map<string, NotificationClickWaiter>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
 
 const sleep = (ms: number): Promise<void> =>
@@ -599,6 +633,42 @@ async function fetchWithNetworkRetry(
   if (retryDelay === undefined) return undefined;
   await sleep(retryDelay);
   return fetchWithNetworkRetry(url, init, label, attempt + 1);
+}
+
+async function waitForNotificationClickHandled(
+  clickId: string,
+  timeoutMs = 2_500
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const timeoutId = setTimeout(() => {
+      const waiter = notificationClickPendingMap.get(clickId);
+      if (waiter) {
+        settleNotificationClickWaiter(clickId, waiter, false);
+      }
+    }, timeoutMs);
+
+    notificationClickPendingMap.set(clickId, {
+      timeoutId,
+      settled: false,
+      resolve,
+    });
+  });
+}
+
+function createNotificationClickHandledWaiter(clickId: string, timeoutMs = 2_500) {
+  return waitForNotificationClickHandled(clickId, timeoutMs);
+}
+
+function settleNotificationClickWaiter(
+  clickId: string,
+  waiter: NotificationClickWaiter,
+  handled: boolean
+) {
+  if (waiter.settled) return;
+  waiter.settled = true;
+  clearTimeout(waiter.timeoutId);
+  notificationClickPendingMap.delete(clickId);
+  waiter.resolve(handled);
 }
 
 async function fetchRawEvent(
@@ -1073,18 +1143,21 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   const { type, accessToken, baseUrl, userId } = data as Record<string, unknown>;
 
   if (type === 'setSession') {
-    setSession(client.id, accessToken, baseUrl, userId);
-    const persisted = sessions.get(client.id);
     event.waitUntil(
-      postSentryBreadcrumb('service_worker.session', 'Service worker session updated', 'info', {
-        hasSession: !!persisted,
-        sessionCount: sessions.size,
-      })
+      (async () => {
+        await setSession(client.id, accessToken, baseUrl, userId);
+        const persisted = sessions.get(client.id);
+        await postSentryBreadcrumb(
+          'service_worker.session',
+          'Service worker session updated',
+          'info',
+          {
+            hasSession: !!persisted,
+            sessionCount: sessions.size,
+          }
+        );
+      })()
     );
-    event.waitUntil(
-      (persisted ? persistSession(persisted) : clearPersistedSession()).catch(() => undefined)
-    );
-    event.waitUntil(cleanupDeadClients());
   }
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
@@ -1127,6 +1200,15 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       if (resolve) {
         decryptionPendingMap.delete(eventId);
         resolve(data as DecryptionResult);
+      }
+    }
+  }
+  if (type === 'notificationClickHandled') {
+    const { clickId } = data as { clickId?: unknown };
+    if (typeof clickId === 'string') {
+      const waiter = notificationClickPendingMap.get(clickId);
+      if (waiter) {
+        settleNotificationClickWaiter(clickId, waiter, true);
       }
     }
   }
@@ -1764,7 +1846,9 @@ self.addEventListener('push', (event: PushEvent) =>
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
 
-  const { data } = event.notification;
+  const { data } = event.notification as Notification & {
+    data?: ServiceWorkerNotificationClickData;
+  };
   const { scope } = self.registration;
 
   const pushUserId: string | undefined = data?.user_id ?? undefined;
@@ -1786,35 +1870,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   const isCall = data?.isCall === true;
 
-  // Build a canonical deep-link URL.
-  //
-  // Room messages: /to/:user_id/:room_id/:event_id?
-  //   e.g. https://charm.cloudhub.social/to/%40alice%3Aserver/%21room%3Aserver/%24event%3Aserver
-  //   The :user_id segment ensures ToRoomEvent switches to the correct account
-  //   before navigating — required for background-account notifications.
-  //
-  // Invites: /inbox/invites/?uid=:user_id
-  //   Navigates straight to the invites page for the correct account.
-  let targetUrl: string;
-  if (isInvite) {
-    const u = new URL('inbox/invites/', scope);
-    if (pushUserId) u.searchParams.set('uid', pushUserId);
-    targetUrl = u.href;
-  } else if (pushUserId && pushRoomId) {
-    const roomUrl = new URL(
-      pushEventId
-        ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}`
-        : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}`,
-      scope
-    );
-    if (isCall) roomUrl.searchParams.set('joinCall', 'true');
-    targetUrl = roomUrl.href;
-  } else if (pushNavigate) {
-    targetUrl = new URL(pushNavigate, scope).href;
-  } else {
-    // Fallback: no room ID or no user ID in payload.
-    targetUrl = new URL('inbox/notifications/', scope).href;
-  }
+  const targetUrl = buildNotificationClickTargetUrl(scope, data ?? {});
 
   console.debug('[SW notificationclick] targetUrl:', targetUrl);
   postSentryBreadcrumb(
@@ -1851,31 +1907,27 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
         type: 'window',
         includeUncontrolled: true,
       })) as WindowClient[];
+      const rankedClients = rankNotificationClickClients(clientList, scope);
 
       console.debug(
         '[SW notificationclick] window clients:',
-        clientList.map((c) => ({
+        rankedClients.map((c) => ({
           url: c.url,
           visibility: c.visibilityState,
           focused: c.focused,
         }))
       );
 
-      for (const wc of clientList) {
+      for (const wc of rankedClients) {
         console.debug('[SW notificationclick] postMessage to existing client:', wc.url);
         try {
-          if (typeof wc.navigate === 'function') {
-            // oxlint-disable-next-line no-await-in-loop
-            await wc.navigate(targetUrl);
-            // oxlint-disable-next-line no-await-in-loop
-            await wc.focus();
-            return;
-          }
-          // Post notification data directly to the running app so its
-          // notification handler can route to the canonical deep-link when
-          // navigate() is unavailable on the existing client.
+          const clickId = createRecordId('notification-click');
+          const clickHandledPromise = createNotificationClickHandledWaiter(clickId);
+
           wc.postMessage({
             type: 'notificationClick',
+            clickId,
+            targetUrl,
             userId: pushUserId,
             roomId: pushRoomId,
             eventId: pushEventId,
@@ -1883,17 +1935,33 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             isInvite,
             isCall,
           });
+
+          // Give already-live clients a chance to route without forcing a reload.
+          // This preserves in-app account switching and room-restore behavior when
+          // the handler is ready, but still falls back if the message is dropped.
           // oxlint-disable-next-line no-await-in-loop
-          await wc.focus();
-          postSentryBreadcrumb(
-            'notification.click',
-            'Focused existing client for notification click',
-            'info',
-            {
-              clientCount: clientList.length,
+          const focusedClient = await wc.focus();
+          const handledByLiveClient =
+            didWindowClientActivationSucceed(focusedClient) &&
+            // oxlint-disable-next-line no-await-in-loop
+            (await clickHandledPromise);
+          if (handledByLiveClient) {
+            return;
+          }
+
+          if (typeof wc.navigate === 'function') {
+            // oxlint-disable-next-line no-await-in-loop
+            const navigatedClient = await wc.navigate(targetUrl);
+            if (!didWindowClientActivationSucceed(navigatedClient)) {
+              continue;
             }
-          ).catch(() => undefined);
-          return;
+            // oxlint-disable-next-line no-await-in-loop
+            const refocusedClient = await navigatedClient.focus();
+            if (!didWindowClientActivationSucceed(refocusedClient)) {
+              continue;
+            }
+            return;
+          }
         } catch (err) {
           console.debug('[SW notificationclick] postMessage/focus failed:', err);
           postSentryBreadcrumb(

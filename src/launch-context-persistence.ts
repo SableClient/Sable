@@ -48,6 +48,13 @@ export async function persistLaunchContext(context: PersistedLaunchContext): Pro
   );
 }
 
+export async function clearLaunchContext(): Promise<void> {
+  if (!('caches' in globalThis)) return;
+
+  const cache = await globalThis.caches.open(LAUNCH_CONTEXT_CACHE);
+  await cache.delete(LAUNCH_CONTEXT_URL);
+}
+
 export async function consumeLaunchContext(): Promise<PersistedLaunchContext | undefined> {
   if (!('caches' in globalThis)) return undefined;
 

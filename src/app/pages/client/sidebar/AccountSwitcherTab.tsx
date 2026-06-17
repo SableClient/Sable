@@ -41,7 +41,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSessionProfiles } from '$hooks/useSessionProfiles';
-import { useOpenSettings } from '$features/settings';
+import { useOpenSettings } from '$features/settings/useOpenSettings';
 import { Modal500 } from '$components/Modal500';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';

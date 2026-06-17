@@ -106,6 +106,31 @@ describe('registerAppServiceWorker', () => {
     expect(mockConsumeLaunchContext).toHaveBeenCalledTimes(1);
   });
 
+  it('recovers a fresh notification launch target during bootstrap', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+    mockConsumeLaunchContext.mockResolvedValueOnce({
+      source: 'notification_click',
+      clickedAt: Date.now(),
+      targetUrl: 'https://charm.example/#/to/%40alice%3Aexample.org/!room%3Aexample.org',
+    });
+
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        href: 'https://charm.example/#/home',
+        origin: 'https://charm.example',
+        replace: vi.fn(),
+      },
+    });
+
+    registerAppServiceWorker();
+    await Promise.resolve();
+
+    expect(window.location.replace).toHaveBeenCalledWith(
+      '/#/to/%40alice%3Aexample.org/!room%3Aexample.org'
+    );
+  });
+
   it('pushes the active session immediately when a controller already exists', () => {
     mockHasServiceWorker.mockReturnValue(true);
 

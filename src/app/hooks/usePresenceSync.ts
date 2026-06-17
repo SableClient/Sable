@@ -334,6 +334,7 @@ async function sendPresenceToServer(
   // eslint-disable-next-line no-await-in-loop -- Sequential retries are intentional
   while (retryCount <= maxRetries) {
     try {
+      // eslint-disable-next-line no-await-in-loop -- Presence retries must remain sequential to preserve backoff behavior.
       await mx.setPresence({ presence: serverPresence, status_msg: statusMsg });
       lastSentTimestamp = Date.now();
       return; // Success - exit
@@ -360,6 +361,7 @@ async function sendPresenceToServer(
         }
 
         // Wait before retrying
+        // eslint-disable-next-line no-await-in-loop -- Retry-After must block the next sequential attempt.
         await sleep(retryAfterMs);
         lastSentTimestamp = Date.now();
         retryCount += 1;

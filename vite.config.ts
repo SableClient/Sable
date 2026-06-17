@@ -320,6 +320,24 @@ export default defineConfig(({ command }) => ({
           if (id.includes('pdfjs-dist')) return 'pdf';
           if (id.includes('@sableclient/sable-call-embedded')) return 'element-call';
           if (id.includes('@matrix-org') || id.includes('matrix-js-sdk')) return 'matrix';
+          if (id.includes('/slate-react/') || id.includes('/slate-dom/')) {
+            return 'composer';
+          }
+          if (
+            id.includes('/src/app/components/editor/') ||
+            id.includes('/src/app/features/room/RoomInput') ||
+            id.includes('/src/app/hooks/useCommands.ts') ||
+            id.includes('/src/app/plugins/text-area/') ||
+            id.includes('dompurify') ||
+            id.includes('marked') ||
+            id.includes('linkifyjs') ||
+            id.includes('html-react-parser') ||
+            id.includes('html-dom-parser') ||
+            id.includes('/src/app/plugins/markdown/') ||
+            id.includes('/src/app/plugins/react-custom-html-parser.tsx')
+          ) {
+            return 'composer';
+          }
           if (id.includes('react-prism') || id.includes('prism')) return 'prism';
           return undefined;
         },

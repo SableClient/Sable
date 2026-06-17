@@ -15,6 +15,15 @@ type SSOLoginProps = {
   action?: SSOAction;
   saveScreenSpace?: boolean;
 };
+
+async function openSsoUrl(event: MouseEvent, url: string) {
+  if (!isTauri()) return;
+  event.preventDefault();
+  const os = osType();
+  const urlProgram = os === 'ios' || os === 'android' ? 'inAppBrowser' : undefined;
+  await openUrl(url, urlProgram);
+}
+
 export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SSOLoginProps) {
   const discovery = useAutoDiscoveryInfo();
   const baseUrl = discovery['m.homeserver'].base_url;
@@ -30,15 +39,6 @@ export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SS
     : true;
 
   const renderAsIcons = withoutIcon ? false : saveScreenSpace && providers && providers.length > 2;
-
-  const openSso = async (event: MouseEvent, url: string) => {
-    if (!isTauri()) return;
-    event.preventDefault();
-    const os = osType();
-    const urlProgram = os === 'ios' || os === 'android' ? 'inAppBrowser' : undefined;
-    await openUrl(url, urlProgram);
-  };
-
   return (
     <Box justifyContent="Center" gap="600" wrap="Wrap">
       {providers ? (
@@ -55,7 +55,7 @@ export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SS
                 key={id}
                 as="a"
                 href={getSSOIdUrl(id)}
-                onClick={(event) => openSso(event, getSSOIdUrl(id))}
+                onClick={(event) => openSsoUrl(event, getSSOIdUrl(id))}
                 aria-label={buttonTitle}
                 size="300"
                 radii="300"
@@ -71,7 +71,7 @@ export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SS
               key={id}
               as="a"
               href={getSSOIdUrl(id)}
-              onClick={(event) => openSso(event, getSSOIdUrl(id))}
+              onClick={(event) => openSsoUrl(event, getSSOIdUrl(id))}
               size="500"
               variant="Secondary"
               fill="Soft"
@@ -95,7 +95,7 @@ export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SS
           style={{ width: '100%' }}
           as="a"
           href={getSSOIdUrl()}
-          onClick={(event) => openSso(event, getSSOIdUrl())}
+          onClick={(event) => openSsoUrl(event, getSSOIdUrl())}
           size="500"
           variant="Secondary"
           fill="Soft"

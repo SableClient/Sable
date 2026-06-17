@@ -70,17 +70,17 @@ export const Preview = style({
 export const PreviewEmoji = style([
   DefaultReset,
   {
-    width: toRem(32),
-    height: toRem(32),
-    fontSize: toRem(32),
-    lineHeight: toRem(32),
+    width: toRem(36),
+    height: toRem(36),
+    fontSize: toRem(36),
+    lineHeight: toRem(36),
   },
 ]);
 export const PreviewImg = style([
   DefaultReset,
   {
-    width: toRem(32),
-    height: toRem(32),
+    width: toRem(36),
+    height: toRem(36),
     objectFit: 'contain',
   },
 ]);
@@ -123,8 +123,8 @@ export const EmojiItem = style([
   {
     width: toRem(48),
     height: toRem(48),
-    fontSize: toRem(32),
-    lineHeight: toRem(32),
+    fontSize: toRem(36),
+    lineHeight: toRem(36),
     borderRadius: config.radii.R400,
     cursor: 'pointer',
 
@@ -145,8 +145,8 @@ export const StickerItem = style([
 export const CustomEmojiImg = style([
   DefaultReset,
   {
-    width: toRem(32),
-    height: toRem(32),
+    width: toRem(36),
+    height: toRem(36),
     objectFit: 'contain',
   },
 ]);

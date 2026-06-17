@@ -498,6 +498,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const closeSchedulePicker = useCallback(() => {
       setShowSchedulePicker(false);
       setScheduleMenuAnchor(undefined);
+      suppressNextSendClickRef.current = false;
     }, []);
 
     const clearLongPressTimer = useCallback(() => {
@@ -2030,7 +2031,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   <FocusTrap
                     focusTrapOptions={{
                       initialFocus: false,
-                      onDeactivate: () => setScheduleMenuAnchor(undefined),
+                      onDeactivate: () => {
+                        setScheduleMenuAnchor(undefined);
+                        suppressNextSendClickRef.current = false;
+                      },
                       clickOutsideDeactivates: true,
                       escapeDeactivates: stopPropagation,
                     }}
@@ -2068,6 +2072,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   title="Send Message"
                   aria-label="Send your composed Message"
                   onClick={() => {
+                    clearLongPressTimer();
                     if (suppressNextSendClickRef.current) {
                       suppressNextSendClickRef.current = false;
                       longPressTriggeredRef.current = false;
@@ -2096,7 +2101,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         longPressTimer.current = null;
                       }
                       openSchedulePicker();
-                    }, 550);
+                    }, 700);
                   }}
                   onPointerMove={(evt) => {
                     if (longPressPointerId.current !== evt.pointerId) return;

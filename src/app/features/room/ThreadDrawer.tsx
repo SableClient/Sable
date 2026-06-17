@@ -72,6 +72,7 @@ import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollo
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { useKeyboardHeight } from '$hooks/ios-keyboard-fix';
 
 /**
  * Resolve the list of reply events to show in the thread drawer.
@@ -186,6 +187,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const spoilerClickHandler = useSpoilerClickHandler();
+  const { isKeyboardVisible } = useKeyboardHeight();
 
   // Settings
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
@@ -1070,6 +1072,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   useEffect(() => {
     setCurHeight(threadRootHeight);
   }, [threadRootHeight]);
+  const hideFollowingBar = mobileOrTablet() && isKeyboardVisible;
 
   return (
     <Box
@@ -1250,7 +1253,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
             onEditLastMessage={handleEditLastMessage}
           />
         </div>
-        {hideReads ? (
+        {hideFollowingBar ? null : hideReads ? (
           <RoomViewFollowingPlaceholder />
         ) : (
           <RoomViewFollowing

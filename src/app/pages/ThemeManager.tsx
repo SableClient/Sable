@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { useAtomValue } from 'jotai';
 import { configClass, varsClass } from 'folds';
 import {
@@ -56,7 +56,7 @@ async function loadRemoteThemeCssText(url: string): Promise<string | undefined> 
 export function UnAuthRouteThemeManager() {
   const systemThemeKind = useSystemThemeKind();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     syncDocumentThemeMetadata(systemThemeKind);
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
@@ -79,7 +79,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [enabledTweakUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // Apply the locally resolved theme immediately so the React app matches the
     // pre-paint boot theme. Account-data settings can still override it once
     // settings sync initializes.

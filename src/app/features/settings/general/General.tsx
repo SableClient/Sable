@@ -292,12 +292,13 @@ type PresetDateFormatProps = {
   value: string;
   onChange: (format: string) => void;
 };
+
+const getDisplayDate = (format: string): string =>
+  format === '' ? 'Custom' : dayjs().format(format);
+
 function PresetDateFormat({ value, onChange }: Readonly<PresetDateFormatProps>) {
   const [menuCords, setMenuCords] = useState<RectCords>();
   const dateFormatItems = useDateFormatItems();
-
-  const getDisplayDate = (format: string): string =>
-    format === '' ? 'Custom' : dayjs().format(format);
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(evt.currentTarget.getBoundingClientRect());

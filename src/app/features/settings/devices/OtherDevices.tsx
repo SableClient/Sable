@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Box, Button, config, Menu, Spinner, Text } from 'folds';
-import type { AuthDict, IMyDevice, MatrixError } from '$types/matrix-sdk';
+import type { AuthDict, IAuthData, IMyDevice, MatrixError, UIAFlow } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { ActionUIA, ActionUIAFlowsLoader } from '$components/ActionUIA';
 import type { AsyncState } from '$hooks/useAsyncCallback';
@@ -16,6 +16,37 @@ import { SettingTile } from '$components/setting-tile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { VerifyOtherDeviceTile } from './Verification';
 import { DeviceDeleteBtn, DeviceTile } from './DeviceTile';
+
+function renderUnsupportedUIAFlow() {
+  return (
+    <Text size="T200">
+      Authentication steps to perform this action are not supported by client.
+    </Text>
+  );
+}
+
+type DeleteDevicesUIAProps = {
+  authData: IAuthData;
+  ongoingFlow: UIAFlow;
+  deleteDevices: (authDict?: AuthDict) => void;
+  onCancel: () => void;
+};
+
+function DeleteDevicesUIA({
+  authData,
+  ongoingFlow,
+  deleteDevices,
+  onCancel,
+}: DeleteDevicesUIAProps) {
+  return (
+    <ActionUIA
+      authData={authData}
+      ongoingFlow={ongoingFlow}
+      action={deleteDevices}
+      onCancel={onCancel}
+    />
+  );
+}
 
 type OtherDevicesProps = {
   devices: IMyDevice[];
@@ -101,6 +132,19 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
   const handleCancelAuth = useCallback(() => {
     setDeleteState({ status: AsyncStatus.Idle });
   }, []);
+
+  const renderDeleteDevicesUIA = useCallback(
+    (ongoingFlow: UIAFlow) =>
+      authData ? (
+        <DeleteDevicesUIA
+          authData={authData}
+          ongoingFlow={ongoingFlow}
+          deleteDevices={deleteDevices}
+          onCancel={handleCancelAuth}
+        />
+      ) : null,
+    [authData, deleteDevices, handleCancelAuth]
+  );
 
   return devices.length > 0 ? (
     <>
@@ -208,22 +252,8 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
                 </Text>
               )}
               {authData && (
-                <ActionUIAFlowsLoader
-                  authData={authData}
-                  unsupported={() => (
-                    <Text size="T200">
-                      Authentication steps to perform this action are not supported by client.
-                    </Text>
-                  )}
-                >
-                  {(ongoingFlow) => (
-                    <ActionUIA
-                      authData={authData}
-                      ongoingFlow={ongoingFlow}
-                      action={deleteDevices}
-                      onCancel={handleCancelAuth}
-                    />
-                  )}
+                <ActionUIAFlowsLoader authData={authData} unsupported={renderUnsupportedUIAFlow}>
+                  {renderDeleteDevicesUIA}
                 </ActionUIAFlowsLoader>
               )}
             </Box>

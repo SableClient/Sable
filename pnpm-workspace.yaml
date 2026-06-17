@@ -11,6 +11,7 @@ engineStrict: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@sableclient/sable-call-embedded'
+  - '@sableclient/twemoji-font'
 
 overrides:
   brace-expansion: '>=1.1.12'

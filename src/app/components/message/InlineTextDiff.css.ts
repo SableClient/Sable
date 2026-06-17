@@ -16,7 +16,7 @@ export const DiffCodeBlock = style([
     overflowWrap: 'anywhere',
     wordBreak: 'break-word',
     overflow: 'hidden',
-    fontSize: 'inherit',
+    fontSize: '1rem !important',
     lineHeight: 'inherit',
   },
 ]);

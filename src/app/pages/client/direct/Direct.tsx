@@ -23,7 +23,7 @@ import {
   DotsThreeOutlineVerticalIcon,
   dropzoneIcon,
   menuIcon,
-  getPhosphorSize,
+  getPhosphorIconSize,
   Plus,
   User,
 } from '$components/icons/phosphor';
@@ -125,7 +125,10 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
         {hideText ? (
           <Box alignItems="Center" grow="Yes" justifyContent="Center">
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <User size={getPhosphorSize().toolbar} weight={menuAnchor ? 'fill' : 'regular'} />
+              <User
+                size={getPhosphorIconSize('toolbar')}
+                weight={menuAnchor ? 'fill' : 'regular'}
+              />
             </IconButton>
           </Box>
         ) : (

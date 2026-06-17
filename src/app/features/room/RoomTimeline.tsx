@@ -303,6 +303,7 @@ export function RoomTimeline({
   // and performs the final scroll + setIsReady when this flag is set.
   const pendingReadyRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
+  const lastRenderedTailRef = useRef<string | undefined>(undefined);
 
   const [isReady, setIsReady] = useState(false);
   const isReadyRef = useRef(isReady);
@@ -1450,6 +1451,29 @@ export function RoomTimeline({
   });
 
   processedEventsRef.current = processedEvents;
+
+  useLayoutEffect(() => {
+    const lastEventId = processedEvents.at(-1)?.id;
+    const prevLastEventId = lastRenderedTailRef.current;
+    lastRenderedTailRef.current = lastEventId;
+
+    if (!isReady) return;
+    if (!timelineSync.liveTimelineLinked) return;
+    if (!atBottomRef.current) return;
+    if (jumpScrollBlockRef.current) return;
+    if (!lastEventId || lastEventId === prevLastEventId) return;
+
+    lastProgrammaticBottomPinAtRef.current = Date.now();
+    scrollToBottom();
+
+    requestAnimationFrame(() => {
+      if (!atBottomRef.current) return;
+      const v = vListRef.current;
+      if (!v) return;
+      lastProgrammaticBottomPinAtRef.current = Date.now();
+      v.scrollTo(v.scrollSize);
+    });
+  }, [processedEvents, isReady, timelineSync.liveTimelineLinked, scrollToBottom]);
 
   // Use dummy data for VList when showing loading placeholders, otherwise use actual events.
   const vListData = showLoadingPlaceholders ? placeholderDummyData : processedEvents;

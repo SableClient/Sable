@@ -22,6 +22,7 @@ import type { SlidingSyncConfig, SlidingSyncDiagnostics } from './slidingSync';
 import { SlidingSyncManager } from './slidingSync';
 import { installThreadEventInstrumentation } from './threadEventPatch';
 import { classifyCryptoStoreIndexedDbError } from './cryptoStoreErrors';
+import { clearClientCachesAndServiceWorkers } from '$utils/appCacheReset';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
@@ -1324,6 +1325,7 @@ export const clearCacheAndReload = async (mx: MatrixClient) => {
   await stopClient(mx);
   clearNavToActivePathStore(mx.getSafeUserId());
   await mx.store.deleteAllData();
+  await clearClientCachesAndServiceWorkers();
   window.location.reload();
 };
 
@@ -1387,16 +1389,7 @@ export const clearLoginData = async () => {
   });
   window.localStorage.clear();
 
-  // Unregister all service workers so the next load starts fresh.
-  // Especially important on iOS/mobile where stale SWs can persist.
-  try {
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((r) => r.unregister()));
-    }
-  } catch {
-    // SW unregister is best-effort; reload regardless
-  }
+  await clearClientCachesAndServiceWorkers();
 
   window.location.reload();
 };

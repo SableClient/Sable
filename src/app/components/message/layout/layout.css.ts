@@ -158,6 +158,21 @@ export const ModernBefore = style({
   minWidth: toRem(36),
 });
 
+export const ModernRow = style({
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: config.space.S300,
+  minWidth: 0,
+  maxWidth: '100%',
+});
+
+export const ModernContent = style({
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  minWidth: 0,
+});
+
 export const BubbleBefore = style({
   minWidth: toRem(36),
 });

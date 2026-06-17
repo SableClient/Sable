@@ -1,6 +1,7 @@
 import { hasServiceWorker } from '$utils/platform';
 
 const UPDATE_CHECK_TIMEOUT_MS = 2500;
+const UPDATE_CHECK_FAILURE_MESSAGE = 'Failed to check for updates. Reload the app and try again.';
 
 export type AppUpdateCheckResult =
   | {
@@ -128,7 +129,14 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
     };
   }
 
-  await registration.update();
+  try {
+    await registration.update();
+  } catch (error) {
+    throw error instanceof Error
+      ? new Error(UPDATE_CHECK_FAILURE_MESSAGE, { cause: error })
+      : new Error(UPDATE_CHECK_FAILURE_MESSAGE);
+  }
+
   const waiting = await waitForWaitingServiceWorker(registration);
   if (waiting) {
     return {

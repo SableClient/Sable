@@ -4,6 +4,7 @@ type ServiceWorkerContainerLike = Pick<ServiceWorkerContainer, 'getRegistrations
 type ClearClientCacheOptions = {
   cacheStorage?: CacheStorageLike;
   serviceWorker?: ServiceWorkerContainerLike;
+  unregisterServiceWorkers?: boolean;
 };
 
 async function deleteAllCacheStorageEntries(cacheStorage: CacheStorageLike): Promise<void> {
@@ -27,9 +28,12 @@ export async function clearClientCachesAndServiceWorkers(
     (typeof navigator !== 'undefined' && 'serviceWorker' in navigator
       ? navigator.serviceWorker
       : undefined);
+  const unregisterServiceWorkers = options.unregisterServiceWorkers === true;
 
   await Promise.allSettled([
     cacheStorage ? deleteAllCacheStorageEntries(cacheStorage) : Promise.resolve(),
-    serviceWorker ? unregisterAllServiceWorkers(serviceWorker) : Promise.resolve(),
+    unregisterServiceWorkers && serviceWorker
+      ? unregisterAllServiceWorkers(serviceWorker)
+      : Promise.resolve(),
   ]);
 }

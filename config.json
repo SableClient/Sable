@@ -2,7 +2,7 @@
   "defaultHomeserver": 0,
   "homeserverList": ["matrix.org", "mozilla.org", "unredacted.org", "kendama.moe"],
   "allowCustomHomeservers": true,
-  "elementCallUrl": null,
+  "elementCallUrl": "matrix.cloudhub.social",
 
   "disableAccountSwitcher": false,
   "hideUsernamePasswordFields": false,
@@ -12,7 +12,8 @@
     "vapidPublicKey": "BEBdK6VUiqYxcOauFCM1ZB38llgiODAs6pR5EEcC7YBoUh2YvrULagwo5t-Ms0Is0lEmKDhpdUoMiy_i7ArI3oE",
     "webPushAppID": "social.cloudhub.charm.web",
     "unifiedPushAppID": "social.cloudhub.charm.up",
-    "nativePushAppID": "sygnal.cloudhub.social"
+    "nativePushAppID": "social.cloudhub.charm.native",
+    "declarativeWebPushFallback": false
   },
 
   "themeCatalogBaseUrl": "https://raw.githubusercontent.com/SableClient/themes/main/",
@@ -20,6 +21,12 @@
 
   "slidingSync": {
     "enabled": true
+  },
+
+  "sessionSync": {
+    "phase1ForegroundResync": true,
+    "phase2VisibleHeartbeat": true,
+    "phase3AdaptiveBackoffJitter": true
   },
 
   "featuredCommunities": {
@@ -38,7 +45,7 @@
       "#PrivSec.dev:arcticfoxes.net",
       "#disroot:aria-net.org"
     ],
-    "servers": ["matrixrooms.info", "mozilla.org", "unredacted.org"]
+    "servers": ["matrixrooms.info", "matrix.org"]
   },
 
   "hashRouter": {
@@ -47,6 +54,7 @@
   },
 
   "features": {
-    "encryptedSearch": true
+    "encryptedSearch": true,
+    "polls": true
   }
 }

@@ -20,11 +20,16 @@ export const CustomAccountDataEvent = {
     prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME,
   SableSettings: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME,
   SableDismissedInvites: prefix.MATRIX_SABLE_UNSTABLE_DISMISSED_INVITES,
+  SableAddedServers: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_ADDED_SERVERS_PROPERTY_NAME,
 } as const;
 export type CustomAccountDataEvent =
   (typeof CustomAccountDataEvent)[keyof typeof CustomAccountDataEvent];
 
 export type MDirectContent = Record<string, string[]>;
+
+export type AddedServersContent = {
+  servers: string[];
+};
 
 export type SecretStorageDefaultKeyContent = {
   key: string;

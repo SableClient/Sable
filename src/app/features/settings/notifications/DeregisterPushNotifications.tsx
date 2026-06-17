@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   Box,
@@ -78,7 +78,9 @@ function ConfirmDeregisterDialog({ onClose, onConfirm, isLoading }: ConfirmDereg
 
 export function DeregisterAllPushersSetting() {
   const mx = useMatrixClient();
-  const [deregisterState] = useAsyncCallback(deRegisterAllPushers);
+  const [deregisterState, deregisterAllPushers] = useAsyncCallback(
+    useCallback(() => deRegisterAllPushers(mx), [mx])
+  );
   const [isConfirming, setIsConfirming] = useState(false);
   const [, setPushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
 
@@ -94,10 +96,14 @@ export function DeregisterAllPushersSetting() {
   };
 
   const handleConfirmDeregister = async () => {
-    await deRegisterAllPushers(mx);
-    setPushNotifications(false);
-    setPushSubscription(null);
-    setIsConfirming(false);
+    try {
+      await deregisterAllPushers();
+      setPushNotifications(false);
+      setPushSubscription(null);
+      setIsConfirming(false);
+    } catch {
+      // Keep the dialog and error message visible so the user can retry.
+    }
   };
 
   return (
@@ -132,7 +138,6 @@ export function DeregisterAllPushersSetting() {
           </Button>
         }
       >
-        {/* FIXME: these two things below, even before my changes, don't really seem to ever appear? */}
         {deregisterState.status === AsyncStatus.Error && (
           <Text as="span" style={{ color: color.Critical.Main }} size="T200">
             <br />

@@ -8,6 +8,12 @@ import { ArrowBendUpLeftIcon, getPhosphorIconSize } from '$components/icons/phos
 import { mobileOrTablet } from '$utils/user-agent';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
 
+const getGestureTargetElement = (target: EventTarget | null): HTMLElement | null => {
+  if (target instanceof HTMLElement) return target;
+  if (target instanceof Text) return target.parentElement;
+  return null;
+};
+
 function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onReply: () => void }) {
   const x = useMotionValue(0);
   const springX = useSpring(x, { stiffness: 300, damping: 35 });
@@ -15,7 +21,12 @@ function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onRepl
   const iconOpacity = useTransform(x, [0, -8], [0, 1]);
 
   const bind = useDrag(
-    ({ active, movement: [mx] }) => {
+    ({ active, movement: [mx], event }) => {
+      const target = getGestureTargetElement(event?.target ?? null);
+      if (target?.closest('[data-gestures="ignore"]')) {
+        return;
+      }
+
       if (active) {
         const val = mx < 0 ? mx : 0;
         x.set(Math.max(-80, val));

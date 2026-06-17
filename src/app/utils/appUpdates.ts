@@ -119,7 +119,8 @@ export async function applyPendingAppUpdate(): Promise<void> {
   if (!registration) return;
 
   if (registration.waiting) {
-    registration.waiting.postMessage({ type: 'SKIP_WAITING' }, self.location.origin);
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     navigator.serviceWorker.addEventListener(
       'controllerchange',
       () => {

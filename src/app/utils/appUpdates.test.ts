@@ -103,10 +103,7 @@ describe('appUpdates', () => {
 
     await applyPendingAppUpdate();
 
-    expect(waitingWorker.postMessage).toHaveBeenCalledWith(
-      { type: 'SKIP_WAITING' },
-      undefined
-    );
+    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
     expect(mockReload).not.toHaveBeenCalled();
 
     mockControllerChangeListener?.(new Event('controllerchange'));

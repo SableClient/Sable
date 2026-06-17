@@ -72,6 +72,8 @@ export const PreviewEmoji = style([
   {
     width: toRem(32),
     height: toRem(32),
+    fontFamily:
+      'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
     fontSize: toRem(32),
     lineHeight: 1,
   },
@@ -123,6 +125,8 @@ export const EmojiItem = style([
   {
     width: toRem(48),
     height: toRem(48),
+    fontFamily:
+      'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
     fontSize: toRem(32),
     lineHeight: 1,
     borderRadius: config.radii.R400,

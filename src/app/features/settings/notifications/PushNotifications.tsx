@@ -9,6 +9,10 @@ type PushSubscriptionState = [
   (subscription: PushSubscription | null) => void,
 ];
 
+export function isWebPushSupported(): boolean {
+  return 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
 function postTogglePushMessage(data: {
   url: string;
   token: string | null | undefined;
@@ -61,7 +65,7 @@ export async function enablePushNotifications(
   clientConfig: ClientConfig,
   pushSubscriptionAtom: PushSubscriptionState
 ): Promise<void> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+  if (!isWebPushSupported()) {
     debugLog.error(
       'notification',
       'Push messaging not supported - missing serviceWorker or PushManager'
@@ -203,12 +207,15 @@ export async function togglePusher(
   pushSubscriptionAtom: PushSubscriptionState,
   keepEnabledWhenVisible = false
 ): Promise<void> {
-  if (usePushNotifications) {
-    if (visible && !keepEnabledWhenVisible) {
-      await disablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
-    } else {
-      await enablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
-    }
+  if (!usePushNotifications) return;
+  if (!isWebPushSupported()) {
+    debugLog.info('notification', 'Skipping passive push reconciliation on unsupported browser');
+    return;
+  }
+  if (visible && !keepEnabledWhenVisible) {
+    await disablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
+  } else {
+    await enablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
   }
 }
 
@@ -220,6 +227,10 @@ export async function reconcilePushNotifications(
   keepEnabledWhenVisible = false
 ): Promise<void> {
   if (!usePushNotifications) return;
+  if (!isWebPushSupported()) {
+    debugLog.info('notification', 'Skipping startup push reconciliation on unsupported browser');
+    return;
+  }
 
   const isVisible = document.visibilityState === 'visible';
   await togglePusher(

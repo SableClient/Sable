@@ -96,7 +96,10 @@ import {
   NotificationTransportRuntime,
   type NotificationTransportRuntimeContext,
 } from '../../features/settings/notifications/NotificationTransportRuntime';
-import { reconcilePushNotifications } from '../../features/settings/notifications/PushNotifications';
+import {
+  isWebPushSupported,
+  reconcilePushNotifications,
+} from '../../features/settings/notifications/PushNotifications';
 import {
   normalizeNotificationTransportMode,
   resolvePreferredNotificationTransportProvider,
@@ -167,6 +170,7 @@ function WebPushStartupReconciler() {
 
   useEffect(() => {
     if (!usePushNotifications || isTauri()) return;
+    if (!isWebPushSupported()) return;
 
     const userId = mx.getUserId() ?? null;
     if (!userId) return;

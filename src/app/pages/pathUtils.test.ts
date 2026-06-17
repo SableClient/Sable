@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { getSettingsPath, getToRoomEventPath } from './pathUtils';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  getAppPathFromWindowHref,
+  getSettingsPath,
+  getToRoomEventPath,
+  withAdditionalSearchParams,
+} from './pathUtils';
 
 describe('getSettingsPath', () => {
   it('returns the settings root path', () => {
@@ -24,6 +29,44 @@ describe('getToRoomEventPath', () => {
   it('omits the event segment when no event id is provided', () => {
     expect(getToRoomEventPath('@alice:example.com', '!room:example.com')).toBe(
       '/to/%40alice%3Aexample.com/!room%3Aexample.com'
+    );
+  });
+
+  it('preserves join-call intent as a query parameter', () => {
+    expect(
+      getToRoomEventPath('@alice:example.com', '!room:example.com', '$event123', {
+        joinCall: true,
+      })
+    ).toBe('/to/%40alice%3Aexample.com/!room%3Aexample.com/%24event123?joinCall=true');
+  });
+});
+
+describe('withAdditionalSearchParams', () => {
+  it('adds search params onto a path without clobbering existing ones', () => {
+    expect(withAdditionalSearchParams('/room/abc?foo=bar', { joinCall: 'true' })).toBe(
+      '/room/abc?foo=bar&joinCall=true'
+    );
+  });
+});
+
+describe('getAppPathFromWindowHref', () => {
+  const originalLocation = window.location;
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
+  });
+
+  it('extracts the current app path for hash-router deployments', () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: new URL('https://app.example/#/app/to/%40alice%3Aexample/!room%3Aexample'),
+    });
+
+    expect(getAppPathFromWindowHref({ enabled: true, basename: '/app' })).toBe(
+      '/to/%40alice%3Aexample/!room%3Aexample'
     );
   });
 });

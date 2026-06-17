@@ -15,6 +15,7 @@ import {
   getDirectPath,
   getHomePath,
   getSpacePath,
+  withAdditionalSearchParams,
 } from '../pages/pathUtils';
 import { DIRECT_ROOM_PATH, HOME_ROOM_PATH, SPACE_ROOM_PATH } from '../pages/paths';
 import { getShallowParents, getRoomToParents, guessPerfectParent } from '../utils/room';
@@ -129,6 +130,9 @@ export function NotificationJumper() {
           targetRoomPath = getHomeRoomPath(roomIdOrAlias, pending.eventId);
         }
       }
+      targetRoomPath = withAdditionalSearchParams(targetRoomPath, {
+        joinCall: pending.joinCall ? 'true' : undefined,
+      });
 
       // eventId is an optional param in the same route segment (:roomIdOrAlias/:eventId?/),
       // so navigating from /direct/!room/ to /direct/!room/$event/ is a re-render of the

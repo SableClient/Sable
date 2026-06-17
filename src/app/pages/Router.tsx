@@ -74,13 +74,12 @@ import {
   SETTINGS_PATH,
 } from './paths';
 import {
-  getAppPathFromHref,
+  getAppPathFromWindowHref,
   getExploreFeaturedPath,
   getHomePath,
   getInboxNotificationsPath,
   getLandingPath,
   getLoginPath,
-  getOriginBaseUrl,
   getSpaceLobbyPath,
 } from './pathUtils';
 import { ClientBindAtoms, ClientLayout, ClientRoot, ClientRouteOutlet } from './client';
@@ -142,7 +141,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               const settings = getSettings();
               return redirect(getLandingPath(settings.defaultLandingScreen));
             }
-            const afterLoginPath = getAppPathFromHref(getOriginBaseUrl(), window.location.href);
+            const afterLoginPath = getAppPathFromWindowHref(hashRouter);
             if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
             return redirect(getLoginPath());
           }}
@@ -180,10 +179,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           loader={() => {
             const session = getFirstSession();
             if (!session) {
-              const afterLoginPath = getAppPathFromHref(
-                getOriginBaseUrl(hashRouter),
-                window.location.href
-              );
+              const afterLoginPath = getAppPathFromWindowHref(hashRouter);
               if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
               return redirect(getLoginPath());
             }

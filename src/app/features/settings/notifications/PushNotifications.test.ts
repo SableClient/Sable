@@ -5,6 +5,7 @@ import type { ClientConfig } from '../../../hooks/useClientConfig';
 import {
   disablePushNotifications,
   enablePushNotifications,
+  isWebPushSupported,
   reconcilePushNotifications,
   togglePusher,
 } from './PushNotifications';
@@ -249,5 +250,34 @@ describe('web push notifications', () => {
         token: 'access-token',
       })
     );
+  });
+
+  it('reports unsupported when PushManager is unavailable', () => {
+    Reflect.deleteProperty(navigator, 'serviceWorker');
+    vi.unstubAllGlobals();
+
+    expect(isWebPushSupported()).toBe(false);
+  });
+
+  it('skips passive startup reconciliation on unsupported browsers', async () => {
+    const mx = makeMatrixClient();
+
+    Reflect.deleteProperty(navigator, 'serviceWorker');
+    vi.unstubAllGlobals();
+
+    await expect(
+      reconcilePushNotifications(mx, clientConfig, true, [null, vi.fn<() => void>()], true)
+    ).resolves.toBeUndefined();
+  });
+
+  it('skips passive visibility reconciliation on unsupported browsers', async () => {
+    const mx = makeMatrixClient();
+
+    Reflect.deleteProperty(navigator, 'serviceWorker');
+    vi.unstubAllGlobals();
+
+    await expect(
+      togglePusher(mx, clientConfig, true, true, [null, vi.fn<() => void>()], false)
+    ).resolves.toBeUndefined();
   });
 });

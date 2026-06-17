@@ -1,5 +1,5 @@
 import type { MouseEventHandler } from 'react';
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
 import {
@@ -59,6 +59,7 @@ import {
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
 import {
+  ArrowsClockwise,
   Checks,
   composerIcon,
   DotsThreeOutlineVerticalIcon,
@@ -83,14 +84,16 @@ import { LIST_JOINED } from '$client/slidingSync';
 import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { markStartupRoomListReady } from '$utils/perfTelemetry';
+import { triggerManualRefresh } from '$utils/manualRefresh';
 
 type HomeMenuProps = {
   isShowingAllRoomsInHome: boolean;
+  onRefresh: () => void;
   requestClose: () => void;
   setIsShowingAllRoomsInHome: (show: boolean) => void;
 };
 const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(
-  ({ isShowingAllRoomsInHome, requestClose, setIsShowingAllRoomsInHome }, ref) => {
+  ({ isShowingAllRoomsInHome, onRefresh, requestClose, setIsShowingAllRoomsInHome }, ref) => {
     const orphanRooms = useHomeRooms(isShowingAllRoomsInHome);
     const [hideReads] = useSetting(settingsAtom, 'hideReads');
     const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
@@ -110,10 +113,15 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(
             size="300"
             after={menuIcon(Checks)}
             radii="300"
-            aria-disabled={!unread}
+            disabled={!unread}
           >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Mark as Read
+            </Text>
+          </MenuItem>
+          <MenuItem onClick={onRefresh} size="300" after={menuIcon(ArrowsClockwise)} radii="300">
+            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+              Refresh
             </Text>
           </MenuItem>
           <MenuItem
@@ -135,12 +143,14 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(
 type HomeHeaderProps = {
   hideText?: boolean;
   isShowingAllRoomsInHome: boolean;
+  onRefresh: () => void;
   setIsShowingAllRoomsInHome: (show: boolean) => void;
 };
 
 function HomeHeader({
   hideText,
   isShowingAllRoomsInHome,
+  onRefresh,
   setIsShowingAllRoomsInHome,
 }: HomeHeaderProps) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
@@ -168,6 +178,11 @@ function HomeHeader({
               <Text size="H4" truncate>
                 Home
               </Text>
+            </Box>
+            <Box shrink="No">
+              <IconButton variant="Background" onClick={onRefresh} aria-label="Refresh rooms">
+                {composerIcon(ArrowsClockwise)}
+              </IconButton>
             </Box>
             <Box shrink="No">
               <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
@@ -198,6 +213,7 @@ function HomeHeader({
           >
             <HomeMenu
               isShowingAllRoomsInHome={isShowingAllRoomsInHome}
+              onRefresh={onRefresh}
               requestClose={() => setMenuAnchor(undefined)}
               setIsShowingAllRoomsInHome={setIsShowingAllRoomsInHome}
             />
@@ -341,6 +357,9 @@ export function Home() {
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+  const handleRefresh = useCallback(() => {
+    triggerManualRefresh(mx);
+  }, [mx]);
 
   usePullToRefresh(scrollRef, mx);
 
@@ -356,6 +375,7 @@ export function Home() {
         <HomeHeader
           hideText={hideText}
           isShowingAllRoomsInHome={isShowingAllRoomsInHome}
+          onRefresh={handleRefresh}
           setIsShowingAllRoomsInHome={setIsShowingAllRoomsInHome}
         />
         {noRoomToDisplay ? (

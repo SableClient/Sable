@@ -144,7 +144,7 @@ export function LeaveSpacePrompt({ roomId, onDone, onCancel }: LeaveSpacePromptP
                   before={
                     leaving ? <Spinner fill="Solid" variant="Critical" size="200" /> : undefined
                   }
-                  aria-disabled={isBusy || leaveState.status === AsyncStatus.Success}
+                  disabled={isBusy || leaveState.status === AsyncStatus.Success}
                 >
                   <Text size="B400">{leaving ? 'Leaving...' : 'Leave Space Only'}</Text>
                 </Button>
@@ -158,7 +158,7 @@ export function LeaveSpacePrompt({ roomId, onDone, onCancel }: LeaveSpacePromptP
                         <Spinner fill="Solid" variant="Critical" size="200" />
                       ) : undefined
                     }
-                    aria-disabled={isBusy || leaveAllState.status === AsyncStatus.Success}
+                    disabled={isBusy || leaveAllState.status === AsyncStatus.Success}
                   >
                     <Text size="B400">
                       {formatRecursiveLeaveLabel(leavingAll, roomCount, subspaceCount)}

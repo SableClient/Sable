@@ -82,7 +82,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       after,
       responsiveAfter,
       forceMultilineLayout = false,
-      maxHeight = '50vh',
+      maxHeight = 'min(50vh, calc(var(--sable-visible-height, 100vh) * 0.5))',
       editor,
       placeholder,
       onKeyDown,

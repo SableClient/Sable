@@ -356,7 +356,6 @@ export type MessageProps = {
 function useMobileLongPress(callback: () => void, delay = 500) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
-  const firedRef = useRef(false);
 
   const cancel = useCallback(() => {
     if (timerRef.current !== null) {
@@ -372,13 +371,13 @@ function useMobileLongPress(callback: () => void, delay = 500) {
       const touch = e.touches[0];
       if (!touch) return;
       startPosRef.current = { x: touch.clientX, y: touch.clientY };
-      firedRef.current = false;
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
-        firedRef.current = true;
-        // Clear any text selection the browser started during the long-press gesture.
-        window.getSelection()?.removeAllRanges();
-        callback();
+        requestAnimationFrame(() => {
+          const selection = window.getSelection();
+          if (selection && !selection.isCollapsed) return;
+          callback();
+        });
       }, delay);
     },
     [callback, delay]
@@ -400,12 +399,6 @@ function useMobileLongPress(callback: () => void, delay = 500) {
     cancel();
   }, [cancel]);
 
-  // Prevent the browser from selecting message text during a long-press gesture.
-  // Only applied on touch devices — desktop users can still select text normally.
-  const style = mobileOrTablet()
-    ? ({ userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties)
-    : undefined;
-
   useEffect(
     () => () => {
       cancel();
@@ -418,7 +411,6 @@ function useMobileLongPress(callback: () => void, delay = 500) {
     onTouchMove,
     onTouchEnd,
     onTouchCancel: onTouchEnd,
-    style,
   };
 }
 

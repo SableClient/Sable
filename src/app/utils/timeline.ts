@@ -4,8 +4,7 @@ import {
   isThreadRelationEvent,
   reactionOrEditEvent,
   getRoomReadMarkerId,
-  roomHaveNotification,
-  roomHaveUnread,
+  getUnreadInfo,
 } from '$utils/room';
 
 export const PAGINATION_LIMIT = 60;
@@ -135,7 +134,8 @@ export const getEmptyTimeline = () => ({
 });
 
 export const getRoomUnreadInfo = (room: Room, scrollTo = false) => {
-  if (!roomHaveNotification(room) && !roomHaveUnread(room.client, room)) return undefined;
+  const unreadInfo = getUnreadInfo(room);
+  if (unreadInfo.total <= 0 && unreadInfo.highlight <= 0) return undefined;
 
   const readUptoEventId = getRoomReadMarkerId(room, room.client.getUserId() ?? '');
   if (!readUptoEventId) return undefined;

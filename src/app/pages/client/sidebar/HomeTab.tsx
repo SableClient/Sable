@@ -52,7 +52,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
           size="300"
           after={menuIcon(Checks)}
           radii="300"
-          aria-disabled={!unread}
+          disabled={!unread}
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Mark as Read

@@ -313,7 +313,7 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   useSyncNicknames(mx);
   useLogoutListener(mx);
-  useAppVisibility(mx);
+  useAppVisibility(mx, activeSession);
   const swUpdateAvailable = useSwUpdateAvailable();
 
   const swSessionBaseUrl = activeSession?.baseUrl;

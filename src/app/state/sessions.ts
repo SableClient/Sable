@@ -172,6 +172,8 @@ export type PendingNotification = {
   roomId: string;
   eventId?: string;
   targetSessionId?: string;
+  requestedAt?: number;
+  source?: 'to_room_event';
 };
 
 export const pendingNotificationAtom = atom<PendingNotification | null>(null);

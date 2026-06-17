@@ -6,6 +6,7 @@ import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './a
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 import { hasServiceWorker } from './app/utils/platform';
 import { pushSessionToSW } from './sw-session';
+import { consumeLaunchContext } from './launch-context-persistence';
 
 const log = createLogger('service-worker-bootstrap');
 const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
@@ -69,6 +70,43 @@ export function registerAppServiceWorker() {
   };
 
   sendSessionToSW();
+
+  void consumeLaunchContext()
+    .then((launchContext) => {
+      if (!launchContext) return;
+      const launchAgeMs = Date.now() - launchContext.clickedAt;
+      Sentry.addBreadcrumb({
+        category: 'app.launch',
+        message: 'Consumed persisted launch context',
+        level: 'info',
+        data: {
+          source: launchContext.source,
+          launchAgeMs,
+          hasUserId: !!launchContext.userId,
+          hasRoomId: !!launchContext.roomId,
+          hasEventId: !!launchContext.eventId,
+        },
+      });
+      Sentry.metrics.count('sable.app.launch_context', 1, {
+        attributes: {
+          source: launchContext.source,
+          has_user_id: !!launchContext.userId,
+          has_room_id: !!launchContext.roomId,
+          has_event_id: !!launchContext.eventId,
+        },
+      });
+      Sentry.metrics.distribution('sable.app.launch_context_age_ms', launchAgeMs, {
+        attributes: { source: launchContext.source },
+      });
+    })
+    .catch((err) => {
+      Sentry.addBreadcrumb({
+        category: 'app.launch',
+        message: 'Failed to consume persisted launch context',
+        level: 'warning',
+        data: { error: err instanceof Error ? err.message : String(err) },
+      });
+    });
 
   Sentry.addBreadcrumb({
     category: 'service_worker',

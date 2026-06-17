@@ -9,6 +9,35 @@ type PushSubscriptionState = [
   (subscription: PushSubscription | null) => void,
 ];
 
+function postTogglePushMessage(data: {
+  url: string;
+  token: string | null | undefined;
+  pusherData: unknown;
+}): void {
+  if (!('serviceWorker' in navigator)) return;
+
+  const message = {
+    type: 'togglePush' as const,
+    ...data,
+  };
+  const posted = new Set<ServiceWorker>();
+  const postToWorker = (worker: ServiceWorker | null | undefined) => {
+    if (!worker || posted.has(worker)) return;
+    posted.add(worker);
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    worker.postMessage(message);
+  };
+
+  postToWorker(navigator.serviceWorker.controller);
+  navigator.serviceWorker.ready
+    .then((registration) => {
+      postToWorker(registration.active);
+      postToWorker(registration.waiting);
+      postToWorker(registration.installing);
+    })
+    .catch(() => undefined);
+}
+
 export async function requestBrowserNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) {
     debugLog.warn('notification', 'Notification API not available in this browser');
@@ -69,9 +98,8 @@ export async function enablePushNotifications(
       },
       append: false,
     };
-    navigator.serviceWorker.controller?.postMessage({
+    postTogglePushMessage({
       url: mx.baseUrl,
-      type: 'togglePush',
       pusherData,
       token: mx.getAccessToken(),
     });
@@ -118,9 +146,8 @@ export async function enablePushNotifications(
     append: false,
   };
 
-  navigator.serviceWorker.controller?.postMessage({
+  postTogglePushMessage({
     url: mx.baseUrl,
-    type: 'togglePush',
     pusherData,
     token: mx.getAccessToken(),
   });
@@ -144,9 +171,8 @@ export async function disablePushNotifications(
     pushkey: pushSubAtom?.keys?.p256dh,
   };
 
-  navigator.serviceWorker.controller?.postMessage({
+  postTogglePushMessage({
     url: mx.baseUrl,
-    type: 'togglePush',
     pusherData,
     token: mx.getAccessToken(),
   });
@@ -184,4 +210,24 @@ export async function togglePusher(
       await enablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
     }
   }
+}
+
+export async function reconcilePushNotifications(
+  mx: MatrixClient,
+  clientConfig: ClientConfig,
+  usePushNotifications: boolean,
+  pushSubscriptionAtom: PushSubscriptionState,
+  keepEnabledWhenVisible = false
+): Promise<void> {
+  if (!usePushNotifications) return;
+
+  const isVisible = document.visibilityState === 'visible';
+  await togglePusher(
+    mx,
+    clientConfig,
+    isVisible,
+    usePushNotifications,
+    pushSubscriptionAtom,
+    keepEnabledWhenVisible
+  );
 }

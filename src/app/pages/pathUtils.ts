@@ -31,6 +31,7 @@ import {
   SPACE_PATH,
   SPACE_ROOM_PATH,
   SPACE_SEARCH_PATH,
+  TO_ROOM_EVENT_PATH,
   CREATE_PATH,
 } from './paths';
 
@@ -152,6 +153,16 @@ export const getHomeCreatePath = (): string => HOME_CREATE_PATH;
 export const getHomeJoinPath = (): string => HOME_JOIN_PATH;
 export const getHomeSearchPath = (): string => HOME_SEARCH_PATH;
 export const getHomeBookmarksPath = (): string => HOME_BOOKMARKS_PATH;
+export const getToRoomEventPath = (userId: string, roomId: string, eventId?: string): string => {
+  const params = {
+    user_id: encodeURIComponent(userId),
+    room_id: encodeURIComponent(roomId),
+    event_id: eventId ? encodeURIComponent(eventId) : null,
+  };
+
+  return generatePath(TO_ROOM_EVENT_PATH, params);
+};
+
 export const getHomeRoomPath = (roomIdOrAlias: string, eventId?: string): string => {
   const params = {
     roomIdOrAlias: encodeURIComponent(roomIdOrAlias),

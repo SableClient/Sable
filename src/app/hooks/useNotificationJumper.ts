@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { SyncState, ClientEvent } from '$types/matrix-sdk';
+import * as Sentry from '@sentry/react';
 import { activeSessionIdAtom, pendingNotificationAtom } from '../state/sessions';
 import { mDirectAtom } from '../state/mDirectList';
 import { useSyncState } from './useSyncState';
@@ -38,6 +39,16 @@ export function NotificationJumper() {
   const performJump = useCallback(() => {
     if (!pending || jumpingRef.current) return;
     if (pending.targetSessionId && pending.targetSessionId !== activeSessionId) {
+      Sentry.addBreadcrumb({
+        category: 'notification.restore',
+        message: 'Waiting for target session before notification jump',
+        level: 'info',
+        data: {
+          targetSessionId: pending.targetSessionId,
+          activeSessionId,
+          source: pending.source,
+        },
+      });
       log.log('waiting for target session atom...', {
         targetSessionId: pending.targetSessionId,
         activeSessionId,
@@ -47,6 +58,16 @@ export function NotificationJumper() {
 
     // The mx client context may lag one render behind the atom — wait until it catches up.
     if (pending.targetSessionId && mx.getUserId() !== pending.targetSessionId) {
+      Sentry.addBreadcrumb({
+        category: 'notification.restore',
+        message: 'Waiting for Matrix client session switch before notification jump',
+        level: 'info',
+        data: {
+          targetSessionId: pending.targetSessionId,
+          currentUserId: mx.getUserId(),
+          source: pending.source,
+        },
+      });
       log.log('waiting for mx client to switch to target session...', {
         targetSessionId: pending.targetSessionId,
         currentUserId: mx.getUserId(),
@@ -61,6 +82,22 @@ export function NotificationJumper() {
     if (isSyncing && isJoined) {
       log.log('jumping to:', pending.roomId, pending.eventId);
       jumpingRef.current = true;
+      Sentry.addBreadcrumb({
+        category: 'notification.restore',
+        message: 'Starting notification room jump',
+        level: 'info',
+        data: {
+          roomId: pending.roomId,
+          hasEventId: !!pending.eventId,
+          source: pending.source,
+        },
+      });
+      Sentry.metrics.count('sable.notification.jump_started', 1, {
+        attributes: {
+          has_event_id: !!pending.eventId,
+          source: pending.source ?? 'unknown',
+        },
+      });
       // Navigate directly to home or direct path — bypasses space routing which
       // on mobile shows the space-nav panel first instead of the room timeline.
       // First replace the current history entry with the section overview so that
@@ -119,9 +156,50 @@ export function NotificationJumper() {
         navigate(targetSectionPath, { replace: true });
         navigate(targetRoomPath);
       }
+      const restoreLatencyMs =
+        typeof pending.requestedAt === 'number' ? Date.now() - pending.requestedAt : undefined;
+      Sentry.addBreadcrumb({
+        category: 'notification.restore',
+        message: 'Completed notification room jump',
+        level: 'info',
+        data: {
+          roomId: pending.roomId,
+          hasEventId: !!pending.eventId,
+          source: pending.source,
+          restoreLatencyMs,
+          alreadyInRoom,
+        },
+      });
+      Sentry.metrics.count('sable.notification.jump_completed', 1, {
+        attributes: {
+          has_event_id: !!pending.eventId,
+          source: pending.source ?? 'unknown',
+          already_in_room: alreadyInRoom,
+        },
+      });
+      if (restoreLatencyMs !== undefined) {
+        Sentry.metrics.distribution('sable.notification.restore_ms', restoreLatencyMs, {
+          attributes: {
+            source: pending.source ?? 'unknown',
+            already_in_room: alreadyInRoom,
+          },
+        });
+      }
       setPending(null);
       // jumpingRef stays true until pending changes — see effect below.
     } else {
+      Sentry.addBreadcrumb({
+        category: 'notification.restore',
+        message: 'Waiting for room data before notification jump',
+        level: 'info',
+        data: {
+          roomId: pending.roomId,
+          isSyncing,
+          hasRoom: !!room,
+          membership: room?.getMyMembership(),
+          source: pending.source,
+        },
+      });
       log.log('still waiting for room data...', {
         isSyncing,
         hasRoom: !!room,

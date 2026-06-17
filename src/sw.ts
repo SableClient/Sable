@@ -1443,7 +1443,8 @@ async function fetchMediaWithRetry(
   url: string,
   token: string,
   redirect: RequestRedirect,
-  clientId: string
+  clientId: string,
+  preferredRetrySessions: Array<SessionInfo | Promise<SessionInfo | undefined> | undefined> = []
 ): Promise<Response> {
   let response = await fetch(url, { ...fetchConfig(token), redirect });
   if (!isAuthFailureStatus(response.status)) return response;
@@ -1464,6 +1465,9 @@ async function fetchMediaWithRetry(
   getMatchingSessions(url).forEach((session) => addRetrySession(session));
   addRetrySession(preloadedSession);
   addRetrySession(await loadPersistedSession());
+  (await Promise.all(preferredRetrySessions.map((session) => Promise.resolve(session)))).forEach(
+    (session) => addRetrySession(session)
+  );
   (await getLiveWindowSessions(url, clientId)).forEach((session) => addRetrySession(session));
 
   /* eslint-disable no-await-in-loop */
@@ -1682,7 +1686,9 @@ self.addEventListener('fetch', (event: FetchEvent) => {
               clientId,
             });
           }
-          return fetchMediaWithRetry(url, resolvedSession.accessToken, redirect, clientId);
+          return fetchMediaWithRetry(url, resolvedSession.accessToken, redirect, clientId, [
+            liveSessionPromise,
+          ]);
         }
 
         await postSentryBreadcrumb(

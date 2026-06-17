@@ -1,4 +1,4 @@
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -244,7 +244,8 @@ function WebPushStartupReconciler() {
   const mx = useMatrixClient();
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
-  const pushSubAtom = useAtom(pushSubscriptionAtom);
+  const pushSubscription = useAtomValue(pushSubscriptionAtom);
+  const setPushSubscription = useSetAtom(pushSubscriptionAtom);
   const reconciledUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -255,14 +256,17 @@ function WebPushStartupReconciler() {
     if (reconciledUserIdRef.current === userId) return;
 
     reconciledUserIdRef.current = userId;
-    void reconcilePushNotifications(mx, clientConfig, pushSubAtom).catch((error) => {
+    void reconcilePushNotifications(mx, clientConfig, [
+      pushSubscription,
+      setPushSubscription,
+    ]).catch((error) => {
       reconciledUserIdRef.current = null;
       transportLog.warn('notification', 'Web push startup reconciliation failed', {
         userId,
         error: error instanceof Error ? error.message : String(error),
       });
     });
-  }, [mx, clientConfig, pushSubAtom, usePushNotifications]);
+  }, [mx, clientConfig, pushSubscription, setPushSubscription, usePushNotifications]);
 
   return null;
 }

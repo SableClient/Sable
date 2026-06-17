@@ -13,6 +13,10 @@ import {
 } from './sw/pushRouting';
 import { persistLaunchContext } from './launch-context-persistence';
 import { readPersistedSession } from './sw-session-persistence';
+import {
+  selectPersistedSessionCandidate,
+  shouldClearMediaCacheAfterSessionRemoval,
+} from './sw-session-state';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -158,11 +162,19 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
 type SessionInfo = {
   accessToken: string;
   baseUrl: string;
-  /** Matrix user ID of the account, used to identify which account a push belongs to. */
   userId?: string;
-  /** Timestamp when this session was persisted to cache. */
   persistedAt?: number;
 };
+
+async function syncPersistedSessionFromLiveSessions(): Promise<void> {
+  const persistedSession = selectPersistedSessionCandidate(sessions.values());
+  if (persistedSession) {
+    await persistSession(persistedSession);
+    return;
+  }
+
+  await clearPersistedSession();
+}
 
 /**
  * Store session per client (tab)
@@ -220,12 +232,14 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     }
   } else {
     // Logout or invalid session
+    const removedSession = sessions.get(clientId);
     sessions.delete(clientId);
     preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
-    clearPersistedSession().catch(() => undefined);
-    // Clear media cache on logout.
-    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
+    syncPersistedSessionFromLiveSessions().catch(() => undefined);
+    if (shouldClearMediaCacheAfterSessionRemoval(removedSession?.accessToken, sessions.values())) {
+      self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
+    }
   }
 
   const resolveSessionWaiters = clientToSessionWaiters.get(clientId);
@@ -1080,9 +1094,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
         hasSession: !!persisted,
         sessionCount: sessions.size,
       })
-    );
-    event.waitUntil(
-      (persisted ? persistSession(persisted) : clearPersistedSession()).catch(() => undefined)
     );
     event.waitUntil(cleanupDeadClients());
   }

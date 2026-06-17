@@ -87,10 +87,16 @@ describe('DeregisterAllPushersSetting', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Reset All' })[1]!);
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to deregister devices. Please try again.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Failed to deregister devices. Please try again.')
+      ).toBeInTheDocument();
     });
 
-    expect(screen.getByText('This will remove push notifications from all your sessions and devices. This action cannot be undone. Are you sure you want to continue?')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'This will remove push notifications from all your sessions and devices. This action cannot be undone. Are you sure you want to continue?'
+      )
+    ).toBeInTheDocument();
     expect(mockSetPushNotifications).not.toHaveBeenCalled();
     expect(mockSetPushSubscription).not.toHaveBeenCalled();
   });

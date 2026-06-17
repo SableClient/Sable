@@ -61,6 +61,108 @@ import { settingsAtom } from '$state/settings';
 import type { ResultItem } from './useMessageSearch';
 import { Icon, Icons } from '$app/icons';
 
+type SearchResultMessageRendererDeps = {
+  mediaAutoLoad?: boolean;
+  urlPreview?: boolean;
+  htmlReactParserOptions: HTMLReactParserOptions;
+  linkifyOpts: LinkifyOpts;
+  highlightRegex?: RegExp;
+};
+
+type SearchResultReactionRendererDeps = {
+  mediaAutoLoad?: boolean;
+};
+
+function renderSearchResultRoomMessage(
+  deps: SearchResultMessageRendererDeps,
+  event: IEventWithRoomId,
+  displayName: string,
+  getContent: GetContentCallback
+) {
+  if (event.unsigned?.redacted_because) {
+    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
+  }
+
+  return (
+    <RenderMessageContent
+      displayName={displayName}
+      msgType={event.content.msgtype ?? ''}
+      ts={event.origin_server_ts}
+      getContent={getContent}
+      mediaAutoLoad={deps.mediaAutoLoad}
+      urlPreview={deps.urlPreview}
+      htmlReactParserOptions={deps.htmlReactParserOptions}
+      linkifyOpts={deps.linkifyOpts}
+      highlightRegex={deps.highlightRegex}
+      outlineAttachment
+    />
+  );
+}
+
+function renderSearchResultReactionContent(
+  deps: SearchResultReactionRendererDeps,
+  props: Parameters<NonNullable<React.ComponentProps<typeof MSticker>['renderImageContent']>>[0]
+) {
+  return (
+    <ImageContent
+      {...props}
+      autoPlay={deps.mediaAutoLoad}
+      renderImage={renderSearchResultImage}
+      renderViewer={renderSearchResultImageViewer}
+    />
+  );
+}
+
+function renderSearchResultReaction(
+  deps: SearchResultReactionRendererDeps,
+  event: IEventWithRoomId,
+  _displayName: string,
+  getContent: GetContentCallback
+) {
+  if (event.unsigned?.redacted_because) {
+    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
+  }
+  return (
+    <MSticker
+      content={getContent() as IImageContent}
+      renderImageContent={renderSearchResultReactionContent.bind(null, deps)}
+    />
+  );
+}
+
+function renderSearchResultTombstone(event: IEventWithRoomId) {
+  const { content } = event;
+  return (
+    <Box grow="Yes" direction="Column">
+      <Text size="T400" priority="300">
+        Room Tombstone. {content.body}
+      </Text>
+    </Box>
+  );
+}
+
+function renderSearchResultFallback(event: IEventWithRoomId) {
+  if (event.unsigned?.redacted_because) {
+    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
+  }
+  return (
+    <Box grow="Yes" direction="Column">
+      <Text size="T400" priority="300">
+        <code className={customHtmlCss.Code}>{event.type}</code>
+        {' event'}
+      </Text>
+    </Box>
+  );
+}
+
+function renderSearchResultImage(props: React.ComponentProps<typeof Image>) {
+  return <Image {...props} loading="lazy" />;
+}
+
+function renderSearchResultImageViewer(props: React.ComponentProps<typeof ImageViewer>) {
+  return <ImageViewer {...props} />;
+}
+
 type SearchResultTimelineItemProps = {
   room: Room;
   item: ResultItem;
@@ -158,71 +260,37 @@ export function SearchResultTimelineItem({
     ]
   );
 
+  const roomMessageRendererDeps = useMemo<SearchResultMessageRendererDeps>(
+    () => ({
+      mediaAutoLoad,
+      urlPreview,
+      htmlReactParserOptions,
+      linkifyOpts,
+      highlightRegex,
+    }),
+    [mediaAutoLoad, urlPreview, htmlReactParserOptions, linkifyOpts, highlightRegex]
+  );
+  const reactionRendererDeps = useMemo<SearchResultReactionRendererDeps>(
+    () => ({ mediaAutoLoad }),
+    [mediaAutoLoad]
+  );
+  const roomMessageRenderer = useMemo(
+    () => renderSearchResultRoomMessage.bind(null, roomMessageRendererDeps),
+    [roomMessageRendererDeps]
+  );
+  const reactionRenderer = useMemo(
+    () => renderSearchResultReaction.bind(null, reactionRendererDeps),
+    [reactionRendererDeps]
+  );
+
   const renderMatrixEvent = useMatrixEventRenderer<[IEventWithRoomId, string, GetContentCallback]>(
     {
-      [EventType.RoomMessage]: (event, displayName, getContent) => {
-        if (event.unsigned?.redacted_because) {
-          return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-        }
-
-        return (
-          <RenderMessageContent
-            displayName={displayName}
-            msgType={event.content.msgtype ?? ''}
-            ts={event.origin_server_ts}
-            getContent={getContent}
-            mediaAutoLoad={mediaAutoLoad}
-            urlPreview={urlPreview}
-            htmlReactParserOptions={htmlReactParserOptions}
-            linkifyOpts={linkifyOpts}
-            highlightRegex={highlightRegex}
-            outlineAttachment
-          />
-        );
-      },
-      [EventType.Reaction]: (event, displayName, getContent) => {
-        if (event.unsigned?.redacted_because) {
-          return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-        }
-        return (
-          <MSticker
-            content={getContent() as IImageContent}
-            renderImageContent={(props) => (
-              <ImageContent
-                {...props}
-                autoPlay={mediaAutoLoad}
-                renderImage={(p) => <Image {...p} loading="lazy" />}
-                renderViewer={(p) => <ImageViewer {...p} />}
-              />
-            )}
-          />
-        );
-      },
-      [EventType.RoomTombstone]: (event) => {
-        const { content } = event;
-        return (
-          <Box grow="Yes" direction="Column">
-            <Text size="T400" priority="300">
-              Room Tombstone. {content.body}
-            </Text>
-          </Box>
-        );
-      },
+      [EventType.RoomMessage]: roomMessageRenderer,
+      [EventType.Reaction]: reactionRenderer,
+      [EventType.RoomTombstone]: renderSearchResultTombstone,
     },
     undefined,
-    (event) => {
-      if (event.unsigned?.redacted_because) {
-        return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-      }
-      return (
-        <Box grow="Yes" direction="Column">
-          <Text size="T400" priority="300">
-            <code className={customHtmlCss.Code}>{event.type}</code>
-            {' event'}
-          </Text>
-        </Box>
-      );
-    }
+    renderSearchResultFallback
   );
 
   const handleOpenClick: MouseEventHandler = (evt) => {

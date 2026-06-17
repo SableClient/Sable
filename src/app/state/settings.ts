@@ -219,7 +219,6 @@ export interface Settings {
   pmpProxying: boolean;
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
-  useTiptapComposer: boolean;
   closeFoldersByDefault: boolean;
   perRoomShowRoomIcon: PerRoomShowRoomIcon[];
   showRoomIcon: ShowRoomIcon;
@@ -394,7 +393,6 @@ export const defaultSettings: Settings = {
   pmpProxying: false,
   mentionInReplies: true,
   showPersonaSetting: false,
-  useTiptapComposer: false,
   closeFoldersByDefault: false,
   perRoomShowRoomIcon: [],
   showRoomIcon: ShowRoomIcon.Smart,

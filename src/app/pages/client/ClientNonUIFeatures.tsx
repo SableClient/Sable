@@ -203,11 +203,12 @@ function WebPushStartupReconciler() {
 function SystemEmojiFeature() {
   const [twitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
 
-  if (twitterEmoji) {
-    document.documentElement.style.setProperty('--font-emoji', 'Twemoji');
-  } else {
-    document.documentElement.style.setProperty('--font-emoji', 'Twemoji_DISABLED');
-  }
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--font-emoji',
+      twitterEmoji ? 'Twemoji' : 'Twemoji_DISABLED'
+    );
+  }, [twitterEmoji]);
 
   return null;
 }
@@ -215,11 +216,14 @@ function SystemEmojiFeature() {
 function PageZoomFeature() {
   const [pageZoom] = useSetting(settingsAtom, 'pageZoom');
 
-  if (pageZoom === 100) {
-    document.documentElement.style.removeProperty('font-size');
-  } else {
+  useEffect(() => {
+    if (pageZoom === 100) {
+      document.documentElement.style.removeProperty('font-size');
+      return;
+    }
+
     document.documentElement.style.setProperty('font-size', `calc(1em * ${pageZoom / 100})`);
-  }
+  }, [pageZoom]);
 
   return null;
 }

@@ -174,6 +174,8 @@ export function BackgroundNotifications() {
 
   const shouldRunBackgroundNotifications =
     (showNotifications || usePushNotifications) && (!isMobile || isVisible);
+  const shouldRunBackgroundNotificationsRef = useRef(shouldRunBackgroundNotifications);
+  shouldRunBackgroundNotificationsRef.current = shouldRunBackgroundNotifications;
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
@@ -232,12 +234,35 @@ export function BackgroundNotifications() {
   }
 
   useEffect(() => {
+    const { current } = clientsRef;
+    const cleanupMap = clientCleanupRef.current;
+    const stopTrackedClient = (userId: string) => {
+      const mx = current.get(userId);
+      cleanupMap.get(userId)?.();
+      cleanupMap.delete(userId);
+      if (mx) {
+        void stopClient(mx);
+        current.delete(userId);
+      }
+    };
+
     if (!shouldRunBackgroundNotifications) {
+      current.forEach((_mx, userId) => {
+        stopTrackedClient(userId);
+        // Clear the background unread badge when the session stops being tracked.
+        setBackgroundUnreads((prev) => {
+          const next = { ...prev };
+          delete next[userId];
+          return next;
+        });
+      });
+      startingClientsRef.current.clear();
       return undefined;
     }
 
-    const { current } = clientsRef;
     const activeIds = new Set(inactiveSessions.map((s) => s.userId));
+    const retryTimers: ReturnType<typeof setTimeout>[] = [];
+    let cancelled = false;
 
     async function sendNotification(opts: NotifyOptions): Promise<void> {
       // Prefer SW showNotification so taps route through the notificationclick handler.
@@ -303,10 +328,7 @@ export function BackgroundNotifications() {
 
     current.forEach((mx, userId) => {
       if (!activeIds.has(userId)) {
-        clientCleanupRef.current.get(userId)?.();
-        clientCleanupRef.current.delete(userId);
-        void stopClient(mx);
-        current.delete(userId);
+        stopTrackedClient(userId);
         Sentry.metrics.gauge('sable.background.client_count', current.size);
         // Clear the background unread badge when this session is no longer a background account.
         setBackgroundUnreads((prev) => {
@@ -340,7 +362,9 @@ export function BackgroundNotifications() {
           sessionMx = mx;
           startingClientsRef.current.delete(session.userId);
           if (
+            cancelled ||
             current.has(session.userId) ||
+            !shouldRunBackgroundNotificationsRef.current ||
             !inactiveSessionsRef.current.some((s) => s.userId === session.userId)
           ) {
             void stopClient(mx);
@@ -357,6 +381,15 @@ export function BackgroundNotifications() {
           });
 
           await waitForSync(mx);
+
+          if (
+            cancelled ||
+            !shouldRunBackgroundNotificationsRef.current ||
+            !inactiveSessionsRef.current.some((s) => s.userId === session.userId)
+          ) {
+            stopTrackedClient(session.userId);
+            return;
+          }
 
           Sentry.addBreadcrumb({
             category: 'notification.background_client',
@@ -672,6 +705,12 @@ export function BackgroundNotifications() {
         })
         .catch((err) => {
           startingClientsRef.current.delete(session.userId);
+          if (cancelled) {
+            if (sessionMx) {
+              stopTrackedClient(session.userId);
+            }
+            return;
+          }
           log.error('failed to start background client for', session.userId, err);
           debugLog.error('notification', 'Failed to start background client', {
             userId: session.userId,
@@ -708,14 +747,20 @@ export function BackgroundNotifications() {
           // Retry with exponential backoff, up to 5 attempts (5s, 10s, 20s, 40s, 60s cap).
           if (attempt < 5) {
             const retryDelay = Math.min(5_000 * 2 ** attempt, 60_000);
-            setTimeout(() => {
+            const retryTimer = setTimeout(() => {
               const latestSession = inactiveSessionsRef.current.find(
                 (s) => s.userId === session.userId
               );
-              if (latestSession && !current.has(session.userId)) {
+              if (
+                !cancelled &&
+                shouldRunBackgroundNotificationsRef.current &&
+                latestSession &&
+                !current.has(session.userId)
+              ) {
                 startSession(latestSession, attempt + 1);
               }
             }, retryDelay);
+            retryTimers.push(retryTimer);
           }
         });
     };
@@ -732,16 +777,14 @@ export function BackgroundNotifications() {
       }
     });
 
-    const cleanupMap = clientCleanupRef.current;
     const activeUserIds = new Set(inactiveSessions.map((s) => s.userId));
     return () => {
+      cancelled = true;
       staggerTimers.forEach(clearTimeout);
+      retryTimers.forEach(clearTimeout);
       current.forEach((mx, userId) => {
         if (!activeUserIds.has(userId)) {
-          cleanupMap.get(userId)?.();
-          cleanupMap.delete(userId);
-          void stopClient(mx);
-          current.delete(userId);
+          stopTrackedClient(userId);
         }
       });
     };

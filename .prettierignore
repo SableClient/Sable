@@ -1,4 +1,6 @@
 dist
+test-results
+playwright-report
 node_modules
 package.json
 pnpm-lock.yaml

@@ -61,11 +61,7 @@ export function Login() {
         loginToken: loginTokenForHashRouter,
       })
     );
-  }, [
-    absoluteLoginPath,
-    loginTokenForHashRouter,
-    shouldNormalizeHashRouterLoginToken,
-  ]);
+  }, [absoluteLoginPath, loginTokenForHashRouter, shouldNormalizeHashRouterLoginToken]);
 
   if (shouldNormalizeHashRouterLoginToken) {
     return null;

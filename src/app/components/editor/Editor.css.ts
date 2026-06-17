@@ -52,12 +52,21 @@ export const EditorOptionsAfterMultiline = style({
   justifySelf: 'end',
 });
 
-export const EditorTextareaScroll = style({
-  minWidth: 0,
-});
-
 export const EditorTextareaScrollMultiline = style({
   gridArea: 'textarea',
+});
+
+export const EditorTextareaScroll = style({
+  minWidth: 0,
+  display: 'flex',
+  alignItems: 'center',
+  padding: `${toRem(13)} 0`,
+  selectors: {
+    [`&${EditorTextareaScrollMultiline}`]: {
+      display: 'block',
+      paddingBottom: 0,
+    },
+  },
 });
 
 export const EditorTextarea = style([
@@ -68,7 +77,7 @@ export const EditorTextarea = style([
     // Detect text direction per-keystroke so RTL text right-aligns automatically.
     // Matches the unicodeBidi: 'plaintext' pattern used by MessageTextBody.
     unicodeBidi: 'plaintext',
-    padding: `${toRem(13)} 0 0`,
+    padding: 0,
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
@@ -105,7 +114,6 @@ export const EditorPlaceholderTextVisual = style([
   DefaultReset,
   {
     display: 'block',
-    paddingTop: toRem(13),
     paddingLeft: toRem(1),
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {

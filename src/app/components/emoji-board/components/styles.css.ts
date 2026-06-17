@@ -76,6 +76,19 @@ export const PreviewEmoji = style([
     lineHeight: toRem(32),
   },
 ]);
+
+export const PreviewSystemEmojiGlyph = style([
+  DefaultReset,
+  {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: toRem(32),
+    height: toRem(32),
+    fontSize: toRem(34),
+    lineHeight: toRem(32),
+  },
+]);
 export const PreviewImg = style([
   DefaultReset,
   {
@@ -123,14 +136,25 @@ export const EmojiItem = style([
   {
     width: toRem(48),
     height: toRem(48),
-    fontSize: toRem(32),
-    lineHeight: toRem(32),
     borderRadius: config.radii.R400,
     cursor: 'pointer',
 
     ':hover': {
       backgroundColor: color.Surface.ContainerHover,
     },
+  },
+]);
+
+export const SystemEmojiGlyph = style([
+  DefaultReset,
+  {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: toRem(32),
+    height: toRem(32),
+    fontSize: toRem(34),
+    lineHeight: toRem(32),
   },
 ]);
 

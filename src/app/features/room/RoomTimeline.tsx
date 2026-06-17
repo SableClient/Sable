@@ -153,7 +153,10 @@ export function RoomTimeline({
   const mx = useMatrixClient();
   const alive = useAlive();
 
-  const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
+  const { editId, handleEdit } = useMessageEdit(editor, {
+    onReset: onEditorReset,
+    alive,
+  });
   const { navigateRoom } = useRoomNavigate();
 
   const [editInInput] = useSetting(settingsAtom, 'editInInput');
@@ -453,7 +456,9 @@ export function RoomTimeline({
       timelineSync.liveTimelineLinked &&
       vListRef.current
     ) {
-      vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+      vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, {
+        align: 'end',
+      });
       // Store in a ref rather than a local so subsequent eventsLength changes
       // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
       // cancel this timer through the useLayoutEffect cleanup.
@@ -537,7 +542,9 @@ export function RoomTimeline({
     } else if (prev === 'loading' && timelineSync.backwardStatus === 'idle') {
       setShift(false);
       if (wasAtBottomBeforePaginationRef.current) {
-        vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+        vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, {
+          align: 'end',
+        });
       }
     }
   }, [timelineSync.backwardStatus]);
@@ -653,7 +660,9 @@ export function RoomTimeline({
                 );
                 setAtBottom(false);
                 startJumpScrollBlock();
-                vListRef.current.scrollToIndex(delayedProcessedIndex, { align: 'center' });
+                vListRef.current.scrollToIndex(delayedProcessedIndex, {
+                  align: 'center',
+                });
               }
             }, delay);
             jumpRecenterTimeoutIdsRef.current.push(recenterTimeoutId);
@@ -1192,7 +1201,12 @@ export function RoomTimeline({
       setOpenThread: actions.setOpenThread,
       handleOpenReply: actions.handleOpenReply,
     },
-    utils: { htmlReactParserOptions, linkifyOpts, getMemberPowerTag, parseMemberEvent },
+    utils: {
+      htmlReactParserOptions,
+      linkifyOpts,
+      getMemberPowerTag,
+      parseMemberEvent,
+    },
   });
 
   const tryAutoMarkAsRead = useCallback(() => {
@@ -1437,7 +1451,9 @@ export function RoomTimeline({
     if (!pendingReadyRef.current) return;
     if (processedEvents.length === 0) return;
     pendingReadyRef.current = false;
-    vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+    vListRef.current?.scrollToIndex(processedEvents.length - 1, {
+      align: 'end',
+    });
     setIsReady(true);
   }, [processedEvents.length]);
 
@@ -1600,6 +1616,8 @@ export function RoomTimeline({
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
+            paddingLeft: config.space.S400,
+            paddingRight: config.space.S400,
             paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600,
             paddingBottom: config.space.S600,
           }}
@@ -1625,7 +1643,10 @@ export function RoomTimeline({
                     {backPaginationJSX}
                     <div
                       style={{
-                        padding: `${config.space.S700} ${config.space.S400} ${config.space.S600} ${messageLayout === MessageLayout.Compact ? config.space.S400 : toRem(64)}`,
+                        paddingTop: config.space.S700,
+                        paddingBottom: config.space.S600,
+                        paddingInlineStart:
+                          messageLayout === MessageLayout.Compact ? config.space.S0 : toRem(64),
                       }}
                     >
                       <RoomIntro room={room} />
@@ -1678,7 +1699,10 @@ export function RoomTimeline({
                   {!timelineSync.canPaginateBack && (
                     <div
                       style={{
-                        padding: `${config.space.S700} ${config.space.S400} ${config.space.S600} ${messageLayout === MessageLayout.Compact ? config.space.S400 : toRem(64)}`,
+                        paddingTop: config.space.S700,
+                        paddingBottom: config.space.S600,
+                        paddingInlineStart:
+                          messageLayout === MessageLayout.Compact ? config.space.S0 : toRem(64),
                       }}
                     >
                       <RoomIntro room={room} />

@@ -419,7 +419,7 @@ export function MNotice({
   );
 }
 
-type RenderImageContentProps = {
+export type RenderImageContentProps = {
   body: string;
   filename?: string;
   info?: IImageInfo & IThumbnailContent;

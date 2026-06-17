@@ -13,7 +13,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { getMxIdServer } from '$utils/mxIdHelper';
-import { Compass, getPhosphorSize } from '$components/icons/phosphor';
+import { Compass, getPhosphorIconSize } from '$components/icons/phosphor';
 
 export function ExploreTab() {
   const mx = useMatrixClient();
@@ -55,7 +55,7 @@ export function ExploreTab() {
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleExploreClick}>
             <Compass
-              size={getPhosphorSize().toolbar}
+              size={getPhosphorIconSize('toolbar')}
               weight={exploreSelected ? 'fill' : 'regular'}
             />
           </SidebarAvatar>

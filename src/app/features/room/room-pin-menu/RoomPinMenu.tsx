@@ -1,4 +1,4 @@
-import type { MouseEventHandler, ReactNode } from 'react';
+import type { MouseEventHandler, ReactNode, ComponentProps } from 'react';
 import { forwardRef, useCallback, useMemo, useRef } from 'react';
 import type { MatrixEvent, Room, RoomPinnedEventsEventContent } from '$types/matrix-sdk';
 import type { IImageContent } from '$types/matrix/common';
@@ -38,6 +38,7 @@ import {
   Time,
   Username,
   UsernameBold,
+  type RenderImageContentProps,
 } from '$components/message';
 import { UserAvatar } from '$components/user-avatar';
 import {
@@ -290,6 +291,223 @@ function PinnedMessage(props: PinnedMessageProps) {
   );
 }
 
+type PinMenuRendererContext = {
+  mx: ReturnType<typeof useMatrixClient>;
+  room: Room;
+  mediaAutoLoad: boolean;
+  urlPreview: boolean;
+  htmlReactParserOptions: HTMLReactParserOptions;
+  linkifyOpts: LinkifyOpts;
+};
+
+function PinMenuLazyImage(props: ComponentProps<typeof Image>) {
+  return <Image {...props} loading="lazy" />;
+}
+
+function renderPinMenuStickerImageContent(
+  mediaAutoLoad: boolean | undefined,
+  props: RenderImageContentProps
+) {
+  return (
+    <ImageContent
+      {...props}
+      autoPlay={mediaAutoLoad}
+      renderImage={PinMenuLazyImage}
+      renderViewer={ImageViewer}
+    />
+  );
+}
+
+function renderPinMenuRoomMessage(
+  ctx: PinMenuRendererContext,
+  event: MatrixEvent,
+  displayName: string,
+  getContent: GetContentCallback
+) {
+  if (event.isRedacted()) {
+    const unsigned = event.getUnsigned();
+    const redactionContent = unsigned.redacted_because?.content as { reason?: string } | undefined;
+    return <RedactedContent reason={redactionContent?.reason} />;
+  }
+
+  return (
+    <RenderMessageContent
+      displayName={displayName}
+      msgType={event.getContent().msgtype ?? ''}
+      ts={event.getTs()}
+      getContent={getContent}
+      edited={!!event.replacingEvent()}
+      mediaAutoLoad={ctx.mediaAutoLoad}
+      urlPreview={ctx.urlPreview}
+      htmlReactParserOptions={ctx.htmlReactParserOptions}
+      linkifyOpts={ctx.linkifyOpts}
+      outlineAttachment
+      mEvent={event}
+      mx={ctx.mx}
+      room={ctx.room}
+    />
+  );
+}
+
+function renderPinMenuEncryptedDecrypted(
+  ctx: PinMenuRendererContext,
+  event: MatrixEvent,
+  displayName: string,
+  mEvent: MatrixEvent,
+  evtTimeline: NonNullable<ReturnType<Room['getTimelineForEvent']>>
+) {
+  const eventId = event.getId()!;
+  const eventType = mEvent.getType();
+  const stickerEventType: string = EventType.Sticker;
+  const roomMessageEventType: string = EventType.RoomMessage;
+  const encryptedMessageEventType: string = EventType.RoomMessageEncrypted;
+
+  if (mEvent.isRedacted()) return <RedactedContent />;
+  if (eventType === stickerEventType) {
+    return (
+      <MSticker
+        content={mEvent.getContent()}
+        renderImageContent={renderPinMenuStickerImageContent.bind(null, ctx.mediaAutoLoad)}
+      />
+    );
+  }
+  if (eventType === roomMessageEventType) {
+    const editedEvent = getEditedEvent(eventId, mEvent, evtTimeline.getTimelineSet());
+    const getContent = (() => {
+      const eventContent = mEvent.getContent();
+      const editContent = editedEvent?.getContent();
+      return (editContent?.['m.new_content'] ?? eventContent) as Record<string, unknown>;
+    }) as GetContentCallback;
+
+    return (
+      <RenderMessageContent
+        displayName={displayName}
+        msgType={mEvent.getContent().msgtype ?? ''}
+        ts={mEvent.getTs()}
+        edited={!!editedEvent || !!mEvent.replacingEvent()}
+        getContent={getContent}
+        mediaAutoLoad={ctx.mediaAutoLoad}
+        urlPreview={ctx.urlPreview}
+        htmlReactParserOptions={ctx.htmlReactParserOptions}
+        linkifyOpts={ctx.linkifyOpts}
+        mx={ctx.mx}
+        room={ctx.room}
+        mEvent={event}
+      />
+    );
+  }
+  if (eventType === encryptedMessageEventType) {
+    return (
+      <Text>
+        <MessageNotDecryptedContent />
+      </Text>
+    );
+  }
+  return (
+    <Text>
+      <MessageUnsupportedContent />
+    </Text>
+  );
+}
+
+function renderPinMenuEncrypted(
+  ctx: PinMenuRendererContext,
+  event: MatrixEvent,
+  displayName: string
+) {
+  const eventId = event.getId()!;
+  const evtTimeline = ctx.room.getTimelineForEvent(eventId);
+  const mEvent = evtTimeline?.getEvents().find((e: MatrixEvent) => e.getId() === eventId);
+
+  if (!mEvent || !evtTimeline) {
+    return (
+      <Box grow="Yes" direction="Column">
+        <Text size="T400" priority="300">
+          <code className={customHtmlCss.Code}>{event.getType()}</code>
+          {' event'}
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <EncryptedContent mEvent={mEvent}>
+      {renderPinMenuEncryptedDecrypted.bind(null, ctx, event, displayName, mEvent, evtTimeline)}
+    </EncryptedContent>
+  );
+}
+
+function renderPinMenuSticker(
+  ctx: PinMenuRendererContext,
+  event: MatrixEvent,
+  _displayName: string,
+  getContent: GetContentCallback
+) {
+  if (event.isRedacted()) {
+    const unsigned = event.getUnsigned();
+    const redactionContent = unsigned.redacted_because?.content as
+      | Record<string, unknown>
+      | undefined;
+
+    return <RedactedContent reason={redactionContent?.reason as string | undefined} />;
+  }
+  return (
+    <MSticker
+      content={getContent() as IImageContent}
+      renderImageContent={renderPinMenuStickerImageContent.bind(null, ctx.mediaAutoLoad)}
+    />
+  );
+}
+
+function renderPinMenuPollStart(
+  ctx: PinMenuRendererContext,
+  event: MatrixEvent,
+  displayName: string,
+  getContent: GetContentCallback
+) {
+  if (event.isRedacted()) {
+    const unsigned = event.getUnsigned();
+    const redactionContent = unsigned.redacted_because?.content as { reason?: string } | undefined;
+    return <RedactedContent reason={redactionContent?.reason} />;
+  }
+
+  return (
+    <RenderMessageContent
+      displayName={displayName}
+      msgType={event.getContent().msgtype ?? ''}
+      ts={event.getTs()}
+      getContent={getContent}
+      edited={!!event.replacingEvent()}
+      mediaAutoLoad={ctx.mediaAutoLoad}
+      urlPreview={ctx.urlPreview}
+      htmlReactParserOptions={ctx.htmlReactParserOptions}
+      linkifyOpts={ctx.linkifyOpts}
+      outlineAttachment
+      mEvent={event}
+      mx={ctx.mx}
+      room={ctx.room}
+    />
+  );
+}
+
+function renderPinMenuFallback(_ctx: PinMenuRendererContext, event: MatrixEvent) {
+  if (event.isRedacted()) {
+    const unsigned = event.getUnsigned();
+    const redactionContent = unsigned.redacted_because?.content as
+      | Record<string, unknown>
+      | undefined;
+    return <RedactedContent reason={redactionContent?.reason as string | undefined} />;
+  }
+  return (
+    <Box grow="Yes" direction="Column">
+      <Text size="T400" priority="300">
+        <code className={customHtmlCss.Code}>{event.getType()}</code>
+        {' event'}
+      </Text>
+    </Box>
+  );
+}
+
 type RoomPinMenuProps = {
   room: Room;
   requestClose: () => void;
@@ -392,186 +610,32 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
       ]
     );
 
+    const rendererContext = useMemo<PinMenuRendererContext>(
+      () => ({
+        mx,
+        room,
+        mediaAutoLoad,
+        urlPreview,
+        htmlReactParserOptions,
+        linkifyOpts,
+      }),
+      [mx, room, mediaAutoLoad, urlPreview, htmlReactParserOptions, linkifyOpts]
+    );
+
+    const matrixEventHandlers = useMemo(
+      () => ({
+        [EventType.RoomMessage]: renderPinMenuRoomMessage.bind(null, rendererContext),
+        [EventType.RoomMessageEncrypted]: renderPinMenuEncrypted.bind(null, rendererContext),
+        [EventType.Sticker]: renderPinMenuSticker.bind(null, rendererContext),
+        [M_POLL_START.name]: renderPinMenuPollStart.bind(null, rendererContext),
+      }),
+      [rendererContext]
+    );
+
     const renderMatrixEvent = useMatrixEventRenderer<[MatrixEvent, string, GetContentCallback]>(
-      {
-        [EventType.RoomMessage]: (event, displayName, getContent) => {
-          if (event.isRedacted()) {
-            const unsigned = event.getUnsigned();
-            const redactionContent = unsigned.redacted_because?.content as
-              | { reason?: string }
-              | undefined;
-            return <RedactedContent reason={redactionContent?.reason} />;
-          }
-
-          return (
-            <RenderMessageContent
-              displayName={displayName}
-              msgType={event.getContent().msgtype ?? ''}
-              ts={event.getTs()}
-              getContent={getContent}
-              edited={!!event.replacingEvent()}
-              mediaAutoLoad={mediaAutoLoad}
-              urlPreview={urlPreview}
-              htmlReactParserOptions={htmlReactParserOptions}
-              linkifyOpts={linkifyOpts}
-              outlineAttachment
-              mEvent={event}
-              mx={mx}
-              room={room}
-            />
-          );
-        },
-        [EventType.RoomMessageEncrypted]: (event, displayName) => {
-          const eventId = event.getId()!;
-          const evtTimeline = room.getTimelineForEvent(eventId);
-
-          const mEvent = evtTimeline?.getEvents().find((e: MatrixEvent) => e.getId() === eventId);
-
-          if (!mEvent || !evtTimeline) {
-            return (
-              <Box grow="Yes" direction="Column">
-                <Text size="T400" priority="300">
-                  <code className={customHtmlCss.Code}>{event.getType()}</code>
-                  {' event'}
-                </Text>
-              </Box>
-            );
-          }
-
-          return (
-            <EncryptedContent mEvent={mEvent}>
-              {() => {
-                const eventType = mEvent.getType();
-                const stickerEventType: string = EventType.Sticker;
-                const roomMessageEventType: string = EventType.RoomMessage;
-                const encryptedMessageEventType: string = EventType.RoomMessageEncrypted;
-                if (mEvent.isRedacted()) return <RedactedContent />;
-                if (eventType === stickerEventType)
-                  return (
-                    <MSticker
-                      content={mEvent.getContent()}
-                      renderImageContent={(props) => (
-                        <ImageContent
-                          {...props}
-                          autoPlay={mediaAutoLoad}
-                          renderImage={(p) => <Image {...p} loading="lazy" />}
-                          renderViewer={(p) => <ImageViewer {...p} />}
-                        />
-                      )}
-                    />
-                  );
-                if (eventType === roomMessageEventType) {
-                  const editedEvent = getEditedEvent(eventId, mEvent, evtTimeline.getTimelineSet());
-                  const getContent = (() => {
-                    const eventContent = mEvent.getContent();
-                    const editContent = editedEvent?.getContent();
-                    return (editContent?.['m.new_content'] ?? eventContent) as Record<
-                      string,
-                      unknown
-                    >;
-                  }) as GetContentCallback;
-
-                  return (
-                    <RenderMessageContent
-                      displayName={displayName}
-                      msgType={mEvent.getContent().msgtype ?? ''}
-                      ts={mEvent.getTs()}
-                      edited={!!editedEvent || !!mEvent.replacingEvent()}
-                      getContent={getContent}
-                      mediaAutoLoad={mediaAutoLoad}
-                      urlPreview={urlPreview}
-                      htmlReactParserOptions={htmlReactParserOptions}
-                      linkifyOpts={linkifyOpts}
-                      mx={mx}
-                      room={room}
-                      mEvent={event}
-                    />
-                  );
-                }
-                if (eventType === encryptedMessageEventType)
-                  return (
-                    <Text>
-                      <MessageNotDecryptedContent />
-                    </Text>
-                  );
-                return (
-                  <Text>
-                    <MessageUnsupportedContent />
-                  </Text>
-                );
-              }}
-            </EncryptedContent>
-          );
-        },
-        [EventType.Sticker]: (event, _displayName, getContent) => {
-          if (event.isRedacted()) {
-            const unsigned = event.getUnsigned();
-            const redactionContent = unsigned.redacted_because?.content as
-              | Record<string, unknown>
-              | undefined;
-
-            return <RedactedContent reason={redactionContent?.reason as string | undefined} />;
-          }
-          return (
-            <MSticker
-              content={getContent() as IImageContent}
-              renderImageContent={(props) => (
-                <ImageContent
-                  {...props}
-                  autoPlay={mediaAutoLoad}
-                  renderImage={(p) => <Image {...p} loading="lazy" />}
-                  renderViewer={(p) => <ImageViewer {...p} />}
-                />
-              )}
-            />
-          );
-        },
-        [M_POLL_START.name]: (event, displayName, getContent) => {
-          if (event.isRedacted()) {
-            const unsigned = event.getUnsigned();
-            const redactionContent = unsigned.redacted_because?.content as
-              | { reason?: string }
-              | undefined;
-            return <RedactedContent reason={redactionContent?.reason} />;
-          }
-
-          return (
-            <RenderMessageContent
-              displayName={displayName}
-              msgType={event.getContent().msgtype ?? ''}
-              ts={event.getTs()}
-              getContent={getContent}
-              edited={!!event.replacingEvent()}
-              mediaAutoLoad={mediaAutoLoad}
-              urlPreview={urlPreview}
-              htmlReactParserOptions={htmlReactParserOptions}
-              linkifyOpts={linkifyOpts}
-              outlineAttachment
-              mEvent={event}
-              mx={mx}
-              room={room}
-            />
-          );
-        },
-      },
+      matrixEventHandlers,
       undefined,
-      (event) => {
-        if (event.isRedacted()) {
-          const unsigned = event.getUnsigned();
-          const redactionContent = unsigned.redacted_because?.content as
-            | Record<string, unknown>
-            | undefined;
-          return <RedactedContent reason={redactionContent?.reason as string | undefined} />;
-        }
-        return (
-          <Box grow="Yes" direction="Column">
-            <Text size="T400" priority="300">
-              <code className={customHtmlCss.Code}>{event.getType()}</code>
-              {' event'}
-            </Text>
-          </Box>
-        );
-      }
+      renderPinMenuFallback.bind(null, rendererContext)
     );
 
     const handleOpen = (roomId: string, eventId: string) => {

@@ -5,6 +5,7 @@ import {
   collapseEqualLineRuns,
   diffLinesRaw,
   diffWords,
+  type MessageDiffDisplay,
 } from './textDiff';
 
 const partValues = (parts: ReturnType<typeof diffWords>) =>
@@ -89,10 +90,10 @@ describe('collapseEqualLineRuns', () => {
 describe('buildMessageDiffDisplay', () => {
   it('uses inline word diff for single-line edits', () => {
     const display = buildMessageDiffDisplay('hello', 'hello world');
-    expect(display.mode).toBe('inline');
-    if (display.mode === 'inline') {
-      expect(partValues(display.parts)).toEqual(['equal:"hello"', 'insert:" world"']);
-    }
+    expect(display).toEqual({
+      mode: 'inline',
+      parts: diffWords('hello', 'hello world'),
+    });
   });
 
   it('uses line diff with collapse for multiline edits', () => {
@@ -101,10 +102,16 @@ describe('buildMessageDiffDisplay', () => {
 
     const display = buildMessageDiffDisplay(oldText, newText);
     expect(display.mode).toBe('lines');
-    if (display.mode === 'lines') {
-      expect(display.rows.at(-2)).toEqual({ type: 'delete', text: 'old' });
-      expect(display.rows.at(-1)).toEqual({ type: 'insert', text: 'new' });
-    }
+    const linesDisplay = display as Extract<MessageDiffDisplay, { mode: 'lines' }>;
+    expect(linesDisplay).toMatchObject({
+      mode: 'lines',
+      rows: expect.arrayContaining([
+        { type: 'delete', text: 'old' },
+        { type: 'insert', text: 'new' },
+      ]),
+    });
+    expect(linesDisplay.rows.at(-2)).toEqual({ type: 'delete', text: 'old' });
+    expect(linesDisplay.rows.at(-1)).toEqual({ type: 'insert', text: 'new' });
   });
 
   it('collapses unchanged lines in multiline diffs', () => {
@@ -114,9 +121,8 @@ describe('buildMessageDiffDisplay', () => {
 
     const display = buildMessageDiffDisplay(oldText, newText);
     expect(display.mode).toBe('lines');
-    if (display.mode === 'lines') {
-      expect(display.rows.some((row) => row.type === 'skip')).toBe(true);
-    }
+    const linesDisplay = display as Extract<MessageDiffDisplay, { mode: 'lines' }>;
+    expect(linesDisplay.rows.some((row) => row.type === 'skip')).toBe(true);
   });
 });
 

@@ -145,6 +145,80 @@ export const getSpaceChildren = (room: Room) =>
     return filtered;
   }, []);
 
+export const getJoinedSpaceChildrenLeaveOrder = (
+  mx: MatrixClient,
+  rootSpaceId: string
+): string[] => {
+  const leaveOrder: string[] = [];
+  const visited = new Set<string>();
+
+  const isJoinedChild = (room: Room): boolean =>
+    room.getMyMembership() === (KnownMembership.Join as string) &&
+    !getStateEvent(room, EventType.RoomTombstone);
+
+  const visitSpace = (spaceId: string) => {
+    if (visited.has(spaceId)) return;
+    visited.add(spaceId);
+
+    const space = mx.getRoom(spaceId);
+    if (!space || !isJoinedChild(space)) return;
+
+    getSpaceChildren(space).forEach((childId) => {
+      if (visited.has(childId)) return;
+
+      const child = mx.getRoom(childId);
+      if (!child || !isJoinedChild(child)) return;
+
+      if (child.isSpaceRoom()) {
+        visitSpace(childId);
+        return;
+      }
+
+      visited.add(childId);
+      leaveOrder.push(childId);
+    });
+
+    if (spaceId !== rootSpaceId) {
+      leaveOrder.push(spaceId);
+    }
+  };
+
+  visitSpace(rootSpaceId);
+
+  return leaveOrder.filter((id) => id !== rootSpaceId);
+};
+
+export type JoinedSpaceChildrenSummary = {
+  leaveOrder: string[];
+  roomCount: number;
+  subspaceCount: number;
+};
+
+export const getJoinedSpaceChildrenSummary = (
+  mx: MatrixClient,
+  rootSpaceId: string
+): JoinedSpaceChildrenSummary => {
+  const leaveOrder = getJoinedSpaceChildrenLeaveOrder(mx, rootSpaceId);
+  let roomCount = 0;
+  let subspaceCount = 0;
+
+  leaveOrder.forEach((id) => {
+    const room = mx.getRoom(id);
+    if (room?.isSpaceRoom()) {
+      subspaceCount += 1;
+    } else {
+      roomCount += 1;
+    }
+  });
+
+  return { leaveOrder, roomCount, subspaceCount };
+};
+
+export const getRecursiveSpaceLeaveOrder = (mx: MatrixClient, rootSpaceId: string): string[] => [
+  ...getJoinedSpaceChildrenLeaveOrder(mx, rootSpaceId),
+  rootSpaceId,
+];
+
 export const mapParentWithChildren = (
   roomToParents: RoomToParents,
   roomId: string,
@@ -791,19 +865,19 @@ export const shouldShowRedactionTimelineEvent = (
   return hiddenEventRedactionTimeline;
 };
 
+const readReplaceTargetId = (
+  relatesTo: { rel_type?: string; event_id?: string } | undefined
+): string | undefined => {
+  if (relatesTo?.rel_type !== (RelationType.Replace as string)) return undefined;
+  const eventId = relatesTo.event_id;
+  return typeof eventId === 'string' && eventId.length > 0 ? eventId : undefined;
+};
+
 export const getEditTargetId = (editEvent: MatrixEvent): string | undefined => {
   const relationEventId = editEvent.getRelation()?.event_id;
   if (typeof relationEventId === 'string' && relationEventId.length > 0) {
     return relationEventId;
   }
-
-  const readReplaceTargetId = (
-    relatesTo: { rel_type?: string; event_id?: string } | undefined
-  ): string | undefined => {
-    if (relatesTo?.rel_type !== (RelationType.Replace as string)) return undefined;
-    const eventId = relatesTo.event_id;
-    return typeof eventId === 'string' && eventId.length > 0 ? eventId : undefined;
-  };
 
   const content = editEvent.getContent();
   const fromContent = readReplaceTargetId(
@@ -1030,6 +1104,96 @@ export const unwrapRelationJumpTarget = (room: Room, eventId: string, maxHops = 
     current = related;
   }
   return current;
+};
+
+const findRelationChildEvent = (
+  timelineSet: EventTimelineSet,
+  eventId: string
+): MatrixEvent | undefined => {
+  for (const timeline of timelineSet.getTimelines()) {
+    for (const parent of timeline.getEvents()) {
+      const parentId = parent.getId();
+      if (!parentId) continue;
+
+      const reactionRelations = getEventReactions(timelineSet, parentId);
+      if (reactionRelations) {
+        const reaction = reactionRelations
+          .getRelations()
+          .find((candidate) => candidate.getId() === eventId);
+        if (reaction) return reaction;
+      }
+
+      const editRelations = getEventEdits(timelineSet, parentId, parent.getType());
+      if (editRelations) {
+        const edit = editRelations
+          .getRelations()
+          .find((candidate) => candidate.getId() === eventId);
+        if (edit) return edit;
+      }
+    }
+  }
+  return undefined;
+};
+
+export const findRoomEventById = (
+  room: Room,
+  eventId: string,
+  timelineSet?: EventTimelineSet
+): MatrixEvent | undefined => {
+  const set = timelineSet ?? room.getUnfilteredTimelineSet();
+  return (
+    set.findEventById(eventId) ??
+    room.findEventById(eventId) ??
+    findRelationChildEvent(set, eventId)
+  );
+};
+
+export type ResolvedReplyDraftTarget = {
+  eventId: string;
+  replyEvt: MatrixEvent;
+};
+
+export const extractReplyDraftBody = (
+  replyEvt: MatrixEvent,
+  timelineSet: EventTimelineSet
+): { body: string; formattedBody: string } => {
+  const replyId = replyEvt.getId();
+  const editedReply =
+    replyId !== undefined && !isEditEvent(replyEvt)
+      ? getEditedEvent(replyId, replyEvt, timelineSet)
+      : undefined;
+  const editedNewContent = editedReply?.getContent()['m.new_content'];
+  const content = (editedNewContent ?? replyEvt.getContent()) as Record<string, unknown>;
+  const { body, formatted_body: formattedBody } = content;
+  const msc1767body = content['m.text'];
+
+  const resolvedBody =
+    (typeof body === 'string' ? body : undefined) ??
+    (typeof msc1767body === 'string'
+      ? msc1767body
+      : (msc1767body as { body?: string } | undefined)?.body) ??
+    getMessageVersionBody(replyEvt) ??
+    '';
+
+  return {
+    body: resolvedBody,
+    formattedBody: typeof formattedBody === 'string' ? formattedBody : '',
+  };
+};
+
+export const resolveReplyDraftTarget = (
+  room: Room,
+  clickedEventId: string,
+  timelineSet?: EventTimelineSet
+): ResolvedReplyDraftTarget | undefined => {
+  const set = timelineSet ?? room.getUnfilteredTimelineSet();
+  const replyEvt = findRoomEventById(room, clickedEventId, set);
+  if (!replyEvt) return undefined;
+
+  const eventId = replyEvt.getId();
+  if (!eventId) return undefined;
+
+  return { eventId, replyEvt };
 };
 
 export const getMentionContent = (userIds: string[], room: boolean): IMentions => {

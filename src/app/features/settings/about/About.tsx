@@ -204,6 +204,7 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
   const handleCheckForUpdates = useCallback(async () => {
     try {
       const result = await runUpdateCheck();
+      if (!result) return;
       setUpdateStatusMessage(result.message);
     } catch (error) {
       setUpdateStatusMessage(

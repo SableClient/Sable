@@ -176,6 +176,8 @@ let preloadedSession: SessionInfo | undefined;
 
 const clientToSessionWaiters = new Map<string, Set<(value: SessionInfo | undefined) => void>>();
 const clientWithPendingSessionRequest = new Set<string>();
+const clientForegroundHeartbeatAt = new Map<string, number>();
+const FOREGROUND_HEARTBEAT_MAX_AGE_MS = 20_000;
 
 async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
@@ -186,6 +188,7 @@ async function cleanupDeadClients() {
       sessions.delete(id);
       clientToSessionWaiters.delete(id);
       clientWithPendingSessionRequest.delete(id);
+      clientForegroundHeartbeatAt.delete(id);
     }
   });
 }
@@ -1226,6 +1229,9 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       })()
     );
   }
+  if (type === 'foregroundHeartbeat') {
+    clientForegroundHeartbeatAt.set(client.id, Date.now());
+  }
   if (type === 'pushDecryptResult') {
     // Resolve a pending decryption request from handleMinimalPushPayload
     const { eventId } = data as { eventId?: string };
@@ -1254,8 +1260,12 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
           focused: focused === true,
           clientId: client.id,
         };
+        const lastForegroundHeartbeat = clientForegroundHeartbeatAt.get(client.id);
+        const hasRecentForegroundHeartbeat =
+          typeof lastForegroundHeartbeat === 'number' &&
+          Date.now() - lastForegroundHeartbeat <= FOREGROUND_HEARTBEAT_MAX_AGE_MS;
 
-        if (shouldSuppressOsPushForForegroundState(result)) {
+        if (shouldSuppressOsPushForForegroundState(result) && hasRecentForegroundHeartbeat) {
           foregroundStatePendingMap.delete(requestId);
           pending.resolve(result);
           return;

@@ -138,6 +138,63 @@ function postToServiceWorkerSource(source: MessageEventSource | null, data: unkn
   return true;
 }
 
+function ForegroundHeartbeatFeature() {
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || isTauri()) return undefined;
+
+    let heartbeatIntervalId: number | undefined;
+
+    const sendForegroundHeartbeat = () => {
+      if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+      postToServiceWorker({ type: 'foregroundHeartbeat' });
+    };
+
+    const restartHeartbeat = () => {
+      if (heartbeatIntervalId !== undefined) {
+        window.clearInterval(heartbeatIntervalId);
+        heartbeatIntervalId = undefined;
+      }
+
+      sendForegroundHeartbeat();
+      if (document.visibilityState === 'visible' && document.hasFocus()) {
+        heartbeatIntervalId = window.setInterval(sendForegroundHeartbeat, 10_000);
+      }
+    };
+
+    const stopHeartbeat = () => {
+      if (heartbeatIntervalId !== undefined) {
+        window.clearInterval(heartbeatIntervalId);
+        heartbeatIntervalId = undefined;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') restartHeartbeat();
+      else stopHeartbeat();
+    };
+
+    const handleFocus = () => restartHeartbeat();
+    const handleBlur = () => stopHeartbeat();
+    const handlePageShow = () => restartHeartbeat();
+
+    restartHeartbeat();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      stopHeartbeat();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, []);
+
+  return null;
+}
+
 function navigateToServiceWorkerUrl(navigate: ReturnType<typeof useNavigate>, url: string): void {
   try {
     const target = new URL(url, window.location.origin);
@@ -1379,6 +1436,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />
+      <ForegroundHeartbeatFeature />
       <WebPushStartupReconciler />
       <FaviconUpdater />
       <InviteNotifications />

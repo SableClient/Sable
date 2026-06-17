@@ -175,6 +175,10 @@ export function SystemNotification() {
     settingsAtom,
     'isNotificationSounds'
   );
+  const [backgroundNotificationSounds, setBackgroundNotificationSounds] = useSetting(
+    settingsAtom,
+    'backgroundNotificationSounds'
+  );
   const [showMessageContent, setShowMessageContent] = useSetting(
     settingsAtom,
     'showMessageContentInNotifications'
@@ -279,6 +283,18 @@ export function SystemNotification() {
           focusId="in-app-notification-sound"
           description="Play a sound inside the app when a new message arrives."
           after={<Switch value={isNotificationSounds} onChange={setIsNotificationSounds} />}
+        />
+        <SettingTile
+          title="Background Tab Sound"
+          focusId="background-notification-sound"
+          description="Play the notification sound when this browser tab is in the background."
+          after={
+            <Switch
+              value={backgroundNotificationSounds}
+              onChange={setBackgroundNotificationSounds}
+              disabled={!isNotificationSounds}
+            />
+          }
         />
       </SequenceCard>
       <SequenceCard

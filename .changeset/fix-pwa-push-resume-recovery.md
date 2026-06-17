@@ -2,4 +2,4 @@
 default: patch
 ---
 
-Keep background push registered while the app is open, and let the service worker fall back to a validated persisted session when an unfocused or resumed PWA tab stops answering session requests.
+Keep web push registered across visibility changes, and let the service worker suppress OS notifications only when a controlled page proves it is actively foregrounded. This also preserves the resumed-PWA media/session recovery work so push and authenticated fetches do not silently fail after the app is suspended or restored.

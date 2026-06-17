@@ -174,8 +174,8 @@ const sessions = new Map<string, SessionInfo>();
  */
 let preloadedSession: SessionInfo | undefined;
 
-const clientToResolve = new Map<string, (value: SessionInfo | undefined) => void>();
-const clientToSessionPromise = new Map<string, Promise<SessionInfo | undefined>>();
+const clientToSessionWaiters = new Map<string, Set<(value: SessionInfo | undefined) => void>>();
+const clientWithPendingSessionRequest = new Set<string>();
 
 async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
@@ -184,8 +184,8 @@ async function cleanupDeadClients() {
   Array.from(sessions.keys()).forEach((id) => {
     if (!activeIds.has(id)) {
       sessions.delete(id);
-      clientToResolve.delete(id);
-      clientToSessionPromise.delete(id);
+      clientToSessionWaiters.delete(id);
+      clientWithPendingSessionRequest.delete(id);
     }
   });
 }
@@ -225,27 +225,55 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   }
 
-  const resolveSession = clientToResolve.get(clientId);
-  if (resolveSession) {
-    resolveSession(sessions.get(clientId));
-    clientToResolve.delete(clientId);
-    clientToSessionPromise.delete(clientId);
+  const resolveSessionWaiters = clientToSessionWaiters.get(clientId);
+  if (resolveSessionWaiters) {
+    const session = sessions.get(clientId);
+    resolveSessionWaiters.forEach((resolveSession) => resolveSession(session));
+    clientToSessionWaiters.delete(clientId);
+    clientWithPendingSessionRequest.delete(clientId);
   }
 }
 
-function requestSession(client: Client): Promise<SessionInfo | undefined> {
-  const promise =
-    clientToSessionPromise.get(client.id) ??
-    new Promise<SessionInfo | undefined>((resolve) => {
-      clientToResolve.set(client.id, resolve);
+function requestSession(client: Client): {
+  promise: Promise<SessionInfo | undefined>;
+  cancel: () => void;
+} {
+  let active = true;
+  let resolveWaiter: ((value: SessionInfo | undefined) => void) | undefined;
+
+  const promise = new Promise<SessionInfo | undefined>((resolve) => {
+    resolveWaiter = (value) => {
+      if (!active) return;
+      active = false;
+      resolve(value);
+    };
+
+    const waiters = clientToSessionWaiters.get(client.id) ?? new Set();
+    waiters.add(resolveWaiter);
+    clientToSessionWaiters.set(client.id, waiters);
+
+    if (!clientWithPendingSessionRequest.has(client.id)) {
+      clientWithPendingSessionRequest.add(client.id);
       client.postMessage({ type: 'requestSession' });
-    });
+    }
+  });
 
-  if (!clientToSessionPromise.has(client.id)) {
-    clientToSessionPromise.set(client.id, promise);
-  }
+  return {
+    promise,
+    cancel: () => {
+      if (!active || !resolveWaiter) return;
+      active = false;
 
-  return promise;
+      const waiters = clientToSessionWaiters.get(client.id);
+      if (!waiters) return;
+
+      waiters.delete(resolveWaiter);
+      if (waiters.size === 0) {
+        clientToSessionWaiters.delete(client.id);
+        clientWithPendingSessionRequest.delete(client.id);
+      }
+    },
+  };
 }
 
 async function requestSessionWithTimeout(
@@ -259,16 +287,13 @@ async function requestSessionWithTimeout(
     return undefined;
   }
 
-  const sessionPromise = requestSession(client);
+  const { promise: sessionPromise, cancel: cancelSessionRequest } = requestSession(client);
   const { logTimeout = true } = options ?? {};
 
   const timeout = new Promise<undefined>((resolve) => {
     setTimeout(() => {
       console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
-      if (clientToSessionPromise.get(clientId) === sessionPromise) {
-        clientToSessionPromise.delete(clientId);
-        clientToResolve.delete(clientId);
-      }
+      cancelSessionRequest();
       if (logTimeout) {
         postSentryBreadcrumb(
           'service_worker.session',

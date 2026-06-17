@@ -276,11 +276,18 @@ function InviteNotifications() {
   const invites = useAtomValue(allInvitesAtom);
   const perviousInviteLen = usePreviousValue(invites.length, 0);
   const mx = useMatrixClient();
+  const pushSubscription = useAtomValue(pushSubscriptionAtom);
+  const registration = useAtomValue(registrationAtom);
 
   const navigate = useNavigate();
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
+  const pushReady =
+    usePushNotifications &&
+    !!pushSubscription &&
+    !!registration &&
+    notificationPermission('granted');
 
   const notify = useCallback(
     (count: number) => {
@@ -307,7 +314,7 @@ function InviteNotifications() {
   useEffect(() => {
     if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
 
-    if (shouldDeferInviteNotificationToPush(usePushNotifications)) return;
+    if (shouldDeferInviteNotificationToPush(usePushNotifications, pushReady)) return;
 
     // OS notification for invites — desktop only.
     if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {
@@ -328,6 +335,7 @@ function InviteNotifications() {
     showSystemNotifications,
     usePushNotifications,
     notificationSound,
+    pushReady,
     notify,
     playSound,
   ]);

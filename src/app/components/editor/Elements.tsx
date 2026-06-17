@@ -88,10 +88,13 @@ function RenderEmoticonElement({
     <span className={css.EmoticonBase} {...attributes}>
       <span
         className={classNames(
-          css.Emoticon({
-            focus: selected && focused,
-          }),
-          !element.key.startsWith('mxc://') && css.EditorSystemEmoji
+          element.key.startsWith('mxc://')
+            ? css.CustomEmoticon({
+                focus: selected && focused,
+              })
+            : css.Emoticon({
+                focus: selected && focused,
+              })
         )}
         contentEditable={false}
       >

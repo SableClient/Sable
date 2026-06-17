@@ -988,7 +988,7 @@ export const getReactCustomHtmlParser = (
             if (siblingCount > 5) {
               return (
                 <span className={css.EmoticonBase}>
-                  <span className={css.Emoticon()}>
+                  <span className={css.CustomEmoticon()}>
                     {!params.autoplayEmojis ? (
                       <ClientSideHoverFreeze src={htmlSrc}>
                         <FallbackImg
@@ -1026,7 +1026,7 @@ export const getReactCustomHtmlParser = (
             // old style for just a few... what is this even for? React components or something?
             return (
               <span className={css.EmoticonBase}>
-                <span className={css.Emoticon()}>
+                  <span className={css.CustomEmoticon()}>
                   {!params.autoplayEmojis ? (
                     <ClientSideHoverFreeze src={htmlSrc}>
                       <FallbackImg

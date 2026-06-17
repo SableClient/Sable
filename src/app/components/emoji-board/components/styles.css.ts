@@ -73,7 +73,7 @@ export const PreviewEmoji = style([
     width: toRem(32),
     height: toRem(32),
     fontSize: toRem(32),
-    lineHeight: 1,
+    lineHeight: toRem(32),
   },
 ]);
 export const PreviewImg = style([
@@ -124,7 +124,7 @@ export const EmojiItem = style([
     width: toRem(48),
     height: toRem(48),
     fontSize: toRem(32),
-    lineHeight: 1,
+    lineHeight: toRem(32),
     borderRadius: config.radii.R400,
     cursor: 'pointer',
 

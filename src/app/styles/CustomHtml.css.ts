@@ -265,6 +265,13 @@ export const Emoticon = recipe({
   },
 });
 
+export const SystemEmoji = style({
+  fontFamily:
+    'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+  fontSize: '1em',
+  top: '-0.1em',
+});
+
 export const CustomEmoticon = recipe({
   base: [
     DefaultReset,
@@ -274,11 +281,11 @@ export const CustomEmoticon = recipe({
       alignItems: 'center',
       height: '1em',
       minWidth: '1em',
-      fontSize: '1.33em',
+      fontSize: '1.2em',
       lineHeight: '1em',
       verticalAlign: 'middle',
       position: 'relative',
-      top: '-0.35em',
+      top: '-0.12em',
       borderRadius: config.radii.R300,
     },
   ],

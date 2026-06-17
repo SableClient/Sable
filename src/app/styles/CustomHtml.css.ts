@@ -251,8 +251,6 @@ export const Emoticon = recipe({
       fontSize: '1em',
       lineHeight: '1em',
       verticalAlign: 'middle',
-      position: 'relative',
-      top: 0,
       borderRadius: config.radii.R300,
     },
   ],

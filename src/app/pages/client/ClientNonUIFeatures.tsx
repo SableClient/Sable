@@ -90,6 +90,7 @@ import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
 import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
+import { clearLaunchContext } from '../../../launch-context-persistence';
 import { getInboxBookmarksPath, getInboxInvitesPath, getToRoomEventPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 import {
@@ -891,6 +892,8 @@ export function HandleNotificationClick() {
         userId,
         roomId,
         eventId,
+        clickId,
+        targetUrl,
         navigate: navigateUrl,
         isInvite,
         isReminder,
@@ -898,28 +901,54 @@ export function HandleNotificationClick() {
         userId?: string;
         roomId?: string;
         eventId?: string;
+        clickId?: string;
+        targetUrl?: string;
         navigate?: string;
         isInvite?: boolean;
         isReminder?: boolean;
+      };
+
+      const acknowledgeHandledClick = () => {
+        if (typeof clickId === 'string') {
+          if (
+            !postToServiceWorkerSource(ev.source, {
+              type: 'notificationClickHandled',
+              clickId,
+            })
+          ) {
+            postToServiceWorker({
+              type: 'notificationClickHandled',
+              clickId,
+            });
+          }
+        }
+
+        void clearLaunchContext().catch(() => undefined);
       };
 
       if (userId) setActiveSessionId(userId);
 
       if (isInvite) {
         navigate(getInboxInvitesPath());
+        acknowledgeHandledClick();
         return;
       }
 
       if (isReminder) {
         navigate(getInboxBookmarksPath());
+        acknowledgeHandledClick();
         return;
       }
 
       if (!roomId) {
-        if (navigateUrl) navigateToServiceWorkerUrl(navigate, navigateUrl);
+        if (navigateUrl ?? targetUrl) {
+          navigateToServiceWorkerUrl(navigate, navigateUrl ?? targetUrl ?? '');
+          acknowledgeHandledClick();
+        }
         return;
       }
       navigateToRoomNotificationTarget(navigate, userId, roomId, eventId);
+      acknowledgeHandledClick();
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);

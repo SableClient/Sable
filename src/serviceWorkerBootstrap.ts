@@ -48,6 +48,24 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   }
 };
 
+function maybeRecoverNotificationLaunch(targetUrl: string | undefined, clickedAt: number): boolean {
+  if (!targetUrl) return false;
+
+  const launchAgeMs = Date.now() - clickedAt;
+  if (launchAgeMs > 15_000) return false;
+
+  try {
+    const target = new URL(targetUrl, window.location.origin);
+    const current = new URL(window.location.href);
+    if (target.origin !== current.origin || target.href === current.href) return false;
+
+    window.location.replace(`${target.pathname}${target.search}${target.hash}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function sendActiveSessionToServiceWorker() {
   const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
   const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
@@ -97,6 +115,14 @@ export function registerAppServiceWorker() {
       Sentry.metrics.distribution('sable.app.launch_context_age_ms', launchAgeMs, {
         attributes: { source: launchContext.source },
       });
+      if (maybeRecoverNotificationLaunch(launchContext.targetUrl, launchContext.clickedAt)) {
+        Sentry.addBreadcrumb({
+          category: 'app.launch',
+          message: 'Recovered notification launch target during bootstrap',
+          level: 'warning',
+          data: { launchAgeMs },
+        });
+      }
     })
     .catch((err) => {
       Sentry.addBreadcrumb({

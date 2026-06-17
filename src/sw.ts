@@ -17,6 +17,12 @@ import {
   selectPersistedSessionCandidate,
   shouldClearMediaCacheAfterSessionRemoval,
 } from './sw-session-state';
+import {
+  buildNotificationClickTargetUrl,
+  didWindowClientActivationSucceed,
+  rankNotificationClickClients,
+  type ServiceWorkerNotificationClickData,
+} from './sw-notification-click';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -582,6 +588,7 @@ type DecryptionResult = {
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
+const notificationClickPendingMap = new Map<string, () => void>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
 
 const sleep = (ms: number): Promise<void> =>
@@ -613,6 +620,27 @@ async function fetchWithNetworkRetry(
   if (retryDelay === undefined) return undefined;
   await sleep(retryDelay);
   return fetchWithNetworkRetry(url, init, label, attempt + 1);
+}
+
+async function waitForNotificationClickHandled(clickId: string, timeoutMs = 750): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (handled: boolean) => {
+      if (settled) return;
+      settled = true;
+      notificationClickPendingMap.delete(clickId);
+      resolve(handled);
+    };
+
+    const timeoutId = setTimeout(() => {
+      finish(false);
+    }, timeoutMs);
+
+    notificationClickPendingMap.set(clickId, () => {
+      clearTimeout(timeoutId);
+      finish(true);
+    });
+  });
 }
 
 async function fetchRawEvent(
@@ -1139,6 +1167,12 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
         decryptionPendingMap.delete(eventId);
         resolve(data as DecryptionResult);
       }
+    }
+  }
+  if (type === 'notificationClickHandled') {
+    const { clickId } = data as { clickId?: unknown };
+    if (typeof clickId === 'string') {
+      notificationClickPendingMap.get(clickId)?.();
     }
   }
   if (type === 'drainPushTelemetry') {
@@ -1775,7 +1809,9 @@ self.addEventListener('push', (event: PushEvent) =>
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
 
-  const { data } = event.notification;
+  const { data } = event.notification as Notification & {
+    data?: ServiceWorkerNotificationClickData;
+  };
   const { scope } = self.registration;
 
   const pushUserId: string | undefined = data?.user_id ?? undefined;
@@ -1797,35 +1833,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   const isCall = data?.isCall === true;
 
-  // Build a canonical deep-link URL.
-  //
-  // Room messages: /to/:user_id/:room_id/:event_id?
-  //   e.g. https://charm.cloudhub.social/to/%40alice%3Aserver/%21room%3Aserver/%24event%3Aserver
-  //   The :user_id segment ensures ToRoomEvent switches to the correct account
-  //   before navigating — required for background-account notifications.
-  //
-  // Invites: /inbox/invites/?uid=:user_id
-  //   Navigates straight to the invites page for the correct account.
-  let targetUrl: string;
-  if (isInvite) {
-    const u = new URL('inbox/invites/', scope);
-    if (pushUserId) u.searchParams.set('uid', pushUserId);
-    targetUrl = u.href;
-  } else if (pushUserId && pushRoomId) {
-    const roomUrl = new URL(
-      pushEventId
-        ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}`
-        : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}`,
-      scope
-    );
-    if (isCall) roomUrl.searchParams.set('joinCall', 'true');
-    targetUrl = roomUrl.href;
-  } else if (pushNavigate) {
-    targetUrl = new URL(pushNavigate, scope).href;
-  } else {
-    // Fallback: no room ID or no user ID in payload.
-    targetUrl = new URL('inbox/notifications/', scope).href;
-  }
+  const targetUrl = buildNotificationClickTargetUrl(scope, data ?? {});
 
   console.debug('[SW notificationclick] targetUrl:', targetUrl);
   postSentryBreadcrumb(
@@ -1862,31 +1870,26 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
         type: 'window',
         includeUncontrolled: true,
       })) as WindowClient[];
+      const rankedClients = rankNotificationClickClients(clientList, scope);
 
       console.debug(
         '[SW notificationclick] window clients:',
-        clientList.map((c) => ({
+        rankedClients.map((c) => ({
           url: c.url,
           visibility: c.visibilityState,
           focused: c.focused,
         }))
       );
 
-      for (const wc of clientList) {
+      for (const wc of rankedClients) {
         console.debug('[SW notificationclick] postMessage to existing client:', wc.url);
         try {
-          if (typeof wc.navigate === 'function') {
-            // oxlint-disable-next-line no-await-in-loop
-            await wc.navigate(targetUrl);
-            // oxlint-disable-next-line no-await-in-loop
-            await wc.focus();
-            return;
-          }
-          // Post notification data directly to the running app so its
-          // notification handler can route to the canonical deep-link when
-          // navigate() is unavailable on the existing client.
+          const clickId = createRecordId('notification-click');
+
           wc.postMessage({
             type: 'notificationClick',
+            clickId,
+            targetUrl,
             userId: pushUserId,
             roomId: pushRoomId,
             eventId: pushEventId,
@@ -1894,17 +1897,33 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             isInvite,
             isCall,
           });
+
+          // Give already-live clients a chance to route without forcing a reload.
+          // This preserves in-app account switching and room-restore behavior when
+          // the handler is ready, but still falls back if the message is dropped.
           // oxlint-disable-next-line no-await-in-loop
-          await wc.focus();
-          postSentryBreadcrumb(
-            'notification.click',
-            'Focused existing client for notification click',
-            'info',
-            {
-              clientCount: clientList.length,
+          const focusedClient = await wc.focus();
+          const handledByLiveClient =
+            didWindowClientActivationSucceed(focusedClient) &&
+            // oxlint-disable-next-line no-await-in-loop
+            (await waitForNotificationClickHandled(clickId));
+          if (handledByLiveClient) {
+            return;
+          }
+
+          if (typeof wc.navigate === 'function') {
+            // oxlint-disable-next-line no-await-in-loop
+            const navigatedClient = await wc.navigate(targetUrl);
+            if (!didWindowClientActivationSucceed(navigatedClient)) {
+              continue;
             }
-          ).catch(() => undefined);
-          return;
+            // oxlint-disable-next-line no-await-in-loop
+            const refocusedClient = await navigatedClient.focus();
+            if (!didWindowClientActivationSucceed(refocusedClient)) {
+              continue;
+            }
+            return;
+          }
         } catch (err) {
           console.debug('[SW notificationclick] postMessage/focus failed:', err);
           postSentryBreadcrumb(

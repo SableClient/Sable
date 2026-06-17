@@ -307,14 +307,7 @@ function InviteNotifications() {
   useEffect(() => {
     if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
 
-    if (
-      shouldDeferInviteNotificationToPush(
-        usePushNotifications,
-        document.visibilityState,
-        document.hasFocus()
-      )
-    )
-      return;
+    if (shouldDeferInviteNotificationToPush(usePushNotifications)) return;
 
     // OS notification for invites — desktop only.
     if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {

@@ -5,12 +5,8 @@ export function isForegroundFocusedClient(
   return visibilityState === 'visible' && focused;
 }
 
-export function shouldDeferInviteNotificationToPush(
-  usePushNotifications: boolean,
-  visibilityState: DocumentVisibilityState,
-  focused: boolean
-): boolean {
-  return usePushNotifications && !isForegroundFocusedClient(visibilityState, focused);
+export function shouldDeferInviteNotificationToPush(usePushNotifications: boolean): boolean {
+  return usePushNotifications;
 }
 
 export function shouldDeferMessageNotificationToPush(

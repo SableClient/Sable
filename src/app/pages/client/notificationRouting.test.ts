@@ -12,11 +12,9 @@ describe('notification routing', () => {
     expect(isForegroundFocusedClient('hidden', true)).toBe(false);
   });
 
-  it('keeps foreground invite alerts in the page when push is enabled', () => {
-    expect(shouldDeferInviteNotificationToPush(true, 'visible', true)).toBe(false);
-    expect(shouldDeferInviteNotificationToPush(true, 'visible', false)).toBe(true);
-    expect(shouldDeferInviteNotificationToPush(true, 'hidden', false)).toBe(true);
-    expect(shouldDeferInviteNotificationToPush(false, 'hidden', false)).toBe(false);
+  it('lets web push own invite delivery whenever push is enabled', () => {
+    expect(shouldDeferInviteNotificationToPush(true)).toBe(true);
+    expect(shouldDeferInviteNotificationToPush(false)).toBe(false);
   });
 
   it('defers message delivery to push whenever the client is not actively focused', () => {

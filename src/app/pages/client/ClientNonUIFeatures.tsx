@@ -368,6 +368,13 @@ function MessageNotifications() {
     'showMessageContentInEncryptedNotifications'
   );
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
+  const pushSubscription = useAtomValue(pushSubscriptionAtom);
+  const registration = useAtomValue(registrationAtom);
+  const pushReady =
+    usePushNotifications &&
+    !!pushSubscription &&
+    !!registration &&
+    notificationPermission('granted');
 
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
@@ -531,6 +538,7 @@ function MessageNotifications() {
       if (
         shouldDeferMessageNotificationToPush(
           usePushNotifications,
+          pushReady,
           document.visibilityState,
           document.hasFocus()
         )
@@ -726,6 +734,7 @@ function MessageNotifications() {
     showMessageContent,
     showEncryptedMessageContent,
     usePushNotifications,
+    pushReady,
     focusMode,
     playSound,
     setInAppBanner,

@@ -157,6 +157,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'favicon-dot-mentions-only',
     'highlight-mentions',
     'in-app-notification-sound',
+    'background-notification-sound',
     'in-app-notifications',
     'mention-room',
     'mention-user-id',

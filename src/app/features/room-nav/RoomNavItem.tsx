@@ -618,7 +618,7 @@ export function RoomNavItem({
                           </UnreadBadgeCenter>
                         )}
                         {!optionsVisible && notificationMode !== RoomNotificationMode.Unset && (
-                          <span aria-label={notificationMode}>
+                          <span className={css.NavItemChipIcon} aria-label={notificationMode}>
                             {roomNotificationModeChipIcon(notificationMode)}
                           </span>
                         )}

@@ -123,6 +123,14 @@ describe('appUpdates', () => {
     expect(mockRegistration.update).toHaveBeenCalledTimes(1);
   });
 
+  it('surfaces a friendly error when the service worker update check fails', async () => {
+    mockRegistration.update.mockRejectedValueOnce(new SyntaxError('import.meta is only valid'));
+
+    await expect(checkForAppUpdates()).rejects.toThrow(
+      'Failed to check for updates. Reload the app and try again.'
+    );
+  });
+
   it('treats an activating worker as an available update even without a waiting worker', async () => {
     const installingWorker = {
       postMessage: vi.fn(),

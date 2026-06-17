@@ -8,20 +8,35 @@ import { createPushNotifications } from './sw/pushNotification';
 import {
   buildDeclarativeNotificationOptions,
   getEncryptedMinimalPushFocusDecision,
-  isForegroundSuppressionExemptPushPayload,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
-  shouldSuppressOsPushForForegroundState,
 } from './sw/pushRouting';
+import { persistLaunchContext } from './launch-context-persistence';
 import { readPersistedSession } from './sw-session-persistence';
+import {
+  selectPersistedSessionCandidate,
+  shouldClearMediaCacheAfterSessionRemoval,
+} from './sw-session-state';
+import {
+  buildNotificationClickTargetUrl,
+  didWindowClientActivationSucceed,
+  rankNotificationClickClients,
+  type ServiceWorkerNotificationClickData,
+} from './sw-notification-click';
 
 declare const self: ServiceWorkerGlobalScope;
 
 let notificationSoundEnabled = true;
+// Tracks whether a page client has reported itself as visible.
+// The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
+// so we use this explicit flag as a fallback.
+let appIsVisible = false;
+let appVisibleHeartbeatAt = 0;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
 let focusMode: 'off' | 'focus' | 'dnd' = 'off';
+const APP_VISIBLE_HEARTBEAT_MAX_AGE_MS = 20_000;
 const { handlePushNotificationPushData } = createPushNotifications(
   self,
   () => ({
@@ -49,8 +64,6 @@ const SW_MEDIA_CACHE = 'sable-media-sw-v2';
 
 type PushTelemetryEvent =
   | 'received'
-  | 'confirmed_visible'
-  | 'suppressed_visible'
   | 'claim_clients'
   | 'stale_focus_ignored'
   | 'shown_os'
@@ -155,11 +168,19 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
 type SessionInfo = {
   accessToken: string;
   baseUrl: string;
-  /** Matrix user ID of the account, used to identify which account a push belongs to. */
   userId?: string;
-  /** Timestamp when this session was persisted to cache. */
   persistedAt?: number;
 };
+
+async function syncPersistedSessionFromLiveSessions(): Promise<void> {
+  const persistedSession = selectPersistedSessionCandidate(sessions.values());
+  if (persistedSession) {
+    await persistSession(persistedSession);
+    return;
+  }
+
+  await clearPersistedSession();
+}
 
 /**
  * Store session per client (tab)
@@ -174,8 +195,8 @@ const sessions = new Map<string, SessionInfo>();
  */
 let preloadedSession: SessionInfo | undefined;
 
-const clientToResolve = new Map<string, (value: SessionInfo | undefined) => void>();
-const clientToSessionPromise = new Map<string, Promise<SessionInfo | undefined>>();
+const clientToSessionWaiters = new Map<string, Set<(value: SessionInfo | undefined) => void>>();
+const clientWithPendingSessionRequest = new Set<string>();
 
 async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
@@ -184,13 +205,20 @@ async function cleanupDeadClients() {
   Array.from(sessions.keys()).forEach((id) => {
     if (!activeIds.has(id)) {
       sessions.delete(id);
-      clientToResolve.delete(id);
-      clientToSessionPromise.delete(id);
+      clientToSessionWaiters.delete(id);
+      clientWithPendingSessionRequest.delete(id);
     }
   });
 }
 
-function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, userId?: unknown) {
+async function setSession(
+  clientId: string,
+  accessToken: unknown,
+  baseUrl: unknown,
+  userId?: unknown
+) {
+  await cleanupDeadClients();
+
   if (typeof accessToken === 'string' && typeof baseUrl === 'string') {
     // Only clear the media cache when the token actually changes (new account or
     // token rotation). Normal page reloads with the same token should keep the
@@ -217,40 +245,71 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     }
   } else {
     // Logout or invalid session
+    const removedSession = sessions.get(clientId) ?? preloadedSession;
     sessions.delete(clientId);
     preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
-    clearPersistedSession().catch(() => undefined);
-    // Clear media cache on logout.
-    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
+    syncPersistedSessionFromLiveSessions().catch(() => undefined);
+    if (shouldClearMediaCacheAfterSessionRemoval(removedSession?.accessToken, sessions.values())) {
+      self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
+    }
   }
 
-  const resolveSession = clientToResolve.get(clientId);
-  if (resolveSession) {
-    resolveSession(sessions.get(clientId));
-    clientToResolve.delete(clientId);
-    clientToSessionPromise.delete(clientId);
+  const resolveSessionWaiters = clientToSessionWaiters.get(clientId);
+  if (resolveSessionWaiters) {
+    const session = sessions.get(clientId);
+    resolveSessionWaiters.forEach((resolveSession) => resolveSession(session));
+    clientToSessionWaiters.delete(clientId);
+    clientWithPendingSessionRequest.delete(clientId);
   }
 }
 
-function requestSession(client: Client): Promise<SessionInfo | undefined> {
-  const promise =
-    clientToSessionPromise.get(client.id) ??
-    new Promise<SessionInfo | undefined>((resolve) => {
-      clientToResolve.set(client.id, resolve);
+function requestSession(client: Client): {
+  promise: Promise<SessionInfo | undefined>;
+  cancel: () => void;
+} {
+  let active = true;
+  let resolveWaiter: ((value: SessionInfo | undefined) => void) | undefined;
+
+  const promise = new Promise<SessionInfo | undefined>((resolve) => {
+    resolveWaiter = (value) => {
+      if (!active) return;
+      active = false;
+      resolve(value);
+    };
+
+    const waiters = clientToSessionWaiters.get(client.id) ?? new Set();
+    waiters.add(resolveWaiter);
+    clientToSessionWaiters.set(client.id, waiters);
+
+    if (!clientWithPendingSessionRequest.has(client.id)) {
+      clientWithPendingSessionRequest.add(client.id);
       client.postMessage({ type: 'requestSession' });
-    });
+    }
+  });
 
-  if (!clientToSessionPromise.has(client.id)) {
-    clientToSessionPromise.set(client.id, promise);
-  }
+  return {
+    promise,
+    cancel: () => {
+      if (!active || !resolveWaiter) return;
+      active = false;
 
-  return promise;
+      const waiters = clientToSessionWaiters.get(client.id);
+      if (!waiters) return;
+
+      waiters.delete(resolveWaiter);
+      if (waiters.size === 0) {
+        clientToSessionWaiters.delete(client.id);
+        clientWithPendingSessionRequest.delete(client.id);
+      }
+    },
+  };
 }
 
 async function requestSessionWithTimeout(
   clientId: string,
-  timeoutMs = 3000
+  timeoutMs = 3000,
+  options?: { logTimeout?: boolean }
 ): Promise<SessionInfo | undefined> {
   const client = await self.clients.get(clientId);
   if (!client) {
@@ -258,22 +317,26 @@ async function requestSessionWithTimeout(
     return undefined;
   }
 
-  const sessionPromise = requestSession(client);
+  const { promise: sessionPromise, cancel: cancelSessionRequest } = requestSession(client);
+  const { logTimeout = true } = options ?? {};
 
   const timeout = new Promise<undefined>((resolve) => {
     setTimeout(() => {
       console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
-      postSentryBreadcrumb(
-        'service_worker.session',
-        'Session request to client timed out',
-        'warning',
-        {
-          timeoutMs,
-        }
-      ).catch(() => undefined);
-      postSentryMetric('sable.sw.session_request_timeout', 1, {
-        timeout_ms: timeoutMs,
-      }).catch(() => undefined);
+      cancelSessionRequest();
+      if (logTimeout) {
+        postSentryBreadcrumb(
+          'service_worker.session',
+          'Session request to client timed out',
+          'warning',
+          {
+            timeoutMs,
+          }
+        ).catch(() => undefined);
+        postSentryMetric('sable.sw.session_request_timeout', 1, {
+          timeout_ms: timeoutMs,
+        }).catch(() => undefined);
+      }
       resolve(undefined);
     }, timeoutMs);
   });
@@ -520,6 +583,30 @@ async function prefetchUserProfile(session: SessionInfo): Promise<void> {
   }
 }
 
+type PrefetchPolicy = 'all' | 'core_only' | 'skip';
+
+function getStartupPrefetchPolicy(): { policy: PrefetchPolicy; reason: string } {
+  const connection = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }
+  ).connection as { saveData?: boolean; effectiveType?: string } | undefined;
+
+  if (connection?.saveData) {
+    return { policy: 'skip', reason: 'save_data' };
+  }
+
+  const effectiveType = connection?.effectiveType;
+  if (effectiveType === 'slow-2g' || effectiveType === '2g') {
+    return { policy: 'skip', reason: effectiveType };
+  }
+  if (effectiveType === '3g') {
+    return { policy: 'core_only', reason: effectiveType };
+  }
+
+  return { policy: 'all', reason: effectiveType ?? 'default' };
+}
+
 type DecryptionResult = {
   eventId: string;
   success: boolean;
@@ -532,22 +619,13 @@ type DecryptionResult = {
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
-
-type ForegroundStateResult = {
-  requestId: string;
-  visibilityState?: string;
-  focused?: boolean;
-  clientId?: string;
+type NotificationClickWaiter = {
+  resolve: (handled: boolean) => void;
+  settled: boolean;
+  timeoutId: ReturnType<typeof setTimeout>;
 };
 
-type ForegroundStatePending = {
-  expectedResponseCount: number;
-  responseCount: number;
-  lastResult?: ForegroundStateResult;
-  resolve: (result: ForegroundStateResult | undefined) => void;
-};
-
-const foregroundStatePendingMap = new Map<string, ForegroundStatePending>();
+const notificationClickPendingMap = new Map<string, NotificationClickWaiter>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
 
 const sleep = (ms: number): Promise<void> =>
@@ -579,6 +657,42 @@ async function fetchWithNetworkRetry(
   if (retryDelay === undefined) return undefined;
   await sleep(retryDelay);
   return fetchWithNetworkRetry(url, init, label, attempt + 1);
+}
+
+async function waitForNotificationClickHandled(
+  clickId: string,
+  timeoutMs = 2_500
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const timeoutId = setTimeout(() => {
+      const waiter = notificationClickPendingMap.get(clickId);
+      if (waiter) {
+        settleNotificationClickWaiter(clickId, waiter, false);
+      }
+    }, timeoutMs);
+
+    notificationClickPendingMap.set(clickId, {
+      timeoutId,
+      settled: false,
+      resolve,
+    });
+  });
+}
+
+function createNotificationClickHandledWaiter(clickId: string, timeoutMs = 2_500) {
+  return waitForNotificationClickHandled(clickId, timeoutMs);
+}
+
+function settleNotificationClickWaiter(
+  clickId: string,
+  waiter: NotificationClickWaiter,
+  handled: boolean
+) {
+  if (waiter.settled) return;
+  waiter.settled = true;
+  clearTimeout(waiter.timeoutId);
+  notificationClickPendingMap.delete(clickId);
+  waiter.resolve(handled);
 }
 
 async function fetchRawEvent(
@@ -786,90 +900,6 @@ async function requestDecryptionFromClient(
   return result;
 }
 
-async function requestForegroundStateFromClients(
-  windowClients: readonly Client[],
-  timeoutMs = 700
-): Promise<ForegroundStateResult | undefined> {
-  if (windowClients.length === 0) return undefined;
-
-  const requestId = createRecordId('foreground');
-
-  const response = new Promise<ForegroundStateResult | undefined>((resolve) => {
-    foregroundStatePendingMap.set(requestId, {
-      expectedResponseCount: 0,
-      responseCount: 0,
-      resolve,
-    });
-  });
-
-  let posted = false;
-  let postedCount = 0;
-  windowClients.forEach((client) => {
-    try {
-      client.postMessage({
-        type: 'getForegroundState',
-        requestId,
-      });
-      posted = true;
-      postedCount += 1;
-    } catch (err) {
-      console.warn('[SW push] foreground state postMessage error', err);
-    }
-  });
-
-  if (!posted) {
-    foregroundStatePendingMap.delete(requestId);
-    return undefined;
-  }
-
-  const pending = foregroundStatePendingMap.get(requestId);
-  if (pending) pending.expectedResponseCount = postedCount;
-
-  const result = await Promise.race([response, sleep(timeoutMs).then(() => undefined)]);
-  foregroundStatePendingMap.delete(requestId);
-  return result;
-}
-
-async function recordForegroundPushSuppression(
-  payloadType: string,
-  foregroundState: ForegroundStateResult,
-  focusedClientCount: number,
-  browserVisibleClientCount: number,
-  extraData: Record<string, string | number | boolean> = {}
-): Promise<void> {
-  await recordPushTelemetry('confirmed_visible', {
-    payload_type: payloadType,
-    focused: foregroundState.focused === true,
-    ...extraData,
-  });
-  await recordPushTelemetry('suppressed_visible', {
-    payload_type: payloadType,
-    focused_client_count: focusedClientCount,
-    browser_visible_client_count: browserVisibleClientCount,
-    foreground_focused: foregroundState.focused === true,
-    ...extraData,
-  });
-  postSentryMetric('sable.push.suppressed_visible', 1, {
-    payload_type: payloadType,
-    focused_client_count: focusedClientCount,
-    browser_visible_client_count: browserVisibleClientCount,
-    foreground_focused: foregroundState.focused === true,
-    ...extraData,
-  }).catch(() => undefined);
-  await postSentryBreadcrumb(
-    'notification.push',
-    'Suppressed OS push notification for foreground client',
-    'info',
-    {
-      payloadType,
-      focusedClientCount,
-      browserVisibleClientCount,
-      foregroundFocused: foregroundState.focused === true,
-      ...extraData,
-    }
-  );
-}
-
 /**
  * Handle a minimal push payload (event_id_only format).
  * Fetches the event from the homeserver and shows a notification.
@@ -878,8 +908,7 @@ async function recordForegroundPushSuppression(
 async function handleMinimalPushPayload(
   roomId: string,
   eventId: string,
-  windowClients: readonly Client[],
-  foregroundState: ForegroundStateResult | undefined
+  windowClients: readonly Client[]
 ): Promise<void> {
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
@@ -945,21 +974,6 @@ async function handleMinimalPushPayload(
   }
 
   const eventType = rawEvent.type as string | undefined;
-  if (
-    foregroundState &&
-    shouldSuppressOsPushForForegroundState(foregroundState) &&
-    !isForegroundSuppressionExemptPushPayload(rawEvent)
-  ) {
-    await recordForegroundPushSuppression(
-      'minimal',
-      foregroundState,
-      focusedWindowClientCount(windowClients),
-      visibleWindowClientCount(windowClients),
-      { event_type: eventType ?? 'unknown' }
-    );
-    return;
-  }
-
   const sender = rawEvent.sender as string | undefined;
   // Fetch sender's member state — gives us both display name and avatar URL.
   const memberInfo = sender
@@ -1122,12 +1136,22 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // Sliding sync request state is owned by the foreground Matrix client.
       // Fire-and-forget: don't block activation on these optional optimizations.
       if (preloadedSession) {
-        // Prefetch in parallel for maximum speed
-        Promise.allSettled([
-          prefetchWellKnown(preloadedSession),
-          prefetchCapabilities(preloadedSession),
-          prefetchUserProfile(preloadedSession),
-        ]).catch(() => {
+        const { policy, reason } = getStartupPrefetchPolicy();
+        const prefetchTasks =
+          policy === 'skip'
+            ? []
+            : [
+                prefetchWellKnown(preloadedSession),
+                prefetchCapabilities(preloadedSession),
+                ...(policy === 'all' ? [prefetchUserProfile(preloadedSession)] : []),
+              ];
+
+        void postSentryMetric('sable.sw.prefetch_startup_policy', 1, {
+          policy,
+          reason,
+        });
+
+        Promise.allSettled(prefetchTasks).catch(() => {
           // Silently ignore — these are best-effort optimizations
         });
       }
@@ -1153,18 +1177,27 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   const { type, accessToken, baseUrl, userId } = data as Record<string, unknown>;
 
   if (type === 'setSession') {
-    setSession(client.id, accessToken, baseUrl, userId);
-    const persisted = sessions.get(client.id);
     event.waitUntil(
-      postSentryBreadcrumb('service_worker.session', 'Service worker session updated', 'info', {
-        hasSession: !!persisted,
-        sessionCount: sessions.size,
-      })
+      (async () => {
+        await setSession(client.id, accessToken, baseUrl, userId);
+        const persisted = sessions.get(client.id);
+        await postSentryBreadcrumb(
+          'service_worker.session',
+          'Service worker session updated',
+          'info',
+          {
+            hasSession: !!persisted,
+            sessionCount: sessions.size,
+          }
+        );
+      })()
     );
-    event.waitUntil(
-      (persisted ? persistSession(persisted) : clearPersistedSession()).catch(() => undefined)
-    );
-    event.waitUntil(cleanupDeadClients());
+  }
+  if (type === 'setAppVisible') {
+    if (typeof (data as { visible?: unknown }).visible === 'boolean') {
+      appIsVisible = (data as { visible: boolean }).visible;
+      appVisibleHeartbeatAt = appIsVisible ? Date.now() : 0;
+    }
   }
   if (type === 'CLAIM_CLIENTS') {
     // Sent by the page on pageshow[persisted] or visibilitychange→visible when it
@@ -1204,36 +1237,12 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       }
     }
   }
-  if (type === 'foregroundStateResult') {
-    const { requestId, visibilityState, focused } = data as {
-      requestId?: unknown;
-      visibilityState?: unknown;
-      focused?: unknown;
-    };
-    if (typeof requestId === 'string') {
-      const pending = foregroundStatePendingMap.get(requestId);
-      const normalizedVisibilityState =
-        typeof visibilityState === 'string' ? visibilityState : undefined;
-      if (pending) {
-        const result = {
-          requestId,
-          visibilityState: normalizedVisibilityState,
-          focused: focused === true,
-          clientId: client.id,
-        };
-
-        if (shouldSuppressOsPushForForegroundState(result)) {
-          foregroundStatePendingMap.delete(requestId);
-          pending.resolve(result);
-          return;
-        }
-
-        pending.responseCount += 1;
-        pending.lastResult = result;
-        if (pending.responseCount >= pending.expectedResponseCount) {
-          foregroundStatePendingMap.delete(requestId);
-          pending.resolve(pending.lastResult);
-        }
+  if (type === 'notificationClickHandled') {
+    const { clickId } = data as { clickId?: unknown };
+    if (typeof clickId === 'string') {
+      const waiter = notificationClickPendingMap.get(clickId);
+      if (waiter) {
+        settleNotificationClickWaiter(clickId, waiter, true);
       }
     }
   }
@@ -1359,6 +1368,52 @@ async function validateSession(session: SessionInfo): Promise<SessionInfo | unde
   }
 }
 
+async function getValidatedPersistedSession(url: string): Promise<SessionInfo | undefined> {
+  const persisted = await loadPersistedSession();
+  const validated = persisted ? await validateSession(persisted) : undefined;
+  if (validated && validMediaRequest(url, validated.baseUrl)) {
+    return validated;
+  }
+
+  return undefined;
+}
+
+async function resolveFirstUsableMediaSession(
+  url: string,
+  liveSessionPromise: Promise<SessionInfo | undefined>,
+  persistedSessionPromise: Promise<SessionInfo | undefined>
+): Promise<SessionInfo | undefined> {
+  const pendingSettles = [
+    liveSessionPromise.then((session) => ({ session })),
+    persistedSessionPromise.then((session) => ({ session })),
+  ];
+
+  const drainPendingSettles = async (
+    remainingSettles: Array<Promise<{ session: SessionInfo | undefined }>>
+  ): Promise<SessionInfo | undefined> => {
+    if (remainingSettles.length === 0) return undefined;
+
+    const settled = await Promise.race(
+      remainingSettles.map((pending, index) =>
+        pending.then((result) => ({
+          index,
+          result,
+        }))
+      )
+    );
+
+    const nextSettles = remainingSettles.filter((_, index) => index !== settled.index);
+    const { session } = settled.result;
+    if (session && validMediaRequest(url, session.baseUrl)) {
+      return session;
+    }
+
+    return drainPendingSettles(nextSettles);
+  };
+
+  return drainPendingSettles(pendingSettles);
+}
+
 async function getLiveWindowSessions(url: string, clientId: string): Promise<SessionInfo[]> {
   const collected: SessionInfo[] = [];
   const seen = new Set<string>();
@@ -1389,7 +1444,8 @@ async function fetchMediaWithRetry(
   url: string,
   token: string,
   redirect: RequestRedirect,
-  clientId: string
+  clientId: string,
+  preferredRetrySessions: Array<SessionInfo | Promise<SessionInfo | undefined> | undefined> = []
 ): Promise<Response> {
   let response = await fetch(url, { ...fetchConfig(token), redirect });
   if (!isAuthFailureStatus(response.status)) return response;
@@ -1410,6 +1466,9 @@ async function fetchMediaWithRetry(
   getMatchingSessions(url).forEach((session) => addRetrySession(session));
   addRetrySession(preloadedSession);
   addRetrySession(await loadPersistedSession());
+  (await Promise.all(preferredRetrySessions.map((session) => Promise.resolve(session)))).forEach(
+    (session) => addRetrySession(session)
+  );
   (await getLiveWindowSessions(url, clientId)).forEach((session) => addRetrySession(session));
 
   /* eslint-disable no-await-in-loop */
@@ -1604,25 +1663,53 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     // leave the fetch hanging indefinitely. 15s is generous enough to allow all
     // fallbacks to complete, but short enough to fail fast if something is stuck.
     Promise.race([
-      requestSessionWithTimeout(clientId).then(async (s) => {
-        // Primary: session received from the live client window.
-        if (s && validMediaRequest(url, s.baseUrl)) {
-          return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+      (async () => {
+        const liveSessionPromise = requestSessionWithTimeout(clientId, 3000, {
+          logTimeout: false,
+        });
+        const persistedSessionPromise = getValidatedPersistedSession(url);
+
+        const resolvedSession =
+          (await resolveFirstUsableMediaSession(
+            url,
+            liveSessionPromise,
+            persistedSessionPromise
+          )) ??
+          (await liveSessionPromise) ??
+          (await persistedSessionPromise);
+
+        if (resolvedSession && validMediaRequest(url, resolvedSession.baseUrl)) {
+          if (resolvedSession === preloadedSession) {
+            console.debug('[SW fetch] Using preloaded session fallback', { url, clientId });
+          } else if (resolvedSession !== sessions.get(clientId)) {
+            console.debug('[SW fetch] Using validated persisted session fallback', {
+              url,
+              clientId,
+            });
+          }
+          return fetchMediaWithRetry(url, resolvedSession.accessToken, redirect, clientId, [
+            liveSessionPromise,
+          ]);
         }
-        // Fallback: try the persisted session (helps when SW restarts on iOS and
-        // the client window hasn't responded to requestSession yet).
-        const persisted = await loadPersistedSession();
-        const validated = persisted ? await validateSession(persisted) : undefined;
-        if (validated && validMediaRequest(url, validated.baseUrl)) {
-          console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
-          return fetch(url, { ...fetchConfig(validated.accessToken), redirect });
-        }
+
+        await postSentryBreadcrumb(
+          'service_worker.session',
+          'Session request to client timed out',
+          'warning',
+          {
+            timeoutMs: 3000,
+            usedPersistedFallback: false,
+          }
+        ).catch(() => undefined);
+        await postSentryMetric('sable.sw.session_request_timeout', 1, {
+          timeout_ms: 3000,
+          used_persisted_fallback: false,
+        }).catch(() => undefined);
+
         console.warn('[SW fetch] No valid session for media request — returning 401', {
           url,
           clientId,
-          hasSession: !!s,
-          hadPersistedSession: !!persisted,
-          persistedSessionValid: !!validated,
+          hasSession: !!sessions.get(clientId),
         });
         // SABLE-4Y fix: Return synthetic 401 instead of attempting unauthenticated
         // fetch. Prevents network requests that will fail with 401 anyway, and
@@ -1635,7 +1722,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
             headers: { 'Content-Type': 'application/json' },
           }
         );
-      }),
+      })(),
       new Promise<Response>((_, reject) => {
         setTimeout(() => {
           console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });
@@ -1660,9 +1747,16 @@ const onPushNotification = async (event: PushEvent) => {
 
   const focusedClientCount = focusedWindowClientCount(clients);
   const browserVisibleClientCount = visibleWindowClientCount(clients);
+  const hasRecentAppVisibilityHeartbeat =
+    appIsVisible && Date.now() - appVisibleHeartbeatAt <= APP_VISIBLE_HEARTBEAT_MAX_AGE_MS;
+  const hasVisibleClient = hasRecentAppVisibilityHeartbeat || browserVisibleClientCount > 0;
 
   console.debug(
-    '[SW push] focusedClientCount:',
+    '[SW push] appIsVisible:',
+    appIsVisible,
+    '| hasRecentAppVisibilityHeartbeat:',
+    hasRecentAppVisibilityHeartbeat,
+    '| focusedClientCount:',
     focusedClientCount,
     '| browserVisibleClientCount:',
     browserVisibleClientCount,
@@ -1673,6 +1767,12 @@ const onPushNotification = async (event: PushEvent) => {
       focused: c.focused,
     }))
   );
+  console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
+
+  if (hasVisibleClient) {
+    console.debug('[SW push] suppressing OS notification — app is visible');
+    return;
+  }
 
   const pushData = event.data.json();
   const payloadType = pushTelemetryPayloadType(pushData);
@@ -1740,22 +1840,6 @@ const onPushNotification = async (event: PushEvent) => {
     // Badging API absent (Firefox/Gecko) — continue to show the notification.
   }
 
-  const foregroundState = await requestForegroundStateFromClients(clients);
-  if (
-    foregroundState &&
-    shouldSuppressOsPushForForegroundState(foregroundState) &&
-    !isMinimalPushPayload(pushData) &&
-    !isForegroundSuppressionExemptPushPayload(pushData)
-  ) {
-    await recordForegroundPushSuppression(
-      payloadType,
-      foregroundState,
-      focusedClientCount,
-      browserVisibleClientCount
-    );
-    return;
-  }
-
   if (isDeclarativeWebPushPayload(pushData)) {
     const { title, options } = buildDeclarativeNotificationOptions(pushData);
     await self.registration.showNotification(title, options);
@@ -1767,7 +1851,7 @@ const onPushNotification = async (event: PushEvent) => {
   // to relay decryption to an open app tab.
   if (isMinimalPushPayload(pushData)) {
     console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
-    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients, foregroundState);
+    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
     return;
   }
 
@@ -1796,7 +1880,9 @@ self.addEventListener('push', (event: PushEvent) =>
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
 
-  const { data } = event.notification;
+  const { data } = event.notification as Notification & {
+    data?: ServiceWorkerNotificationClickData;
+  };
   const { scope } = self.registration;
 
   const pushUserId: string | undefined = data?.user_id ?? undefined;
@@ -1818,32 +1904,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   const isCall = data?.isCall === true;
 
-  // Build a canonical deep-link URL.
-  //
-  // Room messages: /to/:user_id/:room_id/:event_id?
-  //   e.g. https://charm.cloudhub.social/to/%40alice%3Aserver/%21room%3Aserver/%24event%3Aserver
-  //   The :user_id segment ensures ToRoomEvent switches to the correct account
-  //   before navigating — required for background-account notifications.
-  //
-  // Invites: /inbox/invites/?uid=:user_id
-  //   Navigates straight to the invites page for the correct account.
-  let targetUrl: string;
-  if (isInvite) {
-    const u = new URL('inbox/invites/', scope);
-    if (pushUserId) u.searchParams.set('uid', pushUserId);
-    targetUrl = u.href;
-  } else if (pushUserId && pushRoomId) {
-    const callParam = isCall ? '?joinCall=true' : '';
-    const segments = pushEventId
-      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
-      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
-    targetUrl = new URL(segments, scope).href;
-  } else if (pushNavigate) {
-    targetUrl = new URL(pushNavigate, scope).href;
-  } else {
-    // Fallback: no room ID or no user ID in payload.
-    targetUrl = new URL('inbox/notifications/', scope).href;
-  }
+  const targetUrl = buildNotificationClickTargetUrl(scope, data ?? {});
 
   console.debug('[SW notificationclick] targetUrl:', targetUrl);
   postSentryBreadcrumb(
@@ -1867,36 +1928,40 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   event.waitUntil(
     (async () => {
+      await persistLaunchContext({
+        source: 'notification_click',
+        clickedAt: Date.now(),
+        userId: pushUserId,
+        roomId: pushRoomId,
+        eventId: pushEventId,
+        targetUrl,
+      }).catch(() => undefined);
+
       const clientList = (await self.clients.matchAll({
         type: 'window',
         includeUncontrolled: true,
       })) as WindowClient[];
+      const rankedClients = rankNotificationClickClients(clientList, scope);
 
       console.debug(
         '[SW notificationclick] window clients:',
-        clientList.map((c) => ({
+        rankedClients.map((c) => ({
           url: c.url,
           visibility: c.visibilityState,
           focused: c.focused,
         }))
       );
 
-      for (const wc of clientList) {
+      for (const wc of rankedClients) {
         console.debug('[SW notificationclick] postMessage to existing client:', wc.url);
         try {
-          if (pushNavigate && !pushRoomId && typeof wc.navigate === 'function') {
-            // oxlint-disable-next-line no-await-in-loop
-            await wc.navigate(targetUrl);
-            // oxlint-disable-next-line no-await-in-loop
-            await wc.focus();
-            return;
-          }
-          // Post notification data directly to the running app so its
-          // ServiceWorkerClickHandler can call setActiveSessionId + setPending
-          // (same path as the pill-style in-app banner) without navigating to
-          // the /to/ route first.
+          const clickId = createRecordId('notification-click');
+          const clickHandledPromise = createNotificationClickHandledWaiter(clickId);
+
           wc.postMessage({
             type: 'notificationClick',
+            clickId,
+            targetUrl,
             userId: pushUserId,
             roomId: pushRoomId,
             eventId: pushEventId,
@@ -1904,17 +1969,33 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             isInvite,
             isCall,
           });
+
+          // Give already-live clients a chance to route without forcing a reload.
+          // This preserves in-app account switching and room-restore behavior when
+          // the handler is ready, but still falls back if the message is dropped.
           // oxlint-disable-next-line no-await-in-loop
-          await wc.focus();
-          postSentryBreadcrumb(
-            'notification.click',
-            'Focused existing client for notification click',
-            'info',
-            {
-              clientCount: clientList.length,
+          const focusedClient = await wc.focus();
+          const handledByLiveClient =
+            didWindowClientActivationSucceed(focusedClient) &&
+            // oxlint-disable-next-line no-await-in-loop
+            (await clickHandledPromise);
+          if (handledByLiveClient) {
+            return;
+          }
+
+          if (typeof wc.navigate === 'function') {
+            // oxlint-disable-next-line no-await-in-loop
+            const navigatedClient = await wc.navigate(targetUrl);
+            if (!didWindowClientActivationSucceed(navigatedClient)) {
+              continue;
             }
-          ).catch(() => undefined);
-          return;
+            // oxlint-disable-next-line no-await-in-loop
+            const refocusedClient = await navigatedClient.focus();
+            if (!didWindowClientActivationSucceed(refocusedClient)) {
+              continue;
+            }
+            return;
+          }
         } catch (err) {
           console.debug('[SW notificationclick] postMessage/focus failed:', err);
           postSentryBreadcrumb(

@@ -26,7 +26,7 @@ type NotificationTransportListenerCleanup = () => Promise<void> | void;
 
 const defaultListenerFactories: NotificationTransportListenerFactories = {
   unifiedpush: async (getContext) => {
-    const { listenForUnifiedPushMessages } = await import('./UnifiedPushNotifications');
+    const { listenForUnifiedPushMessages } = await import('./UnifiedPushRuntime');
     return listenForUnifiedPushMessages(getContext);
   },
 };

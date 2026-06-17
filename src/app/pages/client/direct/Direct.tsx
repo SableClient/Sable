@@ -23,7 +23,7 @@ import {
   DotsThreeOutlineVerticalIcon,
   dropzoneIcon,
   menuIcon,
-  getPhosphorSize,
+  getPhosphorIconSize,
   Plus,
   User,
 } from '$components/icons/phosphor';
@@ -74,6 +74,7 @@ import { getSlidingSyncManager } from '$client/initMatrix';
 import { LIST_DMS } from '$client/slidingSync';
 import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
 import { allRoomsAtom } from '$state/room-list/roomList';
+import { markStartupRoomListReady } from '$utils/perfTelemetry';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -125,7 +126,10 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
         {hideText ? (
           <Box alignItems="Center" grow="Yes" justifyContent="Center">
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <User size={getPhosphorSize().toolbar} weight={menuAnchor ? 'fill' : 'regular'} />
+              <User
+                size={getPhosphorIconSize('toolbar')}
+                weight={menuAnchor ? 'fill' : 'regular'}
+              />
             </IconButton>
           </Box>
         ) : (
@@ -305,6 +309,12 @@ export function Direct() {
     if (allowEmptyExpansion) requestedEmptyListExpansionRef.current = true;
     manager.requestListWindow(LIST_DMS, nextEnd);
   }, [mx, sortedDirects.length, allRoomCount, lastVirtualIndex]);
+
+  useEffect(() => {
+    if (sortedDirects.length > 0 || allRoomCount === 0) {
+      markStartupRoomListReady('direct', sortedDirects.length);
+    }
+  }, [sortedDirects.length, allRoomCount]);
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
     closedCategories.has(categoryId)

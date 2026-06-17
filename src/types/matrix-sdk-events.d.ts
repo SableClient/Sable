@@ -1,3 +1,4 @@
+import type { AddedServersContent } from '$types/matrix/accountData';
 import type { PackContent, EmoteRoomsContent } from '$plugins/custom-emoji/types';
 import type { IRecentEmojiContent } from '$plugins/recent-emoji';
 import type { InCinnySpacesContent } from '$hooks/useSidebarItems';
@@ -56,5 +57,6 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_PRESENCE_PROPERTY_NAME]: Record<string, unknown>;
     [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME]: Record<string, unknown>;
     [prefix.MATRIX_SABLE_UNSTABLE_DISMISSED_INVITES]: { roomIds: string[] };
+    [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_ADDED_SERVERS_PROPERTY_NAME]: AddedServersContent;
   }
 }

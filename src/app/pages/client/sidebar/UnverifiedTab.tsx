@@ -13,8 +13,8 @@ import {
   VerificationStatus,
 } from '$hooks/useDeviceVerificationStatus';
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
-import { useOpenSettings } from '$features/settings';
-import { getPhosphorSize, ShieldWarning } from '$components/icons/phosphor';
+import { useOpenSettings } from '$features/settings/useOpenSettings';
+import { getPhosphorIconSize, ShieldWarning } from '$components/icons/phosphor';
 import * as css from './UnverifiedTab.css';
 
 function UnverifiedIndicator() {
@@ -59,7 +59,7 @@ function UnverifiedIndicator() {
                   style={{
                     color: unverified ? color.Critical.Main : color.Warning.Main,
                   }}
-                  size={getPhosphorSize().toolbar}
+                  size={getPhosphorIconSize('toolbar')}
                 />
               </SidebarAvatar>
             )}

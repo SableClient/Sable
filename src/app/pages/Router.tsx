@@ -46,7 +46,9 @@ import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { getSettings } from '$state/settings';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
-import { SearchModalRenderer } from '$features/search';
+const SearchModalRenderer = lazy(() =>
+  import('$features/search').then((m) => ({ default: m.SearchModalRenderer }))
+);
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
 import { CallEmbedProvider } from '$components/CallEmbedProvider';
 import { AuthLayout, Login, Register, ResetPassword } from './auth';
@@ -74,13 +76,12 @@ import {
   SETTINGS_PATH,
 } from './paths';
 import {
-  getAppPathFromHref,
+  getAppPathFromWindowHref,
   getExploreFeaturedPath,
   getHomePath,
   getInboxNotificationsPath,
   getLandingPath,
   getLoginPath,
-  getOriginBaseUrl,
   getSpaceLobbyPath,
 } from './pathUtils';
 import { ClientBindAtoms, ClientLayout, ClientRoot, ClientRouteOutlet } from './client';
@@ -142,7 +143,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               const settings = getSettings();
               return redirect(getLandingPath(settings.defaultLandingScreen));
             }
-            const afterLoginPath = getAppPathFromHref(getOriginBaseUrl(), window.location.href);
+            const afterLoginPath = getAppPathFromWindowHref(hashRouter);
             if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
             return redirect(getLoginPath());
           }}
@@ -180,10 +181,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           loader={() => {
             const session = getFirstSession();
             if (!session) {
-              const afterLoginPath = getAppPathFromHref(
-                getOriginBaseUrl(hashRouter),
-                window.location.href
-              );
+              const afterLoginPath = getAppPathFromWindowHref(hashRouter);
               if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
               return redirect(getLoginPath());
             }
@@ -222,7 +220,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                             </ClientLayout>
                             <CallStatusRenderer />
                           </CallEmbedProvider>
-                          <SearchModalRenderer />
+                          <Suspense fallback={null}>
+                            <SearchModalRenderer />
+                          </Suspense>
                           <UserRoomProfileRenderer />
                           <CreateRoomModalRenderer />
                           <CreateSpaceModalRenderer />

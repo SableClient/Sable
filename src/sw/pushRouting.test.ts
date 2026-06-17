@@ -61,7 +61,7 @@ describe('service worker push routing helpers', () => {
     expect(shouldSuppressOsPushForForegroundState(undefined)).toBe(false);
   });
 
-  it('exempts call and invite pushes from foreground suppression', () => {
+  it('exempts call pushes and invites from foreground suppression', () => {
     expect(
       isForegroundSuppressionExemptPushPayload({
         type: 'org.matrix.msc4075.call.notify',

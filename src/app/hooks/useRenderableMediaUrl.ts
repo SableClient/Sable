@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
+import * as Sentry from '@sentry/react';
 import { activeSessionIdAtom } from '$state/sessions';
 import { fetchMediaBlob, getCurrentMediaSessionScope } from '$utils/mediaTransport';
 
@@ -99,8 +100,11 @@ function createObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
     promise: Promise.resolve(''),
   } as ObjectUrlEntry;
   touchObjectUrlEntry(entry);
+  const startedAt = performance.now();
 
-  entry.promise = fetchMediaBlob(url)
+  entry.promise = Sentry.startSpan({ name: 'media.resolve', op: 'media' }, () =>
+    fetchMediaBlob(url)
+  )
     .then((blob) => {
       const objectUrl = URL.createObjectURL(blob);
       if (entry.disposed) {
@@ -110,9 +114,23 @@ function createObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
 
       entry.objectUrl = objectUrl;
       touchObjectUrlEntry(entry);
+      Sentry.metrics.distribution(
+        'sable.media.renderable_resolve_ms',
+        performance.now() - startedAt,
+        {
+          attributes: { result: 'success' },
+        }
+      );
       return objectUrl;
     })
     .catch((error) => {
+      Sentry.metrics.distribution(
+        'sable.media.renderable_resolve_ms',
+        performance.now() - startedAt,
+        {
+          attributes: { result: 'error' },
+        }
+      );
       deleteObjectUrlEntryIfCurrent(cacheKey, entry);
       throw error;
     })

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Box, Text, color } from 'folds';
 import { Link, useSearchParams } from 'react-router-dom';
 import { SSOAction } from '$types/matrix-sdk';
@@ -47,16 +47,25 @@ export function Login() {
   const ssoRedirectUrl = isTauri() ? buildTauriSsoRedirectUrl(server) : webSsoRedirectUrl;
   const loginTokenForHashRouter = getLoginTokenSearchParam();
   const absoluteLoginPath = usePathWithOrigin(getLoginPath(server));
+  const parsedFlows = useParsedLoginFlows(loginFlows.flows);
+  const shouldNormalizeHashRouterLoginToken =
+    !!hashRouter?.enabled &&
+    !!loginTokenForHashRouter &&
+    loginSearchParams.loginToken !== loginTokenForHashRouter;
 
-  if (hashRouter?.enabled && loginTokenForHashRouter) {
+  useEffect(() => {
+    if (!shouldNormalizeHashRouterLoginToken) return;
+
     window.location.replace(
       withSearchParam(absoluteLoginPath, {
         loginToken: loginTokenForHashRouter,
       })
     );
-  }
+  }, [absoluteLoginPath, loginTokenForHashRouter, shouldNormalizeHashRouterLoginToken]);
 
-  const parsedFlows = useParsedLoginFlows(loginFlows.flows);
+  if (shouldNormalizeHashRouterLoginToken) {
+    return null;
+  }
 
   return (
     <Box direction="Column" gap="500">

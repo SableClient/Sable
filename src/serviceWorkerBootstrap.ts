@@ -6,6 +6,7 @@ import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './a
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 import { hasServiceWorker } from './app/utils/platform';
 import { pushSessionToSW } from './sw-session';
+import { consumeLaunchContext } from './launch-context-persistence';
 
 const log = createLogger('service-worker-bootstrap');
 const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
@@ -47,6 +48,31 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   }
 };
 
+function maybeRecoverNotificationLaunch(targetUrl: string | undefined, clickedAt: number): boolean {
+  if (!targetUrl) return false;
+
+  const launchAgeMs = Date.now() - clickedAt;
+  if (launchAgeMs > 15_000) return false;
+
+  try {
+    const target = new URL(targetUrl, window.location.origin);
+    const current = new URL(window.location.href);
+    if (target.origin !== current.origin || target.href === current.href) return false;
+
+    window.location.replace(`${target.pathname}${target.search}${target.hash}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sendActiveSessionToServiceWorker() {
+  const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+  const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
+  const active = sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
+  pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
+}
+
 export function registerAppServiceWorker() {
   if (!hasServiceWorker()) return;
 
@@ -60,15 +86,52 @@ export function registerAppServiceWorker() {
     swRegisterOptions.type = 'module';
   }
 
-  const sendSessionToSW = () => {
-    const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
-    const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
-    const active =
-      sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
-    pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
-  };
+  sendActiveSessionToServiceWorker();
 
-  sendSessionToSW();
+  void consumeLaunchContext()
+    .then((launchContext) => {
+      if (!launchContext) return;
+      const launchAgeMs = Date.now() - launchContext.clickedAt;
+      Sentry.addBreadcrumb({
+        category: 'app.launch',
+        message: 'Consumed persisted launch context',
+        level: 'info',
+        data: {
+          source: launchContext.source,
+          launchAgeMs,
+          hasUserId: !!launchContext.userId,
+          hasRoomId: !!launchContext.roomId,
+          hasEventId: !!launchContext.eventId,
+        },
+      });
+      Sentry.metrics.count('sable.app.launch_context', 1, {
+        attributes: {
+          source: launchContext.source,
+          has_user_id: !!launchContext.userId,
+          has_room_id: !!launchContext.roomId,
+          has_event_id: !!launchContext.eventId,
+        },
+      });
+      Sentry.metrics.distribution('sable.app.launch_context_age_ms', launchAgeMs, {
+        attributes: { source: launchContext.source },
+      });
+      if (maybeRecoverNotificationLaunch(launchContext.targetUrl, launchContext.clickedAt)) {
+        Sentry.addBreadcrumb({
+          category: 'app.launch',
+          message: 'Recovered notification launch target during bootstrap',
+          level: 'warning',
+          data: { launchAgeMs },
+        });
+      }
+    })
+    .catch((err) => {
+      Sentry.addBreadcrumb({
+        category: 'app.launch',
+        message: 'Failed to consume persisted launch context',
+        level: 'warning',
+        data: { error: err instanceof Error ? err.message : String(err) },
+      });
+    });
 
   Sentry.addBreadcrumb({
     category: 'service_worker',
@@ -120,7 +183,7 @@ export function registerAppServiceWorker() {
         }
       });
 
-      sendSessionToSW();
+      sendActiveSessionToServiceWorker();
     })
     .catch((err) => {
       Sentry.addBreadcrumb({
@@ -140,7 +203,7 @@ export function registerAppServiceWorker() {
         level: 'info',
         data: { active: !!registration.active, waiting: !!registration.waiting },
       });
-      sendSessionToSW();
+      sendActiveSessionToServiceWorker();
     })
     .catch((err) => {
       Sentry.addBreadcrumb({
@@ -194,7 +257,7 @@ export function registerAppServiceWorker() {
     }
 
     if (type === 'requestSession') {
-      sendSessionToSW();
+      sendActiveSessionToServiceWorker();
     }
 
     if (data.type === 'token' && data.id) {

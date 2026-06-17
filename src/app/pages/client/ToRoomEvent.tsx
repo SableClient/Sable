@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useSetAtom } from 'jotai';
+import * as Sentry from '@sentry/react';
 import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
 
 // ToRoomEvent handles /to/:user_id/:room_id/:event_id? — the canonical deep-link
@@ -17,18 +18,42 @@ import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
 // setActiveSessionId() triggers an account switch.
 export function ToRoomEvent() {
   const { user_id: userId, room_id: roomId, event_id: eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const setPending = useSetAtom(pendingNotificationAtom);
+  const joinCall = searchParams.get('joinCall') === 'true';
 
   useEffect(() => {
     if (!roomId) return;
+    Sentry.addBreadcrumb({
+      category: 'notification.restore',
+      message: 'Entered /to notification restore route',
+      level: 'info',
+      data: {
+        hasUserId: !!userId,
+        hasRoomId: !!roomId,
+        hasEventId: !!eventId,
+      },
+    });
+    Sentry.metrics.count('sable.notification.to_route', 1, {
+      attributes: {
+        has_user_id: !!userId,
+        has_room_id: !!roomId,
+        has_event_id: !!eventId,
+      },
+    });
     // Switch to the target account first so the notification jumper navigates
     // under the correct session.
     if (userId) setActiveSessionId(userId);
-    setPending({ roomId, eventId, targetSessionId: userId });
-    // Replace /to/… in history so the back button doesn't return to this route.
-    window.history.replaceState({}, '', '/');
-  }, [userId, roomId, eventId, setActiveSessionId, setPending]);
+    setPending({
+      roomId,
+      eventId,
+      joinCall,
+      targetSessionId: userId,
+      requestedAt: Date.now(),
+      source: 'to_room_event',
+    });
+  }, [userId, roomId, eventId, joinCall, setActiveSessionId, setPending]);
 
   return null;
 }

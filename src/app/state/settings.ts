@@ -141,6 +141,7 @@ export interface Settings {
   useInAppNotifications: boolean;
   useSystemNotifications: boolean;
   isNotificationSounds: boolean;
+  backgroundNotificationSounds: boolean;
   showMessageContentInNotifications: boolean;
   showMessageContentInEncryptedNotifications: boolean;
   clearNotificationsOnRead: boolean;
@@ -219,7 +220,6 @@ export interface Settings {
   pmpProxying: boolean;
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
-  useTiptapComposer: boolean;
   closeFoldersByDefault: boolean;
   perRoomShowRoomIcon: PerRoomShowRoomIcon[];
   showRoomIcon: ShowRoomIcon;
@@ -320,6 +320,7 @@ export const defaultSettings: Settings = {
   useInAppNotifications: mobileOrTablet(),
   useSystemNotifications: !mobileOrTablet(),
   isNotificationSounds: true,
+  backgroundNotificationSounds: true,
   showMessageContentInNotifications: false,
   showMessageContentInEncryptedNotifications: false,
   clearNotificationsOnRead: false,
@@ -394,7 +395,6 @@ export const defaultSettings: Settings = {
   pmpProxying: false,
   mentionInReplies: true,
   showPersonaSetting: false,
-  useTiptapComposer: false,
   closeFoldersByDefault: false,
   perRoomShowRoomIcon: [],
   showRoomIcon: ShowRoomIcon.Smart,
@@ -679,10 +679,13 @@ export function resetRuntimeSettingsDefaults(): void {
   runtimeSettingsDefaults = {};
 }
 
+export function primeRuntimeSettingsDefaults(rawSettingsDefaults: unknown): void {
+  runtimeSettingsDefaults = sanitizeSettingsDefaults(rawSettingsDefaults);
+}
+
 export function bootstrapSettingsStore(store: Store, rawSettingsDefaults: unknown): void {
-  const sanitized = sanitizeSettingsDefaults(rawSettingsDefaults);
-  runtimeSettingsDefaults = sanitized;
-  const merged = mergePersistedSettings(localStorage.getItem(STORAGE_KEY), sanitized);
+  primeRuntimeSettingsDefaults(rawSettingsDefaults);
+  const merged = mergePersistedSettings(localStorage.getItem(STORAGE_KEY), runtimeSettingsDefaults);
   store.set(baseSettings, merged);
 }
 

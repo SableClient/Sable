@@ -67,7 +67,7 @@ export async function markAsRead(mx: MatrixClient, roomId: string, privateReceip
   if (isTauri()) {
     try {
       const { clearRoomNotification } =
-        await import('$features/settings/notifications/UnifiedPushNotifications');
+        await import('$features/settings/notifications/UnifiedPushRuntime');
       await clearRoomNotification(roomId);
     } catch {
       // Notification plugin not available (desktop, web) — ignore.

@@ -123,3 +123,11 @@ globalStyle(`${MessagePreview} br`, {
 globalStyle(`${MessagePreview} img`, {
   display: 'none',
 });
+
+export const NavItemChipIcon = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  lineHeight: 0,
+  flexShrink: 0,
+});

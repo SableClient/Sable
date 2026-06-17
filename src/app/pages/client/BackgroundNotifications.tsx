@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import {
   ClientEvent,
@@ -16,7 +17,6 @@ import { isTauri } from '@tauri-apps/api/core';
 import {
   sessionsAtom,
   activeSessionIdAtom,
-  pendingNotificationAtom,
   backgroundUnreadCountsAtom,
   inAppBannerAtom,
   type Session,
@@ -48,6 +48,7 @@ import { startClient, stopClient } from '$client/initMatrix';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { mobileOrTablet } from '$utils/user-agent';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
+import { getToRoomEventPath } from '../pathUtils';
 
 const log = createLogger('BackgroundNotifications');
 const debugLog = createDebugLogger('BackgroundNotifications');
@@ -155,9 +156,10 @@ const waitForSync = (mx: MatrixClient): Promise<void> =>
   });
 
 export function BackgroundNotifications() {
+  const navigate = useNavigate();
   const clientConfig = useClientConfig();
   const sessions = useAtomValue(sessionsAtom);
-  const [activeSessionId, setActiveSessionId] = useAtom(activeSessionIdAtom);
+  const [activeSessionId] = useAtom(activeSessionIdAtom);
   const [showNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
@@ -167,8 +169,13 @@ export function BackgroundNotifications() {
     'showMessageContentInEncryptedNotifications'
   );
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
+  const isMobile = mobileOrTablet();
+  const [isVisible, setIsVisible] = useState(document.visibilityState === 'visible');
 
-  const shouldRunBackgroundNotifications = showNotifications || usePushNotifications;
+  const shouldRunBackgroundNotifications =
+    (showNotifications || usePushNotifications) && (!isMobile || isVisible);
+  const shouldRunBackgroundNotificationsRef = useRef(shouldRunBackgroundNotifications);
+  shouldRunBackgroundNotificationsRef.current = shouldRunBackgroundNotifications;
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
@@ -185,7 +192,6 @@ export function BackgroundNotifications() {
   const clientsRef = useRef(new Map());
   const startingClientsRef = useRef(new Set<string>());
   const notifiedEventsRef = useRef(new Set());
-  const setPending = useSetAtom(pendingNotificationAtom);
   const setBackgroundUnreads = useSetAtom(backgroundUnreadCountsAtom);
   const setInAppBanner = useSetAtom(inAppBannerAtom);
   const setBackgroundUnreadsRef = useRef(setBackgroundUnreads);
@@ -207,6 +213,15 @@ export function BackgroundNotifications() {
   const inactiveSessionsRef = useRef(inactiveSessions);
   inactiveSessionsRef.current = inactiveSessions;
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsVisible(document.visibilityState === 'visible');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   interface NotifyOptions {
     title: string;
     body?: string;
@@ -219,12 +234,35 @@ export function BackgroundNotifications() {
   }
 
   useEffect(() => {
+    const { current } = clientsRef;
+    const cleanupMap = clientCleanupRef.current;
+    const stopTrackedClient = (userId: string) => {
+      const mx = current.get(userId);
+      cleanupMap.get(userId)?.();
+      cleanupMap.delete(userId);
+      if (mx) {
+        void stopClient(mx);
+        current.delete(userId);
+      }
+    };
+
     if (!shouldRunBackgroundNotifications) {
+      current.forEach((_mx, userId) => {
+        stopTrackedClient(userId);
+        // Clear the background unread badge when the session stops being tracked.
+        setBackgroundUnreads((prev) => {
+          const next = { ...prev };
+          delete next[userId];
+          return next;
+        });
+      });
+      startingClientsRef.current.clear();
       return undefined;
     }
 
-    const { current } = clientsRef;
     const activeIds = new Set(inactiveSessions.map((s) => s.userId));
+    const retryTimers: ReturnType<typeof setTimeout>[] = [];
+    let effectDisposed = false;
 
     async function sendNotification(opts: NotifyOptions): Promise<void> {
       // Prefer SW showNotification so taps route through the notificationclick handler.
@@ -290,10 +328,7 @@ export function BackgroundNotifications() {
 
     current.forEach((mx, userId) => {
       if (!activeIds.has(userId)) {
-        clientCleanupRef.current.get(userId)?.();
-        clientCleanupRef.current.delete(userId);
-        void stopClient(mx);
-        current.delete(userId);
+        stopTrackedClient(userId);
         Sentry.metrics.gauge('sable.background.client_count', current.size);
         // Clear the background unread badge when this session is no longer a background account.
         setBackgroundUnreads((prev) => {
@@ -328,6 +363,7 @@ export function BackgroundNotifications() {
           startingClientsRef.current.delete(session.userId);
           if (
             current.has(session.userId) ||
+            !shouldRunBackgroundNotificationsRef.current ||
             !inactiveSessionsRef.current.some((s) => s.userId === session.userId)
           ) {
             void stopClient(mx);
@@ -344,6 +380,14 @@ export function BackgroundNotifications() {
           });
 
           await waitForSync(mx);
+
+          if (
+            !shouldRunBackgroundNotificationsRef.current ||
+            !inactiveSessionsRef.current.some((s) => s.userId === session.userId)
+          ) {
+            stopTrackedClient(session.userId);
+            return;
+          }
 
           Sentry.addBreadcrumb({
             category: 'notification.background_client',
@@ -597,12 +641,7 @@ export function BackgroundNotifications() {
 
             const notifOnClick = () => {
               window.focus();
-              setActiveSessionId(session.userId);
-              setPending({
-                roomId: room.roomId,
-                eventId,
-                targetSessionId: session.userId,
-              });
+              navigate(getToRoomEventPath(session.userId, room.roomId, eventId));
             };
 
             // Show in-app banner when app is visible, mobile, and in-app notifications enabled
@@ -664,6 +703,12 @@ export function BackgroundNotifications() {
         })
         .catch((err) => {
           startingClientsRef.current.delete(session.userId);
+          if (effectDisposed) {
+            if (sessionMx) {
+              stopTrackedClient(session.userId);
+            }
+            return;
+          }
           log.error('failed to start background client for', session.userId, err);
           debugLog.error('notification', 'Failed to start background client', {
             userId: session.userId,
@@ -700,14 +745,20 @@ export function BackgroundNotifications() {
           // Retry with exponential backoff, up to 5 attempts (5s, 10s, 20s, 40s, 60s cap).
           if (attempt < 5) {
             const retryDelay = Math.min(5_000 * 2 ** attempt, 60_000);
-            setTimeout(() => {
+            const retryTimer = setTimeout(() => {
               const latestSession = inactiveSessionsRef.current.find(
                 (s) => s.userId === session.userId
               );
-              if (latestSession && !current.has(session.userId)) {
+              if (
+                !effectDisposed &&
+                shouldRunBackgroundNotificationsRef.current &&
+                latestSession &&
+                !current.has(session.userId)
+              ) {
                 startSession(latestSession, attempt + 1);
               }
             }, retryDelay);
+            retryTimers.push(retryTimer);
           }
         });
     };
@@ -724,16 +775,14 @@ export function BackgroundNotifications() {
       }
     });
 
-    const cleanupMap = clientCleanupRef.current;
     const activeUserIds = new Set(inactiveSessions.map((s) => s.userId));
     return () => {
+      effectDisposed = true;
       staggerTimers.forEach(clearTimeout);
+      retryTimers.forEach(clearTimeout);
       current.forEach((mx, userId) => {
         if (!activeUserIds.has(userId)) {
-          cleanupMap.get(userId)?.();
-          cleanupMap.delete(userId);
-          void stopClient(mx);
-          current.delete(userId);
+          stopTrackedClient(userId);
         }
       });
     };
@@ -741,8 +790,7 @@ export function BackgroundNotifications() {
     clientConfig.slidingSync,
     inactiveSessions,
     shouldRunBackgroundNotifications,
-    setActiveSessionId,
-    setPending,
+    navigate,
     setBackgroundUnreads,
     setInAppBanner,
   ]);

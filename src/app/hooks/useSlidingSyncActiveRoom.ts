@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
+import { completeRoomNavigation } from '$utils/perfTelemetry';
 import { addRecentRoom } from '$utils/recentRooms';
 
 /**
@@ -22,6 +23,14 @@ export const useSlidingSyncActiveRoom = (): void => {
   useEffect(() => {
     if (!roomId) return undefined;
     const manager = getSlidingSyncManager(mx);
+    const room = mx.getRoom(roomId);
+    const liveEventCount = room?.getLiveTimeline().getEvents().length ?? 0;
+    if (liveEventCount > 0) {
+      completeRoomNavigation(roomId, 'timeline_cached', liveEventCount);
+    } else if (!manager) {
+      completeRoomNavigation(roomId, 'classic_sync', 0);
+      return undefined;
+    }
     if (!manager) return undefined;
 
     manager.subscribeToRoom(roomId);

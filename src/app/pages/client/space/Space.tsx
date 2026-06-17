@@ -111,11 +111,11 @@ import { ImageViewer } from '$components/image-viewer';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { LIST_SPACE } from '$client/slidingSync';
 import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
+import { completeSpaceNavigation, markStartupRoomListReady } from '$utils/perfTelemetry';
 import * as css from './styles.css';
-import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 
 const debugLog = createDebugLogger('Space');
-const SPACE_LIST_PAGING_CHECK_MS = 1000;
+const SPACE_LIST_PAGING_CHECK_MS = 300;
 
 type SpaceMenuProps = {
   room: Room;
@@ -378,14 +378,11 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
       {hasBanner && (
         <>
           <Box shrink="No" className={css.RoomCoverContainer} style={{ height: toRem(curHeight) }}>
-            <ClientSideHoverFreeze src={bannerURI} className={css.RoomCover}>
-              <img
-                className={css.RoomCoverImage}
-                src={bannerURI}
-                alt={`${spaceName}'s banner`}
-                draggable="false"
-                role="button"
-                tabIndex={0}
+            <div className={css.RoomCover}>
+              <button
+                type="button"
+                className={css.RoomCoverImageButton}
+                data-no-button-motion
                 aria-label={`View ${spaceName} banner`}
                 onClick={() => setBannerViewerOpen(true)}
                 onKeyDown={(e) => {
@@ -394,7 +391,9 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                     setBannerViewerOpen(true);
                   }
                 }}
-              />
+              >
+                <img className={css.RoomCoverImage} src={bannerURI} alt="" draggable="false" />
+              </button>
               <SidebarResizer
                 setCurWidth={setCurHeight}
                 sidebarWidth={roomBannerHeight}
@@ -405,7 +404,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                 maxValue={500}
                 topSided
               />
-            </ClientSideHoverFreeze>
+            </div>
           </Box>
         </>
       )}
@@ -507,6 +506,12 @@ export function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProp
     </Box>
   );
 }
+
+const getCategoryPadding = (depth: number): string | undefined => {
+  if (depth === 0) return undefined;
+  if (depth === 1) return config.space.S400;
+  return config.space.S0;
+};
 
 export function Space() {
   const mx = useMatrixClient();
@@ -693,106 +698,106 @@ export function Space() {
    * @param virtualizedItems - The virtualized item list that will be used to render elements in the nav
    * @returns React SVG Element that can be overlayed on top of the nav category for rooms.
    */
-  const getConnectorSVG = (
-    hierarchy: HierarchyItem[],
-    virtualizedItems: VirtualItem[]
-  ): ReactElement => {
-    const DEPTH_START = 2;
-    const PADDING_LEFT_DEPTH_OFFSET = 15.75;
-    const PADDING_LEFT_DEPTH_OFFSET_START = -15.75;
-    const RADIUS = 5;
+  const getConnectorSVG = useCallback(
+    (hierarchy: HierarchyItem[], virtualizedItems: VirtualItem[]): ReactElement => {
+      const DEPTH_START = 2;
+      const PADDING_LEFT_DEPTH_OFFSET = 15.75;
+      const PADDING_LEFT_DEPTH_OFFSET_START = -15.75;
+      const RADIUS = 5;
 
-    let connectorStack: { aX: number; aY: number }[] = [];
-    // Holder for the paths
-    const pathHolder: ReactElement[] = [];
-    virtualizedItems.forEach((vItem) => {
-      const hierarchyItem = hierarchy[vItem.index];
-      if (!hierarchyItem) return;
-      const { roomId, depth: itemDepth } = hierarchyItem;
-      const depth = itemDepth ?? 0;
-      const room = getRoom(roomId);
-      // We will render spaces at a level above their normal depth, since we want their children to be "under" them
-      const renderDepth = room?.isSpaceRoom() ? depth : depth + 1;
-      // for the root items, we are not doing anything with it.
-      if (renderDepth < DEPTH_START) {
-        return;
-      }
-      // for nearly root level text/call rooms, we will not be drawing any arcs.
-      if (renderDepth === DEPTH_START - 1 && !room?.isSpaceRoom() && connectorStack.length === 0) {
-        return;
-      }
+      let connectorStack: { aX: number; aY: number }[] = [];
+      // Holder for the paths
+      const pathHolder: ReactElement[] = [];
+      virtualizedItems.forEach((vItem) => {
+        const hierarchyItem = hierarchy[vItem.index];
+        if (!hierarchyItem) return;
+        const { roomId, depth: itemDepth } = hierarchyItem;
+        const depth = itemDepth ?? 0;
+        const room = getRoom(roomId);
+        // We will render spaces at a level above their normal depth, since we want their children to be "under" them
+        const renderDepth = room?.isSpaceRoom() ? depth : depth + 1;
+        // for the root items, we are not doing anything with it.
+        if (renderDepth < DEPTH_START) {
+          return;
+        }
+        // for nearly root level text/call rooms, we will not be drawing any arcs.
+        if (renderDepth === DEPTH_START && !room?.isSpaceRoom() && connectorStack.length === 0) {
+          return;
+        }
 
-      // for the sub-root items, we will not draw any arcs from root to it.
-      // however, we should capture the aX and aY to draw starter arcs for next depths.
-      if (renderDepth === DEPTH_START) {
-        connectorStack = [
-          {
-            aX: PADDING_LEFT_DEPTH_OFFSET * DEPTH_START + PADDING_LEFT_DEPTH_OFFSET_START,
-            aY: vItem.end,
-          },
-        ];
-        return;
-      }
-      // adjust the stack to be at the correct depth, which is the "parent" of the current item.
-      while (connectorStack.length + DEPTH_START > renderDepth && connectorStack.length !== 0) {
-        connectorStack.pop();
-      }
+        // for the sub-root items, we will not draw any arcs from root to it.
+        // however, we should capture the aX and aY to draw starter arcs for next depths.
+        if (renderDepth === DEPTH_START) {
+          connectorStack = [
+            {
+              aX: PADDING_LEFT_DEPTH_OFFSET * DEPTH_START + PADDING_LEFT_DEPTH_OFFSET_START,
+              aY: vItem.end,
+            },
+          ];
+          return;
+        }
+        // adjust the stack to be at the correct depth, which is the "parent" of the current item.
+        while (connectorStack.length + DEPTH_START > renderDepth && connectorStack.length !== 0) {
+          connectorStack.pop();
+        }
 
-      // Fixes crash in case the top level virtual item is unrendered.
-      if (connectorStack.length === 0) {
-        connectorStack = [{ aX: Math.round(renderDepth * PADDING_LEFT_DEPTH_OFFSET), aY: 0 }];
-      }
+        // Fixes crash in case the top level virtual item is unrendered.
+        if (connectorStack.length === 0) {
+          connectorStack = [{ aX: Math.round(renderDepth * PADDING_LEFT_DEPTH_OFFSET), aY: 0 }];
+        }
 
-      const lastConnector = connectorStack[connectorStack.length - 1];
-      if (!lastConnector) return;
+        const lastConnector = connectorStack[connectorStack.length - 1];
+        if (!lastConnector) return;
 
-      // aX: numeric x where the vertical connector starts
-      // aY: end of parent (already numeric)
-      const { aX, aY } = lastConnector;
+        // aX: numeric x where the vertical connector starts
+        // aY: end of parent (already numeric)
+        const { aX, aY } = lastConnector;
 
-      // bX: point where the vertical connector ends
-      const bX = Math.round(
-        (renderDepth - 0.5) * PADDING_LEFT_DEPTH_OFFSET + PADDING_LEFT_DEPTH_OFFSET_START
-      );
-      // bY: center of current item
-      const bY = vItem.end - vItem.size / 2;
+        // bX: point where the vertical connector ends
+        const bX = Math.round(
+          (renderDepth - 0.5) * PADDING_LEFT_DEPTH_OFFSET + PADDING_LEFT_DEPTH_OFFSET_START
+        );
+        // bY: center of current item
+        const bY = vItem.end - vItem.size / 2;
 
-      const pathString =
-        `M ${aX} ${aY} ` +
-        `L ${aX} ${bY - RADIUS} ` +
-        `A ${RADIUS} ${RADIUS} 0 0 0 ${aX + RADIUS} ${bY} ` +
-        `L ${bX} ${bY}`;
+        const pathString =
+          `M ${aX} ${aY} ` +
+          `L ${aX} ${bY - RADIUS} ` +
+          `A ${RADIUS} ${RADIUS} 0 0 0 ${aX + RADIUS} ${bY} ` +
+          `L ${bX} ${bY}`;
 
-      pathHolder.push(
-        <path
-          d={pathString}
-          fill="none"
-          stroke={color.Surface.ContainerLine}
-          strokeWidth="2"
-          display="block"
-        />
-      );
+        pathHolder.push(
+          <path
+            d={pathString}
+            fill="none"
+            stroke={color.Surface.ContainerLine}
+            strokeWidth="2"
+            display="block"
+          />
+        );
 
-      // add this item to the connector stack, in case the next item's depth is higher.
-      connectorStack.push({
-        aX: Math.round(renderDepth * PADDING_LEFT_DEPTH_OFFSET) + PADDING_LEFT_DEPTH_OFFSET_START,
-        aY: vItem.end,
+        // add this item to the connector stack, in case the next item's depth is higher.
+        connectorStack.push({
+          aX: Math.round(renderDepth * PADDING_LEFT_DEPTH_OFFSET) + PADDING_LEFT_DEPTH_OFFSET_START,
+          aY: vItem.end,
+        });
       });
-    });
-    return (
-      <svg
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-        }}
-      >
-        {pathHolder}
-      </svg>
-    );
-  };
+      return (
+        <svg
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+          }}
+        >
+          {pathHolder}
+        </svg>
+      );
+    },
+    [getRoom]
+  );
 
   const hierarchy = useSpaceJoinedHierarchy(
     space.roomId,
@@ -862,6 +867,23 @@ export function Space() {
   }, [mx, space.roomId, hierarchy.length, allRooms.length, lastVirtualIndex, spaceListPagingTick]);
 
   useEffect(() => {
+    const manager = getSlidingSyncManager(mx);
+    const diagnostics = manager?.getListDiagnostics(LIST_SPACE);
+    const listReady = manager?.isListReady(LIST_SPACE) ?? false;
+    const knownCount = diagnostics?.knownCount ?? 0;
+    if (listReady && hierarchy.length > 0) {
+      completeSpaceNavigation(space.roomId, 'list_ready', hierarchy.length);
+      markStartupRoomListReady('space', hierarchy.length);
+      return;
+    }
+
+    if (listReady && diagnostics && knownCount === 0) {
+      completeSpaceNavigation(space.roomId, 'empty_space', 0);
+      markStartupRoomListReady('space', 0);
+    }
+  }, [mx, space.roomId, hierarchy.length, spaceListPagingTick]);
+
+  useEffect(() => {
     const interval = window.setInterval(() => {
       const manager = getSlidingSyncManager(mx);
       const diagnostics = manager?.getListDiagnostics(LIST_SPACE);
@@ -890,12 +912,6 @@ export function Space() {
   const getToLink = (roomId: string) =>
     getSpaceRoomPath(spaceIdOrAlias, getCanonicalAliasOrRoomId(mx, roomId));
 
-  const getCategoryPadding = (depth: number): string | undefined => {
-    if (depth === 0) return undefined;
-    if (depth === 1) return config.space.S400;
-    return config.space.S0;
-  };
-
   const navigate = useNavigate();
   const lastRoomId = useAtomValue(lastVisitedRoomIdAtom);
 
@@ -909,6 +925,10 @@ export function Space() {
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+  const connectorSvg = useMemo(() => {
+    if (hideText || virtualizedItems.length === 0) return null;
+    return getConnectorSVG(hierarchy, virtualizedItems);
+  }, [getConnectorSVG, hideText, hierarchy, virtualizedItems]);
 
   usePullToRefresh(scrollRef, mx);
 
@@ -1100,7 +1120,7 @@ export function Space() {
                     </VirtualTile>
                   );
                 })}
-                {getConnectorSVG(hierarchy, virtualizedItems)}
+                {connectorSvg}
               </NavCategory>
             </Box>
           </PageNavContent>

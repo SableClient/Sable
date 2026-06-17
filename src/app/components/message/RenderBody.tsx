@@ -121,16 +121,24 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
     <>
       <TooltipProvider position="Top" tooltip={tooltipContent}>
         {(triggerRef) => (
-          <abbr
-            ref={triggerRef as React.Ref<HTMLElement>}
+          <button
+            type="button"
+            data-no-button-motion
+            ref={triggerRef as React.Ref<HTMLButtonElement>}
             onClick={handleClick}
             onKeyDown={handleKeyDown}
-            role="button"
-            tabIndex={0}
-            style={{ textDecoration: 'underline dotted', cursor: 'help' }}
+            style={{
+              textDecoration: 'underline dotted',
+              cursor: 'help',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              font: 'inherit',
+              color: 'inherit',
+            }}
           >
             {text}
-          </abbr>
+          </button>
         )}
       </TooltipProvider>
       {anchor && (

@@ -26,9 +26,32 @@ import {
   LIST_DMS,
   LIST_INVITES,
   LIST_JOINED,
+  LIST_SPACE,
   SlidingSyncManager,
   type SlidingSyncConfig,
 } from './slidingSync';
+
+function installConnectionMock(): { fireConnectionChange: () => void } {
+  let onChange: (() => void) | undefined;
+  Object.defineProperty(window.navigator, 'connection', {
+    configurable: true,
+    value: {
+      effectiveType: '4g',
+      downlink: 10,
+      addEventListener: vi.fn<(event: string, cb: () => void) => void>((event, cb) => {
+        if (event === 'change') onChange = cb;
+      }),
+      removeEventListener: vi.fn<() => void>(),
+      onchange: null,
+    },
+  });
+  return {
+    fireConnectionChange: () => {
+      if (!onChange) throw new Error('connection change listener not registered');
+      onChange();
+    },
+  };
+}
 
 // ── vi.hoisted mocks ─────────────────────────────────────────────────────────
 // Must be defined via vi.hoisted so they're available before vi.mock runs
@@ -64,6 +87,10 @@ vi.mock('@sentry/react', () => ({
   startInactiveSpan:
     vi.fn<() => { setAttribute: () => void; setAttributes: () => void; end: () => void }>(),
   startSpan: vi.fn<() => Promise<unknown>>(),
+}));
+
+vi.mock('$utils/perfTelemetry', () => ({
+  completeRoomNavigation: vi.fn<(roomId: string, reason: string, eventCount: number) => void>(),
 }));
 
 // ── SlidingSync SDK mock ─────────────────────────────────────────────────────
@@ -364,6 +391,52 @@ describe('SlidingSyncManager.requestListWindow()', () => {
   });
 });
 
+describe('SlidingSyncManager.setSpaceScope()', () => {
+  it('uses a larger initial range for the active space list', () => {
+    const manager = makeManager(makeMockMx(), { listPageSize: 30 });
+
+    manager.setSpaceScope('!space:example.com');
+
+    expect(mocks.slidingSyncInstance.setList).toHaveBeenCalledWith(
+      LIST_SPACE,
+      expect.objectContaining({
+        ranges: [[0, 59]],
+        filters: { is_invite: false, spaces: ['!space:example.com'] },
+      })
+    );
+  });
+});
+
+describe('SlidingSyncManager.prefetchRoom()', () => {
+  it('temporarily adds a prefetched room subscription and expires it after the ttl', () => {
+    const manager = makeManager(makeMockMx());
+
+    manager.prefetchRoom('!room:example.com', 500);
+    vi.advanceTimersByTime(100);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(
+      new Set(['!room:example.com'])
+    );
+
+    vi.advanceTimersByTime(500);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(new Set());
+  });
+
+  it('keeps the subscription active when the prefetched room becomes the active room', () => {
+    const manager = makeManager(makeMockMx());
+
+    manager.prefetchRoom('!room:example.com', 500);
+    vi.advanceTimersByTime(100);
+    manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(500);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(
+      new Set(['!room:example.com'])
+    );
+  });
+});
+
 describe('SlidingSyncManager space graph warmup', () => {
   it('lazily expands the joined list after the first successful sync', () => {
     mocks.slidingSyncInstance.getListData.mockImplementation((key: unknown) => {
@@ -456,25 +529,25 @@ describe('SlidingSyncManager.dispose()', () => {
 
 // ── onMembershipLeave: auto-unsubscribe on leave/ban ─────────────────────────
 
-describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
-  /** Fire the RoomMemberEvent.Membership listener registered on mx.on */
-  function fireMembershipEvent(
-    mx: ReturnType<typeof makeMockMx>,
-    membership: string,
-    roomId = '!room:example.com',
-    userId = '@user:example.com'
-  ) {
-    const onCall = (mx.on as ReturnType<typeof vi.fn>).mock.calls.find(
-      (args: unknown[]) => args[0] === 'RoomMember.membership'
-    );
-    if (!onCall) throw new Error('onMembershipLeave listener not registered');
-    const [, handler] = onCall as [
-      string,
-      (e: unknown, m: { userId: string; roomId: string; membership: string }) => void,
-    ];
-    handler(undefined, { userId, roomId, membership });
-  }
+/** Fire the RoomMemberEvent.Membership listener registered on mx.on */
+function fireMembershipEvent(
+  mx: ReturnType<typeof makeMockMx>,
+  membership: string,
+  roomId = '!room:example.com',
+  userId = '@user:example.com'
+) {
+  const onCall = (mx.on as ReturnType<typeof vi.fn>).mock.calls.find(
+    (args: unknown[]) => args[0] === 'RoomMember.membership'
+  );
+  if (!onCall) throw new Error('onMembershipLeave listener not registered');
+  const [, handler] = onCall as [
+    string,
+    (e: unknown, m: { userId: string; roomId: string; membership: string }) => void,
+  ];
+  handler(undefined, { userId, roomId, membership });
+}
 
+describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
   it('unsubscribes when the local user leaves an active room', () => {
     const mx = makeMockMx();
     const manager = makeManager(mx);
@@ -715,28 +788,6 @@ describe('SlidingSyncManager — timeline handoff', () => {
 // ── network changes: avoid foreground resend cascades ───────────────────────
 
 describe('SlidingSyncManager — network change handling', () => {
-  function installConnectionMock(): { fireConnectionChange: () => void } {
-    let onChange: (() => void) | undefined;
-    Object.defineProperty(window.navigator, 'connection', {
-      configurable: true,
-      value: {
-        effectiveType: '4g',
-        downlink: 10,
-        addEventListener: vi.fn<(event: string, cb: () => void) => void>((event, cb) => {
-          if (event === 'change') onChange = cb;
-        }),
-        removeEventListener: vi.fn<() => void>(),
-        onchange: null,
-      },
-    });
-    return {
-      fireConnectionChange: () => {
-        if (!onChange) throw new Error('connection change listener not registered');
-        onChange();
-      },
-    };
-  }
-
   afterEach(() => {
     setNavigatorOnline(true);
     Object.defineProperty(window.navigator, 'connection', {

@@ -8,6 +8,7 @@ const {
   mockAddEventListener,
   mockReady,
   mockPushSessionToSW,
+  mockConsumeLaunchContext,
   mockWarn,
 } = vi.hoisted(() => ({
   mockHasServiceWorker: vi.fn(),
@@ -19,6 +20,7 @@ const {
   mockAddEventListener: vi.fn(),
   mockReady: Promise.resolve(undefined),
   mockPushSessionToSW: vi.fn(),
+  mockConsumeLaunchContext: vi.fn().mockResolvedValue(undefined),
   mockWarn: vi.fn(),
 }));
 
@@ -28,6 +30,10 @@ vi.mock('./app/utils/platform', () => ({
 
 vi.mock('./sw-session', () => ({
   pushSessionToSW: mockPushSessionToSW,
+}));
+
+vi.mock('./launch-context-persistence', () => ({
+  consumeLaunchContext: mockConsumeLaunchContext,
 }));
 
 vi.mock('./app/state/sessions', () => ({
@@ -89,6 +95,40 @@ describe('registerAppServiceWorker', () => {
 
     expect(mockRegister).toHaveBeenCalled();
     expect(mockAddEventListener).toHaveBeenCalledWith('message', expect.any(Function));
+  });
+
+  it('consumes any persisted launch context during bootstrap', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+
+    registerAppServiceWorker();
+    await Promise.resolve();
+
+    expect(mockConsumeLaunchContext).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers a fresh notification launch target during bootstrap', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+    mockConsumeLaunchContext.mockResolvedValueOnce({
+      source: 'notification_click',
+      clickedAt: Date.now(),
+      targetUrl: 'https://charm.example/#/to/%40alice%3Aexample.org/!room%3Aexample.org',
+    });
+
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        href: 'https://charm.example/#/home',
+        origin: 'https://charm.example',
+        replace: vi.fn(),
+      },
+    });
+
+    registerAppServiceWorker();
+    await Promise.resolve();
+
+    expect(window.location.replace).toHaveBeenCalledWith(
+      '/#/to/%40alice%3Aexample.org/!room%3Aexample.org'
+    );
   });
 
   it('pushes the active session immediately when a controller already exists', () => {

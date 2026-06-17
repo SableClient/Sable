@@ -579,6 +579,7 @@ export function RoomNavItem({
                           </Text>
                           {roomTopic && (
                             <Text
+                              className={css.RoomSecondaryLine}
                               truncate
                               size="T200"
                               priority="300"

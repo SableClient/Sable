@@ -89,13 +89,56 @@ export const GroupAvatarMiniHideText = style({
   },
 });
 
-export const MessagePreview = style({
+const SecondaryLineBase = style({
   display: 'block',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
   minWidth: 0,
-  pointerEvents: 'none',
+  maxWidth: '100%',
+  lineHeight: '1.2em',
+  minHeight: '1.2em',
+  maxHeight: '1.2em',
+});
+
+export const RoomSecondaryLine = style([
+  SecondaryLineBase,
+  {
+    pointerEvents: 'none',
+  },
+]);
+
+export const MessagePreview = style([
+  SecondaryLineBase,
+  {
+    pointerEvents: 'none',
+  },
+]);
+
+globalStyle(`${RoomSecondaryLine} br`, {
+  display: 'none',
+});
+
+globalStyle(`${RoomSecondaryLine} img`, {
+  display: 'none',
+});
+
+globalStyle(`${RoomSecondaryLine} p`, {
+  display: 'inline',
+  margin: 0,
+  whiteSpace: 'inherit',
+});
+
+globalStyle(`${RoomSecondaryLine} span`, {
+  whiteSpace: 'inherit',
+});
+
+globalStyle(`${RoomSecondaryLine} a`, {
+  whiteSpace: 'inherit',
+});
+
+globalStyle(`${RoomSecondaryLine} code`, {
+  whiteSpace: 'inherit',
 });
 
 globalStyle(`${MessagePreview} p`, {

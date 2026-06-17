@@ -1,13 +1,14 @@
 import type { RoomPinnedEventsEventContent, StateEvents } from '$types/matrix-sdk';
 import { type Room, type MatrixEvent, type Relations, EventType } from '$types/matrix-sdk';
-import { canEditEvent, getEventEdits, isThreadRelationEvent } from '$utils/room';
+import { canEditEvent, canForwardEvent, getEventEdits, isThreadRelationEvent } from '$utils/room';
 import { MessageReportItem } from './MessageReport';
-import { as, Box, config, Line, Menu, MenuItem, Text } from 'folds';
+import type { RectCords } from 'folds';
+import { as, Box, config, IconButton, Line, Menu, MenuItem, PopOut, Text } from 'folds';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { MessageQuickReactions } from '$features/room/message';
 import {
   ArrowBendUpLeftIcon,
   ChatCircleDots,
+  DotsThreeOutlineVerticalIcon,
   Link,
   menuIcon,
   PencilSimple,
@@ -32,7 +33,7 @@ import { MessageForwardItem } from './MessageForward';
 import * as css from '$features/room/message/styles.css';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
-import type { MouseEventHandler } from 'react';
+import type { Dispatch, MouseEventHandler, SetStateAction } from 'react';
 import { useState } from 'react';
 import { MessageDeleteItem } from './MessageDelete';
 import FocusTrap from 'focus-trap-react';
@@ -42,7 +43,49 @@ import { copyToClipboard } from '$utils/dom';
 import { getMatrixToRoomEvent } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
+import { EmojiBoard } from '$components/emoji-board';
+import type { ReactionHandler } from '$features/room/message';
+import { useRecentEmoji } from '$hooks/useRecentEmoji';
 
+type MessageQuickReactionsProps = {
+  onReaction: ReactionHandler;
+};
+export const MessageQuickReactions = as<'div', MessageQuickReactionsProps>(
+  ({ onReaction, ...props }, ref) => {
+    const mx = useMatrixClient();
+    const recentEmojis = useRecentEmoji(mx, 4);
+
+    if (recentEmojis.length === 0) return <span />;
+    return (
+      <>
+        <Box
+          style={{ padding: config.space.S200 }}
+          alignItems="Center"
+          justifyContent="Center"
+          gap="200"
+          {...props}
+          ref={ref}
+        >
+          {recentEmojis.map((emoji) => (
+            <IconButton
+              key={emoji.unicode}
+              className={css.MessageQuickReaction}
+              size="300"
+              variant="SurfaceVariant"
+              radii="Pill"
+              title={emoji.shortcode}
+              aria-label={emoji.shortcode}
+              onClick={() => onReaction(emoji.unicode, emoji.shortcode)}
+            >
+              <Text size="T500">{emoji.unicode}</Text>
+            </IconButton>
+          ))}
+        </Box>
+        <Line size="300" />
+      </>
+    );
+  }
+);
 const MessageCopyLinkItem = as<
   'button',
   {
@@ -113,6 +156,202 @@ export const MessagePinItem = as<
     </MenuItem>
   );
 });
+
+export type OptionEmojiMenuProps = {
+  mEvent: MatrixEvent;
+  closeMenu: () => void;
+  onReactionToggle?: (targetEventId: string, key: string, shortcode?: string) => void;
+  setEmojiBoardAnchor?: Dispatch<SetStateAction<RectCords | undefined>>;
+  emojiBoardAnchor?: RectCords;
+  imagePackRooms?: Room[];
+  isQuickOptions?: boolean;
+};
+export function OptionsEmojiBoard({
+  mEvent,
+  onReactionToggle,
+  closeMenu,
+  setEmojiBoardAnchor,
+  emojiBoardAnchor,
+  imagePackRooms,
+  isQuickOptions,
+}: OptionEmojiMenuProps) {
+  const position =
+    (!isQuickOptions && 'Left') ||
+    ((emojiBoardAnchor?.y ?? 0) > window.innerHeight / 2 && 'Top') ||
+    'Bottom';
+  return (
+    <PopOut
+      position={position}
+      align={isQuickOptions ? 'End' : 'Start'}
+      offset={undefined}
+      anchor={emojiBoardAnchor}
+      content={
+        <EmojiBoard
+          imagePackRooms={imagePackRooms ?? []}
+          returnFocusOnDeactivate={false}
+          allowTextCustomEmoji
+          onEmojiSelect={(key) => {
+            onReactionToggle?.(mEvent.getId() ?? '', key);
+            setEmojiBoardAnchor?.(undefined);
+            closeMenu();
+          }}
+          onCustomEmojiSelect={(mxc, shortcode) => {
+            onReactionToggle?.(mEvent.getId() ?? '', mxc, shortcode);
+            setEmojiBoardAnchor?.(undefined);
+            closeMenu();
+          }}
+          requestClose={() => {
+            setEmojiBoardAnchor?.(undefined);
+            closeMenu();
+          }}
+        />
+      }
+    ></PopOut>
+  );
+}
+
+export function OptionQuickMenu({
+  mEvent,
+  room,
+  closeMenu,
+  onReactionToggle,
+  relations,
+  onReplyClick,
+  onEditId,
+  hideReadReceipts,
+  showDeveloperTools,
+  canPinEvent,
+  cleanedDisplayName,
+  canDelete,
+  handleOpenMenu,
+  activeReplyId,
+  menuAnchor,
+  imagePackRooms,
+  setIsEmoji,
+}: OptionMenuProps) {
+  const mx = useMatrixClient();
+  const powerLevels = usePowerLevelsContext();
+  const creators = useRoomCreators(room);
+  const permissions = useRoomPermissions(creators, powerLevels);
+  const canSendReaction = permissions.event('m.reaction', mx.getSafeUserId());
+  const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
+
+  const [emojiBoardAnchor, setEmojiBoardAnchor] = useState<RectCords>();
+
+  const handleOpenEmojiBoard: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    const target = evt.currentTarget.parentElement?.parentElement ?? evt.currentTarget;
+    setEmojiBoardAnchor?.(target.getBoundingClientRect());
+    setIsEmoji?.(true);
+  };
+
+  return (
+    <Menu className={css.MessageOptionsBar} variant="SurfaceVariant">
+      <Box gap="100">
+        {canSendReaction && (
+          <>
+            <OptionsEmojiBoard
+              mEvent={mEvent}
+              onReactionToggle={onReactionToggle}
+              closeMenu={closeMenu}
+              setEmojiBoardAnchor={setEmojiBoardAnchor}
+              emojiBoardAnchor={emojiBoardAnchor}
+              imagePackRooms={imagePackRooms}
+              isQuickOptions
+            />
+            <IconButton
+              onClick={handleOpenEmojiBoard}
+              variant="SurfaceVariant"
+              size="300"
+              radii="300"
+              aria-pressed={!!emojiBoardAnchor}
+            >
+              {menuIcon(Smiley)}
+            </IconButton>
+          </>
+        )}
+        <IconButton
+          onClick={(ev) => {
+            onReplyClick(ev);
+            closeMenu();
+          }}
+          data-event-id={mEvent.getId()}
+          variant="SurfaceVariant"
+          size="300"
+          radii="300"
+        >
+          {menuIcon(ArrowBendUpLeftIcon)}
+        </IconButton>
+        {!isThreadedMessage && (
+          <IconButton
+            onClick={(ev) => {
+              if (activeReplyId === mEvent.getId()) {
+                ev.currentTarget.setAttribute('data-event-id', '');
+              }
+              onReplyClick(ev, true);
+              closeMenu();
+            }}
+            data-event-id={mEvent.getId()}
+            variant="SurfaceVariant"
+            size="300"
+            radii="300"
+          >
+            {menuIcon(ChatCircleDots)}
+          </IconButton>
+        )}
+        {canEditEvent(mx, mEvent) && onEditId && (
+          <IconButton
+            onClick={() => {
+              onEditId(mEvent.getId());
+              closeMenu();
+            }}
+            variant="SurfaceVariant"
+            size="300"
+            radii="300"
+          >
+            {menuIcon(PencilSimple)}
+          </IconButton>
+        )}
+        <PopOut
+          anchor={menuAnchor}
+          position="Bottom"
+          align={menuAnchor?.width === 0 ? 'Start' : 'End'}
+          offset={menuAnchor?.width === 0 ? 0 : undefined}
+          content={
+            <OptionMenu
+              mEvent={mEvent}
+              room={room}
+              closeMenu={closeMenu}
+              onReactionToggle={onReactionToggle}
+              relations={relations}
+              onReplyClick={onReplyClick}
+              onEditId={onEditId}
+              hideReadReceipts={hideReadReceipts}
+              showDeveloperTools={showDeveloperTools}
+              canPinEvent={canPinEvent}
+              cleanedDisplayName={cleanedDisplayName}
+              canDelete={canDelete}
+              setIsEmoji={setIsEmoji}
+              emojiBoardAnchor={menuAnchor}
+            />
+          }
+        >
+          <IconButton
+            variant="SurfaceVariant"
+            size="300"
+            radii="300"
+            onClick={handleOpenMenu}
+            aria-pressed={!!menuAnchor}
+          >
+            {menuIcon(DotsThreeOutlineVerticalIcon, {
+              weight: menuAnchor ? 'fill' : 'regular',
+            })}
+          </IconButton>
+        </PopOut>
+      </Box>
+    </Menu>
+  );
+}
+
 export type OptionMenuProps = {
   mEvent: MatrixEvent;
   room: Room;
@@ -130,6 +369,15 @@ export type OptionMenuProps = {
   canPinEvent?: boolean;
   cleanedDisplayName?: string;
   canDelete?: boolean;
+  handleOpenMenu?: MouseEventHandler<HTMLButtonElement>;
+  activeReplyId?: string | null;
+  menuAnchor?: RectCords | undefined;
+
+  setEmojiBoardAnchor?: Dispatch<SetStateAction<RectCords | undefined>>;
+  emojiBoardAnchor?: RectCords;
+  imagePackRooms?: Room[];
+  isEmoji?: boolean;
+  setIsEmoji?: Dispatch<SetStateAction<boolean>>;
 };
 
 export function OptionMenu({
@@ -137,7 +385,6 @@ export function OptionMenu({
   room,
   closeMenu,
   onReactionToggle,
-  handleAddReactions,
   relations,
   onReplyClick,
   onEditId,
@@ -146,6 +393,8 @@ export function OptionMenu({
   canPinEvent,
   cleanedDisplayName,
   canDelete,
+  imagePackRooms,
+  setIsEmoji,
 }: OptionMenuProps) {
   const setModal = useSetAtom(modalAtom);
   const mx = useMatrixClient();
@@ -173,226 +422,260 @@ export function OptionMenu({
     closeMenu();
   };
 
+  const [emojiBoardAnchor, setEmojiBoardAnchor] = useState<RectCords>();
+
+  const handleOpenEmojiBoard: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    const target = evt.currentTarget.parentElement?.parentElement?.getBoundingClientRect() ?? {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+    };
+    setEmojiBoardAnchor?.(target);
+    setIsEmoji?.(true);
+  };
+
   return (
-    <FocusTrap
-      focusTrapOptions={{
-        initialFocus: false,
-        onDeactivate: () => closeMenu(),
-        clickOutsideDeactivates: true,
-        isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-        isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-        escapeDeactivates: stopPropagation,
-      }}
-    >
-      <Menu onContextMenu={(e) => e.preventDefault()}>
-        {canSendReaction && onReactionToggle && handleAddReactions && (
-          <MessageQuickReactions
-            onReaction={(key, shortcode) => {
-              onReactionToggle(mEvent.getId()!, key, shortcode);
-              onTotalClose();
-            }}
-          />
-        )}
-        <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
-          {canSendReaction && onReactionToggle && handleAddReactions && (
-            <MenuItem size="300" after={menuIcon(Smiley)} radii="300" onClick={handleAddReactions}>
-              <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                Add Reaction
-              </Text>
-            </MenuItem>
+    <>
+      <OptionsEmojiBoard
+        mEvent={mEvent}
+        onReactionToggle={onReactionToggle}
+        closeMenu={onTotalClose}
+        setEmojiBoardAnchor={setEmojiBoardAnchor}
+        emojiBoardAnchor={emojiBoardAnchor}
+        imagePackRooms={imagePackRooms}
+      />
+
+      <FocusTrap
+        focusTrapOptions={{
+          initialFocus: false,
+          onDeactivate: () => onTotalClose(),
+          clickOutsideDeactivates: true,
+          isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
+          isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+          escapeDeactivates: stopPropagation,
+        }}
+      >
+        <Menu onContextMenu={(e) => e.preventDefault()}>
+          {canSendReaction && onReactionToggle && (
+            <MessageQuickReactions
+              onReaction={(key, shortcode) => {
+                onReactionToggle(mEvent.getId() ?? '', key, shortcode);
+                onTotalClose();
+              }}
+            />
           )}
-          {/* Only show "Add to User Sticker Pack" if the sticker isn't already in the default pack and isn't encrypted */}
-          {isStickerMessage &&
-            mEvent.getContent().url &&
-            !doesStickerExistInDefaultPack(mx, mEvent.getContent().url) && (
+          <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
+            {canSendReaction && onReactionToggle && handleOpenEmojiBoard && (
               <MenuItem
                 size="300"
-                after={menuIcon(Star)}
+                after={menuIcon(Smiley)}
                 radii="300"
-                onClick={() => {
-                  addStickerToDefaultPack(
-                    mx,
-                    `sticker-${mEvent.getId()}`,
-                    mEvent.getContent().url ?? mEvent.getContent().file?.url ?? '',
-                    mEvent.getContent().body,
-                    mEvent.getContent().info
-                  );
-                  onTotalClose();
-                }}
+                onClick={handleOpenEmojiBoard}
               >
                 <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                  Add to User Sticker Pack
+                  Add Reaction
                 </Text>
               </MenuItem>
             )}
-          {relations && <MessageAllReactionItem room={room} relations={relations} />}
-          <MenuItem
-            size="300"
-            after={menuIcon(ArrowBendUpLeftIcon)}
-            radii="300"
-            data-event-id={mEvent.getId()}
-            onClick={(evt) => {
-              onReplyClick(evt);
-              onTotalClose();
-            }}
-          >
-            <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-              Reply
-            </Text>
-          </MenuItem>
-          {!isThreadedMessage && (
+            {/* Only show "Add to User Sticker Pack" if the sticker isn't already in the default pack and isn't encrypted */}
+            {isStickerMessage &&
+              mEvent.getContent().url &&
+              !doesStickerExistInDefaultPack(mx, mEvent.getContent().url) && (
+                <MenuItem
+                  size="300"
+                  after={menuIcon(Star)}
+                  radii="300"
+                  onClick={() => {
+                    addStickerToDefaultPack(
+                      mx,
+                      `sticker-${mEvent.getId()}`,
+                      mEvent.getContent().url ?? mEvent.getContent().file?.url ?? '',
+                      mEvent.getContent().body,
+                      mEvent.getContent().info
+                    );
+                    onTotalClose();
+                  }}
+                >
+                  <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                    Add to User Sticker Pack
+                  </Text>
+                </MenuItem>
+              )}
+            {relations && <MessageAllReactionItem room={room} relations={relations} />}
             <MenuItem
               size="300"
-              after={menuIcon(ChatCircleDots)}
+              after={menuIcon(ArrowBendUpLeftIcon)}
               radii="300"
               data-event-id={mEvent.getId()}
               onClick={(evt) => {
-                onReplyClick(evt, true);
-                closeMenu();
-              }}
-            >
-              <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                Reply in Thread
-              </Text>
-            </MenuItem>
-          )}
-          {canEditEvent(mx, mEvent) && onEditId && (
-            <MenuItem
-              size="300"
-              after={menuIcon(PencilSimple)}
-              radii="300"
-              data-event-id={mEvent.getId()}
-              onClick={() => {
-                onEditId(mEvent.getId());
+                onReplyClick(evt);
                 onTotalClose();
               }}
             >
               <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                Edit Message
+                Reply
               </Text>
             </MenuItem>
-          )}
-          {!hideReadReceipts && (
-            <MessageReadReceiptItem room={room} eventId={mEvent.getId() ?? ''} />
-          )}
-          {isEdited && <MessageEditHistoryItem room={room} mEvent={mEvent} closeMenu={closeMenu} />}
-          {showDeveloperTools && <MessageSourceCodeItem room={room} mEvent={mEvent} />}
-          <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={onTotalClose} />
-          <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
-          {canPinEvent && <MessagePinItem room={room} mEvent={mEvent} onClose={onTotalClose} />}
-          {cleanedDisplayName &&
-            senderId !== mx.getUserId() &&
-            (nickEditOpen ? (
-              <Box
-                direction="Column"
-                gap="100"
-                style={{
-                  padding: `${config.space.S100} ${config.space.S200}`,
+            {!isThreadedMessage && (
+              <MenuItem
+                size="300"
+                after={menuIcon(ChatCircleDots)}
+                radii="300"
+                data-event-id={mEvent.getId()}
+                onClick={(evt) => {
+                  onReplyClick(evt, true);
+                  closeMenu();
                 }}
               >
-                <Text size="L400">Nickname</Text>
-                <input
-                  autoFocus
-                  value={nickDraft}
-                  onChange={(e) => setNickDraft(e.target.value)}
-                  placeholder={cleanedDisplayName}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setNickname(senderId, nickDraft || undefined, mx);
-                      closeMenu();
-                    }
-                    if (e.key === 'Escape') closeMenu();
-                  }}
-                  style={{
-                    background: 'var(--mx-c-surface)',
-                    color: 'var(--mx-c-on-surface)',
-                    border: '1px solid var(--mx-c-outline)',
-                    borderRadius: '6px',
-                    padding: '4px 8px',
-                    fontSize: '14px',
-                    width: '100%',
-                    outline: 'none',
-                  }}
-                />
-                <Box gap="200">
-                  <MenuItem
-                    size="300"
-                    radii="300"
-                    variant="Success"
-                    fill="None"
-                    onClick={() => {
-                      setNickname(senderId, nickDraft || undefined, mx);
-                      closeMenu();
-                    }}
-                  >
-                    <Text size="B300">Save</Text>
-                  </MenuItem>
-                  {nicknames[senderId] && (
-                    <MenuItem
-                      size="300"
-                      radii="300"
-                      variant="Critical"
-                      fill="None"
-                      onClick={() => {
-                        setNickname(senderId, undefined, mx);
-                        onTotalClose();
-                      }}
-                    >
-                      <Text size="B300">Clear</Text>
-                    </MenuItem>
-                  )}
-                </Box>
-              </Box>
-            ) : (
+                <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                  Reply in Thread
+                </Text>
+              </MenuItem>
+            )}
+            {canEditEvent(mx, mEvent) && onEditId && (
               <MenuItem
                 size="300"
                 after={menuIcon(PencilSimple)}
                 radii="300"
+                data-event-id={mEvent.getId()}
                 onClick={() => {
-                  setNickDraft(nicknames[senderId] ?? '');
-                  setNickEditOpen(true);
+                  onEditId(mEvent.getId());
+                  onTotalClose();
                 }}
               >
                 <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                  {nicknames[senderId] ? 'Edit Nickname' : 'Set Nickname'}
+                  Edit Message
                 </Text>
               </MenuItem>
-            ))}
-        </Box>
-        {((!mEvent.isRedacted() && canDelete) || mEvent.getSender() !== mx.getUserId()) && (
-          <>
-            <Line size="300" />
-            <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
-              {!mEvent.isRedacted() && canDelete && (
-                <MessageDeleteItem room={room} mEvent={mEvent} />
-              )}
-              {mEvent.getSender() !== mx.getUserId() && (
-                <MessageReportItem room={room} mEvent={mEvent} />
-              )}
-            </Box>
-          </>
-        )}
-      </Menu>
-    </FocusTrap>
+            )}
+            {!hideReadReceipts && (
+              <MessageReadReceiptItem room={room} eventId={mEvent.getId() ?? ''} />
+            )}
+            {isEdited && (
+              <MessageEditHistoryItem room={room} mEvent={mEvent} closeMenu={closeMenu} />
+            )}
+            {showDeveloperTools && <MessageSourceCodeItem room={room} mEvent={mEvent} />}
+            <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={onTotalClose} />
+            {canForwardEvent(mEvent) && (
+              <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
+            )}
+            {canPinEvent && <MessagePinItem room={room} mEvent={mEvent} onClose={onTotalClose} />}
+            {cleanedDisplayName &&
+              senderId !== mx.getUserId() &&
+              (nickEditOpen ? (
+                <Box
+                  direction="Column"
+                  gap="100"
+                  style={{
+                    padding: `${config.space.S100} ${config.space.S200}`,
+                  }}
+                >
+                  <Text size="L400">Nickname</Text>
+                  <input
+                    autoFocus
+                    value={nickDraft}
+                    onChange={(e) => setNickDraft(e.target.value)}
+                    placeholder={cleanedDisplayName}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setNickname(senderId, nickDraft || undefined, mx);
+                        closeMenu();
+                      }
+                      if (e.key === 'Escape') closeMenu();
+                    }}
+                    style={{
+                      background: 'var(--mx-c-surface)',
+                      color: 'var(--mx-c-on-surface)',
+                      border: '1px solid var(--mx-c-outline)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontSize: '14px',
+                      width: '100%',
+                      outline: 'none',
+                    }}
+                  />
+                  <Box gap="200">
+                    <MenuItem
+                      size="300"
+                      radii="300"
+                      variant="Success"
+                      fill="None"
+                      onClick={() => {
+                        setNickname(senderId, nickDraft || undefined, mx);
+                        closeMenu();
+                      }}
+                    >
+                      <Text size="B300">Save</Text>
+                    </MenuItem>
+                    {nicknames[senderId] && (
+                      <MenuItem
+                        size="300"
+                        radii="300"
+                        variant="Critical"
+                        fill="None"
+                        onClick={() => {
+                          setNickname(senderId, undefined, mx);
+                          onTotalClose();
+                        }}
+                      >
+                        <Text size="B300">Clear</Text>
+                      </MenuItem>
+                    )}
+                  </Box>
+                </Box>
+              ) : (
+                <MenuItem
+                  size="300"
+                  after={menuIcon(PencilSimple)}
+                  radii="300"
+                  onClick={() => {
+                    setNickDraft(nicknames[senderId] ?? '');
+                    setNickEditOpen(true);
+                  }}
+                >
+                  <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                    {nicknames[senderId] ? 'Edit Nickname' : 'Set Nickname'}
+                  </Text>
+                </MenuItem>
+              ))}
+          </Box>
+          {((!mEvent.isRedacted() && canDelete) || mEvent.getSender() !== mx.getUserId()) && (
+            <>
+              <Line size="300" />
+              <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
+                {!mEvent.isRedacted() && canDelete && (
+                  <MessageDeleteItem room={room} mEvent={mEvent} />
+                )}
+                {mEvent.getSender() !== mx.getUserId() && (
+                  <MessageReportItem room={room} mEvent={mEvent} />
+                )}
+              </Box>
+            </>
+          )}
+        </Menu>
+      </FocusTrap>
+    </>
   );
 }
 
 export function MobileOptionsInternal({ options }: { options: OptionMenuProps }) {
   return (
     <OptionMenu
-      mEvent={options.mEvent}
-      room={options.room}
-      closeMenu={options.closeMenu}
-      onReactionToggle={options.onReactionToggle}
-      handleAddReactions={options.handleAddReactions}
-      relations={options.relations}
-      onReplyClick={options.onReplyClick}
-      onEditId={options.onEditId}
-      hideReadReceipts={options.hideReadReceipts}
-      showDeveloperTools={options.showDeveloperTools}
-      canPinEvent={options.canPinEvent}
-      cleanedDisplayName={options.cleanedDisplayName}
-      canDelete={options.canDelete}
+              mEvent={options.mEvent}
+              room={options.room}
+              closeMenu={options.closeMenu}
+              onReactionToggle={options.onReactionToggle}
+              relations={options.relations}
+              onReplyClick={options.onReplyClick}
+              onEditId={options.onEditId}
+              hideReadReceipts={options.hideReadReceipts}
+              showDeveloperTools={options.showDeveloperTools}
+              canPinEvent={options.canPinEvent}
+              cleanedDisplayName={options.cleanedDisplayName}
+              canDelete={options.canDelete}
+              setIsEmoji={options.setIsEmoji}
+              emojiBoardAnchor={options.menuAnchor}
     />
   );
 }

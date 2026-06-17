@@ -15,13 +15,15 @@ import { MobileOptionsInternal } from './Options';
 export function GlobalModalManager() {
   const [modal, setModal] = useAtom(modalAtom);
 
-  const close = () => setModal(null);
-
-  if (modal?.type === ModalType.Forward) {
-    return <MessageForwardInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />;
-  }
+  const close = () => {
+    setModal(null);
+  };
 
   if (!modal) return null;
+
+  if (modal.type === ModalType.Forward) {
+    return <MessageForwardInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />;
+  }
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>

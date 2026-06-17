@@ -1,10 +1,10 @@
+// oxlint-disable no-console
 import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
   Chip,
   IconButton,
-  Line,
   Menu,
   PopOut,
   Text,
@@ -32,18 +32,11 @@ import {
   Username,
   UsernameBold,
 } from '$components/message';
-import {
-  canEditEvent,
-  getEditedEvent,
-  getMemberAvatarMxc,
-  isThreadRelationEvent,
-} from '$utils/room';
+import { getEditedEvent, getMemberAvatarMxc } from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useRecentEmoji } from '$hooks/useRecentEmoji';
-import { EmojiBoard } from '$components/emoji-board';
 import { UserAvatar } from '$components/user-avatar';
 import { getMatrixToRoomEvent } from '$plugins/matrix-to';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -52,12 +45,9 @@ import type { MemberPowerTag } from '$types/matrix/room';
 import { PowerIcon } from '$components/power';
 import {
   ArrowBendUpLeftIcon,
-  ChatCircleDots,
   DotsThreeOutlineVerticalIcon,
   Info,
   menuIcon,
-  PencilSimple,
-  Smiley,
   userFallbackIcon,
 } from '$components/icons/phosphor';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
@@ -75,50 +65,11 @@ import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageP
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
 import { modalAtom, ModalType } from '$state/modal';
-import { OptionMenu } from '$components/message/modals/Options';
+import { OptionMenu, OptionQuickMenu } from '$components/message/modals/Options';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
 const MemoizedBody = memo(({ children }: { children: ReactNode }) => children);
-type MessageQuickReactionsProps = {
-  onReaction: ReactionHandler;
-};
-export const MessageQuickReactions = as<'div', MessageQuickReactionsProps>(
-  ({ onReaction, ...props }, ref) => {
-    const mx = useMatrixClient();
-    const recentEmojis = useRecentEmoji(mx, 4);
-
-    if (recentEmojis.length === 0) return <span />;
-    return (
-      <>
-        <Box
-          style={{ padding: config.space.S200 }}
-          alignItems="Center"
-          justifyContent="Center"
-          gap="200"
-          {...props}
-          ref={ref}
-        >
-          {recentEmojis.map((emoji) => (
-            <IconButton
-              key={emoji.unicode}
-              className={css.MessageQuickReaction}
-              size="300"
-              variant="SurfaceVariant"
-              radii="Pill"
-              title={emoji.shortcode}
-              aria-label={emoji.shortcode}
-              onClick={() => onReaction(emoji.unicode, emoji.shortcode)}
-            >
-              <Text size="T500">{emoji.unicode}</Text>
-            </IconButton>
-          ))}
-        </Box>
-        <Line size="300" />
-      </>
-    );
-  }
-);
 
 export type ForwardedMessageProps = {
   originalTimestamp: number;
@@ -370,6 +321,8 @@ function MessageInternal(
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
+  const [isEmoji, setIsEmoji] = useState(false);
+
   const setModal = useSetAtom(modalAtom);
   const [contentVersion, setContentVersion] = useState(0);
 
@@ -474,13 +427,12 @@ function MessageInternal(
   });
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-  const [emojiBoardAnchor, setEmojiBoardAnchor] = useState<RectCords>();
 
   const tagIconSrc = memberPowerTag?.icon
     ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
     : undefined;
 
-  const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
+  const [isMobileHover, setIsMobileHoverOpen] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
 
   const [showPronouns] = useSetting(settingsAtom, 'showPronouns');
@@ -510,15 +462,15 @@ function MessageInternal(
   }, [pronouns, inlinePronoun]);
 
   useEffect(() => {
-    if (!mobileOptionsOpen) return undefined;
+    if (!isMobileHover) return undefined;
     const handleClickOutside = (e: globalThis.Event) => {
       if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
-        setMobileOptionsOpen(false);
+        setIsMobileHoverOpen(false);
       }
     };
     document.addEventListener('pointerdown', handleClickOutside, { capture: true });
     return () => document.removeEventListener('pointerdown', handleClickOutside, { capture: true });
-  }, [mobileOptionsOpen]);
+  }, [isMobileHover]);
 
   const headerJSX = !collapse && (
     <Box
@@ -794,7 +746,7 @@ function MessageInternal(
     if (evt.altKey || !window.getSelection()?.isCollapsed || edit) return;
     const tag = (evt.target as HTMLElement).tagName;
     if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
-    if (mobileOrTablet()) {
+    if (true) {
       evt.preventDefault();
       setModal({
         type: ModalType.MobileOptions,
@@ -803,7 +755,6 @@ function MessageInternal(
           room: room,
           closeMenu: closeMenu,
           onReactionToggle: onReactionToggle,
-          handleAddReactions: handleAddReactions,
           relations: relations,
           onReplyClick: onReplyClick,
           onEditId: onEditId,
@@ -812,6 +763,7 @@ function MessageInternal(
           canPinEvent: canPinEvent,
           cleanedDisplayName: cleanedDisplayName,
           canDelete: canDelete,
+          setIsEmoji: setIsEmoji,
         },
       });
       return;
@@ -837,22 +789,10 @@ function MessageInternal(
 
   const closeMenu = () => {
     setMenuAnchor(undefined);
-    setMobileOptionsOpen(false);
+    setIsMobileHoverOpen(false);
+    setIsDesktopHover(false);
+    setIsEmoji(false);
   };
-
-  const handleOpenEmojiBoard: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    const target = evt.currentTarget.parentElement?.parentElement ?? evt.currentTarget;
-    setEmojiBoardAnchor(target.getBoundingClientRect());
-  };
-
-  const handleAddReactions = useCallback(() => {
-    const rect = menuAnchor;
-    closeMenu();
-    setTimeout(() => {
-      setEmojiBoardAnchor(rect);
-    }, 100);
-    return;
-  }, [menuAnchor]);
 
   const handleSwipeReply = () => {
     const currentId = mEvent.getId();
@@ -867,10 +807,9 @@ function MessageInternal(
   };
 
   const onDoubleTap = useMobileDoubleTap(() => {
-    setMobileOptionsOpen(true);
+    setIsMobileHoverOpen(true);
   });
 
-  const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
   return (
     <MessageBase
       className={classNames(css.MessageBase, className, {
@@ -881,7 +820,7 @@ function MessageInternal(
       collapse={collapse}
       highlight={highlight}
       notifyHighlight={highlightMentions ? notifyHighlight : undefined}
-      selected={!!menuAnchor || !!emojiBoardAnchor}
+      selected={!!menuAnchor || isEmoji}
       isMarked={isMarked}
       mobile={mobileOrTablet()}
       {...props}
@@ -889,127 +828,29 @@ function MessageInternal(
       {...focusWithinProps}
       ref={ref}
     >
-      {!edit && !mobileOptionsOpen && (isDesktopHover || !!menuAnchor || !!emojiBoardAnchor) && (
+      {!edit && (isDesktopHover || !!menuAnchor || isEmoji || isMobileHover) && (
         <div className={css.MessageOptionsBase} ref={optionsRef}>
-          <Menu className={css.MessageOptionsBar} variant="SurfaceVariant">
-            <Box gap="100">
-              {canSendReaction && (
-                <PopOut
-                  position="Bottom"
-                  align={emojiBoardAnchor?.width === 0 ? 'Start' : 'End'}
-                  offset={emojiBoardAnchor?.width === 0 ? 0 : undefined}
-                  anchor={emojiBoardAnchor}
-                  content={
-                    <EmojiBoard
-                      imagePackRooms={imagePackRooms ?? []}
-                      returnFocusOnDeactivate={false}
-                      allowTextCustomEmoji
-                      onEmojiSelect={(key) => {
-                        onReactionToggle(mEvent.getId() ?? '', key);
-                        setEmojiBoardAnchor(undefined);
-                        setMobileOptionsOpen(false);
-                      }}
-                      onCustomEmojiSelect={(mxc, shortcode) => {
-                        onReactionToggle(mEvent.getId() ?? '', mxc, shortcode);
-                        setEmojiBoardAnchor(undefined);
-                        setMobileOptionsOpen(false);
-                      }}
-                      requestClose={() => {
-                        setEmojiBoardAnchor(undefined);
-                      }}
-                    />
-                  }
-                >
-                  <IconButton
-                    onClick={handleOpenEmojiBoard}
-                    variant="SurfaceVariant"
-                    size="300"
-                    radii="300"
-                    aria-pressed={!!emojiBoardAnchor}
-                  >
-                    {menuIcon(Smiley)}
-                  </IconButton>
-                </PopOut>
-              )}
-              <IconButton
-                onClick={(ev) => {
-                  onReplyClick(ev);
-                  setMobileOptionsOpen(false);
-                }}
-                data-event-id={mEvent.getId()}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-              >
-                {menuIcon(ArrowBendUpLeftIcon)}
-              </IconButton>
-              {!isThreadedMessage && (
-                <IconButton
-                  onClick={(ev) => {
-                    if (activeReplyId === mEvent.getId()) {
-                      ev.currentTarget.setAttribute('data-event-id', '');
-                    }
-                    onReplyClick(ev, true);
-                    setMobileOptionsOpen(false);
-                  }}
-                  data-event-id={mEvent.getId()}
-                  variant="SurfaceVariant"
-                  size="300"
-                  radii="300"
-                >
-                  {menuIcon(ChatCircleDots)}
-                </IconButton>
-              )}
-              {canEditEvent(mx, mEvent) && onEditId && (
-                <IconButton
-                  onClick={() => {
-                    onEditId(mEvent.getId());
-                    setMobileOptionsOpen(false);
-                  }}
-                  variant="SurfaceVariant"
-                  size="300"
-                  radii="300"
-                >
-                  {menuIcon(PencilSimple)}
-                </IconButton>
-              )}
-              <PopOut
-                anchor={menuAnchor}
-                position="Bottom"
-                align={menuAnchor?.width === 0 ? 'Start' : 'End'}
-                offset={menuAnchor?.width === 0 ? 0 : undefined}
-                content={
-                  <OptionMenu
-                    mEvent={mEvent}
-                    room={room}
-                    closeMenu={closeMenu}
-                    onReactionToggle={onReactionToggle}
-                    handleAddReactions={handleAddReactions}
-                    relations={relations}
-                    onReplyClick={onReplyClick}
-                    onEditId={onEditId}
-                    hideReadReceipts={hideReadReceipts}
-                    showDeveloperTools={showDeveloperTools}
-                    canPinEvent={canPinEvent}
-                    cleanedDisplayName={cleanedDisplayName}
-                    canDelete={canDelete}
-                  />
-                }
-              >
-                <IconButton
-                  variant="SurfaceVariant"
-                  size="300"
-                  radii="300"
-                  onClick={handleOpenMenu}
-                  aria-pressed={!!menuAnchor}
-                >
-                  {menuIcon(DotsThreeOutlineVerticalIcon, {
-                    weight: menuAnchor ? 'fill' : 'regular',
-                  })}
-                </IconButton>
-              </PopOut>
-            </Box>
-          </Menu>
+          {/*<b>{`${isDesktopHover? 'isDesktopHover ' : ''}${menuAnchor? 'menuAnchor ' : ''}${isEmoji? 'isEmoji ' : ''}${isMobileHover? 'isMobileHover ' : ''}`}</b>*/}
+          <OptionQuickMenu
+            mEvent={mEvent}
+            room={room}
+            closeMenu={closeMenu}
+            onReactionToggle={onReactionToggle}
+            relations={relations}
+            onReplyClick={onReplyClick}
+            onEditId={onEditId}
+            hideReadReceipts={hideReadReceipts}
+            showDeveloperTools={showDeveloperTools}
+            canPinEvent={canPinEvent}
+            cleanedDisplayName={cleanedDisplayName}
+            canDelete={canDelete}
+            handleOpenMenu={handleOpenMenu}
+            activeReplyId={activeReplyId}
+            menuAnchor={menuAnchor}
+            imagePackRooms={imagePackRooms}
+            isEmoji={isEmoji}
+            setIsEmoji={setIsEmoji}
+          />
         </div>
       )}
       {messageLayout === MessageLayout.Compact && (

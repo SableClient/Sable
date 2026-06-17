@@ -2,4 +2,4 @@
 default: patch
 ---
 
-Require a recent live foreground heartbeat before the service worker suppresses OS push notifications, so stale Safari or PWA pages cannot incorrectly silence background push delivery.
+Revert the fork-specific foreground suppression and startup reconciliation changes so push registration, page visibility, and service-worker notification handling follow the upstream model again.

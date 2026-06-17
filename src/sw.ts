@@ -8,16 +8,18 @@ import { createPushNotifications } from './sw/pushNotification';
 import {
   buildDeclarativeNotificationOptions,
   getEncryptedMinimalPushFocusDecision,
-  isForegroundSuppressionExemptPushPayload,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
-  shouldSuppressOsPushForForegroundState,
 } from './sw/pushRouting';
 import { readPersistedSession } from './sw-session-persistence';
 
 declare const self: ServiceWorkerGlobalScope;
 
 let notificationSoundEnabled = true;
+// Tracks whether a page client has reported itself as visible.
+// The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
+// so we use this explicit flag as a fallback.
+let appIsVisible = false;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -49,8 +51,6 @@ const SW_MEDIA_CACHE = 'sable-media-sw-v2';
 
 type PushTelemetryEvent =
   | 'received'
-  | 'confirmed_visible'
-  | 'suppressed_visible'
   | 'claim_clients'
   | 'stale_focus_ignored'
   | 'shown_os'
@@ -176,8 +176,6 @@ let preloadedSession: SessionInfo | undefined;
 
 const clientToSessionWaiters = new Map<string, Set<(value: SessionInfo | undefined) => void>>();
 const clientWithPendingSessionRequest = new Set<string>();
-const clientForegroundHeartbeatAt = new Map<string, number>();
-const FOREGROUND_HEARTBEAT_MAX_AGE_MS = 20_000;
 
 async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
@@ -188,7 +186,6 @@ async function cleanupDeadClients() {
       sessions.delete(id);
       clientToSessionWaiters.delete(id);
       clientWithPendingSessionRequest.delete(id);
-      clientForegroundHeartbeatAt.delete(id);
     }
   });
 }
@@ -568,22 +565,6 @@ type DecryptionResult = {
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
-
-type ForegroundStateResult = {
-  requestId: string;
-  visibilityState?: string;
-  focused?: boolean;
-  clientId?: string;
-};
-
-type ForegroundStatePending = {
-  expectedResponseCount: number;
-  responseCount: number;
-  lastResult?: ForegroundStateResult;
-  resolve: (result: ForegroundStateResult | undefined) => void;
-};
-
-const foregroundStatePendingMap = new Map<string, ForegroundStatePending>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
 
 const sleep = (ms: number): Promise<void> =>
@@ -822,90 +803,6 @@ async function requestDecryptionFromClient(
   return result;
 }
 
-async function requestForegroundStateFromClients(
-  windowClients: readonly Client[],
-  timeoutMs = 700
-): Promise<ForegroundStateResult | undefined> {
-  if (windowClients.length === 0) return undefined;
-
-  const requestId = createRecordId('foreground');
-
-  const response = new Promise<ForegroundStateResult | undefined>((resolve) => {
-    foregroundStatePendingMap.set(requestId, {
-      expectedResponseCount: 0,
-      responseCount: 0,
-      resolve,
-    });
-  });
-
-  let posted = false;
-  let postedCount = 0;
-  windowClients.forEach((client) => {
-    try {
-      client.postMessage({
-        type: 'getForegroundState',
-        requestId,
-      });
-      posted = true;
-      postedCount += 1;
-    } catch (err) {
-      console.warn('[SW push] foreground state postMessage error', err);
-    }
-  });
-
-  if (!posted) {
-    foregroundStatePendingMap.delete(requestId);
-    return undefined;
-  }
-
-  const pending = foregroundStatePendingMap.get(requestId);
-  if (pending) pending.expectedResponseCount = postedCount;
-
-  const result = await Promise.race([response, sleep(timeoutMs).then(() => undefined)]);
-  foregroundStatePendingMap.delete(requestId);
-  return result;
-}
-
-async function recordForegroundPushSuppression(
-  payloadType: string,
-  foregroundState: ForegroundStateResult,
-  focusedClientCount: number,
-  browserVisibleClientCount: number,
-  extraData: Record<string, string | number | boolean> = {}
-): Promise<void> {
-  await recordPushTelemetry('confirmed_visible', {
-    payload_type: payloadType,
-    focused: foregroundState.focused === true,
-    ...extraData,
-  });
-  await recordPushTelemetry('suppressed_visible', {
-    payload_type: payloadType,
-    focused_client_count: focusedClientCount,
-    browser_visible_client_count: browserVisibleClientCount,
-    foreground_focused: foregroundState.focused === true,
-    ...extraData,
-  });
-  postSentryMetric('sable.push.suppressed_visible', 1, {
-    payload_type: payloadType,
-    focused_client_count: focusedClientCount,
-    browser_visible_client_count: browserVisibleClientCount,
-    foreground_focused: foregroundState.focused === true,
-    ...extraData,
-  }).catch(() => undefined);
-  await postSentryBreadcrumb(
-    'notification.push',
-    'Suppressed OS push notification for foreground client',
-    'info',
-    {
-      payloadType,
-      focusedClientCount,
-      browserVisibleClientCount,
-      foregroundFocused: foregroundState.focused === true,
-      ...extraData,
-    }
-  );
-}
-
 /**
  * Handle a minimal push payload (event_id_only format).
  * Fetches the event from the homeserver and shows a notification.
@@ -914,8 +811,7 @@ async function recordForegroundPushSuppression(
 async function handleMinimalPushPayload(
   roomId: string,
   eventId: string,
-  windowClients: readonly Client[],
-  foregroundState: ForegroundStateResult | undefined
+  windowClients: readonly Client[]
 ): Promise<void> {
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
@@ -981,21 +877,6 @@ async function handleMinimalPushPayload(
   }
 
   const eventType = rawEvent.type as string | undefined;
-  if (
-    foregroundState &&
-    shouldSuppressOsPushForForegroundState(foregroundState) &&
-    !isForegroundSuppressionExemptPushPayload(rawEvent)
-  ) {
-    await recordForegroundPushSuppression(
-      'minimal',
-      foregroundState,
-      focusedWindowClientCount(windowClients),
-      visibleWindowClientCount(windowClients),
-      { event_type: eventType ?? 'unknown' }
-    );
-    return;
-  }
-
   const sender = rawEvent.sender as string | undefined;
   // Fetch sender's member state — gives us both display name and avatar URL.
   const memberInfo = sender
@@ -1202,6 +1083,11 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     );
     event.waitUntil(cleanupDeadClients());
   }
+  if (type === 'setAppVisible') {
+    if (typeof (data as { visible?: unknown }).visible === 'boolean') {
+      appIsVisible = (data as { visible: boolean }).visible;
+    }
+  }
   if (type === 'CLAIM_CLIENTS') {
     // Sent by the page on pageshow[persisted] or visibilitychange→visible when it
     // detects that its SW controller is stale (e.g. after iOS killed and restarted
@@ -1229,9 +1115,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       })()
     );
   }
-  if (type === 'foregroundHeartbeat') {
-    clientForegroundHeartbeatAt.set(client.id, Date.now());
-  }
   if (type === 'pushDecryptResult') {
     // Resolve a pending decryption request from handleMinimalPushPayload
     const { eventId } = data as { eventId?: string };
@@ -1240,43 +1123,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       if (resolve) {
         decryptionPendingMap.delete(eventId);
         resolve(data as DecryptionResult);
-      }
-    }
-  }
-  if (type === 'foregroundStateResult') {
-    const { requestId, visibilityState, focused } = data as {
-      requestId?: unknown;
-      visibilityState?: unknown;
-      focused?: unknown;
-    };
-    if (typeof requestId === 'string') {
-      const pending = foregroundStatePendingMap.get(requestId);
-      const normalizedVisibilityState =
-        typeof visibilityState === 'string' ? visibilityState : undefined;
-      if (pending) {
-        const result = {
-          requestId,
-          visibilityState: normalizedVisibilityState,
-          focused: focused === true,
-          clientId: client.id,
-        };
-        const lastForegroundHeartbeat = clientForegroundHeartbeatAt.get(client.id);
-        const hasRecentForegroundHeartbeat =
-          typeof lastForegroundHeartbeat === 'number' &&
-          Date.now() - lastForegroundHeartbeat <= FOREGROUND_HEARTBEAT_MAX_AGE_MS;
-
-        if (shouldSuppressOsPushForForegroundState(result) && hasRecentForegroundHeartbeat) {
-          foregroundStatePendingMap.delete(requestId);
-          pending.resolve(result);
-          return;
-        }
-
-        pending.responseCount += 1;
-        pending.lastResult = result;
-        if (pending.responseCount >= pending.expectedResponseCount) {
-          foregroundStatePendingMap.delete(requestId);
-          pending.resolve(pending.lastResult);
-        }
       }
     }
   }
@@ -1781,9 +1627,12 @@ const onPushNotification = async (event: PushEvent) => {
 
   const focusedClientCount = focusedWindowClientCount(clients);
   const browserVisibleClientCount = visibleWindowClientCount(clients);
+  const hasVisibleClient = appIsVisible || browserVisibleClientCount > 0;
 
   console.debug(
-    '[SW push] focusedClientCount:',
+    '[SW push] appIsVisible:',
+    appIsVisible,
+    '| focusedClientCount:',
     focusedClientCount,
     '| browserVisibleClientCount:',
     browserVisibleClientCount,
@@ -1794,6 +1643,12 @@ const onPushNotification = async (event: PushEvent) => {
       focused: c.focused,
     }))
   );
+  console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
+
+  if (hasVisibleClient) {
+    console.debug('[SW push] suppressing OS notification — app is visible');
+    return;
+  }
 
   const pushData = event.data.json();
   const payloadType = pushTelemetryPayloadType(pushData);
@@ -1861,22 +1716,6 @@ const onPushNotification = async (event: PushEvent) => {
     // Badging API absent (Firefox/Gecko) — continue to show the notification.
   }
 
-  const foregroundState = await requestForegroundStateFromClients(clients);
-  if (
-    foregroundState &&
-    shouldSuppressOsPushForForegroundState(foregroundState) &&
-    !isMinimalPushPayload(pushData) &&
-    !isForegroundSuppressionExemptPushPayload(pushData)
-  ) {
-    await recordForegroundPushSuppression(
-      payloadType,
-      foregroundState,
-      focusedClientCount,
-      browserVisibleClientCount
-    );
-    return;
-  }
-
   if (isDeclarativeWebPushPayload(pushData)) {
     const { title, options } = buildDeclarativeNotificationOptions(pushData);
     await self.registration.showNotification(title, options);
@@ -1888,7 +1727,7 @@ const onPushNotification = async (event: PushEvent) => {
   // to relay decryption to an open app tab.
   if (isMinimalPushPayload(pushData)) {
     console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
-    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients, foregroundState);
+    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
     return;
   }
 

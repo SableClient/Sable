@@ -174,8 +174,8 @@ const sessions = new Map<string, SessionInfo>();
  */
 let preloadedSession: SessionInfo | undefined;
 
-const clientToResolve = new Map<string, (value: SessionInfo | undefined) => void>();
-const clientToSessionPromise = new Map<string, Promise<SessionInfo | undefined>>();
+const clientToSessionWaiters = new Map<string, Set<(value: SessionInfo | undefined) => void>>();
+const clientWithPendingSessionRequest = new Set<string>();
 
 async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
@@ -184,8 +184,8 @@ async function cleanupDeadClients() {
   Array.from(sessions.keys()).forEach((id) => {
     if (!activeIds.has(id)) {
       sessions.delete(id);
-      clientToResolve.delete(id);
-      clientToSessionPromise.delete(id);
+      clientToSessionWaiters.delete(id);
+      clientWithPendingSessionRequest.delete(id);
     }
   });
 }
@@ -225,32 +225,61 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   }
 
-  const resolveSession = clientToResolve.get(clientId);
-  if (resolveSession) {
-    resolveSession(sessions.get(clientId));
-    clientToResolve.delete(clientId);
-    clientToSessionPromise.delete(clientId);
+  const resolveSessionWaiters = clientToSessionWaiters.get(clientId);
+  if (resolveSessionWaiters) {
+    const session = sessions.get(clientId);
+    resolveSessionWaiters.forEach((resolveSession) => resolveSession(session));
+    clientToSessionWaiters.delete(clientId);
+    clientWithPendingSessionRequest.delete(clientId);
   }
 }
 
-function requestSession(client: Client): Promise<SessionInfo | undefined> {
-  const promise =
-    clientToSessionPromise.get(client.id) ??
-    new Promise<SessionInfo | undefined>((resolve) => {
-      clientToResolve.set(client.id, resolve);
+function requestSession(client: Client): {
+  promise: Promise<SessionInfo | undefined>;
+  cancel: () => void;
+} {
+  let active = true;
+  let resolveWaiter: ((value: SessionInfo | undefined) => void) | undefined;
+
+  const promise = new Promise<SessionInfo | undefined>((resolve) => {
+    resolveWaiter = (value) => {
+      if (!active) return;
+      active = false;
+      resolve(value);
+    };
+
+    const waiters = clientToSessionWaiters.get(client.id) ?? new Set();
+    waiters.add(resolveWaiter);
+    clientToSessionWaiters.set(client.id, waiters);
+
+    if (!clientWithPendingSessionRequest.has(client.id)) {
+      clientWithPendingSessionRequest.add(client.id);
       client.postMessage({ type: 'requestSession' });
-    });
+    }
+  });
 
-  if (!clientToSessionPromise.has(client.id)) {
-    clientToSessionPromise.set(client.id, promise);
-  }
+  return {
+    promise,
+    cancel: () => {
+      if (!active || !resolveWaiter) return;
+      active = false;
 
-  return promise;
+      const waiters = clientToSessionWaiters.get(client.id);
+      if (!waiters) return;
+
+      waiters.delete(resolveWaiter);
+      if (waiters.size === 0) {
+        clientToSessionWaiters.delete(client.id);
+        clientWithPendingSessionRequest.delete(client.id);
+      }
+    },
+  };
 }
 
 async function requestSessionWithTimeout(
   clientId: string,
-  timeoutMs = 3000
+  timeoutMs = 3000,
+  options?: { logTimeout?: boolean }
 ): Promise<SessionInfo | undefined> {
   const client = await self.clients.get(clientId);
   if (!client) {
@@ -258,22 +287,26 @@ async function requestSessionWithTimeout(
     return undefined;
   }
 
-  const sessionPromise = requestSession(client);
+  const { promise: sessionPromise, cancel: cancelSessionRequest } = requestSession(client);
+  const { logTimeout = true } = options ?? {};
 
   const timeout = new Promise<undefined>((resolve) => {
     setTimeout(() => {
       console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
-      postSentryBreadcrumb(
-        'service_worker.session',
-        'Session request to client timed out',
-        'warning',
-        {
-          timeoutMs,
-        }
-      ).catch(() => undefined);
-      postSentryMetric('sable.sw.session_request_timeout', 1, {
-        timeout_ms: timeoutMs,
-      }).catch(() => undefined);
+      cancelSessionRequest();
+      if (logTimeout) {
+        postSentryBreadcrumb(
+          'service_worker.session',
+          'Session request to client timed out',
+          'warning',
+          {
+            timeoutMs,
+          }
+        ).catch(() => undefined);
+        postSentryMetric('sable.sw.session_request_timeout', 1, {
+          timeout_ms: timeoutMs,
+        }).catch(() => undefined);
+      }
       resolve(undefined);
     }, timeoutMs);
   });
@@ -1359,6 +1392,52 @@ async function validateSession(session: SessionInfo): Promise<SessionInfo | unde
   }
 }
 
+async function getValidatedPersistedSession(url: string): Promise<SessionInfo | undefined> {
+  const persisted = await loadPersistedSession();
+  const validated = persisted ? await validateSession(persisted) : undefined;
+  if (validated && validMediaRequest(url, validated.baseUrl)) {
+    return validated;
+  }
+
+  return undefined;
+}
+
+async function resolveFirstUsableMediaSession(
+  url: string,
+  liveSessionPromise: Promise<SessionInfo | undefined>,
+  persistedSessionPromise: Promise<SessionInfo | undefined>
+): Promise<SessionInfo | undefined> {
+  const pendingSettles = [
+    liveSessionPromise.then((session) => ({ session })),
+    persistedSessionPromise.then((session) => ({ session })),
+  ];
+
+  const drainPendingSettles = async (
+    remainingSettles: Array<Promise<{ session: SessionInfo | undefined }>>
+  ): Promise<SessionInfo | undefined> => {
+    if (remainingSettles.length === 0) return undefined;
+
+    const settled = await Promise.race(
+      remainingSettles.map((pending, index) =>
+        pending.then((result) => ({
+          index,
+          result,
+        }))
+      )
+    );
+
+    const nextSettles = remainingSettles.filter((_, index) => index !== settled.index);
+    const { session } = settled.result;
+    if (session && validMediaRequest(url, session.baseUrl)) {
+      return session;
+    }
+
+    return drainPendingSettles(nextSettles);
+  };
+
+  return drainPendingSettles(pendingSettles);
+}
+
 async function getLiveWindowSessions(url: string, clientId: string): Promise<SessionInfo[]> {
   const collected: SessionInfo[] = [];
   const seen = new Set<string>();
@@ -1389,7 +1468,8 @@ async function fetchMediaWithRetry(
   url: string,
   token: string,
   redirect: RequestRedirect,
-  clientId: string
+  clientId: string,
+  preferredRetrySessions: Array<SessionInfo | Promise<SessionInfo | undefined> | undefined> = []
 ): Promise<Response> {
   let response = await fetch(url, { ...fetchConfig(token), redirect });
   if (!isAuthFailureStatus(response.status)) return response;
@@ -1410,6 +1490,9 @@ async function fetchMediaWithRetry(
   getMatchingSessions(url).forEach((session) => addRetrySession(session));
   addRetrySession(preloadedSession);
   addRetrySession(await loadPersistedSession());
+  (await Promise.all(preferredRetrySessions.map((session) => Promise.resolve(session)))).forEach(
+    (session) => addRetrySession(session)
+  );
   (await getLiveWindowSessions(url, clientId)).forEach((session) => addRetrySession(session));
 
   /* eslint-disable no-await-in-loop */
@@ -1604,25 +1687,53 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     // leave the fetch hanging indefinitely. 15s is generous enough to allow all
     // fallbacks to complete, but short enough to fail fast if something is stuck.
     Promise.race([
-      requestSessionWithTimeout(clientId).then(async (s) => {
-        // Primary: session received from the live client window.
-        if (s && validMediaRequest(url, s.baseUrl)) {
-          return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+      (async () => {
+        const liveSessionPromise = requestSessionWithTimeout(clientId, 3000, {
+          logTimeout: false,
+        });
+        const persistedSessionPromise = getValidatedPersistedSession(url);
+
+        const resolvedSession =
+          (await resolveFirstUsableMediaSession(
+            url,
+            liveSessionPromise,
+            persistedSessionPromise
+          )) ??
+          (await liveSessionPromise) ??
+          (await persistedSessionPromise);
+
+        if (resolvedSession && validMediaRequest(url, resolvedSession.baseUrl)) {
+          if (resolvedSession === preloadedSession) {
+            console.debug('[SW fetch] Using preloaded session fallback', { url, clientId });
+          } else if (resolvedSession !== sessions.get(clientId)) {
+            console.debug('[SW fetch] Using validated persisted session fallback', {
+              url,
+              clientId,
+            });
+          }
+          return fetchMediaWithRetry(url, resolvedSession.accessToken, redirect, clientId, [
+            liveSessionPromise,
+          ]);
         }
-        // Fallback: try the persisted session (helps when SW restarts on iOS and
-        // the client window hasn't responded to requestSession yet).
-        const persisted = await loadPersistedSession();
-        const validated = persisted ? await validateSession(persisted) : undefined;
-        if (validated && validMediaRequest(url, validated.baseUrl)) {
-          console.debug('[SW fetch] Using validated persisted session fallback', { url, clientId });
-          return fetch(url, { ...fetchConfig(validated.accessToken), redirect });
-        }
+
+        await postSentryBreadcrumb(
+          'service_worker.session',
+          'Session request to client timed out',
+          'warning',
+          {
+            timeoutMs: 3000,
+            usedPersistedFallback: false,
+          }
+        ).catch(() => undefined);
+        await postSentryMetric('sable.sw.session_request_timeout', 1, {
+          timeout_ms: 3000,
+          used_persisted_fallback: false,
+        }).catch(() => undefined);
+
         console.warn('[SW fetch] No valid session for media request — returning 401', {
           url,
           clientId,
-          hasSession: !!s,
-          hadPersistedSession: !!persisted,
-          persistedSessionValid: !!validated,
+          hasSession: !!sessions.get(clientId),
         });
         // SABLE-4Y fix: Return synthetic 401 instead of attempting unauthenticated
         // fetch. Prevents network requests that will fail with 401 anyway, and
@@ -1635,7 +1746,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
             headers: { 'Content-Type': 'application/json' },
           }
         );
-      }),
+      })(),
       new Promise<Response>((_, reject) => {
         setTimeout(() => {
           console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });

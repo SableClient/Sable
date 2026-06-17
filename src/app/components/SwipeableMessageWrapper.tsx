@@ -8,8 +8,8 @@ import { ArrowBendUpLeftIcon, getPhosphorIconSize } from '$components/icons/phos
 import { mobileOrTablet } from '$utils/user-agent';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
 
-const getGestureTargetElement = (target: EventTarget | null): HTMLElement | null => {
-  if (target instanceof HTMLElement) return target;
+const getGestureTargetElement = (target: EventTarget | null): Element | null => {
+  if (target instanceof Element) return target;
   if (target instanceof Text) return target.parentElement;
   return null;
 };

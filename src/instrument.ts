@@ -109,6 +109,13 @@ if (dsn && sentryEnabled) {
     // Rate limiting: cap error events per page-load session to avoid quota exhaustion.
     // Separate counters for errors and transactions so perf traces do not drain the error budget.
     beforeSendTransaction(event) {
+      // Browser tracing can emit long-lived resource-only transactions such as
+      // media.load. They are noisy, duplicate the app-specific media metrics,
+      // and swamp navigation/startup analysis in Sentry.
+      if (event.transaction === 'media.load') {
+        return null;
+      }
+
       // Scrub Matrix identifiers from the transaction name (the matched route or page URL).
       // React Router normally parameterises routes (e.g. /home/:roomIdOrAlias/) but falls
       // back to the raw URL when matching fails, so we scrub defensively here.

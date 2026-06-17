@@ -10,10 +10,12 @@ import {
   getSpaceRoomPath,
 } from '$pages/pathUtils';
 import { getShallowParents, guessPerfectParent } from '$utils/room';
+import { beginRoomNavigation, beginSpaceNavigation } from '$utils/perfTelemetry';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { mDirectAtom } from '$state/mDirectList';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { getSlidingSyncManager } from '$client/initMatrix';
 import { useSelectedSpace } from './router/useSelectedSpace';
 import { useMatrixClient } from './useMatrixClient';
 
@@ -28,6 +30,8 @@ export const useRoomNavigate = () => {
   const navigateSpace = useCallback(
     (roomId: string) => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
+      beginSpaceNavigation(roomId, 'space');
+      getSlidingSyncManager(mx)?.setSpaceScope(roomId);
       navigate(getSpacePath(roomIdOrAlias));
     },
     [mx, navigate]
@@ -36,9 +40,12 @@ export const useRoomNavigate = () => {
   const navigateRoom = useCallback(
     (roomId: string, eventId?: string, opts?: NavigateOptions) => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
+      const slidingSyncManager = getSlidingSyncManager(mx);
 
       // DM rooms always navigate to /direct, regardless of space membership.
       if (mDirects.has(roomId)) {
+        beginRoomNavigation(roomId, 'dm');
+        slidingSyncManager?.prefetchRoom(roomId);
         navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
         return;
       }
@@ -58,6 +65,10 @@ export const useRoomNavigate = () => {
         }
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);
+        beginSpaceNavigation(parentSpace, 'room');
+        beginRoomNavigation(roomId, 'space');
+        slidingSyncManager?.setSpaceScope(parentSpace);
+        slidingSyncManager?.prefetchRoom(roomId);
 
         navigate(
           getSpaceRoomPath(pSpaceIdOrAlias, openSpaceTimeline ? roomId : roomIdOrAlias, eventId),
@@ -66,6 +77,8 @@ export const useRoomNavigate = () => {
         return;
       }
 
+      beginRoomNavigation(roomId, 'home');
+      slidingSyncManager?.prefetchRoom(roomId);
       navigate(getHomeRoomPath(roomIdOrAlias, eventId), opts);
     },
     [mx, navigate, spaceSelectedId, roomToParents, mDirects, developerTools]

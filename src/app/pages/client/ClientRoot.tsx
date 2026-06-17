@@ -59,6 +59,7 @@ import { getLandingPath, rememberLastVisitedPath } from '$pages/pathUtils';
 import { composerIcon, DotsThreeOutlineVerticalIcon } from '$components/icons/phosphor';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { getSettings } from '$state/settings';
+import { markStartupShellReady } from '$utils/perfTelemetry';
 import { pushSessionToSW } from '../../../sw-session';
 import { createSessionRefreshHandler } from './sessionRefresh';
 import { SyncStatus } from './SyncStatus';
@@ -384,6 +385,7 @@ export function ClientRoot({ children }: ClientRootProps) {
             level: 'info',
             data: { roomCount, elapsed: `${elapsed.toFixed(0)}ms` },
           });
+          markStartupShellReady();
           setLoading(false);
           if (!firstSyncReadyRef.current) {
             firstSyncReadyRef.current = true;
@@ -417,6 +419,7 @@ export function ClientRoot({ children }: ClientRootProps) {
         });
       }
 
+      markStartupShellReady();
       setLoading(false);
       if (!firstSyncReadyRef.current) {
         firstSyncReadyRef.current = true;

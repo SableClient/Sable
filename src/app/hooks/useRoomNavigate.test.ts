@@ -8,6 +8,8 @@ import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useRoomNavigate } from './useRoomNavigate';
 
 const mockNavigate = vi.fn<(path: string) => void>();
+const mockSetSpaceScope = vi.fn<(roomId: string) => void>();
+const mockPrefetchRoom = vi.fn<(roomId: string) => void>();
 
 // Preserve the real generatePath (used by $pages/pathUtils) while stubbing useNavigate.
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -20,6 +22,13 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 vi.mock('$hooks/useMatrixClient', () => ({
   useMatrixClient: () => ({ getRoom: vi.fn<() => null>() }),
+}));
+
+vi.mock('$client/initMatrix', () => ({
+  getSlidingSyncManager: () => ({
+    setSpaceScope: mockSetSpaceScope,
+    prefetchRoom: mockPrefetchRoom,
+  }),
 }));
 
 // Return the roomId as-is so path assertions are straightforward.
@@ -35,6 +44,11 @@ vi.mock('$state/hooks/settings', () => ({
   useSetting: () => [false, vi.fn<(value: boolean) => void>()],
 }));
 
+vi.mock('$utils/perfTelemetry', () => ({
+  beginRoomNavigation: vi.fn<(roomId: string, target: string) => void>(),
+  beginSpaceNavigation: vi.fn<(spaceId: string, source: string) => void>(),
+}));
+
 function makeWrapper(store: ReturnType<typeof createStore>) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return createElement(Provider, { store }, children);
@@ -44,6 +58,8 @@ function makeWrapper(store: ReturnType<typeof createStore>) {
 describe('useRoomNavigate', () => {
   beforeEach(() => {
     mockNavigate.mockReset();
+    mockSetSpaceScope.mockReset();
+    mockPrefetchRoom.mockReset();
   });
 
   describe('navigateRoom', () => {
@@ -67,6 +83,7 @@ describe('useRoomNavigate', () => {
 
       expect(mockNavigate).toHaveBeenCalledOnce();
       expect(mockNavigate.mock.calls[0]![0]).toMatch(/^\/direct\//);
+      expect(mockPrefetchRoom).toHaveBeenCalledWith(dmRoomId);
     });
 
     it('routes a non-DM room with an orphan space parent through the space path', () => {
@@ -90,6 +107,8 @@ describe('useRoomNavigate', () => {
       const navigatedPath = mockNavigate.mock.calls[0]![0];
       expect(navigatedPath).not.toMatch(/^\/direct\//);
       expect(navigatedPath).not.toMatch(/^\/home\//);
+      expect(mockSetSpaceScope).toHaveBeenCalledWith(spaceId);
+      expect(mockPrefetchRoom).toHaveBeenCalledWith(roomId);
     });
 
     it('routes an orphan room with no parents to /home', () => {
@@ -107,6 +126,7 @@ describe('useRoomNavigate', () => {
 
       expect(mockNavigate).toHaveBeenCalledOnce();
       expect(mockNavigate.mock.calls[0]![0]).toMatch(/^\/home\//);
+      expect(mockPrefetchRoom).toHaveBeenCalledWith(roomId);
     });
   });
 });

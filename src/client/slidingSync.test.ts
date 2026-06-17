@@ -26,6 +26,7 @@ import {
   LIST_DMS,
   LIST_INVITES,
   LIST_JOINED,
+  LIST_SPACE,
   SlidingSyncManager,
   type SlidingSyncConfig,
 } from './slidingSync';
@@ -86,6 +87,10 @@ vi.mock('@sentry/react', () => ({
   startInactiveSpan:
     vi.fn<() => { setAttribute: () => void; setAttributes: () => void; end: () => void }>(),
   startSpan: vi.fn<() => Promise<unknown>>(),
+}));
+
+vi.mock('$utils/perfTelemetry', () => ({
+  completeRoomNavigation: vi.fn<(roomId: string, reason: string, eventCount: number) => void>(),
 }));
 
 // ── SlidingSync SDK mock ─────────────────────────────────────────────────────
@@ -383,6 +388,52 @@ describe('SlidingSyncManager.requestListWindow()', () => {
       knownCount: 120,
       rangeEnd: 29,
     });
+  });
+});
+
+describe('SlidingSyncManager.setSpaceScope()', () => {
+  it('uses a larger initial range for the active space list', () => {
+    const manager = makeManager(makeMockMx(), { listPageSize: 30 });
+
+    manager.setSpaceScope('!space:example.com');
+
+    expect(mocks.slidingSyncInstance.setList).toHaveBeenCalledWith(
+      LIST_SPACE,
+      expect.objectContaining({
+        ranges: [[0, 59]],
+        filters: { is_invite: false, spaces: ['!space:example.com'] },
+      })
+    );
+  });
+});
+
+describe('SlidingSyncManager.prefetchRoom()', () => {
+  it('temporarily adds a prefetched room subscription and expires it after the ttl', () => {
+    const manager = makeManager(makeMockMx());
+
+    manager.prefetchRoom('!room:example.com', 500);
+    vi.advanceTimersByTime(100);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(
+      new Set(['!room:example.com'])
+    );
+
+    vi.advanceTimersByTime(500);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(new Set());
+  });
+
+  it('keeps the subscription active when the prefetched room becomes the active room', () => {
+    const manager = makeManager(makeMockMx());
+
+    manager.prefetchRoom('!room:example.com', 500);
+    vi.advanceTimersByTime(100);
+    manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(500);
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(
+      new Set(['!room:example.com'])
+    );
   });
 });
 

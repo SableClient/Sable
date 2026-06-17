@@ -10,6 +10,12 @@ const mediaTransport = vi.hoisted(() => ({
 }));
 
 vi.mock('$utils/mediaTransport', () => mediaTransport);
+vi.mock('@sentry/react', () => ({
+  startSpan: vi.fn((_options: unknown, callback: () => Promise<unknown>) => callback()),
+  metrics: {
+    distribution: vi.fn(),
+  },
+}));
 
 const makeDeferred = <T,>(): {
   promise: Promise<T>;

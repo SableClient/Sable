@@ -1,6 +1,7 @@
 import { AvatarImage as FoldsAvatarImage } from 'folds';
 import type { ReactEventHandler } from 'react';
 import { useState, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
 import bgColorImg from '$utils/bgColorImg';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
@@ -13,6 +14,7 @@ import * as css from './RoomAvatar.css';
 // lifetime of the page and eliminates N+1 fetches as virtual-list items
 // unmount and remount.
 const avatarBlobCache = new Map<string, string>();
+const avatarInflightCache = new Map<string, Promise<string>>();
 
 export function getProcessedAvatarCacheStats(): { cacheSize: number } {
   return { cacheSize: avatarBlobCache.size };
@@ -25,6 +27,7 @@ export function getProcessedAvatarCacheStats(): { cacheSize: number } {
 export function clearProcessedAvatarCache(): void {
   avatarBlobCache.forEach((blobUrl) => URL.revokeObjectURL(blobUrl));
   avatarBlobCache.clear();
+  avatarInflightCache.clear();
 }
 
 /**
@@ -61,41 +64,59 @@ export function useProcessedAvatarSrc(src?: string): string | undefined {
       }
 
       try {
-        // Layer 2/3: authenticated media transport. This shares the app-wide
-        // media cache and falls back to direct auth when the SW is not ready.
-        const fetchedBlob = await fetchMediaBlob(src);
-        const contentType = fetchedBlob.type;
-
-        if (contentType.includes('image/svg+xml')) {
-          // Process SVG to ensure animations loop indefinitely.
-          const text = await fetchedBlob.text();
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(text, 'image/svg+xml');
-
-          const animations = doc.querySelectorAll('animate, animateTransform, animateMotion');
-          animations.forEach((anim) => anim.setAttribute('repeatCount', 'indefinite'));
-
-          const style = doc.createElementNS('http://www.w3.org/2000/svg', 'style');
-          style.textContent = '* { animation-iteration-count: infinite !important; }';
-          doc.documentElement.appendChild(style);
-
-          const serializer = new XMLSerializer();
-          const blob = new Blob([serializer.serializeToString(doc)], {
-            type: 'image/svg+xml',
-          });
-          const blobUrl = URL.createObjectURL(blob);
-          avatarBlobCache.set(src, blobUrl);
-          if (isMounted) setProcessedSrc(blobUrl);
+        const inflight = avatarInflightCache.get(src);
+        if (inflight) {
+          const inflightBlobUrl = await inflight;
+          if (isMounted) setProcessedSrc(inflightBlobUrl);
           return;
         }
 
-        const blobUrl = URL.createObjectURL(fetchedBlob);
+        // Layer 2/3: authenticated media transport. This shares the app-wide
+        // media cache and falls back to direct auth when the SW is not ready.
+        const startedAt = performance.now();
+        const fetchPromise = Sentry.startSpan({ name: 'avatar.resolve', op: 'media' }, async () => {
+          const fetchedBlob = await fetchMediaBlob(src);
+          const contentType = fetchedBlob.type;
+
+          if (contentType.includes('image/svg+xml')) {
+            // Process SVG to ensure animations loop indefinitely.
+            const text = await fetchedBlob.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'image/svg+xml');
+
+            const animations = doc.querySelectorAll('animate, animateTransform, animateMotion');
+            animations.forEach((anim) => anim.setAttribute('repeatCount', 'indefinite'));
+
+            const style = doc.createElementNS('http://www.w3.org/2000/svg', 'style');
+            style.textContent = '* { animation-iteration-count: infinite !important; }';
+            doc.documentElement.appendChild(style);
+
+            const serializer = new XMLSerializer();
+            const blob = new Blob([serializer.serializeToString(doc)], {
+              type: 'image/svg+xml',
+            });
+            return URL.createObjectURL(blob);
+          }
+
+          return URL.createObjectURL(fetchedBlob);
+        });
+        avatarInflightCache.set(src, fetchPromise);
+        const blobUrl = await fetchPromise;
         avatarBlobCache.set(src, blobUrl);
+        Sentry.metrics.distribution(
+          'sable.media.avatar_resolve_ms',
+          performance.now() - startedAt,
+          {
+            attributes: { result: 'success' },
+          }
+        );
         if (isMounted) setProcessedSrc(blobUrl);
       } catch {
         // Network or processing failure — fall back to the original URL so the
         // browser can attempt a direct load (e.g. unauthenticated media).
         if (isMounted) setProcessedSrc(src);
+      } finally {
+        avatarInflightCache.delete(src);
       }
     };
 
@@ -141,6 +162,7 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
       src={processedSrc ?? src}
       crossOrigin={isBlobUrl ? undefined : 'anonymous'}
       alt={alt}
+      loading="lazy"
       onError={() => {
         setImage(undefined);
         onError();

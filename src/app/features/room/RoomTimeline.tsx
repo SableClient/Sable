@@ -1645,6 +1645,8 @@ export function RoomTimeline({
                       style={{
                         paddingTop: config.space.S700,
                         paddingBottom: config.space.S600,
+                        paddingInlineStart:
+                          messageLayout === MessageLayout.Compact ? config.space.S0 : toRem(64),
                       }}
                     >
                       <RoomIntro room={room} />
@@ -1699,6 +1701,8 @@ export function RoomTimeline({
                       style={{
                         paddingTop: config.space.S700,
                         paddingBottom: config.space.S600,
+                        paddingInlineStart:
+                          messageLayout === MessageLayout.Compact ? config.space.S0 : toRem(64),
                       }}
                     >
                       <RoomIntro room={room} />

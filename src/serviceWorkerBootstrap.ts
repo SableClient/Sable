@@ -81,10 +81,9 @@ export function registerAppServiceWorker() {
     ? `${trimTrailingSlash(import.meta.env.BASE_URL)}/sw.js`
     : `/dev-sw.js?dev-sw`;
 
-  const swRegisterOptions: RegistrationOptions = {};
-  if (!isProduction) {
-    swRegisterOptions.type = 'module';
-  }
+  const swRegisterOptions: RegistrationOptions = {
+    type: 'module',
+  };
 
   sendActiveSessionToServiceWorker();
 

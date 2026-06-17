@@ -1,6 +1,6 @@
 {
   "defaultHomeserver": 0,
-  "homeserverList": ["matrix.org", "mozilla.org", "unredacted.org", "kendama.moe"],
+  "homeserverList": ["cloudhub.social", "matrix.org", "mozilla.org", "unredacted.org", "kendama.moe"],
   "allowCustomHomeservers": true,
   "elementCallUrl": "matrix.cloudhub.social",
 

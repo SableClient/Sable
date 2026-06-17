@@ -266,9 +266,10 @@ export const Emoticon = recipe({
 });
 
 export const SystemEmoji = style({
-  fontFamily: 'var(--font-secondary)',
+  fontFamily:
+    'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
   fontSize: '1em',
-  top: 0,
+  top: '-0.1em',
 });
 
 export const CustomEmoticon = recipe({

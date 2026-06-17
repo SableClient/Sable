@@ -16,8 +16,8 @@ import { activeSessionIdAtom, sessionsAtom } from '$state/sessions';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import { fetch } from '$utils/fetch';
-import { ErrorCode } from '../../../cs-errorcode';
-import { autoDiscovery, specVersions } from '../../../cs-api';
+import { ErrorCode } from '$app/cs-errorcode';
+import { autoDiscovery, specVersions } from '$app/cs-api';
 
 const log = createLogger('loginUtil');
 const debugLog = createDebugLogger('loginUtil');

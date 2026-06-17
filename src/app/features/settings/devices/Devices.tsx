@@ -13,7 +13,7 @@ import { useSecretStorageDefaultKeyId, useSecretStorageKeyContent } from '$hooks
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
 import { BackupRestoreTile } from '$components/BackupRestore';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 import { LocalBackup } from './LocalBackup';
 import { DeviceLogoutBtn, DeviceKeyDetails, DeviceTile, DeviceTilePlaceholder } from './DeviceTile';
 import { OtherDevices } from './OtherDevices';

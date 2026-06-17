@@ -26,7 +26,7 @@ import {
   clearProcessedAvatarCache,
   getProcessedAvatarCacheStats,
 } from '$components/room-avatar/AvatarImage';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
 import { ExperimentsPanel } from './ExperimentsPanel';

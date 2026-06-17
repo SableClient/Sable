@@ -24,7 +24,7 @@ import {
   atomWithLocalStorage,
   getLocalStorageItem,
   setLocalStorageItem,
-} from '../utils/atomWithLocalStorage';
+} from '$state/utils/atomWithLocalStorage';
 
 export type RoomToParentsAction =
   | {

@@ -3,7 +3,7 @@ import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import { useEffect, useState } from 'react';
 import { getSettings, setSettings } from '$state/settings';
-import { SequenceCardStyle } from '../styles.css';
+import { SequenceCardStyle } from '$features/settings/styles.css';
 
 export type LanguageSpecificPronounsConfig = {
   enabled?: boolean | string;

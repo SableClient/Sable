@@ -13,8 +13,8 @@ import {
 import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, settingsInitializedAtom } from '$state/settings';
-import { getCachedThemeCss, putCachedThemeCss } from '../theme/cache';
-import { isLocalImportBundledUrl } from '../theme/localImportUrls';
+import { getCachedThemeCss, putCachedThemeCss } from '$app/theme/cache';
+import { isLocalImportBundledUrl } from '$app/theme/localImportUrls';
 
 const REMOTE_STYLE_ID = 'sable-remote-theme-style';
 const REMOTE_TWEAKS_STYLE_ID = 'sable-remote-tweaks-style';

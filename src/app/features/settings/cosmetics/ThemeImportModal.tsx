@@ -30,7 +30,7 @@ import {
   processImportedHttpsUrl,
   processPastedOrUploadedCss,
   type ProcessedThemeImport,
-} from '../../../theme/processThemeImport';
+} from '$app/theme/processThemeImport';
 
 import { usePatchSettings } from './themeSettingsPatch';
 

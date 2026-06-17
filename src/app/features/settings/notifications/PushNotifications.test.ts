@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 
-import type { ClientConfig } from '../../../hooks/useClientConfig';
+import type { ClientConfig } from '$hooks/useClientConfig';
 import {
   disablePushNotifications,
   enablePushNotifications,

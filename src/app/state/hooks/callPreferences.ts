@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext } from 'react';
 import { useAtom } from 'jotai';
-import type { CallPreferences, CallPreferencesAtom } from '../callPreferences';
+import type { CallPreferences, CallPreferencesAtom } from '$state/callPreferences';
 
 const CallPreferencesAtomContext = createContext<CallPreferencesAtom | null>(null);
 export const CallPreferencesProvider = CallPreferencesAtomContext.Provider;

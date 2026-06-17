@@ -4,7 +4,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { Box, Switch, Text } from 'folds';
-import { SequenceCardStyle } from '../styles.css';
+import { SequenceCardStyle } from '$features/settings/styles.css';
 
 export function EncryptedSearch() {
   const { features } = useClientConfig();

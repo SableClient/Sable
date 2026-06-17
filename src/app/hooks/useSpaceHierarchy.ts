@@ -12,9 +12,9 @@ import { isRoomId } from '$utils/matrix';
 import type { SortFunc } from '$utils/sort';
 import { byOrderKey, byTsOldToNew, factoryRoomIdByActivity } from '$utils/sort';
 import { useMatrixClient } from './useMatrixClient';
-import { makeLobbyCategoryId } from '../state/closedLobbyCategories';
+import { makeLobbyCategoryId } from '$state/closedLobbyCategories';
 import { useStateEventCallback } from './useStateEventCallback';
-import { ErrorCode } from '../cs-errorcode';
+import { ErrorCode } from '$app/cs-errorcode';
 
 export type HierarchyItemSpace = {
   roomId: string;

@@ -40,7 +40,7 @@ import {
   knockSupported,
   knockRestrictedSupported,
 } from '$utils/roomSupport';
-import { ErrorCode } from '../../cs-errorcode';
+import { ErrorCode } from '$app/cs-errorcode';
 
 const debugLog = createDebugLogger('CreateRoom');
 

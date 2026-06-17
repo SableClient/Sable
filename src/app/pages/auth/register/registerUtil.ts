@@ -12,7 +12,7 @@ import { getHomePath, getLoginPath, withSearchParam } from '$pages/pathUtils';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { activeSessionIdAtom, sessionsAtom, setFallbackSession } from '$state/sessions';
 import { getMxIdServer } from '$utils/mxIdHelper';
-import { ErrorCode } from '../../../cs-errorcode';
+import { ErrorCode } from '$app/cs-errorcode';
 
 export enum RegisterError {
   UserTaken = 'UserTaken',

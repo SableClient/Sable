@@ -19,11 +19,11 @@ import { usePatchSettings } from '$features/settings/cosmetics/themeSettingsPatc
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, type ThemeRemoteTweakFavorite } from '$state/settings';
 import { copyToClipboard } from '$utils/dom';
-import { putCachedThemeCss } from '../../theme/cache';
-import { getSableCssPackageKind, parseSableTweakMetadata } from '../../theme/metadata';
-import { isHttpsFullSableCssUrl } from '../../theme/previewUrls';
-import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../../theme/previewCss';
-import { isApprovedCatalogHostUrl, isThirdPartyThemeUrl } from '../../theme/themeApproval';
+import { putCachedThemeCss } from '$app/theme/cache';
+import { getSableCssPackageKind, parseSableTweakMetadata } from '$app/theme/metadata';
+import { isHttpsFullSableCssUrl } from '$app/theme/previewUrls';
+import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '$app/theme/previewCss';
+import { isApprovedCatalogHostUrl, isThirdPartyThemeUrl } from '$app/theme/themeApproval';
 import { SableChatPreviewPlaceholder } from './SableChatPreviewPlaceholder';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
 

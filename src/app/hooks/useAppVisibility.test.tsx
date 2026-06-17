@@ -6,6 +6,7 @@ import { useAppVisibility } from './useAppVisibility';
 
 const mocks = vi.hoisted(() => ({
   togglePusher: vi.fn<() => Promise<void>>(),
+  pushSessionToSW: vi.fn<(baseUrl?: string, accessToken?: string, userId?: string) => void>(),
 }));
 
 vi.mock('$utils/user-agent', () => ({
@@ -14,6 +15,10 @@ vi.mock('$utils/user-agent', () => ({
 
 vi.mock('../features/settings/notifications/PushNotifications', () => ({
   togglePusher: mocks.togglePusher,
+}));
+
+vi.mock('../../sw-session', () => ({
+  pushSessionToSW: mocks.pushSessionToSW,
 }));
 
 vi.mock('./useClientConfig', () => ({
@@ -31,6 +36,7 @@ describe('useAppVisibility', () => {
   beforeEach(() => {
     setVisibilityState('visible');
     mocks.togglePusher.mockClear();
+    mocks.pushSessionToSW.mockClear();
   });
 
   afterEach(() => {
@@ -87,5 +93,89 @@ describe('useAppVisibility', () => {
       expect.any(Array),
       false
     );
+  });
+
+  it('requests a lazy service worker claim and refreshes the session on visible resume', async () => {
+    const postMessage = vi.fn<(message: unknown) => void>();
+    const activeWorker = {
+      state: 'activated',
+      postMessage,
+    } as unknown as ServiceWorker;
+    const ready = Promise.resolve({
+      active: activeWorker,
+    } satisfies Partial<ServiceWorkerRegistration>);
+
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: undefined,
+        ready,
+      },
+    });
+
+    const mx = {} as MatrixClient;
+    const activeSession = {
+      baseUrl: 'https://example.com',
+      accessToken: 'token',
+      userId: '@user:example.com',
+    };
+
+    renderHook(() => useAppVisibility(mx, activeSession as never));
+
+    await act(async () => {
+      setVisibilityState('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      setVisibilityState('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      await ready;
+    });
+
+    expect(postMessage).toHaveBeenCalledWith({ type: 'CLAIM_CLIENTS' });
+    expect(mocks.pushSessionToSW).toHaveBeenCalledWith(
+      activeSession.baseUrl,
+      activeSession.accessToken,
+      activeSession.userId
+    );
+  });
+
+  it('requests a lazy service worker claim on persisted pageshow restore', async () => {
+    const postMessage = vi.fn<(message: unknown) => void>();
+    const activeWorker = {
+      state: 'activated',
+      postMessage,
+    } as unknown as ServiceWorker;
+    const ready = Promise.resolve({
+      active: activeWorker,
+    } satisfies Partial<ServiceWorkerRegistration>);
+
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: undefined,
+        ready,
+      },
+    });
+
+    const visibilityHandler = vi.fn<(visible: boolean) => void>();
+    const unsubscribe = appEvents.onVisibilityChange(visibilityHandler);
+
+    const mx = {} as MatrixClient;
+
+    renderHook(() =>
+      useAppVisibility(mx, {
+        baseUrl: 'https://example.com',
+        accessToken: 'token',
+        userId: '@user:example.com',
+      } as never)
+    );
+
+    await act(async () => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+      await ready;
+    });
+
+    expect(postMessage).toHaveBeenCalledWith({ type: 'CLAIM_CLIENTS' });
+    expect(visibilityHandler).toHaveBeenCalledWith(true);
+    unsubscribe();
   });
 });

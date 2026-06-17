@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -31,6 +31,7 @@ import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { usePreviousValue } from '$hooks/usePreviousValue';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useClientConfig } from '$hooks/useClientConfig';
 import {
   getMemberDisplayName,
   getNotificationType,
@@ -44,7 +45,8 @@ import { useInboxNotificationsSelected } from '$hooks/router/useInbox';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { registrationAtom } from '$state/serviceWorkerRegistration';
-import { pendingNotificationAtom, inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
+import { inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
+import { pushSubscriptionAtom } from '$state/pushSubscription';
 import {
   buildRoomMessageNotification,
   resolveNotificationPreviewText,
@@ -88,12 +90,13 @@ import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
 import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
-import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
+import { getInboxBookmarksPath, getInboxInvitesPath, getToRoomEventPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 import {
   NotificationTransportRuntime,
   type NotificationTransportRuntimeContext,
 } from '../../features/settings/notifications/NotificationTransportRuntime';
+import { reconcilePushNotifications } from '../../features/settings/notifications/PushNotifications';
 import {
   normalizeNotificationTransportMode,
   resolvePreferredNotificationTransportProvider,
@@ -142,6 +145,55 @@ function navigateToServiceWorkerUrl(navigate: ReturnType<typeof useNavigate>, ur
     // Fall through to browser navigation for malformed/relative strings.
   }
   window.location.assign(url);
+}
+
+function navigateToRoomNotificationTarget(
+  navigate: ReturnType<typeof useNavigate>,
+  userId: string | undefined,
+  roomId: string,
+  eventId?: string
+): void {
+  if (!userId) return;
+  navigate(getToRoomEventPath(userId, roomId, eventId));
+}
+
+function WebPushStartupReconciler() {
+  const mx = useMatrixClient();
+  const clientConfig = useClientConfig();
+  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
+  const pushSubscription = useAtom(pushSubscriptionAtom);
+  const reconciledKeyRef = useRef<string | null>(null);
+  const keepEnabledWhenVisible = mobileOrTablet();
+
+  useEffect(() => {
+    if (!usePushNotifications || isTauri()) return;
+
+    const userId = mx.getUserId() ?? null;
+    if (!userId) return;
+    const reconcileKey = [
+      userId,
+      document.visibilityState,
+      keepEnabledWhenVisible ? 'keep-visible' : 'disable-visible',
+    ].join(':');
+    if (reconciledKeyRef.current === reconcileKey) return;
+
+    reconciledKeyRef.current = reconcileKey;
+    void reconcilePushNotifications(
+      mx,
+      clientConfig,
+      usePushNotifications,
+      pushSubscription,
+      keepEnabledWhenVisible
+    ).catch((error) => {
+      reconciledKeyRef.current = null;
+      transportLog.warn('notification', 'Web push startup reconciliation failed', {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, [mx, clientConfig, pushSubscription, usePushNotifications, keepEnabledWhenVisible]);
+
+  return null;
 }
 
 function SystemEmojiFeature() {
@@ -330,9 +382,9 @@ function MessageNotifications() {
   const mDirectsRef = useRef(mDirects);
   mDirectsRef.current = mDirects;
 
-  const setPending = useSetAtom(pendingNotificationAtom);
   const setInAppBanner = useSetAtom(inAppBannerAtom);
   const notificationSelected = useInboxNotificationsSelected();
+  const navigate = useNavigate();
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
@@ -519,11 +571,12 @@ function MessageNotifications() {
           const { roomId } = room;
           noti.addEventListener('click', () => {
             window.focus();
-            setPending({
+            navigateToRoomNotificationTarget(
+              navigate,
+              mx.getUserId() ?? undefined,
               roomId,
-              eventId,
-              targetSessionId: mx.getUserId() ?? undefined,
-            });
+              eventId
+            );
             noti.close();
           });
         } catch {
@@ -601,11 +654,7 @@ function MessageNotifications() {
           icon: roomAvatar,
           onClick: () => {
             window.focus();
-            setPending({
-              roomId,
-              eventId: capturedEventId,
-              targetSessionId: capturedUserId,
-            });
+            navigateToRoomNotificationTarget(navigate, capturedUserId, roomId, capturedEventId);
           },
         });
       }
@@ -628,7 +677,7 @@ function MessageNotifications() {
     focusMode,
     playSound,
     setInAppBanner,
-    setPending,
+    navigate,
     appBaseUrl,
     useAuthentication,
   ]);
@@ -820,7 +869,6 @@ type ClientNonUIFeaturesProps = {
 };
 
 export function HandleNotificationClick() {
-  const setPending = useSetAtom(pendingNotificationAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const navigate = useNavigate();
 
@@ -863,12 +911,12 @@ export function HandleNotificationClick() {
         if (navigateUrl) navigateToServiceWorkerUrl(navigate, navigateUrl);
         return;
       }
-      setPending({ roomId, eventId, targetSessionId: userId });
+      navigateToRoomNotificationTarget(navigate, userId, roomId, eventId);
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [setPending, setActiveSessionId, navigate]);
+  }, [setActiveSessionId, navigate]);
 
   return null;
 }
@@ -885,6 +933,8 @@ function SyncNotificationSettingsWithServiceWorker() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;
 
+    let heartbeatIntervalId: number | undefined;
+
     const postVisibility = () => {
       const visible = document.visibilityState === 'visible';
       const payload = { type: 'setAppVisible', visible };
@@ -893,10 +943,46 @@ function SyncNotificationSettingsWithServiceWorker() {
       navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(payload));
     };
 
-    postVisibility();
-    document.addEventListener('visibilitychange', postVisibility);
+    const stopHeartbeat = () => {
+      if (heartbeatIntervalId !== undefined) {
+        window.clearInterval(heartbeatIntervalId);
+        heartbeatIntervalId = undefined;
+      }
+    };
 
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+    const restartHeartbeat = () => {
+      stopHeartbeat();
+      postVisibility();
+      if (document.visibilityState === 'visible' && document.hasFocus()) {
+        heartbeatIntervalId = window.setInterval(postVisibility, 10_000);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') restartHeartbeat();
+      else {
+        postVisibility();
+        stopHeartbeat();
+      }
+    };
+
+    const handleFocus = () => restartHeartbeat();
+    const handleBlur = () => postVisibility();
+    const handlePageShow = () => restartHeartbeat();
+
+    restartHeartbeat();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      stopHeartbeat();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, []);
 
   useEffect(() => {
@@ -1272,6 +1358,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />
+      <WebPushStartupReconciler />
       <FaviconUpdater />
       <InviteNotifications />
       <MessageNotifications />

@@ -5,6 +5,7 @@ import type { ClientConfig } from '../../../hooks/useClientConfig';
 import {
   disablePushNotifications,
   enablePushNotifications,
+  reconcilePushNotifications,
   togglePusher,
 } from './PushNotifications';
 
@@ -47,11 +48,16 @@ function makeSubscription(endpoint = 'https://push.example.com/sub') {
 
 function installWebPush(subscription: PushSubscription | null): {
   controllerPostMessage: ReturnType<typeof vi.fn>;
+  activePostMessage: ReturnType<typeof vi.fn>;
   subscribe: ReturnType<typeof vi.fn>;
 } {
   const controllerPostMessage = vi.fn<() => void>();
+  const activePostMessage = vi.fn<() => void>();
   const subscribe = vi.fn<() => Promise<PushSubscription>>().mockResolvedValue(makeSubscription());
   const registration = {
+    active: {
+      postMessage: activePostMessage,
+    },
     pushManager: {
       getSubscription: vi
         .fn<() => Promise<PushSubscription | null>>()
@@ -71,7 +77,7 @@ function installWebPush(subscription: PushSubscription | null): {
   });
   vi.stubGlobal('PushManager', vi.fn());
 
-  return { controllerPostMessage, subscribe };
+  return { controllerPostMessage, activePostMessage, subscribe };
 }
 
 afterEach(() => {
@@ -83,7 +89,7 @@ afterEach(() => {
 describe('web push notifications', () => {
   it('reuses an existing browser subscription through the service worker toggle path', async () => {
     const subscription = makeSubscription();
-    const { controllerPostMessage, subscribe } = installWebPush(subscription);
+    const { controllerPostMessage, activePostMessage, subscribe } = installWebPush(subscription);
     const mx = makeMatrixClient();
     const setSubscription = vi.fn<() => void>();
 
@@ -106,10 +112,15 @@ describe('web push notifications', () => {
         }),
       }),
     });
+    expect(activePostMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'togglePush',
+      })
+    );
   });
 
   it('creates a new subscription and posts the pusher to the service worker', async () => {
-    const { controllerPostMessage, subscribe } = installWebPush(null);
+    const { controllerPostMessage, activePostMessage, subscribe } = installWebPush(null);
     const mx = makeMatrixClient();
     const setSubscription = vi.fn<() => void>();
 
@@ -128,6 +139,11 @@ describe('web push notifications', () => {
       expect.objectContaining({
         type: 'togglePush',
         token: 'access-token',
+      })
+    );
+    expect(activePostMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'togglePush',
       })
     );
   });
@@ -184,6 +200,50 @@ describe('web push notifications', () => {
     });
     expect(enableSpy).toHaveBeenNthCalledWith(
       2,
+      expect.objectContaining({
+        type: 'togglePush',
+        token: 'access-token',
+      })
+    );
+  });
+
+  it('reconciles startup push state for a visible mobile session', async () => {
+    const { controllerPostMessage } = installWebPush(null);
+    const mx = makeMatrixClient();
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+
+    await reconcilePushNotifications(mx, clientConfig, true, [null, vi.fn<() => void>()], true);
+
+    expect(controllerPostMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'togglePush',
+        token: 'access-token',
+        pusherData: expect.objectContaining({
+          kind: 'http',
+        }),
+      })
+    );
+  });
+
+  it('posts through the active worker when no controller exists', async () => {
+    const { activePostMessage } = installWebPush(null);
+    const ready = navigator.serviceWorker.ready;
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: undefined,
+        ready,
+      },
+    });
+    const mx = makeMatrixClient();
+
+    await enablePushNotifications(mx, clientConfig, [null, vi.fn<() => void>()]);
+
+    expect(activePostMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'togglePush',
         token: 'access-token',

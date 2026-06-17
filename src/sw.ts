@@ -11,6 +11,7 @@ import {
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
 } from './sw/pushRouting';
+import { persistLaunchContext } from './launch-context-persistence';
 import { readPersistedSession } from './sw-session-persistence';
 
 declare const self: ServiceWorkerGlobalScope;
@@ -20,10 +21,12 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
+let appVisibleHeartbeatAt = 0;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
 let focusMode: 'off' | 'focus' | 'dnd' = 'off';
+const APP_VISIBLE_HEARTBEAT_MAX_AGE_MS = 20_000;
 const { handlePushNotificationPushData } = createPushNotifications(
   self,
   () => ({
@@ -1086,6 +1089,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
+      appVisibleHeartbeatAt = appIsVisible ? Date.now() : 0;
     }
   }
   if (type === 'CLAIM_CLIENTS') {
@@ -1627,11 +1631,15 @@ const onPushNotification = async (event: PushEvent) => {
 
   const focusedClientCount = focusedWindowClientCount(clients);
   const browserVisibleClientCount = visibleWindowClientCount(clients);
-  const hasVisibleClient = appIsVisible || browserVisibleClientCount > 0;
+  const hasRecentAppVisibilityHeartbeat =
+    appIsVisible && Date.now() - appVisibleHeartbeatAt <= APP_VISIBLE_HEARTBEAT_MAX_AGE_MS;
+  const hasVisibleClient = hasRecentAppVisibilityHeartbeat || browserVisibleClientCount > 0;
 
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
+    '| hasRecentAppVisibilityHeartbeat:',
+    hasRecentAppVisibilityHeartbeat,
     '| focusedClientCount:',
     focusedClientCount,
     '| browserVisibleClientCount:',
@@ -1827,6 +1835,15 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   event.waitUntil(
     (async () => {
+      await persistLaunchContext({
+        source: 'notification_click',
+        clickedAt: Date.now(),
+        userId: pushUserId,
+        roomId: pushRoomId,
+        eventId: pushEventId,
+        targetUrl,
+      }).catch(() => undefined);
+
       const clientList = (await self.clients.matchAll({
         type: 'window',
         includeUncontrolled: true,
@@ -1844,7 +1861,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
       for (const wc of clientList) {
         console.debug('[SW notificationclick] postMessage to existing client:', wc.url);
         try {
-          if (pushNavigate && !pushRoomId && typeof wc.navigate === 'function') {
+          if (typeof wc.navigate === 'function') {
             // oxlint-disable-next-line no-await-in-loop
             await wc.navigate(targetUrl);
             // oxlint-disable-next-line no-await-in-loop
@@ -1852,9 +1869,8 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             return;
           }
           // Post notification data directly to the running app so its
-          // ServiceWorkerClickHandler can call setActiveSessionId + setPending
-          // (same path as the pill-style in-app banner) without navigating to
-          // the /to/ route first.
+          // notification handler can route to the canonical deep-link when
+          // navigate() is unavailable on the existing client.
           wc.postMessage({
             type: 'notificationClick',
             userId: pushUserId,

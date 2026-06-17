@@ -139,7 +139,8 @@ export function RoomView({ eventId }: { eventId?: string }) {
   const callEmbed = useAtomValue(callEmbedAtom);
   const isJoinedInThisRoom = useCallJoined(callEmbed) && callEmbed?.roomId === room.roomId;
   const showCallView = !room.isCallRoom() && (callMembers.length > 0 || isJoinedInThisRoom);
-  const hideFollowingBar = screenSize === ScreenSize.Mobile && isKeyboardVisible;
+  const hideDynamicFollowingBar =
+    screenSize === ScreenSize.Mobile && isKeyboardVisible && !hideReads;
 
   return (
     <BackRouteHandler>
@@ -206,9 +207,9 @@ export function RoomView({ eventId }: { eventId?: string }) {
                   </>
                 )}
               </div>
-              {hideFollowingBar ? null : hideReads ? (
+              {hideReads ? (
                 <RoomViewFollowingPlaceholder />
-              ) : (
+              ) : hideDynamicFollowingBar ? null : (
                 <RoomViewFollowing room={room} />
               )}
             </Box>

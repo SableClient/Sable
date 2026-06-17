@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
@@ -18,8 +18,10 @@ import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
 // setActiveSessionId() triggers an account switch.
 export function ToRoomEvent() {
   const { user_id: userId, room_id: roomId, event_id: eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const setPending = useSetAtom(pendingNotificationAtom);
+  const joinCall = searchParams.get('joinCall') === 'true';
 
   useEffect(() => {
     if (!roomId) return;
@@ -46,13 +48,12 @@ export function ToRoomEvent() {
     setPending({
       roomId,
       eventId,
+      joinCall,
       targetSessionId: userId,
       requestedAt: Date.now(),
       source: 'to_room_event',
     });
-    // Replace /to/… in history so the back button doesn't return to this route.
-    window.history.replaceState({}, '', '/');
-  }, [userId, roomId, eventId, setActiveSessionId, setPending]);
+  }, [userId, roomId, eventId, joinCall, setActiveSessionId, setPending]);
 
   return null;
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { QueryClient } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
@@ -38,6 +38,28 @@ function SettingsStoreBootstrap({
   return children;
 }
 
+function AppWithClientConfig({
+  clientConfig,
+  screenSize,
+}: {
+  clientConfig: ClientConfig;
+  screenSize: ReturnType<typeof useScreenSize>;
+}) {
+  const router = useMemo(() => createRouter(clientConfig, screenSize), [clientConfig, screenSize]);
+
+  useEffect(() => {
+    setMatrixToBase(clientConfig.matrixToBaseUrl);
+  }, [clientConfig.matrixToBaseUrl]);
+
+  return (
+    <ClientConfigProvider value={clientConfig}>
+      <SettingsStoreBootstrap settingsDefaults={clientConfig.settingsDefaults}>
+        <RouterProvider router={router} />
+      </SettingsStoreBootstrap>
+    </ClientConfigProvider>
+  );
+}
+
 function App() {
   const screenSize = useScreenSize();
   useCompositionEndTracking();
@@ -60,14 +82,7 @@ function App() {
             )}
           >
             {(clientConfig) => {
-              setMatrixToBase(clientConfig.matrixToBaseUrl);
-              return (
-                <ClientConfigProvider value={clientConfig}>
-                  <SettingsStoreBootstrap settingsDefaults={clientConfig.settingsDefaults}>
-                    <RouterProvider router={createRouter(clientConfig, screenSize)} />
-                  </SettingsStoreBootstrap>
-                </ClientConfigProvider>
-              );
+              return <AppWithClientConfig clientConfig={clientConfig} screenSize={screenSize} />;
             }}
           </ClientConfigLoader>
         </FeatureCheck>

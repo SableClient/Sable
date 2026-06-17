@@ -1,0 +1,66 @@
+import { render, waitFor } from '@testing-library/react';
+import { Provider, useAtomValue } from 'jotai';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { describe, expect, it } from 'vitest';
+import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
+import { ToRoomEvent } from './ToRoomEvent';
+
+function AtomProbe() {
+  const activeSessionId = useAtomValue(activeSessionIdAtom);
+  const pendingNotification = useAtomValue(pendingNotificationAtom);
+
+  return (
+    <pre data-testid="probe">
+      {JSON.stringify({
+        activeSessionId,
+        pendingNotification,
+      })}
+    </pre>
+  );
+}
+
+describe('ToRoomEvent', () => {
+  it('captures join-call notification restore state from the route and query string', async () => {
+    const { getByTestId } = render(
+      <Provider>
+        <MemoryRouter
+          initialEntries={['/to/%40alice%3Aexample/!room%3Aexample/%24event123?joinCall=true']}
+        >
+          <Routes>
+            <Route
+              path="/to/:user_id/:room_id/:event_id?"
+              element={
+                <>
+                  <ToRoomEvent />
+                  <AtomProbe />
+                </>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </Provider>
+    );
+
+    await waitFor(() => {
+      const payload = JSON.parse(getByTestId('probe').textContent ?? '{}') as {
+        activeSessionId?: string;
+        pendingNotification?: {
+          roomId?: string;
+          eventId?: string;
+          joinCall?: boolean;
+          targetSessionId?: string;
+          requestedAt?: number;
+          source?: string;
+        };
+      };
+
+      expect(payload.activeSessionId).toBe('@alice:example');
+      expect(payload.pendingNotification?.roomId).toBe('!room:example');
+      expect(payload.pendingNotification?.eventId).toBe('$event123');
+      expect(payload.pendingNotification?.joinCall).toBe(true);
+      expect(payload.pendingNotification?.targetSessionId).toBe('@alice:example');
+      expect(payload.pendingNotification?.source).toBe('to_room_event');
+      expect(typeof payload.pendingNotification?.requestedAt).toBe('number');
+    });
+  });
+});

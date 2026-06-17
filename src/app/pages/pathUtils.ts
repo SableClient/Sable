@@ -42,6 +42,21 @@ export const withSearchParam = (path: string, searchParam: Record<string, string
 
   return `${path}?${params}`;
 };
+export const withAdditionalSearchParams = (
+  path: string,
+  searchParams: Record<string, string | undefined | null>
+): string => {
+  const [pathname = '', search = ''] = path.split('?');
+  const params = new URLSearchParams(search);
+
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    params.set(key, value);
+  });
+
+  const nextSearch = params.toString();
+  return nextSearch ? `${pathname}?${nextSearch}` : pathname;
+};
 export const encodeSearchParamValueArray = (ids: string[]): string => ids.join(',');
 export const decodeSearchParamValueArray = (idsParam: string): string[] => idsParam.split(',');
 
@@ -74,6 +89,9 @@ export const getAppPathFromHref = (baseUrl: string, href: string): string => {
 
   return href.slice(trimTrailingSlash(baseUrl).length);
 };
+
+export const getAppPathFromWindowHref = (hashRouterConfig?: HashRouterConfig): string =>
+  getAppPathFromHref(getOriginBaseUrl(hashRouterConfig), window.location.href);
 
 export const getRootPath = (): string => ROOT_PATH;
 
@@ -153,14 +171,21 @@ export const getHomeCreatePath = (): string => HOME_CREATE_PATH;
 export const getHomeJoinPath = (): string => HOME_JOIN_PATH;
 export const getHomeSearchPath = (): string => HOME_SEARCH_PATH;
 export const getHomeBookmarksPath = (): string => HOME_BOOKMARKS_PATH;
-export const getToRoomEventPath = (userId: string, roomId: string, eventId?: string): string => {
+export const getToRoomEventPath = (
+  userId: string,
+  roomId: string,
+  eventId?: string,
+  options?: { joinCall?: boolean }
+): string => {
   const params = {
     user_id: encodeURIComponent(userId),
     room_id: encodeURIComponent(roomId),
     event_id: eventId ? encodeURIComponent(eventId) : null,
   };
 
-  return generatePath(TO_ROOM_EVENT_PATH, params);
+  return withAdditionalSearchParams(generatePath(TO_ROOM_EVENT_PATH, params), {
+    joinCall: options?.joinCall ? 'true' : undefined,
+  });
 };
 
 export const getHomeRoomPath = (roomIdOrAlias: string, eventId?: string): string => {

@@ -1801,11 +1801,14 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     if (pushUserId) u.searchParams.set('uid', pushUserId);
     targetUrl = u.href;
   } else if (pushUserId && pushRoomId) {
-    const callParam = isCall ? '?joinCall=true' : '';
-    const segments = pushEventId
-      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
-      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
-    targetUrl = new URL(segments, scope).href;
+    const roomUrl = new URL(
+      pushEventId
+        ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}`
+        : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}`,
+      scope
+    );
+    if (isCall) roomUrl.searchParams.set('joinCall', 'true');
+    targetUrl = roomUrl.href;
   } else if (pushNavigate) {
     targetUrl = new URL(pushNavigate, scope).href;
   } else {

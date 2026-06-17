@@ -1026,7 +1026,7 @@ export const getReactCustomHtmlParser = (
             // old style for just a few... what is this even for? React components or something?
             return (
               <span className={css.EmoticonBase}>
-                  <span className={css.CustomEmoticon()}>
+                <span className={css.CustomEmoticon()}>
                   {!params.autoplayEmojis ? (
                     <ClientSideHoverFreeze src={htmlSrc}>
                       <FallbackImg

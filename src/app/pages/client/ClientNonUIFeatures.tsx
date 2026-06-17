@@ -93,6 +93,10 @@ import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 import {
+  shouldDeferInviteNotificationToPush,
+  shouldDeferMessageNotificationToPush,
+} from './notificationRouting';
+import {
   NotificationTransportRuntime,
   type NotificationTransportRuntimeContext,
 } from '../../features/settings/notifications/NotificationTransportRuntime';
@@ -299,9 +303,14 @@ function InviteNotifications() {
   useEffect(() => {
     if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
 
-    // When background push is enabled, let the service worker own invite
-    // notifications and keep the page path silent to avoid duplicate foreground alerts.
-    if (usePushNotifications) return;
+    if (
+      shouldDeferInviteNotificationToPush(
+        usePushNotifications,
+        document.visibilityState,
+        document.hasFocus()
+      )
+    )
+      return;
 
     // OS notification for invites — desktop only.
     if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {
@@ -514,9 +523,13 @@ function MessageNotifications() {
         if (first) notifiedEventsRef.current.delete(first);
       }
 
-      const isForegroundFocusedClient =
-        document.visibilityState === 'visible' && document.hasFocus();
-      if (!isForegroundFocusedClient && usePushNotifications) {
+      if (
+        shouldDeferMessageNotificationToPush(
+          usePushNotifications,
+          document.visibilityState,
+          document.hasFocus()
+        )
+      ) {
         // When background push is enabled, defer all non-foreground notification
         // delivery to the SW path so the page does not duplicate or race it.
         return;

@@ -1682,7 +1682,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
               clientId,
             });
           }
-          return fetch(url, { ...fetchConfig(resolvedSession.accessToken), redirect });
+          return fetchMediaWithRetry(url, resolvedSession.accessToken, redirect, clientId);
         }
 
         await postSentryBreadcrumb(

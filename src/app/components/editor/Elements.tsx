@@ -2,6 +2,7 @@ import { Text } from 'folds';
 import type { RenderElementProps, RenderLeafProps } from 'slate-react';
 import { useFocused, useSelected, useSlate } from 'slate-react';
 import { useAtomValue } from 'jotai';
+import classNames from 'classnames';
 
 import * as css from '$styles/CustomHtml.css';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -86,9 +87,12 @@ function RenderEmoticonElement({
   return (
     <span className={css.EmoticonBase} {...attributes}>
       <span
-        className={css.Emoticon({
-          focus: selected && focused,
-        })}
+        className={classNames(
+          css.Emoticon({
+            focus: selected && focused,
+          }),
+          !element.key.startsWith('mxc://') && css.SystemEmoji
+        )}
         contentEditable={false}
       >
         {element.key.startsWith('mxc://') ? (

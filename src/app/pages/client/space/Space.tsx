@@ -721,11 +721,7 @@ export function Space() {
           return;
         }
         // for nearly root level text/call rooms, we will not be drawing any arcs.
-        if (
-          renderDepth === DEPTH_START &&
-          !room?.isSpaceRoom() &&
-          connectorStack.length === 0
-        ) {
+        if (renderDepth === DEPTH_START && !room?.isSpaceRoom() && connectorStack.length === 0) {
           return;
         }
 

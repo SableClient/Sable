@@ -86,15 +86,17 @@ export const PreviewImg = style([
 export const EmojiGlyph = style([
   DefaultReset,
   {
-    width: toRem(36),
-    height: toRem(36),
+    width: toRem(32),
+    height: toRem(32),
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontFamily:
       'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-    fontSize: toRem(36),
+    fontSize: toRem(32),
     lineHeight: 1,
+    transform: 'translateY(-1px) scale(1.125)',
+    transformOrigin: 'center',
   },
 ]);
 

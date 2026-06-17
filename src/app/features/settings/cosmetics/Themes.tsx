@@ -210,6 +210,19 @@ function CodeBlockThemeSettings() {
   );
 }
 
+const onNumberInputKeyDown =
+  (reset: () => void): KeyboardEventHandler<HTMLInputElement> =>
+  (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      reset();
+      (evt.target as HTMLInputElement).blur();
+    }
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
 function ThemeVisualPreferences() {
   const [saturation, setSaturation] = useSetting(settingsAtom, 'saturationLevel');
   const [underlineLinks, setUnderlineLinks] = useSetting(settingsAtom, 'underlineLinks');
@@ -269,19 +282,6 @@ function ThemeVisualPreferences() {
     const parsed = Number.parseInt(val, 10);
     if (!Number.isNaN(parsed)) setLinkPreviewImageMaxHeight(clampIncomingInlineImageHeight(parsed));
   };
-
-  const onNumberInputKeyDown =
-    (reset: () => void): KeyboardEventHandler<HTMLInputElement> =>
-    (evt) => {
-      if (isKeyHotkey('escape', evt)) {
-        evt.stopPropagation();
-        reset();
-        (evt.target as HTMLInputElement).blur();
-      }
-      if (isKeyHotkey('enter', evt)) {
-        (evt.target as HTMLInputElement).blur();
-      }
-    };
 
   return (
     <Box direction="Column" gap="100">

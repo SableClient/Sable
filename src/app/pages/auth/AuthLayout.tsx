@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useCallback, useEffect } from 'react';
 import { Box, Chip, Header, Scroll, Spinner, Text, color } from 'folds';
 import {
@@ -21,11 +22,13 @@ import { SpecVersionsProvider } from '$hooks/useSpecVersions';
 import { AutoDiscoveryInfoProvider } from '$hooks/useAutoDiscoveryInfo';
 import { AuthFlowsLoader } from '$components/AuthFlowsLoader';
 import { AuthFlowsProvider } from '$hooks/useAuthFlows';
+import type { AuthFlows } from '$hooks/useAuthFlows';
 import { AuthServerProvider } from '$hooks/useAuthServer';
 import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH } from '$pages/paths';
 import { getHomePath } from '$pages/pathUtils';
 import { fetch } from '$utils/fetch';
 import { AutoDiscoveryAction, autoDiscovery } from '../../cs-api';
+import type { SpecVersions } from '../../cs-api';
 import { ServerPicker } from './ServerPicker';
 import * as css from './styles.css';
 import { AuthFooter } from './AuthFooter';
@@ -61,6 +64,48 @@ function AuthLayoutError({ message }: { message: string }) {
         {message}
       </Text>
     </Box>
+  );
+}
+
+function AuthHomeserverConnectFallback({ baseUrl }: { baseUrl: string }) {
+  return <AuthLayoutLoading message={`Connecting to ${baseUrl}`} />;
+}
+
+function authHomeserverConnectError() {
+  return (
+    <AuthLayoutError message="Failed to connect. Either homeserver is unavailable at this moment or does not exist." />
+  );
+}
+
+function authFlowsLoadingFallback() {
+  return <AuthLayoutLoading message="Loading authentication flow..." />;
+}
+
+function authFlowsError() {
+  return <AuthLayoutError message="Failed to get authentication flow information." />;
+}
+
+function AuthFlowsOutlet({ authFlows }: { authFlows: AuthFlows }) {
+  return (
+    <AuthFlowsProvider value={authFlows}>
+      <Outlet />
+    </AuthFlowsProvider>
+  );
+}
+
+function AuthSpecVersionsContent({
+  specVersions,
+  renderAuthFlows,
+}: {
+  specVersions: SpecVersions;
+  renderAuthFlows: (authFlows: AuthFlows) => ReactNode;
+}) {
+  return (
+    <SpecVersionsProvider value={specVersions}>
+      <AuthFlowsLoader fallback={authFlowsLoadingFallback} error={authFlowsError}>
+        {renderAuthFlows}
+      </AuthFlowsLoader>
+    </SpecVersionsProvider>
   );
 }
 
@@ -126,6 +171,25 @@ export function AuthLayout() {
   const [autoDiscoveryError, autoDiscoveryInfo] =
     discoveryState.status === AsyncStatus.Success ? discoveryState.data.response : [];
 
+  const homeserverBaseUrl = autoDiscoveryInfo?.['m.homeserver']?.base_url;
+
+  const renderHomeserverConnectFallback = useCallback(() => {
+    if (!homeserverBaseUrl) return null;
+    return <AuthHomeserverConnectFallback baseUrl={homeserverBaseUrl} />;
+  }, [homeserverBaseUrl]);
+
+  const renderAuthFlows = useCallback(
+    (authFlows: AuthFlows) => <AuthFlowsOutlet authFlows={authFlows} />,
+    []
+  );
+
+  const renderSpecVersions = useCallback(
+    (specVersions: SpecVersions) => (
+      <AuthSpecVersionsContent specVersions={specVersions} renderAuthFlows={renderAuthFlows} />
+    ),
+    [renderAuthFlows]
+  );
+
   return (
     <Scroll variant="Background" visibility="Hover" size="300" hideTrack>
       <Box
@@ -187,33 +251,10 @@ export function AuthLayout() {
                 <AutoDiscoveryInfoProvider value={autoDiscoveryInfo}>
                   <SpecVersionsLoader
                     baseUrl={autoDiscoveryInfo['m.homeserver'].base_url}
-                    fallback={() => (
-                      <AuthLayoutLoading
-                        message={`Connecting to ${autoDiscoveryInfo['m.homeserver'].base_url}`}
-                      />
-                    )}
-                    error={() => (
-                      <AuthLayoutError message="Failed to connect. Either homeserver is unavailable at this moment or does not exist." />
-                    )}
+                    fallback={renderHomeserverConnectFallback}
+                    error={authHomeserverConnectError}
                   >
-                    {(specVersions) => (
-                      <SpecVersionsProvider value={specVersions}>
-                        <AuthFlowsLoader
-                          fallback={() => (
-                            <AuthLayoutLoading message="Loading authentication flow..." />
-                          )}
-                          error={() => (
-                            <AuthLayoutError message="Failed to get authentication flow information." />
-                          )}
-                        >
-                          {(authFlows) => (
-                            <AuthFlowsProvider value={authFlows}>
-                              <Outlet />
-                            </AuthFlowsProvider>
-                          )}
-                        </AuthFlowsLoader>
-                      </SpecVersionsProvider>
-                    )}
+                    {renderSpecVersions}
                   </SpecVersionsLoader>
                 </AutoDiscoveryInfoProvider>
               </AuthServerProvider>

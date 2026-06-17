@@ -4,6 +4,12 @@ import { markdownToHtml } from './markdownToHtml';
 import { htmlToMarkdown } from './htmlToMarkdown';
 import { injectDataMd } from './injectDataMd';
 
+const roundtrip = (markdown: string) => {
+  const html = markdownToHtml(markdown);
+  const injected = injectDataMd(html);
+  return htmlToMarkdown(injected);
+};
+
 describe('bidirectional round-trip', () => {
   it('round-trips headings', () => {
     const markdown = '## Hello World';
@@ -73,11 +79,6 @@ describe('bidirectional round-trip', () => {
   });
 
   it('round-trips blockquotes', () => {
-    const roundtrip = (markdown: string) => {
-      const html = markdownToHtml(markdown);
-      const injected = injectDataMd(html);
-      return htmlToMarkdown(injected);
-    };
     expect(roundtrip('> Quote text')).toBe('> Quote text');
     expect(roundtrip('> line one\n> line two')).toBe('> line one\n> line two');
     expect(roundtrip('> test\ntest')).toBe('> test\ntest');

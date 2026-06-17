@@ -299,8 +299,6 @@ export function MobileMessageMenu({
     onClose();
   }, [mx, room, senderId, onClose]);
 
-  const stopPropHandler = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
-
   const portalContainer = document.getElementById('portalContainer') ?? document.body;
 
   return createPortal(
@@ -321,8 +319,6 @@ export function MobileMessageMenu({
         role="dialog"
         aria-modal="true"
         style={showEmojiPicker ? { maxHeight: '90vh', overflowY: 'hidden' } : undefined}
-        onClick={stopPropHandler}
-        onKeyDown={(e) => e.stopPropagation()}
         onTouchStart={handleSheetTouchStart}
         onTouchMove={handleSheetTouchMove}
         onTouchEnd={handleSheetTouchEnd}

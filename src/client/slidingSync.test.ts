@@ -456,25 +456,25 @@ describe('SlidingSyncManager.dispose()', () => {
 
 // ── onMembershipLeave: auto-unsubscribe on leave/ban ─────────────────────────
 
-describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
-  /** Fire the RoomMemberEvent.Membership listener registered on mx.on */
-  function fireMembershipEvent(
-    mx: ReturnType<typeof makeMockMx>,
-    membership: string,
-    roomId = '!room:example.com',
-    userId = '@user:example.com'
-  ) {
-    const onCall = (mx.on as ReturnType<typeof vi.fn>).mock.calls.find(
-      (args: unknown[]) => args[0] === 'RoomMember.membership'
-    );
-    if (!onCall) throw new Error('onMembershipLeave listener not registered');
-    const [, handler] = onCall as [
-      string,
-      (e: unknown, m: { userId: string; roomId: string; membership: string }) => void,
-    ];
-    handler(undefined, { userId, roomId, membership });
-  }
+/** Fire the RoomMemberEvent.Membership listener registered on mx.on */
+function fireMembershipEvent(
+  mx: ReturnType<typeof makeMockMx>,
+  membership: string,
+  roomId = '!room:example.com',
+  userId = '@user:example.com'
+) {
+  const onCall = (mx.on as ReturnType<typeof vi.fn>).mock.calls.find(
+    (args: unknown[]) => args[0] === 'RoomMember.membership'
+  );
+  if (!onCall) throw new Error('onMembershipLeave listener not registered');
+  const [, handler] = onCall as [
+    string,
+    (e: unknown, m: { userId: string; roomId: string; membership: string }) => void,
+  ];
+  handler(undefined, { userId, roomId, membership });
+}
 
+describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
   it('unsubscribes when the local user leaves an active room', () => {
     const mx = makeMockMx();
     const manager = makeManager(mx);

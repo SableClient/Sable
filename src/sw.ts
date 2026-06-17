@@ -211,7 +211,14 @@ async function cleanupDeadClients() {
   });
 }
 
-function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, userId?: unknown) {
+async function setSession(
+  clientId: string,
+  accessToken: unknown,
+  baseUrl: unknown,
+  userId?: unknown
+) {
+  await cleanupDeadClients();
+
   if (typeof accessToken === 'string' && typeof baseUrl === 'string') {
     // Only clear the media cache when the token actually changes (new account or
     // token rotation). Normal page reloads with the same token should keep the
@@ -644,6 +651,10 @@ async function waitForNotificationClickHandled(
       finish(true);
     });
   });
+}
+
+function createNotificationClickHandledWaiter(clickId: string, timeoutMs = 2_500) {
+  return waitForNotificationClickHandled(clickId, timeoutMs);
 }
 
 async function fetchRawEvent(
@@ -1118,15 +1129,21 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   const { type, accessToken, baseUrl, userId } = data as Record<string, unknown>;
 
   if (type === 'setSession') {
-    setSession(client.id, accessToken, baseUrl, userId);
-    const persisted = sessions.get(client.id);
     event.waitUntil(
-      postSentryBreadcrumb('service_worker.session', 'Service worker session updated', 'info', {
-        hasSession: !!persisted,
-        sessionCount: sessions.size,
-      })
+      (async () => {
+        await setSession(client.id, accessToken, baseUrl, userId);
+        const persisted = sessions.get(client.id);
+        await postSentryBreadcrumb(
+          'service_worker.session',
+          'Service worker session updated',
+          'info',
+          {
+            hasSession: !!persisted,
+            sessionCount: sessions.size,
+          }
+        );
+      })()
     );
-    event.waitUntil(cleanupDeadClients());
   }
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
@@ -1891,6 +1908,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
         console.debug('[SW notificationclick] postMessage to existing client:', wc.url);
         try {
           const clickId = createRecordId('notification-click');
+          const clickHandledPromise = createNotificationClickHandledWaiter(clickId);
 
           wc.postMessage({
             type: 'notificationClick',
@@ -1912,7 +1930,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
           const handledByLiveClient =
             didWindowClientActivationSucceed(focusedClient) &&
             // oxlint-disable-next-line no-await-in-loop
-            (await waitForNotificationClickHandled(clickId));
+            (await clickHandledPromise);
           if (handledByLiveClient) {
             return;
           }

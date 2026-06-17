@@ -21,6 +21,15 @@ const mediaMetadata = vi.hoisted(() => ({
   storeMediaMetadataForBlob: vi.fn(async () => undefined),
 }));
 
+function pendingResponse() {
+  let resolveFetch!: (value: Response) => void;
+  const pending = new Promise<Response>((resolve) => {
+    resolveFetch = resolve;
+  });
+
+  return { pending, resolveFetch };
+}
+
 vi.mock('$utils/platform', () => platform);
 vi.mock('./mediaCache', () => mediaCache);
 vi.mock('./mediaMetadata', () => mediaMetadata);
@@ -289,10 +298,7 @@ describe('fetchMediaBlob', () => {
   it('dedupes inflight requests for the same url and cache mode', async () => {
     const { fetchMediaBlob } = await import('./mediaTransport');
     const url = 'https://example.org/media.png';
-    let resolveFetch: (value: Response) => void = () => undefined;
-    const pending = new Promise<Response>((resolve) => {
-      resolveFetch = resolve;
-    });
+    const { pending, resolveFetch } = pendingResponse();
     vi.mocked(fetch).mockReturnValueOnce(pending);
 
     const promiseA = fetchMediaBlob(url);

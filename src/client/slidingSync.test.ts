@@ -30,6 +30,28 @@ import {
   type SlidingSyncConfig,
 } from './slidingSync';
 
+function installConnectionMock(): { fireConnectionChange: () => void } {
+  let onChange: (() => void) | undefined;
+  Object.defineProperty(window.navigator, 'connection', {
+    configurable: true,
+    value: {
+      effectiveType: '4g',
+      downlink: 10,
+      addEventListener: vi.fn<(event: string, cb: () => void) => void>((event, cb) => {
+        if (event === 'change') onChange = cb;
+      }),
+      removeEventListener: vi.fn<() => void>(),
+      onchange: null,
+    },
+  });
+  return {
+    fireConnectionChange: () => {
+      if (!onChange) throw new Error('connection change listener not registered');
+      onChange();
+    },
+  };
+}
+
 // ── vi.hoisted mocks ─────────────────────────────────────────────────────────
 // Must be defined via vi.hoisted so they're available before vi.mock runs
 // (vi.mock calls are hoisted above all imports by vitest's transformer).
@@ -715,28 +737,6 @@ describe('SlidingSyncManager — timeline handoff', () => {
 // ── network changes: avoid foreground resend cascades ───────────────────────
 
 describe('SlidingSyncManager — network change handling', () => {
-  function installConnectionMock(): { fireConnectionChange: () => void } {
-    let onChange: (() => void) | undefined;
-    Object.defineProperty(window.navigator, 'connection', {
-      configurable: true,
-      value: {
-        effectiveType: '4g',
-        downlink: 10,
-        addEventListener: vi.fn<(event: string, cb: () => void) => void>((event, cb) => {
-          if (event === 'change') onChange = cb;
-        }),
-        removeEventListener: vi.fn<() => void>(),
-        onchange: null,
-      },
-    });
-    return {
-      fireConnectionChange: () => {
-        if (!onChange) throw new Error('connection change listener not registered');
-        onChange();
-      },
-    };
-  }
-
   afterEach(() => {
     setNavigatorOnline(true);
     Object.defineProperty(window.navigator, 'connection', {

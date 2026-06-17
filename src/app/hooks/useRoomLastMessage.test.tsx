@@ -247,12 +247,6 @@ describe('getLastMessageText', () => {
 // -------- useRoomLastMessage hook --------
 
 describe('useRoomLastMessage', () => {
-  const makeMx = (userId = '@alice:test') => ({
-    getUserId: () => userId,
-    on: vi.fn<(event: string, handler: (...args: unknown[]) => void) => void>(),
-    off: vi.fn<(event: string, handler: (...args: unknown[]) => void) => void>(),
-  });
-
   const roomListeners = new Map<string, ((...args: unknown[]) => void)[]>();
 
   const makeRoom = (events: ReturnType<typeof makeEvent>[]) => ({
@@ -313,4 +307,10 @@ describe('useRoomLastMessage', () => {
     expect(result.current?.text).toBe('You: second');
     vi.useRealTimers();
   });
+});
+
+const makeMx = (userId = '@alice:test') => ({
+  getUserId: () => userId,
+  on: vi.fn<(event: string, handler: (...args: unknown[]) => void) => void>(),
+  off: vi.fn<(event: string, handler: (...args: unknown[]) => void) => void>(),
 });

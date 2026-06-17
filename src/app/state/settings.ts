@@ -677,10 +677,13 @@ export function resetRuntimeSettingsDefaults(): void {
   runtimeSettingsDefaults = {};
 }
 
+export function primeRuntimeSettingsDefaults(rawSettingsDefaults: unknown): void {
+  runtimeSettingsDefaults = sanitizeSettingsDefaults(rawSettingsDefaults);
+}
+
 export function bootstrapSettingsStore(store: Store, rawSettingsDefaults: unknown): void {
-  const sanitized = sanitizeSettingsDefaults(rawSettingsDefaults);
-  runtimeSettingsDefaults = sanitized;
-  const merged = mergePersistedSettings(localStorage.getItem(STORAGE_KEY), sanitized);
+  primeRuntimeSettingsDefaults(rawSettingsDefaults);
+  const merged = mergePersistedSettings(localStorage.getItem(STORAGE_KEY), runtimeSettingsDefaults);
   store.set(baseSettings, merged);
 }
 

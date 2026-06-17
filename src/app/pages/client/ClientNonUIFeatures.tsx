@@ -947,8 +947,17 @@ export function HandleNotificationClick() {
         }
         return;
       }
-      navigateToRoomNotificationTarget(navigate, userId, roomId, eventId);
-      acknowledgeHandledClick();
+
+      if (userId) {
+        navigateToRoomNotificationTarget(navigate, userId, roomId, eventId);
+        acknowledgeHandledClick();
+        return;
+      }
+
+      if (targetUrl ?? navigateUrl) {
+        navigateToServiceWorkerUrl(navigate, targetUrl ?? navigateUrl ?? '');
+        acknowledgeHandledClick();
+      }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);

@@ -12,7 +12,7 @@ import { ClientConfigProvider } from '$hooks/useClientConfig';
 import { setMatrixToBase } from '$plugins/matrix-to';
 import { useScreenSize } from '$hooks/useScreenSize';
 import { useCompositionEndTracking } from '$hooks/useComposingCheck';
-import { bootstrapSettingsStore } from '$state/settings';
+import { bootstrapSettingsStore, primeRuntimeSettingsDefaults } from '$state/settings';
 import { ErrorPage } from '$components/DefaultErrorPage';
 import { ConfigConfigError, ConfigConfigLoading } from './ConfigConfig';
 import { FeatureCheck } from './FeatureCheck';
@@ -61,6 +61,12 @@ function AppWithClientConfig({
   clientConfig: ClientConfig;
   screenSize: ReturnType<typeof useScreenSize>;
 }) {
+  const bootstrappedDefaultsRef = useRef<ClientConfig['settingsDefaults']>();
+  if (bootstrappedDefaultsRef.current !== clientConfig.settingsDefaults) {
+    primeRuntimeSettingsDefaults(clientConfig.settingsDefaults);
+    bootstrappedDefaultsRef.current = clientConfig.settingsDefaults;
+  }
+
   const router = useMemo(() => createRouter(clientConfig, screenSize), [clientConfig, screenSize]);
 
   useEffect(() => {

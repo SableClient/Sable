@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installSmokeApp, seedStoredSession } from './smokeApp';
+import { installSmokeApp, seedLaunchContext, seedStoredSession } from './smokeApp';
 
 test.describe('app startup smoke', () => {
   test('retries config.json during startup and still reaches login', async ({ page }) => {
@@ -65,5 +65,20 @@ test.describe('app startup smoke', () => {
       /#\/to\/%40smoke%3Asmoke\.test\/%21room%3Asmoke\.test\/%24event%3Asmoke\.test\?joinCall=true$/
     );
     await expect(page.getByText('Petting cats')).toBeVisible();
+  });
+
+  test('recovers a persisted notification launch target during bootstrap', async ({ page }) => {
+    await installSmokeApp(page);
+    await seedStoredSession(page);
+    await seedLaunchContext(
+      page,
+      'http://127.0.0.1:4173/#/to/%40smoke%3Asmoke.test/%21room%3Asmoke.test/%24event%3Asmoke.test'
+    );
+
+    await page.goto('/');
+
+    await expect(page).toHaveURL(
+      /#\/to\/%40smoke%3Asmoke\.test\/%21room%3Asmoke\.test\/%24event%3Asmoke\.test$/
+    );
   });
 });

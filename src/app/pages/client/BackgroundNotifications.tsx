@@ -262,7 +262,7 @@ export function BackgroundNotifications() {
 
     const activeIds = new Set(inactiveSessions.map((s) => s.userId));
     const retryTimers: ReturnType<typeof setTimeout>[] = [];
-    let cancelled = false;
+    let effectDisposed = false;
 
     async function sendNotification(opts: NotifyOptions): Promise<void> {
       // Prefer SW showNotification so taps route through the notificationclick handler.
@@ -362,7 +362,6 @@ export function BackgroundNotifications() {
           sessionMx = mx;
           startingClientsRef.current.delete(session.userId);
           if (
-            cancelled ||
             current.has(session.userId) ||
             !shouldRunBackgroundNotificationsRef.current ||
             !inactiveSessionsRef.current.some((s) => s.userId === session.userId)
@@ -383,7 +382,6 @@ export function BackgroundNotifications() {
           await waitForSync(mx);
 
           if (
-            cancelled ||
             !shouldRunBackgroundNotificationsRef.current ||
             !inactiveSessionsRef.current.some((s) => s.userId === session.userId)
           ) {
@@ -705,7 +703,7 @@ export function BackgroundNotifications() {
         })
         .catch((err) => {
           startingClientsRef.current.delete(session.userId);
-          if (cancelled) {
+          if (effectDisposed) {
             if (sessionMx) {
               stopTrackedClient(session.userId);
             }
@@ -752,7 +750,7 @@ export function BackgroundNotifications() {
                 (s) => s.userId === session.userId
               );
               if (
-                !cancelled &&
+                !effectDisposed &&
                 shouldRunBackgroundNotificationsRef.current &&
                 latestSession &&
                 !current.has(session.userId)
@@ -779,7 +777,7 @@ export function BackgroundNotifications() {
 
     const activeUserIds = new Set(inactiveSessions.map((s) => s.userId));
     return () => {
-      cancelled = true;
+      effectDisposed = true;
       staggerTimers.forEach(clearTimeout);
       retryTimers.forEach(clearTimeout);
       current.forEach((mx, userId) => {

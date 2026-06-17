@@ -149,3 +149,23 @@ export async function seedStoredSession(page: Page, sessionOverrides: StoredSess
 
   return session;
 }
+
+export async function seedLaunchContext(page: Page, targetUrl: string) {
+  await page.addInitScript((url) => {
+    void caches.open('sable-launch-context-v1').then((cache) =>
+      cache.put(
+        '/launch-context-meta',
+        new Response(
+          JSON.stringify({
+            source: 'notification_click',
+            clickedAt: Date.now(),
+            targetUrl: url,
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      )
+    );
+  }, targetUrl);
+}

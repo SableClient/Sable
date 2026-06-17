@@ -238,7 +238,7 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     }
   } else {
     // Logout or invalid session
-    const removedSession = sessions.get(clientId);
+    const removedSession = sessions.get(clientId) ?? preloadedSession;
     sessions.delete(clientId);
     preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
@@ -622,7 +622,10 @@ async function fetchWithNetworkRetry(
   return fetchWithNetworkRetry(url, init, label, attempt + 1);
 }
 
-async function waitForNotificationClickHandled(clickId: string, timeoutMs = 750): Promise<boolean> {
+async function waitForNotificationClickHandled(
+  clickId: string,
+  timeoutMs = 2_500
+): Promise<boolean> {
   return new Promise((resolve) => {
     let settled = false;
     const finish = (handled: boolean) => {
@@ -1172,7 +1175,10 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'notificationClickHandled') {
     const { clickId } = data as { clickId?: unknown };
     if (typeof clickId === 'string') {
-      notificationClickPendingMap.get(clickId)?.();
+      const handleNotificationClick = notificationClickPendingMap.get(clickId);
+      if (handleNotificationClick) {
+        handleNotificationClick();
+      }
     }
   }
   if (type === 'drainPushTelemetry') {

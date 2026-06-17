@@ -8,6 +8,24 @@ import { ArrowBendUpLeftIcon, getPhosphorIconSize } from '$components/icons/phos
 import { mobileOrTablet } from '$utils/user-agent';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
 
+const getGestureTargetElement = (target: EventTarget | null): Element | null => {
+  if (target instanceof Element) return target;
+  if (target instanceof Text) return target.parentElement;
+  return null;
+};
+
+const shouldIgnoreSwipeGesture = (target: EventTarget | null): boolean => {
+  const selection = window.getSelection();
+  if (selection && !selection.isCollapsed) return true;
+
+  const element = getGestureTargetElement(target);
+  if (!element) return false;
+
+  return !!element.closest(
+    'a, button, input, textarea, select, video, audio, [contenteditable="true"], [data-gestures="ignore"]'
+  );
+};
+
 function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onReply: () => void }) {
   const x = useMotionValue(0);
   const springX = useSpring(x, { stiffness: 300, damping: 35 });
@@ -15,7 +33,11 @@ function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onRepl
   const iconOpacity = useTransform(x, [0, -8], [0, 1]);
 
   const bind = useDrag(
-    ({ active, movement: [mx] }) => {
+    ({ active, movement: [mx], event }) => {
+      if (shouldIgnoreSwipeGesture(event?.target ?? null)) {
+        return;
+      }
+
       if (active) {
         const val = mx < 0 ? mx : 0;
         x.set(Math.max(-80, val));

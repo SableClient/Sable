@@ -259,8 +259,8 @@ function PinnedMessage(props: PinnedMessageProps) {
           data-event-id={eventId}
           size="300"
           radii="Pill"
-          onClick={unpinState.status === AsyncStatus.Loading ? undefined : handleUnpinClick}
-          aria-disabled={unpinState.status === AsyncStatus.Loading}
+          onClick={handleUnpinClick}
+          disabled={unpinState.status === AsyncStatus.Loading}
         >
           {unpinState.status === AsyncStatus.Loading ? <Spinner size="100" /> : menuIcon(X)}
         </IconButton>

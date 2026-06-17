@@ -320,7 +320,9 @@ describe('CustomEditor', () => {
     expect(editorRoot).not.toBeNull();
     expect(editorRoot?.contains(measurer)).toBe(true);
     expect(measurer?.parentElement).not.toBe(document.body);
-    expect(scroll?.style.maxHeight).toBe('50vh');
+    expect(scroll?.style.maxHeight).toBe(
+      'min(50vh, calc(var(--sable-visible-height, 100vh) * 0.5))'
+    );
     expect(screen.getByText('Attach')).toBeVisible();
     expect(screen.getByText('Send')).toBeVisible();
     expect(screen.getByTestId('recorder').parentElement).toHaveClass(css.EditorOptions);

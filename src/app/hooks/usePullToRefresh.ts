@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
-import { getSlidingSyncManager } from '$client/initMatrix';
 import { mobileOrTablet } from '$utils/user-agent';
+import { triggerManualRefresh } from '$utils/manualRefresh';
 
 const PULL_THRESHOLD = 72; // px of overscroll needed to trigger refresh
 const MAX_PULL = 120; // px cap for visual rubber-band effect
@@ -119,18 +119,8 @@ export function usePullToRefresh(
 
       showRefreshing();
 
-      // Abort/retry the SDK's current /sync request. This covers classic sync
-      // and also helps when a mobile network drop leaves a long-poll wedged
-      // without a clean offline-to-online browser event.
-      mx.retryImmediately();
-
-      // Temporarily clear all active room subscriptions so the server sees
-      // an empty-subscription request.  On the following cycle, subscriptions
-      // are restored and the server returns initial:true for each room,
-      // triggering a clean timeline reset with proper backward-pagination
-      // tokens.  This recovers from stale or out-of-order in-memory timelines
-      // that a normal delta sync cannot fix.
-      getSlidingSyncManager(mx)?.scheduleForceReset();
+      // Reuse the same full refresh path as desktop-visible refresh actions.
+      triggerManualRefresh(mx);
 
       // Brief delay so the spinner is visible before snapping back.
       // Reduced from 800ms to 400ms for faster perceived responsiveness.

@@ -78,7 +78,6 @@ export function DirectInvitePrompt({
                   before={
                     converting ? <Spinner fill="Solid" variant="Primary" size="200" /> : undefined
                   }
-                  aria-disabled={converting}
                 >
                   <Text size="B400">
                     {converting ? 'Converting...' : 'Convert to Group Chat and Invite'}

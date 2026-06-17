@@ -256,7 +256,7 @@ export function SchedulePickerDialog({
               <Button
                 type="submit"
                 variant="Primary"
-                aria-disabled={isPast}
+                disabled={isPast}
                 onClick={handleSubmit}
                 title="Schedule Send"
                 aria-label="Schedule send"

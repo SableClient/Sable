@@ -43,6 +43,7 @@ import { useSyncState } from '$hooks/useSyncState';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useSwUpdateAvailable } from '$hooks/useSwUpdateAvailable';
+import { applyPendingAppUpdate } from '$utils/appUpdates';
 import { setBlobCacheSession } from '$hooks/useBlobCache';
 import { stopPropagation } from '$utils/keyboard';
 import { AuthMetadataProvider } from '$hooks/useAuthMetadata';
@@ -515,25 +516,7 @@ export function ClientRoot({ children }: ClientRootProps) {
               alignItems="Center"
               justifyContent="Center"
               onClick={() => {
-                // Tell the waiting service worker to activate immediately
-                navigator.serviceWorker.getRegistration().then((reg) => {
-                  if (reg?.waiting) {
-                    // Send skipWaiting message to the waiting SW
-                    // oxlint-disable-next-line unicorn/require-post-message-target-origin
-                    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    // Reload once the new SW is activated
-                    navigator.serviceWorker.addEventListener(
-                      'controllerchange',
-                      () => {
-                        window.location.reload();
-                      },
-                      { once: true }
-                    );
-                  } else {
-                    // No waiting worker, just reload
-                    window.location.reload();
-                  }
-                });
+                void applyPendingAppUpdate();
               }}
             >
               <Text size="L400">Update available — tap to reload</Text>

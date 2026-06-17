@@ -94,7 +94,7 @@ export function LeaveRoomPrompt({ roomId, onDone, onCancel }: LeaveRoomPromptPro
                     <Spinner fill="Solid" variant="Critical" size="200" />
                   ) : undefined
                 }
-                aria-disabled={
+                disabled={
                   leaveState.status === AsyncStatus.Loading ||
                   leaveState.status === AsyncStatus.Success
                 }

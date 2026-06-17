@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Box, Text, Scroll, Button, config, toRem, Spinner } from 'folds';
-import { Code, Heart, menuIcon } from '$components/icons/phosphor';
+import { ArrowsClockwise, Code, Heart, menuIcon } from '$components/icons/phosphor';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -14,11 +14,13 @@ import {
   APP_UPSTREAM_URL,
 } from '$app/config/brand';
 import { clearCacheAndReload } from '$client/initMatrix';
+import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
-import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
+import { applyPendingAppUpdate, checkForAppUpdates } from '$utils/appUpdates';
 
 type VersionResult =
   | { error: { message: string } }
@@ -192,6 +194,28 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
   const devLabel = IS_RELEASE_TAG ? '' : '-dev';
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
   const openBugReport = useOpenBugReportModal();
+  const [updateStatusMessage, setUpdateStatusMessage] = useState<string | undefined>();
+  const [updateCheckState, runUpdateCheck] = useAsyncCallback<
+    Awaited<ReturnType<typeof checkForAppUpdates>>,
+    Error,
+    []
+  >(checkForAppUpdates);
+
+  const handleCheckForUpdates = useCallback(async () => {
+    try {
+      const result = await runUpdateCheck();
+      if (!result) return;
+      setUpdateStatusMessage(result.message);
+    } catch (error) {
+      setUpdateStatusMessage(
+        error instanceof Error ? error.message : 'Failed to check for updates.'
+      );
+    }
+  }, [runUpdateCheck]);
+
+  const handleApplyUpdate = useCallback(() => {
+    void applyPendingAppUpdate();
+  }, []);
 
   return (
     <SettingsSectionPage title="About" requestBack={requestBack} requestClose={requestClose}>
@@ -262,6 +286,59 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
               </Box>
               <Box direction="Column" gap="100">
                 <Text size="L400">Options</Text>
+                <SequenceCard
+                  className={SequenceCardStyle}
+                  variant="SurfaceVariant"
+                  direction="Column"
+                  gap="400"
+                >
+                  <SettingTile
+                    title="Check for Updates"
+                    focusId="check-for-updates"
+                    description={
+                      updateStatusMessage ??
+                      'Check whether a newer web app build is ready to apply in this client.'
+                    }
+                    after={
+                      updateCheckState.status === AsyncStatus.Success &&
+                      updateCheckState.data.canApply ? (
+                        <Button
+                          onClick={handleApplyUpdate}
+                          variant="Primary"
+                          fill="Soft"
+                          size="300"
+                          radii="300"
+                          outlined
+                        >
+                          <Text size="B300">Apply Update</Text>
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleCheckForUpdates}
+                          variant="Secondary"
+                          fill="Soft"
+                          size="300"
+                          radii="300"
+                          outlined
+                          disabled={updateCheckState.status === AsyncStatus.Loading}
+                          before={
+                            updateCheckState.status === AsyncStatus.Loading ? (
+                              <Spinner variant="Secondary" size="100" />
+                            ) : (
+                              menuIcon(ArrowsClockwise)
+                            )
+                          }
+                        >
+                          <Text size="B300">
+                            {updateCheckState.status === AsyncStatus.Loading
+                              ? 'Checking…'
+                              : 'Check'}
+                          </Text>
+                        </Button>
+                      )
+                    }
+                  />
+                </SequenceCard>
                 <SequenceCard
                   className={SequenceCardStyle}
                   variant="SurfaceVariant"

@@ -141,6 +141,29 @@ function serverMatrixSdkCryptoWasm() {
   };
 }
 
+function patchServiceWorkerDocumentShim(): PluginOption {
+  let outDir = '';
+
+  return {
+    name: 'vite-plugin-patch-sw-document-shim',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    async closeBundle() {
+      const swPath = path.join(outDir, 'sw.js');
+      if (!fs.existsSync(swPath)) return;
+
+      const documentShim =
+        'const document = { currentScript: undefined, baseURI: self.location.href };';
+      const swSource = await fs.promises.readFile(swPath, 'utf8');
+      if (swSource.startsWith(documentShim)) return;
+
+      await fs.promises.writeFile(swPath, `${documentShim}\n${swSource}`, 'utf8');
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   clearScreen: false,
   appType: 'spa',
@@ -219,6 +242,9 @@ export default defineConfig(({ command }) => ({
         // Keep the production worker compatible with browsers that still lack
         // module service worker support, notably Firefox.
         rollupFormat: 'iife',
+        buildPlugins: {
+          vite: [patchServiceWorkerDocumentShim()],
+        },
         // SABLE-5G: Ensure web worker chunks (e.g., search-worker-XXXXX.js) are
         // included in the precache manifest. Vite's ?worker suffix builds workers
         // as separate chunks with hashed filenames, and injectManifest should

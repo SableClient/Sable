@@ -595,7 +595,13 @@ type DecryptionResult = {
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
-const notificationClickPendingMap = new Map<string, () => void>();
+type NotificationClickWaiter = {
+  resolve: (handled: boolean) => void;
+  settled: boolean;
+  timeoutId: ReturnType<typeof setTimeout>;
+};
+
+const notificationClickPendingMap = new Map<string, NotificationClickWaiter>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
 
 const sleep = (ms: number): Promise<void> =>
@@ -634,27 +640,35 @@ async function waitForNotificationClickHandled(
   timeoutMs = 2_500
 ): Promise<boolean> {
   return new Promise((resolve) => {
-    let settled = false;
-    const finish = (handled: boolean) => {
-      if (settled) return;
-      settled = true;
-      notificationClickPendingMap.delete(clickId);
-      resolve(handled);
-    };
-
     const timeoutId = setTimeout(() => {
-      finish(false);
+      const waiter = notificationClickPendingMap.get(clickId);
+      if (waiter) {
+        settleNotificationClickWaiter(clickId, waiter, false);
+      }
     }, timeoutMs);
 
-    notificationClickPendingMap.set(clickId, () => {
-      clearTimeout(timeoutId);
-      finish(true);
+    notificationClickPendingMap.set(clickId, {
+      timeoutId,
+      settled: false,
+      resolve,
     });
   });
 }
 
 function createNotificationClickHandledWaiter(clickId: string, timeoutMs = 2_500) {
   return waitForNotificationClickHandled(clickId, timeoutMs);
+}
+
+function settleNotificationClickWaiter(
+  clickId: string,
+  waiter: NotificationClickWaiter,
+  handled: boolean
+) {
+  if (waiter.settled) return;
+  waiter.settled = true;
+  clearTimeout(waiter.timeoutId);
+  notificationClickPendingMap.delete(clickId);
+  waiter.resolve(handled);
 }
 
 async function fetchRawEvent(
@@ -1192,9 +1206,9 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'notificationClickHandled') {
     const { clickId } = data as { clickId?: unknown };
     if (typeof clickId === 'string') {
-      const handleNotificationClick = notificationClickPendingMap.get(clickId);
-      if (handleNotificationClick) {
-        handleNotificationClick();
+      const waiter = notificationClickPendingMap.get(clickId);
+      if (waiter) {
+        settleNotificationClickWaiter(clickId, waiter, true);
       }
     }
   }

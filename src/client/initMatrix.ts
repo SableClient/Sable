@@ -1389,7 +1389,7 @@ export const clearLoginData = async () => {
   });
   window.localStorage.clear();
 
-  await clearClientCachesAndServiceWorkers();
+  await clearClientCachesAndServiceWorkers({ unregisterServiceWorkers: true });
 
   window.location.reload();
 };

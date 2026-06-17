@@ -373,7 +373,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers>();
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const suppressSendClickUntilRef = useRef(0);
+    const suppressNextSendClickRef = useRef(false);
+    const longPressTriggeredRef = useRef(false);
     const longPressPointerId = useRef<number | null>(null);
     const longPressStartPoint = useRef<{ x: number; y: number } | null>(null);
 
@@ -495,7 +496,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     useScrollLock(isMobileLayout);
 
     const closeSchedulePicker = useCallback(() => {
-      suppressSendClickUntilRef.current = 0;
       setShowSchedulePicker(false);
       setScheduleMenuAnchor(undefined);
     }, []);
@@ -509,13 +509,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       longPressStartPoint.current = null;
     }, []);
 
+    const resetLongPressState = useCallback(() => {
+      clearLongPressTimer();
+      longPressTriggeredRef.current = false;
+    }, [clearLongPressTimer]);
+
     const openSchedulePicker = useCallback(() => {
       setSendError(undefined);
       setScheduleMenuAnchor(undefined);
       setShowSchedulePicker(true);
     }, []);
 
-    useEffect(() => clearLongPressTimer, [clearLongPressTimer]);
+    useEffect(() => resetLongPressState, [resetLongPressState]);
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -2063,7 +2068,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   title="Send Message"
                   aria-label="Send your composed Message"
                   onClick={() => {
-                    if (Date.now() < suppressSendClickUntilRef.current) {
+                    if (suppressNextSendClickRef.current) {
+                      suppressNextSendClickRef.current = false;
+                      longPressTriggeredRef.current = false;
                       return;
                     }
                     submit();
@@ -2077,12 +2084,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
                     longPressPointerId.current = evt.pointerId;
                     longPressStartPoint.current = { x: evt.clientX, y: evt.clientY };
+                    longPressTriggeredRef.current = false;
                     longPressTimer.current = setTimeout(() => {
                       if (longPressPointerId.current !== evt.pointerId) return;
-                      // Ignore the synthetic click immediately following the
-                      // completed long-press without leaving the button inert.
-                      suppressSendClickUntilRef.current = Date.now() + 1000;
-                      clearLongPressTimer();
+                      longPressTriggeredRef.current = true;
+                      suppressNextSendClickRef.current = true;
+                      longPressPointerId.current = null;
+                      longPressStartPoint.current = null;
+                      if (longPressTimer.current !== null) {
+                        clearTimeout(longPressTimer.current);
+                        longPressTimer.current = null;
+                      }
                       openSchedulePicker();
                     }, 550);
                   }}
@@ -2097,13 +2109,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     }
                   }}
                   onPointerUp={() => {
-                    clearLongPressTimer();
+                    resetLongPressState();
                   }}
                   onPointerCancel={() => {
-                    clearLongPressTimer();
+                    suppressNextSendClickRef.current = false;
+                    resetLongPressState();
                   }}
                   onPointerLeave={() => {
-                    clearLongPressTimer();
+                    if (!longPressTriggeredRef.current) {
+                      resetLongPressState();
+                    }
                   }}
                   variant={scheduledTime ? 'Primary' : 'SurfaceVariant'}
                   size="300"

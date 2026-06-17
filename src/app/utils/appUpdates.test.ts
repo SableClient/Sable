@@ -12,6 +12,8 @@ vi.mock('$utils/platform', () => ({
 
 type MockServiceWorker = {
   postMessage: ReturnType<typeof vi.fn>;
+  addEventListener?: ReturnType<typeof vi.fn>;
+  removeEventListener?: ReturnType<typeof vi.fn>;
 };
 
 type MockRegistration = {
@@ -79,6 +81,36 @@ describe('appUpdates', () => {
     expect(mockRegistration.update).not.toHaveBeenCalled();
   });
 
+  it('reports an available update when a new worker is active but not yet controlling the page', async () => {
+    const activeWorker = { postMessage: vi.fn() };
+    const controllerWorker = { postMessage: vi.fn() };
+    mockRegistration.waiting = null;
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        serviceWorker: {
+          controller: controllerWorker,
+          getRegistration: vi.fn().mockResolvedValue({
+            ...mockRegistration,
+            active: activeWorker,
+          }),
+          ready: Promise.resolve({
+            ...mockRegistration,
+            active: activeWorker,
+          }),
+          addEventListener: vi.fn(),
+        },
+      },
+    });
+
+    await expect(checkForAppUpdates()).resolves.toEqual({
+      kind: 'update-available',
+      message: 'An update is ready to apply.',
+      canApply: true,
+    });
+  });
+
   it('reports up to date when no waiting worker appears after an update check', async () => {
     const resultPromise = checkForAppUpdates();
     await vi.runAllTimersAsync();
@@ -89,6 +121,59 @@ describe('appUpdates', () => {
       canApply: false,
     });
     expect(mockRegistration.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats an activating worker as an available update even without a waiting worker', async () => {
+    const installingWorker = {
+      postMessage: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const activeWorker = { postMessage: vi.fn() };
+    const controllerWorker = { postMessage: vi.fn() };
+    let updateFoundListener: EventListener | undefined;
+    let stateChangeListener: EventListener | undefined;
+
+    mockRegistration = {
+      ...createRegistration(),
+      installing: installingWorker,
+      addEventListener: vi.fn((event: string, listener: EventListener) => {
+        if (event === 'updatefound') {
+          updateFoundListener = listener;
+        }
+      }),
+    };
+    installingWorker.addEventListener.mockImplementation(
+      (event: string, listener: EventListener) => {
+        if (event === 'statechange') {
+          stateChangeListener = listener;
+        }
+      }
+    );
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        serviceWorker: {
+          controller: controllerWorker,
+          getRegistration: vi.fn().mockResolvedValue(mockRegistration),
+          ready: Promise.resolve(mockRegistration),
+          addEventListener: vi.fn(),
+        },
+      },
+    });
+
+    const resultPromise = checkForAppUpdates();
+
+    updateFoundListener?.(new Event('updatefound'));
+    Object.assign(mockRegistration, { active: activeWorker, waiting: null });
+    stateChangeListener?.(new Event('statechange'));
+
+    await expect(resultPromise).resolves.toEqual({
+      kind: 'update-available',
+      message: 'An update is ready to apply.',
+      canApply: true,
+    });
   });
 
   it('applies a waiting update and reloads immediately', async () => {

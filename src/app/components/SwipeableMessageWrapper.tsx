@@ -14,6 +14,18 @@ const getGestureTargetElement = (target: EventTarget | null): HTMLElement | null
   return null;
 };
 
+const shouldIgnoreSwipeGesture = (target: EventTarget | null): boolean => {
+  const selection = window.getSelection();
+  if (selection && !selection.isCollapsed) return true;
+
+  const element = getGestureTargetElement(target);
+  if (!element) return false;
+
+  return !!element.closest(
+    'a, button, input, textarea, select, video, audio, [contenteditable="true"], [data-gestures="ignore"]'
+  );
+};
+
 function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onReply: () => void }) {
   const x = useMotionValue(0);
   const springX = useSpring(x, { stiffness: 300, damping: 35 });
@@ -22,8 +34,7 @@ function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onRepl
 
   const bind = useDrag(
     ({ active, movement: [mx], event }) => {
-      const target = getGestureTargetElement(event?.target ?? null);
-      if (target?.closest('[data-gestures="ignore"]')) {
+      if (shouldIgnoreSwipeGesture(event?.target ?? null)) {
         return;
       }
 

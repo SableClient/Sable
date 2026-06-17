@@ -42,18 +42,31 @@ const waitForWaitingServiceWorker = async (
   registration: ServiceWorkerRegistration
 ): Promise<boolean> =>
   new Promise((resolve) => {
+    const hasPendingActiveUpdate = () =>
+      !!(
+        navigator.serviceWorker.controller &&
+        registration.active &&
+        registration.active !== navigator.serviceWorker.controller
+      );
+
     if (registration.waiting && navigator.serviceWorker.controller) {
+      resolve(true);
+      return;
+    }
+
+    if (hasPendingActiveUpdate()) {
       resolve(true);
       return;
     }
 
     let settled = false;
     let timeoutId = 0;
+    let observedInstallingWorker: ServiceWorker | null = registration.installing;
 
     const cleanup = () => {
       window.clearTimeout(timeoutId);
       registration.removeEventListener('updatefound', handleUpdateFound);
-      registration.installing?.removeEventListener('statechange', handleInstallingState);
+      observedInstallingWorker?.removeEventListener('statechange', handleInstallingState);
     };
 
     const finish = (waiting: boolean) => {
@@ -66,17 +79,23 @@ const waitForWaitingServiceWorker = async (
     const handleInstallingState = () => {
       if (registration.waiting && navigator.serviceWorker.controller) {
         finish(true);
+        return;
+      }
+
+      if (hasPendingActiveUpdate()) {
+        finish(true);
       }
     };
 
     const handleUpdateFound = () => {
-      registration.installing?.addEventListener('statechange', handleInstallingState);
+      observedInstallingWorker = registration.installing;
+      observedInstallingWorker?.addEventListener('statechange', handleInstallingState);
     };
 
     timeoutId = window.setTimeout(() => finish(false), UPDATE_CHECK_TIMEOUT_MS);
 
     registration.addEventListener('updatefound', handleUpdateFound, { once: true });
-    registration.installing?.addEventListener('statechange', handleInstallingState);
+    observedInstallingWorker?.addEventListener('statechange', handleInstallingState);
   });
 
 export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
@@ -90,6 +109,18 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
   }
 
   if (registration.waiting && navigator.serviceWorker.controller) {
+    return {
+      kind: 'update-available',
+      message: 'An update is ready to apply.',
+      canApply: true,
+    };
+  }
+
+  if (
+    navigator.serviceWorker.controller &&
+    registration.active &&
+    registration.active !== navigator.serviceWorker.controller
+  ) {
     return {
       kind: 'update-available',
       message: 'An update is ready to apply.',

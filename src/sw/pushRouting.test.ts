@@ -61,7 +61,7 @@ describe('service worker push routing helpers', () => {
     expect(shouldSuppressOsPushForForegroundState(undefined)).toBe(false);
   });
 
-  it('exempts call and invite pushes from foreground suppression', () => {
+  it('exempts call pushes but not invites from foreground suppression', () => {
     expect(
       isForegroundSuppressionExemptPushPayload({
         type: 'org.matrix.msc4075.call.notify',
@@ -73,7 +73,7 @@ describe('service worker push routing helpers', () => {
         type: 'm.room.member',
         content: { membership: 'invite' },
       })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isForegroundSuppressionExemptPushPayload({
         web_push: 8030,
@@ -85,7 +85,7 @@ describe('service worker push routing helpers', () => {
           },
         },
       })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isForegroundSuppressionExemptPushPayload({
         type: 'm.room.message',

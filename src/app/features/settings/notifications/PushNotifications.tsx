@@ -138,6 +138,25 @@ export async function requestBrowserNotificationPermission(): Promise<Notificati
   }
 }
 
+export async function reconcilePushNotifications(
+  mx: MatrixClient,
+  clientConfig: ClientConfig,
+  pushSubscriptionAtom: PushSubscriptionState
+): Promise<boolean> {
+  if (isTauri()) return false;
+  if (
+    !('serviceWorker' in navigator) ||
+    !('PushManager' in window) ||
+    !('Notification' in window)
+  ) {
+    return false;
+  }
+  if (window.Notification.permission !== 'granted') return false;
+
+  await enablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
+  return true;
+}
+
 export async function enablePushNotifications(
   mx: MatrixClient,
   clientConfig: ClientConfig,

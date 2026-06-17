@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -31,6 +31,7 @@ import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { usePreviousValue } from '$hooks/usePreviousValue';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useClientConfig } from '$hooks/useClientConfig';
 import {
   getMemberDisplayName,
   getNotificationType,
@@ -45,6 +46,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { registrationAtom } from '$state/serviceWorkerRegistration';
 import { pendingNotificationAtom, inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
+import { pushSubscriptionAtom } from '$state/pushSubscription';
 import {
   buildRoomMessageNotification,
   resolveNotificationPreviewText,
@@ -94,6 +96,7 @@ import {
   NotificationTransportRuntime,
   type NotificationTransportRuntimeContext,
 } from '../../features/settings/notifications/NotificationTransportRuntime';
+import { reconcilePushNotifications } from '../../features/settings/notifications/PushNotifications';
 import {
   normalizeNotificationTransportMode,
   resolvePreferredNotificationTransportProvider,
@@ -233,6 +236,33 @@ function FaviconUpdater() {
   return null;
 }
 
+function WebPushStartupReconciler() {
+  const mx = useMatrixClient();
+  const clientConfig = useClientConfig();
+  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
+  const pushSubAtom = useAtom(pushSubscriptionAtom);
+  const reconciledUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!usePushNotifications || isTauri()) return;
+
+    const userId = mx.getUserId() ?? null;
+    if (!userId) return;
+    if (reconciledUserIdRef.current === userId) return;
+
+    reconciledUserIdRef.current = userId;
+    void reconcilePushNotifications(mx, clientConfig, pushSubAtom).catch((error) => {
+      reconciledUserIdRef.current = null;
+      transportLog.warn('notification', 'Web push startup reconciliation failed', {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, [mx, clientConfig, pushSubAtom, usePushNotifications]);
+
+  return null;
+}
+
 function InviteNotifications() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const invites = useAtomValue(allInvitesAtom);
@@ -269,11 +299,9 @@ function InviteNotifications() {
   useEffect(() => {
     if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
 
-    const isForegroundFocusedClient = document.visibilityState === 'visible' && document.hasFocus();
-
-    // When background push is enabled, let the service worker handle invite
-    // notifications unless the current page is the actively focused foreground client.
-    if (!isForegroundFocusedClient && usePushNotifications) return;
+    // When background push is enabled, let the service worker own invite
+    // notifications and keep the page path silent to avoid duplicate foreground alerts.
+    if (usePushNotifications) return;
 
     // OS notification for invites — desktop only.
     if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {
@@ -1324,6 +1352,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />
+      <WebPushStartupReconciler />
       <FaviconUpdater />
       <InviteNotifications />
       <MessageNotifications />

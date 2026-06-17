@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 
 import type { ClientConfig } from '../../../hooks/useClientConfig';
-import { disablePushNotifications, enablePushNotifications } from './PushNotifications';
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  reconcilePushNotifications,
+} from './PushNotifications';
 
 vi.mock('@sentry/react', () => ({
   metrics: {
@@ -106,6 +110,40 @@ afterEach(() => {
 });
 
 describe('web push notifications', () => {
+  it('reconciles an enabled push registration at startup when permission is already granted', async () => {
+    const subscription = makeSubscription();
+    installWebPush(subscription);
+    const mx = makeMatrixClient();
+
+    vi.stubGlobal('Notification', { permission: 'granted' });
+
+    await expect(
+      reconcilePushNotifications(mx, clientConfig, [subscription.toJSON(), vi.fn<() => void>()])
+    ).resolves.toBe(true);
+
+    expect(mx.setPusher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'http',
+        app_id: 'moe.sable.web',
+        pushkey: 'p256dh-key',
+      })
+    );
+  });
+
+  it('skips startup reconciliation when notification permission is not granted', async () => {
+    const subscription = makeSubscription();
+    installWebPush(subscription);
+    const mx = makeMatrixClient();
+
+    vi.stubGlobal('Notification', { permission: 'default' });
+
+    await expect(
+      reconcilePushNotifications(mx, clientConfig, [subscription.toJSON(), vi.fn<() => void>()])
+    ).resolves.toBe(false);
+
+    expect(mx.setPusher).not.toHaveBeenCalled();
+  });
+
   it('updates the Matrix pusher directly and removes the legacy Sable pusher when reusing a browser subscription', async () => {
     const subscription = makeSubscription();
     const { controllerPostMessage } = installWebPush(subscription);

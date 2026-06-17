@@ -40,7 +40,7 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
     if (registration.waiting) {
       recordForcedReload('sw_update_prompt_waiting', { hasWaitingWorker: true });
       // oxlint-disable-next-line unicorn/require-post-message-target-origin
-      registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     } else {
       recordForcedReload('sw_update_prompt_reload', { hasWaitingWorker: false });
     }
@@ -177,6 +177,7 @@ export function registerAppServiceWorker() {
               },
             });
             if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              window.dispatchEvent(new Event('sable:sw-update'));
               showUpdateAvailablePrompt(registration);
             }
           });

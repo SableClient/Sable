@@ -373,7 +373,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers>();
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const suppressNextSendClick = useRef(false);
+    const suppressSendClickUntilRef = useRef(0);
     const longPressPointerId = useRef<number | null>(null);
     const longPressStartPoint = useRef<{ x: number; y: number } | null>(null);
 
@@ -495,7 +495,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     useScrollLock(isMobileLayout);
 
     const closeSchedulePicker = useCallback(() => {
-      suppressNextSendClick.current = false;
+      suppressSendClickUntilRef.current = 0;
       setShowSchedulePicker(false);
       setScheduleMenuAnchor(undefined);
     }, []);
@@ -2063,8 +2063,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   title="Send Message"
                   aria-label="Send your composed Message"
                   onClick={() => {
-                    if (suppressNextSendClick.current) {
-                      suppressNextSendClick.current = false;
+                    if (Date.now() < suppressSendClickUntilRef.current) {
                       return;
                     }
                     submit();
@@ -2080,7 +2079,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     longPressStartPoint.current = { x: evt.clientX, y: evt.clientY };
                     longPressTimer.current = setTimeout(() => {
                       if (longPressPointerId.current !== evt.pointerId) return;
-                      suppressNextSendClick.current = true;
+                      // Ignore the synthetic click immediately following the
+                      // completed long-press without leaving the button inert.
+                      suppressSendClickUntilRef.current = Date.now() + 1000;
                       clearLongPressTimer();
                       openSchedulePicker();
                     }, 550);

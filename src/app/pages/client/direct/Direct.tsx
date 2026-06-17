@@ -1,5 +1,5 @@
 import type { MouseEventHandler } from 'react';
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import type { RectCords } from 'folds';
 import {
@@ -18,6 +18,7 @@ import {
 } from 'folds';
 import {
   At,
+  ArrowsClockwise,
   Checks,
   composerIcon,
   DotsThreeOutlineVerticalIcon,
@@ -75,42 +76,51 @@ import { LIST_DMS } from '$client/slidingSync';
 import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { markStartupRoomListReady } from '$utils/perfTelemetry';
+import { triggerManualRefresh } from '$utils/manualRefresh';
 
 type DirectMenuProps = {
+  onRefresh: () => void;
   requestClose: () => void;
 };
-const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }, ref) => {
-  const mx = useMatrixClient();
-  const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const orphanRooms = useDirectRooms();
-  const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
+const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(
+  ({ onRefresh, requestClose }, ref) => {
+    const mx = useMatrixClient();
+    const [hideReads] = useSetting(settingsAtom, 'hideReads');
+    const orphanRooms = useDirectRooms();
+    const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
 
-  const handleMarkAsRead = () => {
-    if (!unread) return;
-    orphanRooms.forEach((rId) => markAsRead(mx, rId, hideReads));
-    requestClose();
-  };
+    const handleMarkAsRead = () => {
+      if (!unread) return;
+      orphanRooms.forEach((rId) => markAsRead(mx, rId, hideReads));
+      requestClose();
+    };
 
-  return (
-    <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleMarkAsRead}
-          size="300"
-          after={menuIcon(Checks)}
-          radii="300"
-          aria-disabled={!unread}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Mark as Read
-          </Text>
-        </MenuItem>
-      </Box>
-    </Menu>
-  );
-});
+    return (
+      <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
+        <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+          <MenuItem
+            onClick={handleMarkAsRead}
+            size="300"
+            after={menuIcon(Checks)}
+            radii="300"
+            disabled={!unread}
+          >
+            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+              Mark as Read
+            </Text>
+          </MenuItem>
+          <MenuItem onClick={onRefresh} size="300" after={menuIcon(ArrowsClockwise)} radii="300">
+            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+              Refresh
+            </Text>
+          </MenuItem>
+        </Box>
+      </Menu>
+    );
+  }
+);
 
-function DirectHeader({ hideText }: { hideText?: boolean }) {
+function DirectHeader({ hideText, onRefresh }: { hideText?: boolean; onRefresh: () => void }) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -140,6 +150,15 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
               </Text>
             </Box>
             <Box shrink="No">
+              <IconButton
+                variant="Background"
+                onClick={onRefresh}
+                aria-label="Refresh direct rooms"
+              >
+                {composerIcon(ArrowsClockwise)}
+              </IconButton>
+            </Box>
+            <Box shrink="No">
               <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
                 {composerIcon(DotsThreeOutlineVerticalIcon, {
                   weight: menuAnchor ? 'fill' : 'regular',
@@ -166,7 +185,7 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <DirectMenu requestClose={() => setMenuAnchor(undefined)} />
+            <DirectMenu onRefresh={onRefresh} requestClose={() => setMenuAnchor(undefined)} />
           </FocusTrap>
         }
       />
@@ -323,6 +342,9 @@ export function Direct() {
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+  const handleRefresh = useCallback(() => {
+    triggerManualRefresh(mx);
+  }, [mx]);
 
   usePullToRefresh(scrollRef, mx);
 
@@ -335,7 +357,7 @@ export function Direct() {
       }}
     >
       <PageNav>
-        <DirectHeader hideText={hideText} />
+        <DirectHeader hideText={hideText} onRefresh={handleRefresh} />
         {noRoomToDisplay ? (
           <DirectEmpty />
         ) : (

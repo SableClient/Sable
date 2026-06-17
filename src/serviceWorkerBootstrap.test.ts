@@ -12,11 +12,7 @@ const {
   mockWarn,
 } = vi.hoisted(() => ({
   mockHasServiceWorker: vi.fn(),
-  mockRegister: vi.fn().mockResolvedValue({
-    addEventListener: vi.fn(),
-    installing: null,
-    waiting: null,
-  }),
+  mockRegister: vi.fn(),
   mockAddEventListener: vi.fn(),
   mockReady: Promise.resolve(undefined),
   mockPushSessionToSW: vi.fn(),
@@ -56,6 +52,11 @@ describe('registerAppServiceWorker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockHasServiceWorker.mockReturnValue(false);
+    mockRegister.mockResolvedValue({
+      addEventListener: vi.fn(),
+      installing: null,
+      waiting: null,
+    });
     Object.defineProperty(window, 'confirm', {
       configurable: true,
       value: vi.fn(() => false),
@@ -149,5 +150,48 @@ describe('registerAppServiceWorker', () => {
     registerAppServiceWorker();
 
     expect(mockPushSessionToSW).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispatches the app update event when an updated worker finishes installing', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const installingListeners = new Map<string, EventListener>();
+    const registrationListeners = new Map<string, EventListener>();
+    const installingWorker = {
+      state: 'installing',
+      addEventListener: vi.fn((event: string, listener: EventListener) => {
+        installingListeners.set(event, listener);
+      }),
+    };
+
+    mockRegister.mockResolvedValueOnce({
+      addEventListener: vi.fn((event: string, listener: EventListener) => {
+        registrationListeners.set(event, listener);
+      }),
+      installing: installingWorker,
+      waiting: null,
+    });
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        serviceWorker: {
+          register: mockRegister,
+          ready: mockReady,
+          controller: { postMessage: vi.fn() },
+          addEventListener: mockAddEventListener,
+        },
+      },
+    });
+
+    registerAppServiceWorker();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    registrationListeners.get('updatefound')?.(new Event('updatefound'));
+    installingWorker.state = 'installed';
+    installingListeners.get('statechange')?.(new Event('statechange'));
+
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'sable:sw-update' }));
   });
 });

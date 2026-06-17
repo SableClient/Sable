@@ -58,6 +58,7 @@ import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { roomToParentsAtom } from '$state/room/roomToParents';
+import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import {
   roomIdToReplyDraftAtomFamily,
   roomIdToEditDraftAtomFamily,
@@ -219,6 +220,8 @@ export function RoomTimeline({
   }, [powerLevels, mx]);
 
   const [unreadInfo, setUnreadInfo] = useState(() => getRoomUnreadInfo(room, true));
+  const roomToUnread = useAtomValue(roomToUnreadAtom);
+  const roomUnread = roomToUnread.get(room.roomId);
 
   const readUptoEventIdRef = useRef<string | undefined>(undefined);
   if (unreadInfo) readUptoEventIdRef.current = unreadInfo.readUptoEventId;
@@ -350,6 +353,12 @@ export function RoomTimeline({
     vListRef.current.scrollTo(vListRef.current.scrollSize);
   }, []);
 
+  const handleMarkAsRead = useCallback(() => {
+    void markAsRead(mx, room.roomId, hideReads).finally(() => {
+      setUnreadInfo(getRoomUnreadInfo(room));
+    });
+  }, [hideReads, mx, room]);
+
   // Start a short scroll-settle block after a programmatic jump scrollToIndex.
   // After 350 ms the block lifts and atBottom is recomputed from the actual
   // VList position so "Jump to Latest" appears correctly.
@@ -382,6 +391,28 @@ export function RoomTimeline({
   });
 
   timelineSyncRef.current = timelineSync;
+
+  useEffect(() => {
+    const nextUnreadInfo = getRoomUnreadInfo(room);
+    setUnreadInfo((prev) => {
+      if (!nextUnreadInfo) return undefined;
+
+      const next = {
+        ...nextUnreadInfo,
+        scrollTo: prev?.scrollTo ?? nextUnreadInfo.scrollTo,
+      };
+
+      if (
+        prev?.readUptoEventId === next.readUptoEventId &&
+        prev?.inLiveTimeline === next.inLiveTimeline &&
+        prev?.scrollTo === next.scrollTo
+      ) {
+        return prev;
+      }
+
+      return next;
+    });
+  }, [room, roomUnread?.highlight, roomUnread?.total]);
 
   const eventsLengthRef = useRef(timelineSync.eventsLength);
   eventsLengthRef.current = timelineSync.eventsLength;
@@ -1542,7 +1573,7 @@ export function RoomTimeline({
             radii="Pill"
             outlined
             before={chipIcon(Checks)}
-            onClick={() => markAsRead(mx, room.roomId, hideReads)}
+            onClick={handleMarkAsRead}
           >
             <Text size="L400">Mark as Read</Text>
           </Chip>

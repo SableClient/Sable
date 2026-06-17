@@ -85,7 +85,7 @@ export const PreviewSystemEmojiGlyph = style([
     justifyContent: 'center',
     width: toRem(32),
     height: toRem(32),
-    fontSize: toRem(36),
+    fontSize: toRem(34),
     lineHeight: toRem(32),
   },
 ]);
@@ -153,7 +153,7 @@ export const SystemEmojiGlyph = style([
     justifyContent: 'center',
     width: toRem(32),
     height: toRem(32),
-    fontSize: toRem(36),
+    fontSize: toRem(34),
     lineHeight: toRem(32),
   },
 ]);

@@ -433,10 +433,7 @@ export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] =>
     EMOJI_REG_G,
     (match, pushIndex) => (
       <span key={`scaleSystemEmoji-${pushIndex}`} className={css.EmoticonBase}>
-        <span
-          className={classNames(css.Emoticon(), css.SystemEmoji)}
-          title={getShortcodeFor(getHexcodeForEmoji(match[0]))}
-        >
+        <span className={css.Emoticon()} title={getShortcodeFor(getHexcodeForEmoji(match[0]))}>
           {match[0]}
         </span>
       </span>

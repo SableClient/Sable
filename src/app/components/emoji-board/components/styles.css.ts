@@ -70,8 +70,8 @@ export const Preview = style({
 export const PreviewEmoji = style([
   DefaultReset,
   {
-    width: toRem(32),
-    height: toRem(32),
+    width: toRem(36),
+    height: toRem(36),
   },
 ]);
 export const PreviewImg = style([

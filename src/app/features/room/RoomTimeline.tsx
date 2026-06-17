@@ -1055,6 +1055,10 @@ export function RoomTimeline({
           }
         }
         if (vListRef.current && processedIndex !== undefined) {
+          // A direct jump into already-loaded history should no longer be treated
+          // as bottom-pinned, otherwise the bottom-follow recovery paths can pull
+          // the timeline straight back to latest while this jump is settling.
+          setAtBottom(false);
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           startJumpScrollBlock();
         }

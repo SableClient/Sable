@@ -145,6 +145,80 @@ export const getSpaceChildren = (room: Room) =>
     return filtered;
   }, []);
 
+export const getJoinedSpaceChildrenLeaveOrder = (
+  mx: MatrixClient,
+  rootSpaceId: string
+): string[] => {
+  const leaveOrder: string[] = [];
+  const visited = new Set<string>();
+
+  const isJoinedChild = (room: Room): boolean =>
+    room.getMyMembership() === (KnownMembership.Join as string) &&
+    !getStateEvent(room, EventType.RoomTombstone);
+
+  const visitSpace = (spaceId: string) => {
+    if (visited.has(spaceId)) return;
+    visited.add(spaceId);
+
+    const space = mx.getRoom(spaceId);
+    if (!space || !isJoinedChild(space)) return;
+
+    getSpaceChildren(space).forEach((childId) => {
+      if (visited.has(childId)) return;
+
+      const child = mx.getRoom(childId);
+      if (!child || !isJoinedChild(child)) return;
+
+      if (child.isSpaceRoom()) {
+        visitSpace(childId);
+        return;
+      }
+
+      visited.add(childId);
+      leaveOrder.push(childId);
+    });
+
+    if (spaceId !== rootSpaceId) {
+      leaveOrder.push(spaceId);
+    }
+  };
+
+  visitSpace(rootSpaceId);
+
+  return leaveOrder.filter((id) => id !== rootSpaceId);
+};
+
+export type JoinedSpaceChildrenSummary = {
+  leaveOrder: string[];
+  roomCount: number;
+  subspaceCount: number;
+};
+
+export const getJoinedSpaceChildrenSummary = (
+  mx: MatrixClient,
+  rootSpaceId: string
+): JoinedSpaceChildrenSummary => {
+  const leaveOrder = getJoinedSpaceChildrenLeaveOrder(mx, rootSpaceId);
+  let roomCount = 0;
+  let subspaceCount = 0;
+
+  leaveOrder.forEach((id) => {
+    const room = mx.getRoom(id);
+    if (room?.isSpaceRoom()) {
+      subspaceCount += 1;
+    } else {
+      roomCount += 1;
+    }
+  });
+
+  return { leaveOrder, roomCount, subspaceCount };
+};
+
+export const getRecursiveSpaceLeaveOrder = (mx: MatrixClient, rootSpaceId: string): string[] => [
+  ...getJoinedSpaceChildrenLeaveOrder(mx, rootSpaceId),
+  rootSpaceId,
+];
+
 export const mapParentWithChildren = (
   roomToParents: RoomToParents,
   roomId: string,

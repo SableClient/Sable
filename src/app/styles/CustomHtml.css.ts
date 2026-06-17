@@ -234,7 +234,7 @@ export const EmoticonBase = style([
     display: 'inline-block',
     padding: 0,
     height: '1em',
-    verticalAlign: 'middle',
+    verticalAlign: '-0.12em',
   },
 ]);
 
@@ -250,9 +250,6 @@ export const Emoticon = recipe({
       minWidth: '1em',
       fontSize: '1em',
       lineHeight: '1em',
-      verticalAlign: 'middle',
-      position: 'relative',
-      top: 0,
       borderRadius: config.radii.R300,
     },
   ],
@@ -269,8 +266,6 @@ export const SystemEmoji = style({
   fontFamily:
     'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
   fontSize: '1em',
-  top: 0,
-  transform: 'translateY(-0.08em)',
 });
 
 export const CustomEmoticon = recipe({
@@ -284,10 +279,7 @@ export const CustomEmoticon = recipe({
       minWidth: '1em',
       fontSize: '1.2em',
       lineHeight: '1em',
-      verticalAlign: 'middle',
-      position: 'relative',
-      top: 0,
-      transform: 'translateY(-0.08em)',
+      verticalAlign: '-0.12em',
       borderRadius: config.radii.R300,
     },
   ],

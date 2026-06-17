@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { createStore, Provider } from 'jotai';
 import { createElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { desktopSettingsReadyAtom } from '../desktopSettings';
+import { desktopSettingsReadyAtom } from '$state/desktopSettings';
 import { useDesktopSetting } from './desktopSettings';
 
 const { mockEntries, mockGetDesktopRuntimeState, mockSet, mockSyncDesktopSettings } = vi.hoisted(

@@ -3,7 +3,7 @@ import { Box, Scroll } from 'folds';
 import { PageContent } from '$components/page';
 import type { ImagePack } from '$plugins/custom-emoji';
 import { ImagePackView } from '$components/image-pack-view';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 import { GlobalPacks } from './GlobalPacks';
 import { UserPack } from './UserPack';
 

@@ -3,7 +3,7 @@ import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Box, Switch, Text } from 'folds';
-import { SequenceCardStyle } from '../styles.css';
+import { SequenceCardStyle } from '$features/settings/styles.css';
 
 export function SearchIndexToggle() {
   const [idbSearchIndex, setIdbSearchIndex] = useSetting(settingsAtom, 'idbSearchIndex');

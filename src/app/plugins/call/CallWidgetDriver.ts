@@ -24,8 +24,8 @@ import {
   type TimelineEvents,
 } from '$types/matrix-sdk';
 import { getCallCapabilities } from './utils';
-import { downloadMedia, mxcUrlToHttp } from '../../utils/matrix';
-import { createDebugLogger } from '../../utils/debugLogger';
+import { downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('CallWidgetDriver');
 

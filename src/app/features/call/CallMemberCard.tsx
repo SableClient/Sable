@@ -8,15 +8,15 @@ import {
   userFallbackIcon,
   VideoCameraSlash,
 } from '$components/icons/phosphor';
-import { useMatrixClient } from '../../hooks/useMatrixClient';
-import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
-import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
-import { SequenceCard } from '../../components/sequence-card';
-import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
-import { useRoom } from '../../hooks/useRoom';
-import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
-import { UserAvatar } from '../../components/user-avatar';
-import { getMouseEventCords } from '../../utils/dom';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
+import { SequenceCard } from '$components/sequence-card';
+import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
+import { useRoom } from '$hooks/useRoom';
+import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
+import { UserAvatar } from '$components/user-avatar';
+import { getMouseEventCords } from '$utils/dom';
 import * as css from './styles.css';
 
 interface MemberWithMembershipData {

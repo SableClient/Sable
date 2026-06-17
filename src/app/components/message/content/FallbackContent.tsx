@@ -2,7 +2,7 @@ import { Box, Text, as, color, config } from 'folds';
 import type { MatrixClient } from '$types/matrix-sdk';
 
 import { Lock, timelineIcon, Trash, Warning, X } from '$components/icons/phosphor';
-import { ReactionKeyInline } from '../ReactionKeyInline';
+import { ReactionKeyInline } from '$components/message/ReactionKeyInline';
 import { BreakWord } from '$styles/Text.css';
 
 const warningStyle = { color: color.Warning.Main, opacity: config.opacity.P300 };

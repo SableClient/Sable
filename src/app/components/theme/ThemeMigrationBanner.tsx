@@ -22,9 +22,9 @@ import { defaultSettings, settingsAtom } from '$state/settings';
 import { stopPropagation } from '$utils/keyboard';
 
 import { usePatchSettings } from '$features/settings/cosmetics/themeSettingsPatch';
-import { DEFAULT_THEME_CATALOG_BASE } from '../../theme/catalogDefaults';
-import { needsLegacyThemeMigration } from '../../theme/legacyToCatalogMap';
-import { runLegacyThemeMigration } from '../../theme/migrateLegacyThemes';
+import { DEFAULT_THEME_CATALOG_BASE } from '$app/theme/catalogDefaults';
+import { needsLegacyThemeMigration } from '$app/theme/legacyToCatalogMap';
+import { runLegacyThemeMigration } from '$app/theme/migrateLegacyThemes';
 
 export function ThemeMigrationBanner() {
   const store = useStore();

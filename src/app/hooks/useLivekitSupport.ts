@@ -1,4 +1,4 @@
-import type { AutoDiscoveryInfo } from '../cs-api';
+import type { AutoDiscoveryInfo } from '$app/cs-api';
 import { useAutoDiscoveryInfo } from './useAutoDiscoveryInfo';
 
 export const livekitSupport = (autoDiscoveryInfo: AutoDiscoveryInfo): boolean => {

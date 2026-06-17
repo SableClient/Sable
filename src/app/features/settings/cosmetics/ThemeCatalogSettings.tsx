@@ -31,22 +31,22 @@ import { SettingTile } from '$components/setting-tile';
 import { ThemePreviewCard } from '$components/theme/ThemePreviewCard';
 import { usePatchSettings } from './themeSettingsPatch';
 import { ThemeImportModal } from './ThemeImportModal';
-import { getCachedThemeCss, putCachedThemeCss } from '../../../theme/cache';
+import { getCachedThemeCss, putCachedThemeCss } from '$app/theme/cache';
 import {
   fetchThemeCatalogBundle,
   type ThemePair,
   type TweakCatalogEntry,
-} from '../../../theme/catalog';
-import { isLocalImportBundledUrl, isLocalImportThemeUrl } from '../../../theme/localImportUrls';
-import { isThirdPartyThemeUrl } from '../../../theme/themeApproval';
-import { themeCatalogListingBaseUrl } from '../../../theme/catalogDefaults';
+} from '$app/theme/catalog';
+import { isLocalImportBundledUrl, isLocalImportThemeUrl } from '$app/theme/localImportUrls';
+import { isThirdPartyThemeUrl } from '$app/theme/themeApproval';
+import { themeCatalogListingBaseUrl } from '$app/theme/catalogDefaults';
 import {
   extractFullThemeUrlFromPreview,
   parseSableThemeMetadata,
   parseSableTweakMetadata,
   type SableThemeContrast,
-} from '../../../theme/metadata';
-import { previewUrlFromFullThemeUrl } from '../../../theme/previewUrls';
+} from '$app/theme/metadata';
+import { previewUrlFromFullThemeUrl } from '$app/theme/previewUrls';
 
 export type CatalogPreviewRow = ThemePair & {
   previewText: string;

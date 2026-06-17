@@ -3,11 +3,11 @@ import { useAtom, useAtomValue } from 'jotai';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { SyncState, ClientEvent } from '$types/matrix-sdk';
 import * as Sentry from '@sentry/react';
-import { activeSessionIdAtom, pendingNotificationAtom } from '../state/sessions';
-import { mDirectAtom } from '../state/mDirectList';
+import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
+import { mDirectAtom } from '$state/mDirectList';
 import { useSyncState } from './useSyncState';
 import { useMatrixClient } from './useMatrixClient';
-import { getCanonicalAliasOrRoomId } from '../utils/matrix';
+import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import {
   getDirectRoomPath,
   getHomeRoomPath,
@@ -16,10 +16,10 @@ import {
   getHomePath,
   getSpacePath,
   withAdditionalSearchParams,
-} from '../pages/pathUtils';
-import { DIRECT_ROOM_PATH, HOME_ROOM_PATH, SPACE_ROOM_PATH } from '../pages/paths';
-import { getShallowParents, getRoomToParents, guessPerfectParent } from '../utils/room';
-import { createLogger } from '../utils/debug';
+} from '$pages/pathUtils';
+import { DIRECT_ROOM_PATH, HOME_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
+import { getShallowParents, getRoomToParents, guessPerfectParent } from '$utils/room';
+import { createLogger } from '$utils/debug';
 
 export function NotificationJumper() {
   const [pending, setPending] = useAtom(pendingNotificationAtom);

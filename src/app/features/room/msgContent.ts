@@ -18,7 +18,7 @@ import { createLogger } from '$utils/debug';
 import {
   MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
   MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME,
-} from '../../../unstable/prefixes';
+} from '$unstable/prefixes';
 
 const log = createLogger('msgContent');
 

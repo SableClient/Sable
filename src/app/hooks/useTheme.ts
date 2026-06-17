@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { isLocalImportThemeUrl } from '../theme/localImportUrls';
+import { isLocalImportThemeUrl } from '$app/theme/localImportUrls';
 import { onDarkFontWeight, onLightFontWeight } from '../../config.css';
 import { darkTheme, lightTheme } from '../../colors.css';
 

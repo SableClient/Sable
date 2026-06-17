@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { matchPath, useLocation, useOutlet } from 'react-router-dom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { SETTINGS_PATH } from '../paths';
+import { SETTINGS_PATH } from '$pages/paths';
 
 type BackgroundLocationState = {
   backgroundLocation?: unknown;

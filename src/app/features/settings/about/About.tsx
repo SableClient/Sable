@@ -14,13 +14,13 @@ import {
   APP_UPSTREAM_URL,
 } from '$app/config/brand';
 import { clearCacheAndReload } from '$client/initMatrix';
+import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
-import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { applyPendingAppUpdate, checkForAppUpdates } from '$utils/appUpdates';
-import { SettingsSectionPage } from '../SettingsSectionPage';
 
 type VersionResult =
   | { error: { message: string } }

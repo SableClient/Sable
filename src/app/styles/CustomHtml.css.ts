@@ -232,7 +232,7 @@ export const EmoticonBase = style([
   DefaultReset,
   {
     display: 'inline-block',
-    padding: '0.05rem',
+    padding: 0,
     height: '1em',
     verticalAlign: 'middle',
   },
@@ -246,6 +246,32 @@ export const Emoticon = recipe({
       justifyContent: 'center',
       alignItems: 'center',
 
+      height: '1em',
+      minWidth: '1em',
+      fontSize: '1em',
+      lineHeight: '1em',
+      verticalAlign: 'middle',
+      position: 'relative',
+      top: 0,
+      borderRadius: config.radii.R300,
+    },
+  ],
+  variants: {
+    focus: {
+      true: {
+        boxShadow: `0 0 0 ${config.borderWidth.B300} ${color.SurfaceVariant.OnContainer}`,
+      },
+    },
+  },
+});
+
+export const CustomEmoticon = recipe({
+  base: [
+    DefaultReset,
+    {
+      display: 'inline-flex',
+      justifyContent: 'center',
+      alignItems: 'center',
       height: '1em',
       minWidth: '1em',
       fontSize: '1.33em',
@@ -263,11 +289,6 @@ export const Emoticon = recipe({
       },
     },
   },
-});
-
-export const EditorSystemEmoji = style({
-  fontSize: '1.42em',
-  top: '-0.32em',
 });
 
 export const EmoticonImg = style([

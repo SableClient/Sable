@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/react';
 
+const RELOAD_TELEMETRY_FLUSH_TIMEOUT_MS = 2000;
+
 export const recordReloadRequested = (reason: string, data?: Record<string, unknown>): void => {
   Sentry.addBreadcrumb({
     category: 'app.reload',
@@ -19,5 +21,9 @@ export const recordReloadRequested = (reason: string, data?: Record<string, unkn
 
 export const reloadWithTelemetry = (reason: string, data?: Record<string, unknown>): void => {
   recordReloadRequested(reason, data);
-  window.location.reload();
+  void Sentry.flush(RELOAD_TELEMETRY_FLUSH_TIMEOUT_MS)
+    .catch(() => false)
+    .finally(() => {
+      window.location.reload();
+    });
 };

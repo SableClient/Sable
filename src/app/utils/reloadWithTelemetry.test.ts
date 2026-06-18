@@ -4,6 +4,7 @@ import { recordReloadRequested, reloadWithTelemetry } from './reloadWithTelemetr
 
 vi.mock('@sentry/react', () => ({
   addBreadcrumb: vi.fn<(breadcrumb: unknown) => void>(),
+  flush: vi.fn<(timeout?: number) => Promise<boolean>>().mockResolvedValue(true),
   metrics: {
     count: vi.fn<(name: string, value: number, options?: unknown) => void>(),
   },
@@ -49,11 +50,26 @@ describe('reloadWithTelemetry', () => {
     });
   });
 
-  it('records telemetry before reloading', () => {
+  it('flushes telemetry before reloading', async () => {
+    let resolveFlush: ((value: boolean) => void) | undefined;
+    vi.mocked(Sentry.flush).mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveFlush = resolve;
+        })
+    );
+
     reloadWithTelemetry('clear_login_data', { unregisterServiceWorkers: true });
 
     expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
     expect(Sentry.metrics.count).toHaveBeenCalledTimes(1);
+    expect(Sentry.flush).toHaveBeenCalledWith(2000);
+    expect(window.location.reload).not.toHaveBeenCalled();
+
+    resolveFlush?.(true);
+    await Promise.resolve();
+    await Promise.resolve();
+
     expect(window.location.reload).toHaveBeenCalledTimes(1);
   });
 });

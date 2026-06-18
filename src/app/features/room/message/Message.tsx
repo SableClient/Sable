@@ -4,8 +4,6 @@ import {
   Avatar,
   Box,
   Chip,
-  IconButton,
-  Menu,
   PopOut,
   Text,
   Tooltip,
@@ -43,13 +41,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { MemberPowerTag } from '$types/matrix/room';
 
 import { PowerIcon } from '$components/power';
-import {
-  ArrowBendUpLeftIcon,
-  DotsThreeOutlineVerticalIcon,
-  Info,
-  menuIcon,
-  userFallbackIcon,
-} from '$components/icons/phosphor';
+import { Info, menuIcon, userFallbackIcon } from '$components/icons/phosphor';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { SwipeableMessageWrapper } from '$components/SwipeableMessageWrapper';
@@ -65,11 +57,11 @@ import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageP
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
 import { modalAtom, ModalType } from '$state/modal';
-import { OptionMenu, OptionQuickMenu } from '$components/message/modals/Options';
+import { OptionQuickMenu } from '$components/message/modals/Options';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
-const MemoizedBody = memo(({ children }: { children: ReactNode }) => children);
+export const MemoizedBody = memo(({ children }: { children: ReactNode }) => children);
 
 export type ForwardedMessageProps = {
   originalTimestamp: number;
@@ -634,7 +626,7 @@ function MessageInternal(
     [mEvent, onDeleteFailedSend]
   );
 
-  const MSG_CONTENT_STYLE = { maxWidth: '100%' };
+  const MSG_CONTENT_STYLE = { width: '100%' };
   const isSableFeedback = mEvent.getId()?.startsWith('~sable-feedback-');
 
   const msgContentJSX = (
@@ -746,7 +738,7 @@ function MessageInternal(
     if (evt.altKey || !window.getSelection()?.isCollapsed || edit) return;
     const tag = (evt.target as HTMLElement).tagName;
     if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
-    if (true) {
+    if (mobileOrTablet()) {
       evt.preventDefault();
       setModal({
         type: ModalType.MobileOptions,
@@ -764,6 +756,8 @@ function MessageInternal(
           cleanedDisplayName: cleanedDisplayName,
           canDelete: canDelete,
           setIsEmoji: setIsEmoji,
+          ActualMessage: WrappedMessage,
+          canSendReaction: canSendReaction,
         },
       });
       return;
@@ -810,6 +804,46 @@ function MessageInternal(
     setIsMobileHoverOpen(true);
   });
 
+  const WrappedMessage = useCallback(() => {
+    if (messageLayout === MessageLayout.Compact)
+      return (
+        <div style={{ width: '100%' }}>
+          <SwipeableMessageWrapper onReply={handleSwipeReply}>
+            <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
+              <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+            </CompactLayout>
+          </SwipeableMessageWrapper>
+        </div>
+      );
+    if (messageLayout === MessageLayout.Bubble)
+      return (
+        <div style={{ width: '100%' }}>
+          <SwipeableMessageWrapper onReply={handleSwipeReply}>
+            <BubbleLayout
+              before={avatarJSX}
+              header={headerJSX}
+              onContextMenu={handleContextMenu}
+              align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
+            >
+              <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+            </BubbleLayout>
+          </SwipeableMessageWrapper>
+        </div>
+      );
+    return (
+      <div style={{ width: '100%' }}>
+        <SwipeableMessageWrapper onReply={handleSwipeReply}>
+          <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
+            <div onPointerDown={onDoubleTap}>
+              {headerJSX}
+              {msgContentJSX}
+            </div>
+          </ModernLayout>
+        </SwipeableMessageWrapper>
+      </div>
+    );
+  }, []);
+
   return (
     <MessageBase
       className={classNames(css.MessageBase, className, {
@@ -845,43 +879,14 @@ function MessageInternal(
             cleanedDisplayName={cleanedDisplayName}
             canDelete={canDelete}
             handleOpenMenu={handleOpenMenu}
-            activeReplyId={activeReplyId}
             menuAnchor={menuAnchor}
             imagePackRooms={imagePackRooms}
-            isEmoji={isEmoji}
             setIsEmoji={setIsEmoji}
+            canSendReaction={canSendReaction}
           />
         </div>
       )}
-      {messageLayout === MessageLayout.Compact && (
-        <SwipeableMessageWrapper onReply={handleSwipeReply}>
-          <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
-            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
-          </CompactLayout>
-        </SwipeableMessageWrapper>
-      )}
-      {messageLayout === MessageLayout.Bubble && (
-        <SwipeableMessageWrapper onReply={handleSwipeReply}>
-          <BubbleLayout
-            before={avatarJSX}
-            header={headerJSX}
-            onContextMenu={handleContextMenu}
-            align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
-          >
-            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
-          </BubbleLayout>
-        </SwipeableMessageWrapper>
-      )}
-      {messageLayout !== MessageLayout.Compact && messageLayout !== MessageLayout.Bubble && (
-        <SwipeableMessageWrapper onReply={handleSwipeReply}>
-          <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
-            <div onPointerDown={onDoubleTap}>
-              {headerJSX}
-              {msgContentJSX}
-            </div>
-          </ModernLayout>
-        </SwipeableMessageWrapper>
-      )}
+      <WrappedMessage />
     </MessageBase>
   );
 }
@@ -943,11 +948,14 @@ export const Event = as<'div', EventProps>(
           options: {
             mEvent: mEvent,
             room: room,
-            closeMenu: () => closeMenu(),
+            closeMenu: closeMenu,
             onReplyClick: onReplyClick,
             hideReadReceipts: hideReadReceipts,
             showDeveloperTools: showDeveloperTools,
             canDelete: canDelete,
+            ActualMessage: () => {
+              return <>({children})</>;
+            },
           },
         });
         return;
@@ -1021,52 +1029,20 @@ export const Event = as<'div', EventProps>(
         {...focusWithinProps}
         ref={ref}
       >
-        {(isDesktopHover || !!menuAnchor || mobileOptionsOpen) && (
+        {(isDesktopHover || !!menuAnchor) && (
           <div className={css.MessageOptionsBase} ref={optionsRef}>
-            <Menu className={css.MessageOptionsBar} variant="SurfaceVariant">
-              <Box gap="100">
-                {!mobileOrTablet() && (
-                  <PopOut
-                    anchor={menuAnchor}
-                    position="Bottom"
-                    align={menuAnchor?.width === 0 ? 'Start' : 'End'}
-                    offset={menuAnchor?.width === 0 ? 0 : undefined}
-                    content={
-                      <OptionMenu
-                        mEvent={mEvent}
-                        room={room}
-                        closeMenu={closeMenu}
-                        onReplyClick={onReplyClick}
-                        hideReadReceipts={hideReadReceipts}
-                        showDeveloperTools={showDeveloperTools}
-                        canDelete={canDelete}
-                      />
-                    }
-                  >
-                    <IconButton
-                      onClick={onReplyClick}
-                      data-event-id={mEvent.getId()}
-                      variant="SurfaceVariant"
-                      size="300"
-                      radii="300"
-                    >
-                      {menuIcon(ArrowBendUpLeftIcon)}
-                    </IconButton>
-                    <IconButton
-                      variant="SurfaceVariant"
-                      size="300"
-                      radii="300"
-                      onClick={handleOpenMenu}
-                      aria-pressed={!!menuAnchor}
-                    >
-                      {menuIcon(DotsThreeOutlineVerticalIcon, {
-                        weight: menuAnchor ? 'fill' : 'regular',
-                      })}
-                    </IconButton>
-                  </PopOut>
-                )}
-              </Box>
-            </Menu>
+            {/*<b>{`${isDesktopHover? 'isDesktopHover ' : ''}${menuAnchor? 'menuAnchor ' : ''}${isEmoji? 'isEmoji ' : ''}${isMobileHover? 'isMobileHover ' : ''}`}</b>*/}
+            <OptionQuickMenu
+              mEvent={mEvent}
+              room={room}
+              closeMenu={closeMenu}
+              onReplyClick={onReplyClick}
+              hideReadReceipts={hideReadReceipts}
+              showDeveloperTools={showDeveloperTools}
+              canDelete={canDelete}
+              handleOpenMenu={handleOpenMenu}
+              menuAnchor={menuAnchor}
+            />
           </div>
         )}
         <div onContextMenu={handleContextMenu} onPointerDown={onDoubleTap}>

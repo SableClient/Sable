@@ -117,6 +117,8 @@ export const MessageBase = recipe({
       borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
       minHeight: toRem(16),
       contain: 'layout',
+      flexGrow: '1',
+      width: '100',
     },
   ],
   variants: {

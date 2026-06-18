@@ -24,7 +24,9 @@ export function GlobalModalManager() {
   if (modal.type === ModalType.Forward) {
     return <MessageForwardInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />;
   }
-
+  if (modal.type === ModalType.MobileOptions) {
+    return <MobileOptionsInternal options={modal.options} />;
+  }
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>
       <OverlayCenter>
@@ -37,30 +39,22 @@ export function GlobalModalManager() {
           }}
         >
           <div>
-            {modal.type === ModalType.MobileOptions && (
-              <Modal variant="Surface" size="300">
-                <MobileOptionsInternal options={modal.options} />
-              </Modal>
-            )}
-
+            {' '}
             {modal.type === ModalType.Report && (
               <Box>
                 <MessageReportInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />
               </Box>
             )}
-
             {modal.type === ModalType.Delete && (
               <Box>
                 <MessageDeleteInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />
               </Box>
             )}
-
             {modal.type === ModalType.Source && (
               <Modal variant="Surface" size="300">
                 <MessageSourceInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />
               </Modal>
             )}
-
             {modal.type === ModalType.Reactions && (
               <Modal variant="Surface" size="300">
                 <MessageAllReactionInternal
@@ -70,7 +64,6 @@ export function GlobalModalManager() {
                 />
               </Modal>
             )}
-
             {modal.type === ModalType.EditHistory && (
               <Modal variant="Surface" size="300">
                 <MessageEditHistoryInternal
@@ -80,7 +73,6 @@ export function GlobalModalManager() {
                 />
               </Modal>
             )}
-
             {modal.type === ModalType.ReadReceipts && (
               <Modal variant="Surface" size="300">
                 <MessageReadReceiptInternal

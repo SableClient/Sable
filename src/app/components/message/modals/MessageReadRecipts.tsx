@@ -7,7 +7,15 @@ import { modalAtom, ModalType } from '$state/modal';
 import { EventReaders } from '$components/event-readers';
 import * as css from '$features/room/message/styles.css';
 
-export function MessageReadReceiptItem({ room, eventId }: { room: Room; eventId: string }) {
+export function MessageReadReceiptItem({
+  room,
+  eventId,
+  closeMenu,
+}: {
+  room: Room;
+  eventId: string;
+  closeMenu?: () => void;
+}) {
   const setModal = useSetAtom(modalAtom);
 
   return (
@@ -23,6 +31,7 @@ export function MessageReadReceiptItem({ room, eventId }: { room: Room; eventId:
           room,
           eventId,
         });
+        closeMenu?.();
       }}
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EventType, MsgType, NotificationCountType } from '$types/matrix-sdk';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import {
   getRoomReadMarkerId,
   getUnreadInfo,
@@ -56,6 +57,36 @@ function makeRoom(params: {
     getRoomUnreadNotificationCount: () => params.total ?? 0,
     hasUserReadEvent: (_userId: string, eventId: string) => eventId === params.readUpToId,
     fixupNotifications: vi.fn<() => void>(),
+  } as unknown as Room;
+}
+
+function makeSpaceRoom(
+  roomId: string,
+  options?: { membership?: string; childIds?: string[] }
+): Room {
+  return {
+    roomId,
+    isSpaceRoom: () => true,
+    getMyMembership: () => options?.membership ?? 'join',
+    getLiveTimeline: () => ({
+      getState: () => ({
+        getStateEvents: (eventType: string) => {
+          if (eventType === EventType.RoomCreate) {
+            return {
+              getContent: () => ({ type: 'm.space' }),
+            };
+          }
+          if (eventType === EventType.SpaceChild) {
+            return (options?.childIds ?? []).map((childId) => ({
+              getType: () => EventType.SpaceChild,
+              getStateKey: () => childId,
+              getContent: () => ({ via: ['example.com'] }),
+            }));
+          }
+          return [];
+        },
+      }),
+    }),
   } as unknown as Room;
 }
 
@@ -172,48 +203,12 @@ describe('room read markers', () => {
 
 describe('resolveSpaceNavigationRoot', () => {
   it('rejects stale stored roots that are not joined in the live client graph', () => {
-    const joinedRoot = {
-      roomId: '!joined-space:example.com',
-      isSpaceRoom: () => true,
-      getMyMembership: () => 'join',
-      getLiveTimeline: () => ({
-        getState: () => ({
-          getStateEvents: (eventType: string) => {
-            if (eventType === EventType.RoomCreate) {
-              return {
-                getContent: () => ({ type: 'm.space' }),
-              };
-            }
-            if (eventType === EventType.SpaceChild) {
-              return [
-                {
-                  getType: () => EventType.SpaceChild,
-                  getStateKey: () => '!room:example.com',
-                  getContent: () => ({ via: ['example.com'] }),
-                },
-              ];
-            }
-            return [];
-          },
-        }),
-      }),
-    } as unknown as Room;
-
-    const staleRoot = {
-      roomId: '!stale-space:example.com',
-      isSpaceRoom: () => true,
-      getMyMembership: () => 'leave',
-      getLiveTimeline: () => ({
-        getState: () => ({
-          getStateEvents: (eventType: string) =>
-            eventType === EventType.RoomCreate
-              ? {
-                  getContent: () => ({ type: 'm.space' }),
-                }
-              : [],
-        }),
-      }),
-    } as unknown as Room;
+    const joinedRoot = makeSpaceRoom('!joined-space:example.com', {
+      childIds: ['!room:example.com'],
+    });
+    const staleRoot = makeSpaceRoom('!stale-space:example.com', {
+      membership: 'leave',
+    });
 
     const mx = {
       getRoom: (roomId: string) =>
@@ -232,6 +227,92 @@ describe('resolveSpaceNavigationRoot', () => {
     ).toEqual({
       rootSpaceId: joinedRoot.roomId,
       source: 'preferred_chain',
+    });
+  });
+
+  it('prefers the shortest sidebar-pinned ancestor path over a longer fallback chain', () => {
+    const roomId = '!room:example.com';
+    const groupingSpaceId = '!grouping-space:example.com';
+    const shortcutRootSpaceId = '!shortcut-root:example.com';
+    const longRootSpaceId = '!long-root:example.com';
+
+    const groupingSpace = makeSpaceRoom(groupingSpaceId, { childIds: [roomId] });
+    const shortcutRoot = makeSpaceRoom(shortcutRootSpaceId, { childIds: [groupingSpaceId] });
+    const longRoot = makeSpaceRoom(longRootSpaceId, { childIds: [shortcutRootSpaceId] });
+
+    const mx = {
+      getRoom: (targetRoomId: string) => {
+        if (targetRoomId === groupingSpaceId) return groupingSpace;
+        if (targetRoomId === shortcutRootSpaceId) return shortcutRoot;
+        if (targetRoomId === longRootSpaceId) return longRoot;
+        return null;
+      },
+      getRooms: () => [groupingSpace, shortcutRoot, longRoot],
+      getAccountData: (eventType: string) =>
+        eventType === CustomAccountDataEvent.CinnySpaces
+          ? ({
+              getContent: () => ({
+                sidebar: [longRootSpaceId, shortcutRootSpaceId],
+              }),
+            } as unknown as MatrixEvent)
+          : undefined,
+    } as unknown as MatrixClient;
+
+    const roomToParents = new Map<string, Set<string>>([
+      [roomId, new Set([groupingSpaceId])],
+      [groupingSpaceId, new Set([shortcutRootSpaceId])],
+      [shortcutRootSpaceId, new Set([longRootSpaceId])],
+    ]);
+
+    expect(resolveSpaceNavigationRoot(mx, roomToParents, roomId)).toEqual({
+      rootSpaceId: shortcutRootSpaceId,
+      source: 'sidebar_shortcut',
+    });
+  });
+
+  it('treats spaces pinned inside sidebar folders as valid sidebar roots', () => {
+    const roomId = '!room:example.com';
+    const groupingSpaceId = '!grouping-space:example.com';
+    const folderPinnedSpaceId = '!folder-pinned-space:example.com';
+    const longRootSpaceId = '!long-root:example.com';
+
+    const groupingSpace = makeSpaceRoom(groupingSpaceId, { childIds: [roomId] });
+    const folderPinnedSpace = makeSpaceRoom(folderPinnedSpaceId, { childIds: [groupingSpaceId] });
+    const longRoot = makeSpaceRoom(longRootSpaceId, { childIds: [folderPinnedSpaceId] });
+
+    const mx = {
+      getRoom: (targetRoomId: string) => {
+        if (targetRoomId === groupingSpaceId) return groupingSpace;
+        if (targetRoomId === folderPinnedSpaceId) return folderPinnedSpace;
+        if (targetRoomId === longRootSpaceId) return longRoot;
+        return null;
+      },
+      getRooms: () => [groupingSpace, folderPinnedSpace, longRoot],
+      getAccountData: (eventType: string) =>
+        eventType === CustomAccountDataEvent.CinnySpaces
+          ? ({
+              getContent: () => ({
+                sidebar: [
+                  {
+                    id: 'folder-1',
+                    content: [folderPinnedSpaceId],
+                  },
+                  longRootSpaceId,
+                ],
+              }),
+            } as unknown as MatrixEvent)
+          : undefined,
+    } as unknown as MatrixClient;
+
+    const roomToParents = new Map<string, Set<string>>([
+      [roomId, new Set([groupingSpaceId])],
+      [groupingSpaceId, new Set([folderPinnedSpaceId])],
+      [folderPinnedSpaceId, new Set([longRootSpaceId])],
+    ]);
+
+    expect(resolveSpaceNavigationRoot(mx, roomToParents, roomId)).toEqual({
+      rootSpaceId: folderPinnedSpaceId,
+      source: 'sidebar_shortcut',
     });
   });
 });

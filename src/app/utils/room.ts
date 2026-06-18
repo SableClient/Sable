@@ -24,6 +24,7 @@ import {
   KnownMembership,
   RoomType,
 } from '$types/matrix-sdk';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
 import { NotificationType } from '$types/matrix/room';
@@ -1450,6 +1451,86 @@ export const getPreferredSpaceNavigationRoot = (
   return walkPreferredParentChain(roomId);
 };
 
+type CinnySidebarItem = string | { id: string; content: string[] };
+
+type CinnySpacesContent = {
+  shortcut?: CinnySidebarItem[];
+  sidebar?: CinnySidebarItem[];
+};
+
+const getSidebarRootSpaces = (mx: MatrixClient): string[] => {
+  if (typeof mx.getAccountData !== 'function') return [];
+
+  const content = getAccountData(
+    mx,
+    CustomAccountDataEvent.CinnySpaces
+  )?.getContent<CinnySpacesContent>();
+  const rawItems = content?.sidebar ?? content?.shortcut ?? [];
+  const roomIds: string[] = [];
+  const seen = new Set<string>();
+
+  rawItems.forEach((item) => {
+    if (typeof item === 'string') {
+      if (!seen.has(item)) {
+        seen.add(item);
+        roomIds.push(item);
+      }
+      return;
+    }
+
+    if (typeof item !== 'object' || !Array.isArray(item.content)) return;
+    item.content.forEach((roomId) => {
+      if (!seen.has(roomId)) {
+        seen.add(roomId);
+        roomIds.push(roomId);
+      }
+    });
+  });
+
+  return roomIds;
+};
+
+const getOrderedParentCandidates = (
+  mx: MatrixClient,
+  roomToParents: RoomToParents,
+  childRoomId: string
+): string[] => {
+  const parents = getShallowParents(roomToParents, childRoomId);
+  const preferredParent = guessPerfectParent(mx, childRoomId, parents);
+  if (!preferredParent) return parents;
+  return [preferredParent, ...parents.filter((parentId) => parentId !== preferredParent)];
+};
+
+export const getSidebarSpaceNavigationRoot = (
+  mx: MatrixClient,
+  roomToParents: RoomToParents,
+  roomId: string
+): string | undefined => {
+  const sidebarRoots = new Set(getSidebarRootSpaces(mx));
+  if (sidebarRoots.size === 0) return undefined;
+
+  const queue = getOrderedParentCandidates(mx, roomToParents, roomId);
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const candidateId = queue.shift();
+    if (!candidateId || visited.has(candidateId)) continue;
+    visited.add(candidateId);
+
+    if (sidebarRoots.has(candidateId) && isJoinedSpaceNavigationCandidate(mx, candidateId)) {
+      return candidateId;
+    }
+
+    getOrderedParentCandidates(mx, roomToParents, candidateId).forEach((parentId) => {
+      if (!visited.has(parentId)) {
+        queue.push(parentId);
+      }
+    });
+  }
+
+  return undefined;
+};
+
 export const isSpaceAncestorOfRoom = (
   roomToParents: RoomToParents,
   roomId: string,
@@ -1458,7 +1539,7 @@ export const isSpaceAncestorOfRoom = (
 
 export type SpaceNavigationRootResolution = {
   rootSpaceId?: string;
-  source: 'selected_space' | 'stored_preference' | 'preferred_chain' | 'none';
+  source: 'selected_space' | 'stored_preference' | 'sidebar_shortcut' | 'preferred_chain' | 'none';
 };
 
 const isJoinedSpaceNavigationCandidate = (mx: MatrixClient, roomId: string): boolean => {
@@ -1503,6 +1584,14 @@ export const resolveSpaceNavigationRoot = (
     return {
       rootSpaceId: options.storedRootSpaceId,
       source: 'stored_preference',
+    };
+  }
+
+  const sidebarRoot = getSidebarSpaceNavigationRoot(mx, effectiveRoomToParents, roomId);
+  if (sidebarRoot && isJoinedSpaceNavigationCandidate(mx, sidebarRoot)) {
+    return {
+      rootSpaceId: sidebarRoot,
+      source: 'sidebar_shortcut',
     };
   }
 

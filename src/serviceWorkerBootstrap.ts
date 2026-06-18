@@ -102,20 +102,24 @@ function sendActiveSessionToServiceWorker() {
 function createSwWatchdog() {
   let watchdogTimer = 0;
   let consecutiveMisses = 0;
-  let watchdogHandshakeComplete = false;
+  let compatibleWorkerScriptUrl: string | undefined;
   const pendingPings = new Map<
     string,
     {
       resolve: () => void;
+      reject: (reason?: unknown) => void;
       timeoutId: number;
     }
   >();
 
-  const clearPendingPing = (requestId: string) => {
+  const clearPendingPing = (requestId: string, reason?: unknown) => {
     const pending = pendingPings.get(requestId);
     if (!pending) return;
     window.clearTimeout(pending.timeoutId);
     pendingPings.delete(requestId);
+    if (reason !== undefined) {
+      pending.reject(reason);
+    }
   };
 
   const handleMessage = (ev: MessageEvent) => {
@@ -129,7 +133,8 @@ function createSwWatchdog() {
     if (!pending) return;
     clearPendingPing(requestId);
     consecutiveMisses = 0;
-    watchdogHandshakeComplete = true;
+    const sourceWorker = ev.source instanceof ServiceWorker ? ev.source : undefined;
+    compatibleWorkerScriptUrl = sourceWorker?.scriptURL ?? compatibleWorkerScriptUrl;
     pending.resolve();
   };
 
@@ -150,6 +155,9 @@ function createSwWatchdog() {
       activeWorker && activeWorker.state === 'activated'
         ? activeWorker
         : (controller ?? activeWorker);
+    const workerScriptUrl = worker?.scriptURL;
+    const watchdogHandshakeComplete =
+      typeof workerScriptUrl === 'string' && workerScriptUrl === compatibleWorkerScriptUrl;
     if (!worker) {
       await requestRecovery();
       return;
@@ -161,7 +169,7 @@ function createSwWatchdog() {
         pendingPings.delete(requestId);
         reject(new Error('timeout'));
       }, SW_WATCHDOG_PING_TIMEOUT_MS);
-      pendingPings.set(requestId, { resolve, timeoutId });
+      pendingPings.set(requestId, { resolve, reject, timeoutId });
     });
 
     // oxlint-disable-next-line unicorn/require-post-message-target-origin
@@ -210,8 +218,9 @@ function createSwWatchdog() {
   const stop = () => {
     window.clearInterval(watchdogTimer);
     consecutiveMisses = 0;
-    watchdogHandshakeComplete = false;
-    pendingPings.forEach((_pending, requestId) => clearPendingPing(requestId));
+    pendingPings.forEach((_pending, requestId) => {
+      clearPendingPing(requestId, new Error('watchdog stopped'));
+    });
     pendingPings.clear();
   };
 

@@ -163,6 +163,26 @@ describe('react custom html parser', () => {
     expect(JUMBO_EMOJI_REG.test('🫩')).toBe(true);
   });
 
+  it('renders Wordle-style square emoji with a fixed-width cell wrapper', () => {
+    render(<div data-testid="emoji-root">{scaleSystemEmoji('⬛🟨🟩')}</div>);
+
+    const fixedCells = screen
+      .getByTestId('emoji-root')
+      .querySelectorAll(`span.${customHtmlCss.SystemEmojiFixedCell}`);
+
+    expect(fixedCells).toHaveLength(3);
+  });
+
+  it('does not force regular emoji into a fixed-width cell', () => {
+    render(<div data-testid="emoji-root">{scaleSystemEmoji('🤔')}</div>);
+
+    const fixedCells = screen
+      .getByTestId('emoji-root')
+      .querySelectorAll(`span.${customHtmlCss.SystemEmojiFixedCell}`);
+
+    expect(fixedCells).toHaveLength(0);
+  });
+
   it('clamps incoming inline image height to the configured max', () => {
     const { container } = renderParsedHtml(
       '<img data-mx-emoticon src="mxc://example.org/emote" alt="blobcat" title="blobcat" height="128" />',

@@ -150,11 +150,26 @@ describe('markdownToHtml', () => {
       expect(markdownToHtml('intro\n> quote')).toContain('<blockquote>');
     });
 
-    it('ends blockquote when the next line does not start with >', () => {
+    it('keeps lazy blockquote continuation lines inside the same blockquote', () => {
       const html = markdownToHtml('> test\ntest 2');
       expect(html).toContain('<blockquote>');
       expect(html).toContain('test');
-      expect(html).not.toMatch(/<blockquote>[\s\S]*test 2[\s\S]*<\/blockquote>/);
+      expect(html).toMatch(/<blockquote[\s\S]*test 2[\s\S]*<\/blockquote>/);
+      expect((html.match(/<blockquote/g) ?? []).length).toBe(1);
+    });
+
+    it('keeps indented lazy continuation lines inside the same blockquote', () => {
+      const html = markdownToHtml('> this is a test\n  test\n  test');
+      expect(html).toContain('<blockquote>');
+      expect(html).toContain('this is a test');
+      expect(html).toMatch(/<blockquote[\s\S]*test[\s\S]*test[\s\S]*<\/blockquote>/);
+      expect((html.match(/<blockquote/g) ?? []).length).toBe(1);
+    });
+
+    it('still ends blockquote when separated by a blank line', () => {
+      const html = markdownToHtml('> test\n\ntest 2');
+      expect(html).toContain('<blockquote>');
+      expect(html).not.toMatch(/<blockquote[\s\S]*test 2[\s\S]*<\/blockquote>/);
       expect(html).toContain('test 2');
     });
 

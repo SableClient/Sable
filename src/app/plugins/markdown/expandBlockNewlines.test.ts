@@ -12,8 +12,8 @@ describe('expandBlockBoundariesAfterSingleNewlines', () => {
     expect(expandBlockBoundariesAfterSingleNewlines('intro\n> quote')).toBe('intro\n\n> quote');
   });
 
-  it('still expands when a blockquote ends', () => {
-    expect(expandBlockBoundariesAfterSingleNewlines('> quote\nplain')).toBe('> quote\n\nplain');
+  it('keeps lazy continuation lines inside the blockquote', () => {
+    expect(expandBlockBoundariesAfterSingleNewlines('> quote\nplain')).toBe('> quote\nplain');
   });
 
   it('does not expand between consecutive ordered list items', () => {

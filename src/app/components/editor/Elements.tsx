@@ -10,6 +10,7 @@ import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import { nicknamesAtom } from '$state/nicknames';
+import { isFixedCellEmoji } from '$plugins/emoji';
 import { BlockType } from './types';
 import { formatMentionElementDisplayName, getBeginCommand } from './utils';
 import type { CommandElement, EmoticonElement, LinkElement, MentionElement } from './slate';
@@ -95,7 +96,10 @@ function RenderEmoticonElement({
             : css.Emoticon({
                 focus: selected && focused,
               }),
-          !element.key.startsWith('mxc://') && css.SystemEmoji
+          !element.key.startsWith('mxc://') && css.SystemEmoji,
+          !element.key.startsWith('mxc://') &&
+            isFixedCellEmoji(element.key) &&
+            css.SystemEmojiFixedCell
         )}
         contentEditable={false}
       >

@@ -45,7 +45,7 @@ import {
   testMatrixTo,
 } from './matrix-to';
 import { isRedundantMatrixUriAnchorText, parseMatrixUri, testMatrixUri } from './matrix-uri';
-import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
+import { getHexcodeForEmoji, getShortcodeFor, isFixedCellEmoji } from './emoji';
 
 const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${emojiRegex().source})`, 'g');
 
@@ -432,16 +432,24 @@ export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] =>
   findAndReplace(
     text,
     EMOJI_REG_G,
-    (match, pushIndex) => (
-      <span key={`scaleSystemEmoji-${pushIndex}`} className={css.EmoticonBase}>
-        <span
-          className={classNames(css.Emoticon(), css.SystemEmoji)}
-          title={getShortcodeFor(getHexcodeForEmoji(match[0]))}
-        >
-          {match[0]}
+    (match, pushIndex) => {
+      const emoji = match[0];
+
+      return (
+        <span key={`scaleSystemEmoji-${pushIndex}`} className={css.EmoticonBase}>
+          <span
+            className={classNames(
+              css.Emoticon(),
+              css.SystemEmoji,
+              isFixedCellEmoji(emoji) && css.SystemEmojiFixedCell
+            )}
+            title={getShortcodeFor(getHexcodeForEmoji(emoji))}
+          >
+            {emoji}
+          </span>
         </span>
-      </span>
-    ),
+      );
+    },
     (txt) => txt
   );
 

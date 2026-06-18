@@ -70,8 +70,8 @@ export const Preview = style({
 export const PreviewEmoji = style([
   DefaultReset,
   {
-    width: toRem(36),
-    height: toRem(36),
+    width: toRem(48),
+    height: toRem(48),
   },
 ]);
 export const PreviewImg = style([
@@ -86,15 +86,19 @@ export const PreviewImg = style([
 export const EmojiGlyph = style([
   DefaultReset,
   {
-    width: toRem(36),
-    height: toRem(36),
+    width: toRem(48),
+    height: toRem(48),
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontFamily:
       'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-    fontSize: toRem(36),
+    fontSize: 'var(--sable-emoji-picker-font-size)',
     lineHeight: 1,
+    transform:
+      'translateY(var(--sable-emoji-picker-shift-y)) scale(var(--sable-emoji-picker-scale))',
+    transformOrigin: 'center',
+    overflow: 'visible',
   },
 ]);
 

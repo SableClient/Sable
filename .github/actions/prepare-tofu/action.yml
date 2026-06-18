@@ -19,6 +19,7 @@ runs:
       with:
         build: 'true'
       env:
+        VITE_BUILD_HASH: ${{ env.VITE_BUILD_HASH }}
         VITE_IS_RELEASE_TAG: ${{ inputs.is_release_tag }}
         VITE_SENTRY_DSN: ${{ env.VITE_SENTRY_DSN }}
         VITE_SENTRY_ENVIRONMENT: ${{ env.VITE_SENTRY_ENVIRONMENT }}

@@ -1,3 +1,5 @@
+import * as notificationsApi from './TauriNotificationsPluginApi';
+
 export type UnifiedPushTransportApi = {
   isPermissionGranted: () => Promise<boolean>;
   requestPermission: () => Promise<NotificationPermission>;
@@ -16,14 +18,13 @@ export type UnifiedPushTransportApi = {
 };
 
 export async function getUnifiedPushTransportApi(): Promise<UnifiedPushTransportApi> {
-  const api = await import('@sableclient/tauri-plugin-notifications-api');
   return {
-    isPermissionGranted: api.isPermissionGranted,
-    requestPermission: api.requestPermission,
-    registerForUnifiedPush: api.registerForUnifiedPush,
-    unregisterFromUnifiedPush: api.unregisterFromUnifiedPush,
-    getUnifiedPushDistributors: api.getUnifiedPushDistributors,
-    getUnifiedPushDistributor: api.getUnifiedPushDistributor,
-    saveUnifiedPushDistributor: api.saveUnifiedPushDistributor,
+    isPermissionGranted: notificationsApi.isPermissionGranted,
+    requestPermission: notificationsApi.requestPermission,
+    registerForUnifiedPush: notificationsApi.registerForUnifiedPush,
+    unregisterFromUnifiedPush: notificationsApi.unregisterFromUnifiedPush,
+    getUnifiedPushDistributors: notificationsApi.getUnifiedPushDistributors,
+    getUnifiedPushDistributor: notificationsApi.getUnifiedPushDistributor,
+    saveUnifiedPushDistributor: notificationsApi.saveUnifiedPushDistributor,
   };
 }

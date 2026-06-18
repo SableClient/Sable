@@ -64,6 +64,11 @@ jobs:
           echo "SENTRY_ORG=$SENTRY_ORG" >> "$GITHUB_ENV"
           echo "SENTRY_PROJECT=$SENTRY_PROJECT" >> "$GITHUB_ENV"
 
+      - name: Set build hash
+        shell: bash
+        run: |
+          echo "VITE_BUILD_HASH=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
+
       - name: Setup app and build
         uses: ./.github/actions/setup
         with:

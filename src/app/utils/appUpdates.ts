@@ -1,6 +1,7 @@
 import { hasServiceWorker } from '$utils/platform';
 
 const UPDATE_CHECK_TIMEOUT_MS = 2500;
+const APPLY_UPDATE_TIMEOUT_MS = 4000;
 const UPDATE_CHECK_FAILURE_MESSAGE = 'Failed to check for updates. Reload the app and try again.';
 
 export type AppUpdateCheckResult =
@@ -99,6 +100,27 @@ const waitForWaitingServiceWorker = async (
     observedInstallingWorker?.addEventListener('statechange', handleInstallingState);
   });
 
+const waitForServiceWorkerControllerChange = async (): Promise<void> =>
+  new Promise((resolve) => {
+    let settled = false;
+    let timeoutId = 0;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      resolve();
+    };
+
+    const handleControllerChange = () => finish();
+
+    timeoutId = window.setTimeout(finish, APPLY_UPDATE_TIMEOUT_MS);
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange, {
+      once: true,
+    });
+  });
+
 export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
   const registration = await getAppServiceWorkerRegistration();
   if (!registration) {
@@ -158,8 +180,10 @@ export async function applyPendingAppUpdate(): Promise<void> {
   if (!registration) return;
 
   if (registration.waiting) {
+    const waitForControllerChange = waitForServiceWorkerControllerChange();
     // oxlint-disable-next-line unicorn/require-post-message-target-origin
-    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
+    await waitForControllerChange;
   }
 
   window.location.reload();

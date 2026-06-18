@@ -108,7 +108,6 @@ import {
 } from '$features/settings/notifications/NotificationTransport';
 const pushRelayLog = createDebugLogger('push-relay');
 const transportLog = createDebugLogger('push-transport');
-
 function clearMediaSessionQuickly(): void {
   if (!('mediaSession' in navigator)) return;
   // iOS can register the lock-screen media player as a side effect of
@@ -216,10 +215,42 @@ function SystemEmojiFeature() {
   const [twitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
 
   useEffect(() => {
-    document.documentElement.style.setProperty(
-      '--font-emoji',
-      twitterEmoji ? 'Twemoji' : 'Twemoji_DISABLED'
-    );
+    const root = document.documentElement;
+    const updateMobileDataset = () => {
+      root.dataset.sableMobile = mobileOrTablet() ? 'true' : 'false';
+    };
+
+    updateMobileDataset();
+    root.dataset.sableEmojiStyle = twitterEmoji ? 'twemoji' : 'system';
+    root.dataset.sableEmojiEffectiveStyle = twitterEmoji ? 'twemoji' : 'system';
+    root.style.setProperty('--font-emoji', twitterEmoji ? 'Twemoji' : 'Twemoji_DISABLED');
+    window.addEventListener('resize', updateMobileDataset);
+
+    let cancelled = false;
+
+    const updateEffectiveEmojiStyle = async () => {
+      try {
+        const sampleEmoji = '🫩';
+        await document.fonts.load('16px "Twemoji"', sampleEmoji);
+        await document.fonts.ready;
+        if (cancelled) return;
+
+        const hasTwemoji = document.fonts.check('16px "Twemoji"', sampleEmoji);
+        root.dataset.sableEmojiEffectiveStyle = hasTwemoji ? 'twemoji' : 'system';
+      } catch {
+        if (cancelled) return;
+        root.dataset.sableEmojiEffectiveStyle = 'system';
+      }
+    };
+
+    if (twitterEmoji && 'fonts' in document) {
+      void updateEffectiveEmojiStyle();
+    }
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('resize', updateMobileDataset);
+    };
   }, [twitterEmoji]);
 
   return null;

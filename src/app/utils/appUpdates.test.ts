@@ -38,12 +38,16 @@ const createRegistration = (): MockRegistration => ({
 describe('appUpdates', () => {
   let mockRegistration: MockRegistration;
   let mockReload: ReturnType<typeof vi.fn>;
+  let serviceWorkerAddEventListener: ReturnType<typeof vi.fn>;
+  let serviceWorkerRemoveEventListener: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.useFakeTimers();
     mockHasServiceWorker.mockReturnValue(true);
     mockRegistration = createRegistration();
     mockReload = vi.fn();
+    serviceWorkerAddEventListener = vi.fn();
+    serviceWorkerRemoveEventListener = vi.fn();
 
     Object.defineProperty(window, 'navigator', {
       configurable: true,
@@ -52,7 +56,8 @@ describe('appUpdates', () => {
           controller: { postMessage: vi.fn() },
           getRegistration: vi.fn().mockResolvedValue(mockRegistration),
           ready: Promise.resolve(mockRegistration),
-          addEventListener: vi.fn(),
+          addEventListener: serviceWorkerAddEventListener,
+          removeEventListener: serviceWorkerRemoveEventListener,
         },
       },
     });
@@ -184,13 +189,40 @@ describe('appUpdates', () => {
     });
   });
 
-  it('applies a waiting update and reloads immediately', async () => {
+  it('waits for controllerchange before reloading a waiting update', async () => {
+    const waitingWorker = { postMessage: vi.fn() };
+    let controllerChangeListener: EventListener | undefined;
+    mockRegistration.waiting = waitingWorker;
+    serviceWorkerAddEventListener.mockImplementation((event: string, listener: EventListener) => {
+      if (event === 'controllerchange') {
+        controllerChangeListener = listener;
+      }
+    });
+
+    const applyPromise = applyPendingAppUpdate();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING_AND_CLAIM' });
+    expect(mockReload).not.toHaveBeenCalled();
+
+    controllerChangeListener?.(new Event('controllerchange'));
+    await applyPromise;
+    expect(mockReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('reloads after a timeout if controllerchange never arrives', async () => {
     const waitingWorker = { postMessage: vi.fn() };
     mockRegistration.waiting = waitingWorker;
 
-    await applyPendingAppUpdate();
+    const applyPromise = applyPendingAppUpdate();
+    await vi.advanceTimersByTimeAsync(0);
 
-    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING_AND_CLAIM' });
+    expect(mockReload).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(4000);
+    await applyPromise;
+
     expect(mockReload).toHaveBeenCalledTimes(1);
   });
 

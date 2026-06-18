@@ -90,6 +90,21 @@ describe('sanitizeSettingsDefaults', () => {
     expect(sanitizeSettingsDefaults({ iconEmptySizePx: -1 })).toEqual({});
     expect(sanitizeSettingsDefaults({ iconEmptySizePx: 32.5 })).toEqual({});
   });
+
+  it('accepts the new notification and composer settings', () => {
+    expect(
+      sanitizeSettingsDefaults({
+        notificationDeviceScope: 'active_client_only',
+        emojiAutoExpand: true,
+        structuredMarkdownAssist: false,
+      })
+    ).toEqual({
+      notificationDeviceScope: 'active_client_only',
+      emojiAutoExpand: true,
+      structuredMarkdownAssist: false,
+    });
+    expect(sanitizeSettingsDefaults({ notificationDeviceScope: 'invalid-scope' })).toEqual({});
+  });
 });
 
 describe('primeRuntimeSettingsDefaults', () => {

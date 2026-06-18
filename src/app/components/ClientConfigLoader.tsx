@@ -8,13 +8,19 @@ import { fetch } from '$utils/fetch';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+export const buildConfigAttemptUrl = (baseUrl: string, attempt: number): string => {
+  if (attempt === 0) return baseUrl;
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  return `${baseUrl}${separator}cacheBust=${Date.now()}-${attempt}`;
+};
+
 /**
  * Fetch the client config with retry logic and exponential backoff.
  * config.json is a static asset served locally, so transient failures are likely
  * caused by service worker issues or deploy races. Retrying ensures the app
  * doesn't start with incorrect configuration.
  */
-const getClientConfig = async (): Promise<ClientConfig> => {
+export const getClientConfig = async (): Promise<ClientConfig> => {
   const url = `${trimTrailingSlash(import.meta.env.BASE_URL)}/config.json`;
   const maxAttempts = 3;
 
@@ -22,15 +28,24 @@ const getClientConfig = async (): Promise<ClientConfig> => {
   // before retrying, so parallel Promise.all would be incorrect here.
   // eslint-disable-next-line no-await-in-loop
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const attemptUrl = buildConfigAttemptUrl(url, attempt);
     try {
       Sentry.addBreadcrumb({
         category: 'config',
         message: `Fetching config.json (attempt ${attempt + 1}/${maxAttempts})`,
         level: 'info',
+        data: { url: attemptUrl },
       });
 
       // eslint-disable-next-line no-await-in-loop -- Retries intentionally happen in sequence.
-      const config = await fetch(url, { method: 'GET' });
+      const config = await fetch(attemptUrl, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          'cache-control': 'no-cache',
+          pragma: 'no-cache',
+        },
+      });
       if (!config.ok) {
         throw new Error(`HTTP ${config.status}: ${config.statusText}`);
       }

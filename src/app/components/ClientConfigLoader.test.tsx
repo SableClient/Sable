@@ -9,10 +9,11 @@
  *
  * We mock fetch so we don't need a real config.json or a live matrix.to instance.
  */
+/* oxlint-disable vitest/require-mock-type-parameters */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { setMatrixToBase, getMatrixToRoom, getMatrixToUser } from '$plugins/matrix-to';
-import { ClientConfigLoader } from './ClientConfigLoader';
+import { buildConfigAttemptUrl, ClientConfigLoader, getClientConfig } from './ClientConfigLoader';
 
 afterEach(() => {
   setMatrixToBase(); // reset module state to 'https://matrix.to'
@@ -103,5 +104,60 @@ describe('ClientConfigLoader + matrix-to wiring', () => {
         'https://custom.example.org/#/!room:example.com'
       )
     );
+  });
+
+  it('builds cache-busted retry URLs after the first attempt', () => {
+    expect(buildConfigAttemptUrl('/config.json', 0)).toBe('/config.json');
+    expect(buildConfigAttemptUrl('/config.json', 1)).toMatch(/^\/config\.json\?cacheBust=/);
+    expect(buildConfigAttemptUrl('/config.json?foo=bar', 2)).toMatch(
+      /^\/config\.json\?foo=bar&cacheBust=/
+    );
+  });
+
+  it('retries config fetches with cache-busting and no-store semantics', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        statusText: 'Unavailable',
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        statusText: 'Unavailable',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve({ matrixToBaseUrl: 'https://custom.example.org' }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const configPromise = getClientConfig();
+    await vi.runAllTimersAsync();
+    await expect(configPromise).resolves.toMatchObject({
+      matrixToBaseUrl: 'https://custom.example.org',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/config.json',
+      expect.objectContaining({
+        method: 'GET',
+        cache: 'no-store',
+        headers: expect.objectContaining({
+          'cache-control': 'no-cache',
+          pragma: 'no-cache',
+        }),
+      })
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toMatch(/^\/config\.json\?cacheBust=/);
+    expect(fetchMock.mock.calls[2]?.[0]).toMatch(/^\/config\.json\?cacheBust=/);
+    vi.useRealTimers();
   });
 });

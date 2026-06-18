@@ -84,16 +84,24 @@ import { LIST_JOINED } from '$client/slidingSync';
 import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { markStartupRoomListReady } from '$utils/perfTelemetry';
-import { triggerManualRefresh } from '$utils/manualRefresh';
+import {
+  ensureManualRefreshSpinStyle,
+  getManualRefreshSpinStyle,
+  triggerManualRefresh,
+} from '$utils/manualRefresh';
 
 type HomeMenuProps = {
+  isRefreshing: boolean;
   isShowingAllRoomsInHome: boolean;
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
   requestClose: () => void;
   setIsShowingAllRoomsInHome: (show: boolean) => void;
 };
 const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(
-  ({ isShowingAllRoomsInHome, onRefresh, requestClose, setIsShowingAllRoomsInHome }, ref) => {
+  (
+    { isRefreshing, isShowingAllRoomsInHome, onRefresh, requestClose, setIsShowingAllRoomsInHome },
+    ref
+  ) => {
     const orphanRooms = useHomeRooms(isShowingAllRoomsInHome);
     const [hideReads] = useSetting(settingsAtom, 'hideReads');
     const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
@@ -119,7 +127,17 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(
               Mark as Read
             </Text>
           </MenuItem>
-          <MenuItem onClick={onRefresh} size="300" after={menuIcon(ArrowsClockwise)} radii="300">
+          <MenuItem
+            onClick={() => {
+              void onRefresh();
+            }}
+            size="300"
+            after={menuIcon(ArrowsClockwise, {
+              style: getManualRefreshSpinStyle(isRefreshing),
+            })}
+            radii="300"
+            disabled={isRefreshing}
+          >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Refresh
             </Text>
@@ -142,13 +160,15 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(
 
 type HomeHeaderProps = {
   hideText?: boolean;
+  isRefreshing: boolean;
   isShowingAllRoomsInHome: boolean;
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
   setIsShowingAllRoomsInHome: (show: boolean) => void;
 };
 
 function HomeHeader({
   hideText,
+  isRefreshing,
   isShowingAllRoomsInHome,
   onRefresh,
   setIsShowingAllRoomsInHome,
@@ -180,11 +200,6 @@ function HomeHeader({
               </Text>
             </Box>
             <Box shrink="No">
-              <IconButton variant="Background" onClick={onRefresh} aria-label="Refresh rooms">
-                {composerIcon(ArrowsClockwise)}
-              </IconButton>
-            </Box>
-            <Box shrink="No">
               <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
                 {composerIcon(DotsThreeOutlineVerticalIcon, {
                   weight: menuAnchor ? 'fill' : 'regular',
@@ -212,6 +227,7 @@ function HomeHeader({
             }}
           >
             <HomeMenu
+              isRefreshing={isRefreshing}
               isShowingAllRoomsInHome={isShowingAllRoomsInHome}
               onRefresh={onRefresh}
               requestClose={() => setMenuAnchor(undefined)}
@@ -357,9 +373,19 @@ export function Home() {
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
-  const handleRefresh = useCallback(() => {
-    triggerManualRefresh(mx);
-  }, [mx]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  useEffect(() => {
+    ensureManualRefreshSpinStyle();
+  }, []);
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await triggerManualRefresh(mx);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [mx, isRefreshing]);
 
   usePullToRefresh(scrollRef, mx);
 
@@ -374,6 +400,7 @@ export function Home() {
       <PageNav>
         <HomeHeader
           hideText={hideText}
+          isRefreshing={isRefreshing}
           isShowingAllRoomsInHome={isShowingAllRoomsInHome}
           onRefresh={handleRefresh}
           setIsShowingAllRoomsInHome={setIsShowingAllRoomsInHome}

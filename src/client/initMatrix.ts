@@ -5,6 +5,7 @@ import {
   Filter,
   IndexedDBStore,
   IndexedDBCryptoStore,
+  MatrixEvent as MatrixEventClass,
   SyncState,
 } from '$types/matrix-sdk';
 
@@ -63,6 +64,8 @@ let activeAppClientStopPromise: Promise<void> | undefined;
 // 8 seconds is sufficient for most networks while still allowing time for
 // slow connections. If the bootstrap times out, sliding sync takes over.
 const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 8000;
+const MATRIX_EVENT_TYPE_GUARD_PATCHED = '__sableEventTypeGuardPatched';
+const MATRIX_EVENT_TYPE_GUARD_REPORTED = '__sableEventTypeGuardReported';
 
 type FetchRoomEventResult = Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>;
 type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
@@ -70,6 +73,58 @@ type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
 };
 
 type MatrixDeviceContextClient = Pick<MatrixClient, 'getDeviceId'>;
+
+const installMatrixEventTypeGuard = (): void => {
+  const proto = MatrixEventClass.prototype as {
+    getType?: (...args: unknown[]) => unknown;
+    event?: { type?: unknown };
+    [MATRIX_EVENT_TYPE_GUARD_PATCHED]?: boolean;
+  };
+  if (proto[MATRIX_EVENT_TYPE_GUARD_PATCHED]) return;
+
+  const originalGetType = proto.getType;
+  proto.getType = function patchedGetType(...args: unknown[]) {
+    const self = this as {
+      event?: { type?: unknown };
+      [MATRIX_EVENT_TYPE_GUARD_REPORTED]?: boolean;
+    };
+    const resolved =
+      typeof originalGetType === 'function' ? originalGetType.apply(this, args) : self.event?.type;
+    if (typeof resolved === 'string') {
+      return resolved;
+    }
+
+    const fallback = typeof self.event?.type === 'string' ? self.event.type : '';
+    if (!self[MATRIX_EVENT_TYPE_GUARD_REPORTED]) {
+      self[MATRIX_EVENT_TYPE_GUARD_REPORTED] = true;
+      Sentry.captureMessage('MatrixEvent missing string event type', {
+        level: 'warning',
+        tags: { component: 'matrix-event-type-guard' },
+        extra: {
+          rawType:
+            resolved === undefined ? 'undefined' : resolved === null ? 'null' : typeof resolved,
+          fallbackType: fallback,
+        },
+      });
+    }
+    return fallback;
+  };
+  proto[MATRIX_EVENT_TYPE_GUARD_PATCHED] = true;
+};
+
+const isRecoverableStoreInitError = (err: unknown): boolean => {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (classifyCryptoStoreIndexedDbError(msg)) return true;
+
+  return (
+    msg.includes('AbortError') ||
+    msg.includes('DatabaseClosedError') ||
+    msg.includes('connection is closing') ||
+    msg.includes('connection is closed') ||
+    msg.includes('The database connection is closing') ||
+    msg.includes('The database connection is closed')
+  );
+};
 
 export function setSentryMatrixDeviceContext(
   mx?: MatrixDeviceContextClient | null,
@@ -499,6 +554,7 @@ const buildClient = async (
   session: Session,
   onTokenRefresh?: (newAccessToken: string, newRefreshToken?: string) => void
 ): Promise<{ mx: MatrixClient; storeStartup: Promise<void> }> => {
+  installMatrixEventTypeGuard();
   const storeName = getSessionStoreName(session);
   debugLog.info('sync', 'Building Matrix client with stores', {
     syncDb: storeName.sync,
@@ -674,17 +730,29 @@ export const initClient = async (
       }),
     ]);
   } catch (err) {
-    if (!isMismatch(err)) {
+    if (!isMismatch(err) && !isRecoverableStoreInitError(err)) {
       debugLog.error('sync', 'Failed to initialize stores', { error: err });
       throw err;
     }
-    log.warn('initClient: mismatch on parallel init — wiping and retrying:', err);
-    debugLog.warn('sync', 'Store init mismatch - wiping stores and retrying', {
+    const recoveryReason = isMismatch(err) ? 'mismatch' : 'recoverable_indexeddb_error';
+    log.warn(`initClient: ${recoveryReason} on parallel init — wiping and retrying:`, err);
+    debugLog.warn('sync', 'Store init failure eligible for wipe-and-retry', {
       error: err,
+      recoveryReason,
+    });
+    Sentry.addBreadcrumb({
+      category: 'initMatrix',
+      message: 'Store init failed - wiping local stores and retrying',
+      level: 'warning',
+      data: {
+        recoveryReason,
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        errorMessage: err instanceof Error ? err.message : String(err),
+      },
     });
     mx.stopClient();
     await wipeAllStores();
-    const result = await buildClient(session);
+    const result = await buildClient(session, onTokenRefresh);
     mx = result.mx;
     await Promise.all([
       result.storeStartup,

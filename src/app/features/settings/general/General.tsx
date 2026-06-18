@@ -1004,6 +1004,11 @@ function Messages() {
     settingsAtom,
     'hideMembershipInReadOnly'
   );
+  const [structuredMarkdownAssist, setStructuredMarkdownAssist] = useSetting(
+    settingsAtom,
+    'structuredMarkdownAssist'
+  );
+  const [emojiAutoExpand, setEmojiAutoExpand] = useSetting(settingsAtom, 'emojiAutoExpand');
 
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
   const [rightBubbles, setRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
@@ -1036,6 +1041,28 @@ function Messages() {
           title="Emoji Selector Character Threshold"
           focusId="emoji-selector-threshold"
           after={<EmojiSelectorThresholdInput />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Structured Markdown Assist"
+          focusId="structured-markdown-assist"
+          description="Continue quotes and lists when you press Enter, and exit cleanly from empty continuation lines."
+          after={
+            <Switch
+              variant="Primary"
+              value={structuredMarkdownAssist}
+              onChange={setStructuredMarkdownAssist}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Emoji Auto-Expand"
+          focusId="emoji-auto-expand"
+          description='Expand basic emoticons such as ":)" into emoji while typing.'
+          after={<Switch variant="Primary" value={emojiAutoExpand} onChange={setEmojiAutoExpand} />}
         />
       </SequenceCard>
       {messageLayout === MessageLayout.Bubble && (

@@ -113,23 +113,28 @@ export function usePullToRefresh(
       }, 250);
     };
 
-    const doRefresh = () => {
+    const doRefresh = async () => {
       if (refreshingRef.current) return;
       refreshingRef.current = true;
 
       showRefreshing();
 
-      // Reuse the same full refresh path as desktop-visible refresh actions.
-      triggerManualRefresh(mx);
-
-      // Brief delay so the spinner is visible before snapping back.
-      // Reduced from 800ms to 400ms for faster perceived responsiveness.
-      setTimeout(() => {
+      try {
+        // Reuse the same full refresh path as desktop-visible refresh actions.
+        // Keep the refresh lock until the async refresh settles while preserving
+        // a minimum spinner duration so the gesture does not flicker.
+        await Promise.all([
+          triggerManualRefresh(mx),
+          new Promise((resolve) => {
+            window.setTimeout(resolve, 400);
+          }),
+        ]);
+      } finally {
         refreshingRef.current = false;
         el.style.transform = '';
         el.style.transition = '';
         hideIndicator();
-      }, 400);
+      }
     };
 
     const onTouchStart = (e: TouchEvent) => {
@@ -179,7 +184,7 @@ export function usePullToRefresh(
         // Sufficient pull — trigger refresh and animate back.
         el.style.transition = 'transform 0.25s ease';
         el.style.transform = '';
-        doRefresh();
+        void doRefresh();
       } else {
         // Insufficient pull — snap everything back.
         el.style.transition = 'transform 0.2s ease';

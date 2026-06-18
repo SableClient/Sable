@@ -88,6 +88,7 @@ import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
 import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
+import { useNotificationDeviceScope } from '$hooks/useNotificationDeviceScope';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { clearLaunchContext } from '../../../launch-context-persistence';
@@ -181,8 +182,31 @@ function WebPushStartupReconciler() {
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const pushSubscription = useAtom(pushSubscriptionAtom);
+  const [visibilityState, setVisibilityState] = useState<DocumentVisibilityState>(
+    document.visibilityState
+  );
+  const { isActiveNotificationClient, notificationDeviceScope } = useNotificationDeviceScope(mx, {
+    publishLease: false,
+  });
   const reconciledKeyRef = useRef<string | null>(null);
-  const keepEnabledWhenVisible = mobileOrTablet();
+  const shouldEnablePusher =
+    visibilityState === 'visible'
+      ? mobileOrTablet() ||
+        (notificationDeviceScope === 'active_client_only' && isActiveNotificationClient)
+      : notificationDeviceScope !== 'active_client_only' || isActiveNotificationClient;
+
+  useEffect(() => {
+    const syncVisibilityState = () => setVisibilityState(document.visibilityState);
+    const handlePageShow = () => syncVisibilityState();
+
+    document.addEventListener('visibilitychange', syncVisibilityState);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      document.removeEventListener('visibilitychange', syncVisibilityState);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, []);
 
   useEffect(() => {
     if (!usePushNotifications || isTauri()) return;
@@ -192,8 +216,8 @@ function WebPushStartupReconciler() {
     if (!userId) return;
     const reconcileKey = [
       userId,
-      document.visibilityState,
-      keepEnabledWhenVisible ? 'keep-visible' : 'disable-visible',
+      visibilityState,
+      shouldEnablePusher ? 'enabled' : 'disabled',
     ].join(':');
     if (reconciledKeyRef.current === reconcileKey) return;
 
@@ -201,9 +225,9 @@ function WebPushStartupReconciler() {
     void reconcilePushNotifications(
       mx,
       clientConfig,
+      shouldEnablePusher,
       usePushNotifications,
-      pushSubscription,
-      keepEnabledWhenVisible
+      pushSubscription
     ).catch((error) => {
       reconciledKeyRef.current = null;
       transportLog.warn('notification', 'Web push startup reconciliation failed', {
@@ -211,7 +235,14 @@ function WebPushStartupReconciler() {
         error: error instanceof Error ? error.message : String(error),
       });
     });
-  }, [mx, clientConfig, pushSubscription, usePushNotifications, keepEnabledWhenVisible]);
+  }, [
+    mx,
+    clientConfig,
+    pushSubscription,
+    usePushNotifications,
+    shouldEnablePusher,
+    visibilityState,
+  ]);
 
   return null;
 }
@@ -352,6 +383,9 @@ function InviteNotifications() {
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
   const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
+  const { isActiveNotificationClient } = useNotificationDeviceScope(mx, {
+    publishLease: false,
+  });
 
   const notify = useCallback(
     (count: number) => {
@@ -378,6 +412,7 @@ function InviteNotifications() {
 
   useEffect(() => {
     if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
+    if (!isActiveNotificationClient) return;
 
     // SW push (via Sygnal) handles invite notifications when the app is backgrounded.
     if (document.visibilityState !== 'visible' && usePushNotifications) return;
@@ -402,6 +437,7 @@ function InviteNotifications() {
     usePushNotifications,
     notificationSound,
     backgroundNotificationSounds,
+    isActiveNotificationClient,
     notify,
     playSound,
   ]);
@@ -434,6 +470,9 @@ function MessageNotifications() {
     'showMessageContentInEncryptedNotifications'
   );
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
+  const { isActiveNotificationClient } = useNotificationDeviceScope(mx, {
+    publishLease: false,
+  });
 
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
@@ -471,6 +510,7 @@ function MessageNotifications() {
       data
     ) => {
       if (mx.getSyncState() !== SyncState.Syncing) return;
+      if (!isActiveNotificationClient) return;
 
       const eventId = mEvent.getId();
       // Record event arrival time once per eventId (re-entry via handleDecrypted must not reset it)
@@ -750,6 +790,7 @@ function MessageNotifications() {
     navigate,
     appBaseUrl,
     useAuthentication,
+    isActiveNotificationClient,
   ]);
 
   return (

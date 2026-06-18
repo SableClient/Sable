@@ -12,6 +12,7 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { markAsRead } from '$utils/notifications';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomMembers } from '$hooks/useRoomMembers';
+import { useRoomEvent } from '$hooks/useRoomEvent';
 import { CallView } from '$features/call/CallView';
 import { WidgetsDrawer } from '$features/widgets/WidgetsDrawer';
 import { callChatAtom } from '$state/callEmbed';
@@ -32,6 +33,7 @@ export function Room() {
   const { eventId } = useParams();
   const room = useRoom();
   const mx = useMatrixClient();
+  const targetEvent = useRoomEvent(room, eventId ?? '', undefined, Boolean(eventId));
 
   // Log room mount
   useEffect(() => {
@@ -72,7 +74,7 @@ export function Room() {
   useEffect(() => {
     if (!eventId) return;
 
-    const event = room.findEventById(eventId);
+    const event = targetEvent;
     if (!event) return;
 
     const { threadRootId } = event;
@@ -86,7 +88,7 @@ export function Room() {
       }
       setOpenThread(threadRootId);
     }
-  }, [eventId, room, setOpenThread]);
+  }, [eventId, room, setOpenThread, targetEvent]);
 
   useKeyDown(
     window,

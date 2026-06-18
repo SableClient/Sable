@@ -110,6 +110,10 @@ import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useComposingCheck } from '$hooks/useComposingCheck';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import {
+  buildNotificationBreadcrumb,
+  buildNotificationMetricAttributes,
+} from '$utils/notificationTelemetry';
 import FocusTrap from 'focus-trap-react';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
@@ -373,9 +377,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers>();
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const suppressNextSendClickRef = useRef(false);
+    const suppressNextSendClickSequenceRef = useRef<number | null>(null);
     const longPressTriggeredRef = useRef(false);
     const longPressPointerId = useRef<number | null>(null);
+    const longPressPressSequenceRef = useRef<number | null>(null);
+    const sendClickSequenceRef = useRef(0);
     const longPressStartPoint = useRef<{ x: number; y: number } | null>(null);
 
     const imagePackRooms: Room[] = useImagePackRooms(roomId, roomToParents);
@@ -498,7 +504,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const closeSchedulePicker = useCallback(() => {
       setShowSchedulePicker(false);
       setScheduleMenuAnchor(undefined);
-      suppressNextSendClickRef.current = false;
+      suppressNextSendClickSequenceRef.current = null;
     }, []);
 
     const clearLongPressTimer = useCallback(() => {
@@ -507,6 +513,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         longPressTimer.current = null;
       }
       longPressPointerId.current = null;
+      longPressPressSequenceRef.current = null;
       longPressStartPoint.current = null;
     }, []);
 
@@ -522,6 +529,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     }, []);
 
     useEffect(() => resetLongPressState, [resetLongPressState]);
+
+    useEffect(() => {
+      const handleVisibilityChange = () => {
+        if (document.visibilityState !== 'visible') {
+          suppressNextSendClickSequenceRef.current = null;
+          resetLongPressState();
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [resetLongPressState]);
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -2033,7 +2052,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       initialFocus: false,
                       onDeactivate: () => {
                         setScheduleMenuAnchor(undefined);
-                        suppressNextSendClickRef.current = false;
+                        suppressNextSendClickSequenceRef.current = null;
                       },
                       clickOutsideDeactivates: true,
                       escapeDeactivates: stopPropagation,
@@ -2073,11 +2092,40 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   aria-label="Send your composed Message"
                   onClick={() => {
                     clearLongPressTimer();
-                    if (suppressNextSendClickRef.current) {
-                      suppressNextSendClickRef.current = false;
+                    if (
+                      suppressNextSendClickSequenceRef.current !== null &&
+                      suppressNextSendClickSequenceRef.current === sendClickSequenceRef.current
+                    ) {
+                      suppressNextSendClickSequenceRef.current = null;
                       longPressTriggeredRef.current = false;
+                      Sentry.addBreadcrumb(
+                        buildNotificationBreadcrumb('send', 'send_click_suppressed', {
+                          room_id: roomId,
+                          press_sequence: sendClickSequenceRef.current,
+                          reason: 'schedule_long_press',
+                        })
+                      );
+                      Sentry.metrics.count('sable.message.send_click_suppressed', 1, {
+                        attributes: buildNotificationMetricAttributes({
+                          room_id: roomId,
+                          trigger: 'schedule_long_press',
+                        }),
+                      });
                       return;
                     }
+                    Sentry.addBreadcrumb(
+                      buildNotificationBreadcrumb('send', 'send_click_submitted', {
+                        room_id: roomId,
+                        press_sequence: sendClickSequenceRef.current,
+                        trigger: 'tap',
+                      })
+                    );
+                    Sentry.metrics.count('sable.message.send_click_submitted', 1, {
+                      attributes: buildNotificationMetricAttributes({
+                        room_id: roomId,
+                        trigger: 'tap',
+                      }),
+                    });
                     submit();
                   }}
                   onMouseDown={(e: MouseEvent) => e.preventDefault()}
@@ -2087,15 +2135,34 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       return;
                     }
 
+                    const pressSequence = sendClickSequenceRef.current + 1;
+                    sendClickSequenceRef.current = pressSequence;
                     longPressPointerId.current = evt.pointerId;
+                    longPressPressSequenceRef.current = pressSequence;
                     longPressStartPoint.current = { x: evt.clientX, y: evt.clientY };
                     longPressTriggeredRef.current = false;
                     longPressTimer.current = setTimeout(() => {
-                      if (longPressPointerId.current !== evt.pointerId) return;
+                      if (
+                        longPressPointerId.current !== evt.pointerId ||
+                        longPressPressSequenceRef.current !== pressSequence
+                      )
+                        return;
                       longPressTriggeredRef.current = true;
-                      suppressNextSendClickRef.current = true;
+                      suppressNextSendClickSequenceRef.current = pressSequence;
                       longPressPointerId.current = null;
+                      longPressPressSequenceRef.current = null;
                       longPressStartPoint.current = null;
+                      Sentry.addBreadcrumb(
+                        buildNotificationBreadcrumb('send', 'send_long_press_armed', {
+                          room_id: roomId,
+                          press_sequence: pressSequence,
+                        })
+                      );
+                      Sentry.metrics.count('sable.message.send_long_press_armed', 1, {
+                        attributes: buildNotificationMetricAttributes({
+                          room_id: roomId,
+                        }),
+                      });
                       if (longPressTimer.current !== null) {
                         clearTimeout(longPressTimer.current);
                         longPressTimer.current = null;
@@ -2117,7 +2184,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     resetLongPressState();
                   }}
                   onPointerCancel={() => {
-                    suppressNextSendClickRef.current = false;
+                    suppressNextSendClickSequenceRef.current = null;
                     resetLongPressState();
                   }}
                   onPointerLeave={() => {

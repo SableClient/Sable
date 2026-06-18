@@ -1425,3 +1425,78 @@ export const guessPerfectParent = (
 
   return perfectParent;
 };
+
+export const getPreferredSpaceNavigationRoot = (
+  mx: MatrixClient,
+  roomToParents: RoomToParents,
+  roomId: string
+): string | undefined => {
+  const visited = new Set<string>();
+
+  const walkPreferredParentChain = (childRoomId: string): string | undefined => {
+    if (visited.has(childRoomId)) return undefined;
+    visited.add(childRoomId);
+
+    const parents = getShallowParents(roomToParents, childRoomId);
+    if (parents.length === 0) return undefined;
+
+    const preferredParent = guessPerfectParent(mx, childRoomId, parents) ?? parents[0];
+    if (!preferredParent) return undefined;
+
+    const ancestorRoot = walkPreferredParentChain(preferredParent);
+    return ancestorRoot ?? preferredParent;
+  };
+
+  return walkPreferredParentChain(roomId);
+};
+
+export const isSpaceAncestorOfRoom = (
+  roomToParents: RoomToParents,
+  roomId: string,
+  spaceId: string
+): boolean => roomId === spaceId || getAllParents(roomToParents, roomId).has(spaceId);
+
+export type SpaceNavigationRootResolution = {
+  rootSpaceId?: string;
+  source: 'selected_space' | 'stored_preference' | 'preferred_chain' | 'none';
+};
+
+export const resolveSpaceNavigationRoot = (
+  mx: MatrixClient,
+  roomToParents: RoomToParents,
+  roomId: string,
+  options?: {
+    selectedSpaceId?: string;
+    storedRootSpaceId?: string;
+  }
+): SpaceNavigationRootResolution => {
+  if (
+    options?.selectedSpaceId &&
+    isSpaceAncestorOfRoom(roomToParents, roomId, options.selectedSpaceId)
+  ) {
+    return {
+      rootSpaceId: options.selectedSpaceId,
+      source: 'selected_space',
+    };
+  }
+
+  if (
+    options?.storedRootSpaceId &&
+    isSpaceAncestorOfRoom(roomToParents, roomId, options.storedRootSpaceId)
+  ) {
+    return {
+      rootSpaceId: options.storedRootSpaceId,
+      source: 'stored_preference',
+    };
+  }
+
+  const preferredRoot = getPreferredSpaceNavigationRoot(mx, roomToParents, roomId);
+  if (preferredRoot) {
+    return {
+      rootSpaceId: preferredRoot,
+      source: 'preferred_chain',
+    };
+  }
+
+  return { source: 'none' };
+};

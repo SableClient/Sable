@@ -24,7 +24,9 @@ describe('ToRoomEvent', () => {
     const { getByTestId } = render(
       <Provider>
         <MemoryRouter
-          initialEntries={['/to/%40alice%3Aexample/!room%3Aexample/%24event123?joinCall=true']}
+          initialEntries={[
+            '/to/%40alice%3Aexample/!room%3Aexample/%24event123?joinCall=true&swClickId=notification-click-123',
+          ]}
         >
           <Routes>
             <Route
@@ -51,6 +53,7 @@ describe('ToRoomEvent', () => {
           targetSessionId?: string;
           requestedAt?: number;
           source?: string;
+          swClickId?: string;
         };
       };
 
@@ -60,6 +63,7 @@ describe('ToRoomEvent', () => {
       expect(payload.pendingNotification?.joinCall).toBe(true);
       expect(payload.pendingNotification?.targetSessionId).toBe('@alice:example');
       expect(payload.pendingNotification?.source).toBe('to_room_event');
+      expect(payload.pendingNotification?.swClickId).toBe('notification-click-123');
       expect(typeof payload.pendingNotification?.requestedAt).toBe('number');
     });
   });

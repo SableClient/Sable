@@ -3,6 +3,10 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
+import {
+  buildNotificationBreadcrumb,
+  buildNotificationMetricAttributes,
+} from '$utils/notificationTelemetry';
 
 // ToRoomEvent handles /to/:user_id/:room_id/:event_id? — the canonical deep-link
 // URL used by the service worker's notificationclick handler.
@@ -22,25 +26,27 @@ export function ToRoomEvent() {
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const setPending = useSetAtom(pendingNotificationAtom);
   const joinCall = searchParams.get('joinCall') === 'true';
+  const swClickId = searchParams.get('swClickId') ?? undefined;
 
   useEffect(() => {
     if (!roomId) return;
-    Sentry.addBreadcrumb({
-      category: 'notification.restore',
-      message: 'Entered /to notification restore route',
-      level: 'info',
-      data: {
-        hasUserId: !!userId,
-        hasRoomId: !!roomId,
-        hasEventId: !!eventId,
-      },
-    });
-    Sentry.metrics.count('sable.notification.to_route', 1, {
-      attributes: {
+    Sentry.addBreadcrumb(
+      buildNotificationBreadcrumb('restore', 'restore_route_entered', {
+        click_id: swClickId,
+        source: 'to_room_event',
         has_user_id: !!userId,
         has_room_id: !!roomId,
         has_event_id: !!eventId,
-      },
+      })
+    );
+    Sentry.metrics.count('sable.notification.to_route', 1, {
+      attributes: buildNotificationMetricAttributes({
+        click_id: swClickId,
+        source: 'to_room_event',
+        has_user_id: !!userId,
+        has_room_id: !!roomId,
+        has_event_id: !!eventId,
+      }),
     });
     // Switch to the target account first so the notification jumper navigates
     // under the correct session.
@@ -51,9 +57,10 @@ export function ToRoomEvent() {
       joinCall,
       targetSessionId: userId,
       requestedAt: Date.now(),
+      swClickId,
       source: 'to_room_event',
     });
-  }, [userId, roomId, eventId, joinCall, setActiveSessionId, setPending]);
+  }, [userId, roomId, eventId, joinCall, swClickId, setActiveSessionId, setPending]);
 
   return null;
 }

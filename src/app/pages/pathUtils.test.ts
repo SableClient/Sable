@@ -39,6 +39,17 @@ describe('getToRoomEventPath', () => {
       })
     ).toBe('/to/%40alice%3Aexample.com/!room%3Aexample.com/%24event123?joinCall=true');
   });
+
+  it('preserves both join-call and notification click restore state', () => {
+    expect(
+      getToRoomEventPath('@alice:example.com', '!room:example.com', '$event123', {
+        joinCall: true,
+        swClickId: 'notification-click-123',
+      })
+    ).toBe(
+      '/to/%40alice%3Aexample.com/!room%3Aexample.com/%24event123?joinCall=true&swClickId=notification-click-123'
+    );
+  });
 });
 
 describe('withAdditionalSearchParams', () => {

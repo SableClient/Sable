@@ -174,6 +174,7 @@ export type PendingNotification = {
   joinCall?: boolean;
   targetSessionId?: string;
   requestedAt?: number;
+  swClickId?: string;
   source?: 'to_room_event';
 };
 

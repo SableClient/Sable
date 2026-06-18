@@ -1,5 +1,12 @@
 # Sable Client Changelog
 
+## 1.18.3 (2026-06-17)
+
+### Fixes
+
+* Fixed broken Twemoji rendering and updated emoji picker, autocomplete, and jumbo detection for new emojis. ([#957](<https://github.com/SableClient/Sable/pull/957>) by @7w1)
+* Updated various dependencies. ([#957](<https://github.com/SableClient/Sable/pull/957>) by @7w1)
+
 ## 1.18.2 (2026-06-17)
 
 ### Fixes

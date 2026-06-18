@@ -151,10 +151,7 @@ function createSwWatchdog() {
     const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
     const activeWorker = registration?.active;
     const controller = navigator.serviceWorker.controller;
-    const worker =
-      activeWorker && activeWorker.state === 'activated'
-        ? activeWorker
-        : (controller ?? activeWorker);
+    const worker = controller ?? activeWorker;
     const workerScriptUrl = worker?.scriptURL;
     const watchdogHandshakeComplete =
       typeof workerScriptUrl === 'string' && workerScriptUrl === compatibleWorkerScriptUrl;
@@ -177,7 +174,11 @@ function createSwWatchdog() {
 
     try {
       await pingPromise;
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.message === 'watchdog stopped') {
+        return;
+      }
+
       if (!watchdogHandshakeComplete) {
         Sentry.addBreadcrumb({
           category: 'service_worker',
@@ -186,7 +187,7 @@ function createSwWatchdog() {
           data: {
             controllerScriptUrl: controller?.scriptURL,
             activeScriptUrl: activeWorker?.scriptURL,
-            usingActiveWorker: worker === activeWorker,
+            usingController: worker === controller,
           },
         });
         await requestRecovery();

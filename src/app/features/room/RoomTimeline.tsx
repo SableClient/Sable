@@ -387,7 +387,7 @@ export function RoomTimeline({
   }, [setAtBottom]);
 
   const releaseJumpLock = useCallback(
-    (reason: 'missing_target' | 'user_scroll' | 'route_change') => {
+    (reason: 'missing_target' | 'user_scroll' | 'route_change' | 'jump_to_latest') => {
       if (!jumpLockActiveRef.current && !jumpLockEventIdRef.current) return;
       jumpLockActiveRef.current = false;
       jumpLockEventIdRef.current = undefined;
@@ -1920,6 +1920,7 @@ export function RoomTimeline({
               before={chipIcon(ArrowDown)}
               onClick={() => {
                 if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
+                releaseJumpLock('jump_to_latest');
                 timelineSync.setTimeline(getInitialTimeline(room));
                 scrollToBottom();
               }}

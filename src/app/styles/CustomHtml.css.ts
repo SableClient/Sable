@@ -268,7 +268,7 @@ export const SystemEmoji = style({
   display: 'inline-block',
   fontSize: 'var(--sable-inline-emoji-font-size)',
   lineHeight: 1,
-  transform: 'translateY(var(--sable-inline-emoji-shift-y))',
+  verticalAlign: 'var(--sable-inline-emoji-align)',
 });
 
 export const CustomEmoticon = recipe({

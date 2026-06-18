@@ -16,10 +16,10 @@
   --font-emoji: 'Twemoji_DISABLED';
   --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
   --font-monospace: 'Space Mono', monospace;
-  --sable-emoji-picker-font-size: 2.4rem;
+  --sable-emoji-picker-font-size: 2.9rem;
   --sable-emoji-picker-shift-y: 0;
-  --sable-inline-emoji-font-size: 1.03em;
-  --sable-inline-emoji-box-align: -0.16em;
+  --sable-inline-emoji-font-size: 1.13em;
+  --sable-inline-emoji-box-align: -0.22em;
 }
 
 .dark-theme,
@@ -59,17 +59,17 @@ body {
 }
 
 :root[data-sable-emoji-effective-style='system'] {
-  --sable-emoji-picker-font-size: 3.1rem;
-  --sable-emoji-picker-shift-y: -0.03em;
-  --sable-inline-emoji-font-size: 1.14em;
-  --sable-inline-emoji-box-align: -0.18em;
+  --sable-emoji-picker-font-size: 3.45rem;
+  --sable-emoji-picker-shift-y: -0.04em;
+  --sable-inline-emoji-font-size: 1.2em;
+  --sable-inline-emoji-box-align: -0.23em;
 }
 
 :root[data-sable-emoji-effective-style='system'][data-sable-mobile='true'] {
-  --sable-emoji-picker-font-size: 3.2rem;
-  --sable-emoji-picker-shift-y: -0.035em;
-  --sable-inline-emoji-font-size: 1.15em;
-  --sable-inline-emoji-box-align: -0.19em;
+  --sable-emoji-picker-font-size: 3.55rem;
+  --sable-emoji-picker-shift-y: -0.045em;
+  --sable-inline-emoji-font-size: 1.22em;
+  --sable-inline-emoji-box-align: -0.24em;
 }
 
 #root {

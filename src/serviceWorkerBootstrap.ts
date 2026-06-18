@@ -19,6 +19,7 @@ type SwRecoveryReason =
   | 'missing_worker'
   | 'awaiting_compatible_pong'
   | 'watchdog_ping_timeout'
+  | 'watchdog_timer'
   | 'foreground_focus'
   | 'visibilitychange_visible'
   | 'pageshow';
@@ -159,7 +160,7 @@ function createSwWatchdog() {
   const pingServiceWorker = async (
     reason: Extract<
       SwRecoveryReason,
-      'foreground_focus' | 'visibilitychange_visible' | 'pageshow'
+      'watchdog_timer' | 'foreground_focus' | 'visibilitychange_visible' | 'pageshow'
     > = 'visibilitychange_visible'
   ) => {
     if (document.visibilityState !== 'visible' || !navigator.onLine) return;
@@ -253,7 +254,7 @@ function createSwWatchdog() {
   const restart = () => {
     window.clearInterval(watchdogTimer);
     watchdogTimer = window.setInterval(() => {
-      void pingServiceWorker('visibilitychange_visible');
+      void pingServiceWorker('watchdog_timer');
     }, SW_WATCHDOG_INTERVAL_MS);
   };
 

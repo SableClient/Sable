@@ -269,7 +269,7 @@ describe('useAppVisibility', () => {
 
     await act(async () => {
       vi.advanceTimersByTime(10 * 60_000 + 1);
-      document.dispatchEvent(new PointerEvent('pointerdown'));
+      document.dispatchEvent(new Event('pointerdown'));
       await ready;
     });
 

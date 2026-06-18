@@ -368,6 +368,7 @@ export class SlidingSyncManager {
     string,
     (roomId: string, data: MSC3575RoomData) => void
   >();
+  private pendingWatchdogPing: Promise<void> | null = null;
 
   /** Wall-clock time recorded in attach() — used to compute true initial-sync latency. */
   private attachTime: number | null = null;
@@ -1043,6 +1044,9 @@ export class SlidingSyncManager {
     const toRestore = this.pendingResubscriptions;
     this.pendingResubscriptions = null;
     this.pendingForceResetCompletionReason = reason;
+    if (reason === 'timeout') {
+      this.resolvePendingForceResetWaiters('timeout');
+    }
     toRestore.forEach((roomId) => this.activeRoomSubscriptions.add(roomId));
     this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
     debugLog.info('sync', 'Restored force-reset room subscriptions', {

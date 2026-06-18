@@ -9,11 +9,11 @@ rules:
     severity: WARNING
     paths:
       include:
-        - /src/app/hooks/useAppVisibility.ts
-        - /src/app/pages/client/BackgroundNotifications.tsx
-        - /src/client/initMatrix.ts
-        - /src/client/slidingSync.ts
-        - /src/serviceWorkerBootstrap.ts
+        - '**/src/app/hooks/useAppVisibility.ts'
+        - '**/src/app/pages/client/BackgroundNotifications.tsx'
+        - '**/src/client/initMatrix.ts'
+        - '**/src/client/slidingSync.ts'
+        - '**/src/serviceWorkerBootstrap.ts'
     pattern-regex: (?s)\baddEventListener\s*\([^,]+,\s*async\b
 
   - id: charm-no-async-timer-callbacks
@@ -26,11 +26,11 @@ rules:
     severity: WARNING
     paths:
       include:
-        - /src/app/hooks/useAppVisibility.ts
-        - /src/app/pages/client/BackgroundNotifications.tsx
-        - /src/client/initMatrix.ts
-        - /src/client/slidingSync.ts
-        - /src/serviceWorkerBootstrap.ts
+        - '**/src/app/hooks/useAppVisibility.ts'
+        - '**/src/app/pages/client/BackgroundNotifications.tsx'
+        - '**/src/client/initMatrix.ts'
+        - '**/src/client/slidingSync.ts'
+        - '**/src/serviceWorkerBootstrap.ts'
     pattern-regex: (?s)\b(?:window\.)?set(?:Timeout|Interval)\s*\(\s*async\b
 
   - id: charm-runtime-reload-needs-telemetry
@@ -43,6 +43,6 @@ rules:
     severity: ERROR
     paths:
       include:
-        - /src/serviceWorkerBootstrap.ts
-        - /src/client/initMatrix.ts
+        - '**/src/serviceWorkerBootstrap.ts'
+        - '**/src/client/initMatrix.ts'
     pattern: window.location.reload()

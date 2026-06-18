@@ -722,6 +722,19 @@ describe('SlidingSyncManager.scheduleForceReset()', () => {
     expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledTimes(2);
   });
 
+  it('resolves pending force-reset waiters when the restore times out', async () => {
+    const manager = makeManager(makeMockMx());
+    manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
+
+    manager.scheduleForceReset();
+    const waiter = manager.waitForPendingForceReset();
+
+    vi.advanceTimersByTime(5000);
+
+    await expect(waiter).resolves.toBe('timeout');
+  });
+
   it('resets active room timelines before resubscribing', () => {
     const room = makeMockRoom();
     const mx = makeMockMx({

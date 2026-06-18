@@ -112,6 +112,7 @@ function createSwWatchdog() {
   let watchdogTimer = 0;
   let consecutiveMisses = 0;
   let compatibleWorkerScriptUrl: string | undefined;
+  let pendingPingPromise: Promise<void> | null = null;
   const pendingPings = new Map<
     string,
     {
@@ -162,76 +163,87 @@ function createSwWatchdog() {
     > = 'visibilitychange_visible'
   ) => {
     if (document.visibilityState !== 'visible' || !navigator.onLine) return;
-
-    const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
-    const activeWorker = registration?.active;
-    const controller = navigator.serviceWorker.controller;
-    const worker = controller ?? activeWorker;
-    const workerScriptUrl = worker?.scriptURL;
-    const watchdogHandshakeComplete =
-      typeof workerScriptUrl === 'string' && workerScriptUrl === compatibleWorkerScriptUrl;
-    if (!worker) {
-      await requestRecovery('missing_worker', {
-        trigger: reason,
-        hasController: !!controller,
-        hasActiveWorker: !!activeWorker,
-      });
+    if (pendingPingPromise) {
+      await pendingPingPromise;
       return;
     }
 
-    const requestId = `sw-ping-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const pingPromise = new Promise<void>((resolve, reject) => {
-      const timeoutId = window.setTimeout(() => {
-        pendingPings.delete(requestId);
-        reject(new Error('timeout'));
-      }, SW_WATCHDOG_PING_TIMEOUT_MS);
-      pendingPings.set(requestId, { resolve, reject, timeoutId });
-    });
-
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin
-    worker.postMessage({ type: 'ping', requestId });
-
-    try {
-      await pingPromise;
-    } catch (err) {
-      if (err instanceof Error && err.message === 'watchdog stopped') {
+    pendingPingPromise = (async () => {
+      const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
+      const activeWorker = registration?.active;
+      const controller = navigator.serviceWorker.controller;
+      const worker = controller ?? activeWorker;
+      const workerScriptUrl = worker?.scriptURL;
+      const watchdogHandshakeComplete =
+        typeof workerScriptUrl === 'string' && workerScriptUrl === compatibleWorkerScriptUrl;
+      if (!worker) {
+        await requestRecovery('missing_worker', {
+          trigger: reason,
+          hasController: !!controller,
+          hasActiveWorker: !!activeWorker,
+        });
         return;
       }
 
-      if (!watchdogHandshakeComplete) {
-        Sentry.addBreadcrumb({
-          category: 'service_worker',
-          message: 'Service worker watchdog waiting for first compatible pong',
-          level: 'info',
-          data: {
+      const requestId = `sw-ping-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const pingPromise = new Promise<void>((resolve, reject) => {
+        const timeoutId = window.setTimeout(() => {
+          pendingPings.delete(requestId);
+          reject(new Error('timeout'));
+        }, SW_WATCHDOG_PING_TIMEOUT_MS);
+        pendingPings.set(requestId, { resolve, reject, timeoutId });
+      });
+
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin
+      worker.postMessage({ type: 'ping', requestId });
+
+      try {
+        await pingPromise;
+      } catch (err) {
+        if (err instanceof Error && err.message === 'watchdog stopped') {
+          return;
+        }
+
+        if (!watchdogHandshakeComplete) {
+          Sentry.addBreadcrumb({
+            category: 'service_worker',
+            message: 'Service worker watchdog waiting for first compatible pong',
+            level: 'info',
+            data: {
+              controllerScriptUrl: controller?.scriptURL,
+              activeScriptUrl: activeWorker?.scriptURL,
+              usingController: worker === controller,
+            },
+          });
+          await requestRecovery('awaiting_compatible_pong', {
+            trigger: reason,
             controllerScriptUrl: controller?.scriptURL,
             activeScriptUrl: activeWorker?.scriptURL,
             usingController: worker === controller,
-          },
-        });
-        await requestRecovery('awaiting_compatible_pong', {
-          trigger: reason,
-          controllerScriptUrl: controller?.scriptURL,
-          activeScriptUrl: activeWorker?.scriptURL,
-          usingController: worker === controller,
-        });
-        return;
-      }
+          });
+          return;
+        }
 
-      consecutiveMisses += 1;
-      Sentry.addBreadcrumb({
-        category: 'service_worker',
-        message: 'Service worker watchdog ping missed',
-        level: 'warning',
-        data: { consecutiveMisses },
-      });
-      await requestRecovery('watchdog_ping_timeout', {
-        trigger: reason,
-        consecutiveMisses,
-      });
-      if (consecutiveMisses >= SW_WATCHDOG_MAX_MISSES) {
-        reloadWithTelemetry('sw_watchdog_unresponsive', { consecutiveMisses });
+        consecutiveMisses += 1;
+        Sentry.addBreadcrumb({
+          category: 'service_worker',
+          message: 'Service worker watchdog ping missed',
+          level: 'warning',
+          data: { consecutiveMisses },
+        });
+        await requestRecovery('watchdog_ping_timeout', {
+          trigger: reason,
+          consecutiveMisses,
+        });
+        if (consecutiveMisses >= SW_WATCHDOG_MAX_MISSES) {
+          reloadWithTelemetry('sw_watchdog_unresponsive', { consecutiveMisses });
+        }
       }
+    })();
+    try {
+      await pendingPingPromise;
+    } finally {
+      pendingPingPromise = null;
     }
   };
 
@@ -249,6 +261,7 @@ function createSwWatchdog() {
       clearPendingPing(requestId, new Error('watchdog stopped'));
     });
     pendingPings.clear();
+    pendingPingPromise = null;
   };
 
   return { restart, stop, handleMessage, pingServiceWorker };

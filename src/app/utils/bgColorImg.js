@@ -8,13 +8,13 @@ export default function bgColorImg(img) {
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(img, 0, 0, size, size);
 
   let px;
   try {
+    ctx.drawImage(img, 0, 0, size, size);
     px = ctx.getImageData(0, 0, size, size).data;
   } catch {
-    // Canvas is tainted by a cross-origin image — cannot read pixel data.
+    // Canvas rendering or pixel reads can fail for unsupported avatar sources.
     // Return undefined so callers fall back to no background color.
     return undefined;
   }

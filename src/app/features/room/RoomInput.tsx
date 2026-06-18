@@ -15,7 +15,7 @@ import type {
 import { MatrixError } from '$types/matrix-sdk';
 import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
-import { Editor, Point, Range, Transforms } from 'slate';
+import { Editor, Point, Range, Transforms, Text as SlateText } from 'slate';
 import type { RectCords } from 'folds';
 import {
   Box,
@@ -191,6 +191,7 @@ import { AudioMessageRecorder } from './AudioMessageRecorder';
 import { PollCreator } from './PollCreator';
 import * as prefix from '$unstable/prefixes';
 import { LocationDialog } from './location-modal';
+import { findEmojiAutoReplacement, getStructuredMarkdownAction } from './composerInputAssist';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -292,6 +293,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [editorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
+    const [structuredMarkdownAssist] = useSetting(settingsAtom, 'structuredMarkdownAssist');
+    const [emojiAutoExpand] = useSetting(settingsAtom, 'emojiAutoExpand');
 
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
@@ -1425,6 +1428,36 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           });
           return;
         }
+        if (structuredMarkdownAssist && isKeyHotkey('enter', evt) && !isComposing(evt)) {
+          const { selection } = editor;
+          if (selection && Range.isCollapsed(selection)) {
+            const blockIndex = selection.anchor.path[0];
+            if (typeof blockIndex === 'number') {
+              const lines = editor.children.map((_, index) => Editor.string(editor, [index]));
+              const action = getStructuredMarkdownAction(lines, blockIndex);
+
+              if (action) {
+                evt.preventDefault();
+                if (action.kind === 'continue') {
+                  editor.insertBreak();
+                  editor.insertText(action.prefix);
+                  return;
+                }
+
+                const blockPath = [blockIndex];
+                Transforms.select(editor, {
+                  anchor: Editor.start(editor, blockPath),
+                  focus: Editor.end(editor, blockPath),
+                });
+                Transforms.insertText(editor, action.replacement);
+                if (action.kind === 'close_fence') {
+                  editor.insertBreak();
+                }
+                return;
+              }
+            }
+          }
+        }
         if (isKeyHotkey('escape', evt)) {
           evt.preventDefault();
           if (showAudioRecorder) {
@@ -1456,6 +1489,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         onEditLastMessage,
         editDraft,
         setEditDraft,
+        structuredMarkdownAssist,
       ]
     );
 
@@ -1468,6 +1502,33 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
         if (!hideActivity) {
           sendTypingStatus(!isEmptyEditor(editor));
+        }
+
+        if (
+          emojiAutoExpand &&
+          (evt.key === ' ' ||
+            evt.key === 'Tab' ||
+            evt.key === '.' ||
+            evt.key === ',' ||
+            evt.key === '!' ||
+            evt.key === '?' ||
+            evt.key === ':' ||
+            evt.key === ';')
+        ) {
+          const { selection } = editor;
+          if (selection && Range.isCollapsed(selection)) {
+            const [node] = Editor.node(editor, selection.anchor.path);
+            if (SlateText.isText(node)) {
+              const replacement = findEmojiAutoReplacement(node.text, selection.anchor.offset);
+              if (replacement) {
+                Transforms.select(editor, {
+                  anchor: { path: selection.anchor.path, offset: replacement.start },
+                  focus: { path: selection.anchor.path, offset: replacement.end },
+                });
+                Transforms.insertText(editor, replacement.emoji);
+              }
+            }
+          }
         }
 
         const firstPosition = Editor.start(editor, []);
@@ -1501,7 +1562,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
         setAutocompleteQuery(query);
       },
-      [editor, sendTypingStatus, hideActivity]
+      [editor, sendTypingStatus, hideActivity, emojiAutoExpand]
     );
 
     const handleEmoticonSelect = (key: string, shortcode: string) => {

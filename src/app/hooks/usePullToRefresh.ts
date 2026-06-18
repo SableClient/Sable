@@ -120,7 +120,7 @@ export function usePullToRefresh(
       showRefreshing();
 
       // Reuse the same full refresh path as desktop-visible refresh actions.
-      triggerManualRefresh(mx);
+      void triggerManualRefresh(mx);
 
       // Brief delay so the spinner is visible before snapping back.
       // Reduced from 800ms to 400ms for faster perceived responsiveness.

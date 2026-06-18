@@ -21,7 +21,7 @@ import { useAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, type NotificationDeviceScope } from '$state/settings';
 import { getNotificationState, usePermissionState } from '$hooks/usePermission';
 import { useEmailNotifications } from '$hooks/useEmailNotifications';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -70,6 +70,16 @@ import { Icon, Icons } from '$app/icons';
 
 type BackgroundPushKind = NotificationTransportProvider;
 type BackgroundPushPlatform = NotificationTransportPlatform;
+
+function labelNotificationDeviceScope(scope: NotificationDeviceScope): string {
+  switch (scope) {
+    case 'active_client_only':
+      return 'Active client only';
+    case 'all_clients':
+    default:
+      return 'All clients';
+  }
+}
 
 function getBackgroundPushPlatform(isTauriRuntime: boolean): BackgroundPushPlatform {
   if (!isTauriRuntime) return 'web';
@@ -1016,6 +1026,14 @@ export function SystemNotification() {
     'faviconForMentionsOnly'
   );
   const [highlightMentions, setHighlightMentions] = useSetting(settingsAtom, 'highlightMentions');
+  const [notificationDeviceScope, setNotificationDeviceScope] = useSetting(
+    settingsAtom,
+    'notificationDeviceScope'
+  );
+  const notificationDeviceScopeOptions: SettingMenuOption<NotificationDeviceScope>[] = [
+    { value: 'all_clients', label: 'All clients' },
+    { value: 'active_client_only', label: 'Active client only' },
+  ];
 
   // Describe what the current badge combo actually does so users aren't left guessing.
   const badgeBehaviourSummary = (): string => {
@@ -1086,6 +1104,27 @@ export function SystemNotification() {
         gap="400"
       >
         <BackgroundPushNotificationSetting />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Notification Device Scope"
+          focusId="notification-device-scope"
+          description={`Current behavior: ${labelNotificationDeviceScope(
+            notificationDeviceScope
+          )}. "Active client only" keeps notifications on the focused device and suppresses them elsewhere for about two minutes after activity.`}
+          after={
+            <SettingMenuSelector
+              value={notificationDeviceScope}
+              options={notificationDeviceScopeOptions}
+              onSelect={setNotificationDeviceScope}
+            />
+          }
+        />
       </SequenceCard>
       <SequenceCard
         className={SequenceCardStyle}

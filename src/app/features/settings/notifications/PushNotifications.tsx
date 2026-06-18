@@ -66,7 +66,7 @@ export async function enablePushNotifications(
   pushSubscriptionAtom: PushSubscriptionState
 ): Promise<void> {
   if (!isWebPushSupported()) {
-    debugLog.error(
+    debugLog.warn(
       'notification',
       'Push messaging not supported - missing serviceWorker or PushManager'
     );

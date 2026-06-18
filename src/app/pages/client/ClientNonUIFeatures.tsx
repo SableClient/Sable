@@ -88,6 +88,7 @@ import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
 import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
+import { useNotificationDeviceScope } from '$hooks/useNotificationDeviceScope';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { clearLaunchContext } from '../../../launch-context-persistence';
@@ -181,8 +182,9 @@ function WebPushStartupReconciler() {
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const pushSubscription = useAtom(pushSubscriptionAtom);
+  const { shouldKeepWebPushEnabled } = useNotificationDeviceScope(mx);
   const reconciledKeyRef = useRef<string | null>(null);
-  const keepEnabledWhenVisible = mobileOrTablet();
+  const keepEnabledWhenVisible = mobileOrTablet() || shouldKeepWebPushEnabled;
 
   useEffect(() => {
     if (!usePushNotifications || isTauri()) return;
@@ -434,6 +436,7 @@ function MessageNotifications() {
     'showMessageContentInEncryptedNotifications'
   );
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
+  const { isActiveNotificationClient } = useNotificationDeviceScope(mx);
 
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
@@ -477,6 +480,7 @@ function MessageNotifications() {
       if (eventId && !notifyTimerMap.has(eventId)) {
         notifyTimerMap.set(eventId, performance.now());
       }
+      if (!isActiveNotificationClient) return;
       const shouldSkipFocusCheck = eventId && skipFocusCheckEvents.has(eventId);
       if (!shouldSkipFocusCheck) {
         if (document.hasFocus() && notificationSelected) return;
@@ -750,6 +754,7 @@ function MessageNotifications() {
     navigate,
     appBaseUrl,
     useAuthentication,
+    isActiveNotificationClient,
   ]);
 
   return (

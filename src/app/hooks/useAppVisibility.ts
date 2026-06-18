@@ -13,6 +13,7 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { pushSessionToSW } from '../../sw-session';
+import { useNotificationDeviceScope } from './useNotificationDeviceScope';
 
 const debugLog = createDebugLogger('AppVisibility');
 
@@ -73,6 +74,7 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const pushSubAtom = useAtom(pushSubscriptionAtom);
   const isMobile = mobileOrTablet();
+  const { shouldKeepWebPushEnabled } = useNotificationDeviceScope(mx);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -126,10 +128,22 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   useEffect(() => {
     if (!mx) return undefined;
 
+    const reconcilePusher = (isVisible: boolean) => {
+      void togglePusher(
+        mx,
+        clientConfig,
+        isVisible,
+        usePushNotifications,
+        pushSubAtom,
+        isMobile || shouldKeepWebPushEnabled
+      );
+    };
+
     const unsubscribe = appEvents.onVisibilityChange((isVisible) => {
-      void togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile);
+      reconcilePusher(isVisible);
     });
+    reconcilePusher(document.visibilityState === 'visible');
 
     return unsubscribe;
-  }, [mx, clientConfig, usePushNotifications, pushSubAtom, isMobile]);
+  }, [mx, clientConfig, usePushNotifications, pushSubAtom, isMobile, shouldKeepWebPushEnabled]);
 }

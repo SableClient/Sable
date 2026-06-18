@@ -30,6 +30,16 @@ vi.mock('./useClientConfig', () => ({
   useClientConfig: () => ({}),
 }));
 
+vi.mock('./useNotificationDeviceScope', () => ({
+  useNotificationDeviceScope: () => ({
+    lease: null,
+    notificationDeviceScope: 'all_clients',
+    isActiveNotificationClient: true,
+    isThisClientLeaseHolder: false,
+    shouldKeepWebPushEnabled: false,
+  }),
+}));
+
 function setVisibilityState(visibilityState: DocumentVisibilityState): void {
   Object.defineProperty(document, 'visibilityState', {
     configurable: true,
@@ -93,13 +103,22 @@ describe('useAppVisibility', () => {
       1,
       mx,
       {},
-      false,
+      true,
       false,
       expect.any(Array),
       false
     );
     expect(mocks.togglePusher).toHaveBeenNthCalledWith(
       2,
+      mx,
+      {},
+      false,
+      false,
+      expect.any(Array),
+      false
+    );
+    expect(mocks.togglePusher).toHaveBeenNthCalledWith(
+      3,
       mx,
       {},
       true,

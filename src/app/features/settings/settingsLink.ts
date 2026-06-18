@@ -29,6 +29,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'display-multiple-embeds',
     'embed-youtube-links',
     'emoji-selector-threshold',
+    'emoji-auto-expand',
     'enable-swiping',
     'encrypted-room-embeds',
     'encrypted-room-url-preview',
@@ -44,6 +45,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'markdown-formatting',
     'message-layout',
     'message-spacing',
+    'structured-markdown-assist',
     'presence-status',
     'reply-notifications',
     'right-aligned-bubbles',
@@ -148,6 +150,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
   ],
   notifications: [
     'background-push-notifications',
+    'notification-device-scope',
     'clear-notifications-when-read-elsewhere',
     'contains-display-name',
     'contains-username',

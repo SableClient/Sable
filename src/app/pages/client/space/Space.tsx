@@ -113,20 +113,25 @@ import { getSlidingSyncManager } from '$client/initMatrix';
 import { LIST_SPACE } from '$client/slidingSync';
 import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
 import { completeSpaceNavigation, markStartupRoomListReady } from '$utils/perfTelemetry';
-import { triggerManualRefresh } from '$utils/manualRefresh';
+import {
+  ensureManualRefreshSpinStyle,
+  getManualRefreshSpinStyle,
+  triggerManualRefresh,
+} from '$utils/manualRefresh';
 import * as css from './styles.css';
 
 const debugLog = createDebugLogger('Space');
 const SPACE_LIST_PAGING_CHECK_MS = 300;
 
 type SpaceMenuProps = {
-  onRefresh: () => void;
+  isRefreshing: boolean;
+  onRefresh: () => void | Promise<void>;
   room: Room;
   requestClose: () => void;
 };
 
 const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
-  ({ onRefresh, room, requestClose }, ref) => {
+  ({ isRefreshing, onRefresh, room, requestClose }, ref) => {
     const mx = useMatrixClient();
     const [hideReads] = useSetting(settingsAtom, 'hideReads');
     const [developerTools] = useSetting(settingsAtom, 'developerTools');
@@ -198,7 +203,17 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
               Mark as Read
             </Text>
           </MenuItem>
-          <MenuItem onClick={onRefresh} size="300" after={menuIcon(ArrowsClockwise)} radii="300">
+          <MenuItem
+            onClick={() => {
+              void onRefresh();
+            }}
+            size="300"
+            after={menuIcon(ArrowsClockwise, {
+              style: getManualRefreshSpinStyle(isRefreshing),
+            })}
+            radii="300"
+            disabled={isRefreshing}
+          >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Refresh
             </Text>
@@ -279,12 +294,14 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
 
 function SpaceHeader({
   hideText,
+  isRefreshing,
   mx,
   onRefresh,
 }: {
   hideText?: boolean;
+  isRefreshing: boolean;
   mx: MatrixClient;
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
 }) {
   const space = useSpace();
   const spaceName = useRoomName(space);
@@ -360,16 +377,6 @@ function SpaceHeader({
                 </Box>
                 <Box shrink="No">
                   <IconButton
-                    variant="Background"
-                    style={hasBanner ? { backgroundColor: '#0000', color: '#fff' } : {}}
-                    onClick={onRefresh}
-                    aria-label="Refresh space rooms"
-                  >
-                    {composerIcon(ArrowsClockwise)}
-                  </IconButton>
-                </Box>
-                <Box shrink="No">
-                  <IconButton
                     aria-pressed={!!menuAnchor}
                     variant="Background"
                     style={hasBanner ? { backgroundColor: '#0000', color: '#fff' } : {}}
@@ -402,6 +409,7 @@ function SpaceHeader({
                   }}
                 >
                   <SpaceMenu
+                    isRefreshing={isRefreshing}
                     onRefresh={onRefresh}
                     room={space}
                     requestClose={() => setMenuAnchor(undefined)}
@@ -966,9 +974,19 @@ export function Space() {
     if (hideText || virtualizedItems.length === 0) return null;
     return getConnectorSVG(hierarchy, virtualizedItems);
   }, [getConnectorSVG, hideText, hierarchy, virtualizedItems]);
-  const handleRefresh = useCallback(() => {
-    triggerManualRefresh(mx);
-  }, [mx]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  useEffect(() => {
+    ensureManualRefreshSpinStyle();
+  }, []);
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await triggerManualRefresh(mx);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [mx, isRefreshing]);
 
   usePullToRefresh(scrollRef, mx);
 
@@ -982,7 +1000,12 @@ export function Space() {
     >
       <PageNav>
         <SwipeableOverlayWrapper direction="left" onClose={handleSwipeToRoom}>
-          <SpaceHeader hideText={hideText} mx={mx} onRefresh={handleRefresh} />
+          <SpaceHeader
+            hideText={hideText}
+            isRefreshing={isRefreshing}
+            mx={mx}
+            onRefresh={handleRefresh}
+          />
           <PageNavContent scrollRef={scrollRef}>
             <Box direction="Column" gap="300">
               {tombstoneEvent && (

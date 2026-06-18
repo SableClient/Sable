@@ -64,7 +64,7 @@ export async function installSmokeApp(page: Page, options: SmokeAppOptions = {})
   const { configFailuresBeforeSuccess = 0, hashRouter = true } = options;
   let configRequestCount = 0;
 
-  await page.route('**/config.json', async (route) => {
+  await page.route('**/config.json*', async (route) => {
     configRequestCount += 1;
 
     if (configRequestCount <= configFailuresBeforeSuccess) {
@@ -151,20 +151,20 @@ export async function seedStoredSession(page: Page, sessionOverrides: StoredSess
 }
 
 export async function seedLaunchContext(page: Page, targetUrl: string) {
-  await page.addInitScript((url) => {
-    void caches.open('sable-launch-context-v1').then((cache) =>
-      cache.put(
-        '/launch-context-meta',
-        new Response(
-          JSON.stringify({
-            source: 'notification_click',
-            clickedAt: Date.now(),
-            targetUrl: url,
-          }),
-          {
-            headers: { 'Content-Type': 'application/json' },
-          }
-        )
+  await page.goto('/#/home/');
+  await page.evaluate(async (url) => {
+    const cache = await caches.open('sable-launch-context-v1');
+    await cache.put(
+      '/launch-context-meta',
+      new Response(
+        JSON.stringify({
+          source: 'notification_click',
+          clickedAt: Date.now(),
+          targetUrl: url,
+        }),
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
       )
     );
   }, targetUrl);

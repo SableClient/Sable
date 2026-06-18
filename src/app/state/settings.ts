@@ -69,6 +69,7 @@ export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
 
 /** Where to use crisp nearest-neighbor (pixelated) image scaling. */
 export type PixelatedImageRenderingMode = 'always' | 'smart' | 'never';
+export type NotificationDeviceScope = 'all_clients' | 'active_client_only';
 
 export function isPixelatedRendering(
   mode: PixelatedImageRenderingMode,
@@ -149,6 +150,7 @@ export interface Settings {
   backgroundPushProvider: NotificationTransportProvider | null;
   pushTransportMode: NotificationTransportMode;
   pushTransportOverride: PushTransportOverrides;
+  notificationDeviceScope: NotificationDeviceScope;
 
   hour24Clock: boolean;
   dateFormatString: string;
@@ -201,6 +203,8 @@ export interface Settings {
   showEasterEggs: boolean;
   hideReads: boolean;
   emojiSuggestThreshold: number;
+  emojiAutoExpand: boolean;
+  structuredMarkdownAssist: boolean;
   underlineLinks: boolean;
   reducedMotion: boolean;
   autoplayGifs: boolean;
@@ -328,6 +332,7 @@ export const defaultSettings: Settings = {
   backgroundPushProvider: null,
   pushTransportMode: 'auto',
   pushTransportOverride: {},
+  notificationDeviceScope: 'all_clients',
 
   hour24Clock: false,
   dateFormatString: 'D MMM YYYY',
@@ -376,6 +381,8 @@ export const defaultSettings: Settings = {
   showEasterEggs: true,
   hideReads: false,
   emojiSuggestThreshold: 2,
+  emojiAutoExpand: false,
+  structuredMarkdownAssist: false,
   underlineLinks: false,
   reducedMotion: false,
   autoplayGifs: true,
@@ -590,6 +597,8 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         : undefined;
     case 'rightSwipeAction':
       return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
+    case 'notificationDeviceScope':
+      return val === 'all_clients' || val === 'active_client_only' ? val : undefined;
     case 'renderUserCards':
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
         ? val

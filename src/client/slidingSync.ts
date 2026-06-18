@@ -342,6 +342,10 @@ export class SlidingSyncManager {
 
   private pendingResubscriptionRestoreTimer: ReturnType<typeof setTimeout> | undefined;
 
+  private pendingForceResetWaiters: Array<
+    (reason: 'request_finished' | 'timeout' | 'disposed') => void
+  > = [];
+
   private healthCheckTimer: ReturnType<typeof setInterval> | undefined;
 
   private spaceGraphWarmupTimer: ReturnType<typeof setTimeout> | undefined;
@@ -857,6 +861,7 @@ export class SlidingSyncManager {
     this.prefetchedRoomSubscriptions.clear();
 
     this.disposed = true;
+    this.resolvePendingForceResetWaiters('disposed');
     // Stop the SDK's internal polling loop and abort any in-flight requests.
     this.slidingSync.stop();
     this.slidingSync.removeListener(SlidingSyncEvent.Lifecycle, this.onLifecycle);
@@ -973,7 +978,10 @@ export class SlidingSyncManager {
    * cannot be fixed by a normal delta sync.  Called by pull-to-refresh.
    */
   public scheduleForceReset(): void {
-    if (this.disposed) return;
+    if (this.disposed) {
+      this.resolvePendingForceResetWaiters('disposed');
+      return;
+    }
     if (this.pendingResubscriptionRestoreTimer) {
       clearTimeout(this.pendingResubscriptionRestoreTimer);
       this.pendingResubscriptionRestoreTimer = undefined;
@@ -1003,6 +1011,21 @@ export class SlidingSyncManager {
     }, FORCE_RESUBSCRIPTION_RESTORE_TIMEOUT_MS);
   }
 
+  public waitForPendingForceReset(): Promise<'request_finished' | 'timeout' | 'disposed'> {
+    if (this.disposed) return Promise.resolve('disposed');
+    if (this.pendingResubscriptions === null) return Promise.resolve('request_finished');
+
+    return new Promise((resolve) => {
+      this.pendingForceResetWaiters.push(resolve);
+    });
+  }
+
+  private resolvePendingForceResetWaiters(reason: 'request_finished' | 'timeout' | 'disposed') {
+    if (this.pendingForceResetWaiters.length === 0) return;
+    const waiters = this.pendingForceResetWaiters.splice(0);
+    waiters.forEach((resolve) => resolve(reason));
+  }
+
   private restorePendingResubscriptions(reason: 'request_finished' | 'timeout'): void {
     if (this.disposed || this.pendingResubscriptions === null) return;
     if (this.pendingResubscriptionRestoreTimer) {
@@ -1023,6 +1046,7 @@ export class SlidingSyncManager {
     // Without this, modifyRoomSubscriptions alone may not trigger a new
     // request if the sync loop is idle.
     this.slidingSync.resend();
+    this.resolvePendingForceResetWaiters(reason);
   }
 
   private resetRoomTimelines(roomId: string, reason: string): boolean {

@@ -76,14 +76,19 @@ import { LIST_DMS } from '$client/slidingSync';
 import { getNextSlidingSyncListWindowEnd } from '$client/slidingSyncListPaging';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { markStartupRoomListReady } from '$utils/perfTelemetry';
-import { triggerManualRefresh } from '$utils/manualRefresh';
+import {
+  ensureManualRefreshSpinStyle,
+  getManualRefreshSpinStyle,
+  triggerManualRefresh,
+} from '$utils/manualRefresh';
 
 type DirectMenuProps = {
-  onRefresh: () => void;
+  isRefreshing: boolean;
+  onRefresh: () => void | Promise<void>;
   requestClose: () => void;
 };
 const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(
-  ({ onRefresh, requestClose }, ref) => {
+  ({ isRefreshing, onRefresh, requestClose }, ref) => {
     const mx = useMatrixClient();
     const [hideReads] = useSetting(settingsAtom, 'hideReads');
     const orphanRooms = useDirectRooms();
@@ -109,7 +114,17 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(
               Mark as Read
             </Text>
           </MenuItem>
-          <MenuItem onClick={onRefresh} size="300" after={menuIcon(ArrowsClockwise)} radii="300">
+          <MenuItem
+            onClick={() => {
+              void onRefresh();
+            }}
+            size="300"
+            after={menuIcon(ArrowsClockwise, {
+              style: getManualRefreshSpinStyle(isRefreshing),
+            })}
+            radii="300"
+            disabled={isRefreshing}
+          >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Refresh
             </Text>
@@ -120,7 +135,15 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(
   }
 );
 
-function DirectHeader({ hideText, onRefresh }: { hideText?: boolean; onRefresh: () => void }) {
+function DirectHeader({
+  hideText,
+  isRefreshing,
+  onRefresh,
+}: {
+  hideText?: boolean;
+  isRefreshing: boolean;
+  onRefresh: () => void | Promise<void>;
+}) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -150,15 +173,6 @@ function DirectHeader({ hideText, onRefresh }: { hideText?: boolean; onRefresh: 
               </Text>
             </Box>
             <Box shrink="No">
-              <IconButton
-                variant="Background"
-                onClick={onRefresh}
-                aria-label="Refresh direct rooms"
-              >
-                {composerIcon(ArrowsClockwise)}
-              </IconButton>
-            </Box>
-            <Box shrink="No">
               <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
                 {composerIcon(DotsThreeOutlineVerticalIcon, {
                   weight: menuAnchor ? 'fill' : 'regular',
@@ -185,7 +199,11 @@ function DirectHeader({ hideText, onRefresh }: { hideText?: boolean; onRefresh: 
               escapeDeactivates: stopPropagation,
             }}
           >
-            <DirectMenu onRefresh={onRefresh} requestClose={() => setMenuAnchor(undefined)} />
+            <DirectMenu
+              isRefreshing={isRefreshing}
+              onRefresh={onRefresh}
+              requestClose={() => setMenuAnchor(undefined)}
+            />
           </FocusTrap>
         }
       />
@@ -342,9 +360,19 @@ export function Direct() {
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
-  const handleRefresh = useCallback(() => {
-    triggerManualRefresh(mx);
-  }, [mx]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  useEffect(() => {
+    ensureManualRefreshSpinStyle();
+  }, []);
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await triggerManualRefresh(mx);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [mx, isRefreshing]);
 
   usePullToRefresh(scrollRef, mx);
 
@@ -357,7 +385,7 @@ export function Direct() {
       }}
     >
       <PageNav>
-        <DirectHeader hideText={hideText} onRefresh={handleRefresh} />
+        <DirectHeader hideText={hideText} isRefreshing={isRefreshing} onRefresh={handleRefresh} />
         {noRoomToDisplay ? (
           <DirectEmpty />
         ) : (

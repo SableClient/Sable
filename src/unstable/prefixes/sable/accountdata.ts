@@ -7,6 +7,8 @@ export const MATRIX_SABLE_UNSTABLE_ACCOUNT_PIN_STATUS_PROPERTY_NAME =
   'moe.sable.app.pins_read_marker';
 export const MATRIX_SABLE_UNSTABLE_ACCOUNT_PRESENCE_PROPERTY_NAME = 'moe.sable.app.presence';
 export const MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME = 'moe.sable.app.settings';
+export const MATRIX_SABLE_UNSTABLE_ACCOUNT_NOTIFICATION_DEVICE_LEASE_PROPERTY_NAME =
+  'moe.sable.app.notification_device_lease';
 /**
  * the prefix which is used to save used per message profiles to the account data
  */

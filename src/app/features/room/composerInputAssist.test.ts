@@ -44,7 +44,8 @@ describe('findEmojiAutoReplacement', () => {
       token: ':)',
       emoji: '🙂',
       start: 6,
-      end: 8,
+      end: 9,
+      replacement: '🙂 ',
     });
   });
 
@@ -53,7 +54,8 @@ describe('findEmojiAutoReplacement', () => {
       token: '<3',
       emoji: '❤️',
       start: 0,
-      end: 2,
+      end: 3,
+      replacement: '❤️ ',
     });
   });
 

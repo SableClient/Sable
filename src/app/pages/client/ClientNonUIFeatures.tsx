@@ -182,9 +182,13 @@ function WebPushStartupReconciler() {
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const pushSubscription = useAtom(pushSubscriptionAtom);
-  const { shouldKeepWebPushEnabled } = useNotificationDeviceScope(mx);
+  const { isActiveNotificationClient, notificationDeviceScope } = useNotificationDeviceScope(mx);
   const reconciledKeyRef = useRef<string | null>(null);
-  const keepEnabledWhenVisible = mobileOrTablet() || shouldKeepWebPushEnabled;
+  const shouldEnablePusher =
+    document.visibilityState === 'visible'
+      ? mobileOrTablet() ||
+        (notificationDeviceScope === 'active_client_only' && isActiveNotificationClient)
+      : notificationDeviceScope !== 'active_client_only' || isActiveNotificationClient;
 
   useEffect(() => {
     if (!usePushNotifications || isTauri()) return;
@@ -195,7 +199,7 @@ function WebPushStartupReconciler() {
     const reconcileKey = [
       userId,
       document.visibilityState,
-      keepEnabledWhenVisible ? 'keep-visible' : 'disable-visible',
+      shouldEnablePusher ? 'enabled' : 'disabled',
     ].join(':');
     if (reconciledKeyRef.current === reconcileKey) return;
 
@@ -203,9 +207,9 @@ function WebPushStartupReconciler() {
     void reconcilePushNotifications(
       mx,
       clientConfig,
+      shouldEnablePusher,
       usePushNotifications,
-      pushSubscription,
-      keepEnabledWhenVisible
+      pushSubscription
     ).catch((error) => {
       reconciledKeyRef.current = null;
       transportLog.warn('notification', 'Web push startup reconciliation failed', {
@@ -213,7 +217,7 @@ function WebPushStartupReconciler() {
         error: error instanceof Error ? error.message : String(error),
       });
     });
-  }, [mx, clientConfig, pushSubscription, usePushNotifications, keepEnabledWhenVisible]);
+  }, [mx, clientConfig, pushSubscription, usePushNotifications, shouldEnablePusher]);
 
   return null;
 }
@@ -354,6 +358,7 @@ function InviteNotifications() {
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
   const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
+  const { isActiveNotificationClient } = useNotificationDeviceScope(mx);
 
   const notify = useCallback(
     (count: number) => {
@@ -380,6 +385,7 @@ function InviteNotifications() {
 
   useEffect(() => {
     if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
+    if (!isActiveNotificationClient) return;
 
     // SW push (via Sygnal) handles invite notifications when the app is backgrounded.
     if (document.visibilityState !== 'visible' && usePushNotifications) return;
@@ -404,6 +410,7 @@ function InviteNotifications() {
     usePushNotifications,
     notificationSound,
     backgroundNotificationSounds,
+    isActiveNotificationClient,
     notify,
     playSound,
   ]);
@@ -474,13 +481,13 @@ function MessageNotifications() {
       data
     ) => {
       if (mx.getSyncState() !== SyncState.Syncing) return;
+      if (!isActiveNotificationClient) return;
 
       const eventId = mEvent.getId();
       // Record event arrival time once per eventId (re-entry via handleDecrypted must not reset it)
       if (eventId && !notifyTimerMap.has(eventId)) {
         notifyTimerMap.set(eventId, performance.now());
       }
-      if (!isActiveNotificationClient) return;
       const shouldSkipFocusCheck = eventId && skipFocusCheckEvents.has(eventId);
       if (!shouldSkipFocusCheck) {
         if (document.hasFocus() && notificationSelected) return;

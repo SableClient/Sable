@@ -66,7 +66,7 @@ export function useNotificationDeviceScope(
   const freshLease = isLeaseFresh(lease, now);
   const isThisClientLeaseHolder = !!deviceId && freshLease && lease?.deviceId === deviceId;
   const isActiveNotificationClient = !scopeEnabled || !freshLease || isThisClientLeaseHolder;
-  const shouldKeepWebPushEnabled = shouldHoldLease && isActiveNotificationClient;
+  const shouldKeepWebPushEnabled = scopeEnabled && isActiveNotificationClient;
 
   useEffect(() => {
     setLease(readLeaseContent(mx));

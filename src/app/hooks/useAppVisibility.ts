@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 import type { Session } from '$state/sessions';
-import { useAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { togglePusher } from '$features/settings/notifications/PushNotifications';
 import { appEvents } from '$utils/appEvents';
@@ -16,6 +16,10 @@ import { pushSessionToSW } from '../../sw-session';
 import { useNotificationDeviceScope } from './useNotificationDeviceScope';
 
 const debugLog = createDebugLogger('AppVisibility');
+type PushSubscriptionState = [
+  PushSubscriptionJSON | null,
+  (subscription: PushSubscription | null) => void,
+];
 
 const requestServiceWorkerClaim = () => {
   if (!('serviceWorker' in navigator)) return;
@@ -72,9 +76,15 @@ const retrySyncOnResume = (
 export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: Session) {
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
-  const pushSubAtom = useAtom(pushSubscriptionAtom);
+  const pushSubscription = useAtomValue(pushSubscriptionAtom);
+  const setPushSubscription = useSetAtom(pushSubscriptionAtom);
+  const pushSubAtom = useMemo<PushSubscriptionState>(
+    () => [pushSubscription, setPushSubscription],
+    [pushSubscription, setPushSubscription]
+  );
   const isMobile = mobileOrTablet();
-  const { shouldKeepWebPushEnabled } = useNotificationDeviceScope(mx);
+  const { isActiveNotificationClient, notificationDeviceScope } = useNotificationDeviceScope(mx);
+  const lastPusherStateRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -129,14 +139,13 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     if (!mx) return undefined;
 
     const reconcilePusher = (isVisible: boolean) => {
-      void togglePusher(
-        mx,
-        clientConfig,
-        isVisible,
-        usePushNotifications,
-        pushSubAtom,
-        isMobile || shouldKeepWebPushEnabled
-      );
+      const shouldEnablePusher = isVisible
+        ? isMobile ||
+          (notificationDeviceScope === 'active_client_only' && isActiveNotificationClient)
+        : notificationDeviceScope !== 'active_client_only' || isActiveNotificationClient;
+      if (lastPusherStateRef.current === shouldEnablePusher) return;
+      lastPusherStateRef.current = shouldEnablePusher;
+      void togglePusher(mx, clientConfig, shouldEnablePusher, usePushNotifications, pushSubAtom);
     };
 
     const unsubscribe = appEvents.onVisibilityChange((isVisible) => {
@@ -144,6 +153,17 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     });
     reconcilePusher(document.visibilityState === 'visible');
 
-    return unsubscribe;
-  }, [mx, clientConfig, usePushNotifications, pushSubAtom, isMobile, shouldKeepWebPushEnabled]);
+    return () => {
+      lastPusherStateRef.current = null;
+      unsubscribe();
+    };
+  }, [
+    mx,
+    clientConfig,
+    usePushNotifications,
+    pushSubAtom,
+    isMobile,
+    isActiveNotificationClient,
+    notificationDeviceScope,
+  ]);
 }

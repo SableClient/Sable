@@ -20,6 +20,7 @@ type EmojiReplacement = {
   token: string;
   start: number;
   end: number;
+  replacement: string;
 };
 
 const AUTO_EXPAND_EMOTICONS: Record<string, string> = {
@@ -156,7 +157,11 @@ export function findEmojiAutoReplacement(
       token,
       emoji: AUTO_EXPAND_EMOTICONS[token]!,
       start,
-      end: tokenEnd,
+      end: trailingChar !== undefined && isTokenSeparator(trailingChar) ? cursorOffset : tokenEnd,
+      replacement:
+        trailingChar !== undefined && isTokenSeparator(trailingChar)
+          ? `${AUTO_EXPAND_EMOTICONS[token]}${trailingChar}`
+          : AUTO_EXPAND_EMOTICONS[token]!,
     };
   }
 

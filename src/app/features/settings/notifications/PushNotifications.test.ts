@@ -177,7 +177,7 @@ describe('web push notifications', () => {
     });
   });
 
-  it('disables push when visible and enables it when hidden', async () => {
+  it('disables push when disabled and enables it when enabled', async () => {
     installWebPush(null);
     const mx = makeMatrixClient();
     const pushState: [
@@ -186,8 +186,8 @@ describe('web push notifications', () => {
     ] = [null, vi.fn<() => void>()];
     const enableSpy = vi.spyOn(navigator.serviceWorker.controller!, 'postMessage');
 
-    await togglePusher(mx, clientConfig, true, true, pushState);
     await togglePusher(mx, clientConfig, false, true, pushState);
+    await togglePusher(mx, clientConfig, true, true, pushState);
 
     expect(enableSpy).toHaveBeenNthCalledWith(1, {
       url: 'https://matrix.example.com',
@@ -217,7 +217,7 @@ describe('web push notifications', () => {
       value: 'visible',
     });
 
-    await reconcilePushNotifications(mx, clientConfig, true, [null, vi.fn<() => void>()], true);
+    await reconcilePushNotifications(mx, clientConfig, true, true, [null, vi.fn<() => void>()]);
 
     expect(controllerPostMessage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -266,7 +266,7 @@ describe('web push notifications', () => {
     vi.unstubAllGlobals();
 
     await expect(
-      reconcilePushNotifications(mx, clientConfig, true, [null, vi.fn<() => void>()], true)
+      reconcilePushNotifications(mx, clientConfig, true, true, [null, vi.fn<() => void>()])
     ).resolves.toBeUndefined();
   });
 
@@ -277,7 +277,7 @@ describe('web push notifications', () => {
     vi.unstubAllGlobals();
 
     await expect(
-      togglePusher(mx, clientConfig, true, true, [null, vi.fn<() => void>()], false)
+      togglePusher(mx, clientConfig, true, true, [null, vi.fn<() => void>()])
     ).resolves.toBeUndefined();
   });
 });

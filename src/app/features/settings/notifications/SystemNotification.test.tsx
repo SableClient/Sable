@@ -15,6 +15,7 @@ const {
   mockOsType,
   mockMobileOrTablet,
   mockUseSetting,
+  mockIsWebPushSupported,
   mockEnablePushNotifications,
   mockDisablePushNotifications,
   mockRequestBrowserNotificationPermission,
@@ -44,6 +45,7 @@ const {
     showPingCounts: true,
     faviconForMentionsOnly: false,
     highlightMentions: true,
+    notificationDeviceScope: 'all_clients' as const,
     backgroundPushEnabled: true,
     backgroundPushProvider: null,
     pushTransportMode: 'auto' as const,
@@ -81,6 +83,7 @@ const {
     mockOsType: vi.fn(),
     mockMobileOrTablet: vi.fn(),
     mockUseSetting: useSettingMock,
+    mockIsWebPushSupported: vi.fn(),
     mockEnablePushNotifications: vi.fn(),
     mockDisablePushNotifications: vi.fn(),
     mockRequestBrowserNotificationPermission: vi.fn(),
@@ -201,6 +204,7 @@ vi.mock('$utils/user-agent', () => ({
 }));
 
 vi.mock('./PushNotifications', () => ({
+  isWebPushSupported: mockIsWebPushSupported,
   requestBrowserNotificationPermission: mockRequestBrowserNotificationPermission,
   enablePushNotifications: mockEnablePushNotifications,
   disablePushNotifications: mockDisablePushNotifications,
@@ -278,6 +282,7 @@ describe('SystemNotification background push surface', () => {
       showPingCounts: true,
       faviconForMentionsOnly: false,
       highlightMentions: true,
+      notificationDeviceScope: 'all_clients',
       backgroundPushEnabled: true,
       backgroundPushProvider: null,
       pushTransportMode: 'auto',
@@ -289,6 +294,7 @@ describe('SystemNotification background push surface', () => {
     mockIsTauri.mockReturnValue(true);
     mockOsType.mockReturnValue('android');
     mockMobileOrTablet.mockReturnValue(true);
+    mockIsWebPushSupported.mockReturnValue(true);
     mockRequestBrowserNotificationPermission.mockResolvedValue('granted');
     mockEnablePushNotifications.mockResolvedValue(undefined);
     mockDisablePushNotifications.mockResolvedValue(undefined);
@@ -472,6 +478,26 @@ describe('SystemNotification background push surface', () => {
       expect(
         screen.getByText('Background push is not available in the desktop Tauri build yet.')
       ).toBeInTheDocument();
+    });
+  });
+
+  it('hides notification device scope when the runtime does not use web push', async () => {
+    renderSystemNotification();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Background Push Notifications')).toHaveLength(1);
+    });
+    expect(screen.queryByText('Notification Device Scope')).not.toBeInTheDocument();
+  });
+
+  it('shows notification device scope in browser web-push builds', async () => {
+    mockIsTauri.mockReturnValue(false);
+    mockMobileOrTablet.mockReturnValue(false);
+
+    renderSystemNotification();
+
+    await waitFor(() => {
+      expect(screen.getByText('Notification Device Scope')).toBeInTheDocument();
     });
   });
 });

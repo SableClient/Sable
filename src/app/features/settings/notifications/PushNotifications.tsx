@@ -202,29 +202,28 @@ export async function deRegisterAllPushers(mx: MatrixClient): Promise<void> {
 export async function togglePusher(
   mx: MatrixClient,
   clientConfig: ClientConfig,
-  visible: boolean,
+  shouldEnable: boolean,
   usePushNotifications: boolean,
-  pushSubscriptionAtom: PushSubscriptionState,
-  keepEnabledWhenVisible = false
+  pushSubscriptionAtom: PushSubscriptionState
 ): Promise<void> {
   if (!usePushNotifications) return;
   if (!isWebPushSupported()) {
     debugLog.info('notification', 'Skipping passive push reconciliation on unsupported browser');
     return;
   }
-  if (visible && !keepEnabledWhenVisible) {
-    await disablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
-  } else {
+  if (shouldEnable) {
     await enablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
+  } else {
+    await disablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
   }
 }
 
 export async function reconcilePushNotifications(
   mx: MatrixClient,
   clientConfig: ClientConfig,
+  shouldEnable: boolean,
   usePushNotifications: boolean,
-  pushSubscriptionAtom: PushSubscriptionState,
-  keepEnabledWhenVisible = false
+  pushSubscriptionAtom: PushSubscriptionState
 ): Promise<void> {
   if (!usePushNotifications) return;
   if (!isWebPushSupported()) {
@@ -232,13 +231,5 @@ export async function reconcilePushNotifications(
     return;
   }
 
-  const isVisible = document.visibilityState === 'visible';
-  await togglePusher(
-    mx,
-    clientConfig,
-    isVisible,
-    usePushNotifications,
-    pushSubscriptionAtom,
-    keepEnabledWhenVisible
-  );
+  await togglePusher(mx, clientConfig, shouldEnable, usePushNotifications, pushSubscriptionAtom);
 }

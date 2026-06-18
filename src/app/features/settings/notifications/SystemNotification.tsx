@@ -35,6 +35,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 import {
+  isWebPushSupported,
   requestBrowserNotificationPermission,
   enablePushNotifications,
   disablePushNotifications,
@@ -989,6 +990,7 @@ function BackgroundPushNotificationSetting() {
 }
 
 export function SystemNotification() {
+  const supportsNotificationDeviceScope = !isTauri() && isWebPushSupported();
   const [showInAppNotifs, setShowInAppNotifs] = useSetting(settingsAtom, 'useInAppNotifications');
   const [showSystemNotifs, setShowSystemNotifs] = useSetting(
     settingsAtom,
@@ -1105,27 +1107,29 @@ export function SystemNotification() {
       >
         <BackgroundPushNotificationSetting />
       </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Notification Device Scope"
-          focusId="notification-device-scope"
-          description={`Current behavior: ${labelNotificationDeviceScope(
-            notificationDeviceScope
-          )}. "Active client only" keeps notifications on the focused device and suppresses them elsewhere for about two minutes after activity.`}
-          after={
-            <SettingMenuSelector
-              value={notificationDeviceScope}
-              options={notificationDeviceScopeOptions}
-              onSelect={setNotificationDeviceScope}
-            />
-          }
-        />
-      </SequenceCard>
+      {supportsNotificationDeviceScope && (
+        <SequenceCard
+          className={SequenceCardStyle}
+          variant="SurfaceVariant"
+          direction="Column"
+          gap="400"
+        >
+          <SettingTile
+            title="Notification Device Scope"
+            focusId="notification-device-scope"
+            description={`Current behavior: ${labelNotificationDeviceScope(
+              notificationDeviceScope
+            )}. "Active client only" keeps notifications on the focused device and suppresses them elsewhere for about two minutes after activity.`}
+            after={
+              <SettingMenuSelector
+                value={notificationDeviceScope}
+                options={notificationDeviceScopeOptions}
+                onSelect={setNotificationDeviceScope}
+              />
+            }
+          />
+        </SequenceCard>
+      )}
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"

@@ -142,6 +142,7 @@ describe('useNotificationDeviceScope', () => {
     const { result } = renderHook(() => useNotificationDeviceScope(client));
 
     expect(result.current.isActiveNotificationClient).toBe(true);
+    expect(result.current.shouldKeepWebPushEnabled).toBe(true);
   });
 
   it('updates the in-memory lease when account data changes arrive', async () => {

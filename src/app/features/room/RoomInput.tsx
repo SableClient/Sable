@@ -1418,16 +1418,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
         }
 
-        if (
-          (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
-          !isComposing(evt)
-        ) {
-          evt.preventDefault();
-          submit().catch((error) => {
-            log.error('submit failed', { roomId }, error);
-          });
-          return;
-        }
         if (structuredMarkdownAssist && isKeyHotkey('enter', evt) && !isComposing(evt)) {
           const { selection } = editor;
           if (selection && Range.isCollapsed(selection)) {
@@ -1457,6 +1447,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               }
             }
           }
+        }
+        if (
+          (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
+          !isComposing(evt)
+        ) {
+          evt.preventDefault();
+          submit().catch((error) => {
+            log.error('submit failed', { roomId }, error);
+          });
+          return;
         }
         if (isKeyHotkey('escape', evt)) {
           evt.preventDefault();
@@ -1525,7 +1525,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   anchor: { path: selection.anchor.path, offset: replacement.start },
                   focus: { path: selection.anchor.path, offset: replacement.end },
                 });
-                Transforms.insertText(editor, replacement.emoji);
+                Transforms.insertText(editor, replacement.replacement);
               }
             }
           }

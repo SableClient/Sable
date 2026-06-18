@@ -299,6 +299,52 @@ Operational notes:
 - Re-running a workflow uses the workflow file from the commit on GitHub. Local-only
   edits in your checkout do not affect Actions until they are committed and pushed.
 
+### Current Coverage and Remaining Setup
+
+What is already wired in this repo:
+
+- Preview and production deploy workflows build with Sentry environment metadata and
+  upload source maps.
+- Preview builds tag browser events with `pr=<number>`, which powers the automated
+  preview triage workflow.
+- `.github/workflows/sentry-preview-issues.yml` can create or reopen GitHub issues
+  for preview runtime errors found in Sentry.
+- `src/app/features/bug-report/BugReportModal.tsx` sends bug reports to Sentry both
+  as an issue event and as User Feedback, and can optionally open a pre-filled
+  GitHub issue form.
+
+What still depends on Sentry-side configuration:
+
+- GitHub integration plus code mappings in Sentry.
+  Without this, Sentry will not reliably link issues, releases, and suspect commits
+  back to the Charm repository.
+- A User Feedback alert rule that creates GitHub issues for new feedback items.
+  The app already submits feedback, but automatic GitHub issue creation for feedback
+  is configured in Sentry Alerts, not in this repo.
+- Dashboards and alerts for release health, noisy regressions, and recurring frontend
+  failures. The SDK emits the data, but dashboards and alert routing live in Sentry.
+- Cloudflare Workers log and trace drains. Those are configured in the Cloudflare and
+  Sentry dashboards, then enabled in the Worker observability settings.
+- Sentry Toolbar and Snapshots. These are product-side features and should be treated
+  as optional workflow tools rather than part of the repo's required CI path.
+
+Recommended manual Sentry follow-up:
+
+1. Install the Sentry GitHub integration for the Charm repository and add a code
+   mapping for `src/`.
+2. Create a User Feedback alert with `The issue's category is equal to "Feedback"`
+   and set the action to create a new GitHub issue in this repository.
+3. Create at least one dashboard for preview and production:
+   - error count by release
+   - top frontend transactions / web vitals
+   - user feedback volume by environment
+4. If you want Cloudflare-side logs and traces in Sentry, add `sentry-logs` and
+   `sentry-traces` destinations in Cloudflare Workers Observability, then wire those
+   destination names into Worker observability config.
+5. Re-evaluate Sentry Toolbar and Snapshots after the CI smoke coverage is in place.
+   They are useful for manual QA and visual debugging, but not a substitute for
+   deterministic browser tests.
+
 **Local development:**
 
 - `VITE_SENTRY_ENVIRONMENT` not set (defaults to `development` via Vite MODE)

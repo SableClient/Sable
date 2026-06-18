@@ -234,6 +234,46 @@ describe('ThemeManager', () => {
     expect(document.head.lastElementChild?.id).toBe('sable-remote-theme-style');
   });
 
+  it('keeps tweak styles after theme styles when both are present', async () => {
+    settingsInitialized = true;
+    const appStyle = document.createElement('style');
+    appStyle.id = 'app-style';
+    appStyle.textContent = 'body { color: red; }';
+    document.head.appendChild(appStyle);
+
+    const themeStyle = document.createElement('style');
+    themeStyle.id = 'sable-remote-theme-style';
+    themeStyle.textContent = 'body { --preboot-theme: 1; }';
+    document.head.insertBefore(themeStyle, appStyle);
+
+    const tweaksStyle = document.createElement('style');
+    tweaksStyle.id = 'sable-remote-tweaks-style';
+    tweaksStyle.textContent = 'body { --preboot-tweak: 1; }';
+    document.head.insertBefore(tweaksStyle, appStyle);
+
+    storedThemeCssByUrl['https://themes.example/dark.css'] = 'body { --cached-theme: 1; }';
+    storedTweakCssByUrls['https://themes.example/tweak.css'] = 'body { --cached-tweak: 1; }';
+    settings.themeRemoteEnabledTweakFullUrls = ['https://themes.example/tweak.css'];
+    activeTheme = {
+      id: 'test-remote',
+      kind: ThemeKind.Dark,
+      classNames: ['test-dark-theme'],
+      remoteFullUrl: 'https://themes.example/dark.css',
+    };
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    const themeNode = document.getElementById('sable-remote-theme-style');
+    const tweaksNode = document.getElementById('sable-remote-tweaks-style');
+
+    expect(themeNode?.nextElementSibling).toBe(tweaksNode);
+    expect(document.head.lastElementChild?.id).toBe('sable-remote-tweaks-style');
+  });
+
   it('clears stale stored remote theme css when the fetch returns no css', async () => {
     settingsInitialized = true;
     storedThemeCssByUrl['https://themes.example/dark.css'] = 'body { --cached-theme: 1; }';

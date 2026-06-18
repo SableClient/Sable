@@ -41,6 +41,18 @@ function syncDocumentThemeMetadata(kind: ThemeKind): void {
   });
 }
 
+function syncRemoteStyleOrder(): void {
+  const themeNode = document.getElementById(REMOTE_STYLE_ID);
+  const tweaksNode = document.getElementById(REMOTE_TWEAKS_STYLE_ID);
+
+  if (themeNode) {
+    document.head.appendChild(themeNode);
+  }
+  if (tweaksNode) {
+    document.head.appendChild(tweaksNode);
+  }
+}
+
 function setInlineStyleText(id: string, text: string | undefined): void {
   if (!text) {
     document.getElementById(id)?.remove();
@@ -51,10 +63,10 @@ function setInlineStyleText(id: string, text: string | undefined): void {
     node = document.createElement('style');
     node.id = id;
   }
-  document.head.appendChild(node);
   if (node.textContent !== text) {
     node.textContent = text;
   }
+  syncRemoteStyleOrder();
 }
 
 async function loadRemoteThemeCssText(url: string): Promise<string | undefined> {

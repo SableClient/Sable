@@ -18,7 +18,7 @@ test.describe('live matrix smoke', () => {
     try {
       await page.goto(`/login/${encodeURIComponent(server!)}`);
 
-      await expect(page.getByDisplayValue(server!)).toBeVisible();
+      await expect(page.locator('input').first()).toHaveValue(server!);
       await expect(page.locator('#login-username-input')).toBeVisible();
       await expect(page.locator('#login-password-input')).toBeVisible();
 

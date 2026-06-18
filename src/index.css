@@ -19,7 +19,7 @@
   --sable-emoji-picker-font-size: 2.4rem;
   --sable-emoji-picker-shift-y: 0;
   --sable-inline-emoji-font-size: 1.03em;
-  --sable-inline-emoji-align: -0.14em;
+  --sable-inline-emoji-box-align: -0.16em;
 }
 
 .dark-theme,
@@ -62,14 +62,14 @@ body {
   --sable-emoji-picker-font-size: 3.1rem;
   --sable-emoji-picker-shift-y: -0.03em;
   --sable-inline-emoji-font-size: 1.14em;
-  --sable-inline-emoji-align: -0.21em;
+  --sable-inline-emoji-box-align: -0.18em;
 }
 
 :root[data-sable-emoji-effective-style='system'][data-sable-mobile='true'] {
   --sable-emoji-picker-font-size: 3.2rem;
   --sable-emoji-picker-shift-y: -0.035em;
   --sable-inline-emoji-font-size: 1.15em;
-  --sable-inline-emoji-align: -0.22em;
+  --sable-inline-emoji-box-align: -0.19em;
 }
 
 #root {

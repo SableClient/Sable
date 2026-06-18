@@ -269,4 +269,50 @@ describe('resolveSpaceNavigationRoot', () => {
       source: 'sidebar_shortcut',
     });
   });
+
+  it('treats spaces pinned inside sidebar folders as valid sidebar roots', () => {
+    const roomId = '!room:example.com';
+    const groupingSpaceId = '!grouping-space:example.com';
+    const folderPinnedSpaceId = '!folder-pinned-space:example.com';
+    const longRootSpaceId = '!long-root:example.com';
+
+    const groupingSpace = makeSpaceRoom(groupingSpaceId, { childIds: [roomId] });
+    const folderPinnedSpace = makeSpaceRoom(folderPinnedSpaceId, { childIds: [groupingSpaceId] });
+    const longRoot = makeSpaceRoom(longRootSpaceId, { childIds: [folderPinnedSpaceId] });
+
+    const mx = {
+      getRoom: (targetRoomId: string) => {
+        if (targetRoomId === groupingSpaceId) return groupingSpace;
+        if (targetRoomId === folderPinnedSpaceId) return folderPinnedSpace;
+        if (targetRoomId === longRootSpaceId) return longRoot;
+        return null;
+      },
+      getRooms: () => [groupingSpace, folderPinnedSpace, longRoot],
+      getAccountData: (eventType: string) =>
+        eventType === CustomAccountDataEvent.CinnySpaces
+          ? ({
+              getContent: () => ({
+                sidebar: [
+                  {
+                    id: 'folder-1',
+                    content: [folderPinnedSpaceId],
+                  },
+                  longRootSpaceId,
+                ],
+              }),
+            } as unknown as MatrixEvent)
+          : undefined,
+    } as unknown as MatrixClient;
+
+    const roomToParents = new Map<string, Set<string>>([
+      [roomId, new Set([groupingSpaceId])],
+      [groupingSpaceId, new Set([folderPinnedSpaceId])],
+      [folderPinnedSpaceId, new Set([longRootSpaceId])],
+    ]);
+
+    expect(resolveSpaceNavigationRoot(mx, roomToParents, roomId)).toEqual({
+      rootSpaceId: folderPinnedSpaceId,
+      source: 'sidebar_shortcut',
+    });
+  });
 });

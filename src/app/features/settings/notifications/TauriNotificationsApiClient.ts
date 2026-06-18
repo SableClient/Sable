@@ -1,3 +1,5 @@
+import * as notificationsApi from './TauriNotificationsPluginApi';
+
 export type NotificationPluginListener = {
   unregister: () => Promise<void> | void;
 };
@@ -23,13 +25,6 @@ export type TauriNotificationsApi = {
   ) => Promise<NotificationPluginListener> | NotificationPluginListener;
 };
 
-let notificationsApiPromise: Promise<TauriNotificationsApi> | null = null;
-
 export async function getTauriNotificationsApi(): Promise<TauriNotificationsApi> {
-  if (!notificationsApiPromise) {
-    notificationsApiPromise =
-      import('@sableclient/tauri-plugin-notifications-api') as Promise<TauriNotificationsApi>;
-  }
-
-  return notificationsApiPromise;
+  return notificationsApi;
 }

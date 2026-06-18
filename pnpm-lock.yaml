@@ -40,9 +40,6 @@ importers:
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@sableclient/tauri-plugin-notifications-api':
-        specifier: git+https://github.com/SableClient/tauri-plugin-notifications.git#9d15b2b2c8798dc29ce723d743f0f3b4921d6a54
-        version: https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9d15b2b2c8798dc29ce723d743f0f3b4921d6a54
       '@sableclient/twemoji-font':
         specifier: ^1.0.3
         version: 1.0.3
@@ -2133,10 +2130,6 @@ packages:
 
   '@sableclient/sable-call-embedded@1.1.4':
     resolution: {integrity: sha512-XLRcbUPcn7i3QKZAPjIfUkUEXP0E4DOr0dyRoVCWMjHWj28kq+T7jeB2fRr5lB77olBwNHMjIuoTwrv02xiepQ==}
-
-  '@sableclient/tauri-plugin-notifications-api@https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9d15b2b2c8798dc29ce723d743f0f3b4921d6a54':
-    resolution: {tarball: https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9d15b2b2c8798dc29ce723d743f0f3b4921d6a54}
-    version: 0.4.3
 
   '@sableclient/twemoji-font@1.0.3':
     resolution: {integrity: sha512-V+I76tutAOe7TmueZW2YOcM6uWIpy/lz4fbkhlTBB/EZoxPyX8xAgGE0BfWjGycyvYUib1P3bBBrgLwm09zlZQ==}
@@ -6408,10 +6401,6 @@ snapshots:
     optional: true
 
   '@sableclient/sable-call-embedded@1.1.4': {}
-
-  '@sableclient/tauri-plugin-notifications-api@https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9d15b2b2c8798dc29ce723d743f0f3b4921d6a54':
-    dependencies:
-      '@tauri-apps/api': 2.11.0
 
   '@sableclient/twemoji-font@1.0.3': {}
 

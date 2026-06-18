@@ -669,6 +669,7 @@ type NotificationClickWaiter = {
 
 const notificationClickPendingMap = new Map<string, NotificationClickWaiter>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
+const NOTIFICATION_CLICK_HANDLED_TIMEOUT_MS = 4_000;
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -703,7 +704,7 @@ async function fetchWithNetworkRetry(
 
 async function waitForNotificationClickHandled(
   clickId: string,
-  timeoutMs = 2_500
+  timeoutMs = NOTIFICATION_CLICK_HANDLED_TIMEOUT_MS
 ): Promise<boolean> {
   return new Promise((resolve) => {
     const timeoutId = setTimeout(() => {
@@ -721,7 +722,10 @@ async function waitForNotificationClickHandled(
   });
 }
 
-function createNotificationClickHandledWaiter(clickId: string, timeoutMs = 2_500) {
+function createNotificationClickHandledWaiter(
+  clickId: string,
+  timeoutMs = NOTIFICATION_CLICK_HANDLED_TIMEOUT_MS
+) {
   return waitForNotificationClickHandled(clickId, timeoutMs);
 }
 

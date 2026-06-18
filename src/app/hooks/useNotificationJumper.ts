@@ -28,6 +28,8 @@ import {
   buildNotificationMetricAttributes,
 } from '$utils/notificationTelemetry';
 
+const NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS = 1_500;
+
 function acknowledgeNotificationClick(clickId?: string) {
   if (!clickId || !('serviceWorker' in navigator)) return;
 
@@ -121,7 +123,7 @@ export function NotificationJumper() {
       !mDirects.has(pending.roomId) &&
       !parentGraphReady &&
       storedRootSpaceId === undefined &&
-      (restoreAgeMs === undefined || restoreAgeMs < 2_500)
+      (restoreAgeMs === undefined || restoreAgeMs < NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS)
     ) {
       Sentry.addBreadcrumb(
         buildNotificationBreadcrumb('restore', 'restore_wait_parent_graph', {
@@ -130,6 +132,7 @@ export function NotificationJumper() {
           source: pending.source,
           restore_age_ms: restoreAgeMs,
           parent_graph_ready: parentGraphReady,
+          wait_budget_ms: NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS,
         })
       );
       return;

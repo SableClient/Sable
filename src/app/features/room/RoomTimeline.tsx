@@ -614,8 +614,13 @@ export function RoomTimeline({
       // scroll from firing even after focusItem is cleared (highlight ends).
       jumpSucceededRef.current = true;
 
-      const { index, eventId: focusEventId, scrollTo, align, jumpMode: focusJumpMode } =
-        timelineSync.focusItem;
+      const {
+        index,
+        eventId: focusEventId,
+        scrollTo,
+        align,
+        jumpMode: focusJumpMode,
+      } = timelineSync.focusItem;
       log.log(
         `[PermalinkJump] focusItem set: eventId=${focusEventId}, index=${index}, scrollTo=${scrollTo}, align=${align ?? 'center'}, jumpMode=${focusJumpMode ?? jumpMode ?? 'history_context'}`
       );
@@ -781,6 +786,7 @@ export function RoomTimeline({
     startJumpScrollBlock,
     activateJumpLock,
     room.roomId,
+    jumpMode,
   ]);
 
   useEffect(() => {

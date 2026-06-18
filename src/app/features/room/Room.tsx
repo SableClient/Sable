@@ -36,9 +36,7 @@ export function Room() {
   const mx = useMatrixClient();
   const targetEvent = useRoomEvent(room, eventId ?? '', undefined, Boolean(eventId));
   const jumpMode =
-    searchParams.get('jumpMode') === 'notification_live'
-      ? 'notification_live'
-      : 'history_context';
+    searchParams.get('jumpMode') === 'notification_live' ? 'notification_live' : 'history_context';
 
   // Log room mount
   useEffect(() => {

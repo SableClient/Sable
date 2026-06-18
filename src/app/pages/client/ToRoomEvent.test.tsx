@@ -25,7 +25,7 @@ describe('ToRoomEvent', () => {
       <Provider>
         <MemoryRouter
           initialEntries={[
-            '/to/%40alice%3Aexample/!room%3Aexample/%24event123?joinCall=true&swClickId=notification-click-123',
+            '/to/%40alice%3Aexample/!room%3Aexample/%24event123?joinCall=true&swClickId=notification-click-123&jumpMode=notification_live',
           ]}
         >
           <Routes>
@@ -67,6 +67,36 @@ describe('ToRoomEvent', () => {
       expect(payload.pendingNotification?.source).toBe('to_room_event');
       expect(payload.pendingNotification?.swClickId).toBe('notification-click-123');
       expect(typeof payload.pendingNotification?.requestedAt).toBe('number');
+    });
+  });
+
+  it('defaults non-notification deep links to history_context', async () => {
+    const { getByTestId } = render(
+      <Provider>
+        <MemoryRouter initialEntries={['/to/%40alice%3Aexample/!room%3Aexample/%24event123']}>
+          <Routes>
+            <Route
+              path="/to/:user_id/:room_id/:event_id?"
+              element={
+                <>
+                  <ToRoomEvent />
+                  <AtomProbe />
+                </>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </Provider>
+    );
+
+    await waitFor(() => {
+      const payload = JSON.parse(getByTestId('probe').textContent ?? '{}') as {
+        pendingNotification?: {
+          jumpMode?: string;
+        };
+      };
+
+      expect(payload.pendingNotification?.jumpMode).toBe('history_context');
     });
   });
 });

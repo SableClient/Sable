@@ -1480,7 +1480,8 @@ export const resolveSpaceNavigationRoot = (
     storedRootSpaceId?: string;
   }
 ): SpaceNavigationRootResolution => {
-  const liveRoomToParents = getRoomToParents(mx);
+  const liveRoomToParents =
+    typeof mx.getRooms === 'function' ? getRoomToParents(mx) : new Map<string, Set<string>>();
   const effectiveRoomToParents = liveRoomToParents.size > 0 ? liveRoomToParents : roomToParents;
 
   if (

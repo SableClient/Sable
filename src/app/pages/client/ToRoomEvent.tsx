@@ -28,7 +28,7 @@ export function ToRoomEvent() {
   const joinCall = searchParams.get('joinCall') === 'true';
   const swClickId = searchParams.get('swClickId') ?? undefined;
   const jumpMode =
-    searchParams.get('jumpMode') === 'history_context' ? 'history_context' : 'notification_live';
+    searchParams.get('jumpMode') === 'notification_live' ? 'notification_live' : 'history_context';
 
   useEffect(() => {
     if (!roomId) return;

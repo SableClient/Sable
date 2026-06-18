@@ -79,11 +79,7 @@ const useEventTimelineLoader = (
   onProactiveLoad?: () => void
 ) =>
   useCallback(
-    async (
-      eventId: string,
-      signal?: AbortSignal,
-      options?: { jumpMode?: TimelineJumpMode }
-    ) =>
+    async (eventId: string, signal?: AbortSignal, options?: { jumpMode?: TimelineJumpMode }) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
         const jumpMode = options?.jumpMode ?? 'history_context';
@@ -111,8 +107,10 @@ const useEventTimelineLoader = (
             : undefined;
 
           if (liveAbsIndex !== undefined) {
-            const distanceFromBottom =
-              Math.max(getTimelinesEventsCount(liveLinkedTimelines) - 1 - liveAbsIndex, 0);
+            const distanceFromBottom = Math.max(
+              getTimelinesEventsCount(liveLinkedTimelines) - 1 - liveAbsIndex,
+              0
+            );
             Sentry.addBreadcrumb({
               category: 'timeline.load',
               message: 'Notification jump evaluated live timeline',

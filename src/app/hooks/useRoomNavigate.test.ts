@@ -3,6 +3,8 @@ import { createElement, type ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { createStore, Provider } from 'jotai';
 import type * as ReactRouterDom from 'react-router-dom';
+import type { Room } from '$types/matrix-sdk';
+import { EventTimeline, EventType, RoomType } from '$types/matrix-sdk';
 import { mDirectAtom } from '$state/mDirectList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { setStoredRoomNavRoot } from '$state/room/roomNavRoots';
@@ -11,6 +13,8 @@ import { useRoomNavigate } from './useRoomNavigate';
 const mockNavigate = vi.fn<(path: string) => void>();
 const mockSetSpaceScope = vi.fn<(roomId: string) => void>();
 const mockPrefetchRoom = vi.fn<(roomId: string) => void>();
+const mockGetRoom = vi.fn<(roomId: string) => Room | null>();
+const mockGetRooms = vi.fn<() => Room[]>();
 
 // Preserve the real generatePath (used by $pages/pathUtils) while stubbing useNavigate.
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -22,7 +26,11 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 vi.mock('$hooks/useMatrixClient', () => ({
-  useMatrixClient: () => ({ getRoom: vi.fn<() => null>(), getUserId: () => '@alice:example.org' }),
+  useMatrixClient: () => ({
+    getRoom: mockGetRoom,
+    getRooms: mockGetRooms,
+    getUserId: () => '@alice:example.org',
+  }),
 }));
 
 vi.mock('$client/initMatrix', () => ({
@@ -56,11 +64,36 @@ function makeWrapper(store: ReturnType<typeof createStore>) {
   };
 }
 
+function makeJoinedSpace(roomId: string): Room {
+  return {
+    roomId,
+    isSpaceRoom: () => true,
+    getMyMembership: () => 'join',
+    getLiveTimeline: () => ({
+      getState: (direction: unknown) =>
+        direction === EventTimeline.FORWARDS
+          ? {
+              getStateEvents: (eventType: string) =>
+                eventType === EventType.RoomCreate
+                  ? {
+                      getContent: () => ({ type: RoomType.Space }),
+                    }
+                  : [],
+            }
+          : undefined,
+    }),
+  } as unknown as Room;
+}
+
 describe('useRoomNavigate', () => {
   beforeEach(() => {
     mockNavigate.mockReset();
     mockSetSpaceScope.mockReset();
     mockPrefetchRoom.mockReset();
+    mockGetRoom.mockReset();
+    mockGetRooms.mockReset();
+    mockGetRoom.mockReturnValue(null);
+    mockGetRooms.mockReturnValue([]);
     localStorage.clear();
   });
 
@@ -98,6 +131,9 @@ describe('useRoomNavigate', () => {
       const roomToParents = new Map<string, Set<string>>();
       roomToParents.set(roomId, new Set([spaceId]));
       store.set(roomToParentsAtom, { type: 'INITIALIZE', roomToParents });
+      const joinedSpace = makeJoinedSpace(spaceId);
+      mockGetRoom.mockImplementation((id) => (id === spaceId ? joinedSpace : null));
+      mockGetRooms.mockReturnValue([joinedSpace]);
 
       const { result } = renderHook(() => useRoomNavigate(), {
         wrapper: makeWrapper(store),
@@ -124,6 +160,12 @@ describe('useRoomNavigate', () => {
       roomToParents.set(roomId, new Set([subspaceId]));
       roomToParents.set(subspaceId, new Set([rootSpaceId]));
       store.set(roomToParentsAtom, { type: 'INITIALIZE', roomToParents });
+      const joinedSubspace = makeJoinedSpace(subspaceId);
+      const joinedRoot = makeJoinedSpace(rootSpaceId);
+      mockGetRoom.mockImplementation((id) =>
+        id === subspaceId ? joinedSubspace : id === rootSpaceId ? joinedRoot : null
+      );
+      mockGetRooms.mockReturnValue([joinedSubspace, joinedRoot]);
 
       const { result } = renderHook(() => useRoomNavigate(), {
         wrapper: makeWrapper(store),
@@ -152,6 +194,19 @@ describe('useRoomNavigate', () => {
       roomToParents.set(subspaceId, new Set([fallbackRootSpaceId, chosenRootSpaceId]));
       store.set(roomToParentsAtom, { type: 'INITIALIZE', roomToParents });
       setStoredRoomNavRoot('@alice:example.org', roomId, chosenRootSpaceId);
+      const joinedSubspace = makeJoinedSpace(subspaceId);
+      const fallbackRoot = makeJoinedSpace(fallbackRootSpaceId);
+      const chosenRoot = makeJoinedSpace(chosenRootSpaceId);
+      mockGetRoom.mockImplementation((id) =>
+        id === subspaceId
+          ? joinedSubspace
+          : id === fallbackRootSpaceId
+            ? fallbackRoot
+            : id === chosenRootSpaceId
+              ? chosenRoot
+              : null
+      );
+      mockGetRooms.mockReturnValue([joinedSubspace, fallbackRoot, chosenRoot]);
 
       const { result } = renderHook(() => useRoomNavigate(), {
         wrapper: makeWrapper(store),

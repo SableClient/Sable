@@ -147,7 +147,9 @@ function createSwWatchdog() {
     const activeWorker = registration?.active;
     const controller = navigator.serviceWorker.controller;
     const worker =
-      activeWorker && activeWorker.state === 'activated' ? activeWorker : controller ?? activeWorker;
+      activeWorker && activeWorker.state === 'activated'
+        ? activeWorker
+        : (controller ?? activeWorker);
     if (!worker) {
       await requestRecovery();
       return;

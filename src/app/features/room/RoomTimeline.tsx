@@ -1529,21 +1529,26 @@ export function RoomTimeline({
       (e) => e.mEvent.getId() === targetEventId
     );
     if (targetIndex < 0) {
+      // Keep the lock alive while the initial jump retry loop is still trying to
+      // surface the target row. Releasing here would disable later re-anchors
+      // during decrypt/reflow churn even though the target may still appear.
+      if (jumpRetryIntervalRef.current !== undefined || timelineSync.focusItem?.scrollTo) {
+        return;
+      }
       releaseJumpLock('missing_target');
       return;
     }
 
     setAtBottom(false);
-    startJumpScrollBlock();
     vListRef.current?.scrollToIndex(targetIndex, { align: 'center' });
   }, [
     processedEvents,
     timelineSync.eventsLength,
     timelineSync.backwardStatus,
     timelineSync.forwardStatus,
+    timelineSync.focusItem,
     releaseJumpLock,
     setAtBottom,
-    startJumpScrollBlock,
   ]);
 
   useLayoutEffect(() => {

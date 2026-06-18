@@ -52,4 +52,20 @@ describe('theme cache local snapshots', () => {
     expect(() => getStoredAppliedTweakCss(['https://themes.example/a.css'])).not.toThrow();
     expect(getStoredAppliedTweakCss(['https://themes.example/a.css'])).toBeUndefined();
   });
+
+  it('ignores non-string tweak url entries from malformed storage', () => {
+    localStorage.setItem(
+      'sable_applied_remote_tweaks_css',
+      JSON.stringify({
+        urls: ['https://themes.example/a.css', 42, null],
+        cssText: 'body { color: blue; }',
+        cachedAt: Date.now(),
+      })
+    );
+
+    expect(() => getStoredAppliedTweakCss(['https://themes.example/a.css'])).not.toThrow();
+    expect(getStoredAppliedTweakCss(['https://themes.example/a.css'])).toBe(
+      'body { color: blue; }'
+    );
+  });
 });

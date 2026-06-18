@@ -22,8 +22,8 @@ type AppliedTweakSnapshot = {
   cachedAt: number;
 };
 
-function normalizeUrl(url: string): string {
-  return url.trim();
+function normalizeUrl(url: unknown): string {
+  return typeof url === 'string' ? url.trim() : '';
 }
 
 function normalizeUrls(urls: unknown): string[] {

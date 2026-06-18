@@ -1523,7 +1523,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           if (selection && Range.isCollapsed(selection)) {
             const [node] = Editor.node(editor, selection.anchor.path);
             if (SlateText.isText(node)) {
-              const replacement = findEmojiAutoReplacement(node.text, selection.anchor.offset);
+              const replacement = findEmojiAutoReplacement(node.text, selection.anchor.offset, {
+                consumeTrailingSeparator: evt.key !== 'Tab',
+              });
               if (replacement) {
                 Transforms.select(editor, {
                   anchor: { path: selection.anchor.path, offset: replacement.start },

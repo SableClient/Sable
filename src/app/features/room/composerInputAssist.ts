@@ -139,12 +139,18 @@ export function shouldInsertBreakAfterStructuredReplacement(
 
 export function findEmojiAutoReplacement(
   text: string,
-  cursorOffset: number
+  cursorOffset: number,
+  options?: {
+    consumeTrailingSeparator?: boolean;
+  }
 ): EmojiReplacement | null {
   if (cursorOffset < 0 || cursorOffset > text.length) return null;
 
   const trailingChar = text[cursorOffset - 1];
-  const tokenEnd = isTokenSeparator(trailingChar) ? cursorOffset - 1 : cursorOffset;
+  const consumeTrailingSeparator = options?.consumeTrailingSeparator ?? true;
+  const shouldTrimTrailingSeparator =
+    consumeTrailingSeparator && trailingChar !== undefined && isTokenSeparator(trailingChar);
+  const tokenEnd = shouldTrimTrailingSeparator ? cursorOffset - 1 : cursorOffset;
   if (tokenEnd <= 0) return null;
 
   const codeSpanRanges = getMarkdownCodeSpanRanges(text);
@@ -163,9 +169,9 @@ export function findEmojiAutoReplacement(
       token,
       emoji: AUTO_EXPAND_EMOTICONS[token]!,
       start,
-      end: trailingChar !== undefined && isTokenSeparator(trailingChar) ? cursorOffset : tokenEnd,
+      end: shouldTrimTrailingSeparator ? cursorOffset : tokenEnd,
       replacement:
-        trailingChar !== undefined && isTokenSeparator(trailingChar)
+        shouldTrimTrailingSeparator && trailingChar !== undefined
           ? `${AUTO_EXPAND_EMOTICONS[token]}${trailingChar}`
           : AUTO_EXPAND_EMOTICONS[token]!,
     };

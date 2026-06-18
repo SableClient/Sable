@@ -182,15 +182,31 @@ function WebPushStartupReconciler() {
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const pushSubscription = useAtom(pushSubscriptionAtom);
+  const [visibilityState, setVisibilityState] = useState<DocumentVisibilityState>(
+    document.visibilityState
+  );
   const { isActiveNotificationClient, notificationDeviceScope } = useNotificationDeviceScope(mx, {
     publishLease: false,
   });
   const reconciledKeyRef = useRef<string | null>(null);
   const shouldEnablePusher =
-    document.visibilityState === 'visible'
+    visibilityState === 'visible'
       ? mobileOrTablet() ||
         (notificationDeviceScope === 'active_client_only' && isActiveNotificationClient)
       : notificationDeviceScope !== 'active_client_only' || isActiveNotificationClient;
+
+  useEffect(() => {
+    const syncVisibilityState = () => setVisibilityState(document.visibilityState);
+    const handlePageShow = () => syncVisibilityState();
+
+    document.addEventListener('visibilitychange', syncVisibilityState);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      document.removeEventListener('visibilitychange', syncVisibilityState);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, []);
 
   useEffect(() => {
     if (!usePushNotifications || isTauri()) return;
@@ -200,7 +216,7 @@ function WebPushStartupReconciler() {
     if (!userId) return;
     const reconcileKey = [
       userId,
-      document.visibilityState,
+      visibilityState,
       shouldEnablePusher ? 'enabled' : 'disabled',
     ].join(':');
     if (reconciledKeyRef.current === reconcileKey) return;
@@ -219,7 +235,14 @@ function WebPushStartupReconciler() {
         error: error instanceof Error ? error.message : String(error),
       });
     });
-  }, [mx, clientConfig, pushSubscription, usePushNotifications, shouldEnablePusher]);
+  }, [
+    mx,
+    clientConfig,
+    pushSubscription,
+    usePushNotifications,
+    shouldEnablePusher,
+    visibilityState,
+  ]);
 
   return null;
 }

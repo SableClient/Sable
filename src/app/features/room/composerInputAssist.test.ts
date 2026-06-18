@@ -93,4 +93,14 @@ describe('findEmojiAutoReplacement', () => {
       findEmojiAutoReplacement('https://example.com/:) ', 'https://example.com/:) '.length)
     ).toBeNull();
   });
+
+  it('expands emoticons on tab without trimming the final token character', () => {
+    expect(findEmojiAutoReplacement(':)', 2, { consumeTrailingSeparator: false })).toMatchObject({
+      token: ':)',
+      emoji: '🙂',
+      start: 0,
+      end: 2,
+      replacement: '🙂',
+    });
+  });
 });

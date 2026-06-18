@@ -38,4 +38,18 @@ describe('theme cache local snapshots', () => {
       getStoredAppliedTweakCss(['https://themes.example/b.css', 'https://themes.example/a.css'])
     ).toBeUndefined();
   });
+
+  it('ignores malformed stored tweak url data', () => {
+    localStorage.setItem(
+      'sable_applied_remote_tweaks_css',
+      JSON.stringify({
+        urls: 'https://themes.example/a.css',
+        cssText: 'body { color: blue; }',
+        cachedAt: Date.now(),
+      })
+    );
+
+    expect(() => getStoredAppliedTweakCss(['https://themes.example/a.css'])).not.toThrow();
+    expect(getStoredAppliedTweakCss(['https://themes.example/a.css'])).toBeUndefined();
+  });
 });

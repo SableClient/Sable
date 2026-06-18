@@ -26,7 +26,8 @@ function normalizeUrl(url: string): string {
   return url.trim();
 }
 
-function normalizeUrls(urls: string[]): string[] {
+function normalizeUrls(urls: unknown): string[] {
+  if (!Array.isArray(urls)) return [];
   return urls.map(normalizeUrl).filter((url) => url.length > 0);
 }
 

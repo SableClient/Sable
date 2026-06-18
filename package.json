@@ -30,6 +30,7 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "knip": "knip",
+    "semgrep": "semgrep scan --config semgrep/charm-stability.yml",
     "tunnel": "cloudflared tunnel --url http://localhost:8080",
     "knope": "knope",
     "document-change": "knope document-change",

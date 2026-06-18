@@ -46,7 +46,7 @@ findings.
 Run it with:
 
 ```sh
-semgrep scan --config semgrep/charm-stability.yml
+pnpm run semgrep
 ```
 
 Current local Semgrep rules cover:

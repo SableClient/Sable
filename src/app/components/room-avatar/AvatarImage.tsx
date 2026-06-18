@@ -144,16 +144,24 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
   const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
   const processedSrc = useProcessedAvatarSrc(src);
 
+  // All processed sources are blob URLs — no CORS headers needed.
+  const isBlobUrl = processedSrc?.startsWith('blob:') ?? false;
+
+  // Reset image ref when the resolved source changes so we never pass a stale
+  // cross-origin element to bgColorImg after the blob URL arrives.
+  useEffect(() => {
+    setImage(undefined);
+  }, [processedSrc]);
+
   const useUniformIcons = uniformIconsSetting && uniformIcons === true;
-  const normalizedBg = useUniformIcons && image ? bgColorImg(image) : undefined;
+  // Only extract colors from blob URLs (same-origin) to avoid tainted-canvas
+  // errors.  bgColorImg itself also has a try-catch safety net.
+  const normalizedBg = useUniformIcons && isBlobUrl && image ? bgColorImg(image) : undefined;
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
     evt.currentTarget.setAttribute('data-image-loaded', 'true');
     setImage(evt.currentTarget);
   };
-
-  // All processed sources are blob URLs — no CORS headers needed.
-  const isBlobUrl = processedSrc?.startsWith('blob:') ?? false;
 
   return (
     <FoldsAvatarImage

@@ -318,6 +318,8 @@ export function RoomTimeline({
   const jumpRecenterTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const jumpHighlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const jumpAnchorKeyRef = useRef<string | undefined>(undefined);
+  const jumpLayoutReanchorRafRef = useRef<number | undefined>(undefined);
+  const lastJumpLayoutReanchorAtRef = useRef(0);
   const jumpLockEventIdRef = useRef<string | undefined>(undefined);
   const jumpLockActiveRef = useRef(false);
   const userScrollIntentAtRef = useRef(0);
@@ -349,6 +351,10 @@ export function RoomTimeline({
     if (initialScrollTimerRef.current !== undefined) {
       clearTimeout(initialScrollTimerRef.current);
       initialScrollTimerRef.current = undefined;
+    }
+    if (jumpLayoutReanchorRafRef.current !== undefined) {
+      cancelAnimationFrame(jumpLayoutReanchorRafRef.current);
+      jumpLayoutReanchorRafRef.current = undefined;
     }
     setIsReady(false);
   }
@@ -391,6 +397,49 @@ export function RoomTimeline({
       }
     }, 350);
   }, [setAtBottom]);
+
+  const reanchorJumpTarget = useCallback(
+    (
+      reason: 'delayed_settle' | 'content_growth' | 'timeline_remeasure' | 'loaded_history_jump',
+      options?: {
+        eventId?: string;
+        align?: 'center' | 'end';
+        scrollDelta?: number;
+        delayMs?: number;
+      }
+    ): boolean => {
+      const targetEventId = options?.eventId ?? jumpLockEventIdRef.current;
+      if (!targetEventId || !vListRef.current) return false;
+
+      const targetIndex = processedEventsRef.current.findIndex(
+        (event) => event.mEvent.getId() === targetEventId
+      );
+      if (targetIndex < 0) return false;
+
+      setAtBottom(false);
+      jumpReanchorScrollUntilRef.current = Date.now() + 150;
+      startJumpScrollBlock();
+      vListRef.current.scrollToIndex(targetIndex, { align: options?.align ?? 'center' });
+      log.log(
+        `[PermalinkJump] Re-anchored target after ${reason}: eventId=${targetEventId}, processedIndex=${targetIndex}, scrollDelta=${options?.scrollDelta ?? 0}, delay=${options?.delayMs ?? 0}`
+      );
+      Sentry.addBreadcrumb({
+        category: 'timeline.permalink',
+        message: 'Re-anchored jump target',
+        level: 'info',
+        data: {
+          reason,
+          eventId: targetEventId,
+          processedIndex: targetIndex,
+          scrollDelta: options?.scrollDelta,
+          delayMs: options?.delayMs,
+          roomId: room.roomId,
+        },
+      });
+      return true;
+    },
+    [room.roomId, setAtBottom, startJumpScrollBlock]
+  );
 
   const releaseJumpLock = useCallback(
     (reason: 'missing_target' | 'user_scroll' | 'route_change' | 'jump_to_latest') => {
@@ -733,13 +782,10 @@ export function RoomTimeline({
             const recenterTimeoutId = setTimeout(() => {
               const delayedProcessedIndex = resolveProcessedIndex();
               if (vListRef.current && delayedProcessedIndex !== undefined) {
-                log.log(
-                  `[PermalinkJump] Re-centering after delayed settle: processedIndex=${delayedProcessedIndex}, delay=${delay}`
-                );
-                setAtBottom(false);
-                startJumpScrollBlock();
-                vListRef.current.scrollToIndex(delayedProcessedIndex, {
+                reanchorJumpTarget('delayed_settle', {
+                  eventId: timelineSyncRef.current.focusItem?.eventId,
                   align: timelineSyncRef.current.focusItem?.align ?? 'center',
+                  delayMs: delay,
                 });
               }
             }, delay);
@@ -775,6 +821,10 @@ export function RoomTimeline({
       }
       jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
       jumpRecenterTimeoutIdsRef.current = [];
+      if (jumpLayoutReanchorRafRef.current !== undefined) {
+        cancelAnimationFrame(jumpLayoutReanchorRafRef.current);
+        jumpLayoutReanchorRafRef.current = undefined;
+      }
       if (jumpHighlightTimeoutRef.current !== undefined) {
         clearTimeout(jumpHighlightTimeoutRef.current);
         jumpHighlightTimeoutRef.current = undefined;
@@ -788,6 +838,7 @@ export function RoomTimeline({
     setAtBottom,
     startJumpScrollBlock,
     activateJumpLock,
+    reanchorJumpTarget,
     room.roomId,
     jumpMode,
   ]);
@@ -1361,7 +1412,9 @@ export function RoomTimeline({
       // pushing distanceFromBottom above the threshold. Instead of flipping
       // atBottom to false (which shows the "Jump to Latest" button), chase the
       // bottom so the user stays pinned.
-      const contentGrew = v.scrollSize > prevScrollSizeRef.current;
+      const previousScrollSize = prevScrollSizeRef.current;
+      const contentGrew = v.scrollSize > previousScrollSize;
+      const scrollSizeDelta = v.scrollSize - previousScrollSize;
       prevScrollSizeRef.current = v.scrollSize;
 
       // When the keyboard opens/closes the VList viewportSize changes. The
@@ -1389,6 +1442,23 @@ export function RoomTimeline({
       // Use a short-lived block instead of the full focusItem lifetime so that
       // normal scrolling resumes quickly and atBottom is recomputed correctly.
       if (jumpScrollBlockRef.current) return;
+
+      if (
+        jumpLockActiveRef.current &&
+        contentGrew &&
+        Date.now() - userScrollIntentAtRef.current >= 250 &&
+        Date.now() - lastJumpLayoutReanchorAtRef.current >= 120 &&
+        jumpLayoutReanchorRafRef.current === undefined
+      ) {
+        jumpLayoutReanchorRafRef.current = requestAnimationFrame(() => {
+          jumpLayoutReanchorRafRef.current = undefined;
+          lastJumpLayoutReanchorAtRef.current = Date.now();
+          reanchorJumpTarget('content_growth', {
+            scrollDelta: scrollSizeDelta,
+            align: timelineSyncRef.current.focusItem?.align ?? 'center',
+          });
+        });
+      }
 
       if (
         jumpLockActiveRef.current &&
@@ -1442,7 +1512,7 @@ export function RoomTimeline({
         void timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
-    [releaseJumpLock, setAtBottom]
+    [reanchorJumpTarget, releaseJumpLock, setAtBottom]
   );
 
   const showLoadingPlaceholders =
@@ -1582,14 +1652,14 @@ export function RoomTimeline({
     }
 
     setAtBottom(false);
-    jumpReanchorScrollUntilRef.current = Date.now() + 150;
-    vListRef.current?.scrollToIndex(targetIndex, { align: 'center' });
+    reanchorJumpTarget('timeline_remeasure', { eventId: targetEventId, align: 'center' });
   }, [
     processedEvents,
     timelineSync.eventsLength,
     timelineSync.backwardStatus,
     timelineSync.forwardStatus,
     timelineSync.focusItem,
+    reanchorJumpTarget,
     releaseJumpLock,
     setAtBottom,
   ]);

@@ -49,8 +49,48 @@
     </style>
     <script>
       (function () {
+        var APPLIED_THEME_STORAGE_KEY = 'sable_applied_remote_theme_css';
+        var APPLIED_TWEAKS_STORAGE_KEY = 'sable_applied_remote_tweaks_css';
+        var REMOTE_STYLE_ID = 'sable-remote-theme-style';
+        var REMOTE_TWEAKS_STYLE_ID = 'sable-remote-tweaks-style';
+
         function isNonEmptyString(value) {
           return typeof value === 'string' && value.trim().length > 0;
+        }
+
+        function normalizeUrl(value) {
+          return isNonEmptyString(value) ? value.trim() : '';
+        }
+
+        function normalizeUrls(values) {
+          if (!Array.isArray(values)) return [];
+          return values
+            .map(function (value) {
+              return normalizeUrl(value);
+            })
+            .filter(Boolean);
+        }
+
+        function readJson(key) {
+          try {
+            var raw = window.localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : undefined;
+          } catch (_err) {
+            return undefined;
+          }
+        }
+
+        function upsertStyle(id, cssText) {
+          if (!isNonEmptyString(cssText)) return;
+          var node = document.getElementById(id);
+          if (!node) {
+            node = document.createElement('style');
+            node.id = id;
+            document.head.appendChild(node);
+          }
+          if (node.textContent !== cssText) {
+            node.textContent = cssText;
+          }
         }
 
         function slotIsDark(settings, systemIsDark) {
@@ -67,17 +107,17 @@
           return settings.lightThemeId === 'dark-theme';
         }
 
-        function resolveBootTheme() {
-          var systemIsDark =
-            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        function readSettings() {
           var settings = {};
-
           try {
             settings = JSON.parse(window.localStorage.getItem('settings') || '{}') || {};
           } catch (_err) {
             settings = {};
           }
+          return settings;
+        }
 
+        function resolveBootTheme(settings, systemIsDark) {
           if (settings.useSystemTheme === false) {
             if (isNonEmptyString(settings.themeRemoteManualFullUrl)) {
               if (settings.themeRemoteManualKind) {
@@ -90,7 +130,52 @@
           return slotIsDark(settings, systemIsDark) ? 'dark' : 'light';
         }
 
-        var theme = resolveBootTheme();
+        function resolveActiveRemoteThemeUrl(settings, systemIsDark) {
+          if (settings.useSystemTheme === false) {
+            return normalizeUrl(settings.themeRemoteManualFullUrl);
+          }
+          return systemIsDark
+            ? normalizeUrl(settings.themeRemoteDarkFullUrl)
+            : normalizeUrl(settings.themeRemoteLightFullUrl);
+        }
+
+        function resolveActiveRemoteTweakUrls(settings) {
+          return normalizeUrls(settings.themeRemoteEnabledTweakFullUrls);
+        }
+
+        function applyCachedThemeCss(settings, systemIsDark) {
+          var activeThemeUrl = resolveActiveRemoteThemeUrl(settings, systemIsDark);
+          if (activeThemeUrl) {
+            var themeSnapshot = readJson(APPLIED_THEME_STORAGE_KEY);
+            if (
+              themeSnapshot &&
+              normalizeUrl(themeSnapshot.url) === activeThemeUrl &&
+              isNonEmptyString(themeSnapshot.cssText)
+            ) {
+              upsertStyle(REMOTE_STYLE_ID, themeSnapshot.cssText);
+            }
+          }
+
+          var activeTweakUrls = resolveActiveRemoteTweakUrls(settings);
+          if (activeTweakUrls.length > 0) {
+            var tweakSnapshot = readJson(APPLIED_TWEAKS_STORAGE_KEY);
+            var snapshotUrls = normalizeUrls(tweakSnapshot && tweakSnapshot.urls);
+            if (
+              snapshotUrls.length === activeTweakUrls.length &&
+              snapshotUrls.every(function (url, index) {
+                return url === activeTweakUrls[index];
+              }) &&
+              isNonEmptyString(tweakSnapshot && tweakSnapshot.cssText)
+            ) {
+              upsertStyle(REMOTE_TWEAKS_STYLE_ID, tweakSnapshot.cssText);
+            }
+          }
+        }
+
+        var systemIsDark =
+          window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var settings = readSettings();
+        var theme = resolveBootTheme(settings, systemIsDark);
         var color = theme === 'dark' ? '#1b1a21' : '#ffffff';
         document.documentElement.dataset.sableBootTheme = theme;
         document.documentElement.style.backgroundColor = color;
@@ -98,6 +183,8 @@
         document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
           meta.setAttribute('content', color);
         });
+
+        applyCachedThemeCss(settings, systemIsDark);
       })();
     </script>
 

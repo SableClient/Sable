@@ -131,6 +131,12 @@ export function getStructuredMarkdownAction(
   return null;
 }
 
+export function shouldInsertBreakAfterStructuredReplacement(
+  action: StructuredMarkdownAction
+): boolean {
+  return action.kind === 'exit' || action.kind === 'close_fence';
+}
+
 export function findEmojiAutoReplacement(
   text: string,
   cursorOffset: number

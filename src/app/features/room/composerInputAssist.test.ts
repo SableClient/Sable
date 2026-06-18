@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { findEmojiAutoReplacement, getStructuredMarkdownAction } from './composerInputAssist';
+import {
+  findEmojiAutoReplacement,
+  getStructuredMarkdownAction,
+  shouldInsertBreakAfterStructuredReplacement,
+} from './composerInputAssist';
 
 describe('getStructuredMarkdownAction', () => {
   it('continues blockquotes', () => {
@@ -35,6 +39,27 @@ describe('getStructuredMarkdownAction', () => {
       kind: 'close_fence',
       replacement: '```',
     });
+  });
+
+  it('inserts a follow-up paragraph when exiting empty markdown structures', () => {
+    expect(
+      shouldInsertBreakAfterStructuredReplacement({
+        kind: 'exit',
+        replacement: '',
+      })
+    ).toBe(true);
+    expect(
+      shouldInsertBreakAfterStructuredReplacement({
+        kind: 'close_fence',
+        replacement: '```',
+      })
+    ).toBe(true);
+    expect(
+      shouldInsertBreakAfterStructuredReplacement({
+        kind: 'continue',
+        prefix: '- ',
+      })
+    ).toBe(false);
   });
 });
 

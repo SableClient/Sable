@@ -191,7 +191,11 @@ import { AudioMessageRecorder } from './AudioMessageRecorder';
 import { PollCreator } from './PollCreator';
 import * as prefix from '$unstable/prefixes';
 import { LocationDialog } from './location-modal';
-import { findEmojiAutoReplacement, getStructuredMarkdownAction } from './composerInputAssist';
+import {
+  findEmojiAutoReplacement,
+  getStructuredMarkdownAction,
+  shouldInsertBreakAfterStructuredReplacement,
+} from './composerInputAssist';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -1440,7 +1444,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   focus: Editor.end(editor, blockPath),
                 });
                 Transforms.insertText(editor, action.replacement);
-                if (action.kind === 'close_fence') {
+                if (shouldInsertBreakAfterStructuredReplacement(action)) {
                   editor.insertBreak();
                 }
                 return;

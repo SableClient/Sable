@@ -227,10 +227,12 @@ function SystemEmojiFeature() {
 
     const updateEffectiveEmojiStyle = async () => {
       try {
+        const sampleEmoji = '🫩';
+        await document.fonts.load('16px "Twemoji"', sampleEmoji);
         await document.fonts.ready;
         if (cancelled) return;
 
-        const hasTwemoji = document.fonts.check('16px "Twemoji"', '🫩');
+        const hasTwemoji = document.fonts.check('16px "Twemoji"', sampleEmoji);
         root.dataset.sableEmojiEffectiveStyle = hasTwemoji ? 'twemoji' : 'system';
       } catch {
         if (cancelled) return;

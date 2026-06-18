@@ -95,7 +95,11 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Install Semgrep CLI
-        run: python3 -m pip install semgrep
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install semgrep
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Run Semgrep
         run: pnpm run semgrep

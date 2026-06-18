@@ -277,10 +277,17 @@ describe('registerAppServiceWorker', () => {
     expect(window.location.reload).toHaveBeenCalledTimes(1);
   });
 
-  it('rechecks the service worker on desktop focus and pageshow', async () => {
+  it('coalesces focus and pageshow watchdog pings into one in-flight check', async () => {
     mockHasServiceWorker.mockReturnValue(true);
+    const windowListeners = new Map<string, EventListener>();
+    let visibilityState: DocumentVisibilityState = 'hidden';
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    });
+    const postMessage = vi.fn();
     const getRegistration = vi.fn().mockResolvedValue({
-      active: { postMessage: vi.fn(), scriptURL: 'https://charm.example/sw.js' },
+      active: { postMessage, scriptURL: 'https://charm.example/sw.js' },
       update: vi.fn(),
     });
 
@@ -297,16 +304,25 @@ describe('registerAppServiceWorker', () => {
         },
       },
     });
+    const addWindowListenerSpy = vi.spyOn(window, 'addEventListener').mockImplementation(
+      ((type: string, listener: EventListenerOrEventListenerObject) => {
+        if (typeof listener === 'function') {
+          windowListeners.set(type, listener);
+        }
+      }) as typeof window.addEventListener
+    );
 
     registerAppServiceWorker();
     await Promise.resolve();
-    const baselineCalls = getRegistration.mock.calls.length;
+    visibilityState = 'visible';
 
-    window.dispatchEvent(new Event('focus'));
-    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    windowListeners.get('focus')?.(new Event('focus'));
+    windowListeners.get('pageshow')?.(new PageTransitionEvent('pageshow', { persisted: true }));
     await Promise.resolve();
+    await Promise.resolve();
+    addWindowListenerSpy.mockRestore();
 
-    expect(getRegistration.mock.calls.length).toBeGreaterThanOrEqual(baselineCalls + 2);
+    expect(postMessage).toHaveBeenCalledTimes(1);
   });
 
   it('skips pageshow watchdog recovery for non-persisted loads', async () => {

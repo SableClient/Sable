@@ -265,7 +265,10 @@ export const Emoticon = recipe({
 export const SystemEmoji = style({
   fontFamily:
     'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-  fontSize: '1em',
+  display: 'inline-block',
+  fontSize: 'var(--sable-inline-emoji-font-size)',
+  lineHeight: 1,
+  transform: 'translateY(var(--sable-inline-emoji-shift-y))',
 });
 
 export const CustomEmoticon = recipe({

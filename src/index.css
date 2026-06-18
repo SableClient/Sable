@@ -16,6 +16,10 @@
   --font-emoji: 'Twemoji_DISABLED';
   --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
   --font-monospace: 'Space Mono', monospace;
+  --sable-emoji-picker-font-size: 2.25rem;
+  --sable-emoji-picker-shift-y: 0;
+  --sable-inline-emoji-font-size: 1em;
+  --sable-inline-emoji-shift-y: 0;
 }
 
 .dark-theme,
@@ -53,6 +57,14 @@ body {
   /* eslint-disable-next-line css/no-invalid-properties */
   background-color: var(--sable-bg-container);
 }
+
+:root[data-sable-emoji-style='system'][data-sable-mobile='true'] {
+  --sable-emoji-picker-font-size: 2.125rem;
+  --sable-emoji-picker-shift-y: -0.01em;
+  --sable-inline-emoji-font-size: 1.03em;
+  --sable-inline-emoji-shift-y: -0.03em;
+}
+
 #root {
   position: relative;
   width: 100%;

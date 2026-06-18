@@ -13,7 +13,16 @@ import {
 import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, settingsInitializedAtom } from '$state/settings';
-import { getCachedThemeCss, putCachedThemeCss } from '$app/theme/cache';
+import {
+  clearStoredAppliedThemeCss,
+  clearStoredAppliedTweakCss,
+  getCachedThemeCss,
+  getStoredAppliedThemeCss,
+  getStoredAppliedTweakCss,
+  putCachedThemeCss,
+  putStoredAppliedThemeCss,
+  putStoredAppliedTweakCss,
+} from '$app/theme/cache';
 import { isLocalImportBundledUrl } from '$app/theme/localImportUrls';
 
 const REMOTE_STYLE_ID = 'sable-remote-theme-style';
@@ -30,6 +39,22 @@ function syncDocumentThemeMetadata(kind: ThemeKind): void {
   document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
     meta.content = themeColor;
   });
+}
+
+function setInlineStyleText(id: string, text: string | undefined): void {
+  if (!text) {
+    document.getElementById(id)?.remove();
+    return;
+  }
+  let node = document.getElementById(id) as HTMLStyleElement | null;
+  if (!node) {
+    node = document.createElement('style');
+    node.id = id;
+    document.head.appendChild(node);
+  }
+  if (node.textContent !== text) {
+    node.textContent = text;
+  }
 }
 
 async function loadRemoteThemeCssText(url: string): Promise<string | undefined> {
@@ -109,6 +134,26 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     }
   }, [activeTheme, saturation, underlineLinks, reducedMotion]);
 
+  useLayoutEffect(() => {
+    const url = activeTheme.remoteFullUrl?.trim();
+    if (!url) {
+      setInlineStyleText(REMOTE_STYLE_ID, undefined);
+      clearStoredAppliedThemeCss();
+      return;
+    }
+    setInlineStyleText(REMOTE_STYLE_ID, getStoredAppliedThemeCss(url));
+  }, [activeTheme.remoteFullUrl]);
+
+  useLayoutEffect(() => {
+    const urls = (enabledTweakUrls ?? []).map((url) => url.trim()).filter(Boolean);
+    if (urls.length === 0) {
+      setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
+      clearStoredAppliedTweakCss();
+      return;
+    }
+    setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, getStoredAppliedTweakCss(urls));
+  }, [enabledTweakUrls]);
+
   useEffect(() => {
     if (!settingsInitialized) return undefined;
 
@@ -119,20 +164,13 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       (async () => {
         const text = await loadRemoteThemeCssText(url);
         if (cancelled) return;
-        if (!text) {
-          document.getElementById(REMOTE_STYLE_ID)?.remove();
-          return;
-        }
-        let node = document.getElementById(REMOTE_STYLE_ID) as HTMLStyleElement | null;
-        if (!node) {
-          node = document.createElement('style');
-          node.id = REMOTE_STYLE_ID;
-          document.head.appendChild(node);
-        }
-        node.textContent = text;
+        if (!text) return;
+        setInlineStyleText(REMOTE_STYLE_ID, text);
+        putStoredAppliedThemeCss(url, text);
       })();
     } else {
-      document.getElementById(REMOTE_STYLE_ID)?.remove();
+      setInlineStyleText(REMOTE_STYLE_ID, undefined);
+      clearStoredAppliedThemeCss();
     }
 
     return () => {
@@ -155,13 +193,10 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       const texts = await Promise.all(urls.map((url) => loadRemoteThemeCssText(url.trim())));
       if (cancelled) return;
       const chunks = texts.filter((text): text is string => Boolean(text));
-      let node = document.getElementById(REMOTE_TWEAKS_STYLE_ID) as HTMLStyleElement | null;
-      if (!node) {
-        node = document.createElement('style');
-        node.id = REMOTE_TWEAKS_STYLE_ID;
-        document.head.appendChild(node);
-      }
-      node.textContent = chunks.join('\n\n');
+      if (chunks.length === 0) return;
+      const text = chunks.join('\n\n');
+      setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, text);
+      putStoredAppliedTweakCss(urls, text);
     })();
 
     return () => {

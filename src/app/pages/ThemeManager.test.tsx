@@ -12,6 +12,8 @@ const settings = {
   reducedMotion: false,
   themeRemoteEnabledTweakFullUrls: [] as string[],
 };
+let storedThemeCssByUrl: Record<string, string> = {};
+let storedTweakCssByUrls: Record<string, string> = {};
 
 let systemThemeKind = ThemeKind.Light;
 let activeTheme: Theme = {
@@ -61,6 +63,17 @@ vi.mock('$plugins/arborium', () => ({
     kind === ThemeKind.Dark ? <>{children}</> : <>{children}</>,
 }));
 
+vi.mock('$app/theme/cache', () => ({
+  getCachedThemeCss: vi.fn<() => Promise<string | undefined>>(),
+  putCachedThemeCss: vi.fn<() => Promise<void>>(),
+  putStoredAppliedThemeCss: vi.fn<() => void>(),
+  putStoredAppliedTweakCss: vi.fn<() => void>(),
+  clearStoredAppliedThemeCss: vi.fn<() => void>(),
+  clearStoredAppliedTweakCss: vi.fn<() => void>(),
+  getStoredAppliedThemeCss: (url: string) => storedThemeCssByUrl[url],
+  getStoredAppliedTweakCss: (urls: string[]) => storedTweakCssByUrls[urls.join('\n')],
+}));
+
 beforeEach(() => {
   systemThemeKind = ThemeKind.Light;
   activeTheme = {
@@ -72,13 +85,19 @@ beforeEach(() => {
   settings.underlineLinks = false;
   settings.reducedMotion = false;
   settings.themeRemoteEnabledTweakFullUrls = [];
+  storedThemeCssByUrl = {};
+  storedTweakCssByUrls = {};
   document.body.className = '';
   document.body.style.filter = '';
+  document.getElementById('sable-remote-theme-style')?.remove();
+  document.getElementById('sable-remote-tweaks-style')?.remove();
 });
 
 afterEach(() => {
   document.body.className = '';
   document.body.style.filter = '';
+  document.getElementById('sable-remote-theme-style')?.remove();
+  document.getElementById('sable-remote-tweaks-style')?.remove();
 });
 
 describe('ThemeManager', () => {
@@ -123,5 +142,41 @@ describe('ThemeManager', () => {
 
     expect(document.documentElement.dataset.sableBootTheme).toBe('dark');
     expect(document.body).toHaveClass('test-dark-theme');
+  });
+
+  it('reapplies cached remote theme css before synced settings initialize', () => {
+    const remoteThemeUrl = 'https://themes.example/dark.css';
+    activeTheme = {
+      id: 'test-remote',
+      kind: ThemeKind.Dark,
+      classNames: ['test-dark-theme'],
+      remoteFullUrl: remoteThemeUrl,
+    };
+    storedThemeCssByUrl[remoteThemeUrl] = 'body { --remote-theme: 1; }';
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    expect(document.getElementById('sable-remote-theme-style')?.textContent).toBe(
+      'body { --remote-theme: 1; }'
+    );
+  });
+
+  it('reapplies cached remote tweak css before synced settings initialize', () => {
+    settings.themeRemoteEnabledTweakFullUrls = ['https://themes.example/tweak-a.css'];
+    storedTweakCssByUrls['https://themes.example/tweak-a.css'] = 'body { --remote-tweak: 1; }';
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    expect(document.getElementById('sable-remote-tweaks-style')?.textContent).toBe(
+      'body { --remote-tweak: 1; }'
+    );
   });
 });

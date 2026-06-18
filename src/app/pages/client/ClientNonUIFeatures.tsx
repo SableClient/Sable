@@ -215,12 +215,34 @@ function SystemEmojiFeature() {
   const [twitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
 
   useEffect(() => {
-    document.documentElement.dataset.sableMobile = mobileOrTablet() ? 'true' : 'false';
-    document.documentElement.dataset.sableEmojiStyle = twitterEmoji ? 'twemoji' : 'system';
-    document.documentElement.style.setProperty(
-      '--font-emoji',
-      twitterEmoji ? 'Twemoji' : 'Twemoji_DISABLED'
-    );
+    const root = document.documentElement;
+    root.dataset.sableMobile = mobileOrTablet() ? 'true' : 'false';
+    root.dataset.sableEmojiStyle = twitterEmoji ? 'twemoji' : 'system';
+    root.dataset.sableEmojiEffectiveStyle = twitterEmoji ? 'twemoji' : 'system';
+    root.style.setProperty('--font-emoji', twitterEmoji ? 'Twemoji' : 'Twemoji_DISABLED');
+
+    if (!twitterEmoji || !('fonts' in document)) return undefined;
+
+    let cancelled = false;
+
+    const updateEffectiveEmojiStyle = async () => {
+      try {
+        await document.fonts.ready;
+        if (cancelled) return;
+
+        const hasTwemoji = document.fonts.check('16px "Twemoji"', '🫩');
+        root.dataset.sableEmojiEffectiveStyle = hasTwemoji ? 'twemoji' : 'system';
+      } catch {
+        if (cancelled) return;
+        root.dataset.sableEmojiEffectiveStyle = 'system';
+      }
+    };
+
+    void updateEffectiveEmojiStyle();
+
+    return () => {
+      cancelled = true;
+    };
   }, [twitterEmoji]);
 
   return null;

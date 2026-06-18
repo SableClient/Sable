@@ -62,6 +62,16 @@ describe('registerAppServiceWorker', () => {
       value: vi.fn(() => false),
     });
 
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        href: 'https://charm.example/#/home',
+        origin: 'https://charm.example',
+        reload: vi.fn(),
+        replace: vi.fn(),
+      },
+    });
+
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
@@ -193,5 +203,66 @@ describe('registerAppServiceWorker', () => {
     installingListeners.get('statechange')?.(new Event('statechange'));
 
     expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'sable:sw-update' }));
+  });
+
+  it('claims clients before reloading when the update prompt is accepted', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+    const installingListeners = new Map<string, EventListener>();
+    const registrationListeners = new Map<string, EventListener>();
+    const serviceWorkerListeners = new Map<string, EventListener>();
+    const waitingWorker = { postMessage: vi.fn() };
+    const installingWorker = {
+      state: 'installing',
+      addEventListener: vi.fn((event: string, listener: EventListener) => {
+        installingListeners.set(event, listener);
+      }),
+    };
+
+    Object.defineProperty(window, 'confirm', {
+      configurable: true,
+      value: vi.fn(() => true),
+    });
+
+    mockRegister.mockResolvedValueOnce({
+      addEventListener: vi.fn((event: string, listener: EventListener) => {
+        registrationListeners.set(event, listener);
+      }),
+      installing: installingWorker,
+      waiting: waitingWorker,
+    });
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        serviceWorker: {
+          register: mockRegister,
+          ready: mockReady,
+          controller: { postMessage: vi.fn() },
+          addEventListener: vi.fn((event: string, listener: EventListener) => {
+            serviceWorkerListeners.set(event, listener);
+          }),
+          removeEventListener: vi.fn((event: string) => {
+            serviceWorkerListeners.delete(event);
+          }),
+        },
+      },
+    });
+
+    registerAppServiceWorker();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    registrationListeners.get('updatefound')?.(new Event('updatefound'));
+    installingWorker.state = 'installed';
+    installingListeners.get('statechange')?.(new Event('statechange'));
+
+    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING_AND_CLAIM' });
+    expect(window.location.reload).not.toHaveBeenCalled();
+
+    serviceWorkerListeners.get('controllerchange')?.(new Event('controllerchange'));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(window.location.reload).toHaveBeenCalledTimes(1);
   });
 });

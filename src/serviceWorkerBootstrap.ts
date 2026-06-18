@@ -10,6 +10,7 @@ import { consumeLaunchContext } from './launch-context-persistence';
 
 const log = createLogger('service-worker-bootstrap');
 const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
+const APPLY_UPDATE_TIMEOUT_MS = 4000;
 
 const recordForcedReload = (reason: string, data?: Record<string, unknown>) => {
   Sentry.addBreadcrumb({
@@ -28,6 +29,28 @@ const recordForcedReload = (reason: string, data?: Record<string, unknown>) => {
   });
 };
 
+const activateWaitingServiceWorkerAndReload = (waitingWorker: ServiceWorker) => {
+  let settled = false;
+  let timeoutId = 0;
+
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    window.clearTimeout(timeoutId);
+    navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+    window.location.reload();
+  };
+
+  const handleControllerChange = () => finish();
+
+  timeoutId = window.setTimeout(finish, APPLY_UPDATE_TIMEOUT_MS);
+  navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange, {
+    once: true,
+  });
+  // oxlint-disable-next-line unicorn/require-post-message-target-origin
+  waitingWorker.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
+};
+
 const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
 
@@ -39,8 +62,8 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   if (window.confirm('A new version of the app is available. Refresh to update?')) {
     if (registration.waiting) {
       recordForcedReload('sw_update_prompt_waiting', { hasWaitingWorker: true });
-      // oxlint-disable-next-line unicorn/require-post-message-target-origin
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      activateWaitingServiceWorkerAndReload(registration.waiting);
+      return;
     } else {
       recordForcedReload('sw_update_prompt_reload', { hasWaitingWorker: false });
     }

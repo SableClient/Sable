@@ -216,12 +216,15 @@ function SystemEmojiFeature() {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.sableMobile = mobileOrTablet() ? 'true' : 'false';
+    const updateMobileDataset = () => {
+      root.dataset.sableMobile = mobileOrTablet() ? 'true' : 'false';
+    };
+
+    updateMobileDataset();
     root.dataset.sableEmojiStyle = twitterEmoji ? 'twemoji' : 'system';
     root.dataset.sableEmojiEffectiveStyle = twitterEmoji ? 'twemoji' : 'system';
     root.style.setProperty('--font-emoji', twitterEmoji ? 'Twemoji' : 'Twemoji_DISABLED');
-
-    if (!twitterEmoji || !('fonts' in document)) return undefined;
+    window.addEventListener('resize', updateMobileDataset);
 
     let cancelled = false;
 
@@ -240,10 +243,13 @@ function SystemEmojiFeature() {
       }
     };
 
-    void updateEffectiveEmojiStyle();
+    if (twitterEmoji && 'fonts' in document) {
+      void updateEffectiveEmojiStyle();
+    }
 
     return () => {
       cancelled = true;
+      window.removeEventListener('resize', updateMobileDataset);
     };
   }, [twitterEmoji]);
 

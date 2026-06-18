@@ -17,6 +17,7 @@
   --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
   --font-monospace: 'Space Mono', monospace;
   --sable-emoji-picker-font-size: 2.9rem;
+  --sable-emoji-picker-scale: 1.18;
   --sable-emoji-picker-shift-y: 0;
   --sable-inline-emoji-font-size: 1.13em;
   --sable-inline-emoji-box-align: -0.22em;
@@ -60,14 +61,16 @@ body {
 
 :root[data-sable-emoji-effective-style='system'] {
   --sable-emoji-picker-font-size: 3.45rem;
-  --sable-emoji-picker-shift-y: -0.04em;
+  --sable-emoji-picker-scale: 1.24;
+  --sable-emoji-picker-shift-y: -0.05em;
   --sable-inline-emoji-font-size: 1.2em;
   --sable-inline-emoji-box-align: -0.23em;
 }
 
 :root[data-sable-emoji-effective-style='system'][data-sable-mobile='true'] {
   --sable-emoji-picker-font-size: 3.55rem;
-  --sable-emoji-picker-shift-y: -0.045em;
+  --sable-emoji-picker-scale: 1.28;
+  --sable-emoji-picker-shift-y: -0.055em;
   --sable-inline-emoji-font-size: 1.22em;
   --sable-inline-emoji-box-align: -0.24em;
 }

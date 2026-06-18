@@ -95,7 +95,10 @@ export const EmojiGlyph = style([
       'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
     fontSize: 'var(--sable-emoji-picker-font-size)',
     lineHeight: 1,
-    transform: 'translateY(var(--sable-emoji-picker-shift-y))',
+    transform:
+      'translateY(var(--sable-emoji-picker-shift-y)) scale(var(--sable-emoji-picker-scale))',
+    transformOrigin: 'center',
+    overflow: 'visible',
   },
 ]);
 

@@ -5,9 +5,12 @@ const username = process.env.LIVE_MATRIX_USERNAME;
 const password = process.env.LIVE_MATRIX_PASSWORD;
 const roomId = process.env.LIVE_MATRIX_ROOM_ID;
 const roomName = process.env.LIVE_MATRIX_ROOM_NAME;
+const LIVE_TEST_TIMEOUT_MS = 90_000;
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 test.describe('live matrix smoke', () => {
-  test.describe.configure({ retries: 0 });
+  test.describe.configure({ retries: 0, timeout: LIVE_TEST_TIMEOUT_MS });
 
   test.skip(
     !server || !username || !password,
@@ -56,10 +59,14 @@ test.describe('live matrix smoke', () => {
         await page.goto(`/home/${encodedRoomId}`);
         await expect
           .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
-          .toMatch(new RegExp(`/home/${encodedRoomId}/?$`));
+          .toMatch(new RegExp(`/home/${escapeRegExp(encodedRoomId)}/?$`));
 
         if (roomName) {
-          await expect(page.getByText(roomName, { exact: true })).toBeVisible({ timeout: 60_000 });
+          await expect(
+            page.getByRole('button', {
+              name: new RegExp(`^${escapeRegExp(roomName)},`),
+            })
+          ).toBeVisible({ timeout: 60_000 });
         }
       }
     } finally {

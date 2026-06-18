@@ -806,7 +806,13 @@ const installClassicSyncNetworkReconnect = (mx: MatrixClient): void => {
 
   const requestClassicRetry = (trigger: 'network_change' | 'focus' | 'pageshow') => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
-    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return false;
+    if (
+      trigger !== 'network_change' &&
+      typeof document !== 'undefined' &&
+      document.visibilityState !== 'visible'
+    ) {
+      return false;
+    }
 
     const now = Date.now();
     if (trigger !== 'network_change') {
@@ -866,7 +872,8 @@ const installClassicSyncNetworkReconnect = (mx: MatrixClient): void => {
   const retrySyncOnFocus = () => {
     requestClassicRetry('focus');
   };
-  const retrySyncOnPageShow = () => {
+  const retrySyncOnPageShow = (event: PageTransitionEvent) => {
+    if (!event.persisted) return;
     requestClassicRetry('pageshow');
   };
 

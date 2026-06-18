@@ -303,9 +303,40 @@ describe('registerAppServiceWorker', () => {
     const baselineCalls = getRegistration.mock.calls.length;
 
     window.dispatchEvent(new Event('focus'));
-    window.dispatchEvent(new PageTransitionEvent('pageshow'));
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
     await Promise.resolve();
 
     expect(getRegistration.mock.calls.length).toBeGreaterThanOrEqual(baselineCalls + 2);
+  });
+
+  it('skips pageshow watchdog recovery for non-persisted loads', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+    const getRegistration = vi.fn().mockResolvedValue({
+      active: { postMessage: vi.fn(), scriptURL: 'https://charm.example/sw.js' },
+      update: vi.fn(),
+    });
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        onLine: true,
+        serviceWorker: {
+          register: mockRegister,
+          getRegistration,
+          ready: mockReady,
+          controller: null,
+          addEventListener: mockAddEventListener,
+        },
+      },
+    });
+
+    registerAppServiceWorker();
+    await Promise.resolve();
+    const baselineCalls = getRegistration.mock.calls.length;
+
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }));
+    await Promise.resolve();
+
+    expect(getRegistration.mock.calls.length).toBe(baselineCalls);
   });
 });

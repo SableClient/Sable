@@ -494,7 +494,8 @@ export function registerAppServiceWorker() {
     swWatchdog.restart();
     void swWatchdog.pingServiceWorker('foreground_focus');
   };
-  const handlePageShow = () => {
+  const handlePageShow = (event: PageTransitionEvent) => {
+    if (!event.persisted) return;
     if (document.visibilityState !== 'visible') return;
     swWatchdog.restart();
     void swWatchdog.pingServiceWorker('pageshow');

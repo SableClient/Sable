@@ -237,6 +237,21 @@ describe('useAppVisibility', () => {
     expect(retryNow).toHaveBeenCalledTimes(1);
   });
 
+  it('emits visible reconciliation on focus-only resume', async () => {
+    const visibilityHandler = vi.fn<(visible: boolean) => void>();
+    const unsubscribe = appEvents.onVisibilityChange(visibilityHandler);
+    const mx = createMockMatrixClient();
+
+    renderHook(() => useAppVisibility(mx));
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    expect(visibilityHandler).toHaveBeenCalledWith(true);
+    unsubscribe();
+  });
+
   it('requests recovery on first interaction after a long idle period', async () => {
     const postMessage = vi.fn<(message: unknown) => void>();
     const activeWorker = {

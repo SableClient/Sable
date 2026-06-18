@@ -368,7 +368,6 @@ export class SlidingSyncManager {
     string,
     (roomId: string, data: MSC3575RoomData) => void
   >();
-  private pendingWatchdogPing: Promise<void> | null = null;
 
   /** Wall-clock time recorded in attach() — used to compute true initial-sync latency. */
   private attachTime: number | null = null;

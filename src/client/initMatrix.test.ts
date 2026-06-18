@@ -216,7 +216,40 @@ describe('startClient app singleton gate', () => {
 
     await startClassicClient(mx);
 
-    window.dispatchEvent(new PageTransitionEvent('pageshow'));
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+
+    expect(mx.retryImmediately).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry classic sync on non-persisted pageshow', async () => {
+    const mx = makeClient('@alice:example.com');
+
+    await startClassicClient(mx);
+
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }));
+
+    expect(mx.retryImmediately).not.toHaveBeenCalled();
+  });
+
+  it('retries classic sync on network reconnect while hidden', async () => {
+    const mx = makeClient('@alice:example.com');
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    });
+
+    await startClassicClient(mx);
+
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    });
+    window.dispatchEvent(new Event('offline'));
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: true,
+    });
+    window.dispatchEvent(new Event('online'));
 
     expect(mx.retryImmediately).toHaveBeenCalledOnce();
   });

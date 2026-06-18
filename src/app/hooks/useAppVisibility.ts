@@ -182,6 +182,7 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       if (document.visibilityState !== 'visible') return;
       requestForegroundRecovery('focus');
       lastInteractionAtRef.current = Date.now();
+      appEvents.emitVisibilityChange(true);
     };
 
     const handleInteraction = (trigger: 'pointerdown' | 'keydown') => {

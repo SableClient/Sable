@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 const server = process.env.LIVE_MATRIX_SERVER;
 const username = process.env.LIVE_MATRIX_USERNAME;
 const password = process.env.LIVE_MATRIX_PASSWORD;
+const roomId = process.env.LIVE_MATRIX_ROOM_ID;
+const roomName = process.env.LIVE_MATRIX_ROOM_NAME;
 
 test.describe('live matrix smoke', () => {
   test.skip(
@@ -40,5 +42,17 @@ test.describe('live matrix smoke', () => {
         { timeout: 60_000 }
       )
       .not.toBe(0);
+
+    if (roomId) {
+      const encodedRoomId = encodeURIComponent(roomId);
+      await page.goto(`/home/${encodeURIComponent(roomId)}`);
+      await expect
+        .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
+        .toMatch(new RegExp(`/home/${encodedRoomId}/?$`));
+
+      if (roomName) {
+        await expect(page.getByText(roomName, { exact: true })).toBeVisible({ timeout: 60_000 });
+      }
+    }
   });
 });

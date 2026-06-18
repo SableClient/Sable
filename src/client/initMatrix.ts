@@ -1382,7 +1382,7 @@ export const stopClient = (mx: MatrixClient): Promise<void> => {
     activeAppClient = undefined;
     activeAppClientStartPromise = undefined;
     activeAppClientStopPromise = stopPromise;
-    stopPromise.finally(() => {
+    void stopPromise.finally(() => {
       if (activeAppClientStopPromise === stopPromise) {
         activeAppClientStopPromise = undefined;
       }

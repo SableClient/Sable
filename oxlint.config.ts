@@ -106,6 +106,8 @@ export default defineConfig({
       files: [
         'src/app/hooks/useAppVisibility.ts',
         'src/app/pages/client/BackgroundNotifications.tsx',
+        'src/app/hooks/useSearchIndex.tsx',
+        'src/client/initMatrix.ts',
         'src/client/slidingSync.ts',
         'src/serviceWorkerBootstrap.ts',
       ],

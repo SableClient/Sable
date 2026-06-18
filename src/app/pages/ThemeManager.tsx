@@ -62,6 +62,7 @@ function setInlineStyleText(id: string, text: string | undefined): void {
   if (!node) {
     node = document.createElement('style');
     node.id = id;
+    document.head.appendChild(node);
   }
   if (node.textContent !== text) {
     node.textContent = text;

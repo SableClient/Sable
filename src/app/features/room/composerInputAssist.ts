@@ -2,6 +2,7 @@ import { getMarkdownCodeSpanRanges, isInsideMarkdownCodeSpan } from '$components
 
 export type StructuredMarkdownAction =
   | { kind: 'continue'; prefix: string }
+  | { kind: 'continue_fence' }
   | { kind: 'exit'; replacement: string }
   | { kind: 'close_fence'; replacement: string };
 
@@ -92,7 +93,7 @@ export function getStructuredMarkdownAction(
     if (currentLine.trim().length === 0) {
       return { kind: 'close_fence', replacement: `${openFence.indent}${openFence.fence}` };
     }
-    return null;
+    return { kind: 'continue_fence' };
   }
 
   const blockquoteMatch = currentLine.match(BLOCKQUOTE_RE);

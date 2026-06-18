@@ -1119,7 +1119,7 @@ export function SystemNotification() {
             focusId="notification-device-scope"
             description={`Current behavior: ${labelNotificationDeviceScope(
               notificationDeviceScope
-            )}. "Active client only" keeps notifications on the focused device and suppresses them elsewhere for about two minutes after activity.`}
+            )}. "Active client only" keeps notifications on the focused open client and suppresses them on other open clients for about two minutes after activity. Closed clients may still notify until reopened.`}
             after={
               <SettingMenuSelector
                 value={notificationDeviceScope}

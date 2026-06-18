@@ -339,6 +339,7 @@ export class SlidingSyncManager {
    * backward-pagination tokens.
    */
   private pendingResubscriptions: Set<string> | null = null;
+  private pendingForceResetCompletionReason: 'request_finished' | 'timeout' | null = null;
 
   private pendingResubscriptionRestoreTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -541,6 +542,12 @@ export class SlidingSyncManager {
       // stale, not just when there's no overlap (server may be sending an extended
       // range that includes older events not in the local timeline).
       if (state === SlidingSyncState.RequestFinished && resp && !err) {
+        if (this.pendingForceResetCompletionReason && this.pendingResubscriptions === null) {
+          const completionReason = this.pendingForceResetCompletionReason;
+          this.pendingForceResetCompletionReason = null;
+          this.resolvePendingForceResetWaiters(completionReason);
+        }
+
         const response = resp as MSC3575SlidingSyncResponse & {
           lists?: Record<
             string,
@@ -1035,6 +1042,7 @@ export class SlidingSyncManager {
 
     const toRestore = this.pendingResubscriptions;
     this.pendingResubscriptions = null;
+    this.pendingForceResetCompletionReason = reason;
     toRestore.forEach((roomId) => this.activeRoomSubscriptions.add(roomId));
     this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
     debugLog.info('sync', 'Restored force-reset room subscriptions', {
@@ -1046,7 +1054,6 @@ export class SlidingSyncManager {
     // Without this, modifyRoomSubscriptions alone may not trigger a new
     // request if the sync loop is idle.
     this.slidingSync.resend();
-    this.resolvePendingForceResetWaiters(reason);
   }
 
   private resetRoomTimelines(roomId: string, reason: string): boolean {

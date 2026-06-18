@@ -114,9 +114,12 @@ const installMatrixEventTypeGuard = (): void => {
 
 const isRecoverableStoreInitError = (err: unknown): boolean => {
   const msg = err instanceof Error ? err.message : String(err);
+  const name = err instanceof Error ? err.name : '';
   if (classifyCryptoStoreIndexedDbError(msg)) return true;
 
   return (
+    name === 'AbortError' ||
+    name === 'DatabaseClosedError' ||
     msg.includes('AbortError') ||
     msg.includes('DatabaseClosedError') ||
     msg.includes('connection is closing') ||

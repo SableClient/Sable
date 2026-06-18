@@ -271,11 +271,14 @@ export default defineConfig(({ command }) => ({
           cloudflare({
             config: {
               compatibility_date: '2026-03-03',
+              main: './worker/index.ts',
               observability: {
                 enabled: true,
               },
               assets: {
                 not_found_handling: 'single-page-application',
+                binding: 'ASSETS',
+                run_worker_first: true,
               },
             },
           }),

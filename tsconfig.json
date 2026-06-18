@@ -37,5 +37,5 @@
     "lib": ["ES2022", "DOM"]
   },
   "exclude": ["node_modules", "dist"],
-  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "worker", "vite.config.ts", "vitest.config.ts"]
 }

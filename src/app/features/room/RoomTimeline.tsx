@@ -293,6 +293,7 @@ export function RoomTimeline({
   // Short-lived guard set for ~350 ms after a jump scrollToIndex so that
   // intermediate scroll events from the animation don't flip atBottom prematurely.
   const jumpScrollBlockRef = useRef(false);
+  const jumpReanchorScrollUntilRef = useRef(0);
   const jumpScrollBlockTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
@@ -1357,7 +1358,11 @@ export function RoomTimeline({
       // normal scrolling resumes quickly and atBottom is recomputed correctly.
       if (jumpScrollBlockRef.current) return;
 
-      if (jumpLockActiveRef.current && Date.now() - userScrollIntentAtRef.current < 400) {
+      if (
+        jumpLockActiveRef.current &&
+        Date.now() >= jumpReanchorScrollUntilRef.current &&
+        Date.now() - userScrollIntentAtRef.current < 400
+      ) {
         if (jumpLockReleaseTimerRef.current !== undefined) {
           clearTimeout(jumpLockReleaseTimerRef.current);
         }
@@ -1540,6 +1545,7 @@ export function RoomTimeline({
     }
 
     setAtBottom(false);
+    jumpReanchorScrollUntilRef.current = Date.now() + 150;
     vListRef.current?.scrollToIndex(targetIndex, { align: 'center' });
   }, [
     processedEvents,

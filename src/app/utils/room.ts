@@ -1461,6 +1461,16 @@ export type SpaceNavigationRootResolution = {
   source: 'selected_space' | 'stored_preference' | 'preferred_chain' | 'none';
 };
 
+const isJoinedSpaceNavigationCandidate = (mx: MatrixClient, roomId: string): boolean => {
+  const room = mx.getRoom(roomId);
+  return (
+    room !== null &&
+    room !== undefined &&
+    room.isSpaceRoom() &&
+    room.getMyMembership() === (KnownMembership.Join as string)
+  );
+};
+
 export const resolveSpaceNavigationRoot = (
   mx: MatrixClient,
   roomToParents: RoomToParents,
@@ -1470,9 +1480,13 @@ export const resolveSpaceNavigationRoot = (
     storedRootSpaceId?: string;
   }
 ): SpaceNavigationRootResolution => {
+  const liveRoomToParents = getRoomToParents(mx);
+  const effectiveRoomToParents = liveRoomToParents.size > 0 ? liveRoomToParents : roomToParents;
+
   if (
     options?.selectedSpaceId &&
-    isSpaceAncestorOfRoom(roomToParents, roomId, options.selectedSpaceId)
+    isJoinedSpaceNavigationCandidate(mx, options.selectedSpaceId) &&
+    isSpaceAncestorOfRoom(effectiveRoomToParents, roomId, options.selectedSpaceId)
   ) {
     return {
       rootSpaceId: options.selectedSpaceId,
@@ -1482,7 +1496,8 @@ export const resolveSpaceNavigationRoot = (
 
   if (
     options?.storedRootSpaceId &&
-    isSpaceAncestorOfRoom(roomToParents, roomId, options.storedRootSpaceId)
+    isJoinedSpaceNavigationCandidate(mx, options.storedRootSpaceId) &&
+    isSpaceAncestorOfRoom(effectiveRoomToParents, roomId, options.storedRootSpaceId)
   ) {
     return {
       rootSpaceId: options.storedRootSpaceId,
@@ -1490,8 +1505,8 @@ export const resolveSpaceNavigationRoot = (
     };
   }
 
-  const preferredRoot = getPreferredSpaceNavigationRoot(mx, roomToParents, roomId);
-  if (preferredRoot) {
+  const preferredRoot = getPreferredSpaceNavigationRoot(mx, effectiveRoomToParents, roomId);
+  if (preferredRoot && isJoinedSpaceNavigationCandidate(mx, preferredRoot)) {
     return {
       rootSpaceId: preferredRoot,
       source: 'preferred_chain',

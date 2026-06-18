@@ -73,6 +73,7 @@ export function NotificationJumper() {
   // churn re-calls performJump (from the ClientEvent.Room listener or effect
   // re-runs) before React has committed the null, causing repeated navigation.
   const jumpingRef = useRef(false);
+  const parentGraphWaitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const performJump = useCallback(() => {
     if (!pending || jumpingRef.current) return;
@@ -147,6 +148,7 @@ export function NotificationJumper() {
           room_id: pending.roomId,
           event_id: pending.eventId,
           has_event_id: !!pending.eventId,
+          jump_mode: pending.jumpMode,
           source: pending.source,
         })
       );
@@ -154,6 +156,7 @@ export function NotificationJumper() {
         attributes: buildNotificationMetricAttributes({
           click_id: pending.swClickId,
           has_event_id: !!pending.eventId,
+          jump_mode: pending.jumpMode,
           source: pending.source ?? 'unknown',
         }),
       });
@@ -189,6 +192,7 @@ export function NotificationJumper() {
       }
       targetRoomPath = withAdditionalSearchParams(targetRoomPath, {
         joinCall: pending.joinCall ? 'true' : undefined,
+        jumpMode: pending.jumpMode,
       });
 
       // eventId is an optional param in the same route segment (:roomIdOrAlias/:eventId?/),
@@ -224,6 +228,7 @@ export function NotificationJumper() {
           room_id: pending.roomId,
           event_id: pending.eventId,
           source: pending.source,
+          jump_mode: pending.jumpMode,
           chosen_root_space_id: chosenRootSpaceId,
           root_source: rootSource,
           parent_graph_ready: parentGraphReady,
@@ -238,6 +243,7 @@ export function NotificationJumper() {
           event_id: pending.eventId,
           has_event_id: !!pending.eventId,
           source: pending.source,
+          jump_mode: pending.jumpMode,
           restore_latency_ms: restoreLatencyMs,
           already_in_room: alreadyInRoom,
           chosen_root_space_id: chosenRootSpaceId,
@@ -250,6 +256,7 @@ export function NotificationJumper() {
           click_id: pending.swClickId,
           has_event_id: !!pending.eventId,
           source: pending.source ?? 'unknown',
+          jump_mode: pending.jumpMode,
           already_in_room: alreadyInRoom,
           chosen_root_space_id: chosenRootSpaceId,
           root_source: rootSource,
@@ -261,6 +268,7 @@ export function NotificationJumper() {
           attributes: buildNotificationMetricAttributes({
             click_id: pending.swClickId,
             source: pending.source ?? 'unknown',
+            jump_mode: pending.jumpMode,
             already_in_room: alreadyInRoom,
             chosen_root_space_id: chosenRootSpaceId,
             root_source: rootSource,
@@ -279,6 +287,7 @@ export function NotificationJumper() {
           has_room: !!room,
           membership: room?.getMyMembership(),
           source: pending.source,
+          jump_mode: pending.jumpMode,
           parent_graph_ready: parentGraphReady,
           stored_root_space_id: storedRootSpaceId,
         })
@@ -334,6 +343,44 @@ export function NotificationJumper() {
       mx.removeListener(ClientEvent.Room, onRoom);
     };
   }, [pending, mx]); // performJump intentionally omitted — use ref above
+
+  useEffect(() => {
+    if (!pending || jumpingRef.current) return undefined;
+
+    performJumpRef.current();
+
+    const currentUserId = mx.getUserId() ?? undefined;
+    const storedRootSpaceId =
+      currentUserId !== undefined ? getStoredRoomNavRoot(currentUserId, pending.roomId) : undefined;
+    const parentGraphReady = roomToParentsReady || roomToParents.size > 0;
+    const restoreAgeMs =
+      typeof pending.requestedAt === 'number' ? Date.now() - pending.requestedAt : undefined;
+
+    const shouldWaitForParentGraph =
+      !mDirects.has(pending.roomId) &&
+      !parentGraphReady &&
+      storedRootSpaceId === undefined &&
+      (restoreAgeMs === undefined || restoreAgeMs < NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS);
+
+    if (!shouldWaitForParentGraph) return undefined;
+
+    const remainingWaitMs =
+      typeof restoreAgeMs === 'number'
+        ? Math.max(NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS - restoreAgeMs, 0)
+        : NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS;
+
+    parentGraphWaitTimerRef.current = setTimeout(() => {
+      parentGraphWaitTimerRef.current = undefined;
+      performJumpRef.current();
+    }, remainingWaitMs);
+
+    return () => {
+      if (parentGraphWaitTimerRef.current !== undefined) {
+        clearTimeout(parentGraphWaitTimerRef.current);
+        parentGraphWaitTimerRef.current = undefined;
+      }
+    };
+  }, [pending, roomToParentsReady, roomToParents.size, mDirects, mx]);
 
   return null;
 }

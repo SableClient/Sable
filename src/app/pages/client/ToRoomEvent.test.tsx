@@ -49,6 +49,7 @@ describe('ToRoomEvent', () => {
         pendingNotification?: {
           roomId?: string;
           eventId?: string;
+          jumpMode?: string;
           joinCall?: boolean;
           targetSessionId?: string;
           requestedAt?: number;
@@ -60,6 +61,7 @@ describe('ToRoomEvent', () => {
       expect(payload.activeSessionId).toBe('@alice:example');
       expect(payload.pendingNotification?.roomId).toBe('!room:example');
       expect(payload.pendingNotification?.eventId).toBe('$event123');
+      expect(payload.pendingNotification?.jumpMode).toBe('notification_live');
       expect(payload.pendingNotification?.joinCall).toBe(true);
       expect(payload.pendingNotification?.targetSessionId).toBe('@alice:example');
       expect(payload.pendingNotification?.source).toBe('to_room_event');

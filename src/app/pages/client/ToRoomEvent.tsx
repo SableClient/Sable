@@ -27,6 +27,8 @@ export function ToRoomEvent() {
   const setPending = useSetAtom(pendingNotificationAtom);
   const joinCall = searchParams.get('joinCall') === 'true';
   const swClickId = searchParams.get('swClickId') ?? undefined;
+  const jumpMode =
+    searchParams.get('jumpMode') === 'history_context' ? 'history_context' : 'notification_live';
 
   useEffect(() => {
     if (!roomId) return;
@@ -37,6 +39,7 @@ export function ToRoomEvent() {
         has_user_id: !!userId,
         has_room_id: !!roomId,
         has_event_id: !!eventId,
+        jump_mode: jumpMode,
       })
     );
     Sentry.metrics.count('sable.notification.to_route', 1, {
@@ -46,6 +49,7 @@ export function ToRoomEvent() {
         has_user_id: !!userId,
         has_room_id: !!roomId,
         has_event_id: !!eventId,
+        jump_mode: jumpMode,
       }),
     });
     // Switch to the target account first so the notification jumper navigates
@@ -54,13 +58,14 @@ export function ToRoomEvent() {
     setPending({
       roomId,
       eventId,
+      jumpMode,
       joinCall,
       targetSessionId: userId,
       requestedAt: Date.now(),
       swClickId,
       source: 'to_room_event',
     });
-  }, [userId, roomId, eventId, joinCall, swClickId, setActiveSessionId, setPending]);
+  }, [userId, roomId, eventId, jumpMode, joinCall, swClickId, setActiveSessionId, setPending]);
 
   return null;
 }

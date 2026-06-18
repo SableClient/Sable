@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EventType, MsgType, NotificationCountType } from '$types/matrix-sdk';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { getRoomReadMarkerId, getUnreadInfo, roomHaveUnread } from './room';
+import {
+  getRoomReadMarkerId,
+  getUnreadInfo,
+  resolveSpaceNavigationRoot,
+  roomHaveUnread,
+} from './room';
 
 const USER_ID = '@alice:example.com';
 
@@ -161,6 +166,72 @@ describe('room read markers', () => {
       roomId: '!room:example.com',
       highlight: 0,
       total: 2,
+    });
+  });
+});
+
+describe('resolveSpaceNavigationRoot', () => {
+  it('rejects stale stored roots that are not joined in the live client graph', () => {
+    const joinedRoot = {
+      roomId: '!joined-space:example.com',
+      isSpaceRoom: () => true,
+      getMyMembership: () => 'join',
+      getLiveTimeline: () => ({
+        getState: () => ({
+          getStateEvents: (eventType: string) => {
+            if (eventType === EventType.RoomCreate) {
+              return {
+                getContent: () => ({ type: 'm.space' }),
+              };
+            }
+            if (eventType === EventType.SpaceChild) {
+              return [
+                {
+                  getType: () => EventType.SpaceChild,
+                  getStateKey: () => '!room:example.com',
+                  getContent: () => ({ via: ['example.com'] }),
+                },
+              ];
+            }
+            return [];
+          },
+        }),
+      }),
+    } as unknown as Room;
+
+    const staleRoot = {
+      roomId: '!stale-space:example.com',
+      isSpaceRoom: () => true,
+      getMyMembership: () => 'leave',
+      getLiveTimeline: () => ({
+        getState: () => ({
+          getStateEvents: (eventType: string) =>
+            eventType === EventType.RoomCreate
+              ? {
+                  getContent: () => ({ type: 'm.space' }),
+                }
+              : [],
+        }),
+      }),
+    } as unknown as Room;
+
+    const mx = {
+      getRoom: (roomId: string) =>
+        roomId === joinedRoot.roomId ? joinedRoot : roomId === staleRoot.roomId ? staleRoot : null,
+      getRooms: () => [joinedRoot, staleRoot],
+    } as unknown as MatrixClient;
+
+    const cachedRoomToParents = new Map<string, Set<string>>([
+      ['!room:example.com', new Set([staleRoot.roomId])],
+    ]);
+
+    expect(
+      resolveSpaceNavigationRoot(mx, cachedRoomToParents, '!room:example.com', {
+        storedRootSpaceId: staleRoot.roomId,
+      })
+    ).toEqual({
+      rootSpaceId: joinedRoot.roomId,
+      source: 'preferred_chain',
     });
   });
 });

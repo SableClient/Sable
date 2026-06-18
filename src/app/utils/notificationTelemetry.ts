@@ -8,6 +8,18 @@ export type NotificationTelemetryData = Record<string, NotificationTelemetryValu
 
 type NotificationTelemetryScalar = string | number | boolean;
 
+const METRIC_STRING_ATTRIBUTE_ALLOWLIST = new Set([
+  'area',
+  'mode',
+  'resolution',
+  'reason',
+  'source',
+  'jump_mode',
+  'root_source',
+  'payload_type',
+  'error_type',
+]);
+
 export function sanitizeNotificationTelemetryData(
   data?: NotificationTelemetryData
 ): Record<string, NotificationTelemetryScalar> | undefined {
@@ -37,5 +49,13 @@ export function buildNotificationBreadcrumb(
 }
 
 export function buildNotificationMetricAttributes(data?: NotificationTelemetryData) {
-  return sanitizeNotificationTelemetryData(data) ?? {};
+  const sanitized = sanitizeNotificationTelemetryData(data);
+  if (!sanitized) return {};
+
+  return Object.fromEntries(
+    Object.entries(sanitized).filter(([key, value]) => {
+      if (typeof value !== 'string') return true;
+      return METRIC_STRING_ATTRIBUTE_ALLOWLIST.has(key);
+    })
+  );
 }

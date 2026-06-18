@@ -171,6 +171,7 @@ export const activeSessionIdAtom = atom<string | undefined, [string | undefined]
 export type PendingNotification = {
   roomId: string;
   eventId?: string;
+  jumpMode?: 'notification_live' | 'history_context';
   joinCall?: boolean;
   targetSessionId?: string;
   requestedAt?: number;

@@ -73,7 +73,7 @@ import {
   getEmptyTimeline,
   getEventIdAbsoluteIndex,
 } from '$utils/timeline';
-import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
+import { useTimelineSync, type TimelineJumpMode } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
 import {
   useProcessedTimeline,
@@ -138,6 +138,7 @@ const SCROLL_SETTLE_MS = 250;
 export type RoomTimelineProps = {
   room: Room;
   eventId?: string;
+  jumpMode?: TimelineJumpMode;
   editor: Editor;
   onEditorReset?: () => void;
   onEditLastMessageRef?: React.MutableRefObject<(() => void) | undefined>;
@@ -146,6 +147,7 @@ export type RoomTimelineProps = {
 export function RoomTimeline({
   room,
   eventId,
+  jumpMode,
   editor,
   onEditorReset,
   onEditLastMessageRef,
@@ -430,6 +432,7 @@ export function RoomTimeline({
     room,
     mx,
     eventId,
+    jumpMode,
     isAtBottom: atBottomState,
     isAtBottomRef: atBottomRef,
     scrollToBottom,
@@ -611,15 +614,23 @@ export function RoomTimeline({
       // scroll from firing even after focusItem is cleared (highlight ends).
       jumpSucceededRef.current = true;
 
-      const { index, eventId: focusEventId, scrollTo } = timelineSync.focusItem;
+      const { index, eventId: focusEventId, scrollTo, align, jumpMode: focusJumpMode } =
+        timelineSync.focusItem;
       log.log(
-        `[PermalinkJump] focusItem set: eventId=${focusEventId}, index=${index}, scrollTo=${scrollTo}`
+        `[PermalinkJump] focusItem set: eventId=${focusEventId}, index=${index}, scrollTo=${scrollTo}, align=${align ?? 'center'}, jumpMode=${focusJumpMode ?? jumpMode ?? 'history_context'}`
       );
       Sentry.addBreadcrumb({
         category: 'timeline.permalink',
         message: 'focusItem set',
         level: 'info',
-        data: { eventId: focusEventId, index, scrollTo, roomId: room.roomId },
+        data: {
+          eventId: focusEventId,
+          index,
+          scrollTo,
+          align: align ?? 'center',
+          jumpMode: focusJumpMode ?? jumpMode ?? 'history_context',
+          roomId: room.roomId,
+        },
       });
 
       const anchorKey = `${focusEventId ?? 'no-event'}:${index}`;
@@ -693,7 +704,9 @@ export function RoomTimeline({
 
         // Reveal timeline and scroll in the same frame to avoid flash
         setIsReady(true);
-        vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+        vListRef.current.scrollToIndex(processedIndex, {
+          align: timelineSync.focusItem.align ?? 'center',
+        });
         timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
         scrollSucceeded = true;
 
@@ -718,7 +731,7 @@ export function RoomTimeline({
                 setAtBottom(false);
                 startJumpScrollBlock();
                 vListRef.current.scrollToIndex(delayedProcessedIndex, {
-                  align: 'center',
+                  align: timelineSyncRef.current.focusItem?.align ?? 'center',
                 });
               }
             }, delay);
@@ -818,7 +831,7 @@ export function RoomTimeline({
       category: 'timeline.permalink',
       message: 'Starting permalink load',
       level: 'info',
-      data: { eventId, roomId: room.roomId },
+      data: { eventId, jumpMode: jumpMode ?? 'history_context', roomId: room.roomId },
     });
 
     setIsReady(false);
@@ -845,7 +858,7 @@ export function RoomTimeline({
     eventIdLoadInProgressRef.current = true;
     loadingEventIdRef.current = eventId;
     void timelineSyncRef.current
-      .loadEventTimeline(eventId)
+      .loadEventTimeline(eventId, undefined, { jumpMode })
       .then(() => {
         log.log(
           `[PermalinkJump] loadEventTimeline succeeded: eventId=${eventId}, eventsLength=${timelineSyncRef.current.eventsLength}`
@@ -857,6 +870,7 @@ export function RoomTimeline({
           data: {
             eventId,
             eventsLength: timelineSyncRef.current.eventsLength,
+            jumpMode: jumpMode ?? 'history_context',
             roomId: room.roomId,
           },
         });
@@ -867,7 +881,12 @@ export function RoomTimeline({
           category: 'timeline.permalink',
           message: 'loadEventTimeline failed',
           level: 'error',
-          data: { eventId, error: String(err), roomId: room.roomId },
+          data: {
+            eventId,
+            error: String(err),
+            jumpMode: jumpMode ?? 'history_context',
+            roomId: room.roomId,
+          },
         });
       })
       .finally(() => {
@@ -877,7 +896,7 @@ export function RoomTimeline({
         eventIdLoadInProgressRef.current = false;
         loadingEventIdRef.current = null;
       });
-  }, [eventId, room.roomId]);
+  }, [eventId, jumpMode, room.roomId]);
 
   // Recovery: loadEventTimeline's onError callback restores the live timeline but
   // scrollToBottom fires before the VList has rendered the new events (the list is
@@ -1120,6 +1139,8 @@ export function RoomTimeline({
           eventId: anchorId,
           scrollTo: false,
           highlight: true,
+          align: 'center',
+          jumpMode: 'history_context',
         });
       } else {
         // Cancel any in-flight jump operation to prevent concurrent jumps
@@ -1149,7 +1170,9 @@ export function RoomTimeline({
         });
 
         void timelineSync
-          .loadEventTimeline(anchorId, currentAbortController.signal)
+          .loadEventTimeline(anchorId, currentAbortController.signal, {
+            jumpMode: 'history_context',
+          })
           .catch((err) => {
             // Ignore aborted operations
             if (err?.name === 'AbortError' || currentAbortController.signal.aborted) {
@@ -1759,7 +1782,11 @@ export function RoomTimeline({
             radii="Pill"
             outlined
             before={chipIcon(ChatTeardropDots)}
-            onClick={() => timelineSync.loadEventTimeline(unreadInfo.readUptoEventId)}
+            onClick={() =>
+              timelineSync.loadEventTimeline(unreadInfo.readUptoEventId, undefined, {
+                jumpMode: 'history_context',
+              })
+            }
           >
             <Text size="L400">Jump to Unread</Text>
           </Chip>

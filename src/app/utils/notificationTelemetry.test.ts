@@ -42,4 +42,22 @@ describe('notificationTelemetry', () => {
   it('builds metric attributes with an empty object fallback', () => {
     expect(buildNotificationMetricAttributes()).toEqual({});
   });
+
+  it('drops identifier-like string metric attributes while keeping low-cardinality fields', () => {
+    expect(
+      buildNotificationMetricAttributes({
+        room_id: '!room:example',
+        event_id: '$event',
+        click_id: 'click-123',
+        target_url: 'https://example.com/to/room',
+        source: 'to_room_event',
+        jump_mode: 'notification_live',
+        has_event_id: true,
+      })
+    ).toEqual({
+      source: 'to_room_event',
+      jump_mode: 'notification_live',
+      has_event_id: true,
+    });
+  });
 });

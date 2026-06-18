@@ -641,7 +641,11 @@ export function BackgroundNotifications() {
 
             const notifOnClick = () => {
               window.focus();
-              navigate(getToRoomEventPath(session.userId, room.roomId, eventId));
+              navigate(
+                getToRoomEventPath(session.userId, room.roomId, eventId, {
+                  jumpMode: 'notification_live',
+                })
+              );
             };
 
             // Show in-app banner when app is visible, mobile, and in-app notifications enabled

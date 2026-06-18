@@ -170,7 +170,7 @@ function navigateToRoomNotificationTarget(
   userId: string | undefined,
   roomId: string,
   eventId?: string,
-  options?: { swClickId?: string }
+  options?: { swClickId?: string; jumpMode?: 'notification_live' | 'history_context' }
 ): void {
   if (!userId) return;
   navigate(getToRoomEventPath(userId, roomId, eventId, options));
@@ -636,7 +636,8 @@ function MessageNotifications() {
               navigate,
               mx.getUserId() ?? undefined,
               roomId,
-              eventId
+              eventId,
+              { jumpMode: 'notification_live' }
             );
             noti.close();
           });
@@ -720,7 +721,9 @@ function MessageNotifications() {
           icon: roomAvatar,
           onClick: () => {
             window.focus();
-            navigateToRoomNotificationTarget(navigate, capturedUserId, roomId, capturedEventId);
+            navigateToRoomNotificationTarget(navigate, capturedUserId, roomId, capturedEventId, {
+              jumpMode: 'notification_live',
+            });
           },
         });
       }
@@ -1045,8 +1048,10 @@ export function HandleNotificationClick() {
             event_id: eventId,
           })
         );
+        acknowledgeHandledClick();
         navigateToRoomNotificationTarget(navigate, userId, roomId, eventId, {
           swClickId: typeof clickId === 'string' ? clickId : undefined,
+          jumpMode: 'notification_live',
         });
         return;
       }

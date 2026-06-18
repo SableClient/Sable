@@ -15,6 +15,7 @@ vi.mock('@sentry/react', () => ({
   captureMessage: vi.fn<(msg: string) => void>(),
   metrics: {
     distribution: vi.fn<() => void>(),
+    count: vi.fn<() => void>(),
   },
 }));
 
@@ -27,7 +28,7 @@ type FakeTimeline = {
 
 type FakeTimelineSet = EventEmitter & {
   getLiveTimeline: () => FakeTimeline;
-  getTimelineForEvent: () => undefined;
+  getTimelineForEvent: (eventId?: string) => FakeTimeline | undefined;
 };
 
 type FakeRoom = Room &
@@ -42,6 +43,13 @@ function createTimeline(events: unknown[] = [{}]): FakeTimeline {
     getPaginationToken: () => undefined,
     getRoomId: () => '!room:test',
   };
+}
+
+function linkTimelines(backward: FakeTimeline, forward: FakeTimeline) {
+  backward.getNeighbouringTimeline = (direction?: unknown) =>
+    direction === 'f' ? forward : undefined;
+  forward.getNeighbouringTimeline = (direction?: unknown) =>
+    direction === 'b' ? backward : undefined;
 }
 
 function createMx() {
@@ -69,7 +77,10 @@ function createRoom(
   };
   const timelineSet = new EventEmitter() as FakeTimelineSet;
   timelineSet.getLiveTimeline = () => timeline;
-  timelineSet.getTimelineForEvent = () => undefined;
+  timelineSet.getTimelineForEvent = (eventId?: string) =>
+    events.some((event) => (event as { getId?: () => string }).getId?.() === eventId)
+      ? timeline
+      : undefined;
 
   const roomEmitter = new EventEmitter();
   const room = {
@@ -126,6 +137,8 @@ describe('useTimelineSync', () => {
       eventId: '$target:event',
       scrollTo: true,
       highlight: true,
+      align: 'center',
+      jumpMode: 'history_context',
     });
     expect(scrollToBottom).not.toHaveBeenCalled();
   });
@@ -412,6 +425,132 @@ describe('useTimelineSync', () => {
     });
 
     expect(result.current.timeline.linkedTimelines).toEqual([contextTimeline]);
+  });
+
+  it('keeps an active event-target jump anchored when live timeline refreshes', async () => {
+    const targetEvent = { getId: () => '$target:event' };
+    const liveEventsOne: unknown[] = [{ getId: () => '$live:one' }];
+    const liveTimelineOne = createTimeline(liveEventsOne);
+    const contextTimeline = createTimeline([targetEvent, { getId: () => '$older:event' }]);
+    linkTimelines(contextTimeline, liveTimelineOne);
+
+    const timelineSet = new EventEmitter() as FakeTimelineSet;
+    let currentLiveTimeline = liveTimelineOne;
+    timelineSet.getLiveTimeline = () => currentLiveTimeline;
+    timelineSet.getTimelineForEvent = () => undefined;
+
+    const roomEmitter = new EventEmitter();
+    const room = {
+      on: roomEmitter.on.bind(roomEmitter),
+      removeListener: roomEmitter.removeListener.bind(roomEmitter),
+      emit: roomEmitter.emit.bind(roomEmitter),
+      roomId: '!room:test',
+      getUnfilteredTimelineSet: () => timelineSet as never,
+      getLiveTimeline: () => currentLiveTimeline,
+      getEventReadUpTo: () => null,
+      getThread: () => null,
+      getUnreadNotificationCount: () => 0,
+      client: {
+        getUserId: () => '@alice:test',
+        getAccountData: () => null,
+      },
+    } as unknown as FakeRoom;
+
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockResolvedValue(contextTimeline),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        eventId: '$target:event',
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadEventTimeline('$target:event');
+    });
+
+    const timelineBeforeRefresh = result.current.timeline.linkedTimelines;
+
+    const liveEventsTwo: unknown[] = [{ getId: () => '$live:two' }];
+    const liveTimelineTwo = createTimeline(liveEventsTwo);
+    linkTimelines(contextTimeline, liveTimelineTwo);
+    currentLiveTimeline = liveTimelineTwo;
+
+    await act(async () => {
+      mx.emit(ClientEvent.Room, room);
+      appEvents.emitVisibilityChange(true);
+      await Promise.resolve();
+    });
+
+    expect(result.current.focusItem).toEqual({
+      index: 0,
+      eventId: '$target:event',
+      scrollTo: true,
+      highlight: true,
+      align: 'center',
+      jumpMode: 'history_context',
+    });
+    expect(result.current.timeline.linkedTimelines).toBe(timelineBeforeRefresh);
+    expect(result.current.timeline.linkedTimelines.at(-1)).toBe(liveTimelineOne);
+  });
+
+  it('uses live-timeline anchoring for notification jumps near the tail', async () => {
+    const liveEvents = [
+      { getId: () => '$older:event' },
+      { getId: () => '$target:event' },
+      { getId: () => '$latest:event' },
+    ];
+    const { room } = createRoom('!room:test', liveEvents);
+    const targetTimeline = createTimeline(liveEvents);
+    const scrollToBottom = vi.fn<() => void>();
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockResolvedValue(targetTimeline),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        eventId: '$target:event',
+        jumpMode: 'notification_live',
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom,
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadEventTimeline('$target:event');
+    });
+
+    expect(result.current.timeline.linkedTimelines).toHaveLength(1);
+    expect(result.current.timeline.linkedTimelines[0]).toBe(room.getLiveTimeline());
+    expect(result.current.focusItem).toEqual({
+      index: 1,
+      eventId: '$target:event',
+      scrollTo: true,
+      highlight: true,
+      align: 'end',
+      jumpMode: 'notification_live',
+    });
+    expect(mx.getEventTimeline).not.toHaveBeenCalled();
+    expect(scrollToBottom).not.toHaveBeenCalled();
   });
 
   it('does not snap a non-bottom user to latest after TimelineReset', async () => {

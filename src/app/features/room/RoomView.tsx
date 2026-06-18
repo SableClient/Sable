@@ -71,7 +71,13 @@ const shouldFocusMessageField = (evt: KeyboardEvent): boolean => {
   return true;
 };
 
-export function RoomView({ eventId }: { eventId?: string }) {
+export function RoomView({
+  eventId,
+  jumpMode,
+}: {
+  eventId?: string;
+  jumpMode?: 'notification_live' | 'history_context';
+}) {
   const roomInputRef = useRef<HTMLDivElement>(null);
   const roomViewRef = useRef<HTMLDivElement>(null);
   const editLastMessageRef = useRef<(() => void) | undefined>();
@@ -156,6 +162,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
                 key={roomId}
                 room={room}
                 eventId={eventId}
+                jumpMode={jumpMode}
                 editor={editor}
                 onEditorReset={handleResetEditor}
                 onEditLastMessageRef={editLastMessageRef}

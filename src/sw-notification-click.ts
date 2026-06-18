@@ -39,6 +39,7 @@ export function buildNotificationClickTargetUrl(
       scope
     );
     if (data.isCall === true) roomUrl.searchParams.set('joinCall', 'true');
+    roomUrl.searchParams.set('jumpMode', 'notification_live');
     return roomUrl.href;
   }
 

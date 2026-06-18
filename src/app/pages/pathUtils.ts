@@ -175,7 +175,11 @@ export const getToRoomEventPath = (
   userId: string,
   roomId: string,
   eventId?: string,
-  options?: { joinCall?: boolean; swClickId?: string }
+  options?: {
+    joinCall?: boolean;
+    swClickId?: string;
+    jumpMode?: 'notification_live' | 'history_context';
+  }
 ): string => {
   const params = {
     user_id: encodeURIComponent(userId),
@@ -186,6 +190,7 @@ export const getToRoomEventPath = (
   return withAdditionalSearchParams(generatePath(TO_ROOM_EVENT_PATH, params), {
     joinCall: options?.joinCall ? 'true' : undefined,
     swClickId: options?.swClickId,
+    jumpMode: options?.jumpMode,
   });
 };
 

@@ -102,6 +102,7 @@ function sendActiveSessionToServiceWorker() {
 function createSwWatchdog() {
   let watchdogTimer = 0;
   let consecutiveMisses = 0;
+  let watchdogHandshakeComplete = false;
   const pendingPings = new Map<
     string,
     {
@@ -128,6 +129,7 @@ function createSwWatchdog() {
     if (!pending) return;
     clearPendingPing(requestId);
     consecutiveMisses = 0;
+    watchdogHandshakeComplete = true;
     pending.resolve();
   };
 
@@ -142,9 +144,11 @@ function createSwWatchdog() {
     if (document.visibilityState !== 'visible' || !navigator.onLine) return;
 
     const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
-    const worker = navigator.serviceWorker.controller ?? registration?.active;
+    const activeWorker = registration?.active;
+    const controller = navigator.serviceWorker.controller;
+    const worker =
+      activeWorker && activeWorker.state === 'activated' ? activeWorker : controller ?? activeWorker;
     if (!worker) {
-      consecutiveMisses += 1;
       await requestRecovery();
       return;
     }
@@ -164,6 +168,21 @@ function createSwWatchdog() {
     try {
       await pingPromise;
     } catch {
+      if (!watchdogHandshakeComplete) {
+        Sentry.addBreadcrumb({
+          category: 'service_worker',
+          message: 'Service worker watchdog waiting for first compatible pong',
+          level: 'info',
+          data: {
+            controllerScriptUrl: controller?.scriptURL,
+            activeScriptUrl: activeWorker?.scriptURL,
+            usingActiveWorker: worker === activeWorker,
+          },
+        });
+        await requestRecovery();
+        return;
+      }
+
       consecutiveMisses += 1;
       Sentry.addBreadcrumb({
         category: 'service_worker',
@@ -188,6 +207,8 @@ function createSwWatchdog() {
 
   const stop = () => {
     window.clearInterval(watchdogTimer);
+    consecutiveMisses = 0;
+    watchdogHandshakeComplete = false;
     pendingPings.forEach((_pending, requestId) => clearPendingPing(requestId));
     pendingPings.clear();
   };

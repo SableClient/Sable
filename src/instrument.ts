@@ -29,6 +29,7 @@ const SESSION_ERROR_LIMIT = 50;
 // Default off: Sentry only runs when the user has opted in via the banner or Settings.
 const sentryEnabled = localStorage.getItem('sable_sentry_enabled') === 'true';
 const replayEnabled = localStorage.getItem('sable_sentry_replay_enabled') === 'true';
+const canvasReplayEnabled = localStorage.getItem('sable_sentry_canvas_replay_enabled') === 'true';
 
 // Only initialize if DSN is provided and user hasn't opted out
 if (dsn && sentryEnabled) {
@@ -57,7 +58,7 @@ if (dsn && sentryEnabled) {
               blockAllMedia: true, // Block images/video/audio for privacy
               maskAllInputs: true, // Mask form inputs
             }),
-            Sentry.replayCanvasIntegration(),
+            ...(canvasReplayEnabled ? [Sentry.replayCanvasIntegration()] : []),
           ]
         : []),
       // Capture console.error/warn as structured logs in the Sentry Logs product

@@ -77,7 +77,9 @@ export const messageList = style({
 });
 
 export const dividerInset = style({
-  width: '100%',
+  display: 'inline-flex',
+  justifyContent: 'center',
+  maxWidth: '100%',
   paddingInline: config.space.S0,
 
   '@media': {

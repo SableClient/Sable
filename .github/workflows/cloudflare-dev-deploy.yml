@@ -6,6 +6,7 @@ on:
       - integration
     paths:
       - 'src/**'
+      - 'worker/**'
       - 'public/**'
       - 'config.json'
       - 'index.html'
@@ -83,7 +84,7 @@ jobs:
           accountId: ${{ secrets.TF_VAR_ACCOUNT_ID }}
           command: >
             deploy
-            -c dist/wrangler.json
+            -c dist/charm/wrangler.json
             --keep-vars
             --message "$DEPLOY_MESSAGE"
 

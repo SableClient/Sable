@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'src/**'
+      - 'worker/**'
       - 'public/**'
       - 'config.json'
       - 'index.html'
@@ -96,7 +97,7 @@ jobs:
           accountId: ${{ secrets.TF_VAR_ACCOUNT_ID }}
           command: >
             versions upload
-            -c dist/wrangler.json
+            -c dist/charm/wrangler.json
             --preview-alias ${{ steps.alias.outputs.alias }}
             --message "$PREVIEW_MESSAGE"
 

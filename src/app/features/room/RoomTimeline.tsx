@@ -1544,6 +1544,11 @@ export function RoomTimeline({
       return;
     }
 
+    if (jumpLockReleaseTimerRef.current !== undefined) {
+      clearTimeout(jumpLockReleaseTimerRef.current);
+      jumpLockReleaseTimerRef.current = undefined;
+    }
+
     setAtBottom(false);
     jumpReanchorScrollUntilRef.current = Date.now() + 150;
     vListRef.current?.scrollToIndex(targetIndex, { align: 'center' });

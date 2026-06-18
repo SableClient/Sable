@@ -57,6 +57,7 @@ if (dsn && sentryEnabled) {
               blockAllMedia: true, // Block images/video/audio for privacy
               maskAllInputs: true, // Mask form inputs
             }),
+            Sentry.replayCanvasIntegration(),
           ]
         : []),
       // Capture console.error/warn as structured logs in the Sentry Logs product

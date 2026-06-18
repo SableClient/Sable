@@ -58,9 +58,30 @@ const SW_SESSION_URL = '/sw-session-meta';
 const SW_PUSH_TELEMETRY_CACHE = 'sable-sw-push-telemetry-v1';
 const SW_PUSH_TELEMETRY_URL = '/sw-push-telemetry';
 const SW_PUSH_TELEMETRY_LIMIT = 50;
+const SW_RUNTIME_ASSET_CACHE = 'sable-runtime-assets-v1';
+const SW_RUNTIME_ASSET_CACHE_MAX_ENTRIES = 80;
 
 /** Cache for authenticated Matrix media responses — keyed by URL. */
 const SW_MEDIA_CACHE = 'sable-media-sw-v2';
+
+function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout?: () => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      onTimeout?.();
+      reject(new Error(`Timed out after ${ms}ms`));
+    }, ms);
+
+    promise
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
 
 type PushTelemetryEvent =
   | 'received'
@@ -117,6 +138,18 @@ async function loadPersistedSettings() {
     }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
+  }
+}
+
+async function trimCacheEntries(cacheName: string, maxEntries: number): Promise<void> {
+  try {
+    const cache = await self.caches.open(cacheName);
+    const keys = await cache.keys();
+    const surplus = keys.length - maxEntries;
+    if (surplus <= 0) return;
+    await Promise.all(keys.slice(0, surplus).map((request) => cache.delete(request)));
+  } catch {
+    // Ignore cache trim failures.
   }
 }
 
@@ -1266,6 +1299,10 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     );
   }
   if (type === 'ping') {
+    const requestId = (data as { requestId?: unknown }).requestId;
+    if (typeof requestId === 'string') {
+      client.postMessage({ type: 'pong', requestId, timestamp: Date.now() });
+    }
     event.waitUntil(Promise.resolve());
   }
   if (type === 'setNotificationSettings') {
@@ -1543,10 +1580,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
   event.respondWith(
     (async () => {
-      const cache = await self.caches.open('workbox-precache-v2-' + self.registration.scope);
+      const runtimeCache = await self.caches.open(SW_RUNTIME_ASSET_CACHE);
 
-      // Try cache first (workbox precache strategy)
-      let response = await cache.match(event.request);
+      // Try precache first, then validated runtime cache fallback.
+      let response =
+        (await matchPrecache(event.request)) ?? (await runtimeCache.match(event.request));
 
       if (!response) {
         // Not in cache, fetch from network
@@ -1554,7 +1592,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
           response = await fetch(event.request);
         } catch (networkError) {
           // Network error - try returning cached version if it exists
-          const cachedResponse = await cache.match(event.request);
+          const cachedResponse = await runtimeCache.match(event.request);
           if (cachedResponse) return cachedResponse;
           throw networkError;
         }
@@ -1584,7 +1622,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
       if (!isValidResponse || !hasValidMimeType) {
         // Invalid response (likely a 404 HTML page) - delete from cache
-        await cache.delete(event.request);
+        await runtimeCache.delete(event.request);
 
         console.warn(
           '[SW] Deleted invalid asset cache entry:',
@@ -1603,9 +1641,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
         });
       }
 
-      // Valid response - cache it if it came from the network
-      if (response && !response.redirected) {
-        await cache.put(event.request, response.clone());
+      // Valid network responses go into a bounded runtime cache, never the precache namespace.
+      if (response && !response.redirected && !(await matchPrecache(event.request))) {
+        await runtimeCache.put(event.request, response.clone());
+        await trimCacheEntries(SW_RUNTIME_ASSET_CACHE, SW_RUNTIME_ASSET_CACHE_MAX_ENTRIES);
       }
 
       return response;
@@ -1672,12 +1711,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   }
 
   event.respondWith(
-    // Wrap the entire chain in a global timeout to prevent infinite hangs.
-    // Even though requestSessionWithTimeout has its own 10s timeout, edge cases
-    // (e.g., loadPersistedSession hanging on IDB, validateSession stuck) could
-    // leave the fetch hanging indefinitely. 15s is generous enough to allow all
-    // fallbacks to complete, but short enough to fail fast if something is stuck.
-    Promise.race([
+    withTimeout(
       (async () => {
         const liveSessionPromise = requestSessionWithTimeout(clientId, 3000, {
           logTimeout: false,
@@ -1738,13 +1772,21 @@ self.addEventListener('fetch', (event: FetchEvent) => {
           }
         );
       })(),
-      new Promise<Response>((_, reject) => {
-        setTimeout(() => {
-          console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });
-          reject(new Error('Service worker media fetch timeout'));
-        }, 15000);
-      }),
-    ])
+      15000,
+      () => {
+        console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });
+      }
+    ).catch(
+      () =>
+        new Response(
+          JSON.stringify({ errcode: 'M_TIMEOUT', error: 'Service worker media fetch timeout' }),
+          {
+            status: 504,
+            statusText: 'Gateway Timeout',
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+    )
   );
 });
 

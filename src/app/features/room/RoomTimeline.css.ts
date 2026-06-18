@@ -75,6 +75,17 @@ export const messageList = style({
     },
   },
 });
+
+export const dividerInset = style({
+  width: '100%',
+  paddingInline: config.space.S0,
+
+  '@media': {
+    '(max-width: 768px)': {
+      paddingInline: config.space.S200,
+    },
+  },
+});
 globalStyle(`${messageList} > *`, {
   scrollbarWidth: 'auto',
   scrollbarColor: 'auto',

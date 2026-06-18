@@ -51,19 +51,40 @@ jobs:
           version: 0.22.3
 
       - name: Prepare Release
+        id: prepare-release
         if: steps.release-merge.outputs.skip != 'true'
-        run: knope prepare-release --verbose
+        shell: bash
+        run: |
+          set +e
+          output="$(knope prepare-release --verbose 2>&1)"
+          status=$?
+          set -e
+
+          printf '%s\n' "$output"
+
+          if [[ $status -eq 0 ]]; then
+            echo "prepared=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if grep -Fq "releases::no_release" <<<"$output"; then
+            echo "prepared=false" >> "$GITHUB_OUTPUT"
+            echo "No releaseable changes detected; skipping release PR update."
+            exit 0
+          fi
+
+          exit $status
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
       - name: Enrich changelog and update release PR
-        if: steps.release-merge.outputs.skip != 'true'
+        if: steps.release-merge.outputs.skip != 'true' && steps.prepare-release.outputs.prepared == 'true'
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: node .github/scripts/enrich-changelog.mjs --update-release-pr
 
       - name: Amend release commit with enriched changelog
-        if: steps.release-merge.outputs.skip != 'true'
+        if: steps.release-merge.outputs.skip != 'true' && steps.prepare-release.outputs.prepared == 'true'
         shell: bash
         run: |
           if [[ "$(git rev-parse --abbrev-ref HEAD)" != "release" ]]; then
@@ -80,6 +101,6 @@ jobs:
           fi
 
       - name: Push release branch
-        if: steps.release-merge.outputs.skip != 'true'
+        if: steps.release-merge.outputs.skip != 'true' && steps.prepare-release.outputs.prepared == 'true'
         shell: bash
         run: git push --force --set-upstream origin release

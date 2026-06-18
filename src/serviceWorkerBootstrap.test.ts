@@ -304,13 +304,14 @@ describe('registerAppServiceWorker', () => {
         },
       },
     });
-    const addWindowListenerSpy = vi.spyOn(window, 'addEventListener').mockImplementation(
-      ((type: string, listener: EventListenerOrEventListenerObject) => {
-        if (typeof listener === 'function') {
-          windowListeners.set(type, listener);
-        }
-      }) as typeof window.addEventListener
-    );
+    const addWindowListenerSpy = vi.spyOn(window, 'addEventListener').mockImplementation(((
+      type: string,
+      listener: EventListenerOrEventListenerObject
+    ) => {
+      if (typeof listener === 'function') {
+        windowListeners.set(type, listener);
+      }
+    }) as typeof window.addEventListener);
 
     registerAppServiceWorker();
     await Promise.resolve();

@@ -70,8 +70,8 @@ export const Preview = style({
 export const PreviewEmoji = style([
   DefaultReset,
   {
-    width: toRem(36),
-    height: toRem(36),
+    width: toRem(40),
+    height: toRem(40),
   },
 ]);
 export const PreviewImg = style([
@@ -86,8 +86,8 @@ export const PreviewImg = style([
 export const EmojiGlyph = style([
   DefaultReset,
   {
-    width: toRem(36),
-    height: toRem(36),
+    width: toRem(40),
+    height: toRem(40),
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',

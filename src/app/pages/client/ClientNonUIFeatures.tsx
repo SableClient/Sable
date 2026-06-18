@@ -182,7 +182,9 @@ function WebPushStartupReconciler() {
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const pushSubscription = useAtom(pushSubscriptionAtom);
-  const { isActiveNotificationClient, notificationDeviceScope } = useNotificationDeviceScope(mx);
+  const { isActiveNotificationClient, notificationDeviceScope } = useNotificationDeviceScope(mx, {
+    publishLease: false,
+  });
   const reconciledKeyRef = useRef<string | null>(null);
   const shouldEnablePusher =
     document.visibilityState === 'visible'
@@ -358,7 +360,9 @@ function InviteNotifications() {
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
   const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
-  const { isActiveNotificationClient } = useNotificationDeviceScope(mx);
+  const { isActiveNotificationClient } = useNotificationDeviceScope(mx, {
+    publishLease: false,
+  });
 
   const notify = useCallback(
     (count: number) => {
@@ -443,7 +447,9 @@ function MessageNotifications() {
     'showMessageContentInEncryptedNotifications'
   );
   const [focusMode] = useSetting(settingsAtom, 'focusMode');
-  const { isActiveNotificationClient } = useNotificationDeviceScope(mx);
+  const { isActiveNotificationClient } = useNotificationDeviceScope(mx, {
+    publishLease: false,
+  });
 
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);

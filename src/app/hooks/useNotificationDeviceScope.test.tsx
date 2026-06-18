@@ -168,4 +168,23 @@ describe('useNotificationDeviceScope', () => {
 
     expect(result.current.lease).toEqual(nextLease);
   });
+
+  it('can read lease state without publishing duplicate leases', async () => {
+    notificationDeviceScope = 'active_client_only';
+    const { client } = createMockMatrixClient();
+
+    const { result } = renderHook(() =>
+      useNotificationDeviceScope(client, {
+        publishLease: false,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(client.setAccountData).not.toHaveBeenCalled();
+    expect(result.current.isActiveNotificationClient).toBe(true);
+    expect(result.current.shouldKeepWebPushEnabled).toBe(true);
+  });
 });

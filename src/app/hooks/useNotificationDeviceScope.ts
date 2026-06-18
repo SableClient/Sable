@@ -25,6 +25,10 @@ export type NotificationDeviceScopeState = {
   shouldKeepWebPushEnabled: boolean;
 };
 
+type UseNotificationDeviceScopeOptions = {
+  publishLease?: boolean;
+};
+
 const LEASE_DURATION_MS = 2 * 60_000;
 const LEASE_RENEW_MS = 30_000;
 const LEASE_CLOCK_TICK_MS = 15_000;
@@ -46,8 +50,10 @@ const isLeaseFresh = (lease: NotificationDeviceLease | null, now: number): boole
   !!lease && lease.expiresAt > now;
 
 export function useNotificationDeviceScope(
-  mx: MatrixClient | undefined
+  mx: MatrixClient | undefined,
+  options?: UseNotificationDeviceScopeOptions
 ): NotificationDeviceScopeState {
+  const shouldPublishLease = options?.publishLease ?? true;
   const [notificationDeviceScope] = useSetting(settingsAtom, 'notificationDeviceScope');
   const [lease, setLease] = useState<NotificationDeviceLease | null>(() => readLeaseContent(mx));
   const [isWindowFocused, setIsWindowFocused] = useState<boolean>(() =>
@@ -100,14 +106,20 @@ export function useNotificationDeviceScope(
   }, []);
 
   useEffect(() => {
-    if (!mx || !scopeEnabled || !deviceId || typeof mx.setAccountData !== 'function') {
+    if (
+      !shouldPublishLease ||
+      !mx ||
+      !scopeEnabled ||
+      !deviceId ||
+      typeof mx.setAccountData !== 'function'
+    ) {
       return undefined;
     }
     if (!shouldHoldLease) return undefined;
 
     let cancelled = false;
 
-    const publishLease = () => {
+    const publishLeaseUpdate = () => {
       const nextNow = Date.now();
       setNow(nextNow);
       const currentLease = leaseRef.current;
@@ -131,13 +143,13 @@ export function useNotificationDeviceScope(
       });
     };
 
-    publishLease();
-    const intervalId = window.setInterval(publishLease, LEASE_RENEW_MS);
+    publishLeaseUpdate();
+    const intervalId = window.setInterval(publishLeaseUpdate, LEASE_RENEW_MS);
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [mx, deviceId, scopeEnabled, shouldHoldLease]);
+  }, [mx, deviceId, shouldPublishLease, scopeEnabled, shouldHoldLease]);
 
   useEffect(() => {
     if (!mx || typeof mx.on !== 'function' || typeof mx.removeListener !== 'function') {

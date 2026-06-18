@@ -293,6 +293,7 @@ export function RoomTimeline({
   // Short-lived guard set for ~350 ms after a jump scrollToIndex so that
   // intermediate scroll events from the animation don't flip atBottom prematurely.
   const jumpScrollBlockRef = useRef(false);
+  const jumpReanchorScrollUntilRef = useRef(0);
   const jumpScrollBlockTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
@@ -312,6 +313,10 @@ export function RoomTimeline({
   const jumpRecenterTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const jumpHighlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const jumpAnchorKeyRef = useRef<string | undefined>(undefined);
+  const jumpLockEventIdRef = useRef<string | undefined>(undefined);
+  const jumpLockActiveRef = useRef(false);
+  const userScrollIntentAtRef = useRef(0);
+  const jumpLockReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Track whether the initial eventId load is in progress. Used to prevent the
   // recovery scroll from firing prematurely when the live timeline loads before
@@ -381,6 +386,45 @@ export function RoomTimeline({
       }
     }, 350);
   }, [setAtBottom]);
+
+  const releaseJumpLock = useCallback(
+    (reason: 'missing_target' | 'user_scroll' | 'route_change' | 'jump_to_latest') => {
+      if (!jumpLockActiveRef.current && !jumpLockEventIdRef.current) return;
+      jumpLockActiveRef.current = false;
+      jumpLockEventIdRef.current = undefined;
+      if (jumpLockReleaseTimerRef.current !== undefined) {
+        clearTimeout(jumpLockReleaseTimerRef.current);
+        jumpLockReleaseTimerRef.current = undefined;
+      }
+      Sentry.addBreadcrumb({
+        category: 'timeline.permalink',
+        message: 'Released jump lock',
+        level: 'info',
+        data: { reason, roomId: room.roomId },
+      });
+    },
+    [room.roomId]
+  );
+
+  const activateJumpLock = useCallback(
+    (targetEventId?: string) => {
+      if (!targetEventId) return;
+      jumpLockEventIdRef.current = targetEventId;
+      jumpLockActiveRef.current = true;
+      if (jumpLockReleaseTimerRef.current !== undefined) {
+        clearTimeout(jumpLockReleaseTimerRef.current);
+        jumpLockReleaseTimerRef.current = undefined;
+      }
+      setAtBottom(false);
+      Sentry.addBreadcrumb({
+        category: 'timeline.permalink',
+        message: 'Activated jump lock',
+        level: 'info',
+        data: { targetEventId, roomId: room.roomId },
+      });
+    },
+    [room.roomId, setAtBottom]
+  );
 
   const timelineSync = useTimelineSync({
     room,
@@ -498,9 +542,15 @@ export function RoomTimeline({
       jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
       if (jumpHighlightTimeoutRef.current !== undefined)
         clearTimeout(jumpHighlightTimeoutRef.current);
+      if (jumpLockReleaseTimerRef.current !== undefined)
+        clearTimeout(jumpLockReleaseTimerRef.current);
     },
     []
   );
+
+  useEffect(() => {
+    releaseJumpLock('route_change');
+  }, [eventId, room.roomId, releaseJumpLock]);
 
   // If the timeline was blanked while content was already visible — e.g. a
   // TimelineReset fired by mx.retryImmediately() when the app comes back from
@@ -547,7 +597,7 @@ export function RoomTimeline({
       if (!atBottomRef.current) setShift(true);
     } else if (prev === 'loading' && timelineSync.backwardStatus === 'idle') {
       setShift(false);
-      if (wasAtBottomBeforePaginationRef.current) {
+      if (wasAtBottomBeforePaginationRef.current && !jumpLockActiveRef.current) {
         vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, {
           align: 'end',
         });
@@ -589,6 +639,7 @@ export function RoomTimeline({
       }
 
       let scrollSucceeded = false;
+      activateJumpLock(focusEventId);
       const resolveProcessedIndex = () => {
         const currentFocusItem = timelineSyncRef.current.focusItem;
         if (!currentFocusItem) return undefined;
@@ -715,6 +766,7 @@ export function RoomTimeline({
     getRawIndexToProcessedIndex,
     setAtBottom,
     startJumpScrollBlock,
+    activateJumpLock,
     room.roomId,
   ]);
 
@@ -1061,6 +1113,7 @@ export function RoomTimeline({
           setAtBottom(false);
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           startJumpScrollBlock();
+          activateJumpLock(anchorId);
         }
         timelineSync.setFocusItem({
           index: focusRawIndex,
@@ -1306,6 +1359,20 @@ export function RoomTimeline({
       if (jumpScrollBlockRef.current) return;
 
       if (
+        jumpLockActiveRef.current &&
+        Date.now() >= jumpReanchorScrollUntilRef.current &&
+        Date.now() - userScrollIntentAtRef.current < 400
+      ) {
+        if (jumpLockReleaseTimerRef.current !== undefined) {
+          clearTimeout(jumpLockReleaseTimerRef.current);
+        }
+        jumpLockReleaseTimerRef.current = setTimeout(() => {
+          jumpLockReleaseTimerRef.current = undefined;
+          releaseJumpLock('user_scroll');
+        }, 120);
+      }
+
+      if (
         atBottomRef.current &&
         !isNowAtBottom &&
         (contentGrew || viewportChanged || withinSettleWindow)
@@ -1343,7 +1410,7 @@ export function RoomTimeline({
         void timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
-    [setAtBottom]
+    [releaseJumpLock, setAtBottom]
   );
 
   const showLoadingPlaceholders =
@@ -1457,6 +1524,45 @@ export function RoomTimeline({
   processedEventsRef.current = processedEvents;
 
   useLayoutEffect(() => {
+    if (!jumpLockActiveRef.current) return;
+    const targetEventId = jumpLockEventIdRef.current;
+    if (!targetEventId) return;
+    if (jumpScrollBlockRef.current) return;
+    if (Date.now() - userScrollIntentAtRef.current < 250) return;
+
+    const targetIndex = processedEventsRef.current.findIndex(
+      (e) => e.mEvent.getId() === targetEventId
+    );
+    if (targetIndex < 0) {
+      // Keep the lock alive while the initial jump retry loop is still trying to
+      // surface the target row. Releasing here would disable later re-anchors
+      // during decrypt/reflow churn even though the target may still appear.
+      if (jumpRetryIntervalRef.current !== undefined || timelineSync.focusItem?.scrollTo) {
+        return;
+      }
+      releaseJumpLock('missing_target');
+      return;
+    }
+
+    if (jumpLockReleaseTimerRef.current !== undefined) {
+      clearTimeout(jumpLockReleaseTimerRef.current);
+      jumpLockReleaseTimerRef.current = undefined;
+    }
+
+    setAtBottom(false);
+    jumpReanchorScrollUntilRef.current = Date.now() + 150;
+    vListRef.current?.scrollToIndex(targetIndex, { align: 'center' });
+  }, [
+    processedEvents,
+    timelineSync.eventsLength,
+    timelineSync.backwardStatus,
+    timelineSync.forwardStatus,
+    timelineSync.focusItem,
+    releaseJumpLock,
+    setAtBottom,
+  ]);
+
+  useLayoutEffect(() => {
     const lastEventId = processedEvents.at(-1)?.id;
     const prevLastEventId = lastRenderedTailRef.current;
     lastRenderedTailRef.current = lastEventId;
@@ -1464,6 +1570,7 @@ export function RoomTimeline({
     if (!isReady) return;
     if (!timelineSync.liveTimelineLinked) return;
     if (!atBottomRef.current) return;
+    if (jumpLockActiveRef.current) return;
     if (jumpScrollBlockRef.current) return;
     if (!lastEventId || lastEventId === prevLastEventId) return;
 
@@ -1481,6 +1588,41 @@ export function RoomTimeline({
 
   // Use dummy data for VList when showing loading placeholders, otherwise use actual events.
   const vListData = showLoadingPlaceholders ? placeholderDummyData : processedEvents;
+
+  useEffect(() => {
+    const el = messageListRef.current;
+    if (!el) return undefined;
+
+    const markUserScrollIntent = () => {
+      userScrollIntentAtRef.current = Date.now();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key === 'ArrowUp' ||
+        event.key === 'ArrowDown' ||
+        event.key === 'PageUp' ||
+        event.key === 'PageDown' ||
+        event.key === 'Home' ||
+        event.key === 'End' ||
+        event.key === ' '
+      ) {
+        markUserScrollIntent();
+      }
+    };
+
+    el.addEventListener('wheel', markUserScrollIntent, { passive: true });
+    el.addEventListener('touchmove', markUserScrollIntent, { passive: true });
+    el.addEventListener('pointerdown', markUserScrollIntent, { passive: true });
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      el.removeEventListener('wheel', markUserScrollIntent);
+      el.removeEventListener('touchmove', markUserScrollIntent);
+      el.removeEventListener('pointerdown', markUserScrollIntent);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Recovery: if the 80 ms initial-scroll timer fired while processedEvents was
   // empty (timeline was mid-reset), scroll to bottom and reveal the timeline once
@@ -1712,18 +1854,22 @@ export function RoomTimeline({
                 {eventData.willRenderDayDivider && (
                   <MessageBase space={messageSpacing}>
                     <TimelineDivider variant="Surface">
-                      <Badge as="span" size="500" variant="Secondary" fill="None" radii="300">
-                        <Text size="L400">{getDayDividerText(eventData.mEvent.getTs())}</Text>
-                      </Badge>
+                      <div className={css.dividerInset}>
+                        <Badge as="span" size="500" variant="Secondary" fill="None" radii="300">
+                          <Text size="L400">{getDayDividerText(eventData.mEvent.getTs())}</Text>
+                        </Badge>
+                      </div>
                     </TimelineDivider>
                   </MessageBase>
                 )}
                 {eventData.willRenderNewDivider && (
                   <MessageBase space={messageSpacing}>
                     <TimelineDivider style={{ color: color.Success.Main }} variant="Inherit">
-                      <Badge as="span" size="500" variant="Success" fill="Solid" radii="300">
-                        <Text size="L400">New Messages</Text>
-                      </Badge>
+                      <div className={css.dividerInset}>
+                        <Badge as="span" size="500" variant="Success" fill="Solid" radii="300">
+                          <Text size="L400">New Messages</Text>
+                        </Badge>
+                      </div>
                     </TimelineDivider>
                   </MessageBase>
                 )}
@@ -1785,6 +1931,7 @@ export function RoomTimeline({
               before={chipIcon(ArrowDown)}
               onClick={() => {
                 if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
+                releaseJumpLock('jump_to_latest');
                 timelineSync.setTimeline(getInitialTimeline(room));
                 scrollToBottom();
               }}

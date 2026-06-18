@@ -168,7 +168,7 @@ function createSwWatchdog() {
       return;
     }
 
-    pendingPingPromise = (async () => {
+    const currentPingPromise = (async () => {
       const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
       const activeWorker = registration?.active;
       const controller = navigator.serviceWorker.controller;
@@ -240,10 +240,13 @@ function createSwWatchdog() {
         }
       }
     })();
+    pendingPingPromise = currentPingPromise;
     try {
-      await pendingPingPromise;
+      await currentPingPromise;
     } finally {
-      pendingPingPromise = null;
+      if (pendingPingPromise === currentPingPromise) {
+        pendingPingPromise = null;
+      }
     }
   };
 

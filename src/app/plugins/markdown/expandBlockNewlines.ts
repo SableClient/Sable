@@ -171,10 +171,6 @@ function shouldExpandSingleNewline(md: string, newlineIdx: number): boolean {
     return false;
   }
   if (nextLineIsBlockStarter(md, newlineIdx)) return true;
-  // CommonMark lazy continuation keeps non-`>` lines inside blockquotes, close on single `\n`.
-  if (prevLineIsBlockquote(md, newlineIdx) && !nextLineContinuesBlockquote(md, newlineIdx)) {
-    return true;
-  }
   return false;
 }
 

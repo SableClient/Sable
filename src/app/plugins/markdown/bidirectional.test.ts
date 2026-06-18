@@ -81,7 +81,10 @@ describe('bidirectional round-trip', () => {
   it('round-trips blockquotes', () => {
     expect(roundtrip('> Quote text')).toBe('> Quote text');
     expect(roundtrip('> line one\n> line two')).toBe('> line one\n> line two');
-    expect(roundtrip('> test\ntest')).toBe('> test\ntest');
+    expect(roundtrip('> test\ntest')).toBe('> test\n> test');
+    expect(roundtrip('> this is a test\n  test\n  test')).toBe(
+      '> this is a test\n>   test\n>   test'
+    );
     expect(roundtrip('> test\n\n> test')).toBe('> test\n\n> test');
     expect((markdownToHtml('> test\n\n> test').match(/<blockquote/g) ?? []).length).toBe(2);
   });

@@ -35,6 +35,24 @@ export const getShortcodeFor = (hexcode: string): string | undefined => {
 
 export const getHexcodeForEmoji = fromUnicodeToHexcode;
 
+const FIXED_CELL_EMOJI_HEX_CODES = new Set([
+  '2b1b',
+  '2b1c',
+  '1f7e5',
+  '1f7e6',
+  '1f7e7',
+  '1f7e8',
+  '1f7e9',
+  '1f7ea',
+  '1f7eb',
+]);
+
+const normalizeEmojiHexcode = (hexcode: string): string =>
+  hexcode.toLowerCase().replace(/-fe0f/g, '');
+
+export const isFixedCellEmoji = (emoji: string): boolean =>
+  FIXED_CELL_EMOJI_HEX_CODES.has(normalizeEmojiHexcode(getHexcodeForEmoji(emoji)));
+
 export const emojiGroups: IEmojiGroup[] = [
   {
     id: EmojiGroupId.People,

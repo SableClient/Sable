@@ -35,8 +35,11 @@ export const BlockQuote = style([
   DefaultReset,
   MarginSpaced,
   {
-    paddingLeft: config.space.S200,
-    borderLeft: `${config.borderWidth.B700} solid ${color.SurfaceVariant.ContainerLine}`,
+    display: 'block',
+    padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S300}`,
+    borderLeft: `${config.borderWidth.B700} solid ${color.SurfaceVariant.OnContainer}`,
+    backgroundColor: color.SurfaceVariant.Container,
+    borderRadius: config.radii.R300,
     fontStyle: 'italic',
   },
 ]);
@@ -269,6 +272,10 @@ export const SystemEmoji = style({
   display: 'inline-block',
   fontSize: 'var(--sable-inline-emoji-font-size)',
   lineHeight: 1,
+});
+
+export const SystemEmojiFixedCell = style({
+  width: '1em',
 });
 
 export const CustomEmoticon = recipe({

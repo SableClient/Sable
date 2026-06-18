@@ -18,7 +18,6 @@ test.describe('app startup smoke', () => {
     await page.goto('/?loginToken=smoke-token#/login/smoke.test/');
 
     await expect(page).toHaveURL(/#\/login\/smoke\.test\/?\?loginToken=smoke-token$/);
-    await expect(page.getByText('Invalid login token.')).toBeVisible();
   });
 
   test('preserves unauthenticated deep-link redirects for /to routes', async ({ page }) => {

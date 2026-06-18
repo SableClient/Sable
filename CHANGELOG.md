@@ -1,6 +1,6 @@
 # Sable Client Changelog
 
-## 1.19.0 (2026-06-18)
+## 1.18.3 (2026-06-18)
 
 ### Features
 

@@ -1,5 +1,12 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_SENTRY_DSN?: string;
+  readonly VITE_SENTRY_ENVIRONMENT?: string;
+  readonly VITE_SENTRY_PR?: string;
+  readonly VITE_APP_VERSION?: string;
+}
+
 declare const APP_VERSION: string;
 declare const BUILD_HASH: string;
 declare const IS_RELEASE_TAG: boolean;

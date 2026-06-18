@@ -31,6 +31,7 @@ jobs:
       - name: Triage Sentry preview errors
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          SENTRY_TRIAGE_AUTH_TOKEN: ${{ secrets.SENTRY_TRIAGE_AUTH_TOKEN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
@@ -38,7 +39,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const sentryToken = process.env.SENTRY_AUTH_TOKEN;
+            const sentryToken =
+              process.env.SENTRY_TRIAGE_AUTH_TOKEN || process.env.SENTRY_AUTH_TOKEN;
             const sentryOrg = process.env.SENTRY_ORG;
             const sentryProject = process.env.SENTRY_PROJECT;
             const prNumber = Number(process.env.PR_NUMBER);
@@ -136,11 +138,11 @@ jobs:
               }
             }
 
-            // Query Sentry for unresolved issues tagged with this PR number in the preview env
+            // Query Sentry for unresolved preview issues tagged to this PR.
             const query = encodeURIComponent(`is:unresolved pr:${prNumber}`);
             const sentryUrl =
-              `https://sentry.io/api/0/projects/${sentryOrg}/${sentryProject}/issues/` +
-              `?query=${query}&environment=preview&limit=100`;
+              `https://sentry.io/api/0/organizations/${sentryOrg}/issues/` +
+              `?project=${encodeURIComponent(sentryProject)}&query=${query}&environment=preview&limit=100`;
 
             let sentryIssues;
             try {
@@ -149,6 +151,14 @@ jobs:
               });
               if (!resp.ok) {
                 const msg = await resp.text();
+                if (resp.status === 401 || resp.status === 403) {
+                  core.info(
+                    `Skipping Sentry preview triage: configured token cannot read Sentry issues ` +
+                      `(HTTP ${resp.status}). Configure SENTRY_TRIAGE_AUTH_TOKEN with event:read ` +
+                      `scope, or expand SENTRY_AUTH_TOKEN if you want automated issue triage.`
+                  );
+                  return;
+                }
                 core.warning(`Sentry API returned ${resp.status}: ${msg.slice(0, 200)}`);
                 return;
               }

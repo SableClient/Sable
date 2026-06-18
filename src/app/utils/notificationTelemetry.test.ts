@@ -52,11 +52,19 @@ describe('notificationTelemetry', () => {
         target_url: 'https://example.com/to/room',
         source: 'to_room_event',
         jump_mode: 'notification_live',
+        failure_reason: 'timeout',
+        sync_state: 'SYNCING',
+        visibility_state: 'hidden',
+        trigger: 'tap',
         has_event_id: true,
       })
     ).toEqual({
       source: 'to_room_event',
       jump_mode: 'notification_live',
+      failure_reason: 'timeout',
+      sync_state: 'SYNCING',
+      visibility_state: 'hidden',
+      trigger: 'tap',
       has_event_id: true,
     });
   });

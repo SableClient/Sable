@@ -30,6 +30,27 @@ import {
 
 const NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS = 1_500;
 
+export const hasTargetRoomParentMapping = (
+  roomToParents: Map<string, Set<string>>,
+  roomId: string
+): boolean => (roomToParents.get(roomId)?.size ?? 0) > 0;
+
+export const shouldWaitForTargetRoomParentGraph = (options: {
+  isDirectRoom: boolean;
+  hasTargetParentMapping: boolean;
+  storedRootSpaceId?: string;
+  restoreAgeMs?: number;
+}): boolean => {
+  const { isDirectRoom, hasTargetParentMapping, storedRootSpaceId, restoreAgeMs } = options;
+
+  return (
+    !isDirectRoom &&
+    !hasTargetParentMapping &&
+    storedRootSpaceId === undefined &&
+    (restoreAgeMs === undefined || restoreAgeMs < NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS)
+  );
+};
+
 function acknowledgeNotificationClick(clickId?: string) {
   if (!clickId || !('serviceWorker' in navigator)) return;
 
@@ -118,21 +139,24 @@ export function NotificationJumper() {
     const currentUserId = mx.getUserId() ?? undefined;
     const storedRootSpaceId =
       currentUserId !== undefined ? getStoredRoomNavRoot(currentUserId, pending.roomId) : undefined;
-    const parentGraphReady = roomToParentsReady || roomToParents.size > 0;
+    const hasTargetParentMapping = hasTargetRoomParentMapping(roomToParents, pending.roomId);
+    const shouldWaitForParentGraph = shouldWaitForTargetRoomParentGraph({
+      isDirectRoom: mDirects.has(pending.roomId),
+      hasTargetParentMapping,
+      storedRootSpaceId,
+      restoreAgeMs,
+    });
 
-    if (
-      !mDirects.has(pending.roomId) &&
-      !parentGraphReady &&
-      storedRootSpaceId === undefined &&
-      (restoreAgeMs === undefined || restoreAgeMs < NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS)
-    ) {
+    if (shouldWaitForParentGraph) {
       Sentry.addBreadcrumb(
         buildNotificationBreadcrumb('restore', 'restore_wait_parent_graph', {
           click_id: pending.swClickId,
           room_id: pending.roomId,
           source: pending.source,
           restore_age_ms: restoreAgeMs,
-          parent_graph_ready: parentGraphReady,
+          room_to_parents_ready: roomToParentsReady,
+          room_to_parents_size: roomToParents.size,
+          has_target_parent_mapping: hasTargetParentMapping,
           wait_budget_ms: NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS,
         })
       );
@@ -231,7 +255,8 @@ export function NotificationJumper() {
           jump_mode: pending.jumpMode,
           chosen_root_space_id: chosenRootSpaceId,
           root_source: rootSource,
-          parent_graph_ready: parentGraphReady,
+          room_to_parents_ready: roomToParentsReady,
+          has_target_parent_mapping: hasTargetParentMapping,
         })
       );
       const restoreLatencyMs =
@@ -248,7 +273,8 @@ export function NotificationJumper() {
           already_in_room: alreadyInRoom,
           chosen_root_space_id: chosenRootSpaceId,
           root_source: rootSource,
-          parent_graph_ready: parentGraphReady,
+          room_to_parents_ready: roomToParentsReady,
+          has_target_parent_mapping: hasTargetParentMapping,
         })
       );
       Sentry.metrics.count('sable.notification.jump_completed', 1, {
@@ -260,7 +286,8 @@ export function NotificationJumper() {
           already_in_room: alreadyInRoom,
           chosen_root_space_id: chosenRootSpaceId,
           root_source: rootSource,
-          parent_graph_ready: parentGraphReady,
+          room_to_parents_ready: roomToParentsReady,
+          has_target_parent_mapping: hasTargetParentMapping,
         }),
       });
       if (restoreLatencyMs !== undefined) {
@@ -272,7 +299,8 @@ export function NotificationJumper() {
             already_in_room: alreadyInRoom,
             chosen_root_space_id: chosenRootSpaceId,
             root_source: rootSource,
-            parent_graph_ready: parentGraphReady,
+            room_to_parents_ready: roomToParentsReady,
+            has_target_parent_mapping: hasTargetParentMapping,
           }),
         });
       }
@@ -288,7 +316,8 @@ export function NotificationJumper() {
           membership: room?.getMyMembership(),
           source: pending.source,
           jump_mode: pending.jumpMode,
-          parent_graph_ready: parentGraphReady,
+          room_to_parents_ready: roomToParentsReady,
+          has_target_parent_mapping: hasTargetParentMapping,
           stored_root_space_id: storedRootSpaceId,
         })
       );
@@ -352,15 +381,14 @@ export function NotificationJumper() {
     const currentUserId = mx.getUserId() ?? undefined;
     const storedRootSpaceId =
       currentUserId !== undefined ? getStoredRoomNavRoot(currentUserId, pending.roomId) : undefined;
-    const parentGraphReady = roomToParentsReady || roomToParents.size > 0;
     const restoreAgeMs =
       typeof pending.requestedAt === 'number' ? Date.now() - pending.requestedAt : undefined;
-
-    const shouldWaitForParentGraph =
-      !mDirects.has(pending.roomId) &&
-      !parentGraphReady &&
-      storedRootSpaceId === undefined &&
-      (restoreAgeMs === undefined || restoreAgeMs < NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS);
+    const shouldWaitForParentGraph = shouldWaitForTargetRoomParentGraph({
+      isDirectRoom: mDirects.has(pending.roomId),
+      hasTargetParentMapping: hasTargetRoomParentMapping(roomToParents, pending.roomId),
+      storedRootSpaceId,
+      restoreAgeMs,
+    });
 
     if (!shouldWaitForParentGraph) return undefined;
 
@@ -380,7 +408,7 @@ export function NotificationJumper() {
         parentGraphWaitTimerRef.current = undefined;
       }
     };
-  }, [pending, roomToParentsReady, roomToParents.size, mDirects, mx]);
+  }, [pending, roomToParents, roomToParentsReady, mDirects, mx]);
 
   return null;
 }

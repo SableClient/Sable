@@ -16,6 +16,9 @@ const settings = {
   saturationLevel: 100,
   underlineLinks: false,
   reducedMotion: false,
+  useSystemTheme: false,
+  themeRemoteLightFullUrl: undefined as string | undefined,
+  themeRemoteDarkFullUrl: undefined as string | undefined,
   themeRemoteEnabledTweakFullUrls: [] as string[],
 };
 let storedThemeCssByUrl: Record<string, string> = {};
@@ -91,6 +94,7 @@ vi.mock('$app/theme/cache', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal('fetch', vi.fn());
   systemThemeKind = ThemeKind.Light;
   settingsInitialized = false;
   activeTheme = {
@@ -101,6 +105,9 @@ beforeEach(() => {
   settings.saturationLevel = 100;
   settings.underlineLinks = false;
   settings.reducedMotion = false;
+  settings.useSystemTheme = false;
+  settings.themeRemoteLightFullUrl = undefined;
+  settings.themeRemoteDarkFullUrl = undefined;
   settings.themeRemoteEnabledTweakFullUrls = [];
   storedThemeCssByUrl = {};
   storedTweakCssByUrls = {};
@@ -111,6 +118,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   document.body.className = '';
   document.body.style.filter = '';
   document.getElementById('sable-remote-theme-style')?.remove();
@@ -285,6 +293,10 @@ describe('ThemeManager', () => {
     };
 
     vi.mocked(getCachedThemeCss).mockResolvedValue(undefined);
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      text: async () => '',
+    } as Response);
 
     render(
       <AuthRouteThemeManager>
@@ -304,6 +316,10 @@ describe('ThemeManager', () => {
     storedTweakCssByUrls['https://themes.example/tweak.css'] = 'body { --cached-tweak: 1; }';
 
     vi.mocked(getCachedThemeCss).mockResolvedValue(undefined);
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      text: async () => '',
+    } as Response);
 
     render(
       <AuthRouteThemeManager>
@@ -315,5 +331,56 @@ describe('ThemeManager', () => {
       expect(clearStoredAppliedTweakCss).toHaveBeenCalled();
     });
     expect(document.getElementById('sable-remote-tweaks-style')).toBeNull();
+  });
+
+  it('preserves the applied theme snapshot when the inactive system slot is remote', () => {
+    settingsInitialized = true;
+    settings.useSystemTheme = true;
+    settings.themeRemoteLightFullUrl = 'https://themes.example/light.css';
+    systemThemeKind = ThemeKind.Dark;
+    storedThemeCssByUrl['https://themes.example/light.css'] = 'body { --cached-theme: 1; }';
+    activeTheme = {
+      id: 'test-dark',
+      kind: ThemeKind.Dark,
+      classNames: ['test-dark-theme'],
+    };
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    expect(clearStoredAppliedThemeCss).not.toHaveBeenCalled();
+    expect(document.getElementById('sable-remote-theme-style')).toBeNull();
+  });
+
+  it('preserves active remote css on transient fetch errors', async () => {
+    settingsInitialized = true;
+    storedThemeCssByUrl['https://themes.example/dark.css'] = 'body { --cached-theme: 1; }';
+    activeTheme = {
+      id: 'test-remote',
+      kind: ThemeKind.Dark,
+      classNames: ['test-dark-theme'],
+      remoteFullUrl: 'https://themes.example/dark.css',
+    };
+
+    vi.mocked(getCachedThemeCss).mockResolvedValue(undefined);
+    vi.mocked(fetch).mockRejectedValue(new Error('network down'));
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
+
+    expect(clearStoredAppliedThemeCss).not.toHaveBeenCalled();
+    expect(document.getElementById('sable-remote-theme-style')?.textContent).toBe(
+      'body { --cached-theme: 1; }'
+    );
   });
 });

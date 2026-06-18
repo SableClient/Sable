@@ -30,6 +30,11 @@ const REMOTE_TWEAKS_STYLE_ID = 'sable-remote-tweaks-style';
 const LIGHT_THEME_COLOR = '#ffffff';
 const DARK_THEME_COLOR = '#1b1a21';
 
+type RemoteCssLoadResult =
+  | { status: 'loaded'; text: string }
+  | { status: 'missing' }
+  | { status: 'error' };
+
 function syncDocumentThemeMetadata(kind: ThemeKind): void {
   const bootTheme = kind === ThemeKind.Dark ? 'dark' : 'light';
   const themeColor = kind === ThemeKind.Dark ? DARK_THEME_COLOR : LIGHT_THEME_COLOR;
@@ -70,28 +75,32 @@ function setInlineStyleText(id: string, text: string | undefined): void {
   syncRemoteStyleOrder();
 }
 
-async function loadRemoteThemeCssText(url: string): Promise<string | undefined> {
+async function loadRemoteThemeCss(url: string): Promise<RemoteCssLoadResult> {
   try {
     const cached = await getCachedThemeCss(url);
-    if (cached) return cached;
+    if (cached) {
+      return { status: 'loaded', text: cached };
+    }
   } catch {
     /* IndexedDB unavailable */
   }
+
   if (isLocalImportBundledUrl(url)) {
-    return undefined;
+    return { status: 'missing' };
   }
+
   try {
     const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) return undefined;
+    if (!res.ok) return { status: 'missing' };
     const text = await res.text();
     try {
       await putCachedThemeCss(url, text);
     } catch {
       /* cache optional */
     }
-    return text;
+    return { status: 'loaded', text };
   } catch {
-    return undefined;
+    return { status: 'error' };
   }
 }
 
@@ -122,6 +131,15 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   const [underlineLinks] = useSetting(settingsAtom, 'underlineLinks');
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [enabledTweakUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
+  const [systemTheme] = useSetting(settingsAtom, 'useSystemTheme');
+  const [lightRemoteUrl] = useSetting(settingsAtom, 'themeRemoteLightFullUrl');
+  const [darkRemoteUrl] = useSetting(settingsAtom, 'themeRemoteDarkFullUrl');
+
+  const inactiveRemoteSlotUrl =
+    systemTheme && activeTheme.kind === ThemeKind.Dark ? lightRemoteUrl?.trim() : undefined;
+  const alternateDarkRemoteSlotUrl =
+    systemTheme && activeTheme.kind === ThemeKind.Light ? darkRemoteUrl?.trim() : undefined;
+  const hasInactiveRemoteThemeSlot = Boolean(inactiveRemoteSlotUrl || alternateDarkRemoteSlotUrl);
 
   useLayoutEffect(() => {
     // Apply the locally resolved theme immediately so the React app matches the
@@ -159,11 +177,13 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     const url = activeTheme.remoteFullUrl?.trim();
     if (!url) {
       setInlineStyleText(REMOTE_STYLE_ID, undefined);
-      clearStoredAppliedThemeCss();
+      if (!hasInactiveRemoteThemeSlot) {
+        clearStoredAppliedThemeCss();
+      }
       return;
     }
     setInlineStyleText(REMOTE_STYLE_ID, getStoredAppliedThemeCss(url));
-  }, [settingsInitialized, activeTheme.remoteFullUrl]);
+  }, [settingsInitialized, activeTheme.remoteFullUrl, hasInactiveRemoteThemeSlot]);
 
   useLayoutEffect(() => {
     if (!settingsInitialized) return;
@@ -185,25 +205,30 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
 
     if (url) {
       (async () => {
-        const text = await loadRemoteThemeCssText(url);
+        const result = await loadRemoteThemeCss(url);
         if (cancelled) return;
-        if (!text) {
+        if (result.status === 'error') {
+          return;
+        }
+        if (result.status === 'missing') {
           setInlineStyleText(REMOTE_STYLE_ID, undefined);
           clearStoredAppliedThemeCss();
           return;
         }
-        setInlineStyleText(REMOTE_STYLE_ID, text);
-        putStoredAppliedThemeCss(url, text);
+        setInlineStyleText(REMOTE_STYLE_ID, result.text);
+        putStoredAppliedThemeCss(url, result.text);
       })();
     } else {
       setInlineStyleText(REMOTE_STYLE_ID, undefined);
-      clearStoredAppliedThemeCss();
+      if (!hasInactiveRemoteThemeSlot) {
+        clearStoredAppliedThemeCss();
+      }
     }
 
     return () => {
       cancelled = true;
     };
-  }, [settingsInitialized, activeTheme.remoteFullUrl]);
+  }, [settingsInitialized, activeTheme.remoteFullUrl, hasInactiveRemoteThemeSlot]);
 
   useEffect(() => {
     if (!settingsInitialized) return undefined;
@@ -218,9 +243,12 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     }
 
     (async () => {
-      const texts = await Promise.all(urls.map((url) => loadRemoteThemeCssText(url.trim())));
+      const results = await Promise.all(urls.map((url) => loadRemoteThemeCss(url.trim())));
       if (cancelled) return;
-      const chunks = texts.filter((text): text is string => Boolean(text));
+      if (results.some((result) => result.status === 'error')) {
+        return;
+      }
+      const chunks = results.flatMap((result) => (result.status === 'loaded' ? [result.text] : []));
       if (chunks.length === 0) {
         setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
         clearStoredAppliedTweakCss();

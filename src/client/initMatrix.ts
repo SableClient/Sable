@@ -24,6 +24,7 @@ import { SlidingSyncManager } from './slidingSync';
 import { installThreadEventInstrumentation } from './threadEventPatch';
 import { classifyCryptoStoreIndexedDbError } from './cryptoStoreErrors';
 import { clearClientCachesAndServiceWorkers } from '$utils/appCacheReset';
+import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
@@ -1436,7 +1437,7 @@ export const clearCacheAndReload = async (mx: MatrixClient) => {
   clearNavToActivePathStore(mx.getSafeUserId());
   await mx.store.deleteAllData();
   await clearClientCachesAndServiceWorkers();
-  window.location.reload();
+  reloadWithTelemetry('clear_cache_and_reload');
 };
 
 export const getClientSyncDiagnostics = (mx: MatrixClient): ClientSyncDiagnostics => {
@@ -1501,5 +1502,5 @@ export const clearLoginData = async () => {
 
   await clearClientCachesAndServiceWorkers({ unregisterServiceWorkers: true });
 
-  window.location.reload();
+  reloadWithTelemetry('clear_login_data', { unregisterServiceWorkers: true });
 };

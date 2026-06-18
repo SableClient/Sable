@@ -5,6 +5,7 @@ import type { Sessions } from './app/state/sessions';
 import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './app/state/sessions';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 import { hasServiceWorker } from './app/utils/platform';
+import { recordReloadRequested, reloadWithTelemetry } from './app/utils/reloadWithTelemetry';
 import { pushSessionToSW } from './sw-session';
 import { consumeLaunchContext } from './launch-context-persistence';
 
@@ -21,23 +22,6 @@ type SwRecoveryReason =
   | 'foreground_focus'
   | 'visibilitychange_visible'
   | 'pageshow';
-
-const recordForcedReload = (reason: string, data?: Record<string, unknown>) => {
-  Sentry.addBreadcrumb({
-    category: 'app.reload',
-    message: 'Forced reload requested',
-    level: 'warning',
-    data: {
-      reason,
-      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
-      online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
-      ...data,
-    },
-  });
-  Sentry.metrics.count('sable.app.reload_requested', 1, {
-    attributes: { reason },
-  });
-};
 
 const recordWatchdogRecoveryAttempt = (
   reason: SwRecoveryReason,
@@ -63,17 +47,17 @@ const activateWaitingServiceWorkerAndReload = (waitingWorker: ServiceWorker) => 
   let settled = false;
   let timeoutId = 0;
 
-  const finish = () => {
+  const finish = (reason: string) => {
     if (settled) return;
     settled = true;
     window.clearTimeout(timeoutId);
     navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-    window.location.reload();
+    reloadWithTelemetry(reason);
   };
 
-  const handleControllerChange = () => finish();
+  const handleControllerChange = () => finish('sw_update_controllerchange');
 
-  timeoutId = window.setTimeout(finish, APPLY_UPDATE_TIMEOUT_MS);
+  timeoutId = window.setTimeout(() => finish('sw_update_apply_timeout'), APPLY_UPDATE_TIMEOUT_MS);
   navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange, {
     once: true,
   });
@@ -91,13 +75,11 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   // eslint-disable-next-line no-alert
   if (window.confirm('A new version of the app is available. Refresh to update?')) {
     if (registration.waiting) {
-      recordForcedReload('sw_update_prompt_waiting', { hasWaitingWorker: true });
+      recordReloadRequested('sw_update_prompt_waiting', { hasWaitingWorker: true });
       activateWaitingServiceWorkerAndReload(registration.waiting);
       return;
-    } else {
-      recordForcedReload('sw_update_prompt_reload', { hasWaitingWorker: false });
     }
-    window.location.reload();
+    reloadWithTelemetry('sw_update_prompt_reload', { hasWaitingWorker: false });
   }
 };
 
@@ -248,8 +230,7 @@ function createSwWatchdog() {
         consecutiveMisses,
       });
       if (consecutiveMisses >= SW_WATCHDOG_MAX_MISSES) {
-        recordForcedReload('sw_watchdog_unresponsive', { consecutiveMisses });
-        window.location.reload();
+        reloadWithTelemetry('sw_watchdog_unresponsive', { consecutiveMisses });
       }
     }
   };

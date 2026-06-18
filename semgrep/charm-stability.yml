@@ -1,0 +1,48 @@
+rules:
+  - id: charm-no-async-dom-listener-callbacks
+    message: >-
+      Avoid async DOM event listeners in Charm runtime code. Keep the listener synchronous and
+      explicitly `void` any traced async recovery work so failures stay observable.
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    paths:
+      include:
+        - /src/app/hooks/useAppVisibility.ts
+        - /src/app/pages/client/BackgroundNotifications.tsx
+        - /src/client/initMatrix.ts
+        - /src/client/slidingSync.ts
+        - /src/serviceWorkerBootstrap.ts
+    pattern-regex: (?s)\baddEventListener\s*\([^,]+,\s*async\b
+
+  - id: charm-no-async-timer-callbacks
+    message: >-
+      Avoid async timer callbacks in Charm runtime code. Wrap async work in a synchronous timer
+      callback and `void` a monitored promise instead.
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    paths:
+      include:
+        - /src/app/hooks/useAppVisibility.ts
+        - /src/app/pages/client/BackgroundNotifications.tsx
+        - /src/client/initMatrix.ts
+        - /src/client/slidingSync.ts
+        - /src/serviceWorkerBootstrap.ts
+    pattern-regex: (?s)\b(?:window\.)?set(?:Timeout|Interval)\s*\(\s*async\b
+
+  - id: charm-runtime-reload-needs-telemetry
+    message: >-
+      Route runtime-triggered reloads through `reloadWithTelemetry()` so Sentry captures the reason
+      before the page unloads.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    paths:
+      include:
+        - /src/serviceWorkerBootstrap.ts
+        - /src/client/initMatrix.ts
+    pattern: window.location.reload()

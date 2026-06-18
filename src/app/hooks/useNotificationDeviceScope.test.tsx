@@ -187,4 +187,27 @@ describe('useNotificationDeviceScope', () => {
     expect(result.current.isActiveNotificationClient).toBe(true);
     expect(result.current.shouldKeepWebPushEnabled).toBe(true);
   });
+
+  it('shares optimistic lease updates with read-only consumers in the same tab', async () => {
+    notificationDeviceScope = 'active_client_only';
+    const { client } = createMockMatrixClient();
+
+    const owner = renderHook(() => useNotificationDeviceScope(client));
+    const observer = renderHook(() =>
+      useNotificationDeviceScope(client, {
+        publishLease: false,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(client.setAccountData).toHaveBeenCalledTimes(1);
+    expect(observer.result.current.isThisClientLeaseHolder).toBe(true);
+    expect(observer.result.current.isActiveNotificationClient).toBe(true);
+
+    owner.unmount();
+    observer.unmount();
+  });
 });

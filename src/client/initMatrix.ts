@@ -121,7 +121,6 @@ const isRecoverableStoreInitError = (err: unknown): boolean => {
     msg.includes('DatabaseClosedError') ||
     msg.includes('connection is closing') ||
     msg.includes('connection is closed') ||
-    msg.includes('Failed to execute') ||
     msg.includes('The database connection is closing') ||
     msg.includes('The database connection is closed')
   );

@@ -10,6 +10,7 @@ import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 const NOTIFICATION_DEVICE_LEASE_EVENT_TYPE =
   CustomAccountDataEvent.SableNotificationDeviceLease as never;
+const LOCAL_LEASE_UPDATE_EVENT = 'sable:notification-device-lease-update';
 
 export type NotificationDeviceLease = {
   deviceId: string;
@@ -48,6 +49,15 @@ const readLeaseContent = (mx: MatrixClient | undefined): NotificationDeviceLease
 
 const isLeaseFresh = (lease: NotificationDeviceLease | null, now: number): boolean =>
   !!lease && lease.expiresAt > now;
+
+const broadcastLocalLeaseUpdate = (lease: NotificationDeviceLease | null): void => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent<NotificationDeviceLease | null>(LOCAL_LEASE_UPDATE_EVENT, {
+      detail: lease,
+    })
+  );
+};
 
 export function useNotificationDeviceScope(
   mx: MatrixClient | undefined,
@@ -136,9 +146,11 @@ export function useNotificationDeviceScope(
         expiresAt: nextNow + LEASE_DURATION_MS,
       };
       setLease(nextLease);
+      broadcastLocalLeaseUpdate(nextLease);
       mx.setAccountData(NOTIFICATION_DEVICE_LEASE_EVENT_TYPE, nextLease as never).catch(() => {
         if (!cancelled) {
           setLease(currentLease ?? null);
+          broadcastLocalLeaseUpdate(currentLease ?? null);
         }
       });
     };
@@ -150,6 +162,20 @@ export function useNotificationDeviceScope(
       window.clearInterval(intervalId);
     };
   }, [mx, deviceId, shouldPublishLease, scopeEnabled, shouldHoldLease]);
+
+  useEffect(() => {
+    const handleLocalLeaseUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<NotificationDeviceLease | null>).detail;
+      setLease(detail ?? null);
+      setNow(Date.now());
+    };
+
+    window.addEventListener(LOCAL_LEASE_UPDATE_EVENT, handleLocalLeaseUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener(LOCAL_LEASE_UPDATE_EVENT, handleLocalLeaseUpdate as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     if (!mx || typeof mx.on !== 'function' || typeof mx.removeListener !== 'function') {

@@ -182,7 +182,7 @@ export async function applyPendingAppUpdate(): Promise<void> {
   if (registration.waiting) {
     const waitForControllerChange = waitForServiceWorkerControllerChange();
     // oxlint-disable-next-line unicorn/require-post-message-target-origin
-    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
     await waitForControllerChange;
   }
 

@@ -6,13 +6,13 @@ export type NotificationPluginListener = {
 
 export type TauriNotificationsApi = {
   Importance: {
-    readonly Default: string;
+    readonly Default: number;
   };
   createChannel: (channel: {
     id: string;
     name: string;
     description?: string;
-    importance?: string;
+    importance?: number;
     vibration?: boolean;
   }) => Promise<void>;
   sendNotification: (payload: Record<string, unknown>) => Promise<void>;

@@ -1102,6 +1102,8 @@ self.addEventListener('install', (event: ExtendableEvent) => {
   );
 });
 
+let claimClientsOnActivate = false;
+
 self.addEventListener('activate', (event: ExtendableEvent) => {
   event.waitUntil(
     (async () => {
@@ -1120,6 +1122,10 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // navigations are automatically controlled by the active SW without an
       // explicit claim.
       await cleanupDeadClients();
+      if (claimClientsOnActivate) {
+        await self.clients.claim();
+        claimClientsOnActivate = false;
+      }
       // Pre-load the persisted session into memory so that media fetches arriving
       // before the first setSession message from the page are immediately
       // authenticated. If the token is expired, the media fetch will get a 401
@@ -1488,6 +1494,12 @@ async function fetchMediaWithRetry(
 }
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data.type === 'SKIP_WAITING_AND_CLAIM') {
+    claimClientsOnActivate = true;
+    self.skipWaiting();
+    return;
+  }
+
   if (event.data.type === 'SKIP_WAITING') {
     // Client requested the waiting SW to activate immediately (user clicked update banner)
     self.skipWaiting();

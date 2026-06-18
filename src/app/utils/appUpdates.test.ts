@@ -202,7 +202,7 @@ describe('appUpdates', () => {
     const applyPromise = applyPendingAppUpdate();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING_AND_CLAIM' });
     expect(mockReload).not.toHaveBeenCalled();
 
     controllerChangeListener?.(new Event('controllerchange'));
@@ -217,7 +217,7 @@ describe('appUpdates', () => {
     const applyPromise = applyPendingAppUpdate();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING_AND_CLAIM' });
     expect(mockReload).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(4000);

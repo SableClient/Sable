@@ -108,8 +108,6 @@ import {
 } from '$features/settings/notifications/NotificationTransport';
 const pushRelayLog = createDebugLogger('push-relay');
 const transportLog = createDebugLogger('push-transport');
-const emojiFontLog = createDebugLogger('emoji-font');
-
 function clearMediaSessionQuickly(): void {
   if (!('mediaSession' in navigator)) return;
   // iOS can register the lock-screen media player as a side effect of
@@ -219,133 +217,10 @@ function SystemEmojiFeature() {
   useEffect(() => {
     document.documentElement.dataset.sableMobile = mobileOrTablet() ? 'true' : 'false';
     document.documentElement.dataset.sableEmojiStyle = twitterEmoji ? 'twemoji' : 'system';
-    document.documentElement.dataset.sableEmojiEffectiveStyle = twitterEmoji ? 'twemoji' : 'system';
     document.documentElement.style.setProperty(
       '--font-emoji',
       twitterEmoji ? 'Twemoji' : 'Twemoji_DISABLED'
     );
-  }, [twitterEmoji]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const emitEmojiFontDiagnostics = async () => {
-      const mobile = mobileOrTablet();
-      const sample = '🫩';
-      const computedEmojiFont = getComputedStyle(document.documentElement)
-        .getPropertyValue('--font-emoji')
-        .trim();
-      const baseData = {
-        twitterEmoji,
-        mobile,
-        platform: navigator.platform || 'unknown',
-        userAgent: navigator.userAgent,
-        computedEmojiFont,
-        hasFontApi: 'fonts' in document,
-      };
-
-      if (!('fonts' in document)) {
-        Sentry.addBreadcrumb({
-          category: 'ui.emoji-font',
-          message: 'Emoji font diagnostics: Font Loading API unavailable',
-          level: 'info',
-          data: baseData,
-        });
-        Sentry.logger.info('emoji font diagnostics', {
-          ...baseData,
-          status: 'font-api-unavailable',
-        });
-        emojiFontLog.info('ui', 'Emoji font diagnostics: Font Loading API unavailable', baseData);
-        return;
-      }
-
-      try {
-        await document.fonts.ready;
-        if (cancelled) return;
-
-        const twemojiCheck = document.fonts.check('16px Twemoji', sample);
-        const configuredCheck = computedEmojiFont
-          ? document.fonts.check(`16px ${computedEmojiFont}`, sample)
-          : false;
-        const systemCheck = document.fonts.check('16px "Apple Color Emoji"', sample);
-        const loadResult = twitterEmoji
-          ? await document.fonts.load('16px Twemoji', sample)
-          : await document.fonts.load('16px "Apple Color Emoji"', sample);
-        if (cancelled) return;
-
-        const effectiveEmojiStyle = twitterEmoji && twemojiCheck ? 'twemoji' : 'system';
-        document.documentElement.dataset.sableEmojiEffectiveStyle = effectiveEmojiStyle;
-
-        const diagnostics = {
-          ...baseData,
-          twemojiCheck,
-          configuredCheck,
-          systemCheck,
-          loadCount: loadResult.length,
-          effectiveEmojiStyle,
-        };
-
-        Sentry.addBreadcrumb({
-          category: 'ui.emoji-font',
-          message: 'Emoji font diagnostics collected',
-          level: twitterEmoji && !twemojiCheck ? 'warning' : 'info',
-          data: diagnostics,
-        });
-        Sentry.logger.info('emoji font diagnostics', diagnostics);
-        emojiFontLog.info('ui', 'Emoji font diagnostics collected', diagnostics);
-
-        if (twitterEmoji && !twemojiCheck) {
-          Sentry.captureMessage('Twemoji font check failed after enabling twitter emoji', {
-            level: 'warning',
-            tags: {
-              category: 'ui',
-              namespace: 'emoji-font',
-            },
-            contexts: {
-              emojiFont: diagnostics,
-            },
-          });
-          emojiFontLog.warn(
-            'ui',
-            'Twemoji font check failed after enabling twitter emoji',
-            diagnostics
-          );
-        }
-      } catch (error) {
-        if (cancelled) return;
-
-        document.documentElement.dataset.sableEmojiEffectiveStyle = 'system';
-
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorData = {
-          ...baseData,
-          error: errorMessage,
-        };
-
-        Sentry.addBreadcrumb({
-          category: 'ui.emoji-font',
-          message: 'Emoji font diagnostics failed',
-          level: 'error',
-          data: errorData,
-        });
-        Sentry.captureException(error, {
-          tags: {
-            category: 'ui',
-            namespace: 'emoji-font',
-          },
-          contexts: {
-            emojiFont: errorData,
-          },
-        });
-        emojiFontLog.error('ui', 'Emoji font diagnostics failed', errorData);
-      }
-    };
-
-    void emitEmojiFontDiagnostics();
-
-    return () => {
-      cancelled = true;
-    };
   }, [twitterEmoji]);
 
   return null;

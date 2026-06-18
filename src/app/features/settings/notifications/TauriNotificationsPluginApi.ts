@@ -1,7 +1,7 @@
 import { addPluginListener, invoke, type PluginListener } from '@tauri-apps/api/core';
 
 export enum Importance {
-  Default = 'Default',
+  Default = 3,
 }
 
 export type MessagingStylePerson = {
@@ -31,7 +31,7 @@ export type NotificationChannel = {
   id: string;
   name: string;
   description?: string;
-  importance?: string;
+  importance?: number;
   vibration?: boolean;
 };
 

@@ -55,9 +55,23 @@ const debugLog = createDebugLogger('BackgroundNotifications');
 
 const BACKGROUND_SYNC_POLL_TIMEOUT_MS = 60_000;
 const BACKGROUND_STAGGER_DELAY_MS = 5_000;
+export const BACKGROUND_CLIENT_SYNC_READY_TIMEOUT_MS = 30_000;
+
+export type BackgroundClientFailureKind =
+  | 'sync_timeout'
+  | 'start_failed'
+  | 'notification_display_failed';
 
 const isClientReadyForNotifications = (state: SyncState | string | null): boolean =>
   state === SyncState.Prepared || state === SyncState.Syncing || state === SyncState.Catchup;
+
+export const classifyBackgroundClientFailure = (error: unknown): BackgroundClientFailureKind => {
+  if (error instanceof Error && error.message === 'background client sync timed out') {
+    return 'sync_timeout';
+  }
+
+  return 'start_failed';
+};
 
 const startBackgroundClient = async (
   session: Session,
@@ -133,7 +147,7 @@ const startBackgroundClient = async (
  * Rejects after 30 seconds so callers can handle a stalled client instead
  * of blocking indefinitely.
  */
-const waitForSync = (mx: MatrixClient): Promise<void> =>
+export const waitForSync = (mx: MatrixClient): Promise<void> =>
   new Promise((resolve, reject) => {
     const state = mx.getSyncState();
     if (isClientReadyForNotifications(state)) {
@@ -152,7 +166,7 @@ const waitForSync = (mx: MatrixClient): Promise<void> =>
     timer.id = setTimeout(() => {
       mx.removeListener(ClientEvent.Sync, onSync);
       reject(new Error('background client sync timed out'));
-    }, 30_000);
+    }, BACKGROUND_CLIENT_SYNC_READY_TIMEOUT_MS);
   });
 
 export function BackgroundNotifications() {
@@ -236,11 +250,20 @@ export function BackgroundNotifications() {
   useEffect(() => {
     const { current } = clientsRef;
     const cleanupMap = clientCleanupRef.current;
-    const stopTrackedClient = (userId: string) => {
+    const stopTrackedClient = (userId: string, reason: string = 'cleanup') => {
       const mx = current.get(userId);
       cleanupMap.get(userId)?.();
       cleanupMap.delete(userId);
       if (mx) {
+        Sentry.addBreadcrumb({
+          category: 'notification.background_client',
+          message: 'Background client stopped',
+          level: 'info',
+          data: { userId, reason },
+        });
+        Sentry.metrics.count('sable.background.client_stop', 1, {
+          attributes: { reason },
+        });
         void stopClient(mx);
         current.delete(userId);
       }
@@ -248,7 +271,7 @@ export function BackgroundNotifications() {
 
     if (!shouldRunBackgroundNotifications) {
       current.forEach((_mx, userId) => {
-        stopTrackedClient(userId);
+        stopTrackedClient(userId, 'notifications_disabled');
         // Clear the background unread badge when the session stops being tracked.
         setBackgroundUnreads((prev) => {
           const next = { ...prev };
@@ -288,7 +311,13 @@ export function BackgroundNotifications() {
             category: 'notification.background_client',
             message: 'Service worker notification display failed; falling back',
             level: 'warning',
-            data: { error: err instanceof Error ? err.message : String(err) },
+            data: {
+              error: err instanceof Error ? err.message : String(err),
+              failureKind: 'notification_display_failed',
+            },
+          });
+          Sentry.metrics.count('sable.background.client_failure', 1, {
+            attributes: { reason: 'notification_display_failed' },
           });
           // Fall through to window.Notification if SW registration fails.
         }
@@ -328,7 +357,7 @@ export function BackgroundNotifications() {
 
     current.forEach((mx, userId) => {
       if (!activeIds.has(userId)) {
-        stopTrackedClient(userId);
+        stopTrackedClient(userId, 'session_no_longer_backgrounded');
         Sentry.metrics.gauge('sable.background.client_count', current.size);
         // Clear the background unread badge when this session is no longer a background account.
         setBackgroundUnreads((prev) => {
@@ -371,6 +400,12 @@ export function BackgroundNotifications() {
           }
           current.set(session.userId, mx);
           Sentry.metrics.gauge('sable.background.client_count', current.size);
+          Sentry.metrics.count('sable.background.client_start', 1, {
+            attributes: {
+              stage: 'started',
+              transport: session.slidingSyncOptIn ? 'sliding' : 'classic',
+            },
+          });
 
           Sentry.addBreadcrumb({
             category: 'notification.background_client',
@@ -385,7 +420,7 @@ export function BackgroundNotifications() {
             !shouldRunBackgroundNotificationsRef.current ||
             !inactiveSessionsRef.current.some((s) => s.userId === session.userId)
           ) {
-            stopTrackedClient(session.userId);
+            stopTrackedClient(session.userId, 'sync_ready_but_not_needed');
             return;
           }
 
@@ -394,6 +429,12 @@ export function BackgroundNotifications() {
             message: 'Background client stage: sync_ready',
             data: { stage: 'sync_ready', userId: session.userId, elapsedMs: Date.now() - initTime },
             level: 'info',
+          });
+          Sentry.metrics.count('sable.background.client_start', 1, {
+            attributes: {
+              stage: 'sync_ready',
+              transport: session.slidingSyncOptIn ? 'sliding' : 'classic',
+            },
           });
 
           // Wait for m.direct account data to load. This is critical for DM detection.
@@ -685,7 +726,7 @@ export function BackgroundNotifications() {
               Sentry.metrics.count('sable.notification.os_requested', 1, {
                 attributes: { source: 'background_client', is_dm: isDM },
               });
-              sendNotification({
+              void sendNotification({
                 title: notificationPayload.title,
                 icon: notificationPayload.options.icon,
                 badge: notificationPayload.options.badge,
@@ -707,9 +748,10 @@ export function BackgroundNotifications() {
         })
         .catch((err) => {
           startingClientsRef.current.delete(session.userId);
+          const failureKind = classifyBackgroundClientFailure(err);
           if (effectDisposed) {
             if (sessionMx) {
-              stopTrackedClient(session.userId);
+              stopTrackedClient(session.userId, 'effect_disposed_after_failure');
             }
             return;
           }
@@ -726,15 +768,23 @@ export function BackgroundNotifications() {
               stage: 'failed',
               userId: session.userId,
               elapsedMs: Date.now() - initTime,
-              timeoutMs: 30000,
+              timeoutMs: BACKGROUND_CLIENT_SYNC_READY_TIMEOUT_MS,
               attempt,
+              failureKind,
               error: err instanceof Error ? err.message : String(err),
             },
             level: 'error',
           });
+          Sentry.metrics.count('sable.background.client_failure', 1, {
+            attributes: {
+              reason: failureKind,
+              attempt: String(attempt),
+              transport: session.slidingSyncOptIn ? 'sliding' : 'classic',
+            },
+          });
 
           Sentry.captureException(err, {
-            tags: { component: 'BackgroundNotifications' },
+            tags: { component: 'BackgroundNotifications', failure_kind: failureKind },
           });
 
           // Remove the stuck/failed client from current so future runs (or the
@@ -749,6 +799,24 @@ export function BackgroundNotifications() {
           // Retry with exponential backoff, up to 5 attempts (5s, 10s, 20s, 40s, 60s cap).
           if (attempt < 5) {
             const retryDelay = Math.min(5_000 * 2 ** attempt, 60_000);
+            Sentry.addBreadcrumb({
+              category: 'notification.background_client',
+              message: 'Scheduling background client retry',
+              level: 'warning',
+              data: {
+                userId: session.userId,
+                attempt,
+                nextAttempt: attempt + 1,
+                retryDelay,
+                failureKind,
+              },
+            });
+            Sentry.metrics.count('sable.background.client_retry_scheduled', 1, {
+              attributes: {
+                reason: failureKind,
+                next_attempt: String(attempt + 1),
+              },
+            });
             const retryTimer = setTimeout(() => {
               const latestSession = inactiveSessionsRef.current.find(
                 (s) => s.userId === session.userId
@@ -786,7 +854,7 @@ export function BackgroundNotifications() {
       retryTimers.forEach(clearTimeout);
       current.forEach((mx, userId) => {
         if (!activeUserIds.has(userId)) {
-          stopTrackedClient(userId);
+          stopTrackedClient(userId, 'effect_cleanup');
         }
       });
     };

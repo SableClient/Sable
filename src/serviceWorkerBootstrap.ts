@@ -14,6 +14,13 @@ const APPLY_UPDATE_TIMEOUT_MS = 4000;
 const SW_WATCHDOG_INTERVAL_MS = 60_000;
 const SW_WATCHDOG_PING_TIMEOUT_MS = 5_000;
 const SW_WATCHDOG_MAX_MISSES = 2;
+type SwRecoveryReason =
+  | 'missing_worker'
+  | 'awaiting_compatible_pong'
+  | 'watchdog_ping_timeout'
+  | 'foreground_focus'
+  | 'visibilitychange_visible'
+  | 'pageshow';
 
 const recordForcedReload = (reason: string, data?: Record<string, unknown>) => {
   Sentry.addBreadcrumb({
@@ -28,6 +35,26 @@ const recordForcedReload = (reason: string, data?: Record<string, unknown>) => {
     },
   });
   Sentry.metrics.count('sable.app.reload_requested', 1, {
+    attributes: { reason },
+  });
+};
+
+const recordWatchdogRecoveryAttempt = (
+  reason: SwRecoveryReason,
+  data?: Record<string, unknown>
+) => {
+  Sentry.addBreadcrumb({
+    category: 'service_worker',
+    message: 'Service worker recovery requested',
+    level: 'warning',
+    data: {
+      reason,
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
+      ...data,
+    },
+  });
+  Sentry.metrics.count('sable.sw.watchdog_recovery', 1, {
     attributes: { reason },
   });
 };
@@ -138,14 +165,20 @@ function createSwWatchdog() {
     pending.resolve();
   };
 
-  const requestRecovery = async () => {
+  const requestRecovery = async (reason: SwRecoveryReason, data?: Record<string, unknown>) => {
+    recordWatchdogRecoveryAttempt(reason, data);
     const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
     registration?.active?.postMessage({ type: 'CLAIM_CLIENTS' });
     void registration?.update();
     sendActiveSessionToServiceWorker();
   };
 
-  const pingServiceWorker = async () => {
+  const pingServiceWorker = async (
+    reason: Extract<
+      SwRecoveryReason,
+      'foreground_focus' | 'visibilitychange_visible' | 'pageshow'
+    > = 'visibilitychange_visible'
+  ) => {
     if (document.visibilityState !== 'visible' || !navigator.onLine) return;
 
     const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
@@ -156,7 +189,11 @@ function createSwWatchdog() {
     const watchdogHandshakeComplete =
       typeof workerScriptUrl === 'string' && workerScriptUrl === compatibleWorkerScriptUrl;
     if (!worker) {
-      await requestRecovery();
+      await requestRecovery('missing_worker', {
+        trigger: reason,
+        hasController: !!controller,
+        hasActiveWorker: !!activeWorker,
+      });
       return;
     }
 
@@ -190,7 +227,12 @@ function createSwWatchdog() {
             usingController: worker === controller,
           },
         });
-        await requestRecovery();
+        await requestRecovery('awaiting_compatible_pong', {
+          trigger: reason,
+          controllerScriptUrl: controller?.scriptURL,
+          activeScriptUrl: activeWorker?.scriptURL,
+          usingController: worker === controller,
+        });
         return;
       }
 
@@ -201,7 +243,10 @@ function createSwWatchdog() {
         level: 'warning',
         data: { consecutiveMisses },
       });
-      await requestRecovery();
+      await requestRecovery('watchdog_ping_timeout', {
+        trigger: reason,
+        consecutiveMisses,
+      });
       if (consecutiveMisses >= SW_WATCHDOG_MAX_MISSES) {
         recordForcedReload('sw_watchdog_unresponsive', { consecutiveMisses });
         window.location.reload();
@@ -212,7 +257,7 @@ function createSwWatchdog() {
   const restart = () => {
     window.clearInterval(watchdogTimer);
     watchdogTimer = window.setInterval(() => {
-      void pingServiceWorker();
+      void pingServiceWorker('visibilitychange_visible');
     }, SW_WATCHDOG_INTERVAL_MS);
   };
 
@@ -441,13 +486,25 @@ export function registerAppServiceWorker() {
   const handleVisibilityChange = () => {
     if (document.visibilityState === 'visible') {
       swWatchdog.restart();
-      void swWatchdog.pingServiceWorker();
+      void swWatchdog.pingServiceWorker('visibilitychange_visible');
       return;
     }
 
     swWatchdog.stop();
   };
+  const handleWindowFocus = () => {
+    if (document.visibilityState !== 'visible') return;
+    swWatchdog.restart();
+    void swWatchdog.pingServiceWorker('foreground_focus');
+  };
+  const handlePageShow = () => {
+    if (document.visibilityState !== 'visible') return;
+    swWatchdog.restart();
+    void swWatchdog.pingServiceWorker('pageshow');
+  };
 
   handleVisibilityChange();
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('focus', handleWindowFocus);
+  window.addEventListener('pageshow', handlePageShow);
 }

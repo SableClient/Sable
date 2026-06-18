@@ -7,6 +7,7 @@ const {
   mockRegister,
   mockAddEventListener,
   mockReady,
+  mockGetRegistration,
   mockPushSessionToSW,
   mockConsumeLaunchContext,
   mockWarn,
@@ -15,6 +16,7 @@ const {
   mockRegister: vi.fn(),
   mockAddEventListener: vi.fn(),
   mockReady: Promise.resolve(undefined),
+  mockGetRegistration: vi.fn(),
   mockPushSessionToSW: vi.fn(),
   mockConsumeLaunchContext: vi.fn().mockResolvedValue(undefined),
   mockWarn: vi.fn(),
@@ -52,6 +54,7 @@ describe('registerAppServiceWorker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockHasServiceWorker.mockReturnValue(false);
+    mockGetRegistration.mockResolvedValue(undefined);
     mockRegister.mockResolvedValue({
       addEventListener: vi.fn(),
       installing: null,
@@ -75,8 +78,10 @@ describe('registerAppServiceWorker', () => {
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
+        onLine: true,
         serviceWorker: {
           register: mockRegister,
+          getRegistration: mockGetRegistration,
           ready: mockReady,
           controller: null,
           addEventListener: mockAddEventListener,
@@ -148,8 +153,10 @@ describe('registerAppServiceWorker', () => {
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
+        onLine: true,
         serviceWorker: {
           register: mockRegister,
+          getRegistration: mockGetRegistration,
           ready: mockReady,
           controller: { postMessage: vi.fn() },
           addEventListener: mockAddEventListener,
@@ -185,8 +192,10 @@ describe('registerAppServiceWorker', () => {
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
+        onLine: true,
         serviceWorker: {
           register: mockRegister,
+          getRegistration: mockGetRegistration,
           ready: mockReady,
           controller: { postMessage: vi.fn() },
           addEventListener: mockAddEventListener,
@@ -234,8 +243,10 @@ describe('registerAppServiceWorker', () => {
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
+        onLine: true,
         serviceWorker: {
           register: mockRegister,
+          getRegistration: mockGetRegistration,
           ready: mockReady,
           controller: { postMessage: vi.fn() },
           addEventListener: vi.fn((event: string, listener: EventListener) => {
@@ -264,5 +275,37 @@ describe('registerAppServiceWorker', () => {
     await Promise.resolve();
 
     expect(window.location.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('rechecks the service worker on desktop focus and pageshow', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+    const getRegistration = vi.fn().mockResolvedValue({
+      active: { postMessage: vi.fn(), scriptURL: 'https://charm.example/sw.js' },
+      update: vi.fn(),
+    });
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        onLine: true,
+        serviceWorker: {
+          register: mockRegister,
+          getRegistration,
+          ready: mockReady,
+          controller: null,
+          addEventListener: mockAddEventListener,
+        },
+      },
+    });
+
+    registerAppServiceWorker();
+    await Promise.resolve();
+    const baselineCalls = getRegistration.mock.calls.length;
+
+    window.dispatchEvent(new Event('focus'));
+    window.dispatchEvent(new PageTransitionEvent('pageshow'));
+    await Promise.resolve();
+
+    expect(getRegistration.mock.calls.length).toBeGreaterThanOrEqual(baselineCalls + 2);
   });
 });

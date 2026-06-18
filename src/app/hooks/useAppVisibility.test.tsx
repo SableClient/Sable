@@ -57,6 +57,8 @@ function createMockMatrixClient(): MatrixClient {
 describe('useAppVisibility', () => {
   beforeEach(() => {
     setVisibilityState('visible');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-18T12:00:00.000Z'));
     mocks.togglePusher.mockClear();
     mocks.pushSessionToSW.mockClear();
     mocks.getSlidingSyncManager.mockReset();
@@ -64,6 +66,7 @@ describe('useAppVisibility', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -192,5 +195,86 @@ describe('useAppVisibility', () => {
     expect(mx.retryImmediately).toHaveBeenCalledTimes(1);
     expect(retryNow).toHaveBeenCalledTimes(1);
     unsubscribe();
+  });
+
+  it('requests recovery when the window regains focus while visible', async () => {
+    const postMessage = vi.fn<(message: unknown) => void>();
+    const activeWorker = {
+      state: 'activated',
+      postMessage,
+    } as unknown as ServiceWorker;
+    const ready = Promise.resolve({
+      active: activeWorker,
+    } satisfies Partial<ServiceWorkerRegistration>);
+
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: undefined,
+        ready,
+      },
+    });
+
+    const retryNow = vi.fn<() => void>();
+    const mx = createMockMatrixClient();
+    mocks.getSlidingSyncManager.mockReturnValue({ retryNow });
+
+    renderHook(() =>
+      useAppVisibility(mx, {
+        baseUrl: 'https://example.com',
+        accessToken: 'token',
+        userId: '@user:example.com',
+      } as never)
+    );
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      await ready;
+    });
+
+    expect(postMessage).toHaveBeenCalledWith({ type: 'CLAIM_CLIENTS' });
+    expect(mx.retryImmediately).toHaveBeenCalledTimes(1);
+    expect(retryNow).toHaveBeenCalledTimes(1);
+  });
+
+  it('requests recovery on first interaction after a long idle period', async () => {
+    const postMessage = vi.fn<(message: unknown) => void>();
+    const activeWorker = {
+      state: 'activated',
+      postMessage,
+    } as unknown as ServiceWorker;
+    const ready = Promise.resolve({
+      active: activeWorker,
+    } satisfies Partial<ServiceWorkerRegistration>);
+
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: undefined,
+        ready,
+      },
+    });
+
+    const retryNow = vi.fn<() => void>();
+    const mx = createMockMatrixClient();
+    mocks.getSlidingSyncManager.mockReturnValue({ retryNow });
+
+    renderHook(() =>
+      useAppVisibility(mx, {
+        baseUrl: 'https://example.com',
+        accessToken: 'token',
+        userId: '@user:example.com',
+      } as never)
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(10 * 60_000 + 1);
+      document.dispatchEvent(new PointerEvent('pointerdown'));
+      await ready;
+    });
+
+    expect(postMessage).toHaveBeenCalledWith({ type: 'CLAIM_CLIENTS' });
+    expect(mx.retryImmediately).toHaveBeenCalledTimes(1);
+    expect(retryNow).toHaveBeenCalledTimes(1);
   });
 });

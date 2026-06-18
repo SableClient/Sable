@@ -58,15 +58,19 @@ Expected results:
 Environment:
 
 - Safari desktop PWA preferred
+- Chromium installed PWA secondary
+- one normal desktop browser baseline
 - Sentry and browser console available if possible
 
 Steps:
 
 1. Launch the PWA and leave it idle for an extended period.
 2. Return and attempt basic interaction:
+   - focus the window without clicking anything first
    - switch rooms
    - open a DM
    - click the composer
+   - click once after a 10+ minute idle interval to exercise first-interaction recovery
    - try a normal browser reload if the UI still responds
 3. If the app freezes, note:
    - whether the window still repaints
@@ -75,11 +79,14 @@ Steps:
 4. Capture any visible console output and the latest Sentry breadcrumbs/metrics around:
    - app visibility changes
    - pageshow restore
+   - window focus recovery
+   - idle first-interaction recovery
    - service worker controller changes
    - service worker claim requests
+   - service worker watchdog recovery attempts
    - background client startup or failure
    - forced reload requests
 
 Expected results:
 
-- enough telemetry exists to classify the freeze as controller churn, restore failure, background-client deadlock, or sync/network stall
+- enough telemetry exists to classify the freeze as controller churn, restore failure, background-client deadlock, sync/network stall, or input-only stale foreground state

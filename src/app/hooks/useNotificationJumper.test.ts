@@ -10,6 +10,7 @@ describe('useNotificationJumper helpers', () => {
       shouldWaitForTargetRoomParentGraph({
         isDirectRoom: false,
         hasTargetParentMapping: false,
+        roomToParentsReady: false,
         restoreAgeMs: 400,
       })
     ).toBe(true);
@@ -20,16 +21,18 @@ describe('useNotificationJumper helpers', () => {
       shouldWaitForTargetRoomParentGraph({
         isDirectRoom: false,
         hasTargetParentMapping: true,
+        roomToParentsReady: false,
         restoreAgeMs: 400,
       })
     ).toBe(false);
   });
 
-  it('does not wait for DM restores or after the timeout budget is exhausted', () => {
+  it('does not wait for DM restores, ready orphan graphs, or after the timeout budget is exhausted', () => {
     expect(
       shouldWaitForTargetRoomParentGraph({
         isDirectRoom: true,
         hasTargetParentMapping: false,
+        roomToParentsReady: false,
         restoreAgeMs: 400,
       })
     ).toBe(false);
@@ -38,6 +41,16 @@ describe('useNotificationJumper helpers', () => {
       shouldWaitForTargetRoomParentGraph({
         isDirectRoom: false,
         hasTargetParentMapping: false,
+        roomToParentsReady: true,
+        restoreAgeMs: 400,
+      })
+    ).toBe(false);
+
+    expect(
+      shouldWaitForTargetRoomParentGraph({
+        isDirectRoom: false,
+        hasTargetParentMapping: false,
+        roomToParentsReady: false,
         restoreAgeMs: 1_500,
       })
     ).toBe(false);

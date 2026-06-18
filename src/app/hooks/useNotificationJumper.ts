@@ -38,14 +38,22 @@ export const hasTargetRoomParentMapping = (
 export const shouldWaitForTargetRoomParentGraph = (options: {
   isDirectRoom: boolean;
   hasTargetParentMapping: boolean;
+  roomToParentsReady: boolean;
   storedRootSpaceId?: string;
   restoreAgeMs?: number;
 }): boolean => {
-  const { isDirectRoom, hasTargetParentMapping, storedRootSpaceId, restoreAgeMs } = options;
+  const {
+    isDirectRoom,
+    hasTargetParentMapping,
+    roomToParentsReady,
+    storedRootSpaceId,
+    restoreAgeMs,
+  } = options;
 
   return (
     !isDirectRoom &&
     !hasTargetParentMapping &&
+    !roomToParentsReady &&
     storedRootSpaceId === undefined &&
     (restoreAgeMs === undefined || restoreAgeMs < NOTIFICATION_PARENT_GRAPH_WAIT_MAX_MS)
   );
@@ -143,6 +151,7 @@ export function NotificationJumper() {
     const shouldWaitForParentGraph = shouldWaitForTargetRoomParentGraph({
       isDirectRoom: mDirects.has(pending.roomId),
       hasTargetParentMapping,
+      roomToParentsReady,
       storedRootSpaceId,
       restoreAgeMs,
     });
@@ -386,6 +395,7 @@ export function NotificationJumper() {
     const shouldWaitForParentGraph = shouldWaitForTargetRoomParentGraph({
       isDirectRoom: mDirects.has(pending.roomId),
       hasTargetParentMapping: hasTargetRoomParentMapping(roomToParents, pending.roomId),
+      roomToParentsReady,
       storedRootSpaceId,
       restoreAgeMs,
     });

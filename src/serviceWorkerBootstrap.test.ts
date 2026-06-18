@@ -271,10 +271,9 @@ describe('registerAppServiceWorker', () => {
     expect(window.location.reload).not.toHaveBeenCalled();
 
     serviceWorkerListeners.get('controllerchange')?.(new Event('controllerchange'));
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(window.location.reload).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(window.location.reload).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('coalesces focus and pageshow watchdog pings into one in-flight check', async () => {

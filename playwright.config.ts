@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const port = 4173;
 const baseURL = `http://127.0.0.1:${port}`;
+const traceMode = process.env.PLAYWRIGHT_TRACE === 'off' ? 'off' : 'on-first-retry';
 
 export default defineConfig({
   testDir: './e2e',
@@ -10,7 +11,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['html', { open: 'never' }], ['list']] : 'list',
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    trace: traceMode,
   },
   webServer: {
     command: `pnpm vite --host 127.0.0.1 --port ${port}`,

@@ -24,6 +24,7 @@ import { SlidingSyncManager } from './slidingSync';
 import { installThreadEventInstrumentation } from './threadEventPatch';
 import { classifyCryptoStoreIndexedDbError } from './cryptoStoreErrors';
 import { clearClientCachesAndServiceWorkers } from '$utils/appCacheReset';
+import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
@@ -57,6 +58,7 @@ const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => voi
 const classicSyncNetworkCleanupByClient = new WeakMap<MatrixClient, () => void>();
 const MATRIX_DEVICE_ID_SENTRY_TAG = 'matrix.device_id';
 type MatrixClientScope = 'app' | 'background';
+const CLASSIC_SYNC_FOREGROUND_RETRY_THROTTLE_MS = 15_000;
 let activeAppClient: MatrixClient | undefined;
 let activeAppClientStartPromise: Promise<void> | undefined;
 let activeAppClientStopPromise: Promise<void> | undefined;
@@ -114,9 +116,12 @@ const installMatrixEventTypeGuard = (): void => {
 
 const isRecoverableStoreInitError = (err: unknown): boolean => {
   const msg = err instanceof Error ? err.message : String(err);
+  const name = err instanceof Error ? err.name : '';
   if (classifyCryptoStoreIndexedDbError(msg)) return true;
 
   return (
+    name === 'AbortError' ||
+    name === 'DatabaseClosedError' ||
     msg.includes('AbortError') ||
     msg.includes('DatabaseClosedError') ||
     msg.includes('connection is closing') ||
@@ -797,6 +802,49 @@ const disposeSlidingSync = (mx: MatrixClient): void => {
 const installClassicSyncNetworkReconnect = (mx: MatrixClient): void => {
   classicSyncNetworkCleanupByClient.get(mx)?.();
   let lastOnlineState = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  let lastForegroundRetryAt = 0;
+
+  const requestClassicRetry = (trigger: 'network_change' | 'focus' | 'pageshow') => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+    if (
+      trigger !== 'network_change' &&
+      typeof document !== 'undefined' &&
+      document.visibilityState !== 'visible'
+    ) {
+      return false;
+    }
+
+    const now = Date.now();
+    if (trigger !== 'network_change') {
+      const sinceLastRetryMs = now - lastForegroundRetryAt;
+      if (sinceLastRetryMs < CLASSIC_SYNC_FOREGROUND_RETRY_THROTTLE_MS) {
+        debugLog.info('network', 'Skipped classic sync foreground retry because it was recent', {
+          userId: mx.getUserId(),
+          syncState: mx.getSyncState(),
+          trigger,
+          sinceLastRetryMs,
+        });
+        return false;
+      }
+    }
+
+    lastForegroundRetryAt = now;
+    const retried = mx.retryImmediately();
+    debugLog.info('network', 'Triggered classic sync retry', {
+      userId: mx.getUserId(),
+      syncState: mx.getSyncState(),
+      trigger,
+      retried,
+    });
+    Sentry.metrics.count(
+      trigger === 'network_change' ? 'sable.sync.network_retry' : 'sable.sync.foreground_retry',
+      1,
+      {
+        attributes: { transport: 'classic', retried: String(retried), trigger },
+      }
+    );
+    return true;
+  };
 
   const retrySync = () => {
     const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -819,24 +867,26 @@ const installClassicSyncNetworkReconnect = (mx: MatrixClient): void => {
       return;
     }
 
-    const retried = mx.retryImmediately();
-    debugLog.info('network', 'Network change triggered classic sync retry', {
-      userId: mx.getUserId(),
-      syncState: mx.getSyncState(),
-      wasOnline,
-      retried,
-    });
-    Sentry.metrics.count('sable.sync.network_retry', 1, {
-      attributes: { transport: 'classic', retried: String(retried) },
-    });
+    requestClassicRetry('network_change');
+  };
+  const retrySyncOnFocus = () => {
+    requestClassicRetry('focus');
+  };
+  const retrySyncOnPageShow = (event: PageTransitionEvent) => {
+    if (!event.persisted) return;
+    requestClassicRetry('pageshow');
   };
 
   window.addEventListener('online', retrySync);
   window.addEventListener('offline', retrySync);
+  window.addEventListener('focus', retrySyncOnFocus);
+  window.addEventListener('pageshow', retrySyncOnPageShow);
 
   classicSyncNetworkCleanupByClient.set(mx, () => {
     window.removeEventListener('online', retrySync);
     window.removeEventListener('offline', retrySync);
+    window.removeEventListener('focus', retrySyncOnFocus);
+    window.removeEventListener('pageshow', retrySyncOnPageShow);
   });
 };
 
@@ -1379,7 +1429,7 @@ export const stopClient = (mx: MatrixClient): Promise<void> => {
     activeAppClient = undefined;
     activeAppClientStartPromise = undefined;
     activeAppClientStopPromise = stopPromise;
-    stopPromise.finally(() => {
+    void stopPromise.finally(() => {
       if (activeAppClientStopPromise === stopPromise) {
         activeAppClientStopPromise = undefined;
       }
@@ -1394,7 +1444,7 @@ export const clearCacheAndReload = async (mx: MatrixClient) => {
   clearNavToActivePathStore(mx.getSafeUserId());
   await mx.store.deleteAllData();
   await clearClientCachesAndServiceWorkers();
-  window.location.reload();
+  reloadWithTelemetry('clear_cache_and_reload');
 };
 
 export const getClientSyncDiagnostics = (mx: MatrixClient): ClientSyncDiagnostics => {
@@ -1459,5 +1509,5 @@ export const clearLoginData = async () => {
 
   await clearClientCachesAndServiceWorkers({ unregisterServiceWorkers: true });
 
-  window.location.reload();
+  reloadWithTelemetry('clear_login_data', { unregisterServiceWorkers: true });
 };

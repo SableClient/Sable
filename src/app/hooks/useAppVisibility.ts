@@ -20,11 +20,29 @@ type PushSubscriptionState = [
   PushSubscriptionJSON | null,
   (subscription: PushSubscription | null) => void,
 ];
+const RESUME_RECOVERY_THROTTLE_MS = 15_000;
+const INTERACTION_IDLE_RECOVERY_MS = 10 * 60_000;
+type ResumeRecoveryTrigger =
+  | 'visibilitychange'
+  | 'pageshow_persisted'
+  | 'focus'
+  | 'pointerdown'
+  | 'keydown';
 
-const requestServiceWorkerClaim = () => {
+const requestServiceWorkerClaim = (trigger: ResumeRecoveryTrigger) => {
   if (!('serviceWorker' in navigator)) return;
   if (navigator.serviceWorker.controller) return;
   if (document.visibilityState !== 'visible') return;
+
+  Sentry.addBreadcrumb({
+    category: 'app.visibility',
+    message: 'Requesting service worker claim on app resume',
+    level: 'info',
+    data: { trigger },
+  });
+  Sentry.metrics.count('sable.app.resume_sw_claim_request', 1, {
+    attributes: { trigger },
+  });
 
   navigator.serviceWorker.ready
     .then((registration) => {
@@ -36,16 +54,22 @@ const requestServiceWorkerClaim = () => {
     .catch(() => undefined);
 };
 
-const refreshServiceWorkerSession = (activeSession?: Session) => {
+const refreshServiceWorkerSession = (trigger: ResumeRecoveryTrigger, activeSession?: Session) => {
   if (!activeSession) return;
   if (document.visibilityState !== 'visible') return;
+  Sentry.addBreadcrumb({
+    category: 'app.visibility',
+    message: 'Refreshing service worker session on app resume',
+    level: 'info',
+    data: {
+      trigger,
+      hasSession: true,
+    },
+  });
   pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
 };
 
-const retrySyncOnResume = (
-  mx: MatrixClient | undefined,
-  trigger: 'visibilitychange' | 'pageshow'
-) => {
+const retrySyncOnResume = (mx: MatrixClient | undefined, trigger: ResumeRecoveryTrigger) => {
   if (!mx) return;
   if (document.visibilityState !== 'visible') return;
 
@@ -85,8 +109,44 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   const isMobile = mobileOrTablet();
   const { isActiveNotificationClient, notificationDeviceScope } = useNotificationDeviceScope(mx);
   const lastPusherStateRef = useRef<boolean | null>(null);
+  const lastRecoveryRequestAtRef = useRef(0);
+  const lastInteractionAtRef = useRef(Date.now());
 
   useEffect(() => {
+    const requestForegroundRecovery = (
+      trigger: ResumeRecoveryTrigger,
+      data?: Record<string, unknown>
+    ) => {
+      if (document.visibilityState !== 'visible') return;
+
+      const now = Date.now();
+      const sinceLastRecoveryMs = now - lastRecoveryRequestAtRef.current;
+      if (sinceLastRecoveryMs < RESUME_RECOVERY_THROTTLE_MS) {
+        debugLog.info('general', 'Skipped foreground recovery because it was requested recently', {
+          trigger,
+          sinceLastRecoveryMs,
+        });
+        return;
+      }
+
+      lastRecoveryRequestAtRef.current = now;
+      Sentry.addBreadcrumb({
+        category: 'app.visibility',
+        message: 'Foreground recovery requested',
+        level: 'info',
+        data: {
+          trigger,
+          ...data,
+        },
+      });
+      Sentry.metrics.count('sable.app.resume', 1, {
+        attributes: { trigger },
+      });
+      requestServiceWorkerClaim(trigger);
+      refreshServiceWorkerSession(trigger, activeSession);
+      retrySyncOnResume(mx, trigger);
+    };
+
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';
       debugLog.info(
@@ -95,12 +155,8 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
         { visibilityState: document.visibilityState }
       );
       if (isVisible) {
-        Sentry.metrics.count('sable.app.resume', 1, {
-          attributes: { trigger: 'visibilitychange' },
-        });
-        requestServiceWorkerClaim();
-        refreshServiceWorkerSession(activeSession);
-        retrySyncOnResume(mx, 'visibilitychange');
+        requestForegroundRecovery('visibilitychange');
+        lastInteractionAtRef.current = Date.now();
       }
       appEvents.emitVisibilityChange(isVisible);
       if (!isVisible) {
@@ -117,21 +173,45 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
         level: 'info',
         data: { persisted: event.persisted },
       });
-      Sentry.metrics.count('sable.app.resume', 1, {
-        attributes: { trigger: 'pageshow_persisted' },
-      });
-      requestServiceWorkerClaim();
-      refreshServiceWorkerSession(activeSession);
-      retrySyncOnResume(mx, 'pageshow');
+      requestForegroundRecovery('pageshow_persisted', { persisted: event.persisted });
+      lastInteractionAtRef.current = Date.now();
       appEvents.emitVisibilityChange(true);
     };
 
+    const handleFocus = () => {
+      if (document.visibilityState !== 'visible') return;
+      requestForegroundRecovery('focus');
+      lastInteractionAtRef.current = Date.now();
+      appEvents.emitVisibilityChange(true);
+    };
+
+    const handleInteraction = (trigger: 'pointerdown' | 'keydown') => {
+      const now = Date.now();
+      const idleForMs = now - lastInteractionAtRef.current;
+      lastInteractionAtRef.current = now;
+      if (document.visibilityState !== 'visible') return;
+      if (idleForMs < INTERACTION_IDLE_RECOVERY_MS) return;
+
+      requestForegroundRecovery(trigger, { idleForMs });
+    };
+    const handlePointerDown = () => handleInteraction('pointerdown');
+    const handleKeyDown = () => handleInteraction('keydown');
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('pointerdown', handlePointerDown, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [activeSession, mx]);
 

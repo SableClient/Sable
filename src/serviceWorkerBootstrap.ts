@@ -5,6 +5,7 @@ import type { Sessions } from './app/state/sessions';
 import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './app/state/sessions';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 import { hasServiceWorker } from './app/utils/platform';
+import { recordReloadRequested, reloadWithTelemetry } from './app/utils/reloadWithTelemetry';
 import { pushSessionToSW } from './sw-session';
 import { consumeLaunchContext } from './launch-context-persistence';
 
@@ -14,11 +15,22 @@ const APPLY_UPDATE_TIMEOUT_MS = 4000;
 const SW_WATCHDOG_INTERVAL_MS = 60_000;
 const SW_WATCHDOG_PING_TIMEOUT_MS = 5_000;
 const SW_WATCHDOG_MAX_MISSES = 2;
+type SwRecoveryReason =
+  | 'missing_worker'
+  | 'awaiting_compatible_pong'
+  | 'watchdog_ping_timeout'
+  | 'watchdog_timer'
+  | 'foreground_focus'
+  | 'visibilitychange_visible'
+  | 'pageshow';
 
-const recordForcedReload = (reason: string, data?: Record<string, unknown>) => {
+const recordWatchdogRecoveryAttempt = (
+  reason: SwRecoveryReason,
+  data?: Record<string, unknown>
+) => {
   Sentry.addBreadcrumb({
-    category: 'app.reload',
-    message: 'Forced reload requested',
+    category: 'service_worker',
+    message: 'Service worker recovery requested',
     level: 'warning',
     data: {
       reason,
@@ -27,7 +39,7 @@ const recordForcedReload = (reason: string, data?: Record<string, unknown>) => {
       ...data,
     },
   });
-  Sentry.metrics.count('sable.app.reload_requested', 1, {
+  Sentry.metrics.count('sable.sw.watchdog_recovery', 1, {
     attributes: { reason },
   });
 };
@@ -36,17 +48,17 @@ const activateWaitingServiceWorkerAndReload = (waitingWorker: ServiceWorker) => 
   let settled = false;
   let timeoutId = 0;
 
-  const finish = () => {
+  const finish = (reason: string) => {
     if (settled) return;
     settled = true;
     window.clearTimeout(timeoutId);
     navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-    window.location.reload();
+    reloadWithTelemetry(reason);
   };
 
-  const handleControllerChange = () => finish();
+  const handleControllerChange = () => finish('sw_update_controllerchange');
 
-  timeoutId = window.setTimeout(finish, APPLY_UPDATE_TIMEOUT_MS);
+  timeoutId = window.setTimeout(() => finish('sw_update_apply_timeout'), APPLY_UPDATE_TIMEOUT_MS);
   navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange, {
     once: true,
   });
@@ -64,13 +76,11 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   // eslint-disable-next-line no-alert
   if (window.confirm('A new version of the app is available. Refresh to update?')) {
     if (registration.waiting) {
-      recordForcedReload('sw_update_prompt_waiting', { hasWaitingWorker: true });
+      recordReloadRequested('sw_update_prompt_waiting', { hasWaitingWorker: true });
       activateWaitingServiceWorkerAndReload(registration.waiting);
       return;
-    } else {
-      recordForcedReload('sw_update_prompt_reload', { hasWaitingWorker: false });
     }
-    window.location.reload();
+    reloadWithTelemetry('sw_update_prompt_reload', { hasWaitingWorker: false });
   }
 };
 
@@ -103,6 +113,7 @@ function createSwWatchdog() {
   let watchdogTimer = 0;
   let consecutiveMisses = 0;
   let compatibleWorkerScriptUrl: string | undefined;
+  let pendingPingPromise: Promise<void> | null = null;
   const pendingPings = new Map<
     string,
     {
@@ -138,73 +149,104 @@ function createSwWatchdog() {
     pending.resolve();
   };
 
-  const requestRecovery = async () => {
+  const requestRecovery = async (reason: SwRecoveryReason, data?: Record<string, unknown>) => {
+    recordWatchdogRecoveryAttempt(reason, data);
     const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
     registration?.active?.postMessage({ type: 'CLAIM_CLIENTS' });
     void registration?.update();
     sendActiveSessionToServiceWorker();
   };
 
-  const pingServiceWorker = async () => {
+  const pingServiceWorker = async (
+    reason: Extract<
+      SwRecoveryReason,
+      'watchdog_timer' | 'foreground_focus' | 'visibilitychange_visible' | 'pageshow'
+    > = 'visibilitychange_visible'
+  ) => {
     if (document.visibilityState !== 'visible' || !navigator.onLine) return;
-
-    const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
-    const activeWorker = registration?.active;
-    const controller = navigator.serviceWorker.controller;
-    const worker = controller ?? activeWorker;
-    const workerScriptUrl = worker?.scriptURL;
-    const watchdogHandshakeComplete =
-      typeof workerScriptUrl === 'string' && workerScriptUrl === compatibleWorkerScriptUrl;
-    if (!worker) {
-      await requestRecovery();
+    if (pendingPingPromise) {
+      await pendingPingPromise;
       return;
     }
 
-    const requestId = `sw-ping-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const pingPromise = new Promise<void>((resolve, reject) => {
-      const timeoutId = window.setTimeout(() => {
-        pendingPings.delete(requestId);
-        reject(new Error('timeout'));
-      }, SW_WATCHDOG_PING_TIMEOUT_MS);
-      pendingPings.set(requestId, { resolve, reject, timeoutId });
-    });
-
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin
-    worker.postMessage({ type: 'ping', requestId });
-
-    try {
-      await pingPromise;
-    } catch (err) {
-      if (err instanceof Error && err.message === 'watchdog stopped') {
+    const currentPingPromise = (async () => {
+      const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
+      const activeWorker = registration?.active;
+      const controller = navigator.serviceWorker.controller;
+      const worker = controller ?? activeWorker;
+      const workerScriptUrl = worker?.scriptURL;
+      const watchdogHandshakeComplete =
+        typeof workerScriptUrl === 'string' && workerScriptUrl === compatibleWorkerScriptUrl;
+      if (!worker) {
+        await requestRecovery('missing_worker', {
+          trigger: reason,
+          hasController: !!controller,
+          hasActiveWorker: !!activeWorker,
+        });
         return;
       }
 
-      if (!watchdogHandshakeComplete) {
-        Sentry.addBreadcrumb({
-          category: 'service_worker',
-          message: 'Service worker watchdog waiting for first compatible pong',
-          level: 'info',
-          data: {
+      const requestId = `sw-ping-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const pingPromise = new Promise<void>((resolve, reject) => {
+        const timeoutId = window.setTimeout(() => {
+          pendingPings.delete(requestId);
+          reject(new Error('timeout'));
+        }, SW_WATCHDOG_PING_TIMEOUT_MS);
+        pendingPings.set(requestId, { resolve, reject, timeoutId });
+      });
+
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin
+      worker.postMessage({ type: 'ping', requestId });
+
+      try {
+        await pingPromise;
+      } catch (err) {
+        if (err instanceof Error && err.message === 'watchdog stopped') {
+          return;
+        }
+
+        if (!watchdogHandshakeComplete) {
+          Sentry.addBreadcrumb({
+            category: 'service_worker',
+            message: 'Service worker watchdog waiting for first compatible pong',
+            level: 'info',
+            data: {
+              controllerScriptUrl: controller?.scriptURL,
+              activeScriptUrl: activeWorker?.scriptURL,
+              usingController: worker === controller,
+            },
+          });
+          await requestRecovery('awaiting_compatible_pong', {
+            trigger: reason,
             controllerScriptUrl: controller?.scriptURL,
             activeScriptUrl: activeWorker?.scriptURL,
             usingController: worker === controller,
-          },
-        });
-        await requestRecovery();
-        return;
-      }
+          });
+          return;
+        }
 
-      consecutiveMisses += 1;
-      Sentry.addBreadcrumb({
-        category: 'service_worker',
-        message: 'Service worker watchdog ping missed',
-        level: 'warning',
-        data: { consecutiveMisses },
-      });
-      await requestRecovery();
-      if (consecutiveMisses >= SW_WATCHDOG_MAX_MISSES) {
-        recordForcedReload('sw_watchdog_unresponsive', { consecutiveMisses });
-        window.location.reload();
+        consecutiveMisses += 1;
+        Sentry.addBreadcrumb({
+          category: 'service_worker',
+          message: 'Service worker watchdog ping missed',
+          level: 'warning',
+          data: { consecutiveMisses },
+        });
+        await requestRecovery('watchdog_ping_timeout', {
+          trigger: reason,
+          consecutiveMisses,
+        });
+        if (consecutiveMisses >= SW_WATCHDOG_MAX_MISSES) {
+          reloadWithTelemetry('sw_watchdog_unresponsive', { consecutiveMisses });
+        }
+      }
+    })();
+    pendingPingPromise = currentPingPromise;
+    try {
+      await currentPingPromise;
+    } finally {
+      if (pendingPingPromise === currentPingPromise) {
+        pendingPingPromise = null;
       }
     }
   };
@@ -212,7 +254,7 @@ function createSwWatchdog() {
   const restart = () => {
     window.clearInterval(watchdogTimer);
     watchdogTimer = window.setInterval(() => {
-      void pingServiceWorker();
+      void pingServiceWorker('watchdog_timer');
     }, SW_WATCHDOG_INTERVAL_MS);
   };
 
@@ -223,6 +265,7 @@ function createSwWatchdog() {
       clearPendingPing(requestId, new Error('watchdog stopped'));
     });
     pendingPings.clear();
+    pendingPingPromise = null;
   };
 
   return { restart, stop, handleMessage, pingServiceWorker };
@@ -441,13 +484,26 @@ export function registerAppServiceWorker() {
   const handleVisibilityChange = () => {
     if (document.visibilityState === 'visible') {
       swWatchdog.restart();
-      void swWatchdog.pingServiceWorker();
+      void swWatchdog.pingServiceWorker('visibilitychange_visible');
       return;
     }
 
     swWatchdog.stop();
   };
+  const handleWindowFocus = () => {
+    if (document.visibilityState !== 'visible') return;
+    swWatchdog.restart();
+    void swWatchdog.pingServiceWorker('foreground_focus');
+  };
+  const handlePageShow = (event: PageTransitionEvent) => {
+    if (!event.persisted) return;
+    if (document.visibilityState !== 'visible') return;
+    swWatchdog.restart();
+    void swWatchdog.pingServiceWorker('pageshow');
+  };
 
   handleVisibilityChange();
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('focus', handleWindowFocus);
+  window.addEventListener('pageshow', handlePageShow);
 }

@@ -339,7 +339,6 @@ export class SlidingSyncManager {
    * backward-pagination tokens.
    */
   private pendingResubscriptions: Set<string> | null = null;
-
   private pendingResubscriptionRestoreTimer: ReturnType<typeof setTimeout> | undefined;
 
   private pendingForceResetWaiters: Array<
@@ -1035,6 +1034,7 @@ export class SlidingSyncManager {
 
     const toRestore = this.pendingResubscriptions;
     this.pendingResubscriptions = null;
+    this.resolvePendingForceResetWaiters(reason);
     toRestore.forEach((roomId) => this.activeRoomSubscriptions.add(roomId));
     this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
     debugLog.info('sync', 'Restored force-reset room subscriptions', {
@@ -1046,7 +1046,6 @@ export class SlidingSyncManager {
     // Without this, modifyRoomSubscriptions alone may not trigger a new
     // request if the sync loop is idle.
     this.slidingSync.resend();
-    this.resolvePendingForceResetWaiters(reason);
   }
 
   private resetRoomTimelines(roomId: string, reason: string): boolean {

@@ -7,6 +7,7 @@ const {
   mockRegister,
   mockAddEventListener,
   mockReady,
+  mockGetRegistration,
   mockPushSessionToSW,
   mockConsumeLaunchContext,
   mockWarn,
@@ -15,6 +16,7 @@ const {
   mockRegister: vi.fn(),
   mockAddEventListener: vi.fn(),
   mockReady: Promise.resolve(undefined),
+  mockGetRegistration: vi.fn(),
   mockPushSessionToSW: vi.fn(),
   mockConsumeLaunchContext: vi.fn().mockResolvedValue(undefined),
   mockWarn: vi.fn(),
@@ -52,6 +54,7 @@ describe('registerAppServiceWorker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockHasServiceWorker.mockReturnValue(false);
+    mockGetRegistration.mockResolvedValue(undefined);
     mockRegister.mockResolvedValue({
       addEventListener: vi.fn(),
       installing: null,
@@ -75,8 +78,10 @@ describe('registerAppServiceWorker', () => {
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
+        onLine: true,
         serviceWorker: {
           register: mockRegister,
+          getRegistration: mockGetRegistration,
           ready: mockReady,
           controller: null,
           addEventListener: mockAddEventListener,
@@ -148,8 +153,10 @@ describe('registerAppServiceWorker', () => {
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
+        onLine: true,
         serviceWorker: {
           register: mockRegister,
+          getRegistration: mockGetRegistration,
           ready: mockReady,
           controller: { postMessage: vi.fn() },
           addEventListener: mockAddEventListener,
@@ -185,8 +192,10 @@ describe('registerAppServiceWorker', () => {
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
+        onLine: true,
         serviceWorker: {
           register: mockRegister,
+          getRegistration: mockGetRegistration,
           ready: mockReady,
           controller: { postMessage: vi.fn() },
           addEventListener: mockAddEventListener,
@@ -234,8 +243,10 @@ describe('registerAppServiceWorker', () => {
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
+        onLine: true,
         serviceWorker: {
           register: mockRegister,
+          getRegistration: mockGetRegistration,
           ready: mockReady,
           controller: { postMessage: vi.fn() },
           addEventListener: vi.fn((event: string, listener: EventListener) => {
@@ -260,9 +271,88 @@ describe('registerAppServiceWorker', () => {
     expect(window.location.reload).not.toHaveBeenCalled();
 
     serviceWorkerListeners.get('controllerchange')?.(new Event('controllerchange'));
+    await vi.waitFor(() => {
+      expect(window.location.reload).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('coalesces focus and pageshow watchdog pings into one in-flight check', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+    const windowListeners = new Map<string, EventListener>();
+    let visibilityState: DocumentVisibilityState = 'hidden';
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    });
+    const postMessage = vi.fn();
+    const getRegistration = vi.fn().mockResolvedValue({
+      active: { postMessage, scriptURL: 'https://charm.example/sw.js' },
+      update: vi.fn(),
+    });
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        onLine: true,
+        serviceWorker: {
+          register: mockRegister,
+          getRegistration,
+          ready: mockReady,
+          controller: null,
+          addEventListener: mockAddEventListener,
+        },
+      },
+    });
+    const addWindowListenerSpy = vi.spyOn(window, 'addEventListener').mockImplementation(((
+      type: string,
+      listener: EventListenerOrEventListenerObject
+    ) => {
+      if (typeof listener === 'function') {
+        windowListeners.set(type, listener);
+      }
+    }) as typeof window.addEventListener);
+
+    registerAppServiceWorker();
     await Promise.resolve();
+    visibilityState = 'visible';
+
+    windowListeners.get('focus')?.(new Event('focus'));
+    windowListeners.get('pageshow')?.(new PageTransitionEvent('pageshow', { persisted: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    addWindowListenerSpy.mockRestore();
+
+    expect(postMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips pageshow watchdog recovery for non-persisted loads', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+    const getRegistration = vi.fn().mockResolvedValue({
+      active: { postMessage: vi.fn(), scriptURL: 'https://charm.example/sw.js' },
+      update: vi.fn(),
+    });
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        onLine: true,
+        serviceWorker: {
+          register: mockRegister,
+          getRegistration,
+          ready: mockReady,
+          controller: null,
+          addEventListener: mockAddEventListener,
+        },
+      },
+    });
+
+    registerAppServiceWorker();
+    await Promise.resolve();
+    const baselineCalls = getRegistration.mock.calls.length;
+
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }));
     await Promise.resolve();
 
-    expect(window.location.reload).toHaveBeenCalledTimes(1);
+    expect(getRegistration.mock.calls.length).toBe(baselineCalls);
   });
 });

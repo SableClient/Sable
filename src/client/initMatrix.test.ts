@@ -189,4 +189,68 @@ describe('startClient app singleton gate', () => {
 
     expect(mx.retryImmediately).toHaveBeenCalledOnce();
   });
+
+  it('retries classic sync when the window regains focus while visible', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-18T12:00:00.000Z'));
+    const mx = makeClient('@alice:example.com');
+
+    await startClassicClient(mx);
+
+    window.dispatchEvent(new Event('focus'));
+
+    expect(mx.retryImmediately).toHaveBeenCalledOnce();
+
+    window.dispatchEvent(new Event('focus'));
+    expect(mx.retryImmediately).toHaveBeenCalledOnce();
+
+    vi.advanceTimersByTime(15_001);
+    window.dispatchEvent(new Event('focus'));
+    expect(mx.retryImmediately).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+
+  it('retries classic sync on pageshow when visible again', async () => {
+    const mx = makeClient('@alice:example.com');
+
+    await startClassicClient(mx);
+
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+
+    expect(mx.retryImmediately).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry classic sync on non-persisted pageshow', async () => {
+    const mx = makeClient('@alice:example.com');
+
+    await startClassicClient(mx);
+
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }));
+
+    expect(mx.retryImmediately).not.toHaveBeenCalled();
+  });
+
+  it('retries classic sync on network reconnect while hidden', async () => {
+    const mx = makeClient('@alice:example.com');
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    });
+
+    await startClassicClient(mx);
+
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    });
+    window.dispatchEvent(new Event('offline'));
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: true,
+    });
+    window.dispatchEvent(new Event('online'));
+
+    expect(mx.retryImmediately).toHaveBeenCalledOnce();
+  });
 });

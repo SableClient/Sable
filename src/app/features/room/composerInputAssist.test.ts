@@ -41,6 +41,12 @@ describe('getStructuredMarkdownAction', () => {
     });
   });
 
+  it('keeps enter inserting newlines inside open fenced code blocks', () => {
+    expect(getStructuredMarkdownAction(['```ts', 'const x = 1;'], 1)).toEqual({
+      kind: 'continue_fence',
+    });
+  });
+
   it('inserts a follow-up paragraph when exiting empty markdown structures', () => {
     expect(
       shouldInsertBreakAfterStructuredReplacement({
@@ -58,6 +64,11 @@ describe('getStructuredMarkdownAction', () => {
       shouldInsertBreakAfterStructuredReplacement({
         kind: 'continue',
         prefix: '- ',
+      })
+    ).toBe(false);
+    expect(
+      shouldInsertBreakAfterStructuredReplacement({
+        kind: 'continue_fence',
       })
     ).toBe(false);
   });

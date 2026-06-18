@@ -36,17 +36,34 @@ It is not always possible to phrase every change in such a manner, but it is des
 
 **The smaller the set of changes in the pull request is, the quicker it can be reviewed and merged.** Splitting tasks into multiple smaller pull requests is often preferable.
 
-Also, we use [ESLint](https://eslint.org/) for clean and stylistically consistent code syntax, so make sure your pull request follow it.
+Also, we use automated local static analysis to keep changes consistent and catch risky patterns early:
 
-**Pull requests are not merged unless all quality checks are passing.** At minimum, `format`, `lint`, `typecheck`, `knip`, and `tests` must all be green before a pull request can be merged. Run these locally before opening or updating a pull request:
+- [Oxlint](https://oxc.rs/docs/guide/usage/linter.html) for linting and style/correctness rules
+- [Semgrep](https://semgrep.dev/docs/semgrep-code/overview/) for targeted pattern-based static analysis using repo-local rules
+
+In this repo, Semgrep is used as a local static-analysis engine, not as a hosted SaaS requirement. The `semgrep` CLI reads [semgrep/charm-stability.yml](./semgrep/charm-stability.yml) and checks for a small set of Charm-specific runtime hazards such as:
+
+- async event-listener callbacks in sensitive runtime files
+- async timer callbacks in the same runtime paths
+- direct `window.location.reload()` calls in startup/reset paths that should go through reload telemetry first
+
+It does not execute the app or contact Semgrep's hosted product to do its basic job here; it scans the checked-out code against the local rules file.
+
+**Pull requests are not merged unless all quality checks are passing.** At minimum, `format`, `lint`, `typecheck`, `knip`, `semgrep`, and `tests` must all be green before a pull request can be merged. Run these locally before opening or updating a pull request:
 
 - `pnpm run fmt:check`
 - `pnpm run lint`
 - `pnpm run typecheck`
 - `pnpm run knip`
+- `pnpm run semgrep`
 - `pnpm run test:run`
 
 If your change touches logic with testable behaviour, please include tests. See [docs/TESTING.md](./docs/TESTING.md) for a guide on how to write them.
+
+If `pnpm run semgrep` reports a finding, either:
+
+- rewrite the code to avoid the risky pattern, or
+- if the rule is too broad or the pattern is intentional, tighten the Semgrep rule itself in `semgrep/charm-stability.yml` rather than ignoring the finding ad hoc
 
 ## Restrictions on Generative AI Usage
 

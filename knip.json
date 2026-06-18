@@ -13,7 +13,7 @@
     "@matrix-org/matrix-sdk-crypto-wasm",
     "@sableclient/twemoji-font"
   ],
-  "ignoreBinaries": ["knope"],
+  "ignoreBinaries": ["knope", "semgrep"],
   "rules": {
     "exports": "off",
     "types": "off",

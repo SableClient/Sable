@@ -1437,6 +1437,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   editor.insertText(action.prefix);
                   return;
                 }
+                if (action.kind === 'continue_fence') {
+                  editor.insertBreak();
+                  return;
+                }
 
                 const blockPath = [blockIndex];
                 Transforms.select(editor, {

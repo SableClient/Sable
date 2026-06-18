@@ -102,5 +102,18 @@ export default defineConfig({
         'typescript/no-unsafe-enum-comparison': 'off',
       },
     },
+    {
+      files: [
+        'src/app/hooks/useAppVisibility.ts',
+        'src/app/pages/client/BackgroundNotifications.tsx',
+        'src/app/hooks/useSearchIndex.tsx',
+        'src/client/initMatrix.ts',
+        'src/client/slidingSync.ts',
+        'src/serviceWorkerBootstrap.ts',
+      ],
+      rules: {
+        'typescript/no-floating-promises': 'error',
+      },
+    },
   ],
 });

@@ -249,6 +249,55 @@ docker build \
 - Gets 100% sampling for traces and session replay
 - Full debugging capabilities for testing
 - Configured in `.github/workflows/cloudflare-web-preview.yml`
+- For GitHub PR previews, the workflow also sets `VITE_SENTRY_PR=<pull request number>`.
+  `src/instrument.ts` reads that value and tags all Sentry events with `pr=<number>`.
+
+### GitHub PR Triage Setup
+
+Charm includes a GitHub Actions workflow, `.github/workflows/sentry-preview-issues.yml`,
+that can turn Sentry preview issues into:
+
+- a sticky PR comment summarizing current preview errors
+- GitHub issues labeled `sentry-preview` and `pr-<number>`
+
+For that flow to work end to end, all of the following must be true:
+
+1. Preview builds must send events to Sentry.
+2. The preview build must tag those events with the PR number.
+3. The triage workflow must be able to query Sentry issues.
+
+The repo-side wiring for this is:
+
+- `.github/workflows/cloudflare-web-preview.yml`
+  - sets `VITE_SENTRY_DSN`
+  - sets `VITE_SENTRY_ENVIRONMENT=preview`
+  - sets `VITE_SENTRY_PR=${{ github.event.pull_request.number }}`
+- `src/instrument.ts`
+  - calls `Sentry.getGlobalScope().setTag('pr', prNumber)` when `VITE_SENTRY_PR` is present
+- `.github/workflows/sentry-preview-issues.yml`
+  - queries Sentry for `is:unresolved pr:<number> environment:preview`
+  - upserts the sticky PR comment
+  - creates or reopens GitHub issues for matching Sentry issues
+
+Required GitHub repository secrets:
+
+- `VITE_SENTRY_DSN`
+- `SENTRY_ORG`
+- `SENTRY_PROJECT`
+- `SENTRY_AUTH_TOKEN`
+  Used by the preview build for source map upload.
+- `SENTRY_TRIAGE_AUTH_TOKEN`
+  Recommended dedicated token for the triage workflow. It should have at least
+  `event:read` scope in Sentry. Using a separate token avoids broadening the
+  build-time token unnecessarily.
+
+Operational notes:
+
+- The triage workflow only runs for pull requests from the same repository, not forks.
+- Sentry tagging happens in the built app, so the preview deployment must be rebuilt
+  with the PR-specific environment variables for the `pr` tag to appear.
+- Re-running a workflow uses the workflow file from the commit on GitHub. Local-only
+  edits in your checkout do not affect Actions until they are committed and pushed.
 
 **Local development:**
 

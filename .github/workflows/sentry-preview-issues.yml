@@ -31,6 +31,7 @@ jobs:
       - name: Triage Sentry preview errors
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          SENTRY_TRIAGE_AUTH_TOKEN: ${{ secrets.SENTRY_TRIAGE_AUTH_TOKEN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
@@ -38,7 +39,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const sentryToken = process.env.SENTRY_AUTH_TOKEN;
+            const sentryToken =
+              process.env.SENTRY_TRIAGE_AUTH_TOKEN || process.env.SENTRY_AUTH_TOKEN;
             const sentryOrg = process.env.SENTRY_ORG;
             const sentryProject = process.env.SENTRY_PROJECT;
             const prNumber = Number(process.env.PR_NUMBER);
@@ -54,6 +56,13 @@ jobs:
 
             const COMMENT_MARKER = '<!-- sentry-preview-triage -->';
             const { owner, repo } = context.repo;
+            const sentryHeaders = { Authorization: `Bearer ${sentryToken}` };
+
+            async function fetchSentry(url) {
+              const resp = await fetch(url, { headers: sentryHeaders });
+              const body = await resp.text();
+              return { status: resp.status, ok: resp.ok, body };
+            }
 
             // Create a label if it doesn't already exist
             async function ensureLabel(name, description, color) {
@@ -136,23 +145,41 @@ jobs:
               }
             }
 
-            // Query Sentry for unresolved issues tagged with this PR number in the preview env
+            // Query Sentry for unresolved preview issues tagged to this PR.
             const query = encodeURIComponent(`is:unresolved pr:${prNumber}`);
             const sentryUrl =
-              `https://sentry.io/api/0/projects/${sentryOrg}/${sentryProject}/issues/` +
+              `https://sentry.io/api/0/projects/${sentryOrg}/${encodeURIComponent(sentryProject)}/issues/` +
               `?query=${query}&environment=preview&limit=100`;
 
             let sentryIssues;
             try {
-              const resp = await fetch(sentryUrl, {
-                headers: { Authorization: `Bearer ${sentryToken}` },
-              });
+              const resp = await fetchSentry(sentryUrl);
               if (!resp.ok) {
-                const msg = await resp.text();
+                const msg = resp.body;
+                if (resp.status === 401 || resp.status === 403) {
+                  const [orgProbe, projectProbe, issueProbe] = await Promise.all([
+                    fetchSentry(`https://sentry.io/api/0/organizations/${sentryOrg}/`),
+                    fetchSentry(`https://sentry.io/api/0/projects/${sentryOrg}/${sentryProject}/`),
+                    fetchSentry(
+                      `https://sentry.io/api/0/projects/${sentryOrg}/${encodeURIComponent(sentryProject)}/issues/?limit=1`
+                    ),
+                  ]);
+                  core.info(
+                    `Skipping Sentry preview triage: configured token cannot read Sentry issues ` +
+                      `(HTTP ${resp.status}). org probe=${orgProbe.status}, project probe=${projectProbe.status}, ` +
+                      `issues probe=${issueProbe.status}.`
+                  );
+                  core.info(
+                    `Sentry probe details: org=${orgProbe.body.slice(0, 160)} | ` +
+                      `project=${projectProbe.body.slice(0, 160)} | ` +
+                      `issues=${issueProbe.body.slice(0, 160)}`
+                  );
+                  return;
+                }
                 core.warning(`Sentry API returned ${resp.status}: ${msg.slice(0, 200)}`);
                 return;
               }
-              sentryIssues = await resp.json();
+              sentryIssues = JSON.parse(resp.body);
             } catch (err) {
               core.warning(`Sentry API unreachable: ${err.message}`);
               return;

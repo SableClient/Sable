@@ -50,8 +50,8 @@ function setInlineStyleText(id: string, text: string | undefined): void {
   if (!node) {
     node = document.createElement('style');
     node.id = id;
-    document.head.appendChild(node);
   }
+  document.head.appendChild(node);
   if (node.textContent !== text) {
     node.textContent = text;
   }
@@ -67,21 +67,27 @@ async function loadRemoteThemeCssText(url: string): Promise<string | undefined> 
   if (isLocalImportBundledUrl(url)) {
     return undefined;
   }
-  const res = await fetch(url, { mode: 'cors' });
-  if (!res.ok) return undefined;
-  const text = await res.text();
   try {
-    await putCachedThemeCss(url, text);
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return undefined;
+    const text = await res.text();
+    try {
+      await putCachedThemeCss(url, text);
+    } catch {
+      /* cache optional */
+    }
+    return text;
   } catch {
-    /* cache optional */
+    return undefined;
   }
-  return text;
 }
 
 export function UnAuthRouteThemeManager() {
   const systemThemeKind = useSystemThemeKind();
 
   useLayoutEffect(() => {
+    setInlineStyleText(REMOTE_STYLE_ID, undefined);
+    setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
     syncDocumentThemeMetadata(systemThemeKind);
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
@@ -168,7 +174,11 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       (async () => {
         const text = await loadRemoteThemeCssText(url);
         if (cancelled) return;
-        if (!text) return;
+        if (!text) {
+          setInlineStyleText(REMOTE_STYLE_ID, undefined);
+          clearStoredAppliedThemeCss();
+          return;
+        }
         setInlineStyleText(REMOTE_STYLE_ID, text);
         putStoredAppliedThemeCss(url, text);
       })();
@@ -189,7 +199,8 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     if (urls.length === 0) {
-      document.getElementById(REMOTE_TWEAKS_STYLE_ID)?.remove();
+      setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
+      clearStoredAppliedTweakCss();
       return undefined;
     }
 
@@ -197,7 +208,11 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       const texts = await Promise.all(urls.map((url) => loadRemoteThemeCssText(url.trim())));
       if (cancelled) return;
       const chunks = texts.filter((text): text is string => Boolean(text));
-      if (chunks.length === 0) return;
+      if (chunks.length === 0) {
+        setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
+        clearStoredAppliedTweakCss();
+        return;
+      }
       const text = chunks.join('\n\n');
       setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, text);
       putStoredAppliedTweakCss(urls, text);

@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
+import type * as Jotai from 'jotai';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { atom } from 'jotai';
 
 import { ThemeKind, type Theme } from '$hooks/useTheme';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
+import {
+  clearStoredAppliedThemeCss,
+  clearStoredAppliedTweakCss,
+  getCachedThemeCss,
+} from '$app/theme/cache';
 
 const settings = {
   saturationLevel: 100,
@@ -16,6 +22,7 @@ let storedThemeCssByUrl: Record<string, string> = {};
 let storedTweakCssByUrls: Record<string, string> = {};
 
 let systemThemeKind = ThemeKind.Light;
+let settingsInitialized = false;
 let activeTheme: Theme = {
   id: 'test-light',
   kind: ThemeKind.Light,
@@ -31,6 +38,14 @@ type ArboriumThemeBridgeProps = {
   kind: ThemeKind;
   children?: ReactNode;
 };
+
+vi.mock('jotai', async () => {
+  const actual = await vi.importActual<typeof Jotai>('jotai');
+  return {
+    ...actual,
+    useAtomValue: () => settingsInitialized,
+  };
+});
 
 vi.mock('$hooks/useTheme', () => ({
   ThemeKind: {
@@ -75,7 +90,9 @@ vi.mock('$app/theme/cache', () => ({
 }));
 
 beforeEach(() => {
+  vi.clearAllMocks();
   systemThemeKind = ThemeKind.Light;
+  settingsInitialized = false;
   activeTheme = {
     id: 'test-light',
     kind: ThemeKind.Light,
@@ -110,7 +127,25 @@ describe('ThemeManager', () => {
     expect(document.body).not.toHaveClass('test-light-theme');
   });
 
+  it('clears preboot remote styles for unauthenticated routes', () => {
+    const themeStyle = document.createElement('style');
+    themeStyle.id = 'sable-remote-theme-style';
+    themeStyle.textContent = 'body { --preboot-theme: 1; }';
+    document.head.appendChild(themeStyle);
+
+    const tweaksStyle = document.createElement('style');
+    tweaksStyle.id = 'sable-remote-tweaks-style';
+    tweaksStyle.textContent = 'body { --preboot-tweak: 1; }';
+    document.head.appendChild(tweaksStyle);
+
+    render(<UnAuthRouteThemeManager />);
+
+    expect(document.getElementById('sable-remote-theme-style')).toBeNull();
+    expect(document.getElementById('sable-remote-tweaks-style')).toBeNull();
+  });
+
   it('applies the active theme classes for authenticated routes', () => {
+    settingsInitialized = true;
     activeTheme = {
       id: 'test-dark',
       kind: ThemeKind.Dark,
@@ -166,5 +201,79 @@ describe('ThemeManager', () => {
     expect(document.getElementById('sable-remote-theme-style')?.textContent).toBe(
       'body { --preboot-theme: 1; }'
     );
+  });
+
+  it('reappends cached remote styles after app styles when settings initialize', () => {
+    settingsInitialized = true;
+    const appStyle = document.createElement('style');
+    appStyle.id = 'app-style';
+    appStyle.textContent = 'body { color: red; }';
+    document.head.appendChild(appStyle);
+
+    const existing = document.createElement('style');
+    existing.id = 'sable-remote-theme-style';
+    existing.textContent = 'body { --preboot-theme: 1; }';
+    document.head.insertBefore(existing, appStyle);
+
+    storedThemeCssByUrl['https://themes.example/dark.css'] = 'body { --cached-theme: 1; }';
+    activeTheme = {
+      id: 'test-remote',
+      kind: ThemeKind.Dark,
+      classNames: ['test-dark-theme'],
+      remoteFullUrl: 'https://themes.example/dark.css',
+    };
+
+    vi.mocked(getCachedThemeCss).mockResolvedValue('body { --cached-theme: 1; }');
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    expect(document.head.lastElementChild?.id).toBe('sable-remote-theme-style');
+  });
+
+  it('clears stale stored remote theme css when the fetch returns no css', async () => {
+    settingsInitialized = true;
+    storedThemeCssByUrl['https://themes.example/dark.css'] = 'body { --cached-theme: 1; }';
+    activeTheme = {
+      id: 'test-remote',
+      kind: ThemeKind.Dark,
+      classNames: ['test-dark-theme'],
+      remoteFullUrl: 'https://themes.example/dark.css',
+    };
+
+    vi.mocked(getCachedThemeCss).mockResolvedValue(undefined);
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    await vi.waitFor(() => {
+      expect(clearStoredAppliedThemeCss).toHaveBeenCalled();
+    });
+    expect(document.getElementById('sable-remote-theme-style')).toBeNull();
+  });
+
+  it('clears stale stored remote tweak css when all fetches return no css', async () => {
+    settingsInitialized = true;
+    settings.themeRemoteEnabledTweakFullUrls = ['https://themes.example/tweak.css'];
+    storedTweakCssByUrls['https://themes.example/tweak.css'] = 'body { --cached-tweak: 1; }';
+
+    vi.mocked(getCachedThemeCss).mockResolvedValue(undefined);
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    await vi.waitFor(() => {
+      expect(clearStoredAppliedTweakCss).toHaveBeenCalled();
+    });
+    expect(document.getElementById('sable-remote-tweaks-style')).toBeNull();
   });
 });

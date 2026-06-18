@@ -263,6 +263,65 @@ const Pronouns = as<
     </AsPronouns>
   );
 });
+type WrappedMessageProps = {
+  headerJSX: JSX.Element;
+  avatarJSX: JSX.Element;
+  msgContentJSX: JSX.Element;
+  messageLayout: MessageLayout;
+  onDoubleTap: () => void;
+  handleSwipeReply: () => void;
+  handleContextMenu: MouseEventHandler<HTMLDivElement>;
+  align?: 'left' | 'right';
+};
+function WrappedMessage({
+  headerJSX,
+  avatarJSX,
+  msgContentJSX,
+  messageLayout,
+  onDoubleTap,
+  handleSwipeReply,
+  handleContextMenu,
+  align,
+}: WrappedMessageProps) {
+  if (messageLayout === MessageLayout.Compact)
+    return (
+      <div style={{ width: '100%' }}>
+        <SwipeableMessageWrapper onReply={handleSwipeReply}>
+          <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
+            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+          </CompactLayout>
+        </SwipeableMessageWrapper>
+      </div>
+    );
+  if (messageLayout === MessageLayout.Bubble)
+    return (
+      <div style={{ width: '100%' }}>
+        <SwipeableMessageWrapper onReply={handleSwipeReply}>
+          <BubbleLayout
+            before={avatarJSX}
+            header={headerJSX}
+            onContextMenu={handleContextMenu}
+            align={align}
+          >
+            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+          </BubbleLayout>
+        </SwipeableMessageWrapper>
+      </div>
+    );
+
+  return (
+    <div style={{ width: '100%' }}>
+      <SwipeableMessageWrapper onReply={handleSwipeReply}>
+        <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
+          <div onPointerDown={onDoubleTap}>
+            {headerJSX}
+            {msgContentJSX}
+          </div>
+        </ModernLayout>
+      </SwipeableMessageWrapper>
+    </div>
+  );
+}
 
 function MessageInternal(
   {
@@ -398,10 +457,9 @@ function MessageInternal(
   // avatar so per-room avatar overrides are respected in the timeline.
   const memberAvatarMxc = getMemberAvatarMxc(room, senderId);
   const avatarUrl = useMemo(() => {
-    if (collapse) return undefined;
     const mxc = pmp?.avatar_url || memberAvatarMxc || profile.avatarUrl;
     return mxc ? mxcUrlToHttp(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
-  }, [pmp, collapse, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication]);
+  }, [pmp, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication]);
 
   const cachedAvatar = useBlobCache(avatarUrl ?? undefined);
 
@@ -464,100 +522,112 @@ function MessageInternal(
     return () => document.removeEventListener('pointerdown', handleClickOutside, { capture: true });
   }, [isMobileHover]);
 
-  const headerJSX = !collapse && (
-    <Box
-      gap="300"
-      direction={messageLayout === MessageLayout.Compact ? 'RowReverse' : 'Row'}
-      justifyContent="SpaceBetween"
-      alignItems="Baseline"
-      grow="Yes"
-    >
-      <Box alignItems="Center" gap="100">
-        <Username
-          as="button"
-          style={{
-            color: usernameColor,
-            fontFamily: usernameFont,
-          }}
-          data-user-id={senderId}
-          onContextMenu={onUserClick}
-          onClick={onUsernameClick}
+  const headerJSX = (collapsed?: boolean) => {
+    if (!collapsed)
+      return (
+        <Box
+          gap="300"
+          direction={messageLayout === MessageLayout.Compact ? 'RowReverse' : 'Row'}
+          justifyContent="SpaceBetween"
+          alignItems="Baseline"
+          grow="Yes"
         >
-          <Text as="span" size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'} truncate>
-            <UsernameBold>{cleanedDisplayName}</UsernameBold>
-          </Text>
-        </Username>
-        {showPronouns && (
-          <Pronouns pronouns={mergedPronouns} tagColor={usernameColor ?? 'currentColor'} />
-        )}
-        {showPmPInfo && (
-          <Box>
-            <Text as="span">
-              <Text
-                as="span"
-                style={{
-                  paddingLeft: 0,
-                  paddingRight: 5,
-                  fontWeight: 100,
-                  fontSize: 11,
-                }}
-              >
-                via
-              </Text>
+          <Box alignItems="Center" gap="100">
+            <Username
+              as="button"
+              style={{
+                color: usernameColor,
+                fontFamily: usernameFont,
+              }}
+              data-user-id={senderId}
+              onContextMenu={onUserClick}
+              onClick={onUsernameClick}
+            >
               <Text
                 as="span"
                 size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'}
-                style={{ fontSize: 11 }}
                 truncate
               >
-                <UsernameBold>{senderDisplayName}</UsernameBold>
+                <UsernameBold>{cleanedDisplayName}</UsernameBold>
               </Text>
-            </Text>
+            </Username>
+            {showPronouns && (
+              <Pronouns pronouns={mergedPronouns} tagColor={usernameColor ?? 'currentColor'} />
+            )}
+            {showPmPInfo && (
+              <Box>
+                <Text as="span">
+                  <Text
+                    as="span"
+                    style={{
+                      paddingLeft: 0,
+                      paddingRight: 5,
+                      fontWeight: 100,
+                      fontSize: 11,
+                    }}
+                  >
+                    via
+                  </Text>
+                  <Text
+                    as="span"
+                    size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'}
+                    style={{ fontSize: 11 }}
+                    truncate
+                  >
+                    <UsernameBold>{senderDisplayName}</UsernameBold>
+                  </Text>
+                </Text>
+              </Box>
+            )}
+            {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
           </Box>
-        )}
-        {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
-      </Box>
-      <Box shrink="No" gap="100">
-        {messageLayout === MessageLayout.Modern && isDesktopHover && (
-          <>
-            <Text as="span" size="T200" priority="300">
-              {senderId}
-            </Text>
-            <Text as="span" size="T200" priority="300">
-              |
-            </Text>
-          </>
-        )}
-        <Time
-          ts={mEvent.getTs()}
-          compact={messageLayout === MessageLayout.Compact}
-          hour24Clock={hour24Clock}
-          dateFormatString={dateFormatString}
-        />
-      </Box>
-    </Box>
-  );
+          <Box shrink="No" gap="100">
+            {messageLayout === MessageLayout.Modern && isDesktopHover && (
+              <>
+                <Text as="span" size="T200" priority="300">
+                  {senderId}
+                </Text>
+                <Text as="span" size="T200" priority="300">
+                  |
+                </Text>
+              </>
+            )}
+            <Time
+              ts={mEvent.getTs()}
+              compact={messageLayout === MessageLayout.Compact}
+              hour24Clock={hour24Clock}
+              dateFormatString={dateFormatString}
+            />
+          </Box>
+        </Box>
+      );
+    return <></>;
+  };
 
-  const avatarJSX = !collapse && messageLayout !== MessageLayout.Compact && (
-    <AvatarBase
-      className={messageLayout === MessageLayout.Bubble ? css.BubbleAvatarBase : undefined}
-    >
-      <Avatar
-        className={css.MessageAvatar}
-        as="button"
-        size="300"
-        data-user-id={senderId}
-        onClick={onUserClick}
-      >
-        <UserAvatar
-          userId={senderId}
-          src={cachedAvatar}
-          alt={cleanedDisplayName}
-          renderFallback={() => userFallbackIcon('md')}
-        />
-      </Avatar>
-    </AvatarBase>
-  );
+  const avatarJSX = (collapsed?: boolean) => {
+    if (!collapsed && messageLayout !== MessageLayout.Compact)
+      return (
+        <AvatarBase
+          className={messageLayout === MessageLayout.Bubble ? css.BubbleAvatarBase : undefined}
+        >
+          <Avatar
+            className={css.MessageAvatar}
+            as="button"
+            size="300"
+            data-user-id={senderId}
+            onClick={onUserClick}
+          >
+            <UserAvatar
+              userId={senderId}
+              src={cachedAvatar}
+              alt={cleanedDisplayName}
+              renderFallback={() => userFallbackIcon('md')}
+            />
+          </Avatar>
+        </AvatarBase>
+      );
+    return <></>;
+  };
 
   const stableContent = useMemo(
     () => mEvent.getContent().body || mEvent.getContent()['org.matrix.msc3381.poll.start'] || '',
@@ -756,7 +826,18 @@ function MessageInternal(
           cleanedDisplayName: cleanedDisplayName,
           canDelete: canDelete,
           setIsEmoji: setIsEmoji,
-          ActualMessage: WrappedMessage,
+          ActualMessage: (
+            <WrappedMessage
+              headerJSX={headerJSX()}
+              avatarJSX={avatarJSX()}
+              msgContentJSX={msgContentJSX}
+              messageLayout={messageLayout}
+              onDoubleTap={onDoubleTap}
+              handleSwipeReply={handleSwipeReply}
+              handleContextMenu={handleContextMenu}
+              align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
+            />
+          ),
           canSendReaction: canSendReaction,
         },
       });
@@ -804,46 +885,6 @@ function MessageInternal(
     setIsMobileHoverOpen(true);
   });
 
-  const WrappedMessage = useCallback(() => {
-    if (messageLayout === MessageLayout.Compact)
-      return (
-        <div style={{ width: '100%' }}>
-          <SwipeableMessageWrapper onReply={handleSwipeReply}>
-            <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
-              <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
-            </CompactLayout>
-          </SwipeableMessageWrapper>
-        </div>
-      );
-    if (messageLayout === MessageLayout.Bubble)
-      return (
-        <div style={{ width: '100%' }}>
-          <SwipeableMessageWrapper onReply={handleSwipeReply}>
-            <BubbleLayout
-              before={avatarJSX}
-              header={headerJSX}
-              onContextMenu={handleContextMenu}
-              align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
-            >
-              <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
-            </BubbleLayout>
-          </SwipeableMessageWrapper>
-        </div>
-      );
-    return (
-      <div style={{ width: '100%' }}>
-        <SwipeableMessageWrapper onReply={handleSwipeReply}>
-          <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
-            <div onPointerDown={onDoubleTap}>
-              {headerJSX}
-              {msgContentJSX}
-            </div>
-          </ModernLayout>
-        </SwipeableMessageWrapper>
-      </div>
-    );
-  }, []);
-
   return (
     <MessageBase
       className={classNames(css.MessageBase, className, {
@@ -886,7 +927,16 @@ function MessageInternal(
           />
         </div>
       )}
-      <WrappedMessage />
+      <WrappedMessage
+        headerJSX={headerJSX(collapse)}
+        avatarJSX={avatarJSX(collapse)}
+        msgContentJSX={msgContentJSX}
+        messageLayout={messageLayout}
+        onDoubleTap={onDoubleTap}
+        handleSwipeReply={handleSwipeReply}
+        handleContextMenu={handleContextMenu}
+        align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
+      />
     </MessageBase>
   );
 }
@@ -953,9 +1003,7 @@ export const Event = as<'div', EventProps>(
             hideReadReceipts: hideReadReceipts,
             showDeveloperTools: showDeveloperTools,
             canDelete: canDelete,
-            ActualMessage: () => {
-              return <>({children})</>;
-            },
+            ActualMessage: children,
           },
         });
         return;

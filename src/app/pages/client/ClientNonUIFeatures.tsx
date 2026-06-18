@@ -219,6 +219,7 @@ function SystemEmojiFeature() {
   useEffect(() => {
     document.documentElement.dataset.sableMobile = mobileOrTablet() ? 'true' : 'false';
     document.documentElement.dataset.sableEmojiStyle = twitterEmoji ? 'twemoji' : 'system';
+    document.documentElement.dataset.sableEmojiEffectiveStyle = twitterEmoji ? 'twemoji' : 'system';
     document.documentElement.style.setProperty(
       '--font-emoji',
       twitterEmoji ? 'Twemoji' : 'Twemoji_DISABLED'
@@ -263,12 +264,17 @@ function SystemEmojiFeature() {
         if (cancelled) return;
 
         const twemojiCheck = document.fonts.check('16px Twemoji', sample);
-        const configuredCheck = document.fonts.check('16px var(--font-emoji)', sample);
+        const configuredCheck = computedEmojiFont
+          ? document.fonts.check(`16px ${computedEmojiFont}`, sample)
+          : false;
         const systemCheck = document.fonts.check('16px "Apple Color Emoji"', sample);
         const loadResult = twitterEmoji
           ? await document.fonts.load('16px Twemoji', sample)
           : await document.fonts.load('16px "Apple Color Emoji"', sample);
         if (cancelled) return;
+
+        const effectiveEmojiStyle = twitterEmoji && twemojiCheck ? 'twemoji' : 'system';
+        document.documentElement.dataset.sableEmojiEffectiveStyle = effectiveEmojiStyle;
 
         const diagnostics = {
           ...baseData,
@@ -276,6 +282,7 @@ function SystemEmojiFeature() {
           configuredCheck,
           systemCheck,
           loadCount: loadResult.length,
+          effectiveEmojiStyle,
         };
 
         Sentry.addBreadcrumb({
@@ -306,6 +313,8 @@ function SystemEmojiFeature() {
         }
       } catch (error) {
         if (cancelled) return;
+
+        document.documentElement.dataset.sableEmojiEffectiveStyle = 'system';
 
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorData = {

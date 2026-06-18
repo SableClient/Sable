@@ -58,7 +58,7 @@ body {
   background-color: var(--sable-bg-container);
 }
 
-:root[data-sable-emoji-style='system'][data-sable-mobile='true'] {
+:root[data-sable-emoji-effective-style='system'][data-sable-mobile='true'] {
   --sable-emoji-picker-font-size: 2.125rem;
   --sable-emoji-picker-shift-y: -0.01em;
   --sable-inline-emoji-font-size: 1.03em;

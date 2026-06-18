@@ -735,6 +735,20 @@ describe('SlidingSyncManager.scheduleForceReset()', () => {
     await expect(waiter).resolves.toBe('timeout');
   });
 
+  it('resolves pending force-reset waiters on the first empty-cycle completion', async () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+    manager.subscribeToRoom('!room:example.com');
+    vi.advanceTimersByTime(100);
+
+    manager.scheduleForceReset();
+    const waiter = manager.waitForPendingForceReset();
+
+    fireLifecycle(SlidingSyncState.RequestFinished, { rooms: {} });
+
+    await expect(waiter).resolves.toBe('request_finished');
+  });
+
   it('resets active room timelines before resubscribing', () => {
     const room = makeMockRoom();
     const mx = makeMockMx({

@@ -135,6 +135,8 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   }, [activeTheme, saturation, underlineLinks, reducedMotion]);
 
   useLayoutEffect(() => {
+    if (!settingsInitialized) return;
+
     const url = activeTheme.remoteFullUrl?.trim();
     if (!url) {
       setInlineStyleText(REMOTE_STYLE_ID, undefined);
@@ -142,9 +144,11 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       return;
     }
     setInlineStyleText(REMOTE_STYLE_ID, getStoredAppliedThemeCss(url));
-  }, [activeTheme.remoteFullUrl]);
+  }, [settingsInitialized, activeTheme.remoteFullUrl]);
 
   useLayoutEffect(() => {
+    if (!settingsInitialized) return;
+
     const urls = (enabledTweakUrls ?? []).map((url) => url.trim()).filter(Boolean);
     if (urls.length === 0) {
       setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
@@ -152,7 +156,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       return;
     }
     setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, getStoredAppliedTweakCss(urls));
-  }, [enabledTweakUrls]);
+  }, [settingsInitialized, enabledTweakUrls]);
 
   useEffect(() => {
     if (!settingsInitialized) return undefined;

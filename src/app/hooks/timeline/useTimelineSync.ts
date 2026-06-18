@@ -23,12 +23,25 @@ import {
   getLinkedTimelines,
   getTimelinesEventsCount,
   getEventIdAbsoluteIndex,
+  getEventTimeline,
   getLiveTimeline,
   getRoomUnreadInfo,
   PAGINATION_LIMIT,
 } from '$utils/timeline';
 
 export const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 20000;
+export const NOTIFICATION_LIVE_JUMP_MAX_DISTANCE = 40;
+
+export type TimelineJumpMode = 'history_context' | 'notification_live';
+
+export type TimelineFocusItem = {
+  index: number;
+  eventId?: string;
+  scrollTo: boolean;
+  highlight: boolean;
+  align?: 'center' | 'end';
+  jumpMode?: TimelineJumpMode;
+};
 
 export type PaginationStatus = 'idle' | 'loading' | 'error';
 
@@ -56,14 +69,20 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T
 const useEventTimelineLoader = (
   mx: MatrixClient,
   room: Room,
-  onLoad: (eventId: string, linkedTimelines: EventTimeline[], evtAbsIndex: number) => void,
+  onLoad: (
+    eventId: string,
+    linkedTimelines: EventTimeline[],
+    evtAbsIndex: number,
+    focusItem?: Partial<TimelineFocusItem>
+  ) => void,
   onError: (err: Error | null) => void,
   onProactiveLoad?: () => void
 ) =>
   useCallback(
-    async (eventId: string, signal?: AbortSignal) =>
+    async (eventId: string, signal?: AbortSignal, options?: { jumpMode?: TimelineJumpMode }) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
+        const jumpMode = options?.jumpMode ?? 'history_context';
 
         // Check if already aborted before starting
         if (signal?.aborted) {
@@ -75,9 +94,92 @@ const useEventTimelineLoader = (
         Sentry.addBreadcrumb({
           category: 'timeline.load',
           message: 'Timeline load started',
-          data: { eventId, roomId: room.roomId, isPermalink: true },
+          data: { eventId, roomId: room.roomId, isPermalink: true, jumpMode },
           level: 'info',
         });
+
+        if (jumpMode === 'notification_live') {
+          const liveTimeline = getLiveTimeline(room);
+          const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
+          const localEventTimeline = getEventTimeline(room, eventId);
+          const liveAbsIndex = localEventTimeline
+            ? getEventIdAbsoluteIndex(liveLinkedTimelines, localEventTimeline, eventId)
+            : undefined;
+
+          if (liveAbsIndex !== undefined) {
+            const distanceFromBottom = Math.max(
+              getTimelinesEventsCount(liveLinkedTimelines) - 1 - liveAbsIndex,
+              0
+            );
+            Sentry.addBreadcrumb({
+              category: 'timeline.load',
+              message: 'Notification jump evaluated live timeline',
+              data: {
+                eventId,
+                roomId: room.roomId,
+                jumpMode,
+                liveAbsIndex,
+                distanceFromBottom,
+                threshold: NOTIFICATION_LIVE_JUMP_MAX_DISTANCE,
+              },
+              level: 'info',
+            });
+
+            if (distanceFromBottom <= NOTIFICATION_LIVE_JUMP_MAX_DISTANCE) {
+              Sentry.metrics.count('sable.timeline.notification_jump_mode', 1, {
+                attributes: {
+                  mode: 'notification_live',
+                  resolution: 'live_timeline',
+                },
+              });
+              onLoad(eventId, liveLinkedTimelines, liveAbsIndex, {
+                align: 'end',
+                jumpMode,
+              });
+              return;
+            }
+
+            Sentry.addBreadcrumb({
+              category: 'timeline.load',
+              message: 'Notification jump fell back to history context',
+              data: {
+                eventId,
+                roomId: room.roomId,
+                jumpMode,
+                reason: 'distance_from_bottom',
+                distanceFromBottom,
+                threshold: NOTIFICATION_LIVE_JUMP_MAX_DISTANCE,
+              },
+              level: 'info',
+            });
+            Sentry.metrics.count('sable.timeline.notification_jump_mode', 1, {
+              attributes: {
+                mode: 'notification_live',
+                resolution: 'history_context',
+                reason: 'distance_from_bottom',
+              },
+            });
+          } else {
+            Sentry.addBreadcrumb({
+              category: 'timeline.load',
+              message: 'Notification jump missing live target',
+              data: {
+                eventId,
+                roomId: room.roomId,
+                jumpMode,
+                hasLocalEventTimeline: !!localEventTimeline,
+              },
+              level: 'info',
+            });
+            Sentry.metrics.count('sable.timeline.notification_jump_mode', 1, {
+              attributes: {
+                mode: 'notification_live',
+                resolution: 'history_context',
+                reason: 'missing_live_target',
+              },
+            });
+          }
+        }
 
         // Directly fetch the event timeline context from the server using /context API.
         // Do NOT wait for roomInitialSync or sliding sync — the jump should be independent
@@ -127,11 +229,15 @@ const useEventTimelineLoader = (
             roomId: room.roomId,
             duration: performance.now() - jumpLoadStart,
             messageCount: getTimelinesEventsCount(linkedTimelines),
+            jumpMode,
           },
           level: 'info',
         });
 
-        onLoad(eventId, linkedTimelines, absIndex);
+        onLoad(eventId, linkedTimelines, absIndex, {
+          align: 'center',
+          jumpMode,
+        });
 
         // Proactively load context above and below the jumped-to event so the user
         // can scroll immediately without waiting for pagination triggers.
@@ -411,6 +517,7 @@ export interface UseTimelineSyncOptions {
   room: Room;
   mx: MatrixClient;
   eventId?: string;
+  jumpMode?: TimelineJumpMode;
   isAtBottom: boolean;
   isAtBottomRef: React.MutableRefObject<boolean>;
   scrollToBottom: (behavior?: 'instant' | 'smooth') => void;
@@ -424,6 +531,7 @@ export function useTimelineSync({
   room,
   mx,
   eventId,
+  jumpMode,
   isAtBottom,
   isAtBottomRef,
   scrollToBottom,
@@ -441,23 +549,17 @@ export function useTimelineSync({
     eventId ? getEmptyTimeline() : { linkedTimelines: getInitialTimeline(room).linkedTimelines }
   );
 
-  const [focusItem, setFocusItem] = useState<
-    | {
-        index: number;
-        eventId?: string;
-        scrollTo: boolean;
-        highlight: boolean;
-      }
-    | undefined
-  >();
+  const [focusItem, setFocusItem] = useState<TimelineFocusItem | undefined>();
 
   const resetAutoScrollPendingRef = useRef(false);
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
   const eventTargetChangedAtRender = eventContextEventIdRef.current !== eventId;
+  const activeEventTargetJump = Boolean(eventId && focusItem?.eventId === eventId);
   const preservingEventContext =
-    Boolean(eventId) && !eventTargetChangedAtRender && eventContextActiveRef.current;
+    (Boolean(eventId) && !eventTargetChangedAtRender && eventContextActiveRef.current) ||
+    activeEventTargetJump;
   const waitingForEventContext =
     Boolean(eventId) && (eventTargetChangedAtRender || eventContextPendingRef.current);
 
@@ -543,6 +645,12 @@ export function useTimelineSync({
       return;
     }
 
+    if (focusItem?.eventId === eventId) {
+      eventContextActiveRef.current = true;
+      eventContextPendingRef.current = false;
+      return;
+    }
+
     if (!liveTimelineLinked) {
       eventContextActiveRef.current = true;
       eventContextPendingRef.current = false;
@@ -551,17 +659,17 @@ export function useTimelineSync({
 
     eventContextActiveRef.current = false;
     eventContextPendingRef.current = false;
-  }, [eventId, timeline.linkedTimelines.length, liveTimelineLinked]);
+  }, [eventId, focusItem?.eventId, timeline.linkedTimelines.length, liveTimelineLinked]);
 
   const loadEventTimeline = useEventTimelineLoader(
     mx,
     room,
     useCallback(
-      (evtId, lTimelines, evtAbsIndex) => {
+      (evtId, lTimelines, evtAbsIndex, nextFocusItem) => {
         if (!alive()) return;
 
         eventContextPendingRef.current = false;
-        eventContextActiveRef.current = true;
+        eventContextActiveRef.current = nextFocusItem?.jumpMode !== 'notification_live';
         setTimeline({ linkedTimelines: lTimelines });
 
         setFocusItem({
@@ -569,6 +677,8 @@ export function useTimelineSync({
           eventId: evtId,
           scrollTo: true,
           highlight: evtId !== readUptoEventIdRef.current,
+          align: nextFocusItem?.align,
+          jumpMode: nextFocusItem?.jumpMode,
         });
       },
       [alive, readUptoEventIdRef]
@@ -661,8 +771,6 @@ export function useTimelineSync({
       // When eventId is set, loadEventTimeline is responsible for updating the
       // timeline state. Don't overwrite with the live timeline.
       if (eventId) {
-        // If loadEventTimeline hasn't been called yet (e.g., first render), trigger it now.
-        // This handles the case where TimelineReset fires before the initial load effect runs.
         return;
       }
       const wasAtBottom = isAtBottomRef.current;
@@ -865,7 +973,13 @@ export function useTimelineSync({
     backwardStatus,
     forwardStatus,
     handleTimelinePagination,
-    loadEventTimeline,
+    loadEventTimeline: useCallback(
+      (targetEventId: string, signal?: AbortSignal, options?: { jumpMode?: TimelineJumpMode }) =>
+        loadEventTimeline(targetEventId, signal, {
+          jumpMode: options?.jumpMode ?? jumpMode ?? 'history_context',
+        }),
+      [jumpMode, loadEventTimeline]
+    ),
     focusItem,
     setFocusItem,
   };

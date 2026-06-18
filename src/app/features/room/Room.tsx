@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Box, Line } from 'folds';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { isKeyHotkey } from 'is-hotkey';
 import { useAtom, useAtomValue } from 'jotai';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -12,6 +12,7 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { markAsRead } from '$utils/notifications';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomMembers } from '$hooks/useRoomMembers';
+import { useRoomEvent } from '$hooks/useRoomEvent';
 import { CallView } from '$features/call/CallView';
 import { WidgetsDrawer } from '$features/widgets/WidgetsDrawer';
 import { callChatAtom } from '$state/callEmbed';
@@ -30,16 +31,20 @@ const debugLog = createDebugLogger('Room');
 
 export function Room() {
   const { eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const room = useRoom();
   const mx = useMatrixClient();
+  const targetEvent = useRoomEvent(room, eventId ?? '', undefined, Boolean(eventId));
+  const jumpMode =
+    searchParams.get('jumpMode') === 'notification_live' ? 'notification_live' : 'history_context';
 
   // Log room mount
   useEffect(() => {
-    debugLog.info('ui', 'Room component mounted', { roomId: room.roomId, eventId });
+    debugLog.info('ui', 'Room component mounted', { roomId: room.roomId, eventId, jumpMode });
     return () => {
       debugLog.info('ui', 'Room component unmounted', { roomId: room.roomId });
     };
-  }, [room.roomId, eventId]);
+  }, [room.roomId, eventId, jumpMode]);
 
   const [isDrawer] = useSetting(settingsAtom, 'isPeopleDrawer');
   const [isWidgetDrawerOpen] = useSetting(settingsAtom, 'isWidgetDrawer');
@@ -72,7 +77,7 @@ export function Room() {
   useEffect(() => {
     if (!eventId) return;
 
-    const event = room.findEventById(eventId);
+    const event = targetEvent;
     if (!event) return;
 
     const { threadRootId } = event;
@@ -86,7 +91,7 @@ export function Room() {
       }
       setOpenThread(threadRootId);
     }
-  }, [eventId, room, setOpenThread]);
+  }, [eventId, room, setOpenThread, targetEvent]);
 
   useKeyDown(
     window,
@@ -124,7 +129,7 @@ export function Room() {
             <Box grow="Yes" direction="Column">
               <RoomViewHeader />
               <Box grow="Yes">
-                <RoomView eventId={eventId} />
+                <RoomView eventId={eventId} jumpMode={jumpMode} />
               </Box>
             </Box>
           )}

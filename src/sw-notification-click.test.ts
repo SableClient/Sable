@@ -17,7 +17,7 @@ describe('buildNotificationClickTargetUrl', () => {
         isCall: true,
       })
     ).toBe(
-      'https://charm.example/app/to/%40alice%3Aexample.org/!room%3Aexample.org/%24event?joinCall=true'
+      'https://charm.example/app/to/%40alice%3Aexample.org/!room%3Aexample.org/%24event?joinCall=true&jumpMode=notification_live'
     );
   });
 

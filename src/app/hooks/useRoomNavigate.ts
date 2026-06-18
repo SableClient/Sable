@@ -9,10 +9,11 @@ import {
   getSpacePath,
   getSpaceRoomPath,
 } from '$pages/pathUtils';
-import { getShallowParents, guessPerfectParent } from '$utils/room';
+import { getShallowParents, resolveSpaceNavigationRoot } from '$utils/room';
 import { beginRoomNavigation, beginSpaceNavigation } from '$utils/perfTelemetry';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { mDirectAtom } from '$state/mDirectList';
+import { getStoredRoomNavRoot, setStoredRoomNavRoot } from '$state/room/roomNavRoots';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { getSlidingSyncManager } from '$client/initMatrix';
@@ -56,19 +57,23 @@ export const useRoomNavigate = () => {
         ? [roomId]
         : getShallowParents(roomToParents, roomId);
       if (shallowParents.length > 0) {
-        let parentSpace: string;
-        if (spaceSelectedId && shallowParents.includes(spaceSelectedId)) {
-          parentSpace = spaceSelectedId;
-        } else {
-          parentSpace =
-            guessPerfectParent(mx, roomId, shallowParents) ?? shallowParents[0] ?? roomId;
-        }
+        const currentUserId = mx.getUserId() ?? undefined;
+        const storedRootSpaceId =
+          currentUserId !== undefined ? getStoredRoomNavRoot(currentUserId, roomId) : undefined;
+        const { rootSpaceId } = resolveSpaceNavigationRoot(mx, roomToParents, roomId, {
+          selectedSpaceId: spaceSelectedId,
+          storedRootSpaceId,
+        });
+        const parentSpace = rootSpaceId ?? shallowParents[0] ?? roomId;
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);
         beginSpaceNavigation(parentSpace, 'room');
         beginRoomNavigation(roomId, 'space');
         slidingSyncManager?.setSpaceScope(parentSpace);
         slidingSyncManager?.prefetchRoom(roomId);
+        if (currentUserId) {
+          setStoredRoomNavRoot(currentUserId, roomId, parentSpace);
+        }
 
         navigate(
           getSpaceRoomPath(pSpaceIdOrAlias, openSpaceTimeline ? roomId : roomIdOrAlias, eventId),

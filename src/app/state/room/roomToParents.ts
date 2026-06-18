@@ -66,11 +66,13 @@ const baseCachedRoomToParents = atomWithLocalStorage<RoomToParents>(
 );
 
 const baseRoomToParents = atom(new Map());
+const baseRoomToParentsReady = atom(false);
 export const roomToParentsAtom = atom<RoomToParents, [RoomToParentsAction], undefined>(
   (get) => get(baseRoomToParents),
   (get, set, action) => {
     if (action.type === 'INITIALIZE') {
       set(baseRoomToParents, action.roomToParents);
+      set(baseRoomToParentsReady, true);
       // Also update cache
       set(baseCachedRoomToParents, action.roomToParents);
       return;
@@ -116,6 +118,8 @@ export const roomToParentsAtom = atom<RoomToParents, [RoomToParentsAction], unde
     }
   }
 );
+
+export const roomToParentsReadyAtom = atom((get) => get(baseRoomToParentsReady));
 
 export const useBindRoomToParentsAtom = (
   mx: MatrixClient,

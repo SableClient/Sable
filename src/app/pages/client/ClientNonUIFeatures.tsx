@@ -92,6 +92,10 @@ import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { clearLaunchContext } from '../../../launch-context-persistence';
 import { getInboxBookmarksPath, getInboxInvitesPath, getToRoomEventPath } from '$pages/pathUtils';
+import {
+  buildNotificationBreadcrumb,
+  buildNotificationMetricAttributes,
+} from '$utils/notificationTelemetry';
 import { BackgroundNotifications } from './BackgroundNotifications';
 import {
   NotificationTransportRuntime,
@@ -165,10 +169,11 @@ function navigateToRoomNotificationTarget(
   navigate: ReturnType<typeof useNavigate>,
   userId: string | undefined,
   roomId: string,
-  eventId?: string
+  eventId?: string,
+  options?: { swClickId?: string; jumpMode?: 'notification_live' | 'history_context' }
 ): void {
   if (!userId) return;
-  navigate(getToRoomEventPath(userId, roomId, eventId));
+  navigate(getToRoomEventPath(userId, roomId, eventId, options));
 }
 
 function WebPushStartupReconciler() {
@@ -631,7 +636,8 @@ function MessageNotifications() {
               navigate,
               mx.getUserId() ?? undefined,
               roomId,
-              eventId
+              eventId,
+              { jumpMode: 'notification_live' }
             );
             noti.close();
           });
@@ -715,7 +721,9 @@ function MessageNotifications() {
           icon: roomAvatar,
           onClick: () => {
             window.focus();
-            navigateToRoomNotificationTarget(navigate, capturedUserId, roomId, capturedEventId);
+            navigateToRoomNotificationTarget(navigate, capturedUserId, roomId, capturedEventId, {
+              jumpMode: 'notification_live',
+            });
           },
         });
       }
@@ -979,15 +987,39 @@ export function HandleNotificationClick() {
         void clearLaunchContext().catch(() => undefined);
       };
 
+      Sentry.addBreadcrumb(
+        buildNotificationBreadcrumb('click', 'click_message_received', {
+          click_id: clickId,
+          user_id: userId,
+          room_id: roomId,
+          event_id: eventId,
+          has_target_url: !!(targetUrl ?? navigateUrl),
+          is_invite: isInvite,
+          is_reminder: isReminder,
+        })
+      );
+
       if (userId) setActiveSessionId(userId);
 
       if (isInvite) {
+        Sentry.addBreadcrumb(
+          buildNotificationBreadcrumb('click', 'click_routed_invites', {
+            click_id: clickId,
+            user_id: userId,
+          })
+        );
         navigate(getInboxInvitesPath());
         acknowledgeHandledClick();
         return;
       }
 
       if (isReminder) {
+        Sentry.addBreadcrumb(
+          buildNotificationBreadcrumb('click', 'click_routed_reminders', {
+            click_id: clickId,
+            user_id: userId,
+          })
+        );
         navigate(getInboxBookmarksPath());
         acknowledgeHandledClick();
         return;
@@ -995,6 +1027,12 @@ export function HandleNotificationClick() {
 
       if (!roomId) {
         if (navigateUrl ?? targetUrl) {
+          Sentry.addBreadcrumb(
+            buildNotificationBreadcrumb('click', 'click_routed_fallback_url', {
+              click_id: clickId,
+              target_url: targetUrl ?? navigateUrl,
+            })
+          );
           navigateToServiceWorkerUrl(navigate, navigateUrl ?? targetUrl ?? '');
           acknowledgeHandledClick();
         }
@@ -1002,12 +1040,29 @@ export function HandleNotificationClick() {
       }
 
       if (userId) {
-        navigateToRoomNotificationTarget(navigate, userId, roomId, eventId);
+        Sentry.addBreadcrumb(
+          buildNotificationBreadcrumb('click', 'click_routed_room_restore', {
+            click_id: clickId,
+            user_id: userId,
+            room_id: roomId,
+            event_id: eventId,
+          })
+        );
         acknowledgeHandledClick();
+        navigateToRoomNotificationTarget(navigate, userId, roomId, eventId, {
+          swClickId: typeof clickId === 'string' ? clickId : undefined,
+          jumpMode: 'notification_live',
+        });
         return;
       }
 
       if (targetUrl ?? navigateUrl) {
+        Sentry.addBreadcrumb(
+          buildNotificationBreadcrumb('click', 'click_routed_target_url', {
+            click_id: clickId,
+            target_url: targetUrl ?? navigateUrl,
+          })
+        );
         navigateToServiceWorkerUrl(navigate, targetUrl ?? navigateUrl ?? '');
         acknowledgeHandledClick();
       }
@@ -1194,6 +1249,21 @@ function HandleDecryptPushEvent() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;
 
+    const RETRYABLE_DECRYPT_ERROR_PATTERNS = [
+      "The sender's device has not sent us the keys",
+      'Unknown inbound session',
+      'Decryption error',
+      'MEGOLM_UNKNOWN_INBOUND_SESSION_ID',
+      'OLM_UNKNOWN_MESSAGE_INDEX',
+    ] as const;
+    const sleep = (ms: number) =>
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, ms);
+      });
+    const isRetryablePushDecryptError = (error: unknown): error is Error =>
+      error instanceof Error &&
+      RETRYABLE_DECRYPT_ERROR_PATTERNS.some((pattern) => error.message.includes(pattern));
+
     const handleMessage = async (ev: MessageEvent) => {
       const { data } = ev;
       if (!data) return;
@@ -1204,10 +1274,54 @@ function HandleDecryptPushEvent() {
       const eventId = rawEvent.event_id as string;
       const roomId = rawEvent.room_id as string;
       const decryptStart = performance.now();
+      const mxEvent = new MatrixEvent(rawEvent as ConstructorParameters<typeof MatrixEvent>[0]);
+      let attempts = 0;
+      let failureReason = 'decrypt_failed';
+      Sentry.addBreadcrumb(
+        buildNotificationBreadcrumb('push', 'push_relay_requested', {
+          event_id: eventId,
+          room_id: roomId,
+          sync_state: mx.getSyncState() ?? 'unknown',
+          visibility_state: document.visibilityState,
+        })
+      );
+      const decryptWithRetry = async (): Promise<void> => {
+        attempts += 1;
+        try {
+          await mx.decryptEventIfNeeded(mxEvent);
+        } catch (error) {
+          if (!isRetryablePushDecryptError(error)) {
+            throw error;
+          }
+
+          failureReason = 'missing_room_keys';
+          const elapsedMs = performance.now() - decryptStart;
+          const nextDelayMs = Math.min(400 + attempts * 500, 2_000);
+          if (elapsedMs + nextDelayMs >= 7_000) {
+            throw error;
+          }
+
+          pushRelayLog.warn('notification', 'Push relay decrypt retry scheduled', {
+            attempts,
+            nextDelayMs,
+            syncState: mx.getSyncState() ?? 'unknown',
+          });
+          Sentry.addBreadcrumb(
+            buildNotificationBreadcrumb('push', 'push_relay_retry_scheduled', {
+              event_id: eventId,
+              room_id: roomId,
+              attempts,
+              next_delay_ms: nextDelayMs,
+              sync_state: mx.getSyncState() ?? 'unknown',
+            })
+          );
+          await sleep(nextDelayMs);
+          await decryptWithRetry();
+        }
+      };
 
       try {
-        const mxEvent = new MatrixEvent(rawEvent as ConstructorParameters<typeof MatrixEvent>[0]);
-        await mx.decryptEventIfNeeded(mxEvent);
+        await decryptWithRetry();
 
         const room = mx.getRoom(roomId);
         const sender = mxEvent.getSender();
@@ -1221,7 +1335,18 @@ function HandleDecryptPushEvent() {
         pushRelayLog.info('notification', 'Push relay decryption succeeded', {
           eventType: mxEvent.getType(),
           decryptMs,
+          attempts,
         });
+        Sentry.addBreadcrumb(
+          buildNotificationBreadcrumb('push', 'push_relay_succeeded', {
+            event_id: eventId,
+            room_id: roomId,
+            event_type: mxEvent.getType(),
+            decrypt_ms: decryptMs,
+            attempts,
+            sync_state: mx.getSyncState() ?? 'unknown',
+          })
+        );
 
         const response = {
           type: 'pushDecryptResult',
@@ -1233,7 +1358,17 @@ function HandleDecryptPushEvent() {
           room_name: room?.name ?? '',
           visibilityState: document.visibilityState,
           focused: document.hasFocus(),
+          attempts,
+          syncState: mx.getSyncState() ?? undefined,
         };
+        Sentry.metrics.count('sable.push.decrypt_relay_page', 1, {
+          attributes: buildNotificationMetricAttributes({
+            success: true,
+            failure_reason: 'none',
+            attempts,
+            sync_state: mx.getSyncState() ?? 'unknown',
+          }),
+        });
         if (!postToServiceWorkerSource(ev.source, response)) postToServiceWorker(response);
       } catch (err) {
         console.warn('[ClientFeatures] HandleDecryptPushEvent: failed to decrypt push event', err);
@@ -1248,20 +1383,56 @@ function HandleDecryptPushEvent() {
           err instanceof Error &&
           (err.message.includes("The sender's device has not sent us the keys") ||
             err.message.includes('Unknown inbound session'));
+        if (isDecryptionError) {
+          failureReason = 'missing_room_keys';
+        }
 
         if (isDecryptionError) {
-          Sentry.addBreadcrumb({
-            category: 'crypto',
-            message: 'Push decryption failed: missing room keys',
-            data: { eventId, roomId, error: err.message },
-            level: 'warning',
-          });
+          Sentry.addBreadcrumb(
+            buildNotificationBreadcrumb(
+              'push',
+              'push_relay_missing_room_keys',
+              {
+                event_id: eventId,
+                room_id: roomId,
+                error: err.message,
+                attempts,
+              },
+              'warning'
+            )
+          );
           Sentry.metrics.count('sable.push.decrypt_missing_keys', 1, {
-            attributes: { app_visible: document.visibilityState === 'visible' },
+            attributes: buildNotificationMetricAttributes({
+              app_visible: document.visibilityState === 'visible',
+              attempts,
+            }),
           });
           // SDK will automatically request keys on next decryptEventIfNeeded call
           // when the event is viewed in the timeline
         }
+        Sentry.addBreadcrumb(
+          buildNotificationBreadcrumb(
+            'push',
+            'push_relay_failed',
+            {
+              event_id: eventId,
+              room_id: roomId,
+              failure_reason: failureReason,
+              attempts,
+              sync_state: mx.getSyncState() ?? 'unknown',
+              error: err instanceof Error ? err.message : String(err),
+            },
+            'warning'
+          )
+        );
+        Sentry.metrics.count('sable.push.decrypt_relay_page', 1, {
+          attributes: buildNotificationMetricAttributes({
+            success: false,
+            failure_reason: failureReason,
+            attempts,
+            sync_state: mx.getSyncState() ?? 'unknown',
+          }),
+        });
 
         const response = {
           type: 'pushDecryptResult',
@@ -1269,6 +1440,9 @@ function HandleDecryptPushEvent() {
           success: false,
           visibilityState: document.visibilityState,
           focused: document.hasFocus(),
+          failureReason,
+          attempts,
+          syncState: mx.getSyncState() ?? undefined,
         };
         if (!postToServiceWorkerSource(ev.source, response)) postToServiceWorker(response);
       }

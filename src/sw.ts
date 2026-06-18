@@ -23,6 +23,10 @@ import {
   rankNotificationClickClients,
   type ServiceWorkerNotificationClickData,
 } from './sw-notification-click';
+import {
+  buildNotificationBreadcrumb,
+  buildNotificationMetricAttributes,
+} from './app/utils/notificationTelemetry';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -87,6 +91,8 @@ type PushTelemetryEvent =
   | 'received'
   | 'claim_clients'
   | 'stale_focus_ignored'
+  | 'decrypt_no_client'
+  | 'decrypt_failed'
   | 'shown_os'
   | 'decrypt_timeout'
   | 'fetch_fallback'
@@ -649,6 +655,9 @@ type DecryptionResult = {
   room_name?: string;
   visibilityState?: string;
   focused?: boolean;
+  failureReason?: string;
+  attempts?: number;
+  syncState?: string;
 };
 
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
@@ -660,6 +669,7 @@ type NotificationClickWaiter = {
 
 const notificationClickPendingMap = new Map<string, NotificationClickWaiter>();
 const SW_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
+const NOTIFICATION_CLICK_HANDLED_TIMEOUT_MS = 4_000;
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -694,7 +704,7 @@ async function fetchWithNetworkRetry(
 
 async function waitForNotificationClickHandled(
   clickId: string,
-  timeoutMs = 2_500
+  timeoutMs = NOTIFICATION_CLICK_HANDLED_TIMEOUT_MS
 ): Promise<boolean> {
   return new Promise((resolve) => {
     const timeoutId = setTimeout(() => {
@@ -712,7 +722,10 @@ async function waitForNotificationClickHandled(
   });
 }
 
-function createNotificationClickHandledWaiter(clickId: string, timeoutMs = 2_500) {
+function createNotificationClickHandledWaiter(
+  clickId: string,
+  timeoutMs = NOTIFICATION_CLICK_HANDLED_TIMEOUT_MS
+) {
   return waitForNotificationClickHandled(clickId, timeoutMs);
 }
 
@@ -891,9 +904,18 @@ async function requestDecryptionFromClient(
   rawEvent: Record<string, unknown>
 ): Promise<DecryptionResult | undefined> {
   const eventId = rawEvent.event_id as string;
+  const rankedClients = Array.from(windowClients).toSorted((left, right) => {
+    const leftWindow = left as WindowClient;
+    const rightWindow = right as WindowClient;
+    const leftScore =
+      (leftWindow.visibilityState === 'visible' ? 2 : 0) + (leftWindow.focused ? 1 : 0);
+    const rightScore =
+      (rightWindow.visibilityState === 'visible' ? 2 : 0) + (rightWindow.focused ? 1 : 0);
+    return rightScore - leftScore;
+  });
 
   // Chain clients sequentially using reduce to avoid await-in-loop and for-of.
-  const result = await Array.from(windowClients).reduce(
+  const result = await rankedClients.reduce(
     async (prevPromise, client) => {
       const prev = await prevPromise;
       if (prev?.success) return prev;
@@ -953,10 +975,15 @@ async function handleMinimalPushPayload(
     // Show a minimal actionable notification so the user can tap through to the room.
     console.debug('[SW push] minimal payload: no session, showing generic notification');
     await postSentryBreadcrumb(
-      'notification.push',
-      'Minimal push payload had no persisted session; showing generic notification',
+      buildNotificationBreadcrumb(
+        'push',
+        'push_fallback_missing_session',
+        { has_window_clients: windowClients.length > 0 },
+        'warning'
+      ).category,
+      'push_fallback_missing_session',
       'warning',
-      { hasWindowClients: windowClients.length > 0 }
+      buildNotificationMetricAttributes({ has_window_clients: windowClients.length > 0 })
     );
     await self.registration.showNotification('New Message', {
       body: undefined,
@@ -984,10 +1011,15 @@ async function handleMinimalPushPayload(
 
   if (!rawEvent) {
     await postSentryBreadcrumb(
-      'notification.push',
-      'Failed to fetch raw event for minimal push; showing generic notification',
+      buildNotificationBreadcrumb(
+        'push',
+        'push_fallback_raw_event_fetch_failed',
+        { has_window_clients: windowClients.length > 0 },
+        'warning'
+      ).category,
+      'push_fallback_raw_event_fetch_failed',
       'warning',
-      { hasWindowClients: windowClients.length > 0 }
+      buildNotificationMetricAttributes({ has_window_clients: windowClients.length > 0 })
     );
     await self.registration.showNotification('New Message', {
       body: undefined,
@@ -1035,16 +1067,34 @@ async function handleMinimalPushPayload(
         ? await requestDecryptionFromClient(windowClients, rawEvent)
         : undefined;
 
+    if (windowClients.length === 0) {
+      await recordPushTelemetry('decrypt_no_client', { payload_type: 'minimal' });
+    }
+
     // Track decryption relay results
     postSentryMetric('sable.push.decrypt_relay', 1, {
-      success: result?.success ?? false,
-      visibility_state: result?.visibilityState ?? 'unknown',
-      has_clients: windowClients.length > 0,
-      timed_out: result === undefined && windowClients.length > 0,
+      ...buildNotificationMetricAttributes({
+        success: result?.success ?? false,
+        visibility_state: result?.visibilityState ?? 'unknown',
+        has_clients: windowClients.length > 0,
+        timed_out: result === undefined && windowClients.length > 0,
+        failure_reason:
+          result?.failureReason ?? (windowClients.length > 0 ? 'timeout' : 'no_client'),
+        sync_state: result?.syncState ?? 'unknown',
+        attempts: result?.attempts ?? 0,
+      }),
     }).catch(() => undefined);
 
     if (result === undefined && windowClients.length > 0) {
       await recordPushTelemetry('decrypt_timeout', { payload_type: 'minimal' });
+    }
+    if (result && !result.success) {
+      await recordPushTelemetry('decrypt_failed', {
+        payload_type: 'minimal',
+        failure_reason: result.failureReason ?? 'unknown',
+        sync_state: result.syncState ?? 'unknown',
+        attempts: result.attempts ?? 0,
+      });
     }
 
     const focusedClientCount = focusedWindowClientCount(windowClients);
@@ -1063,15 +1113,29 @@ async function handleMinimalPushPayload(
 
     if (result?.success) {
       await postSentryBreadcrumb(
-        'notification.push',
-        'Encrypted push decrypted through window client',
+        buildNotificationBreadcrumb(
+          'push',
+          'push_decrypted_via_client',
+          {
+            has_focused_client: focusedClientCount > 0,
+            browser_visible_client_count: browserVisibleClientCount,
+            visible: false,
+            has_window_clients: windowClients.length > 0,
+            attempts: result.attempts,
+            sync_state: result.syncState,
+          },
+          'info'
+        ).category,
+        'push_decrypted_via_client',
         'info',
-        {
-          hasFocusedClient: focusedClientCount > 0,
-          browserVisibleClientCount,
+        buildNotificationMetricAttributes({
+          has_focused_client: focusedClientCount > 0,
+          browser_visible_client_count: browserVisibleClientCount,
           visible: false,
-          hasWindowClients: windowClients.length > 0,
-        }
+          has_window_clients: windowClients.length > 0,
+          attempts: result.attempts,
+          sync_state: result.syncState,
+        })
       );
       // App was backgrounded but not frozen — decryption succeeded.
       // Prefer the server-fetched display name (authoritative) over the relay's SDK cache
@@ -1088,13 +1152,27 @@ async function handleMinimalPushPayload(
       await recordPushTelemetry('shown_os', { payload_type: 'minimal', encrypted: true });
     } else {
       await postSentryBreadcrumb(
-        'notification.push',
-        'Encrypted push used fallback content',
+        buildNotificationBreadcrumb(
+          'push',
+          'push_fallback_encrypted_content',
+          {
+            timed_out: result === undefined && windowClients.length > 0,
+            has_window_clients: windowClients.length > 0,
+            failure_reason: result?.failureReason,
+            attempts: result?.attempts,
+            sync_state: result?.syncState,
+          },
+          'warning'
+        ).category,
+        'push_fallback_encrypted_content',
         'warning',
-        {
-          timedOut: result === undefined && windowClients.length > 0,
-          hasWindowClients: windowClients.length > 0,
-        }
+        buildNotificationMetricAttributes({
+          timed_out: result === undefined && windowClients.length > 0,
+          has_window_clients: windowClients.length > 0,
+          failure_reason: result?.failureReason,
+          attempts: result?.attempts,
+          sync_state: result?.syncState,
+        })
       );
       // App is frozen or fully closed — show "Encrypted message" fallback.
       await handlePushNotificationPushData({
@@ -1965,22 +2043,36 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   console.debug('[SW notificationclick] targetUrl:', targetUrl);
   postSentryBreadcrumb(
-    'notification.click',
-    'Notification click received by service worker',
+    buildNotificationBreadcrumb(
+      'click',
+      'click_received',
+      {
+        has_user_id: !!pushUserId,
+        has_room_id: !!pushRoomId,
+        has_event_id: !!pushEventId,
+        is_invite: isInvite,
+        is_call: isCall,
+      },
+      'info'
+    ).category,
+    'click_received',
     'info',
-    {
-      hasUserId: !!pushUserId,
-      hasRoomId: !!pushRoomId,
-      hasEventId: !!pushEventId,
-      isInvite,
-      isCall,
-    }
+    buildNotificationMetricAttributes({
+      has_user_id: !!pushUserId,
+      has_room_id: !!pushRoomId,
+      has_event_id: !!pushEventId,
+      is_invite: isInvite,
+      is_call: isCall,
+    })
   ).catch(() => undefined);
   postSentryMetric('sable.notification.clicked', 1, {
-    has_user_id: !!pushUserId,
-    has_room_id: !!pushRoomId,
-    is_invite: isInvite,
-    is_call: isCall,
+    ...buildNotificationMetricAttributes({
+      has_user_id: !!pushUserId,
+      has_room_id: !!pushRoomId,
+      has_event_id: !!pushEventId,
+      is_invite: isInvite,
+      is_call: isCall,
+    }),
   }).catch(() => undefined);
 
   event.waitUntil(
@@ -2056,12 +2148,21 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
         } catch (err) {
           console.debug('[SW notificationclick] postMessage/focus failed:', err);
           postSentryBreadcrumb(
-            'notification.click',
-            'Failed to focus existing notification client',
+            buildNotificationBreadcrumb(
+              'click',
+              'click_focus_existing_client_failed',
+              {
+                error: err instanceof Error ? err.message : String(err),
+                target_url: targetUrl,
+              },
+              'warning'
+            ).category,
+            'click_focus_existing_client_failed',
             'warning',
-            {
+            buildNotificationMetricAttributes({
               error: err instanceof Error ? err.message : String(err),
-            }
+              target_url: targetUrl,
+            })
           ).catch(() => undefined);
         }
       }
@@ -2072,9 +2173,15 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
       if (self.clients.openWindow) {
         await self.clients.openWindow(targetUrl);
         await postSentryBreadcrumb(
-          'notification.click',
-          'Opened new window for notification click',
-          'info'
+          buildNotificationBreadcrumb(
+            'click',
+            'click_opened_new_window',
+            { target_url: targetUrl },
+            'info'
+          ).category,
+          'click_opened_new_window',
+          'info',
+          buildNotificationMetricAttributes({ target_url: targetUrl })
         );
       }
     })()

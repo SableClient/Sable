@@ -148,8 +148,8 @@ jobs:
             // Query Sentry for unresolved preview issues tagged to this PR.
             const query = encodeURIComponent(`is:unresolved pr:${prNumber}`);
             const sentryUrl =
-              `https://sentry.io/api/0/organizations/${sentryOrg}/issues/` +
-              `?project=${encodeURIComponent(sentryProject)}&query=${query}&environment=preview&limit=100`;
+              `https://sentry.io/api/0/projects/${sentryOrg}/${encodeURIComponent(sentryProject)}/issues/` +
+              `?query=${query}&environment=preview&limit=100`;
 
             let sentryIssues;
             try {
@@ -161,7 +161,7 @@ jobs:
                     fetchSentry(`https://sentry.io/api/0/organizations/${sentryOrg}/`),
                     fetchSentry(`https://sentry.io/api/0/projects/${sentryOrg}/${sentryProject}/`),
                     fetchSentry(
-                      `https://sentry.io/api/0/organizations/${sentryOrg}/issues/?project=${encodeURIComponent(sentryProject)}&limit=1`
+                      `https://sentry.io/api/0/projects/${sentryOrg}/${encodeURIComponent(sentryProject)}/issues/?limit=1`
                     ),
                   ]);
                   core.info(

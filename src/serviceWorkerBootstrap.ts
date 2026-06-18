@@ -11,6 +11,9 @@ import { consumeLaunchContext } from './launch-context-persistence';
 const log = createLogger('service-worker-bootstrap');
 const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
 const APPLY_UPDATE_TIMEOUT_MS = 4000;
+const SW_WATCHDOG_INTERVAL_MS = 60_000;
+const SW_WATCHDOG_PING_TIMEOUT_MS = 5_000;
+const SW_WATCHDOG_MAX_MISSES = 2;
 
 const recordForcedReload = (reason: string, data?: Record<string, unknown>) => {
   Sentry.addBreadcrumb({
@@ -96,8 +99,138 @@ function sendActiveSessionToServiceWorker() {
   pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
 }
 
+function createSwWatchdog() {
+  let watchdogTimer = 0;
+  let consecutiveMisses = 0;
+  let compatibleWorkerScriptUrl: string | undefined;
+  const pendingPings = new Map<
+    string,
+    {
+      resolve: () => void;
+      reject: (reason?: unknown) => void;
+      timeoutId: number;
+    }
+  >();
+
+  const clearPendingPing = (requestId: string, reason?: unknown) => {
+    const pending = pendingPings.get(requestId);
+    if (!pending) return;
+    window.clearTimeout(pending.timeoutId);
+    pendingPings.delete(requestId);
+    if (reason !== undefined) {
+      pending.reject(reason);
+    }
+  };
+
+  const handleMessage = (ev: MessageEvent) => {
+    const { data } = ev;
+    if (!data || typeof data !== 'object') return;
+    if ((data as { type?: unknown }).type !== 'pong') return;
+    const requestId = (data as { requestId?: unknown }).requestId;
+    if (typeof requestId !== 'string') return;
+
+    const pending = pendingPings.get(requestId);
+    if (!pending) return;
+    clearPendingPing(requestId);
+    consecutiveMisses = 0;
+    const sourceWorker = ev.source instanceof ServiceWorker ? ev.source : undefined;
+    compatibleWorkerScriptUrl = sourceWorker?.scriptURL ?? compatibleWorkerScriptUrl;
+    pending.resolve();
+  };
+
+  const requestRecovery = async () => {
+    const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
+    registration?.active?.postMessage({ type: 'CLAIM_CLIENTS' });
+    void registration?.update();
+    sendActiveSessionToServiceWorker();
+  };
+
+  const pingServiceWorker = async () => {
+    if (document.visibilityState !== 'visible' || !navigator.onLine) return;
+
+    const registration = await navigator.serviceWorker.getRegistration().catch(() => undefined);
+    const activeWorker = registration?.active;
+    const controller = navigator.serviceWorker.controller;
+    const worker = controller ?? activeWorker;
+    const workerScriptUrl = worker?.scriptURL;
+    const watchdogHandshakeComplete =
+      typeof workerScriptUrl === 'string' && workerScriptUrl === compatibleWorkerScriptUrl;
+    if (!worker) {
+      await requestRecovery();
+      return;
+    }
+
+    const requestId = `sw-ping-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const pingPromise = new Promise<void>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        pendingPings.delete(requestId);
+        reject(new Error('timeout'));
+      }, SW_WATCHDOG_PING_TIMEOUT_MS);
+      pendingPings.set(requestId, { resolve, reject, timeoutId });
+    });
+
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    worker.postMessage({ type: 'ping', requestId });
+
+    try {
+      await pingPromise;
+    } catch (err) {
+      if (err instanceof Error && err.message === 'watchdog stopped') {
+        return;
+      }
+
+      if (!watchdogHandshakeComplete) {
+        Sentry.addBreadcrumb({
+          category: 'service_worker',
+          message: 'Service worker watchdog waiting for first compatible pong',
+          level: 'info',
+          data: {
+            controllerScriptUrl: controller?.scriptURL,
+            activeScriptUrl: activeWorker?.scriptURL,
+            usingController: worker === controller,
+          },
+        });
+        await requestRecovery();
+        return;
+      }
+
+      consecutiveMisses += 1;
+      Sentry.addBreadcrumb({
+        category: 'service_worker',
+        message: 'Service worker watchdog ping missed',
+        level: 'warning',
+        data: { consecutiveMisses },
+      });
+      await requestRecovery();
+      if (consecutiveMisses >= SW_WATCHDOG_MAX_MISSES) {
+        recordForcedReload('sw_watchdog_unresponsive', { consecutiveMisses });
+        window.location.reload();
+      }
+    }
+  };
+
+  const restart = () => {
+    window.clearInterval(watchdogTimer);
+    watchdogTimer = window.setInterval(() => {
+      void pingServiceWorker();
+    }, SW_WATCHDOG_INTERVAL_MS);
+  };
+
+  const stop = () => {
+    window.clearInterval(watchdogTimer);
+    consecutiveMisses = 0;
+    pendingPings.forEach((_pending, requestId) => {
+      clearPendingPing(requestId, new Error('watchdog stopped'));
+    });
+    pendingPings.clear();
+  };
+
+  return { restart, stop, handleMessage, pingServiceWorker };
+}
+
 export function registerAppServiceWorker() {
   if (!hasServiceWorker()) return;
+  const swWatchdog = createSwWatchdog();
 
   const isProduction = import.meta.env.MODE === 'production';
   const swUrl = isProduction
@@ -264,6 +397,7 @@ export function registerAppServiceWorker() {
   });
 
   navigator.serviceWorker.addEventListener('message', (ev) => {
+    swWatchdog.handleMessage(ev);
     const { data } = ev;
     if (!data || typeof data !== 'object') return;
     const { type } = data as { type?: unknown };
@@ -303,4 +437,17 @@ export function registerAppServiceWorker() {
       */
     }
   });
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      swWatchdog.restart();
+      void swWatchdog.pingServiceWorker();
+      return;
+    }
+
+    swWatchdog.stop();
+  };
+
+  handleVisibilityChange();
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 }

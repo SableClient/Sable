@@ -78,6 +78,7 @@ export const EditorTextarea = style([
     // Matches the unicodeBidi: 'plaintext' pattern used by MessageTextBody.
     unicodeBidi: 'plaintext',
     padding: 0,
+    paddingRight: toRem(13),
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
@@ -115,6 +116,7 @@ export const EditorPlaceholderTextVisual = style([
   {
     display: 'block',
     paddingLeft: toRem(1),
+    paddingRight: toRem(13),
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),

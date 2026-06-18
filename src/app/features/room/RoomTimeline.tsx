@@ -65,6 +65,7 @@ import {
   roomIdToEditNavRequestAtomFamily,
 } from '$state/room/roomInputDrafts';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import {
   getRoomUnreadInfo,
   getEventTimeline,
@@ -154,6 +155,7 @@ export function RoomTimeline({
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
   const alive = useAlive();
+  const screenSize = useScreenSizeContext();
 
   const { editId, handleEdit } = useMessageEdit(editor, {
     onReset: onEditorReset,
@@ -258,6 +260,7 @@ export function RoomTimeline({
   const openUserRoomProfile = useOpenUserRoomProfile();
   const optionalSpace = useSpaceOptionally();
   const roomParents = useAtomValue(roomToParentsAtom);
+  const isMobileScreen = screenSize === ScreenSize.Mobile;
   const imagePackRooms = useImagePackRooms(room.roomId, roomParents);
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);
   const parseMemberEvent = useMemberEventParser();
@@ -1899,7 +1902,7 @@ export function RoomTimeline({
             display: 'flex',
             flexDirection: 'column',
             paddingLeft: config.space.S200,
-            paddingRight: config.space.S0,
+            paddingRight: isMobileScreen ? config.space.S200 : config.space.S0,
             paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600,
             paddingBottom: config.space.S600,
           }}

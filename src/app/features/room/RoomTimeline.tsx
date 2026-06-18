@@ -83,6 +83,7 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { completeRoomTimelineRender } from '$utils/perfTelemetry';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import * as css from './RoomTimeline.css';
 
 const log = createLogger('RoomTimeline');
@@ -260,7 +261,7 @@ export function RoomTimeline({
   const openUserRoomProfile = useOpenUserRoomProfile();
   const optionalSpace = useSpaceOptionally();
   const roomParents = useAtomValue(roomToParentsAtom);
-  const isMobileScreen = screenSize === ScreenSize.Mobile;
+  const isMobileScreen = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
   const imagePackRooms = useImagePackRooms(room.roomId, roomParents);
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);
   const parseMemberEvent = useMemberEventParser();

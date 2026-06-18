@@ -13,13 +13,27 @@ import {
 import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, settingsInitializedAtom } from '$state/settings';
-import { getCachedThemeCss, putCachedThemeCss } from '$app/theme/cache';
+import {
+  clearStoredAppliedThemeCss,
+  clearStoredAppliedTweakCss,
+  getCachedThemeCss,
+  getStoredAppliedThemeCss,
+  getStoredAppliedTweakCss,
+  putCachedThemeCss,
+  putStoredAppliedThemeCss,
+  putStoredAppliedTweakCss,
+} from '$app/theme/cache';
 import { isLocalImportBundledUrl } from '$app/theme/localImportUrls';
 
 const REMOTE_STYLE_ID = 'sable-remote-theme-style';
 const REMOTE_TWEAKS_STYLE_ID = 'sable-remote-tweaks-style';
 const LIGHT_THEME_COLOR = '#ffffff';
 const DARK_THEME_COLOR = '#1b1a21';
+
+type RemoteCssLoadResult =
+  | { status: 'loaded'; text: string }
+  | { status: 'missing' }
+  | { status: 'error' };
 
 function syncDocumentThemeMetadata(kind: ThemeKind): void {
   const bootTheme = kind === ThemeKind.Dark ? 'dark' : 'light';
@@ -32,31 +46,70 @@ function syncDocumentThemeMetadata(kind: ThemeKind): void {
   });
 }
 
-async function loadRemoteThemeCssText(url: string): Promise<string | undefined> {
+function syncRemoteStyleOrder(): void {
+  const themeNode = document.getElementById(REMOTE_STYLE_ID);
+  const tweaksNode = document.getElementById(REMOTE_TWEAKS_STYLE_ID);
+
+  if (themeNode) {
+    document.head.appendChild(themeNode);
+  }
+  if (tweaksNode) {
+    document.head.appendChild(tweaksNode);
+  }
+}
+
+function setInlineStyleText(id: string, text: string | undefined): void {
+  if (!text) {
+    document.getElementById(id)?.remove();
+    return;
+  }
+  let node = document.getElementById(id) as HTMLStyleElement | null;
+  if (!node) {
+    node = document.createElement('style');
+    node.id = id;
+    document.head.appendChild(node);
+  }
+  if (node.textContent !== text) {
+    node.textContent = text;
+  }
+  syncRemoteStyleOrder();
+}
+
+async function loadRemoteThemeCss(url: string): Promise<RemoteCssLoadResult> {
   try {
     const cached = await getCachedThemeCss(url);
-    if (cached) return cached;
+    if (cached) {
+      return { status: 'loaded', text: cached };
+    }
   } catch {
     /* IndexedDB unavailable */
   }
+
   if (isLocalImportBundledUrl(url)) {
-    return undefined;
+    return { status: 'missing' };
   }
-  const res = await fetch(url, { mode: 'cors' });
-  if (!res.ok) return undefined;
-  const text = await res.text();
+
   try {
-    await putCachedThemeCss(url, text);
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return { status: 'missing' };
+    const text = await res.text();
+    try {
+      await putCachedThemeCss(url, text);
+    } catch {
+      /* cache optional */
+    }
+    return { status: 'loaded', text };
   } catch {
-    /* cache optional */
+    return { status: 'error' };
   }
-  return text;
 }
 
 export function UnAuthRouteThemeManager() {
   const systemThemeKind = useSystemThemeKind();
 
   useLayoutEffect(() => {
+    setInlineStyleText(REMOTE_STYLE_ID, undefined);
+    setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
     syncDocumentThemeMetadata(systemThemeKind);
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
@@ -78,6 +131,15 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   const [underlineLinks] = useSetting(settingsAtom, 'underlineLinks');
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [enabledTweakUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
+  const [systemTheme] = useSetting(settingsAtom, 'useSystemTheme');
+  const [lightRemoteUrl] = useSetting(settingsAtom, 'themeRemoteLightFullUrl');
+  const [darkRemoteUrl] = useSetting(settingsAtom, 'themeRemoteDarkFullUrl');
+
+  const inactiveRemoteSlotUrl =
+    systemTheme && activeTheme.kind === ThemeKind.Dark ? lightRemoteUrl?.trim() : undefined;
+  const alternateDarkRemoteSlotUrl =
+    systemTheme && activeTheme.kind === ThemeKind.Light ? darkRemoteUrl?.trim() : undefined;
+  const hasInactiveRemoteThemeSlot = Boolean(inactiveRemoteSlotUrl || alternateDarkRemoteSlotUrl);
 
   useLayoutEffect(() => {
     // Apply the locally resolved theme immediately so the React app matches the
@@ -109,6 +171,32 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     }
   }, [activeTheme, saturation, underlineLinks, reducedMotion]);
 
+  useLayoutEffect(() => {
+    if (!settingsInitialized) return;
+
+    const url = activeTheme.remoteFullUrl?.trim();
+    if (!url) {
+      setInlineStyleText(REMOTE_STYLE_ID, undefined);
+      if (!hasInactiveRemoteThemeSlot) {
+        clearStoredAppliedThemeCss();
+      }
+      return;
+    }
+    setInlineStyleText(REMOTE_STYLE_ID, getStoredAppliedThemeCss(url));
+  }, [settingsInitialized, activeTheme.remoteFullUrl, hasInactiveRemoteThemeSlot]);
+
+  useLayoutEffect(() => {
+    if (!settingsInitialized) return;
+
+    const urls = (enabledTweakUrls ?? []).map((url) => url.trim()).filter(Boolean);
+    if (urls.length === 0) {
+      setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
+      clearStoredAppliedTweakCss();
+      return;
+    }
+    setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, getStoredAppliedTweakCss(urls));
+  }, [settingsInitialized, enabledTweakUrls]);
+
   useEffect(() => {
     if (!settingsInitialized) return undefined;
 
@@ -117,28 +205,30 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
 
     if (url) {
       (async () => {
-        const text = await loadRemoteThemeCssText(url);
+        const result = await loadRemoteThemeCss(url);
         if (cancelled) return;
-        if (!text) {
-          document.getElementById(REMOTE_STYLE_ID)?.remove();
+        if (result.status === 'error') {
           return;
         }
-        let node = document.getElementById(REMOTE_STYLE_ID) as HTMLStyleElement | null;
-        if (!node) {
-          node = document.createElement('style');
-          node.id = REMOTE_STYLE_ID;
-          document.head.appendChild(node);
+        if (result.status === 'missing') {
+          setInlineStyleText(REMOTE_STYLE_ID, undefined);
+          clearStoredAppliedThemeCss();
+          return;
         }
-        node.textContent = text;
+        setInlineStyleText(REMOTE_STYLE_ID, result.text);
+        putStoredAppliedThemeCss(url, result.text);
       })();
     } else {
-      document.getElementById(REMOTE_STYLE_ID)?.remove();
+      setInlineStyleText(REMOTE_STYLE_ID, undefined);
+      if (!hasInactiveRemoteThemeSlot) {
+        clearStoredAppliedThemeCss();
+      }
     }
 
     return () => {
       cancelled = true;
     };
-  }, [settingsInitialized, activeTheme.remoteFullUrl]);
+  }, [settingsInitialized, activeTheme.remoteFullUrl, hasInactiveRemoteThemeSlot]);
 
   useEffect(() => {
     if (!settingsInitialized) return undefined;
@@ -147,21 +237,26 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     if (urls.length === 0) {
-      document.getElementById(REMOTE_TWEAKS_STYLE_ID)?.remove();
+      setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
+      clearStoredAppliedTweakCss();
       return undefined;
     }
 
     (async () => {
-      const texts = await Promise.all(urls.map((url) => loadRemoteThemeCssText(url.trim())));
+      const results = await Promise.all(urls.map((url) => loadRemoteThemeCss(url.trim())));
       if (cancelled) return;
-      const chunks = texts.filter((text): text is string => Boolean(text));
-      let node = document.getElementById(REMOTE_TWEAKS_STYLE_ID) as HTMLStyleElement | null;
-      if (!node) {
-        node = document.createElement('style');
-        node.id = REMOTE_TWEAKS_STYLE_ID;
-        document.head.appendChild(node);
+      if (results.some((result) => result.status === 'error')) {
+        return;
       }
-      node.textContent = chunks.join('\n\n');
+      const chunks = results.flatMap((result) => (result.status === 'loaded' ? [result.text] : []));
+      if (chunks.length === 0) {
+        setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, undefined);
+        clearStoredAppliedTweakCss();
+        return;
+      }
+      const text = chunks.join('\n\n');
+      setInlineStyleText(REMOTE_TWEAKS_STYLE_ID, text);
+      putStoredAppliedTweakCss(urls, text);
     })();
 
     return () => {

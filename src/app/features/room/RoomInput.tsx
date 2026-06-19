@@ -1053,9 +1053,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (emojiAutoExpand) {
         const nextPlainText = applyEmojiAutoReplacementAtEnd(plainText);
         if (nextPlainText !== plainText && customHtmlEqualsPlainText(customHtml, plainText)) {
-          customHtml = nextPlainText;
+          customHtml = trimCustomHtml(
+            toMatrixCustomHTML(plainToEditorInput(nextPlainText), {
+              stripNickname: true,
+              nickNameReplacement: nicknameReplacement,
+              forEmote: commandName === Command.Me,
+              room,
+            })
+          );
+          plainText = nextPlainText;
         }
-        plainText = nextPlainText;
       }
 
       if (plainText === '') return;

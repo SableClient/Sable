@@ -2054,7 +2054,7 @@ export function RoomTimeline({
                   prev
                     ? {
                         ...prev,
-                        inLiveTimeline: true,
+                        inLiveTimeline: prev.readUptoEventId ? prev.inLiveTimeline : true,
                         scrollTo: false,
                       }
                     : prev

@@ -108,7 +108,7 @@ export const EmojiGlyph = style([
 
 export const EmojiGroup = style({
   position: 'relative',
-  padding: `${config.space.S300} 0`,
+  padding: `${config.space.S300} 0 ${config.space.S200}`,
 });
 
 export const EmojiGroupLabel = style({
@@ -126,7 +126,7 @@ export const EmojiGroupLabel = style({
 export const EmojiGroupContent = style([
   DefaultReset,
   {
-    padding: `0 ${config.space.S200}`,
+    padding: `${config.space.S400} ${config.space.S200} 0`,
   },
 ]);
 

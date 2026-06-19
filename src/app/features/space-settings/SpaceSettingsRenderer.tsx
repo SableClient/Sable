@@ -20,7 +20,7 @@ function RenderSettings({ state }: RenderSettingsProps) {
   if (!room) return null;
 
   return (
-    <Modal500 requestClose={closeSettings}>
+    <Modal500 requestClose={closeSettings} fullScreenOnMobile>
       <SpaceProvider value={space ?? null}>
         <RoomProvider value={room}>
           <SpaceSettings initialPage={page} requestClose={closeSettings} />

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type CSSProperties, type ReactNode } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 import { mobileOrTablet } from '$utils/user-agent';
@@ -53,16 +53,22 @@ export function SystemBarShell({ children, onPortalContainerChange }: SystemBarS
       {enabled && <SystemBarStrip position="top" size={safeAreaTop} />}
 
       <div
-        style={{
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          width: '100%',
-          minHeight: 0,
-          flex: 1,
-          paddingLeft: enabled ? safeAreaLeft : 0,
-          paddingRight: enabled ? safeAreaRight : 0,
-        }}
+        style={
+          {
+            '--sable-safe-area-top': enabled ? safeAreaTop : '0px',
+            '--sable-safe-area-bottom': enabled ? safeAreaBottom : '0px',
+            '--sable-safe-area-left': enabled ? safeAreaLeft : '0px',
+            '--sable-safe-area-right': enabled ? safeAreaRight : '0px',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%',
+            minHeight: 0,
+            flex: 1,
+            paddingLeft: enabled ? safeAreaLeft : 0,
+            paddingRight: enabled ? safeAreaRight : 0,
+          } as CSSProperties
+        }
       >
         <div
           style={{

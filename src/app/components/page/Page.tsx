@@ -74,6 +74,10 @@ export function PageNavContent({
         size="300"
         hideTrack
         visibility="Hover"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehaviorY: 'contain',
+        }}
       >
         <div className={css.PageNavContent}>{children}</div>
       </Scroll>

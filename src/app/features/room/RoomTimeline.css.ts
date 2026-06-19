@@ -32,6 +32,9 @@ export const TimelineFloat = recipe({
 export type TimelineFloatVariants = RecipeVariants<typeof TimelineFloat>;
 export const messageList = style({
   overflowY: 'scroll',
+  WebkitOverflowScrolling: 'touch',
+  overscrollBehaviorY: 'contain',
+  touchAction: 'pan-y',
   scrollbarGutter: 'stable',
   overflowAnchor: 'none',
 

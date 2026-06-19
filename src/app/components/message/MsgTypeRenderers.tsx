@@ -216,6 +216,14 @@ const isPreviewSuppressedUrl = (
   if (allowAngleBracketSuppression) {
     const wrappedUrlStart = Math.max(0, urlIndex - 1);
     if (body.slice(wrappedUrlStart, urlIndex + url.length + 1) === `<${url}>`) return true;
+    const markdownDestinationStart = offset + fullMatch.length;
+    if (
+      body.slice(markdownDestinationStart, markdownDestinationStart + 3) === '](<' &&
+      body.slice(markdownDestinationStart + 3, markdownDestinationStart + 3 + url.length + 1) ===
+        `${url}>`
+    ) {
+      return true;
+    }
     if (offset >= 3 && body.slice(offset - 3, offset) === '](<') return true;
     if (body.slice(urlIndex - 2, urlIndex) === '(<') return true;
   }
@@ -488,16 +496,29 @@ export function MEmote({
     [customBody]
   );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
+  const trimmedBody = typeof body === 'string' ? trimReplyFromBody(body) : '';
+  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
+  const bundledPreviewUrls = useMemo(
+    () =>
+      new Set(
+        bundleContent
+          ?.map((bundle) => bundle?.matched_url)
+          .filter((bundleUrl): bundleUrl is string => typeof bundleUrl === 'string') ?? []
+      ),
+    [bundleContent]
+  );
+  const composedUrls = useMemo(
+    () =>
+      composeBundledPreviewsWithUrls ? urls?.filter((url) => !bundledPreviewUrls.has(url)) : urls,
+    [composeBundledPreviewsWithUrls, urls, bundledPreviewUrls]
+  );
 
   if (typeof body !== 'string') {
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
-  const trimmedBody = trimReplyFromBody(body);
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
-
-  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
   const renderedUrlsPreview =
-    renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls);
+    renderUrlsPreview && composedUrls && composedUrls.length > 0 && renderUrlsPreview(composedUrls);
   const renderedBundledPreviews =
     renderBundledPreviews &&
     bundleContent &&
@@ -556,16 +577,29 @@ export function MNotice({
     [customBody]
   );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
+  const trimmedBody = typeof body === 'string' ? trimReplyFromBody(body) : '';
+  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
+  const bundledPreviewUrls = useMemo(
+    () =>
+      new Set(
+        bundleContent
+          ?.map((bundle) => bundle?.matched_url)
+          .filter((bundleUrl): bundleUrl is string => typeof bundleUrl === 'string') ?? []
+      ),
+    [bundleContent]
+  );
+  const composedUrls = useMemo(
+    () =>
+      composeBundledPreviewsWithUrls ? urls?.filter((url) => !bundledPreviewUrls.has(url)) : urls,
+    [composeBundledPreviewsWithUrls, urls, bundledPreviewUrls]
+  );
 
   if (typeof body !== 'string') {
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
-  const trimmedBody = trimReplyFromBody(body);
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
-
-  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
   const renderedUrlsPreview =
-    renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls);
+    renderUrlsPreview && composedUrls && composedUrls.length > 0 && renderUrlsPreview(composedUrls);
   const renderedBundledPreviews =
     renderBundledPreviews &&
     bundleContent &&

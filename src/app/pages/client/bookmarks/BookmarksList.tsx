@@ -57,7 +57,7 @@ import {
 } from '$features/bookmarks/useBookmarks';
 import { Icon, Icons } from '$app/icons';
 import { DisplayOnlyMessageContent } from '$components/message/DisplayOnlyMessageContent';
-import { buildStoredMessagePreview } from '$utils/messagePreview';
+import { getStoredBookmarkFallbackText } from './bookmarkPreview';
 
 const REMINDER_PRESETS = [
   { label: '30 min', ms: 30 * 60 * 1000 },
@@ -106,18 +106,6 @@ type RemoveBookmarkDialogProps = {
   onConfirm: () => void;
   onClose: () => void;
 };
-
-function getStoredBookmarkFallbackText(
-  item: Pick<BookmarkItemContent, 'body_preview' | 'msgtype'>
-): string {
-  const preview = buildStoredMessagePreview({ body: item.body_preview, msgType: item.msgtype });
-  const previewText = preview?.placeholderText?.trim();
-  if (preview?.isLinkOnly && typeof preview.body === 'string' && preview.body.trim()) {
-    return preview.body;
-  }
-  if (previewText) return previewText;
-  return item.body_preview ?? '';
-}
 
 function RemoveBookmarkDialog({ item, onConfirm, onClose }: RemoveBookmarkDialogProps) {
   const fallbackPreview = getStoredBookmarkFallbackText(item);

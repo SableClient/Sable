@@ -41,6 +41,7 @@ function renderMessage(
     clientUrlPreview?: boolean;
     mediaAutoLoad?: boolean;
     bundledPreview?: boolean;
+    msgType?: string;
   }
 ) {
   const content =
@@ -51,7 +52,7 @@ function renderMessage(
     <ClientConfigProvider value={{}}>
       <RenderMessageContent
         displayName="Alice"
-        msgType={MsgType.Text}
+        msgType={options?.msgType ?? MsgType.Text}
         ts={0}
         getContent={() => content}
         urlPreview={options?.urlPreview ?? true}
@@ -267,6 +268,40 @@ describe('RenderMessageContent', () => {
     expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
   });
 
+  it('does not duplicate composed bundled previews for emotes', () => {
+    renderMessage(
+      {
+        body: 'https://cdn.example/test.png',
+        'com.beeper.linkpreviews': [
+          { matched_url: 'https://cdn.example/test.png', 'og:url': 'https://cdn.example/test.png' },
+        ],
+      },
+      { urlPreview: false, clientUrlPreview: true, bundledPreview: true, msgType: MsgType.Emote }
+    );
+
+    expect(screen.getByTestId('bundled-preview-card')).toHaveTextContent(
+      'https://cdn.example/test.png'
+    );
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
+  it('does not duplicate composed bundled previews for notices', () => {
+    renderMessage(
+      {
+        body: 'https://cdn.example/test.png',
+        'com.beeper.linkpreviews': [
+          { matched_url: 'https://cdn.example/test.png', 'og:url': 'https://cdn.example/test.png' },
+        ],
+      },
+      { urlPreview: false, clientUrlPreview: true, bundledPreview: true, msgType: MsgType.Notice }
+    );
+
+    expect(screen.getByTestId('bundled-preview-card')).toHaveTextContent(
+      'https://cdn.example/test.png'
+    );
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
   it('does not let direct gif fallbacks consume the only preview slot', () => {
     settings.multiplePreviews = false;
 
@@ -318,6 +353,19 @@ describe('RenderMessageContent', () => {
         'com.beeper.linkpreviews': [],
       },
       { urlPreview: true, clientUrlPreview: false }
+    );
+
+    expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
+  it('suppresses url labels when they mirror a hidden markdown destination', () => {
+    renderMessage(
+      {
+        body: '[https://cdn.example/test.png](<https://cdn.example/test.png>)',
+        'com.beeper.linkpreviews': [],
+      },
+      { urlPreview: false, clientUrlPreview: true }
     );
 
     expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();

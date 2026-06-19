@@ -1,5 +1,4 @@
 import { Box, Header, IconButton, MenuItem, Text, config } from 'folds';
-import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Modal500 } from '$components/Modal500';
 import { Page, PageNav, PageNavContent, PageRoot } from '$components/page';
@@ -200,23 +199,6 @@ function SmokeEmojiPolish() {
   const peopleEmoji = emojis.filter((emoji) => emoji.group === 0 || emoji.group === 1).slice(0, 12);
   const natureEmoji = emojis.filter((emoji) => emoji.group === 3).slice(0, 12);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    const previousStyle = root.dataset.sableEmojiEffectiveStyle;
-    const previousMobile = root.dataset.sableMobile;
-
-    root.dataset.sableEmojiEffectiveStyle = 'system';
-    root.dataset.sableMobile = window.innerWidth <= 640 ? 'true' : 'false';
-
-    return () => {
-      if (previousStyle === undefined) delete root.dataset.sableEmojiEffectiveStyle;
-      else root.dataset.sableEmojiEffectiveStyle = previousStyle;
-
-      if (previousMobile === undefined) delete root.dataset.sableMobile;
-      else root.dataset.sableMobile = previousMobile;
-    };
-  }, []);
-
   return (
     <Page>
       <Box
@@ -357,7 +339,7 @@ function SmokeEmojiPolish() {
                   alignItems="Center"
                   justifyContent="Center"
                 >
-                  <span className={emojiBoardCss.EmojiGlyph}>🫩</span>
+                  🫩
                 </Box>
                 <Text size="H5" truncate>
                   :face_holding_back_tears:

@@ -8,6 +8,7 @@ import {
   isWebPushSupported,
   reconcilePushNotifications,
   togglePusher,
+  UnsupportedPushEnvironmentError,
 } from './PushNotifications';
 
 const clientConfig: ClientConfig = {
@@ -257,6 +258,17 @@ describe('web push notifications', () => {
     vi.unstubAllGlobals();
 
     expect(isWebPushSupported()).toBe(false);
+  });
+
+  it('throws a classified error when direct enable is attempted on an unsupported browser', async () => {
+    const mx = makeMatrixClient();
+
+    Reflect.deleteProperty(navigator, 'serviceWorker');
+    vi.unstubAllGlobals();
+
+    await expect(
+      enablePushNotifications(mx, clientConfig, [null, vi.fn<() => void>()])
+    ).rejects.toBeInstanceOf(UnsupportedPushEnvironmentError);
   });
 
   it('skips passive startup reconciliation on unsupported browsers', async () => {

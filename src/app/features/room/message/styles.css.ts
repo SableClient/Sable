@@ -12,10 +12,10 @@ export const MessageBaseBubbleCollapsed = style({
 export const MessageOptionsBase = style([
   DefaultReset,
   {
-    position: 'absolute',
+    position: 'fixed',
     top: toRem(-30),
     right: 0,
-    zIndex: 1,
+    zIndex: 1000,
   },
 ]);
 export const MessageOptionsBar = style([
@@ -24,6 +24,53 @@ export const MessageOptionsBar = style([
     padding: config.space.S100,
   },
 ]);
+
+export const MessageOptionsWrappedMessage = style({
+  padding: config.space.S200,
+  width: '100%',
+  maxHeight: '25%',
+  overflow: 'scroll',
+});
+
+export const MessageOptionsMenu = style({
+  width: '100%',
+  maxHeight: '100%',
+  position: 'absolute',
+  bottom: '0',
+  display: 'flex',
+  flexDirection: 'column',
+});
+
+//I have zero clue where these numbers and vars are from but they should be changed
+//I just copied the hardcoded value in a more correct place
+
+export const MessageNickEditor = style({
+  background: 'var(--mx-c-surface)',
+  color: 'var(--mx-c-on-surface)',
+  border: '1px solid var(--mx-c-outline)',
+  borderRadius: '6px',
+  padding: '4px 8px',
+  fontSize: '14px',
+  width: '100%',
+  outline: 'none',
+});
+
+export const MessageMobileOptionsWrapped = style({
+  position: 'absolute',
+  bottom: '0',
+  zIndex: '104',
+  width: '100%',
+  height: '100%',
+  backgroundColor: color.Other.Overlay,
+});
+
+export const MessageMobileOptionsContainer = style({
+  position: 'absolute',
+  bottom: '0',
+  zIndex: '105',
+  width: '100%',
+  height: '85%',
+});
 
 export const BubbleAvatarBase = style({
   paddingTop: 0,

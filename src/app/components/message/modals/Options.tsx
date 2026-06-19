@@ -3,7 +3,7 @@ import { type Room, type MatrixEvent, type Relations, EventType } from '$types/m
 import { canEditEvent, canForwardEvent, getEventEdits, isThreadRelationEvent } from '$utils/room';
 import { MessageReportItem } from './MessageReport';
 import type { RectCords } from 'folds';
-import { as, Box, color, config, IconButton, Line, Menu, MenuItem, PopOut, Text } from 'folds';
+import { as, Box, config, IconButton, Line, Menu, MenuItem, PopOut, Text } from 'folds';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   ArrowBendUpLeftIcon,
@@ -44,13 +44,28 @@ import { EmojiBoard } from '$components/emoji-board';
 import { MemoizedBody, type ReactionHandler } from '$features/room/message';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
 
+function WrappedMessage({
+  isModal,
+  ActualMessage,
+}: {
+  isModal?: boolean;
+  ActualMessage?: ReactNode;
+}) {
+  return (
+    <Box className={isModal ? css.MessageOptionsWrappedMessage : ''} shrink="Yes" grow="No">
+      <MemoizedBody>{ActualMessage}</MemoizedBody>
+    </Box>
+  );
+}
+
 type MessageQuickReactionsProps = {
   onReaction: ReactionHandler;
+  count: number;
 };
 export const MessageQuickReactions = as<'div', MessageQuickReactionsProps>(
-  ({ onReaction, ...props }, ref) => {
+  ({ onReaction, count, ...props }, ref) => {
     const mx = useMatrixClient();
-    const recentEmojis = useRecentEmoji(mx, 4);
+    const recentEmojis = useRecentEmoji(mx, count);
 
     if (recentEmojis.length === 0) return <span />;
     return (
@@ -162,6 +177,8 @@ export type OptionEmojiMenuProps = {
   emojiBoardAnchor?: RectCords;
   imagePackRooms?: Room[];
   isQuickOptions?: boolean;
+  isModal?: boolean;
+  ActualMessage?: ReactNode;
 };
 export function OptionsEmojiBoard({
   mEvent,
@@ -171,6 +188,8 @@ export function OptionsEmojiBoard({
   emojiBoardAnchor,
   imagePackRooms,
   isQuickOptions,
+  isModal,
+  ActualMessage,
 }: OptionEmojiMenuProps) {
   const position =
     (!isQuickOptions && 'Left') ||
@@ -182,26 +201,31 @@ export function OptionsEmojiBoard({
       align={isQuickOptions ? 'End' : 'Start'}
       offset={undefined}
       anchor={emojiBoardAnchor}
+      style={isModal ? { width: '100%' } : {}}
       content={
-        <EmojiBoard
-          imagePackRooms={imagePackRooms ?? []}
-          returnFocusOnDeactivate={true}
-          allowTextCustomEmoji
-          onEmojiSelect={(key) => {
-            onReactionToggle?.(mEvent.getId() ?? '', key);
-            setEmojiBoardAnchor?.(undefined);
-            closeMenu();
-          }}
-          onCustomEmojiSelect={(mxc, shortcode) => {
-            onReactionToggle?.(mEvent.getId() ?? '', mxc, shortcode);
-            setEmojiBoardAnchor?.(undefined);
-            closeMenu();
-          }}
-          requestClose={() => {
-            setEmojiBoardAnchor?.(undefined);
-            closeMenu();
-          }}
-        />
+        <Menu>
+          {ActualMessage}
+          <EmojiBoard
+            imagePackRooms={imagePackRooms ?? []}
+            returnFocusOnDeactivate={false}
+            allowTextCustomEmoji
+            isFullWidth={isModal}
+            onEmojiSelect={(key) => {
+              onReactionToggle?.(mEvent.getId() ?? '', key);
+              setEmojiBoardAnchor?.(undefined);
+              closeMenu();
+            }}
+            onCustomEmojiSelect={(mxc, shortcode) => {
+              onReactionToggle?.(mEvent.getId() ?? '', mxc, shortcode);
+              setEmojiBoardAnchor?.(undefined);
+              closeMenu();
+            }}
+            requestClose={() => {
+              setEmojiBoardAnchor?.(undefined);
+              closeMenu();
+            }}
+          />
+        </Menu>
       }
     ></PopOut>
   );
@@ -423,19 +447,22 @@ export function OptionMenu({
   const [emojiBoardAnchor, setEmojiBoardAnchor] = useState<RectCords>();
 
   const handleOpenEmojiBoard: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    const target = evt.currentTarget.parentElement?.parentElement?.getBoundingClientRect() ?? {
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
-    };
+    // THIS MAGIC NUMBER SHOULD BE FIXED WHEN SOMEONE FIGURES OUT WHY THE LACK OF IT CREATES A GAP IN THE EMOJIBOARD
+    const target = isModal
+      ? { x: 0, y: innerHeight + 10, width: 0, height: 0 }
+      : (evt.currentTarget.parentElement?.parentElement?.getBoundingClientRect() ?? {
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+        });
     setEmojiBoardAnchor?.(target);
     setIsEmoji?.(true);
   };
 
   return (
     <>
-      {emojiBoardAnchor && (
+      {emojiBoardAnchor !== undefined && (
         <OptionsEmojiBoard
           mEvent={mEvent}
           onReactionToggle={onReactionToggle}
@@ -443,9 +470,10 @@ export function OptionMenu({
           setEmojiBoardAnchor={setEmojiBoardAnchor}
           emojiBoardAnchor={emojiBoardAnchor}
           imagePackRooms={imagePackRooms}
+          isModal={isModal}
+          ActualMessage={<WrappedMessage isModal={isModal} ActualMessage={ActualMessage} />}
         />
       )}
-
       <FocusTrap
         focusTrapOptions={{
           initialFocus: false,
@@ -459,28 +487,11 @@ export function OptionMenu({
       >
         <Menu
           onContextMenu={(e) => e.preventDefault()}
-          style={
-            isModal ? { width: '100%', maxHeight: '75%', position: 'absolute', bottom: '0' } : {}
-          }
+          className={isModal ? css.MessageOptionsMenu : ''}
         >
-          {ActualMessage && (
+          {ActualMessage && !emojiBoardAnchor && (
             <>
-              <Box
-                shrink="Yes"
-                grow="No"
-                style={
-                  isModal
-                    ? {
-                        padding: config.space.S200,
-                        width: '100%',
-                        maxHeight: '25%',
-                        overflow: 'scroll',
-                      }
-                    : {}
-                }
-              >
-                <MemoizedBody>{ActualMessage}</MemoizedBody>
-              </Box>
+              <WrappedMessage isModal={isModal} ActualMessage={ActualMessage} />
               <Line direction="Horizontal" variant="SurfaceVariant" />
             </>
           )}
@@ -491,6 +502,7 @@ export function OptionMenu({
                   onReactionToggle(mEvent.getId() ?? '', key, shortcode);
                   onTotalClose();
                 }}
+                count={isModal ? 6 : 4}
               />
             )}
             <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
@@ -618,16 +630,7 @@ export function OptionMenu({
                         }
                         if (e.key === 'Escape') closeMenu();
                       }}
-                      style={{
-                        background: 'var(--mx-c-surface)',
-                        color: 'var(--mx-c-on-surface)',
-                        border: '1px solid var(--mx-c-outline)',
-                        borderRadius: '6px',
-                        padding: '4px 8px',
-                        fontSize: '14px',
-                        width: '100%',
-                        outline: 'none',
-                      }}
+                      className={css.MessageNickEditor}
                     />
                     <Box gap="200">
                       <MenuItem
@@ -703,19 +706,8 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
   }, [modal, setIsActive, isActive, setModal]);
   if (isActive)
     return (
-      <Box
-        style={{
-          position: 'absolute',
-          bottom: '0',
-          zIndex: '104',
-          width: '100%',
-          height: '100%',
-          backgroundColor: color.Other.Overlay,
-        }}
-      >
-        <Box
-          style={{ position: 'absolute', bottom: '0', zIndex: '105', width: '100%', height: '75%' }}
-        >
+      <Box className={css.MessageMobileOptionsWrapped}>
+        <Box className={css.MessageMobileOptionsContainer}>
           <OptionMenu
             mEvent={options.mEvent}
             room={options.room}
@@ -733,7 +725,6 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
             cleanedDisplayName={options.cleanedDisplayName}
             canDelete={options.canDelete}
             setIsEmoji={options.setIsEmoji}
-            emojiBoardAnchor={options.menuAnchor}
             ActualMessage={options.ActualMessage}
             canSendReaction={options.canSendReaction}
             isModal

@@ -386,6 +386,7 @@ type EmojiBoardProps = {
   onStickerSelect?: (mxc: string, shortcode: string, label: string) => void;
   allowTextCustomEmoji?: boolean;
   addToRecentEmoji?: boolean;
+  isFullWidth?: boolean;
 };
 
 export function EmojiBoard({
@@ -399,6 +400,7 @@ export function EmojiBoard({
   onStickerSelect,
   allowTextCustomEmoji,
   addToRecentEmoji = true,
+  isFullWidth,
 }: Readonly<EmojiBoardProps>) {
   const mx = useMatrixClient();
   const [saveStickerEmojiBandwidth] = useSetting(settingsAtom, 'saveStickerEmojiBandwidth');
@@ -578,6 +580,7 @@ export function EmojiBoard({
             />
           )
         }
+        isFullWidth={isFullWidth}
       >
         <Box grow="Yes">
           <EmojiGroupHolder

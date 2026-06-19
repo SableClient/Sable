@@ -91,7 +91,7 @@ export type MessageProps = {
   canPinEvent?: boolean;
   imagePackRooms?: Room[];
   relations?: Relations;
-  messageLayout: MessageLayout;
+  messageLayout?: MessageLayout;
   messageSpacing: MessageSpacing;
   onUserClick: MouseEventHandler<HTMLButtonElement>;
   onUsernameClick: MouseEventHandler<HTMLButtonElement>;
@@ -267,7 +267,7 @@ type WrappedMessageProps = {
   headerJSX: JSX.Element;
   avatarJSX: JSX.Element;
   msgContentJSX: JSX.Element;
-  messageLayout: MessageLayout;
+  messageLayout?: MessageLayout;
   onDoubleTap: () => void;
   handleSwipeReply: () => void;
   handleContextMenu: MouseEventHandler<HTMLDivElement>;
@@ -283,43 +283,38 @@ function WrappedMessage({
   handleContextMenu,
   align,
 }: WrappedMessageProps) {
+  if (messageLayout === undefined) return <>{msgContentJSX}</>;
+
   if (messageLayout === MessageLayout.Compact)
     return (
-      <div style={{ width: '100%' }}>
-        <SwipeableMessageWrapper onReply={handleSwipeReply}>
-          <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
-            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
-          </CompactLayout>
-        </SwipeableMessageWrapper>
-      </div>
+      <SwipeableMessageWrapper onReply={handleSwipeReply}>
+        <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
+          <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+        </CompactLayout>
+      </SwipeableMessageWrapper>
     );
   if (messageLayout === MessageLayout.Bubble)
     return (
-      <div style={{ width: '100%' }}>
-        <SwipeableMessageWrapper onReply={handleSwipeReply}>
-          <BubbleLayout
-            before={avatarJSX}
-            header={headerJSX}
-            onContextMenu={handleContextMenu}
-            align={align}
-          >
-            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
-          </BubbleLayout>
-        </SwipeableMessageWrapper>
-      </div>
-    );
-
-  return (
-    <div style={{ width: '100%' }}>
       <SwipeableMessageWrapper onReply={handleSwipeReply}>
-        <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
-          <div onPointerDown={onDoubleTap}>
-            {headerJSX}
-            {msgContentJSX}
-          </div>
-        </ModernLayout>
+        <BubbleLayout
+          before={avatarJSX}
+          header={headerJSX}
+          onContextMenu={handleContextMenu}
+          align={align}
+        >
+          <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+        </BubbleLayout>
       </SwipeableMessageWrapper>
-    </div>
+    );
+  return (
+    <SwipeableMessageWrapper onReply={handleSwipeReply}>
+      <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
+        <div onPointerDown={onDoubleTap}>
+          {headerJSX}
+          {msgContentJSX}
+        </div>
+      </ModernLayout>
+    </SwipeableMessageWrapper>
   );
 }
 
@@ -927,176 +922,22 @@ function MessageInternal(
           />
         </div>
       )}
-      <WrappedMessage
-        headerJSX={headerJSX(collapse)}
-        avatarJSX={avatarJSX(collapse)}
-        msgContentJSX={msgContentJSX}
-        messageLayout={messageLayout}
-        onDoubleTap={onDoubleTap}
-        handleSwipeReply={handleSwipeReply}
-        handleContextMenu={handleContextMenu}
-        align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
-      />
+
+      <div style={{ width: '100%' }} onContextMenu={handleContextMenu} onPointerDown={onDoubleTap}>
+        <WrappedMessage
+          headerJSX={headerJSX(collapse)}
+          avatarJSX={avatarJSX(collapse)}
+          msgContentJSX={msgContentJSX}
+          messageLayout={messageLayout}
+          onDoubleTap={onDoubleTap}
+          handleSwipeReply={handleSwipeReply}
+          handleContextMenu={handleContextMenu}
+          align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
+        />
+      </div>
     </MessageBase>
   );
 }
 
 const MessageAs = as<'div', MessageProps>(MessageInternal);
 export const Message = memo(MessageAs);
-
-export type EventProps = {
-  room: Room;
-  mEvent: MatrixEvent;
-  highlight: boolean;
-  notifyHighlight?: 'silent' | 'loud';
-  isMarked?: boolean;
-  canDelete?: boolean;
-  onReplyClick: (
-    ev: Parameters<MouseEventHandler<HTMLButtonElement>>[0],
-    startThread?: boolean
-  ) => void;
-  messageSpacing: MessageSpacing;
-  hideReadReceipts?: boolean;
-  showDeveloperTools?: boolean;
-  collapse?: boolean;
-};
-export const Event = as<'div', EventProps>(
-  (
-    {
-      className,
-      room,
-      mEvent,
-      highlight,
-      notifyHighlight,
-      isMarked,
-      collapse,
-      canDelete,
-      onReplyClick,
-      messageSpacing,
-      hideReadReceipts,
-      showDeveloperTools,
-      children,
-      ...props
-    },
-    ref
-  ) => {
-    const setModal = useSetAtom(modalAtom);
-
-    const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-    const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
-    const [highlightMentions] = useSetting(settingsAtom, 'highlightMentions');
-
-    const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
-      if (evt.altKey || !window.getSelection()?.isCollapsed) return;
-      const tag = (evt.target as HTMLElement).tagName;
-      if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
-
-      if (mobileOrTablet()) {
-        evt.preventDefault();
-        setModal({
-          type: ModalType.MobileOptions,
-          options: {
-            mEvent: mEvent,
-            room: room,
-            closeMenu: closeMenu,
-            onReplyClick: onReplyClick,
-            hideReadReceipts: hideReadReceipts,
-            showDeveloperTools: showDeveloperTools,
-            canDelete: canDelete,
-            ActualMessage: children,
-          },
-        });
-        return;
-      }
-
-      evt.preventDefault();
-      setMenuAnchor({
-        x: evt.clientX,
-        y: evt.clientY,
-        width: 0,
-        height: 0,
-      });
-    };
-
-    const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-      const target = evt.currentTarget.parentElement?.parentElement ?? evt.currentTarget;
-      const rect = target.getBoundingClientRect();
-
-      window.requestAnimationFrame(() => {
-        setMenuAnchor(rect);
-      });
-    };
-
-    const closeMenu = () => {
-      setMenuAnchor(undefined);
-      setMobileOptionsOpen(false);
-    };
-
-    const [isDesktopHover, setIsDesktopHover] = useState(false);
-    const { hoverProps } = useHover({
-      onHoverChange: (h) => {
-        if (!mobileOrTablet()) setIsDesktopHover(h);
-      },
-    });
-    const { focusWithinProps } = useFocusWithin({
-      onFocusWithinChange: (f) => {
-        if (!mobileOrTablet()) setIsDesktopHover(f);
-      },
-    });
-
-    const optionsRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-      if (!mobileOptionsOpen) return undefined;
-      const handleClick = (e: globalThis.Event) => {
-        if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
-          setMobileOptionsOpen(false);
-        }
-      };
-      document.addEventListener('pointerdown', handleClick, { capture: true });
-      return () => document.removeEventListener('pointerdown', handleClick, { capture: true });
-    }, [mobileOptionsOpen]);
-
-    const onDoubleTap = useMobileDoubleTap(() => {
-      setMobileOptionsOpen(true);
-    });
-
-    return (
-      <MessageBase
-        className={classNames(css.MessageBase, className)}
-        tabIndex={0}
-        space={messageSpacing}
-        collapse={collapse}
-        highlight={highlight}
-        notifyHighlight={highlightMentions ? notifyHighlight : undefined}
-        selected={!!menuAnchor}
-        isMarked={isMarked}
-        mobile={mobileOrTablet()}
-        {...props}
-        {...hoverProps}
-        {...focusWithinProps}
-        ref={ref}
-      >
-        {(isDesktopHover || !!menuAnchor) && (
-          <div className={css.MessageOptionsBase} ref={optionsRef}>
-            {/*<b>{`${isDesktopHover? 'isDesktopHover ' : ''}${menuAnchor? 'menuAnchor ' : ''}${isEmoji? 'isEmoji ' : ''}${isMobileHover? 'isMobileHover ' : ''}`}</b>*/}
-            <OptionQuickMenu
-              mEvent={mEvent}
-              room={room}
-              closeMenu={closeMenu}
-              onReplyClick={onReplyClick}
-              hideReadReceipts={hideReadReceipts}
-              showDeveloperTools={showDeveloperTools}
-              canDelete={canDelete}
-              handleOpenMenu={handleOpenMenu}
-              menuAnchor={menuAnchor}
-            />
-          </div>
-        )}
-        <div onContextMenu={handleContextMenu} onPointerDown={onDoubleTap}>
-          {children}
-        </div>
-      </MessageBase>
-    );
-  }
-);

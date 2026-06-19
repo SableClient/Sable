@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import type { AuthDict } from '$types/matrix-sdk';
 import { SSOStage } from './SSOStage';
 
 describe('SSOStage', () => {
@@ -7,7 +8,7 @@ describe('SSOStage', () => {
     const close = vi.fn<() => void>();
     const popupWindow = { close } as unknown as Window;
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(popupWindow);
-    const submitAuthDict = vi.fn<(auth: { session: string }) => void>();
+    const submitAuthDict = vi.fn<(authDict: AuthDict) => void>();
 
     render(
       <SSOStage

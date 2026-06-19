@@ -57,6 +57,7 @@ import {
 } from '$features/bookmarks/useBookmarks';
 import { Icon, Icons } from '$app/icons';
 import { DisplayOnlyMessageContent } from '$components/message/DisplayOnlyMessageContent';
+import { buildStoredMessagePreview } from '$utils/messagePreview';
 
 const REMINDER_PRESETS = [
   { label: '30 min', ms: 30 * 60 * 1000 },
@@ -107,6 +108,10 @@ type RemoveBookmarkDialogProps = {
 };
 
 function RemoveBookmarkDialog({ item, onConfirm, onClose }: RemoveBookmarkDialogProps) {
+  const fallbackPreview =
+    buildStoredMessagePreview({ body: item.body_preview, msgType: item.msgtype })
+      ?.placeholderText ?? item.body_preview;
+
   return (
     <Dialog variant="Surface">
       <Header
@@ -125,7 +130,7 @@ function RemoveBookmarkDialog({ item, onConfirm, onClose }: RemoveBookmarkDialog
         </IconButton>
       </Header>
       <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-        {item.body_preview && (
+        {fallbackPreview && (
           <Box
             style={{
               padding: config.space.S300,
@@ -134,7 +139,7 @@ function RemoveBookmarkDialog({ item, onConfirm, onClose }: RemoveBookmarkDialog
             }}
           >
             <Text size="T300" priority="300" truncate>
-              {item.body_preview}
+              {fallbackPreview}
             </Text>
           </Box>
         )}
@@ -306,7 +311,11 @@ function BookmarkItemRow({
   const usernameColor = colorMXID(senderId);
 
   // Highlight matching substring in body_preview
-  const preview = item.body_preview ?? '';
+  const preview =
+    buildStoredMessagePreview({ body: item.body_preview, msgType: item.msgtype })
+      ?.placeholderText ??
+    item.body_preview ??
+    '';
   const highlightedPreview = useMemo(() => {
     if (!highlight || !preview) return <>{preview}</>;
     const idx = preview.toLowerCase().indexOf(highlight.toLowerCase());
@@ -581,7 +590,8 @@ function RemovedBookmarkRow({ item, onRestore }: RemovedBookmarkRowProps) {
           </Text>
           {item.body_preview && (
             <Text size="T200" priority="300" truncate>
-              {item.body_preview}
+              {buildStoredMessagePreview({ body: item.body_preview, msgType: item.msgtype })
+                ?.placeholderText ?? item.body_preview}
             </Text>
           )}
         </Box>

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildMessagePreviewFromContent } from './messagePreview';
+import {
+  buildMessagePreviewFromContent,
+  buildStoredMessagePreview,
+  canRenderInlineMessagePreview,
+} from './messagePreview';
 
 describe('buildMessagePreviewFromContent', () => {
   it('returns plain text preview for text messages', () => {
@@ -21,16 +25,78 @@ describe('buildMessagePreviewFromContent', () => {
   });
 
   it('extracts formatted body and flags block content', () => {
+    const preview = buildMessagePreviewFromContent({
+      content: {
+        msgtype: 'm.text',
+        body: '```ts\nconst x = 1;\n```',
+        formatted_body: '<pre><code>const x = 1;</code></pre>',
+      },
+      eventType: 'm.room.message',
+    });
+
+    expect(preview).toMatchObject({
+      kind: 'unsupported',
+      hasBlockContent: true,
+      text: '💻 Code Block',
+    });
+    expect(preview && canRenderInlineMessagePreview(preview)).toBe(false);
+  });
+
+  it('treats fenced code without formatted html as block content', () => {
+    const preview = buildMessagePreviewFromContent({
+      content: {
+        msgtype: 'm.text',
+        body: '```ts\nconst x = 1;\n```',
+      },
+      eventType: 'm.room.message',
+    });
+
+    expect(preview).toMatchObject({
+      kind: 'unsupported',
+      hasBlockContent: true,
+      text: '💻 Code Block',
+    });
+    expect(preview && canRenderInlineMessagePreview(preview)).toBe(false);
+  });
+
+  it('keeps text previews inline-renderable when formatting is safe', () => {
+    const preview = buildMessagePreviewFromContent({
+      content: {
+        msgtype: 'm.text',
+        body: 'Hello world',
+        formatted_body: '<p>Hello <strong>world</strong></p>',
+      },
+      eventType: 'm.room.message',
+    });
+
+    expect(preview).toMatchObject({
+      kind: 'text',
+      text: 'Hello world',
+      placeholderText: 'Hello world',
+    });
+    expect(preview && canRenderInlineMessagePreview(preview)).toBe(true);
+  });
+
+  it('builds bookmark fallback previews from stored metadata', () => {
     expect(
-      buildMessagePreviewFromContent({
-        content: {
-          msgtype: 'm.text',
-          body: '```ts\nconst x = 1;\n```',
-          formatted_body: '<pre><code>const x = 1;</code></pre>',
-        },
-        eventType: 'm.room.message',
+      buildStoredMessagePreview({
+        body: 'image.png',
+        msgType: 'm.image',
       })
-    ).toMatchObject({ kind: 'unsupported', hasBlockContent: true, text: '💻 Code Block' });
+    ).toMatchObject({
+      kind: 'image',
+      placeholderText: '📷 Image',
+    });
+
+    expect(
+      buildStoredMessagePreview({
+        body: 'Hello world',
+      })
+    ).toMatchObject({
+      kind: 'text',
+      text: 'Hello world',
+      placeholderText: 'Hello world',
+    });
   });
 
   it('does not classify generic block wrappers as code blocks', () => {

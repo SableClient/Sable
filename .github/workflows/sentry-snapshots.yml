@@ -84,6 +84,8 @@ jobs:
 
       - name: Upload snapshots to Sentry
         if: env.SENTRY_SNAPSHOTS_ENABLED == 'true' && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
+        id: sentry_upload
+        continue-on-error: true
         run: >
           pnpm dlx @sentry/cli@latest snapshots upload
           --auth-token "$SENTRY_AUTH_TOKEN"
@@ -100,12 +102,22 @@ jobs:
           "$PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR"
 
       - name: Note Sentry snapshot upload status
-        if: env.SENTRY_SNAPSHOTS_ENABLED != 'true'
+        if: always()
         run: |
           {
             echo "### Sentry Snapshot Upload"
             echo
-            echo "- Deterministic screenshot coverage ran successfully for this pull request."
-            echo "- Upload to Sentry is currently disabled for this repository."
-            echo "- Enable the repository variable \`SENTRY_SNAPSHOTS_ENABLED=true\` after the Sentry project has snapshot upload support."
+            if [ "${SENTRY_SNAPSHOTS_ENABLED:-}" != "true" ]; then
+              echo "- Deterministic screenshot coverage ran successfully for this pull request."
+              echo "- Upload to Sentry is currently disabled for this repository."
+              echo "- Enable the repository variable \`SENTRY_SNAPSHOTS_ENABLED=true\` after the Sentry project has snapshot upload support."
+            elif [ "${{ steps.sentry_upload.outcome }}" = "success" ]; then
+              echo "- Deterministic screenshot coverage ran successfully for this pull request."
+              echo "- Snapshot upload to Sentry completed successfully."
+            else
+              echo "- Deterministic screenshot coverage ran successfully for this pull request."
+              echo "- Snapshot upload to Sentry failed, but the raw PNG artifact was still uploaded for review."
+              echo "- Current failure mode from \`@sentry/cli@latest\`: JSON response parsing error during \`snapshots upload\`."
+              echo "- Treat this as a Sentry upload compatibility problem, not a screenshot-capture regression."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

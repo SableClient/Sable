@@ -74,4 +74,12 @@ describe('mobile PWA dogfood contract', () => {
     expect(pullToRefresh).toContain('if (dist >= PULL_THRESHOLD) {');
     expect(pullToRefresh).not.toContain('if (dist >= PULL_THRESHOLD / 2) {');
   });
+
+  it('drops the room footer safe-area inset while the mobile keyboard is visible', () => {
+    const roomView = readWorkspaceFile('src/app/features/room/RoomView.tsx');
+
+    expect(roomView).toContain(
+      "paddingBottom: isKeyboardVisible ? '0px' : 'var(--sable-safe-area-bottom, 0px)'"
+    );
+  });
 });

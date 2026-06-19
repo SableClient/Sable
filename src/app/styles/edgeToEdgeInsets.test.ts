@@ -81,7 +81,7 @@ describe('android edge-to-edge inset contract', () => {
     expect(pageStyles).toContain('var(--sable-safe-area-bottom, 0px)');
     expect(sidebarStyles).not.toContain('--sable-inset-');
     expect(roomView).toContain('var(--sable-safe-area-bottom, 0px)');
-    expect(roomView).not.toContain('var(--sable-safe-bottom, 0px)');
+    expect(roomView).toContain("paddingBottom: isKeyboardVisible ? '0px'");
     expect(roomViewTypingStyles).not.toContain('--sable-inset-');
     expect(threadDrawerStyles).not.toContain('--sable-inset-');
   });

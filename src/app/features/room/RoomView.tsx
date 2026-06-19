@@ -175,7 +175,7 @@ export function RoomView({
               direction="Column"
               style={{
                 backgroundColor: 'var(--sable-surface-container)',
-                paddingBottom: 'var(--sable-safe-area-bottom, 0px)',
+                paddingBottom: isKeyboardVisible ? '0px' : 'var(--sable-safe-area-bottom, 0px)',
               }}
             >
               {canMessage && delayedEventsSupported && (

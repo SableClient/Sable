@@ -44,7 +44,7 @@ export function shouldEnableNotificationPusher(
   isActiveNotificationClient: boolean
 ): boolean {
   return isVisible
-    ? isMobile || (notificationDeviceScope === 'active_client_only' && isActiveNotificationClient)
+    ? isMobile || isActiveNotificationClient
     : notificationDeviceScope !== 'active_client_only' || isActiveNotificationClient;
 }
 

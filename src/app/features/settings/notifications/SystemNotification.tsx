@@ -39,6 +39,7 @@ import {
   requestBrowserNotificationPermission,
   enablePushNotifications,
   disablePushNotifications,
+  UnsupportedPushEnvironmentError,
 } from './PushNotifications';
 import { DeregisterAllPushersSetting } from './DeregisterPushNotifications';
 import {
@@ -481,6 +482,7 @@ function BackgroundPushNotificationSetting() {
   const browserPermission = usePermissionState('notifications', getNotificationState());
   const isTauriRuntime = isTauri();
   const runtimePlatform = getBackgroundPushPlatform(isTauriRuntime);
+  const webPushUnavailable = runtimePlatform === 'web' && !isWebPushSupported();
   const supportedModes = getSupportedNotificationTransportModes(runtimePlatform);
   const selectedTransportMode = normalizeNotificationTransportMode(
     pushTransportMode,
@@ -494,7 +496,7 @@ function BackgroundPushNotificationSetting() {
     ? (backgroundPushProvider ?? preferredKind)
     : preferredKind;
   const effectivePushTransport = mergePushConfig(pushTransportDefaults, pushTransportOverride);
-  const backgroundPushSupported = supportedModes.length > 0;
+  const backgroundPushSupported = supportedModes.length > 0 && !webPushUnavailable;
   const showUnifiedPushSettings =
     runtimePlatform === 'android' &&
     (selectedTransportMode === 'auto' || selectedTransportMode === 'unifiedpush');
@@ -520,9 +522,10 @@ function BackgroundPushNotificationSetting() {
   }, [upEndpoint]);
 
   useEffect(() => {
+    const legacyPushEnabled = backgroundPushSupported && backgroundPushEnabled;
     const sync = deriveLegacyPushSync({
-      enabled: backgroundPushEnabled,
-      provider: backgroundPushEnabled ? (backgroundPushProvider ?? preferredKind) : null,
+      enabled: legacyPushEnabled,
+      provider: legacyPushEnabled ? (backgroundPushProvider ?? preferredKind) : null,
     });
 
     if (legacyPushNotifications !== sync.usePushNotifications) {
@@ -533,6 +536,7 @@ function BackgroundPushNotificationSetting() {
     }
   }, [
     backgroundPushEnabled,
+    backgroundPushSupported,
     backgroundPushProvider,
     preferredKind,
     legacyPushNotifications,
@@ -773,7 +777,11 @@ function BackgroundPushNotificationSetting() {
     setError(null);
     try {
       if (!backgroundPushSupported) {
-        throw new Error('Background push is not available in the desktop Tauri build yet.');
+        throw new Error(
+          webPushUnavailable
+            ? 'Background push is not available in this browser.'
+            : 'Background push is not available in the desktop Tauri build yet.'
+        );
       }
       if (wantsPush) {
         const nextKind = await activateMode(selectedTransportMode, null);
@@ -784,7 +792,11 @@ function BackgroundPushNotificationSetting() {
       }
       setBackgroundPushEnabled(wantsPush);
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      if (caughtError instanceof UnsupportedPushEnvironmentError) {
+        setError('Background push is not available in this browser.');
+      } else {
+        setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -809,7 +821,11 @@ function BackgroundPushNotificationSetting() {
       }
       setPushTransportMode(nextMode);
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      if (caughtError instanceof UnsupportedPushEnvironmentError) {
+        setError('Background push is not available in this browser.');
+      } else {
+        setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -857,6 +873,13 @@ function BackgroundPushNotificationSetting() {
     }
 
     if (!backgroundPushSupported) {
+      if (webPushUnavailable) {
+        return (
+          <Text as="span" style={{ color: color.Warning.Main }} size="T200">
+            Background push is not available in this browser.
+          </Text>
+        );
+      }
       return (
         <Text as="span" style={{ color: color.Warning.Main }} size="T200">
           Background push is not available in the desktop Tauri build yet.

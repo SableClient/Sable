@@ -204,6 +204,12 @@ vi.mock('$utils/user-agent', () => ({
 }));
 
 vi.mock('./PushNotifications', () => ({
+  UnsupportedPushEnvironmentError: class UnsupportedPushEnvironmentError extends Error {
+    constructor() {
+      super('Push messaging is not supported in this browser.');
+      this.name = 'UnsupportedPushEnvironmentError';
+    }
+  },
   isWebPushSupported: mockIsWebPushSupported,
   requestBrowserNotificationPermission: mockRequestBrowserNotificationPermission,
   enablePushNotifications: mockEnablePushNotifications,
@@ -498,6 +504,42 @@ describe('SystemNotification background push surface', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Notification Device Scope')).toBeInTheDocument();
+    });
+  });
+
+  it('shows unsupported-browser background push as unavailable instead of actionable transport UI', async () => {
+    mockIsTauri.mockReturnValue(false);
+    mockMobileOrTablet.mockReturnValue(false);
+    mockIsWebPushSupported.mockReturnValue(false);
+
+    renderSystemNotification();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Background push is not available in this browser.')
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Notification Device Scope')).not.toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole('switch', { name: 'mock-switch' })
+        .find((element) => element.hasAttribute('disabled'))
+    ).toBeDisabled();
+  });
+
+  it('clears legacy web-push flags when the browser no longer supports web push', async () => {
+    mockIsTauri.mockReturnValue(false);
+    mockMobileOrTablet.mockReturnValue(false);
+    mockIsWebPushSupported.mockReturnValue(false);
+    settings.backgroundPushEnabled = true;
+    settings.backgroundPushProvider = null;
+    settings.usePushNotifications = true;
+
+    renderSystemNotification();
+
+    await waitFor(() => {
+      expect(settings.usePushNotifications).toBe(false);
+      expect(settings.useUnifiedPush).toBe(false);
     });
   });
 });

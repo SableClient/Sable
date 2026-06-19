@@ -3,7 +3,10 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
-import { useNotificationDeviceScope } from './useNotificationDeviceScope';
+import {
+  shouldEnableNotificationPusher,
+  useNotificationDeviceScope,
+} from './useNotificationDeviceScope';
 
 let notificationDeviceScope: 'all_clients' | 'active_client_only' = 'all_clients';
 
@@ -216,5 +219,9 @@ describe('useNotificationDeviceScope', () => {
 
     owner.unmount();
     observer.unmount();
+  });
+
+  it('keeps desktop push enabled for all-clients scope while visible', () => {
+    expect(shouldEnableNotificationPusher(true, false, 'all_clients', true)).toBe(true);
   });
 });

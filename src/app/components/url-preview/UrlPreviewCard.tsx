@@ -125,9 +125,10 @@ export const UrlPreviewCard = as<
     url: string;
     ts?: number;
     mediaType?: string | null;
+    mediaAutoLoad?: boolean;
     bundle?: IPreviewUrlResponse;
   }
->(({ urlPreview, url, ts, mediaType, bundle, ...props }, ref) => {
+>(({ urlPreview, url, ts, mediaType, mediaAutoLoad = true, bundle, ...props }, ref) => {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
@@ -276,7 +277,7 @@ export const UrlPreviewCard = as<
     const freezeAnimatedPreview =
       mediaType === 'image' && !autoplayGifs && isAnimatedDirectImage(body, directMimeType);
 
-    if (directMediaError || !directMediaUrl || freezeAnimatedPreview) {
+    if (directMediaError || !directMediaUrl || freezeAnimatedPreview || !mediaAutoLoad) {
       return renderCardShell(body);
     }
 

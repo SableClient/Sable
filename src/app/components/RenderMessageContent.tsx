@@ -161,7 +161,20 @@ function RenderMessageContentInternal({
         url,
         type: getMediaType(url),
       }));
-      const previewCandidates = analyzed;
+      const previewCandidates = analyzed.filter(({ url, type }) => {
+        if (type && clientUrlPreview) return true;
+        if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return false;
+        if (clientUrlPreview && youtubeUrl(url)) return true;
+        if (urlPreview) return true;
+        return false;
+      });
+      if (
+        previewCandidates.length === 0 &&
+        themeToRender.length === 0 &&
+        tweakCandidateUrls.length === 0
+      ) {
+        return undefined;
+      }
       const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]!];
       return (
         <UrlPreviewHolder>
@@ -176,7 +189,16 @@ function RenderMessageContentInternal({
             if (themeToRender.includes(url)) return null;
             if (tweakCandidateUrls.includes(url)) return null;
             if (type && clientUrlPreview) {
-              return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
+              return (
+                <UrlPreviewCard
+                  urlPreview
+                  key={url}
+                  url={url}
+                  ts={ts}
+                  mediaType={type}
+                  mediaAutoLoad={mediaAutoLoad}
+                />
+              );
             }
             if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return null;
             if (clientUrlPreview && youtubeUrl(url)) {
@@ -190,6 +212,7 @@ function RenderMessageContentInternal({
                   url={url}
                   ts={ts}
                   mediaType={clientUrlPreview ? type : undefined}
+                  mediaAutoLoad={mediaAutoLoad}
                 />
               );
             }
@@ -198,7 +221,15 @@ function RenderMessageContentInternal({
         </UrlPreviewHolder>
       );
     },
-    [multiplePreviews, themeChatSableWidgets, settingsLinkBaseUrl, clientUrlPreview, urlPreview, ts]
+    [
+      multiplePreviews,
+      themeChatSableWidgets,
+      settingsLinkBaseUrl,
+      clientUrlPreview,
+      urlPreview,
+      ts,
+      mediaAutoLoad,
+    ]
   );
   const renderBundledPreviews = useCallback(
     (bundles: IPreviewUrlResponse[]) => (

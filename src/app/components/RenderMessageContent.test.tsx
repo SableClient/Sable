@@ -106,6 +106,28 @@ describe('RenderMessageContent', () => {
     );
   });
 
+  it('filters non-renderable links before limiting client-only previews', () => {
+    renderMessage('https://example.com/post https://cdn.example/test.png', {
+      urlPreview: false,
+      clientUrlPreview: true,
+    });
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
+      'https://cdn.example/test.png'
+    );
+    expect(urlPreviewCardSpy).toHaveBeenCalledTimes(1);
+    expect(urlPreviewCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn.example/test.png', mediaType: 'image' })
+    );
+  });
+
+  it('does not render an empty preview holder when no urls are renderable', () => {
+    renderMessage('https://example.com/post', { urlPreview: false, clientUrlPreview: true });
+
+    expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
   it('treats query-string media urls as direct previews', () => {
     renderMessage('https://example.com/test.jpg?token=abc', {
       urlPreview: false,

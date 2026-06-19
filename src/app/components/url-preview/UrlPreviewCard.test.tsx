@@ -160,4 +160,20 @@ describe('UrlPreviewCard', () => {
       'https://example.com/images/test.PNG'
     );
   });
+
+  it('falls back to a plain link card when direct media auto-load is disabled', () => {
+    renderWithProviders(
+      <UrlPreviewCard
+        urlPreview
+        url="https://example.com/images/test.png"
+        mediaType="image"
+        mediaAutoLoad={false}
+      />
+    );
+
+    expect(screen.queryByTestId('direct-image')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'https://example.com/images/test.png' })
+    ).toBeInTheDocument();
+  });
 });

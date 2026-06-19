@@ -223,7 +223,7 @@ describe('room read markers', () => {
       events: [makeEvent('$event1', USER_ID), makeReactionEvent('$event2', '$event1')],
     });
 
-    expect(roomHaveUnread(room.client, room)).toBe(true);
+    expect(roomHaveUnread(room.client, room)).toBe(false);
     expect(getUnreadInfo(room, { applyFixup: false })).toEqual({
       roomId: '!room:example.com',
       highlight: 0,

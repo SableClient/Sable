@@ -712,6 +712,7 @@ function ClosedSpaceFolder({
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const allRooms = useAtomValue(allRoomsAtom);
+  const mDirects = useAtomValue(mDirectAtom);
   const roomToParents = useAtomValue(roomToParentsAtom);
   const handlerRef = useRef<HTMLDivElement>(null);
 
@@ -729,10 +730,11 @@ function ClosedSpaceFolder({
     return allRooms.filter((roomId) => {
       const room = mx.getRoom(roomId);
       if (!room || room.isSpaceRoom()) return false;
+      if (mDirects.has(roomId)) return false;
       const parents = getAllParents(roomToParents, roomId);
       return [...folderSpaces].some((spaceId) => parents.has(spaceId));
     });
-  }, [allRooms, folder.content, mx, roomToParents]);
+  }, [allRooms, folder.content, mDirects, mx, roomToParents]);
 
   const loudChildRooms = useMemo(
     () =>

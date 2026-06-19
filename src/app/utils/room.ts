@@ -396,6 +396,18 @@ export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
     if (event.getId() === readUpToId) {
       return false;
     }
+    if (!isNotificationEvent(event, room, userId)) {
+      continue;
+    }
+
+    if (event.getRelation()?.rel_type === RelationType.Annotation) {
+      const pushActions = new PushProcessor(mx).actionsForEvent(event);
+      if (pushActions?.notify) {
+        return true;
+      }
+      continue;
+    }
+
     if (isNotificationEvent(event, room, userId)) {
       return true;
     }
@@ -552,7 +564,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
         // event even when push rule evaluation is unavailable or inconclusive.
         if (relationType !== RelationType.Annotation || pushActions?.notify) {
           fallbackTotal += 1;
-          if (pushActions.tweaks?.highlight) fallbackHighlight += 1;
+          if (pushActions?.tweaks?.highlight) fallbackHighlight += 1;
         }
       }
     }

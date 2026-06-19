@@ -222,7 +222,7 @@ const getSpaceJoinedHierarchy = (
    * @param visited - Set used to prevent recursion errors.
    * @returns True if the space or any descendant contains non-space rooms.
    */
-  const getContainsRoom = (spaceId: string, visited: Set<string> = new Set()) => {
+  const getContainsRoom = (spaceId: string, depth: number, visited: Set<string> = new Set()) => {
     // Prevent infinite recursion
     if (visited.has(spaceId)) return false;
     visited.add(spaceId);
@@ -236,11 +236,12 @@ const getSpaceJoinedHierarchy = (
       if (!isValidChild(childEvent)) return false;
       const childId = childEvent.getStateKey();
       if (!childId || !isRoomId(childId)) return false;
+      if (excludeRoom(spaceId, childId, depth)) return false;
       const room = getRoom(childId);
       if (!room) return false;
 
       if (!room.isSpaceRoom()) return true;
-      return getContainsRoom(childId, visited);
+      return getContainsRoom(childId, depth + 1, visited);
     });
   };
 
@@ -259,7 +260,7 @@ const getSpaceJoinedHierarchy = (
       return true;
     });
 
-    if (!getContainsRoom(spaceItem.roomId)) return [];
+    if (!getContainsRoom(spaceItem.roomId, spaceItem.depth)) return [];
 
     const childItems: HierarchyItemRoom[] = [];
     joinedRoomEvents.forEach((childEvent) => {

@@ -318,6 +318,16 @@ describe('RenderMessageContent', () => {
     );
   });
 
+  it('keeps markdown preview-suppressed destinations out of preview extraction', () => {
+    renderMessage('[pic](<https://cdn.example/test.png>)', {
+      urlPreview: false,
+      clientUrlPreview: true,
+    });
+
+    expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
   it('include inner closing paranthesis from the url preview even within []() hyperlink', () => {
     renderMessage('[foo](https://example.com)) bar');
 

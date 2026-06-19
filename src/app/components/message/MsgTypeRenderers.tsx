@@ -214,7 +214,7 @@ const isPreviewSuppressedUrl = (
 
   if (body.slice(urlIndex - 1, urlIndex + url.length + 1) === `<${url}>`) return true;
   if (offset >= 3 && body.slice(offset - 3, offset) === '](<') return true;
-  if (fullMatch.startsWith('(') && body.slice(urlIndex - 2, urlIndex) === '(<') return true;
+  if (body.slice(urlIndex - 2, urlIndex) === '(<') return true;
 
   return false;
 };

@@ -13,7 +13,10 @@ vi.mock('./url-preview', () => ({
   youtubeUrl: () => false,
 }));
 
-function renderMessage(body: string) {
+function renderMessage(
+  body: string,
+  options?: { urlPreview?: boolean; clientUrlPreview?: boolean }
+) {
   return render(
     <ClientConfigProvider value={{}}>
       <RenderMessageContent
@@ -21,8 +24,8 @@ function renderMessage(body: string) {
         msgType={MsgType.Text}
         ts={0}
         getContent={() => ({ body }) as never}
-        urlPreview
-        clientUrlPreview
+        urlPreview={options?.urlPreview ?? true}
+        clientUrlPreview={options?.clientUrlPreview ?? true}
         htmlReactParserOptions={{}}
         linkifyOpts={{}}
       />
@@ -63,6 +66,13 @@ describe('RenderMessageContent', () => {
 
     expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
     expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com');
+  });
+
+  it('does not render direct media previews when client-side embeds are disabled', () => {
+    renderMessage('https://example.com/test.png', { urlPreview: false, clientUrlPreview: false });
+
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('client-preview')).not.toBeInTheDocument();
   });
 
   it('render url previews for text starting with paranthesis', () => {

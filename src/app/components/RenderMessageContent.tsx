@@ -158,7 +158,7 @@ function RenderMessageContentInternal({
         url,
         type: getMediaType(url),
       }));
-      const mediaLinks = analyzed.filter((item) => item.type !== null);
+      const mediaLinks = clientUrlPreview ? analyzed.filter((item) => item.type !== null) : [];
       const previewCandidates = mediaLinks.length > 0 ? mediaLinks : analyzed;
       const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]!];
       return (
@@ -173,7 +173,7 @@ function RenderMessageContentInternal({
             const { url, type } = item;
             if (themeToRender.includes(url)) return null;
             if (tweakCandidateUrls.includes(url)) return null;
-            if (type) {
+            if (type && clientUrlPreview) {
               return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
             if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return null;

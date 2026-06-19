@@ -106,6 +106,7 @@ export const UrlPreviewCard = as<
   const useAuthentication = useMediaAuthentication();
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
   const [imageError, setImageError] = useState(false);
+  const [directMediaError, setDirectMediaError] = useState(false);
 
   const isDirect = !!mediaType;
 
@@ -172,6 +173,7 @@ export const UrlPreviewCard = as<
   // Reset imageError when URL changes
   useEffect(() => {
     setImageError(false);
+    setDirectMediaError(false);
   }, [url]);
 
   const mediaWellStyle = useMemo(
@@ -239,6 +241,10 @@ export const UrlPreviewCard = as<
     const directMediaInfo = buildDirectMediaInfo(directMediaMetadata);
     const body = safeDecodeUrl(url);
 
+    if (directMediaError) {
+      return renderCardShell(body);
+    }
+
     return renderCardShell(
       body,
       <Box shrink="No" className={urlPreviewChrome.UrlPreviewMediaWell} style={mediaWellStyle}>
@@ -258,6 +264,7 @@ export const UrlPreviewCard = as<
             info={directMediaInfo}
             matrixThumbnailMaxEdge={previewThumbMaxEdge}
             cacheThumbnailMetadataAsMedia
+            onError={() => setDirectMediaError(true)}
             suppressErrorUI
             renderViewer={(p) => <ImageViewer {...p} />}
             renderImage={(p) => (

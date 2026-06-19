@@ -59,6 +59,22 @@ describe('buildMessagePreviewFromContent', () => {
     expect(preview && canRenderInlineMessagePreview(preview)).toBe(false);
   });
 
+  it('does not collapse mixed prose and fenced code into a code-block placeholder', () => {
+    expect(
+      buildMessagePreviewFromContent({
+        content: {
+          msgtype: 'm.text',
+          body: 'intro\n```ts\nconst x = 1;\n```\noutro',
+        },
+        eventType: 'm.room.message',
+      })
+    ).toMatchObject({
+      kind: 'text',
+      text: 'intro\n```ts\nconst x = 1;\n```\noutro',
+      placeholderText: 'intro\n```ts\nconst x = 1;\n```\noutro',
+    });
+  });
+
   it('keeps text previews inline-renderable when formatting is safe', () => {
     const preview = buildMessagePreviewFromContent({
       content: {

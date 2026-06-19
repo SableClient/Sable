@@ -107,10 +107,18 @@ type RemoveBookmarkDialogProps = {
   onClose: () => void;
 };
 
+function getStoredBookmarkFallbackText(
+  item: Pick<BookmarkItemContent, 'body_preview' | 'msgtype'>
+): string {
+  const preview = buildStoredMessagePreview({ body: item.body_preview, msgType: item.msgtype });
+  if (preview?.isLinkOnly && typeof preview.body === 'string' && preview.body.trim()) {
+    return preview.body;
+  }
+  return preview?.placeholderText ?? item.body_preview ?? '';
+}
+
 function RemoveBookmarkDialog({ item, onConfirm, onClose }: RemoveBookmarkDialogProps) {
-  const fallbackPreview =
-    buildStoredMessagePreview({ body: item.body_preview, msgType: item.msgtype })
-      ?.placeholderText ?? item.body_preview;
+  const fallbackPreview = getStoredBookmarkFallbackText(item);
 
   return (
     <Dialog variant="Surface">
@@ -311,11 +319,7 @@ function BookmarkItemRow({
   const usernameColor = colorMXID(senderId);
 
   // Highlight matching substring in body_preview
-  const preview =
-    buildStoredMessagePreview({ body: item.body_preview, msgType: item.msgtype })
-      ?.placeholderText ??
-    item.body_preview ??
-    '';
+  const preview = getStoredBookmarkFallbackText(item);
   const highlightedPreview = useMemo(() => {
     if (!highlight || !preview) return <>{preview}</>;
     const idx = preview.toLowerCase().indexOf(highlight.toLowerCase());
@@ -590,8 +594,7 @@ function RemovedBookmarkRow({ item, onRestore }: RemovedBookmarkRowProps) {
           </Text>
           {item.body_preview && (
             <Text size="T200" priority="300" truncate>
-              {buildStoredMessagePreview({ body: item.body_preview, msgType: item.msgtype })
-                ?.placeholderText ?? item.body_preview}
+              {getStoredBookmarkFallbackText(item)}
             </Text>
           )}
         </Box>

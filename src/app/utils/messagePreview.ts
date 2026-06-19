@@ -56,7 +56,7 @@ export function stripReplyFallback(body: string): string {
 const isBlockFormattedBody = (formattedBody: string): boolean =>
   /<(?:pre)(?:\s|>)/i.test(formattedBody);
 
-const isBlockBody = (body: string): boolean => /^\s*```[\s\S]*```(?:\s*)$/m.test(body.trim());
+const isBlockBody = (body: string): boolean => /^\s*```[\s\S]*```(?:\s*)$/.test(body.trim());
 
 export function getPreviewEventContent(ev: MatrixEvent): Record<string, unknown> {
   const content = ev.getContent() as Record<string, unknown>;

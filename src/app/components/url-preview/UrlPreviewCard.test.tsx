@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { Provider as JotaiProvider } from 'jotai';
 import { describe, expect, it, vi } from 'vitest';
 import { MatrixClientProvider } from '$hooks/useMatrixClient';
@@ -36,7 +36,16 @@ vi.mock('$hooks/useMediaMetadata', () => ({
 
 vi.mock('$components/message', () => ({
   AudioContent: ({ url }: { url: string }) => <div data-testid="audio-content">{url}</div>,
-  ImageContent: ({ url }: { url: string }) => <div data-testid="image-content">{url}</div>,
+  ImageContent: ({ url, onError }: { url: string; onError?: () => void }) => (
+    <div>
+      <div data-testid="image-content">{url}</div>
+      {onError && (
+        <button type="button" data-testid="image-error" onClick={onError}>
+          fail
+        </button>
+      )}
+    </div>
+  ),
   VideoContent: ({ url }: { url: string }) => <div data-testid="video-content">{url}</div>,
 }));
 
@@ -79,6 +88,19 @@ describe('UrlPreviewCard', () => {
     expect(screen.getByTestId('image-content')).toHaveTextContent(
       'https://example.com/images/test.png'
     );
+    expect(
+      screen.getByRole('link', { name: 'https://example.com/images/test.png' })
+    ).toBeInTheDocument();
+  });
+
+  it('falls back to a plain link card when a direct image preview errors', () => {
+    renderWithProviders(
+      <UrlPreviewCard urlPreview url="https://example.com/images/test.png" mediaType="image" />
+    );
+
+    fireEvent.click(screen.getByTestId('image-error'));
+
+    expect(screen.queryByTestId('image-content')).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'https://example.com/images/test.png' })
     ).toBeInTheDocument();

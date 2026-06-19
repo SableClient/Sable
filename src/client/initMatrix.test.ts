@@ -1,8 +1,11 @@
 import * as Sentry from '@sentry/react';
 import type { MatrixClient } from '$types/matrix-sdk';
+import { MatrixEvent } from '$types/matrix-sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearSentryMatrixDeviceContext,
+  MATRIX_EVENT_FALLBACK_TYPE,
+  normalizeMatrixEventType,
   resolveRefreshToken,
   setSentryMatrixDeviceContext,
   startClient,
@@ -90,6 +93,18 @@ describe('resolveRefreshToken', () => {
   it('keeps the current refresh token when the homeserver omits refresh_token', () => {
     expect(resolveRefreshToken('refresh-2')).toBe('refresh-2');
     expect(resolveRefreshToken('refresh-2', 'refresh-3')).toBe('refresh-3');
+  });
+});
+
+describe('normalizeMatrixEventType', () => {
+  it('returns the original event type when it is a non-empty string', () => {
+    expect(normalizeMatrixEventType('m.room.message')).toBe('m.room.message');
+  });
+
+  it('replaces empty or missing types with the fallback placeholder', () => {
+    expect(normalizeMatrixEventType('')).toBe(MATRIX_EVENT_FALLBACK_TYPE);
+    expect(normalizeMatrixEventType('   ')).toBe(MATRIX_EVENT_FALLBACK_TYPE);
+    expect(normalizeMatrixEventType(undefined)).toBe(MATRIX_EVENT_FALLBACK_TYPE);
   });
 });
 
@@ -252,5 +267,66 @@ describe('startClient app singleton gate', () => {
     window.dispatchEvent(new Event('online'));
 
     expect(mx.retryImmediately).toHaveBeenCalledOnce();
+  });
+
+  it('stubs startup fetchRoomEvent misses with a stable placeholder event type', async () => {
+    const mx = makeClient('@alice:example.com');
+
+    await startClassicClient(mx);
+
+    await expect(mx.fetchRoomEvent('!room:example.com', '$event')).resolves.toMatchObject({
+      event_id: '$event',
+      room_id: '!room:example.com',
+      type: MATRIX_EVENT_FALLBACK_TYPE,
+      content: {},
+    });
+  });
+
+  it('guards malformed MatrixEvent types after startup without returning undefined', async () => {
+    const mx = makeClient('@alice:example.com');
+
+    await startClassicClient(mx);
+
+    const malformedEvent = new MatrixEvent({
+      event_id: '$bad',
+      room_id: '!room:example.com',
+      content: {},
+      sender: '@alice:example.com',
+      type: undefined,
+    } as unknown as ConstructorParameters<typeof MatrixEvent>[0]);
+
+    expect(malformedEvent.getType()).toBe(MATRIX_EVENT_FALLBACK_TYPE);
+    expect(Sentry.captureMessage).toHaveBeenCalledWith('MatrixEvent missing string event type', {
+      level: 'warning',
+      tags: { component: 'matrix-event-type-guard' },
+      extra: {
+        rawType: 'undefined',
+        fallbackType: MATRIX_EVENT_FALLBACK_TYPE,
+      },
+    });
+  });
+
+  it('reports whitespace event types with the original raw value', async () => {
+    const mx = makeClient('@alice:example.com');
+
+    await startClassicClient(mx);
+
+    const malformedEvent = new MatrixEvent({
+      event_id: '$bad-space',
+      room_id: '!room:example.com',
+      content: {},
+      sender: '@alice:example.com',
+      type: '   ',
+    } as unknown as ConstructorParameters<typeof MatrixEvent>[0]);
+
+    expect(malformedEvent.getType()).toBe(MATRIX_EVENT_FALLBACK_TYPE);
+    expect(Sentry.captureMessage).toHaveBeenCalledWith('MatrixEvent missing string event type', {
+      level: 'warning',
+      tags: { component: 'matrix-event-type-guard' },
+      extra: {
+        rawType: '   ',
+        fallbackType: MATRIX_EVENT_FALLBACK_TYPE,
+      },
+    });
   });
 });

@@ -4,10 +4,22 @@ import { MsgType } from '$types/matrix-sdk';
 import { ClientConfigProvider } from '$hooks/useClientConfig';
 import { RenderMessageContent } from './RenderMessageContent';
 
+const settings = {
+  autoplayGifs: false,
+  captionPosition: 'below',
+  themeChatSableWidgetsEnabled: true,
+  multiplePreviews: true,
+  clientPreviewYoutube: false,
+};
+
 const urlPreviewCardSpy = vi.fn<(props: { url: string; mediaType?: string | null }) => JSX.Element>(
   ({ url }: { url: string }) => <div data-testid="url-preview-card">{url}</div>
 );
 const youtubeUrlSpy = vi.fn<(url: string) => boolean>((url: string) => url.includes('youtu'));
+
+vi.mock('$state/hooks/settings', () => ({
+  useSetting: (_atom: unknown, key: keyof typeof settings) => [settings[key], vi.fn<() => void>()],
+}));
 
 vi.mock('./url-preview', () => ({
   UrlPreviewHolder: ({ children }: { children: React.ReactNode }) => (
@@ -21,16 +33,20 @@ vi.mock('./url-preview', () => ({
 }));
 
 function renderMessage(
-  body: string,
+  bodyOrContent: string | Record<string, unknown>,
   options?: { urlPreview?: boolean; clientUrlPreview?: boolean }
 ) {
+  const content =
+    typeof bodyOrContent === 'string'
+      ? ({ body: bodyOrContent } as never)
+      : (bodyOrContent as never);
   return render(
     <ClientConfigProvider value={{}}>
       <RenderMessageContent
         displayName="Alice"
         msgType={MsgType.Text}
         ts={0}
-        getContent={() => ({ body }) as never}
+        getContent={() => content}
         urlPreview={options?.urlPreview ?? true}
         clientUrlPreview={options?.clientUrlPreview ?? true}
         htmlReactParserOptions={{}}
@@ -42,6 +58,11 @@ function renderMessage(
 
 beforeEach(() => {
   vi.stubGlobal('location', { origin: 'https://app.example' } as Location);
+  settings.autoplayGifs = false;
+  settings.captionPosition = 'below';
+  settings.themeChatSableWidgetsEnabled = true;
+  settings.multiplePreviews = true;
+  settings.clientPreviewYoutube = false;
 });
 
 afterEach(() => {
@@ -110,6 +131,23 @@ describe('RenderMessageContent', () => {
     );
   });
 
+  it('prefers direct media before ordinary links when single-preview mode is enabled', () => {
+    settings.multiplePreviews = false;
+
+    renderMessage('https://example.com/post https://cdn.example/test.png', {
+      urlPreview: true,
+      clientUrlPreview: true,
+    });
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
+      'https://cdn.example/test.png'
+    );
+    expect(urlPreviewCardSpy).toHaveBeenCalledTimes(1);
+    expect(urlPreviewCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn.example/test.png', mediaType: 'image' })
+    );
+  });
+
   it('filters non-renderable links before limiting client-only previews', () => {
     renderMessage('https://example.com/post https://cdn.example/test.png', {
       urlPreview: false,
@@ -145,6 +183,32 @@ describe('RenderMessageContent', () => {
 
     expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
     expect(screen.queryByTestId('client-preview')).not.toBeInTheDocument();
+  });
+
+  it('treats apng links as direct image previews', () => {
+    renderMessage('https://example.com/anim.apng', { urlPreview: false, clientUrlPreview: true });
+
+    expect(screen.getByTestId('url-preview-card')).toBeInTheDocument();
+    expect(urlPreviewCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://example.com/anim.apng', mediaType: 'image' })
+    );
+  });
+
+  it('preserves direct media candidates alongside bundled preview urls', () => {
+    renderMessage(
+      {
+        body: 'https://example.com/post https://cdn.example/test.png',
+        'com.beeper.linkpreviews': [{ matched_url: 'https://example.com/post' }],
+      },
+      { urlPreview: false, clientUrlPreview: true }
+    );
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
+      'https://cdn.example/test.png'
+    );
+    expect(urlPreviewCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn.example/test.png', mediaType: 'image' })
+    );
   });
 
   it('treats query-string media urls as direct previews', () => {

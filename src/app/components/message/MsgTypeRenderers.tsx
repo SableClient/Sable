@@ -246,8 +246,10 @@ const getUrlsFromContent = (
     ] as BundleContent[];
     try {
       bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-      if (renderUrlsPreview && bundleContent)
-        urls = bundleContent.map((bundle) => bundle.matched_url);
+      if (renderUrlsPreview && bundleContent) {
+        const bundleUrls = bundleContent.map((bundle) => bundle.matched_url);
+        urls = [...new Set([...(urls ?? []), ...bundleUrls])];
+      }
     } catch (innerError) {
       console.warn('[getUrlsFromContent] Failed to process bundleContent:', innerError);
       urls = [];

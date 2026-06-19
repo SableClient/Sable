@@ -76,7 +76,7 @@ const getMediaType = (url: string) => {
   const cleanUrl = url.toLowerCase();
   if (cleanUrl.match(/\.(mp4|webm|ogg)(\?|#|$)/i)) return 'video';
   if (
-    cleanUrl.match(/\.(png|jpg|jpeg|gif|webp)(\?|#|$)/i) ||
+    cleanUrl.match(/\.(png|jpg|jpeg|gif|webp|apng)(\?|#|$)/i) ||
     cleanUrl.match(/@(jpeg|webp|png|jpg)(\?|#|$)/i)
   )
     return 'image';
@@ -169,17 +169,23 @@ function RenderMessageContentInternal({
         if (urlPreview) return true;
         return false;
       });
+      const prioritizedCandidates = previewCandidates.some(({ type }) => type)
+        ? [
+            ...previewCandidates.filter(({ type }) => type),
+            ...previewCandidates.filter(({ type }) => !type),
+          ]
+        : previewCandidates;
       if (
-        previewCandidates.length === 0 &&
+        prioritizedCandidates.length === 0 &&
         themeToRender.length === 0 &&
         tweakCandidateUrls.length === 0
       ) {
         return undefined;
       }
       const toRender = multiplePreviews
-        ? previewCandidates
-        : previewCandidates[0]
-          ? [previewCandidates[0]]
+        ? prioritizedCandidates
+        : prioritizedCandidates[0]
+          ? [prioritizedCandidates[0]]
           : [];
       return (
         <UrlPreviewHolder>

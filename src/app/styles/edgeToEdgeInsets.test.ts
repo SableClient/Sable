@@ -80,9 +80,7 @@ describe('android edge-to-edge inset contract', () => {
     expect(pageStyles).not.toContain('--sable-inset-');
     expect(pageStyles).toContain('var(--sable-safe-area-bottom, 0px)');
     expect(sidebarStyles).not.toContain('--sable-inset-');
-    expect(roomView).toContain(
-      'var(--sable-safe-bottom, var(--sable-safe-area-bottom, 0px))'
-    );
+    expect(roomView).toContain('var(--sable-safe-bottom, var(--sable-safe-area-bottom, 0px))');
     expect(roomViewTypingStyles).not.toContain('--sable-inset-');
     expect(threadDrawerStyles).not.toContain('--sable-inset-');
   });

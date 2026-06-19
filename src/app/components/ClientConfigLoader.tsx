@@ -194,7 +194,10 @@ export function ClientConfigLoader({ fallback, error, children }: ClientConfigLo
   const ignoreCallback = useCallback(() => setIgnoreError(true), []);
 
   useEffect(() => {
-    load();
+    load().catch(() => {
+      // useAsyncCallback already published the error state; suppress the duplicate
+      // unhandled rejection path so handled bootstrap failures stay quiet.
+    });
   }, [load]);
 
   if (state.status === AsyncStatus.Idle || state.status === AsyncStatus.Loading) {

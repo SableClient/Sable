@@ -11,7 +11,7 @@
  */
 /* oxlint-disable vitest/require-mock-type-parameters */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { setMatrixToBase, getMatrixToRoom, getMatrixToUser } from '$plugins/matrix-to';
 import {
   buildConfigAttemptUrl,
@@ -259,6 +259,32 @@ describe('ClientConfigLoader + matrix-to wiring', () => {
       kind: 'unknown',
     });
     expect(sentry.captureException).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('suppresses handled loader rejections when rendering the bootstrap loader', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    const unhandledRejection = vi.fn();
+    window.addEventListener('unhandledrejection', unhandledRejection);
+
+    render(
+      <ClientConfigLoader
+        fallback={() => <span data-testid="fallback">loading</span>}
+        error={(err) => <span data-testid="error">{String(err instanceof Error ? err.name : err)}</span>}
+      >
+        {() => <span data-testid="ready">ready</span>}
+      </ClientConfigLoader>
+    );
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId('error')).toHaveTextContent('ClientConfigLoadError');
+    expect(unhandledRejection).not.toHaveBeenCalled();
+
+    window.removeEventListener('unhandledrejection', unhandledRejection);
     vi.useRealTimers();
   });
 });

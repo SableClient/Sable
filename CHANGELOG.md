@@ -1,5 +1,30 @@
 # Sable Client Changelog
 
+## 1.18.4 (2026-06-19)
+
+### Fixes
+
+* Fix Tauri SSO add-account callbacks, complete cross-signing reset recovery in-app, and start dormant background sessions from shared crypto stores so encrypted messages recover after account switches. ([#178](<https://github.com/CloudHub-Social/Charm/pull/178>) by @Just-Insane)
+* Harden avatar color extraction so unsupported images fall back cleanly instead of throwing during canvas rendering. ([#168](<https://github.com/CloudHub-Social/Charm/pull/168>) by @Just-Insane)
+* Improve desktop PWA idle-resume recovery, background notification client diagnostics, and related stability telemetry. ([#162](<https://github.com/CloudHub-Social/Charm/pull/162>) by @Just-Insane)
+* Prefer shorter sidebar-aware notification jump paths, wait for target room parent graphs before restoring non-DM clicks, and keep history jumps anchored while media and previews finish reflowing. ([#153](<https://github.com/CloudHub-Social/Charm/pull/153>) by @Just-Insane)
+* Harden startup event handling so malformed or placeholder Matrix events always carry a stable non-empty type. ([#174](<https://github.com/CloudHub-Social/Charm/pull/174>) by @Just-Insane)
+* Harden media and config loading so expected client-side failures degrade cleanly without noisy error capture. ([#175](<https://github.com/CloudHub-Social/Charm/pull/175>) by @Just-Insane)
+* Keep mobile room actions reachable by exposing members and widgets from the room menu, render widgets in a mobile overlay, and trigger the composer keyboard pre-lift on touch-first PWA input paths. ([#177](<https://github.com/CloudHub-Social/Charm/pull/177>) by @Just-Insane)
+* Restore the missing mobile timeline right gutter and keep composer text inset from right-side actions. ([#151](<https://github.com/CloudHub-Social/Charm/pull/151>) by @Just-Insane)
+* Improve notification routing, composer ergonomics, and startup resilience. ([#160](<https://github.com/CloudHub-Social/Charm/pull/160>) by @Just-Insane)
+* Harden encrypted push enrichment, notification restore, DM deep-link recovery, and related telemetry. ([#150](<https://github.com/CloudHub-Social/Charm/pull/150>) by @Just-Insane)
+* Unify compact preview rendering, bookmark fallbacks, and direct media preview chrome so formatted text and attachments degrade consistently outside the main timeline. ([#176](<https://github.com/CloudHub-Social/Charm/pull/176>) by @Just-Insane)
+* Fix race-prone sliding sync unread and direct-message ordering state. ([#99](<https://github.com/CloudHub-Social/Charm/pull/99>) by @Just-Insane)
+* Reduce theme flashing by reapplying cached remote theme and tweak CSS before async startup finishes. ([#152](<https://github.com/CloudHub-Social/Charm/pull/152>) by @Just-Insane)
+* Improve timeline correctness, notification diagnostics, and config failure resilience. ([#172](<https://github.com/CloudHub-Social/Charm/pull/172>) by @Just-Insane)
+* Clarify unsupported-browser push state and avoid treating missing web push support as an actionable failure. ([#173](<https://github.com/CloudHub-Social/Charm/pull/173>) by @Just-Insane)
+
+### Notes
+
+* Add a Playwright smoke CI workflow and document the remaining manual Sentry and GitHub issue wiring. ([#166](<https://github.com/CloudHub-Social/Charm/pull/166>) by @Just-Insane)
+* Run Charm through a Worker-first Cloudflare asset proxy so observability, invocation logs, and drain integrations can capture real site traffic. ([#169](<https://github.com/CloudHub-Social/Charm/pull/169>) by @Just-Insane)
+
 ## 1.18.3 (2026-06-18)
 
 ### Features

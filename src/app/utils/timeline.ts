@@ -7,6 +7,12 @@ import {
   getUnreadInfo,
 } from '$utils/room';
 
+export type RoomTimelineUnreadInfo = {
+  readUptoEventId?: string;
+  inLiveTimeline: boolean;
+  scrollTo: boolean;
+};
+
 export const PAGINATION_LIMIT = 60;
 
 export const getLiveTimeline = (room: Room): EventTimeline =>
@@ -157,6 +163,18 @@ export const getRoomUnreadInfo = (room: Room, scrollTo = false) => {
     scrollTo,
   };
 };
+
+export const getUnreadInfoAfterJumpToLatest = (
+  unreadInfo: RoomTimelineUnreadInfo | undefined
+): RoomTimelineUnreadInfo | undefined =>
+  unreadInfo
+    ? {
+        ...unreadInfo,
+        // Preserve the historical unread jump until the user explicitly marks the room read.
+        inLiveTimeline: unreadInfo.readUptoEventId ? unreadInfo.inLiveTimeline : true,
+        scrollTo: false,
+      }
+    : unreadInfo;
 
 export const getThreadReplyCount = (room: Room, mEventId: string): number => {
   const thread = room.getThread(mEventId);

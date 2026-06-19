@@ -68,6 +68,7 @@ import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import {
   getRoomUnreadInfo,
+  getUnreadInfoAfterJumpToLatest,
   getEventTimeline,
   getFirstLinkedTimeline,
   getInitialTimeline,
@@ -2050,15 +2051,7 @@ export function RoomTimeline({
               onClick={() => {
                 if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
                 releaseJumpLock('jump_to_latest');
-                setUnreadInfo((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        inLiveTimeline: prev.readUptoEventId ? prev.inLiveTimeline : true,
-                        scrollTo: false,
-                      }
-                    : prev
-                );
+                setUnreadInfo((prev) => getUnreadInfoAfterJumpToLatest(prev));
                 timelineSync.setTimeline(getInitialTimeline(room));
                 scrollToBottom();
               }}

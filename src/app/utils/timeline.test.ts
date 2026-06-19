@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EventType, MsgType, NotificationCountType } from '$types/matrix-sdk';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { getRoomUnreadInfo } from './timeline';
+import { getRoomUnreadInfo, getUnreadInfoAfterJumpToLatest } from './timeline';
 
 const USER_ID = '@alice:example.com';
 
@@ -86,5 +86,33 @@ describe('getRoomUnreadInfo', () => {
     });
 
     expect(getRoomUnreadInfo(room)).toBeUndefined();
+  });
+});
+
+describe('getUnreadInfoAfterJumpToLatest', () => {
+  it('preserves the unread jump when the read marker still lives in history', () => {
+    expect(
+      getUnreadInfoAfterJumpToLatest({
+        readUptoEventId: '$event1',
+        inLiveTimeline: false,
+        scrollTo: true,
+      })
+    ).toEqual({
+      readUptoEventId: '$event1',
+      inLiveTimeline: false,
+      scrollTo: false,
+    });
+  });
+
+  it('falls back to live timeline when no unread marker is tracked', () => {
+    expect(
+      getUnreadInfoAfterJumpToLatest({
+        inLiveTimeline: false,
+        scrollTo: true,
+      })
+    ).toEqual({
+      inLiveTimeline: true,
+      scrollTo: false,
+    });
   });
 });

@@ -199,8 +199,47 @@ type MTextProps = {
   renderBody: (props: RenderBodyProps) => ReactNode;
   renderUrlsPreview?: (urls: string[]) => ReactNode;
   renderBundledPreviews?: (bundles: IPreviewUrlResponse[]) => ReactNode;
+  composeBundledPreviewsWithUrls?: boolean;
   style?: CSSProperties;
 };
+
+const isPreviewSuppressedUrl = (
+  body: string,
+  fullMatch: string,
+  url: string,
+  offset: number,
+  allowAngleBracketSuppression: boolean
+): boolean => {
+  const urlIndex = body.indexOf(url, offset);
+  if (urlIndex === -1) return false;
+
+  if (allowAngleBracketSuppression) {
+    const wrappedUrlStart = Math.max(0, urlIndex - 1);
+    if (body.slice(wrappedUrlStart, urlIndex + url.length + 1) === `<${url}>`) return true;
+    const markdownDestinationStart = offset + fullMatch.length;
+    if (
+      body.slice(markdownDestinationStart, markdownDestinationStart + 3) === '](<' &&
+      body.slice(markdownDestinationStart + 3, markdownDestinationStart + 3 + url.length + 1) ===
+        `${url}>`
+    ) {
+      return true;
+    }
+    if (offset >= 3 && body.slice(offset - 3, offset) === '](<') return true;
+    if (body.slice(urlIndex - 2, urlIndex) === '(<') return true;
+  }
+
+  return false;
+};
+
+const normalizeMatchedUrl = (url: string, fullMatch = url): string =>
+  (fullMatch.startsWith('(') &&
+    fullMatch.endsWith(')') &&
+    url.endsWith(')') &&
+    url.substring(0, url.length - 1)) ||
+  (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+  (url.startsWith('(') && url.substring(1)) ||
+  (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+  url;
 
 const getUrlsFromContent = (
   content: Record<string, unknown>,
@@ -211,16 +250,42 @@ const getUrlsFromContent = (
     const customBody =
       typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
     const trimmedBody = trimReplyFromBody(body);
-
-    const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
-    let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-    urls = urls?.map(
-      (url) =>
-        (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
-        (url.startsWith('(') && url.substring(1)) ||
-        (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
-        url
+    const rawBundleContent = content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] as
+      | BundleContent[]
+      | undefined;
+    const bundledUrls = new Set(
+      rawBundleContent
+        ?.map((bundle) => bundle?.matched_url)
+        .filter((bundleUrl): bundleUrl is string => typeof bundleUrl === 'string') ?? []
     );
+    const hasBundledPreviewState = Object.prototype.hasOwnProperty.call(
+      content,
+      prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME
+    );
+
+    const urlsMatch = [...trimmedBody.matchAll(LINKINPUTREGEX)];
+    let urls: string[] | undefined = urlsMatch
+      .map((match) => {
+        const full = match[0];
+        const url = match[1];
+        const offset = match.index ?? 0;
+        if (typeof url !== 'string') return undefined;
+        const normalizedUrl = normalizeMatchedUrl(url, full);
+        if (
+          isPreviewSuppressedUrl(
+            trimmedBody,
+            full,
+            normalizedUrl,
+            offset,
+            hasBundledPreviewState && !bundledUrls.has(normalizedUrl)
+          )
+        ) {
+          return undefined;
+        }
+        return normalizedUrl;
+      })
+      .filter((url): url is string => Boolean(url));
+    urls = urls.length > 0 ? [...new Set(urls)] : undefined;
 
     if (urls && customBody) {
       // Filter out URLs that only appear inside <code> or <pre> tags in the formatted body
@@ -228,26 +293,24 @@ const getUrlsFromContent = (
         .replace(/<pre[^>]*>.*?<\/pre>/gs, '')
         .replace(/<code[^>]*>.*?<\/code>/gs, '');
       const safeText = safeHtml.replace(/<[^a][^>]*>/g, '');
-      const safeUrlsMatch = safeText.match(LINKINPUTREGEX);
-      let safeUrls = safeUrlsMatch ? [...new Set(safeUrlsMatch)] : [];
-      safeUrls = safeUrls.map(
-        (url) =>
-          (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
-          (url.startsWith('(') && url.substring(1)) ||
-          (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
-          url
-      );
+      const safeUrls = [...safeText.matchAll(LINKINPUTREGEX)]
+        .map((match) => {
+          const full = match[0];
+          const url = match[1];
+          return typeof url === 'string' ? normalizeMatchedUrl(url, full) : undefined;
+        })
+        .filter((url): url is string => Boolean(url));
       const safeUrlsSet = new Set(safeUrls);
       urls = urls.filter((url) => safeUrlsSet.has(url) && !url.startsWith(MATRIX_TO_BASE));
     }
 
-    let bundleContent = content[
-      prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME
-    ] as BundleContent[];
+    let bundleContent = rawBundleContent;
     try {
       bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-      if (renderUrlsPreview && bundleContent)
-        urls = bundleContent.map((bundle) => bundle.matched_url);
+      if (renderUrlsPreview && bundleContent) {
+        const bundleUrls = bundleContent.map((bundle) => bundle.matched_url);
+        urls = [...new Set([...(urls ?? []), ...bundleUrls])];
+      }
     } catch (innerError) {
       console.warn('[getUrlsFromContent] Failed to process bundleContent:', innerError);
       urls = [];
@@ -267,6 +330,7 @@ export function MText({
   renderBody,
   renderUrlsPreview,
   renderBundledPreviews,
+  composeBundledPreviewsWithUrls,
   style,
 }: MTextProps) {
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
@@ -318,6 +382,35 @@ export function MText({
   }, [unwrappedPerMessageProfileMessage, cleanedMessage, trimmedBody, customBody]);
 
   const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
+  const bundledPreviewUrls = useMemo(
+    () =>
+      new Set(
+        bundleContent
+          ?.map((bundle) => bundle?.matched_url)
+          .filter((bundleUrl): bundleUrl is string => typeof bundleUrl === 'string') ?? []
+      ),
+    [bundleContent]
+  );
+  const composedUrls = useMemo(
+    () =>
+      composeBundledPreviewsWithUrls ? urls?.filter((url) => !bundledPreviewUrls.has(url)) : urls,
+    [composeBundledPreviewsWithUrls, urls, bundledPreviewUrls]
+  );
+  const renderedUrlsPreview =
+    renderUrlsPreview && composedUrls && composedUrls.length > 0 && renderUrlsPreview(composedUrls);
+  const renderedBundledPreviews =
+    renderBundledPreviews &&
+    bundleContent &&
+    bundleContent.length > 0 &&
+    renderBundledPreviews(bundleContent as IPreviewUrlResponse[]);
+  const renderedPreviews = composeBundledPreviewsWithUrls ? (
+    <>
+      {renderedUrlsPreview}
+      {renderedBundledPreviews}
+    </>
+  ) : (
+    renderedUrlsPreview || renderedBundledPreviews
+  );
 
   if (
     (
@@ -340,11 +433,7 @@ export function MText({
           })}
           {edited && <MessageEditedContent />}
         </MessageTextBody>
-        {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-          (renderBundledPreviews &&
-            bundleContent &&
-            bundleContent.length > 0 &&
-            renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+        {renderedPreviews}
       </>
     );
   }
@@ -357,11 +446,7 @@ export function MText({
           customBody: unwrappedForwardedContent,
         })}
         {edited && <MessageEditedContent />}
-        {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-          (renderBundledPreviews &&
-            bundleContent &&
-            bundleContent.length > 0 &&
-            renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+        {renderedPreviews}
       </MessageTextBody>
     );
   }
@@ -379,11 +464,7 @@ export function MText({
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
-      {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-        (renderBundledPreviews &&
-          bundleContent &&
-          bundleContent.length > 0 &&
-          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+      {renderedPreviews}
     </>
   );
 }
@@ -395,6 +476,7 @@ type MEmoteProps = {
   renderBody: (props: RenderBodyProps) => ReactNode;
   renderUrlsPreview?: (urls: string[]) => ReactNode;
   renderBundledPreviews?: (bundles: IPreviewUrlResponse[]) => ReactNode;
+  composeBundledPreviewsWithUrls?: boolean;
 };
 export function MEmote({
   displayName,
@@ -403,6 +485,7 @@ export function MEmote({
   renderBody,
   renderUrlsPreview,
   renderBundledPreviews,
+  composeBundledPreviewsWithUrls,
 }: MEmoteProps) {
   const { body, formatted_body: customBody } = content;
   const cleanedMessage = useMemo(
@@ -413,14 +496,42 @@ export function MEmote({
     [customBody]
   );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
+  const trimmedBody = typeof body === 'string' ? trimReplyFromBody(body) : '';
+  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
+  const bundledPreviewUrls = useMemo(
+    () =>
+      new Set(
+        bundleContent
+          ?.map((bundle) => bundle?.matched_url)
+          .filter((bundleUrl): bundleUrl is string => typeof bundleUrl === 'string') ?? []
+      ),
+    [bundleContent]
+  );
+  const composedUrls = useMemo(
+    () =>
+      composeBundledPreviewsWithUrls ? urls?.filter((url) => !bundledPreviewUrls.has(url)) : urls,
+    [composeBundledPreviewsWithUrls, urls, bundledPreviewUrls]
+  );
 
   if (typeof body !== 'string') {
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
-  const trimmedBody = trimReplyFromBody(body);
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
-
-  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
+  const renderedUrlsPreview =
+    renderUrlsPreview && composedUrls && composedUrls.length > 0 && renderUrlsPreview(composedUrls);
+  const renderedBundledPreviews =
+    renderBundledPreviews &&
+    bundleContent &&
+    bundleContent.length > 0 &&
+    renderBundledPreviews(bundleContent as IPreviewUrlResponse[]);
+  const renderedPreviews = composeBundledPreviewsWithUrls ? (
+    <>
+      {renderedUrlsPreview}
+      {renderedBundledPreviews}
+    </>
+  ) : (
+    renderedUrlsPreview || renderedBundledPreviews
+  );
 
   return (
     <>
@@ -436,11 +547,7 @@ export function MEmote({
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
-      {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-        (renderBundledPreviews &&
-          bundleContent &&
-          bundleContent.length > 0 &&
-          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+      {renderedPreviews}
     </>
   );
 }
@@ -451,6 +558,7 @@ type MNoticeProps = {
   renderBody: (props: RenderBodyProps) => ReactNode;
   renderUrlsPreview?: (urls: string[]) => ReactNode;
   renderBundledPreviews?: (bundles: IPreviewUrlResponse[]) => ReactNode;
+  composeBundledPreviewsWithUrls?: boolean;
 };
 export function MNotice({
   edited,
@@ -458,6 +566,7 @@ export function MNotice({
   renderBody,
   renderUrlsPreview,
   renderBundledPreviews,
+  composeBundledPreviewsWithUrls,
 }: MNoticeProps) {
   const { body, formatted_body: customBody } = content;
   const cleanedMessage = useMemo(
@@ -468,14 +577,42 @@ export function MNotice({
     [customBody]
   );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
+  const trimmedBody = typeof body === 'string' ? trimReplyFromBody(body) : '';
+  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
+  const bundledPreviewUrls = useMemo(
+    () =>
+      new Set(
+        bundleContent
+          ?.map((bundle) => bundle?.matched_url)
+          .filter((bundleUrl): bundleUrl is string => typeof bundleUrl === 'string') ?? []
+      ),
+    [bundleContent]
+  );
+  const composedUrls = useMemo(
+    () =>
+      composeBundledPreviewsWithUrls ? urls?.filter((url) => !bundledPreviewUrls.has(url)) : urls,
+    [composeBundledPreviewsWithUrls, urls, bundledPreviewUrls]
+  );
 
   if (typeof body !== 'string') {
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
-  const trimmedBody = trimReplyFromBody(body);
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
-
-  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
+  const renderedUrlsPreview =
+    renderUrlsPreview && composedUrls && composedUrls.length > 0 && renderUrlsPreview(composedUrls);
+  const renderedBundledPreviews =
+    renderBundledPreviews &&
+    bundleContent &&
+    bundleContent.length > 0 &&
+    renderBundledPreviews(bundleContent as IPreviewUrlResponse[]);
+  const renderedPreviews = composeBundledPreviewsWithUrls ? (
+    <>
+      {renderedUrlsPreview}
+      {renderedBundledPreviews}
+    </>
+  ) : (
+    renderedUrlsPreview || renderedBundledPreviews
+  );
 
   return (
     <>
@@ -490,11 +627,7 @@ export function MNotice({
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
-      {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-        (renderBundledPreviews &&
-          bundleContent &&
-          bundleContent.length > 0 &&
-          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+      {renderedPreviews}
     </>
   );
 }

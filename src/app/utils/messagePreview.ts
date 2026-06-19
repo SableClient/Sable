@@ -24,12 +24,14 @@ export type MessagePreviewKind =
 export type MessagePreviewModel = {
   kind: MessagePreviewKind;
   text: string;
+  placeholderText: string;
   body?: string;
   formattedBody?: string;
   msgType?: string;
   isEdited?: boolean;
   isLinkOnly?: boolean;
   hasBlockContent?: boolean;
+  canRenderInline?: boolean;
 };
 
 type PreviewContentInput = {
@@ -53,6 +55,8 @@ export function stripReplyFallback(body: string): string {
 
 const isBlockFormattedBody = (formattedBody: string): boolean =>
   /<(?:pre)(?:\s|>)/i.test(formattedBody);
+
+const isBlockBody = (body: string): boolean => /^\s*```[\s\S]*```(?:\s*)$/.test(body.trim());
 
 export function getPreviewEventContent(ev: MatrixEvent): Record<string, unknown> {
   const content = ev.getContent() as Record<string, unknown>;
@@ -105,6 +109,8 @@ export function buildMessagePreviewFromContent({
     return {
       kind: 'encrypted',
       text: '🔒 Encrypted message',
+      placeholderText: '🔒 Encrypted message',
+      canRenderInline: false,
     };
   }
 
@@ -125,10 +131,25 @@ export function buildMessagePreviewFromContent({
         return {
           kind: 'unsupported',
           text: '💻 Code Block',
+          placeholderText: '💻 Code Block',
           body,
           formattedBody,
           msgType: typeof msgtype === 'string' ? msgtype : undefined,
           hasBlockContent: true,
+          canRenderInline: false,
+        };
+      }
+
+      if (isBlockBody(body)) {
+        return {
+          kind: 'unsupported',
+          text: '💻 Code Block',
+          placeholderText: '💻 Code Block',
+          body,
+          formattedBody,
+          msgType: typeof msgtype === 'string' ? msgtype : undefined,
+          hasBlockContent: true,
+          canRenderInline: false,
         };
       }
 
@@ -136,38 +157,76 @@ export function buildMessagePreviewFromContent({
         return {
           kind: 'link',
           text: '🔗 Link',
+          placeholderText: '🔗 Link',
           body,
           formattedBody,
           msgType: typeof msgtype === 'string' ? msgtype : undefined,
           isLinkOnly: true,
+          canRenderInline: true,
         };
       }
 
       return {
         kind: 'text',
         text: body,
+        placeholderText: body,
         body,
         formattedBody,
         msgType: typeof msgtype === 'string' ? msgtype : undefined,
+        canRenderInline: true,
       };
     }
 
     if (msgtype === MsgType.Image)
-      return { kind: 'image', text: '📷 Image', msgType: MsgType.Image };
+      return {
+        kind: 'image',
+        text: '📷 Image',
+        placeholderText: '📷 Image',
+        msgType: MsgType.Image,
+        canRenderInline: false,
+      };
     if (msgtype === MsgType.Video)
-      return { kind: 'video', text: '📹 Video', msgType: MsgType.Video };
+      return {
+        kind: 'video',
+        text: '📹 Video',
+        placeholderText: '📹 Video',
+        msgType: MsgType.Video,
+        canRenderInline: false,
+      };
     if (msgtype === MsgType.Audio)
-      return { kind: 'audio', text: '🎵 Audio', msgType: MsgType.Audio };
-    if (msgtype === MsgType.File) return { kind: 'file', text: '📎 File', msgType: MsgType.File };
+      return {
+        kind: 'audio',
+        text: '🎵 Audio',
+        placeholderText: '🎵 Audio',
+        msgType: MsgType.Audio,
+        canRenderInline: false,
+      };
+    if (msgtype === MsgType.File)
+      return {
+        kind: 'file',
+        text: '📎 File',
+        placeholderText: '📎 File',
+        msgType: MsgType.File,
+        canRenderInline: false,
+      };
     if (msgtype === 'm.location') {
-      return { kind: 'location', text: '📍 Location', msgType: 'm.location' };
+      return {
+        kind: 'location',
+        text: '📍 Location',
+        placeholderText: '📍 Location',
+        msgType: 'm.location',
+        canRenderInline: false,
+      };
     }
   }
 
   if (previewType === STICKER_EVENT_TYPE) {
+    const text = `🎉 ${typeof content.body === 'string' && content.body.trim() ? content.body : 'Sticker'}`;
     return {
       kind: 'sticker',
-      text: `🎉 ${typeof content.body === 'string' && content.body.trim() ? content.body : 'Sticker'}`,
+      text,
+      placeholderText: text,
+      canRenderInline: false,
     };
   }
 
@@ -188,23 +247,46 @@ export function buildMessagePreviewFromContent({
       typeof pollBodyCandidate === 'string' && pollBodyCandidate.trim()
         ? pollBodyCandidate.trim()
         : 'Poll';
-    return { kind: 'poll', text: `📊 ${pollBody}` };
+    return {
+      kind: 'poll',
+      text: `📊 ${pollBody}`,
+      placeholderText: `📊 ${pollBody}`,
+      canRenderInline: false,
+    };
   }
 
   if (previewType === 'org.matrix.msc3401.call' || previewType === 'm.call.invite') {
-    return { kind: 'call', text: '📞 Started a call' };
+    return {
+      kind: 'call',
+      text: '📞 Started a call',
+      placeholderText: '📞 Started a call',
+      canRenderInline: false,
+    };
   }
   if (previewType === 'm.call.answer') {
-    return { kind: 'call', text: '📞 Answered call' };
+    return {
+      kind: 'call',
+      text: '📞 Answered call',
+      placeholderText: '📞 Answered call',
+      canRenderInline: false,
+    };
   }
   if (previewType === 'm.call.hangup') {
-    return { kind: 'call', text: '📞 Ended call' };
+    return {
+      kind: 'call',
+      text: '📞 Ended call',
+      placeholderText: '📞 Ended call',
+      canRenderInline: false,
+    };
   }
 
   if (previewType === 'im.vector.modular.widgets') {
+    const text = content.type === 'jitsi' ? '📞 Started a Jitsi call' : '🧩 Added a widget';
     return {
       kind: 'call',
-      text: content.type === 'jitsi' ? '📞 Started a Jitsi call' : '🧩 Added a widget',
+      text,
+      placeholderText: text,
+      canRenderInline: false,
     };
   }
 
@@ -228,4 +310,33 @@ export function buildMessagePreview(ev: MatrixEvent): MessagePreviewModel | unde
     ...preview,
     isEdited: !!replacingEvent,
   };
+}
+
+export function canRenderInlineMessagePreview(preview: MessagePreviewModel): boolean {
+  return (
+    preview.canRenderInline === true &&
+    !preview.hasBlockContent &&
+    (preview.kind === 'text' || preview.kind === 'link') &&
+    (typeof preview.formattedBody === 'string' || typeof preview.body === 'string')
+  );
+}
+
+type StoredPreviewInput = {
+  body?: string;
+  msgType?: string;
+};
+
+export function buildStoredMessagePreview({
+  body,
+  msgType,
+}: StoredPreviewInput): MessagePreviewModel | undefined {
+  if (typeof body !== 'string' && typeof msgType !== 'string') return undefined;
+
+  return buildMessagePreviewFromContent({
+    content: {
+      ...(typeof body === 'string' ? { body } : {}),
+      msgtype: typeof msgType === 'string' ? msgType : MsgType.Text,
+    },
+    eventType: ROOM_MESSAGE_EVENT_TYPE,
+  });
 }

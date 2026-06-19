@@ -64,7 +64,7 @@ jobs:
 
       - name: Resolve Sentry region URL
         run: |
-          sentry_url="$(node -e "const hostname = new URL(process.env.VITE_SENTRY_DSN).hostname || ''; const marker = '.ingest.'; const regionHost = hostname.includes(marker) ? hostname.split(marker)[1] : 'sentry.io'; process.stdout.write(\`https://${regionHost}/\`);")"
+          sentry_url="$(node -e "const hostname = new URL(process.env.VITE_SENTRY_DSN).hostname || ''; const marker = '.ingest.'; const regionHost = hostname.includes(marker) ? hostname.split(marker)[1] : 'sentry.io'; process.stdout.write('https://' + regionHost + '/');")"
           echo "SENTRY_URL=$sentry_url" >> "$GITHUB_ENV"
           echo "Resolved Sentry URL: $sentry_url"
 
@@ -91,8 +91,7 @@ jobs:
       - name: Upload snapshots to Sentry
         if: env.SENTRY_SNAPSHOTS_ENABLED == 'true' && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
         run: >
-          pnpm dlx @sentry/cli@3.5.1 snapshots upload
-          --url "$SENTRY_URL"
+          pnpm dlx @sentry/cli@3.5.1 --url "$SENTRY_URL" snapshots upload
           --auth-token "$SENTRY_AUTH_TOKEN"
           --org "$SENTRY_ORG"
           --project "$SENTRY_PROJECT"

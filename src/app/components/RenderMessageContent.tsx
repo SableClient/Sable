@@ -74,8 +74,11 @@ type RenderMessageContentProps = {
 
 const getMediaType = (url: string) => {
   const cleanUrl = url.toLowerCase();
-  if (cleanUrl.match(/\.(mp4|webm|ogg)$/i)) return 'video';
-  if (cleanUrl.match(/\.(png|jpg|jpeg|gif|webp)$/i) || cleanUrl.match(/@(jpeg|webp|png|jpg)$/i))
+  if (cleanUrl.match(/\.(mp4|webm|ogg)(\?|#|$)/i)) return 'video';
+  if (
+    cleanUrl.match(/\.(png|jpg|jpeg|gif|webp)(\?|#|$)/i) ||
+    cleanUrl.match(/@(jpeg|webp|png|jpg)(\?|#|$)/i)
+  )
     return 'image';
   return null;
 };
@@ -158,8 +161,7 @@ function RenderMessageContentInternal({
         url,
         type: getMediaType(url),
       }));
-      const mediaLinks = clientUrlPreview ? analyzed.filter((item) => item.type !== null) : [];
-      const previewCandidates = mediaLinks.length > 0 ? mediaLinks : analyzed;
+      const previewCandidates = analyzed;
       const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]!];
       return (
         <UrlPreviewHolder>
@@ -213,7 +215,8 @@ function RenderMessageContentInternal({
     ),
     [urlPreview]
   );
-  const messageUrlsPreview = urlPreview || themeChatSableWidgets ? renderUrlsPreview : undefined;
+  const messageUrlsPreview =
+    urlPreview || clientUrlPreview || themeChatSableWidgets ? renderUrlsPreview : undefined;
   const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
 
   const renderCaption = () => {

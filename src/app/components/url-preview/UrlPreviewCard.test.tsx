@@ -31,10 +31,13 @@ vi.mock('$state/hooks/settings', () => ({
 }));
 
 vi.mock('$hooks/useMediaMetadata', () => ({
-  useMediaMetadata: () => ({
+  useMediaMetadata: (cacheKey?: string) => ({
     width: 720,
     height: 1280,
-    mimeType: 'image/gif',
+    mimeType:
+      typeof cacheKey === 'string' && cacheKey.toLowerCase().includes('.gif')
+        ? 'image/gif'
+        : 'image/png',
   }),
 }));
 
@@ -70,12 +73,6 @@ vi.mock('$components/media', () => ({
 
 vi.mock('$components/image-viewer', () => ({
   ImageViewer: () => null,
-}));
-
-vi.mock('$components/ClientSideHoverFreeze', () => ({
-  ClientSideHoverFreeze: ({ children }: { children: ReactNode }) => (
-    <div data-testid="hover-freeze">{children}</div>
-  ),
 }));
 
 vi.mock('./UrlPreview', () => ({
@@ -117,12 +114,15 @@ describe('UrlPreviewCard', () => {
     ).toBeInTheDocument();
   });
 
-  it('wraps direct animated image links in hover freeze when gif autoplay is disabled', () => {
+  it('falls back to a plain link card for direct animated image links when gif autoplay is disabled', () => {
     renderWithProviders(
       <UrlPreviewCard urlPreview url="https://example.com/images/test.gif" mediaType="image" />
     );
 
-    expect(screen.getByTestId('hover-freeze')).toBeInTheDocument();
+    expect(screen.queryByTestId('direct-image')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'https://example.com/images/test.gif' })
+    ).toBeInTheDocument();
   });
 
   it('falls back to a plain link card when a direct image preview errors', () => {

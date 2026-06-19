@@ -20,7 +20,6 @@ import type { IImageInfo } from '$types/matrix/common';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '$unstable/prefixes';
 import { useMediaMetadata } from '$hooks/useMediaMetadata';
 import { getScopedMediaCacheKey } from '$utils/mediaTransport';
-import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 
 const linkStyles = { color: color.Success.Main };
 
@@ -277,29 +276,9 @@ export const UrlPreviewCard = as<
     const freezeAnimatedPreview =
       mediaType === 'image' && !autoplayGifs && isAnimatedDirectImage(body, directMimeType);
 
-    if (directMediaError || !directMediaUrl) {
+    if (directMediaError || !directMediaUrl || freezeAnimatedPreview) {
       return renderCardShell(body);
     }
-
-    const directImage = (
-      <Image
-        info={directMediaInfo}
-        alt={body}
-        title={body}
-        src={directMediaUrl}
-        loading="lazy"
-        onError={() => setDirectMediaError(true)}
-        style={{
-          display: 'block',
-          maxWidth: '100%',
-          maxHeight: '100%',
-          width: 'auto',
-          height: 'auto',
-          objectFit: 'contain',
-          objectPosition: 'center',
-        }}
-      />
-    );
 
     return renderCardShell(
       body,
@@ -320,11 +299,23 @@ export const UrlPreviewCard = as<
               justifyContent: 'center',
             }}
           >
-            {freezeAnimatedPreview ? (
-              <ClientSideHoverFreeze src={directMediaUrl}>{directImage}</ClientSideHoverFreeze>
-            ) : (
-              directImage
-            )}
+            <Image
+              info={directMediaInfo}
+              alt={body}
+              title={body}
+              src={directMediaUrl}
+              loading="lazy"
+              onError={() => setDirectMediaError(true)}
+              style={{
+                display: 'block',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                width: 'auto',
+                height: 'auto',
+                objectFit: 'contain',
+                objectPosition: 'center',
+              }}
+            />
           </Box>
         ) : (
           <Box

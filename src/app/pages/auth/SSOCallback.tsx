@@ -17,7 +17,7 @@ export function SSOCallback() {
       return undefined;
     }
 
-    window.location.href = `${TAURI_SSO_CALLBACK_BASE}${search}`;
+    window.location.replace(`${TAURI_SSO_CALLBACK_BASE}${search}`);
 
     const loadedAt = Date.now();
     const handleHide = () => {

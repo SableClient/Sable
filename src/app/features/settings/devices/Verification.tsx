@@ -36,6 +36,8 @@ import { stopPropagation } from '$utils/keyboard';
 import { useAuthMetadata } from '$hooks/useAuthMetadata';
 import { withSearchParam } from '$pages/pathUtils';
 import { useAccountManagementActions } from '$hooks/useAccountManagement';
+import { isTauri } from '@tauri-apps/api/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 type VerificationStatusBadgeProps = {
   verificationStatus: VerificationStatus;
@@ -221,6 +223,16 @@ export function VerifyOtherDeviceTile({ crypto, deviceId }: VerifyOtherDeviceTil
 type EnableVerificationProps = {
   visible: boolean;
 };
+
+const openAccountManagementUrl = async (url: string): Promise<void> => {
+  if (isTauri()) {
+    await openUrl(url);
+    return;
+  }
+
+  window.open(url, '_blank');
+};
+
 export function EnableVerification({ visible }: EnableVerificationProps) {
   const [open, setOpen] = useState(false);
 
@@ -260,6 +272,7 @@ export function DeviceVerificationOptions() {
   const accountManagementActions = useAccountManagementActions();
 
   const [reset, setReset] = useState(false);
+  const [resetError, setResetError] = useState<string>();
 
   const handleCancelReset = useCallback(() => {
     setReset(false);
@@ -269,18 +282,26 @@ export function DeviceVerificationOptions() {
     setMenuCords(event.currentTarget.getBoundingClientRect());
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setMenuCords(undefined);
+    setResetError(undefined);
 
     if (authMetadata) {
       const authUrl = authMetadata.account_management_uri ?? authMetadata.issuer;
-      window.open(
-        withSearchParam(authUrl, {
-          action: accountManagementActions.crossSigningReset,
-        }),
-        '_blank'
-      );
-      return;
+      try {
+        await openAccountManagementUrl(
+          withSearchParam(authUrl, {
+            action: accountManagementActions.crossSigningReset,
+          })
+        );
+      } catch (error) {
+        setResetError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to open account management. Please try again.'
+        );
+        return;
+      }
     }
 
     setReset(true);
@@ -297,6 +318,7 @@ export function DeviceVerificationOptions() {
       >
         {menuIcon(DotsThreeOutlineVerticalIcon, { weight: menuCords ? 'fill' : 'regular' })}
       </IconButton>
+      {resetError && <Text size="T200">{resetError}</Text>}
       <PopOut
         anchor={menuCords}
         offset={5}
@@ -343,7 +365,10 @@ export function DeviceVerificationOptions() {
                 escapeDeactivates: false,
               }}
             >
-              <DeviceVerificationReset onCancel={handleCancelReset} />
+              <DeviceVerificationReset
+                onCancel={handleCancelReset}
+                externalResetRequired={!!authMetadata}
+              />
             </FocusTrap>
           </OverlayCenter>
         </Overlay>

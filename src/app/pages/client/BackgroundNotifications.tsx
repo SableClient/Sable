@@ -4,8 +4,8 @@ import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import {
   ClientEvent,
   createClient,
-  IndexedDBStore,
   MatrixEventEvent,
+  IndexedDBStore,
   RoomEvent,
   SyncState,
   PushProcessor,
@@ -73,7 +73,7 @@ export const classifyBackgroundClientFailure = (error: unknown): BackgroundClien
   return 'start_failed';
 };
 
-const startBackgroundClient = async (
+export const startBackgroundClient = async (
   session: Session,
   slidingSyncConfig: ReturnType<typeof useClientConfig>['slidingSync']
 ): Promise<MatrixClient> => {

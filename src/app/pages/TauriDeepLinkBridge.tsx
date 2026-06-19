@@ -11,7 +11,10 @@ const mapDeepLinkToLoginPath = (rawUrl: string): string | undefined => {
   const callback = parseTauriSsoCallback(rawUrl);
   if (!callback) return undefined;
 
-  return withSearchParam(getLoginPath(callback.server), { loginToken: callback.loginToken });
+  return withSearchParam(getLoginPath(callback.server), {
+    loginToken: callback.loginToken,
+    ...(callback.addAccount ? { addAccount: '1' } : {}),
+  });
 };
 
 export function TauriDeepLinkBridge() {

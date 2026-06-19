@@ -43,8 +43,11 @@ export function Login() {
   const { loginFlows } = useAuthFlows();
   const [searchParams] = useSearchParams();
   const loginSearchParams = useLoginSearchParams(searchParams);
+  const isAddingAccount = searchParams.get('addAccount') === '1';
   const webSsoRedirectUrl = usePathWithOrigin(getLoginPath(server));
-  const ssoRedirectUrl = isTauri() ? buildTauriSsoRedirectUrl(server) : webSsoRedirectUrl;
+  const ssoRedirectUrl = isTauri()
+    ? buildTauriSsoRedirectUrl(server, { addAccount: isAddingAccount })
+    : webSsoRedirectUrl;
   const loginTokenForHashRouter = getLoginTokenSearchParam();
   const absoluteLoginPath = usePathWithOrigin(getLoginPath(server));
   const parsedFlows = useParsedLoginFlows(loginFlows.flows);

@@ -68,6 +68,7 @@ let activeAppClientStopPromise: Promise<void> | undefined;
 const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 8000;
 const MATRIX_EVENT_TYPE_GUARD_PATCHED = '__sableEventTypeGuardPatched';
 const MATRIX_EVENT_TYPE_GUARD_REPORTED = '__sableEventTypeGuardReported';
+export const MATRIX_EVENT_FALLBACK_TYPE = 'org.sable.placeholder.event';
 
 type FetchRoomEventResult = Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>;
 type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
@@ -75,6 +76,9 @@ type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
 };
 
 type MatrixDeviceContextClient = Pick<MatrixClient, 'getDeviceId'>;
+
+export const normalizeMatrixEventType = (type: unknown): string =>
+  typeof type === 'string' && type.trim().length > 0 ? type : MATRIX_EVENT_FALLBACK_TYPE;
 
 const installMatrixEventTypeGuard = (): void => {
   const proto = MatrixEventClass.prototype as {
@@ -92,11 +96,11 @@ const installMatrixEventTypeGuard = (): void => {
     };
     const resolved =
       typeof originalGetType === 'function' ? originalGetType.apply(this, args) : self.event?.type;
-    if (typeof resolved === 'string') {
+    if (typeof resolved === 'string' && resolved.trim().length > 0) {
       return resolved;
     }
 
-    const fallback = typeof self.event?.type === 'string' ? self.event.type : '';
+    const fallback = normalizeMatrixEventType(self.event?.type);
     if (!self[MATRIX_EVENT_TYPE_GUARD_REPORTED]) {
       self[MATRIX_EVENT_TYPE_GUARD_REPORTED] = true;
       Sentry.captureMessage('MatrixEvent missing string event type', {
@@ -185,7 +189,7 @@ function installStartupFetchRoomEventPatch(
       const payload: FetchRoomEventResult = {
         event_id: eventId,
         room_id: roomId,
-        type: '',
+        type: MATRIX_EVENT_FALLBACK_TYPE,
         content: {},
         sender: '',
       };
@@ -1327,6 +1331,7 @@ const startClientInternal = async (mx: MatrixClient, config?: StartClientConfig)
 };
 
 export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
+  installMatrixEventTypeGuard();
   const clientScope = config?.clientScope ?? 'app';
   if (clientScope !== 'app') {
     await startClientInternal(mx, config);

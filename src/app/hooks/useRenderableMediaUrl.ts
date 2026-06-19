@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { activeSessionIdAtom } from '$state/sessions';
-import { fetchMediaBlob, getCurrentMediaSessionScope } from '$utils/mediaTransport';
+import {
+  fetchMediaBlob,
+  getCurrentMediaSessionScope,
+  isGracefullyDegradableMediaFetchError,
+} from '$utils/mediaTransport';
 
 type ObjectUrlEntry = {
   refs: number;
@@ -11,7 +15,7 @@ type ObjectUrlEntry = {
   clearOnRelease: boolean;
   lastUsed: number;
   objectUrl?: string;
-  promise: Promise<string>;
+  promise: Promise<string | undefined>;
 };
 
 type ResolvedMediaUrlState = {
@@ -20,7 +24,7 @@ type ResolvedMediaUrlState = {
 };
 
 const objectUrlCache = new Map<string, ObjectUrlEntry>();
-const inflightRequests = new Map<string, Promise<string>>();
+const inflightRequests = new Map<string, Promise<string | undefined>>();
 const MAX_OBJECT_URL_CACHE_ENTRIES = 500;
 let lastUsedCounter = 0;
 
@@ -124,14 +128,18 @@ function createObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
       return objectUrl;
     })
     .catch((error) => {
+      const result = isGracefullyDegradableMediaFetchError(error) ? 'degraded' : 'error';
       Sentry.metrics.distribution(
         'sable.media.renderable_resolve_ms',
         performance.now() - startedAt,
         {
-          attributes: { result: 'error' },
+          attributes: { result },
         }
       );
       deleteObjectUrlEntryIfCurrent(cacheKey, entry);
+      if (result === 'degraded') {
+        return undefined;
+      }
       throw error;
     })
     .finally(() => {
@@ -185,8 +193,14 @@ function releaseObjectUrlEntry(cacheKey: string, entry: ObjectUrlEntry): void {
   pruneObjectUrlCache();
 }
 
-export function getRenderableMediaUrlStats(): { cacheSize: number; inflightCount: number } {
-  return { cacheSize: objectUrlCache.size, inflightCount: inflightRequests.size };
+export function getRenderableMediaUrlStats(): {
+  cacheSize: number;
+  inflightCount: number;
+} {
+  return {
+    cacheSize: objectUrlCache.size,
+    inflightCount: inflightRequests.size,
+  };
 }
 
 export function clearRenderableMediaUrlCache(): void {
@@ -257,7 +271,10 @@ export function useRenderableMediaUrl(url: string | undefined): string | undefin
     entry.promise
       .then((resolvedObjectUrl) => {
         if (!cancelled) {
-          setResolvedState({ cacheKey: objectUrlCacheKey, url: resolvedObjectUrl });
+          setResolvedState({
+            cacheKey: objectUrlCacheKey,
+            url: resolvedObjectUrl,
+          });
         }
       })
       .catch(() => {

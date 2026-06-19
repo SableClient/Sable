@@ -22,6 +22,22 @@ export type MediaTransportOptions = {
   sessionScope?: string;
 };
 
+export class MediaFetchError extends Error {
+  public readonly status: number;
+
+  public readonly statusText: string;
+
+  public readonly url: string;
+
+  public constructor(url: string, status: number, statusText: string) {
+    super(`Failed to fetch media: ${status} ${statusText}`);
+    this.name = 'MediaFetchError';
+    this.status = status;
+    this.statusText = statusText;
+    this.url = url;
+  }
+}
+
 const inflightRequests = new Map<string, Promise<Blob>>();
 
 const MATRIX_SESSIONS_KEY = 'matrixSessions';
@@ -164,6 +180,14 @@ function isResponseBodyReadError(error: unknown): boolean {
   return /load failed|network/i.test(error.message);
 }
 
+function buildMediaFetchError(url: string, response: Response): MediaFetchError {
+  return new MediaFetchError(url, response.status, response.statusText);
+}
+
+export function isGracefullyDegradableMediaFetchError(error: unknown): boolean {
+  return error instanceof MediaFetchError && error.status === 400;
+}
+
 async function fetchMediaResponse(
   url: string,
   accessToken?: string | null,
@@ -211,7 +235,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
   const useServiceWorker = hasControllingServiceWorker() && !hasExplicitMediaAuthOverride(options);
   const fetchAndCache = async (response: Response): Promise<Blob> => {
     if (!response.ok) {
-      throw new Error(`Failed to fetch media: ${response.status} ${response.statusText}`);
+      throw buildMediaFetchError(url, response);
     }
 
     const blob = await response.blob();
@@ -263,9 +287,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
   }
 
   if (!isRetryableAuthError(initialResponse)) {
-    throw new Error(
-      `Failed to fetch media: ${initialResponse.status} ${initialResponse.statusText}`
-    );
+    throw buildMediaFetchError(url, initialResponse);
   }
 
   const retryAccessToken = resolveAccessToken(options);

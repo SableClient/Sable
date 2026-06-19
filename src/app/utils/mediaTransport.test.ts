@@ -255,6 +255,32 @@ describe('fetchMediaBlob', () => {
     expect(mediaCache.putInMediaCache).toHaveBeenCalledWith(scopedUrl, freshBlob);
   });
 
+  it('classifies 400 media failures as degradable client-side errors', async () => {
+    const { fetchMediaBlob, isGracefullyDegradableMediaFetchError, MediaFetchError } =
+      await import('./mediaTransport');
+    const url = 'https://example.org/media.png';
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('bad request', { status: 400 }));
+
+    const result = fetchMediaBlob(url);
+    await expect(result).rejects.toBeInstanceOf(MediaFetchError);
+    const error = await result.catch((caughtError: unknown) => caughtError);
+    expect(isGracefullyDegradableMediaFetchError(error)).toBe(true);
+    expect(error).toMatchObject({ status: 400, url });
+  });
+
+  it('keeps non-400 media failures actionable', async () => {
+    const { fetchMediaBlob, isGracefullyDegradableMediaFetchError, MediaFetchError } =
+      await import('./mediaTransport');
+    const url = 'https://example.org/media.png';
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('oops', { status: 500 }));
+
+    const result = fetchMediaBlob(url);
+    await expect(result).rejects.toBeInstanceOf(MediaFetchError);
+    const error = await result.catch((caughtError: unknown) => caughtError);
+    expect(isGracefullyDegradableMediaFetchError(error)).toBe(false);
+    expect(error).toMatchObject({ status: 500, url });
+  });
+
   it('skips cache reads and writes for bypass requests', async () => {
     const { fetchMediaBlob } = await import('./mediaTransport');
     const url = 'https://example.org/media.png';

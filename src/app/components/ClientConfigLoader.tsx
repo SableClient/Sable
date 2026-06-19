@@ -8,6 +8,86 @@ import { fetch } from '$utils/fetch';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+type ConfigLoadFailureKind = 'http' | 'network' | 'unknown';
+
+export class ClientConfigLoadError extends Error {
+  public readonly attempts: number;
+
+  public readonly kind: ConfigLoadFailureKind;
+
+  public readonly status?: number;
+
+  public readonly statusText?: string;
+
+  public readonly url: string;
+
+  public constructor(options: {
+    attempts: number;
+    kind: ConfigLoadFailureKind;
+    url: string;
+    status?: number;
+    statusText?: string;
+    cause?: unknown;
+  }) {
+    const { attempts, kind, status, statusText, url, cause } = options;
+    const detail =
+      kind === 'http' && status
+        ? `HTTP ${status}${statusText ? ` ${statusText}` : ''}`
+        : kind === 'network'
+          ? 'network failure'
+          : 'unexpected error';
+    super(`Failed to load app configuration after ${attempts} attempts: ${detail}`, { cause });
+    this.name = 'ClientConfigLoadError';
+    this.attempts = attempts;
+    this.kind = kind;
+    this.status = status;
+    this.statusText = statusText;
+    this.url = url;
+  }
+}
+
+function classifyConfigLoadFailure(
+  error: unknown,
+  attempts: number,
+  url: string
+): ClientConfigLoadError {
+  const message = error instanceof Error ? error.message : String(error);
+  const httpMatch = /^HTTP (\d+):\s*(.*)$/.exec(message);
+  if (httpMatch) {
+    const [, statusTextNumber, statusText = ''] = httpMatch;
+    return new ClientConfigLoadError({
+      attempts,
+      kind: 'http',
+      status: Number(statusTextNumber),
+      statusText,
+      url,
+      cause: error,
+    });
+  }
+
+  if (/load failed|failed to fetch|network/i.test(message)) {
+    return new ClientConfigLoadError({
+      attempts,
+      kind: 'network',
+      url,
+      cause: error,
+    });
+  }
+
+  return new ClientConfigLoadError({
+    attempts,
+    kind: 'unknown',
+    url,
+    cause: error,
+  });
+}
+
+function shouldCaptureConfigLoadFailure(error: ClientConfigLoadError): boolean {
+  if (error.kind === 'network') return false;
+  if (error.kind === 'http' && error.status === 403) return false;
+  return true;
+}
+
 export const buildConfigAttemptUrl = (baseUrl: string, attempt: number): string => {
   if (attempt === 0) return baseUrl;
   const separator = baseUrl.includes('?') ? '&' : '?';
@@ -73,19 +153,22 @@ export const getClientConfig = async (): Promise<ClientConfig> => {
       });
 
       if (isLastAttempt) {
-        Sentry.captureMessage('Failed to load config.json after all retries', {
-          level: 'error',
-          extra: {
-            attempts: maxAttempts,
-            lastError: errorMessage,
-            finalAttemptUrl: attemptUrl,
-            likelyHttpFailure: /^HTTP \d+/.test(errorMessage),
-          },
-        });
-        throw new Error(
-          `Failed to load app configuration after ${maxAttempts} attempts: ${errorMessage}`,
-          { cause: err }
-        );
+        const classifiedError = classifyConfigLoadFailure(err, maxAttempts, attemptUrl);
+        if (shouldCaptureConfigLoadFailure(classifiedError)) {
+          Sentry.captureException(classifiedError, {
+            tags: {
+              category: 'config',
+              config_failure_kind: classifiedError.kind,
+            },
+            extra: {
+              attempts: maxAttempts,
+              finalAttemptUrl: attemptUrl,
+              status: classifiedError.status,
+              statusText: classifiedError.statusText,
+            },
+          });
+        }
+        throw classifiedError;
       }
 
       // Exponential backoff: 500ms, 1000ms, 2000ms
@@ -111,7 +194,10 @@ export function ClientConfigLoader({ fallback, error, children }: ClientConfigLo
   const ignoreCallback = useCallback(() => setIgnoreError(true), []);
 
   useEffect(() => {
-    load();
+    load().catch(() => {
+      // useAsyncCallback already published the error state; suppress the duplicate
+      // unhandled rejection path so handled bootstrap failures stay quiet.
+    });
   }, [load]);
 
   if (state.status === AsyncStatus.Idle || state.status === AsyncStatus.Loading) {

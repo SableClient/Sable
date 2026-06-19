@@ -17,11 +17,7 @@ export function PerMessageProfilePage({ requestBack, requestClose }: PerMessageP
           grow="Yes"
           gap="200"
           style={{
-            paddingLeft: '20px',
-            paddingRight: '20px',
-            paddingTop: '10px',
-            marginRight: '5px',
-            marginLeft: '5px',
+            padding: '16px',
           }}
           direction="Column"
           shrink="No"

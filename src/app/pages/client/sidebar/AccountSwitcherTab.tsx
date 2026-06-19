@@ -17,7 +17,6 @@ import {
   toRem,
   Chip,
   Spinner,
-  Line,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
@@ -56,6 +55,21 @@ import { Check, chipIcon, GearSix, menuIcon, Plus } from '$components/icons/phos
 
 const log = createLogger('AccountSwitcherTab');
 const debugLog = createDebugLogger('AccountSwitcherTab');
+
+const sectionHeaderStyle = {
+  padding: `${config.space.S100} ${config.space.S200}`,
+};
+
+const sectionMenuStyle = {
+  minWidth: toRem(256),
+  padding: config.space.S100,
+};
+
+const sectionListStyle = {
+  padding: config.space.S100,
+  borderRadius: config.radii.R400,
+  background: 'var(--sable-surface)',
+};
 
 function AccountRow({
   session,
@@ -360,153 +374,161 @@ export function AccountSwitcherTab() {
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu style={{ minWidth: toRem(240) }}>
+            <Menu style={sectionMenuStyle}>
               <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                <Text size="L400" style={{ padding: `${config.space.S100} ${config.space.S200}` }}>
+                <Text size="L400" priority="300" style={sectionHeaderStyle}>
                   Accounts
                 </Text>
-                {sessions.map((session) => {
-                  const isActive = session.userId === (activeSessionId ?? sessions[0]?.userId);
-                  let rowDisplayName: string | undefined;
-                  let rowAvatarUrl: string | undefined;
-                  if (isActive) {
-                    rowDisplayName = activeDisplayName;
-                    rowAvatarUrl = activeAvatarUrl;
-                  } else {
-                    const prof = sessionProfiles[session.userId];
-                    rowDisplayName = prof?.displayName;
-                    rowAvatarUrl = prof?.avatarHttpUrl;
-                  }
-                  return (
-                    <AccountRow
-                      key={session.userId}
-                      session={session}
-                      isActive={isActive}
-                      displayName={rowDisplayName}
-                      avatarUrl={rowAvatarUrl}
-                      isBusy={busyUserIds.has(session.userId)}
-                      unread={!isActive ? backgroundUnreads[session.userId] : undefined}
-                      onSwitch={handleSwitch}
-                      onSignOut={(pendingSession) => {
-                        setMenuAnchor(undefined);
-                        setConfirmSignOutSession(pendingSession);
-                      }}
-                    />
-                  );
-                })}
-                <MenuItem size="300" radii="300" before={chipIcon(Plus)} onClick={handleAddAccount}>
-                  <Text size="T300">Add Account</Text>
-                </MenuItem>
-                <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
-                <Text size="L400" style={{ padding: `${config.space.S100} ${config.space.S200}` }}>
+                <Box direction="Column" gap="100" style={sectionListStyle}>
+                  {sessions.map((session) => {
+                    const isActive = session.userId === (activeSessionId ?? sessions[0]?.userId);
+                    let rowDisplayName: string | undefined;
+                    let rowAvatarUrl: string | undefined;
+                    if (isActive) {
+                      rowDisplayName = activeDisplayName;
+                      rowAvatarUrl = activeAvatarUrl;
+                    } else {
+                      const prof = sessionProfiles[session.userId];
+                      rowDisplayName = prof?.displayName;
+                      rowAvatarUrl = prof?.avatarHttpUrl;
+                    }
+                    return (
+                      <AccountRow
+                        key={session.userId}
+                        session={session}
+                        isActive={isActive}
+                        displayName={rowDisplayName}
+                        avatarUrl={rowAvatarUrl}
+                        isBusy={busyUserIds.has(session.userId)}
+                        unread={!isActive ? backgroundUnreads[session.userId] : undefined}
+                        onSwitch={handleSwitch}
+                        onSignOut={(pendingSession) => {
+                          setMenuAnchor(undefined);
+                          setConfirmSignOutSession(pendingSession);
+                        }}
+                      />
+                    );
+                  })}
+                  <MenuItem
+                    size="300"
+                    radii="300"
+                    before={chipIcon(Plus)}
+                    onClick={handleAddAccount}
+                  >
+                    <Text size="T300">Add Account</Text>
+                  </MenuItem>
+                </Box>
+                <Text size="L400" priority="300" style={sectionHeaderStyle}>
                   Status
                 </Text>
-                {(
-                  [
-                    { label: 'Online', desc: undefined, mode: 'online' as const },
-                    { label: 'Idle', desc: undefined, mode: 'unavailable' as const },
-                    { label: 'Do Not Disturb', desc: undefined, mode: 'dnd' as const },
-                    {
-                      label: 'Invisible',
-                      desc: 'You will appear offline',
-                      mode: 'offline' as const,
-                    },
-                  ] as const
-                ).map(({ label: statusLabel, desc, mode }) => {
-                  const isSelected = sendPresence && (presenceMode ?? 'online') === mode;
-                  const badge =
-                    mode === 'dnd' ? (
-                      <Badge size="300" variant="Critical" fill="Solid" radii="Pill" />
-                    ) : (
-                      <PresenceBadge presence={mode as Presence} size="300" />
-                    );
-                  return (
-                    <MenuItem
-                      key={mode}
-                      size="300"
-                      radii="300"
-                      before={badge}
-                      after={
-                        isSelected ? (
-                          <Icon
-                            size="200"
-                            src={Icons.Check}
-                            style={{ color: 'var(--mx-c-success)' }}
-                          />
-                        ) : undefined
-                      }
-                      onClick={() => {
-                        setPresenceMode(mode);
-                        // Clear auto-idle so the badge updates immediately on manual selection.
-                        setAutoIdled(false);
-                        // Re-enable presence broadcasting if the master toggle was off.
-                        if (!sendPresence) setSendPresence(true);
-                      }}
-                    >
-                      <Box direction="Column">
-                        <Text size="T300">{statusLabel}</Text>
-                        {desc && (
-                          <Text size="T200" priority="300">
-                            {desc}
-                          </Text>
-                        )}
-                      </Box>
-                    </MenuItem>
-                  );
-                })}
-                <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
-                <Box gap="100" direction="Column">
-                  <Text
-                    size="O400"
-                    priority="300"
-                    style={{ marginLeft: config.space.S200, marginTop: config.space.S100 }}
-                  >
-                    Focus Mode
-                  </Text>
-                  {[
-                    { mode: 'off' as const, label: 'Off', description: 'All notifications' },
-                    {
-                      mode: 'focus' as const,
-                      label: 'Focus',
-                      description: 'DMs and mentions only',
-                    },
-                    {
-                      mode: 'dnd' as const,
-                      label: 'Do Not Disturb',
-                      description: 'Critical messages only',
-                    },
-                  ].map(({ mode, label: modeLabel, description }) => {
-                    const isSelected = focusMode === mode;
+                <Box direction="Column" gap="100" style={sectionListStyle}>
+                  {(
+                    [
+                      { label: 'Online', desc: undefined, mode: 'online' as const },
+                      { label: 'Idle', desc: undefined, mode: 'unavailable' as const },
+                      { label: 'Do Not Disturb', desc: undefined, mode: 'dnd' as const },
+                      {
+                        label: 'Invisible',
+                        desc: 'You will appear offline',
+                        mode: 'offline' as const,
+                      },
+                    ] as const
+                  ).map(({ label: statusLabel, desc, mode }) => {
+                    const isSelected = sendPresence && (presenceMode ?? 'online') === mode;
+                    const badge =
+                      mode === 'dnd' ? (
+                        <Badge size="300" variant="Critical" fill="Solid" radii="Pill" />
+                      ) : (
+                        <PresenceBadge presence={mode as Presence} size="300" />
+                      );
                     return (
                       <MenuItem
                         key={mode}
                         size="300"
                         radii="300"
-                        after={isSelected ? <Icon size="200" src={Icons.Check} /> : undefined}
-                        aria-pressed={isSelected}
+                        before={badge}
+                        after={
+                          isSelected ? (
+                            <Icon
+                              size="200"
+                              src={Icons.Check}
+                              style={{ color: 'var(--mx-c-success)' }}
+                            />
+                          ) : undefined
+                        }
                         onClick={() => {
-                          setFocusMode(mode);
+                          setPresenceMode(mode);
+                          setAutoIdled(false);
+                          if (!sendPresence) setSendPresence(true);
                         }}
                       >
-                        <Box direction="Column" gap="100">
-                          <Text size="T300">{modeLabel}</Text>
-                          <Text size="T200" priority="300">
-                            {description}
-                          </Text>
+                        <Box direction="Column">
+                          <Text size="T300">{statusLabel}</Text>
+                          {desc && (
+                            <Text size="T200" priority="300">
+                              {desc}
+                            </Text>
+                          )}
                         </Box>
                       </MenuItem>
                     );
                   })}
                 </Box>
-                <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
-                <MenuItem
-                  size="300"
-                  radii="300"
-                  before={menuIcon(GearSix)}
-                  onClick={handleOpenSettings}
+                <Box gap="100" direction="Column" style={{ marginTop: config.space.S100 }}>
+                  <Text size="O400" priority="300" style={sectionHeaderStyle}>
+                    Focus Mode
+                  </Text>
+                  <Box direction="Column" gap="100" style={sectionListStyle}>
+                    {[
+                      { mode: 'off' as const, label: 'Off', description: 'All notifications' },
+                      {
+                        mode: 'focus' as const,
+                        label: 'Focus',
+                        description: 'DMs and mentions only',
+                      },
+                      {
+                        mode: 'dnd' as const,
+                        label: 'Do Not Disturb',
+                        description: 'Critical messages only',
+                      },
+                    ].map(({ mode, label: modeLabel, description }) => {
+                      const isSelected = focusMode === mode;
+                      return (
+                        <MenuItem
+                          key={mode}
+                          size="300"
+                          radii="300"
+                          after={isSelected ? <Icon size="200" src={Icons.Check} /> : undefined}
+                          aria-pressed={isSelected}
+                          onClick={() => {
+                            setFocusMode(mode);
+                          }}
+                        >
+                          <Box direction="Column" gap="100">
+                            <Text size="T300">{modeLabel}</Text>
+                            <Text size="T200" priority="300">
+                              {description}
+                            </Text>
+                          </Box>
+                        </MenuItem>
+                      );
+                    })}
+                  </Box>
+                </Box>
+                <Box
+                  direction="Column"
+                  gap="100"
+                  style={{ ...sectionListStyle, marginTop: config.space.S100 }}
                 >
-                  <Text size="T300">Settings</Text>
-                </MenuItem>
+                  <MenuItem
+                    size="300"
+                    radii="300"
+                    before={menuIcon(GearSix)}
+                    onClick={handleOpenSettings}
+                  >
+                    <Text size="T300">Settings</Text>
+                  </MenuItem>
+                </Box>
               </Box>
             </Menu>
           </FocusTrap>

@@ -5,7 +5,7 @@ import {
   getAllPerMessageProfiles,
 } from '$hooks/usePerMessageProfile';
 import { useEffect, useState } from 'react';
-import { Box, Button, Text } from 'folds';
+import { Box, Button, Text, config } from 'folds';
 import { generateShortId } from '$utils/shortIdGen';
 import { PerMessageProfileEditor } from './PerMessageProfileEditor';
 
@@ -31,8 +31,8 @@ export function PerMessageProfileOverview() {
   };
 
   return (
-    <Box gap="100" direction="Column" alignItems="Start">
-      <Box direction="Row" gap="100" alignItems="Center">
+    <Box gap="300" direction="Column" alignItems="Stretch">
+      <Box direction="Row" gap="200" alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap">
         <Text size="H4">Per-Message Profiles</Text>
         <Button
           onClick={() => {
@@ -45,21 +45,25 @@ export function PerMessageProfileOverview() {
             });
           }}
           variant="Primary"
+          size="300"
+          radii="300"
         >
           <Text size="H5">Add</Text>
         </Button>
       </Box>
-      {profiles.map((profile) => (
-        <PerMessageProfileEditor
-          mx={mx}
-          key={`profile-list-item-${profile.id}`}
-          profileId={profile.id}
-          avatarMxcUrl={profile.avatarUrl}
-          displayName={profile.name}
-          pronouns={profile.pronouns}
-          onDelete={handleDelete}
-        />
-      ))}
+      <Box direction="Column" gap="300" style={{ width: '100%', paddingBottom: config.space.S300 }}>
+        {profiles.map((profile) => (
+          <PerMessageProfileEditor
+            mx={mx}
+            key={`profile-list-item-${profile.id}`}
+            profileId={profile.id}
+            avatarMxcUrl={profile.avatarUrl}
+            displayName={profile.name}
+            pronouns={profile.pronouns}
+            onDelete={handleDelete}
+          />
+        ))}
+      </Box>
     </Box>
   );
 }

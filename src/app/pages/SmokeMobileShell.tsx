@@ -1,4 +1,4 @@
-import { Box, Header, IconButton, MenuItem, Text, config } from 'folds';
+import { Box, Button, Header, IconButton, Menu, MenuItem, Text, config } from 'folds';
 import { useParams } from 'react-router-dom';
 import { Modal500 } from '$components/Modal500';
 import { Page, PageNav, PageNavContent, PageRoot } from '$components/page';
@@ -10,6 +10,7 @@ import {
   User,
   X,
 } from '$components/icons/phosphor';
+import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
 import { EmojiGroupId, emojis } from '$plugins/emoji';
 import { scaleSystemEmoji } from '$plugins/react-custom-html-parser';
 import { MessageTextBody } from '$components/message/layout/Base';
@@ -23,6 +24,7 @@ import {
   SidebarStack,
 } from '$components/emoji-board/components';
 import * as emojiBoardCss from '$components/emoji-board/components/styles.css';
+import { APP_FEATURES_URL, APP_SOURCE_URL, APP_SUPPORT_URL } from '$app/config/brand';
 
 const svgDataUri = (svg: string): string => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
@@ -603,10 +605,145 @@ function SmokeProfileModal() {
   );
 }
 
+const smokeNotificationOptions: SettingMenuOption<'default' | 'all' | 'mute'>[] = [
+  {
+    value: 'default',
+    label: 'Default',
+    description: 'Follows your global notification rules',
+  },
+  {
+    value: 'all',
+    label: 'All Messages',
+    description: 'Alert for every new message in the room',
+  },
+  {
+    value: 'mute',
+    label: 'Mute',
+    description: 'Hide unread noise until you open the room',
+  },
+];
+
+function SmokeMenuPolish() {
+  return (
+    <Page>
+      <Box
+        grow="Yes"
+        direction="Column"
+        gap="400"
+        style={{
+          minHeight: 0,
+          padding: config.space.S400,
+          backgroundColor: 'var(--sable-surface)',
+        }}
+      >
+        <Box
+          direction="Column"
+          gap="200"
+          style={{
+            padding: config.space.S400,
+            borderRadius: config.radii.R400,
+            backgroundColor: 'var(--sable-surface-container)',
+          }}
+        >
+          <Text size="H4">Notification selector chrome</Text>
+          <Box data-testid="smoke-menu-selector">
+            <SettingMenuSelector
+              value="default"
+              options={smokeNotificationOptions}
+              onSelect={() => undefined}
+            />
+          </Box>
+        </Box>
+
+        <Box
+          direction="Column"
+          gap="200"
+          style={{
+            padding: config.space.S400,
+            borderRadius: config.radii.R400,
+            backgroundColor: 'var(--sable-surface-container)',
+          }}
+        >
+          <Text size="H4">Account switcher grouping</Text>
+          <Menu
+            data-testid="smoke-account-menu"
+            style={{ minWidth: 256, padding: config.space.S100 }}
+          >
+            <Box direction="Column" gap="100">
+              <Text size="L400" priority="300" style={{ padding: '2px 8px' }}>
+                Accounts
+              </Text>
+              <Box
+                direction="Column"
+                gap="100"
+                style={{
+                  padding: config.space.S100,
+                  borderRadius: config.radii.R400,
+                  backgroundColor: 'var(--sable-surface)',
+                }}
+              >
+                <MenuItem size="300" radii="300">
+                  <Text size="T300">evie@cloudhub.social</Text>
+                </MenuItem>
+                <MenuItem size="300" radii="300">
+                  <Text size="T300">smoke@smoke.test</Text>
+                </MenuItem>
+              </Box>
+              <Text size="L400" priority="300" style={{ padding: '2px 8px' }}>
+                Status
+              </Text>
+              <Box
+                direction="Column"
+                gap="100"
+                style={{
+                  padding: config.space.S100,
+                  borderRadius: config.radii.R400,
+                  backgroundColor: 'var(--sable-surface)',
+                }}
+              >
+                <MenuItem size="300" radii="300" aria-selected>
+                  <Text size="T300">Online</Text>
+                </MenuItem>
+                <MenuItem size="300" radii="300">
+                  <Text size="T300">Do Not Disturb</Text>
+                </MenuItem>
+              </Box>
+            </Box>
+          </Menu>
+        </Box>
+
+        <Box
+          direction="Column"
+          gap="200"
+          style={{
+            padding: config.space.S400,
+            borderRadius: config.radii.R400,
+            backgroundColor: 'var(--sable-surface-container)',
+          }}
+        >
+          <Text size="H4">Welcome links</Text>
+          <Box gap="200" wrap="Wrap">
+            <Button as="a" href={APP_SOURCE_URL}>
+              <Text size="B300">Source Code</Text>
+            </Button>
+            <Button as="a" href={APP_SUPPORT_URL}>
+              <Text size="B300">Support</Text>
+            </Button>
+            <Button as="a" href={APP_FEATURES_URL} data-testid="smoke-features-link">
+              <Text size="B300">Features</Text>
+            </Button>
+          </Box>
+        </Box>
+      </Box>
+    </Page>
+  );
+}
+
 export function SmokeMobileShell() {
   const { mode = 'home' } = useParams();
 
   if (mode === 'emoji-polish') return <SmokeEmojiPolish />;
+  if (mode === 'menu-polish') return <SmokeMenuPolish />;
   if (mode === 'settings') return <SmokeSettingsModal />;
   if (mode === 'profile') return <SmokeProfileModal />;
   if (mode === 'room') return <SmokeRoomFooter />;

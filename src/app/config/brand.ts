@@ -6,3 +6,4 @@ export const APP_ATTRIBUTION =
 export const APP_SOURCE_URL = 'https://github.com/CloudHub-Social/Charm';
 export const APP_UPSTREAM_URL = 'https://github.com/SableClient/Sable';
 export const APP_SUPPORT_URL = 'https://charm.cloudhub.social';
+export const APP_FEATURES_URL = 'https://github.com/CloudHub-Social/Charm/releases';

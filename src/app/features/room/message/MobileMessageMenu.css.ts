@@ -98,6 +98,15 @@ export const ActionItem = style({
   },
 });
 
+export const ActionIcon = style({
+  width: toRem(20),
+  minWidth: toRem(20),
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+});
+
 export const ActionItemDanger = style({
   color: color.Critical.Main,
 });

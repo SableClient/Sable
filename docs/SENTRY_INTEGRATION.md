@@ -324,7 +324,9 @@ What still depends on Sentry-side configuration:
 - Dashboards and alerts for release health, noisy regressions, and recurring frontend
   failures. The SDK emits the data, but dashboards and alert routing live in Sentry.
 - Cloudflare Workers log and trace drains. Those are configured in the Cloudflare and
-  Sentry dashboards, then enabled in the Worker observability settings.
+  Sentry dashboards, then enabled in the Worker observability settings. Charm now
+  deploys a Worker-first asset proxy so Cloudflare observability can see real site
+  traffic; you still need to configure the drain destinations in Cloudflare.
 - Sentry Toolbar and Snapshots. These are product-side features and should be treated
   as optional workflow tools rather than part of the repo's required CI path.
 
@@ -340,7 +342,9 @@ Recommended manual Sentry follow-up:
    - user feedback volume by environment
 4. If you want Cloudflare-side logs and traces in Sentry, add `sentry-logs` and
    `sentry-traces` destinations in Cloudflare Workers Observability, then wire those
-   destination names into Worker observability config.
+   destination names into Worker observability config. Without those destinations,
+   the repo changes here only ensure the Worker emits observable traffic; they do
+   not automatically create the drain endpoints in Cloudflare or Sentry.
 5. Re-evaluate Sentry Toolbar and Snapshots after the CI smoke coverage is in place.
    They are useful for manual QA and visual debugging, but not a substitute for
    deterministic browser tests.

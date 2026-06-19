@@ -185,6 +185,9 @@ function installStartupFetchRoomEventPatch(
       const payload: FetchRoomEventResult = {
         event_id: eventId,
         room_id: roomId,
+        type: '',
+        content: {},
+        sender: '',
       };
       return Promise.resolve(payload);
     }

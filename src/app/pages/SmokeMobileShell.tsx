@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Box, Button, Header, IconButton, Menu, MenuItem, Text, config } from 'folds';
 import { useParams } from 'react-router-dom';
 import { Modal500 } from '$components/Modal500';
@@ -25,6 +26,7 @@ import {
 } from '$components/emoji-board/components';
 import * as emojiBoardCss from '$components/emoji-board/components/styles.css';
 import { APP_FEATURES_URL, APP_SOURCE_URL, APP_SUPPORT_URL } from '$app/config/brand';
+import { getMessageSearchShortcutPath } from '$features/search/searchShortcut';
 
 const svgDataUri = (svg: string): string => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
@@ -739,11 +741,142 @@ function SmokeMenuPolish() {
   );
 }
 
+type SmokeSearchContext = {
+  label: string;
+  pathname: string;
+  selectedSpaceId?: string;
+  currentRoomId?: string;
+};
+
+type SmokeSearchContextKey = 'room' | 'direct' | 'space';
+
+const smokeSearchContexts: Record<SmokeSearchContextKey, SmokeSearchContext> = {
+  room: {
+    label: 'Home room',
+    pathname: '/home/%21room%3Asmoke.test/',
+    currentRoomId: '!room:smoke.test',
+  },
+  direct: {
+    label: 'Direct room',
+    pathname: '/direct/%21dm%3Asmoke.test/',
+    currentRoomId: '!dm:smoke.test',
+  },
+  space: {
+    label: 'Space lobby',
+    pathname: '/%21space%3Asmoke.test/lobby/',
+    selectedSpaceId: '!space:smoke.test',
+  },
+};
+const smokeSearchContextKeys: SmokeSearchContextKey[] = ['room', 'direct', 'space'];
+
+function SmokeSearchShortcuts() {
+  const [contextKey, setContextKey] = useState<SmokeSearchContextKey>('room');
+  const [roomPickerOpen, setRoomPickerOpen] = useState(false);
+  const [result, setResult] = useState('Idle');
+  const context = smokeSearchContexts[contextKey];
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+
+      if (event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setRoomPickerOpen(true);
+        setResult('Opened room picker');
+        return;
+      }
+
+      if (event.key.toLowerCase() !== 'f') return;
+
+      const nextPath = getMessageSearchShortcutPath(context);
+      if (!nextPath) return;
+
+      event.preventDefault();
+      setRoomPickerOpen(false);
+      setResult(nextPath);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [context]);
+
+  return (
+    <Page>
+      <Box
+        grow="Yes"
+        direction="Column"
+        gap="400"
+        style={{
+          minHeight: 0,
+          padding: config.space.S400,
+          backgroundColor: 'var(--sable-surface)',
+        }}
+      >
+        <Box
+          direction="Column"
+          gap="200"
+          style={{
+            padding: config.space.S400,
+            borderRadius: config.radii.R400,
+            backgroundColor: 'var(--sable-surface-container)',
+          }}
+        >
+          <Text size="H4">Search shortcut remap</Text>
+          <Text size="T300">
+            Press Ctrl/Cmd+F to route into context message search, or Ctrl/Cmd+K to open the room
+            picker.
+          </Text>
+          <Box gap="200" wrap="Wrap">
+            {smokeSearchContextKeys.map((key) => (
+              <Button
+                key={key}
+                variant={contextKey === key ? 'Primary' : 'Secondary'}
+                onClick={() => {
+                  setContextKey(key);
+                  setRoomPickerOpen(false);
+                  setResult('Idle');
+                }}
+              >
+                <Text size="B300">{smokeSearchContexts[key].label}</Text>
+              </Button>
+            ))}
+          </Box>
+        </Box>
+
+        <Box
+          direction="Column"
+          gap="200"
+          style={{
+            padding: config.space.S400,
+            borderRadius: config.radii.R400,
+            backgroundColor: 'var(--sable-surface-container)',
+          }}
+        >
+          <Text size="L400">Active context</Text>
+          <Text size="T300" data-testid="smoke-search-context">
+            {context.label}
+          </Text>
+          <Text size="T300" data-testid="smoke-search-pathname">
+            {context.pathname}
+          </Text>
+          <Text size="T300" data-testid="smoke-search-result">
+            {result}
+          </Text>
+          <Text size="T300" data-testid="smoke-room-picker-state">
+            {roomPickerOpen ? 'Room picker open' : 'Room picker closed'}
+          </Text>
+        </Box>
+      </Box>
+    </Page>
+  );
+}
+
 export function SmokeMobileShell() {
   const { mode = 'home' } = useParams();
 
   if (mode === 'emoji-polish') return <SmokeEmojiPolish />;
   if (mode === 'menu-polish') return <SmokeMenuPolish />;
+  if (mode === 'search-shortcuts') return <SmokeSearchShortcuts />;
   if (mode === 'settings') return <SmokeSettingsModal />;
   if (mode === 'profile') return <SmokeProfileModal />;
   if (mode === 'room') return <SmokeRoomFooter />;

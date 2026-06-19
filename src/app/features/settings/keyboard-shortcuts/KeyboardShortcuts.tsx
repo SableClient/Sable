@@ -37,6 +37,13 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     ],
   },
   {
+    name: 'Search',
+    shortcuts: [
+      { keys: 'Ctrl+F / ⌘+F', description: 'Search messages in the current room or space' },
+      { keys: 'Ctrl+K / ⌘+K', description: 'Open the room, DM, and space search menu' },
+    ],
+  },
+  {
     name: 'Messages',
     shortcuts: [
       { keys: 'Ctrl+Z / ⌘+Z', description: 'Undo in message editor' },

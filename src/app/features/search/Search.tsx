@@ -50,11 +50,13 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { getMessageSearchShortcutPath } from './searchShortcut';
+import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { getHomeSearchPath, getDirectSearchPath, getSpaceSearchPath } from '$pages/pathUtils';
 import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
+import { DIRECT_ROOM_PATH, HOME_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -595,8 +597,6 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
                   <>
                     Type <b>#</b> for rooms, <b>@</b> for DMs, <b>*</b> for spaces and <b>{'>'}</b>{' '}
                     for messages. Hotkey: <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
-                    {' / '}
-                    <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + f</b>
                   </>
                 )}
               </Text>
@@ -610,12 +610,29 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
 
 export function SearchModalRenderer() {
   const [opened, setOpen] = useAtom(searchModalAtom);
+  const mx = useMatrixClient();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const selectedSpaceId = useSelectedSpace();
+
+  const roomMatch =
+    matchPath(HOME_ROOM_PATH, pathname) ??
+    matchPath(DIRECT_ROOM_PATH, pathname) ??
+    matchPath(SPACE_ROOM_PATH, pathname);
+  const roomIdOrAlias = roomMatch?.params.roomIdOrAlias
+    ? decodeURIComponent(roomMatch.params.roomIdOrAlias)
+    : undefined;
+  const currentRoomId = roomIdOrAlias
+    ? roomIdOrAlias.startsWith('!')
+      ? roomIdOrAlias
+      : mx.getRooms().find((room) => room.getCanonicalAlias() === roomIdOrAlias)?.roomId
+    : undefined;
 
   useKeyDown(
     window,
     useCallback(
       (event) => {
-        if (isKeyHotkey('mod+k', event) || isKeyHotkey('mod+f', event)) {
+        if (isKeyHotkey('mod+k', event)) {
           event.preventDefault();
           if (opened) {
             setOpen(false);
@@ -627,9 +644,34 @@ export function SearchModalRenderer() {
             return;
           }
           setOpen(true);
+          return;
+        }
+
+        if (!isKeyHotkey('mod+f', event)) return;
+
+        const targetPath = getMessageSearchShortcutPath({
+          pathname,
+          selectedSpaceId: selectedSpaceId ?? undefined,
+          currentRoomId,
+        });
+
+        if (!targetPath && !opened) return;
+
+        event.preventDefault();
+        if (opened) {
+          setOpen(false);
+        }
+
+        const portalContainer = document.getElementById('portalContainer');
+        if (portalContainer && portalContainer.children.length > 0 && !opened) {
+          return;
+        }
+
+        if (targetPath) {
+          navigate(targetPath);
         }
       },
-      [opened, setOpen]
+      [currentRoomId, navigate, opened, pathname, selectedSpaceId, setOpen]
     )
   );
 

@@ -679,7 +679,7 @@ function SmokeMenuPolish() {
                 style={{
                   padding: config.space.S100,
                   borderRadius: config.radii.R400,
-                  backgroundColor: 'var(--sable-surface)',
+                  backgroundColor: 'var(--sable-surface-container)',
                 }}
               >
                 <MenuItem size="300" radii="300">
@@ -698,7 +698,7 @@ function SmokeMenuPolish() {
                 style={{
                   padding: config.space.S100,
                   borderRadius: config.radii.R400,
-                  backgroundColor: 'var(--sable-surface)',
+                  backgroundColor: 'var(--sable-surface-container)',
                 }}
               >
                 <MenuItem size="300" radii="300" aria-selected>

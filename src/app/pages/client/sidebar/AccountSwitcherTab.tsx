@@ -68,7 +68,7 @@ const sectionMenuStyle = {
 const sectionListStyle = {
   padding: config.space.S100,
   borderRadius: config.radii.R400,
-  background: 'var(--sable-surface)',
+  background: 'var(--sable-surface-container)',
 };
 
 function AccountRow({

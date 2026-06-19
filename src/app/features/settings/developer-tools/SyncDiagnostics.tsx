@@ -9,6 +9,7 @@ import { Direction, EventType, NotificationCountType, KnownMembership } from '$t
 
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { getUnreadInfo, isNotificationEvent } from '$utils/room';
+import { useNotificationDeviceScope } from '$hooks/useNotificationDeviceScope';
 
 type RoomRenderingDiagnostics = {
   totalRooms: number;
@@ -135,6 +136,7 @@ export function SyncDiagnostics() {
   }, []);
 
   const diagnostics = getClientSyncDiagnostics(mx);
+  const notificationDeviceState = useNotificationDeviceScope(mx, { publishLease: false });
   const roomDiagnostics = getRoomRenderingDiagnostics(mx.getRooms());
   const unreadDriftRooms = getUnreadDriftRooms(mx);
 
@@ -163,6 +165,27 @@ export function SyncDiagnostics() {
           <Text size="T300">Sliding session opt-in: {diagnostics.sessionOptIn ? 'yes' : 'no'}</Text>
           <Text size="T300">Sliding requested: {diagnostics.slidingRequested ? 'yes' : 'no'}</Text>
           <Text size="T300">Sync reason: {formatSyncReason(diagnostics.reason)}</Text>
+          <Text size="T300">
+            Notification client:{' '}
+            {notificationDeviceState.isActiveNotificationClient ? 'active' : 'inactive'}
+            {' · '}
+            reason: {notificationDeviceState.activeReason}
+          </Text>
+          <Text size="T300">
+            Notification scope: {notificationDeviceState.notificationDeviceScope}
+            {' · '}
+            device: {notificationDeviceState.deviceId ?? 'none'}
+          </Text>
+          <Text size="T300">
+            Lease holder: {notificationDeviceState.leaseHolderDeviceId ?? 'none'}
+            {' · '}
+            fresh: {notificationDeviceState.leaseFresh ? 'yes' : 'no'}
+          </Text>
+          <Text size="T300">
+            Window: {notificationDeviceState.isVisible ? 'visible' : 'hidden'}
+            {' · '}
+            focus: {notificationDeviceState.isWindowFocused ? 'focused' : 'blurred'}
+          </Text>
           <Text size="T300">
             Room counts: {roomDiagnostics.totalRooms} total, {roomDiagnostics.joinedRooms} joined,{' '}
             {roomDiagnostics.inviteRooms} invites

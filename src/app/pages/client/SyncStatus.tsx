@@ -107,12 +107,20 @@ export function SyncStatus({ mx }: SyncStatusProps) {
 
     degradedSinceRef.current ??= Date.now();
     const timeoutId = window.setTimeout(() => {
+      if (document.visibilityState !== 'visible' || !navigator.onLine) return;
       const syncState = mx.getSyncState();
       const stillDegraded = syncState === SyncState.Reconnecting || syncState === SyncState.Error;
       if (!stillDegraded || degradedReportedRef.current) return;
 
       const diagnostics = getClientSyncDiagnostics(mx);
       if (diagnostics.transport === 'sliding' && diagnostics.sliding?.healthy === true) return;
+      if (
+        diagnostics.transport === 'classic' &&
+        diagnostics.reason === 'session_opt_out' &&
+        syncState === SyncState.Reconnecting
+      ) {
+        return;
+      }
       degradedReportedRef.current = true;
       Sentry.captureMessage('Sync remained degraded', {
         level: 'warning',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyEmojiAutoReplacementAtEnd,
   findEmojiAutoReplacement,
   getStructuredMarkdownAction,
   shouldInsertBreakAfterStructuredReplacement,
@@ -113,5 +114,10 @@ describe('findEmojiAutoReplacement', () => {
       end: 2,
       replacement: '🙂',
     });
+  });
+
+  it('expands an emoticon at the end of the message on send', () => {
+    expect(applyEmojiAutoReplacementAtEnd('Hello :)')).toBe('Hello 🙂');
+    expect(applyEmojiAutoReplacementAtEnd('https://example.com/:)')).toBe('https://example.com/:)');
   });
 });

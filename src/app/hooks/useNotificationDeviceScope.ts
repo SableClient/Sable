@@ -19,11 +19,22 @@ export type NotificationDeviceLease = {
 };
 
 export type NotificationDeviceScopeState = {
+  deviceId?: string;
   lease: NotificationDeviceLease | null;
+  leaseFresh: boolean;
+  leaseHolderDeviceId?: string;
   notificationDeviceScope: NotificationDeviceScopeSetting;
+  isVisible: boolean;
+  isWindowFocused: boolean;
   isActiveNotificationClient: boolean;
   isThisClientLeaseHolder: boolean;
   shouldKeepWebPushEnabled: boolean;
+  activeReason:
+    | 'all_clients'
+    | 'missing_device_id'
+    | 'no_fresh_lease'
+    | 'lease_holder'
+    | 'lease_held_elsewhere';
 };
 
 type UseNotificationDeviceScopeOptions = {
@@ -83,6 +94,15 @@ export function useNotificationDeviceScope(
   const isThisClientLeaseHolder = !!deviceId && freshLease && lease?.deviceId === deviceId;
   const isActiveNotificationClient = !scopeEnabled || !freshLease || isThisClientLeaseHolder;
   const shouldKeepWebPushEnabled = scopeEnabled && isActiveNotificationClient;
+  const activeReason: NotificationDeviceScopeState['activeReason'] = !scopeEnabled
+    ? deviceId
+      ? 'all_clients'
+      : 'missing_device_id'
+    : !freshLease
+      ? 'no_fresh_lease'
+      : isThisClientLeaseHolder
+        ? 'lease_holder'
+        : 'lease_held_elsewhere';
 
   useEffect(() => {
     setLease(readLeaseContent(mx));
@@ -198,14 +218,25 @@ export function useNotificationDeviceScope(
 
   return useMemo(
     () => ({
+      deviceId,
       lease,
+      leaseFresh: freshLease,
+      leaseHolderDeviceId: lease?.deviceId,
       notificationDeviceScope,
+      isVisible,
+      isWindowFocused,
       isActiveNotificationClient,
       isThisClientLeaseHolder,
       shouldKeepWebPushEnabled,
+      activeReason,
     }),
     [
+      activeReason,
+      deviceId,
+      freshLease,
       lease,
+      isVisible,
+      isWindowFocused,
       notificationDeviceScope,
       isActiveNotificationClient,
       isThisClientLeaseHolder,

@@ -376,8 +376,19 @@ export function RoomTimeline({
   }, []);
 
   const handleMarkAsRead = useCallback(() => {
+    setUnreadInfo((prev) =>
+      prev
+        ? {
+            ...prev,
+            inLiveTimeline: true,
+            scrollTo: false,
+          }
+        : undefined
+    );
     void markAsRead(mx, room.roomId, hideReads).finally(() => {
-      setUnreadInfo(getRoomUnreadInfo(room));
+      requestAnimationFrame(() => {
+        setUnreadInfo(getRoomUnreadInfo(room));
+      });
     });
   }, [hideReads, mx, room]);
 
@@ -2039,6 +2050,15 @@ export function RoomTimeline({
               onClick={() => {
                 if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
                 releaseJumpLock('jump_to_latest');
+                setUnreadInfo((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        inLiveTimeline: true,
+                        scrollTo: false,
+                      }
+                    : prev
+                );
                 timelineSync.setTimeline(getInitialTimeline(room));
                 scrollToBottom();
               }}

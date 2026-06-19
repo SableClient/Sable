@@ -522,9 +522,10 @@ function BackgroundPushNotificationSetting() {
   }, [upEndpoint]);
 
   useEffect(() => {
+    const legacyPushEnabled = backgroundPushSupported && backgroundPushEnabled;
     const sync = deriveLegacyPushSync({
-      enabled: backgroundPushEnabled,
-      provider: backgroundPushEnabled ? (backgroundPushProvider ?? preferredKind) : null,
+      enabled: legacyPushEnabled,
+      provider: legacyPushEnabled ? (backgroundPushProvider ?? preferredKind) : null,
     });
 
     if (legacyPushNotifications !== sync.usePushNotifications) {
@@ -535,6 +536,7 @@ function BackgroundPushNotificationSetting() {
     }
   }, [
     backgroundPushEnabled,
+    backgroundPushSupported,
     backgroundPushProvider,
     preferredKind,
     legacyPushNotifications,

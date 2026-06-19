@@ -526,4 +526,20 @@ describe('SystemNotification background push surface', () => {
         .find((element) => element.hasAttribute('disabled'))
     ).toBeDisabled();
   });
+
+  it('clears legacy web-push flags when the browser no longer supports web push', async () => {
+    mockIsTauri.mockReturnValue(false);
+    mockMobileOrTablet.mockReturnValue(false);
+    mockIsWebPushSupported.mockReturnValue(false);
+    settings.backgroundPushEnabled = true;
+    settings.backgroundPushProvider = null;
+    settings.usePushNotifications = true;
+
+    renderSystemNotification();
+
+    await waitFor(() => {
+      expect(settings.usePushNotifications).toBe(false);
+      expect(settings.useUnifiedPush).toBe(false);
+    });
+  });
 });

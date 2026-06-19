@@ -56,7 +56,7 @@ export function SystemBarShell({ children, onPortalContainerChange }: SystemBarS
         style={
           {
             '--sable-safe-area-top': enabled ? safeAreaTop : '0px',
-            '--sable-safe-area-bottom': enabled ? safeAreaBottom : '0px',
+            '--sable-safe-area-bottom': enabled && !needsBottomSystemBar ? safeAreaBottom : '0px',
             '--sable-safe-area-left': enabled ? safeAreaLeft : '0px',
             '--sable-safe-area-right': enabled ? safeAreaRight : '0px',
             position: 'relative',

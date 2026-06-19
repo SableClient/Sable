@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { devices, expect, test } from '@playwright/test';
+import { installSmokeApp, seedStoredSession } from './smokeApp';
 
 const snapshotOutputDir = process.env.PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR;
 
@@ -19,6 +20,11 @@ test.use({
 });
 
 test.describe('mobile shell smoke', () => {
+  test.beforeEach(async ({ page }) => {
+    await installSmokeApp(page, { authenticatedSession: true, hashRouter: false });
+    await seedStoredSession(page);
+  });
+
   test('captures home list safe-area spacing', async ({ page }) => {
     await page.goto('/__smoke/mobile-shell/home');
     await expect(page.getByText('Last item above safe area')).toBeVisible();

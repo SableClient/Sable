@@ -176,6 +176,22 @@ describe('UrlPreviewCard', () => {
     ).toBeInTheDocument();
   });
 
+  it('still renders direct static webp images when gif autoplay is disabled', () => {
+    settings.autoplayGifs = false;
+    mockedMimeType = 'image/webp';
+
+    renderWithProviders(
+      <UrlPreviewCard urlPreview url="https://example.com/images/test.webp" mediaType="image" />
+    );
+
+    expect(screen.getByTestId('direct-image')).toHaveTextContent(
+      'https://example.com/images/test.webp'
+    );
+    expect(
+      screen.getByRole('link', { name: 'https://example.com/images/test.webp' })
+    ).toBeInTheDocument();
+  });
+
   it('falls back to a plain link card when a direct image preview errors', () => {
     settings.autoplayGifs = false;
     renderWithProviders(

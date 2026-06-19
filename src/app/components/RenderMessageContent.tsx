@@ -87,7 +87,7 @@ const isSableChatEmbedCandidate = (url: string): boolean =>
   /^https:\/\//i.test(url) &&
   (/\.preview\.sable\.css(\?|#|$)/i.test(url) || isHttpsFullSableCssUrl(url));
 
-const isAnimatedDirectImageUrl = (url: string): boolean => /\.(gif|apng|webp)(\?|#|$)/i.test(url);
+const isAnimatedDirectImageUrl = (url: string): boolean => /\.(gif|apng)(\?|#|$)/i.test(url);
 
 const CAPTION_STYLE: CSSProperties = { marginTop: config.space.S200, maxWidth: '100%' };
 const TEXT_STYLE: CSSProperties = { maxWidth: '100%' };

@@ -82,15 +82,11 @@ function isLikelyPlayableOgVideo(prev: IPreviewUrlResponse): boolean {
 
 function isAnimatedDirectImage(url: string, mimeType?: string): boolean {
   const resolvedMime = typeof mimeType === 'string' ? mimeType.toLowerCase() : '';
-  if (
-    resolvedMime === 'image/gif' ||
-    resolvedMime === 'image/apng' ||
-    resolvedMime === 'image/webp'
-  ) {
+  if (resolvedMime === 'image/gif' || resolvedMime === 'image/apng') {
     return true;
   }
 
-  return /\.(gif|apng|webp)(\?|#|$)/i.test(url);
+  return /\.(gif|apng)(\?|#|$)/i.test(url);
 }
 
 function normalizeDirectRemoteUrl(url: string): string | undefined {

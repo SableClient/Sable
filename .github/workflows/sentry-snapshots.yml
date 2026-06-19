@@ -68,12 +68,6 @@ jobs:
       - name: Capture deterministic observability snapshots
         run: pnpm run test:e2e:observability
 
-      - name: Install sentry-cli snapshot build
-        if: env.SENTRY_SNAPSHOTS_ENABLED == 'true' && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
-        run: |
-          curl -sL https://sentry.io/get-cli/ | SENTRY_CLI_VERSION=3.5.2-snapshot.20260617.d9766db sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
       - name: Upload snapshot artifact for debugging
         if: always() && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
@@ -82,12 +76,25 @@ jobs:
           path: .artifacts/sentry-snapshots
 
       - name: Upload snapshots to Sentry
+        id: sentry_upload
         if: env.SENTRY_SNAPSHOTS_ENABLED == 'true' && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
+        continue-on-error: true
         run: >
-          sentry-cli snapshots upload
+          pnpm dlx @sentry/cli@3.5.1 snapshots upload
           "$PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR"
           --app-id charm-web-preview
           --log-level debug
+
+      - name: Note Sentry snapshot upload failure
+        if: always() && steps.sentry_upload.outcome == 'failure'
+        run: |
+          {
+            echo "### Sentry Snapshot Upload"
+            echo
+            echo "- Deterministic screenshot coverage ran successfully for this pull request."
+            echo "- Snapshot upload to Sentry failed, but the workflow is continuing."
+            echo "- Review the \`Upload snapshots to Sentry\` step logs for the CLI/server error details."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Note Sentry snapshot upload status
         if: env.SENTRY_SNAPSHOTS_ENABLED != 'true'

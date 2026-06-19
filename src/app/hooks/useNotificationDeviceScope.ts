@@ -37,6 +37,17 @@ export type NotificationDeviceScopeState = {
     | 'lease_held_elsewhere';
 };
 
+export function shouldEnableNotificationPusher(
+  isVisible: boolean,
+  isMobile: boolean,
+  notificationDeviceScope: NotificationDeviceScopeSetting,
+  isActiveNotificationClient: boolean
+): boolean {
+  return isVisible
+    ? isMobile || (notificationDeviceScope === 'active_client_only' && isActiveNotificationClient)
+    : notificationDeviceScope !== 'active_client_only' || isActiveNotificationClient;
+}
+
 type UseNotificationDeviceScopeOptions = {
   publishLease?: boolean;
 };

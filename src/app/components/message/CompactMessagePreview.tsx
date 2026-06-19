@@ -15,6 +15,7 @@ import {
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { nicknamesAtom } from '$state/nicknames';
 import type { MessagePreviewModel } from '$utils/messagePreview';
+import { canRenderInlineMessagePreview as canRenderInlinePreview } from '$utils/messagePreview';
 
 type CompactMessagePreviewProps = {
   senderLabel: string;
@@ -60,15 +61,12 @@ export function CompactMessagePreview({
     [mx, roomId, settingsLinkBaseUrl, linkifyOpts, useAuthentication, nicknames]
   );
 
-  const canRenderRichBody =
-    (preview.kind === 'text' || preview.kind === 'link') &&
-    !preview.hasBlockContent &&
-    (typeof preview.formattedBody === 'string' || typeof preview.body === 'string');
+  const canRenderRichBody = canRenderInlinePreview(preview);
 
   if (!canRenderRichBody) {
     return (
       <Text className={className} truncate size="T200" priority="300">
-        <b>{senderLabel}:</b> {preview.text}
+        <b>{senderLabel}:</b> {preview.placeholderText}
       </Text>
     );
   }

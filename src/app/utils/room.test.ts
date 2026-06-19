@@ -31,6 +31,22 @@ function makeEvent(eventId: string, sender = '@bob:example.com'): MatrixEvent {
   } as unknown as MatrixEvent;
 }
 
+function makeReactionEvent(
+  eventId: string,
+  relatedEventId: string,
+  sender = '@bob:example.com'
+): MatrixEvent {
+  return {
+    getId: () => eventId,
+    getSender: () => sender,
+    getType: () => EventType.Reaction,
+    getContent: () => ({ 'm.relates_to': { rel_type: 'm.annotation', event_id: relatedEventId } }),
+    getRelation: () => ({ rel_type: 'm.annotation', event_id: relatedEventId }),
+    isRedacted: () => false,
+    isSending: () => false,
+  } as unknown as MatrixEvent;
+}
+
 function makeRoom(params: {
   readUpToId?: string;
   fullyReadId?: string;
@@ -52,6 +68,7 @@ function makeRoom(params: {
     getLiveTimeline: () => ({
       getEvents: () => params.events,
     }),
+    findEventById: (eventId: string) => params.events.find((event) => event.getId() === eventId),
     getUnreadNotificationCount: (type: NotificationCountType) =>
       type === NotificationCountType.Highlight ? (params.highlight ?? 0) : (params.total ?? 0),
     getRoomUnreadNotificationCount: () => params.total ?? 0,
@@ -197,6 +214,20 @@ describe('room read markers', () => {
       roomId: '!room:example.com',
       highlight: 0,
       total: 2,
+    });
+  });
+
+  it('does not synthesize a phantom dot when only a non-notifying reaction is unread', () => {
+    const room = makeRoom({
+      fullyReadId: '$event1',
+      events: [makeEvent('$event1', USER_ID), makeReactionEvent('$event2', '$event1')],
+    });
+
+    expect(roomHaveUnread(room.client, room)).toBe(true);
+    expect(getUnreadInfo(room, { applyFixup: false })).toEqual({
+      roomId: '!room:example.com',
+      highlight: 0,
+      total: 0,
     });
   });
 });

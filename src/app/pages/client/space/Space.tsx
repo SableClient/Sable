@@ -49,7 +49,7 @@ import { useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { usePowerLevels } from '$hooks/usePowerLevels';
-import { useRecursiveChildScopeFactory, useSpaceChildren } from '$state/hooks/roomList';
+import { useRecursiveChildRoomScopeFactory, useSpaceChildren } from '$state/hooks/roomList';
 import {
   ArrowsClockwise,
   Checks,
@@ -133,6 +133,7 @@ type SpaceMenuProps = {
 const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
   ({ isRefreshing, onRefresh, room, requestClose }, ref) => {
     const mx = useMatrixClient();
+    const mDirects = useAtomValue(mDirectAtom);
     const [hideReads] = useSetting(settingsAtom, 'hideReads');
     const [developerTools] = useSetting(settingsAtom, 'developerTools');
     const roomToParents = useAtomValue(roomToParentsAtom);
@@ -149,7 +150,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
     const allChild = useSpaceChildren(
       allRoomsAtom,
       room.roomId,
-      useRecursiveChildScopeFactory(mx, roomToParents)
+      useRecursiveChildRoomScopeFactory(mx, mDirects, roomToParents)
     );
     const unread = useRoomsUnread(allChild, roomToUnreadAtom);
 
@@ -849,6 +850,9 @@ export function Space() {
     getRoom,
     useCallback(
       (parentId, roomId, depth) => {
+        if (mDirects.has(roomId)) {
+          return true;
+        }
         if (depth >= subspaceHierarchyLimit) {
           // we will exclude items above this depth
           return true;
@@ -868,6 +872,7 @@ export function Space() {
         getInClosedCategories,
         space.roomId,
         callEmbed,
+        mDirects,
         subspaceHierarchyLimit,
         roomToUnread,
         selectedRoomId,

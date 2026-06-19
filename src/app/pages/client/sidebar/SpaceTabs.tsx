@@ -49,10 +49,11 @@ import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import FocusTrap from 'focus-trap-react';
 import {
   useOrphanSpaces,
-  useRecursiveChildScopeFactory,
+  useRecursiveChildRoomScopeFactory,
   useSpaceChildren,
 } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { mDirectAtom } from '$state/mDirectList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { getSpaceLobbyPath, getSpacePath, joinPathComponent } from '$pages/pathUtils';
@@ -114,6 +115,7 @@ type SpaceMenuProps = {
 const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
   ({ room, requestClose, onUnpin }, ref) => {
     const mx = useMatrixClient();
+    const mDirects = useAtomValue(mDirectAtom);
     const [hideReads] = useSetting(settingsAtom, 'hideReads');
     const roomToParents = useAtomValue(roomToParentsAtom);
     const powerLevels = usePowerLevels(room);
@@ -128,7 +130,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
     const allChild = useSpaceChildren(
       allRoomsAtom,
       room.roomId,
-      useRecursiveChildScopeFactory(mx, roomToParents)
+      useRecursiveChildRoomScopeFactory(mx, mDirects, roomToParents)
     );
     const unread = useRoomsUnread(allChild, roomToUnreadAtom);
 
@@ -536,11 +538,12 @@ function SpaceTab({
 
   // Aggregate unread across all recursive child rooms (space rooms themselves
   // carry no messages, so RoomUnreadProvider would always return nothing).
+  const mDirects = useAtomValue(mDirectAtom);
   const roomToParents = useAtomValue(roomToParentsAtom);
   const allChild = useSpaceChildren(
     allRoomsAtom,
     space.roomId,
-    useRecursiveChildScopeFactory(mx, roomToParents)
+    useRecursiveChildRoomScopeFactory(mx, mDirects, roomToParents)
   );
 
   // Filter to only include "loud" rooms (Default or All Messages notification mode).

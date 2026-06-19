@@ -49,10 +49,11 @@ import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import FocusTrap from 'focus-trap-react';
 import {
   useOrphanSpaces,
-  useRecursiveChildScopeFactory,
+  useRecursiveChildRoomScopeFactory,
   useSpaceChildren,
 } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { mDirectAtom } from '$state/mDirectList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { getSpaceLobbyPath, getSpacePath, joinPathComponent } from '$pages/pathUtils';
@@ -114,6 +115,7 @@ type SpaceMenuProps = {
 const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
   ({ room, requestClose, onUnpin }, ref) => {
     const mx = useMatrixClient();
+    const mDirects = useAtomValue(mDirectAtom);
     const [hideReads] = useSetting(settingsAtom, 'hideReads');
     const roomToParents = useAtomValue(roomToParentsAtom);
     const powerLevels = usePowerLevels(room);
@@ -128,7 +130,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
     const allChild = useSpaceChildren(
       allRoomsAtom,
       room.roomId,
-      useRecursiveChildScopeFactory(mx, roomToParents)
+      useRecursiveChildRoomScopeFactory(mx, mDirects, roomToParents)
     );
     const unread = useRoomsUnread(allChild, roomToUnreadAtom);
 
@@ -536,11 +538,12 @@ function SpaceTab({
 
   // Aggregate unread across all recursive child rooms (space rooms themselves
   // carry no messages, so RoomUnreadProvider would always return nothing).
+  const mDirects = useAtomValue(mDirectAtom);
   const roomToParents = useAtomValue(roomToParentsAtom);
   const allChild = useSpaceChildren(
     allRoomsAtom,
     space.roomId,
-    useRecursiveChildScopeFactory(mx, roomToParents)
+    useRecursiveChildRoomScopeFactory(mx, mDirects, roomToParents)
   );
 
   // Filter to only include "loud" rooms (Default or All Messages notification mode).
@@ -709,6 +712,7 @@ function ClosedSpaceFolder({
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const allRooms = useAtomValue(allRoomsAtom);
+  const mDirects = useAtomValue(mDirectAtom);
   const roomToParents = useAtomValue(roomToParentsAtom);
   const handlerRef = useRef<HTMLDivElement>(null);
 
@@ -726,10 +730,11 @@ function ClosedSpaceFolder({
     return allRooms.filter((roomId) => {
       const room = mx.getRoom(roomId);
       if (!room || room.isSpaceRoom()) return false;
+      if (mDirects.has(roomId)) return false;
       const parents = getAllParents(roomToParents, roomId);
       return [...folderSpaces].some((spaceId) => parents.has(spaceId));
     });
-  }, [allRooms, folder.content, mx, roomToParents]);
+  }, [allRooms, folder.content, mDirects, mx, roomToParents]);
 
   const loudChildRooms = useMemo(
     () =>

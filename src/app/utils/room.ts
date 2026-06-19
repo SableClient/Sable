@@ -396,6 +396,18 @@ export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
     if (event.getId() === readUpToId) {
       return false;
     }
+    if (!isNotificationEvent(event, room, userId)) {
+      continue;
+    }
+
+    if (event.getRelation()?.rel_type === RelationType.Annotation) {
+      const pushActions = new PushProcessor(mx).actionsForEvent(event);
+      if (pushActions?.notify) {
+        return true;
+      }
+      continue;
+    }
+
     if (isNotificationEvent(event, room, userId)) {
       return true;
     }
@@ -546,12 +558,13 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       if (event.getId() === readUpToId) break;
       if (isNotificationEvent(event, room, userId) && event.getSender() !== userId) {
         const pushActions = pushProcessor.actionsForEvent(event);
-        // Only count events that would actually generate a push notification.
-        // This excludes reactions (which use dont_notify by default push rules)
-        // and prevents the fallback from creating phantom unreads the SDK ignores.
-        if (pushActions?.notify) {
+        const relationType = event.getRelation()?.rel_type;
+        // Reactions are the main phantom-badge source here, so keep requiring an
+        // explicit notify signal for them. For ordinary visible events, count the
+        // event even when push rule evaluation is unavailable or inconclusive.
+        if (relationType !== RelationType.Annotation || pushActions?.notify) {
           fallbackTotal += 1;
-          if (pushActions.tweaks?.highlight) fallbackHighlight += 1;
+          if (pushActions?.tweaks?.highlight) fallbackHighlight += 1;
         }
       }
     }
@@ -562,7 +575,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
         total: fallbackTotal,
       };
     }
-    return { roomId: room.roomId, highlight: 0, total: 1 };
+    return { roomId: room.roomId, highlight: 0, total: 0 };
   }
 
   // For DMs with Default or AllMessages notification type: if there are unread messages,

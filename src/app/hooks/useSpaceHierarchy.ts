@@ -202,10 +202,11 @@ export const useSpaceHierarchy = (
   return hierarchy;
 };
 
-const getSpaceJoinedHierarchy = (
+export const getSpaceJoinedHierarchy = (
   rootSpaceId: string,
   getRoom: GetRoomCallback,
   excludeRoom: (parentId: string, roomId: string, depth: number) => boolean,
+  excludeBranchRoom: (parentId: string, roomId: string, depth: number) => boolean,
   sortRoomItems: (parentId: string, items: HierarchyItem[]) => HierarchyItem[]
 ): HierarchyItem[] => {
   const spaceItems: HierarchyItemSpace[] = getHierarchySpaces(
@@ -222,7 +223,7 @@ const getSpaceJoinedHierarchy = (
    * @param visited - Set used to prevent recursion errors.
    * @returns True if the space or any descendant contains non-space rooms.
    */
-  const getContainsRoom = (spaceId: string, visited: Set<string> = new Set()) => {
+  const getContainsRoom = (spaceId: string, depth: number, visited: Set<string> = new Set()) => {
     // Prevent infinite recursion
     if (visited.has(spaceId)) return false;
     visited.add(spaceId);
@@ -236,11 +237,12 @@ const getSpaceJoinedHierarchy = (
       if (!isValidChild(childEvent)) return false;
       const childId = childEvent.getStateKey();
       if (!childId || !isRoomId(childId)) return false;
+      if (excludeBranchRoom(spaceId, childId, depth)) return false;
       const room = getRoom(childId);
       if (!room) return false;
 
       if (!room.isSpaceRoom()) return true;
-      return getContainsRoom(childId, visited);
+      return getContainsRoom(childId, depth + 1, visited);
     });
   };
 
@@ -259,7 +261,7 @@ const getSpaceJoinedHierarchy = (
       return true;
     });
 
-    if (!getContainsRoom(spaceItem.roomId)) return [];
+    if (!getContainsRoom(spaceItem.roomId, spaceItem.depth)) return [];
 
     const childItems: HierarchyItemRoom[] = [];
     joinedRoomEvents.forEach((childEvent) => {
@@ -287,6 +289,7 @@ export const useSpaceJoinedHierarchy = (
   spaceId: string,
   getRoom: GetRoomCallback,
   excludeRoom: (parentId: string, roomId: string, depth: number) => boolean,
+  excludeBranchRoom: (parentId: string, roomId: string, depth: number) => boolean,
   sortByActivity: (spaceId: string) => boolean
 ): HierarchyItem[] => {
   const mx = useMatrixClient();
@@ -304,13 +307,15 @@ export const useSpaceJoinedHierarchy = (
   );
 
   const [hierarchyAtom] = useState(() =>
-    atom(getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, sortRoomItems))
+    atom(getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, excludeBranchRoom, sortRoomItems))
   );
   const [hierarchy, setHierarchy] = useAtom(hierarchyAtom);
 
   useEffect(() => {
-    setHierarchy(getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, sortRoomItems));
-  }, [mx, spaceId, setHierarchy, getRoom, excludeRoom, sortRoomItems]);
+    setHierarchy(
+      getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, excludeBranchRoom, sortRoomItems)
+    );
+  }, [mx, spaceId, setHierarchy, getRoom, excludeRoom, excludeBranchRoom, sortRoomItems]);
 
   useStateEventCallback(
     mx,
@@ -321,10 +326,12 @@ export const useSpaceJoinedHierarchy = (
         if (!eventRoomId) return;
 
         if (spaceId === eventRoomId || getAllParents(roomToParents, eventRoomId).has(spaceId)) {
-          setHierarchy(getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, sortRoomItems));
+          setHierarchy(
+            getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, excludeBranchRoom, sortRoomItems)
+          );
         }
       },
-      [spaceId, roomToParents, setHierarchy, getRoom, excludeRoom, sortRoomItems]
+      [spaceId, roomToParents, setHierarchy, getRoom, excludeRoom, excludeBranchRoom, sortRoomItems]
     )
   );
 

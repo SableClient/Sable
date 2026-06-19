@@ -78,7 +78,7 @@ jobs:
       - name: Upload snapshots to Sentry
         if: env.SENTRY_SNAPSHOTS_ENABLED == 'true' && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
         run: >
-          pnpm dlx @sentry/cli@3.5.0 snapshots upload
+          pnpm dlx @sentry/cli@3.5.1 snapshots upload
           "$PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR"
           --app-id charm-web-preview
           --log-level debug

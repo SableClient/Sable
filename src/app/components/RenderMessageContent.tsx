@@ -181,7 +181,15 @@ function RenderMessageContentInternal({
               return <ClientPreview key={url} url={url} />;
             }
             if (urlPreview) {
-              return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
+              return (
+                <UrlPreviewCard
+                  urlPreview
+                  key={url}
+                  url={url}
+                  ts={ts}
+                  mediaType={clientUrlPreview ? type : undefined}
+                />
+              );
             }
             return null;
           })}

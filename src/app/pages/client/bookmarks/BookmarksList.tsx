@@ -111,10 +111,12 @@ function getStoredBookmarkFallbackText(
   item: Pick<BookmarkItemContent, 'body_preview' | 'msgtype'>
 ): string {
   const preview = buildStoredMessagePreview({ body: item.body_preview, msgType: item.msgtype });
+  const previewText = preview?.placeholderText?.trim();
   if (preview?.isLinkOnly && typeof preview.body === 'string' && preview.body.trim()) {
     return preview.body;
   }
-  return preview?.placeholderText ?? item.body_preview ?? '';
+  if (previewText) return preview.placeholderText;
+  return item.body_preview ?? '';
 }
 
 function RemoveBookmarkDialog({ item, onConfirm, onClose }: RemoveBookmarkDialogProps) {

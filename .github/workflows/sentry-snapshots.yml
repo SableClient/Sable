@@ -68,6 +68,23 @@ jobs:
           echo "SENTRY_URL=$sentry_url" >> "$GITHUB_ENV"
           echo "Resolved Sentry URL: $sentry_url"
 
+      - name: Validate Sentry snapshot auth host
+        if: env.SENTRY_SNAPSHOTS_ENABLED == 'true'
+        run: |
+          set +e
+          output="$(
+            pnpm dlx @sentry/cli@3.5.1 --url "$SENTRY_URL" info 2>&1
+          )"
+          status=$?
+          set -e
+          echo "$output"
+          if printf '%s' "$output" | rg -q 'embedded in token'; then
+            echo "SENTRY_AUTH_TOKEN does not match $SENTRY_URL." >&2
+            echo "Rotate the preview-environment secret with a token minted for this Sentry host." >&2
+            exit 1
+          fi
+          exit "$status"
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 

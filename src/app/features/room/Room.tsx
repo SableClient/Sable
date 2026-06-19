@@ -108,6 +108,9 @@ export function Room() {
   const callView = room.isCallRoom();
   const abbreviations = useMergedAbbreviations(room);
   const showMobileWidgetsDrawer = screenSize !== ScreenSize.Desktop && isWidgetDrawerOpen;
+  const hasDesktopRightDrawer =
+    screenSize === ScreenSize.Desktop &&
+    (isDrawer || isWidgetDrawerOpen || Boolean(openThreadId) || threadBrowserOpen);
 
   // Log call view state
   useEffect(() => {
@@ -130,7 +133,11 @@ export function Room() {
             <Box grow="Yes" direction="Column">
               <RoomViewHeader />
               <Box grow="Yes">
-                <RoomView eventId={eventId} jumpMode={jumpMode} />
+                <RoomView
+                  eventId={eventId}
+                  jumpMode={jumpMode}
+                  hasDesktopRightDrawer={hasDesktopRightDrawer}
+                />
               </Box>
             </Box>
           )}

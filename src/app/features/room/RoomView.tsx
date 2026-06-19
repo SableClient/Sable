@@ -30,6 +30,7 @@ import { delayedEventsSupportedAtom } from '$state/scheduledMessages';
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { callEmbedAtom } from '$state/callEmbed';
 import { useCallJoined } from '$hooks/useCallEmbed';
+import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { CallView } from '$features/call/CallView';
 import { useRoom } from '$hooks/useRoom';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
@@ -74,9 +75,11 @@ const shouldFocusMessageField = (evt: KeyboardEvent): boolean => {
 export function RoomView({
   eventId,
   jumpMode,
+  hasDesktopRightDrawer = false,
 }: {
   eventId?: string;
   jumpMode?: 'notification_live' | 'history_context';
+  hasDesktopRightDrawer?: boolean;
 }) {
   const roomInputRef = useRef<HTMLDivElement>(null);
   const roomViewRef = useRef<HTMLDivElement>(null);
@@ -91,6 +94,7 @@ export function RoomView({
   const editor = useEditor();
 
   const mx = useMatrixClient();
+  const typingMembers = useRoomTypingMember(room.roomId);
 
   const tombstoneEvent = useStateEvent(room, EventType.RoomTombstone);
   const powerLevels = usePowerLevelsContext();
@@ -146,6 +150,7 @@ export function RoomView({
   const isJoinedInThisRoom = useCallJoined(callEmbed) && callEmbed?.roomId === room.roomId;
   const showCallView = !room.isCallRoom() && (callMembers.length > 0 || isJoinedInThisRoom);
   const hideFollowingBar = screenSize === ScreenSize.Mobile && isKeyboardVisible;
+  const hasTypingIndicator = typingMembers.some((receipt) => receipt.userId !== mx.getUserId());
 
   return (
     <BackRouteHandler>
@@ -163,6 +168,8 @@ export function RoomView({
                 room={room}
                 eventId={eventId}
                 jumpMode={jumpMode}
+                hasDesktopRightDrawer={hasDesktopRightDrawer}
+                hasTypingIndicator={hasTypingIndicator}
                 editor={editor}
                 onEditorReset={handleResetEditor}
                 onEditLastMessageRef={editLastMessageRef}

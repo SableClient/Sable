@@ -142,6 +142,8 @@ export type RoomTimelineProps = {
   room: Room;
   eventId?: string;
   jumpMode?: TimelineJumpMode;
+  hasDesktopRightDrawer?: boolean;
+  hasTypingIndicator?: boolean;
   editor: Editor;
   onEditorReset?: () => void;
   onEditLastMessageRef?: React.MutableRefObject<(() => void) | undefined>;
@@ -151,6 +153,8 @@ export function RoomTimeline({
   room,
   eventId,
   jumpMode,
+  hasDesktopRightDrawer = false,
+  hasTypingIndicator = false,
   editor,
   onEditorReset,
   onEditLastMessageRef,
@@ -263,6 +267,12 @@ export function RoomTimeline({
   const optionalSpace = useSpaceOptionally();
   const roomParents = useAtomValue(roomToParentsAtom);
   const isMobileScreen = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
+  const timelineBottomSpacing = hasTypingIndicator ? config.space.S700 : config.space.S600;
+  const timelineRightSpacing = isMobileScreen
+    ? config.space.S200
+    : hasDesktopRightDrawer
+      ? config.space.S400
+      : config.space.S0;
   const imagePackRooms = useImagePackRooms(room.roomId, roomParents);
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);
   const parseMemberEvent = useMemberEventParser();
@@ -1915,9 +1925,9 @@ export function RoomTimeline({
             display: 'flex',
             flexDirection: 'column',
             paddingLeft: config.space.S200,
-            paddingRight: isMobileScreen ? config.space.S200 : config.space.S0,
+            paddingRight: timelineRightSpacing,
             paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600,
-            paddingBottom: config.space.S600,
+            paddingBottom: timelineBottomSpacing,
           }}
           onScroll={handleVListScroll}
         >

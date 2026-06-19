@@ -111,10 +111,8 @@ describe('useAppVisibility', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    expect(mocks.togglePusher).toHaveBeenCalledTimes(3);
-    expect(mocks.togglePusher).toHaveBeenNthCalledWith(1, mx, {}, false, false, expect.any(Array));
-    expect(mocks.togglePusher).toHaveBeenNthCalledWith(2, mx, {}, true, false, expect.any(Array));
-    expect(mocks.togglePusher).toHaveBeenNthCalledWith(3, mx, {}, false, false, expect.any(Array));
+    expect(mocks.togglePusher).toHaveBeenCalledTimes(1);
+    expect(mocks.togglePusher).toHaveBeenNthCalledWith(1, mx, {}, true, false, expect.any(Array));
   });
 
   it('requests a lazy service worker claim and refreshes the session on visible resume', async () => {

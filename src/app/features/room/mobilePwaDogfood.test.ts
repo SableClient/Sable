@@ -79,7 +79,7 @@ describe('mobile PWA dogfood contract', () => {
     const roomView = readWorkspaceFile('src/app/features/room/RoomView.tsx');
 
     expect(roomView).toContain(
-      "paddingBottom: isKeyboardVisible ? '0px' : 'var(--sable-safe-area-bottom, 0px)'"
+      "paddingBottom:\n                  'var(--sable-safe-bottom, var(--sable-safe-area-bottom, 0px))'"
     );
   });
 });

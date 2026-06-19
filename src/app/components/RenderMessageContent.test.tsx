@@ -311,6 +311,19 @@ describe('RenderMessageContent', () => {
     expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
   });
 
+  it('keeps preview-suppressed plain urls hidden when the body starts with the suppressed url', () => {
+    renderMessage(
+      {
+        body: '<https://example.com/post>',
+        'com.beeper.linkpreviews': [],
+      },
+      { urlPreview: true, clientUrlPreview: false }
+    );
+
+    expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
   it('treats query-string media urls as direct previews', () => {
     renderMessage('https://example.com/test.jpg?token=abc', {
       urlPreview: false,

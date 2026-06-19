@@ -214,7 +214,8 @@ const isPreviewSuppressedUrl = (
   if (urlIndex === -1) return false;
 
   if (allowAngleBracketSuppression) {
-    if (body.slice(urlIndex - 1, urlIndex + url.length + 1) === `<${url}>`) return true;
+    const wrappedUrlStart = Math.max(0, urlIndex - 1);
+    if (body.slice(wrappedUrlStart, urlIndex + url.length + 1) === `<${url}>`) return true;
     if (offset >= 3 && body.slice(offset - 3, offset) === '](<') return true;
     if (body.slice(urlIndex - 2, urlIndex) === '(<') return true;
   }

@@ -319,13 +319,44 @@ describe('RenderMessageContent', () => {
   });
 
   it('keeps markdown preview-suppressed destinations out of preview extraction', () => {
+    renderMessage(
+      {
+        body: '[pic](<https://cdn.example/test.png>)',
+        'com.beeper.linkpreviews': [],
+      },
+      {
+        urlPreview: false,
+        clientUrlPreview: true,
+      }
+    );
+
+    expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
+  it('preserves normal markdown angle-bracket autolinks without hidden-preview bundle state', () => {
     renderMessage('[pic](<https://cdn.example/test.png>)', {
       urlPreview: false,
       clientUrlPreview: true,
     });
 
-    expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
+      'https://cdn.example/test.png'
+    );
+    expect(urlPreviewCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn.example/test.png', mediaType: 'image' })
+    );
+  });
+
+  it('keeps parenthesized urls when validating against formatted body links', () => {
+    renderMessage({
+      body: 'Look (https://example.com/path) now',
+      formatted_body: 'Look <a href="https://example.com/path">https://example.com/path</a> now',
+    });
+
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com/path');
   });
 
   it('include inner closing paranthesis from the url preview even within []() hyperlink', () => {

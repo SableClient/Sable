@@ -207,14 +207,17 @@ const isPreviewSuppressedUrl = (
   body: string,
   fullMatch: string,
   url: string,
-  offset: number
+  offset: number,
+  allowAngleBracketSuppression: boolean
 ): boolean => {
   const urlIndex = body.indexOf(url, offset);
   if (urlIndex === -1) return false;
 
-  if (body.slice(urlIndex - 1, urlIndex + url.length + 1) === `<${url}>`) return true;
-  if (offset >= 3 && body.slice(offset - 3, offset) === '](<') return true;
-  if (body.slice(urlIndex - 2, urlIndex) === '(<') return true;
+  if (allowAngleBracketSuppression) {
+    if (body.slice(urlIndex - 1, urlIndex + url.length + 1) === `<${url}>`) return true;
+    if (offset >= 3 && body.slice(offset - 3, offset) === '](<') return true;
+    if (body.slice(urlIndex - 2, urlIndex) === '(<') return true;
+  }
 
   return false;
 };
@@ -238,6 +241,10 @@ const getUrlsFromContent = (
     const customBody =
       typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
     const trimmedBody = trimReplyFromBody(body);
+    const hasBundledPreviewState = Object.prototype.hasOwnProperty.call(
+      content,
+      prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME
+    );
 
     const urlsMatch = [...trimmedBody.matchAll(LINKINPUTREGEX)];
     let urls: string[] | undefined = urlsMatch
@@ -247,7 +254,11 @@ const getUrlsFromContent = (
         const offset = match.index ?? 0;
         if (typeof url !== 'string') return undefined;
         const normalizedUrl = normalizeMatchedUrl(url, full);
-        if (isPreviewSuppressedUrl(trimmedBody, full, normalizedUrl, offset)) return undefined;
+        if (
+          isPreviewSuppressedUrl(trimmedBody, full, normalizedUrl, offset, hasBundledPreviewState)
+        ) {
+          return undefined;
+        }
         return normalizedUrl;
       })
       .filter((url): url is string => Boolean(url));
@@ -259,9 +270,13 @@ const getUrlsFromContent = (
         .replace(/<pre[^>]*>.*?<\/pre>/gs, '')
         .replace(/<code[^>]*>.*?<\/code>/gs, '');
       const safeText = safeHtml.replace(/<[^a][^>]*>/g, '');
-      const safeUrlsMatch = safeText.match(LINKINPUTREGEX);
-      let safeUrls = safeUrlsMatch ? [...new Set(safeUrlsMatch)] : [];
-      safeUrls = safeUrls.map((url) => normalizeMatchedUrl(url));
+      const safeUrls = [...safeText.matchAll(LINKINPUTREGEX)]
+        .map((match) => {
+          const full = match[0];
+          const url = match[1];
+          return typeof url === 'string' ? normalizeMatchedUrl(url, full) : undefined;
+        })
+        .filter((url): url is string => Boolean(url));
       const safeUrlsSet = new Set(safeUrls);
       urls = urls.filter((url) => safeUrlsSet.has(url) && !url.startsWith(MATRIX_TO_BASE));
     }

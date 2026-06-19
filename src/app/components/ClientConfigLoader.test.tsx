@@ -13,11 +13,25 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { setMatrixToBase, getMatrixToRoom, getMatrixToUser } from '$plugins/matrix-to';
-import { buildConfigAttemptUrl, ClientConfigLoader, getClientConfig } from './ClientConfigLoader';
+import {
+  buildConfigAttemptUrl,
+  ClientConfigLoader,
+  ClientConfigLoadError,
+  getClientConfig,
+} from './ClientConfigLoader';
+
+const sentry = vi.hoisted(() => ({
+  addBreadcrumb: vi.fn(),
+  captureException: vi.fn(),
+}));
+
+vi.mock('@sentry/react', () => sentry);
 
 afterEach(() => {
   setMatrixToBase(); // reset module state to 'https://matrix.to'
   vi.unstubAllGlobals();
+  sentry.addBreadcrumb.mockReset();
+  sentry.captureException.mockReset();
 });
 
 const mockFetch = (config: object) =>
@@ -158,6 +172,75 @@ describe('ClientConfigLoader + matrix-to wiring', () => {
     );
     expect(fetchMock.mock.calls[1]?.[0]).toMatch(/^\/config\.json\?cacheBust=/);
     expect(fetchMock.mock.calls[2]?.[0]).toMatch(/^\/config\.json\?cacheBust=/);
+    vi.useRealTimers();
+  });
+
+  it('classifies repeated 403 config failures without capturing noisy Sentry errors', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      statusText: '',
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const configPromise = getClientConfig();
+    const rejection = (async () => {
+      await expect(configPromise).rejects.toBeInstanceOf(ClientConfigLoadError);
+    })();
+    await vi.runAllTimersAsync();
+
+    await rejection;
+    await expect(configPromise).rejects.toMatchObject({
+      kind: 'http',
+      status: 403,
+    });
+    expect(sentry.captureException).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('classifies repeated network loader failures without capturing noisy Sentry errors', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Load failed')));
+
+    const configPromise = getClientConfig();
+    const rejection = (async () => {
+      await expect(configPromise).rejects.toBeInstanceOf(ClientConfigLoadError);
+    })();
+    await vi.runAllTimersAsync();
+
+    await rejection;
+    await expect(configPromise).rejects.toMatchObject({
+      kind: 'network',
+    });
+    expect(sentry.captureException).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('captures unexpected repeated config failures once on the final attempt', async () => {
+    vi.useFakeTimers();
+    const parseError = new Error('invalid JSON payload');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.reject(parseError),
+      })
+    );
+
+    const configPromise = getClientConfig();
+    const rejection = (async () => {
+      await expect(configPromise).rejects.toBeInstanceOf(ClientConfigLoadError);
+    })();
+    await vi.runAllTimersAsync();
+
+    await rejection;
+    await expect(configPromise).rejects.toMatchObject({
+      kind: 'unknown',
+    });
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
 });

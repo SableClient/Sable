@@ -51,7 +51,6 @@
     "dayjs": "^1.11.21",
     "domhandler": "^5.0.3",
     "dompurify": "^3.4.10",
-    "emoji-regex": "^10.6.0",
     "emojibase": "^17.0.0",
     "emojibase-data": "^17.0.0",
     "eventemitter3": "^5.0.4",

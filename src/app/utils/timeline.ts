@@ -7,12 +7,6 @@ import {
   getUnreadInfo,
 } from '$utils/room';
 
-export type RoomTimelineUnreadInfo = {
-  readUptoEventId?: string;
-  inLiveTimeline: boolean;
-  scrollTo: boolean;
-};
-
 export const PAGINATION_LIMIT = 60;
 
 export const getLiveTimeline = (room: Room): EventTimeline =>
@@ -165,13 +159,13 @@ export const getRoomUnreadInfo = (room: Room, scrollTo = false) => {
 };
 
 export const getUnreadInfoAfterJumpToLatest = (
-  unreadInfo: RoomTimelineUnreadInfo | undefined
-): RoomTimelineUnreadInfo | undefined =>
+  unreadInfo: ReturnType<typeof getRoomUnreadInfo>
+): ReturnType<typeof getRoomUnreadInfo> =>
   unreadInfo
     ? {
         ...unreadInfo,
         // Preserve the historical unread jump until the user explicitly marks the room read.
-        inLiveTimeline: unreadInfo.readUptoEventId ? unreadInfo.inLiveTimeline : true,
+        inLiveTimeline: unreadInfo.inLiveTimeline,
         scrollTo: false,
       }
     : unreadInfo;

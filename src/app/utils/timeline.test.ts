@@ -103,16 +103,4 @@ describe('getUnreadInfoAfterJumpToLatest', () => {
       scrollTo: false,
     });
   });
-
-  it('falls back to live timeline when no unread marker is tracked', () => {
-    expect(
-      getUnreadInfoAfterJumpToLatest({
-        inLiveTimeline: false,
-        scrollTo: true,
-      })
-    ).toEqual({
-      inLiveTimeline: true,
-      scrollTo: false,
-    });
-  });
 });

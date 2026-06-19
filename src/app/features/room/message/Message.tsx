@@ -827,9 +827,9 @@ function MessageInternal(
               avatarJSX={avatarJSX()}
               msgContentJSX={msgContentJSX}
               messageLayout={messageLayout}
-              onDoubleTap={onDoubleTap}
-              handleSwipeReply={handleSwipeReply}
-              handleContextMenu={handleContextMenu}
+              onDoubleTap={() => {}}
+              handleSwipeReply={() => {}}
+              handleContextMenu={() => {}}
               align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
             />
           ),

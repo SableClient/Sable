@@ -479,7 +479,11 @@ export function OptionMenu({
           initialFocus: false,
           onDeactivate: closeMenu,
           onPostDeactivate: handlePostDeactivate,
-          clickOutsideDeactivates: true,
+          allowOutsideClick: (e) => {
+            e.preventDefault();
+            closeMenu();
+            return false;
+          },
           isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
           isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
           escapeDeactivates: stopPropagation,

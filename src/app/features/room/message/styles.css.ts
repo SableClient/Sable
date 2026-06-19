@@ -29,7 +29,7 @@ export const MessageOptionsWrappedMessage = style({
   padding: config.space.S200,
   width: '100%',
   maxHeight: '25%',
-  overflow: 'scroll',
+  overflow: 'auto',
 });
 
 export const MessageOptionsMenu = style({

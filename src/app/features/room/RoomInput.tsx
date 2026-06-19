@@ -502,6 +502,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const { triggerPreLift } = useKeyboardHeight();
     const isMobileLayout = mobileOrTablet();
+    const handleMobilePreLift = useCallback(() => {
+      if (!isMobileLayout) return;
+      triggerPreLift();
+    }, [isMobileLayout, triggerPreLift]);
     // Always active on mobile: iOS can apply window.scrollY even with overflow:hidden
     // on body (scroll-prediction bug). The lock snaps scrollY back to 0 immediately
     // on any scroll event, preventing the "header scrolls up then snaps" jank.
@@ -1647,7 +1651,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     return (
       // eslint-disable-next-line jsx-a11y/no-static-element-interactions
-      <div ref={ref} onMouseDown={isMobileLayout ? triggerPreLift : undefined}>
+      <div
+        ref={ref}
+        onMouseDown={handleMobilePreLift}
+        onPointerDownCapture={handleMobilePreLift}
+        onTouchStartCapture={handleMobilePreLift}
+      >
         {selectedFiles.length > 0 && (
           <UploadBoard
             header={

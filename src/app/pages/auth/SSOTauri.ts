@@ -24,13 +24,20 @@ const getAppBaseUrl = (): string => {
 type TauriSsoCallback = {
   loginToken: string;
   server?: string;
+  addAccount?: boolean;
 };
 
-export const buildTauriSsoRedirectUrl = (server?: string): string => {
+export const buildTauriSsoRedirectUrl = (
+  server?: string,
+  options?: { addAccount?: boolean }
+): string => {
   const redirectUrl = new URL(SSO_CALLBACK_PATH, getAppBaseUrl());
 
   if (server) {
     redirectUrl.searchParams.set('server', server);
+  }
+  if (options?.addAccount) {
+    redirectUrl.searchParams.set('addAccount', '1');
   }
 
   return redirectUrl.toString();
@@ -48,6 +55,7 @@ export const parseTauriSsoCallback = (rawUrl: string): TauriSsoCallback | undefi
     return {
       loginToken,
       server: callbackUrl.searchParams.get('server') ?? undefined,
+      addAccount: callbackUrl.searchParams.get('addAccount') === '1',
     };
   } catch {
     return undefined;

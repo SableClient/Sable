@@ -338,9 +338,10 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
 );
 type DeviceVerificationResetProps = {
   onCancel: () => void;
+  externalResetRequired?: boolean;
 };
 export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerificationResetProps>(
-  ({ onCancel }, ref) => {
+  ({ onCancel, externalResetRequired = false }, ref) => {
     const [reset, setReset] = useState(false);
 
     return (
@@ -377,12 +378,19 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
             <Box direction="Column" gap="200">
               <Text size="H1">✋🧑‍🚒🤚</Text>
               <Text size="T300">Resetting device verification is permanent.</Text>
-              <Text size="T300">
-                Anyone you have verified with will see security alerts and your encryption backup
-                will be lost. You almost certainly do not want to do this, unless you have lost{' '}
-                <b>Recovery Key</b> or <b>Recovery Passphrase</b> and every device you can verify
-                from.
-              </Text>
+              {externalResetRequired ? (
+                <Text size="T300">
+                  Complete the account-management reset in your browser, then return here to finish
+                  provisioning the new recovery key and verification state in Charm.
+                </Text>
+              ) : (
+                <Text size="T300">
+                  Anyone you have verified with will see security alerts and your encryption backup
+                  will be lost. You almost certainly do not want to do this, unless you have lost{' '}
+                  <b>Recovery Key</b> or <b>Recovery Passphrase</b> and every device you can verify
+                  from.
+                </Text>
+              )}
             </Box>
             <Button variant="Critical" onClick={() => setReset(true)}>
               <Text size="B400">Reset</Text>

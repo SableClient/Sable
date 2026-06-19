@@ -3,8 +3,20 @@ import { ClientEvent, SyncState } from '$types/matrix-sdk';
 import {
   BACKGROUND_CLIENT_SYNC_READY_TIMEOUT_MS,
   classifyBackgroundClientFailure,
+  startBackgroundClient,
   waitForSync,
 } from './BackgroundNotifications';
+
+const { initClientMock, startClientMock } = vi.hoisted(() => ({
+  initClientMock: vi.fn<(session: unknown) => Promise<unknown>>(),
+  startClientMock: vi.fn<(mx: unknown, config?: unknown) => Promise<void>>(),
+}));
+
+vi.mock('$client/initMatrix', () => ({
+  initClient: initClientMock,
+  startClient: startClientMock,
+  stopClient: vi.fn<() => Promise<void>>(),
+}));
 
 type SyncListener = (state: SyncState) => void;
 
@@ -28,6 +40,8 @@ function createMockMatrixClient(initialState: SyncState | string | null = null) 
 describe('BackgroundNotifications helpers', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    initClientMock.mockReset();
+    startClientMock.mockReset();
   });
 
   afterEach(() => {
@@ -75,5 +89,33 @@ describe('BackgroundNotifications helpers', () => {
       message: 'background client sync timed out',
     });
     expect(mx.removeListener).toHaveBeenCalledWith(ClientEvent.Sync, expect.any(Function));
+  });
+
+  it('starts background sessions from the shared session stores', async () => {
+    const session = {
+      baseUrl: 'https://matrix.example',
+      userId: '@alice:example.org',
+      deviceId: 'DEVICE',
+      accessToken: 'token',
+      slidingSyncOptIn: true,
+    };
+    const backgroundMx = { getUserId: () => session.userId };
+    const slidingSync = { enabled: true, proxyBaseUrl: 'https://proxy.example' };
+
+    initClientMock.mockResolvedValue(backgroundMx);
+    startClientMock.mockResolvedValue(undefined);
+
+    await expect(startBackgroundClient(session, slidingSync as never)).resolves.toBe(backgroundMx);
+
+    expect(initClientMock).toHaveBeenCalledWith(session);
+    expect(startClientMock).toHaveBeenCalledWith(
+      backgroundMx,
+      expect.objectContaining({
+        baseUrl: session.baseUrl,
+        slidingSync,
+        sessionSlidingSyncOptIn: true,
+        clientScope: 'background',
+      })
+    );
   });
 });

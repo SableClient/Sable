@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import {
   ClientEvent,
-  createClient,
-  IndexedDBStore,
   MatrixEventEvent,
   RoomEvent,
   SyncState,
@@ -24,7 +22,6 @@ import {
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
-import { fetch } from '$utils/fetch';
 import {
   getAccountData,
   getMemberDisplayName,
@@ -44,7 +41,7 @@ import {
   resolveNotificationPreviewText,
 } from '$utils/notificationStyle';
 import * as Sentry from '@sentry/react';
-import { startClient, stopClient } from '$client/initMatrix';
+import { initClient, startClient, stopClient } from '$client/initMatrix';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { mobileOrTablet } from '$utils/user-agent';
 import { shouldShowNotificationInFocusMode } from '$utils/focusMode';
@@ -73,60 +70,18 @@ export const classifyBackgroundClientFailure = (error: unknown): BackgroundClien
   return 'start_failed';
 };
 
-const startBackgroundClient = async (
+export const startBackgroundClient = async (
   session: Session,
   slidingSyncConfig: ReturnType<typeof useClientConfig>['slidingSync']
 ): Promise<MatrixClient> => {
-  const storeName = {
-    sync: `bg-sync${session.userId}`,
-    crypto: `bg-crypto${session.userId}`,
-    rustCryptoPrefix: `bg-sync${session.userId}`,
-  };
-
   Sentry.addBreadcrumb({
     category: 'notification.background_client',
-    message: 'Creating IndexedDBStore for background client',
+    message: 'Initializing background client with shared session stores',
     level: 'info',
-    data: { userId: session.userId, dbName: storeName.sync },
+    data: { userId: session.userId },
   });
 
-  const indexedDBStore = new IndexedDBStore({
-    indexedDB: global.indexedDB,
-    localStorage: global.localStorage,
-    dbName: storeName.sync,
-  });
-
-  // CRITICAL: Must call startup() before using the store, otherwise matrix-js-sdk
-  // will detect a failure and trigger the "degrade" path (delete + recreate).
-  try {
-    await indexedDBStore.startup();
-    Sentry.addBreadcrumb({
-      category: 'notification.background_client',
-      message: 'IndexedDBStore startup succeeded',
-      level: 'info',
-      data: { userId: session.userId },
-    });
-  } catch (err: unknown) {
-    Sentry.addBreadcrumb({
-      category: 'notification.background_client',
-      message: 'IndexedDBStore startup failed — store will degrade',
-      level: 'error',
-      data: {
-        userId: session.userId,
-        error: err instanceof Error ? err.message : String(err),
-      },
-    });
-    // Don't throw — let the client proceed with degraded mode (in-memory only)
-  }
-
-  const mx = createClient({
-    baseUrl: session.baseUrl,
-    accessToken: session.accessToken,
-    userId: session.userId,
-    deviceId: session.deviceId,
-    fetchFn: fetch,
-    timelineSupport: false,
-  });
+  const mx = await initClient(session);
 
   const startOpts = {
     baseUrl: session.baseUrl,

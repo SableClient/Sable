@@ -36,6 +36,8 @@ import { stopPropagation } from '$utils/keyboard';
 import { useAuthMetadata } from '$hooks/useAuthMetadata';
 import { withSearchParam } from '$pages/pathUtils';
 import { useAccountManagementActions } from '$hooks/useAccountManagement';
+import { isTauri } from '@tauri-apps/api/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 type VerificationStatusBadgeProps = {
   verificationStatus: VerificationStatus;
@@ -221,6 +223,16 @@ export function VerifyOtherDeviceTile({ crypto, deviceId }: VerifyOtherDeviceTil
 type EnableVerificationProps = {
   visible: boolean;
 };
+
+const openAccountManagementUrl = async (url: string): Promise<void> => {
+  if (isTauri()) {
+    await openUrl(url);
+    return;
+  }
+
+  window.open(url, '_blank');
+};
+
 export function EnableVerification({ visible }: EnableVerificationProps) {
   const [open, setOpen] = useState(false);
 
@@ -274,13 +286,11 @@ export function DeviceVerificationOptions() {
 
     if (authMetadata) {
       const authUrl = authMetadata.account_management_uri ?? authMetadata.issuer;
-      window.open(
+      void openAccountManagementUrl(
         withSearchParam(authUrl, {
           action: accountManagementActions.crossSigningReset,
-        }),
-        '_blank'
+        })
       );
-      return;
     }
 
     setReset(true);
@@ -343,7 +353,10 @@ export function DeviceVerificationOptions() {
                 escapeDeactivates: false,
               }}
             >
-              <DeviceVerificationReset onCancel={handleCancelReset} />
+              <DeviceVerificationReset
+                onCancel={handleCancelReset}
+                externalResetRequired={!!authMetadata}
+              />
             </FocusTrap>
           </OverlayCenter>
         </Overlay>

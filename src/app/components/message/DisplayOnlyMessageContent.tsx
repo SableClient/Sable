@@ -98,7 +98,7 @@ export function DisplayOnlyMessageContent({
     return (
       <Box className={className} style={{ pointerEvents: 'none' }}>
         <Text size="T300" priority="400">
-          {preview.text}
+          {preview.placeholderText}
         </Text>
       </Box>
     );

@@ -49,6 +49,7 @@ type VideoContentProps = {
   autoPlay?: boolean;
   markedAsSpoiler?: boolean;
   spoilerReason?: string;
+  onError?: () => void;
   renderThumbnail?: () => ReactNode;
   renderVideo: (props: RenderVideoProps) => ReactNode;
 };
@@ -64,6 +65,7 @@ export const VideoContent = as<'div', VideoContentProps>(
       autoPlay,
       markedAsSpoiler,
       spoilerReason,
+      onError,
       renderThumbnail,
       renderVideo,
       ...props
@@ -144,6 +146,7 @@ export const VideoContent = as<'div', VideoContentProps>(
       if (srcState.status === AsyncStatus.Success) {
         setLoad(false);
         setError(true);
+        onError?.();
       }
     };
 

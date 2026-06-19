@@ -80,6 +80,40 @@ function isLikelyPlayableOgVideo(prev: IPreviewUrlResponse): boolean {
   return false;
 }
 
+function isAnimatedDirectImage(url: string, mimeType?: string): boolean {
+  const resolvedMime = typeof mimeType === 'string' ? mimeType.toLowerCase() : '';
+  if (resolvedMime === 'image/gif' || resolvedMime === 'image/apng') {
+    return true;
+  }
+
+  return /\.(gif|apng)(\?|#|$)/i.test(url);
+}
+
+function normalizeDirectRemoteUrl(url: string): string | undefined {
+  const trimmed = url.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return undefined;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined;
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+const buildDirectMediaInfo = (
+  metadata: ReturnType<typeof useMediaMetadata> | undefined
+): IImageInfo | undefined => {
+  if (!metadata?.width || !metadata?.height) return undefined;
+
+  return {
+    w: metadata.width,
+    h: metadata.height,
+    ...(metadata.mimeType ? { mimetype: metadata.mimeType } : {}),
+  };
+};
+
 export const UrlPreviewCard = as<
   'div',
   {
@@ -87,13 +121,17 @@ export const UrlPreviewCard = as<
     url: string;
     ts?: number;
     mediaType?: string | null;
+    mediaAutoLoad?: boolean;
     bundle?: IPreviewUrlResponse;
   }
->(({ urlPreview, url, ts, mediaType, bundle, ...props }, ref) => {
+>(({ urlPreview, url, ts, mediaType, mediaAutoLoad = true, bundle, ...props }, ref) => {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
+  const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [imageError, setImageError] = useState(false);
+  const [directMediaError, setDirectMediaError] = useState(false);
+  const directAnimatedPreviewRef = useRef<{ url: string; isAnimated: boolean }>();
 
   const isDirect = !!mediaType;
 
@@ -155,11 +193,160 @@ export const UrlPreviewCard = as<
   const previewVideoMetadata = useMediaMetadata(
     previewVideoUrl ? getScopedMediaCacheKey(previewVideoUrl) : undefined
   );
+  const directMediaMetadata = useMediaMetadata(isDirect ? getScopedMediaCacheKey(url) : undefined);
 
   // Reset imageError when URL changes
   useEffect(() => {
     setImageError(false);
+    setDirectMediaError(false);
   }, [url]);
+
+  const mediaWellStyle = useMemo(
+    () => ({
+      width: '100%',
+      maxHeight: toRem(linkPreviewImageMaxHeight),
+      aspectRatio: '16 / 9',
+      flexShrink: 1,
+      minHeight: 0,
+      overflow: 'hidden',
+      position: 'relative' as const,
+    }),
+    [linkPreviewImageMaxHeight]
+  );
+
+  const previewThumbMaxEdge = Math.min(
+    2048,
+    Math.max(1, Math.round(Math.max(1, linkPreviewImageMaxHeight) * 2))
+  );
+
+  const renderCardShell = (
+    label: React.ReactNode,
+    media?: React.ReactNode,
+    description?: React.ReactNode
+  ) => (
+    <Box
+      grow="Yes"
+      direction="Column"
+      style={{
+        overflow: 'hidden',
+        width: '100%',
+      }}
+    >
+      <UrlPreviewContent
+        style={{
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+        }}
+      >
+        <Text
+          style={linkStyles}
+          truncate
+          as="a"
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          size="T200"
+          priority="300"
+        >
+          {label}
+        </Text>
+        {description}
+      </UrlPreviewContent>
+      {media}
+    </Box>
+  );
+
+  const renderDirectMedia = () => {
+    if (mediaType !== 'image' && mediaType !== 'video') {
+      return renderCardShell(safeDecodeUrl(url));
+    }
+
+    const directMediaInfo = buildDirectMediaInfo(directMediaMetadata);
+    const directMediaUrl = normalizeDirectRemoteUrl(url);
+    const body = safeDecodeUrl(url);
+    if (directAnimatedPreviewRef.current?.url !== url) {
+      directAnimatedPreviewRef.current = {
+        url,
+        isAnimated: isAnimatedDirectImage(body, directMediaMetadata?.mimeType),
+      };
+    }
+    const directAspectRatio =
+      directMediaInfo?.w && directMediaInfo?.h
+        ? `${directMediaInfo.w} / ${directMediaInfo.h}`
+        : '16 / 9';
+    const freezeAnimatedPreview =
+      mediaType === 'image' &&
+      !autoplayGifs &&
+      (directAnimatedPreviewRef.current?.isAnimated ?? false);
+
+    if (directMediaError || !directMediaUrl || freezeAnimatedPreview || !mediaAutoLoad) {
+      return renderCardShell(body);
+    }
+
+    return renderCardShell(
+      body,
+      <Box
+        shrink="No"
+        className={urlPreviewChrome.UrlPreviewMediaWell}
+        style={{ ...mediaWellStyle, aspectRatio: directAspectRatio }}
+      >
+        {mediaType === 'image' ? (
+          <Box
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Image
+              info={directMediaInfo}
+              alt={body}
+              title={body}
+              src={directMediaUrl}
+              loading="lazy"
+              onError={() => setDirectMediaError(true)}
+              style={{
+                display: 'block',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                width: 'auto',
+                height: 'auto',
+                objectFit: 'contain',
+                objectPosition: 'center',
+              }}
+            />
+          </Box>
+        ) : (
+          <Box
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Video
+              title={body}
+              src={directMediaUrl}
+              controls
+              preload="metadata"
+              onError={() => setDirectMediaError(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          </Box>
+        )}
+      </Box>
+    );
+  };
 
   const renderContent = (prev: IPreviewUrlResponse) => {
     const siteName = prev['og:site_name'];
@@ -231,66 +418,16 @@ export const UrlPreviewCard = as<
       return undefined;
     })();
 
-    const previewThumbMaxEdge = Math.min(
-      2048,
-      Math.max(1, Math.round(Math.max(1, linkPreviewImageMaxHeight) * 2))
-    );
     const showOgVideo = isLikelyPlayableOgVideo(prev);
 
-    return (
-      <Box
-        grow="Yes"
-        direction="Column"
-        style={{
-          overflow: 'hidden',
-          width: '100%',
-        }}
-      >
-        <UrlPreviewContent
-          style={{
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-          }}
-        >
-          <Text
-            style={linkStyles}
-            truncate
-            as="a"
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            size="T200"
-            priority="300"
-          >
-            {typeof siteName === 'string' && `${siteName} | `}
-            {safeDecodeUrl(url)}
-          </Text>
-          {title && (
-            <Text truncate priority="400">
-              <b>{title}</b>
-            </Text>
-          )}
-          {description && (
-            <Text size="T200" priority="300">
-              <UrlPreviewDescription>{description}</UrlPreviewDescription>
-            </Text>
-          )}
-        </UrlPreviewContent>
+    return renderCardShell(
+      typeof siteName === 'string' ? `${siteName} | ${safeDecodeUrl(url)}` : safeDecodeUrl(url),
+      <>
         {showOgVideo && (
           <Box
             shrink="No"
             className={urlPreviewChrome.UrlPreviewMediaWell}
-            style={{
-              width: '100%',
-              maxHeight: toRem(linkPreviewImageMaxHeight),
-              aspectRatio: aspectRatio ?? '16 / 9',
-              flexShrink: 1,
-              minHeight: 0,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
+            style={{ ...mediaWellStyle, aspectRatio: aspectRatio ?? '16 / 9' }}
           >
             <VideoContent
               style={{
@@ -317,15 +454,7 @@ export const UrlPreviewCard = as<
           <Box
             shrink="No"
             className={urlPreviewChrome.UrlPreviewMediaWell}
-            style={{
-              width: '100%',
-              maxHeight: toRem(linkPreviewImageMaxHeight),
-              aspectRatio: aspectRatio ?? '16 / 9',
-              flexShrink: 1,
-              minHeight: 0,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
+            style={{ ...mediaWellStyle, aspectRatio: aspectRatio ?? '16 / 9' }}
           >
             <ImageContent
               style={{
@@ -374,12 +503,26 @@ export const UrlPreviewCard = as<
             />
           </Box>
         )}
-      </Box>
+      </>,
+      <>
+        {title && (
+          <Text truncate priority="400">
+            <b>{title}</b>
+          </Text>
+        )}
+        {description && (
+          <Text size="T200" priority="300">
+            <UrlPreviewDescription>{description}</UrlPreviewDescription>
+          </Text>
+        )}
+      </>
     );
   };
 
   let previewContent;
-  if (previewStatus.status === AsyncStatus.Success) {
+  if (isDirect) {
+    previewContent = renderDirectMedia();
+  } else if (previewStatus.status === AsyncStatus.Success) {
     previewContent = previewStatus.data ? (
       renderContent(previewStatus.data)
     ) : (
@@ -424,29 +567,7 @@ export const UrlPreviewCard = as<
     );
   }
   return (
-    <UrlPreview
-      {...props}
-      ref={ref}
-      style={
-        isDirect
-          ? {
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              boxShadow: 'none',
-              display: 'inline-block',
-              verticalAlign: 'middle',
-              width: 'max-content',
-              minWidth: 0,
-              maxWidth: '100%',
-              margin: 0,
-              alignSelf: 'start',
-            }
-          : {
-              alignSelf: 'start',
-            }
-      }
-    >
+    <UrlPreview {...props} ref={ref} style={{ alignSelf: 'start' }}>
       {previewContent}
     </UrlPreview>
   );

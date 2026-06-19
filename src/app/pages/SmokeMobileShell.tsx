@@ -64,6 +64,118 @@ function SmokeRoomFooter() {
   );
 }
 
+function SmokeRoomSpacing() {
+  return (
+    <Page>
+      <Box grow="Yes" style={{ minHeight: 0 }}>
+        <Box grow="Yes" direction="Column" style={{ minHeight: 0 }}>
+          <Box
+            grow="Yes"
+            direction="Column"
+            gap="300"
+            style={{
+              minHeight: 0,
+              paddingTop: config.space.S600,
+              paddingLeft: config.space.S200,
+              paddingRight: config.space.S400,
+              paddingBottom: config.space.S700,
+              backgroundColor: 'var(--sable-surface)',
+            }}
+          >
+            {Array.from({ length: 5 }, (_, index) => (
+              <Box
+                key={index}
+                data-testid={index === 4 ? 'smoke-last-event' : undefined}
+                style={{
+                  alignSelf: index % 2 === 0 ? 'stretch' : 'flex-start',
+                  width: index % 2 === 0 ? '100%' : 'max-content',
+                  maxWidth: '100%',
+                  padding: config.space.S300,
+                  borderRadius: config.radii.R400,
+                  backgroundColor:
+                    index === 4
+                      ? 'var(--sable-surface-container-high)'
+                      : 'var(--sable-surface-container)',
+                }}
+              >
+                <Text size="T300">
+                  {index === 4
+                    ? 'Last visible timeline event should keep breathing room above typing and composer.'
+                    : `Timeline event ${index + 1}`}
+                </Text>
+              </Box>
+            ))}
+          </Box>
+          <Box
+            data-testid="smoke-typing-indicator"
+            alignItems="Center"
+            style={{
+              minHeight: '28px',
+              padding: `0 ${config.space.S500}`,
+              backgroundColor: 'var(--sable-surface-container)',
+              borderTop: '1px solid var(--sable-border-subtle)',
+            }}
+          >
+            <Text size="T300">Someone is typing...</Text>
+          </Box>
+          <Box
+            shrink="No"
+            direction="Column"
+            style={{
+              backgroundColor: 'var(--sable-surface-container)',
+              paddingBottom: 'var(--sable-safe-area-bottom, 0px)',
+            }}
+          >
+            <div style={{ padding: `0 ${config.space.S400}` }}>
+              <Box
+                data-testid="smoke-composer"
+                direction="Column"
+                gap="200"
+                style={{
+                  padding: `${config.space.S300} 0`,
+                }}
+              >
+                <Box
+                  style={{
+                    padding: config.space.S300,
+                    borderRadius: config.radii.R400,
+                    backgroundColor: 'var(--sable-surface)',
+                  }}
+                >
+                  <Text size="T300">Composer</Text>
+                </Box>
+              </Box>
+            </div>
+          </Box>
+        </Box>
+        <Box
+          data-testid="smoke-drawer-divider"
+          style={{
+            width: '1px',
+            backgroundColor: 'var(--sable-border-subtle)',
+          }}
+        />
+        <Box
+          data-testid="smoke-drawer"
+          shrink="No"
+          direction="Column"
+          gap="200"
+          style={{
+            width: '320px',
+            padding: config.space.S400,
+            backgroundColor: 'var(--sable-surface-container)',
+          }}
+        >
+          <Text size="H4">Members</Text>
+          <MenuItem variant="Background" radii="400">
+            <Text size="T300">Drawer content</Text>
+          </MenuItem>
+        </Box>
+      </Box>
+    </Page>
+  );
+}
+
 function SmokeSettingsModal() {
   return (
     <Modal500 requestClose={() => undefined} fullScreenOnMobile>
@@ -162,6 +274,7 @@ export function SmokeMobileShell() {
   if (mode === 'settings') return <SmokeSettingsModal />;
   if (mode === 'profile') return <SmokeProfileModal />;
   if (mode === 'room') return <SmokeRoomFooter />;
+  if (mode === 'room-spacing') return <SmokeRoomSpacing />;
 
   return (
     <PageRoot nav={<SmokeHomeNav />}>

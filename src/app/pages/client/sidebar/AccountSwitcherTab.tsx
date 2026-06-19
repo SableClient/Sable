@@ -35,6 +35,7 @@ import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { stopPropagation } from '$utils/keyboard';
+import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 import { getHomePath, getLoginPath, withSearchParam } from '$pages/pathUtils';
 import { logoutClient, initClient, stopClient } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -236,7 +237,9 @@ export function AccountSwitcherTab() {
           setActiveSessionId(
             sessions.find((s) => s.userId !== session.userId)?.userId ?? undefined
           );
-          window.location.reload();
+          reloadWithTelemetry('logout_from_account_switcher', {
+            userId: session.userId,
+          });
         } else {
           try {
             const tempMx = await initClient(session);

@@ -43,6 +43,70 @@ rules:
     severity: ERROR
     paths:
       include:
+        - '**/src/index.tsx'
+        - '**/src/app/components/DefaultErrorPage.tsx'
+        - '**/src/app/components/telemetry-consent/TelemetryConsentBanner.tsx'
+        - '**/src/app/features/settings/general/General.tsx'
+        - '**/src/app/pages/client/ClientRoot.tsx'
+        - '**/src/app/pages/client/sidebar/AccountSwitcherTab.tsx'
+        - '**/src/app/pages/auth/reset-password/PasswordResetForm.tsx'
+        - '**/src/app/pages/auth/register/PasswordRegisterForm.tsx'
+        - '**/src/app/utils/appUpdates.ts'
         - '**/src/serviceWorkerBootstrap.ts'
         - '**/src/client/initMatrix.ts'
     pattern: window.location.reload()
+
+  - id: charm-no-unsafe-dangerously-set-inner-html
+    message: >-
+      Keep `dangerouslySetInnerHTML` confined to the approved sanitization/rendering helpers.
+      New uses must go through an explicitly reviewed HTML sanitization path first.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    paths:
+      include:
+        - '**/src/**/*.tsx'
+        - '**/src/**/*.jsx'
+      exclude:
+        - '**/src/app/plugins/react-custom-html-parser.tsx'
+        - '**/src/app/components/code-highlight/CodeHighlightRenderer.tsx'
+    pattern-regex: dangerouslySetInnerHTML
+
+  - id: charm-window-open-needs-noopener
+    message: >-
+      Opening a new tab without explicit `noopener,noreferrer` leaves the new page with access to
+      the opener window. Pass the feature string when using `window.open(..., '_blank')`.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    paths:
+      include:
+        - '**/src/**/*.ts'
+        - '**/src/**/*.tsx'
+        - '**/src/**/*.js'
+        - '**/src/**/*.jsx'
+    pattern: window.open($URL, '_blank')
+
+  - id: charm-no-sensitive-console-logging
+    message: >-
+      Do not send access tokens, passwords, secrets, or raw session tokens to the console. Route
+      operational details through the structured debug logger with scrubbed fields instead.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    paths:
+      include:
+        - '**/src/**/*.ts'
+        - '**/src/**/*.tsx'
+        - '**/src/**/*.js'
+        - '**/src/**/*.jsx'
+    patterns:
+      - pattern-either:
+          - pattern: console.$METHOD($SECRET)
+          - pattern: console.$METHOD(..., $SECRET, ...)
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: '(?i)[A-Za-z0-9_$.]*(accessToken|refreshToken|sessionToken|apiKey|password|secret|token)[A-Za-z0-9_$.]*'

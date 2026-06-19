@@ -6,8 +6,16 @@ const { mockHasServiceWorker } = vi.hoisted(() => ({
   mockHasServiceWorker: vi.fn(),
 }));
 
+const { mockReloadWithTelemetry } = vi.hoisted(() => ({
+  mockReloadWithTelemetry: vi.fn<(reason: string) => void>(),
+}));
+
 vi.mock('$utils/platform', () => ({
   hasServiceWorker: mockHasServiceWorker,
+}));
+
+vi.mock('$utils/reloadWithTelemetry', () => ({
+  reloadWithTelemetry: mockReloadWithTelemetry,
 }));
 
 type MockServiceWorker = {
@@ -44,6 +52,7 @@ describe('appUpdates', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockHasServiceWorker.mockReturnValue(true);
+    mockReloadWithTelemetry.mockReset();
     mockRegistration = createRegistration();
     mockReload = vi.fn();
     serviceWorkerAddEventListener = vi.fn();
@@ -203,11 +212,11 @@ describe('appUpdates', () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING_AND_CLAIM' });
-    expect(mockReload).not.toHaveBeenCalled();
+    expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
 
     controllerChangeListener?.(new Event('controllerchange'));
     await applyPromise;
-    expect(mockReload).toHaveBeenCalledTimes(1);
+    expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
   it('reloads after a timeout if controllerchange never arrives', async () => {
@@ -218,12 +227,12 @@ describe('appUpdates', () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING_AND_CLAIM' });
-    expect(mockReload).not.toHaveBeenCalled();
+    expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(4000);
     await applyPromise;
 
-    expect(mockReload).toHaveBeenCalledTimes(1);
+    expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
   it('reports native updater unsupported when service workers are unavailable', async () => {

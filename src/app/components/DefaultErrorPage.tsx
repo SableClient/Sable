@@ -3,6 +3,7 @@ import { Warning, sizedIcon } from '$components/icons/phosphor';
 import * as Sentry from '@sentry/react';
 import { SplashScreen } from '$components/splash-screen';
 import { buildGitHubUrl } from '$features/bug-report/BugReportModal';
+import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 
 type ErrorPageProps = {
   error: Error;
@@ -130,7 +131,11 @@ export function ErrorPage({ error, eventId }: ErrorPageProps) {
             </Box>
             <Button
               variant="Primary"
-              onClick={() => window.location.reload()}
+              onClick={() =>
+                reloadWithTelemetry('error_boundary_recovery', {
+                  reportedToSentry,
+                })
+              }
               fill="Solid"
               title="clicking this will reload the page and hopefully lead to a functioning app again :)"
             >

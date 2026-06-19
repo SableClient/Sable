@@ -21,7 +21,7 @@ export function SSOStage({
   }, [submitAuthDict, session]);
 
   const handleContinue = () => {
-    const w = window.open(ssoRedirectURL, '_blank');
+    const w = window.open(ssoRedirectURL, '_blank', 'noopener,noreferrer');
     setSSOWindow(w ?? undefined);
   };
 

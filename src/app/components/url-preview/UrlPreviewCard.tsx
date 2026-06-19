@@ -48,7 +48,7 @@ const openMediaInNewTab = async (url: string | undefined, accessToken: string | 
   try {
     const blob = await downloadMedia(url, accessToken);
     const blobUrl = URL.createObjectURL(blob);
-    window.open(blobUrl, '_blank');
+    window.open(blobUrl, '_blank', 'noopener,noreferrer');
   } catch (err) {
     console.error('[UrlPreview] Failed to open media in new tab', err);
   }

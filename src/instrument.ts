@@ -17,6 +17,7 @@ import {
 } from 'react-router-dom';
 import { APP_NAME } from './app/config/brand';
 import { scrubMatrixIds, scrubDataObject, scrubMatrixUrl } from './app/utils/sentryScrubbers';
+import { initSentryToolbar } from './app/utils/sentryToolbar';
 
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
@@ -308,10 +309,13 @@ if (dsn && sentryEnabled) {
   );
   console.info(`[Sentry] DSN configured: ${dsn?.substring(0, 30)}...`);
   console.info(`[Sentry] Release: ${release || 'not set'}`);
+  void initSentryToolbar().catch(() => undefined);
 } else if (!sentryEnabled) {
   console.info('[Sentry] Disabled by user preference');
+  void initSentryToolbar().catch(() => undefined);
 } else {
   console.info('[Sentry] Disabled - no DSN provided');
+  void initSentryToolbar().catch(() => undefined);
 }
 
 // Export Sentry for use in other parts of the application

@@ -37,6 +37,7 @@ import { ConfirmPasswordMatch } from '$components/ConfirmPasswordMatch';
 import { UIAFlowOverlay } from '$components/UIAFlowOverlay';
 import type { RequestEmailTokenCallback, RequestEmailTokenResponse } from '$hooks/types';
 import { FieldError } from '$pages/auth/FiledError';
+import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 import { deviceDisplayName } from '$utils/user-agent';
 import { fetch } from '$utils/fetch';
 import type { RegisterResult } from './registerUtil';
@@ -114,7 +115,7 @@ function RegisterUIAFlow({
   );
 
   const handleCancel = useCallback(() => {
-    window.location.reload();
+    reloadWithTelemetry('registration_uia_cancelled');
   }, []);
 
   if (!stageToComplete) return null;
@@ -377,7 +378,7 @@ export function PasswordRegisterForm({
             <Checkbox name="termsInput" size="300" variant="Primary" required />
             <Text size="T300">
               I accept server{' '}
-              <a href={termUrl} target="_blank" rel="noreferrer">
+              <a href={termUrl} target="_blank" rel="noopener noreferrer">
                 Terms and Conditions
               </a>
               .

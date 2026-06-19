@@ -2,18 +2,25 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TelemetryConsentBanner } from './TelemetryConsentBanner';
 
+const { mockReloadWithTelemetry } = vi.hoisted(() => ({
+  mockReloadWithTelemetry: vi.fn<(reason: string) => void>(),
+}));
+
+vi.mock('$utils/reloadWithTelemetry', () => ({
+  reloadWithTelemetry: mockReloadWithTelemetry,
+}));
+
 const SENTRY_KEY = 'sable_sentry_enabled';
 const TEST_DSN = 'https://examplePublicKey@o0.ingest.sentry.io/0';
 
 describe('TelemetryConsentBanner', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.stubGlobal('location', { reload: vi.fn<() => void>() });
+    mockReloadWithTelemetry.mockReset();
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
   });
 
   // ── visibility ────────────────────────────────────────────────────────────
@@ -74,7 +81,7 @@ describe('TelemetryConsentBanner', () => {
     vi.stubEnv('VITE_SENTRY_DSN', TEST_DSN);
     render(<TelemetryConsentBanner />);
     fireEvent.click(screen.getByRole('button', { name: /enable/i }));
-    expect(window.location.reload).toHaveBeenCalledOnce();
+    expect(mockReloadWithTelemetry).toHaveBeenCalledWith('telemetry_consent_enabled');
   });
 
   // ── "No thanks" action ────────────────────────────────────────────────────
@@ -90,6 +97,6 @@ describe('TelemetryConsentBanner', () => {
     vi.stubEnv('VITE_SENTRY_DSN', TEST_DSN);
     render(<TelemetryConsentBanner />);
     fireEvent.click(screen.getByRole('button', { name: /no thanks/i }));
-    expect(window.location.reload).not.toHaveBeenCalled();
+    expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
   });
 });

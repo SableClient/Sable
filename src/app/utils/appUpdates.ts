@@ -1,4 +1,5 @@
 import { hasServiceWorker } from '$utils/platform';
+import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 
 const UPDATE_CHECK_TIMEOUT_MS = 2500;
 const APPLY_UPDATE_TIMEOUT_MS = 4000;
@@ -186,5 +187,5 @@ export async function applyPendingAppUpdate(): Promise<void> {
     await waitForControllerChange;
   }
 
-  window.location.reload();
+  reloadWithTelemetry('apply_pending_app_update');
 }

@@ -158,6 +158,16 @@ VITE_SENTRY_ENVIRONMENT=production
 # Optional: Release version for tracking (defaults to VITE_APP_VERSION)
 VITE_SENTRY_RELEASE=1.7.0
 
+# Optional: Enable the preview-only Sentry Toolbar loader
+VITE_SENTRY_TOOLBAR=false
+
+# Optional: Required when VITE_SENTRY_TOOLBAR=true
+VITE_SENTRY_ORGANIZATION=your-org-slug
+VITE_SENTRY_PROJECT=your-project-slug
+
+# Optional: Override the Sentry origin used by the Toolbar (defaults to https://sentry.io)
+VITE_SENTRY_TOOLBAR_ORIGIN=https://sentry.io
+
 # Optional: For uploading source maps to Sentry (CI/CD only)
 SENTRY_AUTH_TOKEN=your-sentry-auth-token
 SENTRY_ORG=your-org-slug
@@ -251,6 +261,27 @@ docker build \
 - Configured in `.github/workflows/cloudflare-web-preview.yml`
 - For GitHub PR previews, the workflow also sets `VITE_SENTRY_PR=<pull request number>`.
   `src/instrument.ts` reads that value and tags all Sentry events with `pr=<number>`.
+- To enable the preview-only Toolbar, also set:
+  - `VITE_SENTRY_TOOLBAR=true`
+  - `VITE_SENTRY_ORGANIZATION=<org slug>`
+  - `VITE_SENTRY_PROJECT=<project slug>`
+
+### Sentry Toolbar
+
+Charm can inject the Sentry Toolbar in preview builds without adding a runtime package dependency.
+`src/instrument.ts` remains the single Sentry bootstrap point and calls the Toolbar loader after the
+main Sentry SDK initialization path settles.
+
+Behavior:
+
+- The Toolbar only initializes when all of the following are true:
+  - `VITE_SENTRY_ENVIRONMENT=preview`
+  - `VITE_SENTRY_TOOLBAR=true`
+  - `VITE_SENTRY_ORGANIZATION` is set
+  - `VITE_SENTRY_PROJECT` is set
+- Production builds leave the Toolbar disabled by default.
+- The app sets `data-sentry-toolbar-state` on the root HTML element to `enabled`, `disabled`, or
+  `error`, which gives local tests a stable build signal without asserting on Toolbar internals.
 
 ### GitHub PR Triage Setup
 
@@ -278,6 +309,10 @@ The repo-side wiring for this is:
   - queries Sentry for `is:unresolved pr:<number> environment:preview`
   - upserts the sticky PR comment
   - creates or reopens GitHub issues for matching Sentry issues
+- `.github/workflows/sentry-snapshots.yml`
+  - installs Chromium and runs `e2e/smoke/observability.spec.ts`
+  - writes stable screenshots to `.artifacts/sentry-snapshots`
+  - uploads those screenshots with `pnpm dlx @sentry/cli@latest snapshots upload`
 
 Required GitHub repository secrets:
 
@@ -290,6 +325,12 @@ Required GitHub repository secrets:
   Recommended dedicated token for the triage workflow. It should have at least
   `event:read` scope in Sentry. Using a separate token avoids broadening the
   build-time token unnecessarily.
+
+Reviewer expectations for Snapshots:
+
+- Snapshot diffs are generated from deterministic smoke fixtures, not live Matrix timelines.
+- A failed Snapshot check should be reviewed as a visual change signal, not assumed to be a bug by default.
+- The workflow uploads the same PNG set as a GitHub artifact for debugging when you need to inspect exactly what was rendered.
 
 Operational notes:
 
@@ -327,8 +368,8 @@ What still depends on Sentry-side configuration:
   Sentry dashboards, then enabled in the Worker observability settings. Charm now
   deploys a Worker-first asset proxy so Cloudflare observability can see real site
   traffic; you still need to configure the drain destinations in Cloudflare.
-- Sentry Toolbar and Snapshots. These are product-side features and should be treated
-  as optional workflow tools rather than part of the repo's required CI path.
+- Build Distribution and Size Analysis for native artifacts. These remain deliberately deferred
+  until Charm has a stable signed-artifact lane for Tauri or mobile builds.
 
 Recommended manual Sentry follow-up:
 
@@ -345,9 +386,8 @@ Recommended manual Sentry follow-up:
    destination names into Worker observability config. Without those destinations,
    the repo changes here only ensure the Worker emits observable traffic; they do
    not automatically create the drain endpoints in Cloudflare or Sentry.
-5. Re-evaluate Sentry Toolbar and Snapshots after the CI smoke coverage is in place.
-   They are useful for manual QA and visual debugging, but not a substitute for
-   deterministic browser tests.
+5. Use the preview Toolbar and Snapshot checks as complements to the deterministic browser tests,
+   not as a replacement for them.
 
 **Local development:**
 
@@ -382,6 +422,21 @@ localStorage.setItem('sable_sentry_replay_enabled', 'false');
 ```
 
 Or use the UI in Settings → General → Diagnostics & Privacy.
+
+## Native-Prep Scaffolding
+
+Charm now includes `.github/workflows/sentry-native-prep.yml` as a manual placeholder for future
+native artifact uploads.
+
+Current intent:
+
+- Keep Build Distribution and Size Analysis out of the default web build and PR path.
+- Document the future contract where an upstream native build job provides a signed or uploadable
+  artifact.
+- Reuse `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` when that lane becomes real.
+
+Until Charm has a stable native artifact flow, this workflow only documents the expected upload
+shape and does not send any builds to Sentry.
 
 ## Custom Instrumentation
 

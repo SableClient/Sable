@@ -64,7 +64,7 @@ jobs:
 
       - name: Resolve Sentry region URL
         run: |
-          sentry_url="$(python -c 'import os; from urllib.parse import urlparse; host = urlparse(os.environ[\"VITE_SENTRY_DSN\"]).hostname or \"\"; marker = \".ingest.\"; region_host = host.split(marker, 1)[1] if marker in host else \"sentry.io\"; print(f\"https://{region_host}/\")')"
+          sentry_url="$(node -e "const hostname = new URL(process.env.VITE_SENTRY_DSN).hostname || ''; const marker = '.ingest.'; const regionHost = hostname.includes(marker) ? hostname.split(marker)[1] : 'sentry.io'; process.stdout.write(\`https://${regionHost}/\`);")"
           echo "SENTRY_URL=$sentry_url" >> "$GITHUB_ENV"
           echo "Resolved Sentry URL: $sentry_url"
 

@@ -1,0 +1,41 @@
+name: Sentry Native Prep
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Future artifact lane: ios, android, or tauri'
+        required: true
+        type: choice
+        options:
+          - ios
+          - android
+          - tauri
+      build_path:
+        description: 'Path to the native build artifact that a future upload lane will provide'
+        required: false
+        type: string
+
+permissions: {}
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain current scope
+        run: |
+          {
+            echo "### Native Sentry Prep"
+            echo
+            echo "This workflow is a placeholder only."
+            echo
+            echo "- Build Distribution and Size Analysis stay disabled until Charm has a stable native artifact lane."
+            echo "- Future jobs should provide a signed or uploadable artifact via the build_path input or an upstream build job."
+            echo "- The intended Sentry contract reuses SENTRY_AUTH_TOKEN, SENTRY_ORG, and SENTRY_PROJECT."
+            echo
+            echo "Planned upload shapes:"
+            echo '```bash'
+            echo 'sentry-cli build upload <artifact> --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" --build-configuration Release'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Native artifact uploads are intentionally disabled in this workflow."

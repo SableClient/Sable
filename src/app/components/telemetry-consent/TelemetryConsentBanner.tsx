@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Text } from 'folds';
 import { Shield, sizedIcon } from '$components/icons/phosphor';
+import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 import * as css from './TelemetryConsentBanner.css';
 
 const SENTRY_KEY = 'sable_sentry_enabled';
@@ -24,7 +25,7 @@ export function TelemetryConsentBanner() {
 
   const handleEnable = () => {
     localStorage.setItem(SENTRY_KEY, 'true');
-    window.location.reload();
+    reloadWithTelemetry('telemetry_consent_enabled');
   };
 
   const handleDecline = () => {

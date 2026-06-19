@@ -19,6 +19,7 @@ import './app/styles/overrides/Privacy.css';
 import './app/styles/overrides/TauriDesktop.css';
 import { createLogger } from './app/utils/debug';
 import { installConsolePasteScamWarning } from './app/utils/consolePasteScamWarning';
+import { reloadWithTelemetry } from './app/utils/reloadWithTelemetry';
 import { registerAppServiceWorker } from './serviceWorkerBootstrap';
 import { registerMatrixUriProtocol } from './app/plugins/matrix-uri';
 
@@ -75,7 +76,11 @@ window.addEventListener('error', (event) => {
       // Increment retry count and reload
       sessionStorage.setItem(CHUNK_RETRY_KEY, String(retryCount + 1));
       log.warn(`Chunk load failed, reloading (attempt ${retryCount + 1}/${MAX_CHUNK_RETRIES})`);
-      window.location.reload();
+      reloadWithTelemetry('chunk_load_retry', {
+        retryCount: retryCount + 1,
+        maxRetries: MAX_CHUNK_RETRIES,
+        filename: event.filename,
+      });
 
       // Prevent default error handling since we're reloading
       event.preventDefault();

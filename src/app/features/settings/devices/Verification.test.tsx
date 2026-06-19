@@ -44,7 +44,8 @@ describe('DeviceVerificationOptions', () => {
 
     expect(openSpy).toHaveBeenCalledWith(
       'https://auth.example/account?action=org.matrix.cross_signing_reset',
-      '_blank'
+      '_blank',
+      'noopener,noreferrer'
     );
     expect(
       await screen.findByText(

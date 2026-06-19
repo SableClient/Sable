@@ -72,7 +72,11 @@ type EmbedOpenButtonProps = {
 };
 export function EmbedOpenButton({ url }: EmbedOpenButtonProps) {
   return (
-    <IconButton size="300" radii="300" onClick={() => window.open(url, '_blank')}>
+    <IconButton
+      size="300"
+      radii="300"
+      onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+    >
       {sizedIcon(Link, '100')}
     </IconButton>
   );

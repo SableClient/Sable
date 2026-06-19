@@ -3,6 +3,7 @@ import type { Page, Route } from '@playwright/test';
 type SmokeAppOptions = {
   configFailuresBeforeSuccess?: number;
   hashRouter?: boolean;
+  authenticatedSession?: boolean;
 };
 
 type StoredSessionOptions = {
@@ -10,6 +11,10 @@ type StoredSessionOptions = {
   baseUrl?: string;
   deviceId?: string;
   userId?: string;
+};
+
+type SeedSettingsOptions = {
+  developerTools?: boolean;
 };
 
 const smokeServer = 'smoke.test';
@@ -61,7 +66,11 @@ const fulfillMatrixError = (
   });
 
 export async function installSmokeApp(page: Page, options: SmokeAppOptions = {}) {
-  const { configFailuresBeforeSuccess = 0, hashRouter = true } = options;
+  const {
+    configFailuresBeforeSuccess = 0,
+    hashRouter = true,
+    authenticatedSession = false,
+  } = options;
   let configRequestCount = 0;
 
   await page.route('**/config.json*', async (route) => {
@@ -104,6 +113,94 @@ export async function installSmokeApp(page: Page, options: SmokeAppOptions = {})
 
     if (url.pathname.endsWith('/versions')) {
       await fulfillJson(route, { versions: ['v1.11'] }, corsHeaders);
+      return;
+    }
+
+    if (authenticatedSession) {
+      if (url.pathname.endsWith('/account/whoami')) {
+        await fulfillJson(
+          route,
+          {
+            user_id: '@smoke:smoke.test',
+            device_id: 'SMOKEDEVICE',
+          },
+          corsHeaders
+        );
+        return;
+      }
+
+      if (url.pathname.endsWith('/capabilities')) {
+        await fulfillJson(route, { capabilities: {} }, corsHeaders);
+        return;
+      }
+
+      if (url.pathname.endsWith('/pushrules/')) {
+        await fulfillJson(
+          route,
+          {
+            global: {
+              content: [],
+              override: [],
+              room: [],
+              sender: [],
+              underride: [],
+            },
+          },
+          corsHeaders
+        );
+        return;
+      }
+
+      if (url.pathname.endsWith('/sync')) {
+        await fulfillJson(
+          route,
+          {
+            next_batch: 's1',
+            rooms: {
+              join: {},
+              invite: {},
+              leave: {},
+            },
+            account_data: {
+              events: [],
+            },
+            presence: {
+              events: [],
+            },
+            to_device: {
+              events: [],
+            },
+            device_lists: {
+              changed: [],
+              left: [],
+            },
+            device_one_time_keys_count: {},
+            device_unused_fallback_key_types: [],
+          },
+          corsHeaders
+        );
+        return;
+      }
+
+      if (url.pathname.endsWith('/filter') && request.method() === 'POST') {
+        await fulfillJson(route, { filter_id: 'smoke-filter' }, corsHeaders);
+        return;
+      }
+
+      if (
+        url.pathname.includes('/account_data/') ||
+        url.pathname.endsWith('/joined_rooms') ||
+        url.pathname.endsWith('/notifications') ||
+        url.pathname.endsWith('/presence/@smoke:smoke.test/status') ||
+        url.pathname.endsWith('/keys/query') ||
+        url.pathname.endsWith('/keys/changes') ||
+        url.pathname.endsWith('/keys/claim')
+      ) {
+        await fulfillJson(route, {}, corsHeaders);
+        return;
+      }
+
+      await fulfillJson(route, {}, corsHeaders);
       return;
     }
 
@@ -168,4 +265,33 @@ export async function seedLaunchContext(page: Page, targetUrl: string) {
       )
     );
   }, targetUrl);
+}
+
+export async function seedSettings(page: Page, settings: SeedSettingsOptions = {}) {
+  await page.addInitScript((partialSettings) => {
+    const existingRaw = localStorage.getItem('settings');
+    let existingSettings: Record<string, unknown> = {};
+
+    if (existingRaw) {
+      try {
+        existingSettings = JSON.parse(existingRaw) as Record<string, unknown>;
+      } catch {
+        existingSettings = {};
+      }
+    }
+
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        ...existingSettings,
+        ...partialSettings,
+      })
+    );
+  }, settings);
+}
+
+export async function seedSentryPreference(page: Page, enabled: boolean) {
+  await page.addInitScript((optedIn) => {
+    localStorage.setItem('sable_sentry_enabled', optedIn ? 'true' : 'false');
+  }, enabled);
 }

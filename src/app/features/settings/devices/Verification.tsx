@@ -230,7 +230,7 @@ const openAccountManagementUrl = async (url: string): Promise<void> => {
     return;
   }
 
-  window.open(url, '_blank');
+  window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 export function EnableVerification({ visible }: EnableVerificationProps) {

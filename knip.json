@@ -6,7 +6,7 @@
     "type": true
   },
   "ignore": ["eslint.config.js", "oxlint.config.ts", "oxfmt.config.ts"],
-  "ignoreFiles": ["src/app/generated/**/*"],
+  "ignoreFiles": ["src/app/generated/**/*", "semgrep/tests/**/*"],
   "ignoreDependencies": [
     "buffer",
     "@sableclient/sable-call-embedded",

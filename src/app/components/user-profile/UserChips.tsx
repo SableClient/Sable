@@ -172,7 +172,7 @@ export function ServerChip({
                   size="300"
                   radii="300"
                   onClick={() => {
-                    window.open(`https://${server}`, '_blank');
+                    window.open(`https://${server}`, '_blank', 'noopener,noreferrer');
                     close();
                   }}
                   className={css.UserHeroMenuItem}

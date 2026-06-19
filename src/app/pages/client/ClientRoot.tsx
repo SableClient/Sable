@@ -46,6 +46,7 @@ import { useSwUpdateAvailable } from '$hooks/useSwUpdateAvailable';
 import { applyPendingAppUpdate } from '$utils/appUpdates';
 import { setBlobCacheSession } from '$hooks/useBlobCache';
 import { stopPropagation } from '$utils/keyboard';
+import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 import { AuthMetadataProvider } from '$hooks/useAuthMetadata';
 import {
   sessionsAtom,
@@ -182,7 +183,9 @@ const useLogoutListener = (mx?: MatrixClient) => {
       if (mx) await stopClient(mx);
       await mx?.clearStores();
       window.localStorage.clear();
-      window.location.reload();
+      reloadWithTelemetry('server_forced_logout', {
+        userId: mx?.getUserId(),
+      });
     };
 
     mx?.on(HttpApiEvent.SessionLoggedOut, handleLogout);
@@ -310,7 +313,9 @@ export function ClientRoot({ children }: ClientRootProps) {
     setActiveSessionId(
       sessions.find((s) => s.userId !== activeSession.userId)?.userId ?? undefined
     );
-    window.location.reload();
+    reloadWithTelemetry('logout_active_session', {
+      userId: activeSession.userId,
+    });
   }, [mx, activeSession, sessions, setSessions, setActiveSessionId]);
 
   useSyncNicknames(mx);

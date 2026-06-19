@@ -54,6 +54,7 @@ import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
+import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 import { SettingsSectionPage } from '$features/settings/SettingsSectionPage';
 
 type DateHintProps = {
@@ -1453,7 +1454,9 @@ export function Sync() {
         slidingSyncOptIn: value,
       },
     });
-    window.location.reload();
+    reloadWithTelemetry('sliding_sync_opt_in_changed', {
+      enabled: value,
+    });
   };
 
   return (

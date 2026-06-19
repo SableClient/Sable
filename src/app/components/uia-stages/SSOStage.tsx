@@ -21,7 +21,8 @@ export function SSOStage({
   }, [submitAuthDict, session]);
 
   const handleContinue = () => {
-    const w = window.open(ssoRedirectURL, '_blank');
+    // This flow requires an opener-backed window reference so the popup can post authDone back.
+    const w = window.open(ssoRedirectURL, 'sable-uia-sso');
     setSSOWindow(w ?? undefined);
   };
 

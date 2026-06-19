@@ -1,6 +1,6 @@
 {
   "name": "charm",
-  "version": "1.18.3",
+  "version": "1.18.4",
   "description": "A personal Matrix client with a little magic",
   "keywords": [],
   "license": "AGPL-3.0-only",

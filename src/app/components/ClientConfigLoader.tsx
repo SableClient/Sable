@@ -65,7 +65,7 @@ function classifyConfigLoadFailure(
     });
   }
 
-  if (/load failed|network/i.test(message)) {
+  if (/load failed|failed to fetch|network/i.test(message)) {
     return new ClientConfigLoadError({
       attempts,
       kind: 'network',

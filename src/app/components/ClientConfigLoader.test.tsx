@@ -217,6 +217,24 @@ describe('ClientConfigLoader + matrix-to wiring', () => {
     vi.useRealTimers();
   });
 
+  it('treats Chromium-style fetch failures as network loader failures', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    const configPromise = getClientConfig();
+    const rejection = (async () => {
+      await expect(configPromise).rejects.toBeInstanceOf(ClientConfigLoadError);
+    })();
+    await vi.runAllTimersAsync();
+
+    await rejection;
+    await expect(configPromise).rejects.toMatchObject({
+      kind: 'network',
+    });
+    expect(sentry.captureException).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
   it('captures unexpected repeated config failures once on the final attempt', async () => {
     vi.useFakeTimers();
     const parseError = new Error('invalid JSON payload');

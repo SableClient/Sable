@@ -7,6 +7,7 @@ import { RenderMessageContent } from './RenderMessageContent';
 const urlPreviewCardSpy = vi.fn<(props: { url: string; mediaType?: string | null }) => JSX.Element>(
   ({ url }: { url: string }) => <div data-testid="url-preview-card">{url}</div>
 );
+const youtubeUrlSpy = vi.fn<(url: string) => boolean>((url: string) => url.includes('youtu'));
 
 vi.mock('./url-preview', () => ({
   UrlPreviewHolder: ({ children }: { children: React.ReactNode }) => (
@@ -14,7 +15,9 @@ vi.mock('./url-preview', () => ({
   ),
   UrlPreviewCard: (props: { url: string; mediaType?: string }) => urlPreviewCardSpy(props),
   ClientPreview: ({ url }: { url: string }) => <div data-testid="client-preview">{url}</div>,
-  youtubeUrl: () => false,
+  ThemePreviewUrlCard: ({ url }: { url: string }) => <div data-testid="theme-preview">{url}</div>,
+  TweakPreviewUrlCard: ({ url }: { url: string }) => <div data-testid="tweak-preview">{url}</div>,
+  youtubeUrl: (url: string) => youtubeUrlSpy(url),
 }));
 
 function renderMessage(
@@ -44,6 +47,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   urlPreviewCardSpy.mockClear();
+  youtubeUrlSpy.mockClear();
 });
 
 describe('RenderMessageContent', () => {
@@ -126,6 +130,21 @@ describe('RenderMessageContent', () => {
 
     expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
     expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
+  it('renders widget previews without crashing when single-preview mode has no standard candidates', () => {
+    renderMessage('https://foo.preview.sable.css');
+
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('theme-preview')).toHaveTextContent('https://foo.preview.sable.css');
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
+  it('does not keep youtube links as renderable candidates when youtube embeds are disabled', () => {
+    renderMessage('https://youtu.be/abc123', { urlPreview: false, clientUrlPreview: true });
+
+    expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('client-preview')).not.toBeInTheDocument();
   });
 
   it('treats query-string media urls as direct previews', () => {

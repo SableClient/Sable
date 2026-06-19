@@ -116,6 +116,7 @@ function RenderMessageContentInternal({
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
   const [themeChatSableWidgets] = useSetting(settingsAtom, 'themeChatSableWidgetsEnabled');
   const [multiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
+  const [clientPreviewYoutube] = useSetting(settingsAtom, 'clientPreviewYoutube');
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
     [CaptionPosition.Above]: 'column-reverse',
@@ -164,7 +165,7 @@ function RenderMessageContentInternal({
       const previewCandidates = analyzed.filter(({ url, type }) => {
         if (type && clientUrlPreview) return true;
         if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return false;
-        if (clientUrlPreview && youtubeUrl(url)) return true;
+        if (clientUrlPreview && clientPreviewYoutube && youtubeUrl(url)) return true;
         if (urlPreview) return true;
         return false;
       });
@@ -175,7 +176,11 @@ function RenderMessageContentInternal({
       ) {
         return undefined;
       }
-      const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]!];
+      const toRender = multiplePreviews
+        ? previewCandidates
+        : previewCandidates[0]
+          ? [previewCandidates[0]]
+          : [];
       return (
         <UrlPreviewHolder>
           {themeToRender.map((url) => (
@@ -201,7 +206,7 @@ function RenderMessageContentInternal({
               );
             }
             if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return null;
-            if (clientUrlPreview && youtubeUrl(url)) {
+            if (clientUrlPreview && clientPreviewYoutube && youtubeUrl(url)) {
               return <ClientPreview key={url} url={url} />;
             }
             if (urlPreview) {
@@ -226,6 +231,7 @@ function RenderMessageContentInternal({
       themeChatSableWidgets,
       settingsLinkBaseUrl,
       clientUrlPreview,
+      clientPreviewYoutube,
       urlPreview,
       ts,
       mediaAutoLoad,

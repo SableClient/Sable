@@ -70,8 +70,10 @@ export const Preview = style({
 export const PreviewEmoji = style([
   DefaultReset,
   {
-    width: toRem(48),
-    height: toRem(48),
+    width: toRem(32),
+    height: toRem(32),
+    fontSize: toRem(32),
+    lineHeight: toRem(32),
   },
 ]);
 export const PreviewImg = style([
@@ -80,25 +82,6 @@ export const PreviewImg = style([
     width: toRem(32),
     height: toRem(32),
     objectFit: 'contain',
-  },
-]);
-
-export const EmojiGlyph = style([
-  DefaultReset,
-  {
-    width: toRem(48),
-    height: toRem(48),
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily:
-      'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-    fontSize: 'var(--sable-emoji-picker-font-size)',
-    lineHeight: 1,
-    transform:
-      'translateY(var(--sable-emoji-picker-shift-y)) scale(var(--sable-emoji-picker-scale))',
-    transformOrigin: 'center',
-    overflow: 'visible',
   },
 ]);
 
@@ -140,6 +123,8 @@ export const EmojiItem = style([
   {
     width: toRem(48),
     height: toRem(48),
+    fontSize: toRem(32),
+    lineHeight: toRem(32),
     borderRadius: config.radii.R400,
     cursor: 'pointer',
 
@@ -148,6 +133,19 @@ export const EmojiItem = style([
     },
   },
 ]);
+
+export const EmojiGlyph = style({
+  width: toRem(32),
+  height: toRem(32),
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily:
+    'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+  fontSize: toRem(32),
+  lineHeight: toRem(32),
+  textAlign: 'center',
+});
 
 export const StickerItem = style([
   EmojiItem,

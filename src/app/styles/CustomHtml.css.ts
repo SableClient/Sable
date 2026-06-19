@@ -234,13 +234,10 @@ export const Command = recipe({
 export const EmoticonBase = style([
   DefaultReset,
   {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
+    display: 'inline-block',
+    padding: toRem(0.8),
     height: '1em',
-    lineHeight: 1,
-    verticalAlign: 'var(--sable-inline-emoji-box-align)',
+    verticalAlign: 'middle',
   },
 ]);
 
@@ -269,15 +266,23 @@ export const Emoticon = recipe({
 });
 
 export const SystemEmoji = style({
-  fontFamily:
-    'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: 'var(--sable-inline-emoji-font-size)',
-  lineHeight: 1,
-  minWidth: '1em',
-  textAlign: 'center',
+  selectors: {
+    '&&': {
+      fontFamily:
+        'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+      display: 'inline-flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '1em',
+      minWidth: '1em',
+      fontSize: 'var(--sable-system-emoji-font-size, 1.33em)',
+      lineHeight: '1em',
+      verticalAlign: 'middle',
+      position: 'relative',
+      top: 'var(--sable-system-emoji-top, -0.35em)',
+      textAlign: 'center',
+    },
+  },
 });
 
 export const SystemEmojiFixedCell = style({
@@ -293,9 +298,9 @@ export const CustomEmoticon = recipe({
       alignItems: 'center',
       height: '1em',
       minWidth: '1em',
-      fontSize: '1.2em',
+      fontSize: 'var(--sable-custom-emoji-font-size, 1.2em)',
       lineHeight: '1em',
-      verticalAlign: '-0.12em',
+      verticalAlign: 'var(--sable-custom-emoji-align, -0.12em)',
       borderRadius: config.radii.R300,
     },
   ],

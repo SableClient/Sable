@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Provider as JotaiProvider } from 'jotai';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MatrixClientProvider } from '$hooks/useMatrixClient';
 import { UrlPreviewCard } from './UrlPreviewCard';
 
@@ -98,6 +98,10 @@ const renderWithProviders = (ui: ReactNode) =>
   );
 
 describe('UrlPreviewCard', () => {
+  beforeEach(() => {
+    mockedMimeType = 'image/png';
+  });
+
   it('recomputes animated direct-image fallback when gif autoplay is toggled', () => {
     settings.autoplayGifs = true;
     const { rerender } = renderWithProviders(
@@ -142,6 +146,20 @@ describe('UrlPreviewCard', () => {
     );
 
     expect(screen.getByTestId('direct-image')).toHaveTextContent('https://example.com/media/asset');
+  });
+
+  it('falls back immediately for extensionless direct images when animated mime metadata is already known', () => {
+    settings.autoplayGifs = false;
+    mockedMimeType = 'image/gif';
+
+    renderWithProviders(
+      <UrlPreviewCard urlPreview url="https://example.com/media/asset" mediaType="image" />
+    );
+
+    expect(screen.queryByTestId('direct-image')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'https://example.com/media/asset' })
+    ).toBeInTheDocument();
   });
 
   it('renders direct image urls through the shared media preview card', () => {

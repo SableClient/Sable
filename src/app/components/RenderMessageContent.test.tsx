@@ -227,6 +227,27 @@ describe('RenderMessageContent', () => {
     );
   });
 
+  it('does not duplicate a bundled preview when the same url already renders as direct media', () => {
+    renderMessage(
+      {
+        body: 'https://cdn.example/test.png',
+        'com.beeper.linkpreviews': [
+          { matched_url: 'https://cdn.example/test.png', 'og:url': 'https://cdn.example/test.png' },
+        ],
+      },
+      { urlPreview: false, clientUrlPreview: true, bundledPreview: true }
+    );
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
+      'https://cdn.example/test.png'
+    );
+    expect(screen.queryByTestId('bundled-preview-card')).not.toBeInTheDocument();
+    expect(urlPreviewCardSpy).toHaveBeenCalledTimes(1);
+    expect(urlPreviewCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn.example/test.png', mediaType: 'image' })
+    );
+  });
+
   it('does not let direct gif fallbacks consume the only preview slot', () => {
     settings.multiplePreviews = false;
 

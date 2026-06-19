@@ -131,6 +131,7 @@ export const UrlPreviewCard = as<
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [imageError, setImageError] = useState(false);
   const [directMediaError, setDirectMediaError] = useState(false);
+  const directAnimatedPreviewRef = useRef<{ url: string; isAnimated: boolean }>();
 
   const isDirect = !!mediaType;
 
@@ -265,12 +266,20 @@ export const UrlPreviewCard = as<
     const directMediaInfo = buildDirectMediaInfo(directMediaMetadata);
     const directMediaUrl = normalizeDirectRemoteUrl(url);
     const body = safeDecodeUrl(url);
+    if (directAnimatedPreviewRef.current?.url !== url) {
+      directAnimatedPreviewRef.current = {
+        url,
+        isAnimated: isAnimatedDirectImage(body, directMediaMetadata?.mimeType),
+      };
+    }
     const directAspectRatio =
       directMediaInfo?.w && directMediaInfo?.h
         ? `${directMediaInfo.w} / ${directMediaInfo.h}`
         : '16 / 9';
     const freezeAnimatedPreview =
-      mediaType === 'image' && !autoplayGifs && isAnimatedDirectImage(safeDecodeUrl(url));
+      mediaType === 'image' &&
+      !autoplayGifs &&
+      (directAnimatedPreviewRef.current?.isAnimated ?? false);
 
     if (directMediaError || !directMediaUrl || freezeAnimatedPreview || !mediaAutoLoad) {
       return renderCardShell(body);

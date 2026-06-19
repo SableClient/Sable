@@ -5,9 +5,7 @@ import { ClientConfigProvider } from '$hooks/useClientConfig';
 import { RenderMessageContent } from './RenderMessageContent';
 
 const urlPreviewCardSpy = vi.fn<(props: { url: string; mediaType?: string | null }) => JSX.Element>(
-  ({ url }: { url: string }) => (
-  <div data-testid="url-preview-card">{url}</div>
-  )
+  ({ url }: { url: string }) => <div data-testid="url-preview-card">{url}</div>
 );
 
 vi.mock('./url-preview', () => ({

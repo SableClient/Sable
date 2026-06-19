@@ -143,23 +143,28 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
   const [uniformIconsSetting] = useSetting(settingsAtom, 'uniformIcons');
   const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
   const processedSrc = useProcessedAvatarSrc(src);
+  const resolvedSrc = processedSrc ?? src;
+
+  // All processed sources are blob URLs — no CORS headers needed.
+  const isBlobUrl = processedSrc?.startsWith('blob:') ?? false;
 
   const useUniformIcons = uniformIconsSetting && uniformIcons === true;
-  const normalizedBg = useUniformIcons && image ? bgColorImg(image) : undefined;
+  const hasCurrentImage = image?.getAttribute('src') === resolvedSrc;
+  // Only extract colors from blob URLs (same-origin) to avoid tainted-canvas
+  // errors.  bgColorImg itself also has a try-catch safety net.
+  const normalizedBg =
+    useUniformIcons && isBlobUrl && image && hasCurrentImage ? bgColorImg(image) : undefined;
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
     evt.currentTarget.setAttribute('data-image-loaded', 'true');
     setImage(evt.currentTarget);
   };
 
-  // All processed sources are blob URLs — no CORS headers needed.
-  const isBlobUrl = processedSrc?.startsWith('blob:') ?? false;
-
   return (
     <FoldsAvatarImage
       className={css.RoomAvatar}
       style={{ backgroundColor: useUniformIcons ? normalizedBg : undefined }}
-      src={processedSrc ?? src}
+      src={resolvedSrc}
       crossOrigin={isBlobUrl ? undefined : 'anonymous'}
       alt={alt}
       loading="lazy"

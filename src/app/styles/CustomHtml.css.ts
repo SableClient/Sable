@@ -269,15 +269,19 @@ export const Emoticon = recipe({
 });
 
 export const SystemEmoji = style({
-  fontFamily:
-    'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: 'var(--sable-inline-emoji-font-size)',
-  lineHeight: 1,
-  minWidth: '1em',
-  textAlign: 'center',
+  selectors: {
+    '&&': {
+      fontFamily:
+        'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 'var(--sable-inline-emoji-font-size)',
+      lineHeight: 1,
+      minWidth: '1em',
+      textAlign: 'center',
+    },
+  },
 });
 
 export const SystemEmojiFixedCell = style({

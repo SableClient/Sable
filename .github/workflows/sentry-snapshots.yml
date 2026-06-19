@@ -68,13 +68,6 @@ jobs:
       - name: Capture deterministic observability snapshots
         run: pnpm run test:e2e:observability
 
-      - name: Compute snapshot merge base
-        if: env.SENTRY_SNAPSHOTS_ENABLED == 'true'
-        id: merge_base
-        run: |
-          sha="$(git merge-base "${{ github.event.pull_request.head.sha }}" "${{ github.event.pull_request.base.sha }}")"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-
       - name: Upload snapshot artifact for debugging
         if: always() && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
@@ -87,10 +80,8 @@ jobs:
         run: >
           pnpm dlx @sentry/cli@3.5.0 snapshots upload
           "$PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR"
-          --auth-token "$SENTRY_AUTH_TOKEN"
-          --project "$SENTRY_PROJECT"
           --app-id charm-web-preview
-          --base-sha "${{ steps.merge_base.outputs.sha }}"
+          --log-level debug
 
       - name: Note Sentry snapshot upload status
         if: env.SENTRY_SNAPSHOTS_ENABLED != 'true'

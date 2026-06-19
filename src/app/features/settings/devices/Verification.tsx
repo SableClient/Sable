@@ -272,6 +272,7 @@ export function DeviceVerificationOptions() {
   const accountManagementActions = useAccountManagementActions();
 
   const [reset, setReset] = useState(false);
+  const [resetError, setResetError] = useState<string>();
 
   const handleCancelReset = useCallback(() => {
     setReset(false);
@@ -281,16 +282,26 @@ export function DeviceVerificationOptions() {
     setMenuCords(event.currentTarget.getBoundingClientRect());
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setMenuCords(undefined);
+    setResetError(undefined);
 
     if (authMetadata) {
       const authUrl = authMetadata.account_management_uri ?? authMetadata.issuer;
-      void openAccountManagementUrl(
-        withSearchParam(authUrl, {
-          action: accountManagementActions.crossSigningReset,
-        })
-      );
+      try {
+        await openAccountManagementUrl(
+          withSearchParam(authUrl, {
+            action: accountManagementActions.crossSigningReset,
+          })
+        );
+      } catch (error) {
+        setResetError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to open account management. Please try again.'
+        );
+        return;
+      }
     }
 
     setReset(true);
@@ -307,6 +318,7 @@ export function DeviceVerificationOptions() {
       >
         {menuIcon(DotsThreeOutlineVerticalIcon, { weight: menuCords ? 'fill' : 'regular' })}
       </IconButton>
+      {resetError && <Text size="T200">{resetError}</Text>}
       <PopOut
         anchor={menuCords}
         offset={5}

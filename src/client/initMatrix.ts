@@ -107,8 +107,7 @@ const installMatrixEventTypeGuard = (): void => {
         level: 'warning',
         tags: { component: 'matrix-event-type-guard' },
         extra: {
-          rawType:
-            resolved === undefined ? 'undefined' : resolved === null ? 'null' : typeof resolved,
+          rawType: resolved === undefined ? 'undefined' : resolved === null ? 'null' : resolved,
           fallbackType: fallback,
         },
       });

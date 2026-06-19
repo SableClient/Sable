@@ -305,4 +305,28 @@ describe('startClient app singleton gate', () => {
       },
     });
   });
+
+  it('reports whitespace event types with the original raw value', async () => {
+    const mx = makeClient('@alice:example.com');
+
+    await startClassicClient(mx);
+
+    const malformedEvent = new MatrixEvent({
+      event_id: '$bad-space',
+      room_id: '!room:example.com',
+      content: {},
+      sender: '@alice:example.com',
+      type: '   ',
+    } as unknown as ConstructorParameters<typeof MatrixEvent>[0]);
+
+    expect(malformedEvent.getType()).toBe(MATRIX_EVENT_FALLBACK_TYPE);
+    expect(Sentry.captureMessage).toHaveBeenCalledWith('MatrixEvent missing string event type', {
+      level: 'warning',
+      tags: { component: 'matrix-event-type-guard' },
+      extra: {
+        rawType: '   ',
+        fallbackType: MATRIX_EVENT_FALLBACK_TYPE,
+      },
+    });
+  });
 });

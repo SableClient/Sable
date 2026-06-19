@@ -70,16 +70,8 @@ export const Preview = style({
 export const PreviewEmoji = style([
   DefaultReset,
   {
-    selectors: {
-      '&&': {
-        width: toRem(32),
-        height: toRem(32),
-        fontFamily:
-          'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-        fontSize: toRem(32),
-        lineHeight: toRem(32),
-      },
-    },
+    width: toRem(32),
+    height: toRem(32),
   },
 ]);
 export const PreviewImg = style([
@@ -127,23 +119,29 @@ export const EmojiItem = style([
   DefaultReset,
   FocusOutline,
   {
-    selectors: {
-      '&&': {
-        width: toRem(48),
-        height: toRem(48),
-        fontFamily:
-          'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-        fontSize: toRem(32),
-        lineHeight: toRem(32),
-        borderRadius: config.radii.R400,
-        cursor: 'pointer',
-      },
-      '&&:hover': {
-        backgroundColor: color.Surface.ContainerHover,
-      },
+    width: toRem(48),
+    height: toRem(48),
+    borderRadius: config.radii.R400,
+    cursor: 'pointer',
+
+    ':hover': {
+      backgroundColor: color.Surface.ContainerHover,
     },
   },
 ]);
+
+export const EmojiGlyph = style({
+  width: toRem(32),
+  height: toRem(32),
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily:
+    'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+  fontSize: toRem(32),
+  lineHeight: 1,
+  textAlign: 'center',
+});
 
 export const StickerItem = style([
   EmojiItem,

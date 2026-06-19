@@ -271,7 +271,9 @@ describe('ClientConfigLoader + matrix-to wiring', () => {
     render(
       <ClientConfigLoader
         fallback={() => <span data-testid="fallback">loading</span>}
-        error={(err) => <span data-testid="error">{String(err instanceof Error ? err.name : err)}</span>}
+        error={(err) => (
+          <span data-testid="error">{String(err instanceof Error ? err.name : err)}</span>
+        )}
       >
         {() => <span data-testid="ready">ready</span>}
       </ClientConfigLoader>

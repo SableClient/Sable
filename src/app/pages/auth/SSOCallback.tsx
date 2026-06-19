@@ -6,7 +6,7 @@ import { AuthShell } from './AuthShell';
 type SSOCallbackState = 'redirecting' | 'waiting' | 'done' | 'error';
 
 export function SSOCallback() {
-  const [state, setState] = useState<SSOCallbackState>('redirecting');
+  const [state, setState] = useState<SSOCallbackState>('waiting');
 
   useEffect(() => {
     const { search } = window.location;
@@ -17,7 +17,6 @@ export function SSOCallback() {
       return undefined;
     }
 
-    setState('redirecting');
     window.location.replace(`${TAURI_SSO_CALLBACK_BASE}${search}`);
 
     const loadedAt = Date.now();

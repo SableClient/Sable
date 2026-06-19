@@ -1,5 +1,12 @@
 @import '@sableclient/twemoji-font';
 
+@font-face {
+  font-family: 'Twemoji';
+  src: url('@sableclient/twemoji-font/files/twemoji.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+25FB-25FE, U+2B1B, U+2B1C;
+}
+
 :root {
   --tc-link: hsl(213deg 100% 45%);
 

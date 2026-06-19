@@ -110,6 +110,11 @@ test.describe('emoji polish smoke', () => {
         thirdSticker,
         baselineText: measure('[data-testid="smoke-emoji-baseline-text"]'),
         baselineEmoji: measure('[data-testid="smoke-emoji-baseline-line"] span[title]'),
+        fixedCellBlackSquareFontFamily: getComputedStyle(
+          document.querySelector(
+            '[data-testid="smoke-emoji-fixed-cell-line"] span[title="black_large_square"]'
+          )!
+        ).fontFamily,
       };
     });
 
@@ -123,6 +128,7 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.thirdSticker).not.toBeNull();
     expect(metrics.baselineText).not.toBeNull();
     expect(metrics.baselineEmoji).not.toBeNull();
+    expect(metrics.fixedCellBlackSquareFontFamily).toContain('Twemoji');
 
     expect(metrics.pickerButton!.width).toBe(48);
     expect(metrics.pickerButton!.height).toBe(48);

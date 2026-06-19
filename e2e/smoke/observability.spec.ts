@@ -7,6 +7,15 @@ import { installSmokeApp, seedSentryPreference, seedSettings, seedStoredSession 
 const snapshotOutputDir = process.env.PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR;
 const sentryConfigured = Boolean(process.env.VITE_SENTRY_DSN);
 const toolbarEnabled = process.env.VITE_SENTRY_TOOLBAR === 'true';
+const isCI = Boolean(process.env.CI);
+
+const assertSentryConfigured = () => {
+  if (sentryConfigured) return;
+  if (isCI) {
+    throw new Error('VITE_SENTRY_DSN must be set in CI to exercise preview-only Sentry flows.');
+  }
+  test.skip(true, 'VITE_SENTRY_DSN must be set to exercise preview-only Sentry flows');
+};
 
 const stubToolbar = async (page: Page) => {
   if (!toolbarEnabled) return;
@@ -28,11 +37,10 @@ const captureSnapshot = async (page: Page, name: string) => {
 };
 
 test.describe('observability smoke', () => {
-  test.skip(!sentryConfigured, 'VITE_SENTRY_DSN must be set to exercise preview-only Sentry flows');
-
   test('shows the telemetry consent banner for authenticated preview sessions', async ({
     page,
   }) => {
+    assertSentryConfigured();
     await stubToolbar(page);
     await installSmokeApp(page, { authenticatedSession: true });
     await seedStoredSession(page);
@@ -52,6 +60,7 @@ test.describe('observability smoke', () => {
   test('persists diagnostics toggles and exposes the preview toolbar build signal', async ({
     page,
   }) => {
+    assertSentryConfigured();
     await stubToolbar(page);
     await installSmokeApp(page, { authenticatedSession: true });
     await seedStoredSession(page);

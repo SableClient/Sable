@@ -312,7 +312,8 @@ The repo-side wiring for this is:
 - `.github/workflows/sentry-snapshots.yml`
   - installs Chromium and runs `e2e/smoke/observability.spec.ts`
   - writes stable screenshots to `.artifacts/sentry-snapshots`
-  - uploads those screenshots with `pnpm dlx @sentry/cli@latest snapshots upload`
+  - uploads those screenshots with `pnpm dlx @sentry/cli@latest snapshots upload` when the
+    repository variable `SENTRY_SNAPSHOTS_ENABLED=true` is set
 
 Required GitHub repository secrets:
 
@@ -326,11 +327,20 @@ Required GitHub repository secrets:
   `event:read` scope in Sentry. Using a separate token avoids broadening the
   build-time token unnecessarily.
 
+Recommended GitHub repository variable:
+
+- `SENTRY_SNAPSHOTS_ENABLED`
+  Set this to `true` only after the linked Sentry project has snapshot upload support enabled.
+  Until then, the workflow still runs the deterministic Playwright coverage and uploads the PNG
+  artifact to GitHub, but skips the Sentry upload step instead of failing the PR on an unavailable
+  server-side capability.
+
 Reviewer expectations for Snapshots:
 
 - Snapshot diffs are generated from deterministic smoke fixtures, not live Matrix timelines.
 - A failed Snapshot check should be reviewed as a visual change signal, not assumed to be a bug by default.
 - The workflow uploads the same PNG set as a GitHub artifact for debugging when you need to inspect exactly what was rendered.
+- CI fails fast if the preview Sentry env expected by the observability smoke suite is missing.
 
 Operational notes:
 

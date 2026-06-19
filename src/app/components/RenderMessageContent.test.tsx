@@ -304,6 +304,20 @@ describe('RenderMessageContent', () => {
     expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com');
   });
 
+  it('excludes closing paranthesis from markdown direct-media destinations', () => {
+    renderMessage('[pic](https://cdn.example/test.png)', {
+      urlPreview: false,
+      clientUrlPreview: true,
+    });
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
+      'https://cdn.example/test.png'
+    );
+    expect(urlPreviewCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn.example/test.png', mediaType: 'image' })
+    );
+  });
+
   it('include inner closing paranthesis from the url preview even within []() hyperlink', () => {
     renderMessage('[foo](https://example.com)) bar');
 

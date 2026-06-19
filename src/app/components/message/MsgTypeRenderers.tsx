@@ -219,6 +219,16 @@ const isPreviewSuppressedUrl = (
   return false;
 };
 
+const normalizeMatchedUrl = (url: string, fullMatch = url): string =>
+  (fullMatch.startsWith('(') &&
+    fullMatch.endsWith(')') &&
+    url.endsWith(')') &&
+    url.substring(0, url.length - 1)) ||
+  (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+  (url.startsWith('(') && url.substring(1)) ||
+  (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+  url;
+
 const getUrlsFromContent = (
   content: Record<string, unknown>,
   renderUrlsPreview?: (urls: string[]) => ReactNode
@@ -236,8 +246,9 @@ const getUrlsFromContent = (
         const url = match[1];
         const offset = match.index ?? 0;
         if (typeof url !== 'string') return undefined;
-        if (isPreviewSuppressedUrl(trimmedBody, full, url, offset)) return undefined;
-        return url;
+        const normalizedUrl = normalizeMatchedUrl(url, full);
+        if (isPreviewSuppressedUrl(trimmedBody, full, normalizedUrl, offset)) return undefined;
+        return normalizedUrl;
       })
       .filter((url): url is string => Boolean(url));
     urls = urls.length > 0 ? [...new Set(urls)] : undefined;
@@ -250,13 +261,7 @@ const getUrlsFromContent = (
       const safeText = safeHtml.replace(/<[^a][^>]*>/g, '');
       const safeUrlsMatch = safeText.match(LINKINPUTREGEX);
       let safeUrls = safeUrlsMatch ? [...new Set(safeUrlsMatch)] : [];
-      safeUrls = safeUrls.map(
-        (url) =>
-          (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
-          (url.startsWith('(') && url.substring(1)) ||
-          (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
-          url
-      );
+      safeUrls = safeUrls.map((url) => normalizeMatchedUrl(url));
       const safeUrlsSet = new Set(safeUrls);
       urls = urls.filter((url) => safeUrlsSet.has(url) && !url.startsWith(MATRIX_TO_BASE));
     }

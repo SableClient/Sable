@@ -94,6 +94,19 @@ function isAnimatedDirectImage(url: string, mimeType?: string): boolean {
   return /\.(gif|apng|webp)(\?|#|$)/i.test(url);
 }
 
+function normalizeDirectRemoteUrl(url: string): string | undefined {
+  const trimmed = url.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return undefined;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined;
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 const buildDirectMediaInfo = (
   metadata: ReturnType<typeof useMediaMetadata> | undefined
 ): IImageInfo | undefined => {
@@ -254,91 +267,86 @@ export const UrlPreviewCard = as<
     }
 
     const directMediaInfo = buildDirectMediaInfo(directMediaMetadata);
+    const directMediaUrl = normalizeDirectRemoteUrl(url);
     const body = safeDecodeUrl(url);
     const directMimeType = directMediaMetadata?.mimeType;
+    const directAspectRatio =
+      directMediaInfo?.w && directMediaInfo?.h
+        ? `${directMediaInfo.w} / ${directMediaInfo.h}`
+        : '16 / 9';
     const freezeAnimatedPreview =
-      mediaType === 'image' && !autoplayGifs && isAnimatedDirectImage(url, directMimeType);
+      mediaType === 'image' && !autoplayGifs && isAnimatedDirectImage(body, directMimeType);
 
-    if (directMediaError) {
+    if (directMediaError || !directMediaUrl) {
       return renderCardShell(body);
     }
 
+    const directImage = (
+      <Image
+        info={directMediaInfo}
+        alt={body}
+        title={body}
+        src={directMediaUrl}
+        loading="lazy"
+        onError={() => setDirectMediaError(true)}
+        style={{
+          display: 'block',
+          maxWidth: '100%',
+          maxHeight: '100%',
+          width: 'auto',
+          height: 'auto',
+          objectFit: 'contain',
+          objectPosition: 'center',
+        }}
+      />
+    );
+
     return renderCardShell(
       body,
-      <Box shrink="No" className={urlPreviewChrome.UrlPreviewMediaWell} style={mediaWellStyle}>
+      <Box
+        shrink="No"
+        className={urlPreviewChrome.UrlPreviewMediaWell}
+        style={{ ...mediaWellStyle, aspectRatio: directAspectRatio }}
+      >
         {mediaType === 'image' ? (
-          <ImageContent
+          <Box
             style={{
               position: 'absolute',
               inset: 0,
               width: '100%',
               height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-            mediaLayout="contained"
-            fillsPreviewSlot
-            autoPlay
-            body={body}
-            url={url}
-            info={directMediaInfo}
-            matrixThumbnailMaxEdge={previewThumbMaxEdge}
-            cacheThumbnailMetadataAsMedia
-            onError={() => setDirectMediaError(true)}
-            suppressErrorUI
-            renderViewer={(p) => <ImageViewer {...p} />}
-            renderImage={(p) =>
-              freezeAnimatedPreview && p.src ? (
-                <ClientSideHoverFreeze src={p.src}>
-                  <Image
-                    info={directMediaInfo}
-                    {...p}
-                    style={{
-                      display: 'block',
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      width: 'auto',
-                      height: 'auto',
-                      objectFit: 'contain',
-                      objectPosition: 'center',
-                    }}
-                  />
-                </ClientSideHoverFreeze>
-              ) : (
-                <Image
-                  info={directMediaInfo}
-                  {...p}
-                  style={{
-                    display: 'block',
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    width: 'auto',
-                    height: 'auto',
-                    objectFit: 'contain',
-                    objectPosition: 'center',
-                  }}
-                />
-              )
-            }
-          />
-        ) : (
-          <VideoContent
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-            }}
-            body={body}
-            info={directMediaInfo ?? {}}
-            url={url}
-            mimeType={directMediaMetadata?.mimeType ?? ''}
-            onError={() => setDirectMediaError(true)}
-            renderVideo={(vidProps) => (
-              <Video
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                {...vidProps}
-              />
+          >
+            {freezeAnimatedPreview ? (
+              <ClientSideHoverFreeze src={directMediaUrl}>{directImage}</ClientSideHoverFreeze>
+            ) : (
+              directImage
             )}
-          />
+          </Box>
+        ) : (
+          <Box
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Video
+              title={body}
+              src={directMediaUrl}
+              controls
+              preload="metadata"
+              onError={() => setDirectMediaError(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          </Box>
         )}
       </Box>
     );

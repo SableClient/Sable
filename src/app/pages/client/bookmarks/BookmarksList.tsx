@@ -115,7 +115,7 @@ function getStoredBookmarkFallbackText(
   if (preview?.isLinkOnly && typeof preview.body === 'string' && preview.body.trim()) {
     return preview.body;
   }
-  if (previewText) return preview.placeholderText;
+  if (previewText) return previewText;
   return item.body_preview ?? '';
 }
 

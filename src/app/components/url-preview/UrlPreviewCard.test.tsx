@@ -32,26 +32,22 @@ vi.mock('$state/hooks/settings', () => ({
 
 vi.mock('$hooks/useMediaMetadata', () => ({
   useMediaMetadata: () => ({
-    width: 1280,
-    height: 720,
+    width: 720,
+    height: 1280,
     mimeType: 'image/gif',
   }),
 }));
 
 vi.mock('$components/message', () => ({
   AudioContent: ({ url }: { url: string }) => <div data-testid="audio-content">{url}</div>,
-  ImageContent: ({
-    url,
-    onError,
-    renderImage,
-  }: {
-    url: string;
-    onError?: () => void;
-    renderImage?: (props: { src: string }) => ReactNode;
-  }) => (
+  ImageContent: () => null,
+  VideoContent: () => null,
+}));
+
+vi.mock('$components/media', () => ({
+  Image: ({ src, onError }: { src: string; onError?: () => void }) => (
     <div>
-      <div data-testid="image-content">{url}</div>
-      {renderImage?.({ src: url })}
+      <div data-testid="direct-image">{src}</div>
       {onError && (
         <button type="button" data-testid="image-error" onClick={onError}>
           fail
@@ -59,9 +55,10 @@ vi.mock('$components/message', () => ({
       )}
     </div>
   ),
-  VideoContent: ({ url, onError }: { url: string; onError?: () => void }) => (
+  MediaControl: () => null,
+  Video: ({ src, onError }: { src?: string; onError?: () => void }) => (
     <div>
-      <div data-testid="video-content">{url}</div>
+      <div data-testid="direct-video">{src}</div>
       {onError && (
         <button type="button" data-testid="video-error" onClick={onError}>
           fail
@@ -69,12 +66,6 @@ vi.mock('$components/message', () => ({
       )}
     </div>
   ),
-}));
-
-vi.mock('$components/media', () => ({
-  Image: () => null,
-  MediaControl: () => null,
-  Video: () => null,
 }));
 
 vi.mock('$components/image-viewer', () => ({
@@ -113,11 +104,16 @@ describe('UrlPreviewCard', () => {
     );
 
     expect(screen.getByTestId('url-preview')).toBeInTheDocument();
-    expect(screen.getByTestId('image-content')).toHaveTextContent(
+    expect(screen.getByTestId('direct-image')).toHaveTextContent(
       'https://example.com/images/test.png'
     );
     expect(
       screen.getByRole('link', { name: 'https://example.com/images/test.png' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, el) => el?.getAttribute('style')?.includes('aspect-ratio: 720 / 1280') ?? false
+      )
     ).toBeInTheDocument();
   });
 
@@ -136,7 +132,7 @@ describe('UrlPreviewCard', () => {
 
     fireEvent.click(screen.getByTestId('image-error'));
 
-    expect(screen.queryByTestId('image-content')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('direct-image')).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'https://example.com/images/test.png' })
     ).toBeInTheDocument();
@@ -149,9 +145,19 @@ describe('UrlPreviewCard', () => {
 
     fireEvent.click(screen.getByTestId('video-error'));
 
-    expect(screen.queryByTestId('video-content')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('direct-video')).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'https://example.com/videos/test.mp4' })
     ).toBeInTheDocument();
+  });
+
+  it('normalizes uppercase direct media schemes before rendering', () => {
+    renderWithProviders(
+      <UrlPreviewCard urlPreview url="HTTPS://example.com/images/test.PNG" mediaType="image" />
+    );
+
+    expect(screen.getByTestId('direct-image')).toHaveTextContent(
+      'https://example.com/images/test.PNG'
+    );
   });
 });

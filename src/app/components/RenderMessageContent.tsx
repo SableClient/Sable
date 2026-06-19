@@ -258,36 +258,25 @@ function RenderMessageContentInternal({
       autoplayGifs,
     ]
   );
-  const composeBundledPreviewsWithUrls = bundledPreview && !urlPreview && clientUrlPreview;
   const renderBundledPreviews = useCallback(
     (bundles: IPreviewUrlResponse[]) => (
       <UrlPreviewHolder>
-        {bundles.map((bundle) => {
-          const bundleUrl = bundle['og:url'];
-          if (
-            composeBundledPreviewsWithUrls &&
-            typeof bundleUrl === 'string' &&
-            getMediaType(bundleUrl)
-          ) {
-            return null;
-          }
-
-          return (
-            <UrlPreviewCard
-              urlPreview={urlPreview === true}
-              key={bundleUrl}
-              url={bundleUrl}
-              bundle={bundle}
-            />
-          );
-        })}
+        {bundles.map((bundle) => (
+          <UrlPreviewCard
+            urlPreview={urlPreview === true}
+            key={bundle['og:url']}
+            url={bundle['og:url']}
+            bundle={bundle}
+          />
+        ))}
       </UrlPreviewHolder>
     ),
-    [composeBundledPreviewsWithUrls, urlPreview]
+    [urlPreview]
   );
   const messageUrlsPreview =
     urlPreview || clientUrlPreview || themeChatSableWidgets ? renderUrlsPreview : undefined;
   const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
+  const composeBundledPreviewsWithUrls = bundledPreview && !urlPreview && clientUrlPreview;
 
   const renderCaption = () => {
     const hasCaption = content.body && (content.body as string).trim().length > 0;

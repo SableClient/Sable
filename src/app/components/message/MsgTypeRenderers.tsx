@@ -241,6 +241,14 @@ const getUrlsFromContent = (
     const customBody =
       typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
     const trimmedBody = trimReplyFromBody(body);
+    const rawBundleContent = content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] as
+      | BundleContent[]
+      | undefined;
+    const bundledUrls = new Set(
+      rawBundleContent
+        ?.map((bundle) => bundle?.matched_url)
+        .filter((bundleUrl): bundleUrl is string => typeof bundleUrl === 'string') ?? []
+    );
     const hasBundledPreviewState = Object.prototype.hasOwnProperty.call(
       content,
       prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME
@@ -255,7 +263,13 @@ const getUrlsFromContent = (
         if (typeof url !== 'string') return undefined;
         const normalizedUrl = normalizeMatchedUrl(url, full);
         if (
-          isPreviewSuppressedUrl(trimmedBody, full, normalizedUrl, offset, hasBundledPreviewState)
+          isPreviewSuppressedUrl(
+            trimmedBody,
+            full,
+            normalizedUrl,
+            offset,
+            hasBundledPreviewState && !bundledUrls.has(normalizedUrl)
+          )
         ) {
           return undefined;
         }
@@ -281,9 +295,7 @@ const getUrlsFromContent = (
       urls = urls.filter((url) => safeUrlsSet.has(url) && !url.startsWith(MATRIX_TO_BASE));
     }
 
-    let bundleContent = content[
-      prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME
-    ] as BundleContent[];
+    let bundleContent = rawBundleContent;
     try {
       bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
       if (renderUrlsPreview && bundleContent) {
@@ -361,8 +373,22 @@ export function MText({
   }, [unwrappedPerMessageProfileMessage, cleanedMessage, trimmedBody, customBody]);
 
   const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
+  const bundledPreviewUrls = useMemo(
+    () =>
+      new Set(
+        bundleContent
+          ?.map((bundle) => bundle?.matched_url)
+          .filter((bundleUrl): bundleUrl is string => typeof bundleUrl === 'string') ?? []
+      ),
+    [bundleContent]
+  );
+  const composedUrls = useMemo(
+    () =>
+      composeBundledPreviewsWithUrls ? urls?.filter((url) => !bundledPreviewUrls.has(url)) : urls,
+    [composeBundledPreviewsWithUrls, urls, bundledPreviewUrls]
+  );
   const renderedUrlsPreview =
-    renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls);
+    renderUrlsPreview && composedUrls && composedUrls.length > 0 && renderUrlsPreview(composedUrls);
   const renderedBundledPreviews =
     renderBundledPreviews &&
     bundleContent &&

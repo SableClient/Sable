@@ -238,14 +238,33 @@ describe('RenderMessageContent', () => {
       { urlPreview: false, clientUrlPreview: true, bundledPreview: true }
     );
 
-    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
+    expect(screen.getByTestId('bundled-preview-card')).toHaveTextContent(
       'https://cdn.example/test.png'
     );
-    expect(screen.queryByTestId('bundled-preview-card')).not.toBeInTheDocument();
-    expect(urlPreviewCardSpy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
     expect(urlPreviewCardSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://cdn.example/test.png', mediaType: 'image' })
+      expect.objectContaining({
+        url: 'https://cdn.example/test.png',
+        bundle: expect.objectContaining({ 'og:url': 'https://cdn.example/test.png' }),
+      })
     );
+  });
+
+  it('keeps bundled angle-bracket markdown destinations previewable', () => {
+    renderMessage(
+      {
+        body: '[pic](<https://cdn.example/test.png>)',
+        'com.beeper.linkpreviews': [
+          { matched_url: 'https://cdn.example/test.png', 'og:url': 'https://cdn.example/test.png' },
+        ],
+      },
+      { urlPreview: false, clientUrlPreview: true, bundledPreview: true }
+    );
+
+    expect(screen.getByTestId('bundled-preview-card')).toHaveTextContent(
+      'https://cdn.example/test.png'
+    );
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
   });
 
   it('does not let direct gif fallbacks consume the only preview slot', () => {

@@ -107,6 +107,7 @@ export function Room() {
 
   const callView = room.isCallRoom();
   const abbreviations = useMergedAbbreviations(room);
+  const showMobileWidgetsDrawer = screenSize !== ScreenSize.Desktop && isWidgetDrawerOpen;
 
   // Log call view state
   useEffect(() => {
@@ -199,6 +200,18 @@ export function Room() {
               onClose={() => setThreadBrowserOpen(false)}
               overlay
             />
+          )}
+          {showMobileWidgetsDrawer && (
+            <Box
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 20,
+                backgroundColor: 'var(--sable-surface)',
+              }}
+            >
+              <WidgetsDrawer key={`widgets-mobile-${room.roomId}`} room={room} />
+            </Box>
           )}
         </Box>
       </RoomAbbreviationsContext.Provider>

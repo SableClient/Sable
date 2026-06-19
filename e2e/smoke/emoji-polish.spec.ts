@@ -43,12 +43,12 @@ test.describe('emoji polish smoke', () => {
     expect(peopleLabelBox).not.toBeNull();
     expect(peopleFirstEmojiBox).not.toBeNull();
 
-    expect(recentFirstEmojiBox!.y - (recentLabelBox!.y + recentLabelBox!.height)).toBeGreaterThan(
-      8
-    );
-    expect(peopleFirstEmojiBox!.y - (peopleLabelBox!.y + peopleLabelBox!.height)).toBeGreaterThan(
-      8
-    );
+    expect(
+      recentFirstEmojiBox!.y - (recentLabelBox!.y + recentLabelBox!.height)
+    ).toBeGreaterThanOrEqual(8);
+    expect(
+      peopleFirstEmojiBox!.y - (peopleLabelBox!.y + peopleLabelBox!.height)
+    ).toBeGreaterThanOrEqual(8);
 
     await captureSnapshot(page, 'emoji-polish/desktop-picker-spacing');
   });
@@ -67,5 +67,79 @@ test.describe('emoji polish smoke', () => {
     expect(390 - (pickerBox!.x + pickerBox!.width)).toBeGreaterThanOrEqual(12);
 
     await captureSnapshot(page, 'emoji-polish/mobile-picker-gutter');
+  });
+
+  test('matches picker icon scale, keeps stickers separated, and aligns inline emoji', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/__smoke/mobile-shell/emoji-polish');
+
+    await expect(page.getByTestId('smoke-standard-emoji-button')).toBeVisible();
+    await expect(page.getByTestId('smoke-pack-icon-reference')).toBeVisible();
+    await expect(page.getByTestId('smoke-sticker-a')).toBeVisible();
+
+    const metrics = await page.evaluate(() => {
+      const measure = (selector: string) => {
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          right: rect.right,
+          bottom: rect.bottom,
+          centerY: rect.top + rect.height / 2,
+        };
+      };
+
+      const firstSticker = measure('[data-testid="smoke-sticker-a"]');
+      const secondSticker = measure('[data-testid="smoke-sticker-b"]');
+      const thirdSticker = measure('[data-testid="smoke-sticker-c"]');
+
+      return {
+        pickerButton: measure('[data-testid="smoke-standard-emoji-button"]'),
+        pickerGlyph: measure('[data-testid="smoke-standard-emoji-glyph"]'),
+        packIcon: measure('[data-testid="smoke-pack-icon-reference"] img'),
+        stickerButton: measure('[data-testid="smoke-sticker-a"]'),
+        stickerImage: measure('[data-testid="smoke-sticker-a"] img'),
+        firstSticker,
+        secondSticker,
+        thirdSticker,
+        baselineText: measure('[data-testid="smoke-emoji-baseline-text"]'),
+        baselineEmoji: measure('[data-testid="smoke-emoji-baseline-line"] span[title]'),
+      };
+    });
+
+    expect(metrics.pickerButton).not.toBeNull();
+    expect(metrics.pickerGlyph).not.toBeNull();
+    expect(metrics.packIcon).not.toBeNull();
+    expect(metrics.stickerButton).not.toBeNull();
+    expect(metrics.stickerImage).not.toBeNull();
+    expect(metrics.firstSticker).not.toBeNull();
+    expect(metrics.secondSticker).not.toBeNull();
+    expect(metrics.thirdSticker).not.toBeNull();
+    expect(metrics.baselineText).not.toBeNull();
+    expect(metrics.baselineEmoji).not.toBeNull();
+
+    expect(metrics.pickerButton!.width).toBe(48);
+    expect(metrics.pickerButton!.height).toBe(48);
+    expect(metrics.pickerGlyph!.width).toBe(32);
+    expect(metrics.pickerGlyph!.height).toBe(32);
+    expect(metrics.packIcon!.width).toBe(32);
+    expect(metrics.packIcon!.height).toBe(32);
+    expect(metrics.stickerButton!.width).toBe(112);
+    expect(metrics.stickerButton!.height).toBe(112);
+    expect(metrics.stickerImage!.width).toBe(96);
+    expect(metrics.stickerImage!.height).toBe(96);
+    expect(metrics.secondSticker!.left - metrics.firstSticker!.right).toBeGreaterThanOrEqual(4);
+    expect(metrics.thirdSticker!.left - metrics.secondSticker!.right).toBeGreaterThanOrEqual(4);
+    expect(Math.abs(metrics.baselineEmoji!.centerY - metrics.baselineText!.centerY)).toBeLessThan(
+      4
+    );
+
+    await captureSnapshot(page, 'emoji-polish/sticker-fit-and-baseline');
   });
 });

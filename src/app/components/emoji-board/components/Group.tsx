@@ -26,7 +26,7 @@ export const EmojiGroup = as<
       {label}
     </Text>
     <div aria-labelledby={`EmojiGroup-${id}-label`} className={css.EmojiGroupContent}>
-      <Box wrap="Wrap" justifyContent="Center" gap="100">
+      <Box wrap="Wrap" justifyContent="Center">
         {children}
       </Box>
     </div>

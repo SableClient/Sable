@@ -70,17 +70,18 @@ export const Preview = style({
 export const PreviewEmoji = style([
   DefaultReset,
   {
-    width: toRem(28),
-    height: toRem(28),
+    width: toRem(32),
+    height: toRem(32),
+    fontSize: toRem(32),
+    lineHeight: toRem(32),
   },
 ]);
 export const PreviewImg = style([
   DefaultReset,
   {
-    width: toRem(28),
-    height: toRem(28),
+    width: toRem(32),
+    height: toRem(32),
     objectFit: 'contain',
-    display: 'block',
   },
 ]);
 
@@ -90,7 +91,7 @@ export const PreviewImg = style([
 
 export const EmojiGroup = style({
   position: 'relative',
-  padding: `${config.space.S300} 0 ${config.space.S200}`,
+  padding: `${config.space.S300} 0`,
 });
 
 export const EmojiGroupLabel = style({
@@ -108,7 +109,7 @@ export const EmojiGroupLabel = style({
 export const EmojiGroupContent = style([
   DefaultReset,
   {
-    padding: `${config.space.S300} ${config.space.S200} 0`,
+    padding: `0 ${config.space.S200}`,
   },
 ]);
 
@@ -120,11 +121,12 @@ export const EmojiItem = style([
   DefaultReset,
   FocusOutline,
   {
-    width: toRem(44),
-    height: toRem(44),
+    width: toRem(48),
+    height: toRem(48),
+    fontSize: toRem(32),
+    lineHeight: toRem(32),
     borderRadius: config.radii.R400,
     cursor: 'pointer',
-    overflow: 'hidden',
 
     ':hover': {
       backgroundColor: color.Surface.ContainerHover,
@@ -133,46 +135,40 @@ export const EmojiItem = style([
 ]);
 
 export const EmojiGlyph = style({
-  width: toRem(28),
-  height: toRem(28),
+  width: toRem(32),
+  height: toRem(32),
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
   fontFamily:
     'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-  fontSize: toRem(28),
-  lineHeight: 1,
+  fontSize: toRem(32),
+  lineHeight: toRem(32),
   textAlign: 'center',
 });
 
 export const StickerItem = style([
   EmojiItem,
   {
-    width: toRem(80),
-    height: toRem(80),
-    padding: config.space.S100,
+    width: toRem(112),
+    height: toRem(112),
   },
 ]);
 
 export const CustomEmojiImg = style([
   DefaultReset,
   {
-    width: toRem(28),
-    height: toRem(28),
+    width: toRem(32),
+    height: toRem(32),
     objectFit: 'contain',
-    display: 'block',
   },
 ]);
 
 export const StickerImg = style([
   DefaultReset,
   {
-    width: '100%',
-    height: '100%',
-    maxWidth: toRem(64),
-    maxHeight: toRem(64),
+    width: toRem(96),
+    height: toRem(96),
     objectFit: 'contain',
-    display: 'block',
-    flexShrink: 0,
   },
 ]);

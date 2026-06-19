@@ -20,6 +20,7 @@ import type { IImageInfo } from '$types/matrix/common';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '$unstable/prefixes';
 import { useMediaMetadata } from '$hooks/useMediaMetadata';
 import { getScopedMediaCacheKey } from '$utils/mediaTransport';
+import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 
 const linkStyles = { color: color.Success.Main };
 
@@ -80,6 +81,19 @@ function isLikelyPlayableOgVideo(prev: IPreviewUrlResponse): boolean {
   return false;
 }
 
+function isAnimatedDirectImage(url: string, mimeType?: string): boolean {
+  const resolvedMime = typeof mimeType === 'string' ? mimeType.toLowerCase() : '';
+  if (
+    resolvedMime === 'image/gif' ||
+    resolvedMime === 'image/apng' ||
+    resolvedMime === 'image/webp'
+  ) {
+    return true;
+  }
+
+  return /\.(gif|apng|webp)(\?|#|$)/i.test(url);
+}
+
 const buildDirectMediaInfo = (
   metadata: ReturnType<typeof useMediaMetadata> | undefined
 ): IImageInfo | undefined => {
@@ -105,6 +119,7 @@ export const UrlPreviewCard = as<
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
+  const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [imageError, setImageError] = useState(false);
   const [directMediaError, setDirectMediaError] = useState(false);
 
@@ -240,6 +255,9 @@ export const UrlPreviewCard = as<
 
     const directMediaInfo = buildDirectMediaInfo(directMediaMetadata);
     const body = safeDecodeUrl(url);
+    const directMimeType = directMediaMetadata?.mimeType;
+    const freezeAnimatedPreview =
+      mediaType === 'image' && !autoplayGifs && isAnimatedDirectImage(url, directMimeType);
 
     if (directMediaError) {
       return renderCardShell(body);
@@ -267,21 +285,39 @@ export const UrlPreviewCard = as<
             onError={() => setDirectMediaError(true)}
             suppressErrorUI
             renderViewer={(p) => <ImageViewer {...p} />}
-            renderImage={(p) => (
-              <Image
-                info={directMediaInfo}
-                {...p}
-                style={{
-                  display: 'block',
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  width: 'auto',
-                  height: 'auto',
-                  objectFit: 'contain',
-                  objectPosition: 'center',
-                }}
-              />
-            )}
+            renderImage={(p) =>
+              freezeAnimatedPreview && p.src ? (
+                <ClientSideHoverFreeze src={p.src}>
+                  <Image
+                    info={directMediaInfo}
+                    {...p}
+                    style={{
+                      display: 'block',
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      width: 'auto',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      objectPosition: 'center',
+                    }}
+                  />
+                </ClientSideHoverFreeze>
+              ) : (
+                <Image
+                  info={directMediaInfo}
+                  {...p}
+                  style={{
+                    display: 'block',
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                  }}
+                />
+              )
+            }
           />
         ) : (
           <VideoContent
@@ -295,6 +331,7 @@ export const UrlPreviewCard = as<
             info={directMediaInfo ?? {}}
             url={url}
             mimeType={directMediaMetadata?.mimeType ?? ''}
+            onError={() => setDirectMediaError(true)}
             renderVideo={(vidProps) => (
               <Video
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}

@@ -23,22 +23,35 @@ vi.mock('$hooks/useAsyncCallback', () => ({
 }));
 
 vi.mock('$state/hooks/settings', () => ({
-  useSetting: () => [240],
+  useSetting: (_atom: unknown, key: string) => {
+    if (key === 'linkPreviewImageMaxHeight') return [240];
+    if (key === 'autoplayGifs') return [false];
+    return [undefined];
+  },
 }));
 
 vi.mock('$hooks/useMediaMetadata', () => ({
   useMediaMetadata: () => ({
     width: 1280,
     height: 720,
-    mimeType: 'image/png',
+    mimeType: 'image/gif',
   }),
 }));
 
 vi.mock('$components/message', () => ({
   AudioContent: ({ url }: { url: string }) => <div data-testid="audio-content">{url}</div>,
-  ImageContent: ({ url, onError }: { url: string; onError?: () => void }) => (
+  ImageContent: ({
+    url,
+    onError,
+    renderImage,
+  }: {
+    url: string;
+    onError?: () => void;
+    renderImage?: (props: { src: string }) => ReactNode;
+  }) => (
     <div>
       <div data-testid="image-content">{url}</div>
+      {renderImage?.({ src: url })}
       {onError && (
         <button type="button" data-testid="image-error" onClick={onError}>
           fail
@@ -46,7 +59,16 @@ vi.mock('$components/message', () => ({
       )}
     </div>
   ),
-  VideoContent: ({ url }: { url: string }) => <div data-testid="video-content">{url}</div>,
+  VideoContent: ({ url, onError }: { url: string; onError?: () => void }) => (
+    <div>
+      <div data-testid="video-content">{url}</div>
+      {onError && (
+        <button type="button" data-testid="video-error" onClick={onError}>
+          fail
+        </button>
+      )}
+    </div>
+  ),
 }));
 
 vi.mock('$components/media', () => ({
@@ -57,6 +79,12 @@ vi.mock('$components/media', () => ({
 
 vi.mock('$components/image-viewer', () => ({
   ImageViewer: () => null,
+}));
+
+vi.mock('$components/ClientSideHoverFreeze', () => ({
+  ClientSideHoverFreeze: ({ children }: { children: ReactNode }) => (
+    <div data-testid="hover-freeze">{children}</div>
+  ),
 }));
 
 vi.mock('./UrlPreview', () => ({
@@ -93,6 +121,14 @@ describe('UrlPreviewCard', () => {
     ).toBeInTheDocument();
   });
 
+  it('wraps direct animated image links in hover freeze when gif autoplay is disabled', () => {
+    renderWithProviders(
+      <UrlPreviewCard urlPreview url="https://example.com/images/test.gif" mediaType="image" />
+    );
+
+    expect(screen.getByTestId('hover-freeze')).toBeInTheDocument();
+  });
+
   it('falls back to a plain link card when a direct image preview errors', () => {
     renderWithProviders(
       <UrlPreviewCard urlPreview url="https://example.com/images/test.png" mediaType="image" />
@@ -103,6 +139,19 @@ describe('UrlPreviewCard', () => {
     expect(screen.queryByTestId('image-content')).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'https://example.com/images/test.png' })
+    ).toBeInTheDocument();
+  });
+
+  it('falls back to a plain link card when a direct video preview errors', () => {
+    renderWithProviders(
+      <UrlPreviewCard urlPreview url="https://example.com/videos/test.mp4" mediaType="video" />
+    );
+
+    fireEvent.click(screen.getByTestId('video-error'));
+
+    expect(screen.queryByTestId('video-content')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'https://example.com/videos/test.mp4' })
     ).toBeInTheDocument();
   });
 });

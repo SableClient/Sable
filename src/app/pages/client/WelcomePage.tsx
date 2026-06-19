@@ -5,6 +5,7 @@ import LogoSVG from '$public/res/svg/logo.svg';
 import {
   APP_ATTRIBUTION,
   APP_DESCRIPTION,
+  APP_FEATURES_URL,
   APP_NAME,
   APP_SOURCE_URL,
   APP_SUPPORT_URL,
@@ -62,7 +63,7 @@ export function WelcomePage() {
             <Box direction="Column" gap="200" alignItems="Center">
               <Button
                 as="a"
-                href="https://github.com/SableClient/Sable/blob/dev/CHANGELOG.md"
+                href={APP_FEATURES_URL}
                 target="_blank"
                 rel="noreferrer noopener"
                 before={menuIcon(Code)}

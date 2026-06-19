@@ -1,7 +1,7 @@
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import { Box, Button, config, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
-import { CaretDown, sizedIcon } from '$components/icons/phosphor';
+import { Box, Button, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
+import { CaretDown, Check, sizedIcon } from '$components/icons/phosphor';
 import {
   type ComponentPropsWithoutRef,
   type MouseEventHandler,
@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { stopPropagation } from '$utils/keyboard';
+import * as css from './SettingMenuSelector.css';
 
 export type SettingMenuOption<T extends string> = {
   value: T;
@@ -127,8 +128,8 @@ export function SettingMenuSelector<T extends string>({
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+            <Menu className={css.Menu}>
+              <Box className={css.Options}>
                 {options.map((option) => {
                   const selected = option.value === value;
                   const select = () => {
@@ -147,7 +148,12 @@ export function SettingMenuSelector<T extends string>({
                         disabled={option.disabled || isDisabled}
                         onClick={select}
                       >
-                        {renderOption({ option, selected, select })}
+                        <Box className={css.OptionContent}>
+                          <Box grow="Yes">{renderOption({ option, selected, select })}</Box>
+                          {selected
+                            ? sizedIcon(Check, '200', { className: css.OptionCheck })
+                            : null}
+                        </Box>
                       </MenuItem>
                     );
                   }
@@ -162,16 +168,19 @@ export function SettingMenuSelector<T extends string>({
                       disabled={option.disabled || isDisabled}
                       onClick={select}
                       before={option.icon}
+                      after={
+                        selected
+                          ? sizedIcon(Check, '200', { className: css.OptionCheck })
+                          : undefined
+                      }
                     >
-                      <Box grow="Yes">
-                        <Box direction="Column" gap="100">
-                          <Text size="T300">{option.label}</Text>
-                          {option.description && (
-                            <Text size="T200" priority="300">
-                              {option.description}
-                            </Text>
-                          )}
-                        </Box>
+                      <Box grow="Yes" className={css.OptionText}>
+                        <Text size="T300">{option.label}</Text>
+                        {option.description && (
+                          <Text size="T200" priority="300">
+                            {option.description}
+                          </Text>
+                        )}
                       </Box>
                     </MenuItem>
                   );

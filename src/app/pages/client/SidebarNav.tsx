@@ -132,13 +132,18 @@ export function SidebarNav() {
           </Scroll>
         }
         sticky={
-          <SidebarStack>
-            <SearchTab />
-            <BookmarksTab />
-            <UnverifiedTab />
-            <InboxTab />
-            <AccountSwitcherTab />
-          </SidebarStack>
+          <>
+            <SidebarStack>
+              <SearchTab />
+              <BookmarksTab />
+            </SidebarStack>
+            <SidebarStackSeparator />
+            <SidebarStack>
+              <UnverifiedTab />
+              <InboxTab />
+              <AccountSwitcherTab />
+            </SidebarStack>
+          </>
         }
       />
     </Sidebar>

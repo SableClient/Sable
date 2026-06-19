@@ -102,7 +102,7 @@ function ActionItem({ icon, label, danger, onClick }: ActionItemProps) {
       className={`${css.ActionItem}${danger ? ` ${css.ActionItemDanger}` : ''}`}
       onClick={onClick}
     >
-      {icon}
+      <span className={css.ActionIcon}>{icon}</span>
       <Text size="T300" as="span">
         {label}
       </Text>

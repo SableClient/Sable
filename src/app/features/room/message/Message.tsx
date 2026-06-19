@@ -822,16 +822,18 @@ function MessageInternal(
           canDelete: canDelete,
           setIsEmoji: setIsEmoji,
           ActualMessage: (
-            <WrappedMessage
-              headerJSX={headerJSX()}
-              avatarJSX={avatarJSX()}
-              msgContentJSX={msgContentJSX}
-              messageLayout={messageLayout}
-              onDoubleTap={() => {}}
-              handleSwipeReply={() => {}}
-              handleContextMenu={() => {}}
-              align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
-            />
+            <div style={{ width: '100%' }}>
+              <WrappedMessage
+                headerJSX={headerJSX()}
+                avatarJSX={avatarJSX()}
+                msgContentJSX={msgContentJSX}
+                messageLayout={messageLayout}
+                onDoubleTap={() => {}}
+                handleSwipeReply={() => {}}
+                handleContextMenu={() => {}}
+                align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
+              />
+            </div>
           ),
           canSendReaction: canSendReaction,
         },

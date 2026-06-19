@@ -52,7 +52,12 @@ function WrappedMessage({
   ActualMessage?: ReactNode;
 }) {
   return (
-    <Box className={isModal ? css.MessageOptionsWrappedMessage : ''} shrink="Yes" grow="No">
+    <Box
+      className={isModal ? css.MessageOptionsWrappedMessage : ''}
+      onPointerMove={(e) => e.preventDefault()}
+      shrink="Yes"
+      grow="No"
+    >
       <MemoizedBody>{ActualMessage}</MemoizedBody>
     </Box>
   );

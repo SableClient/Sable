@@ -254,6 +254,12 @@ export const PronounPill = style({
 
 export const MessageTextBody = recipe({
   base: {
+    vars: {
+      '--sable-system-emoji-font-size': '1.33em',
+      '--sable-system-emoji-top': '-0.35em',
+      '--sable-custom-emoji-font-size': '1.2em',
+      '--sable-custom-emoji-align': '-0.12em',
+    },
     unicodeBidi: 'plaintext',
     alignSelf: 'start',
     // Full width ensures RTL text (direction:rtl from dir=auto) has room to right-align
@@ -274,22 +280,52 @@ export const MessageTextBody = recipe({
         lineHeight: 'inherit',
       },
       extraSmall: {
+        vars: {
+          '--sable-system-emoji-font-size': '1em',
+          '--sable-system-emoji-top': '0',
+          '--sable-custom-emoji-font-size': '1em',
+          '--sable-custom-emoji-align': '0',
+        },
         fontSize: '1.25rem !important',
         lineHeight: '1.4em',
       },
       small: {
+        vars: {
+          '--sable-system-emoji-font-size': '1em',
+          '--sable-system-emoji-top': '0',
+          '--sable-custom-emoji-font-size': '1em',
+          '--sable-custom-emoji-align': '0',
+        },
         fontSize: '1.5rem !important',
         lineHeight: '1.5em',
       },
       normal: {
+        vars: {
+          '--sable-system-emoji-font-size': '1em',
+          '--sable-system-emoji-top': '0',
+          '--sable-custom-emoji-font-size': '1em',
+          '--sable-custom-emoji-align': '0',
+        },
         fontSize: '1.805rem !important',
         lineHeight: '1.625em',
       },
       large: {
+        vars: {
+          '--sable-system-emoji-font-size': '1em',
+          '--sable-system-emoji-top': '0',
+          '--sable-custom-emoji-font-size': '1em',
+          '--sable-custom-emoji-align': '0',
+        },
         fontSize: '2.1rem !important',
         lineHeight: '1.675em',
       },
       extraLarge: {
+        vars: {
+          '--sable-system-emoji-font-size': '1em',
+          '--sable-system-emoji-top': '0',
+          '--sable-custom-emoji-font-size': '1em',
+          '--sable-custom-emoji-align': '0',
+        },
         fontSize: '2.4rem !important',
         lineHeight: '1.7em',
       },

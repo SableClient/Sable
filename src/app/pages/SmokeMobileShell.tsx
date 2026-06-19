@@ -12,6 +12,7 @@ import {
 } from '$components/icons/phosphor';
 import { EmojiGroupId, emojis } from '$plugins/emoji';
 import { scaleSystemEmoji } from '$plugins/react-custom-html-parser';
+import { MessageTextBody } from '$components/message/layout/Base';
 import {
   EmojiBoardLayout,
   EmojiGroup,
@@ -309,6 +310,9 @@ function SmokeEmojiPolish() {
           }}
         >
           <Text size="H4">Timeline emoji scaling</Text>
+          <MessageTextBody jumboEmoji="normal" data-testid="smoke-jumbo-emoji-line">
+            {scaleSystemEmoji('❤️')}
+          </MessageTextBody>
           <Box
             data-testid="smoke-emoji-inline-line"
             alignItems="Center"

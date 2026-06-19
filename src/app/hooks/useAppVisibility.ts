@@ -13,7 +13,10 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { pushSessionToSW } from '../../sw-session';
-import { useNotificationDeviceScope } from './useNotificationDeviceScope';
+import {
+  shouldEnableNotificationPusher,
+  useNotificationDeviceScope,
+} from './useNotificationDeviceScope';
 
 const debugLog = createDebugLogger('AppVisibility');
 type PushSubscriptionState = [
@@ -219,10 +222,12 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     if (!mx) return undefined;
 
     const reconcilePusher = (isVisible: boolean) => {
-      const shouldEnablePusher = isVisible
-        ? isMobile ||
-          (notificationDeviceScope === 'active_client_only' && isActiveNotificationClient)
-        : notificationDeviceScope !== 'active_client_only' || isActiveNotificationClient;
+      const shouldEnablePusher = shouldEnableNotificationPusher(
+        isVisible,
+        isMobile,
+        notificationDeviceScope,
+        isActiveNotificationClient
+      );
       if (lastPusherStateRef.current === shouldEnablePusher) return;
       lastPusherStateRef.current = shouldEnablePusher;
       void togglePusher(mx, clientConfig, shouldEnablePusher, usePushNotifications, pushSubAtom);

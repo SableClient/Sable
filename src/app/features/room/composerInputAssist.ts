@@ -180,3 +180,11 @@ export function findEmojiAutoReplacement(
 
   return null;
 }
+
+export function applyEmojiAutoReplacementAtEnd(text: string): string {
+  const replacement = findEmojiAutoReplacement(text, text.length, {
+    consumeTrailingSeparator: false,
+  });
+  if (!replacement || replacement.end !== text.length) return text;
+  return `${text.slice(0, replacement.start)}${replacement.replacement}`;
+}

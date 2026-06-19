@@ -85,6 +85,9 @@ describe('useNotificationDeviceScope', () => {
     expect(result.current.notificationDeviceScope).toBe('all_clients');
     expect(result.current.isActiveNotificationClient).toBe(true);
     expect(result.current.shouldKeepWebPushEnabled).toBe(false);
+    expect(result.current.activeReason).toBe('all_clients');
+    expect(result.current.isVisible).toBe(true);
+    expect(result.current.isWindowFocused).toBe(true);
   });
 
   it('publishes an active lease for the focused visible client in active-client-only mode', async () => {
@@ -101,6 +104,8 @@ describe('useNotificationDeviceScope', () => {
     expect(result.current.isThisClientLeaseHolder).toBe(true);
     expect(result.current.isActiveNotificationClient).toBe(true);
     expect(result.current.shouldKeepWebPushEnabled).toBe(true);
+    expect(result.current.activeReason).toBe('lease_holder');
+    expect(result.current.leaseFresh).toBe(true);
   });
 
   it('treats a fresh lease held by another client as inactive when this tab is not focused', () => {
@@ -122,6 +127,7 @@ describe('useNotificationDeviceScope', () => {
     expect(result.current.isActiveNotificationClient).toBe(false);
     expect(result.current.isThisClientLeaseHolder).toBe(false);
     expect(result.current.shouldKeepWebPushEnabled).toBe(false);
+    expect(result.current.activeReason).toBe('lease_held_elsewhere');
     expect(client.setAccountData).not.toHaveBeenCalled();
   });
 
@@ -143,6 +149,7 @@ describe('useNotificationDeviceScope', () => {
 
     expect(result.current.isActiveNotificationClient).toBe(true);
     expect(result.current.shouldKeepWebPushEnabled).toBe(true);
+    expect(result.current.activeReason).toBe('no_fresh_lease');
   });
 
   it('updates the in-memory lease when account data changes arrive', async () => {

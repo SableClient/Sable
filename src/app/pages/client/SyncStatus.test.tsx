@@ -15,6 +15,13 @@ const syncDiagnosticsMock = vi.hoisted(() => ({
   transport: 'classic' as 'classic' | 'sliding',
   slidingHealthy: undefined as boolean | undefined,
 }));
+const sentry = vi.hoisted(() => ({
+  addBreadcrumb: vi.fn<() => void>(),
+  captureMessage: vi.fn<() => void>(),
+  metrics: {
+    count: vi.fn<() => void>(),
+  },
+}));
 
 vi.mock('@tauri-apps/api/core', () => ({
   isTauri: () => false,
@@ -24,13 +31,7 @@ vi.mock('@tauri-apps/plugin-os', () => ({
   type: () => 'macos',
 }));
 
-vi.mock('@sentry/react', () => ({
-  addBreadcrumb: vi.fn<() => void>(),
-  captureMessage: vi.fn<() => void>(),
-  metrics: {
-    count: vi.fn<() => void>(),
-  },
-}));
+vi.mock('@sentry/react', () => sentry);
 
 vi.mock('$hooks/useSyncState', () => ({
   useSyncState: (_mx: MatrixClient | undefined, onChange: SyncStateSubscriber) => {
@@ -67,12 +68,31 @@ function makeMx(syncState: SyncState | null = SyncState.Syncing): MatrixClient &
   };
 }
 
+function setVisibilityState(visibilityState: DocumentVisibilityState): void {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    value: visibilityState,
+  });
+}
+
+function setOnlineState(online: boolean): void {
+  Object.defineProperty(navigator, 'onLine', {
+    configurable: true,
+    value: online,
+  });
+}
+
 describe('SyncStatus', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     syncDiagnosticsMock.transport = 'classic';
     syncDiagnosticsMock.slidingHealthy = undefined;
     syncStateSubscribers.clear();
+    sentry.addBreadcrumb.mockClear();
+    sentry.captureMessage.mockClear();
+    sentry.metrics.count.mockClear();
+    setVisibilityState('visible');
+    setOnlineState(true);
   });
 
   afterEach(() => {
@@ -180,6 +200,63 @@ describe('SyncStatus', () => {
     });
 
     expect(screen.getByText('Connection Lost! Reconnecting...')).toBeInTheDocument();
+  });
+
+  it('reports persistent classic reconnecting even when sliding sync is opted out', () => {
+    const mx = makeMx(SyncState.Reconnecting);
+    render(<SyncStatus mx={mx} />);
+
+    act(() => {
+      emitSyncState(SyncState.Reconnecting, SyncState.Syncing);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(sentry.captureMessage).toHaveBeenCalledWith(
+      'Sync remained degraded',
+      expect.objectContaining({
+        level: 'warning',
+        tags: expect.objectContaining({
+          sync_state: SyncState.Reconnecting,
+          transport: 'classic',
+        }),
+      })
+    );
+  });
+
+  it('rearms degraded sync reporting after the tab becomes visible again', () => {
+    const mx = makeMx(SyncState.Reconnecting);
+    render(<SyncStatus mx={mx} />);
+
+    act(() => {
+      setVisibilityState('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      emitSyncState(SyncState.Reconnecting, SyncState.Syncing);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(sentry.captureMessage).not.toHaveBeenCalled();
+
+    act(() => {
+      setVisibilityState('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+
+    expect(sentry.captureMessage).toHaveBeenCalledWith(
+      'Sync remained degraded',
+      expect.objectContaining({
+        level: 'warning',
+      })
+    );
   });
 
   it('does not show reconnecting if sync recovers during the reconnect grace window', () => {

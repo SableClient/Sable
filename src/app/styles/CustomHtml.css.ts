@@ -234,7 +234,9 @@ export const Command = recipe({
 export const EmoticonBase = style([
   DefaultReset,
   {
-    display: 'inline-block',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 0,
     height: '1em',
     lineHeight: 1,
@@ -269,9 +271,13 @@ export const Emoticon = recipe({
 export const SystemEmoji = style({
   fontFamily:
     'var(--font-emoji), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-  display: 'inline-block',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   fontSize: 'var(--sable-inline-emoji-font-size)',
   lineHeight: 1,
+  minWidth: '1em',
+  textAlign: 'center',
 });
 
 export const SystemEmojiFixedCell = style({

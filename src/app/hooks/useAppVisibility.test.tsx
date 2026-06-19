@@ -31,6 +31,15 @@ vi.mock('./useClientConfig', () => ({
 }));
 
 vi.mock('./useNotificationDeviceScope', () => ({
+  shouldEnableNotificationPusher: (
+    isVisible: boolean,
+    isMobile: boolean,
+    notificationDeviceScope: string,
+    isActiveNotificationClient: boolean
+  ) =>
+    isVisible
+      ? isMobile || (notificationDeviceScope === 'active_client_only' && isActiveNotificationClient)
+      : notificationDeviceScope !== 'active_client_only' || isActiveNotificationClient,
   useNotificationDeviceScope: () => ({
     lease: null,
     notificationDeviceScope: 'all_clients',
@@ -90,7 +99,7 @@ describe('useAppVisibility', () => {
     unsubscribe();
   });
 
-  it('toggles the pusher when visibility changes', () => {
+  it('keeps foreground desktop all-clients pusher logic aligned with startup reconciliation', () => {
     const mx = createMockMatrixClient();
 
     renderHook(() => useAppVisibility(mx));
@@ -102,6 +111,7 @@ describe('useAppVisibility', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
+    expect(mocks.togglePusher).toHaveBeenCalledTimes(3);
     expect(mocks.togglePusher).toHaveBeenNthCalledWith(1, mx, {}, false, false, expect.any(Array));
     expect(mocks.togglePusher).toHaveBeenNthCalledWith(2, mx, {}, true, false, expect.any(Array));
     expect(mocks.togglePusher).toHaveBeenNthCalledWith(3, mx, {}, false, false, expect.any(Array));

@@ -75,7 +75,12 @@ export const getClientConfig = async (): Promise<ClientConfig> => {
       if (isLastAttempt) {
         Sentry.captureMessage('Failed to load config.json after all retries', {
           level: 'error',
-          extra: { attempts: maxAttempts, lastError: errorMessage },
+          extra: {
+            attempts: maxAttempts,
+            lastError: errorMessage,
+            finalAttemptUrl: attemptUrl,
+            likelyHttpFailure: /^HTTP \d+/.test(errorMessage),
+          },
         });
         throw new Error(
           `Failed to load app configuration after ${maxAttempts} attempts: ${errorMessage}`,

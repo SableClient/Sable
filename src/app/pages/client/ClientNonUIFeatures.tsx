@@ -88,7 +88,10 @@ import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { usePresenceSyncEffect } from '$hooks/usePresenceSync';
 import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
-import { useNotificationDeviceScope } from '$hooks/useNotificationDeviceScope';
+import {
+  shouldEnableNotificationPusher,
+  useNotificationDeviceScope,
+} from '$hooks/useNotificationDeviceScope';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { clearLaunchContext } from '../../../launch-context-persistence';
@@ -189,11 +192,12 @@ function WebPushStartupReconciler() {
     publishLease: false,
   });
   const reconciledKeyRef = useRef<string | null>(null);
-  const shouldEnablePusher =
-    visibilityState === 'visible'
-      ? mobileOrTablet() ||
-        (notificationDeviceScope === 'active_client_only' && isActiveNotificationClient)
-      : notificationDeviceScope !== 'active_client_only' || isActiveNotificationClient;
+  const shouldEnablePusher = shouldEnableNotificationPusher(
+    visibilityState === 'visible',
+    mobileOrTablet(),
+    notificationDeviceScope,
+    isActiveNotificationClient
+  );
 
   useEffect(() => {
     const syncVisibilityState = () => setVisibilityState(document.visibilityState);

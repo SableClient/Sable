@@ -158,6 +158,18 @@ export const getRoomUnreadInfo = (room: Room, scrollTo = false) => {
   };
 };
 
+export const getUnreadInfoAfterJumpToLatest = (
+  unreadInfo: ReturnType<typeof getRoomUnreadInfo>
+): ReturnType<typeof getRoomUnreadInfo> =>
+  unreadInfo
+    ? {
+        ...unreadInfo,
+        // Preserve the historical unread jump until the user explicitly marks the room read.
+        inLiveTimeline: unreadInfo.inLiveTimeline,
+        scrollTo: false,
+      }
+    : unreadInfo;
+
 export const getThreadReplyCount = (room: Room, mEventId: string): number => {
   const thread = room.getThread(mEventId);
   if (thread) return thread.length;

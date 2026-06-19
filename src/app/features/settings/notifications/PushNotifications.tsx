@@ -9,6 +9,13 @@ type PushSubscriptionState = [
   (subscription: PushSubscription | null) => void,
 ];
 
+export class UnsupportedPushEnvironmentError extends Error {
+  constructor() {
+    super('Push messaging is not supported in this browser.');
+    this.name = 'UnsupportedPushEnvironmentError';
+  }
+}
+
 export function isWebPushSupported(): boolean {
   return 'serviceWorker' in navigator && 'PushManager' in window;
 }
@@ -70,7 +77,7 @@ export async function enablePushNotifications(
       'notification',
       'Push messaging not supported - missing serviceWorker or PushManager'
     );
-    throw new Error('Push messaging is not supported in this browser.');
+    throw new UnsupportedPushEnvironmentError();
   }
   debugLog.info('notification', 'Enabling push notifications');
   const [pushSubAtom, setPushSubscription] = pushSubscriptionAtom;

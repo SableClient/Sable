@@ -61,6 +61,10 @@ export function SyncStatus({ mx }: SyncStatusProps) {
   const { current, previous } = stateData;
   const degradedSinceRef = useRef<number | undefined>(undefined);
   const degradedReportedRef = useRef(false);
+  const [visibilityState, setVisibilityState] = useState<DocumentVisibilityState>(
+    document.visibilityState
+  );
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
 
   useSyncState(
     mx,
@@ -98,6 +102,22 @@ export function SyncStatus({ mx }: SyncStatusProps) {
   }, [useDemoStatusLoop]);
 
   useEffect(() => {
+    const handleVisibilityChange = () => setVisibilityState(document.visibilityState);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
     const degraded = current === SyncState.Reconnecting || current === SyncState.Error;
     if (!degraded) {
       degradedSinceRef.current = undefined;
@@ -106,7 +126,10 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     }
 
     degradedSinceRef.current ??= Date.now();
+    const degradedForMs = Date.now() - degradedSinceRef.current;
+    const timeoutMs = Math.max(0, PERSISTENT_DEGRADED_CAPTURE_MS - degradedForMs);
     const timeoutId = window.setTimeout(() => {
+      if (visibilityState !== 'visible' || !isOnline) return;
       const syncState = mx.getSyncState();
       const stillDegraded = syncState === SyncState.Reconnecting || syncState === SyncState.Error;
       if (!stillDegraded || degradedReportedRef.current) return;
@@ -123,16 +146,16 @@ export function SyncStatus({ mx }: SyncStatusProps) {
         extra: {
           diagnostics,
           degradedMs: Date.now() - (degradedSinceRef.current ?? Date.now()),
-          visibilityState: document.visibilityState,
-          online: navigator.onLine,
+          visibilityState,
+          online: isOnline,
         },
       });
-    }, PERSISTENT_DEGRADED_CAPTURE_MS);
+    }, timeoutMs);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [current, mx]);
+  }, [current, isOnline, mx, visibilityState]);
 
   const rawStatusView = useMemo(() => {
     if (useDemoStatusLoop) return DEMO_STATUS_SEQUENCE[demoIndex] ?? null;

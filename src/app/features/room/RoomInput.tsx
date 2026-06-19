@@ -192,6 +192,7 @@ import { PollCreator } from './PollCreator';
 import * as prefix from '$unstable/prefixes';
 import { LocationDialog } from './location-modal';
 import {
+  applyEmojiAutoReplacementAtEnd,
   findEmojiAutoReplacement,
   getStructuredMarkdownAction,
   shouldInsertBreakAfterStructuredReplacement,
@@ -1049,6 +1050,21 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         return;
       }
 
+      if (emojiAutoExpand) {
+        const nextPlainText = applyEmojiAutoReplacementAtEnd(plainText);
+        if (nextPlainText !== plainText && customHtmlEqualsPlainText(customHtml, plainText)) {
+          customHtml = trimCustomHtml(
+            toMatrixCustomHTML(plainToEditorInput(nextPlainText), {
+              stripNickname: true,
+              nickNameReplacement: nicknameReplacement,
+              forEmote: commandName === Command.Me,
+              room,
+            })
+          );
+          plainText = nextPlainText;
+        }
+      }
+
       if (plainText === '') return;
 
       // Discord-style edit: when an editDraft is active, send an m.replace event
@@ -1373,6 +1389,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setEditDraft,
       setServerMaxDelayMs,
       replyDraftBase,
+      emojiAutoExpand,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(

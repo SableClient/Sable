@@ -879,6 +879,15 @@ export function Space() {
       ]
     ),
     useCallback(
+      (_parentId, roomId, depth) => {
+        if (mDirects.has(roomId)) {
+          return true;
+        }
+        return depth >= subspaceHierarchyLimit;
+      },
+      [mDirects, subspaceHierarchyLimit]
+    ),
+    useCallback(
       (sId) => getInClosedCategories(space.roomId, sId),
       [getInClosedCategories, space.roomId]
     )

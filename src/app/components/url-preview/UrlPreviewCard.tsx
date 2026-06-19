@@ -197,6 +197,9 @@ export const UrlPreviewCard = as<
     previewVideoUrl ? getScopedMediaCacheKey(previewVideoUrl) : undefined
   );
   const directMediaMetadata = useMediaMetadata(isDirect ? getScopedMediaCacheKey(url) : undefined);
+  const [initialFreezeAnimatedPreview] = useState(
+    () => mediaType === 'image' && !autoplayGifs && isAnimatedDirectImage(safeDecodeUrl(url))
+  );
 
   // Reset imageError when URL changes
   useEffect(() => {
@@ -269,13 +272,11 @@ export const UrlPreviewCard = as<
     const directMediaInfo = buildDirectMediaInfo(directMediaMetadata);
     const directMediaUrl = normalizeDirectRemoteUrl(url);
     const body = safeDecodeUrl(url);
-    const directMimeType = directMediaMetadata?.mimeType;
     const directAspectRatio =
       directMediaInfo?.w && directMediaInfo?.h
         ? `${directMediaInfo.w} / ${directMediaInfo.h}`
         : '16 / 9';
-    const freezeAnimatedPreview =
-      mediaType === 'image' && !autoplayGifs && isAnimatedDirectImage(body, directMimeType);
+    const freezeAnimatedPreview = initialFreezeAnimatedPreview;
 
     if (directMediaError || !directMediaUrl || freezeAnimatedPreview || !mediaAutoLoad) {
       return renderCardShell(body);

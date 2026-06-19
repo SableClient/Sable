@@ -30,6 +30,8 @@ vi.mock('$state/hooks/settings', () => ({
   },
 }));
 
+let mockedMimeType = 'image/png';
+
 vi.mock('$hooks/useMediaMetadata', () => ({
   useMediaMetadata: (cacheKey?: string) => ({
     width: 720,
@@ -37,7 +39,7 @@ vi.mock('$hooks/useMediaMetadata', () => ({
     mimeType:
       typeof cacheKey === 'string' && cacheKey.toLowerCase().includes('.gif')
         ? 'image/gif'
-        : 'image/png',
+        : mockedMimeType,
   }),
 }));
 
@@ -95,6 +97,26 @@ const renderWithProviders = (ui: ReactNode) =>
   );
 
 describe('UrlPreviewCard', () => {
+  it('keeps rendering extensionless direct images when animated mime metadata arrives later', () => {
+    mockedMimeType = 'image/png';
+    const { rerender } = renderWithProviders(
+      <UrlPreviewCard urlPreview url="https://example.com/media/asset" mediaType="image" />
+    );
+
+    expect(screen.getByTestId('direct-image')).toHaveTextContent('https://example.com/media/asset');
+
+    mockedMimeType = 'image/gif';
+    rerender(
+      <JotaiProvider>
+        <MatrixClientProvider value={{ getAccessToken: () => null } as never}>
+          <UrlPreviewCard urlPreview url="https://example.com/media/asset" mediaType="image" />
+        </MatrixClientProvider>
+      </JotaiProvider>
+    );
+
+    expect(screen.getByTestId('direct-image')).toHaveTextContent('https://example.com/media/asset');
+  });
+
   it('renders direct image urls through the shared media preview card', () => {
     renderWithProviders(
       <UrlPreviewCard urlPreview url="https://example.com/images/test.png" mediaType="image" />

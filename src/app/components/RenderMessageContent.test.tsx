@@ -12,9 +12,11 @@ const settings = {
   clientPreviewYoutube: false,
 };
 
-const urlPreviewCardSpy = vi.fn<(props: { url: string; mediaType?: string | null }) => JSX.Element>(
-  ({ url }: { url: string }) => <div data-testid="url-preview-card">{url}</div>
-);
+const urlPreviewCardSpy = vi.fn<
+  (props: { url: string; mediaType?: string | null; bundle?: { 'og:url'?: string } }) => JSX.Element
+>(({ url, bundle }: { url: string; bundle?: { 'og:url'?: string } }) => (
+  <div data-testid={bundle ? 'bundled-preview-card' : 'url-preview-card'}>{url}</div>
+));
 const youtubeUrlSpy = vi.fn<(url: string) => boolean>((url: string) => url.includes('youtu'));
 
 vi.mock('$state/hooks/settings', () => ({
@@ -34,7 +36,12 @@ vi.mock('./url-preview', () => ({
 
 function renderMessage(
   bodyOrContent: string | Record<string, unknown>,
-  options?: { urlPreview?: boolean; clientUrlPreview?: boolean }
+  options?: {
+    urlPreview?: boolean;
+    clientUrlPreview?: boolean;
+    mediaAutoLoad?: boolean;
+    bundledPreview?: boolean;
+  }
 ) {
   const content =
     typeof bodyOrContent === 'string'
@@ -49,6 +56,8 @@ function renderMessage(
         getContent={() => content}
         urlPreview={options?.urlPreview ?? true}
         clientUrlPreview={options?.clientUrlPreview ?? true}
+        mediaAutoLoad={options?.mediaAutoLoad ?? true}
+        bundledPreview={options?.bundledPreview ?? false}
         htmlReactParserOptions={{}}
         linkifyOpts={{}}
       />
@@ -118,7 +127,7 @@ describe('RenderMessageContent', () => {
     );
     expect(urlPreviewCardSpy).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ url: 'https://example.com/post', mediaType: null })
+      expect.objectContaining({ url: 'https://example.com/post', mediaType: undefined })
     );
   });
 
@@ -186,6 +195,8 @@ describe('RenderMessageContent', () => {
   });
 
   it('treats apng links as direct image previews', () => {
+    settings.autoplayGifs = true;
+
     renderMessage('https://example.com/anim.apng', { urlPreview: false, clientUrlPreview: true });
 
     expect(screen.getByTestId('url-preview-card')).toBeInTheDocument();
@@ -198,17 +209,66 @@ describe('RenderMessageContent', () => {
     renderMessage(
       {
         body: 'https://example.com/post https://cdn.example/test.png',
-        'com.beeper.linkpreviews': [{ matched_url: 'https://example.com/post' }],
+        'com.beeper.linkpreviews': [
+          { matched_url: 'https://example.com/post', 'og:url': 'https://example.com/post' },
+        ],
       },
-      { urlPreview: false, clientUrlPreview: true }
+      { urlPreview: false, clientUrlPreview: true, bundledPreview: true }
     );
 
     expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
       'https://cdn.example/test.png'
     );
+    expect(screen.getByTestId('bundled-preview-card')).toHaveTextContent(
+      'https://example.com/post'
+    );
     expect(urlPreviewCardSpy).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://cdn.example/test.png', mediaType: 'image' })
     );
+  });
+
+  it('does not let direct gif fallbacks consume the only preview slot', () => {
+    settings.multiplePreviews = false;
+
+    renderMessage('https://example.com/post https://cdn.example/test.gif', {
+      urlPreview: true,
+      clientUrlPreview: true,
+    });
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com/post');
+    expect(urlPreviewCardSpy).toHaveBeenCalledTimes(1);
+    expect(urlPreviewCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://example.com/post', mediaType: undefined })
+    );
+  });
+
+  it('does not let auto-load-disabled direct media consume the only preview slot', () => {
+    settings.multiplePreviews = false;
+
+    renderMessage('https://example.com/post https://cdn.example/test.png', {
+      urlPreview: true,
+      clientUrlPreview: true,
+      mediaAutoLoad: false,
+    });
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com/post');
+    expect(urlPreviewCardSpy).toHaveBeenCalledTimes(1);
+    expect(urlPreviewCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://example.com/post', mediaType: undefined })
+    );
+  });
+
+  it('keeps hidden preview-suppressed direct media urls out of the merged candidate list', () => {
+    renderMessage(
+      {
+        body: '<https://cdn.example/test.png>',
+        'com.beeper.linkpreviews': [],
+      },
+      { urlPreview: false, clientUrlPreview: true }
+    );
+
+    expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
   });
 
   it('treats query-string media urls as direct previews', () => {

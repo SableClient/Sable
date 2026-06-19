@@ -87,6 +87,8 @@ const isSableChatEmbedCandidate = (url: string): boolean =>
   /^https:\/\//i.test(url) &&
   (/\.preview\.sable\.css(\?|#|$)/i.test(url) || isHttpsFullSableCssUrl(url));
 
+const isAnimatedDirectImageUrl = (url: string): boolean => /\.(gif|apng|webp)(\?|#|$)/i.test(url);
+
 const CAPTION_STYLE: CSSProperties = { marginTop: config.space.S200, maxWidth: '100%' };
 const TEXT_STYLE: CSSProperties = { maxWidth: '100%' };
 
@@ -158,21 +160,33 @@ function RenderMessageContentInternal({
         ? filteredUrls.filter((u) => isHttpsFullSableCssUrl(u))
         : [];
 
-      const analyzed = filteredUrls.map((url) => ({
-        url,
-        type: getMediaType(url),
-      }));
-      const previewCandidates = analyzed.filter(({ url, type }) => {
-        if (type && clientUrlPreview) return true;
+      const analyzed = filteredUrls.map((url) => {
+        const type = getMediaType(url);
+        const directMediaRenderable =
+          clientUrlPreview &&
+          mediaAutoLoad !== false &&
+          (type === 'video' ||
+            (type === 'image' && (autoplayGifs || !isAnimatedDirectImageUrl(url))));
+
+        return {
+          url,
+          type,
+          directMediaRenderable,
+        };
+      });
+      const previewCandidates = analyzed.filter(({ url, directMediaRenderable }) => {
+        if (directMediaRenderable) return true;
         if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return false;
         if (clientUrlPreview && clientPreviewYoutube && youtubeUrl(url)) return true;
         if (urlPreview) return true;
         return false;
       });
-      const prioritizedCandidates = previewCandidates.some(({ type }) => type)
+      const prioritizedCandidates = previewCandidates.some(
+        ({ directMediaRenderable }) => directMediaRenderable
+      )
         ? [
-            ...previewCandidates.filter(({ type }) => type),
-            ...previewCandidates.filter(({ type }) => !type),
+            ...previewCandidates.filter(({ directMediaRenderable }) => directMediaRenderable),
+            ...previewCandidates.filter(({ directMediaRenderable }) => !directMediaRenderable),
           ]
         : previewCandidates;
       if (
@@ -196,10 +210,10 @@ function RenderMessageContentInternal({
             <TweakPreviewUrlCard key={`tweak:${url}`} url={url} />
           ))}
           {toRender.map((item) => {
-            const { url, type } = item;
+            const { url, type, directMediaRenderable } = item;
             if (themeToRender.includes(url)) return null;
             if (tweakCandidateUrls.includes(url)) return null;
-            if (type && clientUrlPreview) {
+            if (type && directMediaRenderable) {
               return (
                 <UrlPreviewCard
                   urlPreview
@@ -222,7 +236,7 @@ function RenderMessageContentInternal({
                   key={url}
                   url={url}
                   ts={ts}
-                  mediaType={clientUrlPreview ? type : undefined}
+                  mediaType={directMediaRenderable ? type : undefined}
                   mediaAutoLoad={mediaAutoLoad}
                 />
               );
@@ -241,6 +255,7 @@ function RenderMessageContentInternal({
       urlPreview,
       ts,
       mediaAutoLoad,
+      autoplayGifs,
     ]
   );
   const renderBundledPreviews = useCallback(
@@ -261,6 +276,7 @@ function RenderMessageContentInternal({
   const messageUrlsPreview =
     urlPreview || clientUrlPreview || themeChatSableWidgets ? renderUrlsPreview : undefined;
   const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
+  const composeBundledPreviewsWithUrls = bundledPreview && !urlPreview && clientUrlPreview;
 
   const renderCaption = () => {
     const hasCaption = content.body && (content.body as string).trim().length > 0;
@@ -279,6 +295,7 @@ function RenderMessageContentInternal({
             renderBody={renderBody}
             renderUrlsPreview={messageUrlsPreview}
             renderBundledPreviews={messageBundlePreview}
+            composeBundledPreviewsWithUrls={composeBundledPreviewsWithUrls}
           />
         );
       return (
@@ -300,6 +317,7 @@ function RenderMessageContentInternal({
             renderBody={renderBody}
             renderUrlsPreview={messageUrlsPreview}
             renderBundledPreviews={messageBundlePreview}
+            composeBundledPreviewsWithUrls={composeBundledPreviewsWithUrls}
             style={TEXT_STYLE}
           />
         </Box>
@@ -364,6 +382,7 @@ function RenderMessageContentInternal({
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
+        composeBundledPreviewsWithUrls={composeBundledPreviewsWithUrls}
         style={TEXT_STYLE}
       />
     );
@@ -389,6 +408,7 @@ function RenderMessageContentInternal({
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
+        composeBundledPreviewsWithUrls={composeBundledPreviewsWithUrls}
       />
     );
   }
@@ -401,6 +421,7 @@ function RenderMessageContentInternal({
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
+        composeBundledPreviewsWithUrls={composeBundledPreviewsWithUrls}
       />
     );
   }

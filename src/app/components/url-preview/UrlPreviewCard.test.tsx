@@ -22,12 +22,13 @@ vi.mock('$hooks/useAsyncCallback', () => ({
   ],
 }));
 
+const settings = {
+  linkPreviewImageMaxHeight: 240,
+  autoplayGifs: false,
+};
+
 vi.mock('$state/hooks/settings', () => ({
-  useSetting: (_atom: unknown, key: string) => {
-    if (key === 'linkPreviewImageMaxHeight') return [240];
-    if (key === 'autoplayGifs') return [false];
-    return [undefined];
-  },
+  useSetting: (_atom: unknown, key: keyof typeof settings) => [settings[key]],
 }));
 
 let mockedMimeType = 'image/png';
@@ -97,7 +98,33 @@ const renderWithProviders = (ui: ReactNode) =>
   );
 
 describe('UrlPreviewCard', () => {
+  it('recomputes animated direct-image fallback when gif autoplay is toggled', () => {
+    settings.autoplayGifs = true;
+    const { rerender } = renderWithProviders(
+      <UrlPreviewCard urlPreview url="https://example.com/images/test.gif" mediaType="image" />
+    );
+
+    expect(screen.getByTestId('direct-image')).toHaveTextContent(
+      'https://example.com/images/test.gif'
+    );
+
+    settings.autoplayGifs = false;
+    rerender(
+      <JotaiProvider>
+        <MatrixClientProvider value={{ getAccessToken: () => null } as never}>
+          <UrlPreviewCard urlPreview url="https://example.com/images/test.gif" mediaType="image" />
+        </MatrixClientProvider>
+      </JotaiProvider>
+    );
+
+    expect(screen.queryByTestId('direct-image')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'https://example.com/images/test.gif' })
+    ).toBeInTheDocument();
+  });
+
   it('keeps rendering extensionless direct images when animated mime metadata arrives later', () => {
+    settings.autoplayGifs = false;
     mockedMimeType = 'image/png';
     const { rerender } = renderWithProviders(
       <UrlPreviewCard urlPreview url="https://example.com/media/asset" mediaType="image" />
@@ -118,6 +145,7 @@ describe('UrlPreviewCard', () => {
   });
 
   it('renders direct image urls through the shared media preview card', () => {
+    settings.autoplayGifs = false;
     renderWithProviders(
       <UrlPreviewCard urlPreview url="https://example.com/images/test.png" mediaType="image" />
     );
@@ -137,6 +165,7 @@ describe('UrlPreviewCard', () => {
   });
 
   it('falls back to a plain link card for direct animated image links when gif autoplay is disabled', () => {
+    settings.autoplayGifs = false;
     renderWithProviders(
       <UrlPreviewCard urlPreview url="https://example.com/images/test.gif" mediaType="image" />
     );
@@ -148,6 +177,7 @@ describe('UrlPreviewCard', () => {
   });
 
   it('falls back to a plain link card when a direct image preview errors', () => {
+    settings.autoplayGifs = false;
     renderWithProviders(
       <UrlPreviewCard urlPreview url="https://example.com/images/test.png" mediaType="image" />
     );
@@ -161,6 +191,7 @@ describe('UrlPreviewCard', () => {
   });
 
   it('falls back to a plain link card when a direct video preview errors', () => {
+    settings.autoplayGifs = false;
     renderWithProviders(
       <UrlPreviewCard urlPreview url="https://example.com/videos/test.mp4" mediaType="video" />
     );
@@ -174,6 +205,7 @@ describe('UrlPreviewCard', () => {
   });
 
   it('normalizes uppercase direct media schemes before rendering', () => {
+    settings.autoplayGifs = false;
     renderWithProviders(
       <UrlPreviewCard urlPreview url="HTTPS://example.com/images/test.PNG" mediaType="image" />
     );
@@ -184,6 +216,7 @@ describe('UrlPreviewCard', () => {
   });
 
   it('falls back to a plain link card when direct media auto-load is disabled', () => {
+    settings.autoplayGifs = false;
     renderWithProviders(
       <UrlPreviewCard
         urlPreview

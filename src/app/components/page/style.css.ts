@@ -61,7 +61,7 @@ export const PageNavContent = style({
   minHeight: '100%',
   paddingTop: config.space.S200,
   paddingLeft: config.space.S100,
-  paddingBottom: config.space.S400,
+  paddingBottom: `calc(${config.space.S400} + var(--sable-safe-area-bottom, 0px))`,
 });
 
 export const PageHeader = recipe({
@@ -92,7 +92,7 @@ export const PageContent = style([
   {
     paddingTop: config.space.S400,
     paddingLeft: config.space.S400,
-    paddingBottom: toRem(100),
+    paddingBottom: `calc(${toRem(100)} + var(--sable-safe-area-bottom, 0px))`,
   },
 ]);
 

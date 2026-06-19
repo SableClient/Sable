@@ -43,4 +43,43 @@ describe('mobile PWA dogfood contract', () => {
     expect(room).toContain('inset: 0');
     expect(room).toContain('zIndex: 20');
   });
+
+  it('uses full-screen mobile presentation for room settings and member profile surfaces', () => {
+    const roomSettingsRenderer = readWorkspaceFile(
+      'src/app/features/room-settings/RoomSettingsRenderer.tsx'
+    );
+    const spaceSettingsRenderer = readWorkspaceFile(
+      'src/app/features/space-settings/SpaceSettingsRenderer.tsx'
+    );
+    const userRoomProfileRenderer = readWorkspaceFile(
+      'src/app/components/UserRoomProfileRenderer.tsx'
+    );
+
+    expect(roomSettingsRenderer).toContain(
+      '<Modal500 requestClose={closeSettings} fullScreenOnMobile>'
+    );
+    expect(spaceSettingsRenderer).toContain(
+      '<Modal500 requestClose={closeSettings} fullScreenOnMobile>'
+    );
+    expect(userRoomProfileRenderer).toContain(
+      'const isMobile = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();'
+    );
+    expect(userRoomProfileRenderer).toContain('<Modal500 requestClose={close} fullScreenOnMobile>');
+    expect(userRoomProfileRenderer).toContain('Member Profile');
+  });
+
+  it('keeps pull-to-refresh from firing before the full threshold is reached', () => {
+    const pullToRefresh = readWorkspaceFile('src/app/hooks/usePullToRefresh.ts');
+
+    expect(pullToRefresh).toContain('if (dist >= PULL_THRESHOLD) {');
+    expect(pullToRefresh).not.toContain('if (dist >= PULL_THRESHOLD / 2) {');
+  });
+
+  it('drops the room footer safe-area inset while the mobile keyboard is visible', () => {
+    const roomView = readWorkspaceFile('src/app/features/room/RoomView.tsx');
+
+    expect(roomView).toContain(
+      "paddingBottom: 'var(--sable-safe-bottom, var(--sable-safe-area-bottom, 0px))'"
+    );
+  });
 });

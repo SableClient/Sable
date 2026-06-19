@@ -180,7 +180,7 @@ export function usePullToRefresh(
       const dist = pullDistRef.current;
       pullDistRef.current = 0;
 
-      if (dist >= PULL_THRESHOLD / 2) {
+      if (dist >= PULL_THRESHOLD) {
         // Sufficient pull — trigger refresh and animate back.
         el.style.transition = 'transform 0.25s ease';
         el.style.transform = '';

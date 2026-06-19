@@ -28,7 +28,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:observability": "playwright test e2e/smoke/observability.spec.ts",
+    "test:e2e:observability": "playwright test e2e/smoke/observability.spec.ts e2e/smoke/mobile-shell.spec.ts",
     "test:e2e:headed": "playwright test --headed",
     "knip": "knip",
     "semgrep": "semgrep scan --config semgrep/charm-stability.yml --error",

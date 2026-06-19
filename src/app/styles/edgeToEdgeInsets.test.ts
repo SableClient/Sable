@@ -58,6 +58,9 @@ describe('android edge-to-edge inset contract', () => {
     expect(indexCss).toContain('height: var(--sable-visible-height, 100%)');
     expect(indexCss).not.toContain('height: var(--sable-visible-height, 100dvh)');
     expect(systemBarShell).toContain('var(--safe-area-inset-top, env(safe-area-inset-top, 0px))');
+    expect(systemBarShell).toContain(
+      "'--sable-safe-area-bottom': enabled && !needsBottomSystemBar ? safeAreaBottom : '0px'"
+    );
     expect(systemBarShell).toContain("const needsBottomSystemBar = tauriOs === 'android'");
     expect(systemBarShell).toContain('var(--sable-bg-container-line)');
     expect(systemBarShell).toContain("borderTop: '1px solid var(--sable-bg-container-line)'");
@@ -75,8 +78,9 @@ describe('android edge-to-edge inset contract', () => {
     expect(indexCss).not.toContain('--sable-inset-top');
     expect(indexCss).not.toContain('--sable-inset-bottom');
     expect(pageStyles).not.toContain('--sable-inset-');
+    expect(pageStyles).toContain('var(--sable-safe-area-bottom, 0px)');
     expect(sidebarStyles).not.toContain('--sable-inset-');
-    expect(roomView).not.toContain('--sable-inset-');
+    expect(roomView).toContain('var(--sable-safe-bottom, var(--sable-safe-area-bottom, 0px))');
     expect(roomViewTypingStyles).not.toContain('--sable-inset-');
     expect(threadDrawerStyles).not.toContain('--sable-inset-');
   });

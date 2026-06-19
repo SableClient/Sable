@@ -68,13 +68,6 @@ jobs:
       - name: Capture deterministic observability snapshots
         run: pnpm run test:e2e:observability
 
-      - name: Compute snapshot merge base
-        if: env.SENTRY_SNAPSHOTS_ENABLED == 'true'
-        id: merge_base
-        run: |
-          sha="$(git merge-base "${{ github.event.pull_request.head.sha }}" "${{ github.event.pull_request.base.sha }}")"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-
       - name: Upload snapshot artifact for debugging
         if: always() && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
@@ -83,21 +76,25 @@ jobs:
           path: .artifacts/sentry-snapshots
 
       - name: Upload snapshots to Sentry
+        id: sentry_upload
         if: env.SENTRY_SNAPSHOTS_ENABLED == 'true' && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
+        continue-on-error: true
         run: >
-          pnpm dlx @sentry/cli@latest snapshots upload
-          --auth-token "$SENTRY_AUTH_TOKEN"
-          --org "$SENTRY_ORG"
-          --project "$SENTRY_PROJECT"
-          --app-id charm-web-preview
-          --head-sha "${{ github.event.pull_request.head.sha }}"
-          --base-sha "${{ steps.merge_base.outputs.sha }}"
-          --head-ref "${{ github.head_ref }}"
-          --base-ref "${{ github.base_ref }}"
-          --head-repo-name "${{ github.repository }}"
-          --base-repo-name "${{ github.event.pull_request.base.repo.full_name }}"
-          --pr-number "${{ github.event.pull_request.number }}"
+          pnpm dlx @sentry/cli@3.5.1 snapshots upload
           "$PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR"
+          --app-id charm-web-preview
+          --log-level debug
+
+      - name: Note Sentry snapshot upload failure
+        if: always() && steps.sentry_upload.outcome == 'failure'
+        run: |
+          {
+            echo "### Sentry Snapshot Upload"
+            echo
+            echo "- Deterministic screenshot coverage ran successfully for this pull request."
+            echo "- Snapshot upload to Sentry failed, but the workflow is continuing."
+            echo "- Review the \`Upload snapshots to Sentry\` step logs for the CLI/server error details."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Note Sentry snapshot upload status
         if: env.SENTRY_SNAPSHOTS_ENABLED != 'true'

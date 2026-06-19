@@ -154,7 +154,15 @@ export function Members({ requestClose }: MembersProps) {
         </Box>
       </PageHeader>
       <Box grow="Yes" style={{ position: 'relative' }}>
-        <Scroll ref={scrollRef} hideTrack visibility="Hover">
+        <Scroll
+          ref={scrollRef}
+          hideTrack
+          visibility="Hover"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehaviorY: 'contain',
+          }}
+        >
           <PageContent>
             <Box direction="Column" gap="200">
               <Box

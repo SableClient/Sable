@@ -93,5 +93,7 @@ describe('getSelectedSpaceIdOrAliasFromPath', () => {
 
   it('returns undefined for non-space routes', () => {
     expect(getSelectedSpaceIdOrAliasFromPath('/home/')).toBeUndefined();
+    expect(getSelectedSpaceIdOrAliasFromPath('/settings')).toBeUndefined();
+    expect(getSelectedSpaceIdOrAliasFromPath('/settings/general')).toBeUndefined();
   });
 });

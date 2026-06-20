@@ -43,6 +43,12 @@ const NON_SPACE_ROUTE_PREFIXES = [
   RESET_PASSWORD_PATH.split(':')[0]!,
 ];
 
+const matchesRoutePrefix = (pathname: string, prefix: string): boolean => {
+  const normalizedPrefix = prefix.length > 1 && prefix.endsWith('/') ? prefix.slice(0, -1) : prefix;
+
+  return pathname === normalizedPrefix || pathname.startsWith(`${normalizedPrefix}/`);
+};
+
 const withRoomFilter = (path: string, currentRoomId?: string): string => {
   if (!currentRoomId) return path;
 
@@ -54,7 +60,7 @@ const withRoomFilter = (path: string, currentRoomId?: string): string => {
 };
 
 export const getSelectedSpaceIdOrAliasFromPath = (pathname: string): string | undefined => {
-  if (NON_SPACE_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+  if (NON_SPACE_ROUTE_PREFIXES.some((prefix) => matchesRoutePrefix(pathname, prefix))) {
     return undefined;
   }
 

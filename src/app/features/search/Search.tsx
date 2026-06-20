@@ -668,19 +668,16 @@ export function SearchModalRenderer() {
           return;
         }
 
-        event.preventDefault();
-        if (opened) {
-          setOpen(false);
-        }
-
         const portalContainer = document.getElementById('portalContainer');
         if (portalContainer && portalContainer.children.length > 0 && !opened) {
           return;
         }
 
-        if (targetPath) {
-          navigate(targetPath);
+        event.preventDefault();
+        if (opened) {
+          setOpen(false);
         }
+        navigate(targetPath);
       },
       [currentRoomId, navigate, opened, pathname, search, selectedSpaceId, setOpen]
     )

@@ -7,9 +7,11 @@ import {
 } from '$pages/pathUtils';
 import {
   DIRECT_PATH,
+  DIRECT_SEARCH_PATH,
   DIRECT_ROOM_PATH,
   EXPLORE_PATH,
   HOME_PATH,
+  HOME_SEARCH_PATH,
   HOME_ROOM_PATH,
   INBOX_PATH,
   LOGIN_PATH,
@@ -25,6 +27,7 @@ import {
 
 type MessageSearchShortcutOptions = {
   pathname: string;
+  currentSearch?: string;
   selectedSpaceId?: string;
   currentRoomId?: string;
 };
@@ -68,9 +71,18 @@ export const getSelectedSpaceIdOrAliasFromPath = (pathname: string): string | un
 
 export const getMessageSearchShortcutPath = ({
   pathname,
+  currentSearch,
   selectedSpaceId,
   currentRoomId,
 }: MessageSearchShortcutOptions): string | null => {
+  if (
+    matchPath(HOME_SEARCH_PATH, pathname) ||
+    matchPath(DIRECT_SEARCH_PATH, pathname) ||
+    matchPath(SPACE_SEARCH_PATH, pathname)
+  ) {
+    return `${pathname}${currentSearch ?? ''}`;
+  }
+
   if (matchPath(HOME_ROOM_PATH, pathname)) {
     return withRoomFilter(getHomeSearchPath(), currentRoomId);
   }

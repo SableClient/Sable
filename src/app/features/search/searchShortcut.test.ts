@@ -53,6 +53,22 @@ describe('getMessageSearchShortcutPath', () => {
     ).toBe('/direct/search/');
   });
 
+  it('preserves search filters when already on a message search route', () => {
+    expect(
+      getMessageSearchShortcutPath({
+        pathname: '/home/search/',
+        currentSearch: '?rooms=%21room%3Asmoke.test&term=hello',
+      })
+    ).toBe('/home/search/?rooms=%21room%3Asmoke.test&term=hello');
+
+    expect(
+      getMessageSearchShortcutPath({
+        pathname: '/%21space%3Asmoke.test/search',
+        currentSearch: '?term=hello&grouped=false',
+      })
+    ).toBe('/%21space%3Asmoke.test/search?term=hello&grouped=false');
+  });
+
   it('leaves unrelated routes alone', () => {
     expect(
       getMessageSearchShortcutPath({

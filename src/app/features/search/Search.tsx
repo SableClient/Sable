@@ -54,6 +54,7 @@ import { getMessageSearchShortcutPath, getSelectedSpaceIdOrAliasFromPath } from 
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { getCanonicalAliasRoomId, isRoomAlias } from '$utils/matrix';
 import { getHomeSearchPath, getDirectSearchPath, getSpaceSearchPath } from '$pages/pathUtils';
 import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { DIRECT_ROOM_PATH, HOME_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
@@ -611,12 +612,12 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
 export function SearchModalRenderer() {
   const [opened, setOpen] = useAtom(searchModalAtom);
   const mx = useMatrixClient();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const selectedSpaceIdOrAlias = getSelectedSpaceIdOrAliasFromPath(pathname);
   const selectedSpaceId =
-    selectedSpaceIdOrAlias && !selectedSpaceIdOrAlias.startsWith('!')
-      ? mx.getRooms().find((room) => room.getCanonicalAlias() === selectedSpaceIdOrAlias)?.roomId
+    selectedSpaceIdOrAlias && isRoomAlias(selectedSpaceIdOrAlias)
+      ? getCanonicalAliasRoomId(mx, selectedSpaceIdOrAlias)
       : selectedSpaceIdOrAlias;
 
   const roomMatch =
@@ -629,7 +630,7 @@ export function SearchModalRenderer() {
   const currentRoomId = roomIdOrAlias
     ? roomIdOrAlias.startsWith('!')
       ? roomIdOrAlias
-      : mx.getRooms().find((room) => room.getCanonicalAlias() === roomIdOrAlias)?.roomId
+      : getCanonicalAliasRoomId(mx, roomIdOrAlias)
     : undefined;
 
   useKeyDown(
@@ -655,6 +656,7 @@ export function SearchModalRenderer() {
 
         const targetPath = getMessageSearchShortcutPath({
           pathname,
+          currentSearch: search,
           selectedSpaceId: selectedSpaceId ?? undefined,
           currentRoomId,
         });
@@ -680,7 +682,7 @@ export function SearchModalRenderer() {
           navigate(targetPath);
         }
       },
-      [currentRoomId, navigate, opened, pathname, selectedSpaceId, setOpen]
+      [currentRoomId, navigate, opened, pathname, search, selectedSpaceId, setOpen]
     )
   );
 

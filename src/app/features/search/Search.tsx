@@ -50,7 +50,7 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
-import { getMessageSearchShortcutPath } from './searchShortcut';
+import { getMessageSearchShortcutPath, getSelectedSpaceIdOrAliasFromPath } from './searchShortcut';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
@@ -613,7 +613,11 @@ export function SearchModalRenderer() {
   const mx = useMatrixClient();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const selectedSpaceId = useSelectedSpace();
+  const selectedSpaceIdOrAlias = getSelectedSpaceIdOrAliasFromPath(pathname);
+  const selectedSpaceId =
+    selectedSpaceIdOrAlias && !selectedSpaceIdOrAlias.startsWith('!')
+      ? mx.getRooms().find((room) => room.getCanonicalAlias() === selectedSpaceIdOrAlias)?.roomId
+      : selectedSpaceIdOrAlias;
 
   const roomMatch =
     matchPath(HOME_ROOM_PATH, pathname) ??
@@ -655,7 +659,12 @@ export function SearchModalRenderer() {
           currentRoomId,
         });
 
-        if (!targetPath && !opened) return;
+        if (!targetPath) {
+          if (opened) {
+            setOpen(false);
+          }
+          return;
+        }
 
         event.preventDefault();
         if (opened) {

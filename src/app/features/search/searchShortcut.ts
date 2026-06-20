@@ -8,8 +8,14 @@ import {
 import {
   DIRECT_PATH,
   DIRECT_ROOM_PATH,
+  EXPLORE_PATH,
   HOME_PATH,
   HOME_ROOM_PATH,
+  INBOX_PATH,
+  LOGIN_PATH,
+  REGISTER_PATH,
+  RESET_PASSWORD_PATH,
+  SETTINGS_PATH,
   SPACE_LOBBY_PATH,
   SPACE_PATH,
   SPACE_ROOM_PATH,
@@ -23,6 +29,17 @@ type MessageSearchShortcutOptions = {
   currentRoomId?: string;
 };
 
+const NON_SPACE_ROUTE_PREFIXES = [
+  HOME_PATH,
+  DIRECT_PATH,
+  EXPLORE_PATH,
+  INBOX_PATH,
+  SETTINGS_PATH.split(':')[0]!,
+  LOGIN_PATH.split(':')[0]!,
+  REGISTER_PATH.split(':')[0]!,
+  RESET_PASSWORD_PATH.split(':')[0]!,
+];
+
 const withRoomFilter = (path: string, currentRoomId?: string): string => {
   if (!currentRoomId) return path;
 
@@ -31,6 +48,22 @@ const withRoomFilter = (path: string, currentRoomId?: string): string => {
   };
 
   return withSearchParam(path, searchParams);
+};
+
+export const getSelectedSpaceIdOrAliasFromPath = (pathname: string): string | undefined => {
+  if (NON_SPACE_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return undefined;
+  }
+
+  const spaceMatch =
+    matchPath(SPACE_ROOM_PATH, pathname) ??
+    matchPath(SPACE_SEARCH_PATH, pathname) ??
+    matchPath(SPACE_LOBBY_PATH, pathname) ??
+    matchPath(SPACE_PATH, pathname);
+
+  return spaceMatch?.params.spaceIdOrAlias
+    ? decodeURIComponent(spaceMatch.params.spaceIdOrAlias)
+    : undefined;
 };
 
 export const getMessageSearchShortcutPath = ({

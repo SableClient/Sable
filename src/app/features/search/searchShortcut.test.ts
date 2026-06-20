@@ -95,5 +95,6 @@ describe('getSelectedSpaceIdOrAliasFromPath', () => {
     expect(getSelectedSpaceIdOrAliasFromPath('/home/')).toBeUndefined();
     expect(getSelectedSpaceIdOrAliasFromPath('/settings')).toBeUndefined();
     expect(getSelectedSpaceIdOrAliasFromPath('/settings/general')).toBeUndefined();
+    expect(getSelectedSpaceIdOrAliasFromPath('/create')).toBeUndefined();
   });
 });

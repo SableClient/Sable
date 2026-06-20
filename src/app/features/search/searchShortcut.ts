@@ -6,6 +6,7 @@ import {
   withSearchParam,
 } from '$pages/pathUtils';
 import {
+  CREATE_PATH,
   DIRECT_PATH,
   DIRECT_SEARCH_PATH,
   DIRECT_ROOM_PATH,
@@ -35,6 +36,7 @@ type MessageSearchShortcutOptions = {
 const NON_SPACE_ROUTE_PREFIXES = [
   HOME_PATH,
   DIRECT_PATH,
+  CREATE_PATH,
   EXPLORE_PATH,
   INBOX_PATH,
   SETTINGS_PATH.split(':')[0]!,

@@ -90,6 +90,14 @@ const elementToCustomHtml = (
   }
 };
 
+const isEmptyParagraph = (node: Descendant): node is CustomElement =>
+  'type' in node &&
+  node.type === BlockType.Paragraph &&
+  node.children.every((child) => Text.isText(child) && child.text === '');
+
+const hasBlockHtml = (html: string): boolean =>
+  /<(?:p|h[1-6]|ul|ol|li|blockquote|pre|hr|table|div)\b/i.test(html);
+
 /**
  * convert slate internal representation to a custom HTML string that can be sent to the server
  * @param node slate node
@@ -100,6 +108,11 @@ export const toMatrixCustomHTML = (
   node: Descendant | Descendant[],
   opts: OutputOptions
 ): string => {
+  const flushMarkdownLines = (markdownLines: string): string =>
+    markdownLines.length === 0
+      ? ''
+      : injectDataMd(markdownToHtml(markdownLines, { emote: opts.forEmote }));
+
   let markdownLines = '';
   const parseNode = (n: Descendant, index: number, targetNodes: Descendant[]) => {
     if ('type' in n && n.type === BlockType.Paragraph) {
@@ -128,8 +141,50 @@ export const toMatrixCustomHTML = (
     markdownLines = '';
     return `${parsedMarkdown}${toMatrixCustomHTML(n, opts)}`;
   };
-  if (Array.isArray(node))
-    return node.map((element, index, array) => parseNode(element, index, array)).join('');
+  if (Array.isArray(node)) {
+    let output = '';
+    let pendingEmptyParagraphs = 0;
+    let hasEmittedContent = false;
+
+    node.forEach((element, index, array) => {
+      if (isEmptyParagraph(element)) {
+        if (markdownLines.length > 0) {
+          output += flushMarkdownLines(markdownLines);
+          markdownLines = '';
+          hasEmittedContent = true;
+        }
+        pendingEmptyParagraphs += 1;
+        return;
+      }
+
+      if (pendingEmptyParagraphs > 0) {
+        output += '<br/>'.repeat(pendingEmptyParagraphs + (hasEmittedContent ? 1 : 0));
+        pendingEmptyParagraphs = 0;
+      }
+
+      const parsed = parseNode(element, index, array);
+      if (parsed.length > 0) {
+        output += parsed;
+        markdownLines = '';
+        hasEmittedContent = true;
+      }
+    });
+
+    if (markdownLines.length > 0) {
+      output += flushMarkdownLines(markdownLines);
+      markdownLines = '';
+      hasEmittedContent = true;
+    }
+    if (pendingEmptyParagraphs > 0) {
+      output += '<br/>'.repeat(pendingEmptyParagraphs);
+    }
+
+    if (!opts.forEmote && output.includes('<br/><br/>') && !hasBlockHtml(output)) {
+      return `<p>${output}</p>`;
+    }
+
+    return output;
+  }
   if (Text.isText(node)) return textToCustomHtml(node);
 
   const children = node.children

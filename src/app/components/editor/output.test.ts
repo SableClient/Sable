@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Room } from '$types/matrix-sdk';
 import { toMatrixCustomHTML, toPlainText, trimCustomHtml } from '$components/editor/output';
 import { BlockType } from '$components/editor/types';
+import { htmlToMarkdown } from '$plugins/markdown';
+import { plainToEditorInput } from '$components/editor/input';
 
 const roomWithMember = (userId: string, rawDisplayName: string): Room =>
   ({
@@ -244,5 +246,32 @@ describe('toMatrixCustomHTML single-newline markdown blocks', () => {
     );
     expect(html).toContain('<sub');
     expect(html).toContain('data-md="-#"');
+  });
+});
+
+describe('toMatrixCustomHTML intentional blank paragraphs', () => {
+  const blankLineDoc = [
+    { type: BlockType.Paragraph, children: [{ text: 'Wordle 1,828 4/6*' }] } as never,
+    { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+    { type: BlockType.Paragraph, children: [{ text: '⬛🟨🟩' }] } as never,
+  ];
+
+  it('serializes an empty Slate paragraph as visible blank-line breaks', () => {
+    const html = toMatrixCustomHTML(blankLineDoc, {});
+
+    expect(html).toContain('<p>Wordle 1,828 4/6*<br/><br/>⬛🟨🟩</p>');
+  });
+
+  it('round-trips visible blank lines back into an empty editor paragraph', () => {
+    const html = toMatrixCustomHTML(blankLineDoc, {});
+    const markdown = htmlToMarkdown(html);
+    const doc = plainToEditorInput(markdown);
+
+    expect(markdown).toBe('Wordle 1,828 4/6\\*\n\n⬛🟨🟩');
+    expect(doc).toHaveLength(3);
+    expect(doc[1]).toEqual({
+      type: BlockType.Paragraph,
+      children: [{ text: '' }],
+    });
   });
 });

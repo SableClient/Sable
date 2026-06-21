@@ -154,7 +154,9 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.thirdSticker!.left - metrics.secondSticker!.right).toBeGreaterThanOrEqual(4);
     expect(metrics.baselineEmoji!.top).toBeGreaterThanOrEqual(metrics.baselineLine!.top - 6);
     expect(metrics.baselineEmoji!.bottom).toBeLessThanOrEqual(metrics.baselineLine!.bottom + 2);
-    expect(metrics.compactPreviewEmoji!.top).toBeGreaterThanOrEqual(metrics.compactPreview!.top - 4);
+    expect(metrics.compactPreviewEmoji!.top).toBeGreaterThanOrEqual(
+      metrics.compactPreview!.top - 4
+    );
     expect(metrics.compactPreviewEmoji!.bottom).toBeLessThanOrEqual(
       metrics.compactPreview!.bottom + 2
     );

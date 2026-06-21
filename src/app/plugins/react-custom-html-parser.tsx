@@ -17,7 +17,6 @@ import {
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';
-
 import * as css from '$styles/CustomHtml.css';
 import {
   getCanonicalAliasRoomId,
@@ -26,8 +25,9 @@ import {
   mxcUrlToHttp,
 } from '$utils/matrix';
 import { getMemberDisplayName } from '$utils/room';
-import type { Nicknames } from '$state/nicknames';
-import { EMOJI_PATTERN, sanitizeForRegex, URL_NEG_LB } from '$utils/regex';
+import { type Nicknames } from '$state/nicknames';
+import { sanitizeForRegex, URL_REG } from '$utils/regex';
+import { splitEmojiText } from '$utils/emojiDetection';
 import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
@@ -46,12 +46,9 @@ import {
 import { isRedundantMatrixUriAnchorText, parseMatrixUri, testMatrixUri } from './matrix-uri';
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
 
-const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
-
 const shouldLinkifyDomText = (domNode: DOMText): boolean =>
   !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
   !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
-
 export const LINKIFY_OPTS: LinkifyOpts = {
   attributes: {
     target: '_blank',
@@ -348,19 +345,56 @@ export const factoryRenderLinkifyWithMention = (
   return renderLink;
 };
 
-export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] =>
-  findAndReplace(
-    text,
-    EMOJI_REG_G,
-    (match, pushIndex) => (
-      <span key={`scaleSystemEmoji-${pushIndex}`} className={css.EmoticonBase}>
-        <span className={css.Emoticon()} title={getShortcodeFor(getHexcodeForEmoji(match[0]))}>
-          {match[0]}
+const scaleEmojiChunk = (text: string, output: (string | JSX.Element)[]) => {
+  splitEmojiText(text).forEach((part) => {
+    if (part.type === 'text') {
+      output.push(part.value);
+      return;
+    }
+
+    output.push(
+      <span key={`scaleSystemEmoji-${output.length}`} className={css.EmoticonBase}>
+        <span className={css.Emoticon()} title={getShortcodeFor(getHexcodeForEmoji(part.value))}>
+          {part.value}
         </span>
       </span>
-    ),
-    (txt) => txt
-  );
+    );
+  });
+};
+
+export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] => {
+  const parts: (string | JSX.Element)[] = [];
+  const urlReg = new RegExp(URL_REG);
+  let lastIndex = 0;
+
+  [...text.matchAll(urlReg)].forEach((match) => {
+    const start = match.index ?? 0;
+    scaleEmojiChunk(text.slice(lastIndex, start), parts);
+    parts.push(match[0]);
+    lastIndex = start + match[0].length;
+  });
+
+  scaleEmojiChunk(text.slice(lastIndex), parts);
+
+  const normalized: (string | JSX.Element)[] = [];
+  parts.forEach((part) => {
+    if (typeof part !== 'string') {
+      normalized.push(part);
+      return;
+    }
+
+    if (part === '') return;
+    const previous = normalized.at(-1);
+    if (typeof previous === 'string') {
+      normalized[normalized.length - 1] = `${previous}${part}`;
+      return;
+    }
+
+    normalized.push(part);
+  });
+
+  return normalized.length > 0 ? normalized : [''];
+};
 
 export const makeHighlightRegex = (highlights: string[]): RegExp | undefined => {
   const pattern = highlights.map(sanitizeForRegex).join('|');
@@ -387,27 +421,26 @@ export const highlightText = (
     );
   });
 
+const extractTextFromNodes = (n: ChildNode[]): string => {
+  let text = '';
+  n.forEach((node) => {
+    if ((node.type as unknown as string) === 'text') {
+      text += (node as unknown as Text).data;
+    } else if (node instanceof Element && node.children) {
+      text += extractTextFromNodes(node.children);
+    }
+  });
+  return text;
+};
+
 /**
  * Recursively extracts and concatenates all text content from an array of ChildNode objects.
  *
  * @param {ChildNode[]} nodes - An array of ChildNode objects to extract text from.
  * @returns {string} The concatenated plain text content of all descendant text nodes.
  */
-const extractTextFromChildren = (nodes: ChildNode[]): string => {
-  const worker = (n: ChildNode[]): string => {
-    let text = '';
-    n.forEach((node) => {
-      if ((node.type as unknown as string) === 'text') {
-        text += (node as unknown as Text).data;
-      } else if (node instanceof Element && node.children) {
-        text += worker(node.children);
-      }
-    });
-    return text;
-  };
-
-  return worker(nodes).replace(/\n$/, '');
-};
+const extractTextFromChildren = (nodes: ChildNode[]): string =>
+  extractTextFromNodes(nodes).replace(/\n$/, '');
 
 const getLanguageFromClassName = (className?: string): string | undefined => {
   if (!className) return undefined;

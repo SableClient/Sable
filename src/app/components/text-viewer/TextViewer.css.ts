@@ -34,6 +34,8 @@ export const TextViewerPre = style([
     whiteSpace: 'pre-wrap',
     overflowWrap: 'anywhere',
     wordBreak: 'break-word',
+    fontSize: '1rem !important',
+    lineHeight: 'inherit',
   },
 ]);
 

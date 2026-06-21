@@ -1,5 +1,33 @@
 # Sable Client Changelog
 
+## 1.18.3 (2026-06-17)
+
+### Fixes
+
+* Fixed broken Twemoji rendering and updated emoji picker, autocomplete, and jumbo detection for new emojis. ([#957](<https://github.com/SableClient/Sable/pull/957>) by @7w1)
+* Updated various dependencies. ([#957](<https://github.com/SableClient/Sable/pull/957>) by @7w1)
+
+## 1.18.2 (2026-06-17)
+
+### Fixes
+
+* Adding servers in the explore tab now persist in account data and are actually added to the list. ([#953](<https://github.com/SableClient/Sable/pull/953>) by @7w1)
+* Added a button to leave all rooms/subspaces within a space in the leave space confirmation dialog. Also has text to show number of children. ([#953](<https://github.com/SableClient/Sable/pull/953>) by @7w1)
+* Added a setting to play notification sounds when tab is in background, enabled by default. ([#953](<https://github.com/SableClient/Sable/pull/953>) by @7w1)
+* Centered the notification bell icon in the room list. ([#954](<https://github.com/SableClient/Sable/pull/954>) by @7w1)
+* Fixed edit diffs not properly scaling with zoom. ([#951](<https://github.com/SableClient/Sable/pull/951>) by @7w1)
+* Fixed icons not scaling with zoom. ([#951](<https://github.com/SableClient/Sable/pull/951>) by @7w1)
+* Fixed invalid language tag when no locale set for some systems. ([#953](<https://github.com/SableClient/Sable/pull/953>) by @7w1)
+* Fixed replying to reaction/edit events not replying. ([#942](<https://github.com/SableClient/Sable/pull/942>) by @7w1)
+* Fix sending thread messages sometimes sending in the general timeline ([#944](<https://github.com/SableClient/Sable/pull/944>) by @nushea)
+
+#### Updates Twemoji to from v15 to v17 🫪 ([#950](<https://github.com/SableClient/Sable/pull/950>) by @7w1, @hazre)
+
+You can check here for emoji changes:
+
+- https://www.unicode.org/emoji/charts-16.0/emoji-released.html
+- https://www.unicode.org/emoji/charts-17.0/emoji-released.html
+
 ## 1.18.1 (2026-06-14)
 
 ### Fixes

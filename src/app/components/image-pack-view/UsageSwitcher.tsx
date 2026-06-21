@@ -7,28 +7,27 @@ import FocusTrap from 'focus-trap-react';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { stopPropagation } from '$utils/keyboard';
 
-export const useUsageStr = (): ((usage: ImageUsage[]) => string) => {
-  const getUsageStr = (usage: ImageUsage[]): string => {
-    const sticker = usage.includes(ImageUsage.Sticker);
-    const emoticon = usage.includes(ImageUsage.Emoticon);
+const getUsageStr = (usage: ImageUsage[]): string => {
+  const sticker = usage.includes(ImageUsage.Sticker);
+  const emoticon = usage.includes(ImageUsage.Emoticon);
 
-    if (sticker && emoticon) return 'Both';
-    if (sticker) return 'Sticker';
-    if (emoticon) return 'Emoji';
-    return 'Both';
-  };
-  return getUsageStr;
+  if (sticker && emoticon) return 'Both';
+  if (sticker) return 'Sticker';
+  if (emoticon) return 'Emoji';
+  return 'Both';
 };
+
+export const useUsageStr = (): ((usage: ImageUsage[]) => string) => getUsageStr;
 
 type UsageSelectorProps = {
   selected: ImageUsage[];
   onChange: (usage: ImageUsage[]) => void;
 };
 export function UsageSelector({ selected, onChange }: UsageSelectorProps) {
-  const getUsageStr = useUsageStr();
+  const formatUsageStr = useUsageStr();
 
-  const selectedUsageStr = getUsageStr(selected);
-  const isSelected = (usage: ImageUsage[]) => getUsageStr(usage) === selectedUsageStr;
+  const selectedUsageStr = formatUsageStr(selected);
+  const isSelected = (usage: ImageUsage[]) => formatUsageStr(usage) === selectedUsageStr;
 
   const allUsages: ImageUsage[][] = useMemo(
     () => [[ImageUsage.Emoticon], [ImageUsage.Sticker], [ImageUsage.Sticker, ImageUsage.Emoticon]],
@@ -39,7 +38,7 @@ export function UsageSelector({ selected, onChange }: UsageSelectorProps) {
     <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
       {allUsages.map((usage) => (
         <MenuItem
-          key={getUsageStr(usage)}
+          key={formatUsageStr(usage)}
           size="300"
           variant={isSelected(usage) ? 'SurfaceVariant' : 'Surface'}
           aria-selected={isSelected(usage)}
@@ -47,7 +46,7 @@ export function UsageSelector({ selected, onChange }: UsageSelectorProps) {
           onClick={() => onChange(usage)}
         >
           <Box grow="Yes">
-            <Text size="T300">{getUsageStr(usage)}</Text>
+            <Text size="T300">{formatUsageStr(usage)}</Text>
           </Box>
         </MenuItem>
       ))}
@@ -61,7 +60,7 @@ type UsageSwitcherProps = {
   onChange: (usage: ImageUsage[]) => void;
 };
 export function UsageSwitcher({ usage, onChange, canEdit }: UsageSwitcherProps) {
-  const getUsageStr = useUsageStr();
+  const formatUsageStr = useUsageStr();
 
   const [menuCords, setMenuCords] = useState<RectCords>();
 
@@ -82,7 +81,7 @@ export function UsageSwitcher({ usage, onChange, canEdit }: UsageSwitcherProps) 
         after={canEdit && sizedIcon(CaretDown, '100')}
         onClick={canEdit ? handleSelectUsage : undefined}
       >
-        <Text size="B300">{getUsageStr(usage)}</Text>
+        <Text size="B300">{formatUsageStr(usage)}</Text>
       </Button>
       <PopOut
         anchor={menuCords}

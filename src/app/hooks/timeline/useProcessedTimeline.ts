@@ -146,6 +146,44 @@ const computeCollapseAndDividers = (
   });
 };
 
+const mergeDraftsAndExtras = (
+  result: ProcessedEvent[],
+  extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet }[]
+): ProcessedEventDraft[] => {
+  const resultDrafts = result.map(
+    ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
+  );
+
+  const extraDrafts = extras
+    .map(({ mEvent, timelineSet }) => ({
+      id: mEvent.getId()!,
+      itemIndex: -1,
+      mEvent,
+      timelineSet,
+      eventSender: mEvent.getSender() ?? null,
+    }))
+    .toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
+
+  const mergedDrafts: ProcessedEventDraft[] = [];
+  let resultIdx = 0;
+
+  for (const extra of extraDrafts) {
+    const extraTs = extra.mEvent.getTs();
+    while (resultIdx < resultDrafts.length && resultDrafts[resultIdx]!.mEvent.getTs() <= extraTs) {
+      mergedDrafts.push(resultDrafts[resultIdx]!);
+      resultIdx += 1;
+    }
+    mergedDrafts.push(extra);
+  }
+
+  while (resultIdx < resultDrafts.length) {
+    mergedDrafts.push(resultDrafts[resultIdx]!);
+    resultIdx += 1;
+  }
+
+  return mergedDrafts;
+};
+
 const mergeRelationReactions = (
   result: ProcessedEvent[],
   linkedTimelines: EventTimeline[],
@@ -170,21 +208,7 @@ const mergeRelationReactions = (
 
   if (extras.length === 0) return result;
 
-  const mergedDrafts: ProcessedEventDraft[] = [
-    ...result.map(
-      ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
-    ),
-    ...extras.map(({ mEvent, timelineSet }) => {
-      const mEventId = mEvent.getId()!;
-      return {
-        id: mEventId,
-        itemIndex: -1,
-        mEvent,
-        timelineSet,
-        eventSender: mEvent.getSender() ?? null,
-      };
-    }),
-  ].toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
+  const mergedDrafts = mergeDraftsAndExtras(result, extras);
 
   return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
 };
@@ -207,21 +231,7 @@ const mergeRelationEdits = (
 
   if (extras.length === 0) return result;
 
-  const mergedDrafts: ProcessedEventDraft[] = [
-    ...result.map(
-      ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
-    ),
-    ...extras.map(({ mEvent, timelineSet }) => {
-      const mEventId = mEvent.getId()!;
-      return {
-        id: mEventId,
-        itemIndex: -1,
-        mEvent,
-        timelineSet,
-        eventSender: mEvent.getSender() ?? null,
-      };
-    }),
-  ].toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
+  const mergedDrafts = mergeDraftsAndExtras(result, extras);
 
   return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
 };

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useEditor, CustomEditor } from './Editor';
 import { BlockType } from './types';
 import * as css from './Editor.css';
+import * as customHtmlCss from '$styles/CustomHtml.css';
 
 let shouldWrapToggleHarness = false;
 let measurementCacheScrollHeightReads = 0;
@@ -177,6 +178,42 @@ function MeasurementCacheHarness() {
   );
 }
 
+function EmojiRenderHarness() {
+  const editor = useEditor();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          Transforms.insertText(editor, 'Status 🫩 ⬛🟨🟩');
+        }}
+      >
+        Insert emoji text
+      </button>
+      <CustomEditor editableName="EmojiRenderHarness" editor={editor} />
+    </>
+  );
+}
+
+function EmojiWrapHarness() {
+  const editor = useEditor();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          Transforms.insertText(editor, 'Status 🫩 ⬛🟨🟩');
+        }}
+      >
+        Paste emoji wrap text
+      </button>
+      <CustomEditor editableName="EmojiWrapHarness" editor={editor} />
+    </>
+  );
+}
+
 const createResizeObserverStub = (
   observedElements: Set<Element>,
   onCreate: (callback: ResizeObserverCallback) => void
@@ -242,6 +279,11 @@ beforeEach(() => {
         if (measurerName === 'PasteNoWrapHarness') {
           if (!hasMeasuredText || isSingleLineProbe) return 20;
           return 20;
+        }
+
+        if (measurerName === 'EmojiWrapHarness') {
+          if (!hasMeasuredText || isSingleLineProbe) return 20;
+          return this.querySelector(`.${customHtmlCss.SystemEmoji}`) ? 40 : 20;
         }
 
         if (measurerName === 'MeasurementCacheHarness') {
@@ -541,5 +583,31 @@ describe('CustomEditor', () => {
     });
 
     expect(measurementCacheScrollHeightReads).toBe(1);
+  });
+
+  it('renders unicode emoji and fixed-cell squares with the same wrappers as timeline text', async () => {
+    render(<EmojiRenderHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Insert emoji text' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('span[title="face_with_eye_bags"]')).not.toBeNull();
+      expect(document.querySelector('span[title="black_large_square"]')).not.toBeNull();
+    });
+  });
+
+  it('measures decorated emoji widths when deciding multiline layout', async () => {
+    render(<EmojiWrapHarness />);
+    const editable = document.querySelector('[data-editable-name="EmojiWrapHarness"]');
+    const scroll = editable?.parentElement as HTMLElement | null;
+
+    expect(scroll).not.toBeNull();
+    expect(scroll).not.toHaveClass(css.EditorTextareaScrollMultiline);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Paste emoji wrap text' }));
+
+    await waitFor(() => {
+      expect(scroll).toHaveClass(css.EditorTextareaScrollMultiline);
+    });
   });
 });

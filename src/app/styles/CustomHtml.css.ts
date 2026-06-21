@@ -234,9 +234,12 @@ export const Command = recipe({
 export const EmoticonBase = style([
   DefaultReset,
   {
-    display: 'inline-block',
-    padding: toRem(0.8),
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
     height: '1em',
+    lineHeight: 1,
     verticalAlign: 'middle',
   },
 ]);
@@ -279,7 +282,7 @@ export const SystemEmoji = style({
       lineHeight: '1em',
       verticalAlign: 'middle',
       position: 'relative',
-      top: 'var(--sable-system-emoji-top, -0.35em)',
+      top: 'var(--sable-system-emoji-top, -0.28em)',
       textAlign: 'center',
     },
   },

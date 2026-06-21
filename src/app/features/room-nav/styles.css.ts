@@ -112,6 +112,9 @@ export const MessagePreview = style([
   SecondaryLineBase,
   {
     pointerEvents: 'none',
+    lineHeight: '1.5em',
+    minHeight: '1.5em',
+    maxHeight: '1.5em',
   },
 ]);
 

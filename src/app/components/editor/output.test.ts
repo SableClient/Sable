@@ -308,6 +308,21 @@ describe('toMatrixCustomHTML intentional blank paragraphs', () => {
     expect(html).toBe('hello');
   });
 
+  it('drops leading empty paragraphs that the plain body trims away', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: 'hello' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toBe('hello');
+  });
+
   it('wraps inline text before a following markdown block after a blank line', () => {
     const html = trimCustomHtml(
       toMatrixCustomHTML(
@@ -324,5 +339,54 @@ describe('toMatrixCustomHTML intentional blank paragraphs', () => {
 
     expect(html).toContain('<p>hello<br/><br/></p>');
     expect(html).toContain('<pre');
+  });
+
+  it('keeps blank lines inside indented code blocks', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: '    code' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '    more code' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('<pre');
+    expect(html).toContain('<code>code\n\nmore code\n</code>');
+  });
+
+  it('keeps longer fenced code blocks open across inner backtick lines', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: '````' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '````' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('<pre');
+    expect(html).toContain('<code>\n```\n</code>');
+  });
+
+  it('round-trips heading blocks with one empty paragraph without adding extra blank lines', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: '# Head' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: 'text' }] } as never,
+        ],
+        {}
+      )
+    );
+    const markdown = htmlToMarkdown(html);
+
+    expect(markdown).toBe('# Head\n\ntext');
   });
 });

@@ -95,24 +95,127 @@ const isEmptyParagraph = (node: Descendant): node is CustomElement =>
   node.type === BlockType.Paragraph &&
   node.children.every((child) => Text.isText(child) && child.text === '');
 
-const hasBlockHtml = (html: string): boolean =>
-  /<(?:p|h[1-6]|ul|ol|li|blockquote|pre|hr|table|div)\b/i.test(html);
+const hasNonParagraphBlockHtml = (html: string): boolean =>
+  /<(?:h[1-6]|ul|ol|li|blockquote|pre|hr|table|div)\b/i.test(html);
 
-const hasOpenMarkdownFence = (markdown: string): boolean => {
-  let openFence: '```' | '~~~' | undefined;
+const unwrapParagraphHtml = (html: string): string => {
+  const match = html.match(/^<p>([\s\S]*)<\/p>$/);
+  return match?.[1] ?? html;
+};
 
-  markdown.split('\n').forEach((line) => {
-    const trimmed = line.trimStart();
-    if (trimmed.startsWith('```')) {
-      openFence = openFence === '```' ? undefined : '```';
+const getMarkdownFence = (
+  line: string
+): {
+  marker: '`' | '~';
+  length: number;
+} | null => {
+  const match = line.trimStart().match(/^([`~]{3,})(?:\s.*)?$/);
+  if (!match) return null;
+
+  const markerText = match[1];
+  if (!markerText) return null;
+
+  const marker = markerText[0];
+  if (marker !== '`' && marker !== '~') return null;
+
+  return { marker, length: markerText.length };
+};
+
+const closesMarkdownFence = (
+  line: string,
+  fence: {
+    marker: '`' | '~';
+    length: number;
+  }
+): boolean => {
+  const trimmed = line.trimStart();
+  const match = trimmed.match(/^([`~]{3,})\s*$/);
+  if (!match) return false;
+
+  return match[1]?.[0] === fence.marker && match[1].length >= fence.length;
+};
+
+const isIndentedCodeLine = (line: string): boolean => /^(?: {4}|\t)/.test(line);
+
+const isMarkdownBlockLine = (line: string): boolean => {
+  const trimmed = line.trimStart();
+
+  return (
+    getMarkdownFence(line) !== null ||
+    isIndentedCodeLine(line) ||
+    /^#{1,6}\s/.test(trimmed) ||
+    /^>\s/.test(trimmed) ||
+    /^(?:[-+*]|\d+\.)\s/.test(trimmed)
+  );
+};
+
+type MarkdownSegment = {
+  block: boolean;
+  lines: string[];
+};
+
+const splitMarkdownSegments = (lines: string[]): MarkdownSegment[] => {
+  const segments: MarkdownSegment[] = [];
+  let pendingBlankLines = 0;
+  let openFence:
+    | {
+        marker: '`' | '~';
+        length: number;
+      }
+    | undefined;
+  let indentedCodeOpen = false;
+
+  const appendSegmentLine = (block: boolean, line: string) => {
+    const segment = segments.at(-1);
+    if (!segment || segment.block !== block) {
+      segments.push({ block, lines: [line] });
       return;
     }
-    if (trimmed.startsWith('~~~')) {
-      openFence = openFence === '~~~' ? undefined : '~~~';
+
+    segment.lines.push(line);
+  };
+
+  lines.forEach((line) => {
+    if (line === '') {
+      if (openFence || indentedCodeOpen) {
+        appendSegmentLine(true, line);
+      } else {
+        pendingBlankLines += 1;
+      }
+      return;
     }
+
+    const block = openFence !== undefined || indentedCodeOpen || isMarkdownBlockLine(line);
+
+    if (pendingBlankLines > 0) {
+      const blankTargetIsBlock = segments.at(-1)?.block === false ? false : block;
+      Array.from({ length: pendingBlankLines }).forEach(() =>
+        appendSegmentLine(blankTargetIsBlock, '')
+      );
+      pendingBlankLines = 0;
+    }
+
+    appendSegmentLine(block, line);
+
+    if (openFence) {
+      if (closesMarkdownFence(line, openFence)) {
+        openFence = undefined;
+      }
+      indentedCodeOpen = false;
+      return;
+    }
+
+    const nextFence = getMarkdownFence(line);
+    if (nextFence) {
+      openFence = nextFence;
+      indentedCodeOpen = false;
+      return;
+    }
+
+    indentedCodeOpen = isIndentedCodeLine(line);
   });
 
-  return openFence !== undefined;
+  return segments;
 };
 
 /**
@@ -125,19 +228,11 @@ export const toMatrixCustomHTML = (
   node: Descendant | Descendant[],
   opts: OutputOptions
 ): string => {
-  const flushMarkdownLines = (markdownLines: string): string =>
-    markdownLines.length === 0
-      ? ''
-      : injectDataMd(markdownToHtml(markdownLines, { emote: opts.forEmote }));
-
-  let markdownLines = '';
   const parseNode = (n: Descendant, index: number, targetNodes: Descendant[]) => {
     if ('type' in n && n.type === BlockType.Paragraph) {
       let line = toMatrixCustomHTML(n, opts);
 
-      // Use \n for all paragraphs to prevent extra blank lines from
-      // accumulating on each edit cycle.
-      line = line.replace(/<br\/>$/, '\n').replace(/^(\\*)&gt;/, '$1>');
+      line = line.replace(/<br\/>$/, '').replace(/^(\\*)&gt;/, '$1>');
 
       // strip nicknames if needed
       if (opts.stripNickname && opts.nickNameReplacement) {
@@ -146,79 +241,49 @@ export const toMatrixCustomHTML = (
           line = line.replaceAll(key, replacement);
         });
       }
-      markdownLines += line;
-      if (index === targetNodes.length - 1) {
-        const html = markdownToHtml(markdownLines, { emote: opts.forEmote });
-        return injectDataMd(html);
-      }
-      return '';
+
+      return line;
     }
 
-    const parsedMarkdown = markdownToHtml(markdownLines, { emote: opts.forEmote });
-    markdownLines = '';
-    return `${parsedMarkdown}${toMatrixCustomHTML(n, opts)}`;
+    return toMatrixCustomHTML(n, opts);
   };
   if (Array.isArray(node)) {
-    let output = '';
-    let inlineOutput = '';
-    let pendingEmptyParagraphs = 0;
-    let hasEmittedContent = false;
-    const emitInlineOutput = (forceParagraph = false) => {
-      if (inlineOutput.length === 0) return;
+    const lines = node.map((element, index, array) => parseNode(element, index, array));
 
-      if (
-        !opts.forEmote &&
-        !hasBlockHtml(inlineOutput) &&
-        (forceParagraph || inlineOutput.includes('<br/><br/>'))
-      ) {
-        output += `<p>${inlineOutput}</p>`;
-      } else {
-        output += inlineOutput;
-      }
-      inlineOutput = '';
-    };
+    while (lines[0] === '') lines.shift();
+    while (lines.at(-1) === '') lines.pop();
 
-    node.forEach((element, index, array) => {
-      if (isEmptyParagraph(element)) {
-        if (markdownLines.length > 0 && hasOpenMarkdownFence(markdownLines)) {
-          markdownLines += '\n';
-          return;
+    if (lines.length === 0) return '';
+
+    return splitMarkdownSegments(lines)
+      .map(({ block, lines: segmentLines }) => {
+        const markdown = segmentLines.join('\n');
+        const parsedHtml = injectDataMd(markdownToHtml(markdown, { emote: opts.forEmote }));
+
+        if (block || hasNonParagraphBlockHtml(parsedHtml)) {
+          return parsedHtml;
         }
-        if (markdownLines.length > 0) {
-          inlineOutput += flushMarkdownLines(markdownLines);
-          markdownLines = '';
-          hasEmittedContent = true;
+
+        const inlineHtml = segmentLines
+          .map((line) =>
+            line.length === 0
+              ? ''
+              : unwrapParagraphHtml(injectDataMd(markdownToHtml(line, { emote: opts.forEmote })))
+          )
+          .join('<br/>');
+        let trailingBlankLines = 0;
+        while (segmentLines.at(-(trailingBlankLines + 1)) === '') {
+          trailingBlankLines += 1;
         }
-        pendingEmptyParagraphs += 1;
-        return;
-      }
+        const preservedInlineHtml = `${inlineHtml}${'<br/>'.repeat(trailingBlankLines)}`;
 
-      if (pendingEmptyParagraphs > 0) {
-        inlineOutput += '<br/>'.repeat(pendingEmptyParagraphs + (hasEmittedContent ? 1 : 0));
-        pendingEmptyParagraphs = 0;
-      }
-
-      const parsed = parseNode(element, index, array);
-      if (parsed.length > 0) {
-        if (hasBlockHtml(parsed)) {
-          emitInlineOutput(true);
-          output += parsed;
-        } else {
-          inlineOutput += parsed;
+        if (!opts.forEmote && preservedInlineHtml.includes('<br/>')) {
+          return `<p>${preservedInlineHtml}</p>`;
         }
-        markdownLines = '';
-        hasEmittedContent = true;
-      }
-    });
 
-    if (markdownLines.length > 0) {
-      inlineOutput += flushMarkdownLines(markdownLines);
-      markdownLines = '';
-      hasEmittedContent = true;
-    }
-    emitInlineOutput();
-
-    return output;
+        return preservedInlineHtml;
+      })
+      .join('');
   }
   if (Text.isText(node)) return textToCustomHtml(node);
 

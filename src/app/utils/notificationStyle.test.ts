@@ -87,4 +87,17 @@ describe('resolveNotificationPreviewText', () => {
       })
     ).toBe('Reacted with 👍');
   });
+
+  it('keeps encrypted reaction previews gated when encrypted content is hidden', () => {
+    expect(
+      resolveNotificationPreviewText({
+        content: { 'm.relates_to': { key: '👍' } },
+        eventType: 'm.room.encrypted',
+        effectiveType: 'm.reaction',
+        isEncryptedRoom: true,
+        showMessageContent: true,
+        showEncryptedMessageContent: false,
+      })
+    ).toBe('Encrypted message');
+  });
 });

@@ -15,6 +15,7 @@ type NotificationSettings = {
 interface MatrixPushData {
   type?: string;
   effectiveType?: string;
+  effective_type?: string;
   content?: Record<string, unknown>;
   sender_display_name?: string;
   room_name?: string;
@@ -127,7 +128,7 @@ export const createPushNotifications = (
       previewText: resolveNotificationPreviewText({
         content: pushData?.content,
         eventType: pushData?.type,
-        effectiveType: pushData?.effectiveType,
+        effectiveType: pushData?.effectiveType ?? pushData?.effective_type,
         isEncryptedRoom: false,
         showMessageContent: getNotificationSettings().showMessageContent,
         showEncryptedMessageContent: getNotificationSettings().showEncryptedMessageContent,
@@ -163,7 +164,7 @@ export const createPushNotifications = (
       previewText: resolveNotificationPreviewText({
         content: pushData?.content,
         eventType: pushData?.type,
-        effectiveType: pushData?.effectiveType,
+        effectiveType: pushData?.effectiveType ?? pushData?.effective_type,
         isEncryptedRoom: true,
         showMessageContent: getNotificationSettings().showMessageContent,
         showEncryptedMessageContent: getNotificationSettings().showEncryptedMessageContent,

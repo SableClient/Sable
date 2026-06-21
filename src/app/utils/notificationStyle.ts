@@ -48,6 +48,15 @@ export const resolveNotificationPreviewText = ({
   showEncryptedMessageContent,
 }: NotificationPreviewInput): string => {
   const resolvedEventType = effectiveType ?? eventType;
+  const encryptedContext = isEncryptedRoom || eventType === 'm.room.encrypted';
+
+  if (!showMessageContent) {
+    return encryptedContext ? ENCRYPTED_MESSAGE_PREVIEW : DEFAULT_MESSAGE_PREVIEW;
+  }
+  if (encryptedContext && !showEncryptedMessageContent) {
+    return ENCRYPTED_MESSAGE_PREVIEW;
+  }
+
   // Handle reactions specially - show the reaction emoji
   if (resolvedEventType === 'm.reaction' && content && typeof content === 'object') {
     const relatesTo = (content as Record<string, unknown>)['m.relates_to'];
@@ -58,15 +67,6 @@ export const resolveNotificationPreviewText = ({
       }
     }
     return 'Added a reaction';
-  }
-
-  const encryptedContext = isEncryptedRoom || eventType === 'm.room.encrypted';
-
-  if (!showMessageContent) {
-    return encryptedContext ? ENCRYPTED_MESSAGE_PREVIEW : DEFAULT_MESSAGE_PREVIEW;
-  }
-  if (encryptedContext && !showEncryptedMessageContent) {
-    return ENCRYPTED_MESSAGE_PREVIEW;
   }
 
   const preview = buildMessagePreviewFromContent({

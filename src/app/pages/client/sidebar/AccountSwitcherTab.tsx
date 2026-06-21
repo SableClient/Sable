@@ -134,7 +134,7 @@ function AccountRow({
   );
 }
 
-export function AccountSwitcherTab({isBottom}:{isBottom?: boolean}) {
+export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
   const mx = useMatrixClient();
   const navigate = useNavigate();
   const sessions = useAtomValue(sessionsAtom);
@@ -253,7 +253,7 @@ export function AccountSwitcherTab({isBottom}:{isBottom?: boolean}) {
 
   return (
     <SidebarItem active={!!menuAnchor} isBottom={isBottom}>
-      <SidebarItemTooltip tooltip={label} position={isBottom ? "Top" : "Right"}>
+      <SidebarItemTooltip tooltip={label} position={isBottom ? 'Top' : 'Right'}>
         {(triggerRef) => (
           <SidebarAvatar
             as="button"
@@ -279,7 +279,7 @@ export function AccountSwitcherTab({isBottom}:{isBottom?: boolean}) {
 
       <PopOut
         anchor={menuAnchor}
-        position={isBottom ? "Top" : "Right"}
+        position={isBottom ? 'Top' : 'Right'}
         align="End"
         offset={6}
         content={

@@ -24,11 +24,30 @@ export const SidebarItemLeft = as<'div', css.SidebarItemVariants>(
   )
 );
 
-export const SidebarItem = ({className, active, isBottom, children, ...props} : {className?: string, active?: boolean, isBottom?: boolean, children: ReactNode}) => {
-  if(isBottom)
-    return <SidebarItemBottom className={className} active={active} {...props}>{children}</SidebarItemBottom>
+export const SidebarItem = ({
+  className,
+  active,
+  isBottom,
+  children,
+  ...props
+}: {
+  className?: string;
+  active?: boolean;
+  isBottom?: boolean;
+  children: ReactNode;
+}) => {
+  if (isBottom)
+    return (
+      <SidebarItemBottom className={className} active={active} {...props}>
+        {children}
+      </SidebarItemBottom>
+    );
   else
-    return <SidebarItemLeft className={className} active={active} {...props}>{children}</SidebarItemLeft>
+    return (
+      <SidebarItemLeft className={className} active={active} {...props}>
+        {children}
+      </SidebarItemLeft>
+    );
 };
 
 export const SidebarItemBadge = as<'div', css.SidebarItemBadgeVariants>(

@@ -1,18 +1,6 @@
 import type { MouseEventHandler } from 'react';
 import { useRef, useState } from 'react';
-import {
-  Box,
-  Checkbox,
-  color,
-  config,
-  Line,
-  Menu,
-  MenuItem,
-  PopOut,
-  Scroll,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Checkbox, config, Line, Menu, MenuItem, PopOut, Scroll, Text, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
@@ -30,6 +18,7 @@ import {
 import { CreateTab } from './sidebar/CreateTab';
 import { SearchTab } from './sidebar/SearchTab';
 import { SettingsTab } from './sidebar/SettingsTab';
+import { UserQuickTools } from './sidebar/UserQuickTools';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -39,11 +28,12 @@ export function SidebarNav() {
   const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
 
   const width = roomSidebarWidth + 66;
-  const underOutstep = width < (190 + 66);
-  const isCollapsed = width < (50 + 66);
+  const underOutstep = width < 190 + 66;
+  const isCollapsed = width < 50 + 66;
 
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     const target = evt.target as HTMLElement;
@@ -54,146 +44,118 @@ export function SidebarNav() {
   };
 
   return (
-    <Sidebar onContextMenu={handleContextMenu}>
-      {menuAnchor && (
-        <PopOut
-          anchor={menuAnchor}
-          position="Right"
-          align="Start"
-          content={
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                returnFocusOnDeactivate: false,
-                onDeactivate: () => setMenuAnchor(undefined),
-                clickOutsideDeactivates: true,
-                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Menu style={{ maxWidth: toRem(208), width: '100vw' }}>
-                <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                  <MenuItem
-                    size="300"
-                    radii="300"
-                    aria-pressed={showUnreadCounts}
-                    onClick={() => setShowUnreadCounts(!showUnreadCounts)}
-                    after={
-                      <Checkbox size="100" checked={showUnreadCounts} readOnly tabIndex={-1} />
-                    }
-                  >
-                    <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                      Show Room Counts
-                    </Text>
-                  </MenuItem>
-                  <MenuItem
-                    size="300"
-                    radii="300"
-                    aria-pressed={badgeCountDMsOnly}
-                    onClick={() => setBadgeCountDMsOnly(!badgeCountDMsOnly)}
-                    after={
-                      <Checkbox size="100" checked={badgeCountDMsOnly} readOnly tabIndex={-1} />
-                    }
-                  >
-                    <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                      Show DM Counts
-                    </Text>
-                  </MenuItem>
-                  <MenuItem
-                    size="300"
-                    radii="300"
-                    aria-pressed={showPingCounts}
-                    onClick={() => setShowPingCounts(!showPingCounts)}
-                    after={<Checkbox size="100" checked={showPingCounts} readOnly tabIndex={-1} />}
-                  >
-                    <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                      Show Mention Counts
-                    </Text>
-                  </MenuItem>
-                </Box>
-                <Line variant="Surface" size="300" />
-                <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                  <MenuItem
-                    size="300"
-                    radii="300"
-                    aria-pressed={uniformIcons}
-                    onClick={() => setUniformIcons(!uniformIcons)}
-                    after={<Checkbox size="100" checked={uniformIcons} readOnly tabIndex={-1} />}
-                  >
-                    <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                      Consistent Icon Style
-                    </Text>
-                  </MenuItem>
-                </Box>
-              </Menu>
-            </FocusTrap>
+    <>
+      <Sidebar onContextMenu={handleContextMenu}>
+        {menuAnchor && (
+          <PopOut
+            anchor={menuAnchor}
+            position="Right"
+            align="Start"
+            content={
+              <FocusTrap
+                focusTrapOptions={{
+                  initialFocus: false,
+                  returnFocusOnDeactivate: false,
+                  onDeactivate: () => setMenuAnchor(undefined),
+                  clickOutsideDeactivates: true,
+                  isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
+                  isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+                  escapeDeactivates: stopPropagation,
+                }}
+              >
+                <Menu style={{ maxWidth: toRem(208), width: '100vw' }}>
+                  <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                    <MenuItem
+                      size="300"
+                      radii="300"
+                      aria-pressed={showUnreadCounts}
+                      onClick={() => setShowUnreadCounts(!showUnreadCounts)}
+                      after={
+                        <Checkbox size="100" checked={showUnreadCounts} readOnly tabIndex={-1} />
+                      }
+                    >
+                      <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                        Show Room Counts
+                      </Text>
+                    </MenuItem>
+                    <MenuItem
+                      size="300"
+                      radii="300"
+                      aria-pressed={badgeCountDMsOnly}
+                      onClick={() => setBadgeCountDMsOnly(!badgeCountDMsOnly)}
+                      after={
+                        <Checkbox size="100" checked={badgeCountDMsOnly} readOnly tabIndex={-1} />
+                      }
+                    >
+                      <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                        Show DM Counts
+                      </Text>
+                    </MenuItem>
+                    <MenuItem
+                      size="300"
+                      radii="300"
+                      aria-pressed={showPingCounts}
+                      onClick={() => setShowPingCounts(!showPingCounts)}
+                      after={
+                        <Checkbox size="100" checked={showPingCounts} readOnly tabIndex={-1} />
+                      }
+                    >
+                      <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                        Show Mention Counts
+                      </Text>
+                    </MenuItem>
+                  </Box>
+                  <Line variant="Surface" size="300" />
+                  <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                    <MenuItem
+                      size="300"
+                      radii="300"
+                      aria-pressed={uniformIcons}
+                      onClick={() => setUniformIcons(!uniformIcons)}
+                      after={<Checkbox size="100" checked={uniformIcons} readOnly tabIndex={-1} />}
+                    >
+                      <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                        Consistent Icon Style
+                      </Text>
+                    </MenuItem>
+                  </Box>
+                </Menu>
+              </FocusTrap>
+            }
+          />
+        )}
+        <SidebarContent
+          scrollable={
+            <Scroll ref={scrollRef} variant="Background" size="0">
+              <SidebarStack>
+                <HomeTab />
+                <DirectTab />
+                <DirectDMsList />
+              </SidebarStack>
+              <SpaceTabs scrollRef={scrollRef} />
+              <SidebarStack>
+                <CreateTab />
+              </SidebarStack>
+            </Scroll>
+          }
+          sticky={
+            <SidebarStack>
+              {underOutstep && (
+                <>
+                  <SearchTab />
+                  <UnverifiedTab />
+                  <InboxTab />
+                </>
+              )}
+
+              {isCollapsed && <SettingsTab />}
+
+              <AccountSwitcherTab />
+            </SidebarStack>
           }
         />
-      )}
-      <SidebarContent
-        scrollable={
-          <Scroll ref={scrollRef} variant="Background" size="0">
-            <SidebarStack>
-              <HomeTab />
-              <DirectTab />
-              <DirectDMsList />
-            </SidebarStack>
-            <SpaceTabs scrollRef={scrollRef} />
-            <SidebarStack>
-              <CreateTab />
-            </SidebarStack>
-          </Scroll>
-        }
-        sticky={
-          <SidebarStack>
-            {underOutstep && (
-              <>
-                <UnverifiedTab />
-                <InboxTab />
-                <SearchTab />
-              </>
-            )}
-            {isCollapsed && <SettingsTab />}
-            <AccountSwitcherTab />
-          </SidebarStack>
-        }
-      />
-      {/* Doing it properly and nicely would require a major rewrite that would cause more trouble*/}
-      {!isCollapsed && (
-        <Box
-          direction="Row"
-          justifyContent="SpaceBetween"
-          style={{
-            backgroundColor: color.SurfaceVariant.Container,
-            position: 'fixed',
-            zIndex: '1000',
-            width: toRem(width),
-            height: toRem(58),
-            bottom: '0',
-            left: '0',
-            padding: config.space.S300,
-            paddingRight: underOutstep ? config.space.S200 : config.space.S300,
-            borderTop: `${config.borderWidth.B300} solid ${color.Background.ContainerLine}`,
-          }}
-        >
-          <AccountSwitcherTab isBottom/>
-          <Box
-            style={{
-              gap: config.space.S300,
-            }}
-          >
-            {!underOutstep && (
-              <>
-                <UnverifiedTab isBottom/>
-                <InboxTab isBottom/>
-                <SearchTab isBottom/>
-              </>
-            )}
-            <SettingsTab isBottom />
-          </Box>
-        </Box>
-      )}
-    </Sidebar>
+      </Sidebar>
+      <UserQuickTools width={width} />
+    </>
   );
 }

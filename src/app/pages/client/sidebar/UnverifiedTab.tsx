@@ -17,7 +17,7 @@ import { useOpenSettings } from '$features/settings';
 import { getPhosphorIconSize, ShieldWarning } from '$components/icons/phosphor';
 import * as css from './UnverifiedTab.css';
 
-function UnverifiedIndicator({isBottom}:{isBottom?: boolean}) {
+function UnverifiedIndicator({ isBottom }: { isBottom?: boolean }) {
   const mx = useMatrixClient();
   const openSettings = useOpenSettings();
 
@@ -48,7 +48,7 @@ function UnverifiedIndicator({isBottom}:{isBottom?: boolean}) {
         <SidebarItem className={css.UnverifiedTab} isBottom={isBottom}>
           <SidebarItemTooltip
             tooltip={unverified ? 'Unverified Device' : 'Unverified Devices'}
-            position={isBottom ? "Top" : "Right"}
+            position={isBottom ? 'Top' : 'Right'}
           >
             {(triggerRef) => (
               <SidebarAvatar
@@ -83,10 +83,10 @@ function UnverifiedIndicator({isBottom}:{isBottom?: boolean}) {
   );
 }
 
-export function UnverifiedTab({isBottom}:{isBottom?: boolean}) {
+export function UnverifiedTab({ isBottom }: { isBottom?: boolean }) {
   const crossSigningActive = useCrossSigningActive();
 
   if (!crossSigningActive) return null;
 
-  return <UnverifiedIndicator isBottom={isBottom}/>;
+  return <UnverifiedIndicator isBottom={isBottom} />;
 }

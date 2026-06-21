@@ -18,7 +18,7 @@ import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useInviteCount } from '$hooks/useInviteCount';
 import { getPhosphorIconSize, Tray } from '$components/icons/phosphor';
 
-export function InboxTab({isBottom}:{isBottom?: boolean}) {
+export function InboxTab({ isBottom }: { isBottom?: boolean }) {
   const screenSize = useScreenSizeContext();
   const navigate = useNavigate();
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
@@ -42,7 +42,7 @@ export function InboxTab({isBottom}:{isBottom?: boolean}) {
 
   return (
     <SidebarItem active={inboxSelected} isBottom={isBottom}>
-      <SidebarItemTooltip tooltip="Inbox" position={isBottom ? "Top" : "Right"}>
+      <SidebarItemTooltip tooltip="Inbox" position={isBottom ? 'Top' : 'Right'}>
         {(triggerRef) => (
           <SidebarAvatar
             as="button"
@@ -51,7 +51,10 @@ export function InboxTab({isBottom}:{isBottom?: boolean}) {
             onClick={handleInboxClick}
             size="300"
           >
-            <Tray size={getPhosphorIconSize('inline')} weight={inboxSelected ? 'fill' : 'regular'} />
+            <Tray
+              size={getPhosphorIconSize('inline')}
+              weight={inboxSelected ? 'fill' : 'regular'}
+            />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

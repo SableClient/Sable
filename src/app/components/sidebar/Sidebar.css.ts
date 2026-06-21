@@ -27,6 +27,7 @@ export const SidebarStack = style([
     alignItems: 'center',
     gap: config.space.S300,
     padding: `${config.space.S300} 0`,
+    paddingBottom: config.space.S200,
   },
 ]);
 

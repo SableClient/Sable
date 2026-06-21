@@ -7,6 +7,7 @@ import { SettingsTab } from './SettingsTab';
 import { useAtom } from 'jotai';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import * as css from './UserQuickTools.css';
+import { mobileOrTablet } from '$utils/user-agent';
 
 export function UserQuickTools({
   width,
@@ -30,7 +31,7 @@ export function UserQuickTools({
           style={{
             opacity: isResizingSidebar ? '0%' : '100%',
             transition: isResizingSidebar ? 'opacity 0.2s ease' : 'opacity 0.5s ease',
-            width: toRem(width),
+            width: mobileOrTablet() ? '100%' : toRem(width),
             paddingRight: underOutstep ? config.space.S200 : config.space.S300,
           }}
         >

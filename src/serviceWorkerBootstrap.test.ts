@@ -214,11 +214,10 @@ describe('registerAppServiceWorker', () => {
     expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'sable:sw-update' }));
   });
 
-  it('claims clients before reloading when the update prompt is accepted', async () => {
+  it('surfaces an installed update without applying it during bootstrap', async () => {
     mockHasServiceWorker.mockReturnValue(true);
     const installingListeners = new Map<string, EventListener>();
     const registrationListeners = new Map<string, EventListener>();
-    const serviceWorkerListeners = new Map<string, EventListener>();
     const waitingWorker = { postMessage: vi.fn() };
     const installingWorker = {
       state: 'installing',
@@ -227,10 +226,7 @@ describe('registerAppServiceWorker', () => {
       }),
     };
 
-    Object.defineProperty(window, 'confirm', {
-      configurable: true,
-      value: vi.fn(() => true),
-    });
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
 
     mockRegister.mockResolvedValueOnce({
       addEventListener: vi.fn((event: string, listener: EventListener) => {
@@ -249,12 +245,7 @@ describe('registerAppServiceWorker', () => {
           getRegistration: mockGetRegistration,
           ready: mockReady,
           controller: { postMessage: vi.fn() },
-          addEventListener: vi.fn((event: string, listener: EventListener) => {
-            serviceWorkerListeners.set(event, listener);
-          }),
-          removeEventListener: vi.fn((event: string) => {
-            serviceWorkerListeners.delete(event);
-          }),
+          addEventListener: mockAddEventListener,
         },
       },
     });
@@ -267,13 +258,9 @@ describe('registerAppServiceWorker', () => {
     installingWorker.state = 'installed';
     installingListeners.get('statechange')?.(new Event('statechange'));
 
-    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING_AND_CLAIM' });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'sable:sw-update' }));
+    expect(waitingWorker.postMessage).not.toHaveBeenCalled();
     expect(window.location.reload).not.toHaveBeenCalled();
-
-    serviceWorkerListeners.get('controllerchange')?.(new Event('controllerchange'));
-    await vi.waitFor(() => {
-      expect(window.location.reload).toHaveBeenCalledTimes(1);
-    });
   });
 
   it('coalesces focus and pageshow watchdog pings into one in-flight check', async () => {

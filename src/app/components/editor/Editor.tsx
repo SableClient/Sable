@@ -3,12 +3,17 @@ import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState }
 import { Box, Scroll, Text } from 'folds';
 import type { Descendant, Editor } from 'slate';
 import { Node, createEditor } from 'slate';
-import type { RenderLeafProps, RenderElementProps, RenderPlaceholderProps } from 'slate-react';
+import type {
+  RenderLeafProps,
+  RenderElementProps,
+  RenderPlaceholderProps,
+  RenderTextProps,
+} from 'slate-react';
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { isPhone, mobileOrTablet } from '$utils/user-agent';
 import { BlockType } from './types';
-import { RenderElement, RenderLeaf } from './Elements';
+import { RenderElement, RenderLeaf, RenderText } from './Elements';
 import type { CustomElement } from './slate';
 import * as css from './Editor.css';
 import { toggleKeyboardShortcut } from './keyboard';
@@ -399,6 +404,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     );
 
     const renderLeaf = useCallback((props: RenderLeafProps) => <RenderLeaf {...props} />, []);
+    const renderText = useCallback((props: RenderTextProps) => <RenderText {...props} />, []);
 
     const handleKeydown: KeyboardEventHandler = useCallback(
       (evt) => {
@@ -468,6 +474,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 renderPlaceholder={renderPlaceholder}
                 renderElement={renderElement}
                 renderLeaf={renderLeaf}
+                renderText={renderText}
                 onKeyDown={handleKeydown}
                 onKeyUp={onKeyUp}
                 onPaste={onPaste}

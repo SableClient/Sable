@@ -1,5 +1,5 @@
 import { Text } from 'folds';
-import type { RenderElementProps, RenderLeafProps } from 'slate-react';
+import type { RenderElementProps, RenderLeafProps, RenderTextProps } from 'slate-react';
 import { useFocused, useSelected, useSlate } from 'slate-react';
 import { useAtomValue } from 'jotai';
 import classNames from 'classnames';
@@ -11,6 +11,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import { nicknamesAtom } from '$state/nicknames';
 import { isFixedCellEmoji } from '$plugins/emoji';
+import { scaleSystemEmoji } from '$plugins/react-custom-html-parser';
 import { BlockType } from './types';
 import { formatMentionElementDisplayName, getBeginCommand } from './utils';
 import type { CommandElement, EmoticonElement, LinkElement, MentionElement } from './slate';
@@ -181,5 +182,11 @@ export function RenderElement({ attributes, element, children }: RenderElementPr
 }
 
 export function RenderLeaf({ attributes, children }: RenderLeafProps) {
-  return <span {...attributes}>{children}</span>;
+  return (
+    <span {...attributes}>{children}</span>
+  );
+}
+
+export function RenderText({ attributes, text }: RenderTextProps) {
+  return <span {...attributes}>{scaleSystemEmoji(text.text)}</span>;
 }

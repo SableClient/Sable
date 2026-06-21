@@ -177,6 +177,24 @@ function MeasurementCacheHarness() {
   );
 }
 
+function EmojiRenderHarness() {
+  const editor = useEditor();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          Transforms.insertText(editor, 'Status 🫩 ⬛🟨🟩');
+        }}
+      >
+        Insert emoji text
+      </button>
+      <CustomEditor editableName="EmojiRenderHarness" editor={editor} />
+    </>
+  );
+}
+
 const createResizeObserverStub = (
   observedElements: Set<Element>,
   onCreate: (callback: ResizeObserverCallback) => void
@@ -541,5 +559,16 @@ describe('CustomEditor', () => {
     });
 
     expect(measurementCacheScrollHeightReads).toBe(1);
+  });
+
+  it('renders unicode emoji and fixed-cell squares with the same wrappers as timeline text', async () => {
+    render(<EmojiRenderHarness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Insert emoji text' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('span[title="face_with_eye_bags"]')).not.toBeNull();
+      expect(document.querySelector('span[title="black_large_square"]')).not.toBeNull();
+    });
   });
 });

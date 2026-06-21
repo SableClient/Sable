@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Room } from '$types/matrix-sdk';
 import { toMatrixCustomHTML, toPlainText, trimCustomHtml } from '$components/editor/output';
 import { BlockType } from '$components/editor/types';
+import { htmlToMarkdown } from '$plugins/markdown';
+import { plainToEditorInput } from '$components/editor/input';
 
 const roomWithMember = (userId: string, rawDisplayName: string): Room =>
   ({
@@ -244,5 +246,166 @@ describe('toMatrixCustomHTML single-newline markdown blocks', () => {
     );
     expect(html).toContain('<sub');
     expect(html).toContain('data-md="-#"');
+  });
+});
+
+describe('toMatrixCustomHTML intentional blank paragraphs', () => {
+  const blankLineDoc = [
+    { type: BlockType.Paragraph, children: [{ text: 'Wordle 1,828 4/6*' }] } as never,
+    { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+    { type: BlockType.Paragraph, children: [{ text: '⬛🟨🟩' }] } as never,
+  ];
+
+  it('serializes an empty Slate paragraph as visible blank-line breaks', () => {
+    const html = toMatrixCustomHTML(blankLineDoc, {});
+
+    expect(html).toContain('<p>Wordle 1,828 4/6*<br/><br/>⬛🟨🟩</p>');
+  });
+
+  it('round-trips visible blank lines back into an empty editor paragraph', () => {
+    const html = toMatrixCustomHTML(blankLineDoc, {});
+    const markdown = htmlToMarkdown(html);
+    const doc = plainToEditorInput(markdown);
+
+    expect(markdown).toBe('Wordle 1,828 4/6\\*\n\n⬛🟨🟩');
+    expect(doc).toHaveLength(3);
+    expect(doc[1]).toEqual({
+      type: BlockType.Paragraph,
+      children: [{ text: '' }],
+    });
+  });
+
+  it('keeps blank paragraphs inside fenced code blocks', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: 'code' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('<pre');
+    expect(html).toContain('<code>\ncode\n</code>');
+    expect(html).not.toContain('</pre>code');
+  });
+
+  it('drops trailing empty paragraphs that the plain body trims away', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: 'hello' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toBe('hello');
+  });
+
+  it('drops leading empty paragraphs that the plain body trims away', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: 'hello' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toBe('hello');
+  });
+
+  it('wraps inline text before a following markdown block after a blank line', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: 'hello' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: 'code' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('<p>hello<br/><br/></p>');
+    expect(html).toContain('<pre');
+  });
+
+  it('does not add an extra blank line when two empty paragraphs precede a block', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: 'hello' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: 'code' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('<p>hello<br/><br/><br/></p>');
+    expect(html).not.toContain('<p>hello<br/><br/><br/><br/></p>');
+  });
+
+  it('keeps blank lines inside indented code blocks', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: '    code' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '    more code' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('<pre');
+    expect(html).toContain('<code>code\n\nmore code\n</code>');
+  });
+
+  it('keeps longer fenced code blocks open across inner backtick lines', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: '````' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '````' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('<pre');
+    expect(html).toContain('<code>\n```\n</code>');
+  });
+
+  it('round-trips heading blocks with one empty paragraph without adding extra blank lines', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: '# Head' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: 'text' }] } as never,
+        ],
+        {}
+      )
+    );
+    const markdown = htmlToMarkdown(html);
+
+    expect(markdown).toBe('# Head\n\ntext');
   });
 });

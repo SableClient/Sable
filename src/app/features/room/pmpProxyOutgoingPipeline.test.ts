@@ -78,8 +78,8 @@ describe('PMP proxy outgoing pipeline parity', () => {
     const { plain, html } = runOutgoingPipeline('first line\n\nsecond line');
     // Plaintext keeps the blank line separation
     expect(plain).toBe('first line\n\nsecond line');
-    // HTML should contain two paragraphs
-    expect(html).toMatch(/<p>first line<\/p>[\s\S]*<p>second line<\/p>/);
+    // HTML should preserve a visible blank line in the rendered output too.
+    expect(html).toContain('<p>first line<br/><br/>second line</p>');
   });
 
   it('supports fenced code blocks and renders them as code', () => {

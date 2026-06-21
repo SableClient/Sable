@@ -90,6 +90,129 @@ const elementToCustomHtml = (
   }
 };
 
+const hasNonParagraphBlockHtml = (html: string): boolean =>
+  /<(?:h[1-6]|ul|ol|li|blockquote|pre|hr|table|div)\b/i.test(html);
+
+const unwrapParagraphHtml = (html: string): string => {
+  const match = html.match(/^<p>([\s\S]*)<\/p>$/);
+  return match?.[1] ?? html;
+};
+
+const getMarkdownFence = (
+  line: string
+): {
+  marker: '`' | '~';
+  length: number;
+} | null => {
+  const match = line.trimStart().match(/^([`~]{3,})(?:\s.*)?$/);
+  if (!match) return null;
+
+  const markerText = match[1];
+  if (!markerText) return null;
+
+  const marker = markerText[0];
+  if (marker !== '`' && marker !== '~') return null;
+
+  return { marker, length: markerText.length };
+};
+
+const closesMarkdownFence = (
+  line: string,
+  fence: {
+    marker: '`' | '~';
+    length: number;
+  }
+): boolean => {
+  const trimmed = line.trimStart();
+  const match = trimmed.match(/^([`~]{3,})\s*$/);
+  if (!match) return false;
+
+  return match[1]?.[0] === fence.marker && match[1].length >= fence.length;
+};
+
+const isIndentedCodeLine = (line: string): boolean => /^(?: {4}|\t)/.test(line);
+
+const isMarkdownBlockLine = (line: string): boolean => {
+  const trimmed = line.trimStart();
+
+  return (
+    getMarkdownFence(line) !== null ||
+    isIndentedCodeLine(line) ||
+    /^#{1,6}\s/.test(trimmed) ||
+    /^>\s/.test(trimmed) ||
+    /^(?:[-+*]|\d+\.)\s/.test(trimmed)
+  );
+};
+
+type MarkdownSegment = {
+  block: boolean;
+  lines: string[];
+};
+
+const splitMarkdownSegments = (lines: string[]): MarkdownSegment[] => {
+  const segments: MarkdownSegment[] = [];
+  let pendingBlankLines = 0;
+  let openFence:
+    | {
+        marker: '`' | '~';
+        length: number;
+      }
+    | undefined;
+  let indentedCodeOpen = false;
+
+  const appendSegmentLine = (block: boolean, line: string) => {
+    const segment = segments.at(-1);
+    if (!segment || segment.block !== block) {
+      segments.push({ block, lines: [line] });
+      return;
+    }
+
+    segment.lines.push(line);
+  };
+
+  lines.forEach((line) => {
+    if (line === '') {
+      if (openFence || indentedCodeOpen) {
+        appendSegmentLine(true, line);
+      } else {
+        pendingBlankLines += 1;
+      }
+      return;
+    }
+
+    const block = openFence !== undefined || indentedCodeOpen || isMarkdownBlockLine(line);
+
+    if (pendingBlankLines > 0) {
+      const blankTargetIsBlock = segments.at(-1)?.block === false ? false : block;
+      Array.from({ length: pendingBlankLines }).forEach(() =>
+        appendSegmentLine(blankTargetIsBlock, '')
+      );
+      pendingBlankLines = 0;
+    }
+
+    appendSegmentLine(block, line);
+
+    if (openFence) {
+      if (closesMarkdownFence(line, openFence)) {
+        openFence = undefined;
+      }
+      indentedCodeOpen = false;
+      return;
+    }
+
+    const nextFence = getMarkdownFence(line);
+    if (nextFence) {
+      openFence = nextFence;
+      indentedCodeOpen = false;
+      return;
+    }
+
+    indentedCodeOpen = isIndentedCodeLine(line);
+  });
+
+  return segments;
+};
+
 /**
  * convert slate internal representation to a custom HTML string that can be sent to the server
  * @param node slate node
@@ -100,14 +223,11 @@ export const toMatrixCustomHTML = (
   node: Descendant | Descendant[],
   opts: OutputOptions
 ): string => {
-  let markdownLines = '';
-  const parseNode = (n: Descendant, index: number, targetNodes: Descendant[]) => {
+  const parseNode = (n: Descendant) => {
     if ('type' in n && n.type === BlockType.Paragraph) {
       let line = toMatrixCustomHTML(n, opts);
 
-      // Use \n for all paragraphs to prevent extra blank lines from
-      // accumulating on each edit cycle.
-      line = line.replace(/<br\/>$/, '\n').replace(/^(\\*)&gt;/, '$1>');
+      line = line.replace(/<br\/>$/, '').replace(/^(\\*)&gt;/, '$1>');
 
       // strip nicknames if needed
       if (opts.stripNickname && opts.nickNameReplacement) {
@@ -116,25 +236,53 @@ export const toMatrixCustomHTML = (
           line = line.replaceAll(key, replacement);
         });
       }
-      markdownLines += line;
-      if (index === targetNodes.length - 1) {
-        const html = markdownToHtml(markdownLines, { emote: opts.forEmote });
-        return injectDataMd(html);
-      }
-      return '';
+
+      return line;
     }
 
-    const parsedMarkdown = markdownToHtml(markdownLines, { emote: opts.forEmote });
-    markdownLines = '';
-    return `${parsedMarkdown}${toMatrixCustomHTML(n, opts)}`;
+    return toMatrixCustomHTML(n, opts);
   };
-  if (Array.isArray(node))
-    return node.map((element, index, array) => parseNode(element, index, array)).join('');
+  if (Array.isArray(node)) {
+    const lines = node.map((element) => parseNode(element));
+
+    while (lines[0] === '') lines.shift();
+    while (lines.at(-1) === '') lines.pop();
+
+    if (lines.length === 0) return '';
+
+    return splitMarkdownSegments(lines)
+      .map(({ block, lines: segmentLines }) => {
+        const markdown = segmentLines.join('\n');
+        const parsedHtml = injectDataMd(markdownToHtml(markdown, { emote: opts.forEmote }));
+
+        if (block || hasNonParagraphBlockHtml(parsedHtml)) {
+          return parsedHtml;
+        }
+
+        const inlineHtml = segmentLines
+          .map((line) =>
+            line.length === 0
+              ? ''
+              : unwrapParagraphHtml(injectDataMd(markdownToHtml(line, { emote: opts.forEmote })))
+          )
+          .join('<br/>');
+        let trailingBlankLines = 0;
+        while (segmentLines.at(-(trailingBlankLines + 1)) === '') {
+          trailingBlankLines += 1;
+        }
+        const preservedInlineHtml = `${inlineHtml}${trailingBlankLines > 0 ? '<br/>' : ''}`;
+
+        if (!opts.forEmote && preservedInlineHtml.includes('<br/>')) {
+          return `<p>${preservedInlineHtml}</p>`;
+        }
+
+        return preservedInlineHtml;
+      })
+      .join('');
+  }
   if (Text.isText(node)) return textToCustomHtml(node);
 
-  const children = node.children
-    .map((element, index, array) => parseNode(element, index, array))
-    .join('');
+  const children = node.children.map((element) => parseNode(element)).join('');
   return elementToCustomHtml(node, children, opts);
 };
 

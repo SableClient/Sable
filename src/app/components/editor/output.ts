@@ -90,11 +90,6 @@ const elementToCustomHtml = (
   }
 };
 
-const isEmptyParagraph = (node: Descendant): node is CustomElement =>
-  'type' in node &&
-  node.type === BlockType.Paragraph &&
-  node.children.every((child) => Text.isText(child) && child.text === '');
-
 const hasNonParagraphBlockHtml = (html: string): boolean =>
   /<(?:h[1-6]|ul|ol|li|blockquote|pre|hr|table|div)\b/i.test(html);
 

@@ -44,5 +44,10 @@
   "hashRouter": {
     "enabled": false,
     "basename": "/"
+  },
+
+  "gifs": {
+    "proxyUrl": "gifs.sable.moe",
+    "klipyApiKey": "SET_YOUR_TOKEN_HERE"
   }
 }

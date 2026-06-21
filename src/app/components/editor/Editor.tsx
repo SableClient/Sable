@@ -1,12 +1,15 @@
 import type { ClipboardEventHandler, KeyboardEventHandler, ReactNode } from 'react';
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Box, Scroll, Text } from 'folds';
-import type { Descendant, Editor } from 'slate';
-import { Node, createEditor } from 'slate';
+import type { Descendant, Editor, Node, NodeEntry, BaseRange } from 'slate';
+import { Node as SlateNode, createEditor, Text as SlateText } from 'slate';
 import type { RenderLeafProps, RenderElementProps, RenderPlaceholderProps } from 'slate-react';
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { isPhone, mobileOrTablet } from '$utils/user-agent';
+import { getHexcodeForEmoji, getShortcodeFor, isFixedCellEmoji } from '$plugins/emoji';
+import { findSystemEmojiMatches } from '$plugins/react-custom-html-parser';
+import * as customHtmlCss from '$styles/CustomHtml.css';
 import { BlockType } from './types';
 import { RenderElement, RenderLeaf } from './Elements';
 import type { CustomElement } from './slate';
@@ -47,11 +50,63 @@ const TRAILING_SPACE_SENTINEL = '\u200B';
 const normalizeMeasurementText = (text: string): string =>
   /[ \t]+$/.test(text) ? `${text}${TRAILING_SPACE_SENTINEL}` : text;
 
+const setMeasurementContent = (container: HTMLDivElement, text: string) => {
+  const normalizedText = normalizeMeasurementText(text);
+  const matches = findSystemEmojiMatches(normalizedText);
+
+  if (matches.length === 0) {
+    container.textContent = normalizedText;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  let cursor = 0;
+
+  matches.forEach(({ emoji, start, end }) => {
+    if (start > cursor) {
+      fragment.append(normalizedText.slice(cursor, start));
+    }
+
+    const wrapper = document.createElement('span');
+    wrapper.className = customHtmlCss.EmoticonBase;
+
+    const glyph = document.createElement('span');
+    glyph.className = isFixedCellEmoji(emoji)
+      ? `${customHtmlCss.SystemEmoji} ${customHtmlCss.SystemEmojiFixedCell}`
+      : customHtmlCss.SystemEmoji;
+    glyph.textContent = emoji;
+
+    wrapper.append(glyph);
+    fragment.append(wrapper);
+    cursor = end;
+  });
+
+  if (cursor < normalizedText.length) {
+    fragment.append(normalizedText.slice(cursor));
+  }
+
+  container.replaceChildren(fragment);
+};
+
 type MultilineMeasurementCache = {
   result: boolean;
   singleLineWidth: number;
   styleKey: string;
   text: string;
+};
+
+const decorateSystemEmoji = ([node, path]: NodeEntry<Node>): BaseRange[] => {
+  if (!SlateText.isText(node) || node.text.length === 0) {
+    return [];
+  }
+
+  return findSystemEmojiMatches(node.text).map(({ emoji, start, end }) => ({
+    anchor: { path, offset: start },
+    focus: { path, offset: end },
+    systemEmoji: emoji,
+    systemEmojiFixedCell: isFixedCellEmoji(emoji),
+    systemEmojiTitle: getShortcodeFor(getHexcodeForEmoji(emoji)),
+  }));
 };
 
 type CustomEditorProps = {
@@ -141,7 +196,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const updateMultilineLayout = useCallback(
       (value: Descendant[] = editor.children) => {
         const hasMultipleBlocks = value.length > 1;
-        const text = value.map((node) => Node.string(node)).join('');
+        const text = value.map((node) => SlateNode.string(node)).join('');
         const hasExplicitNewlines = text.includes('\n');
 
         const editable = editableRef.current;
@@ -226,7 +281,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
               // back into the answer.
               const measureHeight = (content: string, width: string): number => {
                 textMeasurer.style.width = width;
-                textMeasurer.textContent = normalizeMeasurementText(content);
+                setMeasurementContent(textMeasurer, content);
                 return textMeasurer.scrollHeight;
               };
               const singleLineHeight = measureHeight('M', 'max-content');
@@ -373,7 +428,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
 
     const handleChange = useCallback(
       (value: Descendant[]) => {
-        const prevText = latestValueRef.current.map((node) => Node.string(node)).join('');
+        const prevText = latestValueRef.current.map((node) => SlateNode.string(node)).join('');
         latestValueRef.current = value;
         measurementCacheRef.current = null;
         if (multilineMeasureFrameRef.current !== null) {
@@ -385,7 +440,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
         // After a send, content goes from non-empty to empty while the editor stays focused.
         // Trigger the autocap attribute toggle so the next message starts capitalised.
         // onBlur keeps focus on the editor so isFocused() is true when this fires.
-        const nextText = value.map((node) => Node.string(node)).join('');
+        const nextText = value.map((node) => SlateNode.string(node)).join('');
         if (prevText.length > 0 && nextText.length === 0 && ReactEditor.isFocused(editor)) {
           triggerAutoCapitalize();
         }
@@ -399,6 +454,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     );
 
     const renderLeaf = useCallback((props: RenderLeafProps) => <RenderLeaf {...props} />, []);
+    const decorate = useCallback((entry: NodeEntry<Node>) => decorateSystemEmoji(entry), []);
 
     const handleKeydown: KeyboardEventHandler = useCallback(
       (evt) => {
@@ -468,6 +524,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 renderPlaceholder={renderPlaceholder}
                 renderElement={renderElement}
                 renderLeaf={renderLeaf}
+                decorate={decorate}
                 onKeyDown={handleKeydown}
                 onKeyUp={onKeyUp}
                 onPaste={onPaste}
@@ -483,7 +540,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 // autocapPendingRef prevents double-fire if handleChange also fires
                 // (e.g. the send clears content while focus is transferred).
                 onFocus={() => {
-                  if (mobileOrTablet() && Node.string(editor).length === 0) {
+                  if (mobileOrTablet() && SlateNode.string(editor).length === 0) {
                     triggerAutoCapitalize();
                   }
                 }}

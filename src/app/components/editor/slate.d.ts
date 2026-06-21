@@ -7,6 +7,9 @@ export type Editor = BaseEditor & HistoryEditor & ReactEditor;
 
 export type Text = {
   text: string;
+  systemEmoji?: string;
+  systemEmojiFixedCell?: boolean;
+  systemEmojiTitle?: string;
 };
 
 export type FormattedText = Text;

@@ -49,6 +49,23 @@ import { getHexcodeForEmoji, getShortcodeFor, isFixedCellEmoji } from './emoji';
 
 const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${emojiRegex().source})`, 'g');
 
+export type SystemEmojiMatch = {
+  emoji: string;
+  start: number;
+  end: number;
+};
+
+export const findSystemEmojiMatches = (text: string): SystemEmojiMatch[] =>
+  Array.from(text.matchAll(EMOJI_REG_G), (match) => {
+    const emoji = match[0];
+    const start = match.index ?? 0;
+    return {
+      emoji,
+      start,
+      end: start + emoji.length,
+    };
+  });
+
 const shouldLinkifyDomText = (domNode: DOMText): boolean =>
   !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
   !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');

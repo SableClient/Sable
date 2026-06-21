@@ -25,6 +25,7 @@ import {
   SidebarStack,
 } from '$components/emoji-board/components';
 import * as emojiBoardCss from '$components/emoji-board/components/styles.css';
+import * as roomNavCss from '$features/room-nav/styles.css';
 import { APP_FEATURES_URL, APP_SOURCE_URL, APP_SUPPORT_URL } from '$app/config/brand';
 import { getMessageSearchShortcutPath } from '$features/search/searchShortcut';
 
@@ -348,6 +349,23 @@ function SmokeEmojiPolish() {
             <Text size="T300">{scaleSystemEmoji('Reaction row 😀 😃 😄 😁 😆')}</Text>
             <Text size="T300">
               {scaleSystemEmoji('The next line should not collide with the emoji baseline.')}
+            </Text>
+          </Box>
+          <Box
+            data-testid="smoke-compact-preview-block"
+            direction="Column"
+            gap="100"
+            style={{ width: '100%', maxWidth: 260 }}
+          >
+            <Text size="T300">Compact preview</Text>
+            <Text
+              data-testid="smoke-compact-preview-line"
+              className={roomNavCss.MessagePreview}
+              truncate
+              size="T200"
+              priority="300"
+            >
+              <b>Alice:</b> {scaleSystemEmoji('Status checks ✅ 😮 🫩 👍🏽')}
             </Text>
           </Box>
         </Box>

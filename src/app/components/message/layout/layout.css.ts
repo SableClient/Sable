@@ -255,10 +255,10 @@ export const PronounPill = style({
 export const MessageTextBody = recipe({
   base: {
     vars: {
-      '--sable-system-emoji-font-size': '1.33em',
-      '--sable-system-emoji-top': '-0.35em',
-      '--sable-custom-emoji-font-size': '1.2em',
-      '--sable-custom-emoji-align': '-0.12em',
+      '--sable-system-emoji-font-size': '1em',
+      '--sable-system-emoji-top': '-0.1em',
+      '--sable-custom-emoji-font-size': '1em',
+      '--sable-custom-emoji-align': '0',
     },
     unicodeBidi: 'plaintext',
     alignSelf: 'start',

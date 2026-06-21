@@ -110,6 +110,8 @@ test.describe('emoji polish smoke', () => {
         thirdSticker,
         baselineText: measure('[data-testid="smoke-emoji-baseline-text"]'),
         baselineEmoji: measure('[data-testid="smoke-emoji-baseline-line"] span[title]'),
+        compactPreview: measure('[data-testid="smoke-compact-preview-line"]'),
+        compactPreviewEmoji: measure('[data-testid="smoke-compact-preview-block"] span[title]'),
         fixedCellBlackSquareFontFamily: getComputedStyle(
           document.querySelector(
             '[data-testid="smoke-emoji-fixed-cell-line"] span[title="black_large_square"]'
@@ -131,6 +133,8 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.thirdSticker).not.toBeNull();
     expect(metrics.baselineText).not.toBeNull();
     expect(metrics.baselineEmoji).not.toBeNull();
+    expect(metrics.compactPreview).not.toBeNull();
+    expect(metrics.compactPreviewEmoji).not.toBeNull();
     expect(metrics.fixedCellBlackSquareFontFamily).toContain('Twemoji');
     expect(metrics.jumboEmojiTop).toBe('0px');
 
@@ -149,6 +153,9 @@ test.describe('emoji polish smoke', () => {
     expect(Math.abs(metrics.baselineEmoji!.centerY - metrics.baselineText!.centerY)).toBeLessThan(
       4
     );
+    expect(metrics.compactPreviewEmoji!.height).toBeLessThanOrEqual(16);
+    expect(metrics.compactPreviewEmoji!.top).toBeGreaterThanOrEqual(metrics.compactPreview!.top);
+    expect(metrics.compactPreviewEmoji!.bottom).toBeLessThanOrEqual(metrics.compactPreview!.bottom);
 
     await captureSnapshot(page, 'emoji-polish/sticker-fit-and-baseline');
   });

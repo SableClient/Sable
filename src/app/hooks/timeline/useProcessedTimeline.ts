@@ -169,15 +169,15 @@ const mergeDraftsAndExtras = (
 
   for (const extra of extraDrafts) {
     const extraTs = extra.mEvent.getTs();
-    while (resultIdx < resultDrafts.length && resultDrafts[resultIdx].mEvent.getTs() <= extraTs) {
-      mergedDrafts.push(resultDrafts[resultIdx]);
+    while (resultIdx < resultDrafts.length && resultDrafts[resultIdx]!.mEvent.getTs() <= extraTs) {
+      mergedDrafts.push(resultDrafts[resultIdx]!);
       resultIdx += 1;
     }
     mergedDrafts.push(extra);
   }
 
   while (resultIdx < resultDrafts.length) {
-    mergedDrafts.push(resultDrafts[resultIdx]);
+    mergedDrafts.push(resultDrafts[resultIdx]!);
     resultIdx += 1;
   }
 

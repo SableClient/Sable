@@ -1,5 +1,5 @@
 import type { Path } from 'react-router-dom';
-import { generatePath } from 'react-router-dom';
+import { generatePath, matchPath } from 'react-router-dom';
 import { trimLeadingSlash, trimTrailingSlash } from '$utils/common';
 import type { HashRouterConfig } from '$hooks/useClientConfig';
 import type { SettingsPathSearchParams } from './paths';
@@ -246,6 +246,32 @@ export const getSpaceRoomPath = (
   };
 
   return generatePath(SPACE_ROOM_PATH, params);
+};
+
+export const stripRoomEventTargetPath = (pathname: string): string | undefined => {
+  const directMatch = matchPath(DIRECT_ROOM_PATH, pathname);
+  if (directMatch?.params.roomIdOrAlias && directMatch.params.eventId) {
+    return getDirectRoomPath(decodeURIComponent(directMatch.params.roomIdOrAlias));
+  }
+
+  const homeMatch = matchPath(HOME_ROOM_PATH, pathname);
+  if (homeMatch?.params.roomIdOrAlias && homeMatch.params.eventId) {
+    return getHomeRoomPath(decodeURIComponent(homeMatch.params.roomIdOrAlias));
+  }
+
+  const spaceMatch = matchPath(SPACE_ROOM_PATH, pathname);
+  if (
+    spaceMatch?.params.spaceIdOrAlias &&
+    spaceMatch.params.roomIdOrAlias &&
+    spaceMatch.params.eventId
+  ) {
+    return getSpaceRoomPath(
+      decodeURIComponent(spaceMatch.params.spaceIdOrAlias),
+      decodeURIComponent(spaceMatch.params.roomIdOrAlias)
+    );
+  }
+
+  return undefined;
 };
 
 export const getExplorePath = (): string => EXPLORE_PATH;

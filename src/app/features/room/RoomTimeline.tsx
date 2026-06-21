@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { Editor } from 'slate';
 import { useAtomValue, useAtom, useSetAtom } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
@@ -85,6 +86,7 @@ import {
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { completeRoomTimelineRender } from '$utils/perfTelemetry';
 import { mobileOrTabletLayout } from '$utils/user-agent';
+import { stripRoomEventTargetPath } from '$pages/pathUtils';
 import * as css from './RoomTimeline.css';
 
 const log = createLogger('RoomTimeline');
@@ -160,6 +162,8 @@ export function RoomTimeline({
   onEditLastMessageRef,
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const alive = useAlive();
   const screenSize = useScreenSizeContext();
 
@@ -788,6 +792,18 @@ export function RoomTimeline({
           align: timelineSync.focusItem.align ?? 'center',
         });
         timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
+
+        if (focusEventId && eventId === focusEventId) {
+          const basePath = stripRoomEventTargetPath(location.pathname);
+          if (basePath) {
+            const nextSearchParams = new URLSearchParams(location.search);
+            nextSearchParams.delete('jumpMode');
+            nextSearchParams.delete('joinCall');
+            const nextSearch = nextSearchParams.toString();
+            navigate(nextSearch ? `${basePath}?${nextSearch}` : basePath, { replace: true });
+          }
+        }
+
         scrollSucceeded = true;
 
         // Stop retry loop now that scroll succeeded
@@ -864,6 +880,10 @@ export function RoomTimeline({
     reanchorJumpTarget,
     room.roomId,
     jumpMode,
+    eventId,
+    location.pathname,
+    location.search,
+    navigate,
   ]);
 
   useEffect(() => {

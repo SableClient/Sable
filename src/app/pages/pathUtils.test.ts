@@ -3,6 +3,7 @@ import {
   getAppPathFromWindowHref,
   getSettingsPath,
   getToRoomEventPath,
+  stripRoomEventTargetPath,
   withAdditionalSearchParams,
 } from './pathUtils';
 
@@ -60,6 +61,25 @@ describe('withAdditionalSearchParams', () => {
     expect(withAdditionalSearchParams('/room/abc?foo=bar', { joinCall: 'true' })).toBe(
       '/room/abc?foo=bar&joinCall=true'
     );
+  });
+});
+
+describe('stripRoomEventTargetPath', () => {
+  it('strips event ids from direct, home, and space room paths', () => {
+    expect(stripRoomEventTargetPath('/direct/%21room%3Aexample/%24event123')).toBe(
+      '/direct/!room%3Aexample'
+    );
+    expect(stripRoomEventTargetPath('/home/%21room%3Aexample/%24event123')).toBe(
+      '/home/!room%3Aexample'
+    );
+    expect(stripRoomEventTargetPath('/%21space%3Aexample/%21room%3Aexample/%24event123')).toBe(
+      '/!space%3Aexample/!room%3Aexample'
+    );
+  });
+
+  it('returns undefined when the path is not an event-targeted room route', () => {
+    expect(stripRoomEventTargetPath('/direct/%21room%3Aexample')).toBeUndefined();
+    expect(stripRoomEventTargetPath('/inbox/notifications/')).toBeUndefined();
   });
 });
 

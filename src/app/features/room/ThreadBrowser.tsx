@@ -14,7 +14,7 @@ import {
   toRem,
 } from 'folds';
 import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
-import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
+import { MatrixEventEvent, NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -316,9 +316,19 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
   // always be a no-op and left threadsReady=true prematurely.
   useEffect(() => {
     const onUpdate = () => forceUpdate((n) => n + 1);
+    const onDecrypted = (mEvent: MatrixEvent) => {
+      if (mEvent.getRoomId() !== room.roomId) return;
+      const relation = mEvent.getRelation();
+      const isThreadRelation = relation?.rel_type === 'm.thread';
+      const threadId = isThreadRelation ? relation.event_id : mEvent.getId();
+      if (threadId && room.getThread(threadId)) {
+        onUpdate();
+      }
+    };
     room.on(ThreadEvent.New, onUpdate);
     room.on(ThreadEvent.Update, onUpdate);
     room.on(ThreadEvent.NewReply, onUpdate);
+    mx.on(MatrixEventEvent.Decrypted, onDecrypted);
 
     let cancelled = false;
     const loadThreads = async () => {
@@ -381,6 +391,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
       room.off(ThreadEvent.New, onUpdate);
       room.off(ThreadEvent.Update, onUpdate);
       room.off(ThreadEvent.NewReply, onUpdate);
+      mx.off(MatrixEventEvent.Decrypted, onDecrypted);
     };
   }, [room, mx]);
 

@@ -6,6 +6,7 @@ import type { IEvent, Room } from '$types/matrix-sdk';
 import {
   Direction,
   MatrixEvent,
+  MatrixEventEvent,
   PushProcessor,
   ReceiptType,
   RelationType,
@@ -389,6 +390,11 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         forceUpdate((n) => n + 1);
       }
     };
+    const onDecrypted = (mEvent: MatrixEvent) => {
+      if (isEventInThread(mEvent)) {
+        forceUpdate((n) => n + 1);
+      }
+    };
     const onRedaction = (mEvent: MatrixEvent) => {
       // Redactions (removing reactions/messages) should also trigger updates
       if (isEventInThread(mEvent)) {
@@ -397,11 +403,13 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     };
     const onThreadUpdate = () => forceUpdate((n) => n + 1);
     mx.on(RoomEvent.Timeline, onTimeline);
+    mx.on(MatrixEventEvent.Decrypted, onDecrypted);
     room.on(RoomEvent.Redaction, onRedaction);
     room.on(ThreadEvent.Update, onThreadUpdate);
     room.on(ThreadEvent.NewReply, onThreadUpdate);
     return () => {
       mx.off(RoomEvent.Timeline, onTimeline);
+      mx.off(MatrixEventEvent.Decrypted, onDecrypted);
       room.removeListener(RoomEvent.Redaction, onRedaction);
       room.removeListener(ThreadEvent.Update, onThreadUpdate);
       room.removeListener(ThreadEvent.NewReply, onThreadUpdate);

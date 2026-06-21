@@ -64,7 +64,8 @@ import {
   BlockType,
 } from '$components/editor';
 import { plainToEditorInput } from '$components/editor/input';
-import { EmojiBoard, EmojiBoardTab, GifData } from '$components/emoji-board';
+import type { GifData } from '$components/emoji-board';
+import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
 import type { TUploadContent } from '$utils/matrix';
 import { encryptFile, getImageInfo, mxcUrlToHttp, toggleReaction } from '$utils/matrix';
@@ -271,6 +272,22 @@ interface RoomInputProps {
   room: Room;
   threadRootId?: string;
   onEditLastMessage?: () => void;
+}
+
+function toBase64Url(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+
+  for (const byte of bytes) {
+    binary += String.fromCodePoint(byte);
+  }
+
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll(/=+$/g, '');
+}
+
+function toMatrixID(fname: string, urlPrefix: string): string {
+  const base64 = toBase64Url(fname);
+  return urlPrefix + base64;
 }
 
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
@@ -1308,22 +1325,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     const handleGifSelect = async (gif: GifData) => {
-      function toBase64Url(value: string): string {
-        const bytes = new TextEncoder().encode(value);
-        let binary = '';
-
-        for (const byte of bytes) {
-          binary += String.fromCodePoint(byte);
-        }
-
-        return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll(/=+$/g, '');
-      }
-
-      function toMatrixID(fname: string, prefix: string): string {
-        const base64 = toBase64Url(fname);
-        return prefix + base64;
-      }
-
       let url = gif.url.startsWith('mxc://')
         ? gif.url
         : `mxc://${clientConfig.gifs?.proxyUrl ?? ''}/${toMatrixID(gif.url.slice('https://static.klipy.com/ii/'.length), 'klipy_')}`;

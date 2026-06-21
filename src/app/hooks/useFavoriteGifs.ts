@@ -1,4 +1,4 @@
-import { AccountDataEvents } from 'matrix-js-sdk';
+import type { AccountDataEvents } from 'matrix-js-sdk';
 import { MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS } from '../../unstable/prefixes';
 import { useAccountData } from './useAccountData';
 

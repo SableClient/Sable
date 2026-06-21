@@ -6,7 +6,7 @@ import type { MemberPowerTag } from '$types/matrix/room';
 import type { RoomAbbreviationsContent } from '$utils/abbreviations';
 import type { PronounSet } from '$utils/pronouns';
 import type * as prefix from '$unstable/prefixes';
-import { GifData } from '$components/emoji-board';
+import type { GifData } from '$components/emoji-board';
 
 type PowerLevelTagsEventContent = Record<number, MemberPowerTag>;
 

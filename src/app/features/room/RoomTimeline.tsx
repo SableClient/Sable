@@ -332,6 +332,7 @@ export function RoomTimeline({
   isReadyRef.current = isReady;
   const jumpRetryIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const jumpRecenterTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const jumpRouteCleanupTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const jumpHighlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const jumpAnchorKeyRef = useRef<string | undefined>(undefined);
   const jumpLayoutReanchorRafRef = useRef<number | undefined>(undefined);
@@ -626,6 +627,8 @@ export function RoomTimeline({
         clearTimeout(jumpHighlightTimeoutRef.current);
       if (jumpLockReleaseTimerRef.current !== undefined)
         clearTimeout(jumpLockReleaseTimerRef.current);
+      if (jumpRouteCleanupTimerRef.current !== undefined)
+        clearTimeout(jumpRouteCleanupTimerRef.current);
     },
     []
   );
@@ -719,17 +722,21 @@ export function RoomTimeline({
 
       const anchorKey = `${focusEventId ?? 'no-event'}:${index}`;
       const isNewAnchor = jumpAnchorKeyRef.current !== anchorKey;
-      if (isNewAnchor) {
-        jumpAnchorKeyRef.current = anchorKey;
-        if (jumpRetryIntervalRef.current !== undefined) {
-          clearInterval(jumpRetryIntervalRef.current);
-          jumpRetryIntervalRef.current = undefined;
+        if (isNewAnchor) {
+          jumpAnchorKeyRef.current = anchorKey;
+          if (jumpRetryIntervalRef.current !== undefined) {
+            clearInterval(jumpRetryIntervalRef.current);
+            jumpRetryIntervalRef.current = undefined;
         }
         jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
         jumpRecenterTimeoutIdsRef.current = [];
         if (jumpHighlightTimeoutRef.current !== undefined) {
           clearTimeout(jumpHighlightTimeoutRef.current);
           jumpHighlightTimeoutRef.current = undefined;
+        }
+        if (jumpRouteCleanupTimerRef.current !== undefined) {
+          clearTimeout(jumpRouteCleanupTimerRef.current);
+          jumpRouteCleanupTimerRef.current = undefined;
         }
       }
 
@@ -793,17 +800,6 @@ export function RoomTimeline({
         });
         timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
 
-        if (focusEventId && eventId === focusEventId) {
-          const basePath = stripRoomEventTargetPath(location.pathname);
-          if (basePath) {
-            const nextSearchParams = new URLSearchParams(location.search);
-            nextSearchParams.delete('jumpMode');
-            nextSearchParams.delete('joinCall');
-            const nextSearch = nextSearchParams.toString();
-            navigate(nextSearch ? `${basePath}?${nextSearch}` : basePath, { replace: true });
-          }
-        }
-
         scrollSucceeded = true;
 
         // Stop retry loop now that scroll succeeded
@@ -830,6 +826,27 @@ export function RoomTimeline({
             }, delay);
             jumpRecenterTimeoutIdsRef.current.push(recenterTimeoutId);
           });
+        }
+
+        if (
+          focusEventId &&
+          eventId === focusEventId &&
+          (focusJumpMode ?? jumpMode) === 'notification_live'
+        ) {
+          const basePath = stripRoomEventTargetPath(location.pathname);
+          if (basePath) {
+            jumpRouteCleanupTimerRef.current = setTimeout(() => {
+              const currentFocusItem = timelineSyncRef.current.focusItem;
+              if (currentFocusItem?.eventId !== focusEventId) return;
+
+              const nextSearchParams = new URLSearchParams(location.search);
+              nextSearchParams.delete('jumpMode');
+              nextSearchParams.delete('joinCall');
+              const nextSearch = nextSearchParams.toString();
+              navigate(nextSearch ? `${basePath}?${nextSearch}` : basePath, { replace: true });
+              jumpRouteCleanupTimerRef.current = undefined;
+            }, 3200);
+          }
         }
 
         return true;
@@ -867,6 +884,10 @@ export function RoomTimeline({
       if (jumpHighlightTimeoutRef.current !== undefined) {
         clearTimeout(jumpHighlightTimeoutRef.current);
         jumpHighlightTimeoutRef.current = undefined;
+      }
+      if (jumpRouteCleanupTimerRef.current !== undefined) {
+        clearTimeout(jumpRouteCleanupTimerRef.current);
+        jumpRouteCleanupTimerRef.current = undefined;
       }
     }
   }, [

@@ -148,37 +148,46 @@ const computeCollapseAndDividers = (
 
 const mergeDraftsAndExtras = (
   result: ProcessedEvent[],
-  extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet }[]
+  extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentTs: number }[]
 ): ProcessedEventDraft[] => {
   const resultDrafts = result.map(
     ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
   );
 
   const extraDrafts = extras
-    .map(({ mEvent, timelineSet }) => ({
-      id: mEvent.getId()!,
-      itemIndex: -1,
-      mEvent,
-      timelineSet,
-      eventSender: mEvent.getSender() ?? null,
+    .map(({ mEvent, timelineSet, parentTs }) => ({
+      draft: {
+        id: mEvent.getId()!,
+        itemIndex: -1,
+        mEvent,
+        timelineSet,
+        eventSender: mEvent.getSender() ?? null,
+      },
+      effectiveTs: Math.max(mEvent.getTs(), parentTs),
     }))
-    .toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
+    .toSorted((a, b) => a.effectiveTs - b.effectiveTs);
 
-  const mergedDrafts: ProcessedEventDraft[] = [];
-  let resultIdx = 0;
+  const buckets: ProcessedEventDraft[][] = Array.from(
+    { length: resultDrafts.length + 1 },
+    () => []
+  );
 
   for (const extra of extraDrafts) {
-    const extraTs = extra.mEvent.getTs();
-    while (resultIdx < resultDrafts.length && resultDrafts[resultIdx]!.mEvent.getTs() <= extraTs) {
-      mergedDrafts.push(resultDrafts[resultIdx]!);
-      resultIdx += 1;
+    const extraTs = extra.effectiveTs;
+    let insertIdx = 0;
+    for (let i = resultDrafts.length - 1; i >= 0; i -= 1) {
+      if (resultDrafts[i]!.mEvent.getTs() <= extraTs) {
+        insertIdx = i + 1;
+        break;
+      }
     }
-    mergedDrafts.push(extra);
+    buckets[insertIdx]!.push(extra.draft);
   }
 
-  while (resultIdx < resultDrafts.length) {
-    mergedDrafts.push(resultDrafts[resultIdx]!);
-    resultIdx += 1;
+  const mergedDrafts: ProcessedEventDraft[] = [...buckets[0]!];
+  for (let i = 0; i < resultDrafts.length; i += 1) {
+    mergedDrafts.push(resultDrafts[i]!);
+    mergedDrafts.push(...buckets[i + 1]!);
   }
 
   return mergedDrafts;

@@ -74,4 +74,17 @@ describe('resolveNotificationPreviewText', () => {
       })
     ).toBe('Decrypted body');
   });
+
+  it('uses the decrypted effective type for encrypted reaction notifications', () => {
+    expect(
+      resolveNotificationPreviewText({
+        content: { 'm.relates_to': { key: '👍' } },
+        eventType: 'm.room.encrypted',
+        effectiveType: 'm.reaction',
+        isEncryptedRoom: true,
+        showMessageContent: true,
+        showEncryptedMessageContent: true,
+      })
+    ).toBe('Reacted with 👍');
+  });
 });

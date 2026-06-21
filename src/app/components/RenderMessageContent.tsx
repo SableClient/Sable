@@ -463,7 +463,7 @@ function RenderMessageContentInternal({
   if (content['org.matrix.msc3381.poll.start']) {
     if (mEvent && mx && room)
       return <PollEvent content={content} mEvent={mEvent} mx={mx} room={room} />;
-    else return <UnsupportedContent body="abba" />;
+    else return <UnsupportedContent />;
   }
   return (
     <UnsupportedContent

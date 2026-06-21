@@ -57,10 +57,13 @@ import {
   EmojiGroup,
   EmojiBoardLayout,
 } from './components';
-import { EmojiBoardTab, EmojiType, GifData } from './types';
-import { GitDiffIcon } from '@phosphor-icons/react';
+import type { GifData } from './types';
+import { EmojiBoardTab, EmojiType } from './types';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
+
+/* oxlint-disable typescript/no-explicit-any */
+// TODO: type klipy api properly
 
 const RECENT_GROUP_ID = 'recent_group';
 const SEARCH_GROUP_ID = 'search_group';
@@ -594,7 +597,7 @@ export function EmojiBoard({
           setLoading(false);
         }
       },
-      [parseKlipyResult]
+      [parseKlipyResult, klipyApiKey]
     );
 
     return { gifs, loading, error, searchGifs };
@@ -837,7 +840,7 @@ export function EmojiBoard({
               <GifStatus
                 loading={gifsLoading}
                 error={gifsError}
-                isEmpty={groups.flatMap((v) => v.items.map((i) => 'gif')).length === 0}
+                isEmpty={groups.flatMap((v) => v.items.map(() => 'gif')).length === 0}
               />
             )}
           </EmojiGroupHolder>

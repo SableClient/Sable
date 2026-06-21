@@ -3,14 +3,15 @@ import type { MatrixClient } from '$types/matrix-sdk';
 import type { PackImageReader } from '$plugins/custom-emoji';
 import type { IEmoji } from '$plugins/emoji';
 import { mxcUrlToHttp } from '$utils/matrix';
-import { EmojiItemInfo, EmojiType, GifData } from '$components/emoji-board/types';
-import { CSSProperties, ReactNode, useEffect, useState } from 'react';
+import type { EmojiItemInfo, GifData } from '$components/emoji-board/types';
+import { EmojiType } from '$components/emoji-board/types';
+import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import * as css from './styles.css';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 import { Star, menuIcon } from '$components/icons/phosphor';
 import { MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS } from '$unstable/prefixes';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import classNames from 'classnames';
 
 const ANIMATED_MIME_TYPES = new Set(['image/gif', 'image/apng']);
 

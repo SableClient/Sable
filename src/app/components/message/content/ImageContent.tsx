@@ -48,8 +48,6 @@ import {
   MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS,
   MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
 } from '../../../../unstable/prefixes';
-import { useAccountData } from '$hooks/useAccountData';
-import { AccountDataEvents, IContent } from 'matrix-js-sdk';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 
 function thumbnailDimsForMaxEdge(

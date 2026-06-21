@@ -180,6 +180,22 @@ export function RenderElement({ attributes, element, children }: RenderElementPr
   }
 }
 
-export function RenderLeaf({ attributes, children }: RenderLeafProps) {
+export function RenderLeaf({ attributes, children, leaf }: RenderLeafProps) {
+  if (leaf.systemEmoji) {
+    return (
+      <span {...attributes} className={css.EmoticonBase}>
+        <span
+          className={classNames(
+            css.SystemEmoji,
+            leaf.systemEmojiFixedCell && css.SystemEmojiFixedCell
+          )}
+          title={leaf.systemEmojiTitle}
+        >
+          {children}
+        </span>
+      </span>
+    );
+  }
+
   return <span {...attributes}>{children}</span>;
 }

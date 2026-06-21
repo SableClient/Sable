@@ -1398,6 +1398,7 @@ function HandleDecryptPushEvent() {
           eventId,
           success: true,
           eventType: mxEvent.getType(),
+          effectiveType: mxEvent.getEffectiveEvent()?.type as string | undefined,
           content: mxEvent.getContent(),
           sender_display_name: senderName,
           room_name: room?.name ?? '',

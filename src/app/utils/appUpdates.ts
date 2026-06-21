@@ -22,6 +22,14 @@ export type AppUpdateCheckResult =
       canApply: false;
     };
 
+export const hasPendingAppUpdate = (registration: ServiceWorkerRegistration | undefined): boolean =>
+  !!(
+    registration &&
+    navigator.serviceWorker.controller &&
+    (registration.waiting ||
+      (registration.active && registration.active !== navigator.serviceWorker.controller))
+  );
+
 const getAppServiceWorkerRegistration = async (): Promise<
   ServiceWorkerRegistration | undefined
 > => {
@@ -45,19 +53,7 @@ const waitForWaitingServiceWorker = async (
   registration: ServiceWorkerRegistration
 ): Promise<boolean> =>
   new Promise((resolve) => {
-    const hasPendingActiveUpdate = () =>
-      !!(
-        navigator.serviceWorker.controller &&
-        registration.active &&
-        registration.active !== navigator.serviceWorker.controller
-      );
-
-    if (registration.waiting && navigator.serviceWorker.controller) {
-      resolve(true);
-      return;
-    }
-
-    if (hasPendingActiveUpdate()) {
+    if (hasPendingAppUpdate(registration)) {
       resolve(true);
       return;
     }
@@ -80,12 +76,7 @@ const waitForWaitingServiceWorker = async (
     };
 
     const handleInstallingState = () => {
-      if (registration.waiting && navigator.serviceWorker.controller) {
-        finish(true);
-        return;
-      }
-
-      if (hasPendingActiveUpdate()) {
+      if (hasPendingAppUpdate(registration)) {
         finish(true);
       }
     };
@@ -132,19 +123,7 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
     };
   }
 
-  if (registration.waiting && navigator.serviceWorker.controller) {
-    return {
-      kind: 'update-available',
-      message: 'An update is ready to apply.',
-      canApply: true,
-    };
-  }
-
-  if (
-    navigator.serviceWorker.controller &&
-    registration.active &&
-    registration.active !== navigator.serviceWorker.controller
-  ) {
+  if (hasPendingAppUpdate(registration)) {
     return {
       kind: 'update-available',
       message: 'An update is ready to apply.',
@@ -178,7 +157,7 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
 
 export async function applyPendingAppUpdate(): Promise<void> {
   const registration = await getAppServiceWorkerRegistration();
-  if (!registration) return;
+  if (!registration || !hasPendingAppUpdate(registration)) return;
 
   if (registration.waiting) {
     const waitForControllerChange = waitForServiceWorkerControllerChange();

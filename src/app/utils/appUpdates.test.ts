@@ -235,6 +235,12 @@ describe('appUpdates', () => {
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
+  it('does not reload when there is no pending app update to apply', async () => {
+    await applyPendingAppUpdate();
+
+    expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
+  });
+
   it('reports native updater unsupported when service workers are unavailable', async () => {
     mockHasServiceWorker.mockReturnValue(false);
 

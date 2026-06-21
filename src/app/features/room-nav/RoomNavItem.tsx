@@ -451,9 +451,9 @@ export function RoomNavItem({
                           <RoomAvatar
                             roomId={room.roomId}
                             src={
-                              ((!direct || customDMCards) &&
-                                getRoomAvatarUrl(mx, room, 96, useAuthentication)) ||
-                              getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+                              direct && !customDMCards
+                                ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+                                : getRoomAvatarUrl(mx, room, 96, useAuthentication)
                             }
                             uniformIcons
                             alt={roomName}

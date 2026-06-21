@@ -1,11 +1,16 @@
-import { Box } from 'folds';
+import { Box, color, config, Menu, MenuItem } from 'folds';
 import type { MatrixClient } from '$types/matrix-sdk';
 import type { PackImageReader } from '$plugins/custom-emoji';
 import type { IEmoji } from '$plugins/emoji';
 import { mxcUrlToHttp } from '$utils/matrix';
-import type { EmojiItemInfo } from '$components/emoji-board/types';
-import { EmojiType } from '$components/emoji-board/types';
+import { EmojiItemInfo, EmojiType, GifData } from '$components/emoji-board/types';
+import { CSSProperties, ReactNode, useEffect, useState } from 'react';
 import * as css from './styles.css';
+import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
+import { Star, menuIcon } from '$components/icons/phosphor';
+import { MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS } from '$unstable/prefixes';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import classNames from 'classnames';
 
 const ANIMATED_MIME_TYPES = new Set(['image/gif', 'image/apng']);
 
@@ -137,6 +142,95 @@ export function StickerItem({
         alt={image.body || image.shortcode}
         src={getPackImageSrc(mx, image, useAuthentication, saveStickerEmojiBandwidth, 125, 125)}
       />
+    </Box>
+  );
+}
+
+export function GifItem({
+  label,
+  type,
+  data,
+  shortcode,
+  gif,
+  style,
+  children,
+}: {
+  label: string;
+  type: EmojiType;
+  data: string;
+  shortcode: string;
+  gif: GifData;
+  style?: CSSProperties;
+  children: ReactNode;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const initialFavorited = useFavoriteGifs();
+  const [favoritedContent, setFavoritedContent] = useState(initialFavorited);
+  const [favorited, setFavorited] = useState(
+    favoritedContent.gifs.find((v) => v.url == gif?.url) != undefined
+  );
+  const mx = useMatrixClient();
+
+  useEffect(() => {
+    setFavoritedContent(initialFavorited);
+  }, [initialFavorited]);
+
+  return (
+    <Box
+      as="button"
+      className={css.GifItem}
+      type="button"
+      style={style}
+      alignItems="Center"
+      justifyContent="Center"
+      title={label}
+      aria-label={`${label} gif`}
+      data-emoji-type={type}
+      data-emoji-data={data}
+      data-emoji-shortcode={shortcode}
+      data-gif-data={gif ? JSON.stringify(gif) : undefined}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
+    >
+      {children}
+      {isHovered && (
+        <Box style={{ padding: config.space.S200, right: 0, top: 0, position: 'absolute' }}>
+          <Menu style={{ padding: config.space.S0 }}>
+            <Box>
+              <MenuItem
+                size="300"
+                radii="0"
+                fill="Soft"
+                variant="Secondary"
+                title={favorited ? 'Unfavorite gif' : 'Favorite gif'}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (!favorited) {
+                    setFavorited(true);
+                    await mx
+                      .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
+                        gifs: [...favoritedContent.gifs, gif],
+                      })
+                      .catch(() => setFavorited(false));
+                  } else {
+                    setFavorited(false);
+                    await mx
+                      .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
+                        gifs: favoritedContent.gifs.filter((v) => v.url != gif.url),
+                      })
+                      .catch(() => setFavorited(true));
+                  }
+                }}
+              >
+                {menuIcon(Star, {
+                  weight: favorited ? 'fill' : 'regular',
+                  color: favorited ? color.Warning.MainHover : color.Surface.OnContainer,
+                })}
+              </MenuItem>
+            </Box>
+          </Menu>
+        </Box>
+      )}
     </Box>
   );
 }

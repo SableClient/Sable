@@ -64,7 +64,7 @@ import {
   BlockType,
 } from '$components/editor';
 import { plainToEditorInput } from '$components/editor/input';
-import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
+import { EmojiBoard, EmojiBoardTab, GifData } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
 import type { TUploadContent } from '$utils/matrix';
 import { encryptFile, getImageInfo, mxcUrlToHttp, toggleReaction } from '$utils/matrix';
@@ -179,6 +179,8 @@ import { AudioMessageRecorder } from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
 import { PollDialog } from './poll-modals';
 import { LocationDialog } from './location-modal';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { GifIcon } from '@phosphor-icons/react';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -277,6 +279,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     // don't clobber the main room draft (and vice versa).
     const draftKey = threadRootId ?? roomId;
     const mx = useMatrixClient();
+    const clientConfig = useClientConfig();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [editorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
@@ -1293,6 +1296,57 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       mx.sendEvent(roomId, EventType.Sticker, content);
     };
 
+    const handleGifSelect = async (gif: GifData) => {
+      function toBase64Url(value: string): string {
+        const bytes = new TextEncoder().encode(value);
+        let binary = '';
+
+        for (const byte of bytes) {
+          binary += String.fromCodePoint(byte);
+        }
+
+        return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll(/=+$/g, '');
+      }
+
+      function toMatrixID(fname: string, prefix: string): string {
+        const base64 = toBase64Url(fname);
+        return prefix + base64;
+      }
+
+      let url = gif.url.startsWith('mxc://')
+        ? gif.url
+        : `mxc://${clientConfig.gifs?.proxyUrl ?? ''}/${toMatrixID(gif.url.slice('https://static.klipy.com/ii/'.length), 'klipy_')}`;
+
+      const content: RoomMessageEventContent & ReplyEventContent & IContent = {
+        body: gif.title,
+        url: url,
+        msgtype: MsgType.Image,
+        info: {
+          w: gif.width,
+          h: gif.height,
+          mimetype: 'image/gif',
+        },
+      };
+
+      // Handle replies if there's a reply draft
+      if (replyDraft) {
+        content['m.relates_to'] = {
+          'm.in_reply_to': {
+            event_id: replyDraft.eventId,
+          },
+        };
+        if (replyDraft.relation?.rel_type === RelationType.Thread) {
+          content['m.relates_to'].event_id = replyDraft.relation.event_id;
+          content['m.relates_to'].rel_type = RelationType.Thread;
+          content['m.relates_to'].is_falling_back = false;
+        }
+      }
+
+      // Send the gif as sticker event.
+      await mx.sendEvent(roomId, EventType.RoomMessage, content);
+      setReplyDraft(undefined);
+    };
+
     return (
       <div ref={ref}>
         {selectedFiles.length > 0 && (
@@ -1691,6 +1745,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         onEmojiSelect={handleEmoticonSelect}
                         onCustomEmojiSelect={handleEmoticonSelect}
                         onStickerSelect={handleStickerSelect}
+                        onGifSelect={handleGifSelect}
                         requestClose={() => {
                           setEmojiBoardTab((t) => {
                             if (t) {
@@ -1703,6 +1758,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       />
                     }
                   >
+                    <IconButton
+                      aria-pressed={emojiBoardTab === EmojiBoardTab.Gif}
+                      onClick={() => setEmojiBoardTab(EmojiBoardTab.Gif)}
+                      variant="SurfaceVariant"
+                      size="300"
+                      radii="300"
+                    >
+                      {composerIcon(GifIcon, {
+                        weight: emojiBoardTab === EmojiBoardTab.Gif ? 'fill' : 'regular',
+                      })}
+                    </IconButton>
                     {!hideStickerBtn && (
                       <IconButton
                         aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
@@ -1721,7 +1787,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     <IconButton
                       ref={emojiBtnRef}
                       aria-pressed={
-                        hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
+                        hideStickerBtn
+                          ? emojiBoardTab === EmojiBoardTab.Emoji ||
+                            emojiBoardTab === EmojiBoardTab.Gif
+                          : emojiBoardTab === EmojiBoardTab.Emoji
                       }
                       onClick={() => setEmojiBoardTab(EmojiBoardTab.Emoji)}
                       variant="SurfaceVariant"

@@ -223,7 +223,7 @@ export const toMatrixCustomHTML = (
   node: Descendant | Descendant[],
   opts: OutputOptions
 ): string => {
-  const parseNode = (n: Descendant, index: number, targetNodes: Descendant[]) => {
+  const parseNode = (n: Descendant) => {
     if ('type' in n && n.type === BlockType.Paragraph) {
       let line = toMatrixCustomHTML(n, opts);
 
@@ -243,7 +243,7 @@ export const toMatrixCustomHTML = (
     return toMatrixCustomHTML(n, opts);
   };
   if (Array.isArray(node)) {
-    const lines = node.map((element, index, array) => parseNode(element, index, array));
+    const lines = node.map((element) => parseNode(element));
 
     while (lines[0] === '') lines.shift();
     while (lines.at(-1) === '') lines.pop();
@@ -282,9 +282,7 @@ export const toMatrixCustomHTML = (
   }
   if (Text.isText(node)) return textToCustomHtml(node);
 
-  const children = node.children
-    .map((element, index, array) => parseNode(element, index, array))
-    .join('');
+  const children = node.children.map((element) => parseNode(element)).join('');
   return elementToCustomHtml(node, children, opts);
 };
 

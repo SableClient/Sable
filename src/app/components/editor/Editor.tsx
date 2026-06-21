@@ -9,6 +9,7 @@ import { withHistory } from 'slate-history';
 import { isPhone, mobileOrTablet } from '$utils/user-agent';
 import { getHexcodeForEmoji, getShortcodeFor, isFixedCellEmoji } from '$plugins/emoji';
 import { findSystemEmojiMatches } from '$plugins/react-custom-html-parser';
+import * as customHtmlCss from '$styles/CustomHtml.css';
 import { BlockType } from './types';
 import { RenderElement, RenderLeaf } from './Elements';
 import type { CustomElement } from './slate';
@@ -48,6 +49,44 @@ const TRAILING_SPACE_SENTINEL = '\u200B';
 
 const normalizeMeasurementText = (text: string): string =>
   /[ \t]+$/.test(text) ? `${text}${TRAILING_SPACE_SENTINEL}` : text;
+
+const setMeasurementContent = (container: HTMLDivElement, text: string) => {
+  const normalizedText = normalizeMeasurementText(text);
+  const matches = findSystemEmojiMatches(normalizedText);
+
+  if (matches.length === 0) {
+    container.textContent = normalizedText;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  let cursor = 0;
+
+  matches.forEach(({ emoji, start, end }) => {
+    if (start > cursor) {
+      fragment.append(normalizedText.slice(cursor, start));
+    }
+
+    const wrapper = document.createElement('span');
+    wrapper.className = customHtmlCss.EmoticonBase;
+
+    const glyph = document.createElement('span');
+    glyph.className = isFixedCellEmoji(emoji)
+      ? `${customHtmlCss.SystemEmoji} ${customHtmlCss.SystemEmojiFixedCell}`
+      : customHtmlCss.SystemEmoji;
+    glyph.textContent = emoji;
+
+    wrapper.append(glyph);
+    fragment.append(wrapper);
+    cursor = end;
+  });
+
+  if (cursor < normalizedText.length) {
+    fragment.append(normalizedText.slice(cursor));
+  }
+
+  container.replaceChildren(fragment);
+};
 
 type MultilineMeasurementCache = {
   result: boolean;
@@ -242,7 +281,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
               // back into the answer.
               const measureHeight = (content: string, width: string): number => {
                 textMeasurer.style.width = width;
-                textMeasurer.textContent = normalizeMeasurementText(content);
+                setMeasurementContent(textMeasurer, content);
                 return textMeasurer.scrollHeight;
               };
               const singleLineHeight = measureHeight('M', 'max-content');

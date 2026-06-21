@@ -78,6 +78,7 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync, type TimelineJumpMode } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
+import { stripRoomEventSegment } from '$pages/pathUtils';
 import {
   useProcessedTimeline,
   getProcessedRowIndexForRawTimelineIndex,
@@ -741,10 +742,10 @@ export function RoomTimeline({
           clearTimeout(jumpRouteCleanupTimerRef.current);
           jumpRouteCleanupTimerRef.current = undefined;
         }
+        activateJumpLock(focusEventId);
       }
 
       let scrollSucceeded = false;
-      activateJumpLock(focusEventId);
       const resolveProcessedIndex = () => {
         const currentFocusItem = timelineSyncRef.current.focusItem;
         if (!currentFocusItem) return undefined;
@@ -838,13 +839,16 @@ export function RoomTimeline({
         ) {
           jumpRouteCleanupTimerRef.current = setTimeout(() => {
             const currentFocusItem = timelineSyncRef.current.focusItem;
-            if (currentFocusItem?.eventId !== focusEventId) return;
+            if (currentFocusItem?.eventId !== focusEventId || !liveTimelineLinkedRef.current) {
+              return;
+            }
 
             const nextSearchParams = new URLSearchParams(location.search);
             nextSearchParams.delete('jumpMode');
             nextSearchParams.delete('joinCall');
             const nextSearch = nextSearchParams.toString();
-            navigate(nextSearch ? `${location.pathname}?${nextSearch}` : location.pathname, {
+            const nextPathname = stripRoomEventSegment(location.pathname, focusEventId);
+            navigate(nextSearch ? `${nextPathname}?${nextSearch}` : nextPathname, {
               replace: true,
             });
             jumpRouteCleanupTimerRef.current = undefined;

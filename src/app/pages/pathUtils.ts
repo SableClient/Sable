@@ -203,6 +203,17 @@ export const getHomeRoomPath = (roomIdOrAlias: string, eventId?: string): string
   return generatePath(HOME_ROOM_PATH, params);
 };
 
+export const stripRoomEventSegment = (pathname: string, eventId: string): string => {
+  const eventSegment = `/${encodeURIComponent(eventId)}`;
+
+  if (!pathname.endsWith(eventSegment)) {
+    return pathname;
+  }
+
+  const nextPath = pathname.slice(0, -eventSegment.length);
+  return nextPath.length > 0 ? nextPath : '/';
+};
+
 export const getDirectPath = (): string => DIRECT_PATH;
 export const getDirectCreatePath = (): string => DIRECT_CREATE_PATH;
 export const getDirectSearchPath = (): string => DIRECT_SEARCH_PATH;

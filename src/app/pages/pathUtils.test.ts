@@ -3,6 +3,7 @@ import {
   getAppPathFromWindowHref,
   getSettingsPath,
   getToRoomEventPath,
+  stripRoomEventSegment,
   withAdditionalSearchParams,
 } from './pathUtils';
 
@@ -59,6 +60,20 @@ describe('withAdditionalSearchParams', () => {
   it('adds search params onto a path without clobbering existing ones', () => {
     expect(withAdditionalSearchParams('/room/abc?foo=bar', { joinCall: 'true' })).toBe(
       '/room/abc?foo=bar&joinCall=true'
+    );
+  });
+});
+
+describe('stripRoomEventSegment', () => {
+  it('drops a trailing room event path segment', () => {
+    expect(stripRoomEventSegment('/direct/%21room%3Aexample/%24event123', '$event123')).toBe(
+      '/direct/%21room%3Aexample'
+    );
+  });
+
+  it('leaves the path alone when the trailing segment is not the target event', () => {
+    expect(stripRoomEventSegment('/direct/%21room%3Aexample/%24other', '$event123')).toBe(
+      '/direct/%21room%3Aexample/%24other'
     );
   });
 });

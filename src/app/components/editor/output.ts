@@ -98,6 +98,23 @@ const isEmptyParagraph = (node: Descendant): node is CustomElement =>
 const hasBlockHtml = (html: string): boolean =>
   /<(?:p|h[1-6]|ul|ol|li|blockquote|pre|hr|table|div)\b/i.test(html);
 
+const hasOpenMarkdownFence = (markdown: string): boolean => {
+  let openFence: '```' | '~~~' | undefined;
+
+  markdown.split('\n').forEach((line) => {
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith('```')) {
+      openFence = openFence === '```' ? undefined : '```';
+      return;
+    }
+    if (trimmed.startsWith('~~~')) {
+      openFence = openFence === '~~~' ? undefined : '~~~';
+    }
+  });
+
+  return openFence !== undefined;
+};
+
 /**
  * convert slate internal representation to a custom HTML string that can be sent to the server
  * @param node slate node
@@ -143,13 +160,32 @@ export const toMatrixCustomHTML = (
   };
   if (Array.isArray(node)) {
     let output = '';
+    let inlineOutput = '';
     let pendingEmptyParagraphs = 0;
     let hasEmittedContent = false;
+    const emitInlineOutput = (forceParagraph = false) => {
+      if (inlineOutput.length === 0) return;
+
+      if (
+        !opts.forEmote &&
+        !hasBlockHtml(inlineOutput) &&
+        (forceParagraph || inlineOutput.includes('<br/><br/>'))
+      ) {
+        output += `<p>${inlineOutput}</p>`;
+      } else {
+        output += inlineOutput;
+      }
+      inlineOutput = '';
+    };
 
     node.forEach((element, index, array) => {
       if (isEmptyParagraph(element)) {
+        if (markdownLines.length > 0 && hasOpenMarkdownFence(markdownLines)) {
+          markdownLines += '\n';
+          return;
+        }
         if (markdownLines.length > 0) {
-          output += flushMarkdownLines(markdownLines);
+          inlineOutput += flushMarkdownLines(markdownLines);
           markdownLines = '';
           hasEmittedContent = true;
         }
@@ -158,30 +194,29 @@ export const toMatrixCustomHTML = (
       }
 
       if (pendingEmptyParagraphs > 0) {
-        output += '<br/>'.repeat(pendingEmptyParagraphs + (hasEmittedContent ? 1 : 0));
+        inlineOutput += '<br/>'.repeat(pendingEmptyParagraphs + (hasEmittedContent ? 1 : 0));
         pendingEmptyParagraphs = 0;
       }
 
       const parsed = parseNode(element, index, array);
       if (parsed.length > 0) {
-        output += parsed;
+        if (hasBlockHtml(parsed)) {
+          emitInlineOutput(true);
+          output += parsed;
+        } else {
+          inlineOutput += parsed;
+        }
         markdownLines = '';
         hasEmittedContent = true;
       }
     });
 
     if (markdownLines.length > 0) {
-      output += flushMarkdownLines(markdownLines);
+      inlineOutput += flushMarkdownLines(markdownLines);
       markdownLines = '';
       hasEmittedContent = true;
     }
-    if (pendingEmptyParagraphs > 0) {
-      output += '<br/>'.repeat(pendingEmptyParagraphs);
-    }
-
-    if (!opts.forEmote && output.includes('<br/><br/>') && !hasBlockHtml(output)) {
-      return `<p>${output}</p>`;
-    }
+    emitInlineOutput();
 
     return output;
   }

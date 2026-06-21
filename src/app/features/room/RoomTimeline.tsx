@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { Editor } from 'slate';
 import { useAtomValue, useAtom, useSetAtom } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
@@ -77,6 +78,7 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync, type TimelineJumpMode } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
+import { stripRoomEventSegment } from '$pages/pathUtils';
 import {
   useProcessedTimeline,
   getProcessedRowIndexForRawTimelineIndex,
@@ -160,6 +162,8 @@ export function RoomTimeline({
   onEditLastMessageRef,
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const alive = useAlive();
   const screenSize = useScreenSizeContext();
 
@@ -328,6 +332,7 @@ export function RoomTimeline({
   isReadyRef.current = isReady;
   const jumpRetryIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const jumpRecenterTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const jumpRouteCleanupTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const jumpHighlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const jumpAnchorKeyRef = useRef<string | undefined>(undefined);
   const jumpLayoutReanchorRafRef = useRef<number | undefined>(undefined);
@@ -622,13 +627,19 @@ export function RoomTimeline({
         clearTimeout(jumpHighlightTimeoutRef.current);
       if (jumpLockReleaseTimerRef.current !== undefined)
         clearTimeout(jumpLockReleaseTimerRef.current);
+      if (jumpRouteCleanupTimerRef.current !== undefined)
+        clearTimeout(jumpRouteCleanupTimerRef.current);
     },
     []
   );
 
   useEffect(() => {
+    if (jumpRouteCleanupTimerRef.current !== undefined) {
+      clearTimeout(jumpRouteCleanupTimerRef.current);
+      jumpRouteCleanupTimerRef.current = undefined;
+    }
     releaseJumpLock('route_change');
-  }, [eventId, room.roomId, releaseJumpLock]);
+  }, [eventId, location.pathname, location.search, room.roomId, releaseJumpLock]);
 
   // If the timeline was blanked while content was already visible — e.g. a
   // TimelineReset fired by mx.retryImmediately() when the app comes back from
@@ -727,10 +738,14 @@ export function RoomTimeline({
           clearTimeout(jumpHighlightTimeoutRef.current);
           jumpHighlightTimeoutRef.current = undefined;
         }
+        if (jumpRouteCleanupTimerRef.current !== undefined) {
+          clearTimeout(jumpRouteCleanupTimerRef.current);
+          jumpRouteCleanupTimerRef.current = undefined;
+        }
+        activateJumpLock(focusEventId);
       }
 
       let scrollSucceeded = false;
-      activateJumpLock(focusEventId);
       const resolveProcessedIndex = () => {
         const currentFocusItem = timelineSyncRef.current.focusItem;
         if (!currentFocusItem) return undefined;
@@ -788,6 +803,7 @@ export function RoomTimeline({
           align: timelineSync.focusItem.align ?? 'center',
         });
         timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
+
         scrollSucceeded = true;
 
         // Stop retry loop now that scroll succeeded
@@ -814,6 +830,29 @@ export function RoomTimeline({
             }, delay);
             jumpRecenterTimeoutIdsRef.current.push(recenterTimeoutId);
           });
+        }
+
+        if (
+          focusEventId &&
+          eventId === focusEventId &&
+          (focusJumpMode ?? jumpMode) === 'notification_live'
+        ) {
+          jumpRouteCleanupTimerRef.current = setTimeout(() => {
+            const currentFocusItem = timelineSyncRef.current.focusItem;
+            if (currentFocusItem?.eventId !== focusEventId || !liveTimelineLinkedRef.current) {
+              return;
+            }
+
+            const nextSearchParams = new URLSearchParams(location.search);
+            nextSearchParams.delete('jumpMode');
+            nextSearchParams.delete('joinCall');
+            const nextSearch = nextSearchParams.toString();
+            const nextPathname = stripRoomEventSegment(location.pathname, focusEventId);
+            navigate(nextSearch ? `${nextPathname}?${nextSearch}` : nextPathname, {
+              replace: true,
+            });
+            jumpRouteCleanupTimerRef.current = undefined;
+          }, 3200);
         }
 
         return true;
@@ -852,6 +891,10 @@ export function RoomTimeline({
         clearTimeout(jumpHighlightTimeoutRef.current);
         jumpHighlightTimeoutRef.current = undefined;
       }
+      if (jumpRouteCleanupTimerRef.current !== undefined) {
+        clearTimeout(jumpRouteCleanupTimerRef.current);
+        jumpRouteCleanupTimerRef.current = undefined;
+      }
     }
   }, [
     timelineSync.focusItem,
@@ -864,6 +907,10 @@ export function RoomTimeline({
     reanchorJumpTarget,
     room.roomId,
     jumpMode,
+    eventId,
+    location.pathname,
+    location.search,
+    navigate,
   ]);
 
   useEffect(() => {

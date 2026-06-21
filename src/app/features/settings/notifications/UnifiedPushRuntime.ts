@@ -164,6 +164,8 @@ async function handleRichPushPayload(
       const previewText = resolveNotificationPreviewText({
         content: pushData?.content,
         eventType: optionalString(pushData?.type),
+        effectiveType:
+          optionalString(pushData?.effectiveType) ?? optionalString(pushData?.effective_type),
         isEncryptedRoom: isEncrypted,
         showMessageContent: settings.showMessageContent,
         showEncryptedMessageContent: settings.showEncryptedMessageContent,
@@ -309,6 +311,7 @@ async function handleMinimalPushPayload(
       previewText = resolveNotificationPreviewText({
         content: mEvent.getContent(),
         eventType: mEvent.getType(),
+        effectiveType: mEvent.getEffectiveEvent()?.type as string | undefined,
         isEncryptedRoom,
         showMessageContent: settings.showMessageContent,
         showEncryptedMessageContent: settings.showEncryptedMessageContent,

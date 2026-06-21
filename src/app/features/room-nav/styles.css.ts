@@ -112,15 +112,9 @@ export const MessagePreview = style([
   SecondaryLineBase,
   {
     pointerEvents: 'none',
-    vars: {
-      '--sable-system-emoji-font-size': '1em',
-      '--sable-system-emoji-top': '-0.1em',
-      '--sable-custom-emoji-font-size': '1em',
-      '--sable-custom-emoji-align': '0',
-    },
-    lineHeight: '1.35em',
-    minHeight: '1.35em',
-    maxHeight: '1.35em',
+    lineHeight: '1.5em',
+    minHeight: '1.5em',
+    maxHeight: '1.5em',
   },
 ]);
 

@@ -104,7 +104,7 @@ export const MessageBase = recipe({
     DefaultReset,
     {
       marginTop: SpacingVar,
-      padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
+      padding: `${config.space.S200} ${config.space.S200} ${config.space.S200} ${config.space.S400}`,
       borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
       minHeight: toRem(16),
       contain: 'layout',
@@ -255,10 +255,10 @@ export const PronounPill = style({
 export const MessageTextBody = recipe({
   base: {
     vars: {
-      '--sable-system-emoji-font-size': '1em',
-      '--sable-system-emoji-top': '-0.1em',
-      '--sable-custom-emoji-font-size': '1em',
-      '--sable-custom-emoji-align': '0',
+      '--sable-system-emoji-font-size': '1.33em',
+      '--sable-system-emoji-top': '-0.28em',
+      '--sable-custom-emoji-font-size': '1.2em',
+      '--sable-custom-emoji-align': '-0.12em',
     },
     unicodeBidi: 'plaintext',
     alignSelf: 'start',

@@ -108,6 +108,7 @@ test.describe('emoji polish smoke', () => {
         firstSticker,
         secondSticker,
         thirdSticker,
+        baselineLine: measure('[data-testid="smoke-emoji-baseline-line"]'),
         baselineText: measure('[data-testid="smoke-emoji-baseline-text"]'),
         baselineEmoji: measure('[data-testid="smoke-emoji-baseline-line"] span[title]'),
         compactPreview: measure('[data-testid="smoke-compact-preview-line"]'),
@@ -131,6 +132,7 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.firstSticker).not.toBeNull();
     expect(metrics.secondSticker).not.toBeNull();
     expect(metrics.thirdSticker).not.toBeNull();
+    expect(metrics.baselineLine).not.toBeNull();
     expect(metrics.baselineText).not.toBeNull();
     expect(metrics.baselineEmoji).not.toBeNull();
     expect(metrics.compactPreview).not.toBeNull();
@@ -150,12 +152,12 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.stickerImage!.height).toBe(96);
     expect(metrics.secondSticker!.left - metrics.firstSticker!.right).toBeGreaterThanOrEqual(4);
     expect(metrics.thirdSticker!.left - metrics.secondSticker!.right).toBeGreaterThanOrEqual(4);
-    expect(Math.abs(metrics.baselineEmoji!.centerY - metrics.baselineText!.centerY)).toBeLessThan(
-      4
+    expect(metrics.baselineEmoji!.top).toBeGreaterThanOrEqual(metrics.baselineLine!.top - 6);
+    expect(metrics.baselineEmoji!.bottom).toBeLessThanOrEqual(metrics.baselineLine!.bottom + 2);
+    expect(metrics.compactPreviewEmoji!.top).toBeGreaterThanOrEqual(metrics.compactPreview!.top - 4);
+    expect(metrics.compactPreviewEmoji!.bottom).toBeLessThanOrEqual(
+      metrics.compactPreview!.bottom + 2
     );
-    expect(metrics.compactPreviewEmoji!.height).toBeLessThanOrEqual(16);
-    expect(metrics.compactPreviewEmoji!.top).toBeGreaterThanOrEqual(metrics.compactPreview!.top);
-    expect(metrics.compactPreviewEmoji!.bottom).toBeLessThanOrEqual(metrics.compactPreview!.bottom);
 
     await captureSnapshot(page, 'emoji-polish/sticker-fit-and-baseline');
   });

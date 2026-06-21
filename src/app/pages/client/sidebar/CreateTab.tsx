@@ -4,7 +4,7 @@ import type { RectCords } from 'folds';
 import { Box, config, Menu, PopOut, Text } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
-import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
+import { SidebarAvatar, SidebarItemLeft, SidebarItemTooltip } from '$components/sidebar';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -95,7 +95,7 @@ export function CreateTab() {
   };
 
   return (
-    <SidebarItem active={isSelected}>
+    <SidebarItemLeft active={isSelected}>
       <SidebarItemTooltip tooltip="Add Space">
         {(triggerRef) => (
           <PopOut
@@ -171,6 +171,7 @@ export function CreateTab() {
               ref={triggerRef}
               outlined
               onClick={handleMenu}
+              size="300"
             >
               {(joinAddress && <Link size={getPhosphorSize().toolbar} />) ||
                 (exploreSelected && (
@@ -199,6 +200,6 @@ export function CreateTab() {
           </PopOut>
         )}
       </SidebarItemTooltip>
-    </SidebarItem>
+    </SidebarItemLeft>
   );
 }

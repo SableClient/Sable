@@ -116,6 +116,59 @@ export const SidebarItem = recipe({
     },
   },
 });
+
+const PUSH_Y = 0;
+export const SidebarItemBottom = recipe({
+  base: [
+    DefaultReset,
+    {
+      minHeight: toRem(30),
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      transition: 'transform 200ms cubic-bezier(0, 0.8, 0.67, 0.97)',
+
+      selectors: {
+        '&:hover': {
+          transform: `translateY(${toRem(PUSH_Y)})`,
+        },
+        '&::before': {
+          content: '',
+          display: 'none',
+          position: 'absolute',
+          bottom: toRem(-11.5 - PUSH_Y),
+          height: toRem(3 + PUSH_Y),
+          width: toRem(16),
+          borderRadius: `${toRem(4)} ${toRem(4)} 0 0`,
+          background: 'CurrentColor',
+          transition: 'height 200ms linear',
+        },
+        '&:hover::before': {
+          display: 'block',
+          height: toRem(3),
+        },
+      },
+    },
+    Disabled,
+    DropTarget,
+  ],
+  variants: {
+    active: {
+      true: {
+        selectors: {
+          '&::before': {
+            display: 'block',
+            width: toRem(24),
+          },
+          '&:hover::before': {
+            height: toRem(3 + PUSH_Y),
+          },
+        },
+      },
+    },
+  },
+});
 export type SidebarItemVariants = RecipeVariants<typeof SidebarItem>;
 
 export const SidebarItemBadge = recipe({

@@ -1,9 +1,20 @@
 import classNames from 'classnames';
+import type { Position } from 'folds';
 import { as, Avatar, Text, Tooltip, TooltipProvider, toRem } from 'folds';
 import type { ComponentProps, ReactNode, RefCallback } from 'react';
 import * as css from './Sidebar.css';
 
-export const SidebarItem = as<'div', css.SidebarItemVariants>(
+export const SidebarItemBottom = as<'div', css.SidebarItemVariants>(
+  ({ as: AsSidebarAvatarBox = 'div', className, active, ...props }, ref) => (
+    <AsSidebarAvatarBox
+      className={classNames(css.SidebarItemBottom({ active }), className)}
+      {...props}
+      ref={ref}
+    />
+  )
+);
+
+export const SidebarItemLeft = as<'div', css.SidebarItemVariants>(
   ({ as: AsSidebarAvatarBox = 'div', className, active, ...props }, ref) => (
     <AsSidebarAvatarBox
       className={classNames(css.SidebarItem({ active }), className)}
@@ -12,6 +23,13 @@ export const SidebarItem = as<'div', css.SidebarItemVariants>(
     />
   )
 );
+
+export const SidebarItem = ({className, active, isBottom, children, ...props} : {className?: string, active?: boolean, isBottom?: boolean, children: ReactNode}) => {
+  if(isBottom)
+    return <SidebarItemBottom className={className} active={active} {...props}>{children}</SidebarItemBottom>
+  else
+    return <SidebarItemLeft className={className} active={active} {...props}>{children}</SidebarItemLeft>
+};
 
 export const SidebarItemBadge = as<'div', css.SidebarItemBadgeVariants>(
   ({ as: AsSidebarBadgeBox = 'div', className, mode, ...props }, ref) => (
@@ -26,9 +44,11 @@ export const SidebarItemBadge = as<'div', css.SidebarItemBadgeVariants>(
 export function SidebarItemTooltip({
   tooltip,
   children,
+  position,
 }: {
   tooltip?: ReactNode | string;
   children: (triggerRef: RefCallback<HTMLElement | SVGElement>) => ReactNode;
+  position?: Position;
 }) {
   if (!tooltip) {
     return children(() => undefined);
@@ -37,7 +57,7 @@ export function SidebarItemTooltip({
   return (
     <TooltipProvider
       delay={400}
-      position="Right"
+      position={position ?? 'Right'}
       tooltip={
         <Tooltip style={{ maxWidth: toRem(280) }}>
           <Text size="H5">{tooltip}</Text>

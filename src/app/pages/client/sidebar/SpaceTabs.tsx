@@ -58,7 +58,7 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { getSpaceLobbyPath, getSpacePath, joinPathComponent } from '$pages/pathUtils';
 import {
   SidebarAvatar,
-  SidebarItem,
+  SidebarItemLeft,
   SidebarUnreadBadge,
   SidebarItemTooltip,
   SidebarStack,
@@ -541,7 +541,7 @@ function SpaceTab({
   return (
     <RoomUnreadProvider roomId={space.roomId}>
       {(unread) => (
-        <SidebarItem
+        <SidebarItemLeft
           active={selected}
           ref={targetRef}
           aria-disabled={disabled}
@@ -604,7 +604,7 @@ function SpaceTab({
               }
             />
           )}
-        </SidebarItem>
+        </SidebarItemLeft>
       )}
     </RoomUnreadProvider>
   );
@@ -678,7 +678,7 @@ function ClosedSpaceFolder({
   return (
     <RoomsUnreadProvider rooms={folder.content}>
       {(unread) => (
-        <SidebarItem
+        <SidebarItemLeft
           active={selected}
           ref={handlerRef}
           aria-disabled={disabled}
@@ -724,7 +724,7 @@ function ClosedSpaceFolder({
               count={unread.highlight > 0 ? unread.highlight : unread.total}
             />
           )}
-        </SidebarItem>
+        </SidebarItemLeft>
       )}
     </RoomsUnreadProvider>
   );

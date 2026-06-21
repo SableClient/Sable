@@ -2,9 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import {
   SidebarAvatar,
-  SidebarItem,
   SidebarUnreadBadge,
   SidebarItemTooltip,
+  SidebarItem,
 } from '$components/sidebar';
 import {
   getInboxInvitesPath,
@@ -18,7 +18,7 @@ import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useInviteCount } from '$hooks/useInviteCount';
 import { getPhosphorSize, Tray } from '$components/icons/phosphor';
 
-export function InboxTab() {
+export function InboxTab({isBottom}:{isBottom?: boolean}) {
   const screenSize = useScreenSizeContext();
   const navigate = useNavigate();
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
@@ -41,11 +41,17 @@ export function InboxTab() {
   };
 
   return (
-    <SidebarItem active={inboxSelected}>
-      <SidebarItemTooltip tooltip="Inbox">
+    <SidebarItem active={inboxSelected} isBottom={isBottom}>
+      <SidebarItemTooltip tooltip="Inbox" position={isBottom ? "Top" : "Right"}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleInboxClick}>
-            <Tray size={getPhosphorSize().toolbar} weight={inboxSelected ? 'fill' : 'regular'} />
+          <SidebarAvatar
+            as="button"
+            ref={triggerRef}
+            outlined
+            onClick={handleInboxClick}
+            size="300"
+          >
+            <Tray size={getPhosphorSize().inline} weight={inboxSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

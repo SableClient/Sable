@@ -14,7 +14,6 @@ import {
   toRem,
   Chip,
   Spinner,
-  Line,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
@@ -22,10 +21,10 @@ import { useNavigate } from 'react-router-dom';
 import type { Session } from '$state/sessions';
 import { sessionsAtom, activeSessionIdAtom, backgroundUnreadCountsAtom } from '$state/sessions';
 import {
-  SidebarItem,
   SidebarItemTooltip,
   SidebarAvatar,
   SidebarUnreadBadge,
+  SidebarItem,
 } from '$components/sidebar';
 import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
@@ -40,13 +39,11 @@ import { useSessionProfiles } from '$hooks/useSessionProfiles';
 import { useOpenSettings } from '$features/settings';
 import { Modal500 } from '$components/Modal500';
 import { createLogger } from '$utils/debug';
-import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
-import { Check, chipIcon, GearSix, menuIcon, Plus } from '$components/icons/phosphor';
+import { Check, chipIcon, Plus } from '$components/icons/phosphor';
 
 const log = createLogger('AccountSwitcherTab');
-const debugLog = createDebugLogger('AccountSwitcherTab');
 
 function AccountRow({
   session,
@@ -137,7 +134,7 @@ function AccountRow({
   );
 }
 
-export function AccountSwitcherTab() {
+export function AccountSwitcherTab({isBottom}:{isBottom?: boolean}) {
   const mx = useMatrixClient();
   const navigate = useNavigate();
   const sessions = useAtomValue(sessionsAtom);
@@ -248,14 +245,6 @@ export function AccountSwitcherTab() {
     setTimeout(() => window.location.assign(url), 100);
   };
 
-  const handleOpenSettings = () => {
-    debugLog.info('ui', 'Settings button clicked', {
-      userId: activeSession?.userId,
-    });
-    setMenuAnchor(undefined);
-    openSettings();
-  };
-
   const activeLocalPart =
     getMxIdLocalPart(activeSession?.userId ?? '') ?? activeSession?.userId ?? '';
   const label = activeDisplayName ?? activeLocalPart;
@@ -263,8 +252,8 @@ export function AccountSwitcherTab() {
   if (!activeSession) return null;
 
   return (
-    <SidebarItem active={!!menuAnchor}>
-      <SidebarItemTooltip tooltip={label}>
+    <SidebarItem active={!!menuAnchor} isBottom={isBottom}>
+      <SidebarItemTooltip tooltip={label} position={isBottom ? "Top" : "Right"}>
         {(triggerRef) => (
           <SidebarAvatar
             as="button"
@@ -290,7 +279,7 @@ export function AccountSwitcherTab() {
 
       <PopOut
         anchor={menuAnchor}
-        position="Right"
+        position={isBottom ? "Top" : "Right"}
         align="End"
         offset={6}
         content={
@@ -341,15 +330,6 @@ export function AccountSwitcherTab() {
                 })}
                 <MenuItem size="300" radii="300" before={chipIcon(Plus)} onClick={handleAddAccount}>
                   <Text size="T300">Add Account</Text>
-                </MenuItem>
-                <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
-                <MenuItem
-                  size="300"
-                  radii="300"
-                  before={menuIcon(GearSix)}
-                  onClick={handleOpenSettings}
-                >
-                  <Text size="T300">Settings</Text>
                 </MenuItem>
               </Box>
             </Menu>

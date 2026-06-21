@@ -1,11 +1,23 @@
 import type { MouseEventHandler } from 'react';
 import { useRef, useState } from 'react';
-import { Box, Checkbox, config, Line, Menu, MenuItem, PopOut, Scroll, Text, toRem } from 'folds';
+import {
+  Box,
+  Checkbox,
+  color,
+  config,
+  Line,
+  Menu,
+  MenuItem,
+  PopOut,
+  Scroll,
+  Text,
+  toRem,
+} from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { Sidebar, SidebarContent, SidebarStack, SidebarStackSeparator } from '$components/sidebar';
+import { Sidebar, SidebarContent, SidebarStack } from '$components/sidebar';
 import {
   DirectTab,
   DirectDMsList,
@@ -17,6 +29,7 @@ import {
 } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
 import { SearchTab } from './sidebar/SearchTab';
+import { SettingsTab } from './sidebar/SettingsTab';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -26,6 +39,11 @@ export function SidebarNav() {
   const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+  const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+
+  const width = roomSidebarWidth + 66;
+  const underOutstep = width < (190 + 66);
+  const isCollapsed = width < (50 + 66);
 
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     const target = evt.target as HTMLElement;
@@ -122,7 +140,6 @@ export function SidebarNav() {
               <DirectDMsList />
             </SidebarStack>
             <SpaceTabs scrollRef={scrollRef} />
-            <SidebarStackSeparator />
             <SidebarStack>
               <CreateTab />
             </SidebarStack>
@@ -130,13 +147,53 @@ export function SidebarNav() {
         }
         sticky={
           <SidebarStack>
-            <SearchTab />
-            <UnverifiedTab />
-            <InboxTab />
+            {underOutstep && (
+              <>
+                <UnverifiedTab />
+                <InboxTab />
+                <SearchTab />
+              </>
+            )}
+            {isCollapsed && <SettingsTab />}
             <AccountSwitcherTab />
           </SidebarStack>
         }
       />
+      {/* Doing it properly and nicely would require a major rewrite that would cause more trouble*/}
+      {!isCollapsed && (
+        <Box
+          direction="Row"
+          justifyContent="SpaceBetween"
+          style={{
+            backgroundColor: color.SurfaceVariant.Container,
+            position: 'fixed',
+            zIndex: '1000',
+            width: toRem(width),
+            height: toRem(58),
+            bottom: '0',
+            left: '0',
+            padding: config.space.S300,
+            paddingRight: underOutstep ? config.space.S200 : config.space.S300,
+            borderTop: `${config.borderWidth.B300} solid ${color.Background.ContainerLine}`,
+          }}
+        >
+          <AccountSwitcherTab isBottom/>
+          <Box
+            style={{
+              gap: config.space.S300,
+            }}
+          >
+            {!underOutstep && (
+              <>
+                <UnverifiedTab isBottom/>
+                <InboxTab isBottom/>
+                <SearchTab isBottom/>
+              </>
+            )}
+            <SettingsTab isBottom />
+          </Box>
+        </Box>
+      )}
     </Sidebar>
   );
 }

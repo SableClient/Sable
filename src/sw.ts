@@ -650,6 +650,7 @@ type DecryptionResult = {
   eventId: string;
   success: boolean;
   eventType?: string;
+  effectiveType?: string;
   content?: unknown;
   sender_display_name?: string;
   room_name?: string;
@@ -1143,6 +1144,7 @@ async function handleMinimalPushPayload(
       await handlePushNotificationPushData({
         ...baseData,
         type: result.eventType,
+        effectiveType: result.effectiveType,
         content: result.content as { notification_type?: string; membership?: string } | undefined,
         sender_display_name: senderDisplay,
         // Prefer relay's room name (has m.direct / computed SDK name); fall back to state fetch.

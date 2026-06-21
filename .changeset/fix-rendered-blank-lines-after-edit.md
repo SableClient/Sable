@@ -2,4 +2,4 @@
 'charm': patch
 ---
 
-Preserve intentional blank lines when edited messages are saved so rendered timeline content matches the editor preview.
+Preserve intentional blank lines when messages are saved so rendered timeline content matches the composer and editor preview.

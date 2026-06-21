@@ -203,7 +203,7 @@ function PinnedMessageActiveContent(
           onClick={handleOpenClick}
         />
       )}
-      <Box direction="Column" grow="Yes" style={{ minWidth: 0 }} onClick={handleOpenClick}>
+      <Box direction="Column" grow="Yes" style={{ minWidth: 0 }}>
         {renderContent(pinnedEvent.getType(), false, pinnedEvent, displayName, getContent)}
       </Box>
     </ModernLayout>
@@ -313,7 +313,7 @@ function renderPinMenuStickerImageContent(
       {...props}
       autoPlay={mediaAutoLoad}
       renderImage={PinMenuLazyImage}
-      renderViewer={ImageViewer}
+      renderViewer={(p) => <ImageViewer {...p} />}
     />
   );
 }

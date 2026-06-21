@@ -86,7 +86,6 @@ import {
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { completeRoomTimelineRender } from '$utils/perfTelemetry';
 import { mobileOrTabletLayout } from '$utils/user-agent';
-import { stripRoomEventTargetPath } from '$pages/pathUtils';
 import * as css from './RoomTimeline.css';
 
 const log = createLogger('RoomTimeline');
@@ -634,8 +633,12 @@ export function RoomTimeline({
   );
 
   useEffect(() => {
+    if (jumpRouteCleanupTimerRef.current !== undefined) {
+      clearTimeout(jumpRouteCleanupTimerRef.current);
+      jumpRouteCleanupTimerRef.current = undefined;
+    }
     releaseJumpLock('route_change');
-  }, [eventId, room.roomId, releaseJumpLock]);
+  }, [eventId, location.pathname, location.search, room.roomId, releaseJumpLock]);
 
   // If the timeline was blanked while content was already visible — e.g. a
   // TimelineReset fired by mx.retryImmediately() when the app comes back from
@@ -722,11 +725,11 @@ export function RoomTimeline({
 
       const anchorKey = `${focusEventId ?? 'no-event'}:${index}`;
       const isNewAnchor = jumpAnchorKeyRef.current !== anchorKey;
-        if (isNewAnchor) {
-          jumpAnchorKeyRef.current = anchorKey;
-          if (jumpRetryIntervalRef.current !== undefined) {
-            clearInterval(jumpRetryIntervalRef.current);
-            jumpRetryIntervalRef.current = undefined;
+      if (isNewAnchor) {
+        jumpAnchorKeyRef.current = anchorKey;
+        if (jumpRetryIntervalRef.current !== undefined) {
+          clearInterval(jumpRetryIntervalRef.current);
+          jumpRetryIntervalRef.current = undefined;
         }
         jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
         jumpRecenterTimeoutIdsRef.current = [];
@@ -833,20 +836,19 @@ export function RoomTimeline({
           eventId === focusEventId &&
           (focusJumpMode ?? jumpMode) === 'notification_live'
         ) {
-          const basePath = stripRoomEventTargetPath(location.pathname);
-          if (basePath) {
-            jumpRouteCleanupTimerRef.current = setTimeout(() => {
-              const currentFocusItem = timelineSyncRef.current.focusItem;
-              if (currentFocusItem?.eventId !== focusEventId) return;
+          jumpRouteCleanupTimerRef.current = setTimeout(() => {
+            const currentFocusItem = timelineSyncRef.current.focusItem;
+            if (currentFocusItem?.eventId !== focusEventId) return;
 
-              const nextSearchParams = new URLSearchParams(location.search);
-              nextSearchParams.delete('jumpMode');
-              nextSearchParams.delete('joinCall');
-              const nextSearch = nextSearchParams.toString();
-              navigate(nextSearch ? `${basePath}?${nextSearch}` : basePath, { replace: true });
-              jumpRouteCleanupTimerRef.current = undefined;
-            }, 3200);
-          }
+            const nextSearchParams = new URLSearchParams(location.search);
+            nextSearchParams.delete('jumpMode');
+            nextSearchParams.delete('joinCall');
+            const nextSearch = nextSearchParams.toString();
+            navigate(nextSearch ? `${location.pathname}?${nextSearch}` : location.pathname, {
+              replace: true,
+            });
+            jumpRouteCleanupTimerRef.current = undefined;
+          }, 3200);
         }
 
         return true;

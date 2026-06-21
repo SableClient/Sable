@@ -5,13 +5,11 @@ import type { Sessions } from './app/state/sessions';
 import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './app/state/sessions';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 import { hasServiceWorker } from './app/utils/platform';
-import { recordReloadRequested, reloadWithTelemetry } from './app/utils/reloadWithTelemetry';
+import { reloadWithTelemetry } from './app/utils/reloadWithTelemetry';
 import { pushSessionToSW } from './sw-session';
 import { consumeLaunchContext } from './launch-context-persistence';
 
 const log = createLogger('service-worker-bootstrap');
-const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
-const APPLY_UPDATE_TIMEOUT_MS = 4000;
 const SW_WATCHDOG_INTERVAL_MS = 60_000;
 const SW_WATCHDOG_PING_TIMEOUT_MS = 5_000;
 const SW_WATCHDOG_MAX_MISSES = 2;
@@ -42,46 +40,6 @@ const recordWatchdogRecoveryAttempt = (
   Sentry.metrics.count('sable.sw.watchdog_recovery', 1, {
     attributes: { reason },
   });
-};
-
-const activateWaitingServiceWorkerAndReload = (waitingWorker: ServiceWorker) => {
-  let settled = false;
-  let timeoutId = 0;
-
-  const finish = (reason: string) => {
-    if (settled) return;
-    settled = true;
-    window.clearTimeout(timeoutId);
-    navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-    reloadWithTelemetry(reason);
-  };
-
-  const handleControllerChange = () => finish('sw_update_controllerchange');
-
-  timeoutId = window.setTimeout(() => finish('sw_update_apply_timeout'), APPLY_UPDATE_TIMEOUT_MS);
-  navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange, {
-    once: true,
-  });
-  // oxlint-disable-next-line unicorn/require-post-message-target-origin
-  waitingWorker.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
-};
-
-const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
-  const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
-
-  if (userPreference === 'true') {
-    return;
-  }
-
-  // eslint-disable-next-line no-alert
-  if (window.confirm('A new version of the app is available. Refresh to update?')) {
-    if (registration.waiting) {
-      recordReloadRequested('sw_update_prompt_waiting', { hasWaitingWorker: true });
-      activateWaitingServiceWorkerAndReload(registration.waiting);
-      return;
-    }
-    reloadWithTelemetry('sw_update_prompt_reload', { hasWaitingWorker: false });
-  }
 };
 
 function maybeRecoverNotificationLaunch(targetUrl: string | undefined, clickedAt: number): boolean {
@@ -381,7 +339,6 @@ export function registerAppServiceWorker() {
             });
             if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
               window.dispatchEvent(new Event('sable:sw-update'));
-              showUpdateAvailablePrompt(registration);
             }
           });
         }

@@ -341,6 +341,25 @@ describe('toMatrixCustomHTML intentional blank paragraphs', () => {
     expect(html).toContain('<pre');
   });
 
+  it('does not add an extra blank line when two empty paragraphs precede a block', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: 'hello' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: 'code' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '```' }] } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('<p>hello<br/><br/><br/></p>');
+    expect(html).not.toContain('<p>hello<br/><br/><br/><br/></p>');
+  });
+
   it('keeps blank lines inside indented code blocks', () => {
     const html = trimCustomHtml(
       toMatrixCustomHTML(

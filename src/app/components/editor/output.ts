@@ -270,7 +270,7 @@ export const toMatrixCustomHTML = (
         while (segmentLines.at(-(trailingBlankLines + 1)) === '') {
           trailingBlankLines += 1;
         }
-        const preservedInlineHtml = `${inlineHtml}${'<br/>'.repeat(trailingBlankLines)}`;
+        const preservedInlineHtml = `${inlineHtml}${trailingBlankLines > 0 ? '<br/>' : ''}`;
 
         if (!opts.forEmote && preservedInlineHtml.includes('<br/>')) {
           return `<p>${preservedInlineHtml}</p>`;

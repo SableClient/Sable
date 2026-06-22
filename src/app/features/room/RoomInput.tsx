@@ -130,7 +130,11 @@ import {
   cancelDelayedEvent,
 } from '$utils/delayedEvents';
 import { timeHourMinute, timeDayMonthYear, daysToMs } from '$utils/time';
-import { closeKeyboardBeforeOpeningOverlay, stopPropagation } from '$utils/keyboard';
+import {
+  closeKeyboardBeforeOpeningOverlay,
+  primeKeyboardCloseForOverlayOpen,
+  stopPropagation,
+} from '$utils/keyboard';
 
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -327,12 +331,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     // after first open (avoids re-initializing virtualizer on every open).
     const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
     const [emojiBoardAnchorRect, setEmojiBoardAnchorRect] = useState<DOMRect | null>(null);
+    const overlayOpenSequenceRef = useRef(0);
+    const prepareComposerOverlayTrigger = useCallback(() => {
+      if (!isMobileLayout) return;
+      primeKeyboardCloseForOverlayOpen();
+    }, [isMobileLayout]);
     const openComposerOverlay = useCallback(
       async (openOverlay: () => void) => {
+        const openSequence = ++overlayOpenSequenceRef.current;
         if (isMobileLayout) {
           await closeKeyboardBeforeOpeningOverlay();
         }
 
+        if (overlayOpenSequenceRef.current !== openSequence) return;
         openOverlay();
       },
       [isMobileLayout]
@@ -558,9 +569,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       });
     }, [openComposerOverlay]);
     const openAddMenu = useCallback(
-      async (anchor: RectCords) => {
+      async (anchorElement: HTMLElement) => {
         await openComposerOverlay(() => {
-          setAddMenuAnchor(anchor);
+          setAddMenuAnchor(anchorElement.getBoundingClientRect());
         });
       },
       [openComposerOverlay]
@@ -2036,13 +2047,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 }
               />
               <IconButton
+                onPointerDownCapture={prepareComposerOverlayTrigger}
                 onClick={(evt) => {
                   if (editorOldAddFile) {
                     pickFile('*');
                     return;
                   }
 
-                  void openAddMenu(evt.currentTarget.getBoundingClientRect());
+                  void openAddMenu(evt.currentTarget);
                 }}
                 variant="SurfaceVariant"
                 size="300"
@@ -2147,6 +2159,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               {!hideStickerBtn && (
                 <IconButton
                   aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
+                  onPointerDownCapture={prepareComposerOverlayTrigger}
                   onClick={() => void openEmojiBoard(EmojiBoardTab.Sticker)}
                   variant="SurfaceVariant"
                   size="300"
@@ -2162,6 +2175,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 aria-pressed={
                   hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
                 }
+                onPointerDownCapture={prepareComposerOverlayTrigger}
                 onClick={() => void openEmojiBoard(EmojiBoardTab.Emoji)}
                 variant="SurfaceVariant"
                 size="300"

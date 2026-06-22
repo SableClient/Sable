@@ -3,6 +3,7 @@ import type { KeyboardEventHandler } from 'react';
 
 const KEYBOARD_CLOSE_SETTLE_MS = 140;
 const KEYBOARD_CLOSE_TIMEOUT_MS = 500;
+let lastEditableBlurAt = 0;
 
 export interface KeyboardEventLike {
   key: string;
@@ -71,12 +72,23 @@ const nextAnimationFrame = () =>
     window.requestAnimationFrame(() => resolve());
   });
 
+export function primeKeyboardCloseForOverlayOpen(): void {
+  const activeElement = document.activeElement;
+  if (!isEditableElement(activeElement)) return;
+
+  lastEditableBlurAt = Date.now();
+  activeElement.blur();
+}
+
 export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
   const activeElement = document.activeElement;
 
-  if (!isEditableElement(activeElement)) return;
-
-  activeElement.blur();
+  if (isEditableElement(activeElement)) {
+    lastEditableBlurAt = Date.now();
+    activeElement.blur();
+  } else if (Date.now() - lastEditableBlurAt > KEYBOARD_CLOSE_TIMEOUT_MS) {
+    return;
+  }
 
   const viewport = window.visualViewport;
 
@@ -99,6 +111,7 @@ export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
     const finish = () => {
       if (finished) return;
       finished = true;
+      lastEditableBlurAt = 0;
       if (settledTimer) clearTimeout(settledTimer);
       if (timeoutTimer) clearTimeout(timeoutTimer);
       viewport.removeEventListener('resize', scheduleSettle);

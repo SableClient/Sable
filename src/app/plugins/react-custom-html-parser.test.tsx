@@ -519,6 +519,14 @@ describe('react custom html parser', () => {
     expect(container.textContent).toContain('two');
     expect(container.textContent).toContain('bullet');
   });
+
+  it('preserves literal blank lines inside parsed paragraphs', () => {
+    const { container } = renderMessage('<p>first line\n\nsecond line</p>');
+
+    const paragraph = container.querySelector('p');
+    expect(paragraph).toBeInTheDocument();
+    expect(paragraph).toHaveClass(customHtmlCss.Paragraph);
+  });
 });
 
 describe('matrix: URI mentions', () => {

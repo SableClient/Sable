@@ -9,12 +9,14 @@ interface SwipeableOverlayWrapperProps {
   children: ReactNode;
   onClose: () => void;
   direction: 'left' | 'right';
+  showDragPreview?: boolean;
 }
 
 export function SwipeableOverlayWrapper({
   children,
   onClose,
   direction,
+  showDragPreview = true,
 }: SwipeableOverlayWrapperProps) {
   const settings = useAtomValue(settingsAtom);
   const x = useMotionValue(0);
@@ -38,6 +40,7 @@ export function SwipeableOverlayWrapper({
       if (direction === 'right' && val < 0) val = 0;
 
       if (active) {
+        if (!showDragPreview) return;
         x.set(val);
       } else {
         const swipeThreshold = 150;

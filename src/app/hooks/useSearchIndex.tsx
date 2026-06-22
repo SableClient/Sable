@@ -35,6 +35,7 @@ import type {
   WorkerInMessage,
   WorkerOutMessage,
 } from '$plugins/search-worker/types';
+import { buildSearchWorkerRuntimeErrorMessage } from '$plugins/search-worker/workerLifecycle';
 // eslint-disable-next-line import/default, import/no-unresolved -- Vite ?worker suffix returns Worker constructor
 import SearchWorkerConstructor from '$plugins/search-worker/searchWorker.ts?worker';
 
@@ -732,11 +733,18 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     const handleWorkerError = (error: ErrorEvent) => {
       // Null-check error.message — it may be undefined on ErrorEvent (SABLE-52)
       const message = error?.message ?? '';
-      const errorMsg = `Search worker runtime error: ${message || 'Unknown worker error'}`;
+      const errorMsg = buildSearchWorkerRuntimeErrorMessage({
+        message,
+        filename: error.filename,
+        lineno: error.lineno,
+        colno: error.colno,
+      });
       const isMimeError = message.includes('MIME') && message.includes('text/html');
 
       setInitError(errorMsg);
       setIsReady(false);
+      worker.terminate();
+      workerRef.current = null;
       Sentry.captureException(error.error || new Error(message || 'Unknown worker error'), {
         level: isMimeError ? 'warning' : 'error',
         tags: {

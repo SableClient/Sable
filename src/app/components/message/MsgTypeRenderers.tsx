@@ -54,6 +54,10 @@ export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
 }
 
+const HTML_TAG_REGEX = /<[a-z][\w:-]*(?:\s[^<>]*)?>/i;
+
+const hasHtmlMarkup = (value: string): boolean => HTML_TAG_REGEX.test(value);
+
 const positiveMediaDimension = (value: number | undefined): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
 
@@ -341,6 +345,10 @@ export function MText({
     () => customBody?.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>'),
     [customBody]
   );
+  const shouldPreWrapCleanedMessage = useMemo(
+    () => typeof cleanedMessage !== 'string' || !hasHtmlMarkup(cleanedMessage),
+    [cleanedMessage]
+  );
 
   const trimmedBody = useMemo(() => trimReplyFromBody(body), [body]);
   const unwrappedForwardedContent = useMemo(
@@ -422,7 +430,7 @@ export function MText({
     return (
       <>
         <MessageTextBody
-          preWrap={typeof cleanedMessage !== 'string'}
+          preWrap={shouldPreWrapCleanedMessage}
           style={style}
           jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
         >
@@ -453,7 +461,7 @@ export function MText({
   return (
     <>
       <MessageTextBody
-        preWrap={typeof cleanedMessage !== 'string'}
+        preWrap={shouldPreWrapCleanedMessage}
         jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
         style={style}
       >

@@ -16,7 +16,12 @@ export const MarginSpaced = style({
   },
 });
 
-export const Paragraph = style([DefaultReset]);
+export const Paragraph = style([
+  DefaultReset,
+  {
+    whiteSpace: 'pre-wrap',
+  },
+]);
 
 export const Heading = style([
   DefaultReset,

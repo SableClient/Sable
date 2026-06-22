@@ -110,7 +110,10 @@ describe('registerAppServiceWorker', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(mockRegister).toHaveBeenCalledWith('/dev-sw.js?dev-sw', { type: 'module' });
+    expect(mockRegister).toHaveBeenCalledWith('/dev-sw.js?dev-sw', {
+      type: 'module',
+      updateViaCache: 'none',
+    });
     expect(mockAddEventListener).toHaveBeenCalledWith('message', expect.any(Function));
   });
 

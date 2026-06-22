@@ -262,11 +262,14 @@ export function registerAppServiceWorker() {
     ? `${trimTrailingSlash(import.meta.env.BASE_URL)}/sw.js`
     : `/dev-sw.js?dev-sw`;
 
-  const swRegisterOptions: RegistrationOptions | undefined = isProduction
-    ? undefined
-    : {
-        type: 'module',
-      };
+  const swRegisterOptions: RegistrationOptions = {
+    updateViaCache: 'none',
+    ...(isProduction
+      ? {}
+      : {
+          type: 'module',
+        }),
+  };
 
   sendActiveSessionToServiceWorker();
 
@@ -326,10 +329,7 @@ export function registerAppServiceWorker() {
     },
   });
 
-  const registrationPromise =
-    swRegisterOptions !== undefined
-      ? navigator.serviceWorker.register(swUrl, swRegisterOptions)
-      : navigator.serviceWorker.register(swUrl);
+  const registrationPromise = navigator.serviceWorker.register(swUrl, swRegisterOptions);
 
   registrationPromise
     .then((registration) => {

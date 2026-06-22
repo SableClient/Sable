@@ -10,8 +10,16 @@ const { mockReloadWithTelemetry } = vi.hoisted(() => ({
   mockReloadWithTelemetry: vi.fn<(reason: string) => void>(),
 }));
 
+const { mockClearClientCachesAndServiceWorkers } = vi.hoisted(() => ({
+  mockClearClientCachesAndServiceWorkers: vi.fn<() => Promise<void>>(),
+}));
+
 vi.mock('$utils/platform', () => ({
   hasServiceWorker: mockHasServiceWorker,
+}));
+
+vi.mock('$utils/appCacheReset', () => ({
+  clearClientCachesAndServiceWorkers: mockClearClientCachesAndServiceWorkers,
 }));
 
 vi.mock('$utils/reloadWithTelemetry', () => ({
@@ -54,6 +62,8 @@ describe('appUpdates', () => {
     vi.useFakeTimers();
     mockHasServiceWorker.mockReturnValue(true);
     mockReloadWithTelemetry.mockReset();
+    mockClearClientCachesAndServiceWorkers.mockReset();
+    mockClearClientCachesAndServiceWorkers.mockResolvedValue(undefined);
     mockRegistration = createRegistration();
     mockReload = vi.fn();
     serviceWorkerAddEventListener = vi.fn();
@@ -221,6 +231,7 @@ describe('appUpdates', () => {
 
     controllerChangeListener?.(new Event('controllerchange'));
     await applyPromise;
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledTimes(1);
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
@@ -261,6 +272,7 @@ describe('appUpdates', () => {
     controllerChangeListener?.(new Event('controllerchange'));
     await applyPromise;
 
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledTimes(1);
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
@@ -317,12 +329,14 @@ describe('appUpdates', () => {
     await vi.advanceTimersByTimeAsync(4000);
     await applyPromise;
 
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledTimes(1);
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
   it('does not reload when there is no pending app update to apply', async () => {
     await applyPendingAppUpdate();
 
+    expect(mockClearClientCachesAndServiceWorkers).not.toHaveBeenCalled();
     expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
   });
 

@@ -1,7 +1,8 @@
+import { clearClientCachesAndServiceWorkers } from '$utils/appCacheReset';
 import { hasServiceWorker } from '$utils/platform';
 import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 
-const UPDATE_CHECK_TIMEOUT_MS = 2500;
+const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const APPLY_UPDATE_TIMEOUT_MS = 4000;
 const UPDATE_CHECK_FAILURE_MESSAGE = 'Failed to check for updates. Reload the app and try again.';
 
@@ -236,5 +237,6 @@ export async function applyPendingAppUpdate(): Promise<void> {
     await waitForControllerChange;
   }
 
+  await clearClientCachesAndServiceWorkers();
   reloadWithTelemetry('apply_pending_app_update');
 }

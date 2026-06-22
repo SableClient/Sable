@@ -932,7 +932,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       if (workerRef.current !== worker) {
         setIsReady(false);
         setIsBackfilling(false);
-        setInitError(null);
         mx.removeListener(ClientEvent.Sync, handleSync as unknown as (...args: unknown[]) => void);
         mx.removeListener(
           RoomEvent.Timeline,

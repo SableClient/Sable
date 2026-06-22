@@ -22,6 +22,7 @@ import {
   getEmptyTimeline,
   getLinkedTimelines,
   getTimelinesEventsCount,
+  getTimelineEventAtIndex,
   getEventIdAbsoluteIndex,
   getEventTimeline,
   getLiveTimeline,
@@ -33,6 +34,7 @@ export const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 20000;
 export const NOTIFICATION_LIVE_JUMP_MAX_DISTANCE = 40;
 
 export type TimelineJumpMode = 'history_context' | 'notification_live';
+type TimelineLoadTarget = 'event' | 'next';
 
 export type TimelineFocusItem = {
   index: number;
@@ -41,6 +43,7 @@ export type TimelineFocusItem = {
   highlight: boolean;
   align?: 'center' | 'end';
   jumpMode?: TimelineJumpMode;
+  tail?: 'live';
 };
 
 export type PaginationStatus = 'idle' | 'loading' | 'error';
@@ -79,10 +82,15 @@ const useEventTimelineLoader = (
   onProactiveLoad?: () => void
 ) =>
   useCallback(
-    async (eventId: string, signal?: AbortSignal, options?: { jumpMode?: TimelineJumpMode }) =>
+    async (
+      eventId: string,
+      signal?: AbortSignal,
+      options?: { jumpMode?: TimelineJumpMode; target?: TimelineLoadTarget }
+    ) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
         const jumpMode = options?.jumpMode ?? 'history_context';
+        const target = options?.target ?? 'event';
 
         // Check if already aborted before starting
         if (signal?.aborted) {
@@ -234,7 +242,11 @@ const useEventTimelineLoader = (
           level: 'info',
         });
 
-        onLoad(eventId, linkedTimelines, absIndex, {
+        const targetIndex = target === 'next' ? absIndex + 1 : absIndex;
+        const targetEventId =
+          getTimelineEventAtIndex(linkedTimelines, targetIndex)?.getId() ?? eventId;
+
+        onLoad(targetEventId, linkedTimelines, targetIndex, {
           align: 'center',
           jumpMode,
         });
@@ -527,6 +539,20 @@ export interface UseTimelineSyncOptions {
   readUptoEventIdRef: React.MutableRefObject<string | undefined>;
 }
 
+export const getJumpToLatestFocusItem = (
+  linkedTimelines: EventTimeline[]
+): TimelineFocusItem | undefined => {
+  const lastIndex = getTimelinesEventsCount(linkedTimelines) - 1;
+  if (lastIndex < 0) return undefined;
+  return {
+    index: lastIndex,
+    scrollTo: true,
+    highlight: false,
+    align: 'end',
+    tail: 'live',
+  };
+};
+
 export function useTimelineSync({
   room,
   mx,
@@ -705,6 +731,16 @@ export function useTimelineSync({
       }
     }, [])
   );
+
+  const jumpToLatest = useCallback(() => {
+    eventContextPendingRef.current = false;
+    eventContextActiveRef.current = false;
+
+    const initialTimeline = getInitialTimeline(room);
+    setTimeline({ linkedTimelines: initialTimeline.linkedTimelines });
+
+    setFocusItem(getJumpToLatestFocusItem(initialTimeline.linkedTimelines));
+  }, [room]);
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);
 
@@ -974,12 +1010,18 @@ export function useTimelineSync({
     forwardStatus,
     handleTimelinePagination,
     loadEventTimeline: useCallback(
-      (targetEventId: string, signal?: AbortSignal, options?: { jumpMode?: TimelineJumpMode }) =>
+      (
+        targetEventId: string,
+        signal?: AbortSignal,
+        options?: { jumpMode?: TimelineJumpMode; target?: TimelineLoadTarget }
+      ) =>
         loadEventTimeline(targetEventId, signal, {
           jumpMode: options?.jumpMode ?? jumpMode ?? 'history_context',
+          target: options?.target,
         }),
       [jumpMode, loadEventTimeline]
     ),
+    jumpToLatest,
     focusItem,
     setFocusItem,
   };

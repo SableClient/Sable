@@ -72,7 +72,6 @@ import {
   getUnreadInfoAfterJumpToLatest,
   getEventTimeline,
   getFirstLinkedTimeline,
-  getInitialTimeline,
   getEmptyTimeline,
   getEventIdAbsoluteIndex,
 } from '$utils/timeline';
@@ -82,6 +81,7 @@ import { stripRoomEventSegment } from '$pages/pathUtils';
 import {
   useProcessedTimeline,
   getProcessedRowIndexForRawTimelineIndex,
+  getProcessedRowIndexForRawTimelineIndexForward,
   type ProcessedEvent,
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
@@ -742,33 +742,72 @@ export function RoomTimeline({
           clearTimeout(jumpRouteCleanupTimerRef.current);
           jumpRouteCleanupTimerRef.current = undefined;
         }
-        activateJumpLock(focusEventId);
       }
 
       let scrollSucceeded = false;
       const resolveProcessedIndex = () => {
         const currentFocusItem = timelineSyncRef.current.focusItem;
         if (!currentFocusItem) return undefined;
+        if (currentFocusItem.tail === 'live') {
+          const lastRowIndex = processedEventsRef.current.length - 1;
+          if (lastRowIndex < 0) return undefined;
+          return {
+            processedIndex: lastRowIndex,
+            lockEventId: processedEventsRef.current[lastRowIndex]?.mEvent.getId(),
+          };
+        }
 
         let nextProcessedIndex = getRawIndexToProcessedIndex(currentFocusItem.index);
+        let resolvedEventId =
+          nextProcessedIndex !== undefined
+            ? processedEventsRef.current[nextProcessedIndex]?.mEvent.getId()
+            : undefined;
         if (nextProcessedIndex === undefined && currentFocusItem.eventId) {
           const found = processedEventsRef.current.findIndex(
             (e) => e.mEvent.getId() === currentFocusItem.eventId
           );
           if (found >= 0) {
             nextProcessedIndex = found;
+            resolvedEventId = processedEventsRef.current[found]?.mEvent.getId();
           }
         }
 
-        return nextProcessedIndex;
+        if (nextProcessedIndex !== undefined) {
+          return {
+            processedIndex: nextProcessedIndex,
+            lockEventId: resolvedEventId,
+          };
+        }
+
+        const nearest =
+          (currentFocusItem.align === 'end'
+            ? getProcessedRowIndexForRawTimelineIndex(
+                processedEventsRef.current,
+                currentFocusItem.index
+              )
+            : getProcessedRowIndexForRawTimelineIndexForward(
+                processedEventsRef.current,
+                currentFocusItem.index
+              )) ??
+          getProcessedRowIndexForRawTimelineIndex(
+            processedEventsRef.current,
+            currentFocusItem.index
+          );
+
+        if (!nearest) return undefined;
+
+        return {
+          processedIndex: nearest.rowIndex,
+          lockEventId: processedEventsRef.current[nearest.rowIndex]?.mEvent.getId(),
+        };
       };
 
       const attemptScroll = () => {
         if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
 
-        const processedIndex = resolveProcessedIndex();
+        const resolvedTarget = resolveProcessedIndex();
 
-        if (processedIndex === undefined) {
+        if (!resolvedTarget) {
           if (timelineSync.focusItem.eventId) {
             log.log(
               `[PermalinkJump] Event not found in processedEvents yet: eventId=${timelineSync.focusItem.eventId}, processedEvents.length=${processedEventsRef.current.length}`
@@ -778,14 +817,14 @@ export function RoomTimeline({
         }
 
         log.log(
-          `[PermalinkJump] Scroll succeeded: processedIndex=${processedIndex}, eventId=${timelineSync.focusItem.eventId}`
+          `[PermalinkJump] Scroll succeeded: processedIndex=${resolvedTarget.processedIndex}, eventId=${timelineSync.focusItem.eventId}`
         );
         Sentry.addBreadcrumb({
           category: 'timeline.permalink',
           message: 'Scroll succeeded',
           level: 'info',
           data: {
-            processedIndex,
+            processedIndex: resolvedTarget.processedIndex,
             eventId: timelineSync.focusItem.eventId,
             roomId: room.roomId,
           },
@@ -796,10 +835,13 @@ export function RoomTimeline({
         // handler can immediately "chase" the live bottom after this jump.
         setAtBottom(false);
         startJumpScrollBlock();
+        if (timelineSync.focusItem.tail !== 'live') {
+          activateJumpLock(resolvedTarget.lockEventId ?? focusEventId);
+        }
 
         // Reveal timeline and scroll in the same frame to avoid flash
         setIsReady(true);
-        vListRef.current.scrollToIndex(processedIndex, {
+        vListRef.current.scrollToIndex(resolvedTarget.processedIndex, {
           align: timelineSync.focusItem.align ?? 'center',
         });
         timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
@@ -1934,6 +1976,7 @@ export function RoomTimeline({
             onClick={() =>
               timelineSync.loadEventTimeline(unreadInfo.readUptoEventId, undefined, {
                 jumpMode: 'history_context',
+                target: 'next',
               })
             }
           >
@@ -2109,8 +2152,7 @@ export function RoomTimeline({
                 if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
                 releaseJumpLock('jump_to_latest');
                 setUnreadInfo((prev) => getUnreadInfoAfterJumpToLatest(prev));
-                timelineSync.setTimeline(getInitialTimeline(room));
-                scrollToBottom();
+                timelineSync.jumpToLatest();
               }}
             >
               <Text size="L400">Jump to Latest</Text>

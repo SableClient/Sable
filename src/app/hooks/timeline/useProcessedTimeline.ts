@@ -69,6 +69,28 @@ export function getProcessedRowIndexForRawTimelineIndex(
   return undefined;
 }
 
+/** Raw timeline indices for skipped events can also advance to the next visible row when needed. */
+export function getProcessedRowIndexForRawTimelineIndexForward(
+  processedEvents: ProcessedEvent[],
+  startRawIndex: number
+): { rowIndex: number; focusRawIndex: number } | undefined {
+  const exactRowIndex = processedEvents.findIndex((e) => e.itemIndex === startRawIndex);
+  if (exactRowIndex >= 0) {
+    return {
+      rowIndex: exactRowIndex,
+      focusRawIndex: processedEvents[exactRowIndex]!.itemIndex,
+    };
+  }
+
+  const rowIndex = processedEvents.findIndex((e) => e.itemIndex >= startRawIndex);
+  if (rowIndex < 0) return undefined;
+
+  return {
+    rowIndex,
+    focusRawIndex: processedEvents[rowIndex]!.itemIndex,
+  };
+}
+
 const MESSAGE_EVENT_TYPES = new Set([
   'm.room.message',
   'm.room.message.encrypted',

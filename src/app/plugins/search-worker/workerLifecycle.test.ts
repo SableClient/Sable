@@ -65,14 +65,15 @@ describe('openSearchWorkerDb', () => {
     await expect(promise).resolves.toBe(request.result);
   });
 
-  it('rejects when indexedDB open is blocked', async () => {
-    const { request, fireBlocked } = createOpenRequest();
+  it('keeps waiting when indexedDB open is blocked and later succeeds', async () => {
+    const { request, fireBlocked, fireSuccess } = createOpenRequest();
     const indexedDb = { open: vi.fn<() => IDBOpenRequestLike>(() => request) };
 
     const promise = openSearchWorkerDb(indexedDb, 'sable-search-test', 1000);
     fireBlocked();
+    fireSuccess();
 
-    await expect(promise).rejects.toThrow('IndexedDB open blocked for sable-search-test');
+    await expect(promise).resolves.toBe(request.result);
   });
 
   it('rejects when indexedDB open never settles', async () => {

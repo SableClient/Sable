@@ -69,7 +69,8 @@ export function openSearchWorkerDb(
     };
 
     req.onblocked = () => {
-      settle(() => reject(new Error(`IndexedDB open blocked for ${dbName}`)));
+      // `blocked` is advisory: another connection still needs to close, but
+      // the open request can still succeed once that happens.
     };
 
     req.addEventListener('success', () => settle(() => resolve(req.result)));

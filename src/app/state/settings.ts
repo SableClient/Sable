@@ -9,7 +9,7 @@ import type {
 } from '$features/settings/notifications/NotificationTransport';
 
 const STORAGE_KEY = 'settings';
-const NULLABLE_STORAGE_KEYS = [
+export const EXPLICITLY_CLEARABLE_SETTINGS_KEYS = [
   'themeId',
   'lightThemeId',
   'darkThemeId',
@@ -22,6 +22,7 @@ const NULLABLE_STORAGE_KEYS = [
   'arboriumLightTheme',
   'arboriumDarkTheme',
 ] as const satisfies readonly (keyof Settings)[];
+type ExplicitlyClearableSettingsKey = (typeof EXPLICITLY_CLEARABLE_SETTINGS_KEYS)[number];
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
 export type MessageSpacing = '0' | '100' | '200' | '300' | '400' | '500';
 export enum MessageLayout {
@@ -475,6 +476,33 @@ function getStorageDefaults(): Settings {
   };
 }
 
+function readStoredSettingsRecord(): Record<string, unknown> | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw === null) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+export function getExplicitlyClearedSettingsKeys(): Set<ExplicitlyClearableSettingsKey> {
+  const stored = readStoredSettingsRecord();
+  const cleared = new Set<ExplicitlyClearableSettingsKey>();
+  if (!stored) return cleared;
+
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+    if (stored[key] === null) {
+      cleared.add(key);
+    }
+  });
+
+  return cleared;
+}
+
 function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (parsed.monochromeMode === true && parsed.saturationLevel === undefined) {
     parsed.saturationLevel = 0;
@@ -503,7 +531,7 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   delete parsed.themeChatPreviewAnyUrl;
   delete parsed.themeChatPreviewApprovedCatalogOnly;
 
-  NULLABLE_STORAGE_KEYS.forEach((key) => {
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
     if (parsed[key] === null) {
       parsed[key] = undefined;
     }
@@ -730,9 +758,17 @@ export const getSettings = (): Settings =>
 export const setSettings = (settings: Settings) => {
   try {
     const storageDefaults = getStorageDefaults();
+    const previouslyStored = readStoredSettingsRecord();
     const serialized = { ...settings } as Record<string, unknown>;
-    NULLABLE_STORAGE_KEYS.forEach((key) => {
-      if (serialized[key] === undefined && storageDefaults[key] !== undefined) {
+    EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+      const previousValue = previouslyStored?.[key];
+      const shouldPersistClear =
+        serialized[key] === undefined &&
+        (storageDefaults[key] !== undefined ||
+          previousValue === null ||
+          previousValue !== undefined);
+
+      if (shouldPersistClear) {
         serialized[key] = null;
       }
     });

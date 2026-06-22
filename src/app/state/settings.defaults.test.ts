@@ -72,6 +72,34 @@ describe('mergePersistedSettings', () => {
 
     expect(merged.themeId).toBe('deployer-theme');
   });
+
+  it('persists an explicit theme clear when a deployer default was previously active', () => {
+    primeRuntimeSettingsDefaults({ themeId: 'deployer-theme' });
+
+    setSettings({
+      ...getSettings(),
+      themeId: undefined,
+    });
+
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+
+    expect(merged.themeId).toBeUndefined();
+  });
+
+  it('persists an explicit clear after a manual theme selection', () => {
+    setSettings({
+      ...getSettings(),
+      themeId: 'dark-theme',
+    });
+    setSettings({
+      ...getSettings(),
+      themeId: undefined,
+    });
+
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+
+    expect(merged.themeId).toBeUndefined();
+  });
 });
 
 describe('sanitizeSettingsDefaults', () => {

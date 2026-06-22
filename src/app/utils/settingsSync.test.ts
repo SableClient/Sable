@@ -76,17 +76,24 @@ describe('serializeForSync', () => {
   });
 
   it('encodes cleared theme assignments as null so remote devices can clear them too', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        themeId: null,
+        lightThemeId: null,
+        darkThemeId: null,
+        themeRemoteManualFullUrl: null,
+        themeRemoteLightFullUrl: null,
+        themeRemoteDarkFullUrl: null,
+        themeRemoteManualKind: null,
+        themeRemoteLightKind: null,
+        themeRemoteDarkKind: null,
+        arboriumLightTheme: null,
+        arboriumDarkTheme: null,
+      })
+    );
     const settings = {
       ...base,
-      themeId: undefined,
-      lightThemeId: undefined,
-      darkThemeId: undefined,
-      themeRemoteManualFullUrl: undefined,
-      themeRemoteLightFullUrl: undefined,
-      themeRemoteDarkFullUrl: undefined,
-      themeRemoteManualKind: undefined,
-      themeRemoteLightKind: undefined,
-      themeRemoteDarkKind: undefined,
       arboriumLightTheme: undefined,
       arboriumDarkTheme: undefined,
     };
@@ -103,6 +110,22 @@ describe('serializeForSync', () => {
     expect(s.themeRemoteDarkKind).toBeNull();
     expect(s.arboriumLightTheme).toBeNull();
     expect(s.arboriumDarkTheme).toBeNull();
+  });
+
+  it('does not encode untouched undefined theme defaults as clears', () => {
+    const { settings: s } = serializeForSync(base);
+
+    expect(s.themeId).toBeUndefined();
+    expect(s.lightThemeId).toBeUndefined();
+    expect(s.darkThemeId).toBeUndefined();
+    expect(s.themeRemoteManualFullUrl).toBeUndefined();
+    expect(s.themeRemoteLightFullUrl).toBeUndefined();
+    expect(s.themeRemoteDarkFullUrl).toBeUndefined();
+    expect(s.themeRemoteManualKind).toBeUndefined();
+    expect(s.themeRemoteLightKind).toBeUndefined();
+    expect(s.themeRemoteDarkKind).toBeUndefined();
+    expect(s.arboriumLightTheme).toBe(base.arboriumLightTheme);
+    expect(s.arboriumDarkTheme).toBe(base.arboriumDarkTheme);
   });
 
   it('strips all non-syncable keys from the payload', () => {

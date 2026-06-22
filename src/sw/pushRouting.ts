@@ -79,6 +79,10 @@ export function isForegroundSuppressionExemptPushPayload(data: unknown): boolean
   );
 }
 
+export function shouldBypassUnreadZeroShortCircuit(data: unknown): boolean {
+  return isForegroundSuppressionExemptPushPayload(data);
+}
+
 export function buildDeclarativeNotificationOptions(payload: DeclarativeWebPushPayload): {
   title: string;
   options: NotificationOptions;

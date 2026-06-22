@@ -9,7 +9,9 @@ import {
   buildDeclarativeNotificationOptions,
   getEncryptedMinimalPushFocusDecision,
   isDeclarativeWebPushPayload,
+  isForegroundSuppressionExemptPushPayload,
   isMinimalPushPayload,
+  shouldBypassUnreadZeroShortCircuit,
 } from './sw/pushRouting';
 import { persistLaunchContext } from './launch-context-persistence';
 import { readPersistedSession } from './sw-session-persistence';
@@ -1906,14 +1908,16 @@ const onPushNotification = async (event: PushEvent) => {
   );
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
 
-  if (hasVisibleClient) {
+  const pushData = event.data.json();
+  const payloadType = pushTelemetryPayloadType(pushData);
+  const bypassForegroundSuppression = isForegroundSuppressionExemptPushPayload(pushData);
+  const bypassUnreadZeroShortCircuit = shouldBypassUnreadZeroShortCircuit(pushData);
+  console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
+
+  if (hasVisibleClient && !bypassForegroundSuppression) {
     console.debug('[SW push] suppressing OS notification — app is visible');
     return;
   }
-
-  const pushData = event.data.json();
-  const payloadType = pushTelemetryPayloadType(pushData);
-  console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
   // Track push notification arrival
   await recordPushTelemetry('received', {
@@ -1957,11 +1961,11 @@ const onPushNotification = async (event: PushEvent) => {
         await (
           self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
         ).clearAppBadge?.();
-        if (clearNotificationsOnRead) {
+        if (clearNotificationsOnRead && !bypassUnreadZeroShortCircuit) {
           const notifs = await self.registration.getNotifications();
           notifs.forEach((n) => n.close());
         }
-        return;
+        if (!bypassUnreadZeroShortCircuit) return;
       }
       // unread > 0: update the PWA badge with the current count.
       await (

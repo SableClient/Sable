@@ -70,9 +70,11 @@ export function isForegroundSuppressionExemptPushPayload(data: unknown): boolean
   const type =
     typeof payload.effectiveType === 'string'
       ? payload.effectiveType
-      : typeof payload.type === 'string'
-        ? payload.type
-        : undefined;
+      : typeof payload.effective_type === 'string'
+        ? payload.effective_type
+        : typeof payload.type === 'string'
+          ? payload.type
+          : undefined;
   const { content } = payload;
   if (type === 'org.matrix.msc4075.call.notify') return true;
   if (type === 'org.matrix.msc4075.rtc.notification') return true;

@@ -35,6 +35,18 @@ interface MatrixPushData {
 }
 
 const resolveSilent = (): boolean => false;
+const resolveNotificationEventType = (pushData: MatrixPushData): string | undefined =>
+  pushData?.effectiveType ?? pushData?.effective_type ?? pushData?.type;
+const resolveNotificationDispatchType = (pushData: MatrixPushData): string | undefined => {
+  const effectiveType = pushData?.effectiveType ?? pushData?.effective_type;
+  if (
+    effectiveType === 'org.matrix.msc4075.call.notify' ||
+    effectiveType === 'org.matrix.msc4075.rtc.notification'
+  ) {
+    return effectiveType;
+  }
+  return pushData?.type;
+};
 
 export const createPushNotifications = (
   self: ServiceWorkerGlobalScope,
@@ -101,7 +113,7 @@ export const createPushNotifications = (
       : 'Incoming voice chat';
 
     const data = {
-      type: pushData?.type,
+      type: resolveNotificationEventType(pushData),
       room_id: pushData?.room_id,
       user_id: pushData?.user_id,
       timestamp: Date.now(),
@@ -113,8 +125,9 @@ export const createPushNotifications = (
   };
 
   const handleRoomMessageNotification = async (pushData: MatrixPushData) => {
+    const resolvedType = resolveNotificationEventType(pushData);
     const data: Record<string, unknown> = {
-      type: pushData?.type,
+      type: resolvedType,
       room_id: pushData?.room_id,
       event_id: pushData?.event_id,
       user_id: pushData?.user_id,
@@ -127,7 +140,7 @@ export const createPushNotifications = (
       roomAvatar: pushData?.room_avatar_url,
       previewText: resolveNotificationPreviewText({
         content: pushData?.content,
-        eventType: pushData?.type,
+        eventType: resolvedType,
         effectiveType: pushData?.effectiveType ?? pushData?.effective_type,
         isEncryptedRoom: false,
         showMessageContent: getNotificationSettings().showMessageContent,
@@ -149,8 +162,9 @@ export const createPushNotifications = (
   };
 
   const handleEncryptedMessageNotification = async (pushData: MatrixPushData) => {
+    const resolvedType = resolveNotificationEventType(pushData);
     const data: Record<string, unknown> = {
-      type: pushData?.type,
+      type: resolvedType,
       room_id: pushData?.room_id,
       event_id: pushData?.event_id,
       user_id: pushData?.user_id,
@@ -163,7 +177,7 @@ export const createPushNotifications = (
       roomAvatar: pushData?.room_avatar_url,
       previewText: resolveNotificationPreviewText({
         content: pushData?.content,
-        eventType: pushData?.type,
+        eventType: resolvedType,
         effectiveType: pushData?.effectiveType ?? pushData?.effective_type,
         isEncryptedRoom: true,
         showMessageContent: getNotificationSettings().showMessageContent,
@@ -195,7 +209,7 @@ export const createPushNotifications = (
     if (!senderDisplayName && !roomName) body = '';
 
     const data = {
-      type: pushData?.type,
+      type: resolveNotificationEventType(pushData),
       content: pushData?.content,
       user_id: pushData?.user_id,
       timestamp: Date.now(),
@@ -206,7 +220,7 @@ export const createPushNotifications = (
   };
 
   const handlePushNotificationPushData = async (pushData: MatrixPushData) => {
-    const eventType = pushData?.type as EventType | undefined;
+    const eventType = resolveNotificationDispatchType(pushData) as EventType | undefined;
     if (!eventType) {
       console.warn('[SW pushNotification] no event type');
     }

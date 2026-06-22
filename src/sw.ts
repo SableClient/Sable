@@ -980,20 +980,13 @@ async function handleMinimalPushPayload(
     policyOptions: {
       hasVisibleClient?: boolean;
       unreadCount?: number;
+      clearBadgeWhenUnreadMissing?: boolean;
       skipVisibleClientSuppression?: boolean;
+      skipUnreadZeroShortCircuit?: boolean;
     } = options ?? {}
   ): Promise<boolean> => {
     const bypassForegroundSuppression = isForegroundSuppressionExemptPushPayload(payload);
     const bypassUnreadZeroShortCircuit = shouldBypassUnreadZeroShortCircuit(payload);
-
-    if (
-      policyOptions.hasVisibleClient &&
-      !policyOptions.skipVisibleClientSuppression &&
-      !bypassForegroundSuppression
-    ) {
-      console.debug('[SW push] suppressing OS notification — app is visible');
-      return true;
-    }
 
     try {
       if (typeof policyOptions.unreadCount === 'number') {
@@ -1005,7 +998,9 @@ async function handleMinimalPushPayload(
             const notifs = await self.registration.getNotifications();
             notifs.forEach((n) => n.close());
           }
-          if (!bypassUnreadZeroShortCircuit) return true;
+          if (!bypassUnreadZeroShortCircuit && !policyOptions.skipUnreadZeroShortCircuit) {
+            return true;
+          }
         } else {
           await (
             self.navigator as unknown as {
@@ -1013,9 +1008,22 @@ async function handleMinimalPushPayload(
             }
           ).setAppBadge?.(policyOptions.unreadCount);
         }
+      } else if (policyOptions.clearBadgeWhenUnreadMissing) {
+        await (
+          self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+        ).clearAppBadge?.();
       }
     } catch {
       // Badging API absent — continue to show the notification.
+    }
+
+    if (
+      policyOptions.hasVisibleClient &&
+      !policyOptions.skipVisibleClientSuppression &&
+      !bypassForegroundSuppression
+    ) {
+      console.debug('[SW push] suppressing OS notification — app is visible');
+      return true;
     }
 
     return false;
@@ -1029,6 +1037,7 @@ async function handleMinimalPushPayload(
   if (!session) {
     if (
       await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
+        clearBadgeWhenUnreadMissing: true,
         unreadCount: options?.unreadCount,
         skipVisibleClientSuppression: true,
       })
@@ -1086,6 +1095,7 @@ async function handleMinimalPushPayload(
   if (!rawEvent) {
     if (
       await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
+        clearBadgeWhenUnreadMissing: true,
         unreadCount: options?.unreadCount,
         skipVisibleClientSuppression: true,
       })
@@ -1234,11 +1244,16 @@ async function handleMinimalPushPayload(
       );
       // App was backgrounded but not frozen — decryption succeeded.
       if (
-        await applyMinimalPushVisibilityAndBadgePolicy({
-          type: result.eventType,
-          effectiveType: result.effectiveType,
-          content: result.content,
-        })
+        await applyMinimalPushVisibilityAndBadgePolicy(
+          {
+            type: result.eventType,
+            effectiveType: result.effectiveType,
+            content: result.content,
+          },
+          {
+            clearBadgeWhenUnreadMissing: true,
+          }
+        )
       ) {
         return;
       }
@@ -1246,7 +1261,7 @@ async function handleMinimalPushPayload(
       // value, which may be stale or missing if the SDK hasn't fully synced yet.
       await handlePushNotificationPushData({
         ...baseData,
-        type: result.eventType,
+        type: result.effectiveType ?? result.eventType,
         effectiveType: result.effectiveType,
         content: result.content as { notification_type?: string; membership?: string } | undefined,
         sender_display_name: senderDisplay,
@@ -1285,8 +1300,9 @@ async function handleMinimalPushPayload(
       // App is frozen or fully closed — show "Encrypted message" fallback.
       if (
         await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
+          clearBadgeWhenUnreadMissing: true,
           unreadCount: options?.unreadCount,
-          skipVisibleClientSuppression: true,
+          skipUnreadZeroShortCircuit: true,
         })
       ) {
         return;
@@ -1307,7 +1323,11 @@ async function handleMinimalPushPayload(
     }
   } else {
     // Unencrypted event — we have the plaintext, show it.
-    if (await applyMinimalPushVisibilityAndBadgePolicy(rawEvent)) {
+    if (
+      await applyMinimalPushVisibilityAndBadgePolicy(rawEvent, {
+        clearBadgeWhenUnreadMissing: true,
+      })
+    ) {
       return;
     }
     await handlePushNotificationPushData({

@@ -178,7 +178,26 @@ export const ModernContent = style({
 });
 
 export const BubbleBefore = style({
+  width: toRem(36),
   minWidth: toRem(36),
+  flex: `0 0 ${toRem(36)}`,
+});
+
+export const BubbleRow = style({
+  alignItems: 'flex-start',
+  boxSizing: 'border-box',
+  width: '100%',
+  minWidth: 0,
+  maxWidth: '100%',
+  paddingInline: config.space.S200,
+});
+
+export const BubbleMain = style({
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  width: '100%',
+  minWidth: 0,
 });
 
 export const BubbleWrapper = style({

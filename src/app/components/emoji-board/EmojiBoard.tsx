@@ -237,7 +237,7 @@ function EmojiSidebar({
       <SidebarStack
         style={{
           position: 'sticky',
-          bottom: '-67%',
+          bottom: 0,
           zIndex: 1,
         }}
       >

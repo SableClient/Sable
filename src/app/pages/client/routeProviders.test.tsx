@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HomeRouteRoomProvider } from './home/RoomProvider';
 import { RouteSpaceProvider } from './space/SpaceProvider';
 import { SpaceRouteRoomProvider } from './space/RoomProvider';
-import { roomToParentsAtom } from '$state/room/roomToParents';
+import { roomToParentsAtom, roomToParentsReadyAtom } from '$state/room/roomToParents';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { mDirectAtom } from '$state/mDirectList';
 
@@ -22,7 +22,10 @@ const mockUseAtomValue = vi.fn<(atom: unknown) => unknown>();
 const mockGetAllParents =
   vi.fn<(parents: Map<string, Set<string>>, roomId: string) => Set<string>>();
 const mockGetSpaceChildren = vi.fn<(space: { roomId: string }) => string[]>();
-const mockGetRoomToParents = vi.fn<() => Map<string, Set<string>>>();
+const mockGetAccountData = vi.fn<() => unknown>();
+const mockGetMDirects = vi.fn<(event: unknown) => Set<string>>();
+const mockGetStateEvents =
+  vi.fn<(room: unknown, eventType: string) => Array<{ getStateKey: () => string | undefined }>>();
 const mockIsRoom = vi.fn<(room: unknown) => boolean>();
 const mockIsSpace = vi.fn<(room: unknown) => boolean>();
 
@@ -54,7 +57,9 @@ vi.mock('$utils/room', () => ({
   getAllParents: (parents: Map<string, Set<string>>, roomId: string) =>
     mockGetAllParents(parents, roomId),
   getSpaceChildren: (space: { roomId: string }) => mockGetSpaceChildren(space),
-  getRoomToParents: () => mockGetRoomToParents(),
+  getAccountData: () => mockGetAccountData(),
+  getMDirects: (event: unknown) => mockGetMDirects(event),
+  getStateEvents: (room: unknown, eventType: string) => mockGetStateEvents(room, eventType),
   isRoom: (room: unknown) => mockIsRoom(room),
   isSpace: (room: unknown) => mockIsSpace(room),
 }));
@@ -116,7 +121,9 @@ describe('room route providers', () => {
     mockUseSetting.mockReturnValue([false]);
     mockGetAllParents.mockReturnValue(new Set());
     mockGetSpaceChildren.mockReturnValue([]);
-    mockGetRoomToParents.mockReturnValue(new Map());
+    mockGetAccountData.mockReturnValue(undefined);
+    mockGetMDirects.mockReturnValue(new Set());
+    mockGetStateEvents.mockReturnValue([]);
     mockIsRoom.mockReturnValue(true);
     mockIsSpace.mockReturnValue(true);
     mockUseAtom.mockImplementation((atom: unknown) => {
@@ -127,6 +134,7 @@ describe('room route providers', () => {
     });
     mockUseAtomValue.mockImplementation((atom: unknown) => {
       if (atom === roomToParentsAtom) return new Map<string, Set<string>>();
+      if (atom === roomToParentsReadyAtom) return true;
       if (atom === allRoomsAtom) return [];
       if (atom === mDirectAtom) return new Set<string>();
       throw new Error(`Unexpected atom: ${String(atom)}`);
@@ -190,6 +198,7 @@ describe('room route providers', () => {
     });
     mockUseAtomValue.mockImplementation((atom: unknown) => {
       if (atom === roomToParentsAtom) return new Map<string, Set<string>>();
+      if (atom === roomToParentsReadyAtom) return true;
       if (atom === allRoomsAtom) return [];
       if (atom === mDirectAtom) return new Set<string>(['!dm:server']);
       throw new Error(`Unexpected atom: ${String(atom)}`);
@@ -221,6 +230,7 @@ describe('room route providers', () => {
     });
     mockUseAtomValue.mockImplementation((atom: unknown) => {
       if (atom === roomToParentsAtom) return cachedParents;
+      if (atom === roomToParentsReadyAtom) return true;
       if (atom === allRoomsAtom) return [];
       if (atom === mDirectAtom) return new Set<string>();
       throw new Error(`Unexpected atom: ${String(atom)}`);
@@ -312,6 +322,7 @@ describe('room route providers', () => {
     });
     mockUseAtomValue.mockImplementation((atom: unknown) => {
       if (atom === roomToParentsAtom) return new Map<string, Set<string>>();
+      if (atom === roomToParentsReadyAtom) return true;
       if (atom === allRoomsAtom) return ['!room:server'];
       if (atom === mDirectAtom) return new Set<string>();
       throw new Error(`Unexpected atom: ${String(atom)}`);
@@ -359,6 +370,7 @@ describe('room route providers', () => {
     });
     mockUseAtomValue.mockImplementation((atom: unknown) => {
       if (atom === roomToParentsAtom) return new Map<string, Set<string>>();
+      if (atom === roomToParentsReadyAtom) return true;
       if (atom === allRoomsAtom) return [];
       if (atom === mDirectAtom) return new Set<string>();
       throw new Error(`Unexpected atom: ${String(atom)}`);
@@ -375,6 +387,36 @@ describe('room route providers', () => {
     expect(screen.getByTestId('join-fallback')).toHaveTextContent('!room:server');
     expect(screen.queryByText('Space room')).not.toBeInTheDocument();
     expect(setRoomToParents).not.toHaveBeenCalled();
+  });
+
+  it('waits for home-route classifiers before rendering a joined room from empty defaults', () => {
+    mockUseHomeRooms.mockReturnValue([]);
+    mockUseSelectedRoom.mockReturnValue('!room:server');
+    mockUseMatrixClient.mockReturnValue({
+      getRoom: () => ({
+        roomId: '!room:server',
+        getMyMembership: () => 'join',
+      }),
+    });
+    mockUseAtomValue.mockImplementation((atom: unknown) => {
+      if (atom === roomToParentsAtom) return new Map<string, Set<string>>();
+      if (atom === roomToParentsReadyAtom) return false;
+      if (atom === allRoomsAtom) return [];
+      if (atom === mDirectAtom) return new Set<string>();
+      throw new Error(`Unexpected atom: ${String(atom)}`);
+    });
+
+    const { container } = renderWithRoute(
+      '/home/room/%21room%3Aserver',
+      '/home/room/:roomIdOrAlias',
+      <HomeRouteRoomProvider>
+        <div>Joined room</div>
+      </HomeRouteRoomProvider>
+    );
+
+    expect(screen.queryByText('Joined room')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('join-fallback')).not.toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('allows the developer-tools space timeline path for the selected space', () => {

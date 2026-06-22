@@ -977,12 +977,17 @@ async function handleMinimalPushPayload(
     policyOptions: {
       hasVisibleClient?: boolean;
       unreadCount?: number;
+      skipVisibleClientSuppression?: boolean;
     } = options ?? {}
   ): Promise<boolean> => {
     const bypassForegroundSuppression = isForegroundSuppressionExemptPushPayload(payload);
     const bypassUnreadZeroShortCircuit = shouldBypassUnreadZeroShortCircuit(payload);
 
-    if (policyOptions.hasVisibleClient && !bypassForegroundSuppression) {
+    if (
+      policyOptions.hasVisibleClient &&
+      !policyOptions.skipVisibleClientSuppression &&
+      !bypassForegroundSuppression
+    ) {
       console.debug('[SW push] suppressing OS notification — app is visible');
       return true;
     }
@@ -1017,7 +1022,12 @@ async function handleMinimalPushPayload(
   const session = getAnyStoredSession() ?? (await loadPersistedSession());
 
   if (!session) {
-    if (await applyMinimalPushVisibilityAndBadgePolicy(undefined)) {
+    if (
+      await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
+        unreadCount: options?.unreadCount,
+        skipVisibleClientSuppression: true,
+      })
+    ) {
       await recordPushTelemetry('fetch_fallback', {
         payload_type: 'minimal',
         reason: 'missing_session_suppressed',
@@ -1064,7 +1074,12 @@ async function handleMinimalPushPayload(
   ]);
 
   if (!rawEvent) {
-    if (await applyMinimalPushVisibilityAndBadgePolicy(undefined)) {
+    if (
+      await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
+        unreadCount: options?.unreadCount,
+        skipVisibleClientSuppression: true,
+      })
+    ) {
       await recordPushTelemetry('fetch_fallback', {
         payload_type: 'minimal',
         reason: 'raw_event_fetch_failed_suppressed',

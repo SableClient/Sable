@@ -894,6 +894,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     // Sliding sync starts with an initial window of 100 rooms; additional rooms
     // are received progressively as the list expands, firing ClientEvent.Room.
     const handleRoomAdded = (room: Room) => {
+      if (workerRef.current !== worker) return;
       if (room.isSpaceRoom()) return;
       if (backfillingRoomsRef.current.has(room.roomId)) return;
       if (backfillQueueRef.current.some((e) => e.room.roomId === room.roomId)) return;

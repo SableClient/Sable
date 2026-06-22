@@ -162,9 +162,8 @@ export const createPushNotifications = (
   };
 
   const handleEncryptedMessageNotification = async (pushData: MatrixPushData) => {
-    const resolvedType = resolveNotificationEventType(pushData);
     const data: Record<string, unknown> = {
-      type: resolvedType,
+      type: pushData?.type,
       room_id: pushData?.room_id,
       event_id: pushData?.event_id,
       user_id: pushData?.user_id,
@@ -177,7 +176,7 @@ export const createPushNotifications = (
       roomAvatar: pushData?.room_avatar_url,
       previewText: resolveNotificationPreviewText({
         content: pushData?.content,
-        eventType: resolvedType,
+        eventType: pushData?.type,
         effectiveType: pushData?.effectiveType ?? pushData?.effective_type,
         isEncryptedRoom: true,
         showMessageContent: getNotificationSettings().showMessageContent,

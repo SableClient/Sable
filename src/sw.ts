@@ -1252,6 +1252,8 @@ async function handleMinimalPushPayload(
           },
           {
             clearBadgeWhenUnreadMissing: true,
+            hasVisibleClient: options?.hasVisibleClient,
+            unreadCount: options?.unreadCount,
           }
         )
       ) {
@@ -1261,7 +1263,7 @@ async function handleMinimalPushPayload(
       // value, which may be stale or missing if the SDK hasn't fully synced yet.
       await handlePushNotificationPushData({
         ...baseData,
-        type: result.effectiveType ?? result.eventType,
+        type: result.eventType,
         effectiveType: result.effectiveType,
         content: result.content as { notification_type?: string; membership?: string } | undefined,
         sender_display_name: senderDisplay,
@@ -1301,6 +1303,7 @@ async function handleMinimalPushPayload(
       if (
         await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
           clearBadgeWhenUnreadMissing: true,
+          hasVisibleClient: options?.hasVisibleClient,
           unreadCount: options?.unreadCount,
           skipUnreadZeroShortCircuit: true,
         })
@@ -1326,6 +1329,8 @@ async function handleMinimalPushPayload(
     if (
       await applyMinimalPushVisibilityAndBadgePolicy(rawEvent, {
         clearBadgeWhenUnreadMissing: true,
+        hasVisibleClient: options?.hasVisibleClient,
+        unreadCount: options?.unreadCount,
       })
     ) {
       return;

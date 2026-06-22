@@ -26,6 +26,7 @@ type MockServiceWorker = {
 
 type MockRegistration = {
   waiting: MockServiceWorker | null;
+  active?: MockServiceWorker | null;
   installing: {
     addEventListener: ReturnType<typeof vi.fn>;
     removeEventListener: ReturnType<typeof vi.fn>;
@@ -199,7 +200,11 @@ describe('appUpdates', () => {
   });
 
   it('waits for controllerchange before reloading a waiting update', async () => {
-    const waitingWorker = { postMessage: vi.fn() };
+    const waitingWorker = {
+      postMessage: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
     let controllerChangeListener: EventListener | undefined;
     mockRegistration.waiting = waitingWorker;
     serviceWorkerAddEventListener.mockImplementation((event: string, listener: EventListener) => {
@@ -219,8 +224,88 @@ describe('appUpdates', () => {
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
+  it('retries client claiming from the page when a new worker activates but takeover stalls', async () => {
+    const waitingWorker = {
+      postMessage: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const activeWorker = { postMessage: vi.fn() };
+    let waitingStateChangeListener: EventListener | undefined;
+    let controllerChangeListener: EventListener | undefined;
+    mockRegistration.waiting = waitingWorker;
+    waitingWorker.addEventListener.mockImplementation((event: string, listener: EventListener) => {
+      if (event === 'statechange') {
+        waitingStateChangeListener = listener;
+      }
+    });
+    serviceWorkerAddEventListener.mockImplementation((event: string, listener: EventListener) => {
+      if (event === 'controllerchange') {
+        controllerChangeListener = listener;
+      }
+    });
+
+    const applyPromise = applyPendingAppUpdate();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING_AND_CLAIM' });
+
+    mockRegistration.waiting = null;
+    mockRegistration.active = activeWorker;
+    waitingStateChangeListener?.(new Event('statechange'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(activeWorker.postMessage).toHaveBeenCalledWith({ type: 'CLAIM_CLIENTS' });
+    expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
+
+    controllerChangeListener?.(new Event('controllerchange'));
+    await applyPromise;
+
+    expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
+  });
+
+  it('asks the active update worker to claim clients before reloading', async () => {
+    const activeWorker = { postMessage: vi.fn() };
+    const controllerWorker = { postMessage: vi.fn() };
+    let controllerChangeListener: EventListener | undefined;
+    mockRegistration.active = activeWorker;
+    serviceWorkerAddEventListener.mockImplementation((event: string, listener: EventListener) => {
+      if (event === 'controllerchange') {
+        controllerChangeListener = listener;
+      }
+    });
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        serviceWorker: {
+          controller: controllerWorker,
+          getRegistration: vi.fn().mockResolvedValue(mockRegistration),
+          ready: Promise.resolve(mockRegistration),
+          addEventListener: serviceWorkerAddEventListener,
+          removeEventListener: serviceWorkerRemoveEventListener,
+        },
+      },
+    });
+
+    const applyPromise = applyPendingAppUpdate();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(activeWorker.postMessage).toHaveBeenCalledWith({ type: 'CLAIM_CLIENTS' });
+    expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
+
+    controllerChangeListener?.(new Event('controllerchange'));
+    await applyPromise;
+
+    expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
+  });
+
   it('reloads after a timeout if controllerchange never arrives', async () => {
-    const waitingWorker = { postMessage: vi.fn() };
+    const waitingWorker = {
+      postMessage: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
     mockRegistration.waiting = waitingWorker;
 
     const applyPromise = applyPendingAppUpdate();

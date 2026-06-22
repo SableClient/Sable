@@ -94,6 +94,16 @@ export const getTimelineEvent = (
   return events ? events[index] : undefined;
 };
 
+export const getTimelineEventAtIndex = (
+  timelines: EventTimeline[],
+  index: number
+): MatrixEvent | undefined => {
+  const [timeline, baseIndex] = getTimelineAndBaseIndex(timelines, index);
+  return timeline
+    ? getTimelineEvent(timeline, getTimelineRelativeIndex(index, baseIndex))
+    : undefined;
+};
+
 export const getEventIdAbsoluteIndex = (
   timelines: EventTimeline[],
   eventTimeline: EventTimeline,

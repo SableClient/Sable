@@ -72,7 +72,6 @@ import {
   getUnreadInfoAfterJumpToLatest,
   getEventTimeline,
   getFirstLinkedTimeline,
-  getInitialTimeline,
   getEmptyTimeline,
   getEventIdAbsoluteIndex,
 } from '$utils/timeline';
@@ -81,11 +80,19 @@ import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
 import {
   useProcessedTimeline,
   getProcessedRowIndexForRawTimelineIndex,
+  getProcessedRowIndexForRawTimelineIndexForward,
   type ProcessedEvent,
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { completeRoomTimelineRender } from '$utils/perfTelemetry';
 import { mobileOrTabletLayout } from '$utils/user-agent';
+import {
+  didKeyboardJustClose,
+  didKeyboardJustOpen,
+  isKeyboardBottomSessionScrollKeyTarget,
+  shouldRepinBottomAfterKeyboardClose,
+  shouldClearKeyboardBottomSessionOnUserIntent,
+} from './keyboardBottomRecovery';
 import {
   buildNotificationJumpCleanupTarget,
   getNotificationJumpCleanupEventId,
@@ -269,7 +276,13 @@ export function RoomTimeline({
   const { isKeyboardVisible, keyboardHeight } = useKeyboardHeight();
   const prevKeyboardVisibleRef = useRef(false);
   const prevKeyboardHeightRef = useRef(0);
+  const keyboardVisibleRef = useRef(isKeyboardVisible);
+  keyboardVisibleRef.current = isKeyboardVisible;
+  const renderKeyboardVisibleRef = useRef(isKeyboardVisible);
+  const keyboardHeightRef = useRef(keyboardHeight);
+  keyboardHeightRef.current = keyboardHeight;
   const lastKeyboardCloseTimeRef = useRef(0);
+  const keyboardSessionBottomPinnedRef = useRef(false);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const openUserRoomProfile = useOpenUserRoomProfile();
   const optionalSpace = useSpaceOptionally();
@@ -746,33 +759,72 @@ export function RoomTimeline({
           clearTimeout(jumpRouteCleanupTimerRef.current);
           jumpRouteCleanupTimerRef.current = undefined;
         }
-        activateJumpLock(focusEventId);
       }
 
       let scrollSucceeded = false;
       const resolveProcessedIndex = () => {
         const currentFocusItem = timelineSyncRef.current.focusItem;
         if (!currentFocusItem) return undefined;
+        if (currentFocusItem.tail === 'live') {
+          const lastRowIndex = processedEventsRef.current.length - 1;
+          if (lastRowIndex < 0) return undefined;
+          return {
+            processedIndex: lastRowIndex,
+            lockEventId: processedEventsRef.current[lastRowIndex]?.mEvent.getId(),
+          };
+        }
 
         let nextProcessedIndex = getRawIndexToProcessedIndex(currentFocusItem.index);
+        let resolvedEventId =
+          nextProcessedIndex !== undefined
+            ? processedEventsRef.current[nextProcessedIndex]?.mEvent.getId()
+            : undefined;
         if (nextProcessedIndex === undefined && currentFocusItem.eventId) {
           const found = processedEventsRef.current.findIndex(
             (e) => e.mEvent.getId() === currentFocusItem.eventId
           );
           if (found >= 0) {
             nextProcessedIndex = found;
+            resolvedEventId = processedEventsRef.current[found]?.mEvent.getId();
           }
         }
 
-        return nextProcessedIndex;
+        if (nextProcessedIndex !== undefined) {
+          return {
+            processedIndex: nextProcessedIndex,
+            lockEventId: resolvedEventId,
+          };
+        }
+
+        const nearest =
+          (currentFocusItem.align === 'end'
+            ? getProcessedRowIndexForRawTimelineIndex(
+                processedEventsRef.current,
+                currentFocusItem.index
+              )
+            : getProcessedRowIndexForRawTimelineIndexForward(
+                processedEventsRef.current,
+                currentFocusItem.index
+              )) ??
+          getProcessedRowIndexForRawTimelineIndex(
+            processedEventsRef.current,
+            currentFocusItem.index
+          );
+
+        if (!nearest) return undefined;
+
+        return {
+          processedIndex: nearest.rowIndex,
+          lockEventId: processedEventsRef.current[nearest.rowIndex]?.mEvent.getId(),
+        };
       };
 
       const attemptScroll = () => {
         if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
 
-        const processedIndex = resolveProcessedIndex();
+        const resolvedTarget = resolveProcessedIndex();
 
-        if (processedIndex === undefined) {
+        if (!resolvedTarget) {
           if (timelineSync.focusItem.eventId) {
             log.log(
               `[PermalinkJump] Event not found in processedEvents yet: eventId=${timelineSync.focusItem.eventId}, processedEvents.length=${processedEventsRef.current.length}`
@@ -782,14 +834,14 @@ export function RoomTimeline({
         }
 
         log.log(
-          `[PermalinkJump] Scroll succeeded: processedIndex=${processedIndex}, eventId=${timelineSync.focusItem.eventId}`
+          `[PermalinkJump] Scroll succeeded: processedIndex=${resolvedTarget.processedIndex}, eventId=${timelineSync.focusItem.eventId}`
         );
         Sentry.addBreadcrumb({
           category: 'timeline.permalink',
           message: 'Scroll succeeded',
           level: 'info',
           data: {
-            processedIndex,
+            processedIndex: resolvedTarget.processedIndex,
             eventId: timelineSync.focusItem.eventId,
             roomId: room.roomId,
           },
@@ -800,10 +852,13 @@ export function RoomTimeline({
         // handler can immediately "chase" the live bottom after this jump.
         setAtBottom(false);
         startJumpScrollBlock();
+        if (timelineSync.focusItem.tail !== 'live') {
+          activateJumpLock(resolvedTarget.lockEventId ?? focusEventId);
+        }
 
         // Reveal timeline and scroll in the same frame to avoid flash
         setIsReady(true);
-        vListRef.current.scrollToIndex(processedIndex, {
+        vListRef.current.scrollToIndex(resolvedTarget.processedIndex, {
           align: timelineSync.focusItem.align ?? 'center',
         });
         timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
@@ -923,6 +978,15 @@ export function RoomTimeline({
         return;
       }
 
+      jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
+      jumpRecenterTimeoutIdsRef.current = [];
+      if (jumpLayoutReanchorRafRef.current !== undefined) {
+        cancelAnimationFrame(jumpLayoutReanchorRafRef.current);
+        jumpLayoutReanchorRafRef.current = undefined;
+      }
+      releaseJumpLock('route_change');
+      timelineSync.setFocusItem(undefined);
+
       navigate(
         buildNotificationJumpCleanupTarget(location.pathname, location.search, cleanupEventId),
         {
@@ -945,6 +1009,8 @@ export function RoomTimeline({
     location.pathname,
     location.search,
     navigate,
+    releaseJumpLock,
+    timelineSync,
     timelineSync.liveTimelineLinked,
   ]);
 
@@ -1173,6 +1239,19 @@ export function RoomTimeline({
   ]);
 
   useEffect(() => {
+    if (eventId) {
+      keyboardSessionBottomPinnedRef.current = false;
+    }
+  }, [eventId, room.roomId]);
+
+  useEffect(() => {
+    if (didKeyboardJustOpen(isKeyboardVisible, renderKeyboardVisibleRef.current)) {
+      keyboardSessionBottomPinnedRef.current = atBottomRef.current;
+    }
+    renderKeyboardVisibleRef.current = isKeyboardVisible;
+  }, [isKeyboardVisible]);
+
+  useEffect(() => {
     const el = messageListRef.current;
     if (!el) return () => {};
 
@@ -1188,15 +1267,33 @@ export function RoomTimeline({
       // record the time so handleVListScroll can use an extended settle window
       // (500ms instead of 250ms) to fully suppress the jump button during the
       // keyboard close animation.
-      const keyboardJustClosed =
-        prevKeyboardVisibleRef.current &&
-        !isKeyboardVisible &&
-        heightDelta > 0 &&
-        prevKeyboardHeightRef.current > 0 &&
-        Math.abs(heightDelta - prevKeyboardHeightRef.current) < 50;
+      const keyboardJustClosed = didKeyboardJustClose({
+        heightDelta,
+        isKeyboardVisible: keyboardVisibleRef.current,
+        prevKeyboardHeight: prevKeyboardHeightRef.current,
+        prevKeyboardVisible: prevKeyboardVisibleRef.current,
+      });
 
       if (keyboardJustClosed) {
         lastKeyboardCloseTimeRef.current = Date.now();
+      }
+
+      if (
+        shouldRepinBottomAfterKeyboardClose(
+          keyboardJustClosed,
+          keyboardSessionBottomPinnedRef.current
+        )
+      ) {
+        keyboardSessionBottomPinnedRef.current = false;
+        setAtBottom(true);
+        requestAnimationFrame(() => {
+          const vl = vListRef.current;
+          if (!vl) return;
+          lastProgrammaticBottomPinAtRef.current = Date.now();
+          vl.scrollTo(vl.scrollSize);
+        });
+      } else if (keyboardJustClosed) {
+        keyboardSessionBottomPinnedRef.current = false;
       }
 
       // Handle both viewport shrinking (keyboard open) and expanding (keyboard close)
@@ -1208,13 +1305,13 @@ export function RoomTimeline({
         vListRef.current?.scrollTo(vListRef.current.scrollSize);
       }
       prevViewportHeightRef.current = newHeight;
-      prevKeyboardVisibleRef.current = isKeyboardVisible;
-      prevKeyboardHeightRef.current = keyboardHeight;
+      prevKeyboardVisibleRef.current = keyboardVisibleRef.current;
+      prevKeyboardHeightRef.current = keyboardHeightRef.current;
     });
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isKeyboardVisible, keyboardHeight, setAtBottom]);
+  }, [setAtBottom]);
 
   // When the thread drawer opens/closes on desktop, the main timeline column
   // changes width and Virtua remeasures all item heights.  Save the scroll
@@ -1800,11 +1897,15 @@ export function RoomTimeline({
     const el = messageListRef.current;
     if (!el) return undefined;
 
-    const markUserScrollIntent = () => {
+    const markUserScrollIntent = (source: 'pointerdown' | 'wheel' | 'touchmove' | 'keyboard') => {
       userScrollIntentAtRef.current = Date.now();
+      if (shouldClearKeyboardBottomSessionOnUserIntent(source, keyboardVisibleRef.current)) {
+        keyboardSessionBottomPinnedRef.current = false;
+      }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isKeyboardBottomSessionScrollKeyTarget(event.target)) return;
       if (
         event.key === 'ArrowUp' ||
         event.key === 'ArrowDown' ||
@@ -1814,19 +1915,23 @@ export function RoomTimeline({
         event.key === 'End' ||
         event.key === ' '
       ) {
-        markUserScrollIntent();
+        markUserScrollIntent('keyboard');
       }
     };
 
-    el.addEventListener('wheel', markUserScrollIntent, { passive: true });
-    el.addEventListener('touchmove', markUserScrollIntent, { passive: true });
-    el.addEventListener('pointerdown', markUserScrollIntent, { passive: true });
+    const handleWheel = () => markUserScrollIntent('wheel');
+    const handleTouchMove = () => markUserScrollIntent('touchmove');
+    const handlePointerDown = () => markUserScrollIntent('pointerdown');
+
+    el.addEventListener('wheel', handleWheel, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: true });
+    el.addEventListener('pointerdown', handlePointerDown, { passive: true });
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      el.removeEventListener('wheel', markUserScrollIntent);
-      el.removeEventListener('touchmove', markUserScrollIntent);
-      el.removeEventListener('pointerdown', markUserScrollIntent);
+      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -1969,6 +2074,7 @@ export function RoomTimeline({
             onClick={() =>
               timelineSync.loadEventTimeline(unreadInfo.readUptoEventId, undefined, {
                 jumpMode: 'history_context',
+                target: 'next',
               })
             }
           >
@@ -2144,8 +2250,7 @@ export function RoomTimeline({
                 if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
                 releaseJumpLock('jump_to_latest');
                 setUnreadInfo((prev) => getUnreadInfoAfterJumpToLatest(prev));
-                timelineSync.setTimeline(getInitialTimeline(room));
-                scrollToBottom();
+                timelineSync.jumpToLatest();
               }}
             >
               <Text size="L400">Jump to Latest</Text>

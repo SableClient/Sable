@@ -5,6 +5,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { togglePusher } from '$features/settings/notifications/PushNotifications';
 import { appEvents } from '$utils/appEvents';
+import type { ForegroundRecoveryTrigger } from '$utils/appEvents';
 import { useClientConfig } from './useClientConfig';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -25,14 +26,8 @@ type PushSubscriptionState = [
 ];
 const RESUME_RECOVERY_THROTTLE_MS = 15_000;
 const INTERACTION_IDLE_RECOVERY_MS = 10 * 60_000;
-type ResumeRecoveryTrigger =
-  | 'visibilitychange'
-  | 'pageshow_persisted'
-  | 'focus'
-  | 'pointerdown'
-  | 'keydown';
 
-const requestServiceWorkerClaim = (trigger: ResumeRecoveryTrigger) => {
+const requestServiceWorkerClaim = (trigger: ForegroundRecoveryTrigger) => {
   if (!('serviceWorker' in navigator)) return;
   if (navigator.serviceWorker.controller) return;
   if (document.visibilityState !== 'visible') return;
@@ -57,7 +52,10 @@ const requestServiceWorkerClaim = (trigger: ResumeRecoveryTrigger) => {
     .catch(() => undefined);
 };
 
-const refreshServiceWorkerSession = (trigger: ResumeRecoveryTrigger, activeSession?: Session) => {
+const refreshServiceWorkerSession = (
+  trigger: ForegroundRecoveryTrigger,
+  activeSession?: Session
+) => {
   if (!activeSession) return;
   if (document.visibilityState !== 'visible') return;
   Sentry.addBreadcrumb({
@@ -72,7 +70,7 @@ const refreshServiceWorkerSession = (trigger: ResumeRecoveryTrigger, activeSessi
   pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
 };
 
-const retrySyncOnResume = (mx: MatrixClient | undefined, trigger: ResumeRecoveryTrigger) => {
+const retrySyncOnResume = (mx: MatrixClient | undefined, trigger: ForegroundRecoveryTrigger) => {
   if (!mx) return;
   if (document.visibilityState !== 'visible') return;
 
@@ -117,7 +115,7 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
 
   useEffect(() => {
     const requestForegroundRecovery = (
-      trigger: ResumeRecoveryTrigger,
+      trigger: ForegroundRecoveryTrigger,
       data?: Record<string, unknown>
     ) => {
       if (document.visibilityState !== 'visible') return;
@@ -145,6 +143,7 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       Sentry.metrics.count('sable.app.resume', 1, {
         attributes: { trigger },
       });
+      appEvents.emitForegroundRecoveryRequested(trigger);
       requestServiceWorkerClaim(trigger);
       refreshServiceWorkerSession(trigger, activeSession);
       retrySyncOnResume(mx, trigger);

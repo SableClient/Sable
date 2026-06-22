@@ -67,7 +67,8 @@ jobs:
             git remote add upstream https://github.com/SableClient/Sable.git
           fi
           git fetch --prune origin "+refs/heads/*:refs/remotes/origin/*"
-          git fetch --prune --tags upstream "+refs/heads/*:refs/remotes/upstream/*"
+          git fetch --prune upstream "+refs/heads/*:refs/remotes/upstream/*"
+          git fetch --prune upstream "+refs/tags/*:refs/tags/upstream/*"
 
       - name: Create sync branch
         id: sync
@@ -75,8 +76,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          if git rev-parse --verify --quiet "refs/remotes/upstream/${UPSTREAM_REF}" >/dev/null; then
-            upstream_commit="$(git rev-parse "refs/remotes/upstream/${UPSTREAM_REF}")"
+          upstream_branch_ref="${UPSTREAM_REF#refs/heads/}"
+          upstream_tag_ref="${UPSTREAM_REF#refs/tags/}"
+
+          if git rev-parse --verify --quiet "refs/remotes/upstream/${upstream_branch_ref}" >/dev/null; then
+            upstream_commit="$(git rev-parse "refs/remotes/upstream/${upstream_branch_ref}")"
+          elif git rev-parse --verify --quiet "refs/tags/upstream/${upstream_tag_ref}" >/dev/null; then
+            upstream_commit="$(git rev-parse "refs/tags/upstream/${upstream_tag_ref}^{}")"
           else
             upstream_commit="$(git rev-parse "${UPSTREAM_REF}")"
           fi

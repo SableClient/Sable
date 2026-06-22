@@ -593,6 +593,7 @@ export function Space() {
   const showIcons = () => {
     if (showRoomIcon === ShowRoomIcon.Always) return true;
     if (showRoomIcon === ShowRoomIcon.Never) return false;
+    if (showRoomIcon === ShowRoomIcon.Strict) return false;
     return curWidth < 144;
   };
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');

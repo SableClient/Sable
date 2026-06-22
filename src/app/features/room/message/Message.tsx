@@ -379,6 +379,12 @@ function useMobileLongPress(callback: () => void, delay = 500) {
     selectionTargetRef.current = null;
   }, []);
 
+  const shouldIgnoreLongPress = useCallback((target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+
+    return !!target.closest('input, textarea, select, [contenteditable="true"]');
+  }, []);
+
   const suppressSelection = useCallback(
     (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) return;
@@ -410,6 +416,7 @@ function useMobileLongPress(callback: () => void, delay = 500) {
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
       if (!mobileOrTablet()) return;
+      if (shouldIgnoreLongPress(e.target)) return;
       const touch = e.touches[0];
       if (!touch) return;
       suppressSelection(e.currentTarget);
@@ -423,7 +430,7 @@ function useMobileLongPress(callback: () => void, delay = 500) {
         });
       }, delay);
     },
-    [callback, delay, suppressSelection]
+    [callback, delay, shouldIgnoreLongPress, suppressSelection]
   );
 
   const onTouchMove = useCallback(

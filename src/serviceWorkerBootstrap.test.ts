@@ -1,6 +1,7 @@
 /* oxlint-disable vitest/require-mock-type-parameters */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerAppServiceWorker } from './serviceWorkerBootstrap';
+import { appEvents } from './app/utils/appEvents';
 
 const {
   mockHasServiceWorker,
@@ -341,5 +342,47 @@ describe('registerAppServiceWorker', () => {
     await Promise.resolve();
 
     expect(getRegistration.mock.calls.length).toBe(baselineCalls);
+  });
+
+  it('pings the watchdog when foreground recovery is requested without a focus event', async () => {
+    mockHasServiceWorker.mockReturnValue(true);
+    let visibilityState: DocumentVisibilityState = 'hidden';
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    });
+    const postMessage = vi.fn();
+    const getRegistration = vi.fn().mockResolvedValue({
+      active: { postMessage, scriptURL: 'https://charm.example/sw.js' },
+      update: vi.fn(),
+    });
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        onLine: true,
+        serviceWorker: {
+          register: mockRegister,
+          getRegistration,
+          ready: mockReady,
+          controller: null,
+          addEventListener: mockAddEventListener,
+        },
+      },
+    });
+
+    registerAppServiceWorker();
+    await Promise.resolve();
+    await Promise.resolve();
+    getRegistration.mockClear();
+    postMessage.mockClear();
+
+    visibilityState = 'visible';
+    appEvents.emitForegroundRecoveryRequested('pointerdown');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getRegistration).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledTimes(1);
   });
 });

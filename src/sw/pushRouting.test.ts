@@ -89,6 +89,13 @@ describe('service worker push routing helpers', () => {
     ).toBe(true);
     expect(
       isForegroundSuppressionExemptPushPayload({
+        type: 'm.room.encrypted',
+        effectiveType: 'org.matrix.msc4075.rtc.notification',
+        content: { notification_type: 'ring' },
+      })
+    ).toBe(true);
+    expect(
+      isForegroundSuppressionExemptPushPayload({
         type: 'm.room.message',
         content: { body: 'hello' },
       })
@@ -99,6 +106,14 @@ describe('service worker push routing helpers', () => {
     expect(
       shouldBypassUnreadZeroShortCircuit({
         type: 'org.matrix.msc4075.call.notify',
+        content: { notification_type: 'ring' },
+        unread: 0,
+      })
+    ).toBe(true);
+    expect(
+      shouldBypassUnreadZeroShortCircuit({
+        type: 'm.room.encrypted',
+        effectiveType: 'org.matrix.msc4075.call.notify',
         content: { notification_type: 'ring' },
         unread: 0,
       })

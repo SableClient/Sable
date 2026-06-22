@@ -109,10 +109,28 @@ jobs:
           branch="sync/upstream-${safe_ref}-$(date -u +%Y-%m-%d)"
 
           git checkout -B "${branch}" "${base_ref}"
+          git push origin "${branch}" --force-with-lease
+
           if ! git merge --no-edit "${upstream_commit}"; then
-            echo "::error::Upstream sync has merge conflicts. Resolve locally from ${branch} against ${upstream_commit}."
-            git status --short
-            exit 1
+            conflict_files="$(git diff --name-only --diff-filter=U | sort)"
+            git merge --abort
+
+            git commit --allow-empty -m "chore(sync): mark upstream sync conflict for ${UPSTREAM_REF}"
+            git push origin "${branch}" --force-with-lease
+
+            {
+              echo "has_changes=true"
+              echo "has_conflicts=true"
+              echo "branch=${branch}"
+              echo "upstream_commit=${upstream_commit}"
+              echo "upstream_short_sha=${short_sha}"
+              echo "conflict_files<<EOF"
+              printf '%s\n' "${conflict_files}"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+
+            echo "::error::Upstream sync has merge conflicts. Draft PR will be opened for ${branch}; resolve locally against ${upstream_commit}."
+            exit 0
           fi
 
           if git diff --quiet "${base_ref}..HEAD"; then
@@ -125,6 +143,7 @@ jobs:
 
           {
             echo "has_changes=true"
+            echo "has_conflicts=false"
             echo "branch=${branch}"
             echo "upstream_commit=${upstream_commit}"
             echo "upstream_short_sha=${short_sha}"
@@ -138,16 +157,29 @@ jobs:
           BRANCH: ${{ steps.sync.outputs.branch }}
           UPSTREAM_COMMIT: ${{ steps.sync.outputs.upstream_commit }}
           UPSTREAM_SHORT_SHA: ${{ steps.sync.outputs.upstream_short_sha }}
+          HAS_CONFLICTS: ${{ steps.sync.outputs.has_conflicts }}
+          CONFLICT_FILES: ${{ steps.sync.outputs.conflict_files }}
         run: |
           set -euo pipefail
 
           body_file="$(mktemp)"
+          merge_status_line="Clean upstream merge prepared on \`${BRANCH}\`."
+          conflict_details=""
+          if [[ "${HAS_CONFLICTS}" == "true" ]]; then
+            merge_status_line="Merge conflicts blocked the automatic sync merge. This draft PR tracks the sync branch and the conflict list for manual resolution."
+            conflict_details=$'\n### Conflict files\n\n```\n'"${CONFLICT_FILES}"$'\n```\n'
+          fi
+
           cat > "${body_file}" <<EOF
           ### Description
 
           Syncs \`${UPSTREAM_REF}\` from \`SableClient/Sable\` into \`${BASE_BRANCH}\`.
 
           Upstream commit: \`${UPSTREAM_SHORT_SHA}\`
+
+          ${merge_status_line}
+
+          ${conflict_details}
 
           Fixes #
 
@@ -180,7 +212,7 @@ jobs:
           fi
 
           draft_args=()
-          if [[ "${DRAFT_PR}" == "true" ]]; then
+          if [[ "${DRAFT_PR}" == "true" || "${HAS_CONFLICTS}" == "true" ]]; then
             draft_args+=(--draft)
           fi
 
@@ -191,3 +223,12 @@ jobs:
             --title "sync: pull upstream ${UPSTREAM_REF} (${UPSTREAM_SHORT_SHA})" \
             --body-file "${body_file}" \
             "${draft_args[@]}"
+
+      - name: Fail conflicted sync after PR creation
+        if: steps.sync.outputs.has_conflicts == 'true'
+        shell: bash
+        env:
+          BRANCH: ${{ steps.sync.outputs.branch }}
+        run: |
+          echo "::error::Upstream sync PR opened with merge conflicts. Resolve the conflicts on ${BRANCH} before merging."
+          exit 1

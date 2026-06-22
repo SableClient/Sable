@@ -775,8 +775,10 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         pendingStatsRef.current = null;
       }
 
-      worker.terminate();
-      workerRef.current = null;
+      if (workerRef.current === worker) {
+        worker.terminate();
+        workerRef.current = null;
+      }
     };
     failWorkerRef.current = failWorker;
 
@@ -792,7 +794,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       });
       const isMimeError = message.includes('MIME') && message.includes('text/html');
 
-      failWorker(errorMsg);
+      failWorker(errorMsg, { settlePendingQueriesWithEmptyResults: true });
       Sentry.captureException(error.error || new Error(message || 'Unknown worker error'), {
         level: isMimeError ? 'warning' : 'error',
         tags: {
@@ -927,6 +929,24 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       clearTimeout(initTimeout);
       worker.removeEventListener('message', wrappedHandler as EventListener);
       worker.removeEventListener('error', handleWorkerError);
+      if (workerRef.current !== worker) {
+        setIsReady(false);
+        setIsBackfilling(false);
+        setInitError(null);
+        mx.removeListener(ClientEvent.Sync, handleSync as unknown as (...args: unknown[]) => void);
+        mx.removeListener(
+          RoomEvent.Timeline,
+          handleTimeline as unknown as (...args: unknown[]) => void
+        );
+        mx.removeListener(
+          ClientEvent.Room,
+          handleRoomAdded as unknown as (...args: unknown[]) => void
+        );
+        document.removeEventListener('visibilitychange', handleForegroundFocus);
+        window.removeEventListener('focus', handleForegroundFocus);
+        window.removeEventListener('pageshow', handleForegroundFocus);
+        return;
+      }
       postToWorker({ type: 'FLUSH' });
       const terminateTimeout = setTimeout(() => {
         worker.terminate();

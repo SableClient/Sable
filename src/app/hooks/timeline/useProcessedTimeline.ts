@@ -148,7 +148,12 @@ const computeCollapseAndDividers = (
 
 const mergeDraftsAndExtras = (
   result: ProcessedEvent[],
-  extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string; itemIndex?: number }[]
+  extras: {
+    mEvent: MatrixEvent;
+    timelineSet: EventTimelineSet;
+    parentId: string;
+    itemIndex?: number;
+  }[]
 ): ProcessedEventDraft[] => {
   const resultDrafts = result.map(
     ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
@@ -217,7 +222,12 @@ const mergeRelationReactions = (
 
   const existingIds = new Set(result.map((event) => event.id));
   const baseDrafts: ProcessedEvent[] = [];
-  const inlineExtras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string; itemIndex: number }[] = [];
+  const inlineExtras: {
+    mEvent: MatrixEvent;
+    timelineSet: EventTimelineSet;
+    parentId: string;
+    itemIndex: number;
+  }[] = [];
 
   for (const draft of result) {
     if (isReactionEvent(draft.mEvent)) {
@@ -262,7 +272,12 @@ const mergeRelationEdits = (
 ): ProcessedEvent[] => {
   const existingIds = new Set(result.map((event) => event.id));
   const baseDrafts: ProcessedEvent[] = [];
-  const inlineExtras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string; itemIndex: number }[] = [];
+  const inlineExtras: {
+    mEvent: MatrixEvent;
+    timelineSet: EventTimelineSet;
+    parentId: string;
+    itemIndex: number;
+  }[] = [];
 
   for (const draft of result) {
     if (isEditEvent(draft.mEvent)) {

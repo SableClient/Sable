@@ -5,6 +5,7 @@ import {
   isForegroundSuppressionExemptPushPayload,
   isDeclarativeWebPushPayload,
   isMinimalPushPayload,
+  shouldBypassUnreadZeroShortCircuit,
   shouldSuppressOsPushForForegroundState,
 } from './pushRouting';
 
@@ -88,8 +89,68 @@ describe('service worker push routing helpers', () => {
     ).toBe(true);
     expect(
       isForegroundSuppressionExemptPushPayload({
+        type: 'm.room.encrypted',
+        effectiveType: 'org.matrix.msc4075.rtc.notification',
+        content: { notification_type: 'ring' },
+      })
+    ).toBe(true);
+    expect(
+      isForegroundSuppressionExemptPushPayload({
+        type: 'm.room.encrypted',
+        effective_type: 'org.matrix.msc4075.call.notify',
+        content: { notification_type: 'ring' },
+      })
+    ).toBe(true);
+    expect(
+      isForegroundSuppressionExemptPushPayload({
         type: 'm.room.message',
         content: { body: 'hello' },
+      })
+    ).toBe(false);
+  });
+
+  it('keeps call pushes and invites on the delivery path when unread is zero', () => {
+    expect(
+      shouldBypassUnreadZeroShortCircuit({
+        type: 'org.matrix.msc4075.call.notify',
+        content: { notification_type: 'ring' },
+        unread: 0,
+      })
+    ).toBe(true);
+    expect(
+      shouldBypassUnreadZeroShortCircuit({
+        type: 'm.room.encrypted',
+        effectiveType: 'org.matrix.msc4075.call.notify',
+        content: { notification_type: 'ring' },
+        unread: 0,
+      })
+    ).toBe(true);
+    expect(
+      shouldBypassUnreadZeroShortCircuit({
+        type: 'm.room.encrypted',
+        effective_type: 'org.matrix.msc4075.call.notify',
+        content: { notification_type: 'ring' },
+        unread: 0,
+      })
+    ).toBe(true);
+    expect(
+      shouldBypassUnreadZeroShortCircuit({
+        web_push: 8030,
+        notification: {
+          title: 'Charm',
+          data: {
+            type: 'm.room.member',
+            content: { membership: 'invite' },
+          },
+        },
+        unread: 0,
+      })
+    ).toBe(true);
+    expect(
+      shouldBypassUnreadZeroShortCircuit({
+        type: 'm.room.message',
+        content: { body: 'hello' },
+        unread: 0,
       })
     ).toBe(false);
   });

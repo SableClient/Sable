@@ -1,6 +1,9 @@
 import { isKeyHotkey } from 'is-hotkey';
 import type { KeyboardEventHandler } from 'react';
 
+const KEYBOARD_CLOSE_SETTLE_MS = 140;
+const KEYBOARD_CLOSE_TIMEOUT_MS = 500;
+
 export interface KeyboardEventLike {
   key: string;
   which: number;
@@ -48,3 +51,68 @@ export const stopPropagation = (evt: KeyboardEvent): boolean => {
   evt.stopPropagation();
   return true;
 };
+
+function isEditableElement(element: Element | null): element is HTMLElement {
+  if (!(element instanceof HTMLElement)) return false;
+
+  const tagName = element.tagName.toLowerCase();
+  return (
+    element.isContentEditable ||
+    tagName === 'textarea' ||
+    (tagName === 'input' &&
+      !['button', 'checkbox', 'file', 'hidden', 'radio', 'range', 'reset', 'submit'].includes(
+        (element as HTMLInputElement).type
+      ))
+  );
+}
+
+const nextAnimationFrame = () =>
+  new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+
+export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
+  const activeElement = document.activeElement;
+
+  if (!isEditableElement(activeElement)) return;
+
+  activeElement.blur();
+
+  const viewport = window.visualViewport;
+
+  await new Promise<void>((resolve) => {
+    if (!viewport) {
+      window.setTimeout(resolve, KEYBOARD_CLOSE_SETTLE_MS);
+      return;
+    }
+
+    let settledTimer: number | null = null;
+    let timeoutTimer: number | null = null;
+    let finished = false;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (settledTimer) clearTimeout(settledTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      viewport.removeEventListener('resize', scheduleSettle);
+      viewport.removeEventListener('scroll', scheduleSettle);
+      window.removeEventListener('focusout', scheduleSettle);
+      resolve();
+    };
+
+    function scheduleSettle() {
+      if (settledTimer) clearTimeout(settledTimer);
+      settledTimer = window.setTimeout(finish, KEYBOARD_CLOSE_SETTLE_MS);
+    }
+
+    viewport.addEventListener('resize', scheduleSettle);
+    viewport.addEventListener('scroll', scheduleSettle);
+    window.addEventListener('focusout', scheduleSettle);
+
+    timeoutTimer = window.setTimeout(finish, KEYBOARD_CLOSE_TIMEOUT_MS);
+    scheduleSettle();
+  });
+
+  await nextAnimationFrame();
+}

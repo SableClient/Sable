@@ -17,6 +17,18 @@ describe('mobile PWA dogfood contract', () => {
     expect(roomInput).toContain('onMouseDown={handleMobilePreLift}');
   });
 
+  it('closes the mobile keyboard before opening composer overlays', () => {
+    const roomInput = readWorkspaceFile('src/app/features/room/RoomInput.tsx');
+
+    expect(roomInput).toContain('const openComposerOverlay = useCallback(');
+    expect(roomInput).toContain('await closeKeyboardBeforeOpeningOverlay();');
+    expect(roomInput).toContain('const openAddMenu = useCallback(');
+    expect(roomInput).toContain('const openLocationPicker = useCallback(async () => {');
+    expect(roomInput).toContain('const openPollCreator = useCallback(async () => {');
+    expect(roomInput).toContain('const openSchedulePicker = useCallback(async () => {');
+    expect(roomInput).toContain('const openEmojiBoard = useCallback(');
+  });
+
   it('keeps members and widgets reachable from the mobile room menu', () => {
     const roomHeader = readWorkspaceFile('src/app/features/room/RoomViewHeader.tsx');
 

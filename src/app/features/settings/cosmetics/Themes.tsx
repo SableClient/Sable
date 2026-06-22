@@ -28,7 +28,8 @@ import {
 } from '$plugins/arborium';
 import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
-import type { PixelatedImageRenderingMode, ShowRoomIcon } from '$state/settings';
+import type { PixelatedImageRenderingMode } from '$state/settings';
+import { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ThemeAppearanceSection } from './ThemeAppearanceSection';
@@ -809,6 +810,7 @@ export function Appearance({
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
+  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
   const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
     settingsAtom,
@@ -906,7 +908,23 @@ export function Appearance({
               <SettingTile
                 title="Show Room Icons In Sidebars"
                 focusId="show-room-icons"
-                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
+                description={
+                  <>
+                    <Text size="T200">
+                      When do you want to show the specific room icons in the sidebar?
+                    </Text>
+                    {(showRoomIcon === ShowRoomIcon.Always &&
+                      'Always show icons, and fallback to initials') ||
+                      (showRoomIcon === ShowRoomIcon.Strict &&
+                        'Show icons when available, but fallback to hashes') ||
+                      (showRoomIcon === ShowRoomIcon.Smart &&
+                        'Show icons only when sidebar is minimized, else icons.') ||
+                      (showRoomIcon === ShowRoomIcon.Never &&
+                        'Never show icons, always only the hashes.') ||
+                      ''}
+                    <span style={{ opacity: '50%' }}>{' (current)'}</span>
+                  </>
+                }
                 after={<SelectShowRoomIcon />}
               />
             </SequenceCard>

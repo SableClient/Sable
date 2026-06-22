@@ -581,6 +581,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
               displayName={displayName}
               userId={userId}
               customHeroCards={showCustomHeroCard}
+              server={server}
             />
             {userId !== myUserId && (
               <Button

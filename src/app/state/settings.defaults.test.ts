@@ -6,6 +6,7 @@ import {
   primeRuntimeSettingsDefaults,
   sanitizeSettingsDefaults,
   resetRuntimeSettingsDefaults,
+  setSettings,
 } from '$state/settings';
 
 beforeEach(() => {
@@ -32,6 +33,44 @@ describe('mergePersistedSettings', () => {
     localStorage.setItem('settings', JSON.stringify({ monochromeMode: true }));
     const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
     expect(merged.saturationLevel).toBe(0);
+  });
+
+  it('restores explicitly cleared theme values after a reload', () => {
+    setSettings({
+      ...defaultSettings,
+      themeId: undefined,
+      lightThemeId: undefined,
+      darkThemeId: undefined,
+      themeRemoteManualFullUrl: undefined,
+      themeRemoteLightFullUrl: undefined,
+      themeRemoteDarkFullUrl: undefined,
+      themeRemoteManualKind: undefined,
+      themeRemoteLightKind: undefined,
+      themeRemoteDarkKind: undefined,
+      arboriumLightTheme: undefined,
+      arboriumDarkTheme: undefined,
+    });
+
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+
+    expect(merged.themeId).toBeUndefined();
+    expect(merged.lightThemeId).toBeUndefined();
+    expect(merged.darkThemeId).toBeUndefined();
+    expect(merged.arboriumLightTheme).toBeUndefined();
+    expect(merged.arboriumDarkTheme).toBeUndefined();
+  });
+
+  it('keeps deployer theme defaults when untouched optional theme fields stay undefined', () => {
+    primeRuntimeSettingsDefaults({ themeId: 'deployer-theme' });
+
+    setSettings({
+      ...getSettings(),
+      twitterEmoji: false,
+    });
+
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+
+    expect(merged.themeId).toBe('deployer-theme');
   });
 });
 

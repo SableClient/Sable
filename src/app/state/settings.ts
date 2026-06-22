@@ -9,6 +9,19 @@ import type {
 } from '$features/settings/notifications/NotificationTransport';
 
 const STORAGE_KEY = 'settings';
+const NULLABLE_STORAGE_KEYS = [
+  'themeId',
+  'lightThemeId',
+  'darkThemeId',
+  'themeRemoteManualFullUrl',
+  'themeRemoteLightFullUrl',
+  'themeRemoteDarkFullUrl',
+  'themeRemoteManualKind',
+  'themeRemoteLightKind',
+  'themeRemoteDarkKind',
+  'arboriumLightTheme',
+  'arboriumDarkTheme',
+] as const satisfies readonly (keyof Settings)[];
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
 export type MessageSpacing = '0' | '100' | '200' | '300' | '400' | '500';
 export enum MessageLayout {
@@ -455,6 +468,13 @@ function cloneDefaultSettings(): Settings {
   };
 }
 
+function getStorageDefaults(): Settings {
+  return {
+    ...cloneDefaultSettings(),
+    ...runtimeSettingsDefaults,
+  };
+}
+
 function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (parsed.monochromeMode === true && parsed.saturationLevel === undefined) {
     parsed.saturationLevel = 0;
@@ -482,6 +502,12 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   }
   delete parsed.themeChatPreviewAnyUrl;
   delete parsed.themeChatPreviewApprovedCatalogOnly;
+
+  NULLABLE_STORAGE_KEYS.forEach((key) => {
+    if (parsed[key] === null) {
+      parsed[key] = undefined;
+    }
+  });
 }
 
 export function mergePersistedSettings(
@@ -703,7 +729,14 @@ export const getSettings = (): Settings =>
 
 export const setSettings = (settings: Settings) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    const storageDefaults = getStorageDefaults();
+    const serialized = { ...settings } as Record<string, unknown>;
+    NULLABLE_STORAGE_KEYS.forEach((key) => {
+      if (serialized[key] === undefined && storageDefaults[key] !== undefined) {
+        serialized[key] = null;
+      }
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
   } catch {
     // QuotaExceededError: write best-effort; ignore if storage is full
   }

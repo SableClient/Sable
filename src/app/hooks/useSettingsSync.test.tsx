@@ -305,4 +305,31 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
 
     expect(store.get(settingsAtom).twitterEmoji).toBe(false);
   });
+
+  it('applies explicit remote theme clears from another device', () => {
+    const store = makeStore({
+      settingsSyncEnabled: true,
+      themeId: 'dark-theme',
+      themeRemoteManualFullUrl: 'https://themes.example/manual.css',
+      themeRemoteManualKind: 'dark',
+    });
+    renderHook(() => useSettingsSyncEffect(), { wrapper: makeWrapper(store) });
+
+    const remoteEvent = makeSableSettingsEvent({
+      v: SETTINGS_SYNC_VERSION,
+      settings: {
+        themeId: null,
+        themeRemoteManualFullUrl: null,
+        themeRemoteManualKind: null,
+      },
+    });
+
+    act(() => {
+      callbackHolder.current?.(remoteEvent);
+    });
+
+    expect(store.get(settingsAtom).themeId).toBeUndefined();
+    expect(store.get(settingsAtom).themeRemoteManualFullUrl).toBeUndefined();
+    expect(store.get(settingsAtom).themeRemoteManualKind).toBeUndefined();
+  });
 });

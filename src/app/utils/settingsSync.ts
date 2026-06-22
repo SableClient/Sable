@@ -29,6 +29,20 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'settingsSyncEnabled',
 ]);
 
+const CLEARABLE_SYNC_KEYS = [
+  'themeId',
+  'lightThemeId',
+  'darkThemeId',
+  'themeRemoteManualFullUrl',
+  'themeRemoteLightFullUrl',
+  'themeRemoteDarkFullUrl',
+  'themeRemoteManualKind',
+  'themeRemoteLightKind',
+  'themeRemoteDarkKind',
+  'arboriumLightTheme',
+  'arboriumDarkTheme',
+] as const satisfies readonly (keyof Settings)[];
+
 export const SETTINGS_SYNC_VERSION = 1;
 
 export type SettingsSyncContent = {
@@ -40,6 +54,11 @@ export type SettingsSyncContent = {
 export const serializeForSync = (settings: Settings): SettingsSyncContent => {
   const syncable = { ...settings } as Partial<Settings>;
   NON_SYNCABLE_KEYS.forEach((key) => delete syncable[key]);
+  CLEARABLE_SYNC_KEYS.forEach((key) => {
+    if (syncable[key] === undefined) {
+      (syncable as Record<string, unknown>)[key] = null;
+    }
+  });
   return { v: SETTINGS_SYNC_VERSION, settings: syncable };
 };
 
@@ -55,7 +74,14 @@ export const deserializeFromSync = (data: unknown, currentSettings: Settings): S
   const remote = content.settings;
   if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return null;
 
-  const merged = { ...currentSettings, ...(remote as Partial<Settings>) };
+  const normalizedRemote = { ...(remote as Partial<Settings>) };
+  CLEARABLE_SYNC_KEYS.forEach((key) => {
+    if ((normalizedRemote as Record<string, unknown>)[key] === null) {
+      (normalizedRemote as Record<string, unknown>)[key] = undefined;
+    }
+  });
+
+  const merged = { ...currentSettings, ...normalizedRemote };
   // Always restore non-syncable keys from local state.
   NON_SYNCABLE_KEYS.forEach((key) => {
     (merged as unknown as Record<string, unknown>)[key] = (

@@ -13,7 +13,7 @@ type RouteSpaceProviderProps = {
 };
 export function RouteSpaceProvider({ children }: RouteSpaceProviderProps) {
   const mx = useMatrixClient();
-  const joinedSpaces = useSpaces(mx, allRoomsAtom);
+  useSpaces(mx, allRoomsAtom);
 
   const { spaceIdOrAlias: encodedSpaceIdOrAlias } = useParams();
   const spaceIdOrAlias = encodedSpaceIdOrAlias && decodeURIComponent(encodedSpaceIdOrAlias);
@@ -21,8 +21,9 @@ export function RouteSpaceProvider({ children }: RouteSpaceProviderProps) {
 
   const selectedSpaceId = useSelectedSpace();
   const space = mx.getRoom(selectedSpaceId);
+  const isJoinedSpace = space?.getMyMembership() === 'join';
 
-  if (!space || !joinedSpaces.includes(space.roomId)) {
+  if (!space || !isJoinedSpace) {
     return <JoinBeforeNavigate roomIdOrAlias={spaceIdOrAlias ?? ''} viaServers={viaServers} />;
   }
 

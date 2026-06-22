@@ -28,8 +28,11 @@ export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
   const viaServers = useSearchParamsViaServers();
   const roomId = useSelectedRoom();
   const room = mx.getRoom(roomId);
+  const isJoinedRoom = room?.getMyMembership() === 'join';
+  const isKnownJoinedRoom = !!room && allRooms.includes(room.roomId);
+  const isDirectSpaceChild = !!room && getSpaceChildren(space).includes(room.roomId);
 
-  if (!room || !allRooms.includes(room.roomId)) {
+  if (!room || !isJoinedRoom) {
     // room is not joined
     return (
       <JoinBeforeNavigate
@@ -49,14 +52,28 @@ export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  if (!isKnownJoinedRoom) {
+    return (
+      <RoomProvider key={room.roomId} value={room}>
+        <IsDirectRoomProvider value={mDirects.has(room.roomId)}>{children}</IsDirectRoomProvider>
+      </RoomProvider>
+    );
+  }
+
   if (!getAllParents(roomToParents, room.roomId).has(space.roomId)) {
-    if (getSpaceChildren(space).includes(room.roomId)) {
+    if (isDirectSpaceChild) {
       // fill missing roomToParent mapping
       setRoomToParents({
         type: 'PUT',
         parent: space.roomId,
         children: [room.roomId],
       });
+
+      return (
+        <RoomProvider key={room.roomId} value={room}>
+          <IsDirectRoomProvider value={mDirects.has(room.roomId)}>{children}</IsDirectRoomProvider>
+        </RoomProvider>
+      );
     }
 
     return (

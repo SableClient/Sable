@@ -9,7 +9,7 @@ import { useHomeRooms } from './useHomeRooms';
 
 export function HomeRouteRoomProvider({ children }: { children: ReactNode }) {
   const mx = useMatrixClient();
-  const rooms = useHomeRooms();
+  useHomeRooms();
 
   const { roomIdOrAlias: encodedRoomIdOrAlias, eventId: encodedEventId } = useParams();
   const roomIdOrAlias = encodedRoomIdOrAlias && decodeURIComponent(encodedRoomIdOrAlias);
@@ -17,8 +17,9 @@ export function HomeRouteRoomProvider({ children }: { children: ReactNode }) {
   const viaServers = useSearchParamsViaServers();
   const roomId = useSelectedRoom();
   const room = mx.getRoom(roomId);
+  const isJoinedRoom = room?.getMyMembership() === 'join';
 
-  if (!room || !rooms.includes(room.roomId)) {
+  if (!room || !isJoinedRoom) {
     return (
       <JoinBeforeNavigate
         roomIdOrAlias={roomIdOrAlias!}

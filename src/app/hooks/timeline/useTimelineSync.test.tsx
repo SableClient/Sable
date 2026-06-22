@@ -143,6 +143,46 @@ describe('useTimelineSync', () => {
     expect(scrollToBottom).not.toHaveBeenCalled();
   });
 
+  it('resolves unread jumps to the next event when the first unread event is available', async () => {
+    const { room } = createRoom('!room:test', [{ getId: () => '$live:event' }]);
+    const contextEvents = [{ getId: () => '$read:event' }, { getId: () => '$unread:event' }];
+    const contextTimeline = createTimeline(contextEvents);
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockResolvedValue(contextTimeline),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: '$read:event' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadEventTimeline('$read:event', undefined, {
+        target: 'next',
+      });
+    });
+
+    expect(result.current.timeline.linkedTimelines).toEqual([contextTimeline]);
+    expect(result.current.focusItem).toEqual({
+      index: 1,
+      eventId: '$unread:event',
+      scrollTo: true,
+      highlight: true,
+      align: 'center',
+      jumpMode: 'history_context',
+    });
+  });
+
   it('continues sparse forward pagination using the newest linked timeline token', async () => {
     const newerEvents: unknown[] = [{}];
     let paginationCalls = 0;
@@ -609,6 +649,49 @@ describe('useTimelineSync', () => {
     });
 
     expect(scrollToBottom).toHaveBeenCalledWith('instant');
+  });
+
+  it('retargets Jump to Latest to the live tail in one action', async () => {
+    const liveEvents = [{ getId: () => '$older:event' }, { getId: () => '$latest:event' }];
+    const { room } = createRoom('!room:test', liveEvents);
+    const contextTimeline = createTimeline([{ getId: () => '$context:event' }]);
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockResolvedValue(contextTimeline),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        eventId: '$context:event',
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadEventTimeline('$context:event');
+    });
+
+    await act(async () => {
+      result.current.jumpToLatest();
+    });
+
+    expect(result.current.timeline.linkedTimelines).toHaveLength(1);
+    expect(result.current.timeline.linkedTimelines[0]).toBe(room.getLiveTimeline());
+    expect(result.current.focusItem).toEqual({
+      index: 1,
+      eventId: '$latest:event',
+      scrollTo: true,
+      highlight: false,
+      align: 'end',
+    });
   });
 
   it('resets timeline state when room.roomId changes and eventId is not set', async () => {

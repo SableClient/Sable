@@ -72,7 +72,6 @@ import {
   getUnreadInfoAfterJumpToLatest,
   getEventTimeline,
   getFirstLinkedTimeline,
-  getInitialTimeline,
   getEmptyTimeline,
   getEventIdAbsoluteIndex,
 } from '$utils/timeline';
@@ -1934,6 +1933,7 @@ export function RoomTimeline({
             onClick={() =>
               timelineSync.loadEventTimeline(unreadInfo.readUptoEventId, undefined, {
                 jumpMode: 'history_context',
+                target: 'next',
               })
             }
           >
@@ -2109,8 +2109,7 @@ export function RoomTimeline({
                 if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
                 releaseJumpLock('jump_to_latest');
                 setUnreadInfo((prev) => getUnreadInfoAfterJumpToLatest(prev));
-                timelineSync.setTimeline(getInitialTimeline(room));
-                scrollToBottom();
+                timelineSync.jumpToLatest();
               }}
             >
               <Text size="L400">Jump to Latest</Text>

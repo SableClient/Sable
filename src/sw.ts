@@ -972,12 +972,59 @@ async function handleMinimalPushPayload(
     unreadCount?: number;
   }
 ): Promise<void> {
+  const applyMinimalPushVisibilityAndBadgePolicy = async (
+    payload: unknown,
+    policyOptions: {
+      hasVisibleClient?: boolean;
+      unreadCount?: number;
+    } = options ?? {}
+  ): Promise<boolean> => {
+    const bypassForegroundSuppression = isForegroundSuppressionExemptPushPayload(payload);
+    const bypassUnreadZeroShortCircuit = shouldBypassUnreadZeroShortCircuit(payload);
+
+    if (policyOptions.hasVisibleClient && !bypassForegroundSuppression) {
+      console.debug('[SW push] suppressing OS notification — app is visible');
+      return true;
+    }
+
+    try {
+      if (typeof policyOptions.unreadCount === 'number') {
+        if (policyOptions.unreadCount === 0) {
+          await (
+            self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+          ).clearAppBadge?.();
+          if (clearNotificationsOnRead) {
+            const notifs = await self.registration.getNotifications();
+            notifs.forEach((n) => n.close());
+          }
+          if (!bypassUnreadZeroShortCircuit) return true;
+        } else {
+          await (
+            self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+          ).setAppBadge?.(policyOptions.unreadCount);
+        }
+      }
+    } catch {
+      // Badging API absent — continue to show the notification.
+    }
+
+    return false;
+  };
+
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
   // the app (same pattern as settings persistence).
   const session = getAnyStoredSession() ?? (await loadPersistedSession());
 
   if (!session) {
+    if (await applyMinimalPushVisibilityAndBadgePolicy(undefined)) {
+      await recordPushTelemetry('fetch_fallback', {
+        payload_type: 'minimal',
+        reason: 'missing_session_suppressed',
+        has_clients: windowClients.length > 0,
+      });
+      return;
+    }
     // No session anywhere — app was never opened since install, or the user logged out.
     // Show a minimal actionable notification so the user can tap through to the room.
     console.debug('[SW push] minimal payload: no session, showing generic notification');
@@ -1017,6 +1064,14 @@ async function handleMinimalPushPayload(
   ]);
 
   if (!rawEvent) {
+    if (await applyMinimalPushVisibilityAndBadgePolicy(undefined)) {
+      await recordPushTelemetry('fetch_fallback', {
+        payload_type: 'minimal',
+        reason: 'raw_event_fetch_failed_suppressed',
+        has_clients: windowClients.length > 0,
+      });
+      return;
+    }
     await postSentryBreadcrumb(
       buildNotificationBreadcrumb(
         'push',
@@ -1047,34 +1102,6 @@ async function handleMinimalPushPayload(
 
   const eventType = rawEvent.type as string | undefined;
   const sender = rawEvent.sender as string | undefined;
-  const bypassForegroundSuppression = isForegroundSuppressionExemptPushPayload(rawEvent);
-  const bypassUnreadZeroShortCircuit = shouldBypassUnreadZeroShortCircuit(rawEvent);
-
-  if (options?.hasVisibleClient && !bypassForegroundSuppression) {
-    console.debug('[SW push] suppressing OS notification — app is visible');
-    return;
-  }
-
-  try {
-    if (typeof options?.unreadCount === 'number') {
-      if (options.unreadCount === 0) {
-        await (
-          self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
-        ).clearAppBadge?.();
-        if (clearNotificationsOnRead) {
-          const notifs = await self.registration.getNotifications();
-          notifs.forEach((n) => n.close());
-        }
-        if (!bypassUnreadZeroShortCircuit) return;
-      } else {
-        await (
-          self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
-        ).setAppBadge?.(options.unreadCount);
-      }
-    }
-  } catch {
-    // Badging API absent — continue to show the notification.
-  }
 
   // Fetch sender's member state — gives us both display name and avatar URL.
   const memberInfo = sender
@@ -1174,6 +1201,15 @@ async function handleMinimalPushPayload(
         })
       );
       // App was backgrounded but not frozen — decryption succeeded.
+      if (
+        await applyMinimalPushVisibilityAndBadgePolicy({
+          type: result.eventType,
+          effectiveType: result.effectiveType,
+          content: result.content,
+        })
+      ) {
+        return;
+      }
       // Prefer the server-fetched display name (authoritative) over the relay's SDK cache
       // value, which may be stale or missing if the SDK hasn't fully synced yet.
       await handlePushNotificationPushData({
@@ -1212,6 +1248,9 @@ async function handleMinimalPushPayload(
         })
       );
       // App is frozen or fully closed — show "Encrypted message" fallback.
+      if (await applyMinimalPushVisibilityAndBadgePolicy(undefined)) {
+        return;
+      }
       await handlePushNotificationPushData({
         ...baseData,
         type: 'm.room.encrypted',
@@ -1228,6 +1267,9 @@ async function handleMinimalPushPayload(
     }
   } else {
     // Unencrypted event — we have the plaintext, show it.
+    if (await applyMinimalPushVisibilityAndBadgePolicy(rawEvent)) {
+      return;
+    }
     await handlePushNotificationPushData({
       ...baseData,
       type: eventType,
@@ -1945,6 +1987,26 @@ const onPushNotification = async (event: PushEvent) => {
   const payloadType = pushTelemetryPayloadType(pushData);
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
+  // Track push notification arrival before any payload-specific early return.
+  await recordPushTelemetry('received', {
+    has_clients: clients.length > 0,
+    focused_client_count: focusedClientCount,
+    browser_visible_client_count: browserVisibleClientCount,
+    payload_type: payloadType,
+  });
+  postSentryMetric('sable.push.received', 1, {
+    has_clients: clients.length > 0,
+    focused_client_count: focusedClientCount,
+    browser_visible_client_count: browserVisibleClientCount,
+    payload_type: payloadType,
+  }).catch(() => undefined);
+  postSentryBreadcrumb('notification.push', 'Push received by service worker', 'info', {
+    clientCount: clients.length,
+    focusedClientCount,
+    browserVisibleClientCount,
+    payloadType,
+  }).catch(() => undefined);
+
   // event_id_only format: fetch the event ourselves first so call/invite
   // classification can happen before foreground suppression or unread-zero
   // early returns.
@@ -1968,26 +2030,6 @@ const onPushNotification = async (event: PushEvent) => {
     console.debug('[SW push] suppressing OS notification — app is visible');
     return;
   }
-
-  // Track push notification arrival
-  await recordPushTelemetry('received', {
-    has_clients: clients.length > 0,
-    focused_client_count: focusedClientCount,
-    browser_visible_client_count: browserVisibleClientCount,
-    payload_type: payloadType,
-  });
-  postSentryMetric('sable.push.received', 1, {
-    has_clients: clients.length > 0,
-    focused_client_count: focusedClientCount,
-    browser_visible_client_count: browserVisibleClientCount,
-    payload_type: payloadType,
-  }).catch(() => undefined);
-  postSentryBreadcrumb('notification.push', 'Push received by service worker', 'info', {
-    clientCount: clients.length,
-    focusedClientCount,
-    browserVisibleClientCount,
-    payloadType,
-  }).catch(() => undefined);
 
   try {
     const declarativeBadge =

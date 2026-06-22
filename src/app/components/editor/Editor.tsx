@@ -121,6 +121,7 @@ type CustomEditorProps = {
   maxHeight?: string;
   editor: Editor;
   placeholder?: string;
+  readOnly?: boolean;
   onKeyDown?: KeyboardEventHandler;
   onKeyUp?: KeyboardEventHandler;
   onChange?: EditorChangeHandler;
@@ -142,6 +143,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       maxHeight = 'min(50vh, calc(var(--sable-visible-height, 100vh) * 0.5))',
       editor,
       placeholder,
+      readOnly = false,
       onKeyDown,
       onKeyUp,
       onChange,
@@ -541,6 +543,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 data-editable-name={editableName}
                 className={css.EditorTextarea}
                 placeholder={placeholder}
+                readOnly={readOnly}
                 renderPlaceholder={renderPlaceholder}
                 renderElement={renderElement}
                 renderLeaf={renderLeaf}
@@ -566,7 +569,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 }}
                 // keeps focus after pressing send.
                 onBlur={() => {
-                  if (mobileOrTablet()) ReactEditor.focus(editor);
+                  if (mobileOrTablet() && !readOnly) ReactEditor.focus(editor);
                 }}
               />
             </Scroll>

@@ -104,7 +104,7 @@ export const MessageBase = recipe({
     DefaultReset,
     {
       marginTop: SpacingVar,
-      padding: `${config.space.S200} ${config.space.S200} ${config.space.S200} ${config.space.S400}`,
+      padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
       borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
       minHeight: toRem(16),
       contain: 'layout',
@@ -178,7 +178,26 @@ export const ModernContent = style({
 });
 
 export const BubbleBefore = style({
+  width: toRem(36),
   minWidth: toRem(36),
+  flex: `0 0 ${toRem(36)}`,
+});
+
+export const BubbleRow = style({
+  alignItems: 'flex-start',
+  boxSizing: 'border-box',
+  width: '100%',
+  minWidth: 0,
+  maxWidth: '100%',
+  paddingInline: config.space.S200,
+});
+
+export const BubbleMain = style({
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  width: '100%',
+  minWidth: 0,
 });
 
 export const BubbleWrapper = style({

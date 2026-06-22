@@ -1080,15 +1080,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         plainText = `${UNFLIP} ${plainText}`;
         customHtml = `${UNFLIP} ${customHtml}`;
       } else if (commandName === Command.CreatePoll) {
+        prepareComposerOverlayTrigger();
         await openPollCreator();
         resetEditor(editor);
         resetEditorHistory(editor);
         sendTypingStatus(false);
         return;
       } else if (commandName) {
-        if ((commandName as Command) === Command.Location && plainText.trim().length === 0)
+        if ((commandName as Command) === Command.Location && plainText.trim().length === 0) {
+          prepareComposerOverlayTrigger();
           await openLocationPicker();
-        else {
+        } else {
           const commandContent = commands[commandName as Command];
           if (commandContent) {
             commandContent.exe(plainText, customHtml);

@@ -300,4 +300,27 @@ describe('useAppVisibility', () => {
     expect(mx.retryImmediately).toHaveBeenCalledTimes(1);
     expect(retryNow).toHaveBeenCalledTimes(1);
   });
+
+  it('emits foreground recovery requests through appEvents', async () => {
+    const recoveryHandler =
+      vi.fn<(trigger: Parameters<typeof appEvents.emitForegroundRecoveryRequested>[0]) => void>();
+    const unsubscribe = appEvents.onForegroundRecoveryRequested(recoveryHandler);
+    const mx = createMockMatrixClient();
+
+    renderHook(() =>
+      useAppVisibility(mx, {
+        baseUrl: 'https://example.com',
+        accessToken: 'token',
+        userId: '@user:example.com',
+      } as never)
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(10 * 60_000 + 1);
+      document.dispatchEvent(new Event('pointerdown'));
+    });
+
+    expect(recoveryHandler).toHaveBeenCalledWith('pointerdown');
+    unsubscribe();
+  });
 });

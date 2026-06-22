@@ -8,11 +8,13 @@ import { hasServiceWorker } from './app/utils/platform';
 import { reloadWithTelemetry } from './app/utils/reloadWithTelemetry';
 import { pushSessionToSW } from './sw-session';
 import { consumeLaunchContext } from './launch-context-persistence';
+import { appEvents } from './app/utils/appEvents';
 
 const log = createLogger('service-worker-bootstrap');
 const SW_WATCHDOG_INTERVAL_MS = 60_000;
 const SW_WATCHDOG_PING_TIMEOUT_MS = 5_000;
 const SW_WATCHDOG_MAX_MISSES = 2;
+let unsubscribeForegroundRecoveryListener: (() => void) | undefined;
 type SwRecoveryReason =
   | 'missing_worker'
   | 'awaiting_compatible_pong'
@@ -227,6 +229,28 @@ function createSwWatchdog() {
   };
 
   return { restart, stop, handleMessage, pingServiceWorker };
+}
+
+type SwRecoveryPingReason = Extract<
+  SwRecoveryReason,
+  'watchdog_timer' | 'foreground_focus' | 'visibilitychange_visible' | 'pageshow'
+>;
+
+function mapForegroundRecoveryTriggerToWatchdogReason(
+  trigger: Parameters<typeof appEvents.emitForegroundRecoveryRequested>[0]
+): SwRecoveryPingReason {
+  switch (trigger) {
+    case 'focus':
+      return 'foreground_focus';
+    case 'pageshow_persisted':
+      return 'pageshow';
+    case 'visibilitychange':
+    case 'pointerdown':
+    case 'keydown':
+      return 'visibilitychange_visible';
+    default:
+      throw new Error(`Unsupported foreground recovery trigger: ${String(trigger)}`);
+  }
 }
 
 export function registerAppServiceWorker() {
@@ -458,9 +482,23 @@ export function registerAppServiceWorker() {
     swWatchdog.restart();
     void swWatchdog.pingServiceWorker('pageshow');
   };
+  unsubscribeForegroundRecoveryListener?.();
+  unsubscribeForegroundRecoveryListener = appEvents.onForegroundRecoveryRequested((trigger) => {
+    if (document.visibilityState !== 'visible') return;
+    swWatchdog.restart();
+    void swWatchdog.pingServiceWorker(mapForegroundRecoveryTriggerToWatchdogReason(trigger));
+  });
 
   handleVisibilityChange();
   document.addEventListener('visibilitychange', handleVisibilityChange);
   window.addEventListener('focus', handleWindowFocus);
   window.addEventListener('pageshow', handlePageShow);
+  window.addEventListener(
+    'beforeunload',
+    () => {
+      unsubscribeForegroundRecoveryListener?.();
+      unsubscribeForegroundRecoveryListener = undefined;
+    },
+    { once: true }
+  );
 }

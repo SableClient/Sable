@@ -6,6 +6,7 @@ import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
@@ -110,14 +111,15 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
     : undefined;
 
   const screenSize = useScreenSizeContext();
+  const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
   const [activePage, setActivePage] = useState<RoomSettingsPage | undefined>(() => {
     if (initialPage) return initialPage;
-    return screenSize === ScreenSize.Mobile ? undefined : RoomSettingsPage.GeneralPage;
+    return isPhoneLayout ? undefined : RoomSettingsPage.GeneralPage;
   });
   const menuItems = useRoomSettingsMenuItems();
 
   const handlePageRequestClose = () => {
-    if (screenSize === ScreenSize.Mobile) {
+    if (isPhoneLayout) {
       setActivePage(undefined);
       return;
     }
@@ -125,7 +127,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
   };
 
   const handleSwipeBack = () => {
-    if (screenSize === ScreenSize.Mobile) {
+    if (isPhoneLayout) {
       requestClose();
     }
   };
@@ -134,7 +136,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
     <SwipeableOverlayWrapper direction="right" onClose={handleSwipeBack}>
       <PageRoot
         nav={
-          screenSize === ScreenSize.Mobile && activePage !== undefined ? undefined : (
+          isPhoneLayout && activePage !== undefined ? undefined : (
             <PageNav size="300">
               <PageNavHeader outlined={false}>
                 <Box grow="Yes" gap="200">
@@ -158,7 +160,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
                   </Text>
                 </Box>
                 <Box shrink="No">
-                  {screenSize === ScreenSize.Mobile && (
+                  {isPhoneLayout && (
                     <IconButton onClick={requestClose} variant="Background">
                       {composerIcon(X)}
                     </IconButton>

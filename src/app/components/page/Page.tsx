@@ -30,7 +30,7 @@ type ClientDrawerLayoutProps = {
 };
 export function PageNav({ size, children }: ClientDrawerLayoutProps & css.PageNavVariants) {
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
+  const isMobile = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
 
   return (
     <Box

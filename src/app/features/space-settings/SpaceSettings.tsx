@@ -6,6 +6,7 @@ import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -111,14 +112,15 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
     : undefined;
 
   const screenSize = useScreenSizeContext();
+  const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
   const [activePage, setActivePage] = useState<SpaceSettingsPage | undefined>(() => {
     if (initialPage) return initialPage;
-    return screenSize === ScreenSize.Mobile ? undefined : SpaceSettingsPage.GeneralPage;
+    return isPhoneLayout ? undefined : SpaceSettingsPage.GeneralPage;
   });
   const menuItems = useSpaceSettingsMenuItems();
 
   const handlePageRequestClose = () => {
-    if (screenSize === ScreenSize.Mobile) {
+    if (isPhoneLayout) {
       setActivePage(undefined);
       return;
     }
@@ -128,7 +130,7 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
   return (
     <PageRoot
       nav={
-        screenSize === ScreenSize.Mobile && activePage !== undefined ? undefined : (
+        isPhoneLayout && activePage !== undefined ? undefined : (
           <PageNav size="300">
             <PageNavHeader outlined={false}>
               <Box grow="Yes" gap="200">
@@ -152,7 +154,7 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
                 </Text>
               </Box>
               <Box shrink="No">
-                {screenSize === ScreenSize.Mobile && (
+                {isPhoneLayout && (
                   <IconButton onClick={requestClose} variant="Background">
                     {composerIcon(X)}
                   </IconButton>

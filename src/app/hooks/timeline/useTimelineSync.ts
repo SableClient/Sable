@@ -242,10 +242,7 @@ const useEventTimelineLoader = (
           level: 'info',
         });
 
-        const targetIndex =
-          target === 'next' && absIndex + 1 < getTimelinesEventsCount(linkedTimelines)
-            ? absIndex + 1
-            : absIndex;
+        const targetIndex = target === 'next' ? absIndex + 1 : absIndex;
         const targetEventId =
           getTimelineEventAtIndex(linkedTimelines, targetIndex)?.getId() ?? eventId;
 

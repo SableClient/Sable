@@ -7,9 +7,7 @@ describe('getJumpToLatestFocusItem', () => {
   });
 
   it('targets the conceptual bottom for non-empty timelines', () => {
-    const focusItem = getJumpToLatestFocusItem([
-      { getEvents: () => [{}] } as never,
-    ]);
+    const focusItem = getJumpToLatestFocusItem([{ getEvents: () => [{}] } as never]);
 
     expect(focusItem).toEqual({
       index: 0,

@@ -74,6 +74,14 @@ export function getProcessedRowIndexForRawTimelineIndexForward(
   processedEvents: ProcessedEvent[],
   startRawIndex: number
 ): { rowIndex: number; focusRawIndex: number } | undefined {
+  const exactRowIndex = processedEvents.findIndex((e) => e.itemIndex === startRawIndex);
+  if (exactRowIndex >= 0) {
+    return {
+      rowIndex: exactRowIndex,
+      focusRawIndex: processedEvents[exactRowIndex]!.itemIndex,
+    };
+  }
+
   const rowIndex = processedEvents.findIndex((e) => e.itemIndex >= startRawIndex);
   if (rowIndex < 0) return undefined;
 

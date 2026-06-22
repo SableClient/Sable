@@ -835,7 +835,7 @@ export function RoomTimeline({
         // handler can immediately "chase" the live bottom after this jump.
         setAtBottom(false);
         startJumpScrollBlock();
-        if (timelineSync.focusItem.highlight) {
+        if (timelineSync.focusItem.tail !== 'live') {
           activateJumpLock(resolvedTarget.lockEventId ?? focusEventId);
         }
 

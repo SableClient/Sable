@@ -38,6 +38,13 @@ describe('raw timeline row fallbacks', () => {
     });
   });
 
+  it('keeps an exact visible row match when one exists', () => {
+    expect(getProcessedRowIndexForRawTimelineIndexForward(processedEvents, 3)).toEqual({
+      rowIndex: 1,
+      focusRawIndex: 3,
+    });
+  });
+
   it('returns undefined when there is no later visible row', () => {
     expect(getProcessedRowIndexForRawTimelineIndexForward(processedEvents, 6)).toBeUndefined();
   });

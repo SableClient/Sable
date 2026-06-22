@@ -26,15 +26,27 @@ type FakeTimeline = {
   getRoomId: () => string;
 };
 
-type FakeTimelineSet = EventEmitter & {
+type FakeTimelineSet = {
   getLiveTimeline: () => FakeTimeline;
   getTimelineForEvent: (eventId?: string) => FakeTimeline | undefined;
+  emit: EventEmitter['emit'];
 };
 
-type FakeRoom = Room &
-  EventEmitter & {
-    emit: EventEmitter['emit'];
+type FakeRoom = {
+  emit: EventEmitter['emit'];
+  on: EventEmitter['on'];
+  removeListener: EventEmitter['removeListener'];
+  roomId: string;
+  getUnfilteredTimelineSet: () => FakeTimelineSet;
+  getLiveTimeline: () => FakeTimeline;
+  getEventReadUpTo: () => null;
+  getThread: () => null;
+  getUnreadNotificationCount: () => number;
+  client: {
+    getUserId: () => string;
+    getAccountData: () => null;
   };
+};
 
 function createTimeline(events: unknown[] = [{}]): FakeTimeline {
   return {
@@ -178,6 +190,45 @@ describe('useTimelineSync', () => {
       eventId: '$unread:event',
       scrollTo: true,
       highlight: true,
+      align: 'center',
+      jumpMode: 'history_context',
+    });
+  });
+
+  it('keeps the unread event target when no newer event is loaded yet', async () => {
+    const { room } = createRoom('!room:test', [{ getId: () => '$live:event' }]);
+    const contextEvents = [{ getId: () => '$read:event' }];
+    const contextTimeline = createTimeline(contextEvents);
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockResolvedValue(contextTimeline),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: '$read:event' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadEventTimeline('$read:event', undefined, {
+        target: 'next',
+      });
+    });
+
+    expect(result.current.focusItem).toEqual({
+      index: 1,
+      eventId: '$read:event',
+      scrollTo: true,
+      highlight: false,
       align: 'center',
       jumpMode: 'history_context',
     });

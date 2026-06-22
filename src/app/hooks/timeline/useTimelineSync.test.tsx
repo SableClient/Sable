@@ -686,10 +686,11 @@ describe('useTimelineSync', () => {
     expect(result.current.timeline.linkedTimelines).toHaveLength(1);
     expect(result.current.timeline.linkedTimelines[0]).toBe(room.getLiveTimeline());
     expect(result.current.focusItem).toEqual({
-      index: Number.MAX_SAFE_INTEGER,
+      index: 1,
       scrollTo: true,
       highlight: false,
       align: 'end',
+      tail: 'live',
     });
   });
 

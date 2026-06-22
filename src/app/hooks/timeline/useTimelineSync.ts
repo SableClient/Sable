@@ -43,6 +43,7 @@ export type TimelineFocusItem = {
   highlight: boolean;
   align?: 'center' | 'end';
   jumpMode?: TimelineJumpMode;
+  tail?: 'live';
 };
 
 export type PaginationStatus = 'idle' | 'loading' | 'error';
@@ -544,12 +545,14 @@ export interface UseTimelineSyncOptions {
 export const getJumpToLatestFocusItem = (
   linkedTimelines: EventTimeline[]
 ): TimelineFocusItem | undefined => {
-  if (getTimelinesEventsCount(linkedTimelines) <= 0) return undefined;
+  const lastIndex = getTimelinesEventsCount(linkedTimelines) - 1;
+  if (lastIndex < 0) return undefined;
   return {
-    index: Number.MAX_SAFE_INTEGER,
+    index: lastIndex,
     scrollTo: true,
     highlight: false,
     align: 'end',
+    tail: 'live',
   };
 };
 

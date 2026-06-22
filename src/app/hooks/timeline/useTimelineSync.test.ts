@@ -12,10 +12,11 @@ describe('getJumpToLatestFocusItem', () => {
     ]);
 
     expect(focusItem).toEqual({
-      index: Number.MAX_SAFE_INTEGER,
+      index: 0,
       scrollTo: true,
       highlight: false,
       align: 'end',
+      tail: 'live',
     });
   });
 });

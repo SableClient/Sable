@@ -748,6 +748,14 @@ export function RoomTimeline({
       const resolveProcessedIndex = () => {
         const currentFocusItem = timelineSyncRef.current.focusItem;
         if (!currentFocusItem) return undefined;
+        if (currentFocusItem.tail === 'live') {
+          const lastRowIndex = processedEventsRef.current.length - 1;
+          if (lastRowIndex < 0) return undefined;
+          return {
+            processedIndex: lastRowIndex,
+            lockEventId: processedEventsRef.current[lastRowIndex]?.mEvent.getId(),
+          };
+        }
 
         let nextProcessedIndex = getRawIndexToProcessedIndex(currentFocusItem.index);
         let resolvedEventId =

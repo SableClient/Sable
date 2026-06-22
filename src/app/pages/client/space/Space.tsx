@@ -1192,6 +1192,7 @@ export function Space() {
                           roomTopicPreview={roomTopicPreview}
                           roomMessagePreview={roomMessagePreview}
                           dmMessagePreview={dmMessagePreview}
+                          isStrict={showRoomIcon === ShowRoomIcon.Strict}
                         />
                       </div>
                     </VirtualTile>

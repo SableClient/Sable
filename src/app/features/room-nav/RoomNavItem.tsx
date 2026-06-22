@@ -272,6 +272,7 @@ type RoomNavItemProps = {
   direct?: boolean;
   customDMCards?: boolean;
   hideText?: boolean;
+  isStrict?: boolean;
   joinCallOnSingleClick?: boolean;
   roomTopicPreview?: boolean;
   roomMessagePreview?: boolean;
@@ -290,6 +291,7 @@ export function RoomNavItem({
   notificationMode,
   linkPath,
   hideText,
+  isStrict,
   joinCallOnSingleClick,
 }: RoomNavItemProps) {
   const mx = useMatrixClient();
@@ -347,6 +349,11 @@ export function RoomNavItem({
   const callPref = useAtomValue(useCallPreferencesAtom());
   const [isChatOpen, setChatOpen] = useAtom(callChatAtom);
   const autoDiscoveryInfo = useAutoDiscoveryInfo();
+
+  const avatarSrc =
+    ((!direct || customDMCards) && getRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
+    (direct && getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
+    undefined;
 
   const isActiveCall = callEmbed?.roomId === room.roomId;
 
@@ -467,7 +474,7 @@ export function RoomNavItem({
                       // use the larger container+mini variant so the composite scales properly.
                       <div className={hideText ? css.GroupAvatarRowHideText : css.GroupAvatarRow}>
                         {groupMembers.map((member) => {
-                          const avatarSrc = member.avatarUrl
+                          const memberAvatarSrc = member.avatarUrl
                             ? (convertMxc(
                                 mx,
                                 member.avatarUrl,
@@ -486,7 +493,7 @@ export function RoomNavItem({
                             >
                               <UserAvatar
                                 userId={member.userId}
-                                src={avatarSrc}
+                                src={memberAvatarSrc}
                                 alt={member.displayName ?? member.userId}
                                 renderFallback={() => (
                                   <Text as="span" size="T200">
@@ -516,14 +523,10 @@ export function RoomNavItem({
                           radii="400"
                           style={hideTextStyling(hideText)}
                         >
-                          {showAvatar ? (
+                          {showAvatar || (avatarSrc && isStrict) ? (
                             <RoomAvatar
                               roomId={room.roomId}
-                              src={
-                                ((!direct || customDMCards) &&
-                                  getRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
-                                getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)
-                              }
+                              src={avatarSrc}
                               uniformIcons
                               alt={roomName}
                               renderFallback={() => (
@@ -541,7 +544,7 @@ export function RoomNavItem({
                                     : config.opacity.P300,
                               }}
                               filled={selected || isActiveCall}
-                              size={hideText ? '200' : '100'}
+                              size={isStrict && hideText ? '300' : hideText ? '200' : '100'}
                               joinRule={room.getJoinRule()}
                               roomType={room.getType()}
                               withOverlay={roomIconOverlay}

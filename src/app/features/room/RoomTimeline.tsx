@@ -87,6 +87,13 @@ import {
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { completeRoomTimelineRender } from '$utils/perfTelemetry';
 import { mobileOrTabletLayout } from '$utils/user-agent';
+import {
+  didKeyboardJustClose,
+  didKeyboardJustOpen,
+  isKeyboardBottomSessionScrollKeyTarget,
+  shouldRepinBottomAfterKeyboardClose,
+  shouldClearKeyboardBottomSessionOnUserIntent,
+} from './keyboardBottomRecovery';
 import * as css from './RoomTimeline.css';
 
 const log = createLogger('RoomTimeline');
@@ -265,7 +272,13 @@ export function RoomTimeline({
   const { isKeyboardVisible, keyboardHeight } = useKeyboardHeight();
   const prevKeyboardVisibleRef = useRef(false);
   const prevKeyboardHeightRef = useRef(0);
+  const keyboardVisibleRef = useRef(isKeyboardVisible);
+  keyboardVisibleRef.current = isKeyboardVisible;
+  const renderKeyboardVisibleRef = useRef(isKeyboardVisible);
+  const keyboardHeightRef = useRef(keyboardHeight);
+  keyboardHeightRef.current = keyboardHeight;
   const lastKeyboardCloseTimeRef = useRef(0);
+  const keyboardSessionBottomPinnedRef = useRef(false);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const openUserRoomProfile = useOpenUserRoomProfile();
   const optionalSpace = useSpaceOptionally();
@@ -1180,6 +1193,19 @@ export function RoomTimeline({
   ]);
 
   useEffect(() => {
+    if (eventId) {
+      keyboardSessionBottomPinnedRef.current = false;
+    }
+  }, [eventId, room.roomId]);
+
+  useEffect(() => {
+    if (didKeyboardJustOpen(isKeyboardVisible, renderKeyboardVisibleRef.current)) {
+      keyboardSessionBottomPinnedRef.current = atBottomRef.current;
+    }
+    renderKeyboardVisibleRef.current = isKeyboardVisible;
+  }, [isKeyboardVisible]);
+
+  useEffect(() => {
     const el = messageListRef.current;
     if (!el) return () => {};
 
@@ -1195,15 +1221,33 @@ export function RoomTimeline({
       // record the time so handleVListScroll can use an extended settle window
       // (500ms instead of 250ms) to fully suppress the jump button during the
       // keyboard close animation.
-      const keyboardJustClosed =
-        prevKeyboardVisibleRef.current &&
-        !isKeyboardVisible &&
-        heightDelta > 0 &&
-        prevKeyboardHeightRef.current > 0 &&
-        Math.abs(heightDelta - prevKeyboardHeightRef.current) < 50;
+      const keyboardJustClosed = didKeyboardJustClose({
+        heightDelta,
+        isKeyboardVisible: keyboardVisibleRef.current,
+        prevKeyboardHeight: prevKeyboardHeightRef.current,
+        prevKeyboardVisible: prevKeyboardVisibleRef.current,
+      });
 
       if (keyboardJustClosed) {
         lastKeyboardCloseTimeRef.current = Date.now();
+      }
+
+      if (
+        shouldRepinBottomAfterKeyboardClose(
+          keyboardJustClosed,
+          keyboardSessionBottomPinnedRef.current
+        )
+      ) {
+        keyboardSessionBottomPinnedRef.current = false;
+        setAtBottom(true);
+        requestAnimationFrame(() => {
+          const vl = vListRef.current;
+          if (!vl) return;
+          lastProgrammaticBottomPinAtRef.current = Date.now();
+          vl.scrollTo(vl.scrollSize);
+        });
+      } else if (keyboardJustClosed) {
+        keyboardSessionBottomPinnedRef.current = false;
       }
 
       // Handle both viewport shrinking (keyboard open) and expanding (keyboard close)
@@ -1215,13 +1259,13 @@ export function RoomTimeline({
         vListRef.current?.scrollTo(vListRef.current.scrollSize);
       }
       prevViewportHeightRef.current = newHeight;
-      prevKeyboardVisibleRef.current = isKeyboardVisible;
-      prevKeyboardHeightRef.current = keyboardHeight;
+      prevKeyboardVisibleRef.current = keyboardVisibleRef.current;
+      prevKeyboardHeightRef.current = keyboardHeightRef.current;
     });
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isKeyboardVisible, keyboardHeight, setAtBottom]);
+  }, [setAtBottom]);
 
   // When the thread drawer opens/closes on desktop, the main timeline column
   // changes width and Virtua remeasures all item heights.  Save the scroll
@@ -1807,11 +1851,15 @@ export function RoomTimeline({
     const el = messageListRef.current;
     if (!el) return undefined;
 
-    const markUserScrollIntent = () => {
+    const markUserScrollIntent = (source: 'pointerdown' | 'wheel' | 'touchmove' | 'keyboard') => {
       userScrollIntentAtRef.current = Date.now();
+      if (shouldClearKeyboardBottomSessionOnUserIntent(source, keyboardVisibleRef.current)) {
+        keyboardSessionBottomPinnedRef.current = false;
+      }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isKeyboardBottomSessionScrollKeyTarget(event.target)) return;
       if (
         event.key === 'ArrowUp' ||
         event.key === 'ArrowDown' ||
@@ -1821,19 +1869,23 @@ export function RoomTimeline({
         event.key === 'End' ||
         event.key === ' '
       ) {
-        markUserScrollIntent();
+        markUserScrollIntent('keyboard');
       }
     };
 
-    el.addEventListener('wheel', markUserScrollIntent, { passive: true });
-    el.addEventListener('touchmove', markUserScrollIntent, { passive: true });
-    el.addEventListener('pointerdown', markUserScrollIntent, { passive: true });
+    const handleWheel = () => markUserScrollIntent('wheel');
+    const handleTouchMove = () => markUserScrollIntent('touchmove');
+    const handlePointerDown = () => markUserScrollIntent('pointerdown');
+
+    el.addEventListener('wheel', handleWheel, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: true });
+    el.addEventListener('pointerdown', handlePointerDown, { passive: true });
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      el.removeEventListener('wheel', markUserScrollIntent);
-      el.removeEventListener('touchmove', markUserScrollIntent);
-      el.removeEventListener('pointerdown', markUserScrollIntent);
+      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);

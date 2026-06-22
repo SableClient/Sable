@@ -7,7 +7,7 @@ import { SettingsTab } from './SettingsTab';
 import { useAtom } from 'jotai';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import * as css from './UserQuickTools.css';
-import { mobileOrTablet } from '$utils/user-agent';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
 export function UserQuickTools({
   width,
@@ -20,6 +20,9 @@ export function UserQuickTools({
   const underOutstep = width < 190 + 66;
   const isCollapsed = width < 50 + 66;
 
+  const screenSize = useScreenSizeContext();
+  const compact = screenSize === ScreenSize.Mobile;
+
   return (
     <>
       {/* Doing it properly and nicely would require a major rewrite that would cause more trouble*/}
@@ -31,7 +34,7 @@ export function UserQuickTools({
           style={{
             opacity: isResizingSidebar ? '0%' : '100%',
             transition: isResizingSidebar ? 'opacity 0.2s ease' : 'opacity 0.5s ease',
-            width: mobileOrTablet() ? '100%' : toRem(width),
+            width: compact ? '100%' : toRem(width),
             paddingRight: underOutstep ? config.space.S200 : config.space.S300,
           }}
         >

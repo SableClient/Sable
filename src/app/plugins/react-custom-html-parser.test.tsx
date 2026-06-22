@@ -10,6 +10,7 @@ import {
   getReactCustomHtmlParser,
   makeMentionCustomProps,
   renderMatrixMention,
+  scaleSystemEmoji,
 } from './react-custom-html-parser';
 import { registerMatrixUriProtocol } from './matrix-uri';
 import { markdownToHtml } from './markdown/markdownToHtml';
@@ -165,6 +166,19 @@ describe('react custom html parser', () => {
     expect(img).toBeInTheDocument();
     // Default max is 64 unless overridden by settings.
     expect(img).toHaveAttribute('height', '64');
+  });
+
+  it.each(['🫩', '🫪', '🫯', '🇩🇪', '🙂‍↔️'])(
+    'wraps modern emoji text %s in emoticon markup',
+    (emoji) => {
+      const result = scaleSystemEmoji(emoji);
+      expect(result).toHaveLength(1);
+      expect(typeof result[0]).not.toBe('string');
+    }
+  );
+
+  it('does not wrap emojis inside urls', () => {
+    expect(scaleSystemEmoji('https://example.com/🫩')).toEqual(['https://example.com/🫩']);
   });
 
   it('renders same-origin raw settings links as mention-style chips through the factory link render path', () => {

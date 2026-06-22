@@ -197,7 +197,7 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
     let endText = 'The Poll has ended and';
     const winnerArray = answers.filter((item) => votes[item.id] === maxValue);
     if (maxValue === 0) endText += ' nobody voted';
-    else if (winnerArray.length === 1 && winnerArray[0])
+    else if (winnerArray.length === 1 && winnerArray[0] && winnerArray[0][M_TEXT.name])
       endText += `${winnerArray[0][M_TEXT.name]} won`;
     else {
       endText += ': ';

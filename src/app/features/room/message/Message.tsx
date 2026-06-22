@@ -269,7 +269,7 @@ type WrappedMessageProps = {
   msgContentJSX: JSX.Element;
   messageLayout?: MessageLayout;
   onDoubleTap: () => void;
-  handleSwipeReply: () => void;
+  handleSwipeReply?: () => void;
   handleContextMenu: MouseEventHandler<HTMLDivElement>;
   align?: 'left' | 'right';
 };
@@ -522,12 +522,29 @@ function MessageInternal(
       return (
         <Box
           gap="300"
-          direction={messageLayout === MessageLayout.Compact ? 'RowReverse' : 'Row'}
+          direction={
+            messageLayout === MessageLayout.Compact ||
+            (messageLayout === MessageLayout.Bubble &&
+              useRightBubbles &&
+              senderId === mx.getUserId())
+              ? 'RowReverse'
+              : 'Row'
+          }
           justifyContent="SpaceBetween"
           alignItems="Baseline"
           grow="Yes"
         >
-          <Box alignItems="Center" gap="100">
+          <Box
+            alignItems="Center"
+            gap="100"
+            direction={
+              messageLayout === MessageLayout.Bubble &&
+              useRightBubbles &&
+              senderId === mx.getUserId()
+                ? 'RowReverse'
+                : undefined
+            }
+          >
             <Username
               as="button"
               style={{
@@ -828,7 +845,6 @@ function MessageInternal(
                 msgContentJSX={msgContentJSX}
                 messageLayout={messageLayout}
                 onDoubleTap={() => {}}
-                handleSwipeReply={() => {}}
                 handleContextMenu={() => {}}
                 align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
               />

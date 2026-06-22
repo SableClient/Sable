@@ -998,7 +998,7 @@ async function handleMinimalPushPayload(
           await (
             self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
           ).clearAppBadge?.();
-          if (clearNotificationsOnRead) {
+          if (clearNotificationsOnRead && !bypassUnreadZeroShortCircuit) {
             const notifs = await self.registration.getNotifications();
             notifs.forEach((n) => n.close());
           }

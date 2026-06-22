@@ -236,7 +236,8 @@ function EmojiSidebar({
       )}
       <SidebarStack
         style={{
-          marginTop: packs.length > 0 ? config.space.S200 : 0,
+          position: 'sticky',
+          bottom: 0,
           zIndex: 1,
         }}
       >

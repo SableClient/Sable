@@ -59,19 +59,14 @@ export const BubbleLayout = as<'div', BubbleLayoutProps>(
     const isRight = align === 'right';
 
     return (
-      <Box className={css.BubbleRow} gap="300" {...props} ref={ref}>
+      <Box gap="300" {...props} ref={ref}>
         {!isRight && (
           <Box className={css.BubbleBefore} shrink="No">
             {before}
           </Box>
         )}
 
-        <Box
-          className={css.BubbleMain}
-          grow="Yes"
-          direction="Column"
-          alignItems={isRight ? 'End' : 'Start'}
-        >
+        <Box grow="Yes" direction="Column" alignItems={isRight ? 'End' : 'Start'}>
           {header}
           {hideBubble ? (
             children

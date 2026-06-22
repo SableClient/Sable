@@ -356,6 +356,47 @@ export type MessageProps = {
 function useMobileLongPress(callback: () => void, delay = 500) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const selectionTargetRef = useRef<{
+    element: HTMLElement;
+    userSelect: string;
+    webkitUserSelect: string;
+    webkitTouchCallout: string;
+  } | null>(null);
+
+  const restoreSelectionStyles = useCallback(() => {
+    const selectionTarget = selectionTargetRef.current;
+    if (!selectionTarget) return;
+
+    selectionTarget.element.style.userSelect = selectionTarget.userSelect;
+    selectionTarget.element.style.setProperty(
+      '-webkit-user-select',
+      selectionTarget.webkitUserSelect
+    );
+    selectionTarget.element.style.setProperty(
+      '-webkit-touch-callout',
+      selectionTarget.webkitTouchCallout
+    );
+    selectionTargetRef.current = null;
+  }, []);
+
+  const suppressSelection = useCallback(
+    (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return;
+      if (selectionTargetRef.current?.element === target) return;
+
+      restoreSelectionStyles();
+      selectionTargetRef.current = {
+        element: target,
+        userSelect: target.style.userSelect,
+        webkitUserSelect: target.style.getPropertyValue('-webkit-user-select'),
+        webkitTouchCallout: target.style.getPropertyValue('-webkit-touch-callout'),
+      };
+      target.style.userSelect = 'none';
+      target.style.setProperty('-webkit-user-select', 'none');
+      target.style.setProperty('-webkit-touch-callout', 'none');
+    },
+    [restoreSelectionStyles]
+  );
 
   const cancel = useCallback(() => {
     if (timerRef.current !== null) {
@@ -363,24 +404,26 @@ function useMobileLongPress(callback: () => void, delay = 500) {
       timerRef.current = null;
     }
     startPosRef.current = null;
-  }, []);
+    restoreSelectionStyles();
+  }, [restoreSelectionStyles]);
 
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
       if (!mobileOrTablet()) return;
       const touch = e.touches[0];
       if (!touch) return;
+      suppressSelection(e.currentTarget);
       startPosRef.current = { x: touch.clientX, y: touch.clientY };
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         requestAnimationFrame(() => {
           const selection = window.getSelection();
-          if (selection && !selection.isCollapsed) return;
+          if (selection && !selection.isCollapsed) selection.removeAllRanges();
           callback();
         });
       }, delay);
     },
-    [callback, delay]
+    [callback, delay, suppressSelection]
   );
 
   const onTouchMove = useCallback(

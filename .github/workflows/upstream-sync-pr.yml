@@ -79,7 +79,7 @@ jobs:
           if git rev-parse --verify --quiet "refs/remotes/upstream/${UPSTREAM_REF}" >/dev/null; then
             upstream_commit="$(git rev-parse "refs/remotes/upstream/${UPSTREAM_REF}")"
           elif git rev-parse --verify --quiet "refs/tags/upstream/${UPSTREAM_REF}" >/dev/null; then
-            upstream_commit="$(git rev-parse "refs/tags/upstream/${UPSTREAM_REF}")"
+            upstream_commit="$(git rev-parse "refs/tags/upstream/${UPSTREAM_REF}^{}")"
           else
             upstream_commit="$(git rev-parse "${UPSTREAM_REF}")"
           fi

@@ -1024,7 +1024,6 @@ export const getReactCustomHtmlParser = (
                           src={htmlSrc}
                           className={css.EmoticonImg}
                           height={height}
-                          style={{ verticalAlign: 'middle' }}
                           fallback={
                             <span className={css.EmoticonBase}>
                               {props.alt || props.title || '?'}
@@ -1038,7 +1037,6 @@ export const getReactCustomHtmlParser = (
                         src={htmlSrc}
                         className={css.EmoticonImg}
                         height={height}
-                        style={{ verticalAlign: 'middle' }}
                         fallback={
                           <span className={css.EmoticonBase}>
                             {props.alt || props.title || '?'}

@@ -118,9 +118,6 @@ test.describe('emoji polish smoke', () => {
             '[data-testid="smoke-emoji-fixed-cell-line"] span[title="black_large_square"]'
           )!
         ).fontFamily,
-        jumboEmojiTop: getComputedStyle(
-          document.querySelector('[data-testid="smoke-jumbo-emoji-line"] span[title]')!
-        ).top,
       };
     });
 
@@ -138,7 +135,6 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.compactPreview).not.toBeNull();
     expect(metrics.compactPreviewEmoji).not.toBeNull();
     expect(metrics.fixedCellBlackSquareFontFamily).toContain('Twemoji');
-    expect(metrics.jumboEmojiTop).toBe('0px');
 
     expect(metrics.pickerButton!.width).toBe(48);
     expect(metrics.pickerButton!.height).toBe(48);
@@ -154,6 +150,9 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.thirdSticker!.left - metrics.secondSticker!.right).toBeGreaterThanOrEqual(4);
     expect(metrics.baselineEmoji!.top).toBeGreaterThanOrEqual(metrics.baselineLine!.top - 6);
     expect(metrics.baselineEmoji!.bottom).toBeLessThanOrEqual(metrics.baselineLine!.bottom + 2);
+    expect(Math.abs(metrics.baselineEmoji!.centerY - metrics.baselineText!.centerY)).toBeLessThan(
+      4
+    );
     expect(metrics.compactPreviewEmoji!.top).toBeGreaterThanOrEqual(
       metrics.compactPreview!.top - 4
     );

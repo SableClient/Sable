@@ -6,6 +6,7 @@ import { Node as SlateNode, createEditor, Text as SlateText } from 'slate';
 import type { RenderLeafProps, RenderElementProps, RenderPlaceholderProps } from 'slate-react';
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
+import { shouldSuppressMobileEditorRefocus } from '$utils/keyboard';
 import { isPhone, mobileOrTablet } from '$utils/user-agent';
 import { getHexcodeForEmoji, getShortcodeFor, isFixedCellEmoji } from '$plugins/emoji';
 import { findSystemEmojiMatches } from '$plugins/react-custom-html-parser';
@@ -569,7 +570,9 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 }}
                 // keeps focus after pressing send.
                 onBlur={() => {
-                  if (mobileOrTablet() && !readOnly) ReactEditor.focus(editor);
+                  if (mobileOrTablet() && !readOnly && !shouldSuppressMobileEditorRefocus()) {
+                    ReactEditor.focus(editor);
+                  }
                 }}
               />
             </Scroll>

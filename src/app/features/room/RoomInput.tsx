@@ -130,7 +130,11 @@ import {
   cancelDelayedEvent,
 } from '$utils/delayedEvents';
 import { timeHourMinute, timeDayMonthYear, daysToMs } from '$utils/time';
-import { stopPropagation } from '$utils/keyboard';
+import {
+  closeKeyboardBeforeOpeningOverlay,
+  primeKeyboardCloseForOverlayOpen,
+  stopPropagation,
+} from '$utils/keyboard';
 
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -326,16 +330,40 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const [pkCompatEnable] = useSetting(settingsAtom, 'pkCompat');
     const [pmpProxyingEnable] = useSetting(settingsAtom, 'pmpProxying');
+    const isMobileLayout = mobileOrTablet();
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     // Hoisted from the UseStateProvider in JSX so EmojiBoard can be kept mounted
     // after first open (avoids re-initializing virtualizer on every open).
     const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
     const [emojiBoardAnchorRect, setEmojiBoardAnchorRect] = useState<DOMRect | null>(null);
-    const openEmojiBoard = useCallback((tab: EmojiBoardTab) => {
-      const rect = emojiBtnRef.current?.getBoundingClientRect() ?? null;
-      setEmojiBoardAnchorRect(rect);
-      setEmojiBoardTab(tab);
-    }, []);
+    const overlayOpenSequenceRef = useRef(0);
+    const submitInFlightRef = useRef(false);
+    const prepareComposerOverlayTrigger = useCallback(() => {
+      if (!isMobileLayout) return;
+      primeKeyboardCloseForOverlayOpen();
+    }, [isMobileLayout]);
+    const openComposerOverlay = useCallback(
+      async (openOverlay: () => void) => {
+        const openSequence = ++overlayOpenSequenceRef.current;
+        if (isMobileLayout) {
+          await closeKeyboardBeforeOpeningOverlay();
+        }
+
+        if (overlayOpenSequenceRef.current !== openSequence) return;
+        openOverlay();
+      },
+      [isMobileLayout]
+    );
+    const openEmojiBoard = useCallback(
+      async (tab: EmojiBoardTab) => {
+        await openComposerOverlay(() => {
+          const rect = emojiBtnRef.current?.getBoundingClientRect() ?? null;
+          setEmojiBoardAnchorRect(rect);
+          setEmojiBoardTab(tab);
+        });
+      },
+      [openComposerOverlay]
+    );
     // Keep the emoji/sticker picker position in sync with viewport changes (e.g.
     // the iOS virtual keyboard appearing/disappearing while the board is open).
     useEffect(() => {
@@ -383,7 +411,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
     const [editDraft, setEditDraft] = useAtom(roomIdToEditDraftAtomFamily(draftKey));
     const latestReplyDraftRef = useRef(replyDraft);
-    const submitInFlightRef = useRef(false);
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
@@ -417,7 +444,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               userId: mx.getUserId() ?? '',
               eventId: threadRootId,
               body: '',
-              relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+              relation: {
+                rel_type: RelationType.Thread,
+                event_id: threadRootId,
+              },
             }
           : undefined,
       [mx, threadRootId]
@@ -510,7 +540,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const isEncrypted = room.hasEncryptionStateEvent();
 
     const { triggerPreLift } = useKeyboardHeight();
-    const isMobileLayout = mobileOrTablet();
     const handleMobilePreLift = useCallback(() => {
       if (!isMobileLayout) return;
       triggerPreLift();
@@ -543,11 +572,31 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       longPressTriggeredRef.current = false;
     }, [clearLongPressTimer]);
 
-    const openSchedulePicker = useCallback(() => {
-      setSendError(undefined);
-      setScheduleMenuAnchor(undefined);
-      setShowSchedulePicker(true);
-    }, []);
+    const openSchedulePicker = useCallback(async () => {
+      await openComposerOverlay(() => {
+        setSendError(undefined);
+        setScheduleMenuAnchor(undefined);
+        setShowSchedulePicker(true);
+      });
+    }, [openComposerOverlay]);
+    const openAddMenu = useCallback(
+      async (anchorElement: HTMLElement) => {
+        await openComposerOverlay(() => {
+          setAddMenuAnchor(anchorElement.getBoundingClientRect());
+        });
+      },
+      [openComposerOverlay]
+    );
+    const openPollCreator = useCallback(async () => {
+      await openComposerOverlay(() => {
+        setPollCreatorOpen(true);
+      });
+    }, [openComposerOverlay]);
+    const openLocationPicker = useCallback(async () => {
+      await openComposerOverlay(() => {
+        setShowLocationPicker(true);
+      });
+    }, [openComposerOverlay]);
 
     useEffect(() => resetLongPressState, [resetLongPressState]);
 
@@ -956,7 +1005,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             }
           }
         }
-
         /**
          * any other users mentioned in the message being replied to,
          * whose nicknames should also be stripped and replaced with user IDs
@@ -1052,15 +1100,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           plainText = `${UNFLIP} ${plainText}`;
           customHtml = `${UNFLIP} ${customHtml}`;
         } else if (commandName === Command.CreatePoll) {
-          setPollCreatorOpen(true);
+          prepareComposerOverlayTrigger();
+          await openPollCreator();
           resetEditor(editor);
           resetEditorHistory(editor);
           sendTypingStatus(false);
           return;
         } else if (commandName) {
-          if ((commandName as Command) === Command.Location && plainText.trim().length === 0)
-            setShowLocationPicker(true);
-          else {
+          if ((commandName as Command) === Command.Location && plainText.trim().length === 0) {
+            prepareComposerOverlayTrigger();
+            await openLocationPicker();
+          } else {
             const commandContent = commands[commandName as Command];
             if (commandContent) {
               commandContent.exe(plainText, customHtml);
@@ -1277,7 +1327,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           content['m.relates_to'] = getReplyContent(replyDraft, room);
         }
         const invalidate = () =>
-          queryClient.invalidateQueries({ queryKey: ['delayedEvents', roomId] });
+          queryClient.invalidateQueries({
+            queryKey: ['delayedEvents', roomId],
+          });
 
         const clearSentMessageContext = (
           sentReplyDraftSnapshot?: string,
@@ -1439,6 +1491,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setServerMaxDelayMs,
       replyDraftBase,
       emojiAutoExpand,
+      openLocationPicker,
+      openPollCreator,
+      prepareComposerOverlayTrigger,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1598,8 +1653,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               });
               if (replacement) {
                 Transforms.select(editor, {
-                  anchor: { path: selection.anchor.path, offset: replacement.start },
-                  focus: { path: selection.anchor.path, offset: replacement.end },
+                  anchor: {
+                    path: selection.anchor.path,
+                    offset: replacement.start,
+                  },
+                  focus: {
+                    path: selection.anchor.path,
+                    offset: replacement.end,
+                  },
                 });
                 Transforms.insertText(editor, replacement.replacement);
               }
@@ -1853,7 +1914,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     </IconButton>
                     <Box direction="Row" gap="200" alignItems="Center">
                       {menuIcon(Clock)}
-                      <Text size="T300" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                      <Text size="T300">
                         Scheduled for {timeDayMonthYear(scheduledTime.getTime())} at{' '}
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
                       </Text>
@@ -1908,10 +1969,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       padding: `${config.space.S200} ${config.space.S300} 0`,
                     }}
                   >
-                    <Text
-                      style={{ color: color.Critical.Main, minWidth: 0, overflowWrap: 'anywhere' }}
-                      size="T300"
-                    >
+                    <Text style={{ color: color.Critical.Main }} size="T300">
                       {sendError}
                     </Text>
                   </Box>
@@ -2014,7 +2072,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                           radii="300"
                           onClick={() => {
                             setAddMenuAnchor(undefined);
-                            setPollCreatorOpen(true);
+                            void openPollCreator();
                           }}
                           before={menuIcon(ListBullets)}
                         >
@@ -2025,7 +2083,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                           radii="300"
                           onClick={() => {
                             setAddMenuAnchor(undefined);
-                            setShowLocationPicker(true);
+                            void openLocationPicker();
                           }}
                           before={menuIcon(MapPinPlusIcon)}
                         >
@@ -2048,11 +2106,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 }
               />
               <IconButton
-                onClick={(evt) =>
-                  editorOldAddFile
-                    ? pickFile('*')
-                    : setAddMenuAnchor(evt.currentTarget.getBoundingClientRect())
-                }
+                onPointerDownCapture={!editorOldAddFile ? prepareComposerOverlayTrigger : undefined}
+                onClick={(evt) => {
+                  if (editorOldAddFile) {
+                    pickFile('*');
+                    return;
+                  }
+
+                  void openAddMenu(evt.currentTarget);
+                }}
                 variant="SurfaceVariant"
                 size="300"
                 radii="300"
@@ -2156,7 +2218,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               {!hideStickerBtn && (
                 <IconButton
                   aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
-                  onClick={() => openEmojiBoard(EmojiBoardTab.Sticker)}
+                  onPointerDownCapture={prepareComposerOverlayTrigger}
+                  onClick={() => void openEmojiBoard(EmojiBoardTab.Sticker)}
                   variant="SurfaceVariant"
                   size="300"
                   radii="300"
@@ -2171,7 +2234,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 aria-pressed={
                   hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
                 }
-                onClick={() => openEmojiBoard(EmojiBoardTab.Emoji)}
+                onPointerDownCapture={prepareComposerOverlayTrigger}
+                onClick={() => void openEmojiBoard(EmojiBoardTab.Emoji)}
                 variant="SurfaceVariant"
                 size="300"
                 radii="300"
@@ -2217,7 +2281,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                           size="300"
                           radii="300"
                           onClick={() => {
-                            openSchedulePicker();
+                            void openSchedulePicker();
                           }}
                           before={menuIcon(Clock)}
                         >
@@ -2282,7 +2346,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     sendClickSequenceRef.current = pressSequence;
                     longPressPointerId.current = evt.pointerId;
                     longPressPressSequenceRef.current = pressSequence;
-                    longPressStartPoint.current = { x: evt.clientX, y: evt.clientY };
+                    longPressStartPoint.current = {
+                      x: evt.clientX,
+                      y: evt.clientY,
+                    };
                     longPressTriggeredRef.current = false;
                     longPressTimer.current = setTimeout(() => {
                       if (
@@ -2306,11 +2373,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                           room_id: roomId,
                         }),
                       });
+                      prepareComposerOverlayTrigger();
                       if (longPressTimer.current !== null) {
                         clearTimeout(longPressTimer.current);
                         longPressTimer.current = null;
                       }
-                      openSchedulePicker();
+                      void openSchedulePicker();
                     }, 700);
                   }}
                   onPointerMove={(evt) => {

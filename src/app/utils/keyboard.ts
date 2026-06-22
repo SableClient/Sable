@@ -1,6 +1,11 @@
 import { isKeyHotkey } from 'is-hotkey';
 import type { KeyboardEventHandler } from 'react';
 
+const KEYBOARD_CLOSE_SETTLE_MS = 140;
+const KEYBOARD_CLOSE_TIMEOUT_MS = 500;
+let lastEditableBlurAt = 0;
+let suppressMobileEditorRefocusUntil = 0;
+
 export interface KeyboardEventLike {
   key: string;
   which: number;
@@ -48,3 +53,101 @@ export const stopPropagation = (evt: KeyboardEvent): boolean => {
   evt.stopPropagation();
   return true;
 };
+
+function isEditableElement(element: Element | null): element is HTMLElement {
+  if (!(element instanceof HTMLElement)) return false;
+
+  const tagName = element.tagName.toLowerCase();
+  return (
+    element.isContentEditable ||
+    tagName === 'textarea' ||
+    (tagName === 'input' &&
+      !['button', 'checkbox', 'file', 'hidden', 'radio', 'range', 'reset', 'submit'].includes(
+        (element as HTMLInputElement).type
+      ))
+  );
+}
+
+const nextAnimationFrame = () =>
+  new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+
+export function primeKeyboardCloseForOverlayOpen(): void {
+  const activeElement = document.activeElement;
+  if (!isEditableElement(activeElement)) return;
+
+  lastEditableBlurAt = Date.now();
+  suppressMobileEditorRefocusUntil = Date.now() + KEYBOARD_CLOSE_TIMEOUT_MS;
+  activeElement.blur();
+}
+
+export function shouldSuppressMobileEditorRefocus(): boolean {
+  return Date.now() <= suppressMobileEditorRefocusUntil;
+}
+
+export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
+  const activeElement = document.activeElement;
+
+  if (isEditableElement(activeElement)) {
+    lastEditableBlurAt = Date.now();
+    suppressMobileEditorRefocusUntil = Date.now() + KEYBOARD_CLOSE_TIMEOUT_MS;
+    activeElement.blur();
+  } else if (Date.now() - lastEditableBlurAt > KEYBOARD_CLOSE_TIMEOUT_MS) {
+    return;
+  }
+
+  const viewport = window.visualViewport;
+
+  await new Promise<void>((resolve) => {
+    let complete: (() => void) | undefined = resolve;
+    let finished = false;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      lastEditableBlurAt = 0;
+      suppressMobileEditorRefocusUntil = 0;
+      const done = complete;
+      complete = undefined;
+      done?.();
+    };
+
+    if (!viewport) {
+      window.setTimeout(() => {
+        finish();
+      }, KEYBOARD_CLOSE_SETTLE_MS);
+      return;
+    }
+
+    let settledTimer: number | null = null;
+    let timeoutTimer: number | null = null;
+    const cleanup = () => {
+      if (settledTimer) clearTimeout(settledTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      viewport.removeEventListener('resize', scheduleSettle);
+      viewport.removeEventListener('scroll', scheduleSettle);
+      window.removeEventListener('focusout', scheduleSettle);
+    };
+
+    function scheduleSettle() {
+      if (settledTimer) clearTimeout(settledTimer);
+      settledTimer = window.setTimeout(() => {
+        cleanup();
+        finish();
+      }, KEYBOARD_CLOSE_SETTLE_MS);
+    }
+
+    viewport.addEventListener('resize', scheduleSettle);
+    viewport.addEventListener('scroll', scheduleSettle);
+    window.addEventListener('focusout', scheduleSettle);
+
+    timeoutTimer = window.setTimeout(() => {
+      cleanup();
+      finish();
+    }, KEYBOARD_CLOSE_TIMEOUT_MS);
+    scheduleSettle();
+  });
+
+  await nextAnimationFrame();
+}

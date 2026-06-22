@@ -35,16 +35,24 @@ Decision rule:
 - Restored Sable-style message row layout for modern/bubble message shells.
 - Restored Sable-style picker sidebar positioning.
 
+## Batch 2 implemented here
+
+- Restored Sable-style desktop composer picker anchoring in `RoomInput.tsx` by routing the emoji/sticker board back through upstream `PopOut`.
+- Restored Sable-style desktop composer emoji/sticker toolbar iconography in `RoomInput.tsx`.
+- Kept Charm’s mobile fixed-portal picker path so the composer overlay still behaves correctly with iOS keyboard and visual viewport changes.
+
 ## Deliberate keeps in this batch
 
 - Authenticated emoji/sticker media loading.
 - Twemoji-backed fixed-cell emoji rendering.
 - Room footer safe-area padding and follow-bar placeholder behavior.
 - Drawer-aware/typing-aware timeline outer spacing.
+- Picker glyph render boxes for stable system-emoji sizing.
+- Picker prewarm/focus-trap support required by the retained mobile overlay path.
+- Cached/authenticated avatar loading in the reaction viewer.
 
 ## Follow-up batches
 
-1. Composer and picker anchoring parity in `RoomInput.tsx`
-2. Room-adjacent drawers and header parity
-3. Search/bookmark/url-preview parity
-4. Settings, app shell, and remaining visible UI parity
+1. Room-adjacent drawers and header parity
+2. Search/bookmark/url-preview parity
+3. Settings, app shell, and remaining visible UI parity

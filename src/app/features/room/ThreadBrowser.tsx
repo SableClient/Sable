@@ -14,7 +14,7 @@ import {
   toRem,
 } from 'folds';
 import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
-import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
+import { EventType, NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';

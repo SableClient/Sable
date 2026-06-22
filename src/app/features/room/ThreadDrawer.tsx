@@ -410,13 +410,13 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     room.on(RoomEvent.Redaction, onRedaction);
     room.on(ThreadEvent.Update, onThreadUpdate);
     room.on(ThreadEvent.NewReply, onThreadUpdate);
-    room.on(MatrixEventEvent.Decrypted, onDecrypted);
+    mx.on(MatrixEventEvent.Decrypted, onDecrypted);
     return () => {
       mx.off(RoomEvent.Timeline, onTimeline);
       room.removeListener(RoomEvent.Redaction, onRedaction);
       room.removeListener(ThreadEvent.Update, onThreadUpdate);
       room.removeListener(ThreadEvent.NewReply, onThreadUpdate);
-      room.removeListener(MatrixEventEvent.Decrypted, onDecrypted);
+      mx.removeListener(MatrixEventEvent.Decrypted, onDecrypted);
     };
   }, [mx, room, threadRootId]);
 

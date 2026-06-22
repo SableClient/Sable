@@ -101,18 +101,6 @@ export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
 
   await new Promise<void>((resolve) => {
     let complete: (() => void) | undefined = resolve;
-
-    if (!viewport) {
-      window.setTimeout(() => {
-        const done = complete;
-        complete = undefined;
-        done?.();
-      }, KEYBOARD_CLOSE_SETTLE_MS);
-      return;
-    }
-
-    let settledTimer: number | null = null;
-    let timeoutTimer: number | null = null;
     let finished = false;
 
     const finish = () => {
@@ -120,26 +108,44 @@ export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
       finished = true;
       lastEditableBlurAt = 0;
       suppressMobileEditorRefocusUntil = 0;
-      if (settledTimer) clearTimeout(settledTimer);
-      if (timeoutTimer) clearTimeout(timeoutTimer);
-      viewport.removeEventListener('resize', scheduleSettle);
-      viewport.removeEventListener('scroll', scheduleSettle);
-      window.removeEventListener('focusout', scheduleSettle);
       const done = complete;
       complete = undefined;
       done?.();
     };
 
+    if (!viewport) {
+      window.setTimeout(() => {
+        finish();
+      }, KEYBOARD_CLOSE_SETTLE_MS);
+      return;
+    }
+
+    let settledTimer: number | null = null;
+    let timeoutTimer: number | null = null;
+    const cleanup = () => {
+      if (settledTimer) clearTimeout(settledTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      viewport.removeEventListener('resize', scheduleSettle);
+      viewport.removeEventListener('scroll', scheduleSettle);
+      window.removeEventListener('focusout', scheduleSettle);
+    };
+
     function scheduleSettle() {
       if (settledTimer) clearTimeout(settledTimer);
-      settledTimer = window.setTimeout(finish, KEYBOARD_CLOSE_SETTLE_MS);
+      settledTimer = window.setTimeout(() => {
+        cleanup();
+        finish();
+      }, KEYBOARD_CLOSE_SETTLE_MS);
     }
 
     viewport.addEventListener('resize', scheduleSettle);
     viewport.addEventListener('scroll', scheduleSettle);
     window.addEventListener('focusout', scheduleSettle);
 
-    timeoutTimer = window.setTimeout(finish, KEYBOARD_CLOSE_TIMEOUT_MS);
+    timeoutTimer = window.setTimeout(() => {
+      cleanup();
+      finish();
+    }, KEYBOARD_CLOSE_TIMEOUT_MS);
     scheduleSettle();
   });
 

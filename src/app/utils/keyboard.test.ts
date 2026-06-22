@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { closeKeyboardBeforeOpeningOverlay, onTabPress } from './keyboard';
+import {
+  closeKeyboardBeforeOpeningOverlay,
+  onTabPress,
+  shouldSuppressMobileEditorRefocus,
+} from './keyboard';
 
 type ViewportListener = () => void;
 
@@ -105,5 +109,25 @@ describe('closeKeyboardBeforeOpeningOverlay', () => {
 
     await expect(closeKeyboardBeforeOpeningOverlay()).resolves.toBeUndefined();
     expect(document.activeElement).toBe(button);
+  });
+
+  it('clears refocus suppression after the no-visualViewport fallback settles', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(0), 0)
+    );
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+
+    const waitForClose = closeKeyboardBeforeOpeningOverlay();
+    expect(shouldSuppressMobileEditorRefocus()).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(140);
+    await vi.runOnlyPendingTimersAsync();
+    await waitForClose;
+
+    expect(shouldSuppressMobileEditorRefocus()).toBe(false);
   });
 });

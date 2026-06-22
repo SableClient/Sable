@@ -7,39 +7,9 @@
 
 import MiniSearch from 'minisearch';
 import type { IndexableEvent, BackfillState, WorkerInMessage, WorkerOutMessage } from './types';
+import { buildSearchWorkerInitErrorMessage, openSearchWorkerDb } from './workerLifecycle';
 
 // ── IDB helpers ─────────────────────────────────────────────────────────────
-
-function openDb(dbName: string): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName, 3);
-    req.onupgradeneeded = (event) => {
-      const db = req.result;
-      const oldVersion = event.oldVersion;
-      if (oldVersion < 1) {
-        db.createObjectStore('index');
-        db.createObjectStore('backfill');
-      }
-      // v2: added msgtype to stored fields
-      if (oldVersion >= 1 && oldVersion < 2) {
-        db.deleteObjectStore('index');
-        db.deleteObjectStore('backfill');
-        db.createObjectStore('index');
-        db.createObjectStore('backfill');
-      }
-      // v3: added url/file/info/filename to stored fields for media events
-      if (oldVersion >= 2 && oldVersion < 3) {
-        db.deleteObjectStore('index');
-        db.deleteObjectStore('backfill');
-        db.createObjectStore('index');
-        db.createObjectStore('backfill');
-      }
-    };
-    req.addEventListener('success', () => resolve(req.result));
-    req.addEventListener('error', () => reject(req.error));
-  });
-}
-
 function idbGet<T>(db: IDBDatabase, store: string, key: string): Promise<T | undefined> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, 'readonly');
@@ -271,7 +241,27 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
   });
 
   try {
-    db = await openDb(dbName);
+    db = await openSearchWorkerDb(indexedDB, dbName, undefined, (event, nextDb) => {
+      const oldVersion = event.oldVersion;
+      if (oldVersion < 1) {
+        nextDb.createObjectStore('index');
+        nextDb.createObjectStore('backfill');
+      }
+      // v2: added msgtype to stored fields
+      if (oldVersion >= 1 && oldVersion < 2) {
+        nextDb.deleteObjectStore('index');
+        nextDb.deleteObjectStore('backfill');
+        nextDb.createObjectStore('index');
+        nextDb.createObjectStore('backfill');
+      }
+      // v3: added url/file/info/filename to stored fields for media events
+      if (oldVersion >= 2 && oldVersion < 3) {
+        nextDb.deleteObjectStore('index');
+        nextDb.deleteObjectStore('backfill');
+        nextDb.createObjectStore('index');
+        nextDb.createObjectStore('backfill');
+      }
+    });
   } catch (err: unknown) {
     post({
       type: '_sentry_breadcrumb',
@@ -592,7 +582,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
         // Send ERROR instead of READY so the UI can show the error state
         post({
           type: 'ERROR',
-          message: err instanceof Error ? err.message : String(err),
+          message: buildSearchWorkerInitErrorMessage(err),
         });
       });
       break;

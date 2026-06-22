@@ -35,6 +35,7 @@ import type {
   WorkerInMessage,
   WorkerOutMessage,
 } from '$plugins/search-worker/types';
+import { buildSearchWorkerRuntimeErrorMessage } from '$plugins/search-worker/workerLifecycle';
 // eslint-disable-next-line import/default, import/no-unresolved -- Vite ?worker suffix returns Worker constructor
 import SearchWorkerConstructor from '$plugins/search-worker/searchWorker.ts?worker';
 
@@ -65,6 +66,10 @@ type SearchIndexCtx = {
   isBackfilling: boolean;
   /** Error message if initialization failed, null otherwise. */
   initError: string | null;
+};
+
+type FailWorkerOptions = {
+  settlePendingQueriesWithEmptyResults?: boolean;
 };
 
 // ── Context ──────────────────────────────────────────────────────────────────
@@ -166,6 +171,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const failWorkerRef = useRef<((errorMsg: string, options?: FailWorkerOptions) => void) | null>(
+    null
+  );
 
   const workerRef = useRef<Worker | null>(null);
   const pendingQueriesRef = useRef<Map<string, PendingQuery>>(new Map());
@@ -613,7 +621,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         case 'ERROR':
           // eslint-disable-next-line no-console
           console.error('[SearchIndex worker error]', msg.message);
-          setInitError(`Worker error: ${msg.message}`);
+          failWorkerRef.current?.(`Worker error: ${msg.message}`, {
+            settlePendingQueriesWithEmptyResults: true,
+          });
           Sentry.addBreadcrumb({
             category: 'search.index',
             message: 'Worker error',
@@ -656,6 +666,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     const userId = mx.getUserId();
     if (!userId) return () => {};
 
+    setInitError(null);
     Sentry.addBreadcrumb({
       category: 'search.index',
       message: 'Initializing search worker',
@@ -728,15 +739,63 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     workerRef.current = worker;
     worker.addEventListener('message', handleWorkerMessage);
 
+    const failWorker = (errorMsg: string, options: FailWorkerOptions = {}) => {
+      clearTimeout(initTimeout);
+      setInitError(errorMsg);
+      setIsReady(false);
+      setIsBackfilling(false);
+
+      if (backfillStartDelayRef.current !== null) {
+        clearTimeout(backfillStartDelayRef.current);
+        backfillStartDelayRef.current = null;
+      }
+      backfillReadyRef.current = false;
+
+      cancelIdlesRef.current.forEach((cancel) => cancel());
+      cancelIdlesRef.current = [];
+      backfillingRoomsRef.current.clear();
+      headlessSetsRef.current.clear();
+      backfillQueueRef.current = [];
+
+      for (const { resolve, reject } of pendingQueriesRef.current.values()) {
+        if (options.settlePendingQueriesWithEmptyResults) {
+          resolve([]);
+          continue;
+        }
+        reject(new Error(errorMsg));
+      }
+      pendingQueriesRef.current.clear();
+
+      if (pendingStatsRef.current) {
+        pendingStatsRef.current.resolve({
+          indexedEventCount: 0,
+          roomCount: 0,
+          estimatedBytes: 0,
+          backfillingRoomCount: 0,
+        });
+        pendingStatsRef.current = null;
+      }
+
+      if (workerRef.current === worker) {
+        worker.terminate();
+        workerRef.current = null;
+      }
+    };
+    failWorkerRef.current = failWorker;
+
     // Handle worker runtime errors (e.g., MIME type errors from failed imports)
     const handleWorkerError = (error: ErrorEvent) => {
       // Null-check error.message — it may be undefined on ErrorEvent (SABLE-52)
       const message = error?.message ?? '';
-      const errorMsg = `Search worker runtime error: ${message || 'Unknown worker error'}`;
+      const errorMsg = buildSearchWorkerRuntimeErrorMessage({
+        message,
+        filename: error.filename,
+        lineno: error.lineno,
+        colno: error.colno,
+      });
       const isMimeError = message.includes('MIME') && message.includes('text/html');
 
-      setInitError(errorMsg);
-      setIsReady(false);
+      failWorker(errorMsg, { settlePendingQueriesWithEmptyResults: true });
       Sentry.captureException(error.error || new Error(message || 'Unknown worker error'), {
         level: isMimeError ? 'warning' : 'error',
         tags: {
@@ -773,11 +832,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
     // Set a timeout to detect if the worker never sends READY or ERROR (SABLE-54)
     const initTimeout = setTimeout(() => {
-      setInitError('Worker initialization timed out (30s) — READY message never received');
-      setIsReady(false);
-      // Terminate the stuck worker so it doesn't consume resources
-      worker.terminate();
-      workerRef.current = null;
+      failWorker('Worker initialization timed out (30s) — READY message never received');
       Sentry.captureMessage('Search worker INIT timeout — READY message never received', {
         level: 'error',
         tags: { component: 'search-index' },
@@ -840,6 +895,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     // Sliding sync starts with an initial window of 100 rooms; additional rooms
     // are received progressively as the list expands, firing ClientEvent.Room.
     const handleRoomAdded = (room: Room) => {
+      if (workerRef.current !== worker) return;
       if (room.isSpaceRoom()) return;
       if (backfillingRoomsRef.current.has(room.roomId)) return;
       if (backfillQueueRef.current.some((e) => e.room.roomId === room.roomId)) return;
@@ -869,11 +925,29 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
+      failWorkerRef.current = null;
       // Ask the worker to flush before terminating. We wait up to 2 s then
       // force-terminate regardless so the cleanup never hangs.
       clearTimeout(initTimeout);
       worker.removeEventListener('message', wrappedHandler as EventListener);
       worker.removeEventListener('error', handleWorkerError);
+      if (workerRef.current !== worker) {
+        setIsReady(false);
+        setIsBackfilling(false);
+        mx.removeListener(ClientEvent.Sync, handleSync as unknown as (...args: unknown[]) => void);
+        mx.removeListener(
+          RoomEvent.Timeline,
+          handleTimeline as unknown as (...args: unknown[]) => void
+        );
+        mx.removeListener(
+          ClientEvent.Room,
+          handleRoomAdded as unknown as (...args: unknown[]) => void
+        );
+        document.removeEventListener('visibilitychange', handleForegroundFocus);
+        window.removeEventListener('focus', handleForegroundFocus);
+        window.removeEventListener('pageshow', handleForegroundFocus);
+        return;
+      }
       postToWorker({ type: 'FLUSH' });
       const terminateTimeout = setTimeout(() => {
         worker.terminate();

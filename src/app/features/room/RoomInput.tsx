@@ -136,6 +136,7 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
+import { getEmojiBoardRightOffset } from './emojiBoardPosition';
 import {
   convertPerMessageProfileToBeeperFormat,
   getCurrentlyUsedPerMessageProfileForRoom,
@@ -2082,15 +2083,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       zIndex: 999,
                       // Position above the emoji button (mirrors PopOut position="Top" offset=16).
                       bottom: window.innerHeight - emojiBoardAnchorRect.top + 16,
-                      // Right-align with the emoji button, but clamp so the picker
-                      // never extends past the left edge of the screen.
-                      // The EmojiBoard is min(432px, 100vw-32px) wide; ensure
-                      // viewportWidth − right − boardWidth ≥ 0.
-                      right: (() => {
-                        const rawRight = window.innerWidth - emojiBoardAnchorRect.right;
-                        const boardWidth = Math.min(432, window.innerWidth - 32);
-                        return Math.max(0, Math.min(rawRight, window.innerWidth - boardWidth));
-                      })(),
+                      right: getEmojiBoardRightOffset(
+                        emojiBoardAnchorRect.right,
+                        window.innerWidth
+                      ),
                       display: emojiBoardTab !== undefined ? undefined : 'none',
                     }}
                   >

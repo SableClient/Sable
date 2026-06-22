@@ -64,9 +64,9 @@ describe('getMessageSearchShortcutPath', () => {
     expect(
       getMessageSearchShortcutPath({
         pathname: '/%21space%3Asmoke.test/search',
-        currentSearch: '?term=hello&grouped=false',
+        currentSearch: '?term=hello&grouped=true',
       })
-    ).toBe('/%21space%3Asmoke.test/search?term=hello&grouped=false');
+    ).toBe('/%21space%3Asmoke.test/search?term=hello&grouped=true');
   });
 
   it('leaves unrelated routes alone', () => {

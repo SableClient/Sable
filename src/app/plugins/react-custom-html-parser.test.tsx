@@ -3,7 +3,7 @@ import parse from 'html-react-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
-import { JUMBO_EMOJI_REG } from '$utils/regex';
+import { isJumboEmojiText } from '$utils/emojiDetection';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import {
   LINKIFY_OPTS,
@@ -160,7 +160,7 @@ describe('react custom html parser', () => {
     render(<div data-testid="emoji-root">{scaleSystemEmoji('🫩')}</div>);
 
     expect(screen.getByTestId('emoji-root').querySelector('span')).toBeInTheDocument();
-    expect(JUMBO_EMOJI_REG.test('🫩')).toBe(true);
+    expect(isJumboEmojiText('🫩')).toBe(true);
   });
 
   it('renders Wordle-style square emoji with a fixed-width cell wrapper', () => {
@@ -198,6 +198,19 @@ describe('react custom html parser', () => {
     expect(img).toBeInTheDocument();
     // Default max is 64 unless overridden by settings.
     expect(img).toHaveAttribute('height', '64');
+  });
+
+  it.each(['🫩', '🫪', '🫯', '🇩🇪', '🙂‍↔️'])(
+    'wraps modern emoji text %s in emoticon markup',
+    (emoji) => {
+      const result = scaleSystemEmoji(emoji);
+      expect(result).toHaveLength(1);
+      expect(typeof result[0]).not.toBe('string');
+    }
+  );
+
+  it('does not wrap emojis inside urls', () => {
+    expect(scaleSystemEmoji('https://example.com/🫩')).toEqual(['https://example.com/🫩']);
   });
 
   it('renders same-origin raw settings links as mention-style chips through the factory link render path', () => {

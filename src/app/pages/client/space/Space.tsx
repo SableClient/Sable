@@ -1037,6 +1037,7 @@ export function Space() {
                             room.roomId
                           )}
                           joinCallOnSingleClick={joinCallOnSingleClick}
+                          isStrict={showRoomIcon === ShowRoomIcon.Strict}
                         />
                       </div>
                     </VirtualTile>

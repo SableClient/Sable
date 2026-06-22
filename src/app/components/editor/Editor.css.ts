@@ -102,6 +102,15 @@ export const EditorResponsiveAfterMultiline = style([
   },
 ]);
 
+export const EditorFooterAfterMultiline = style([
+  EditorOptions,
+  {
+    gridArea: 'after',
+    justifySelf: 'end',
+    alignSelf: 'stretch',
+  },
+]);
+
 export const EditorPlaceholderContainer = style([
   DefaultReset,
   {

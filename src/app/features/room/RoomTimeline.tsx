@@ -78,7 +78,6 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync, type TimelineJumpMode } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
-import { stripRoomEventSegment } from '$pages/pathUtils';
 import {
   useProcessedTimeline,
   getProcessedRowIndexForRawTimelineIndex,
@@ -87,6 +86,11 @@ import {
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { completeRoomTimelineRender } from '$utils/perfTelemetry';
 import { mobileOrTabletLayout } from '$utils/user-agent';
+import {
+  buildNotificationJumpCleanupTarget,
+  getNotificationJumpCleanupEventId,
+  shouldClearNotificationJumpRoute,
+} from './notificationJumpCleanup';
 import * as css from './RoomTimeline.css';
 
 const log = createLogger('RoomTimeline');
@@ -832,29 +836,6 @@ export function RoomTimeline({
           });
         }
 
-        if (
-          focusEventId &&
-          eventId === focusEventId &&
-          (focusJumpMode ?? jumpMode) === 'notification_live'
-        ) {
-          jumpRouteCleanupTimerRef.current = setTimeout(() => {
-            const currentFocusItem = timelineSyncRef.current.focusItem;
-            if (currentFocusItem?.eventId !== focusEventId || !liveTimelineLinkedRef.current) {
-              return;
-            }
-
-            const nextSearchParams = new URLSearchParams(location.search);
-            nextSearchParams.delete('jumpMode');
-            nextSearchParams.delete('joinCall');
-            const nextSearch = nextSearchParams.toString();
-            const nextPathname = stripRoomEventSegment(location.pathname, focusEventId);
-            navigate(nextSearch ? `${nextPathname}?${nextSearch}` : nextPathname, {
-              replace: true,
-            });
-            jumpRouteCleanupTimerRef.current = undefined;
-          }, 3200);
-        }
-
         return true;
       };
 
@@ -911,6 +892,60 @@ export function RoomTimeline({
     location.pathname,
     location.search,
     navigate,
+  ]);
+
+  useEffect(() => {
+    const cleanupEventId = getNotificationJumpCleanupEventId({
+      eventId,
+      jumpMode,
+      atBottom: atBottomState,
+      liveTimelineLinked: timelineSync.liveTimelineLinked,
+    });
+
+    if (jumpRouteCleanupTimerRef.current !== undefined) {
+      clearTimeout(jumpRouteCleanupTimerRef.current);
+      jumpRouteCleanupTimerRef.current = undefined;
+    }
+
+    if (!cleanupEventId) {
+      return undefined;
+    }
+
+    jumpRouteCleanupTimerRef.current = setTimeout(() => {
+      if (
+        !shouldClearNotificationJumpRoute({
+          eventId,
+          jumpMode,
+          atBottom: atBottomRef.current,
+          liveTimelineLinked: liveTimelineLinkedRef.current,
+        })
+      ) {
+        return;
+      }
+
+      navigate(
+        buildNotificationJumpCleanupTarget(location.pathname, location.search, cleanupEventId),
+        {
+          replace: true,
+        }
+      );
+      jumpRouteCleanupTimerRef.current = undefined;
+    }, 250);
+
+    return () => {
+      if (jumpRouteCleanupTimerRef.current !== undefined) {
+        clearTimeout(jumpRouteCleanupTimerRef.current);
+        jumpRouteCleanupTimerRef.current = undefined;
+      }
+    };
+  }, [
+    atBottomState,
+    eventId,
+    jumpMode,
+    location.pathname,
+    location.search,
+    navigate,
+    timelineSync.liveTimelineLinked,
   ]);
 
   useEffect(() => {

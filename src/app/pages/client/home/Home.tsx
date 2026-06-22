@@ -306,6 +306,7 @@ export function Home() {
   const showIcons = () => {
     if (showRoomIcon === ShowRoomIcon.Always) return true;
     if (showRoomIcon === ShowRoomIcon.Never) return false;
+    if (showRoomIcon === ShowRoomIcon.Strict) return false;
     return curWidth < 144;
   };
 
@@ -567,6 +568,7 @@ export function Home() {
                             room={room}
                             selected={selected}
                             showAvatar={showIcons()}
+                            isStrict={showRoomIcon === ShowRoomIcon.Strict}
                             hideText={hideText}
                             linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
                             notificationMode={getRoomNotificationMode(

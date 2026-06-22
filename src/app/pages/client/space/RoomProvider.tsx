@@ -13,6 +13,7 @@ import { useSearchParamsViaServers } from '$hooks/router/useSearchParamsViaServe
 import { mDirectAtom } from '$state/mDirectList';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { getRoomToParents, isRoom } from '$utils/room';
 
 export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
   const mx = useMatrixClient();
@@ -31,8 +32,11 @@ export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
   const isJoinedRoom = room?.getMyMembership() === 'join';
   const isKnownJoinedRoom = !!room && allRooms.includes(room.roomId);
   const isDirectSpaceChild = !!room && getSpaceChildren(space).includes(room.roomId);
+  const hasLiveParentSpace =
+    !!room && getAllParents(getRoomToParents(mx), room.roomId).has(space.roomId);
+  const isLiveSpaceRoom = !!room && isRoom(room);
 
-  if (!room || !isJoinedRoom) {
+  if (!room || !isJoinedRoom || !isLiveSpaceRoom) {
     // room is not joined
     return (
       <JoinBeforeNavigate
@@ -52,7 +56,7 @@ export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!isKnownJoinedRoom) {
+  if (!isKnownJoinedRoom && hasLiveParentSpace) {
     return (
       <RoomProvider key={room.roomId} value={room}>
         <IsDirectRoomProvider value={mDirects.has(room.roomId)}>{children}</IsDirectRoomProvider>
@@ -61,7 +65,7 @@ export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
   }
 
   if (!getAllParents(roomToParents, room.roomId).has(space.roomId)) {
-    if (isDirectSpaceChild) {
+    if (isDirectSpaceChild || hasLiveParentSpace) {
       // fill missing roomToParent mapping
       setRoomToParents({
         type: 'PUT',

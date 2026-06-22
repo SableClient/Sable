@@ -22,6 +22,9 @@ const mockUseAtomValue = vi.fn<(atom: unknown) => unknown>();
 const mockGetAllParents =
   vi.fn<(parents: Map<string, Set<string>>, roomId: string) => Set<string>>();
 const mockGetSpaceChildren = vi.fn<(space: { roomId: string }) => string[]>();
+const mockGetRoomToParents = vi.fn<() => Map<string, Set<string>>>();
+const mockIsRoom = vi.fn<(room: unknown) => boolean>();
+const mockIsSpace = vi.fn<(room: unknown) => boolean>();
 
 vi.mock('$hooks/useMatrixClient', () => ({
   useMatrixClient: () => mockUseMatrixClient(),
@@ -51,6 +54,9 @@ vi.mock('$utils/room', () => ({
   getAllParents: (parents: Map<string, Set<string>>, roomId: string) =>
     mockGetAllParents(parents, roomId),
   getSpaceChildren: (space: { roomId: string }) => mockGetSpaceChildren(space),
+  getRoomToParents: () => mockGetRoomToParents(),
+  isRoom: (room: unknown) => mockIsRoom(room),
+  isSpace: (room: unknown) => mockIsSpace(room),
 }));
 
 vi.mock('$hooks/useSpace', () => ({
@@ -110,6 +116,9 @@ describe('room route providers', () => {
     mockUseSetting.mockReturnValue([false]);
     mockGetAllParents.mockReturnValue(new Set());
     mockGetSpaceChildren.mockReturnValue([]);
+    mockGetRoomToParents.mockReturnValue(new Map());
+    mockIsRoom.mockReturnValue(true);
+    mockIsSpace.mockReturnValue(true);
     mockUseAtom.mockImplementation((atom: unknown) => {
       if (atom === roomToParentsAtom) {
         return [new Map(), vi.fn<() => void>()];
@@ -146,6 +155,29 @@ describe('room route providers', () => {
     expect(screen.queryByTestId('join-fallback')).not.toBeInTheDocument();
   });
 
+  it('keeps non-home joined rooms out of the home route', () => {
+    mockUseHomeRooms.mockReturnValue([]);
+    mockUseSelectedRoom.mockReturnValue('!room:server');
+    mockGetAllParents.mockReturnValue(new Set(['!space:server']));
+    mockUseMatrixClient.mockReturnValue({
+      getRoom: () => ({
+        roomId: '!room:server',
+        getMyMembership: () => 'join',
+      }),
+    });
+
+    renderWithRoute(
+      '/home/room/%21room%3Aserver',
+      '/home/room/:roomIdOrAlias',
+      <HomeRouteRoomProvider>
+        <div>Joined room</div>
+      </HomeRouteRoomProvider>
+    );
+
+    expect(screen.getByTestId('join-fallback')).toHaveTextContent('!room:server');
+    expect(screen.queryByText('Joined room')).not.toBeInTheDocument();
+  });
+
   it('keeps rendering a joined space while the space list catches up', () => {
     mockUseSpaces.mockReturnValue([]);
     mockUseSelectedSpace.mockReturnValue('!space:server');
@@ -167,6 +199,29 @@ describe('room route providers', () => {
     expect(screen.getByTestId('space-provider')).toHaveAttribute('data-room-id', '!space:server');
     expect(screen.getByText('Joined space')).toBeInTheDocument();
     expect(screen.queryByTestId('join-fallback')).not.toBeInTheDocument();
+  });
+
+  it('keeps non-space rooms out of the top-level space route', () => {
+    mockUseSpaces.mockReturnValue([]);
+    mockUseSelectedSpace.mockReturnValue('!room:server');
+    mockIsSpace.mockReturnValue(false);
+    mockUseMatrixClient.mockReturnValue({
+      getRoom: () => ({
+        roomId: '!room:server',
+        getMyMembership: () => 'join',
+      }),
+    });
+
+    renderWithRoute(
+      '/space/%21room%3Aserver',
+      '/space/:spaceIdOrAlias',
+      <RouteSpaceProvider>
+        <div>Joined space</div>
+      </RouteSpaceProvider>
+    );
+
+    expect(screen.getByTestId('join-fallback')).toHaveTextContent('!room:server');
+    expect(screen.queryByText('Joined space')).not.toBeInTheDocument();
   });
 
   it('keeps rendering a joined room in a space while parent mapping catches up', () => {
@@ -214,5 +269,46 @@ describe('room route providers', () => {
       parent: '!space:server',
       children: ['!room:server'],
     });
+  });
+
+  it('keeps unrelated joined rooms out of a space route before list state catches up', () => {
+    const setRoomToParents = vi.fn<(value: unknown) => void>();
+    const space = {
+      roomId: '!space:server',
+    };
+    const room = {
+      roomId: '!room:server',
+      getMyMembership: () => 'join',
+      isSpaceRoom: () => false,
+    };
+
+    mockUseSpace.mockReturnValue(space);
+    mockUseSelectedRoom.mockReturnValue('!room:server');
+    mockUseMatrixClient.mockReturnValue({
+      getRoom: () => room,
+    });
+    mockUseAtom.mockImplementation((atom: unknown) => {
+      if (atom === roomToParentsAtom) {
+        return [new Map(), setRoomToParents];
+      }
+      throw new Error(`Unexpected atom: ${String(atom)}`);
+    });
+    mockUseAtomValue.mockImplementation((atom: unknown) => {
+      if (atom === allRoomsAtom) return [];
+      if (atom === mDirectAtom) return new Set<string>();
+      throw new Error(`Unexpected atom: ${String(atom)}`);
+    });
+
+    renderWithRoute(
+      '/space/%21space%3Aserver/room/%21room%3Aserver',
+      '/space/:spaceIdOrAlias/room/:roomIdOrAlias',
+      <SpaceRouteRoomProvider>
+        <div>Space room</div>
+      </SpaceRouteRoomProvider>
+    );
+
+    expect(screen.getByTestId('join-fallback')).toHaveTextContent('!room:server');
+    expect(screen.queryByText('Space room')).not.toBeInTheDocument();
+    expect(setRoomToParents).not.toHaveBeenCalled();
   });
 });

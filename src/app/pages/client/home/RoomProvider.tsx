@@ -5,6 +5,7 @@ import { IsDirectRoomProvider, RoomProvider } from '$hooks/useRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { JoinBeforeNavigate } from '$features/join-before-navigate';
 import { useSearchParamsViaServers } from '$hooks/router/useSearchParamsViaServers';
+import { getAllParents, getRoomToParents, isRoom } from '$utils/room';
 import { useHomeRooms } from './useHomeRooms';
 
 export function HomeRouteRoomProvider({ children }: { children: ReactNode }) {
@@ -18,8 +19,12 @@ export function HomeRouteRoomProvider({ children }: { children: ReactNode }) {
   const roomId = useSelectedRoom();
   const room = mx.getRoom(roomId);
   const isJoinedRoom = room?.getMyMembership() === 'join';
+  const liveParentSpaceIds = room
+    ? getAllParents(getRoomToParents(mx), room.roomId)
+    : new Set<string>();
+  const isLiveHomeRoom = !!room && isRoom(room) && liveParentSpaceIds.size === 0;
 
-  if (!room || !isJoinedRoom) {
+  if (!room || !isJoinedRoom || !isLiveHomeRoom) {
     return (
       <JoinBeforeNavigate
         roomIdOrAlias={roomIdOrAlias!}

@@ -105,8 +105,9 @@ jobs:
           fi
 
           safe_ref="$(echo "${UPSTREAM_REF}" | tr '/[:upper:]' '-[:lower:]' | tr -cd 'a-z0-9._-')"
+          safe_base="$(echo "${BASE_BRANCH}" | tr '/[:upper:]' '-[:lower:]' | tr -cd 'a-z0-9._-')"
           short_sha="$(git rev-parse --short "${upstream_commit}")"
-          branch="sync/upstream-${safe_ref}-$(date -u +%Y-%m-%d)"
+          branch="sync/upstream-${safe_ref}-into-${safe_base}"
 
           git checkout -B "${branch}" "${base_ref}"
           git push origin "${branch}" --force-with-lease

@@ -1013,7 +1013,11 @@ export function Space() {
       }}
     >
       <PageNav>
-        <SwipeableOverlayWrapper direction="left" onClose={handleSwipeToRoom}>
+        <SwipeableOverlayWrapper
+          direction="left"
+          onClose={handleSwipeToRoom}
+          showDragPreview={false}
+        >
           <SpaceHeader
             hideText={hideText}
             isRefreshing={isRefreshing}

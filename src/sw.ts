@@ -626,7 +626,10 @@ async function prefetchUserProfile(session: SessionInfo): Promise<void> {
 
 type PrefetchPolicy = 'all' | 'core_only' | 'skip';
 
-function getStartupPrefetchPolicy(): { policy: PrefetchPolicy; reason: string } {
+function getStartupPrefetchPolicy(): {
+  policy: PrefetchPolicy;
+  reason: string;
+} {
   const connection = (
     navigator as Navigator & {
       connection?: { saveData?: boolean; effectiveType?: string };
@@ -1005,7 +1008,9 @@ async function handleMinimalPushPayload(
           if (!bypassUnreadZeroShortCircuit) return true;
         } else {
           await (
-            self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+            self.navigator as unknown as {
+              setAppBadge?: (count: number) => Promise<void>;
+            }
           ).setAppBadge?.(policyOptions.unreadCount);
         }
       }
@@ -1047,7 +1052,9 @@ async function handleMinimalPushPayload(
       ).category,
       'push_fallback_missing_session',
       'warning',
-      buildNotificationMetricAttributes({ has_window_clients: windowClients.length > 0 })
+      buildNotificationMetricAttributes({
+        has_window_clients: windowClients.length > 0,
+      })
     );
     await self.registration.showNotification('New Message', {
       body: undefined,
@@ -1062,7 +1069,10 @@ async function handleMinimalPushPayload(
       reason: 'missing_session',
       has_clients: windowClients.length > 0,
     });
-    await recordPushTelemetry('shown_os', { payload_type: 'minimal', fallback: true });
+    await recordPushTelemetry('shown_os', {
+      payload_type: 'minimal',
+      fallback: true,
+    });
     return;
   }
 
@@ -1096,7 +1106,9 @@ async function handleMinimalPushPayload(
       ).category,
       'push_fallback_raw_event_fetch_failed',
       'warning',
-      buildNotificationMetricAttributes({ has_window_clients: windowClients.length > 0 })
+      buildNotificationMetricAttributes({
+        has_window_clients: windowClients.length > 0,
+      })
     );
     await self.registration.showNotification('New Message', {
       body: undefined,
@@ -1111,7 +1123,10 @@ async function handleMinimalPushPayload(
       reason: 'raw_event_fetch_failed',
       has_clients: windowClients.length > 0,
     });
-    await recordPushTelemetry('shown_os', { payload_type: 'minimal', fallback: true });
+    await recordPushTelemetry('shown_os', {
+      payload_type: 'minimal',
+      fallback: true,
+    });
     return;
   }
 
@@ -1146,7 +1161,9 @@ async function handleMinimalPushPayload(
         : undefined;
 
     if (windowClients.length === 0) {
-      await recordPushTelemetry('decrypt_no_client', { payload_type: 'minimal' });
+      await recordPushTelemetry('decrypt_no_client', {
+        payload_type: 'minimal',
+      });
     }
 
     // Track decryption relay results
@@ -1237,7 +1254,10 @@ async function handleMinimalPushPayload(
         room_name: result.room_name || resolvedRoomName,
         room_avatar_url: notificationAvatarUrl,
       });
-      await recordPushTelemetry('shown_os', { payload_type: 'minimal', encrypted: true });
+      await recordPushTelemetry('shown_os', {
+        payload_type: 'minimal',
+        encrypted: true,
+      });
     } else {
       await postSentryBreadcrumb(
         buildNotificationBreadcrumb(
@@ -1263,7 +1283,12 @@ async function handleMinimalPushPayload(
         })
       );
       // App is frozen or fully closed — show "Encrypted message" fallback.
-      if (await applyMinimalPushVisibilityAndBadgePolicy(undefined)) {
+      if (
+        await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
+          unreadCount: options?.unreadCount,
+          skipVisibleClientSuppression: true,
+        })
+      ) {
         return;
       }
       await handlePushNotificationPushData({
@@ -1293,7 +1318,10 @@ async function handleMinimalPushPayload(
       room_name: resolvedRoomName,
       room_avatar_url: notificationAvatarUrl,
     });
-    await recordPushTelemetry('shown_os', { payload_type: 'minimal', encrypted: false });
+    await recordPushTelemetry('shown_os', {
+      payload_type: 'minimal',
+      encrypted: false,
+    });
   }
 }
 
@@ -1646,7 +1674,10 @@ async function getLiveWindowSessions(url: string, clientId: string): Promise<Ses
     return collected;
   }
 
-  const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const windowClients = await self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true,
+  });
   const liveSessions = await Promise.all(
     windowClients.map((client) => requestSessionWithTimeout(client.id, 750))
   );
@@ -1691,7 +1722,10 @@ async function fetchMediaWithRetry(
     const candidate = retrySessions[i];
     if (candidate && !attemptedTokens.has(candidate.accessToken)) {
       attemptedTokens.add(candidate.accessToken);
-      response = await fetch(url, { ...fetchConfig(candidate.accessToken), redirect });
+      response = await fetch(url, {
+        ...fetchConfig(candidate.accessToken),
+        redirect,
+      });
       if (!isAuthFailureStatus(response.status)) {
         return response;
       }
@@ -1901,7 +1935,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
         if (resolvedSession && validMediaRequest(url, resolvedSession.baseUrl)) {
           if (resolvedSession === preloadedSession) {
-            console.debug('[SW fetch] Using preloaded session fallback', { url, clientId });
+            console.debug('[SW fetch] Using preloaded session fallback', {
+              url,
+              clientId,
+            });
           } else if (resolvedSession !== sessions.get(clientId)) {
             console.debug('[SW fetch] Using validated persisted session fallback', {
               url,
@@ -1936,7 +1973,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
         // fetch. Prevents network requests that will fail with 401 anyway, and
         // allows client-side blob cache to handle auth failures gracefully.
         return new Response(
-          JSON.stringify({ errcode: 'M_MISSING_TOKEN', error: 'No session available' }),
+          JSON.stringify({
+            errcode: 'M_MISSING_TOKEN',
+            error: 'No session available',
+          }),
           {
             status: 401,
             statusText: 'Unauthorized',
@@ -1946,12 +1986,18 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       })(),
       15000,
       () => {
-        console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });
+        console.error('[SW fetch] Global timeout after 15s — SW may be stuck', {
+          url,
+          clientId,
+        });
       }
     ).catch(
       () =>
         new Response(
-          JSON.stringify({ errcode: 'M_TIMEOUT', error: 'Service worker media fetch timeout' }),
+          JSON.stringify({
+            errcode: 'M_TIMEOUT',
+            error: 'Service worker media fetch timeout',
+          }),
           {
             status: 504,
             statusText: 'Gateway Timeout',
@@ -2058,7 +2104,9 @@ const onPushNotification = async (event: PushEvent) => {
         ).clearAppBadge?.();
       } else {
         await (
-          self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+          self.navigator as unknown as {
+            setAppBadge?: (count: number) => Promise<void>;
+          }
         ).setAppBadge?.(declarativeBadge);
       }
     } else if (typeof pushData?.unread === 'number') {
@@ -2076,7 +2124,9 @@ const onPushNotification = async (event: PushEvent) => {
       }
       // unread > 0: update the PWA badge with the current count.
       await (
-        self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+        self.navigator as unknown as {
+          setAppBadge?: (count: number) => Promise<void>;
+        }
       ).setAppBadge?.(pushData.unread);
     } else {
       // No unread field in payload — clear badge to avoid a stale count.

@@ -126,6 +126,7 @@ describe('room route providers', () => {
       throw new Error(`Unexpected atom: ${String(atom)}`);
     });
     mockUseAtomValue.mockImplementation((atom: unknown) => {
+      if (atom === roomToParentsAtom) return new Map<string, Set<string>>();
       if (atom === allRoomsAtom) return [];
       if (atom === mDirectAtom) return new Set<string>();
       throw new Error(`Unexpected atom: ${String(atom)}`);
@@ -164,6 +165,68 @@ describe('room route providers', () => {
         roomId: '!room:server',
         getMyMembership: () => 'join',
       }),
+    });
+
+    renderWithRoute(
+      '/home/room/%21room%3Aserver',
+      '/home/room/:roomIdOrAlias',
+      <HomeRouteRoomProvider>
+        <div>Joined room</div>
+      </HomeRouteRoomProvider>
+    );
+
+    expect(screen.getByTestId('join-fallback')).toHaveTextContent('!room:server');
+    expect(screen.queryByText('Joined room')).not.toBeInTheDocument();
+  });
+
+  it('keeps direct messages out of the home route', () => {
+    mockUseHomeRooms.mockReturnValue([]);
+    mockUseSelectedRoom.mockReturnValue('!dm:server');
+    mockUseMatrixClient.mockReturnValue({
+      getRoom: () => ({
+        roomId: '!dm:server',
+        getMyMembership: () => 'join',
+      }),
+    });
+    mockUseAtomValue.mockImplementation((atom: unknown) => {
+      if (atom === roomToParentsAtom) return new Map<string, Set<string>>();
+      if (atom === allRoomsAtom) return [];
+      if (atom === mDirectAtom) return new Set<string>(['!dm:server']);
+      throw new Error(`Unexpected atom: ${String(atom)}`);
+    });
+
+    renderWithRoute(
+      '/home/room/%21dm%3Aserver',
+      '/home/room/:roomIdOrAlias',
+      <HomeRouteRoomProvider>
+        <div>Joined DM</div>
+      </HomeRouteRoomProvider>
+    );
+
+    expect(screen.getByTestId('join-fallback')).toHaveTextContent('!dm:server');
+    expect(screen.queryByText('Joined DM')).not.toBeInTheDocument();
+  });
+
+  it('honors cached parent spaces on the home route before live state catches up', () => {
+    const cachedParents = new Map<string, Set<string>>([
+      ['!room:server', new Set(['!space:server'])],
+    ]);
+    mockUseHomeRooms.mockReturnValue([]);
+    mockUseSelectedRoom.mockReturnValue('!room:server');
+    mockUseMatrixClient.mockReturnValue({
+      getRoom: () => ({
+        roomId: '!room:server',
+        getMyMembership: () => 'join',
+      }),
+    });
+    mockUseAtomValue.mockImplementation((atom: unknown) => {
+      if (atom === roomToParentsAtom) return cachedParents;
+      if (atom === allRoomsAtom) return [];
+      if (atom === mDirectAtom) return new Set<string>();
+      throw new Error(`Unexpected atom: ${String(atom)}`);
+    });
+    mockGetAllParents.mockImplementation((parents: Map<string, Set<string>>, roomId: string) => {
+      return parents.get(roomId) ?? new Set<string>();
     });
 
     renderWithRoute(
@@ -248,6 +311,7 @@ describe('room route providers', () => {
       throw new Error(`Unexpected atom: ${String(atom)}`);
     });
     mockUseAtomValue.mockImplementation((atom: unknown) => {
+      if (atom === roomToParentsAtom) return new Map<string, Set<string>>();
       if (atom === allRoomsAtom) return ['!room:server'];
       if (atom === mDirectAtom) return new Set<string>();
       throw new Error(`Unexpected atom: ${String(atom)}`);
@@ -294,6 +358,7 @@ describe('room route providers', () => {
       throw new Error(`Unexpected atom: ${String(atom)}`);
     });
     mockUseAtomValue.mockImplementation((atom: unknown) => {
+      if (atom === roomToParentsAtom) return new Map<string, Set<string>>();
       if (atom === allRoomsAtom) return [];
       if (atom === mDirectAtom) return new Set<string>();
       throw new Error(`Unexpected atom: ${String(atom)}`);
@@ -310,5 +375,36 @@ describe('room route providers', () => {
     expect(screen.getByTestId('join-fallback')).toHaveTextContent('!room:server');
     expect(screen.queryByText('Space room')).not.toBeInTheDocument();
     expect(setRoomToParents).not.toHaveBeenCalled();
+  });
+
+  it('allows the developer-tools space timeline path for the selected space', () => {
+    const space = {
+      roomId: '!space:server',
+    };
+    const room = {
+      roomId: '!space:server',
+      getMyMembership: () => 'join',
+      isSpaceRoom: () => true,
+    };
+
+    mockUseSetting.mockReturnValue([true]);
+    mockUseSpace.mockReturnValue(space);
+    mockUseSelectedRoom.mockReturnValue('!space:server');
+    mockIsRoom.mockReturnValue(false);
+    mockUseMatrixClient.mockReturnValue({
+      getRoom: () => room,
+    });
+
+    renderWithRoute(
+      '/space/%21space%3Aserver/room/%21space%3Aserver',
+      '/space/:spaceIdOrAlias/room/:roomIdOrAlias',
+      <SpaceRouteRoomProvider>
+        <div>Space timeline</div>
+      </SpaceRouteRoomProvider>
+    );
+
+    expect(screen.getByTestId('room-provider')).toHaveAttribute('data-room-id', '!space:server');
+    expect(screen.getByText('Space timeline')).toBeInTheDocument();
+    expect(screen.queryByTestId('join-fallback')).not.toBeInTheDocument();
   });
 });

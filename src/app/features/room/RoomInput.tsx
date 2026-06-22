@@ -194,6 +194,7 @@ import type {
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
 import { PollCreator } from './PollCreator';
+import { sendImmediateMessage } from './sendImmediateMessage';
 import * as prefix from '$unstable/prefixes';
 import { LocationDialog } from './location-modal';
 import {
@@ -278,6 +279,10 @@ export const getReplyContent = (
 
 const log = createLogger('RoomInput');
 const debugLog = createDebugLogger('RoomInput');
+
+const serializeReplyDraft = (draft: IReplyDraft | undefined): string =>
+  JSON.stringify(draft ?? null);
+
 interface ReplyEventContent {
   'm.relates_to'?: IEventRelation;
 }
@@ -405,6 +410,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(draftKey));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
     const [editDraft, setEditDraft] = useAtom(roomIdToEditDraftAtomFamily(draftKey));
+    const latestReplyDraftRef = useRef(replyDraft);
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
@@ -530,6 +536,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
+    const [isSending, setIsSending] = useState(false);
     const isEncrypted = room.hasEncryptionStateEvent();
 
     const { triggerPreLift } = useKeyboardHeight();
@@ -655,6 +662,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         setSilentReply(replyDraft.userId === mx.getUserId() || !mentionInReplies);
       }
     }, [mentionInReplies, mx, replyDraft]);
+
+    useEffect(() => {
+      latestReplyDraftRef.current = replyDraft;
+    }, [replyDraft]);
 
     const prevReplyEventId = useRef(replyDraft?.eventId);
     useEffect(() => {
@@ -959,6 +970,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const submit = useCallback(async () => {
       if (submitInFlightRef.current) return;
       submitInFlightRef.current = true;
+      setIsSending(true);
 
       try {
         uploadBoardHandlers.current?.handleSend();
@@ -1319,12 +1331,30 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             queryKey: ['delayedEvents', roomId],
           });
 
-        const resetInput = () => {
+        const clearSentMessageContext = (
+          sentReplyDraftSnapshot?: string,
+          sentImagePacksSnapshot?: string
+        ) => {
+          if (
+            sentImagePacksSnapshot === undefined ||
+            JSON.stringify(imagePacksUsedRef.current.toJSON()) === sentImagePacksSnapshot
+          ) {
+            imagePacksUsedRef.current.clear();
+          }
+
+          if (
+            sentReplyDraftSnapshot !== undefined &&
+            serializeReplyDraft(latestReplyDraftRef.current) === sentReplyDraftSnapshot
+          ) {
+            setReplyDraft(replyDraftBase);
+          }
+        };
+
+        const resetInput = (sentReplyDraftSnapshot?: string, sentImagePacksSnapshot?: string) => {
           resetEditor(editor);
           resetEditorHistory(editor);
           setInputKey((prev) => prev + 1);
-          imagePacksUsedRef.current.clear();
-          setReplyDraft(replyDraftBase);
+          clearSentMessageContext(sentReplyDraftSnapshot, sentImagePacksSnapshot);
           sendTypingStatus(false);
         };
         if (scheduledTime) {
@@ -1389,43 +1419,46 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
         } else {
           const msgSendStart = performance.now();
-          resetInput();
+          const sentReplyDraftSnapshot = serializeReplyDraft(replyDraft);
+          const sentImagePacksSnapshot = JSON.stringify(imagePacksUsedRef.current.toJSON());
+          setSendError(undefined);
           debugLog.info('message', 'Sending message', {
             roomId,
             msgtype: content.msgtype,
           });
-          Sentry.startSpan(
-            {
-              name: 'message.send',
-              op: 'matrix.message',
-              attributes: { encrypted: String(isEncrypted) },
-            },
-            () => mx.sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
-          )
-            .then((res: { event_id: string }) => {
-              debugLog.info('message', 'Message sent successfully', {
-                roomId,
-                eventId: res.event_id,
-              });
-              Sentry.metrics.distribution(
-                'sable.message.send_latency_ms',
-                performance.now() - msgSendStart,
-                { attributes: { encrypted: String(isEncrypted) } }
-              );
-            })
-            .catch((error: unknown) => {
-              debugLog.error('message', 'Failed to send message', {
-                roomId,
-                error: error instanceof Error ? error.message : String(error),
-              });
-              Sentry.metrics.count('sable.message.send_error', 1, {
-                attributes: { encrypted: String(isEncrypted) },
-              });
-              log.error('failed to send message', { roomId }, error);
+          try {
+            const res = await sendImmediateMessage({
+              content: content as RoomMessageEventContent,
+              isEncrypted,
+              mx,
+              roomId,
+              threadRootId: threadRootId ?? undefined,
             });
+            resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot);
+            debugLog.info('message', 'Message sent successfully', {
+              roomId,
+              eventId: res.event_id,
+            });
+            Sentry.metrics.distribution(
+              'sable.message.send_latency_ms',
+              performance.now() - msgSendStart,
+              { attributes: { encrypted: String(isEncrypted) } }
+            );
+          } catch (error: unknown) {
+            setSendError('Failed to send message. Please try again.');
+            debugLog.error('message', 'Failed to send message', {
+              roomId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            Sentry.metrics.count('sable.message.send_error', 1, {
+              attributes: { encrypted: String(isEncrypted) },
+            });
+            log.error('failed to send message', { roomId }, error);
+          }
         }
       } finally {
         submitInFlightRef.current = false;
+        setIsSending(false);
       }
     }, [
       editor,
@@ -1848,11 +1881,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           editor={editor}
           key={inputKey}
           placeholder="Send a message..."
+          readOnly={isSending}
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
           responsiveAfter={audioRecorder}
           forceMultilineLayout={showAudioRecorder}
+          moveAfterToFooter={isMobileLayout}
           top={
             <>
               {scheduledTime && (
@@ -2261,6 +2296,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 <IconButton
                   title="Send Message"
                   aria-label="Send your composed Message"
+                  disabled={isSending}
                   onClick={() => {
                     clearLongPressTimer();
                     if (

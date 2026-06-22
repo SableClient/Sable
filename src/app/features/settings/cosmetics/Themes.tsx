@@ -893,20 +893,21 @@ export function Appearance({
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile
-                title="Show Room Icons In Sidebars"
-                focusId="show-room-icons"
-                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
-                after={<SelectShowRoomIcon />}
-              />
-            </SequenceCard>
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
                 title="Overlay Room Privacy Icons"
                 focusId="room-icon-overlay"
                 description="When enabled, public and private rooms show a globe or lock badge over the room hash icon in the sidebar. When disabled, show the globe or lock icon alone."
                 after={
                   <Switch variant="Primary" value={roomIconOverlay} onChange={setRoomIconOverlay} />
                 }
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Show Room Icons In Sidebars"
+                focusId="show-room-icons"
+                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
+                after={<SelectShowRoomIcon />}
               />
             </SequenceCard>
             {/*THIS SHOULD BE MOVED TO A NEW SETTINGS MENU INSIDE OF THE HOME SETTINGS AS SOON AS THERE IS A REASON TO CREATE A HOME MENU SETTINGS PANEL

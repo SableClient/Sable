@@ -267,6 +267,7 @@ type RoomNavItemProps = {
   direct?: boolean;
   customDMCards?: boolean;
   hideText?: boolean;
+  isStrict?: boolean;
   joinCallOnSingleClick?: boolean;
 };
 
@@ -279,6 +280,7 @@ export function RoomNavItem({
   notificationMode,
   linkPath,
   hideText,
+  isStrict,
   joinCallOnSingleClick,
 }: RoomNavItemProps) {
   const mx = useMatrixClient();
@@ -315,6 +317,11 @@ export function RoomNavItem({
   const callPref = useAtomValue(useCallPreferencesAtom());
   const [isChatOpen, setChatOpen] = useAtom(callChatAtom);
   const autoDiscoveryInfo = useAutoDiscoveryInfo();
+
+  const avatarSrc =
+    ((!direct || customDMCards) && getRoomAvatarUrl(mx, room, 96, useAuthentication)) ||
+    (direct && getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)) ||
+    undefined;
 
   const isActiveCall = callEmbed?.roomId === room.roomId;
 
@@ -447,14 +454,10 @@ export function RoomNavItem({
                         radii="400"
                         style={hideTextStyling(hideText)}
                       >
-                        {showAvatar ? (
+                        {showAvatar || (avatarSrc && isStrict) ? (
                           <RoomAvatar
                             roomId={room.roomId}
-                            src={
-                              direct && !customDMCards
-                                ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
-                                : getRoomAvatarUrl(mx, room, 96, useAuthentication)
-                            }
+                            src={avatarSrc}
                             uniformIcons
                             alt={roomName}
                             renderFallback={() => (
@@ -472,7 +475,7 @@ export function RoomNavItem({
                                   : config.opacity.P300,
                             }}
                             filled={selected || isActiveCall}
-                            size="200"
+                            size={isStrict && hideText ? '300' : '200'}
                             joinRule={room.getJoinRule()}
                             roomType={room.getType()}
                             withOverlay={roomIconOverlay}

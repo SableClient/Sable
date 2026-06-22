@@ -310,10 +310,17 @@ export function RoomNavItem({
     (receipt) => receipt.userId !== mx.getUserId()
   );
 
-  const isGroupDM = direct === true && room.getJoinedMemberCount() > 2;
+  const isDirectLikeRoom = direct === true || useDirectAvatarFallback === true;
+  const isGroupDM = isDirectLikeRoom && room.getJoinedMemberCount() > 2;
   // Keep hook call unconditional; pass undefined when not a group DM so the hook no-ops.
   const groupMembers = useGroupDMMembers(mx, isGroupDM ? room : undefined, 3);
-  const hasGroupAvatar = groupMembers.some((member) => !!member.avatarUrl);
+  const groupMemberAvatarSrcs = groupMembers.map((member) =>
+    member.avatarUrl
+      ? (convertMxc(mx, member.avatarUrl, useAuthentication, 32, 32, 'crop') ?? undefined)
+      : undefined
+  );
+  const hasCompleteGroupAvatar =
+    groupMembers.length > 1 && groupMemberAvatarSrcs.every((src) => !!src);
 
   const [roomIconOverlay] = useSetting(settingsAtom, 'roomIconOverlay');
   const nicknames = useAtomValue(nicknamesAtom);
@@ -353,12 +360,13 @@ export function RoomNavItem({
   const [isChatOpen, setChatOpen] = useAtom(callChatAtom);
   const autoDiscoveryInfo = useAutoDiscoveryInfo();
 
-  const useDirectAvatar = direct || useDirectAvatarFallback;
-  const avatarSrc =
-    ((!useDirectAvatar || customDMCards) &&
-      getRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
-    (useDirectAvatar && getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
-    undefined;
+  const roomAvatarSrc = getRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc) || undefined;
+  const directAvatarSrc = isDirectLikeRoom
+    ? (getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc) ?? undefined)
+    : undefined;
+  const avatarSrc = direct
+    ? (((customDMCards && roomAvatarSrc) || directAvatarSrc) ?? undefined)
+    : roomAvatarSrc || directAvatarSrc || undefined;
 
   const isActiveCall = callEmbed?.roomId === room.roomId;
 
@@ -474,23 +482,14 @@ export function RoomNavItem({
                     style={hideTextStyling(hideText)}
                   >
                     {isGroupDM &&
-                    (showAvatar || (isStrict && hasGroupAvatar)) &&
+                    (showAvatar || (isStrict && hasCompleteGroupAvatar)) &&
                     groupMembers.length > 1 ? (
                       // Group DM: triangle layout of mini avatars.
                       // In hideText (icon-only) mode the Avatar slot is 32px (size="300");
                       // use the larger container+mini variant so the composite scales properly.
                       <div className={hideText ? css.GroupAvatarRowHideText : css.GroupAvatarRow}>
-                        {groupMembers.map((member) => {
-                          const memberAvatarSrc = member.avatarUrl
-                            ? (convertMxc(
-                                mx,
-                                member.avatarUrl,
-                                useAuthentication,
-                                32,
-                                32,
-                                'crop'
-                              ) ?? undefined)
-                            : undefined;
+                        {groupMembers.map((member, index) => {
+                          const memberAvatarSrc = groupMemberAvatarSrcs[index];
                           return (
                             <Avatar
                               key={member.userId}
@@ -536,6 +535,21 @@ export function RoomNavItem({
                               src={avatarSrc}
                               uniformIcons
                               alt={roomName}
+                              renderErrorFallback={() => (
+                                <RoomIcon
+                                  style={{
+                                    opacity:
+                                      unread || hasRoomUnread || isActiveCall
+                                        ? config.opacity.P500
+                                        : config.opacity.P300,
+                                  }}
+                                  filled={selected || isActiveCall}
+                                  size={isStrict && hideText ? '300' : hideText ? '200' : '100'}
+                                  joinRule={room.getJoinRule()}
+                                  roomType={room.getType()}
+                                  withOverlay={roomIconOverlay}
+                                />
+                              )}
                               renderFallback={() => (
                                 <Text as="span" size="H6">
                                   {nameInitials(roomName)}

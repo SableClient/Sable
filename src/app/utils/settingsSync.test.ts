@@ -3,6 +3,8 @@ import { getSettings, resetRuntimeSettingsDefaults } from '$state/settings';
 import {
   NON_SYNCABLE_KEYS,
   SETTINGS_SYNC_VERSION,
+  getExplicitlyClearedSettingsKeysFromSync,
+  serializeSettingsWithExplicitClears,
   serializeForSync,
   deserializeFromSync,
   exportSettingsAsJson,
@@ -75,6 +77,59 @@ describe('serializeForSync', () => {
     expect(s.twitterEmoji).toBe(false);
   });
 
+  it('encodes cleared theme assignments as null so remote devices can clear them too', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        themeId: null,
+        lightThemeId: null,
+        darkThemeId: null,
+        themeRemoteManualFullUrl: null,
+        themeRemoteLightFullUrl: null,
+        themeRemoteDarkFullUrl: null,
+        themeRemoteManualKind: null,
+        themeRemoteLightKind: null,
+        themeRemoteDarkKind: null,
+        arboriumLightTheme: null,
+        arboriumDarkTheme: null,
+      })
+    );
+    const settings = {
+      ...base,
+      arboriumLightTheme: undefined,
+      arboriumDarkTheme: undefined,
+    };
+    const { settings: s } = serializeForSync(settings);
+
+    expect(s.themeId).toBeNull();
+    expect(s.lightThemeId).toBeNull();
+    expect(s.darkThemeId).toBeNull();
+    expect(s.themeRemoteManualFullUrl).toBeNull();
+    expect(s.themeRemoteLightFullUrl).toBeNull();
+    expect(s.themeRemoteDarkFullUrl).toBeNull();
+    expect(s.themeRemoteManualKind).toBeNull();
+    expect(s.themeRemoteLightKind).toBeNull();
+    expect(s.themeRemoteDarkKind).toBeNull();
+    expect(s.arboriumLightTheme).toBeNull();
+    expect(s.arboriumDarkTheme).toBeNull();
+  });
+
+  it('does not encode untouched undefined theme defaults as clears', () => {
+    const { settings: s } = serializeForSync(base);
+
+    expect(s.themeId).toBeUndefined();
+    expect(s.lightThemeId).toBeUndefined();
+    expect(s.darkThemeId).toBeUndefined();
+    expect(s.themeRemoteManualFullUrl).toBeUndefined();
+    expect(s.themeRemoteLightFullUrl).toBeUndefined();
+    expect(s.themeRemoteDarkFullUrl).toBeUndefined();
+    expect(s.themeRemoteManualKind).toBeUndefined();
+    expect(s.themeRemoteLightKind).toBeUndefined();
+    expect(s.themeRemoteDarkKind).toBeUndefined();
+    expect(s.arboriumLightTheme).toBe(base.arboriumLightTheme);
+    expect(s.arboriumDarkTheme).toBe(base.arboriumDarkTheme);
+  });
+
   it('strips all non-syncable keys from the payload', () => {
     const { settings: s } = serializeForSync(base);
     Array.from(NON_SYNCABLE_KEYS).forEach((key) => {
@@ -86,6 +141,29 @@ describe('serializeForSync', () => {
     const original = { ...base, pageZoom: 150 };
     serializeForSync(original);
     expect(original.pageZoom).toBe(150);
+  });
+});
+
+describe('serializeSettingsWithExplicitClears', () => {
+  it('preserves explicit clear markers without removing non-syncable keys', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        themeId: null,
+        themeRemoteManualFullUrl: null,
+      })
+    );
+
+    const serialized = serializeSettingsWithExplicitClears({
+      ...base,
+      pageZoom: 150,
+      themeId: undefined,
+      themeRemoteManualFullUrl: undefined,
+    });
+
+    expect(serialized.pageZoom).toBe(150);
+    expect(serialized.themeId).toBeNull();
+    expect(serialized.themeRemoteManualFullUrl).toBeNull();
   });
 });
 
@@ -167,6 +245,48 @@ describe('deserializeFromSync', () => {
     expect(result!.developerTools).toBe(false);
   });
 
+  it('treats null theme fields from sync as explicit clears', () => {
+    const remote = {
+      v: SETTINGS_SYNC_VERSION,
+      settings: {
+        themeId: null,
+        lightThemeId: null,
+        darkThemeId: null,
+        themeRemoteManualFullUrl: null,
+        themeRemoteLightFullUrl: null,
+        themeRemoteDarkFullUrl: null,
+        themeRemoteManualKind: null,
+        themeRemoteLightKind: null,
+        themeRemoteDarkKind: null,
+      },
+    };
+    const local = {
+      ...base,
+      themeId: 'dark-theme',
+      lightThemeId: 'light-theme',
+      darkThemeId: 'dark-theme',
+      themeRemoteManualFullUrl: 'https://themes.example/manual.css',
+      themeRemoteLightFullUrl: 'https://themes.example/light.css',
+      themeRemoteDarkFullUrl: 'https://themes.example/dark.css',
+      themeRemoteManualKind: 'dark' as const,
+      themeRemoteLightKind: 'light' as const,
+      themeRemoteDarkKind: 'dark' as const,
+    };
+
+    const result = deserializeFromSync(remote, local);
+
+    expect(result).not.toBeNull();
+    expect(result!.themeId).toBeUndefined();
+    expect(result!.lightThemeId).toBeUndefined();
+    expect(result!.darkThemeId).toBeUndefined();
+    expect(result!.themeRemoteManualFullUrl).toBeUndefined();
+    expect(result!.themeRemoteLightFullUrl).toBeUndefined();
+    expect(result!.themeRemoteDarkFullUrl).toBeUndefined();
+    expect(result!.themeRemoteManualKind).toBeUndefined();
+    expect(result!.themeRemoteLightKind).toBeUndefined();
+    expect(result!.themeRemoteDarkKind).toBeUndefined();
+  });
+
   it('round-trips through serialize then deserialize correctly', () => {
     const tweaked = { ...base, hour24Clock: true };
     const payload = serializeForSync(tweaked);
@@ -185,6 +305,34 @@ describe('deserializeFromSync', () => {
     const result = deserializeFromSync(remote, base);
     expect(result).not.toBeNull();
     expect(result!.twitterEmoji).toBe(false);
+  });
+});
+
+describe('getExplicitlyClearedSettingsKeysFromSync', () => {
+  it('returns clear markers for null theme fields in sync payloads', () => {
+    const keys = getExplicitlyClearedSettingsKeysFromSync({
+      v: SETTINGS_SYNC_VERSION,
+      settings: {
+        themeId: null,
+        themeRemoteManualFullUrl: null,
+        twitterEmoji: false,
+      },
+    });
+
+    expect(keys.has('themeId')).toBe(true);
+    expect(keys.has('themeRemoteManualFullUrl')).toBe(true);
+    expect(keys.has('themeRemoteManualKind')).toBe(false);
+  });
+
+  it('ignores invalid sync payloads', () => {
+    expect(getExplicitlyClearedSettingsKeysFromSync(null).size).toBe(0);
+    expect(
+      getExplicitlyClearedSettingsKeysFromSync({
+        v: SETTINGS_SYNC_VERSION + 1,
+        settings: { themeId: null },
+      }).size
+    ).toBe(0);
+    expect(getExplicitlyClearedSettingsKeysFromSync({ settings: [] }).size).toBe(0);
   });
 });
 
@@ -237,6 +385,30 @@ describe('exportSettingsAsJson', () => {
     expect(typeof parsed.settings).toBe('object');
     // non-syncable keys ARE present in the export (full snapshot, not filtered)
     expect(parsed.settings.pageZoom).toBeDefined();
+  });
+
+  it('preserves explicit clear markers in the exported JSON payload', async () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        themeId: null,
+        themeRemoteManualFullUrl: null,
+      })
+    );
+
+    exportSettingsAsJson({
+      ...base,
+      themeId: undefined,
+      themeRemoteManualFullUrl: undefined,
+    });
+
+    const blob: Blob | undefined = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0];
+    const text = await blob!.text();
+    const parsed = JSON.parse(text);
+
+    expect(parsed.settings.themeId).toBeNull();
+    expect(parsed.settings.themeRemoteManualFullUrl).toBeNull();
   });
 
   it('creates an anchor with a .json download attribute and clicks it', () => {

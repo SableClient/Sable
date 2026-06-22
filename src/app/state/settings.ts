@@ -9,6 +9,20 @@ import type {
 } from '$features/settings/notifications/NotificationTransport';
 
 const STORAGE_KEY = 'settings';
+export const EXPLICITLY_CLEARABLE_SETTINGS_KEYS = [
+  'themeId',
+  'lightThemeId',
+  'darkThemeId',
+  'themeRemoteManualFullUrl',
+  'themeRemoteLightFullUrl',
+  'themeRemoteDarkFullUrl',
+  'themeRemoteManualKind',
+  'themeRemoteLightKind',
+  'themeRemoteDarkKind',
+  'arboriumLightTheme',
+  'arboriumDarkTheme',
+] as const satisfies readonly (keyof Settings)[];
+type ExplicitlyClearableSettingsKey = (typeof EXPLICITLY_CLEARABLE_SETTINGS_KEYS)[number];
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
 export type MessageSpacing = '0' | '100' | '200' | '300' | '400' | '500';
 export enum MessageLayout {
@@ -455,6 +469,65 @@ function cloneDefaultSettings(): Settings {
   };
 }
 
+function getStorageDefaults(): Settings {
+  return {
+    ...cloneDefaultSettings(),
+    ...runtimeSettingsDefaults,
+  };
+}
+
+function readStoredSettingsRecord(): Record<string, unknown> | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw === null) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+export function getExplicitlyClearedSettingsKeys(): Set<ExplicitlyClearableSettingsKey> {
+  const stored = readStoredSettingsRecord();
+  const cleared = new Set<ExplicitlyClearableSettingsKey>();
+  if (!stored) return cleared;
+
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+    if (stored[key] === null) {
+      cleared.add(key);
+    }
+  });
+
+  return cleared;
+}
+
+export function persistExplicitlyClearedSettingsKeys(
+  keys: Iterable<ExplicitlyClearableSettingsKey>
+): void {
+  const keySet = new Set(keys);
+  if (keySet.size === 0) return;
+
+  const stored = readStoredSettingsRecord() ?? {};
+  let changed = false;
+
+  keySet.forEach((key) => {
+    if (stored[key] !== null) {
+      stored[key] = null;
+      changed = true;
+    }
+  });
+
+  if (!changed) return;
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // QuotaExceededError: write best-effort; ignore if storage is full
+  }
+}
+
 function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (parsed.monochromeMode === true && parsed.saturationLevel === undefined) {
     parsed.saturationLevel = 0;
@@ -482,6 +555,12 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   }
   delete parsed.themeChatPreviewAnyUrl;
   delete parsed.themeChatPreviewApprovedCatalogOnly;
+
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+    if (parsed[key] === null) {
+      parsed[key] = undefined;
+    }
+  });
 }
 
 export function mergePersistedSettings(
@@ -703,7 +782,22 @@ export const getSettings = (): Settings =>
 
 export const setSettings = (settings: Settings) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    const storageDefaults = getStorageDefaults();
+    const previouslyStored = readStoredSettingsRecord();
+    const serialized = { ...settings } as Record<string, unknown>;
+    EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+      const previousValue = previouslyStored?.[key];
+      const shouldPersistClear =
+        serialized[key] === undefined &&
+        (storageDefaults[key] !== undefined ||
+          previousValue === null ||
+          previousValue !== undefined);
+
+      if (shouldPersistClear) {
+        serialized[key] = null;
+      }
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
   } catch {
     // QuotaExceededError: write best-effort; ignore if storage is full
   }

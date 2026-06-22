@@ -1,4 +1,8 @@
-import type { Settings } from '$state/settings';
+import {
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS,
+  getExplicitlyClearedSettingsKeys,
+  type Settings,
+} from '$state/settings';
 
 /**
  * Keys excluded from cross-device sync.
@@ -36,9 +40,42 @@ export type SettingsSyncContent = {
   settings: Partial<Settings>;
 };
 
+export const serializeSettingsWithExplicitClears = (
+  settings: Partial<Settings>
+): Partial<Settings> => {
+  const serialized = { ...settings } as Partial<Settings>;
+  const explicitlyClearedKeys = getExplicitlyClearedSettingsKeys();
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+    if (serialized[key] === undefined && explicitlyClearedKeys.has(key)) {
+      (serialized as Record<string, unknown>)[key] = null;
+    }
+  });
+  return serialized;
+};
+
+export const getExplicitlyClearedSettingsKeysFromSync = (
+  data: unknown
+): Set<(typeof EXPLICITLY_CLEARABLE_SETTINGS_KEYS)[number]> => {
+  const cleared = new Set<(typeof EXPLICITLY_CLEARABLE_SETTINGS_KEYS)[number]>();
+  if (!data || typeof data !== 'object') return cleared;
+
+  const content = data as Record<string, unknown>;
+  if (content.v !== SETTINGS_SYNC_VERSION) return cleared;
+  const remote = content.settings;
+  if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return cleared;
+
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+    if ((remote as Record<string, unknown>)[key] === null) {
+      cleared.add(key);
+    }
+  });
+
+  return cleared;
+};
+
 /** Strip non-syncable keys and wrap in a versioned envelope. */
 export const serializeForSync = (settings: Settings): SettingsSyncContent => {
-  const syncable = { ...settings } as Partial<Settings>;
+  const syncable = serializeSettingsWithExplicitClears(settings);
   NON_SYNCABLE_KEYS.forEach((key) => delete syncable[key]);
   return { v: SETTINGS_SYNC_VERSION, settings: syncable };
 };
@@ -55,7 +92,14 @@ export const deserializeFromSync = (data: unknown, currentSettings: Settings): S
   const remote = content.settings;
   if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return null;
 
-  const merged = { ...currentSettings, ...(remote as Partial<Settings>) };
+  const normalizedRemote = { ...(remote as Partial<Settings>) };
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+    if ((normalizedRemote as Record<string, unknown>)[key] === null) {
+      (normalizedRemote as Record<string, unknown>)[key] = undefined;
+    }
+  });
+
+  const merged = { ...currentSettings, ...normalizedRemote };
   // Always restore non-syncable keys from local state.
   NON_SYNCABLE_KEYS.forEach((key) => {
     (merged as unknown as Record<string, unknown>)[key] = (
@@ -68,7 +112,11 @@ export const deserializeFromSync = (data: unknown, currentSettings: Settings): S
 
 /** Trigger a browser download of the current settings as a JSON file. */
 export const exportSettingsAsJson = (settings: Settings): void => {
-  const payload = JSON.stringify({ v: SETTINGS_SYNC_VERSION, settings }, null, 2);
+  const payload = JSON.stringify(
+    { v: SETTINGS_SYNC_VERSION, settings: serializeSettingsWithExplicitClears(settings) },
+    null,
+    2
+  );
   const blob = new Blob([payload], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

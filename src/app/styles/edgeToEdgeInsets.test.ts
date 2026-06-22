@@ -44,6 +44,7 @@ describe('android edge-to-edge inset contract', () => {
 
   it('uses the App shell as the only safe-area owner', () => {
     const appShell = readWorkspaceFile('src/app/components/app-shell/AppShell.tsx');
+    const generalOverrides = readWorkspaceFile('src/app/styles/overrides/General.css.ts');
     const indexHtml = readWorkspaceFile('index.html');
     const indexCss = readWorkspaceFile('src/index.css');
     const systemBarShell = readWorkspaceFile('src/app/components/app-shell/SystemBarShell.tsx');
@@ -57,6 +58,7 @@ describe('android edge-to-edge inset contract', () => {
     expect(appShell).toContain('<ScreenSizeProvider value={screenSize}>');
     expect(indexCss).toContain('height: var(--sable-visible-height, 100%)');
     expect(indexCss).not.toContain('height: var(--sable-visible-height, 100dvh)');
+    expect(generalOverrides).toContain("backgroundColor: 'var(--sable-bg-container)'");
     expect(systemBarShell).toContain('var(--safe-area-inset-top, env(safe-area-inset-top, 0px))');
     expect(systemBarShell).toContain(
       "'--sable-safe-area-bottom': enabled && !needsBottomSystemBar ? safeAreaBottom : '0px'"

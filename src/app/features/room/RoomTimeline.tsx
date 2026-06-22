@@ -540,6 +540,8 @@ export function RoomTimeline({
   });
 
   timelineSyncRef.current = timelineSync;
+  const { setFocusItem } = timelineSync;
+  const liveTimelineLinked = timelineSync.liveTimelineLinked;
 
   useEffect(() => {
     const nextUnreadInfo = getRoomUnreadInfo(room);
@@ -954,7 +956,7 @@ export function RoomTimeline({
       eventId,
       jumpMode,
       atBottom: atBottomState,
-      liveTimelineLinked: timelineSync.liveTimelineLinked,
+      liveTimelineLinked,
     });
 
     if (jumpRouteCleanupTimerRef.current !== undefined) {
@@ -985,7 +987,7 @@ export function RoomTimeline({
         jumpLayoutReanchorRafRef.current = undefined;
       }
       releaseJumpLock('route_change');
-      timelineSync.setFocusItem(undefined);
+      setFocusItem(undefined);
 
       navigate(
         buildNotificationJumpCleanupTarget(location.pathname, location.search, cleanupEventId),
@@ -1010,8 +1012,8 @@ export function RoomTimeline({
     location.search,
     navigate,
     releaseJumpLock,
-    timelineSync,
-    timelineSync.liveTimelineLinked,
+    setFocusItem,
+    liveTimelineLinked,
   ]);
 
   useEffect(() => {
@@ -1039,14 +1041,14 @@ export function RoomTimeline({
 
     const highlightDuration = focusItem.highlight ? 8000 : 4000;
     jumpHighlightTimeoutRef.current = setTimeout(() => {
-      timelineSync.setFocusItem(undefined);
+      setFocusItem(undefined);
       jumpHighlightTimeoutRef.current = undefined;
     }, highlightDuration);
   }, [
     timelineSync.focusItem,
     timelineSync.backwardStatus,
     timelineSync.forwardStatus,
-    timelineSync,
+    setFocusItem,
   ]);
 
   useEffect(() => {

@@ -68,6 +68,10 @@ type SearchIndexCtx = {
   initError: string | null;
 };
 
+type FailWorkerOptions = {
+  settlePendingQueriesWithEmptyResults?: boolean;
+};
+
 // ── Context ──────────────────────────────────────────────────────────────────
 
 const SearchIndexContext = createContext<SearchIndexCtx | null>(null);
@@ -167,6 +171,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const failWorkerRef = useRef<((errorMsg: string, options?: FailWorkerOptions) => void) | null>(
+    null
+  );
 
   const workerRef = useRef<Worker | null>(null);
   const pendingQueriesRef = useRef<Map<string, PendingQuery>>(new Map());
@@ -614,7 +621,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         case 'ERROR':
           // eslint-disable-next-line no-console
           console.error('[SearchIndex worker error]', msg.message);
-          setInitError(`Worker error: ${msg.message}`);
+          failWorkerRef.current?.(`Worker error: ${msg.message}`, {
+            settlePendingQueriesWithEmptyResults: true,
+          });
           Sentry.addBreadcrumb({
             category: 'search.index',
             message: 'Worker error',
@@ -729,7 +738,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     workerRef.current = worker;
     worker.addEventListener('message', handleWorkerMessage);
 
-    const failWorker = (errorMsg: string) => {
+    const failWorker = (errorMsg: string, options: FailWorkerOptions = {}) => {
       clearTimeout(initTimeout);
       setInitError(errorMsg);
       setIsReady(false);
@@ -747,7 +756,11 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       headlessSetsRef.current.clear();
       backfillQueueRef.current = [];
 
-      for (const { reject } of pendingQueriesRef.current.values()) {
+      for (const { resolve, reject } of pendingQueriesRef.current.values()) {
+        if (options.settlePendingQueriesWithEmptyResults) {
+          resolve([]);
+          continue;
+        }
         reject(new Error(errorMsg));
       }
       pendingQueriesRef.current.clear();
@@ -765,6 +778,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       worker.terminate();
       workerRef.current = null;
     };
+    failWorkerRef.current = failWorker;
 
     // Handle worker runtime errors (e.g., MIME type errors from failed imports)
     const handleWorkerError = (error: ErrorEvent) => {
@@ -907,6 +921,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
+      failWorkerRef.current = null;
       // Ask the worker to flush before terminating. We wait up to 2 s then
       // force-terminate regardless so the cleanup never hangs.
       clearTimeout(initTimeout);

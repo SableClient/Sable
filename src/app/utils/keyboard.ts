@@ -81,8 +81,14 @@ export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
   const viewport = window.visualViewport;
 
   await new Promise<void>((resolve) => {
+    let complete: (() => void) | undefined = resolve;
+
     if (!viewport) {
-      window.setTimeout(resolve, KEYBOARD_CLOSE_SETTLE_MS);
+      window.setTimeout(() => {
+        const done = complete;
+        complete = undefined;
+        done?.();
+      }, KEYBOARD_CLOSE_SETTLE_MS);
       return;
     }
 
@@ -98,7 +104,9 @@ export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
       viewport.removeEventListener('resize', scheduleSettle);
       viewport.removeEventListener('scroll', scheduleSettle);
       window.removeEventListener('focusout', scheduleSettle);
-      resolve();
+      const done = complete;
+      complete = undefined;
+      done?.();
     };
 
     function scheduleSettle() {

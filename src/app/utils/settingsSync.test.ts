@@ -4,6 +4,7 @@ import {
   NON_SYNCABLE_KEYS,
   SETTINGS_SYNC_VERSION,
   getExplicitlyClearedSettingsKeysFromSync,
+  serializeSettingsWithExplicitClears,
   serializeForSync,
   deserializeFromSync,
   exportSettingsAsJson,
@@ -140,6 +141,29 @@ describe('serializeForSync', () => {
     const original = { ...base, pageZoom: 150 };
     serializeForSync(original);
     expect(original.pageZoom).toBe(150);
+  });
+});
+
+describe('serializeSettingsWithExplicitClears', () => {
+  it('preserves explicit clear markers without removing non-syncable keys', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        themeId: null,
+        themeRemoteManualFullUrl: null,
+      })
+    );
+
+    const serialized = serializeSettingsWithExplicitClears({
+      ...base,
+      pageZoom: 150,
+      themeId: undefined,
+      themeRemoteManualFullUrl: undefined,
+    });
+
+    expect(serialized.pageZoom).toBe(150);
+    expect(serialized.themeId).toBeNull();
+    expect(serialized.themeRemoteManualFullUrl).toBeNull();
   });
 });
 
@@ -355,6 +379,30 @@ describe('exportSettingsAsJson', () => {
     expect(typeof parsed.settings).toBe('object');
     // non-syncable keys ARE present in the export (full snapshot, not filtered)
     expect(parsed.settings.pageZoom).toBeDefined();
+  });
+
+  it('preserves explicit clear markers in the exported JSON payload', async () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        themeId: null,
+        themeRemoteManualFullUrl: null,
+      })
+    );
+
+    exportSettingsAsJson({
+      ...base,
+      themeId: undefined,
+      themeRemoteManualFullUrl: undefined,
+    });
+
+    const blob: Blob | undefined = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0];
+    const text = await blob!.text();
+    const parsed = JSON.parse(text);
+
+    expect(parsed.settings.themeId).toBeNull();
+    expect(parsed.settings.themeRemoteManualFullUrl).toBeNull();
   });
 
   it('creates an anchor with a .json download attribute and clicks it', () => {

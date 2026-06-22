@@ -40,6 +40,19 @@ export type SettingsSyncContent = {
   settings: Partial<Settings>;
 };
 
+export const serializeSettingsWithExplicitClears = (
+  settings: Partial<Settings>
+): Partial<Settings> => {
+  const serialized = { ...settings } as Partial<Settings>;
+  const explicitlyClearedKeys = getExplicitlyClearedSettingsKeys();
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+    if (serialized[key] === undefined && explicitlyClearedKeys.has(key)) {
+      (serialized as Record<string, unknown>)[key] = null;
+    }
+  });
+  return serialized;
+};
+
 export const getExplicitlyClearedSettingsKeysFromSync = (
   data: unknown
 ): Set<(typeof EXPLICITLY_CLEARABLE_SETTINGS_KEYS)[number]> => {
@@ -61,14 +74,8 @@ export const getExplicitlyClearedSettingsKeysFromSync = (
 
 /** Strip non-syncable keys and wrap in a versioned envelope. */
 export const serializeForSync = (settings: Settings): SettingsSyncContent => {
-  const syncable = { ...settings } as Partial<Settings>;
+  const syncable = serializeSettingsWithExplicitClears(settings);
   NON_SYNCABLE_KEYS.forEach((key) => delete syncable[key]);
-  const explicitlyClearedKeys = getExplicitlyClearedSettingsKeys();
-  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
-    if (syncable[key] === undefined && explicitlyClearedKeys.has(key)) {
-      (syncable as Record<string, unknown>)[key] = null;
-    }
-  });
   return { v: SETTINGS_SYNC_VERSION, settings: syncable };
 };
 
@@ -104,7 +111,11 @@ export const deserializeFromSync = (data: unknown, currentSettings: Settings): S
 
 /** Trigger a browser download of the current settings as a JSON file. */
 export const exportSettingsAsJson = (settings: Settings): void => {
-  const payload = JSON.stringify({ v: SETTINGS_SYNC_VERSION, settings }, null, 2);
+  const payload = JSON.stringify(
+    { v: SETTINGS_SYNC_VERSION, settings: serializeSettingsWithExplicitClears(settings) },
+    null,
+    2
+  );
   const blob = new Blob([payload], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

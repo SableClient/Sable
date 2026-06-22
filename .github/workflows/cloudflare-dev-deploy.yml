@@ -41,13 +41,10 @@ jobs:
         id: metadata
         shell: bash
         run: |
-          preview_message="$(git log -1 --pretty=%s)"
-          preview_message="$(printf '%s' "$preview_message" | head -c 100)"
+          short_sha="$(git rev-parse --short=7 HEAD)"
 
           {
-            echo 'preview_message<<EOF'
-            echo "$preview_message"
-            echo EOF
+            echo "short_sha=$short_sha"
           } >> "$GITHUB_OUTPUT"
 
       - name: Set Sentry build environment
@@ -67,7 +64,7 @@ jobs:
       - name: Set build hash
         shell: bash
         run: |
-          echo "VITE_BUILD_HASH=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
+          echo "VITE_BUILD_HASH=${{ steps.metadata.outputs.short_sha }}" >> "$GITHUB_ENV"
 
       - name: Setup app and build
         uses: ./.github/actions/setup
@@ -77,8 +74,6 @@ jobs:
       - name: Deploy Worker to production
         id: deploy
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
-        env:
-          DEPLOY_MESSAGE: ${{ steps.metadata.outputs.preview_message }}
         with:
           apiToken: ${{ secrets.TF_CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.TF_VAR_ACCOUNT_ID }}
@@ -86,13 +81,14 @@ jobs:
             deploy
             -c dist/charm/wrangler.json
             --keep-vars
-            --message "$DEPLOY_MESSAGE"
+            --tag ${{ steps.metadata.outputs.short_sha }}
+            --message ${{ steps.metadata.outputs.short_sha }}
 
       - name: Publish summary
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs['deployment-url'] || 'https://charm.cloudhub.social' }}
-          SHORT_SHA: ${{ github.sha }}
+          SHORT_SHA: ${{ steps.metadata.outputs.short_sha }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

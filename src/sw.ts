@@ -966,7 +966,11 @@ async function requestDecryptionFromClient(
 async function handleMinimalPushPayload(
   roomId: string,
   eventId: string,
-  windowClients: readonly Client[]
+  windowClients: readonly Client[],
+  options?: {
+    hasVisibleClient?: boolean;
+    unreadCount?: number;
+  }
 ): Promise<void> {
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
@@ -1043,6 +1047,35 @@ async function handleMinimalPushPayload(
 
   const eventType = rawEvent.type as string | undefined;
   const sender = rawEvent.sender as string | undefined;
+  const bypassForegroundSuppression = isForegroundSuppressionExemptPushPayload(rawEvent);
+  const bypassUnreadZeroShortCircuit = shouldBypassUnreadZeroShortCircuit(rawEvent);
+
+  if (options?.hasVisibleClient && !bypassForegroundSuppression) {
+    console.debug('[SW push] suppressing OS notification — app is visible');
+    return;
+  }
+
+  try {
+    if (typeof options?.unreadCount === 'number') {
+      if (options.unreadCount === 0) {
+        await (
+          self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+        ).clearAppBadge?.();
+        if (clearNotificationsOnRead) {
+          const notifs = await self.registration.getNotifications();
+          notifs.forEach((n) => n.close());
+        }
+        if (!bypassUnreadZeroShortCircuit) return;
+      } else {
+        await (
+          self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+        ).setAppBadge?.(options.unreadCount);
+      }
+    }
+  } catch {
+    // Badging API absent — continue to show the notification.
+  }
+
   // Fetch sender's member state — gives us both display name and avatar URL.
   const memberInfo = sender
     ? await fetchMemberInfo(session.baseUrl, session.accessToken, roomId, sender)
@@ -1910,9 +1943,26 @@ const onPushNotification = async (event: PushEvent) => {
 
   const pushData = event.data.json();
   const payloadType = pushTelemetryPayloadType(pushData);
+  console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
+
+  // event_id_only format: fetch the event ourselves first so call/invite
+  // classification can happen before foreground suppression or unread-zero
+  // early returns.
+  if (isMinimalPushPayload(pushData)) {
+    const unreadCount =
+      typeof (pushData as { unread?: unknown }).unread === 'number'
+        ? (pushData as { unread?: number }).unread
+        : undefined;
+    console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
+    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients, {
+      hasVisibleClient,
+      unreadCount,
+    });
+    return;
+  }
+
   const bypassForegroundSuppression = isForegroundSuppressionExemptPushPayload(pushData);
   const bypassUnreadZeroShortCircuit = shouldBypassUnreadZeroShortCircuit(pushData);
-  console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
   if (hasVisibleClient && !bypassForegroundSuppression) {
     console.debug('[SW push] suppressing OS notification — app is visible');
@@ -1985,14 +2035,6 @@ const onPushNotification = async (event: PushEvent) => {
     const { title, options } = buildDeclarativeNotificationOptions(pushData);
     await self.registration.showNotification(title, options);
     await recordPushTelemetry('shown_os', { payload_type: 'declarative' });
-    return;
-  }
-
-  // event_id_only format: fetch the event ourselves and (for E2EE rooms) try
-  // to relay decryption to an open app tab.
-  if (isMinimalPushPayload(pushData)) {
-    console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
-    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
     return;
   }
 

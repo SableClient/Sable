@@ -146,6 +146,67 @@ const computeCollapseAndDividers = (
   });
 };
 
+const mergeDraftsAndExtras = (
+  result: ProcessedEvent[],
+  extras: {
+    mEvent: MatrixEvent;
+    timelineSet: EventTimelineSet;
+    parentId: string;
+    itemIndex?: number;
+  }[]
+): ProcessedEventDraft[] => {
+  const resultDrafts = result.map(
+    ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
+  );
+
+  const extraDrafts = extras
+    .map(({ mEvent, timelineSet, parentId, itemIndex = -1 }) => ({
+      draft: {
+        id: mEvent.getId()!,
+        itemIndex,
+        mEvent,
+        timelineSet,
+        eventSender: mEvent.getSender() ?? null,
+      },
+      effectiveTs: mEvent.getTs(),
+      parentId,
+    }))
+    .toSorted((a, b) => a.effectiveTs - b.effectiveTs);
+
+  const buckets: ProcessedEventDraft[][] = Array.from(
+    { length: resultDrafts.length + 1 },
+    () => []
+  );
+
+  for (const extra of extraDrafts) {
+    const extraTs = extra.effectiveTs;
+    let parentIdx = -1;
+    for (let i = 0; i < resultDrafts.length; i += 1) {
+      if (resultDrafts[i]!.id === extra.parentId) {
+        parentIdx = i;
+        break;
+      }
+    }
+
+    let insertIdx = parentIdx + 1;
+    for (let i = parentIdx + 1; i < resultDrafts.length; i += 1) {
+      if (resultDrafts[i]!.mEvent.getTs() > extraTs) {
+        break;
+      }
+      insertIdx = i + 1;
+    }
+    buckets[insertIdx]!.push(extra.draft);
+  }
+
+  const mergedDrafts: ProcessedEventDraft[] = [...buckets[0]!];
+  for (let i = 0; i < resultDrafts.length; i += 1) {
+    mergedDrafts.push(resultDrafts[i]!);
+    mergedDrafts.push(...buckets[i + 1]!);
+  }
+
+  return mergedDrafts;
+};
+
 const mergeRelationReactions = (
   result: ProcessedEvent[],
   linkedTimelines: EventTimeline[],
@@ -160,6 +221,31 @@ const mergeRelationReactions = (
   if (hideMemberInReadOnly && isReadOnly) return result;
 
   const existingIds = new Set(result.map((event) => event.id));
+  const baseDrafts: ProcessedEvent[] = [];
+  const inlineExtras: {
+    mEvent: MatrixEvent;
+    timelineSet: EventTimelineSet;
+    parentId: string;
+    itemIndex: number;
+  }[] = [];
+
+  for (const draft of result) {
+    if (isReactionEvent(draft.mEvent)) {
+      const relation = draft.mEvent.getRelation();
+      const parentId = relation?.event_id;
+      if (parentId) {
+        inlineExtras.push({
+          mEvent: draft.mEvent,
+          timelineSet: draft.timelineSet,
+          parentId,
+          itemIndex: draft.itemIndex,
+        });
+        continue;
+      }
+    }
+    baseDrafts.push(draft);
+  }
+
   const extras = collectRelationReactionEvents(
     linkedTimelines,
     existingIds,
@@ -168,23 +254,10 @@ const mergeRelationReactions = (
     hiddenEventReactionTombstone
   );
 
-  if (extras.length === 0) return result;
+  const allExtras = [...inlineExtras, ...extras];
+  if (allExtras.length === 0) return baseDrafts;
 
-  const mergedDrafts: ProcessedEventDraft[] = [
-    ...result.map(
-      ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
-    ),
-    ...extras.map(({ mEvent, timelineSet }) => {
-      const mEventId = mEvent.getId()!;
-      return {
-        id: mEventId,
-        itemIndex: -1,
-        mEvent,
-        timelineSet,
-        eventSender: mEvent.getSender() ?? null,
-      };
-    }),
-  ].toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
+  const mergedDrafts = mergeDraftsAndExtras(baseDrafts, allExtras);
 
   return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
 };
@@ -198,6 +271,31 @@ const mergeRelationEdits = (
   readUptoEventId: string | undefined
 ): ProcessedEvent[] => {
   const existingIds = new Set(result.map((event) => event.id));
+  const baseDrafts: ProcessedEvent[] = [];
+  const inlineExtras: {
+    mEvent: MatrixEvent;
+    timelineSet: EventTimelineSet;
+    parentId: string;
+    itemIndex: number;
+  }[] = [];
+
+  for (const draft of result) {
+    if (isEditEvent(draft.mEvent)) {
+      const relation = draft.mEvent.getRelation();
+      const parentId = relation?.event_id;
+      if (parentId) {
+        inlineExtras.push({
+          mEvent: draft.mEvent,
+          timelineSet: draft.timelineSet,
+          parentId,
+          itemIndex: draft.itemIndex,
+        });
+        continue;
+      }
+    }
+    baseDrafts.push(draft);
+  }
+
   const extras = collectRelationEditEvents(
     linkedTimelines,
     existingIds,
@@ -205,23 +303,10 @@ const mergeRelationEdits = (
     hiddenEventEdits
   );
 
-  if (extras.length === 0) return result;
+  const allExtras = [...inlineExtras, ...extras];
+  if (allExtras.length === 0) return baseDrafts;
 
-  const mergedDrafts: ProcessedEventDraft[] = [
-    ...result.map(
-      ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
-    ),
-    ...extras.map(({ mEvent, timelineSet }) => {
-      const mEventId = mEvent.getId()!;
-      return {
-        id: mEventId,
-        itemIndex: -1,
-        mEvent,
-        timelineSet,
-        eventSender: mEvent.getSender() ?? null,
-      };
-    }),
-  ].toSorted((a, b) => a.mEvent.getTs() - b.mEvent.getTs());
+  const mergedDrafts = mergeDraftsAndExtras(baseDrafts, allExtras);
 
   return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
 };

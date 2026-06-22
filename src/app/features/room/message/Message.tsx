@@ -522,12 +522,29 @@ function MessageInternal(
       return (
         <Box
           gap="300"
-          direction={messageLayout === MessageLayout.Compact ? 'RowReverse' : 'Row'}
+          direction={
+            messageLayout === MessageLayout.Compact ||
+            (messageLayout === MessageLayout.Bubble &&
+              useRightBubbles &&
+              senderId === mx.getUserId())
+              ? 'RowReverse'
+              : 'Row'
+          }
           justifyContent="SpaceBetween"
           alignItems="Baseline"
           grow="Yes"
         >
-          <Box alignItems="Center" gap="100">
+          <Box
+            alignItems="Center"
+            gap="100"
+            direction={
+              messageLayout === MessageLayout.Bubble &&
+              useRightBubbles &&
+              senderId === mx.getUserId()
+                ? 'RowReverse'
+                : undefined
+            }
+          >
             <Username
               as="button"
               style={{

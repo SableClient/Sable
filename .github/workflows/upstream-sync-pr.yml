@@ -109,8 +109,15 @@ jobs:
           short_sha="$(git rev-parse --short "${upstream_commit}")"
           branch="sync/upstream-${safe_ref}-into-${safe_base}"
 
-          git checkout -B "${branch}" "${base_ref}"
-          git push origin "${branch}" --force-with-lease
+          branch_ref="${base_ref}"
+          if git rev-parse --verify --quiet "refs/remotes/origin/${branch}" >/dev/null; then
+            branch_ref="refs/remotes/origin/${branch}"
+          fi
+
+          git checkout -B "${branch}" "${branch_ref}"
+          if [[ "${branch_ref}" == "${base_ref}" ]]; then
+            git push origin "${branch}" --force-with-lease
+          fi
 
           if ! git merge --no-edit "${upstream_commit}"; then
             conflict_files="$(git diff --name-only --diff-filter=U | sort)"
@@ -208,6 +215,9 @@ jobs:
           existing="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${BRANCH}" --base "${BASE_BRANCH}" --state open --json number --jq '.[0].number // empty')"
           if [[ -n "${existing}" ]]; then
             gh pr edit "${existing}" --repo "${GITHUB_REPOSITORY}" --title "sync: pull upstream ${UPSTREAM_REF} (${UPSTREAM_SHORT_SHA})" --body-file "${body_file}"
+            if [[ "${HAS_CONFLICTS}" == "true" ]]; then
+              gh pr ready "${existing}" --repo "${GITHUB_REPOSITORY}" --undo || true
+            fi
             echo "Updated PR #${existing}"
             exit 0
           fi

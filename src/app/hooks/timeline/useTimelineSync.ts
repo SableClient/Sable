@@ -541,6 +541,18 @@ export interface UseTimelineSyncOptions {
   readUptoEventIdRef: React.MutableRefObject<string | undefined>;
 }
 
+export const getJumpToLatestFocusItem = (
+  linkedTimelines: EventTimeline[]
+): TimelineFocusItem | undefined => {
+  if (getTimelinesEventsCount(linkedTimelines) <= 0) return undefined;
+  return {
+    index: Number.MAX_SAFE_INTEGER,
+    scrollTo: true,
+    highlight: false,
+    align: 'end',
+  };
+};
+
 export function useTimelineSync({
   room,
   mx,
@@ -725,21 +737,9 @@ export function useTimelineSync({
     eventContextActiveRef.current = false;
 
     const initialTimeline = getInitialTimeline(room);
-    const lastIndex = getTimelinesEventsCount(initialTimeline.linkedTimelines) - 1;
     setTimeline({ linkedTimelines: initialTimeline.linkedTimelines });
 
-    if (lastIndex < 0) {
-      setFocusItem(undefined);
-      return;
-    }
-
-    setFocusItem({
-      index: lastIndex,
-      eventId: getTimelineEventAtIndex(initialTimeline.linkedTimelines, lastIndex)?.getId(),
-      scrollTo: true,
-      highlight: false,
-      align: 'end',
-    });
+    setFocusItem(getJumpToLatestFocusItem(initialTimeline.linkedTimelines));
   }, [room]);
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);

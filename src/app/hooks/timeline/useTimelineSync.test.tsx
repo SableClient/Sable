@@ -686,8 +686,7 @@ describe('useTimelineSync', () => {
     expect(result.current.timeline.linkedTimelines).toHaveLength(1);
     expect(result.current.timeline.linkedTimelines[0]).toBe(room.getLiveTimeline());
     expect(result.current.focusItem).toEqual({
-      index: 1,
-      eventId: '$latest:event',
+      index: Number.MAX_SAFE_INTEGER,
       scrollTo: true,
       highlight: false,
       align: 'end',

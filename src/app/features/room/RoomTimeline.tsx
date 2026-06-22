@@ -77,7 +77,6 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync, type TimelineJumpMode } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
-import { stripRoomEventSegment } from '$pages/pathUtils';
 import {
   useProcessedTimeline,
   getProcessedRowIndexForRawTimelineIndex,
@@ -94,6 +93,11 @@ import {
   shouldRepinBottomAfterKeyboardClose,
   shouldClearKeyboardBottomSessionOnUserIntent,
 } from './keyboardBottomRecovery';
+import {
+  buildNotificationJumpCleanupTarget,
+  getNotificationJumpCleanupEventId,
+  shouldClearNotificationJumpRoute,
+} from './notificationJumpCleanup';
 import * as css from './RoomTimeline.css';
 
 const log = createLogger('RoomTimeline');
@@ -536,6 +540,8 @@ export function RoomTimeline({
   });
 
   timelineSyncRef.current = timelineSync;
+  const { setFocusItem } = timelineSync;
+  const liveTimelineLinked = timelineSync.liveTimelineLinked;
 
   useEffect(() => {
     const nextUnreadInfo = getRoomUnreadInfo(room);
@@ -887,29 +893,6 @@ export function RoomTimeline({
           });
         }
 
-        if (
-          focusEventId &&
-          eventId === focusEventId &&
-          (focusJumpMode ?? jumpMode) === 'notification_live'
-        ) {
-          jumpRouteCleanupTimerRef.current = setTimeout(() => {
-            const currentFocusItem = timelineSyncRef.current.focusItem;
-            if (currentFocusItem?.eventId !== focusEventId || !liveTimelineLinkedRef.current) {
-              return;
-            }
-
-            const nextSearchParams = new URLSearchParams(location.search);
-            nextSearchParams.delete('jumpMode');
-            nextSearchParams.delete('joinCall');
-            const nextSearch = nextSearchParams.toString();
-            const nextPathname = stripRoomEventSegment(location.pathname, focusEventId);
-            navigate(nextSearch ? `${nextPathname}?${nextSearch}` : nextPathname, {
-              replace: true,
-            });
-            jumpRouteCleanupTimerRef.current = undefined;
-          }, 3200);
-        }
-
         return true;
       };
 
@@ -969,6 +952,71 @@ export function RoomTimeline({
   ]);
 
   useEffect(() => {
+    const cleanupEventId = getNotificationJumpCleanupEventId({
+      eventId,
+      jumpMode,
+      atBottom: atBottomState,
+      liveTimelineLinked,
+    });
+
+    if (jumpRouteCleanupTimerRef.current !== undefined) {
+      clearTimeout(jumpRouteCleanupTimerRef.current);
+      jumpRouteCleanupTimerRef.current = undefined;
+    }
+
+    if (!cleanupEventId) {
+      return undefined;
+    }
+
+    jumpRouteCleanupTimerRef.current = setTimeout(() => {
+      if (
+        !shouldClearNotificationJumpRoute({
+          eventId,
+          jumpMode,
+          atBottom: atBottomRef.current,
+          liveTimelineLinked: liveTimelineLinkedRef.current,
+        })
+      ) {
+        return;
+      }
+
+      jumpRecenterTimeoutIdsRef.current.forEach((id) => clearTimeout(id));
+      jumpRecenterTimeoutIdsRef.current = [];
+      if (jumpLayoutReanchorRafRef.current !== undefined) {
+        cancelAnimationFrame(jumpLayoutReanchorRafRef.current);
+        jumpLayoutReanchorRafRef.current = undefined;
+      }
+      releaseJumpLock('route_change');
+      setFocusItem(undefined);
+
+      navigate(
+        buildNotificationJumpCleanupTarget(location.pathname, location.search, cleanupEventId),
+        {
+          replace: true,
+        }
+      );
+      jumpRouteCleanupTimerRef.current = undefined;
+    }, 250);
+
+    return () => {
+      if (jumpRouteCleanupTimerRef.current !== undefined) {
+        clearTimeout(jumpRouteCleanupTimerRef.current);
+        jumpRouteCleanupTimerRef.current = undefined;
+      }
+    };
+  }, [
+    atBottomState,
+    eventId,
+    jumpMode,
+    location.pathname,
+    location.search,
+    navigate,
+    releaseJumpLock,
+    setFocusItem,
+    liveTimelineLinked,
+  ]);
+
+  useEffect(() => {
     const focusItem = timelineSync.focusItem;
     if (!focusItem) {
       if (jumpHighlightTimeoutRef.current !== undefined) {
@@ -993,14 +1041,14 @@ export function RoomTimeline({
 
     const highlightDuration = focusItem.highlight ? 8000 : 4000;
     jumpHighlightTimeoutRef.current = setTimeout(() => {
-      timelineSync.setFocusItem(undefined);
+      setFocusItem(undefined);
       jumpHighlightTimeoutRef.current = undefined;
     }, highlightDuration);
   }, [
     timelineSync.focusItem,
     timelineSync.backwardStatus,
     timelineSync.forwardStatus,
-    timelineSync,
+    setFocusItem,
   ]);
 
   useEffect(() => {

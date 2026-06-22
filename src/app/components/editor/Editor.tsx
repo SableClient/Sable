@@ -6,8 +6,8 @@ import { Node as SlateNode, createEditor, Text as SlateText } from 'slate';
 import type { RenderLeafProps, RenderElementProps, RenderPlaceholderProps } from 'slate-react';
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
-import { isPhone, mobileOrTablet } from '$utils/user-agent';
 import { shouldSuppressMobileEditorRefocus } from '$utils/keyboard';
+import { isPhone, mobileOrTablet } from '$utils/user-agent';
 import { getHexcodeForEmoji, getShortcodeFor, isFixedCellEmoji } from '$plugins/emoji';
 import { findSystemEmojiMatches } from '$plugins/react-custom-html-parser';
 import * as customHtmlCss from '$styles/CustomHtml.css';
@@ -118,9 +118,11 @@ type CustomEditorProps = {
   after?: ReactNode;
   responsiveAfter?: ReactNode;
   forceMultilineLayout?: boolean;
+  moveAfterToFooter?: boolean;
   maxHeight?: string;
   editor: Editor;
   placeholder?: string;
+  readOnly?: boolean;
   onKeyDown?: KeyboardEventHandler;
   onKeyUp?: KeyboardEventHandler;
   onChange?: EditorChangeHandler;
@@ -138,9 +140,11 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       after,
       responsiveAfter,
       forceMultilineLayout = false,
+      moveAfterToFooter = false,
       maxHeight = 'min(50vh, calc(var(--sable-visible-height, 100vh) * 0.5))',
       editor,
       placeholder,
+      readOnly = false,
       onKeyDown,
       onKeyUp,
       onChange,
@@ -163,11 +167,13 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const rowRef = useRef<HTMLDivElement>(null);
     const beforeRef = useRef<HTMLDivElement>(null);
     const afterRef = useRef<HTMLDivElement>(null);
+    const footerAfterRef = useRef<HTMLDivElement>(null);
     const textMeasurerRef = useRef<HTMLDivElement | null>(null);
     const measurementCacheRef = useRef<MultilineMeasurementCache | null>(null);
     const multilineMeasureFrameRef = useRef<number | null>(null);
     const multilineMeasureRetryRef = useRef(0);
     const singleLineWidthOffsetRef = useRef(0);
+    const inlineAfterWidthRef = useRef(0);
     const latestValueRef = useRef<Descendant[]>(editor.children);
     const isMultilineRef = useRef(false);
     // Tracks whether a triggerAutoCapitalize rAF is already queued to avoid stacking
@@ -179,6 +185,8 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const hasAfter = Boolean(after);
     const hasResponsiveAfter = Boolean(responsiveAfter);
     const layoutIsMultiline = isMultiline || forceMultilineLayout;
+    const showAfterInFooter = hasAfter && layoutIsMultiline && moveAfterToFooter;
+    const showAfterInline = hasAfter && !showAfterInFooter;
     const showResponsiveAfterInFooter = hasResponsiveAfter && layoutIsMultiline;
     const showResponsiveAfterInline = hasResponsiveAfter && !showResponsiveAfterInFooter;
 
@@ -207,7 +215,18 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
           const scroll = editable.parentElement as HTMLDivElement | null;
           const computedStyle = getComputedStyle(editable);
           const beforeWidth = beforeRef.current?.offsetWidth ?? 0;
-          const afterWidth = afterRef.current?.offsetWidth ?? 0;
+          const inlineAfterWidth = afterRef.current?.offsetWidth ?? 0;
+          const footerAfterWidth = footerAfterRef.current?.offsetWidth ?? 0;
+          if (inlineAfterWidth > 0) {
+            inlineAfterWidthRef.current = inlineAfterWidth;
+          }
+          if (footerAfterWidth > 0) {
+            inlineAfterWidthRef.current = footerAfterWidth;
+          }
+          const afterWidth =
+            inlineAfterWidth ||
+            footerAfterWidth ||
+            (showAfterInFooter ? inlineAfterWidthRef.current : 0);
           const rowSingleLineWidth = row.offsetWidth - beforeWidth - afterWidth;
           const isRenderedSingleLine = !layoutIsMultiline;
 
@@ -307,7 +326,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
           setIsMultiline(nextMultiline);
         }
       },
-      [editor, layoutIsMultiline]
+      [editor, layoutIsMultiline, showAfterInFooter]
     );
 
     useEffect(() => {
@@ -388,9 +407,12 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       const observer = new ResizeObserver(() => {
         queueMultilineMeasurement();
       });
-      const observedElements = [rowRef.current, beforeRef.current, afterRef.current].filter(
-        (element): element is HTMLDivElement => element !== null
-      );
+      const observedElements = [
+        rowRef.current,
+        beforeRef.current,
+        afterRef.current,
+        footerAfterRef.current,
+      ].filter((element): element is HTMLDivElement => element !== null);
 
       observedElements.forEach((element) => observer.observe(element));
 
@@ -522,6 +544,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 data-editable-name={editableName}
                 className={css.EditorTextarea}
                 placeholder={placeholder}
+                readOnly={readOnly}
                 renderPlaceholder={renderPlaceholder}
                 renderElement={renderElement}
                 renderLeaf={renderLeaf}
@@ -547,13 +570,13 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 }}
                 // keeps focus after pressing send.
                 onBlur={() => {
-                  if (mobileOrTablet() && !shouldSuppressMobileEditorRefocus()) {
+                  if (mobileOrTablet() && !readOnly && !shouldSuppressMobileEditorRefocus()) {
                     ReactEditor.focus(editor);
                   }
                 }}
               />
             </Scroll>
-            {(hasAfter || showResponsiveAfterInline) && (
+            {(showAfterInline || showResponsiveAfterInline) && (
               <Box
                 ref={afterRef}
                 className={`${css.EditorOptions} ${layoutIsMultiline ? css.EditorOptionsMultiline : ''} ${layoutIsMultiline ? css.EditorOptionsAfterMultiline : ''}`}
@@ -562,7 +585,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 shrink="No"
               >
                 {showResponsiveAfterInline && responsiveAfter}
-                {after}
+                {showAfterInline && after}
               </Box>
             )}
             {showResponsiveAfterInFooter && (
@@ -573,6 +596,17 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 gap="100"
               >
                 {responsiveAfter}
+              </Box>
+            )}
+            {showAfterInFooter && (
+              <Box
+                ref={footerAfterRef}
+                className={css.EditorFooterAfterMultiline}
+                alignItems="Center"
+                justifyContent="End"
+                gap="100"
+              >
+                {after}
               </Box>
             )}
           </Box>

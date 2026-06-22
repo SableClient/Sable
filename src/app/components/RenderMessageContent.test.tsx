@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MsgType } from '$types/matrix-sdk';
 import { ClientConfigProvider } from '$hooks/useClientConfig';
+import * as messageLayoutCss from '$components/message/layout/layout.css';
 import { RenderMessageContent } from './RenderMessageContent';
 
 const settings = {
@@ -458,6 +459,17 @@ describe('RenderMessageContent', () => {
 
     expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
     expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com/path');
+  });
+
+  it('keeps plain formatted_body content in pre-wrap mode so blank lines survive timeline rendering', () => {
+    const { container } = renderMessage({
+      body: 'first line\n\nsecond line',
+      formatted_body: 'first line\n\nsecond line',
+    });
+
+    const messageBody = container.querySelector('[dir="auto"]');
+    expect(messageBody).toBeInTheDocument();
+    expect(messageBody).toHaveClass(messageLayoutCss.MessageTextBody({ preWrap: true }));
   });
 
   it('include inner closing paranthesis from the url preview even within []() hyperlink', () => {

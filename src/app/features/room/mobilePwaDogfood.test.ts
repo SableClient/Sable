@@ -94,4 +94,16 @@ describe('mobile PWA dogfood contract', () => {
       "paddingBottom: 'var(--sable-safe-bottom, var(--sable-safe-area-bottom, 0px))'"
     );
   });
+
+  it('keeps the mobile space list from dragging into blank space during swipe navigation', () => {
+    const space = readWorkspaceFile('src/app/pages/client/space/Space.tsx');
+    const swipeableOverlayWrapper = readWorkspaceFile(
+      'src/app/components/SwipeableOverlayWrapper.tsx'
+    );
+
+    expect(space).toContain('showDragPreview={false}');
+    expect(swipeableOverlayWrapper).toContain('showDragPreview?: boolean;');
+    expect(swipeableOverlayWrapper).toContain('showDragPreview = true');
+    expect(swipeableOverlayWrapper).toContain('if (!showDragPreview) return;');
+  });
 });

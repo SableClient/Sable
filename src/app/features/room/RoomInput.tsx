@@ -1445,6 +1445,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       emojiAutoExpand,
       openLocationPicker,
       openPollCreator,
+      prepareComposerOverlayTrigger,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(

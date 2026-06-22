@@ -46,6 +46,7 @@ import { copyToClipboard } from '$utils/dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { sanitizeCustomHtml } from '$utils/sanitize';
 
 import * as css from './MsgTypeRenderers.css';
 import { markerIcon } from '$features/room/location-modal/LocationDialog';
@@ -53,6 +54,18 @@ import { markerIcon } from '$features/room/location-modal/LocationDialog';
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
 }
+
+const HTML_TAG_REGEX = /<[a-z][\w:-]*(?:\s[^<>]*)?>/i;
+const PROFILE_FALLBACK_REGEX = /<strong[^>]*data-mx-profile-fallback[^>]*>(.*?):\s*<\/strong>/i;
+const BLANK_LINE_REGEX = /(?:\r\n|\r|\n){2,}/;
+
+const hasHtmlMarkup = (value: string): boolean => HTML_TAG_REGEX.test(value);
+const shouldPreWrapVisiblePlainText = (value: string | undefined): boolean => {
+  if (typeof value !== 'string') return true;
+
+  const visibleContent = sanitizeCustomHtml(value).replace(PROFILE_FALLBACK_REGEX, '');
+  return !hasHtmlMarkup(visibleContent) && BLANK_LINE_REGEX.test(visibleContent);
+};
 
 const positiveMediaDimension = (value: number | undefined): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
@@ -341,6 +354,10 @@ export function MText({
     () => customBody?.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>'),
     [customBody]
   );
+  const shouldPreWrapCleanedMessage = useMemo(
+    () => shouldPreWrapVisiblePlainText(cleanedMessage),
+    [cleanedMessage]
+  );
 
   const trimmedBody = useMemo(() => trimReplyFromBody(body), [body]);
   const unwrappedForwardedContent = useMemo(
@@ -357,9 +374,12 @@ export function MText({
    * For the unwrapping of per-message profile fallbacks, we look for <strong> tags with the data-mx-profile-fallback attribute
    */
   const unwrappedPerMessageProfileMessage = useMemo(
-    () =>
-      cleanedMessage?.replace(/<strong[^>]*data-mx-profile-fallback[^>]*>(.*?):\s*<\/strong>/i, ''),
+    () => cleanedMessage?.replace(PROFILE_FALLBACK_REGEX, ''),
     [cleanedMessage]
+  );
+  const shouldPreWrapUnwrappedPerMessageProfileMessage = useMemo(
+    () => shouldPreWrapVisiblePlainText(unwrappedPerMessageProfileMessage),
+    [unwrappedPerMessageProfileMessage]
   );
 
   const isJumbo = useMemo(() => {
@@ -422,7 +442,7 @@ export function MText({
     return (
       <>
         <MessageTextBody
-          preWrap={typeof cleanedMessage !== 'string'}
+          preWrap={shouldPreWrapUnwrappedPerMessageProfileMessage}
           style={style}
           jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
         >
@@ -453,7 +473,7 @@ export function MText({
   return (
     <>
       <MessageTextBody
-        preWrap={typeof cleanedMessage !== 'string'}
+        preWrap={shouldPreWrapCleanedMessage}
         jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
         style={style}
       >

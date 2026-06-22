@@ -20,23 +20,42 @@ type RoomAvatarProps = {
   src?: string;
   alt?: string;
   renderFallback: () => ReactNode;
+  renderErrorFallback?: () => ReactNode;
   uniformIcons?: boolean;
 };
 
-export function RoomAvatar({ roomId, src, alt, renderFallback, uniformIcons }: RoomAvatarProps) {
+export function RoomAvatar({
+  roomId,
+  src,
+  alt,
+  renderFallback,
+  renderErrorFallback,
+  uniformIcons,
+}: RoomAvatarProps) {
   const [error, setError] = useState(false);
 
   useEffect(() => {
     setError(false);
   }, [src]);
 
-  if (!src || error) {
+  if (!src) {
     return (
       <AvatarFallback
         style={{ backgroundColor: colorMXID(roomId ?? ''), color: color.Surface.Container }}
         className={css.RoomAvatar}
       >
         {renderFallback()}
+      </AvatarFallback>
+    );
+  }
+
+  if (error) {
+    return (
+      <AvatarFallback
+        style={{ backgroundColor: colorMXID(roomId ?? ''), color: color.Surface.Container }}
+        className={css.RoomAvatar}
+      >
+        {renderErrorFallback ? renderErrorFallback() : renderFallback()}
       </AvatarFallback>
     );
   }

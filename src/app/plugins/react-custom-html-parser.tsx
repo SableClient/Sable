@@ -16,8 +16,6 @@ import {
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';
-import emojiRegex from 'emoji-regex';
-
 import * as css from '$styles/CustomHtml.css';
 import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import {
@@ -27,8 +25,9 @@ import {
   mxcUrlToHttp,
 } from '$utils/matrix';
 import { getMemberDisplayName } from '$utils/room';
-import type { Nicknames } from '$state/nicknames';
-import { sanitizeForRegex, URL_NEG_LB } from '$utils/regex';
+import { type Nicknames } from '$state/nicknames';
+import { sanitizeForRegex, URL_REG } from '$utils/regex';
+import { splitEmojiText } from '$utils/emojiDetection';
 import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
@@ -47,29 +46,35 @@ import {
 import { isRedundantMatrixUriAnchorText, parseMatrixUri, testMatrixUri } from './matrix-uri';
 import { getHexcodeForEmoji, getShortcodeFor, isFixedCellEmoji } from './emoji';
 
-const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${emojiRegex().source})`, 'g');
-
 export type SystemEmojiMatch = {
   emoji: string;
   start: number;
   end: number;
 };
 
-export const findSystemEmojiMatches = (text: string): SystemEmojiMatch[] =>
-  Array.from(text.matchAll(EMOJI_REG_G), (match) => {
-    const emoji = match[0];
-    const start = match.index ?? 0;
-    return {
-      emoji,
-      start,
-      end: start + emoji.length,
-    };
+export const findSystemEmojiMatches = (text: string): SystemEmojiMatch[] => {
+  const matches: SystemEmojiMatch[] = [];
+  let index = 0;
+
+  splitEmojiText(text).forEach((part) => {
+    if (part.type === 'text') {
+      index += part.value.length;
+      return;
+    }
+
+    matches.push({
+      emoji: part.value,
+      start: index,
+      end: index + part.value.length,
+    });
+    index += part.value.length;
   });
 
+  return matches;
+};
 const shouldLinkifyDomText = (domNode: DOMText): boolean =>
   !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
   !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
-
 export const LINKIFY_OPTS: LinkifyOpts = {
   attributes: {
     target: '_blank',
@@ -445,29 +450,62 @@ export const factoryRenderLinkifyWithMention = (
   return renderLink;
 };
 
-export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] =>
-  findAndReplace(
-    text,
-    EMOJI_REG_G,
-    (match, pushIndex) => {
-      const emoji = match[0];
+const scaleEmojiChunk = (text: string, output: (string | JSX.Element)[]) => {
+  splitEmojiText(text).forEach((part) => {
+    if (part.type === 'text') {
+      output.push(part.value);
+      return;
+    }
 
-      return (
-        <span key={`scaleSystemEmoji-${pushIndex}`} className={css.EmoticonBase}>
-          <span
-            className={classNames(
-              css.SystemEmoji,
-              isFixedCellEmoji(emoji) && css.SystemEmojiFixedCell
-            )}
-            title={getShortcodeFor(getHexcodeForEmoji(emoji))}
-          >
-            {emoji}
-          </span>
+    output.push(
+      <span key={`scaleSystemEmoji-${output.length}`} className={css.EmoticonBase}>
+        <span
+          className={classNames(
+            css.SystemEmoji,
+            isFixedCellEmoji(part.value) && css.SystemEmojiFixedCell
+          )}
+          title={getShortcodeFor(getHexcodeForEmoji(part.value))}
+        >
+          {part.value}
         </span>
-      );
-    },
-    (txt) => txt
-  );
+      </span>
+    );
+  });
+};
+
+export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] => {
+  const parts: (string | JSX.Element)[] = [];
+  const urlReg = new RegExp(URL_REG);
+  let lastIndex = 0;
+
+  [...text.matchAll(urlReg)].forEach((match) => {
+    const start = match.index ?? 0;
+    scaleEmojiChunk(text.slice(lastIndex, start), parts);
+    parts.push(match[0]);
+    lastIndex = start + match[0].length;
+  });
+
+  scaleEmojiChunk(text.slice(lastIndex), parts);
+
+  const normalized: (string | JSX.Element)[] = [];
+  parts.forEach((part) => {
+    if (typeof part !== 'string') {
+      normalized.push(part);
+      return;
+    }
+
+    if (part === '') return;
+    const previous = normalized.at(-1);
+    if (typeof previous === 'string') {
+      normalized[normalized.length - 1] = `${previous}${part}`;
+      return;
+    }
+
+    normalized.push(part);
+  });
+
+  return normalized.length > 0 ? normalized : [''];
+};
 
 export const makeHighlightRegex = (highlights: string[]): RegExp | undefined => {
   const pattern = highlights.map(sanitizeForRegex).join('|');

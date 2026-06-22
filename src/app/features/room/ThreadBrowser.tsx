@@ -14,7 +14,7 @@ import {
   toRem,
 } from 'folds';
 import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
-import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
+import { EventType, NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -26,6 +26,7 @@ import { nicknamesAtom } from '$state/nicknames';
 import { getMemberAvatarMxc, getMemberDisplayName, reactionOrEditEvent } from '$utils/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
+import { MessageNotDecryptedContent, MessageBadEncryptedContent } from '$components/message';
 import {
   Chats,
   chipIcon,
@@ -239,6 +240,15 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
             {() => {
               if (rootEvent.isRedacted()) {
                 return <RedactedContent />;
+              }
+
+              const type = rootEvent.getType();
+              if (type === (EventType.RoomMessageEncrypted as string)) {
+                return <MessageNotDecryptedContent />;
+              }
+
+              if (rootEvent.isDecryptionFailure()) {
+                return <MessageBadEncryptedContent />;
               }
 
               return (

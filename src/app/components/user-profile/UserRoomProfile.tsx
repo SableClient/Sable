@@ -254,7 +254,7 @@ function UserExtendedSection({
   );
   return (
     <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100, color: textColor }}>
-      {(pronouns || localTime) && (
+      {(pronouns || localTime || catStatusText) && (
         <Box alignItems="Center" gap="300" wrap="Wrap">
           {pronouns && (
             <Box alignItems="Center" gap="100">

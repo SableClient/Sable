@@ -1,9 +1,8 @@
-import type { CSSProperties, ReactNode } from 'react';
-import { useMemo } from 'react';
-import { Box, Chip, Text, toRem } from 'folds';
+import { type CSSProperties, type ReactNode, useMemo } from 'react';
 import { ArrowSquareOut, sizedIcon, Link } from '$components/icons/phosphor';
-import type { IContent, IPreviewUrlResponse, MatrixClient } from '$types/matrix-sdk';
-import { JUMBO_EMOJI_REG } from '$utils/regex';
+import { Box, Chip, Text, toRem } from 'folds';
+import { type IContent, type IPreviewUrlResponse, type MatrixClient } from '$types/matrix-sdk';
+import { isJumboEmojiText } from '$utils/emojiDetection';
 import { trimReplyFromBody } from '$utils/room';
 import type {
   IAudioContent,
@@ -371,7 +370,7 @@ export function MText({
       )
     )
       return true;
-    if (!JUMBO_EMOJI_REG.test(trimmedBody)) return false;
+    if (!isJumboEmojiText(trimmedBody)) return false;
 
     if (trimmedBody.includes(':')) {
       const hasImage = customBody && /<img[^>]*>/i.test(customBody);
@@ -497,7 +496,7 @@ export function MEmote({
   );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
   const trimmedBody = typeof body === 'string' ? trimReplyFromBody(body) : '';
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const isJumbo = isJumboEmojiText(trimmedBody);
   const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
   const bundledPreviewUrls = useMemo(
     () =>
@@ -578,7 +577,7 @@ export function MNotice({
   );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
   const trimmedBody = typeof body === 'string' ? trimReplyFromBody(body) : '';
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const isJumbo = isJumboEmojiText(trimmedBody);
   const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
   const bundledPreviewUrls = useMemo(
     () =>

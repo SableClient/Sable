@@ -593,6 +593,7 @@ export function Space() {
   const showIcons = () => {
     if (showRoomIcon === ShowRoomIcon.Always) return true;
     if (showRoomIcon === ShowRoomIcon.Never) return false;
+    if (showRoomIcon === ShowRoomIcon.Strict) return false;
     return curWidth < 144;
   };
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
@@ -1184,7 +1185,11 @@ export function Space() {
                         <RoomNavItem
                           room={room}
                           selected={selectedRoomId === roomId}
-                          showAvatar={mDirects.has(roomId) || showIcons()}
+                          showAvatar={
+                            showRoomIcon === ShowRoomIcon.Strict
+                              ? showIcons()
+                              : mDirects.has(roomId) || showIcons()
+                          }
                           direct={mDirects.has(roomId)}
                           linkPath={getToLink(roomId)}
                           hideText={hideText}
@@ -1196,6 +1201,7 @@ export function Space() {
                           roomTopicPreview={roomTopicPreview}
                           roomMessagePreview={roomMessagePreview}
                           dmMessagePreview={dmMessagePreview}
+                          isStrict={showRoomIcon === ShowRoomIcon.Strict}
                         />
                       </div>
                     </VirtualTile>

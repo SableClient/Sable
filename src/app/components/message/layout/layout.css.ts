@@ -274,10 +274,8 @@ export const PronounPill = style({
 export const MessageTextBody = recipe({
   base: {
     vars: {
-      '--sable-system-emoji-font-size': '1.33em',
-      '--sable-system-emoji-top': '-0.28em',
-      '--sable-custom-emoji-font-size': '1.2em',
-      '--sable-custom-emoji-align': '-0.12em',
+      '--sable-system-emoji-font-size': '1em',
+      '--sable-custom-emoji-font-size': '1em',
     },
     unicodeBidi: 'plaintext',
     alignSelf: 'start',
@@ -301,9 +299,7 @@ export const MessageTextBody = recipe({
       extraSmall: {
         vars: {
           '--sable-system-emoji-font-size': '1em',
-          '--sable-system-emoji-top': '0',
           '--sable-custom-emoji-font-size': '1em',
-          '--sable-custom-emoji-align': '0',
         },
         fontSize: '1.25rem !important',
         lineHeight: '1.4em',
@@ -311,9 +307,7 @@ export const MessageTextBody = recipe({
       small: {
         vars: {
           '--sable-system-emoji-font-size': '1em',
-          '--sable-system-emoji-top': '0',
           '--sable-custom-emoji-font-size': '1em',
-          '--sable-custom-emoji-align': '0',
         },
         fontSize: '1.5rem !important',
         lineHeight: '1.5em',
@@ -321,9 +315,7 @@ export const MessageTextBody = recipe({
       normal: {
         vars: {
           '--sable-system-emoji-font-size': '1em',
-          '--sable-system-emoji-top': '0',
           '--sable-custom-emoji-font-size': '1em',
-          '--sable-custom-emoji-align': '0',
         },
         fontSize: '1.805rem !important',
         lineHeight: '1.625em',
@@ -331,9 +323,7 @@ export const MessageTextBody = recipe({
       large: {
         vars: {
           '--sable-system-emoji-font-size': '1em',
-          '--sable-system-emoji-top': '0',
           '--sable-custom-emoji-font-size': '1em',
-          '--sable-custom-emoji-align': '0',
         },
         fontSize: '2.1rem !important',
         lineHeight: '1.675em',
@@ -341,9 +331,7 @@ export const MessageTextBody = recipe({
       extraLarge: {
         vars: {
           '--sable-system-emoji-font-size': '1em',
-          '--sable-system-emoji-top': '0',
           '--sable-custom-emoji-font-size': '1em',
-          '--sable-custom-emoji-align': '0',
         },
         fontSize: '2.4rem !important',
         lineHeight: '1.7em',

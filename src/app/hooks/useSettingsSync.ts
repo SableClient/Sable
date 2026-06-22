@@ -4,8 +4,16 @@ import type { MatrixEvent } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
-import { settingsAtom, settingsInitializedAtom } from '$state/settings';
-import { deserializeFromSync, serializeForSync } from '$utils/settingsSync';
+import {
+  persistExplicitlyClearedSettingsKeys,
+  settingsAtom,
+  settingsInitializedAtom,
+} from '$state/settings';
+import {
+  deserializeFromSync,
+  getExplicitlyClearedSettingsKeysFromSync,
+  serializeForSync,
+} from '$utils/settingsSync';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error';
@@ -62,6 +70,7 @@ export function useSettingsSyncEffect(): void {
     // Strip synctoken so a stored sync token from a previous session doesn't get treated
     // as an incoming change from another device.
     const { synctoken: echoField, ...content } = event.getContent();
+    persistExplicitlyClearedSettingsKeys(getExplicitlyClearedSettingsKeysFromSync(content));
     const merged = deserializeFromSync(content, settingsRef.current);
     if (merged) {
       if (JSON.stringify(merged) !== JSON.stringify(settingsRef.current)) {
@@ -107,6 +116,7 @@ export function useSettingsSyncEffect(): void {
       // previous sessions (stored on the homeserver) don't bypass the check above
       // and don't leak into the settings object.
       const { synctoken: echoField, ...content } = rawContent;
+      persistExplicitlyClearedSettingsKeys(getExplicitlyClearedSettingsKeysFromSync(content));
 
       // Otherwise it came from another device — apply it.
       const merged = deserializeFromSync(content, settingsRef.current);

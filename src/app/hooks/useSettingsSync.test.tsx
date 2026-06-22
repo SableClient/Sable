@@ -332,4 +332,39 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
     expect(store.get(settingsAtom).themeRemoteManualFullUrl).toBeUndefined();
     expect(store.get(settingsAtom).themeRemoteManualKind).toBeUndefined();
   });
+
+  it('preserves remote clear markers for later uploads even when visible settings do not change', () => {
+    const store = makeStore({
+      settingsSyncEnabled: true,
+      themeId: undefined,
+      themeRemoteManualFullUrl: undefined,
+      themeRemoteManualKind: undefined,
+    });
+    renderHook(() => useSettingsSyncEffect(), { wrapper: makeWrapper(store) });
+
+    const remoteEvent = makeSableSettingsEvent({
+      v: SETTINGS_SYNC_VERSION,
+      settings: {
+        themeId: null,
+        themeRemoteManualFullUrl: null,
+        themeRemoteManualKind: null,
+      },
+    });
+
+    act(() => {
+      callbackHolder.current?.(remoteEvent);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    const uploadedContent = mockMx.setAccountData.mock.calls.at(-1)?.[1];
+
+    expect(uploadedContent?.settings).toMatchObject({
+      themeId: null,
+      themeRemoteManualFullUrl: null,
+      themeRemoteManualKind: null,
+    });
+  });
 });

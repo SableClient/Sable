@@ -503,6 +503,31 @@ export function getExplicitlyClearedSettingsKeys(): Set<ExplicitlyClearableSetti
   return cleared;
 }
 
+export function persistExplicitlyClearedSettingsKeys(
+  keys: Iterable<ExplicitlyClearableSettingsKey>
+): void {
+  const keySet = new Set(keys);
+  if (keySet.size === 0) return;
+
+  const stored = readStoredSettingsRecord() ?? {};
+  let changed = false;
+
+  keySet.forEach((key) => {
+    if (stored[key] !== null) {
+      stored[key] = null;
+      changed = true;
+    }
+  });
+
+  if (!changed) return;
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // QuotaExceededError: write best-effort; ignore if storage is full
+  }
+}
+
 function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (parsed.monochromeMode === true && parsed.saturationLevel === undefined) {
     parsed.saturationLevel = 0;

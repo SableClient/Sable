@@ -3,6 +3,7 @@ import { getSettings, resetRuntimeSettingsDefaults } from '$state/settings';
 import {
   NON_SYNCABLE_KEYS,
   SETTINGS_SYNC_VERSION,
+  getExplicitlyClearedSettingsKeysFromSync,
   serializeForSync,
   deserializeFromSync,
   exportSettingsAsJson,
@@ -280,6 +281,28 @@ describe('deserializeFromSync', () => {
     const result = deserializeFromSync(remote, base);
     expect(result).not.toBeNull();
     expect(result!.twitterEmoji).toBe(false);
+  });
+});
+
+describe('getExplicitlyClearedSettingsKeysFromSync', () => {
+  it('returns clear markers for null theme fields in sync payloads', () => {
+    const keys = getExplicitlyClearedSettingsKeysFromSync({
+      v: SETTINGS_SYNC_VERSION,
+      settings: {
+        themeId: null,
+        themeRemoteManualFullUrl: null,
+        twitterEmoji: false,
+      },
+    });
+
+    expect(keys.has('themeId')).toBe(true);
+    expect(keys.has('themeRemoteManualFullUrl')).toBe(true);
+    expect(keys.has('themeRemoteManualKind')).toBe(false);
+  });
+
+  it('ignores invalid sync payloads', () => {
+    expect(getExplicitlyClearedSettingsKeysFromSync(null).size).toBe(0);
+    expect(getExplicitlyClearedSettingsKeysFromSync({ settings: [] }).size).toBe(0);
   });
 });
 

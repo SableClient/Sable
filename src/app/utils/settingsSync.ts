@@ -40,6 +40,25 @@ export type SettingsSyncContent = {
   settings: Partial<Settings>;
 };
 
+export const getExplicitlyClearedSettingsKeysFromSync = (
+  data: unknown
+): Set<(typeof EXPLICITLY_CLEARABLE_SETTINGS_KEYS)[number]> => {
+  const cleared = new Set<(typeof EXPLICITLY_CLEARABLE_SETTINGS_KEYS)[number]>();
+  if (!data || typeof data !== 'object') return cleared;
+
+  const content = data as Record<string, unknown>;
+  const remote = content.settings;
+  if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return cleared;
+
+  EXPLICITLY_CLEARABLE_SETTINGS_KEYS.forEach((key) => {
+    if ((remote as Record<string, unknown>)[key] === null) {
+      cleared.add(key);
+    }
+  });
+
+  return cleared;
+};
+
 /** Strip non-syncable keys and wrap in a versioned envelope. */
 export const serializeForSync = (settings: Settings): SettingsSyncContent => {
   const syncable = { ...settings } as Partial<Settings>;

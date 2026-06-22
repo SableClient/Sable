@@ -270,6 +270,7 @@ type RoomNavItemProps = {
   notificationMode?: RoomNotificationMode;
   showAvatar?: boolean;
   direct?: boolean;
+  useDirectAvatarFallback?: boolean;
   customDMCards?: boolean;
   hideText?: boolean;
   isStrict?: boolean;
@@ -284,6 +285,7 @@ export function RoomNavItem({
   selected,
   showAvatar,
   direct,
+  useDirectAvatarFallback,
   customDMCards,
   roomTopicPreview = false,
   roomMessagePreview = false,
@@ -311,6 +313,7 @@ export function RoomNavItem({
   const isGroupDM = direct === true && room.getJoinedMemberCount() > 2;
   // Keep hook call unconditional; pass undefined when not a group DM so the hook no-ops.
   const groupMembers = useGroupDMMembers(mx, isGroupDM ? room : undefined, 3);
+  const hasGroupAvatar = groupMembers.some((member) => !!member.avatarUrl);
 
   const [roomIconOverlay] = useSetting(settingsAtom, 'roomIconOverlay');
   const nicknames = useAtomValue(nicknamesAtom);
@@ -350,9 +353,11 @@ export function RoomNavItem({
   const [isChatOpen, setChatOpen] = useAtom(callChatAtom);
   const autoDiscoveryInfo = useAutoDiscoveryInfo();
 
+  const useDirectAvatar = direct || useDirectAvatarFallback;
   const avatarSrc =
-    ((!direct || customDMCards) && getRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
-    (direct && getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
+    ((!useDirectAvatar || customDMCards) &&
+      getRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
+    (useDirectAvatar && getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
     undefined;
 
   const isActiveCall = callEmbed?.roomId === room.roomId;
@@ -468,7 +473,9 @@ export function RoomNavItem({
                     gap="200"
                     style={hideTextStyling(hideText)}
                   >
-                    {isGroupDM && showAvatar && groupMembers.length > 1 ? (
+                    {isGroupDM &&
+                    (showAvatar || (isStrict && hasGroupAvatar)) &&
+                    groupMembers.length > 1 ? (
                       // Group DM: triangle layout of mini avatars.
                       // In hideText (icon-only) mode the Avatar slot is 32px (size="300");
                       // use the larger container+mini variant so the composite scales properly.

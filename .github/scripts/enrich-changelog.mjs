@@ -107,10 +107,46 @@ async function getPullRequestContributors(token, owner, repo, pullNumber, cache)
 
   const commits = await listPullRequestCommits(token, owner, repo, pullNumber);
   const logins = new Set();
+
+  const contributorFilesOutside = new Map();
+
   for (const commit of commits) {
     const author = commit.author;
     if (author?.login && !isBot(author)) {
-      logins.add(author.login);
+      const login = author.login;
+      if (!contributorFilesOutside.has(login)) {
+        contributorFilesOutside.set(login, false);
+      }
+    }
+  }
+
+  await Promise.all(
+    commits.map(async (commit) => {
+      const author = commit.author;
+      if (author?.login && !isBot(author)) {
+        const login = author.login;
+        try {
+          const detail = await githubRequest(
+            token,
+            `/repos/${owner}/${repo}/commits/${commit.sha}`
+          );
+          const files = detail.files || [];
+          const hasOutside = files.some((f) => !f.filename.startsWith('.changeset/'));
+          if (hasOutside) {
+            contributorFilesOutside.set(login, true);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch details for commit ${commit.sha}:`, error);
+          // treat as modified outside to avoid missing a contributor on API failure
+          contributorFilesOutside.set(login, true);
+        }
+      }
+    })
+  );
+
+  for (const [login, hasOutside] of contributorFilesOutside.entries()) {
+    if (hasOutside) {
+      logins.add(login);
     }
   }
 

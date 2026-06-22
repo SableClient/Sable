@@ -69,4 +69,37 @@ describe('createPushNotifications', () => {
       })
     );
   });
+
+  it('dispatches encrypted call notifications using the decrypted effective type', async () => {
+    const showNotification = vi
+      .fn<(title: string, options?: NotificationOptions) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const handle = createPushNotifications(
+      {
+        registration: { showNotification },
+      } as unknown as ServiceWorkerGlobalScope,
+      () => ({
+        showMessageContent: true,
+        showEncryptedMessageContent: true,
+      }),
+      vi.fn().mockResolvedValue(undefined)
+    );
+
+    await handle.handlePushNotificationPushData({
+      type: 'm.room.encrypted',
+      effectiveType: 'org.matrix.msc4075.call.notify',
+      content: { notification_type: 'ring' },
+      sender_display_name: 'Alice',
+      room_name: 'General',
+      room_id: '!room:example.org',
+      user_id: '@me:example.org',
+    });
+
+    expect(showNotification).toHaveBeenCalledWith(
+      'Incoming Call',
+      expect.objectContaining({
+        body: 'Alice is calling you in General',
+      })
+    );
+  });
 });

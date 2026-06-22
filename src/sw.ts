@@ -9,7 +9,9 @@ import {
   buildDeclarativeNotificationOptions,
   getEncryptedMinimalPushFocusDecision,
   isDeclarativeWebPushPayload,
+  isForegroundSuppressionExemptPushPayload,
   isMinimalPushPayload,
+  shouldBypassUnreadZeroShortCircuit,
 } from './sw/pushRouting';
 import { persistLaunchContext } from './launch-context-persistence';
 import { readPersistedSession } from './sw-session-persistence';
@@ -624,7 +626,10 @@ async function prefetchUserProfile(session: SessionInfo): Promise<void> {
 
 type PrefetchPolicy = 'all' | 'core_only' | 'skip';
 
-function getStartupPrefetchPolicy(): { policy: PrefetchPolicy; reason: string } {
+function getStartupPrefetchPolicy(): {
+  policy: PrefetchPolicy;
+  reason: string;
+} {
   const connection = (
     navigator as Navigator & {
       connection?: { saveData?: boolean; effectiveType?: string };
@@ -964,14 +969,86 @@ async function requestDecryptionFromClient(
 async function handleMinimalPushPayload(
   roomId: string,
   eventId: string,
-  windowClients: readonly Client[]
+  windowClients: readonly Client[],
+  options?: {
+    hasVisibleClient?: boolean;
+    unreadCount?: number;
+  }
 ): Promise<void> {
+  const applyMinimalPushVisibilityAndBadgePolicy = async (
+    payload: unknown,
+    policyOptions: {
+      hasVisibleClient?: boolean;
+      unreadCount?: number;
+      clearBadgeWhenUnreadMissing?: boolean;
+      skipVisibleClientSuppression?: boolean;
+      skipUnreadZeroShortCircuit?: boolean;
+    } = options ?? {}
+  ): Promise<boolean> => {
+    const bypassForegroundSuppression = isForegroundSuppressionExemptPushPayload(payload);
+    const bypassUnreadZeroShortCircuit = shouldBypassUnreadZeroShortCircuit(payload);
+
+    try {
+      if (typeof policyOptions.unreadCount === 'number') {
+        if (policyOptions.unreadCount === 0) {
+          await (
+            self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+          ).clearAppBadge?.();
+          if (clearNotificationsOnRead && !bypassUnreadZeroShortCircuit) {
+            const notifs = await self.registration.getNotifications();
+            notifs.forEach((n) => n.close());
+          }
+          if (!bypassUnreadZeroShortCircuit && !policyOptions.skipUnreadZeroShortCircuit) {
+            return true;
+          }
+        } else {
+          await (
+            self.navigator as unknown as {
+              setAppBadge?: (count: number) => Promise<void>;
+            }
+          ).setAppBadge?.(policyOptions.unreadCount);
+        }
+      } else if (policyOptions.clearBadgeWhenUnreadMissing) {
+        await (
+          self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+        ).clearAppBadge?.();
+      }
+    } catch {
+      // Badging API absent — continue to show the notification.
+    }
+
+    if (
+      policyOptions.hasVisibleClient &&
+      !policyOptions.skipVisibleClientSuppression &&
+      !bypassForegroundSuppression
+    ) {
+      console.debug('[SW push] suppressing OS notification — app is visible');
+      return true;
+    }
+
+    return false;
+  };
+
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
   // the app (same pattern as settings persistence).
   const session = getAnyStoredSession() ?? (await loadPersistedSession());
 
   if (!session) {
+    if (
+      await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
+        clearBadgeWhenUnreadMissing: true,
+        unreadCount: options?.unreadCount,
+        skipVisibleClientSuppression: true,
+      })
+    ) {
+      await recordPushTelemetry('fetch_fallback', {
+        payload_type: 'minimal',
+        reason: 'missing_session_suppressed',
+        has_clients: windowClients.length > 0,
+      });
+      return;
+    }
     // No session anywhere — app was never opened since install, or the user logged out.
     // Show a minimal actionable notification so the user can tap through to the room.
     console.debug('[SW push] minimal payload: no session, showing generic notification');
@@ -984,7 +1061,9 @@ async function handleMinimalPushPayload(
       ).category,
       'push_fallback_missing_session',
       'warning',
-      buildNotificationMetricAttributes({ has_window_clients: windowClients.length > 0 })
+      buildNotificationMetricAttributes({
+        has_window_clients: windowClients.length > 0,
+      })
     );
     await self.registration.showNotification('New Message', {
       body: undefined,
@@ -999,7 +1078,10 @@ async function handleMinimalPushPayload(
       reason: 'missing_session',
       has_clients: windowClients.length > 0,
     });
-    await recordPushTelemetry('shown_os', { payload_type: 'minimal', fallback: true });
+    await recordPushTelemetry('shown_os', {
+      payload_type: 'minimal',
+      fallback: true,
+    });
     return;
   }
 
@@ -1011,6 +1093,20 @@ async function handleMinimalPushPayload(
   ]);
 
   if (!rawEvent) {
+    if (
+      await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
+        clearBadgeWhenUnreadMissing: true,
+        unreadCount: options?.unreadCount,
+        skipVisibleClientSuppression: true,
+      })
+    ) {
+      await recordPushTelemetry('fetch_fallback', {
+        payload_type: 'minimal',
+        reason: 'raw_event_fetch_failed_suppressed',
+        has_clients: windowClients.length > 0,
+      });
+      return;
+    }
     await postSentryBreadcrumb(
       buildNotificationBreadcrumb(
         'push',
@@ -1020,7 +1116,9 @@ async function handleMinimalPushPayload(
       ).category,
       'push_fallback_raw_event_fetch_failed',
       'warning',
-      buildNotificationMetricAttributes({ has_window_clients: windowClients.length > 0 })
+      buildNotificationMetricAttributes({
+        has_window_clients: windowClients.length > 0,
+      })
     );
     await self.registration.showNotification('New Message', {
       body: undefined,
@@ -1035,12 +1133,16 @@ async function handleMinimalPushPayload(
       reason: 'raw_event_fetch_failed',
       has_clients: windowClients.length > 0,
     });
-    await recordPushTelemetry('shown_os', { payload_type: 'minimal', fallback: true });
+    await recordPushTelemetry('shown_os', {
+      payload_type: 'minimal',
+      fallback: true,
+    });
     return;
   }
 
   const eventType = rawEvent.type as string | undefined;
   const sender = rawEvent.sender as string | undefined;
+
   // Fetch sender's member state — gives us both display name and avatar URL.
   const memberInfo = sender
     ? await fetchMemberInfo(session.baseUrl, session.accessToken, roomId, sender)
@@ -1069,7 +1171,9 @@ async function handleMinimalPushPayload(
         : undefined;
 
     if (windowClients.length === 0) {
-      await recordPushTelemetry('decrypt_no_client', { payload_type: 'minimal' });
+      await recordPushTelemetry('decrypt_no_client', {
+        payload_type: 'minimal',
+      });
     }
 
     // Track decryption relay results
@@ -1139,6 +1243,22 @@ async function handleMinimalPushPayload(
         })
       );
       // App was backgrounded but not frozen — decryption succeeded.
+      if (
+        await applyMinimalPushVisibilityAndBadgePolicy(
+          {
+            type: result.eventType,
+            effectiveType: result.effectiveType,
+            content: result.content,
+          },
+          {
+            clearBadgeWhenUnreadMissing: true,
+            hasVisibleClient: options?.hasVisibleClient,
+            unreadCount: options?.unreadCount,
+          }
+        )
+      ) {
+        return;
+      }
       // Prefer the server-fetched display name (authoritative) over the relay's SDK cache
       // value, which may be stale or missing if the SDK hasn't fully synced yet.
       await handlePushNotificationPushData({
@@ -1151,7 +1271,10 @@ async function handleMinimalPushPayload(
         room_name: result.room_name || resolvedRoomName,
         room_avatar_url: notificationAvatarUrl,
       });
-      await recordPushTelemetry('shown_os', { payload_type: 'minimal', encrypted: true });
+      await recordPushTelemetry('shown_os', {
+        payload_type: 'minimal',
+        encrypted: true,
+      });
     } else {
       await postSentryBreadcrumb(
         buildNotificationBreadcrumb(
@@ -1177,6 +1300,16 @@ async function handleMinimalPushPayload(
         })
       );
       // App is frozen or fully closed — show "Encrypted message" fallback.
+      if (
+        await applyMinimalPushVisibilityAndBadgePolicy(undefined, {
+          clearBadgeWhenUnreadMissing: true,
+          hasVisibleClient: options?.hasVisibleClient,
+          unreadCount: options?.unreadCount,
+          skipUnreadZeroShortCircuit: true,
+        })
+      ) {
+        return;
+      }
       await handlePushNotificationPushData({
         ...baseData,
         type: 'm.room.encrypted',
@@ -1193,6 +1326,15 @@ async function handleMinimalPushPayload(
     }
   } else {
     // Unencrypted event — we have the plaintext, show it.
+    if (
+      await applyMinimalPushVisibilityAndBadgePolicy(rawEvent, {
+        clearBadgeWhenUnreadMissing: true,
+        hasVisibleClient: options?.hasVisibleClient,
+        unreadCount: options?.unreadCount,
+      })
+    ) {
+      return;
+    }
     await handlePushNotificationPushData({
       ...baseData,
       type: eventType,
@@ -1201,7 +1343,10 @@ async function handleMinimalPushPayload(
       room_name: resolvedRoomName,
       room_avatar_url: notificationAvatarUrl,
     });
-    await recordPushTelemetry('shown_os', { payload_type: 'minimal', encrypted: false });
+    await recordPushTelemetry('shown_os', {
+      payload_type: 'minimal',
+      encrypted: false,
+    });
   }
 }
 
@@ -1554,7 +1699,10 @@ async function getLiveWindowSessions(url: string, clientId: string): Promise<Ses
     return collected;
   }
 
-  const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const windowClients = await self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true,
+  });
   const liveSessions = await Promise.all(
     windowClients.map((client) => requestSessionWithTimeout(client.id, 750))
   );
@@ -1599,7 +1747,10 @@ async function fetchMediaWithRetry(
     const candidate = retrySessions[i];
     if (candidate && !attemptedTokens.has(candidate.accessToken)) {
       attemptedTokens.add(candidate.accessToken);
-      response = await fetch(url, { ...fetchConfig(candidate.accessToken), redirect });
+      response = await fetch(url, {
+        ...fetchConfig(candidate.accessToken),
+        redirect,
+      });
       if (!isAuthFailureStatus(response.status)) {
         return response;
       }
@@ -1809,7 +1960,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
         if (resolvedSession && validMediaRequest(url, resolvedSession.baseUrl)) {
           if (resolvedSession === preloadedSession) {
-            console.debug('[SW fetch] Using preloaded session fallback', { url, clientId });
+            console.debug('[SW fetch] Using preloaded session fallback', {
+              url,
+              clientId,
+            });
           } else if (resolvedSession !== sessions.get(clientId)) {
             console.debug('[SW fetch] Using validated persisted session fallback', {
               url,
@@ -1844,7 +1998,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
         // fetch. Prevents network requests that will fail with 401 anyway, and
         // allows client-side blob cache to handle auth failures gracefully.
         return new Response(
-          JSON.stringify({ errcode: 'M_MISSING_TOKEN', error: 'No session available' }),
+          JSON.stringify({
+            errcode: 'M_MISSING_TOKEN',
+            error: 'No session available',
+          }),
           {
             status: 401,
             statusText: 'Unauthorized',
@@ -1854,12 +2011,18 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       })(),
       15000,
       () => {
-        console.error('[SW fetch] Global timeout after 15s — SW may be stuck', { url, clientId });
+        console.error('[SW fetch] Global timeout after 15s — SW may be stuck', {
+          url,
+          clientId,
+        });
       }
     ).catch(
       () =>
         new Response(
-          JSON.stringify({ errcode: 'M_TIMEOUT', error: 'Service worker media fetch timeout' }),
+          JSON.stringify({
+            errcode: 'M_TIMEOUT',
+            error: 'Service worker media fetch timeout',
+          }),
           {
             status: 504,
             statusText: 'Gateway Timeout',
@@ -1906,16 +2069,11 @@ const onPushNotification = async (event: PushEvent) => {
   );
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
 
-  if (hasVisibleClient) {
-    console.debug('[SW push] suppressing OS notification — app is visible');
-    return;
-  }
-
   const pushData = event.data.json();
   const payloadType = pushTelemetryPayloadType(pushData);
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
-  // Track push notification arrival
+  // Track push notification arrival before any payload-specific early return.
   await recordPushTelemetry('received', {
     has_clients: clients.length > 0,
     focused_client_count: focusedClientCount,
@@ -1935,6 +2093,30 @@ const onPushNotification = async (event: PushEvent) => {
     payloadType,
   }).catch(() => undefined);
 
+  // event_id_only format: fetch the event ourselves first so call/invite
+  // classification can happen before foreground suppression or unread-zero
+  // early returns.
+  if (isMinimalPushPayload(pushData)) {
+    const unreadCount =
+      typeof (pushData as { unread?: unknown }).unread === 'number'
+        ? (pushData as { unread?: number }).unread
+        : undefined;
+    console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
+    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients, {
+      hasVisibleClient,
+      unreadCount,
+    });
+    return;
+  }
+
+  const bypassForegroundSuppression = isForegroundSuppressionExemptPushPayload(pushData);
+  const bypassUnreadZeroShortCircuit = shouldBypassUnreadZeroShortCircuit(pushData);
+
+  if (hasVisibleClient && !bypassForegroundSuppression) {
+    console.debug('[SW push] suppressing OS notification — app is visible');
+    return;
+  }
+
   try {
     const declarativeBadge =
       isDeclarativeWebPushPayload(pushData) && pushData.notification.app_badge !== undefined
@@ -1947,7 +2129,9 @@ const onPushNotification = async (event: PushEvent) => {
         ).clearAppBadge?.();
       } else {
         await (
-          self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+          self.navigator as unknown as {
+            setAppBadge?: (count: number) => Promise<void>;
+          }
         ).setAppBadge?.(declarativeBadge);
       }
     } else if (typeof pushData?.unread === 'number') {
@@ -1957,15 +2141,17 @@ const onPushNotification = async (event: PushEvent) => {
         await (
           self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
         ).clearAppBadge?.();
-        if (clearNotificationsOnRead) {
+        if (clearNotificationsOnRead && !bypassUnreadZeroShortCircuit) {
           const notifs = await self.registration.getNotifications();
           notifs.forEach((n) => n.close());
         }
-        return;
+        if (!bypassUnreadZeroShortCircuit) return;
       }
       // unread > 0: update the PWA badge with the current count.
       await (
-        self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+        self.navigator as unknown as {
+          setAppBadge?: (count: number) => Promise<void>;
+        }
       ).setAppBadge?.(pushData.unread);
     } else {
       // No unread field in payload — clear badge to avoid a stale count.
@@ -1981,14 +2167,6 @@ const onPushNotification = async (event: PushEvent) => {
     const { title, options } = buildDeclarativeNotificationOptions(pushData);
     await self.registration.showNotification(title, options);
     await recordPushTelemetry('shown_os', { payload_type: 'declarative' });
-    return;
-  }
-
-  // event_id_only format: fetch the event ourselves and (for E2EE rooms) try
-  // to relay decryption to an open app tab.
-  if (isMinimalPushPayload(pushData)) {
-    console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
-    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
     return;
   }
 

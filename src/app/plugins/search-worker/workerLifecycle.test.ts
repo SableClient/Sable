@@ -8,8 +8,9 @@ import {
 
 function createOpenRequest() {
   const listeners: Partial<Record<'success' | 'error', () => void>> = {};
+  const close = vi.fn<() => void>();
   const request: IDBOpenRequestLike = {
-    result: {} as IDBDatabase,
+    result: { close } as unknown as IDBDatabase,
     error: null,
     onupgradeneeded: null,
     onblocked: null,
@@ -20,6 +21,7 @@ function createOpenRequest() {
 
   return {
     request,
+    close,
     fireSuccess: () => listeners.success?.(),
     fireError: () => listeners.error?.(),
     fireBlocked: () =>
@@ -78,7 +80,7 @@ describe('openSearchWorkerDb', () => {
 
   it('rejects when indexedDB open never settles', async () => {
     vi.useFakeTimers();
-    const { request } = createOpenRequest();
+    const { request, close, fireSuccess } = createOpenRequest();
     const indexedDb = { open: vi.fn<() => IDBOpenRequestLike>(() => request) };
 
     const promise = openSearchWorkerDb(indexedDb, 'sable-search-test', 50);
@@ -93,6 +95,8 @@ describe('openSearchWorkerDb', () => {
     await expect(rejection).resolves.toMatchObject({
       message: 'IndexedDB open timed out after 50ms for sable-search-test',
     });
+    fireSuccess();
+    expect(close).toHaveBeenCalledOnce();
     vi.useRealTimers();
   });
 });

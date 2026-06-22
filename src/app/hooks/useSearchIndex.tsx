@@ -729,6 +729,43 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     workerRef.current = worker;
     worker.addEventListener('message', handleWorkerMessage);
 
+    const failWorker = (errorMsg: string) => {
+      clearTimeout(initTimeout);
+      setInitError(errorMsg);
+      setIsReady(false);
+      setIsBackfilling(false);
+
+      if (backfillStartDelayRef.current !== null) {
+        clearTimeout(backfillStartDelayRef.current);
+        backfillStartDelayRef.current = null;
+      }
+      backfillReadyRef.current = false;
+
+      cancelIdlesRef.current.forEach((cancel) => cancel());
+      cancelIdlesRef.current = [];
+      backfillingRoomsRef.current.clear();
+      headlessSetsRef.current.clear();
+      backfillQueueRef.current = [];
+
+      for (const { reject } of pendingQueriesRef.current.values()) {
+        reject(new Error(errorMsg));
+      }
+      pendingQueriesRef.current.clear();
+
+      if (pendingStatsRef.current) {
+        pendingStatsRef.current.resolve({
+          indexedEventCount: 0,
+          roomCount: 0,
+          estimatedBytes: 0,
+          backfillingRoomCount: 0,
+        });
+        pendingStatsRef.current = null;
+      }
+
+      worker.terminate();
+      workerRef.current = null;
+    };
+
     // Handle worker runtime errors (e.g., MIME type errors from failed imports)
     const handleWorkerError = (error: ErrorEvent) => {
       // Null-check error.message — it may be undefined on ErrorEvent (SABLE-52)
@@ -741,11 +778,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       });
       const isMimeError = message.includes('MIME') && message.includes('text/html');
 
-      clearTimeout(initTimeout);
-      setInitError(errorMsg);
-      setIsReady(false);
-      worker.terminate();
-      workerRef.current = null;
+      failWorker(errorMsg);
       Sentry.captureException(error.error || new Error(message || 'Unknown worker error'), {
         level: isMimeError ? 'warning' : 'error',
         tags: {
@@ -782,11 +815,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
     // Set a timeout to detect if the worker never sends READY or ERROR (SABLE-54)
     const initTimeout = setTimeout(() => {
-      setInitError('Worker initialization timed out (30s) — READY message never received');
-      setIsReady(false);
-      // Terminate the stuck worker so it doesn't consume resources
-      worker.terminate();
-      workerRef.current = null;
+      failWorker('Worker initialization timed out (30s) — READY message never received');
       Sentry.captureMessage('Search worker INIT timeout — READY message never received', {
         level: 'error',
         tags: { component: 'search-index' },

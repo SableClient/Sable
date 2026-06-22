@@ -73,7 +73,13 @@ export function openSearchWorkerDb(
       // the open request can still succeed once that happens.
     };
 
-    req.addEventListener('success', () => settle(() => resolve(req.result)));
+    req.addEventListener('success', () => {
+      if (settled) {
+        req.result.close();
+        return;
+      }
+      settle(() => resolve(req.result));
+    });
     req.addEventListener('error', () =>
       settle(() => reject(req.error ?? new Error(`IndexedDB open failed for ${dbName}`)))
     );

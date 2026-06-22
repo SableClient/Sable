@@ -666,6 +666,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     const userId = mx.getUserId();
     if (!userId) return () => {};
 
+    setInitError(null);
     Sentry.addBreadcrumb({
       category: 'search.index',
       message: 'Initializing search worker',

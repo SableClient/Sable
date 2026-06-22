@@ -190,6 +190,7 @@ import type {
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
 import { PollCreator } from './PollCreator';
+import { sendImmediateMessage } from './sendImmediateMessage';
 import * as prefix from '$unstable/prefixes';
 import { LocationDialog } from './location-modal';
 import {
@@ -499,6 +500,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
+    const [isSending, setIsSending] = useState(false);
     const isEncrypted = room.hasEncryptionStateEvent();
 
     const { triggerPreLift } = useKeyboardHeight();
@@ -907,6 +909,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const submit = useCallback(async () => {
+      if (isSending) return;
+
       uploadBoardHandlers.current?.handleSend();
 
       const commandName = getBeginCommand(editor);
@@ -1259,12 +1263,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const invalidate = () =>
         queryClient.invalidateQueries({ queryKey: ['delayedEvents', roomId] });
 
+      const clearSentMessageContext = () => {
+        imagePacksUsedRef.current.clear();
+        setReplyDraft(replyDraftBase);
+      };
+
       const resetInput = () => {
         resetEditor(editor);
         resetEditorHistory(editor);
         setInputKey((prev) => prev + 1);
-        imagePacksUsedRef.current.clear();
-        setReplyDraft(replyDraftBase);
+        clearSentMessageContext();
         sendTypingStatus(false);
       };
       if (scheduledTime) {
@@ -1329,20 +1337,25 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
       } else {
         const msgSendStart = performance.now();
-        resetInput();
+        const sentEditorSnapshot = JSON.stringify(editor.children);
+        setSendError(undefined);
+        setIsSending(true);
         debugLog.info('message', 'Sending message', {
           roomId,
           msgtype: content.msgtype,
         });
-        Sentry.startSpan(
-          {
-            name: 'message.send',
-            op: 'matrix.message',
-            attributes: { encrypted: String(isEncrypted) },
-          },
-          () => mx.sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
-        )
+        sendImmediateMessage({
+          content: content as RoomMessageEventContent,
+          isEncrypted,
+          mx,
+          roomId,
+          threadRootId: threadRootId ?? undefined,
+        })
           .then((res: { event_id: string }) => {
+            clearSentMessageContext();
+            if (JSON.stringify(editor.children) === sentEditorSnapshot) {
+              resetInput();
+            }
             debugLog.info('message', 'Message sent successfully', {
               roomId,
               eventId: res.event_id,
@@ -1354,6 +1367,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             );
           })
           .catch((error: unknown) => {
+            setSendError('Failed to send message. Please try again.');
             debugLog.error('message', 'Failed to send message', {
               roomId,
               error: error instanceof Error ? error.message : String(error),
@@ -1362,9 +1376,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               attributes: { encrypted: String(isEncrypted) },
             });
             log.error('failed to send message', { roomId }, error);
+          })
+          .finally(() => {
+            setIsSending(false);
           });
       }
     }, [
+      isSending,
       editor,
       replyEvent,
       mx,
@@ -1781,6 +1799,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           onPaste={handlePaste}
           responsiveAfter={audioRecorder}
           forceMultilineLayout={showAudioRecorder}
+          moveAfterToFooter={isMobileLayout}
           top={
             <>
               {scheduledTime && (
@@ -1807,7 +1826,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     </IconButton>
                     <Box direction="Row" gap="200" alignItems="Center">
                       {menuIcon(Clock)}
-                      <Text size="T300">
+                      <Text size="T300" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                         Scheduled for {timeDayMonthYear(scheduledTime.getTime())} at{' '}
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
                       </Text>
@@ -1862,7 +1881,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       padding: `${config.space.S200} ${config.space.S300} 0`,
                     }}
                   >
-                    <Text style={{ color: color.Critical.Main }} size="T300">
+                    <Text
+                      style={{ color: color.Critical.Main, minWidth: 0, overflowWrap: 'anywhere' }}
+                      size="T300"
+                    >
                       {sendError}
                     </Text>
                   </Box>
@@ -2183,6 +2205,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 <IconButton
                   title="Send Message"
                   aria-label="Send your composed Message"
+                  disabled={isSending}
                   onClick={() => {
                     clearLongPressTimer();
                     if (

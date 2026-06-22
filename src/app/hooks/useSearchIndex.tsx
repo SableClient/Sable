@@ -741,6 +741,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       });
       const isMimeError = message.includes('MIME') && message.includes('text/html');
 
+      clearTimeout(initTimeout);
       setInitError(errorMsg);
       setIsReady(false);
       worker.terminate();

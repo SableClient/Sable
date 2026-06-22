@@ -29,6 +29,7 @@ import { SearchResultGroup } from './SearchResultGroup';
 import { SearchResultTimelineItem } from './SearchResultTimelineItem';
 import { SearchInput } from './SearchInput';
 import { SearchFilters } from './SearchFilters';
+import { flattenTimelineSearchItems, isGroupedSearchView } from './searchView';
 
 const useSearchPathSearchParams = (searchParams: URLSearchParams): SearchPathSearchParams =>
   useMemo(
@@ -154,16 +155,11 @@ export function MessageSearch({
   const inMemoryRoomCount = data?.pages[0]?.inMemoryRoomCount ?? 0;
 
   // Flatten groups for ungrouped timeline view
-  const isGrouped = searchPathSearchParams.grouped !== 'false';
+  const isGrouped = isGroupedSearchView(searchPathSearchParams.grouped);
   const flatItems = useMemo(() => {
     if (isGrouped) return [];
-    return groups.flatMap((group) =>
-      group.items.map((item) => ({
-        ...item,
-        roomId: group.roomId,
-      }))
-    );
-  }, [groups, isGrouped]);
+    return flattenTimelineSearchItems(groups, msgSearchParams.order);
+  }, [groups, isGrouped, msgSearchParams.order]);
 
   const virtualizer = useVirtualizer({
     count: isGrouped ? groups.length : flatItems.length,
@@ -228,8 +224,8 @@ export function MessageSearch({
     setSearchParams((prevParams) => {
       const newParams = new URLSearchParams(prevParams);
       newParams.delete('grouped');
-      if (grouped === false) {
-        newParams.append('grouped', 'false');
+      if (grouped) {
+        newParams.append('grouped', 'true');
       }
       return newParams;
     });
@@ -304,7 +300,7 @@ export function MessageSearch({
           onGlobalChange={handleGlobalChange}
           order={msgSearchParams.order}
           onOrderChange={handleOrderChange}
-          grouped={searchPathSearchParams.grouped !== 'false'}
+          grouped={isGrouped}
           onGroupedChange={handleGroupedChange}
           hasTypes={searchParamHasTypes}
           onHasTypesChange={handleHasTypesChange}

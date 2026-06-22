@@ -2047,7 +2047,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 }
               />
               <IconButton
-                onPointerDownCapture={prepareComposerOverlayTrigger}
+                onPointerDownCapture={!editorOldAddFile ? prepareComposerOverlayTrigger : undefined}
                 onClick={(evt) => {
                   if (editorOldAddFile) {
                     pickFile('*');
@@ -2281,6 +2281,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     if (!isMobileLayout || !delayedEventsSupported || evt.pointerType === 'mouse') {
                       return;
                     }
+                    prepareComposerOverlayTrigger();
 
                     const pressSequence = sendClickSequenceRef.current + 1;
                     sendClickSequenceRef.current = pressSequence;

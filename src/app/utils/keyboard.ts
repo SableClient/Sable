@@ -4,6 +4,7 @@ import type { KeyboardEventHandler } from 'react';
 const KEYBOARD_CLOSE_SETTLE_MS = 140;
 const KEYBOARD_CLOSE_TIMEOUT_MS = 500;
 let lastEditableBlurAt = 0;
+let suppressMobileEditorRefocusUntil = 0;
 
 export interface KeyboardEventLike {
   key: string;
@@ -77,7 +78,12 @@ export function primeKeyboardCloseForOverlayOpen(): void {
   if (!isEditableElement(activeElement)) return;
 
   lastEditableBlurAt = Date.now();
+  suppressMobileEditorRefocusUntil = Date.now() + KEYBOARD_CLOSE_TIMEOUT_MS;
   activeElement.blur();
+}
+
+export function shouldSuppressMobileEditorRefocus(): boolean {
+  return Date.now() <= suppressMobileEditorRefocusUntil;
 }
 
 export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
@@ -85,6 +91,7 @@ export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
 
   if (isEditableElement(activeElement)) {
     lastEditableBlurAt = Date.now();
+    suppressMobileEditorRefocusUntil = Date.now() + KEYBOARD_CLOSE_TIMEOUT_MS;
     activeElement.blur();
   } else if (Date.now() - lastEditableBlurAt > KEYBOARD_CLOSE_TIMEOUT_MS) {
     return;
@@ -112,6 +119,7 @@ export async function closeKeyboardBeforeOpeningOverlay(): Promise<void> {
       if (finished) return;
       finished = true;
       lastEditableBlurAt = 0;
+      suppressMobileEditorRefocusUntil = 0;
       if (settledTimer) clearTimeout(settledTimer);
       if (timeoutTimer) clearTimeout(timeoutTimer);
       viewport.removeEventListener('resize', scheduleSettle);

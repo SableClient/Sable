@@ -429,6 +429,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
+    const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -1179,6 +1180,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
           setReplyDraft(undefined);
         }
+
+        if (isKeyHotkey('control+e', evt)) {
+          evt.preventDefault();
+          setEmojiBoardTab(EmojiBoardTab.Sticker);
+        }
       },
       [
         submit,
@@ -1190,6 +1196,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         showAudioRecorder,
         editor,
         onEditLastMessage,
+        setEmojiBoardTab,
       ]
     );
 
@@ -1671,7 +1678,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
 
               <UseStateProvider initial={undefined}>
-                {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
+                {() => (
                   <PopOut
                     offset={16}
                     alignOffset={-44}

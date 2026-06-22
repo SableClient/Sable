@@ -44,6 +44,7 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
       { keys: 'Ctrl+B / ⌘+B', description: 'Bold' },
       { keys: 'Ctrl+I / ⌘+I', description: 'Italic' },
       { keys: 'Ctrl+U / ⌘+U', description: 'Underline' },
+      { keys: 'Ctrl+E / ⌘+E', description: 'Open Sticker Picker' },
     ],
   },
 ];

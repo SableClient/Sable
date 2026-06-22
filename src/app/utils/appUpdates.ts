@@ -113,6 +113,55 @@ const waitForServiceWorkerControllerChange = async (): Promise<void> =>
     });
   });
 
+const waitForUpdatedActiveServiceWorker = async (
+  registration: ServiceWorkerRegistration,
+  currentController: ServiceWorker | null
+): Promise<ServiceWorker | undefined> =>
+  new Promise((resolve) => {
+    const getUpdatedActiveWorker = () => {
+      const activeWorker = registration.active;
+      return activeWorker && activeWorker !== currentController ? activeWorker : undefined;
+    };
+
+    const activeWorker = getUpdatedActiveWorker();
+    if (activeWorker) {
+      resolve(activeWorker);
+      return;
+    }
+
+    let settled = false;
+    let timeoutId = 0;
+    let observedWorker: ServiceWorker | null = registration.waiting ?? registration.installing;
+
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      registration.removeEventListener('updatefound', handleUpdateFound);
+      observedWorker?.removeEventListener('statechange', handleWorkerStateChange);
+    };
+
+    const finish = (worker?: ServiceWorker) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(worker);
+    };
+
+    const handleWorkerStateChange = () => {
+      finish(getUpdatedActiveWorker());
+    };
+
+    const handleUpdateFound = () => {
+      observedWorker?.removeEventListener('statechange', handleWorkerStateChange);
+      observedWorker = registration.installing;
+      observedWorker?.addEventListener('statechange', handleWorkerStateChange);
+    };
+
+    timeoutId = window.setTimeout(() => finish(getUpdatedActiveWorker()), APPLY_UPDATE_TIMEOUT_MS);
+
+    registration.addEventListener('updatefound', handleUpdateFound);
+    observedWorker?.addEventListener('statechange', handleWorkerStateChange);
+  });
+
 export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
   const registration = await getAppServiceWorkerRegistration();
   if (!registration) {
@@ -159,10 +208,31 @@ export async function applyPendingAppUpdate(): Promise<void> {
   const registration = await getAppServiceWorkerRegistration();
   if (!registration || !hasPendingAppUpdate(registration)) return;
 
+  const currentController = navigator.serviceWorker.controller;
+
   if (registration.waiting) {
     const waitForControllerChange = waitForServiceWorkerControllerChange();
+    const waitForUpdatedActiveWorker = waitForUpdatedActiveServiceWorker(
+      registration,
+      currentController
+    );
     // oxlint-disable-next-line unicorn/require-post-message-target-origin
     registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
+    const activeWorker = await Promise.race([
+      waitForUpdatedActiveWorker,
+      waitForControllerChange.then(() => navigator.serviceWorker.controller ?? undefined),
+    ]);
+    if (activeWorker && activeWorker !== navigator.serviceWorker.controller) {
+      // Retry the claim from the page side in case the waiting worker restarts
+      // between receiving the apply request and finishing activation.
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin
+      activeWorker.postMessage({ type: 'CLAIM_CLIENTS' });
+    }
+    await waitForControllerChange;
+  } else if (registration.active && registration.active !== currentController) {
+    const waitForControllerChange = waitForServiceWorkerControllerChange();
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    registration.active.postMessage({ type: 'CLAIM_CLIENTS' });
     await waitForControllerChange;
   }
 

@@ -326,6 +326,12 @@ describe('getExplicitlyClearedSettingsKeysFromSync', () => {
 
   it('ignores invalid sync payloads', () => {
     expect(getExplicitlyClearedSettingsKeysFromSync(null).size).toBe(0);
+    expect(
+      getExplicitlyClearedSettingsKeysFromSync({
+        v: SETTINGS_SYNC_VERSION + 1,
+        settings: { themeId: null },
+      }).size
+    ).toBe(0);
     expect(getExplicitlyClearedSettingsKeysFromSync({ settings: [] }).size).toBe(0);
   });
 });

@@ -60,6 +60,7 @@ export const getExplicitlyClearedSettingsKeysFromSync = (
   if (!data || typeof data !== 'object') return cleared;
 
   const content = data as Record<string, unknown>;
+  if (content.v !== SETTINGS_SYNC_VERSION) return cleared;
   const remote = content.settings;
   if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return cleared;
 

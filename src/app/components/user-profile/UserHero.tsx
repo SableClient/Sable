@@ -272,11 +272,12 @@ export function UserHeroName({ displayName, userId, server, customHeroCards }: U
       <Box alignItems="Center" gap="100" wrap="Wrap">
         <Text size="T200" className={classNames(BreakWord, LineClamp3)} title={username}>
           <Chip
-            onClick={() => {
-              if (username && server) {
-                copyToClipboard(`@${username}:${server}`);
-                isSuccess.current = true;
-              } else isSuccess.current = false;
+            onClick={async () => {
+              isSuccess.current = !!(
+                username &&
+                server &&
+                (await copyToClipboard(`@${username}:${server}`))
+              );
               setCopied();
             }}
             style={{ backgroundColor: '#0000', padding: '0' }}
@@ -285,7 +286,7 @@ export function UserHeroName({ displayName, userId, server, customHeroCards }: U
             before={`@${username}`}
             after={
               copied || isHovered ? (
-                profileIcon(copied ? (isSuccess ? Check : CrossIcon) : CopyIcon)
+                profileIcon(copied ? (isSuccess.current ? Check : CrossIcon) : CopyIcon)
               ) : (
                 <></>
               )

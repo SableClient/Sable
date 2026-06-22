@@ -155,49 +155,11 @@ export const AvatarBase = style({
 });
 
 export const ModernBefore = style({
-  width: toRem(36),
   minWidth: toRem(36),
-  flex: `0 0 ${toRem(36)}`,
-});
-
-export const ModernRow = style({
-  alignItems: 'flex-start',
-  boxSizing: 'border-box',
-  width: '100%',
-  minWidth: 0,
-  maxWidth: '100%',
-  paddingInline: config.space.S200,
-});
-
-export const ModernContent = style({
-  display: 'flex',
-  flexDirection: 'column',
-  flex: 1,
-  width: '100%',
-  minWidth: 0,
 });
 
 export const BubbleBefore = style({
-  width: toRem(36),
   minWidth: toRem(36),
-  flex: `0 0 ${toRem(36)}`,
-});
-
-export const BubbleRow = style({
-  alignItems: 'flex-start',
-  boxSizing: 'border-box',
-  width: '100%',
-  minWidth: 0,
-  maxWidth: '100%',
-  paddingInline: config.space.S200,
-});
-
-export const BubbleMain = style({
-  display: 'flex',
-  flexDirection: 'column',
-  flex: 1,
-  width: '100%',
-  minWidth: 0,
 });
 
 export const BubbleWrapper = style({
@@ -273,10 +235,6 @@ export const PronounPill = style({
 
 export const MessageTextBody = recipe({
   base: {
-    vars: {
-      '--sable-system-emoji-font-size': '1em',
-      '--sable-custom-emoji-font-size': '1em',
-    },
     unicodeBidi: 'plaintext',
     alignSelf: 'start',
     // Full width ensures RTL text (direction:rtl from dir=auto) has room to right-align
@@ -297,42 +255,22 @@ export const MessageTextBody = recipe({
         lineHeight: 'inherit',
       },
       extraSmall: {
-        vars: {
-          '--sable-system-emoji-font-size': '1em',
-          '--sable-custom-emoji-font-size': '1em',
-        },
         fontSize: '1.25rem !important',
         lineHeight: '1.4em',
       },
       small: {
-        vars: {
-          '--sable-system-emoji-font-size': '1em',
-          '--sable-custom-emoji-font-size': '1em',
-        },
         fontSize: '1.5rem !important',
         lineHeight: '1.5em',
       },
       normal: {
-        vars: {
-          '--sable-system-emoji-font-size': '1em',
-          '--sable-custom-emoji-font-size': '1em',
-        },
         fontSize: '1.805rem !important',
         lineHeight: '1.625em',
       },
       large: {
-        vars: {
-          '--sable-system-emoji-font-size': '1em',
-          '--sable-custom-emoji-font-size': '1em',
-        },
         fontSize: '2.1rem !important',
         lineHeight: '1.675em',
       },
       extraLarge: {
-        vars: {
-          '--sable-system-emoji-font-size': '1em',
-          '--sable-custom-emoji-font-size': '1em',
-        },
         fontSize: '2.4rem !important',
         lineHeight: '1.7em',
       },

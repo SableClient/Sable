@@ -111,8 +111,20 @@ test.describe('emoji polish smoke', () => {
         baselineLine: measure('[data-testid="smoke-emoji-baseline-line"]'),
         baselineText: measure('[data-testid="smoke-emoji-baseline-text"]'),
         baselineEmoji: measure('[data-testid="smoke-emoji-baseline-line"] span[title]'),
+        baselineTextFontSize: getComputedStyle(
+          document.querySelector('[data-testid="smoke-emoji-baseline-text"]')!
+        ).fontSize,
+        baselineEmojiFontSize: getComputedStyle(
+          document.querySelector('[data-testid="smoke-emoji-baseline-line"] span[title]')!
+        ).fontSize,
         compactPreview: measure('[data-testid="smoke-compact-preview-line"]'),
         compactPreviewEmoji: measure('[data-testid="smoke-compact-preview-block"] span[title]'),
+        compactPreviewTextFontSize: getComputedStyle(
+          document.querySelector('[data-testid="smoke-compact-preview-line"]')!
+        ).fontSize,
+        compactPreviewEmojiFontSize: getComputedStyle(
+          document.querySelector('[data-testid="smoke-compact-preview-block"] span[title]')!
+        ).fontSize,
         fixedCellBlackSquareFontFamily: getComputedStyle(
           document.querySelector(
             '[data-testid="smoke-emoji-fixed-cell-line"] span[title="black_large_square"]'
@@ -150,6 +162,9 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.thirdSticker!.left - metrics.secondSticker!.right).toBeGreaterThanOrEqual(4);
     expect(metrics.baselineEmoji!.top).toBeGreaterThanOrEqual(metrics.baselineLine!.top - 6);
     expect(metrics.baselineEmoji!.bottom).toBeLessThanOrEqual(metrics.baselineLine!.bottom + 2);
+    expect(parseFloat(metrics.baselineEmojiFontSize)).toBeGreaterThan(
+      parseFloat(metrics.baselineTextFontSize)
+    );
     expect(Math.abs(metrics.baselineEmoji!.centerY - metrics.baselineText!.centerY)).toBeLessThan(
       4
     );
@@ -158,6 +173,9 @@ test.describe('emoji polish smoke', () => {
     );
     expect(metrics.compactPreviewEmoji!.bottom).toBeLessThanOrEqual(
       metrics.compactPreview!.bottom + 2
+    );
+    expect(parseFloat(metrics.compactPreviewEmojiFontSize)).toBeGreaterThan(
+      parseFloat(metrics.compactPreviewTextFontSize)
     );
 
     await captureSnapshot(page, 'emoji-polish/sticker-fit-and-baseline');

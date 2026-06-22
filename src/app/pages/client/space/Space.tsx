@@ -1181,7 +1181,11 @@ export function Space() {
                         <RoomNavItem
                           room={room}
                           selected={selectedRoomId === roomId}
-                          showAvatar={mDirects.has(roomId) || showIcons()}
+                          showAvatar={
+                            showRoomIcon === ShowRoomIcon.Strict
+                              ? showIcons()
+                              : mDirects.has(roomId) || showIcons()
+                          }
                           direct={mDirects.has(roomId)}
                           linkPath={getToLink(roomId)}
                           hideText={hideText}

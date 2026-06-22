@@ -1048,16 +1048,30 @@ export function Appearance({
                     <Text size="T200">
                       When do you want to show the specific room icons in the sidebar?
                     </Text>
-                    {(showRoomIcon === ShowRoomIcon.Always &&
-                      'Always show icons, and fallback to initials') ||
-                      (showRoomIcon === ShowRoomIcon.Strict &&
-                        'Show icons when available, but fallback to hashes') ||
-                      (showRoomIcon === ShowRoomIcon.Smart &&
-                        'Show icons only when sidebar is minimized, else icons.') ||
-                      (showRoomIcon === ShowRoomIcon.Never &&
-                        'Never show icons, always only the hashes.') ||
-                      ''}
-                    <span style={{ opacity: '50%' }}>{' (current)'}</span>
+                    {showRoomIcon === ShowRoomIcon.Always && (
+                      <>
+                        {'Always show icons, and fallback to initials'}
+                        <span style={{ opacity: '50%' }}>{' (current)'}</span>
+                      </>
+                    )}
+                    {showRoomIcon === ShowRoomIcon.Strict && (
+                      <>
+                        {'Show icons when available, but fallback to hashes'}
+                        <span style={{ opacity: '50%' }}>{' (current)'}</span>
+                      </>
+                    )}
+                    {showRoomIcon === ShowRoomIcon.Smart && (
+                      <>
+                        {'Show icons only when sidebar is minimized, else icons.'}
+                        <span style={{ opacity: '50%' }}>{' (current)'}</span>
+                      </>
+                    )}
+                    {showRoomIcon === ShowRoomIcon.Never && (
+                      <>
+                        {'Never show icons, always only the hashes.'}
+                        <span style={{ opacity: '50%' }}>{' (current)'}</span>
+                      </>
+                    )}
                   </>
                 }
                 after={<SelectShowRoomIcon />}

@@ -568,6 +568,7 @@ export function Home() {
                             room={room}
                             selected={selected}
                             showAvatar={showIcons()}
+                            direct={mDirects.has(roomId)}
                             isStrict={showRoomIcon === ShowRoomIcon.Strict}
                             hideText={hideText}
                             linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}

@@ -148,22 +148,23 @@ const computeCollapseAndDividers = (
 
 const mergeDraftsAndExtras = (
   result: ProcessedEvent[],
-  extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentTs: number }[]
+  extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string; itemIndex?: number }[]
 ): ProcessedEventDraft[] => {
   const resultDrafts = result.map(
     ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
   );
 
   const extraDrafts = extras
-    .map(({ mEvent, timelineSet, parentTs }) => ({
+    .map(({ mEvent, timelineSet, parentId, itemIndex = -1 }) => ({
       draft: {
         id: mEvent.getId()!,
-        itemIndex: -1,
+        itemIndex,
         mEvent,
         timelineSet,
         eventSender: mEvent.getSender() ?? null,
       },
-      effectiveTs: Math.max(mEvent.getTs(), parentTs),
+      effectiveTs: mEvent.getTs(),
+      parentId,
     }))
     .toSorted((a, b) => a.effectiveTs - b.effectiveTs);
 
@@ -174,12 +175,20 @@ const mergeDraftsAndExtras = (
 
   for (const extra of extraDrafts) {
     const extraTs = extra.effectiveTs;
-    let insertIdx = 0;
-    for (let i = resultDrafts.length - 1; i >= 0; i -= 1) {
-      if (resultDrafts[i]!.mEvent.getTs() <= extraTs) {
-        insertIdx = i + 1;
+    let parentIdx = -1;
+    for (let i = 0; i < resultDrafts.length; i += 1) {
+      if (resultDrafts[i]!.id === extra.parentId) {
+        parentIdx = i;
         break;
       }
+    }
+
+    let insertIdx = parentIdx + 1;
+    for (let i = parentIdx + 1; i < resultDrafts.length; i += 1) {
+      if (resultDrafts[i]!.mEvent.getTs() > extraTs) {
+        break;
+      }
+      insertIdx = i + 1;
     }
     buckets[insertIdx]!.push(extra.draft);
   }
@@ -207,6 +216,26 @@ const mergeRelationReactions = (
   if (hideMemberInReadOnly && isReadOnly) return result;
 
   const existingIds = new Set(result.map((event) => event.id));
+  const baseDrafts: ProcessedEvent[] = [];
+  const inlineExtras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string; itemIndex: number }[] = [];
+
+  for (const draft of result) {
+    if (isReactionEvent(draft.mEvent)) {
+      const relation = draft.mEvent.getRelation();
+      const parentId = relation?.event_id;
+      if (parentId) {
+        inlineExtras.push({
+          mEvent: draft.mEvent,
+          timelineSet: draft.timelineSet,
+          parentId,
+          itemIndex: draft.itemIndex,
+        });
+        continue;
+      }
+    }
+    baseDrafts.push(draft);
+  }
+
   const extras = collectRelationReactionEvents(
     linkedTimelines,
     existingIds,
@@ -215,9 +244,10 @@ const mergeRelationReactions = (
     hiddenEventReactionTombstone
   );
 
-  if (extras.length === 0) return result;
+  const allExtras = [...inlineExtras, ...extras];
+  if (allExtras.length === 0) return baseDrafts;
 
-  const mergedDrafts = mergeDraftsAndExtras(result, extras);
+  const mergedDrafts = mergeDraftsAndExtras(baseDrafts, allExtras);
 
   return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
 };
@@ -231,6 +261,26 @@ const mergeRelationEdits = (
   readUptoEventId: string | undefined
 ): ProcessedEvent[] => {
   const existingIds = new Set(result.map((event) => event.id));
+  const baseDrafts: ProcessedEvent[] = [];
+  const inlineExtras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string; itemIndex: number }[] = [];
+
+  for (const draft of result) {
+    if (isEditEvent(draft.mEvent)) {
+      const relation = draft.mEvent.getRelation();
+      const parentId = relation?.event_id;
+      if (parentId) {
+        inlineExtras.push({
+          mEvent: draft.mEvent,
+          timelineSet: draft.timelineSet,
+          parentId,
+          itemIndex: draft.itemIndex,
+        });
+        continue;
+      }
+    }
+    baseDrafts.push(draft);
+  }
+
   const extras = collectRelationEditEvents(
     linkedTimelines,
     existingIds,
@@ -238,9 +288,10 @@ const mergeRelationEdits = (
     hiddenEventEdits
   );
 
-  if (extras.length === 0) return result;
+  const allExtras = [...inlineExtras, ...extras];
+  if (allExtras.length === 0) return baseDrafts;
 
-  const mergedDrafts = mergeDraftsAndExtras(result, extras);
+  const mergedDrafts = mergeDraftsAndExtras(baseDrafts, allExtras);
 
   return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
 };

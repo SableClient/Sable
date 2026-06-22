@@ -161,6 +161,8 @@ import {
   PaperPlaneTilt,
   getPhosphorIconSize,
   PlusCircle,
+  Smiley,
+  Sticker,
   Stop,
   X,
 } from '$components/icons/phosphor';
@@ -2184,9 +2186,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
               <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
 
-              {/* Emoji/sticker board: kept mounted after first open to avoid re-initialising
-                  the virtualizer on every open. FocusTrap is deactivated when hidden. */}
-              {emojiBoardAnchorRect &&
+              {isMobileLayout &&
+                emojiBoardAnchorRect &&
                 createPortal(
                   <div
                     style={{
@@ -2215,38 +2216,71 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   </div>,
                   document.body
                 )}
-              {!hideStickerBtn && (
+              <PopOut
+                offset={16}
+                alignOffset={-44}
+                position="Top"
+                align="End"
+                anchor={
+                  !isMobileLayout && emojiBoardTab !== undefined
+                    ? (emojiBtnRef.current?.getBoundingClientRect() ?? undefined)
+                    : undefined
+                }
+                content={
+                  !isMobileLayout ? (
+                    <EmojiBoard
+                      tab={emojiBoardTab}
+                      onTabChange={setEmojiBoardTab}
+                      imagePackRooms={imagePackRooms}
+                      returnFocusOnDeactivate={false}
+                      onEmojiSelect={handleEmoticonSelect}
+                      onCustomEmojiSelect={handleEmoticonSelect}
+                      onStickerSelect={handleStickerSelect}
+                      requestClose={closeEmojiBoard}
+                    />
+                  ) : undefined
+                }
+              >
+                {!hideStickerBtn && (
+                  <IconButton
+                    aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
+                    onPointerDownCapture={prepareComposerOverlayTrigger}
+                    onClick={() => void openEmojiBoard(EmojiBoardTab.Sticker)}
+                    variant="SurfaceVariant"
+                    size="300"
+                    radii="300"
+                    title="open sticker picker"
+                    aria-label="Open sticker picker"
+                  >
+                    {composerIcon(Sticker, {
+                      weight: emojiBoardTab === EmojiBoardTab.Sticker ? 'fill' : 'regular',
+                    })}
+                  </IconButton>
+                )}
                 <IconButton
-                  aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
+                  ref={emojiBtnRef}
+                  aria-pressed={
+                    hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
+                  }
                   onPointerDownCapture={prepareComposerOverlayTrigger}
-                  onClick={() => void openEmojiBoard(EmojiBoardTab.Sticker)}
+                  onClick={() => void openEmojiBoard(EmojiBoardTab.Emoji)}
                   variant="SurfaceVariant"
                   size="300"
                   radii="300"
-                  title="open sticker picker"
-                  aria-label="Open sticker picker"
+                  title="open emoji picker"
+                  aria-label="Open emoji picker"
                 >
-                  <Icon src={Icons.Sticker} filled={emojiBoardTab === EmojiBoardTab.Sticker} />
+                  {composerIcon(Smiley, {
+                    weight: hideStickerBtn
+                      ? emojiBoardTab
+                        ? 'fill'
+                        : 'regular'
+                      : emojiBoardTab === EmojiBoardTab.Emoji
+                        ? 'fill'
+                        : 'regular',
+                  })}
                 </IconButton>
-              )}
-              <IconButton
-                ref={emojiBtnRef}
-                aria-pressed={
-                  hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
-                }
-                onPointerDownCapture={prepareComposerOverlayTrigger}
-                onClick={() => void openEmojiBoard(EmojiBoardTab.Emoji)}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title="open emoji picker"
-                aria-label="Open emoji picker"
-              >
-                <Icon
-                  src={Icons.Smile}
-                  filled={hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji}
-                />
-              </IconButton>
+              </PopOut>
               <PopOut
                 anchor={scheduleMenuAnchor}
                 position="Top"

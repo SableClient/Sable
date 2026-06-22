@@ -7,13 +7,14 @@ import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { SpaceProvider } from '$hooks/useSpace';
 import { JoinBeforeNavigate } from '$features/join-before-navigate';
 import { useSearchParamsViaServers } from '$hooks/router/useSearchParamsViaServers';
+import { isSpace } from '$utils/room';
 
 type RouteSpaceProviderProps = {
   children: ReactNode;
 };
 export function RouteSpaceProvider({ children }: RouteSpaceProviderProps) {
   const mx = useMatrixClient();
-  const joinedSpaces = useSpaces(mx, allRoomsAtom);
+  useSpaces(mx, allRoomsAtom);
 
   const { spaceIdOrAlias: encodedSpaceIdOrAlias } = useParams();
   const spaceIdOrAlias = encodedSpaceIdOrAlias && decodeURIComponent(encodedSpaceIdOrAlias);
@@ -21,8 +22,10 @@ export function RouteSpaceProvider({ children }: RouteSpaceProviderProps) {
 
   const selectedSpaceId = useSelectedSpace();
   const space = mx.getRoom(selectedSpaceId);
+  const isJoinedSpace = space?.getMyMembership() === 'join';
+  const isLiveSpace = !!space && isSpace(space);
 
-  if (!space || !joinedSpaces.includes(space.roomId)) {
+  if (!space || !isJoinedSpace || !isLiveSpace) {
     return <JoinBeforeNavigate roomIdOrAlias={spaceIdOrAlias ?? ''} viaServers={viaServers} />;
   }
 

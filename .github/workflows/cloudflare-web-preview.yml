@@ -40,13 +40,10 @@ jobs:
         id: metadata
         shell: bash
         run: |
-          preview_message="$(git log -1 --pretty=%s)"
-          preview_message="$(printf '%s' "$preview_message" | head -c 100)"
+          short_sha="$(git rev-parse --short=7 HEAD)"
 
           {
-            echo 'preview_message<<EOF'
-            echo "$preview_message"
-            echo EOF
+            echo "short_sha=$short_sha"
           } >> "$GITHUB_OUTPUT"
 
       - name: Set Sentry build environment for PR preview
@@ -68,7 +65,7 @@ jobs:
       - name: Set build hash
         shell: bash
         run: |
-          echo "VITE_BUILD_HASH=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
+          echo "VITE_BUILD_HASH=${{ steps.metadata.outputs.short_sha }}" >> "$GITHUB_ENV"
 
       - name: Setup app and build
         uses: ./.github/actions/setup
@@ -90,8 +87,6 @@ jobs:
       - name: Upload Worker preview
         id: deploy
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
-        env:
-          PREVIEW_MESSAGE: ${{ steps.metadata.outputs.preview_message }}
         with:
           apiToken: ${{ secrets.TF_CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.TF_VAR_ACCOUNT_ID }}
@@ -99,7 +94,8 @@ jobs:
             versions upload
             -c dist/charm/wrangler.json
             --preview-alias ${{ steps.alias.outputs.alias }}
-            --message "$PREVIEW_MESSAGE"
+            --tag ${{ steps.metadata.outputs.short_sha }}
+            --message ${{ steps.metadata.outputs.short_sha }}
 
       - name: Resolve preview URL
         id: preview
@@ -131,7 +127,7 @@ jobs:
           MARKER: '<!-- cloudflare-worker-preview -->'
           PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
           PREVIEW_ALIAS: ${{ steps.alias.outputs.alias }}
-          SHORT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SHORT_SHA: ${{ steps.metadata.outputs.short_sha }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

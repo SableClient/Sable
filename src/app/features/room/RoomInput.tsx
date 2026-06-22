@@ -2281,7 +2281,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     if (!isMobileLayout || !delayedEventsSupported || evt.pointerType === 'mouse') {
                       return;
                     }
-                    prepareComposerOverlayTrigger();
 
                     const pressSequence = sendClickSequenceRef.current + 1;
                     sendClickSequenceRef.current = pressSequence;
@@ -2311,6 +2310,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                           room_id: roomId,
                         }),
                       });
+                      prepareComposerOverlayTrigger();
                       if (longPressTimer.current !== null) {
                         clearTimeout(longPressTimer.current);
                         longPressTimer.current = null;

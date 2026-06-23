@@ -760,6 +760,7 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
     return (
       <Box
         className={css.MessageMobileOptionsWrapped}
+        data-gestures="ignore"
         onClick={() => {
           options.closeMenu();
           setIsActive(false);

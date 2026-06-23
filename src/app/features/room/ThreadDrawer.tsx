@@ -2,10 +2,11 @@ import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Header, IconButton, Scroll, Spinner, Text, config, toRem } from 'folds';
 import { Chats, composerIcon, X } from '$components/icons/phosphor';
-import type { IEvent, Room } from '$types/matrix-sdk';
+import type { IEvent, Room, CryptoBackend } from '$types/matrix-sdk';
 import {
   Direction,
   MatrixEvent,
+  MatrixEventEvent,
   PushProcessor,
   ReceiptType,
   RelationType,
@@ -395,18 +396,60 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         forceUpdate((n) => n + 1);
       }
     };
+    const onDecrypted = (mEvent: MatrixEvent) => {
+      if (isEventInThread(mEvent)) {
+        const currThread = room.getThread(threadRootId);
+        if (currThread && !currThread.events.includes(mEvent)) {
+          currThread.addEvents([mEvent], false);
+        }
+        forceUpdate((n) => n + 1);
+      }
+    };
     const onThreadUpdate = () => forceUpdate((n) => n + 1);
     mx.on(RoomEvent.Timeline, onTimeline);
     room.on(RoomEvent.Redaction, onRedaction);
     room.on(ThreadEvent.Update, onThreadUpdate);
     room.on(ThreadEvent.NewReply, onThreadUpdate);
+    mx.on(MatrixEventEvent.Decrypted, onDecrypted);
     return () => {
       mx.off(RoomEvent.Timeline, onTimeline);
       room.removeListener(RoomEvent.Redaction, onRedaction);
       room.removeListener(ThreadEvent.Update, onThreadUpdate);
       room.removeListener(ThreadEvent.NewReply, onThreadUpdate);
+      mx.removeListener(MatrixEventEvent.Decrypted, onDecrypted);
     };
   }, [mx, room, threadRootId]);
+
+  // Retry decryption for thread root events that failed because they were fetched before keys arrived
+  useEffect(() => {
+    if (!rootEvent?.isEncrypted() || !rootEvent.isDecryptionFailure()) return undefined;
+    const crypto = mx.getCrypto();
+    if (!crypto) return undefined;
+
+    const retryDecrypt = async () => {
+      try {
+        await rootEvent.attemptDecryption(crypto as CryptoBackend);
+        if (!rootEvent.isDecryptionFailure()) forceUpdate((n) => n + 1);
+      } catch {
+        // ignore
+      }
+    };
+
+    // Piggyback on other decryptions as a proxy signal for key arrival
+    const sentinels = room
+      .getLiveTimeline()
+      .getEvents()
+      .slice(-50)
+      .filter((e) => e.isEncrypted());
+    sentinels.forEach((e) => e.on(MatrixEventEvent.Decrypted, retryDecrypt));
+
+    // Attempt immediately in case keys arrived since the initial failure
+    retryDecrypt();
+
+    return () => {
+      sentinels.forEach((e) => e.off(MatrixEventEvent.Decrypted, retryDecrypt));
+    };
+  }, [rootEvent, room, mx]);
 
   // Mark thread as read when viewing it
   useEffect(() => {

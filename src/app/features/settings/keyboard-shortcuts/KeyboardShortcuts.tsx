@@ -29,11 +29,16 @@ function formatKey(key: string): string {
 
 const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
   {
+    name: 'General',
+    shortcuts: [{ keys: 'Ctrl+F / ⌘+F', description: 'Search for messages' }],
+  },
+  {
     name: 'Navigation',
     shortcuts: [
       { keys: 'Alt+N', description: 'Jump to the highest-priority unread room' },
       { keys: 'Alt+Shift+Down', description: 'Go to next unread room (cycle)' },
       { keys: 'Alt+Shift+Up', description: 'Go to previous unread room (cycle)' },
+      { keys: 'Ctrl+K / ⌘+K', description: 'Search and go to Room' },
     ],
   },
   {
@@ -44,6 +49,7 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
       { keys: 'Ctrl+B / ⌘+B', description: 'Bold' },
       { keys: 'Ctrl+I / ⌘+I', description: 'Italic' },
       { keys: 'Ctrl+U / ⌘+U', description: 'Underline' },
+      { keys: 'Ctrl+E / ⌘+E', description: 'Open Sticker Picker' },
     ],
   },
 ];

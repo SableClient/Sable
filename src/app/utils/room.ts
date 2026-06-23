@@ -758,10 +758,10 @@ export const collectRelationReactionEvents = (
   ignoredUsersSet: Set<string>,
   showReactions: boolean,
   showReactionTombstones: boolean
-): { mEvent: MatrixEvent; timelineSet: EventTimelineSet }[] => {
+): { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string }[] => {
   if (!showReactions && !showReactionTombstones) return [];
 
-  const extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet }[] = [];
+  const extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string }[] = [];
   const seen = new Set(existingIds);
 
   for (const timeline of linkedTimelines) {
@@ -785,7 +785,7 @@ export const collectRelationReactionEvents = (
         if (redacted && !showReactionTombstones) continue;
         if (!redacted && !showReactions) continue;
 
-        extras.push({ mEvent: reaction, timelineSet });
+        extras.push({ mEvent: reaction, timelineSet, parentId });
       }
     }
   }
@@ -798,10 +798,10 @@ export const collectRelationEditEvents = (
   existingIds: ReadonlySet<string>,
   ignoredUsersSet: Set<string>,
   showEdits: boolean
-): { mEvent: MatrixEvent; timelineSet: EventTimelineSet }[] => {
+): { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string }[] => {
   if (!showEdits) return [];
 
-  const extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet }[] = [];
+  const extras: { mEvent: MatrixEvent; timelineSet: EventTimelineSet; parentId: string }[] = [];
   const seen = new Set(existingIds);
 
   for (const timeline of linkedTimelines) {
@@ -821,7 +821,7 @@ export const collectRelationEditEvents = (
         const sender = editEvent.getSender();
         if (sender && ignoredUsersSet.has(sender)) continue;
 
-        extras.push({ mEvent: editEvent, timelineSet });
+        extras.push({ mEvent: editEvent, timelineSet, parentId });
       }
     }
   }

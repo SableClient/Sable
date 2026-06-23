@@ -15,7 +15,7 @@ import { getHomePath, joinPathComponent } from '$pages/pathUtils';
 import { useRoomsUnread } from '$state/hooks/unread';
 import {
   SidebarAvatar,
-  SidebarItem,
+  SidebarItemLeft,
   SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
@@ -96,7 +96,7 @@ export function HomeTab() {
   };
 
   return (
-    <SidebarItem active={homeSelected}>
+    <SidebarItemLeft active={homeSelected}>
       <SidebarItemTooltip tooltip="Home">
         {(triggerRef) => (
           <SidebarAvatar
@@ -141,6 +141,6 @@ export function HomeTab() {
           }
         />
       )}
-    </SidebarItem>
+    </SidebarItemLeft>
   );
 }

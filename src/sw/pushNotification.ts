@@ -227,6 +227,7 @@ export const createPushNotifications = (
     switch (eventType as string) {
       case EventType.RoomMessage as string:
       case EventType.Sticker as string:
+      case EventType.Reaction as string:
         await handleRoomMessageNotification(pushData);
         break;
       case EventType.RoomMessageEncrypted as string:

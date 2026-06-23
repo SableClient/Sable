@@ -7,6 +7,7 @@ type SendImmediateMessageArgs = {
   mx: MatrixClient;
   roomId: string;
   threadRootId?: string;
+  txnId?: string;
 };
 
 export const sendImmediateMessage = ({
@@ -15,6 +16,7 @@ export const sendImmediateMessage = ({
   mx,
   roomId,
   threadRootId,
+  txnId,
 }: SendImmediateMessageArgs): Promise<{ event_id: string }> =>
   Sentry.startSpan(
     {
@@ -22,5 +24,5 @@ export const sendImmediateMessage = ({
       op: 'matrix.message',
       attributes: { encrypted: String(isEncrypted) },
     },
-    () => mx.sendMessage(roomId, threadRootId ?? null, content)
+    () => mx.sendMessage(roomId, threadRootId ?? null, content, txnId)
   );

@@ -17,6 +17,40 @@ describe('mobile PWA dogfood contract', () => {
     expect(roomInput).toContain('onMouseDown={handleMobilePreLift}');
   });
 
+  it('clears the composer before awaiting the immediate send path', () => {
+    const roomInput = readWorkspaceFile('src/app/features/room/RoomInput.tsx');
+
+    const resetIndex = roomInput.indexOf(
+      'resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot);'
+    );
+    const sendIndex = roomInput.indexOf('const res = await sendImmediateMessage({');
+
+    expect(resetIndex).toBeGreaterThan(-1);
+    expect(sendIndex).toBeGreaterThan(-1);
+    expect(resetIndex).toBeLessThan(sendIndex);
+    expect(roomInput).toContain('const sentMsgDraftSnapshot = structuredClone(editor.children);');
+    expect(roomInput).toContain('const restoreFailedImmediateSendContext = (');
+    expect(roomInput).toContain('restoreFailedImmediateSendContext(');
+    expect(roomInput).toContain('if (!isMountedRef.current) return;');
+    expect(roomInput).toContain('setMsgDraft([]);');
+    expect(roomInput).not.toContain('Transforms.insertFragment(editor, restoredMsgDraft);');
+    expect(roomInput).toContain(
+      'const currentReplyDraftSnapshot = serializeReplyDraft(latestReplyDraftRef.current);'
+    );
+    expect(roomInput).toContain(
+      'currentReplyDraftSnapshot === serializeReplyDraft(replyDraftBase) ||'
+    );
+    expect(roomInput).toContain('currentReplyDraftSnapshot === sentReplyDraftSnapshot');
+    expect(roomInput).toContain('const restoredSilentReplyRef = useRef<boolean | null>(null);');
+    expect(roomInput).toContain('const sentSilentReplySnapshot = silentReply;');
+    expect(roomInput).toContain('const txnId = mx.makeTxnId();');
+    expect(roomInput).toContain('const pendingImmediateEvent = room.getEventForTxnId(txnId);');
+    expect(roomInput).toContain('pendingImmediateEventStatus !== EventStatus.NOT_SENT');
+    expect(roomInput).toContain(
+      'restoredSilentReplyRef.current = restoredReplyDraft ? sentSilentReplySnapshot : null;'
+    );
+  });
+
   it('closes the mobile keyboard before opening composer overlays', () => {
     const roomInput = readWorkspaceFile('src/app/features/room/RoomInput.tsx');
 

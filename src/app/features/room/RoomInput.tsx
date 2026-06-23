@@ -13,7 +13,7 @@ import type {
   StickerEventContent,
 } from '$types/matrix-sdk';
 import { MatrixError } from '$types/matrix-sdk';
-import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
+import { EventStatus, EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms, Text as SlateText } from 'slate';
 import type { RectCords } from 'folds';
@@ -411,6 +411,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
     const [editDraft, setEditDraft] = useAtom(roomIdToEditDraftAtomFamily(draftKey));
     const latestReplyDraftRef = useRef(replyDraft);
+    const restoredSilentReplyRef = useRef<boolean | null>(null);
+    const isMountedRef = useRef(true);
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
@@ -659,13 +661,25 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     useEffect(() => {
       if (replyDraft !== undefined) {
-        setSilentReply(replyDraft.userId === mx.getUserId() || !mentionInReplies);
+        if (restoredSilentReplyRef.current !== null) {
+          setSilentReply(restoredSilentReplyRef.current);
+          restoredSilentReplyRef.current = null;
+        } else {
+          setSilentReply(replyDraft.userId === mx.getUserId() || !mentionInReplies);
+        }
       }
     }, [mentionInReplies, mx, replyDraft]);
 
     useEffect(() => {
       latestReplyDraftRef.current = replyDraft;
     }, [replyDraft]);
+
+    useEffect(
+      () => () => {
+        isMountedRef.current = false;
+      },
+      []
+    );
 
     const prevReplyEventId = useRef(replyDraft?.eventId);
     useEffect(() => {
@@ -1350,7 +1364,52 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
         };
 
+        const restoreFailedImmediateSendContext = (
+          sentMsgDraftSnapshot: typeof editor.children,
+          sentReplyDraftSnapshot: string,
+          sentImagePacksSnapshot: string,
+          sentSilentReplySnapshot: boolean
+        ) => {
+          if (!isMountedRef.current) return;
+
+          if (isEmptyEditor(editor)) {
+            const restoredMsgDraft = structuredClone(sentMsgDraftSnapshot);
+            setMsgDraft(restoredMsgDraft);
+            requestAnimationFrame(() => {
+              try {
+                ReactEditor.focus(editor);
+                moveCursor(editor);
+              } catch {
+                // Ignore focus errors
+              }
+            });
+          }
+
+          const currentReplyDraftSnapshot = serializeReplyDraft(latestReplyDraftRef.current);
+          if (
+            currentReplyDraftSnapshot === serializeReplyDraft(replyDraftBase) ||
+            currentReplyDraftSnapshot === sentReplyDraftSnapshot
+          ) {
+            const restoredReplyDraft = JSON.parse(sentReplyDraftSnapshot) as IReplyDraft | null;
+            restoredSilentReplyRef.current = restoredReplyDraft ? sentSilentReplySnapshot : null;
+            setReplyDraft(restoredReplyDraft ?? replyDraftBase);
+          }
+
+          if (imagePacksUsedRef.current.size === 0) {
+            const restoredImagePacks = JSON.parse(sentImagePacksSnapshot) as Record<
+              string,
+              MSC4459ImagePackReference
+            >;
+            Object.entries(restoredImagePacks).forEach(([key, value]) => {
+              imagePacksUsedRef.current.set(key, value);
+            });
+          }
+
+          sendTypingStatus(false);
+        };
+
         const resetInput = (sentReplyDraftSnapshot?: string, sentImagePacksSnapshot?: string) => {
+          setMsgDraft([]);
           resetEditor(editor);
           resetEditorHistory(editor);
           setInputKey((prev) => prev + 1);
@@ -1419,9 +1478,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
         } else {
           const msgSendStart = performance.now();
+          const sentMsgDraftSnapshot = structuredClone(editor.children);
           const sentReplyDraftSnapshot = serializeReplyDraft(replyDraft);
           const sentImagePacksSnapshot = JSON.stringify(imagePacksUsedRef.current.toJSON());
+          const sentSilentReplySnapshot = silentReply;
+          const txnId = mx.makeTxnId();
           setSendError(undefined);
+          resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot);
           debugLog.info('message', 'Sending message', {
             roomId,
             msgtype: content.msgtype,
@@ -1433,8 +1496,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               mx,
               roomId,
               threadRootId: threadRootId ?? undefined,
+              txnId,
             });
-            resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot);
             debugLog.info('message', 'Message sent successfully', {
               roomId,
               eventId: res.event_id,
@@ -1446,6 +1509,22 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             );
           } catch (error: unknown) {
             setSendError('Failed to send message. Please try again.');
+            const pendingImmediateEvent = room.getEventForTxnId(txnId);
+            const pendingImmediateEventStatus = pendingImmediateEvent?.getAssociatedStatus();
+
+            if (
+              pendingImmediateEventStatus !== EventStatus.ENCRYPTING &&
+              pendingImmediateEventStatus !== EventStatus.SENDING &&
+              pendingImmediateEventStatus !== EventStatus.QUEUED &&
+              pendingImmediateEventStatus !== EventStatus.NOT_SENT
+            ) {
+              restoreFailedImmediateSendContext(
+                sentMsgDraftSnapshot,
+                sentReplyDraftSnapshot,
+                sentImagePacksSnapshot,
+                sentSilentReplySnapshot
+              );
+            }
             debugLog.error('message', 'Failed to send message', {
               roomId,
               error: error instanceof Error ? error.message : String(error),
@@ -1481,6 +1560,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       sendTypingStatus,
       queryClient,
       threadRootId,
+      setMsgDraft,
       setReplyDraft,
       settingsLinkBaseUrl,
       isEncrypted,

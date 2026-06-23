@@ -25,11 +25,12 @@ describe('sendImmediateMessage', () => {
         mx,
         roomId: '!room:example.com',
         threadRootId: '$thread',
+        txnId: 'txn-1',
       })
     ).resolves.toEqual({ event_id: '$1' });
 
     expect(Sentry.startSpan).toHaveBeenCalledOnce();
-    expect(sendMessage).toHaveBeenCalledWith('!room:example.com', '$thread', content);
+    expect(sendMessage).toHaveBeenCalledWith('!room:example.com', '$thread', content, 'txn-1');
   });
 
   it('uses the main timeline send target when no thread root is active', async () => {
@@ -44,6 +45,6 @@ describe('sendImmediateMessage', () => {
       roomId: '!room:example.com',
     });
 
-    expect(sendMessage).toHaveBeenCalledWith('!room:example.com', null, content);
+    expect(sendMessage).toHaveBeenCalledWith('!room:example.com', null, content, undefined);
   });
 });

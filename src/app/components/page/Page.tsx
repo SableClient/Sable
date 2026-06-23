@@ -3,7 +3,7 @@ import { Box, Header, Line, Scroll, Text, as } from 'folds';
 import classNames from 'classnames';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { isPhoneLayoutDevice } from '$utils/user-agent';
 import * as css from './style.css';
 
 type PageRootProps = {
@@ -17,7 +17,7 @@ export function PageRoot({ nav, children }: PageRootProps) {
   return (
     <Box grow="Yes" className={ContainerColor({ variant: 'Background' })}>
       {nav}
-      {screenSize !== ScreenSize.Mobile && !mobileOrTabletLayout() && (
+      {screenSize !== ScreenSize.Mobile && !isPhoneLayoutDevice() && (
         <Line variant="Background" size="300" direction="Vertical" />
       )}
       {children}
@@ -30,7 +30,7 @@ type ClientDrawerLayoutProps = {
 };
 export function PageNav({ size, children }: ClientDrawerLayoutProps & css.PageNavVariants) {
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
+  const isMobile = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();
 
   return (
     <Box

@@ -7,7 +7,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { SpaceProvider } from '$hooks/useSpace';
 import { RoomProvider } from '$hooks/useRoom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { isPhoneLayoutDevice } from '$utils/user-agent';
 import { composerIcon, X } from '$components/icons/phosphor';
 import { Modal500 } from './Modal500';
 import { UserRoomProfile } from './user-profile';
@@ -19,7 +19,7 @@ function UserRoomProfileContextMenu({ state }: { state: UserRoomProfileState }) 
   const room = getRoom(roomId);
   const space = spaceId ? getRoom(spaceId) : undefined;
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
+  const isMobile = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();
 
   const close = useCloseUserRoomProfile();
 

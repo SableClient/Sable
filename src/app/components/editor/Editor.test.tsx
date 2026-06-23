@@ -282,6 +282,24 @@ function EmojiWrapHarness() {
   );
 }
 
+function EmojiAutoExpandNoWrapHarness() {
+  const editor = useEditor();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          Transforms.insertText(editor, "asdf jkal'sdfjkl'asjdkfl'sajkdflas 🙁");
+        }}
+      >
+        Paste emoji no-wrap text
+      </button>
+      <CustomEditor editableName="EmojiAutoExpandNoWrapHarness" editor={editor} />
+    </>
+  );
+}
+
 const createResizeObserverStub = (
   observedElements: Set<Element>,
   onCreate: (callback: ResizeObserverCallback) => void
@@ -322,50 +340,54 @@ beforeEach(() => {
         const measurerName = this.getAttribute('data-editor-measurer');
         const measuredText = this.textContent ?? '';
         const hasMeasuredText = measuredText.length > 0;
-        const isSingleLineProbe = measuredText === 'M';
-
         if (measurerName === 'ToggleRecorderHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
+          if (!hasMeasuredText || this.style.width === 'max-content') return 20;
           return shouldWrapToggleHarness ? 40 : 20;
         }
 
         if (measurerName === 'PasteWrapHarness') {
-          if (isSingleLineProbe) return 20;
+          if (this.style.width === 'max-content') return 20;
           return hasMeasuredText ? 40 : 20;
         }
 
         if (measurerName === 'NearThresholdWrapHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
+          if (!hasMeasuredText || this.style.width === 'max-content') return 20;
           return this.style.width === '319px' ? 29 : 20;
         }
 
         if (measurerName === 'FooterAfterNearThresholdHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
+          if (!hasMeasuredText || this.style.width === 'max-content') return 20;
           return this.style.width === '280px' ? 29 : 20;
         }
 
         if (measurerName === 'FooterAfterInitiallyMultilineHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
+          if (!hasMeasuredText || this.style.width === 'max-content') return 20;
           return this.style.width === '280px' ? 29 : 20;
         }
 
         if (measurerName === 'TrailingSpacesWrapHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
+          if (!hasMeasuredText || this.style.width === 'max-content') return 20;
           return measuredText.endsWith('\u200B') ? 29 : 20;
         }
 
         if (measurerName === 'PasteNoWrapHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
+          if (!hasMeasuredText || this.style.width === 'max-content') return 20;
           return 20;
         }
 
         if (measurerName === 'EmojiWrapHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
+          if (!hasMeasuredText || this.style.width === 'max-content') return 20;
           return this.querySelector(`.${customHtmlCss.SystemEmoji}`) ? 40 : 20;
         }
 
+        if (measurerName === 'EmojiAutoExpandNoWrapHarness') {
+          if (!hasMeasuredText) return 20;
+          if (this.querySelector(`.${customHtmlCss.SystemEmoji}`)) return 40;
+          return 20;
+        }
+
         if (measurerName === 'MeasurementCacheHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
+          if (!hasMeasuredText || this.style.width === 'max-content') return 20;
           measurementCacheScrollHeightReads += 1;
           return 40;
         }
@@ -790,6 +812,21 @@ describe('CustomEditor', () => {
 
     await waitFor(() => {
       expect(scroll).toHaveClass(css.EditorTextareaScrollMultiline);
+    });
+  });
+
+  it('does not force multiline layout just because single-line emoji render taller than plain text', async () => {
+    render(<EmojiAutoExpandNoWrapHarness />);
+    const editable = document.querySelector('[data-editable-name="EmojiAutoExpandNoWrapHarness"]');
+    const scroll = editable?.parentElement as HTMLElement | null;
+
+    expect(scroll).not.toBeNull();
+    expect(scroll).not.toHaveClass(css.EditorTextareaScrollMultiline);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Paste emoji no-wrap text' }));
+
+    await waitFor(() => {
+      expect(scroll).not.toHaveClass(css.EditorTextareaScrollMultiline);
     });
   });
 });

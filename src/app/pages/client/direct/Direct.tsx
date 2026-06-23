@@ -68,7 +68,7 @@ import {
 import { useDirectCreateSelected, useDirectSearchSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { isPhoneLayoutDevice } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 import { usePullToRefresh } from '$hooks/usePullToRefresh';
 import { getSlidingSyncManager } from '$client/initMatrix';
@@ -358,7 +358,7 @@ export function Direct() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
+  const isMobile = isPhoneLayoutDevice() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
   const [isRefreshing, setIsRefreshing] = useState(false);
   useEffect(() => {
@@ -512,7 +512,7 @@ export function Direct() {
           </PageNavContent>
         )}
       </PageNav>
-      {!mobileOrTabletLayout() && (
+      {!isMobile && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

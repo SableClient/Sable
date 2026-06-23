@@ -66,7 +66,7 @@ import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './MembersDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { isPhoneLayoutDevice } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 type MemberDrawerHeaderProps = {
@@ -352,7 +352,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
   }, [memberSidebarWidth]);
 
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
+  const isMobile = isPhoneLayoutDevice() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
   return (
     <Box
@@ -361,12 +361,12 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
       direction="Column"
       style={{
         position: 'relative',
-        width: !mobileOrTabletLayout() ? toRem(curWidth) : '100%',
+        width: screenSize === ScreenSize.Desktop ? toRem(curWidth) : '100%',
       }}
     >
       <MemberDrawerHeader room={room} hideText={hideText} />
       <Box className={css.MemberDrawerContentBase} grow="Yes">
-        {!mobileOrTabletLayout() && (
+        {screenSize === ScreenSize.Desktop && (
           <SidebarResizer
             setCurWidth={setCurWidth}
             sidebarWidth={memberSidebarWidth}

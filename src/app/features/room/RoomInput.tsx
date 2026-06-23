@@ -339,7 +339,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
     const [emojiBoardAnchorRect, setEmojiBoardAnchorRect] = useState<DOMRect | null>(null);
     const overlayOpenSequenceRef = useRef(0);
-    const submitInFlightRef = useRef(false);
     const prepareComposerOverlayTrigger = useCallback(() => {
       if (!isMobileLayout) return;
       primeKeyboardCloseForOverlayOpen();
@@ -415,6 +414,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const latestReplyDraftRef = useRef(replyDraft);
     const restoredSilentReplyRef = useRef<boolean | null>(null);
     const isMountedRef = useRef(true);
+    const submitInFlightRef = useRef(false);
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
@@ -540,7 +540,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
-    const [isSending, setIsSending] = useState(false);
     const isEncrypted = room.hasEncryptionStateEvent();
 
     const { triggerPreLift } = useKeyboardHeight();
@@ -986,11 +985,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const submit = useCallback(async () => {
       if (submitInFlightRef.current) return;
       submitInFlightRef.current = true;
-      setIsSending(true);
 
       try {
         uploadBoardHandlers.current?.handleSend();
-
         const commandName = getBeginCommand(editor);
         /**
          * a map of regex patterns to replace nicknames with,
@@ -1410,13 +1407,28 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           sendTypingStatus(false);
         };
 
-        const resetInput = (sentReplyDraftSnapshot?: string, sentImagePacksSnapshot?: string) => {
+        const resetInput = (
+          sentReplyDraftSnapshot?: string,
+          sentImagePacksSnapshot?: string,
+          options?: { refocus?: boolean }
+        ) => {
           setMsgDraft([]);
           resetEditor(editor);
           resetEditorHistory(editor);
           setInputKey((prev) => prev + 1);
           clearSentMessageContext(sentReplyDraftSnapshot, sentImagePacksSnapshot);
           sendTypingStatus(false);
+
+          if (options?.refocus) {
+            requestAnimationFrame(() => {
+              try {
+                ReactEditor.focus(editor);
+                moveCursor(editor);
+              } catch {
+                // Ignore focus errors
+              }
+            });
+          }
         };
         if (scheduledTime) {
           try {
@@ -1486,7 +1498,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           const sentSilentReplySnapshot = silentReply;
           const txnId = mx.makeTxnId();
           setSendError(undefined);
-          resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot);
+          resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot, { refocus: true });
           debugLog.info('message', 'Sending message', {
             roomId,
             msgtype: content.msgtype,
@@ -1539,7 +1551,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
       } finally {
         submitInFlightRef.current = false;
-        setIsSending(false);
       }
     }, [
       editor,
@@ -1963,7 +1974,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           editor={editor}
           key={inputKey}
           placeholder="Send a message..."
-          readOnly={isSending}
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
@@ -2410,7 +2420,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 <IconButton
                   title="Send Message"
                   aria-label="Send your composed Message"
-                  disabled={isSending}
                   onClick={() => {
                     clearLongPressTimer();
                     if (

@@ -76,7 +76,7 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { isPhoneLayoutDevice } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { usePullToRefresh } from '$hooks/usePullToRefresh';
 import { getSlidingSyncManager } from '$client/initMatrix';
@@ -372,7 +372,7 @@ export function Home() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
+  const isMobile = isPhoneLayoutDevice() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
   const [isRefreshing, setIsRefreshing] = useState(false);
   useEffect(() => {
@@ -588,7 +588,7 @@ export function Home() {
           </PageNavContent>
         )}
       </PageNav>
-      {!mobileOrTabletLayout() && (
+      {!isMobile && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

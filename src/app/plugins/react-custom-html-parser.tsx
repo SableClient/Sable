@@ -148,7 +148,12 @@ function KatexRenderer({
     let mounted = true;
     void Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([katex]) => {
       if (mounted) {
-        setHtml(katex.default.renderToString(math, { throwOnError: false, displayMode }));
+        setHtml(
+          katex.default.renderToString(math, {
+            throwOnError: false,
+            displayMode,
+          })
+        );
       }
     });
     return () => {
@@ -461,6 +466,7 @@ const scaleEmojiChunk = (text: string, output: (string | JSX.Element)[]) => {
       <span key={`scaleSystemEmoji-${output.length}`} className={css.EmoticonBase}>
         <span
           className={classNames(
+            css.Emoticon(),
             css.SystemEmoji,
             isFixedCellEmoji(part.value) && css.SystemEmojiFixedCell
           )}
@@ -665,7 +671,9 @@ export function CodeBlock({
  */
 function FallbackImg({
   ...props
-}: ComponentPropsWithoutRef<typeof AuthenticatedImg> & { fallback: ReactNode }) {
+}: ComponentPropsWithoutRef<typeof AuthenticatedImg> & {
+  fallback: ReactNode;
+}) {
   return <AuthenticatedImg {...props} />;
 }
 
@@ -1062,6 +1070,7 @@ export const getReactCustomHtmlParser = (
                           src={htmlSrc}
                           className={css.EmoticonImg}
                           height={height}
+                          style={{ verticalAlign: 'middle' }}
                           fallback={
                             <span className={css.EmoticonBase}>
                               {props.alt || props.title || '?'}
@@ -1075,6 +1084,7 @@ export const getReactCustomHtmlParser = (
                         src={htmlSrc}
                         className={css.EmoticonImg}
                         height={height}
+                        style={{ verticalAlign: 'middle' }}
                         fallback={
                           <span className={css.EmoticonBase}>
                             {props.alt || props.title || '?'}
@@ -1098,6 +1108,7 @@ export const getReactCustomHtmlParser = (
                         src={htmlSrc}
                         className={css.EmoticonImg}
                         height={height}
+                        style={{ verticalAlign: 'middle' }}
                         fallback={
                           <span className={css.EmoticonBase}>
                             {props.alt || props.title || '?'}
@@ -1111,6 +1122,7 @@ export const getReactCustomHtmlParser = (
                       src={htmlSrc}
                       className={css.EmoticonImg}
                       height={height}
+                      style={{ verticalAlign: 'middle' }}
                       fallback={
                         <span className={css.EmoticonBase}>{props.alt || props.title || '?'}</span>
                       }

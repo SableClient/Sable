@@ -21,7 +21,7 @@ import { Room } from '$features/room';
 import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';
 import { ScreenSize } from '$hooks/useScreenSize';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { isPhoneLayoutDevice } from '$utils/user-agent';
 import { ReceiveSelfDeviceVerification } from '$components/DeviceVerification';
 import { AutoRestoreBackupOnVerification } from '$components/BackupRestore';
 import { RoomSettingsRenderer } from '$features/room-settings';
@@ -125,7 +125,7 @@ const getFirstSession = () => {
 
 export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize) => {
   const { hashRouter } = clientConfig;
-  const mobile = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
+  const mobile = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();
 
   const routes = createRoutesFromElements(
     <Route>

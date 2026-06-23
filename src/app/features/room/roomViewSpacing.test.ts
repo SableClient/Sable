@@ -24,9 +24,9 @@ describe('room view spacing contract', () => {
 
     expect(roomView).toContain('const hasTypingIndicator = typingMembers.some');
     expect(roomView).toContain('hasTypingIndicator={hasTypingIndicator}');
-    expect(roomTimeline).toContain(
-      'const timelineBottomSpacing = hasTypingIndicator ? config.space.S700 : config.space.S600;'
-    );
+    expect(roomTimeline).toContain('const timelineBottomSpacing = hasTypingIndicator');
+    expect(roomTimeline).toContain('? config.space.S700');
+    expect(roomTimeline).toContain(': config.space.S600;');
     expect(roomTimeline).toContain('paddingBottom: timelineBottomSpacing');
   });
 
@@ -42,10 +42,26 @@ describe('room view spacing contract', () => {
 
   it('keeps message spacing distinct from the fixed message padding', () => {
     const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
+    const roomTimeline = readWorkspaceFile('src/app/features/room/RoomTimeline.tsx');
 
     expect(messageLayout).toContain('marginTop: SpacingVar');
     expect(messageLayout).toContain(
       'padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`'
     );
+    expect(roomTimeline).toContain('key={`${room.roomId}:${messageLayout}:${messageSpacing}`}');
+  });
+
+  it('keeps the message body inside a full-width content column', () => {
+    const modernLayout = readWorkspaceFile('src/app/components/message/layout/Modern.tsx');
+    const bubbleLayout = readWorkspaceFile('src/app/components/message/layout/Bubble.tsx');
+    const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
+
+    expect(modernLayout).toContain('className={css.ModernRow}');
+    expect(modernLayout).toContain('className={css.ModernContent}');
+    expect(bubbleLayout).toContain('className={css.BubbleRow}');
+    expect(bubbleLayout).toContain('className={css.BubbleMain}');
+    expect(messageLayout).toContain("width: '100%'");
+    expect(messageLayout).toContain('export const ModernContent = style({');
+    expect(messageLayout).toContain('export const BubbleMain = style({');
   });
 });

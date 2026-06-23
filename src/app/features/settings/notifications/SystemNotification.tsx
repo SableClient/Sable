@@ -327,8 +327,14 @@ function SettingMenuSelector<T extends string>({
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+            <Menu variant="Surface">
+              <Box
+                direction="Column"
+                gap="100"
+                style={{
+                  padding: config.space.S100,
+                }}
+              >
                 {options.map((option) => (
                   <MenuItem
                     key={option.value}

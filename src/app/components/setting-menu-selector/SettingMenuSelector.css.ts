@@ -10,6 +10,7 @@ export const Options = style({
   display: 'flex',
   flexDirection: 'column',
   gap: config.space.S100,
+  padding: config.space.S100,
 });
 
 export const OptionContent = style({

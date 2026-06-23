@@ -128,7 +128,7 @@ export function SettingMenuSelector<T extends string>({
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu className={css.Menu}>
+            <Menu className={css.Menu} variant="Surface">
               <Box className={css.Options}>
                 {options.map((option) => {
                   const selected = option.value === value;

@@ -150,7 +150,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           }}
         />
         {import.meta.env.DEV && (
-          <Route path="/__smoke/mobile-shell/:mode?" element={<SmokeMobileShell />} />
+          <Route
+            path="/__smoke/mobile-shell/:mode?"
+            element={
+              <AuthRouteThemeManager>
+                <SmokeMobileShell />
+              </AuthRouteThemeManager>
+            }
+          />
         )}
         <Route
           loader={({ request }) => {

@@ -19,6 +19,7 @@ import { CreateTab } from './sidebar/CreateTab';
 import { SearchTab } from './sidebar/SearchTab';
 import { SettingsTab } from './sidebar/SettingsTab';
 import { UserQuickTools } from './sidebar/UserQuickTools';
+import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -33,9 +34,12 @@ export function SidebarNav() {
 
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
 
+  const screenSize = useScreenSizeContext();
+  const compact = screenSize === ScreenSize.Mobile;
+
   const width = roomSidebarWidth + 66;
-  const underOutstep = width < 190 + 66;
-  const isCollapsed = width < 50 + 66;
+  const underOutstep = compact ? false : width < 190 + 66;
+  const isCollapsed = compact? false:  width < 50 + 66;
 
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     const target = evt.target as HTMLElement;

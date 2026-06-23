@@ -16,12 +16,13 @@ export function UserQuickTools({
   underOutstep?: boolean;
   width: number;
 }) {
-  const [isResizingSidebar] = useAtom(isResizingSidebarAtom);
-  const underOutstep = width < 190 + 66;
-  const isCollapsed = width < 50 + 66;
-
   const screenSize = useScreenSizeContext();
   const compact = screenSize === ScreenSize.Mobile;
+
+  const [isResizingSidebar] = useAtom(isResizingSidebarAtom);
+  const underOutstep = compact? false : width < 190 + 66;
+  const isCollapsed = compact? false :  width < 50 + 66;
+
 
   return (
     <>

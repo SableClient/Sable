@@ -1698,6 +1698,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
           setReplyDraft(undefined);
         }
+
+        if (isKeyHotkey('mod+e', evt)) {
+          evt.preventDefault();
+          setEmojiBoardTab(EmojiBoardTab.Sticker);
+        }
       },
       [
         submit,
@@ -1712,6 +1717,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         editDraft,
         setEditDraft,
         structuredMarkdownAssist,
+        setEmojiBoardTab,
       ]
     );
 

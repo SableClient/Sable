@@ -25,10 +25,10 @@ import * as Sentry from '@sentry/react';
 import type { Session } from '$state/sessions';
 import { sessionsAtom, activeSessionIdAtom, backgroundUnreadCountsAtom } from '$state/sessions';
 import {
-  SidebarItem,
   SidebarItemTooltip,
   SidebarAvatar,
   SidebarUnreadBadge,
+  SidebarItem,
 } from '$components/sidebar';
 import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
@@ -160,7 +160,7 @@ function AccountRow({
   );
 }
 
-export function AccountSwitcherTab() {
+export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
   const mx = useMatrixClient();
   const navigate = useNavigate();
   const sessions = useAtomValue(sessionsAtom);
@@ -316,9 +316,6 @@ export function AccountSwitcherTab() {
   };
 
   const handleOpenSettings = () => {
-    debugLog.info('ui', 'Settings button clicked', {
-      userId: activeSession?.userId,
-    });
     setMenuAnchor(undefined);
     openSettings();
   };
@@ -330,8 +327,8 @@ export function AccountSwitcherTab() {
   if (!activeSession) return null;
 
   return (
-    <SidebarItem active={!!menuAnchor}>
-      <SidebarItemTooltip tooltip={label}>
+    <SidebarItem active={!!menuAnchor} isBottom={isBottom}>
+      <SidebarItemTooltip tooltip={label} position={isBottom ? 'Top' : 'Right'}>
         {(triggerRef) => (
           <AvatarPresence badge={myOwnPresenceBadge}>
             <SidebarAvatar
@@ -359,8 +356,8 @@ export function AccountSwitcherTab() {
 
       <PopOut
         anchor={menuAnchor}
-        position="Right"
-        align="End"
+        position={isBottom ? 'Top' : 'Right'}
+        align={isBottom ? 'Start' : 'End'}
         offset={6}
         content={
           <FocusTrap

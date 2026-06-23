@@ -3,8 +3,6 @@ export * from './DirectTab';
 export * from './DirectDMsList';
 export * from './SpaceTabs';
 export * from './InboxTab';
-export * from './ExploreTab';
 export * from './UnverifiedTab';
-export * from './SearchTab';
 export * from './AccountSwitcherTab';
 export * from './BookmarksTab';

@@ -157,4 +157,33 @@ describe('useSwUpdateAvailable', () => {
       expect(appUpdatesMocks.checkForAppUpdates).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('keeps the banner visible when the update check finds a secondary registration update', async () => {
+    appUpdatesMocks.checkForAppUpdates.mockResolvedValue({
+      kind: 'update-available',
+      message: 'An update is ready to apply.',
+      canApply: true,
+    });
+
+    const { result } = renderHook(() => useSwUpdateAvailable());
+
+    await waitFor(() => {
+      expect(result.current).toBe(true);
+    });
+  });
+
+  it('re-syncs local update state when the update probe fails', async () => {
+    controller = { postMessage: vi.fn<() => void>() } as unknown as ServiceWorker;
+    registration = {
+      waiting: { postMessage: vi.fn<() => void>() },
+      active: controller,
+    } as unknown as ServiceWorkerRegistration;
+    appUpdatesMocks.checkForAppUpdates.mockRejectedValue(new Error('network failed'));
+
+    const { result } = renderHook(() => useSwUpdateAvailable());
+
+    await waitFor(() => {
+      expect(result.current).toBe(true);
+    });
+  });
 });

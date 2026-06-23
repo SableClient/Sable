@@ -20,9 +20,7 @@ export function UserQuickTools({
   const compact = screenSize === ScreenSize.Mobile;
 
   const [isResizingSidebar] = useAtom(isResizingSidebarAtom);
-  const underOutstep = compact? false : width < 190 + 66;
-  const isCollapsed = compact? false :  width < 50 + 66;
-
+  const isCollapsed = compact ? false : width < 190 + 66;
 
   return (
     <>
@@ -47,14 +45,14 @@ export function UserQuickTools({
                 gap: config.space.S300,
               }}
             >
-              {!underOutstep && (
+              {!isCollapsed && (
                 <>
                   <UnverifiedTab isBottom />
                   <InboxTab isBottom />
                   <SearchTab isBottom />
+                  <SettingsTab isBottom />
                 </>
               )}
-              <SettingsTab isBottom />
             </Box>
           </Box>
         </div>

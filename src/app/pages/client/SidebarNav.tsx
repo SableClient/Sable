@@ -38,8 +38,7 @@ export function SidebarNav() {
   const compact = screenSize === ScreenSize.Mobile;
 
   const width = roomSidebarWidth + 66;
-  const underOutstep = compact ? false : width < 190 + 66;
-  const isCollapsed = compact? false:  width < 50 + 66;
+  const isCollapsed = compact ? false : width < 190 + 66;
 
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     const target = evt.target as HTMLElement;
@@ -158,16 +157,16 @@ export function SidebarNav() {
                 </>
               ) : (
                 <>
-                  {underOutstep && (
+                  {isCollapsed && (
                     <>
                       <SearchTab />
                       <UnverifiedTab />
                       <InboxTab />
+                      <SettingsTab />
                     </>
                   )}
 
-                  {isCollapsed && <SettingsTab />}
-                  <Box style={{ height: toRem(58) }} alignItems="Center">
+                  <Box style={{ height: toRem(57) }} alignItems="Center">
                     <AccountSwitcherTab />
                   </Box>
                 </>

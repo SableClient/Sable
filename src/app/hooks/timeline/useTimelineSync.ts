@@ -106,7 +106,7 @@ const useEventTimelineLoader = (
           level: 'info',
         });
 
-        if (jumpMode === 'notification_live') {
+        const tryResolveNotificationLiveTimeline = (resolution: 'local' | 'fetched') => {
           const liveTimeline = getLiveTimeline(room);
           const liveLinkedTimelines = getLinkedTimelines(liveTimeline);
           const localEventTimeline = getEventTimeline(room, eventId);
@@ -126,6 +126,7 @@ const useEventTimelineLoader = (
                 eventId,
                 roomId: room.roomId,
                 jumpMode,
+                resolution,
                 liveAbsIndex,
                 distanceFromBottom,
                 threshold: NOTIFICATION_LIVE_JUMP_MAX_DISTANCE,
@@ -137,14 +138,14 @@ const useEventTimelineLoader = (
               Sentry.metrics.count('sable.timeline.notification_jump_mode', 1, {
                 attributes: {
                   mode: 'notification_live',
-                  resolution: 'live_timeline',
+                  resolution: `${resolution}_live_timeline`,
                 },
               });
               onLoad(eventId, liveLinkedTimelines, liveAbsIndex, {
                 align: 'end',
                 jumpMode,
               });
-              return;
+              return true;
             }
 
             Sentry.addBreadcrumb({
@@ -154,6 +155,7 @@ const useEventTimelineLoader = (
                 eventId,
                 roomId: room.roomId,
                 jumpMode,
+                resolution,
                 reason: 'distance_from_bottom',
                 distanceFromBottom,
                 threshold: NOTIFICATION_LIVE_JUMP_MAX_DISTANCE,
@@ -163,30 +165,37 @@ const useEventTimelineLoader = (
             Sentry.metrics.count('sable.timeline.notification_jump_mode', 1, {
               attributes: {
                 mode: 'notification_live',
-                resolution: 'history_context',
+                resolution: `${resolution}_history_context`,
                 reason: 'distance_from_bottom',
               },
             });
-          } else {
-            Sentry.addBreadcrumb({
-              category: 'timeline.load',
-              message: 'Notification jump missing live target',
-              data: {
-                eventId,
-                roomId: room.roomId,
-                jumpMode,
-                hasLocalEventTimeline: !!localEventTimeline,
-              },
-              level: 'info',
-            });
-            Sentry.metrics.count('sable.timeline.notification_jump_mode', 1, {
-              attributes: {
-                mode: 'notification_live',
-                resolution: 'history_context',
-                reason: 'missing_live_target',
-              },
-            });
+            return false;
           }
+
+          Sentry.addBreadcrumb({
+            category: 'timeline.load',
+            message: 'Notification jump missing live target',
+            data: {
+              eventId,
+              roomId: room.roomId,
+              jumpMode,
+              resolution,
+              hasLocalEventTimeline: !!localEventTimeline,
+            },
+            level: 'info',
+          });
+          Sentry.metrics.count('sable.timeline.notification_jump_mode', 1, {
+            attributes: {
+              mode: 'notification_live',
+              resolution: `${resolution}_history_context`,
+              reason: 'missing_live_target',
+            },
+          });
+          return false;
+        };
+
+        if (jumpMode === 'notification_live' && tryResolveNotificationLiveTimeline('local')) {
+          return;
         }
 
         // Directly fetch the event timeline context from the server using /context API.
@@ -216,6 +225,10 @@ const useEventTimelineLoader = (
 
         if (absIndex === undefined) {
           onError(err ?? null);
+          return;
+        }
+
+        if (jumpMode === 'notification_live' && tryResolveNotificationLiveTimeline('fetched')) {
           return;
         }
 

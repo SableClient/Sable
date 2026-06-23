@@ -68,6 +68,7 @@ function createMx() {
   const mxEmitter = new EventEmitter();
   return {
     getUserId: () => '@alice:test',
+    getRoom: () => null,
     paginateEventTimeline: vi.fn<() => Promise<boolean>>().mockResolvedValue(false),
     on: mxEmitter.on.bind(mxEmitter),
     off: mxEmitter.off.bind(mxEmitter),
@@ -641,6 +642,62 @@ describe('useTimelineSync', () => {
       jumpMode: 'notification_live',
     });
     expect(mx.getEventTimeline).not.toHaveBeenCalled();
+    expect(scrollToBottom).not.toHaveBeenCalled();
+  });
+
+  it('re-evaluates notification jumps against the live tail after fetching context', async () => {
+    const liveEvents = [
+      { getId: () => '$older:event' },
+      { getId: () => '$target:event' },
+      { getId: () => '$latest:event' },
+    ];
+    const { room, timelineSet } = createRoom('!room:test', liveEvents);
+    const targetTimeline = createTimeline(liveEvents);
+    const scrollToBottom = vi.fn<() => void>();
+    let eventTimelineAvailable = false;
+
+    timelineSet.getTimelineForEvent = (eventId?: string) =>
+      eventTimelineAvailable && eventId === '$target:event' ? room.getLiveTimeline() : undefined;
+
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockImplementation(async () => {
+        eventTimelineAvailable = true;
+        return targetTimeline;
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        eventId: '$target:event',
+        jumpMode: 'notification_live',
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom,
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadEventTimeline('$target:event');
+    });
+
+    expect(mx.getEventTimeline).toHaveBeenCalledTimes(1);
+    expect(result.current.timeline.linkedTimelines).toHaveLength(1);
+    expect(result.current.timeline.linkedTimelines[0]).toBe(room.getLiveTimeline());
+    expect(result.current.focusItem).toEqual({
+      index: 1,
+      eventId: '$target:event',
+      scrollTo: true,
+      highlight: true,
+      align: 'end',
+      jumpMode: 'notification_live',
+    });
     expect(scrollToBottom).not.toHaveBeenCalled();
   });
 

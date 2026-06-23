@@ -180,4 +180,41 @@ test.describe('emoji polish smoke', () => {
 
     await captureSnapshot(page, 'emoji-polish/sticker-fit-and-baseline');
   });
+
+  test('keeps jumbo emoji inside its own line box', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/__smoke/mobile-shell/emoji-polish');
+
+    await expect(page.getByTestId('smoke-jumbo-emoji-line')).toBeVisible();
+    await expect(page.getByTestId('smoke-emoji-inline-line')).toBeVisible();
+
+    const metrics = await page.evaluate(() => {
+      const measure = (selector: string) => {
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return {
+          top: rect.top,
+          bottom: rect.bottom,
+          height: rect.height,
+        };
+      };
+
+      return {
+        jumboLine: measure('[data-testid="smoke-jumbo-emoji-line"]'),
+        jumboEmoji: measure('[data-testid="smoke-jumbo-emoji-line"] span[title]'),
+        nextLine: measure('[data-testid="smoke-emoji-inline-line"]'),
+      };
+    });
+
+    expect(metrics.jumboLine).not.toBeNull();
+    expect(metrics.jumboEmoji).not.toBeNull();
+    expect(metrics.nextLine).not.toBeNull();
+
+    expect(metrics.jumboEmoji!.top).toBeGreaterThanOrEqual(metrics.jumboLine!.top - 2);
+    expect(metrics.jumboEmoji!.bottom).toBeLessThanOrEqual(metrics.jumboLine!.bottom + 2);
+    expect(metrics.nextLine!.top - metrics.jumboLine!.bottom).toBeGreaterThanOrEqual(4);
+
+    await captureSnapshot(page, 'emoji-polish/jumbo-line-height');
+  });
 });

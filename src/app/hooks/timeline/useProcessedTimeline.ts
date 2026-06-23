@@ -127,11 +127,6 @@ const computeCollapseAndDividers = (
     const { mEvent, eventSender } = draft;
     const type = mEvent.getType();
 
-    if (!newDivider && readUptoEventId) {
-      const prevId = prevEvent ? prevEvent.getId() : undefined;
-      newDivider = prevId === readUptoEventId;
-    }
-
     if (!dayDivider) {
       dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
     }
@@ -165,6 +160,7 @@ const computeCollapseAndDividers = (
 
     prevEvent = mEvent;
     isPrevRendered = true;
+    if (draft.id === readUptoEventId) newDivider = true;
     if (willRenderNewDivider) newDivider = false;
     if (willRenderDayDivider) dayDivider = false;
 
@@ -415,10 +411,14 @@ export function useProcessedTimeline({
 
       const mEventId = mEvent.getId();
       if (!mEventId) return acc;
+      const skipEvent = () => {
+        if (mEventId === readUptoEventId) newDivider = true;
+        return acc;
+      };
 
       const eventSender = mEvent.getSender() ?? null;
 
-      if (eventSender && ignoredUsersSet.has(eventSender)) return acc;
+      if (eventSender && ignoredUsersSet.has(eventSender)) return skipEvent();
 
       const type = mEvent.getType();
       const isEdit = isEditEvent(mEvent);
@@ -426,26 +426,26 @@ export function useProcessedTimeline({
       const isRedactionEvt = mEvent.isRedaction();
 
       if (hideMemberInReadOnly && isReadOnly) {
-        if (isReaction) return acc;
+        if (isReaction) return skipEvent();
         if (
           isRedactionEvt &&
           getRedactionTargetEvent(timelineSet, mEvent)?.getType() === (EventType.Reaction as string)
         ) {
-          return acc;
+          return skipEvent();
         }
       }
 
       if (mEvent.isRedacted()) {
         const showMessageTombstone = showTombstoneEvents && isRedactableMessageType(type);
         const showReactionTombstone = hiddenEventReactionTombstone && isReaction;
-        if (!showMessageTombstone && !showReactionTombstone) return acc;
+        if (!showMessageTombstone && !showReactionTombstone) return skipEvent();
       }
 
       if (type === 'm.room.member') {
         const membershipChanged = isMembershipChanged(mEvent);
-        if (hideMemberInReadOnly && isReadOnly) return acc;
-        if (membershipChanged && hideMembershipEvents) return acc;
-        if (!membershipChanged && hideNickAvatarEvents) return acc;
+        if (hideMemberInReadOnly && isReadOnly) return skipEvent();
+        if (membershipChanged && hideMembershipEvents) return skipEvent();
+        if (!membershipChanged && hideNickAvatarEvents) return skipEvent();
       }
 
       const allowSpecificHiddenEvent =
@@ -474,10 +474,10 @@ export function useProcessedTimeline({
 
         if (!isStandardRendered) {
           if (Object.keys(mEvent.getContent()).length === 0 && !allowSpecificHiddenEvent)
-            return acc;
+            return skipEvent();
           if (!allowSpecificHiddenEvent) {
-            if (mEvent.getRelation()) return acc;
-            if (mEvent.isRedaction()) return acc;
+            if (mEvent.getRelation()) return skipEvent();
+            if (mEvent.isRedaction()) return skipEvent();
           }
         }
       }
@@ -508,14 +508,14 @@ export function useProcessedTimeline({
         actualThreadRoot !== mEventId &&
         isThreadRelationEvent(mEvent, actualThreadRoot)
       )
-        return acc;
+        return skipEvent();
 
-      if (isEdit && !hiddenEventEdits) return acc;
+      if (isEdit && !hiddenEventEdits) return skipEvent();
       if (isReaction) {
         if (mEvent.isRedacted()) {
-          if (!hiddenEventReactionTombstone) return acc;
+          if (!hiddenEventReactionTombstone) return skipEvent();
         } else if (!hiddenEventReactions) {
-          return acc;
+          return skipEvent();
         }
       }
       if (
@@ -527,12 +527,7 @@ export function useProcessedTimeline({
           hiddenEventReactionRedactionTimeline
         )
       )
-        return acc;
-
-      if (!newDivider && readUptoEventId) {
-        const prevId = prevEvent ? prevEvent.getId() : undefined;
-        newDivider = prevId === readUptoEventId;
-      }
+        return skipEvent();
 
       if (!dayDivider) {
         // Only insert a day divider when moving *forward* to a new calendar day.
@@ -585,6 +580,7 @@ export function useProcessedTimeline({
 
       prevEvent = mEvent;
       isPrevRendered = true;
+      if (mEventId === readUptoEventId) newDivider = true;
       if (willRenderNewDivider) newDivider = false;
       if (willRenderDayDivider) dayDivider = false;
 

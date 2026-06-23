@@ -313,6 +313,104 @@ describe('useTimelineSync', () => {
     expect(paginatedRoomIds).toEqual(['!older:test', '!newer:test']);
   });
 
+  it('updates unread bridge state when forward pagination reconnects history to live', async () => {
+    const readMarkerEvent = { getId: () => '$read:event' };
+    const unreadEvent = { getId: () => '$unread:event' };
+    const liveEvent = { getId: () => '$live:event' };
+    let loadedContext = false;
+    let paginationCalls = 0;
+
+    const historyTimeline = {
+      ...createTimeline([readMarkerEvent, unreadEvent]),
+      getRoomId: () => '!room:test',
+      getNeighbouringTimeline: (direction?: unknown) =>
+        direction === 'f' && paginationCalls > 0 ? liveTimeline : undefined,
+      getPaginationToken: (direction?: unknown) =>
+        direction === 'f' && paginationCalls === 0 ? 'forward-token' : undefined,
+    };
+    const liveTimeline = {
+      ...createTimeline([liveEvent]),
+      getRoomId: () => '!room:test',
+      getNeighbouringTimeline: (direction?: unknown) =>
+        direction === 'b' && paginationCalls > 0 ? historyTimeline : undefined,
+    };
+
+    const timelineSet = new EventEmitter() as FakeTimelineSet;
+    timelineSet.getLiveTimeline = () => liveTimeline;
+    timelineSet.getTimelineForEvent = (eventId?: string) =>
+      loadedContext && eventId === '$read:event' ? historyTimeline : undefined;
+
+    const roomEmitter = new EventEmitter();
+    const room = {
+      on: roomEmitter.on.bind(roomEmitter),
+      removeListener: roomEmitter.removeListener.bind(roomEmitter),
+      emit: roomEmitter.emit.bind(roomEmitter),
+      roomId: '!room:test',
+      getUnfilteredTimelineSet: () => timelineSet as never,
+      getLiveTimeline: () => liveTimeline,
+      getEventReadUpTo: () => '$read:event',
+      getThread: () => null,
+      getUnreadNotificationCount: () => 1,
+      client: {
+        getUserId: () => '@alice:test',
+        getAccountData: () => null,
+      },
+    } as unknown as FakeRoom;
+
+    const setUnreadInfo = vi.fn<(arg: unknown) => void>();
+    const mx = {
+      ...createMx(),
+      getEventTimeline: vi.fn<() => Promise<FakeTimeline>>().mockImplementation(async () => {
+        loadedContext = true;
+        return historyTimeline;
+      }),
+      getRoom: () => ({ hasEncryptionStateEvent: () => false }),
+      paginateEventTimeline: vi.fn<(timeline: FakeTimeline) => Promise<boolean>>(async () => {
+        paginationCalls += 1;
+        return true;
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: mx as never,
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: {
+          readUptoEventId: '$read:event',
+          inLiveTimeline: false,
+          scrollTo: false,
+        },
+        setUnreadInfo,
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: '$read:event' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadEventTimeline('$read:event', undefined, { target: 'next' });
+      await result.current.handleTimelinePagination(false);
+    });
+
+    const updater = setUnreadInfo.mock.calls
+      .map(([arg]) => arg)
+      .find((arg) => typeof arg === 'function');
+    expect(updater).toBeTypeOf('function');
+    expect(
+      updater({
+        readUptoEventId: '$read:event',
+        inLiveTimeline: false,
+        scrollTo: false,
+      })
+    ).toEqual({
+      readUptoEventId: '$read:event',
+      inLiveTimeline: true,
+      scrollTo: false,
+    });
+  });
+
   it('reloads event context on TimelineReset when eventId is set', async () => {
     const { room, timelineSet } = createRoom();
     const scrollToBottom = vi.fn<() => void>();

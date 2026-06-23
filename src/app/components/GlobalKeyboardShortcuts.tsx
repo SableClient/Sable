@@ -195,9 +195,9 @@ export function GlobalKeyboardShortcuts() {
       if (!isKeyHotkey('mod+f', evt)) return;
       evt.preventDefault();
 
-      const searchParams: SearchPathSearchParams = {
-        rooms: currentRoom?.roomId,
-      };
+      const searchParams: SearchPathSearchParams = currentRoom?.roomId
+        ? { rooms: currentRoom.roomId }
+        : {};
       const path = currentSpace
         ? getSpaceSearchPath(getCanonicalAliasOrRoomId(mx, currentSpace))
         : getHomeSearchPath();

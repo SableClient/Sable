@@ -1688,7 +1688,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           setReplyDraft(undefined);
         }
 
-        if (isKeyHotkey('control+e', evt)) {
+        if (isKeyHotkey('mod+e', evt)) {
           evt.preventDefault();
           setEmojiBoardTab(EmojiBoardTab.Sticker);
         }

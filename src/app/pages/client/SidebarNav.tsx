@@ -6,9 +6,10 @@ import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Sidebar, SidebarContent, SidebarStack } from '$components/sidebar';
-import { DirectTab, DirectDMsList, HomeTab, SpaceTabs } from './sidebar';
+import { DirectTab, DirectDMsList, HomeTab, SpaceTabs, InboxTab, UnverifiedTab } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
 import { UserQuickTools } from './sidebar/UserQuickTools';
+import { SearchTab } from './sidebar/SearchTab';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -22,6 +23,7 @@ export function SidebarNav() {
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
 
   const width = roomSidebarWidth + 66;
+  const showStickyQuickTools = width < 190 + 66;
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     const target = evt.target as HTMLElement;
     if (target.closest('button, a, [role="button"]')) return;
@@ -125,7 +127,17 @@ export function SidebarNav() {
               </SidebarStack>
             </Scroll>
           }
-          sticky={<SidebarStack />}
+          sticky={
+            <SidebarStack>
+              {showStickyQuickTools && (
+                <>
+                  <UnverifiedTab />
+                  <InboxTab />
+                  <SearchTab />
+                </>
+              )}
+            </SidebarStack>
+          }
         />
       </Sidebar>
       <UserQuickTools width={width} />

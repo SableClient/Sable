@@ -103,10 +103,12 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
           prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
           null
         );
-        await handleSaveField(
-          prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME,
-          'cat'
-        );
+        if (isCat) {
+          await handleSaveField(
+            prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME,
+            'cat'
+          );
+        }
       }
       const hasCats = profile.hasCats;
       const hasCatsMigrationKey = `${userId}:hasCats`;
@@ -119,10 +121,12 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
           prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
           null
         );
-        await handleSaveField(
-          prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME,
-          'cats'
-        );
+        if (hasCats) {
+          await handleSaveField(
+            prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME,
+            'cats'
+          );
+        }
       }
     };
     asyncClean();

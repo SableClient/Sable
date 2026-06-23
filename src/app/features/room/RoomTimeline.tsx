@@ -2080,7 +2080,6 @@ export function RoomTimeline({
           <Chip
             variant="Primary"
             radii="Pill"
-            outlined
             before={chipIcon(ChatTeardropDots)}
             onClick={() =>
               timelineSync.loadEventTimeline(unreadInfo.readUptoEventId, undefined, {

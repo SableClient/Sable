@@ -846,6 +846,30 @@ export function useTimelineSync({
   );
 
   useEffect(() => {
+    if (!unreadInfo?.readUptoEventId) return;
+
+    const eventTimeline = getEventTimeline(room, unreadInfo.readUptoEventId);
+    const nextInLiveTimeline =
+      !!eventTimeline && getLinkedTimelines(eventTimeline).at(-1) === getLiveTimeline(room);
+
+    if (nextInLiveTimeline === unreadInfo.inLiveTimeline) return;
+
+    setUnreadInfo((prev) => {
+      if (!prev || prev.readUptoEventId !== unreadInfo.readUptoEventId) return prev;
+      return {
+        ...prev,
+        inLiveTimeline: nextInLiveTimeline,
+      };
+    });
+  }, [
+    room,
+    timeline.linkedTimelines,
+    unreadInfo?.readUptoEventId,
+    unreadInfo?.inLiveTimeline,
+    setUnreadInfo,
+  ]);
+
+  useEffect(() => {
     const resetAutoScrollPending = resetAutoScrollPendingRef.current;
     if (resetAutoScrollPending) resetAutoScrollPendingRef.current = false;
 

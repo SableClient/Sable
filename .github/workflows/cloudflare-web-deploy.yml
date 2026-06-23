@@ -3,17 +3,17 @@ name: Cloudflare Infra
 on:
   pull_request:
     paths:
-      - "infra/web/**"
-      - ".github/workflows/cloudflare-web-deploy.yml"
-      - ".github/actions/prepare-tofu/**"
-      - ".github/actions/setup/**"
+      - 'infra/web/**'
+      - '.github/workflows/cloudflare-web-deploy.yml'
+      - '.github/actions/prepare-tofu/**'
+      - '.github/actions/setup/**'
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
     inputs:
       git_tag:
-        description: "Git tag to deploy (e.g. v1.2.3). Leave empty to deploy current HEAD."
+        description: 'Git tag to deploy (e.g. v1.2.3). Leave empty to deploy current HEAD.'
         required: false
         type: string
 
@@ -28,9 +28,9 @@ env:
   TF_HTTP_UNLOCK_ADDRESS: ${{ secrets.TF_HTTP_UNLOCK_ADDRESS }}
   TF_HTTP_USERNAME: ${{ secrets.TF_HTTP_USERNAME }}
   TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
-  TF_HTTP_LOCK_METHOD: "POST"
-  TF_HTTP_UNLOCK_METHOD: "DELETE"
-  TF_HTTP_RETRY_WAIT_MIN: "5"
+  TF_HTTP_LOCK_METHOD: 'POST'
+  TF_HTTP_UNLOCK_METHOD: 'DELETE'
+  TF_HTTP_RETRY_WAIT_MIN: '5'
 
 concurrency:
   group: cloudflare-infra
@@ -63,7 +63,7 @@ jobs:
         env:
           VITE_BUILD_HASH: ${{ github.sha }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          VITE_SENTRY_TOOLBAR: "false"
+          VITE_SENTRY_TOOLBAR: 'false'
           VITE_SENTRY_ENVIRONMENT: production
           VITE_APP_VERSION: ${{ github.ref_name }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -103,7 +103,7 @@ jobs:
           VITE_BUILD_HASH: ${{ github.sha }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_SENTRY_ENVIRONMENT: production
-          VITE_SENTRY_TOOLBAR: "false"
+          VITE_SENTRY_TOOLBAR: 'false'
           VITE_APP_VERSION: ${{ github.ref_name }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}

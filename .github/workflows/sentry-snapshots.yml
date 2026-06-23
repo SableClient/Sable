@@ -30,7 +30,7 @@ jobs:
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       VITE_SENTRY_ENVIRONMENT: preview
       VITE_SENTRY_PR: ${{ github.event.pull_request.number }}
-      VITE_SENTRY_TOOLBAR: 'false'
+      VITE_SENTRY_TOOLBAR: 'true'
       VITE_SENTRY_ORGANIZATION: ${{ secrets.SENTRY_ORG }}
       VITE_SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

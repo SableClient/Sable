@@ -1,6 +1,6 @@
 import { Avatar, Box, Text, toRem } from 'folds';
 import {
-  Bookmark,
+  BookmarkSimple,
   ChatCircleDots,
   EnvelopeSimple,
   Tray,
@@ -79,7 +79,7 @@ function BookmarksNavItem({ hideText }: { hideText?: boolean }) {
               radii="400"
               style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
             >
-              {sizedIcon(Bookmark, '100', { filled: bookmarksSelected })}
+              {sizedIcon(BookmarkSimple, '100', { filled: bookmarksSelected })}
             </Avatar>
             {!hideText && (
               <Box as="span" grow="Yes">

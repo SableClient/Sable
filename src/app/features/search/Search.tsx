@@ -280,7 +280,7 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
         <FocusTrap
           focusTrapOptions={{
             initialFocus: () => inputRef.current,
-            returnFocusOnDeactivate: false,
+            returnFocusOnDeactivate: true,
             allowOutsideClick: true,
             clickOutsideDeactivates: true,
             onDeactivate: requestClose,

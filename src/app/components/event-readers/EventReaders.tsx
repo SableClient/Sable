@@ -28,7 +28,6 @@ export const EventReaders = as<'div', EventReadersProps>(
     const openProfile = useOpenUserRoomProfile();
     const space = useSpaceOptionally();
     const nicknames = useAtomValue(nicknamesAtom);
-
     const getName = (userId: string) =>
       getMemberDisplayName(room, userId, nicknames) ?? getMxIdLocalPart(userId) ?? userId;
 

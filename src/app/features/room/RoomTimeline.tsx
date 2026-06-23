@@ -1029,6 +1029,12 @@ export function RoomTimeline({
               timelineSync.setTimeline(getInitialTimeline(room));
               scrollToBottom();
             }}
+            style={{
+              WebkitUserSelect: 'none',
+              msUserSelect: 'none',
+              userSelect: 'none',
+              MozUserSelect: 'none',
+            }}
           >
             <Text size="L400">Jump to Latest</Text>
           </Chip>

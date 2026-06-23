@@ -8,7 +8,15 @@ import { getEventEdits } from '$utils/room';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 
-export function MessageSourceCodeItem({ room, mEvent }: { room: Room; mEvent: MatrixEvent }) {
+export function MessageSourceCodeItem({
+  room,
+  mEvent,
+  closeMenu,
+}: {
+  room: Room;
+  mEvent: MatrixEvent;
+  closeMenu: () => void;
+}) {
   const setModal = useSetAtom(modalAtom);
 
   return (
@@ -24,6 +32,7 @@ export function MessageSourceCodeItem({ room, mEvent }: { room: Room; mEvent: Ma
           room,
           mEvent,
         });
+        closeMenu();
       }}
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>

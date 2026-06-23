@@ -294,6 +294,8 @@ export const MessageTextBody = recipe({
       extraSmall: {
         fontSize: '1.25rem !important',
         lineHeight: '1.4em',
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',
@@ -302,6 +304,8 @@ export const MessageTextBody = recipe({
       small: {
         fontSize: '1.5rem !important',
         lineHeight: '1.5em',
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',
@@ -310,6 +314,8 @@ export const MessageTextBody = recipe({
       normal: {
         fontSize: '1.805rem !important',
         lineHeight: '1.625em',
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',
@@ -318,6 +324,8 @@ export const MessageTextBody = recipe({
       large: {
         fontSize: '2.1rem !important',
         lineHeight: '1.675em',
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',
@@ -326,6 +334,8 @@ export const MessageTextBody = recipe({
       extraLarge: {
         fontSize: '2.4rem !important',
         lineHeight: '1.7em',
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',

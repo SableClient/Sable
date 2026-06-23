@@ -515,7 +515,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
           <Box
             ref={rowRef}
             className={`${css.EditorRow} ${layoutIsMultiline ? css.EditorRowMultiline : ''} ${showResponsiveAfterInFooter ? css.EditorRowMultilineWithResponsiveAfter : ''}`}
-            alignItems="Start"
+            alignItems={layoutIsMultiline ? 'Start' : 'Center'}
             style={{ display: after ? 'grid' : 'flex' }}
           >
             {hasBefore && (

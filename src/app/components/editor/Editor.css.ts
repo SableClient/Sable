@@ -68,6 +68,7 @@ export const EditorTextarea = style([
     unicodeBidi: 'plaintext',
     lineHeight: config.lineHeight.T400,
     paddingTop: toRem(13),
+    paddingBottom: toRem(13),
     selectors: {
       [`${EditorTextareaScrollMultiline} &`]: {
         paddingRight: toRem(13),
@@ -119,10 +120,12 @@ export const EditorPlaceholderTextVisual = style([
     display: 'block',
     lineHeight: config.lineHeight.T400,
     paddingTop: toRem(13),
+    paddingBottom: toRem(13),
     paddingLeft: toRem(1),
     selectors: {
       [`${EditorTextareaScrollMultiline} &`]: {
         paddingRight: toRem(13),
+        paddingBottom: 0,
       },
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),

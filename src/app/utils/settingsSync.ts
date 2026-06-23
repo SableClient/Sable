@@ -38,6 +38,13 @@ export const SETTINGS_SYNC_VERSION = 1;
 export type SettingsSyncContent = {
   v: number;
   settings: Partial<Settings>;
+  updatedAt?: number;
+};
+
+export const getSettingsSyncUpdatedAt = (data: unknown): number | null => {
+  if (!data || typeof data !== 'object') return null;
+  const updatedAt = (data as { updatedAt?: unknown }).updatedAt;
+  return typeof updatedAt === 'number' && Number.isFinite(updatedAt) ? updatedAt : null;
 };
 
 export const serializeSettingsWithExplicitClears = (
@@ -74,10 +81,14 @@ export const getExplicitlyClearedSettingsKeysFromSync = (
 };
 
 /** Strip non-syncable keys and wrap in a versioned envelope. */
-export const serializeForSync = (settings: Settings): SettingsSyncContent => {
+export const serializeForSync = (settings: Settings, updatedAt?: number): SettingsSyncContent => {
   const syncable = serializeSettingsWithExplicitClears(settings);
   NON_SYNCABLE_KEYS.forEach((key) => delete syncable[key]);
-  return { v: SETTINGS_SYNC_VERSION, settings: syncable };
+  return {
+    v: SETTINGS_SYNC_VERSION,
+    settings: syncable,
+    ...(typeof updatedAt === 'number' && Number.isFinite(updatedAt) ? { updatedAt } : {}),
+  };
 };
 
 /**

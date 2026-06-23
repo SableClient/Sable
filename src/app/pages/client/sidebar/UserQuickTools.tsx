@@ -27,34 +27,36 @@ export function UserQuickTools({
     <>
       {/* Doing it properly and nicely would require a major rewrite that would cause more trouble*/}
       {!isCollapsed && (
-        <Box
-          direction="Row"
-          justifyContent="SpaceBetween"
-          alignItems="Center"
-          className={css.UserQuickTools}
-          style={{
-            opacity: isResizingSidebar ? '0%' : '100%',
-            transition: isResizingSidebar ? 'opacity 0.2s ease' : 'opacity 0.5s ease',
-            width: compact ? '100%' : toRem(width),
-            paddingRight: config.space.S300,
-          }}
-        >
-          <AccountSwitcherTab isBottom />
+        <div style={{ position: 'relative' }}>
           <Box
+            direction="Row"
+            justifyContent="SpaceBetween"
+            alignItems="Center"
+            className={css.UserQuickTools}
             style={{
-              gap: config.space.S300,
+              opacity: isResizingSidebar ? '0%' : '100%',
+              transition: isResizingSidebar ? 'opacity 0.2s ease' : 'opacity 0.5s ease',
+              width: compact ? '100vw' : toRem(width),
+              paddingRight: config.space.S300,
             }}
           >
-            {!underOutstep && (
-              <>
-                <UnverifiedTab isBottom />
-                <InboxTab isBottom />
-                <SearchTab isBottom />
-              </>
-            )}
-            <SettingsTab isBottom />
+            <AccountSwitcherTab isBottom />
+            <Box
+              style={{
+                gap: config.space.S300,
+              }}
+            >
+              {!underOutstep && (
+                <>
+                  <UnverifiedTab isBottom />
+                  <InboxTab isBottom />
+                  <SearchTab isBottom />
+                </>
+              )}
+              <SettingsTab isBottom />
+            </Box>
           </Box>
-        </Box>
+        </div>
       )}
     </>
   );

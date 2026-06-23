@@ -163,7 +163,7 @@ export function SidebarNav() {
                   )}
 
                   {isCollapsed && <SettingsTab />}
-                  <Box style={{ height: toRem(70) }} alignItems="Center">
+                  <Box style={{ height: toRem(58) }} alignItems="Center">
                     <AccountSwitcherTab />
                   </Box>
                 </>

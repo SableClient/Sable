@@ -67,14 +67,17 @@ export const EditorTextarea = style([
     height: 'auto',
     unicodeBidi: 'plaintext',
     paddingTop: toRem(13),
-    paddingRight: toRem(13),
     paddingBottom: toRem(13),
     selectors: {
       [`${EditorTextareaScrollMultiline} &`]: {
+        paddingRight: toRem(13),
         paddingBottom: 0,
       },
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
+      },
+      [`${EditorTextareaScroll}:last-child &`]: {
+        paddingRight: toRem(13),
       },
       '&:focus': {
         outline: 'none',
@@ -116,10 +119,15 @@ export const EditorPlaceholderTextVisual = style([
     display: 'block',
     paddingTop: toRem(13),
     paddingLeft: toRem(1),
-    paddingRight: toRem(13),
     selectors: {
+      [`${EditorTextareaScrollMultiline} &`]: {
+        paddingRight: toRem(13),
+      },
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
+      },
+      [`${EditorTextareaScroll}:last-child &`]: {
+        paddingRight: toRem(13),
       },
     },
   },

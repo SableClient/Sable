@@ -2,15 +2,50 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSwUpdateAvailable } from './useSwUpdateAvailable';
 
+const appUpdatesMocks = vi.hoisted(() => ({
+  checkForAppUpdates: vi.fn<() => Promise<unknown>>(),
+  hasPendingAppUpdate: vi.fn<(registration: ServiceWorkerRegistration | undefined) => boolean>(),
+}));
+
+vi.mock('$utils/appUpdates', () => appUpdatesMocks);
+
 describe('useSwUpdateAvailable', () => {
   let serviceWorkerListeners: Map<string, EventListener>;
   let registration: ServiceWorkerRegistration | undefined;
   let controller: ServiceWorker | null;
+  let visibilityState: DocumentVisibilityState;
+
+  const setVisibility = (state: DocumentVisibilityState) => {
+    visibilityState = state;
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    });
+  };
 
   beforeEach(() => {
     serviceWorkerListeners = new Map();
     registration = undefined;
     controller = null;
+    setVisibility('visible');
+
+    appUpdatesMocks.checkForAppUpdates.mockReset();
+    appUpdatesMocks.checkForAppUpdates.mockResolvedValue({
+      kind: 'up-to-date',
+      message: 'You are already on the latest available web app version.',
+      canApply: false,
+    });
+    appUpdatesMocks.hasPendingAppUpdate.mockReset();
+    appUpdatesMocks.hasPendingAppUpdate.mockImplementation(
+      (currentRegistration: ServiceWorkerRegistration | undefined) =>
+        Boolean(
+          currentRegistration &&
+          controller &&
+          (currentRegistration.waiting ||
+            (currentRegistration.active &&
+              currentRegistration.active !== navigator.serviceWorker.controller))
+        )
+    );
 
     Object.defineProperty(window, 'navigator', {
       configurable: true,
@@ -36,6 +71,7 @@ describe('useSwUpdateAvailable', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -80,6 +116,45 @@ describe('useSwUpdateAvailable', () => {
 
     await waitFor(() => {
       expect(result.current).toBe(false);
+    });
+  });
+
+  it('checks for updates automatically on mount and on the polling interval', async () => {
+    vi.useFakeTimers();
+
+    renderHook(() => useSwUpdateAvailable());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(appUpdatesMocks.checkForAppUpdates).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 60 * 1000);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(appUpdatesMocks.checkForAppUpdates).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+
+  it('skips hidden checks and retries once the app becomes visible again', async () => {
+    setVisibility('hidden');
+
+    renderHook(() => useSwUpdateAvailable());
+
+    expect(appUpdatesMocks.checkForAppUpdates).not.toHaveBeenCalled();
+
+    setVisibility('visible');
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    await waitFor(() => {
+      expect(appUpdatesMocks.checkForAppUpdates).toHaveBeenCalledTimes(1);
     });
   });
 });

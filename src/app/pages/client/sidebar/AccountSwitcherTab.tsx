@@ -207,7 +207,13 @@ export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
   const effectiveDisplayMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
   let myOwnPresenceBadge: ReactNode;
   if (sendPresence) {
-    myOwnPresenceBadge = <PresenceBadge presence={effectiveDisplayMode as Presence} size="200" />;
+    myOwnPresenceBadge = (
+      <PresenceBadge
+        key={effectiveDisplayMode}
+        presence={effectiveDisplayMode as Presence}
+        size="200"
+      />
+    );
   }
 
   const sessionProfiles = useSessionProfiles(sessions);

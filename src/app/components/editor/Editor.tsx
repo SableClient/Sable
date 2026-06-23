@@ -304,7 +304,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 setMeasurementContent(textMeasurer, content);
                 return textMeasurer.scrollHeight;
               };
-              const singleLineHeight = measureHeight('M', 'max-content');
+              const singleLineHeight = measureHeight(text, 'max-content');
               const measuredHeight = measureHeight(text, `${Math.max(singleLineWidth, 0)}px`);
               nextMultiline = measuredHeight > singleLineHeight + MULTILINE_HEIGHT_EPSILON;
               measurementCacheRef.current = {

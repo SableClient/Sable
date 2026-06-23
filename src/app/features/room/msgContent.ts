@@ -10,8 +10,9 @@ import {
   loadImageElement,
   loadVideoElement,
 } from '$utils/dom';
-import { encryptFile, getImageInfo, getThumbnailContent, getVideoInfo } from '$utils/matrix';
+import { encryptFile, getImageInfo, getThumbnailContent, getVideoInfo, mxcUrlToHttp } from '$utils/matrix';
 import type { TUploadItem } from '$state/room/roomInputDrafts';
+import type { GifData } from '$components/emoji-board/types';
 import { encodeBlurHash } from '$utils/blurHash';
 import { scaleYDimension } from '$utils/common';
 import { createLogger } from '$utils/debug';
@@ -235,5 +236,46 @@ export const getFileMsgContent = (item: TUploadItem, mxc: string): IContent => {
     content.format = 'org.matrix.custom.html';
     content.formatted_body = item.formatted_body;
   }
+  return content;
+};
+
+export const getGifMsgContent = async (
+  mx: MatrixClient,
+  gif: GifData,
+  mxcUrl: string,
+  spoiler?: boolean
+): Promise<IContent> => {
+  const proxyUrl = mxcUrlToHttp(mx, mxcUrl, true);
+  const [imgError, imgEl] = await to(loadImageElement(proxyUrl ?? gif.url, 'anonymous'));
+  if (imgError) {
+    log.warn('Failed to load image element anonymously for blurhash, falling back to basic metadata:', imgError);
+  }
+
+  const content: IContent = {
+    msgtype: MsgType.Image,
+    body: gif.title,
+    url: mxcUrl,
+    info: {
+      w: gif.width,
+      h: gif.height,
+      mimetype: 'image/gif',
+    },
+  };
+  
+  if (gif.size) {
+    content.info.size = gif.size;
+  }
+
+  if (spoiler) {
+    content[MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME] = true;
+  }
+
+  if (imgEl) {
+    const blurHash = encodeBlurHash(imgEl, 512, scaleYDimension(imgEl.width, 512, imgEl.height));
+    if (blurHash) {
+      content.info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME] = blurHash;
+    }
+  }
+
   return content;
 };

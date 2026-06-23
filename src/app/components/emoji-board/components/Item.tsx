@@ -9,9 +9,11 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import * as css from './styles.css';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
-import { Star, menuIcon } from '$components/icons/phosphor';
+import { Star, Eye, EyeSlash, menuIcon } from '$components/icons/phosphor';
 import { MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS } from '$unstable/prefixes';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { getKlipyMxcUrl } from '$utils/klipy';
 
 const ANIMATED_MIME_TYPES = new Set(['image/gif', 'image/apng']);
 
@@ -165,16 +167,28 @@ export function GifItem({
   children: ReactNode;
 }) {
   const [isHovered, setIsHovered] = useState(false);
-  const initialFavorited = useFavoriteGifs();
-  const [favoritedContent, setFavoritedContent] = useState(initialFavorited);
+  const favoritedContent = useFavoriteGifs();
+  const clientConfig = useClientConfig();
+  
+  const mxcUrl = gif?.url ? getKlipyMxcUrl(gif.url, clientConfig.gifs?.proxyUrl) : '';
+
   const [favorited, setFavorited] = useState(
-    favoritedContent.gifs.find((v) => v.url == gif?.url) != undefined
+    favoritedContent.gifs.some((v) => {
+      const vMxc = getKlipyMxcUrl(v.url, clientConfig.gifs?.proxyUrl);
+      return vMxc === mxcUrl && mxcUrl !== '';
+    })
   );
+  const [isSpoiler, setIsSpoiler] = useState(false);
   const mx = useMatrixClient();
 
   useEffect(() => {
-    setFavoritedContent(initialFavorited);
-  }, [initialFavorited]);
+    setFavorited(
+      favoritedContent.gifs.some((v) => {
+        const vMxc = getKlipyMxcUrl(v.url, clientConfig.gifs?.proxyUrl);
+        return vMxc === mxcUrl && mxcUrl !== '';
+      })
+    );
+  }, [favoritedContent, mxcUrl, clientConfig.gifs?.proxyUrl]);
 
   return (
     <Box
@@ -190,6 +204,7 @@ export function GifItem({
       data-emoji-data={data}
       data-emoji-shortcode={shortcode}
       data-gif-data={gif ? JSON.stringify(gif) : undefined}
+      data-gif-spoiler={isSpoiler ? 'true' : 'false'}
       onPointerEnter={() => setIsHovered(true)}
       onPointerLeave={() => setIsHovered(false)}
     >
@@ -206,18 +221,19 @@ export function GifItem({
                 title={favorited ? 'Unfavorite gif' : 'Favorite gif'}
                 onClick={async (e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   if (!favorited) {
                     setFavorited(true);
                     await mx
                       .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
-                        gifs: [...favoritedContent.gifs, gif],
+                        gifs: [...favoritedContent.gifs, { ...gif, url: mxcUrl }],
                       })
                       .catch(() => setFavorited(false));
                   } else {
                     setFavorited(false);
                     await mx
                       .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
-                        gifs: favoritedContent.gifs.filter((v) => v.url != gif.url),
+                        gifs: favoritedContent.gifs.filter((v) => getKlipyMxcUrl(v.url, clientConfig.gifs?.proxyUrl) !== mxcUrl),
                       })
                       .catch(() => setFavorited(true));
                   }
@@ -226,6 +242,23 @@ export function GifItem({
                 {menuIcon(Star, {
                   weight: favorited ? 'fill' : 'regular',
                   color: favorited ? color.Warning.MainHover : color.Surface.OnContainer,
+                })}
+              </MenuItem>
+              <MenuItem
+                size="300"
+                radii="0"
+                fill="Soft"
+                variant="Secondary"
+                title={isSpoiler ? 'Remove spoiler' : 'Mark as spoiler'}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsSpoiler(!isSpoiler);
+                }}
+              >
+                {menuIcon(isSpoiler ? EyeSlash : Eye, {
+                  weight: isSpoiler ? 'fill' : 'regular',
+                  color: color.Surface.OnContainer,
                 })}
               </MenuItem>
             </Box>

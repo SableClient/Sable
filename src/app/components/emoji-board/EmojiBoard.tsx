@@ -165,7 +165,11 @@ const useGroups = (
   return [emojiGroupItems, stickerGroupItems, gifGroupItems];
 };
 
-const useItemRenderer = (tab: EmojiBoardTab, saveStickerEmojiBandwidth: boolean) => {
+const useItemRenderer = (
+  tab: EmojiBoardTab,
+  saveStickerEmojiBandwidth: boolean,
+  onGifSelect?: (gif: GifData, spoiler?: boolean) => void
+) => {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
@@ -448,7 +452,7 @@ type EmojiBoardProps = {
   onEmojiSelect?: (unicode: string, shortcode: string) => void;
   onCustomEmojiSelect?: (mxc: string, shortcode: string) => void;
   onStickerSelect?: (mxc: string, shortcode: string, label: string) => void;
-  onGifSelect?: (gif: GifData) => void;
+  onGifSelect?: (gif: GifData, spoiler?: boolean) => void;
   allowTextCustomEmoji?: boolean;
   addToRecentEmoji?: boolean;
   isFullWidth?: boolean;
@@ -550,6 +554,7 @@ export function EmojiBoard({
         preview_url: preview?.url || fullRes?.url || '',
         width,
         height,
+        size: fullRes?.size || preview?.size || 0,
       };
     }, []);
 
@@ -631,7 +636,7 @@ export function EmojiBoard({
           : gifGroupItems,
   };
   const groups = groupsByTab[tab];
-  const renderItem = useItemRenderer(tab, saveStickerEmojiBandwidth);
+  const renderItem = useItemRenderer(tab, saveStickerEmojiBandwidth, onGifSelect);
 
   const handleOnChange: ChangeEventHandler<HTMLInputElement> = useDebounce(
     useCallback(
@@ -707,7 +712,8 @@ export function EmojiBoard({
     if (emojiInfo.type === EmojiType.Gif) {
       const gifDataStr = targetEl.getAttribute('data-gif-data');
       const gifData = gifDataStr ? JSON.parse(gifDataStr) : null;
-      onGifSelect?.(gifData);
+      const isSpoiler = targetEl.getAttribute('data-gif-spoiler') === 'true';
+      onGifSelect?.(gifData, isSpoiler);
     }
     if (!evt.altKey && !evt.shiftKey) requestClose();
   };
@@ -777,6 +783,7 @@ export function EmojiBoard({
               key={tab}
               query={emojiResult?.query}
               onChange={handleOnChange}
+              tab={tab}
               allowTextCustomEmoji={allowTextCustomEmoji}
               onTextCustomEmojiSelect={handleTextCustomEmojiSelect}
             />

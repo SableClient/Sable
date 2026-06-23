@@ -169,8 +169,10 @@ import {
   getFileMsgContent,
   getImageMsgContent,
   getVideoMsgContent,
+  getGifMsgContent,
 } from './msgContent';
 import { outgoingMessageTransforms } from './outgoingMessageTransforms';
+import { getKlipyMxcUrl } from '$utils/klipy';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import type {
   AudioMessageRecorderHandle,
@@ -274,21 +276,7 @@ interface RoomInputProps {
   onEditLastMessage?: () => void;
 }
 
-function toBase64Url(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = '';
 
-  for (const byte of bytes) {
-    binary += String.fromCodePoint(byte);
-  }
-
-  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll(/=+$/g, '');
-}
-
-function toMatrixID(fname: string, urlPrefix: string): string {
-  const base64 = toBase64Url(fname);
-  return urlPrefix + base64;
-}
 
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
   ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
@@ -590,26 +578,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       handleRemoveUpload(uploads.map((upload) => upload.file));
     };
 
-    const handleSendUpload = async (uploads: UploadSuccess[]) => {
+    const handleSendContents = async (contents: IContent[]) => {
       const plainText = toPlainText(editor.children).trim();
-
-      const contentsPromises = uploads.map(async (upload) => {
-        const fileItem = selectedFiles.find((f) => f.file === upload.file);
-        if (!fileItem) throw new Error('Broken upload');
-
-        if (fileItem.file.type.startsWith('image')) {
-          return getImageMsgContent(mx, fileItem, upload.mxc);
-        }
-        if (fileItem.file.type.startsWith('video')) {
-          return getVideoMsgContent(mx, fileItem, upload.mxc);
-        }
-        if (fileItem.file.type.startsWith('audio')) {
-          return getAudioMsgContent(fileItem, upload.mxc);
-        }
-        return getFileMsgContent(fileItem, upload.mxc);
-      });
-      handleCancelUpload(uploads);
-      const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
 
       /**
        * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
@@ -662,11 +632,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           setEditingScheduledDelayId(null);
           setScheduledTime(null);
         } catch (error) {
-          debugLog.error('message', 'Failed to schedule uploaded file message', {
+          debugLog.error('message', 'Failed to schedule message', {
             roomId,
             error: error instanceof Error ? error.message : String(error),
           });
-          log.error('failed to schedule uploaded message', { roomId }, error);
+          log.error('failed to schedule message', { roomId }, error);
           throw error;
         }
       } else {
@@ -678,7 +648,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           } catch {
             debugLog.error(
               'message',
-              'Failed to cancel scheduled event before immediate file send',
+              'Failed to cancel scheduled event before immediate send',
               { roomId }
             );
           }
@@ -689,7 +659,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             mx
               .sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
               .then((res: { event_id: string }) => {
-                debugLog.info('message', 'Uploaded file message sent', {
+                debugLog.info('message', 'Message sent', {
                   roomId,
                   eventId: res.event_id,
                   msgtype: content.msgtype,
@@ -697,16 +667,38 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 return res;
               })
               .catch((error: unknown) => {
-                debugLog.error('message', 'Failed to send uploaded file message', {
+                debugLog.error('message', 'Failed to send message', {
                   roomId,
                   error: error instanceof Error ? error.message : String(error),
                 });
-                log.error('failed to send uploaded message', { roomId }, error);
+                log.error('failed to send message', { roomId }, error);
                 throw error;
               })
           )
         );
       }
+    };
+
+    const handleSendUpload = async (uploads: UploadSuccess[]) => {
+      const contentsPromises = uploads.map(async (upload) => {
+        const fileItem = selectedFiles.find((f) => f.file === upload.file);
+        if (!fileItem) throw new Error('Broken upload');
+
+        if (fileItem.file.type.startsWith('image')) {
+          return getImageMsgContent(mx, fileItem, upload.mxc);
+        }
+        if (fileItem.file.type.startsWith('video')) {
+          return getVideoMsgContent(mx, fileItem, upload.mxc);
+        }
+        if (fileItem.file.type.startsWith('audio')) {
+          return getAudioMsgContent(fileItem, upload.mxc);
+        }
+        return getFileMsgContent(fileItem, upload.mxc);
+      });
+      handleCancelUpload(uploads);
+      const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
+
+      await handleSendContents(contents);
     };
 
     const handleCloseAutocomplete = useCallback(() => {
@@ -1324,39 +1316,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       mx.sendEvent(roomId, EventType.Sticker, content);
     };
 
-    const handleGifSelect = async (gif: GifData) => {
-      let url = gif.url.startsWith('mxc://')
-        ? gif.url
-        : `mxc://${clientConfig.gifs?.proxyUrl ?? ''}/${toMatrixID(gif.url.slice('https://static.klipy.com/ii/'.length), 'klipy_')}`;
+    const handleGifSelect = async (gif: GifData, spoiler?: boolean) => {
+      const url = getKlipyMxcUrl(gif.url, clientConfig.gifs?.proxyUrl);
 
-      const content: RoomMessageEventContent & ReplyEventContent & IContent = {
-        body: gif.title,
-        url: url,
-        msgtype: MsgType.Image,
-        info: {
-          w: gif.width,
-          h: gif.height,
-          mimetype: 'image/gif',
-        },
-      };
+      const content = await getGifMsgContent(mx, gif, url, spoiler);
 
-      // Handle replies if there's a reply draft
-      if (replyDraft) {
-        content['m.relates_to'] = {
-          'm.in_reply_to': {
-            event_id: replyDraft.eventId,
-          },
-        };
-        if (replyDraft.relation?.rel_type === RelationType.Thread) {
-          content['m.relates_to'].event_id = replyDraft.relation.event_id;
-          content['m.relates_to'].rel_type = RelationType.Thread;
-          content['m.relates_to'].is_falling_back = false;
-        }
-      }
-
-      // Send the gif as sticker event.
-      await mx.sendEvent(roomId, EventType.RoomMessage, content);
-      setReplyDraft(undefined);
+      await handleSendContents([content]);
     };
 
     return (

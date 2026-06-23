@@ -172,8 +172,8 @@ export function GlobalKeyboardShortcuts() {
       announce(`Navigated to bookmarks`);
     },
     [navigate]
-  )
-  
+  );
+
   /** Ctrl+F: Search for messages */
   const handleSearchMessageInRoom = useCallback(
     (evt: KeyboardEvent) => {

@@ -4,7 +4,7 @@ import * as css from './layout.css';
 import { BubbleLayout } from './Bubble';
 
 describe('BubbleLayout', () => {
-  it('keeps the upstream left-aligned bubble structure', () => {
+  it('keeps the full-width bubble row and fixed avatar gutter', () => {
     const { container } = render(
       <BubbleLayout before={<div data-testid="avatar" />} header={<div>Header</div>}>
         <div>Message</div>
@@ -12,10 +12,13 @@ describe('BubbleLayout', () => {
     );
 
     const root = container.firstElementChild;
-    expect(root).not.toBeNull();
+    expect(root).toHaveClass(css.BubbleRow);
 
     const avatarSlot = screen.getByTestId('avatar').parentElement;
     expect(avatarSlot).toHaveClass(css.BubbleBefore);
+
+    const main = screen.getByText('Header').parentElement;
+    expect(main).toHaveClass(css.BubbleMain);
 
     const wrapper = screen.getByText('Message').parentElement?.parentElement;
     expect(wrapper).toHaveClass(css.BubbleWrapper);

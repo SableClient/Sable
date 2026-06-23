@@ -48,4 +48,18 @@ describe('room view spacing contract', () => {
       'padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`'
     );
   });
+
+  it('keeps the message body inside a full-width content column', () => {
+    const modernLayout = readWorkspaceFile('src/app/components/message/layout/Modern.tsx');
+    const bubbleLayout = readWorkspaceFile('src/app/components/message/layout/Bubble.tsx');
+    const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
+
+    expect(modernLayout).toContain('className={css.ModernRow}');
+    expect(modernLayout).toContain('className={css.ModernContent}');
+    expect(bubbleLayout).toContain('className={css.BubbleRow}');
+    expect(bubbleLayout).toContain('className={css.BubbleMain}');
+    expect(messageLayout).toContain("width: '100%'");
+    expect(messageLayout).toContain('export const ModernContent = style({');
+    expect(messageLayout).toContain('export const BubbleMain = style({');
+  });
 });

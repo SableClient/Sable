@@ -155,11 +155,49 @@ export const AvatarBase = style({
 });
 
 export const ModernBefore = style({
+  width: toRem(36),
   minWidth: toRem(36),
+  flex: `0 0 ${toRem(36)}`,
+});
+
+export const ModernRow = style({
+  alignItems: 'flex-start',
+  boxSizing: 'border-box',
+  width: '100%',
+  minWidth: 0,
+  maxWidth: '100%',
+  paddingInline: config.space.S200,
+});
+
+export const ModernContent = style({
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  width: '100%',
+  minWidth: 0,
 });
 
 export const BubbleBefore = style({
+  width: toRem(36),
   minWidth: toRem(36),
+  flex: `0 0 ${toRem(36)}`,
+});
+
+export const BubbleRow = style({
+  alignItems: 'flex-start',
+  boxSizing: 'border-box',
+  width: '100%',
+  minWidth: 0,
+  maxWidth: '100%',
+  paddingInline: config.space.S200,
+});
+
+export const BubbleMain = style({
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  width: '100%',
+  minWidth: 0,
 });
 
 export const BubbleWrapper = style({
@@ -237,6 +275,8 @@ export const MessageTextBody = recipe({
   base: {
     unicodeBidi: 'plaintext',
     alignSelf: 'start',
+    width: '100%',
+    minWidth: 0,
     wordBreak: 'break-word',
     fontSize: '1rem !important', // Override folds Text component to enable page zoom scaling
   },

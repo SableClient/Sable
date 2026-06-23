@@ -111,13 +111,13 @@ describe('mobile PWA dogfood contract', () => {
       '<Modal500 requestClose={closeSettings} fullScreenOnMobile>'
     );
     expect(roomSettings).toContain(
-      'const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();'
+      'const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTablet();'
     );
     expect(roomSettings).toContain(
       'return isPhoneLayout ? undefined : RoomSettingsPage.GeneralPage;'
     );
     expect(spaceSettings).toContain(
-      'const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();'
+      'const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTablet();'
     );
     expect(spaceSettings).toContain(
       'return isPhoneLayout ? undefined : SpaceSettingsPage.GeneralPage;'

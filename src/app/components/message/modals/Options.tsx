@@ -714,6 +714,8 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
   const [modal, setModal] = useAtom(modalAtom);
   const touchStartY = useRef<number | null>(null);
   const [touchYDiff, setTouchYDiff] = useState(0);
+  const date = new Date();
+  const startTime = useRef(0);
 
   useEffect(() => {
     if (modal?.type === ModalType.MobileOptions) setIsActive(true);
@@ -722,6 +724,7 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0]?.clientY ?? null;
+    startTime.current = date.getTime();
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -736,7 +739,8 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
   };
 
   const handleTouchEnd = () => {
-    if (touchYDiff > 100) {
+    const endTime = date.getTime();
+    if (touchYDiff > 100 || (endTime - startTime.current < 600 && touchYDiff > 20)) {
       options.closeMenu();
       setIsActive(false);
     } else {
@@ -746,12 +750,7 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
   };
 
   const dragHandleJSX = (
-    <div
-      className={css.MessageMobileDragHandle}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className={css.MessageMobileDragHandle}>
       <div className={css.MessageMobileDragIndicator} />
     </div>
   );
@@ -765,9 +764,9 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
           options.closeMenu();
           setIsActive(false);
         }}
-        onTouchStart={(e: React.TouchEvent) => e.stopPropagation()}
-        onTouchMove={(e: React.TouchEvent) => e.stopPropagation()}
-        onTouchEnd={(e: React.TouchEvent) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <Box
           className={css.MessageMobileOptionsContainer}

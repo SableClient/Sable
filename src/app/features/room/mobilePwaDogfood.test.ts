@@ -21,7 +21,7 @@ describe('mobile PWA dogfood contract', () => {
     const roomInput = readWorkspaceFile('src/app/features/room/RoomInput.tsx');
 
     const resetIndex = roomInput.indexOf(
-      'resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot);'
+      'resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot, { refocus: true });'
     );
     const sendIndex = roomInput.indexOf('const res = await sendImmediateMessage({');
 
@@ -49,6 +49,11 @@ describe('mobile PWA dogfood contract', () => {
     expect(roomInput).toContain(
       'restoredSilentReplyRef.current = restoredReplyDraft ? sentSilentReplySnapshot : null;'
     );
+    expect(roomInput).toContain('options?: { refocus?: boolean }');
+    expect(roomInput).toContain('if (options?.refocus) {');
+    expect(roomInput).toContain('ReactEditor.focus(editor);');
+    expect(roomInput).not.toContain('readOnly={isSending}');
+    expect(roomInput).not.toContain('disabled={isSending}');
   });
 
   it('closes the mobile keyboard before opening composer overlays', () => {

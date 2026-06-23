@@ -34,9 +34,8 @@ export const MessageOptionsWrappedMessage = style({
 
 export const MessageOptionsMenu = style({
   width: '100%',
-  maxHeight: '100%',
-  position: 'absolute',
-  bottom: '0',
+  flexGrow: 1,
+  overflowY: 'auto',
   display: 'flex',
   flexDirection: 'column',
 });

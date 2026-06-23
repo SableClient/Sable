@@ -400,6 +400,7 @@ export type OptionMenuProps = {
   setIsEmoji?: Dispatch<SetStateAction<boolean>>;
   ActualMessage?: ReactNode;
   isModal?: boolean;
+  dragHandle?: ReactNode;
 };
 
 export function OptionMenu({
@@ -420,6 +421,7 @@ export function OptionMenu({
   setIsEmoji,
   ActualMessage,
   isModal,
+  dragHandle,
 }: OptionMenuProps) {
   const setModal = useSetAtom(modalAtom);
   const store = useStore();
@@ -498,6 +500,7 @@ export function OptionMenu({
           onContextMenu={(e) => e.preventDefault()}
           className={isModal ? css.MessageOptionsMenu : ''}
         >
+          {dragHandle}
           {ActualMessage && !emojiBoardAnchor && (
             <>
               <WrappedMessage isModal={isModal} ActualMessage={ActualMessage} />
@@ -742,6 +745,17 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
     touchStartY.current = null;
   };
 
+  const dragHandleJSX = (
+    <div
+      className={css.MessageMobileDragHandle}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className={css.MessageMobileDragIndicator} />
+    </div>
+  );
+
   if (isActive)
     return (
       <Box
@@ -759,14 +773,6 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
           }}
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
-          <div
-            className={css.MessageMobileDragHandle}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            <div className={css.MessageMobileDragIndicator} />
-          </div>
           <OptionMenu
             mEvent={options.mEvent}
             room={options.room}
@@ -787,6 +793,7 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
             ActualMessage={options.ActualMessage}
             canSendReaction={options.canSendReaction}
             isModal
+            dragHandle={dragHandleJSX}
           />
         </Box>
       </Box>

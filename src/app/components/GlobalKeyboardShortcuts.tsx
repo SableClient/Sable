@@ -18,7 +18,7 @@ import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { getDirectRoomPath, getHomeRoomPath, getSpaceRoomPath } from '$pages/pathUtils';
 import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
-import { getCanonicalAliasOrRoomId } from '$utils/matrix';
+import { getCanonicalAliasOrRoomId, getCanonicalAliasRoomId } from '$utils/matrix';
 import { announce } from '$utils/announce';
 import {
   roomIdToReplyDraftAtomFamily,
@@ -63,7 +63,8 @@ export function GlobalKeyboardShortcuts() {
     if (roomIdOrAlias.startsWith('!')) {
       currentRoom = mx.getRoom(roomIdOrAlias);
     } else {
-      currentRoom = mx.getRooms().find((r) => r.getCanonicalAlias() === roomIdOrAlias) ?? null;
+      const aliasedRoomId = getCanonicalAliasRoomId(mx, roomIdOrAlias);
+      currentRoom = aliasedRoomId ? mx.getRoom(aliasedRoomId) : null;
     }
   }
   const replyDraftAtomFamily = roomIdToReplyDraftAtomFamily(currentRoom?.roomId ?? '');

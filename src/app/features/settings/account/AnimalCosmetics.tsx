@@ -171,7 +171,7 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Has animals"
-          focusId="has-cats"
+          focusId="has-animal"
           description="Marks which animals you have"
           after={
             <FreeInput

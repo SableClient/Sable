@@ -70,6 +70,9 @@ export const EditorTextarea = style([
     paddingRight: toRem(13),
     paddingBottom: toRem(13),
     selectors: {
+      [`${EditorTextareaScrollMultiline} &`]: {
+        paddingBottom: 0,
+      },
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
       },

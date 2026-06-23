@@ -6,7 +6,7 @@ export const UserQuickTools = style({
   color: color.SurfaceVariant.OnContainer,
   position: 'fixed',
   zIndex: '1000',
-  height: toRem(58),
+  height: toRem(74),
   bottom: '0',
   left: '0',
   padding: config.space.S300,

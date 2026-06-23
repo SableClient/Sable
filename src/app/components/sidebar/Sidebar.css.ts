@@ -118,7 +118,7 @@ export const SidebarItem = recipe({
   },
 });
 
-const PUSH_Y = 0;
+const PUSH_Y = 3;
 export const SidebarItemBottom = recipe({
   base: [
     DefaultReset,

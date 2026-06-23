@@ -13,9 +13,9 @@ export function SearchTab({ isBottom }: { isBottom?: boolean }) {
     <SidebarItem active={opened} isBottom={isBottom}>
       <SidebarItemTooltip tooltip="Search" position={isBottom ? 'Top' : 'Right'}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={open} size="300">
+          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={open} size={'400'}>
             <ListMagnifyingGlassIcon
-              size={getPhosphorIconSize('inline')}
+              size={getPhosphorIconSize(isBottom ? 'inline' : 'toolbar')}
               weight={opened ? 'fill' : 'regular'}
             />
           </SidebarAvatar>

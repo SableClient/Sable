@@ -30,12 +30,13 @@ export function UserQuickTools({
         <Box
           direction="Row"
           justifyContent="SpaceBetween"
+          alignItems="Center"
           className={css.UserQuickTools}
           style={{
             opacity: isResizingSidebar ? '0%' : '100%',
             transition: isResizingSidebar ? 'opacity 0.2s ease' : 'opacity 0.5s ease',
             width: compact ? '100%' : toRem(width),
-            paddingRight: underOutstep ? config.space.S200 : config.space.S300,
+            paddingRight: config.space.S300,
           }}
         >
           <AccountSwitcherTab isBottom />

@@ -29,6 +29,8 @@ export function SidebarNav() {
   const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
 
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
+
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
 
   const width = roomSidebarWidth + 66;
@@ -140,22 +142,37 @@ export function SidebarNav() {
           }
           sticky={
             <SidebarStack>
-              {underOutstep && (
+              {oldSidebar ? (
                 <>
                   <SearchTab />
                   <UnverifiedTab />
                   <InboxTab />
+                  <div style={{ paddingBottom: config.space.S100 }}>
+                    {/*PROBS ADD SETTINGSTAB HERE WHEN ADDING THE STATUSES*/}
+                    <AccountSwitcherTab />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {underOutstep && (
+                    <>
+                      <SearchTab />
+                      <UnverifiedTab />
+                      <InboxTab />
+                    </>
+                  )}
+
+                  {isCollapsed && <SettingsTab />}
+                  <Box style={{ height: toRem(70) }} alignItems="Center">
+                    <AccountSwitcherTab />
+                  </Box>
                 </>
               )}
-
-              {isCollapsed && <SettingsTab />}
-
-              <AccountSwitcherTab />
             </SidebarStack>
           }
         />
       </Sidebar>
-      <UserQuickTools width={width} />
+      {!oldSidebar && <UserQuickTools width={width} />}
     </>
   );
 }

@@ -26,7 +26,7 @@ function FreeInput({ initialValue: current, onSave, onReset, disabled, placehold
   useEffect(() => setVal(current ?? ''), [current]);
 
   const handleSave = () => {
-    if (val === current) return;
+    if (val === (current ?? '')) return;
     onSave(val);
   };
 

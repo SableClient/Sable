@@ -5,7 +5,6 @@ import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const APPLY_UPDATE_TIMEOUT_MS = 4000;
 const UPDATE_CHECK_FAILURE_MESSAGE = 'Failed to check for updates. Reload the app and try again.';
-const APPLY_UPDATE_FAILURE_MESSAGE = 'Failed to apply the update. Reload the app and try again.';
 const HOSTED_SHELL_CHECK_TIMEOUT_MS = 5000;
 const APP_SHELL_ASSET_PATHNAME = /^\/assets\/.+\.(?:css|js|mjs)$/;
 let hostedAppShellUpdateDetected = false;

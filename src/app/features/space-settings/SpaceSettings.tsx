@@ -6,7 +6,7 @@ import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { mobileOrTablet } from '$utils/user-agent';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -112,7 +112,7 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
     : undefined;
 
   const screenSize = useScreenSizeContext();
-  const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTablet();
+  const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
   const [activePage, setActivePage] = useState<SpaceSettingsPage | undefined>(() => {
     if (initialPage) return initialPage;
     return isPhoneLayout ? undefined : SpaceSettingsPage.GeneralPage;

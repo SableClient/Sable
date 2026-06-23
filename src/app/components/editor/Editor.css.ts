@@ -118,6 +118,9 @@ export const EditorPlaceholderTextVisual = style([
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
       },
+      [`${EditorTextareaScroll}:last-child &`]: {
+        paddingRight: toRem(13),
+      },
     },
   },
 ]);

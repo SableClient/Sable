@@ -70,6 +70,8 @@ export const MessageMobileOptionsContainer = style({
   zIndex: '105',
   width: '100%',
   height: '85%',
+  display: 'flex',
+  flexDirection: 'column',
   animation: `${keyframes({
     from: { transform: 'translateY(100%)' },
     to: { transform: 'translateY(0)' },
@@ -79,6 +81,25 @@ export const MessageMobileOptionsContainer = style({
       animation: 'none',
     },
   },
+});
+
+export const MessageMobileDragHandle = style({
+  width: '100%',
+  height: '24px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: 'var(--mx-c-surface)',
+  borderTopLeftRadius: '12px',
+  borderTopRightRadius: '12px',
+  flexShrink: 0,
+});
+
+export const MessageMobileDragIndicator = style({
+  width: '40px',
+  height: '4px',
+  borderRadius: '2px',
+  backgroundColor: 'var(--mx-c-outline)',
 });
 
 export const BubbleAvatarBase = style({

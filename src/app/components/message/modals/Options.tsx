@@ -31,7 +31,7 @@ import * as css from '$features/room/message/styles.css';
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
 import type { Dispatch, MouseEventHandler, ReactNode, SetStateAction } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { MessageDeleteItem } from './MessageDelete';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
@@ -709,14 +709,64 @@ export function OptionMenu({
 export function MobileOptionsInternal({ options }: { options: OptionMenuProps }) {
   const [isActive, setIsActive] = useState(true);
   const [modal, setModal] = useAtom(modalAtom);
+  const touchStartY = useRef<number | null>(null);
+  const [touchYDiff, setTouchYDiff] = useState(0);
+
   useEffect(() => {
     if (modal?.type === ModalType.MobileOptions) setIsActive(true);
     if (!isActive) setModal(null);
   }, [modal, setIsActive, isActive, setModal]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0]?.clientY ?? null;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null || !e.touches[0]) return;
+    const touchY = e.touches[0].clientY;
+    const diff = touchY - touchStartY.current;
+
+    // Only allow pulling down
+    if (diff > 0) {
+      setTouchYDiff(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchYDiff > 100) {
+      options.closeMenu();
+      setIsActive(false);
+    } else {
+      setTouchYDiff(0);
+    }
+    touchStartY.current = null;
+  };
+
   if (isActive)
     return (
-      <Box className={css.MessageMobileOptionsWrapped}>
-        <Box className={css.MessageMobileOptionsContainer}>
+      <Box
+        className={css.MessageMobileOptionsWrapped}
+        onClick={() => {
+          options.closeMenu();
+          setIsActive(false);
+        }}
+      >
+        <Box
+          className={css.MessageMobileOptionsContainer}
+          style={{
+            transform: touchYDiff > 0 ? `translateY(${touchYDiff}px)` : undefined,
+            transition: touchStartY.current === null ? 'transform 0.2s ease-out' : 'none',
+          }}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          <div
+            className={css.MessageMobileDragHandle}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className={css.MessageMobileDragIndicator} />
+          </div>
           <OptionMenu
             mEvent={options.mEvent}
             room={options.room}

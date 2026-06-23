@@ -27,7 +27,7 @@ function FreeInput({ initialValue: current, onSave, onReset, disabled, placehold
 
   const handleSave = () => {
     if (val === (current ?? '')) return;
-    onSave(val);
+    onSave(val === '' ? null : val);
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {

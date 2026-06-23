@@ -914,7 +914,7 @@ export const getReactCustomHtmlParser = (
           }
 
           return (
-            <Text as="code" size="T300" className={css.Code} {...props}>
+            <Text as="code" size="Inherit" className={css.Code} {...props}>
               {renderChildren()}
             </Text>
           );

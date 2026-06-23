@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import parse from 'html-react-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Text } from 'folds';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { isJumboEmojiText } from '$utils/emojiDetection';
@@ -526,6 +527,36 @@ describe('react custom html parser', () => {
     const paragraph = container.querySelector('p');
     expect(paragraph).toBeInTheDocument();
     expect(paragraph).toHaveClass(customHtmlCss.Paragraph);
+  });
+
+  it('renders inline code with inherited text metrics instead of the old compressed code size', () => {
+    const { container } = renderMessage('<p>before <code>inline</code> after</p>');
+    const inlineCode = container.querySelector('code');
+
+    expect(inlineCode).toBeInTheDocument();
+
+    const { container: inheritReference } = render(
+      <Text as="code" size="Inherit" className={customHtmlCss.Code}>
+        inline
+      </Text>
+    );
+    const { container: compressedReference } = render(
+      <Text as="code" size="T300" className={customHtmlCss.Code}>
+        inline
+      </Text>
+    );
+
+    const inlineCodeClasses = new Set(inlineCode!.className.split(/\s+/).filter(Boolean));
+    const inheritClasses = new Set(
+      inheritReference.querySelector('code')!.className.split(/\s+/).filter(Boolean)
+    );
+    const compressedOnlyClasses = compressedReference
+      .querySelector('code')!
+      .className.split(/\s+/)
+      .filter((className) => className && !inheritClasses.has(className));
+
+    expect([...inheritClasses].every((className) => inlineCodeClasses.has(className))).toBe(true);
+    expect(compressedOnlyClasses.some((className) => inlineCodeClasses.has(className))).toBe(false);
   });
 });
 

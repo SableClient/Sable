@@ -165,11 +165,7 @@ const useGroups = (
   return [emojiGroupItems, stickerGroupItems, gifGroupItems];
 };
 
-const useItemRenderer = (
-  tab: EmojiBoardTab,
-  saveStickerEmojiBandwidth: boolean,
-  onGifSelect?: (gif: GifData, spoiler?: boolean) => void
-) => {
+const useItemRenderer = (tab: EmojiBoardTab, saveStickerEmojiBandwidth: boolean) => {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
@@ -636,7 +632,7 @@ export function EmojiBoard({
           : gifGroupItems,
   };
   const groups = groupsByTab[tab];
-  const renderItem = useItemRenderer(tab, saveStickerEmojiBandwidth, onGifSelect);
+  const renderItem = useItemRenderer(tab, saveStickerEmojiBandwidth);
 
   const handleOnChange: ChangeEventHandler<HTMLInputElement> = useDebounce(
     useCallback(

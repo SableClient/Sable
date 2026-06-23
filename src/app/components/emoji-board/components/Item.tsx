@@ -169,7 +169,7 @@ export function GifItem({
   const [isHovered, setIsHovered] = useState(false);
   const favoritedContent = useFavoriteGifs();
   const clientConfig = useClientConfig();
-  
+
   const mxcUrl = gif?.url ? getKlipyMxcUrl(gif.url, clientConfig.gifs?.proxyUrl) : '';
 
   const [favorited, setFavorited] = useState(
@@ -233,7 +233,9 @@ export function GifItem({
                     setFavorited(false);
                     await mx
                       .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
-                        gifs: favoritedContent.gifs.filter((v) => getKlipyMxcUrl(v.url, clientConfig.gifs?.proxyUrl) !== mxcUrl),
+                        gifs: favoritedContent.gifs.filter(
+                          (v) => getKlipyMxcUrl(v.url, clientConfig.gifs?.proxyUrl) !== mxcUrl
+                        ),
                       })
                       .catch(() => setFavorited(true));
                   }

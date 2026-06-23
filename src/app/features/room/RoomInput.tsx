@@ -276,8 +276,6 @@ interface RoomInputProps {
   onEditLastMessage?: () => void;
 }
 
-
-
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
   ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
     // When in thread mode, isolate drafts by thread root ID so thread replies
@@ -646,11 +644,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             invalidate();
             setEditingScheduledDelayId(null);
           } catch {
-            debugLog.error(
-              'message',
-              'Failed to cancel scheduled event before immediate send',
-              { roomId }
-            );
+            debugLog.error('message', 'Failed to cancel scheduled event before immediate send', {
+              roomId,
+            });
           }
         }
 

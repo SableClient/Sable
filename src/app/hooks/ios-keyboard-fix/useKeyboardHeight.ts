@@ -38,6 +38,16 @@ let mountCount = 0;
 // across instances.
 let cssVarsApplied = false;
 
+export const getImmediateVisibleViewportHeight = (
+  baselineHeight: number,
+  viewportHeight: number,
+  savedKeyboardHeight: number,
+  varsAlreadyApplied: boolean
+): number => {
+  if (varsAlreadyApplied) return viewportHeight;
+  return savedKeyboardHeight > 0 ? baselineHeight - savedKeyboardHeight : viewportHeight;
+};
+
 function isEditableElement(element: Element | null): boolean {
   if (!(element instanceof HTMLElement)) return false;
 
@@ -131,11 +141,17 @@ export function useKeyboardHeight() {
       // immediate and stability-timer setCSSVars calls land on the same pixel
       // value — eliminating the second layout change that causes visible
       // timeline stutter during the keyboard animation.
-      if (!cssVarsApplied) {
-        const estimatedViewportHeight =
-          sharedSavedHeight > 0 ? baselineHeight - sharedSavedHeight : viewport.height;
-        setCSSVars(estimatedViewportHeight);
-      }
+      // Keep the CSS height pinned to the live viewport on every keyboard-mode
+      // resize. The React state still waits for a stable value, but the layout
+      // should not lag behind when iOS swaps between text and emoji keyboards.
+      setCSSVars(
+        getImmediateVisibleViewportHeight(
+          baselineHeight,
+          viewport.height,
+          sharedSavedHeight,
+          cssVarsApplied
+        )
+      );
 
       // Cancel any document scroll iOS may have applied as scroll-prediction.
       if (window.scrollY !== 0) {

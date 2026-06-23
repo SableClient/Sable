@@ -1,8 +1,16 @@
 import { Avatar, Box, Text, toRem } from 'folds';
 import { ChatCircleDots, EnvelopeSimple, Tray, sizedIcon } from '$components/icons/phosphor';
 import { NavCategory, NavItem, NavItemContent, NavLink } from '$components/nav';
-import { getInboxInvitesPath, getInboxNotificationsPath } from '$pages/pathUtils';
-import { useInboxInvitesSelected, useInboxNotificationsSelected } from '$hooks/router/useInbox';
+import {
+  getInboxBookmarksPath,
+  getInboxInvitesPath,
+  getInboxNotificationsPath,
+} from '$pages/pathUtils';
+import {
+  useInboxBookmarksSelected,
+  useInboxInvitesSelected,
+  useInboxNotificationsSelected,
+} from '$hooks/router/useInbox';
 import { UnreadBadge } from '$components/unread-badge';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
@@ -12,6 +20,7 @@ import { settingsAtom } from '$state/settings';
 import { useEffect, useState } from 'react';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useInviteCount } from '$hooks/useInviteCount';
+import { BookmarkIcon } from '@phosphor-icons/react';
 
 function InvitesNavItem({ hideText }: { hideText?: boolean }) {
   const invitesSelected = useInboxInvitesSelected();
@@ -52,6 +61,7 @@ function InvitesNavItem({ hideText }: { hideText?: boolean }) {
 export function Inbox() {
   useNavToActivePathMapper('inbox');
   const notificationsSelected = useInboxNotificationsSelected();
+  const bookmarksSelected = useInboxBookmarksSelected();
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
@@ -112,6 +122,24 @@ export function Inbox() {
                 </NavLink>
               </NavItem>
               <InvitesNavItem hideText={hideText} />
+              <NavItem variant="Background" radii="400" aria-selected={bookmarksSelected}>
+                <NavLink to={getInboxBookmarksPath()}>
+                  <NavItemContent>
+                    <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                      <Avatar size="200" radii="400">
+                        {sizedIcon(BookmarkIcon, '100', {
+                          filled: bookmarksSelected,
+                        })}{' '}
+                      </Avatar>
+                      <Box as="span" grow="Yes">
+                        <Text as="span" size="Inherit" truncate>
+                          Bookmarks
+                        </Text>
+                      </Box>
+                    </Box>
+                  </NavItemContent>
+                </NavLink>
+              </NavItem>
             </NavCategory>
           </Box>
         </PageNavContent>

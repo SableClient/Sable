@@ -16,7 +16,12 @@ import { roomToParentsAtom } from '$state/room/roomToParents';
 import { mDirectAtom } from '$state/mDirectList';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useKeyDown } from '$hooks/useKeyDown';
-import { getDirectRoomPath, getHomeRoomPath, getSpaceRoomPath } from '$pages/pathUtils';
+import {
+  getDirectRoomPath,
+  getInboxBookmarksPath,
+  getHomeRoomPath,
+  getSpaceRoomPath,
+} from '$pages/pathUtils';
 import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { announce } from '$utils/announce';
@@ -151,9 +156,21 @@ export function GlobalKeyboardShortcuts() {
     [currentRoom, replyDraft, setReplyDraft]
   );
 
+  const handleBookmarkKeyDown = useCallback(
+    (evt: KeyboardEvent) => {
+      if (!isKeyHotkey('mod+b', evt)) return;
+      evt.preventDefault();
+
+      navigate(getInboxBookmarksPath());
+      announce(`Navigated to bookmarks`);
+    },
+    [navigate]
+  );
+
   useKeyDown(window, handleNextUnreadKeyDown);
   useKeyDown(window, handleUnreadNavKeyDown);
   useKeyDown(window, handleReplyKeyDown);
+  useKeyDown(window, handleBookmarkKeyDown);
 
   return null;
 }

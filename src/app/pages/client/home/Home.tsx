@@ -75,6 +75,7 @@ import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { BookmarkIcon } from '@phosphor-icons/react';
 
 type HomeMenuProps = {
   requestClose: () => void;

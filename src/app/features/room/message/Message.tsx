@@ -75,6 +75,8 @@ import {
 } from '$components/icons/phosphor';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
+import { computeBookmarkId, createBookmarkItem } from '$features/bookmarks/bookmarkDomain';
+import { useIsBookmarked, useBookmarkActions } from '$hooks/useBookmarks';
 import { SwipeableMessageWrapper } from '$components/SwipeableMessageWrapper';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useUserProfile } from '$hooks/useUserProfile';
@@ -98,6 +100,7 @@ import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile'
 import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
+import { BookmarkIcon } from '@phosphor-icons/react';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -141,6 +144,44 @@ export const MessageQuickReactions = as<'div', MessageQuickReactionsProps>(
     );
   }
 );
+
+export const MessageBookmarkItem = as<
+  'button',
+  {
+    room: Room;
+    mEvent: MatrixEvent;
+    onClose?: () => void;
+  }
+>(({ room, mEvent, onClose, ...props }, ref) => {
+  const eventId = mEvent.getId() ?? '';
+  const bookmarked = useIsBookmarked(room.roomId, eventId);
+  const { add, remove } = useBookmarkActions();
+
+  const handleClick = async () => {
+    onClose?.();
+    if (bookmarked) {
+      await remove(computeBookmarkId(room.roomId, eventId));
+    } else {
+      const item = createBookmarkItem(room, mEvent);
+      if (item) await add(item);
+    }
+  };
+
+  return (
+    <MenuItem
+      size="300"
+      after={menuIcon(BookmarkIcon)}
+      radii="300"
+      onClick={handleClick}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        {bookmarked ? 'Remove Bookmark' : 'Bookmark Message'}
+      </Text>
+    </MenuItem>
+  );
+});
 
 export const MessageCopyLinkItem = as<
   'button',
@@ -1210,6 +1251,7 @@ function MessageInternal(
                           <MessageSourceCodeItem room={room} mEvent={mEvent} />
                         )}
                         <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                        <MessageBookmarkItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         {canPinEvent && (
                           <MessagePinItem room={room} mEvent={mEvent} onClose={closeMenu} />
@@ -1553,6 +1595,13 @@ export const Event = as<'div', EventProps>(
                               <MessageSourceCodeItem room={room} mEvent={mEvent} />
                             )}
                             <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                            {!stateEvent && (
+                              <MessageBookmarkItem
+                                room={room}
+                                mEvent={mEvent}
+                                onClose={closeMenu}
+                              />
+                            )}
                             <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
                           </Box>
                           {((!mEvent.isRedacted() && canDelete && !stateEvent) ||

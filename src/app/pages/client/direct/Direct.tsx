@@ -1,6 +1,6 @@
 import type { MouseEventHandler } from 'react';
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { RectCords } from 'folds';
 import {
   Avatar,
@@ -21,7 +21,7 @@ import {
   DotsThreeOutlineVerticalIcon,
   dropzoneIcon,
   menuIcon,
-  getPhosphorIconSize,
+  getPhosphorSize,
   Plus,
   User,
 } from '$components/icons/phosphor';
@@ -64,6 +64,7 @@ import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -115,10 +116,7 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
         {hideText ? (
           <Box alignItems="Center" grow="Yes" justifyContent="Center">
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <User
-                size={getPhosphorIconSize('toolbar')}
-                weight={menuAnchor ? 'fill' : 'regular'}
-              />
+              <User size={getPhosphorSize().toolbar} weight={menuAnchor ? 'fill' : 'regular'} />
             </IconButton>
           </Box>
         ) : (
@@ -202,6 +200,7 @@ export function Direct() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
@@ -376,6 +375,7 @@ export function Direct() {
                   })}
                 </div>
               </NavCategory>
+              <div style={{ height: toRem(40) }} />
             </Box>
           </PageNavContent>
         )}
@@ -389,6 +389,7 @@ export function Direct() {
           outstep={190}
           minValue={50}
           maxValue={500}
+          setAnnouncement={setIsResizingSidebar}
         />
       )}
     </Box>

@@ -9,7 +9,7 @@ import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { getDirectRoomPath } from '$pages/pathUtils';
 import {
   SidebarAvatar,
-  SidebarItem,
+  SidebarItemLeft,
   SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
@@ -132,7 +132,7 @@ function DMItem({ room, selected }: DMItemProps) {
   };
 
   return (
-    <SidebarItem active={selected}>
+    <SidebarItemLeft active={selected}>
       <SidebarItemTooltip tooltip={room.name}>
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
@@ -147,7 +147,7 @@ function DMItem({ room, selected }: DMItemProps) {
           dm
         />
       )}
-    </SidebarItem>
+    </SidebarItemLeft>
   );
 }
 

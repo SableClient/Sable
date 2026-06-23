@@ -84,16 +84,15 @@ export const MessageMobileOptionsContainer = style({
 });
 
 export const MessageMobileDragHandle = style({
-  width: '100%',
-  height: '24px',
-  minHeight: '24px',
+  position: 'absolute',
+  top: '0',
+  left: '0',
+  right: '0',
+  height: '32px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  backgroundColor: color.Background.Container,
-  borderTopLeftRadius: '12px',
-  borderTopRightRadius: '12px',
-  flexShrink: 0,
+  zIndex: 10,
 });
 
 export const MessageMobileDragIndicator = style({
@@ -101,6 +100,7 @@ export const MessageMobileDragIndicator = style({
   height: '4px',
   borderRadius: '2px',
   backgroundColor: color.SurfaceVariant.OnContainer,
+  opacity: 0.5,
 });
 
 export const BubbleAvatarBase = style({

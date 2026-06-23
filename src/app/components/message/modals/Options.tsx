@@ -184,6 +184,7 @@ export type OptionEmojiMenuProps = {
   isQuickOptions?: boolean;
   isModal?: boolean;
   ActualMessage?: ReactNode;
+  dragOpts?: DragOptsProps;
 };
 export function OptionsEmojiBoard({
   mEvent,
@@ -195,6 +196,7 @@ export function OptionsEmojiBoard({
   isQuickOptions,
   isModal,
   ActualMessage,
+  dragOpts,
 }: OptionEmojiMenuProps) {
   const position =
     (!isQuickOptions && 'Left') ||
@@ -209,6 +211,7 @@ export function OptionsEmojiBoard({
       style={isModal ? { width: '100%' } : {}}
       content={
         <Menu>
+          {dragOpts?.dragHandle}
           {ActualMessage}
           <EmojiBoard
             imagePackRooms={imagePackRooms ?? []}
@@ -375,6 +378,13 @@ export function OptionQuickMenu({
   );
 }
 
+export type DragOptsProps = {
+  dragHandle?: ReactNode;
+  onTouchStart?: (evt: React.TouchEvent) => void;
+  onTouchMove?: (evt: React.TouchEvent) => void;
+  onTouchEnd?: () => void;
+};
+
 export type OptionMenuProps = {
   mEvent: MatrixEvent;
   room: Room;
@@ -400,7 +410,7 @@ export type OptionMenuProps = {
   setIsEmoji?: Dispatch<SetStateAction<boolean>>;
   ActualMessage?: ReactNode;
   isModal?: boolean;
-  dragHandle?: ReactNode;
+  dragOpts?: DragOptsProps;
 };
 
 export function OptionMenu({
@@ -421,13 +431,13 @@ export function OptionMenu({
   setIsEmoji,
   ActualMessage,
   isModal,
-  dragHandle,
+  dragOpts,
 }: OptionMenuProps) {
   const setModal = useSetAtom(modalAtom);
   const store = useStore();
   const mx = useMatrixClient();
   const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
-  const isStickerMessage = mEvent.getType() === 'm.sticker';
+  const isStickerMessage = mEvent.getType() === 'm.stidoecker';
   const evtId = mEvent.getId()!;
   const evtTimeline = room.getTimelineForEvent(evtId);
   const edits =
@@ -479,6 +489,7 @@ export function OptionMenu({
           imagePackRooms={imagePackRooms}
           isModal={isModal}
           ActualMessage={<WrappedMessage isModal={isModal} ActualMessage={ActualMessage} />}
+          dragOpts={dragOpts}
         />
       )}
       <FocusTrap
@@ -500,14 +511,22 @@ export function OptionMenu({
           onContextMenu={(e) => e.preventDefault()}
           className={isModal ? css.MessageOptionsMenu : ''}
         >
-          {dragHandle}
+          {dragOpts?.dragHandle}
           {ActualMessage && !emojiBoardAnchor && (
             <>
               <WrappedMessage isModal={isModal} ActualMessage={ActualMessage} />
               <Line direction="Horizontal" variant="SurfaceVariant" />
             </>
           )}
-          <Box direction="Column" grow="Yes" shrink="No" style={{ maxHeight: '75%' }}>
+          <Box
+            direction="Column"
+            grow="Yes"
+            shrink="No"
+            style={{ maxHeight: '75%' }}
+            onTouchStart={dragOpts?.onTouchStart}
+            onTouchMove={dragOpts?.onTouchMove}
+            onTouchEnd={dragOpts?.onTouchEnd}
+          >
             {canSendReaction && onReactionToggle && setIsEmoji && (
               <MessageQuickReactions
                 onReaction={(key, shortcode) => {
@@ -750,10 +769,22 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
   };
 
   const dragHandleJSX = (
-    <div className={css.MessageMobileDragHandle}>
+    <div
+      className={css.MessageMobileDragHandle}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className={css.MessageMobileDragIndicator} />
     </div>
   );
+
+  const dragOpts: DragOptsProps = {
+    dragHandle: dragHandleJSX,
+    onTouchStart: handleTouchStart,
+    onTouchMove: handleTouchMove,
+    onTouchEnd: handleTouchEnd,
+  };
 
   if (isActive)
     return (
@@ -764,9 +795,9 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
           options.closeMenu();
           setIsActive(false);
         }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        onTouchStart={(e: React.TouchEvent) => e.stopPropagation()}
+        onTouchMove={(e: React.TouchEvent) => e.stopPropagation()}
+        onTouchEnd={(e: React.TouchEvent) => e.stopPropagation()}
       >
         <Box
           className={css.MessageMobileOptionsContainer}
@@ -796,7 +827,7 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
             ActualMessage={options.ActualMessage}
             canSendReaction={options.canSendReaction}
             isModal
-            dragHandle={dragHandleJSX}
+            dragOpts={dragOpts}
           />
         </Box>
       </Box>

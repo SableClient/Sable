@@ -357,7 +357,7 @@ export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
       <PopOut
         anchor={menuAnchor}
         position={isBottom ? 'Top' : 'Right'}
-        align="End"
+        align={isBottom ? 'Start' : 'End'}
         offset={6}
         content={
           <FocusTrap

@@ -641,6 +641,7 @@ export function Home() {
                   })}
                 </div>
               </NavCategory>
+              <div style={{ height: toRem(40) }} />
             </Box>
           </PageNavContent>
         )}

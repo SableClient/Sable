@@ -16,16 +16,7 @@ import { roomToParentsAtom } from '$state/room/roomToParents';
 import { mDirectAtom } from '$state/mDirectList';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useKeyDown } from '$hooks/useKeyDown';
-import {
-  getDirectSearchPath,
-  getDirectRoomPath,
-  getHomeRoomPath,
-  getHomeSearchPath,
-  getSpaceRoomPath,
-  getSpaceSearchPath,
-  withSearchParam,
-} from '$pages/pathUtils';
-import type { SearchPathSearchParams } from '$pages/paths';
+import { getDirectRoomPath, getHomeRoomPath, getSpaceRoomPath } from '$pages/pathUtils';
 import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { announce } from '$utils/announce';
@@ -35,6 +26,10 @@ import {
   type IEditNavRequest,
 } from '$state/room/roomInputDrafts';
 import type { Room } from '$types/matrix-sdk';
+import {
+  getMessageSearchShortcutPath,
+  getSelectedSpaceIdOrAliasFromPath,
+} from '$features/search/searchShortcut';
 
 // Stable fallback atom used when no room is active — prevents atomFamily from
 // creating a spurious entry under the empty-string key ''.
@@ -57,6 +52,11 @@ export function GlobalKeyboardShortcuts() {
   const roomIdOrAlias = roomMatch?.params.roomIdOrAlias
     ? decodeURIComponent(roomMatch.params.roomIdOrAlias)
     : undefined;
+  const selectedSpaceIdOrAlias = getSelectedSpaceIdOrAliasFromPath(location.pathname);
+  const selectedSpaceId =
+    selectedSpaceIdOrAlias && !selectedSpaceIdOrAlias.startsWith('!')
+      ? mx.getRooms().find((r) => r.getCanonicalAlias() === selectedSpaceIdOrAlias)?.roomId
+      : selectedSpaceIdOrAlias;
   let currentRoom: Room | null = null;
 
   if (roomIdOrAlias) {
@@ -192,26 +192,26 @@ export function GlobalKeyboardShortcuts() {
   const handleSearchMessageInRoom = useCallback(
     (evt: KeyboardEvent) => {
       if (!isKeyHotkey('mod+f', evt)) return;
-      let path: string | undefined;
-      if (directRoomMatch) {
-        path = getDirectSearchPath();
-      } else if (spaceRoomMatch?.params.spaceIdOrAlias) {
-        path = getSpaceSearchPath(decodeURIComponent(spaceRoomMatch.params.spaceIdOrAlias));
-      } else if (homeRoomMatch) {
-        path = getHomeSearchPath();
-      }
+
+      const path = getMessageSearchShortcutPath({
+        pathname: location.pathname,
+        currentSearch: location.search,
+        selectedSpaceId: selectedSpaceId ?? undefined,
+        currentRoomId: currentRoom?.roomId,
+      });
       if (!path) return;
 
-      evt.preventDefault();
+      const portalContainer = document.getElementById('portalContainer');
+      if (portalContainer && portalContainer.children.length > 0) {
+        return;
+      }
 
-      const searchParams: SearchPathSearchParams = currentRoom?.roomId
-        ? { rooms: currentRoom.roomId }
-        : {};
+      evt.preventDefault();
       const roomName = mx.getRoom(currentRoom?.roomId)?.name;
-      navigate(withSearchParam(path, searchParams));
+      navigate(path);
       announce(`Start Searching messages ${roomName ? `in ${roomName}` : ''}`);
     },
-    [mx, currentRoom, navigate, directRoomMatch, spaceRoomMatch, homeRoomMatch]
+    [mx, currentRoom, navigate, location.pathname, location.search, selectedSpaceId]
   );
 
   useKeyDown(window, handleNextUnreadKeyDown);

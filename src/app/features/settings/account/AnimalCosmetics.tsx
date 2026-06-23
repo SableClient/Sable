@@ -103,7 +103,7 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
           prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
           null
         );
-        if (isCat) {
+        if (isCat && !isAnimal) {
           await handleSaveField(
             prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME,
             'cat'
@@ -121,7 +121,7 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
           prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
           null
         );
-        if (hasCats) {
+        if (hasCats && !hasAnimal) {
           await handleSaveField(
             prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME,
             'cats'
@@ -130,7 +130,7 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
       }
     };
     asyncClean();
-  }, [handleSaveField, profile.hasCats, profile.isCat, userId]);
+  }, [handleSaveField, hasAnimal, isAnimal, profile.hasCats, profile.isCat, userId]);
 
   return (
     <Box direction="Column" gap="100">

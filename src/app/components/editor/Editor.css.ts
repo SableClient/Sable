@@ -66,13 +66,12 @@ export const EditorTextarea = style([
     flexGrow: 1,
     height: 'auto',
     unicodeBidi: 'plaintext',
-    padding: `${toRem(13)} 0 0`,
+    paddingTop: toRem(13),
+    paddingRight: toRem(13),
+    paddingBottom: toRem(13),
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
-      },
-      [`${EditorTextareaScroll}:last-child &`]: {
-        paddingRight: toRem(13),
       },
       '&:focus': {
         outline: 'none',
@@ -114,12 +113,10 @@ export const EditorPlaceholderTextVisual = style([
     display: 'block',
     paddingTop: toRem(13),
     paddingLeft: toRem(1),
+    paddingRight: toRem(13),
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
-      },
-      [`${EditorTextareaScroll}:last-child &`]: {
-        paddingRight: toRem(13),
       },
     },
   },

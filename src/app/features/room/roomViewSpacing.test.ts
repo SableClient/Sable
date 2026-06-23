@@ -43,10 +43,8 @@ describe('room view spacing contract', () => {
   it('keeps message spacing distinct from the fixed message padding', () => {
     const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
 
-    expect(messageLayout).toContain('marginTop: SpacingVar');
-    expect(messageLayout).toContain(
-      'padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`'
-    );
+    expect(messageLayout).toContain('calc(${config.space.S100} + ${SpacingVar})');
+    expect(messageLayout).toContain('paddingTop: config.space.S100');
   });
 
   it('keeps the message body inside a full-width content column', () => {

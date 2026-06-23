@@ -43,7 +43,7 @@ import * as css from './WidgetsDrawer.css';
 import { IntegrationManager } from './IntegrationManager';
 import { CustomStateEvent } from '$types/matrix/room';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTablet } from '$utils/user-agent';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
 type WidgetsDrawerHeaderProps = {
   activeWidget: RoomWidget | null;
@@ -247,6 +247,7 @@ type WidgetsDrawerProps = {
 
 export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
   const mx = useMatrixClient();
+  const screenSize = useScreenSizeContext();
   const widgets = useRoomWidgets(room);
   const [activeWidget, setActiveWidget] = useState<RoomWidget | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -293,6 +294,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
   };
 
   const handleBack = () => setActiveWidget(null);
+  const isDesktopLayout = screenSize === ScreenSize.Desktop;
 
   return (
     <Box
@@ -301,10 +303,10 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
       direction="Column"
       style={{
         position: 'relative',
-        width: !mobileOrTablet() ? toRem(curWidth) : 'inherit',
+        width: isDesktopLayout ? toRem(curWidth) : '100%',
       }}
     >
-      {!mobileOrTablet() && (
+      {isDesktopLayout && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={widgetSidebarWidth}
@@ -380,6 +382,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
         room={room}
         open={showIntegrationManager}
         onClose={() => setShowIntegrationManager(false)}
+        fullScreen={!isDesktopLayout}
       />
     </Box>
   );

@@ -20,9 +20,15 @@ interface IntegrationManagerProps {
   room: Room;
   open: boolean;
   onClose: () => void;
+  fullScreen?: boolean;
 }
 
-export function IntegrationManager({ room, open, onClose }: IntegrationManagerProps) {
+export function IntegrationManager({
+  room,
+  open,
+  onClose,
+  fullScreen = false,
+}: IntegrationManagerProps) {
   const { managers, scalarToken, loading, error } = useIntegrationManager();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
@@ -69,7 +75,10 @@ export function IntegrationManager({ room, open, onClose }: IntegrationManagerPr
             onDeactivate: onClose,
           }}
         >
-          <Box className={css.IntegrationManagerOverlay} direction="Column">
+          <Box
+            className={css.IntegrationManagerOverlay[fullScreen ? 'true' : 'false']}
+            direction="Column"
+          >
             <Header className={css.IntegrationManagerHeader} variant="Background" size="600">
               <Box grow="Yes" alignItems="Center" gap="200">
                 <Box grow="Yes" alignItems="Center" gap="200">

@@ -115,21 +115,18 @@ describe('mobile PWA dogfood contract', () => {
     expect(spaceSettingsRenderer).toContain(
       '<Modal500 requestClose={closeSettings} fullScreenOnMobile>'
     );
-    expect(roomSettings).toContain(
-      'const isPhoneLayout = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();'
-    );
+    expect(roomSettings).toContain('const isPhoneLayout = screenSize === ScreenSize.Mobile ||');
+    expect(roomSettings).toContain('isPhoneLayoutDevice();');
     expect(roomSettings).toContain(
       'return isPhoneLayout ? undefined : RoomSettingsPage.GeneralPage;'
     );
-    expect(spaceSettings).toContain(
-      'const isPhoneLayout = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();'
-    );
+    expect(spaceSettings).toContain('const isPhoneLayout = screenSize === ScreenSize.Mobile ||');
+    expect(spaceSettings).toContain('isPhoneLayoutDevice();');
     expect(spaceSettings).toContain(
       'return isPhoneLayout ? undefined : SpaceSettingsPage.GeneralPage;'
     );
-    expect(page).toContain(
-      'const isMobile = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();'
-    );
+    expect(page).toContain('const isMobile = screenSize === ScreenSize.Mobile ||');
+    expect(page).toContain('isPhoneLayoutDevice();');
     expect(userRoomProfileRenderer).toContain(
       'const isMobile = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();'
     );

@@ -403,7 +403,7 @@ export function Explore() {
           </Box>
         </PageNavContent>
       </PageNav>
-      {!isPhoneLayoutDevice() && (
+      {screenSize === ScreenSize.Desktop && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

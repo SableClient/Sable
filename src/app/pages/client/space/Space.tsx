@@ -1213,7 +1213,7 @@ export function Space() {
           </PageNavContent>
         </SwipeableOverlayWrapper>
       </PageNav>
-      {!isPhoneLayoutDevice() && (
+      {screenSize === ScreenSize.Desktop && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

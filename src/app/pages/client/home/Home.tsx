@@ -588,7 +588,7 @@ export function Home() {
           </PageNavContent>
         )}
       </PageNav>
-      {!isPhoneLayoutDevice() && (
+      {screenSize === ScreenSize.Desktop && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

@@ -361,12 +361,12 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
       direction="Column"
       style={{
         position: 'relative',
-        width: !isPhoneLayoutDevice() ? toRem(curWidth) : '100%',
+        width: screenSize === ScreenSize.Desktop ? toRem(curWidth) : '100%',
       }}
     >
       <MemberDrawerHeader room={room} hideText={hideText} />
       <Box className={css.MemberDrawerContentBase} grow="Yes">
-        {!isPhoneLayoutDevice() && (
+        {screenSize === ScreenSize.Desktop && (
           <SidebarResizer
             setCurWidth={setCurWidth}
             sidebarWidth={memberSidebarWidth}

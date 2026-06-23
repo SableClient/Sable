@@ -94,7 +94,7 @@ const MarkedVariant = styleVariants({
 const AutoCollapse = style({
   selectors: {
     [`&+&`]: {
-      paddingTop: config.space.S100,
+      marginTop: 0,
     },
   },
 });
@@ -103,7 +103,8 @@ export const MessageBase = recipe({
   base: [
     DefaultReset,
     {
-      padding: `calc(${config.space.S100} + ${SpacingVar}) ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
+      marginTop: SpacingVar,
+      padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
       borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
       minHeight: toRem(16),
       contain: 'layout',
@@ -113,7 +114,7 @@ export const MessageBase = recipe({
     space: SpacingVariant,
     collapse: {
       true: {
-        paddingTop: config.space.S100,
+        marginTop: 0,
       },
     },
     autoCollapse: {
@@ -293,22 +294,42 @@ export const MessageTextBody = recipe({
       extraSmall: {
         fontSize: '1.25rem !important',
         lineHeight: '1.4em',
+        vars: {
+          '--sable-system-emoji-top-offset': '-0.2em',
+          '--sable-custom-emoji-top-offset': '-0.2em',
+        },
       },
       small: {
         fontSize: '1.5rem !important',
         lineHeight: '1.5em',
+        vars: {
+          '--sable-system-emoji-top-offset': '-0.2em',
+          '--sable-custom-emoji-top-offset': '-0.2em',
+        },
       },
       normal: {
         fontSize: '1.805rem !important',
         lineHeight: '1.625em',
+        vars: {
+          '--sable-system-emoji-top-offset': '-0.2em',
+          '--sable-custom-emoji-top-offset': '-0.2em',
+        },
       },
       large: {
         fontSize: '2.1rem !important',
         lineHeight: '1.675em',
+        vars: {
+          '--sable-system-emoji-top-offset': '-0.2em',
+          '--sable-custom-emoji-top-offset': '-0.2em',
+        },
       },
       extraLarge: {
         fontSize: '2.4rem !important',
         lineHeight: '1.7em',
+        vars: {
+          '--sable-system-emoji-top-offset': '-0.2em',
+          '--sable-custom-emoji-top-offset': '-0.2em',
+        },
       },
     },
     emote: {

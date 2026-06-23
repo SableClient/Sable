@@ -464,7 +464,9 @@ export function RoomTimeline({
       setAtBottom(false);
       jumpReanchorScrollUntilRef.current = Date.now() + 150;
       startJumpScrollBlock();
-      vListRef.current.scrollToIndex(targetIndex, { align: options?.align ?? 'center' });
+      vListRef.current.scrollToIndex(targetIndex, {
+        align: options?.align ?? 'center',
+      });
       log.log(
         `[PermalinkJump] Re-anchored target after ${reason}: eventId=${targetEventId}, processedIndex=${targetIndex}, scrollDelta=${options?.scrollDelta ?? 0}, delay=${options?.delayMs ?? 0}`
       );
@@ -1064,7 +1066,11 @@ export function RoomTimeline({
       category: 'timeline.permalink',
       message: 'Starting permalink load',
       level: 'info',
-      data: { eventId, jumpMode: jumpMode ?? 'history_context', roomId: room.roomId },
+      data: {
+        eventId,
+        jumpMode: jumpMode ?? 'history_context',
+        roomId: room.roomId,
+      },
     });
 
     setIsReady(false);
@@ -1856,7 +1862,10 @@ export function RoomTimeline({
     }
 
     setAtBottom(false);
-    reanchorJumpTarget('timeline_remeasure', { eventId: targetEventId, align: 'center' });
+    reanchorJumpTarget('timeline_remeasure', {
+      eventId: targetEventId,
+      align: 'center',
+    });
   }, [
     processedEvents,
     timelineSync.eventsLength,
@@ -2105,6 +2114,7 @@ export function RoomTimeline({
         }}
       >
         <VList<ProcessedEvent>
+          key={`${room.roomId}:${messageLayout}:${messageSpacing}`}
           ref={vListRef}
           data={vListData}
           shift={shift}

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useRef } from 'react';
 import FocusTrap from 'focus-trap-react';
-import { Modal, Overlay, OverlayBackdrop, OverlayCenter } from 'folds';
+import { Modal, Overlay, OverlayBackdrop, OverlayCenter, color } from 'folds';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { isPhoneLayoutDevice } from '$utils/user-agent';
 import { stopPropagation } from '$utils/keyboard';
@@ -16,41 +16,46 @@ export function Modal500({ requestClose, children, fullScreenOnMobile = false }:
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();
   const useFullScreen = fullScreenOnMobile && isMobile;
+  const modal = (
+    <FocusTrap
+      focusTrapOptions={{
+        initialFocus: false,
+        fallbackFocus: () => modalRef.current ?? document.body,
+        clickOutsideDeactivates: true,
+        onDeactivate: requestClose,
+        escapeDeactivates: stopPropagation,
+      }}
+    >
+      <Modal
+        ref={modalRef}
+        tabIndex={-1}
+        size="500"
+        variant="Background"
+        style={
+          useFullScreen
+            ? {
+                position: 'fixed',
+                inset: 0,
+                width: '100vw',
+                height: '100vh',
+                maxWidth: '100vw',
+                maxHeight: '100vh',
+                borderRadius: 0,
+                paddingBottom: 'var(--sable-safe-area-bottom, 0px)',
+                overflow: 'hidden',
+                backgroundColor: color.Background.Container,
+              }
+            : undefined
+        }
+      >
+        {children}
+      </Modal>
+    </FocusTrap>
+  );
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            fallbackFocus: () => modalRef.current ?? document.body,
-            clickOutsideDeactivates: true,
-            onDeactivate: requestClose,
-            escapeDeactivates: stopPropagation,
-          }}
-        >
-          <Modal
-            ref={modalRef}
-            tabIndex={-1}
-            size="500"
-            variant="Background"
-            style={
-              useFullScreen
-                ? {
-                    width: '100%',
-                    height: '100%',
-                    maxWidth: '100%',
-                    borderRadius: 0,
-                    paddingBottom: 'var(--sable-safe-area-bottom, 0px)',
-                    overflow: 'hidden',
-                  }
-                : undefined
-            }
-          >
-            {children}
-          </Modal>
-        </FocusTrap>
-      </OverlayCenter>
+      {useFullScreen ? modal : <OverlayCenter>{modal}</OverlayCenter>}
     </Overlay>
   );
 }

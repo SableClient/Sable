@@ -85,6 +85,7 @@ describe('mobile PWA dogfood contract', () => {
 
   it('renders the widgets drawer as an overlay on non-desktop layouts', () => {
     const room = readWorkspaceFile('src/app/features/room/Room.tsx');
+    const widgetsDrawer = readWorkspaceFile('src/app/features/widgets/WidgetsDrawer.tsx');
 
     expect(room).toContain(
       'const showMobileWidgetsDrawer = screenSize !== ScreenSize.Desktop && isWidgetDrawerOpen;'
@@ -93,6 +94,11 @@ describe('mobile PWA dogfood contract', () => {
     expect(room).toContain("position: 'absolute'");
     expect(room).toContain('inset: 0');
     expect(room).toContain('zIndex: 20');
+    expect(widgetsDrawer).toContain('const isPhoneLayout =');
+    expect(widgetsDrawer).toContain('screenSize === ScreenSize.Mobile ||');
+    expect(widgetsDrawer).toContain('isPhoneLayoutDevice();');
+    expect(widgetsDrawer).toContain("backgroundColor: 'var(--sable-surface)'");
+    expect(widgetsDrawer).toContain('fullScreen={isPhoneLayout}');
   });
 
   it('uses full-screen mobile presentation for room settings and member profile surfaces', () => {

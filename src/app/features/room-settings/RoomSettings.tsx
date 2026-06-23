@@ -6,7 +6,7 @@ import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { mobileOrTablet } from '$utils/user-agent';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
@@ -111,7 +111,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
     : undefined;
 
   const screenSize = useScreenSizeContext();
-  const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
+  const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTablet();
   const [activePage, setActivePage] = useState<RoomSettingsPage | undefined>(() => {
     if (initialPage) return initialPage;
     return isPhoneLayout ? undefined : RoomSettingsPage.GeneralPage;

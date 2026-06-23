@@ -108,14 +108,17 @@ function UserExtendedSection({
   const [renderAnimals] = useSetting(settingsAtom, 'renderAnimals');
   const isCat = profile.isCat === true;
   const hasCats = profile.hasCats === true;
+  const isAnimal = profile.isAnimal ?? (isCat && 'cat');
+  const hasAnimal = profile.hasAnimal ?? (hasCats && 'cats');
+  const animalNeed = profile.animalNeed ?? 'headpats';
 
   const catStatusText = useMemo(() => {
     if (!renderAnimals) return null;
-    if (isCat && hasCats) return 'Cat with cats—needs pets & love!';
-    if (isCat) return 'Is a cat—give pets & love!';
-    if (hasCats) return 'Has cats—send love!';
+    if (isAnimal && hasAnimal) return `${isAnimal} with ${hasAnimal}, give ${animalNeed}!`;
+    if (isAnimal) return `Is ${isAnimal}, give ${animalNeed}!`;
+    if (hasAnimal) return `Has ${hasAnimal}, give ${animalNeed}!`;
     return null;
-  }, [renderAnimals, isCat, hasCats]);
+  }, [renderAnimals, isAnimal, hasAnimal, animalNeed]);
 
   const languageFilterEnabled = getSettings().filterPronounsBasedOnLanguage ?? false;
   const languagesToFilterFor = getSettings().filterPronounsLanguages ?? ['en'];

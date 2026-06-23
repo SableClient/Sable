@@ -4,7 +4,7 @@ import type { RectCords } from 'folds';
 import { Box, config, Menu, PopOut, Text } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
-import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
+import { SidebarAvatar, SidebarItemLeft, SidebarItemTooltip } from '$components/sidebar';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -12,7 +12,11 @@ import { ContainerColor } from '$styles/ContainerColor.css';
 import {
   encodeSearchParamValueArray,
   getCreatePath,
+  getExploreFeaturedPath,
+  getExplorePath,
+  getExploreServerPath,
   getSpacePath,
+  joinPathComponent,
   withSearchParam,
 } from '$pages/pathUtils';
 import { useCreateSelected } from '$hooks/router/useCreateSelected';
@@ -20,17 +24,31 @@ import { JoinAddressPrompt } from '$components/join-address-prompt';
 import {
   composerIcon,
   Link,
-  getPhosphorIconSize,
-  Plus,
+  getPhosphorSize,
   SquaresFour,
+  UsersThree,
+  Plus,
 } from '$components/icons/phosphor';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { useAtomValue } from 'jotai';
+import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
+import { getMxIdServer } from '$utils/mxIdHelper';
+import { useExploreSelected } from '$hooks/router/useExploreSelected';
 
 export function CreateTab() {
+  const mx = useMatrixClient();
+  const screenSize = useScreenSizeContext();
+  const clientConfig = useClientConfig();
+  const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const createSelected = useCreateSelected();
+  const exploreSelected = useExploreSelected();
 
   const navigate = useNavigate();
   const [menuCords, setMenuCords] = useState<RectCords>();
   const [joinAddress, setJoinAddress] = useState(false);
+  const isSelected = createSelected || exploreSelected || joinAddress;
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(menuCords ? undefined : evt.currentTarget.getBoundingClientRect());
@@ -46,8 +64,38 @@ export function CreateTab() {
     setMenuCords(undefined);
   };
 
+  const handleExploreClick = () => {
+    if (screenSize === ScreenSize.Mobile) {
+      navigate(getExplorePath());
+      setMenuCords(undefined);
+      return;
+    }
+
+    const activePath = navToActivePath.get('explore');
+    if (activePath) {
+      navigate(joinPathComponent(activePath));
+      setMenuCords(undefined);
+      return;
+    }
+
+    if (clientConfig.featuredCommunities?.openAsDefault) {
+      navigate(getExploreFeaturedPath());
+      setMenuCords(undefined);
+      return;
+    }
+    const userId = mx.getUserId();
+    const userServer = userId ? getMxIdServer(userId) : undefined;
+    if (userServer) {
+      navigate(getExploreServerPath(userServer));
+      setMenuCords(undefined);
+      return;
+    }
+    navigate(getExplorePath());
+    setMenuCords(undefined);
+  };
+
   return (
-    <SidebarItem active={createSelected}>
+    <SidebarItemLeft active={isSelected}>
       <SidebarItemTooltip tooltip="Add Space">
         {(triggerRef) => (
           <PopOut
@@ -81,10 +129,7 @@ export function CreateTab() {
                       onClick={handleCreateSpace}
                     >
                       <SettingTile before={composerIcon(SquaresFour)}>
-                        <Text size="H6">Create Space</Text>
-                        <Text size="T300" priority="300">
-                          Build a space for your community.
-                        </Text>
+                        <Text size="H6">Create a New Space</Text>
                       </SettingTile>
                     </SequenceCard>
                     <SequenceCard
@@ -98,10 +143,21 @@ export function CreateTab() {
                       onClick={handleJoinWithAddress}
                     >
                       <SettingTile before={composerIcon(Link)}>
-                        <Text size="H6">Join with Address</Text>
-                        <Text size="T300" priority="300">
-                          Become a part of existing community.
-                        </Text>
+                        <Text size="H6">Join Community via Address</Text>
+                      </SettingTile>
+                    </SequenceCard>
+                    <SequenceCard
+                      style={{ padding: config.space.S300 }}
+                      variant="Surface"
+                      direction="Column"
+                      gap="100"
+                      radii="0"
+                      as="button"
+                      type="button"
+                      onClick={handleExploreClick}
+                    >
+                      <SettingTile before={composerIcon(UsersThree)}>
+                        <Text size="H6">Explore Recommended Spaces</Text>
                       </SettingTile>
                     </SequenceCard>
                   </Box>
@@ -115,8 +171,15 @@ export function CreateTab() {
               ref={triggerRef}
               outlined
               onClick={handleMenu}
+              size="300"
             >
-              <Plus size={getPhosphorIconSize('toolbar')} />
+              {(joinAddress && <Link size={getPhosphorSize().toolbar} />) ||
+                (exploreSelected && (
+                  <UsersThree size={getPhosphorSize().toolbar} weight="fill" />
+                )) ||
+                (createSelected && (
+                  <SquaresFour size={getPhosphorSize().toolbar} weight="fill" />
+                )) || <Plus size={getPhosphorSize().toolbar} />}
             </SidebarAvatar>
             {joinAddress && (
               <JoinAddressPrompt
@@ -137,6 +200,6 @@ export function CreateTab() {
           </PopOut>
         )}
       </SidebarItemTooltip>
-    </SidebarItem>
+    </SidebarItemLeft>
   );
 }

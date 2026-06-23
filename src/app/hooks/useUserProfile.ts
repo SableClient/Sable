@@ -61,6 +61,9 @@ export type UserProfile = {
   heroColorScheme?: Record<string, string>;
   isCat?: boolean;
   hasCats?: boolean;
+  isAnimal?: string;
+  hasAnimal?: string;
+  animalNeed?: string;
   extended?: Record<string, unknown>;
   _fetched?: boolean;
 };
@@ -86,6 +89,9 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
     prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME,
     prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
     prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME,
   ]);
 
   const extended: Record<string, unknown> = {};
@@ -119,8 +125,19 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
     heroColorScheme: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME] as
       | Record<string, string>
       | undefined,
-    isCat: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] === true,
-    hasCats: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME] === true,
+    isCat: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] as
+      | boolean
+      | undefined,
+    hasCats: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME] as
+      | boolean
+      | undefined,
+    isAnimal: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME] as string,
+    hasAnimal: info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME
+    ] as string,
+    animalNeed: info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME
+    ] as string,
     extended,
     _fetched: true,
   };

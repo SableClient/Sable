@@ -1,6 +1,6 @@
 import type { MouseEventHandler, ReactElement } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { RectCords } from 'folds';
 import {
   Avatar,
@@ -119,6 +119,7 @@ import {
   triggerManualRefresh,
 } from '$utils/manualRefresh';
 import * as css from './styles.css';
+import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 
 const debugLog = createDebugLogger('Space');
 const SPACE_LIST_PAGING_CHECK_MS = 300;
@@ -579,7 +580,7 @@ export function Space() {
     manager?.setSpaceScope(space.roomId);
     return () => manager?.setSpaceScope(null);
   }, [mx, space.roomId]);
-
+  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   useEffect(() => {
@@ -1209,6 +1210,7 @@ export function Space() {
                 })}
                 {connectorSvg}
               </NavCategory>
+              <div style={{ height: toRem(40) }} />
             </Box>
           </PageNavContent>
         </SwipeableOverlayWrapper>
@@ -1222,6 +1224,7 @@ export function Space() {
           outstep={190}
           minValue={50}
           maxValue={500}
+          setAnnouncement={setIsResizingSidebar}
         />
       )}
     </Box>

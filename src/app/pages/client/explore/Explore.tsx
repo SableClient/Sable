@@ -53,6 +53,8 @@ import { mobileOrTabletLayout } from '$utils/user-agent';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { isServerName } from '$utils/matrix';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { isResizingSidebarAtom } from '$state/isResizingSidebar';
+import { useSetAtom } from 'jotai';
 
 type AddServerProps = {
   hideText?: boolean;
@@ -256,6 +258,7 @@ export function Explore() {
       handleRemoveServer(server);
     };
 
+  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
@@ -275,7 +278,7 @@ export function Explore() {
       }}
     >
       <PageNav>
-        <PageNavHeader>
+        <PageNavHeader size="600">
           <Box grow="Yes" gap="300" justifyContent="Center">
             {!hideText ? (
               <Box grow="Yes">
@@ -412,6 +415,7 @@ export function Explore() {
           outstep={190}
           minValue={50}
           maxValue={500}
+          setAnnouncement={setIsResizingSidebar}
         />
       )}
     </Box>

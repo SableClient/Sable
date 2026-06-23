@@ -3,7 +3,7 @@ import { useRef } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { Modal, Overlay, OverlayBackdrop, OverlayCenter } from 'folds';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { isPhoneLayoutDevice } from '$utils/user-agent';
 import { stopPropagation } from '$utils/keyboard';
 
 type Modal500Props = {
@@ -14,7 +14,7 @@ type Modal500Props = {
 export function Modal500({ requestClose, children, fullScreenOnMobile = false }: Modal500Props) {
   const modalRef = useRef<HTMLDivElement | null>(null);
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
+  const isMobile = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();
   const useFullScreen = fullScreenOnMobile && isMobile;
 
   return (

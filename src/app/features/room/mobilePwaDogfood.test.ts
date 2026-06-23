@@ -116,22 +116,22 @@ describe('mobile PWA dogfood contract', () => {
       '<Modal500 requestClose={closeSettings} fullScreenOnMobile>'
     );
     expect(roomSettings).toContain(
-      'const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();'
+      'const isPhoneLayout = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();'
     );
     expect(roomSettings).toContain(
       'return isPhoneLayout ? undefined : RoomSettingsPage.GeneralPage;'
     );
     expect(spaceSettings).toContain(
-      'const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();'
+      'const isPhoneLayout = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();'
     );
     expect(spaceSettings).toContain(
       'return isPhoneLayout ? undefined : SpaceSettingsPage.GeneralPage;'
     );
     expect(page).toContain(
-      'const isMobile = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();'
+      'const isMobile = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();'
     );
     expect(userRoomProfileRenderer).toContain(
-      'const isMobile = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();'
+      'const isMobile = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();'
     );
     expect(userRoomProfileRenderer).toContain('<Modal500 requestClose={close} fullScreenOnMobile>');
     expect(userRoomProfileRenderer).toContain('Member Profile');

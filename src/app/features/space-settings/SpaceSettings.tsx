@@ -6,7 +6,7 @@ import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { isPhoneLayoutDevice } from '$utils/user-agent';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -115,7 +115,7 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
   // Phone settings always use the full-screen mobile flow. Tablets keep the
   // desktop settings layout as long as the screen-size heuristic still deems
   // the viewport non-mobile.
-  const isPhoneLayout = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
+  const isPhoneLayout = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();
   const [activePage, setActivePage] = useState<SpaceSettingsPage | undefined>(() => {
     if (initialPage) return initialPage;
     return isPhoneLayout ? undefined : SpaceSettingsPage.GeneralPage;

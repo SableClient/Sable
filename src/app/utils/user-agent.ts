@@ -48,7 +48,7 @@ export const mobileOrTablet = () => isMobileOrTablet;
  * return false here on purpose. Use `mobileOrTablet` instead for broad
  * touch/mobile-runtime behaviour.
  */
-export const mobileOrTabletLayout = () => isPhoneDevice;
+export const isPhoneLayoutDevice = () => isPhoneDevice;
 /** True only for phones; returns false for tablets (e.g. iPad with external keyboard). */
 export const isPhone = () => isPhoneDevice;
 

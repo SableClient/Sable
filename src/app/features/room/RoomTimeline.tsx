@@ -85,7 +85,7 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { completeRoomTimelineRender } from '$utils/perfTelemetry';
-import { mobileOrTabletLayout } from '$utils/user-agent';
+import { isPhoneLayoutDevice } from '$utils/user-agent';
 import {
   didKeyboardJustClose,
   didKeyboardJustOpen,
@@ -287,7 +287,7 @@ export function RoomTimeline({
   const openUserRoomProfile = useOpenUserRoomProfile();
   const optionalSpace = useSpaceOptionally();
   const roomParents = useAtomValue(roomToParentsAtom);
-  const isMobileScreen = screenSize === ScreenSize.Mobile || mobileOrTabletLayout();
+  const isMobileScreen = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();
   const timelineBottomSpacing = hasTypingIndicator ? config.space.S700 : config.space.S600;
   const timelineRightSpacing = isMobileScreen
     ? config.space.S200

@@ -764,6 +764,9 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
           options.closeMenu();
           setIsActive(false);
         }}
+        onTouchStart={(e: React.TouchEvent) => e.stopPropagation()}
+        onTouchMove={(e: React.TouchEvent) => e.stopPropagation()}
+        onTouchEnd={(e: React.TouchEvent) => e.stopPropagation()}
       >
         <Box
           className={css.MessageMobileOptionsContainer}

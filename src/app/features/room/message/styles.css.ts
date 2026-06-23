@@ -90,7 +90,8 @@ export const MessageMobileDragHandle = style({
   right: '0',
   height: '32px',
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'flex-start',
+  paddingTop: '6px',
   justifyContent: 'center',
   zIndex: 10,
 });

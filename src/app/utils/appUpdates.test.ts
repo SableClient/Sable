@@ -692,6 +692,86 @@ describe('appUpdates', () => {
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
+  it('reloads a hosted shell update without touching navigator.serviceWorker on unsupported platforms', async () => {
+    mockHasServiceWorker.mockReturnValue(false);
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        `
+          <!doctype html>
+          <html>
+            <head>
+              <link rel="stylesheet" href="/assets/index-next.css" />
+            </head>
+            <body>
+              <script type="module" src="/assets/index-next.js"></script>
+            </body>
+          </html>
+        `,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
+    );
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {},
+    });
+
+    await applyPendingAppUpdate();
+
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
+      unregisterServiceWorkers: true,
+    });
+    expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
+  });
+
+  it('throws when applying an update cannot confirm the hosted shell and no pending worker exists', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('network failed'));
+
+    await expect(applyPendingAppUpdate()).rejects.toThrow(
+      'Failed to apply the update. Reload the app and try again.'
+    );
+
+    expect(mockClearClientCachesAndServiceWorkers).not.toHaveBeenCalled();
+    expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('applies a previously detected hosted shell update even if the follow-up probe fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <!doctype html>
+            <html>
+              <head>
+                <link rel="stylesheet" href="/assets/index-next.css" />
+              </head>
+              <body>
+                <script type="module" src="/assets/index-next.js"></script>
+              </body>
+            </html>
+          `,
+          { status: 200, headers: { 'Content-Type': 'text/html' } }
+        )
+      )
+      .mockRejectedValueOnce(new TypeError('network failed'));
+
+    const resultPromise = checkForAppUpdates();
+    await vi.runAllTimersAsync();
+
+    await expect(resultPromise).resolves.toEqual({
+      kind: 'update-available',
+      message: 'A newer hosted app version is ready to apply.',
+      canApply: true,
+    });
+
+    await applyPendingAppUpdate();
+
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
+      unregisterServiceWorkers: true,
+    });
+    expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
+  });
+
   it('reports native updater unsupported when service workers are unavailable', async () => {
     mockHasServiceWorker.mockReturnValue(false);
 

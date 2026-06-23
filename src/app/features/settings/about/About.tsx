@@ -213,8 +213,14 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
     }
   }, [runUpdateCheck]);
 
-  const handleApplyUpdate = useCallback(() => {
-    void applyPendingAppUpdate();
+  const handleApplyUpdate = useCallback(async () => {
+    try {
+      await applyPendingAppUpdate();
+    } catch (error) {
+      setUpdateStatusMessage(
+        error instanceof Error ? error.message : 'Failed to apply the update.'
+      );
+    }
   }, []);
 
   return (

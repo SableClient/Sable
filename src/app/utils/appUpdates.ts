@@ -5,8 +5,10 @@ import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const APPLY_UPDATE_TIMEOUT_MS = 4000;
 const UPDATE_CHECK_FAILURE_MESSAGE = 'Failed to check for updates. Reload the app and try again.';
+const APPLY_UPDATE_FAILURE_MESSAGE = 'Failed to apply the update. Reload the app and try again.';
 const HOSTED_SHELL_CHECK_TIMEOUT_MS = 5000;
 const APP_SHELL_ASSET_PATHNAME = /^\/assets\/.+\.(?:css|js|mjs)$/;
+let hostedAppShellUpdateDetected = false;
 
 export type AppUpdateCheckResult =
   | {
@@ -127,12 +129,15 @@ const fetchHostedAppShellAssetSignature = async (): Promise<string | undefined> 
   }
 };
 
-const hasHostedAppShellUpdate = async (): Promise<boolean> => {
+const getHostedAppShellUpdateStatus = async (): Promise<
+  'update-available' | 'up-to-date' | 'unknown'
+> => {
   const currentSignature = getCurrentDocumentAppShellAssetSignature();
-  if (!currentSignature) return false;
+  if (!currentSignature) return 'unknown';
 
   const hostedSignature = await fetchHostedAppShellAssetSignature();
-  return !!hostedSignature && hostedSignature !== currentSignature;
+  if (!hostedSignature) return 'unknown';
+  return hostedSignature !== currentSignature ? 'update-available' : 'up-to-date';
 };
 
 const getWinningScopeRegistrations = (
@@ -405,7 +410,9 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
     };
   }
 
-  if (await hasHostedAppShellUpdate()) {
+  const hostedAppShellUpdateStatus = await getHostedAppShellUpdateStatus();
+  if (hostedAppShellUpdateStatus === 'update-available') {
+    hostedAppShellUpdateDetected = true;
     return {
       kind: 'update-available',
       message: 'A newer hosted app version is ready to apply.',
@@ -430,12 +437,18 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
 export async function applyPendingAppUpdate(): Promise<void> {
   const registrations = await getAppServiceWorkerRegistrations();
   const registration = getPendingAppUpdateRegistration(registrations);
-  const hostedUpdateAvailable = await hasHostedAppShellUpdate();
-  if (!registration && !hostedUpdateAvailable) return;
+  const serviceWorkerSupported = hasServiceWorker();
+  const hostedAppShellUpdateStatus = hostedAppShellUpdateDetected
+    ? 'update-available'
+    : await getHostedAppShellUpdateStatus();
+  if (hostedAppShellUpdateStatus === 'unknown' && !registration) {
+    throw new Error(APPLY_UPDATE_FAILURE_MESSAGE);
+  }
+  if (!registration && hostedAppShellUpdateStatus !== 'update-available') return;
 
-  const currentController = navigator.serviceWorker.controller;
+  const currentController = serviceWorkerSupported ? navigator.serviceWorker.controller : null;
 
-  if (registration?.waiting) {
+  if (serviceWorkerSupported && registration?.waiting) {
     const waitForControllerChange = waitForServiceWorkerControllerChange();
     const waitForUpdatedActiveWorker = waitForUpdatedActiveServiceWorker(
       registration,
@@ -454,7 +467,11 @@ export async function applyPendingAppUpdate(): Promise<void> {
       activeWorker.postMessage({ type: 'CLAIM_CLIENTS' });
     }
     await waitForControllerChange;
-  } else if (registration?.active && registration.active !== currentController) {
+  } else if (
+    serviceWorkerSupported &&
+    registration?.active &&
+    registration.active !== currentController
+  ) {
     const waitForControllerChange = waitForServiceWorkerControllerChange();
     // oxlint-disable-next-line unicorn/require-post-message-target-origin
     registration.active.postMessage({ type: 'CLAIM_CLIENTS' });
@@ -462,5 +479,6 @@ export async function applyPendingAppUpdate(): Promise<void> {
   }
 
   await clearClientCachesAndServiceWorkers({ unregisterServiceWorkers: true });
+  hostedAppShellUpdateDetected = false;
   reloadWithTelemetry('apply_pending_app_update');
 }

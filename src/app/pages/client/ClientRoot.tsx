@@ -208,6 +208,7 @@ export function ClientRoot({ children }: ClientRootProps) {
   const [activeSessionId, setActiveSessionId] = useAtom(activeSessionIdAtom);
   const setSessions = useSetAtom(sessionsAtom);
   const [defaultLandingScreen] = useSetting(settingsAtom, 'defaultLandingScreen');
+  const [swUpdateError, setSwUpdateError] = useState<string | undefined>();
 
   const activeSession: Session | undefined =
     sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
@@ -521,10 +522,19 @@ export function ClientRoot({ children }: ClientRootProps) {
               alignItems="Center"
               justifyContent="Center"
               onClick={() => {
-                void applyPendingAppUpdate();
+                void applyPendingAppUpdate()
+                  .then(() => setSwUpdateError(undefined))
+                  .catch((error) => {
+                    setSwUpdateError(
+                      error instanceof Error ? error.message : 'Failed to apply the update.'
+                    );
+                  });
               }}
             >
-              <Text size="L400">Update available — tap to reload</Text>
+              <Box direction="Column" alignItems="Center" gap="100">
+                <Text size="L400">Update available — tap to reload</Text>
+                {swUpdateError && <Text size="T200">{swUpdateError}</Text>}
+              </Box>
             </Box>
             <Line variant="Primary" size="300" />
           </Box>

@@ -59,6 +59,7 @@ describe('appUpdates', () => {
   let mockReload: ReturnType<typeof vi.fn>;
   let serviceWorkerAddEventListener: ReturnType<typeof vi.fn>;
   let serviceWorkerRemoveEventListener: ReturnType<typeof vi.fn>;
+  let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -70,6 +71,23 @@ describe('appUpdates', () => {
     mockReload = vi.fn();
     serviceWorkerAddEventListener = vi.fn();
     serviceWorkerRemoveEventListener = vi.fn();
+    fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        `
+          <!doctype html>
+          <html>
+            <head>
+              <link rel="stylesheet" href="/assets/index-current.css" />
+            </head>
+            <body>
+              <script type="module" src="/assets/index-current.js"></script>
+            </body>
+          </html>
+        `,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
+    );
+    vi.stubGlobal('fetch', fetchMock);
 
     Object.defineProperty(window, 'navigator', {
       configurable: true,
@@ -94,6 +112,9 @@ describe('appUpdates', () => {
         reload: mockReload,
       },
     });
+
+    document.head.innerHTML = '<link rel="stylesheet" href="/assets/index-current.css">';
+    document.body.innerHTML = '<script type="module" src="/assets/index-current.js"></script>';
   });
 
   afterEach(() => {
@@ -158,6 +179,34 @@ describe('appUpdates', () => {
       canApply: false,
     });
     expect(mockRegistration.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports an available update when the hosted app shell assets differ', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        `
+          <!doctype html>
+          <html>
+            <head>
+              <link rel="stylesheet" href="/assets/index-next.css" />
+            </head>
+            <body>
+              <script type="module" src="/assets/index-next.js"></script>
+            </body>
+          </html>
+        `,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
+    );
+
+    const resultPromise = checkForAppUpdates();
+    await vi.runAllTimersAsync();
+
+    await expect(resultPromise).resolves.toEqual({
+      kind: 'update-available',
+      message: 'A newer hosted app version is ready to apply.',
+      canApply: true,
+    });
   });
 
   it('checks all known registrations before reporting up to date', async () => {
@@ -454,7 +503,9 @@ describe('appUpdates', () => {
 
     controllerChangeListener?.(new Event('controllerchange'));
     await applyPromise;
-    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledTimes(1);
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
+      unregisterServiceWorkers: true,
+    });
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
@@ -496,7 +547,9 @@ describe('appUpdates', () => {
     controllerChangeListener?.(new Event('controllerchange'));
     await applyPromise;
 
-    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledTimes(1);
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
+      unregisterServiceWorkers: true,
+    });
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
@@ -537,7 +590,9 @@ describe('appUpdates', () => {
     controllerChangeListener?.(new Event('controllerchange'));
     await applyPromise;
 
-    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledTimes(1);
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
+      unregisterServiceWorkers: true,
+    });
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
@@ -575,6 +630,9 @@ describe('appUpdates', () => {
     controllerChangeListener?.(new Event('controllerchange'));
     await applyPromise;
 
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
+      unregisterServiceWorkers: true,
+    });
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
@@ -595,7 +653,9 @@ describe('appUpdates', () => {
     await vi.advanceTimersByTimeAsync(4000);
     await applyPromise;
 
-    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledTimes(1);
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
+      unregisterServiceWorkers: true,
+    });
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
@@ -604,6 +664,32 @@ describe('appUpdates', () => {
 
     expect(mockClearClientCachesAndServiceWorkers).not.toHaveBeenCalled();
     expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('reloads by clearing caches and unregistering service workers when the hosted shell changed', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        `
+          <!doctype html>
+          <html>
+            <head>
+              <link rel="stylesheet" href="/assets/index-next.css" />
+            </head>
+            <body>
+              <script type="module" src="/assets/index-next.js"></script>
+            </body>
+          </html>
+        `,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
+    );
+
+    await applyPendingAppUpdate();
+
+    expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
+      unregisterServiceWorkers: true,
+    });
+    expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
   it('reports native updater unsupported when service workers are unavailable', async () => {

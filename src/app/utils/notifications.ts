@@ -1,10 +1,13 @@
 import * as Sentry from '@sentry/react';
 import { isTauri } from '@tauri-apps/api/core';
 import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
-import { ReceiptType } from '$types/matrix-sdk';
+import { EventType, NotificationCountType, ReceiptType } from '$types/matrix-sdk';
 import { createDebugLogger } from './debugLogger';
 
 const debugLog = createDebugLogger('notifications');
+
+const getLiveEventIndex = (events: MatrixEvent[], eventId: string | undefined): number =>
+  eventId ? events.findIndex((event) => event.getId() === eventId) : -1;
 
 export async function markAsRead(mx: MatrixClient, roomId: string, privateReceipt: boolean) {
   const room = mx.getRoom(roomId);
@@ -12,12 +15,14 @@ export async function markAsRead(mx: MatrixClient, roomId: string, privateReceip
 
   const timeline = room.getLiveTimeline().getEvents();
   const readEventId = room.getEventReadUpTo(mx.getUserId()!);
+  const fullyReadEventId = room
+    .getAccountData(EventType.FullyRead)
+    ?.getContent<{ event_id?: string }>()?.event_id;
 
   const getLatestValidEvent = (): MatrixEvent | null => {
     for (let i = timeline.length - 1; i >= 0; i -= 1) {
       const latestEvent = timeline[i];
       if (!latestEvent) continue;
-      if (latestEvent.getId() === readEventId) return null;
       if (!latestEvent.isSending()) return latestEvent;
     }
     return null;
@@ -28,6 +33,16 @@ export async function markAsRead(mx: MatrixClient, roomId: string, privateReceip
 
   const latestEventId = latestEvent.getId();
   if (!latestEventId) return;
+
+  if (latestEventId === readEventId) {
+    const roomUnreadTotal = room.getRoomUnreadNotificationCount(NotificationCountType.Total);
+    const hasUnreadCounts =
+      roomUnreadTotal > 0 || room.getUnreadNotificationCount(NotificationCountType.Highlight) > 0;
+    const fullyReadIndex = getLiveEventIndex(timeline, fullyReadEventId);
+    const readEventIndex = getLiveEventIndex(timeline, readEventId);
+    const hasStaleFullyReadMarker = fullyReadIndex >= 0 && fullyReadIndex < readEventIndex;
+    if (!hasUnreadCounts && !hasStaleFullyReadMarker) return;
+  }
 
   try {
     // Update both read receipt and fully-read marker so unread state clears reliably

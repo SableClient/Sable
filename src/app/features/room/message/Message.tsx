@@ -514,8 +514,6 @@ function MessageInternal(
     return existing;
   }, [pronouns, inlinePronoun]);
 
-
-
   const headerJSX = (collapsed?: boolean) => {
     if (!collapsed)
       return (
@@ -821,7 +819,7 @@ function MessageInternal(
     setIsEmoji(false);
   };
 
-  const openMobileOptions = useCallback(() => {
+  const openMobileOptions = () => {
     setModal({
       type: ModalType.MobileOptions,
       options: {
@@ -853,9 +851,14 @@ function MessageInternal(
         canSendReaction: canSendReaction,
       },
     });
-  }, [mEvent, room, closeMenu, onReactionToggle, relations, onReplyClick, onEditId, hideReadReceipts, showDeveloperTools, canPinEvent, cleanedDisplayName, canDelete, setIsEmoji, headerJSX, avatarJSX, msgContentJSX, messageLayout, useRightBubbles, senderId, mx, canSendReaction, setModal]);
+  };
 
-  const { onTouchStart, onTouchEnd, onTouchMove, firedRef: longPressFiredRef } = useMobileLongPress(() => {
+  const {
+    onTouchStart,
+    onTouchEnd,
+    onTouchMove,
+    firedRef: longPressFiredRef,
+  } = useMobileLongPress(() => {
     if (!edit) openMobileOptions();
   });
 
@@ -893,7 +896,6 @@ function MessageInternal(
     });
   };
 
-
   const handleSwipeReply = () => {
     const currentId = mEvent.getId();
     const targetId = activeReplyId === currentId ? null : currentId;
@@ -905,7 +907,6 @@ function MessageInternal(
 
     onReplyClick(mockEvent);
   };
-
 
   return (
     <MessageBase
@@ -949,7 +950,13 @@ function MessageInternal(
         </div>
       )}
 
-      <div style={{ width: '100%' }} onContextMenu={handleContextMenu} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onTouchMove={onTouchMove}>
+      <div
+        style={{ width: '100%' }}
+        onContextMenu={handleContextMenu}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchMove={onTouchMove}
+      >
         <WrappedMessage
           headerJSX={headerJSX(collapse)}
           avatarJSX={avatarJSX(collapse)}

@@ -1,4 +1,4 @@
-import { style } from '@vanilla-extract/css';
+import { keyframes, style } from '@vanilla-extract/css';
 import { DefaultReset, FocusOutline, color, config, toRem } from 'folds';
 
 export const MessageBase = style({
@@ -70,6 +70,15 @@ export const MessageMobileOptionsContainer = style({
   zIndex: '105',
   width: '100%',
   height: '85%',
+  animation: `${keyframes({
+    from: { transform: 'translateY(100%)' },
+    to: { transform: 'translateY(0)' },
+  })} 250ms cubic-bezier(0.32, 0.72, 0, 1)`,
+  '@media': {
+    '(prefers-reduced-motion: reduce)': {
+      animation: 'none',
+    },
+  },
 });
 
 export const BubbleAvatarBase = style({

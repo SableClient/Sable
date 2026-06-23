@@ -450,9 +450,7 @@ export async function applyPendingAppUpdate(): Promise<void> {
   const hostedAppShellUpdateStatus = hostedAppShellUpdateDetected
     ? 'update-available'
     : await getHostedAppShellUpdateStatus();
-  if (hostedAppShellUpdateStatus === 'unknown' && !registration) {
-    throw new Error(APPLY_UPDATE_FAILURE_MESSAGE);
-  }
+  if (hostedAppShellUpdateStatus === 'unknown' && !registration) return;
   if (!registration && hostedAppShellUpdateStatus !== 'update-available') return;
 
   const currentController = serviceWorkerSupported ? navigator.serviceWorker.controller : null;

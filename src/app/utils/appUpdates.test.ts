@@ -724,12 +724,10 @@ describe('appUpdates', () => {
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
-  it('throws when applying an update cannot confirm the hosted shell and no pending worker exists', async () => {
+  it('does nothing when applying an update cannot confirm the hosted shell and no pending worker exists', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('network failed'));
 
-    await expect(applyPendingAppUpdate()).rejects.toThrow(
-      'Failed to apply the update. Reload the app and try again.'
-    );
+    await applyPendingAppUpdate();
 
     expect(mockClearClientCachesAndServiceWorkers).not.toHaveBeenCalled();
     expect(mockReloadWithTelemetry).not.toHaveBeenCalled();

@@ -367,13 +367,6 @@ const waitForUpdatedActiveServiceWorker = async (
 
 export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
   const registrations = await getAppServiceWorkerRegistrations();
-  if (registrations.length === 0) {
-    return {
-      kind: 'native-unsupported',
-      message: 'Native binary update checking is not configured in this build.',
-      canApply: false,
-    };
-  }
 
   if (getPendingAppUpdateRegistration(registrations)) {
     return {
@@ -420,11 +413,27 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
     };
   }
 
-  if (successfulUpdates.length === 0 || rejectedUpdates.length > 0) {
+  if (registrations.length > 0 && (successfulUpdates.length === 0 || rejectedUpdates.length > 0)) {
     const firstError = rejectedUpdates[0]?.reason;
     throw firstError instanceof Error
       ? new Error(UPDATE_CHECK_FAILURE_MESSAGE, { cause: firstError })
       : new Error(UPDATE_CHECK_FAILURE_MESSAGE);
+  }
+
+  if (registrations.length === 0) {
+    if (hostedAppShellUpdateStatus === 'up-to-date') {
+      return {
+        kind: 'up-to-date',
+        message: 'You are already on the latest available web app version.',
+        canApply: false,
+      };
+    }
+
+    return {
+      kind: 'native-unsupported',
+      message: 'Native binary update checking is not configured in this build.',
+      canApply: false,
+    };
   }
 
   return {

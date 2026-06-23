@@ -772,8 +772,45 @@ describe('appUpdates', () => {
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
   });
 
-  it('reports native updater unsupported when service workers are unavailable', async () => {
+  it('reports hosted updates even when service workers are unavailable', async () => {
     mockHasServiceWorker.mockReturnValue(false);
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        `
+          <!doctype html>
+          <html>
+            <head>
+              <link rel="stylesheet" href="/assets/index-next.css" />
+            </head>
+            <body>
+              <script type="module" src="/assets/index-next.js"></script>
+            </body>
+          </html>
+        `,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
+    );
+
+    await expect(checkForAppUpdates()).resolves.toEqual({
+      kind: 'update-available',
+      message: 'A newer hosted app version is ready to apply.',
+      canApply: true,
+    });
+  });
+
+  it('reports up to date when the hosted shell matches and service workers are unavailable', async () => {
+    mockHasServiceWorker.mockReturnValue(false);
+
+    await expect(checkForAppUpdates()).resolves.toEqual({
+      kind: 'up-to-date',
+      message: 'You are already on the latest available web app version.',
+      canApply: false,
+    });
+  });
+
+  it('reports native updater unsupported when service workers are unavailable and hosted checks fail', async () => {
+    mockHasServiceWorker.mockReturnValue(false);
+    fetchMock.mockRejectedValueOnce(new TypeError('network failed'));
 
     await expect(checkForAppUpdates()).resolves.toEqual({
       kind: 'native-unsupported',

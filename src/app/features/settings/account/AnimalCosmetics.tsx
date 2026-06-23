@@ -21,9 +21,9 @@ type inputProps = {
 };
 
 function FreeInput({ initialValue: current, onSave, onReset, disabled, placeholder }: inputProps) {
-  const [val, setVal] = useState(current);
+  const [val, setVal] = useState(current ?? '');
 
-  useEffect(() => setVal(current), [current]);
+  useEffect(() => setVal(current ?? ''), [current]);
 
   const handleSave = () => {
     if (val === current) return;

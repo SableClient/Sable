@@ -34,8 +34,9 @@ export const MessageOptionsWrappedMessage = style({
 
 export const MessageOptionsMenu = style({
   width: '100%',
-  flexGrow: 1,
-  overflowY: 'auto',
+  maxHeight: '100%',
+  position: 'absolute',
+  bottom: '0',
   display: 'flex',
   flexDirection: 'column',
 });
@@ -85,10 +86,11 @@ export const MessageMobileOptionsContainer = style({
 export const MessageMobileDragHandle = style({
   width: '100%',
   height: '24px',
+  minHeight: '24px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  backgroundColor: 'var(--mx-c-surface)',
+  backgroundColor: color.Background.Container,
   borderTopLeftRadius: '12px',
   borderTopRightRadius: '12px',
   flexShrink: 0,
@@ -98,7 +100,7 @@ export const MessageMobileDragIndicator = style({
   width: '40px',
   height: '4px',
   borderRadius: '2px',
-  backgroundColor: 'var(--mx-c-outline)',
+  backgroundColor: color.SurfaceVariant.OnContainer,
 });
 
 export const BubbleAvatarBase = style({

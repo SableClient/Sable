@@ -1289,7 +1289,8 @@ export function RoomTimeline({
       if (
         shouldRepinBottomAfterKeyboardClose(
           keyboardJustClosed,
-          keyboardSessionBottomPinnedRef.current
+          keyboardSessionBottomPinnedRef.current,
+          atBottom
         )
       ) {
         keyboardSessionBottomPinnedRef.current = false;

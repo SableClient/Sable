@@ -39,9 +39,10 @@ describe('keyboardBottomRecovery', () => {
   });
 
   it('only repins when the keyboard session started from live bottom', () => {
-    expect(shouldRepinBottomAfterKeyboardClose(true, true)).toBe(true);
-    expect(shouldRepinBottomAfterKeyboardClose(true, false)).toBe(false);
-    expect(shouldRepinBottomAfterKeyboardClose(false, true)).toBe(false);
+    expect(shouldRepinBottomAfterKeyboardClose(true, true, true)).toBe(true);
+    expect(shouldRepinBottomAfterKeyboardClose(true, true, false)).toBe(false);
+    expect(shouldRepinBottomAfterKeyboardClose(true, false, true)).toBe(false);
+    expect(shouldRepinBottomAfterKeyboardClose(false, true, true)).toBe(false);
   });
 
   it('detects keyboard-open edges from render-time visibility state', () => {

@@ -19,8 +19,9 @@ export const didKeyboardJustClose = ({
 
 export const shouldRepinBottomAfterKeyboardClose = (
   keyboardJustClosed: boolean,
-  keyboardSessionWasBottomPinned: boolean
-): boolean => keyboardJustClosed && keyboardSessionWasBottomPinned;
+  keyboardSessionWasBottomPinned: boolean,
+  isCurrentlyAtBottom: boolean
+): boolean => keyboardJustClosed && keyboardSessionWasBottomPinned && isCurrentlyAtBottom;
 
 export const didKeyboardJustOpen = (
   isKeyboardVisible: boolean,

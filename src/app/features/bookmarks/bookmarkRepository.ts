@@ -1,4 +1,4 @@
-import { MatrixClient } from 'matrix-js-sdk';
+import type { AccountDataEvents, MatrixClient } from 'matrix-js-sdk';
 import {
   bookmarkItemEventType,
   emptyIndex,
@@ -9,16 +9,14 @@ import type { BookmarkIndexContent, BookmarkItemContent } from '$types/matrix-sd
 import { MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT } from '$unstable/prefixes';
 
 function readIndex(mx: MatrixClient): BookmarkIndexContent {
-  const evt = mx.getAccountData(MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT as any);
+  const evt = mx.getAccountData(MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT);
   const content = evt?.getContent();
   if (isValidIndexContent(content)) return content;
   return emptyIndex();
 }
 
 async function readIndexFromServer(mx: MatrixClient): Promise<BookmarkIndexContent> {
-  const content = await mx.getAccountDataFromServer(
-    MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT as any
-  );
+  const content = await mx.getAccountDataFromServer(MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT);
   if (isValidIndexContent(content)) return content;
   return emptyIndex();
 }
@@ -27,17 +25,19 @@ async function readItemFromServer(
   mx: MatrixClient,
   bookmarkId: string
 ): Promise<BookmarkItemContent | undefined> {
-  const content = await mx.getAccountDataFromServer(bookmarkItemEventType(bookmarkId) as any);
+  const content = await mx.getAccountDataFromServer(
+    bookmarkItemEventType(bookmarkId) as keyof AccountDataEvents
+  );
   if (isValidBookmarkItem(content) && !content.deleted) return content;
   return undefined;
 }
 
 async function writeIndex(mx: MatrixClient, index: BookmarkIndexContent): Promise<void> {
-  await mx.setAccountData(MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT as any, index as any);
+  await mx.setAccountData(MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT, index);
 }
 
 async function writeItem(mx: MatrixClient, item: BookmarkItemContent): Promise<void> {
-  await mx.setAccountData(bookmarkItemEventType(item.bookmark_id) as any, item as any);
+  await mx.setAccountData(bookmarkItemEventType(item.bookmark_id) as keyof AccountDataEvents, item);
 }
 
 type IndexMutator = (index: BookmarkIndexContent) => BookmarkIndexContent;

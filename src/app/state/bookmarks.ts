@@ -1,7 +1,8 @@
 import { atom, useSetAtom } from 'jotai';
-import { ClientEvent, MatrixClient, MatrixEvent } from 'matrix-js-sdk';
+import type { MatrixClient, MatrixEvent } from 'matrix-js-sdk';
+import { ClientEvent } from 'matrix-js-sdk';
 import { useCallback, useEffect } from 'react';
-import type { BookmarkIndexContent, BookmarkItemContent } from '$types/matrix-sdk-events';
+import type { BookmarkItemContent } from '$types/matrix-sdk-events';
 import { listBookmarks } from '$features/bookmarks/bookmarkRepository';
 import { MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT } from '$unstable/prefixes';
 

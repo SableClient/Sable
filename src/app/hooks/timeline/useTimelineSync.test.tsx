@@ -831,6 +831,60 @@ describe('useTimelineSync', () => {
     expect(scrollToBottom).not.toHaveBeenCalled();
   });
 
+  it('preserves an off-bottom timeline when TimelineReset swaps the live timeline', async () => {
+    const liveTimelineOne = createTimeline([{ getId: () => '$live:one' }]);
+    const liveTimelineTwo = createTimeline([{ getId: () => '$live:two' }]);
+
+    const timelineSet = new EventEmitter() as FakeTimelineSet;
+    let currentLiveTimeline = liveTimelineOne;
+    timelineSet.getLiveTimeline = () => currentLiveTimeline;
+    timelineSet.getTimelineForEvent = () => undefined;
+
+    const roomEmitter = new EventEmitter();
+    const room = {
+      on: roomEmitter.on.bind(roomEmitter),
+      removeListener: roomEmitter.removeListener.bind(roomEmitter),
+      emit: roomEmitter.emit.bind(roomEmitter),
+      roomId: '!room:test',
+      getUnfilteredTimelineSet: () => timelineSet as never,
+      getLiveTimeline: () => currentLiveTimeline,
+      getEventReadUpTo: () => null,
+      getThread: () => null,
+      getUnreadNotificationCount: () => 0,
+      client: {
+        getUserId: () => '@alice:test',
+        getAccountData: () => null,
+      },
+    } as unknown as FakeRoom;
+
+    const scrollToBottom = vi.fn<() => void>();
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: createMx() as never,
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom,
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    const timelineBeforeReset = result.current.timeline.linkedTimelines;
+
+    await act(async () => {
+      currentLiveTimeline = liveTimelineTwo;
+      timelineSet.emit(RoomEvent.TimelineReset);
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline.linkedTimelines).toBe(timelineBeforeReset);
+    expect(result.current.timeline.linkedTimelines[0]).toBe(liveTimelineOne);
+    expect(scrollToBottom).not.toHaveBeenCalled();
+  });
+
   it('keeps a bottom-pinned user anchored after TimelineReset', async () => {
     const { room, timelineSet } = createRoom();
     const scrollToBottom = vi.fn<() => void>();

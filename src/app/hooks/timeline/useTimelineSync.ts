@@ -823,6 +823,15 @@ export function useTimelineSync({
         return;
       }
       const wasAtBottom = isAtBottomRef.current;
+      if (!wasAtBottom) {
+        setTimeline((currentTimeline) => {
+          if (currentTimeline.linkedTimelines.length === 0) {
+            return { linkedTimelines: getInitialTimeline(room).linkedTimelines };
+          }
+          return { ...currentTimeline };
+        });
+        return;
+      }
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       if (wasAtBottom) {

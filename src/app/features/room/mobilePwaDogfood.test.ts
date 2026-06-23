@@ -46,6 +46,10 @@ describe('mobile PWA dogfood contract', () => {
     expect(roomInput).toContain('const txnId = mx.makeTxnId();');
     expect(roomInput).toContain('const pendingImmediateEvent = room.getEventForTxnId(txnId);');
     expect(roomInput).toContain('pendingImmediateEventStatus !== EventStatus.NOT_SENT');
+    expect(roomInput).toContain('const submitInFlightRef = useRef(false);');
+    expect(roomInput).toContain('if (submitInFlightRef.current) return;');
+    expect(roomInput).toContain('submitInFlightRef.current = true;');
+    expect(roomInput).toContain('submitInFlightRef.current = false;');
     expect(roomInput).toContain(
       'restoredSilentReplyRef.current = restoredReplyDraft ? sentSilentReplySnapshot : null;'
     );
@@ -81,6 +85,21 @@ describe('mobile PWA dogfood contract', () => {
     expect(roomHeader).toContain('setWidgetDrawer(true);');
     expect(roomHeader).toContain('Members\n            </Text>');
     expect(roomHeader).toContain('Widgets\n            </Text>');
+  });
+
+  it('keeps sidebar resizers available on tablet and desktop drawers', () => {
+    const home = readWorkspaceFile('src/app/pages/client/home/Home.tsx');
+    const inbox = readWorkspaceFile('src/app/pages/client/inbox/Inbox.tsx');
+    const direct = readWorkspaceFile('src/app/pages/client/direct/Direct.tsx');
+    const explore = readWorkspaceFile('src/app/pages/client/explore/Explore.tsx');
+    const space = readWorkspaceFile('src/app/pages/client/space/Space.tsx');
+
+    [home, inbox, direct, explore, space].forEach((source) => {
+      expect(source).toContain(
+        'const isMobile = isPhoneLayoutDevice() || screenSize === ScreenSize.Mobile;'
+      );
+      expect(source).toContain('{!isMobile && (');
+    });
   });
 
   it('renders the widgets drawer as an overlay on non-desktop layouts', () => {

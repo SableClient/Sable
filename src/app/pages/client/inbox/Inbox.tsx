@@ -162,7 +162,7 @@ export function Inbox() {
           </Box>
         </PageNavContent>
       </PageNav>
-      {screenSize === ScreenSize.Desktop && (
+      {!isMobile && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

@@ -414,6 +414,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const latestReplyDraftRef = useRef(replyDraft);
     const restoredSilentReplyRef = useRef<boolean | null>(null);
     const isMountedRef = useRef(true);
+    const submitInFlightRef = useRef(false);
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
@@ -982,566 +983,574 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const submit = useCallback(async () => {
-      uploadBoardHandlers.current?.handleSend();
+      if (submitInFlightRef.current) return;
+      submitInFlightRef.current = true;
 
-      const commandName = getBeginCommand(editor);
-      /**
-       * a map of regex patterns to replace nicknames with,
-       * used when stripNickname is true in toMatrixCustomHTML
-       * during HTML generation for the message content.
-       * This is necessary because the HTML generation needs to know
-       * which nicknames to strip in order to generate the correct formatted_body,
-       * and the plain text generation needs to replace those same nicknames with
-       * the original user IDs so that the message content remains consistent and
-       * mentions are correctly processed by the server and clients.
-       */
-      const nicknameReplacement = new Map<RegExp, string>();
-      if (replyEvent) {
+      try {
+        uploadBoardHandlers.current?.handleSend();
+        const commandName = getBeginCommand(editor);
         /**
-         * the id of the user being replied to,
-         * whose nickname (if any) should be stripped
-         * from the message content and replaced with their
-         * user ID for correct mention processing
+         * a map of regex patterns to replace nicknames with,
+         * used when stripNickname is true in toMatrixCustomHTML
+         * during HTML generation for the message content.
+         * This is necessary because the HTML generation needs to know
+         * which nicknames to strip in order to generate the correct formatted_body,
+         * and the plain text generation needs to replace those same nicknames with
+         * the original user IDs so that the message content remains consistent and
+         * mentions are correctly processed by the server and clients.
          */
-        const senderId = replyEvent.getSender();
-        if (senderId) {
-          const nick = nicknames[senderId];
-          if (typeof nick === 'string' && nick.length > 0) {
-            nicknameReplacement.set(
-              new RegExp(`@?${nick}`, 'g'),
-              room.getMember(senderId)?.rawDisplayName ?? senderId
-            );
-          }
-        }
-      }
-      /**
-       * any other users mentioned in the message being replied to,
-       * whose nicknames should also be stripped and replaced with user IDs
-       */
-      const mentions = getMentions(mx, roomId, editor);
-      if (mentions?.users) {
-        mentions.users.forEach((id) => {
-          const nick = nicknames[id];
-          if (typeof nick === 'string' && nick.length > 0) {
-            nicknameReplacement.set(
-              new RegExp(`@?${nick}`, 'g'),
-              room.getMember(id)?.rawDisplayName ?? id
-            );
-          }
-        });
-      }
-      /**
-       * the plain text we will send
-       */
-      let serializedChildren = editor.children;
-      if (commandName) {
-        // Strip the empty text node and command node from the beginning of the first paragraph
-        const firstPara = serializedChildren[0];
-        if (
-          firstPara &&
-          'type' in firstPara &&
-          firstPara.type === BlockType.Paragraph &&
-          firstPara.children.length >= 2
-        ) {
-          serializedChildren = [
-            {
-              ...firstPara,
-              children: firstPara.children.slice(2),
-            },
-            ...serializedChildren.slice(1),
-          ];
-        }
-      }
-      const outgoingTransformContext = {
-        isMarkdown: true,
-        settingsLinkBaseUrl,
-      };
-
-      outgoingMessageTransforms.forEach((transform) => {
-        if (!transform.shouldApply(serializedChildren, outgoingTransformContext)) return;
-        serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
-      });
-
-      let plainText = toPlainText(serializedChildren, true, nicknameReplacement).trim();
-
-      /**
-       * the html we will send
-       */
-      let customHtml = trimCustomHtml(
-        toMatrixCustomHTML(serializedChildren, {
-          stripNickname: true,
-          nickNameReplacement: nicknameReplacement,
-          forEmote: commandName === Command.Me,
-          room,
-        })
-      );
-
-      let msgType = MsgType.Text;
-
-      // quick text react
-      if (canSendReaction && plainText.startsWith('+#')) {
-        handleQuickReact(plainText.substring(2));
-        return;
-      }
-
-      // check if its a pk command
-      if (pkCompatEnable && PKitCommandMessageHandler.isPKCommand(plainText)) {
-        await pluralkitCmdMessageHandler.handleMessage(plainText);
-        resetEditor(editor); // clear the editor
-        return; // don't do anything besides handling the command
-      }
-
-      if (commandName) {
-        plainText = trimCommand(commandName, plainText);
-        customHtml = trimCommand(commandName, customHtml);
-      }
-      if (commandName === Command.Me) {
-        msgType = MsgType.Emote;
-      } else if (commandName === Command.Notice) {
-        msgType = MsgType.Notice;
-      } else if (commandName === Command.Shrug) {
-        plainText = `${SHRUG} ${plainText}`;
-        customHtml = `${SHRUG} ${customHtml}`;
-      } else if (commandName === Command.TableFlip) {
-        plainText = `${TABLEFLIP} ${plainText}`;
-        customHtml = `${TABLEFLIP} ${customHtml}`;
-      } else if (commandName === Command.UnFlip) {
-        plainText = `${UNFLIP} ${plainText}`;
-        customHtml = `${UNFLIP} ${customHtml}`;
-      } else if (commandName === Command.CreatePoll) {
-        prepareComposerOverlayTrigger();
-        await openPollCreator();
-        resetEditor(editor);
-        resetEditorHistory(editor);
-        sendTypingStatus(false);
-        return;
-      } else if (commandName) {
-        if ((commandName as Command) === Command.Location && plainText.trim().length === 0) {
-          prepareComposerOverlayTrigger();
-          await openLocationPicker();
-        } else {
-          const commandContent = commands[commandName as Command];
-          if (commandContent) {
-            commandContent.exe(plainText, customHtml);
-          }
-        }
-        resetEditor(editor);
-        resetEditorHistory(editor);
-        sendTypingStatus(false);
-
-        return;
-      }
-
-      if (emojiAutoExpand) {
-        const nextPlainText = applyEmojiAutoReplacementAtEnd(plainText);
-        if (nextPlainText !== plainText && customHtmlEqualsPlainText(customHtml, plainText)) {
-          customHtml = trimCustomHtml(
-            toMatrixCustomHTML(plainToEditorInput(nextPlainText), {
-              stripNickname: true,
-              nickNameReplacement: nicknameReplacement,
-              forEmote: commandName === Command.Me,
-              room,
-            })
-          );
-          plainText = nextPlainText;
-        }
-      }
-
-      if (plainText === '') return;
-
-      // Discord-style edit: when an editDraft is active, send an m.replace event
-      // instead of a new message and clear the edit state.
-      if (editDraft) {
-        const editEvent = room.findEventById(editDraft.eventId);
-        if (editEvent) {
-          const oldContent = editEvent.getContent();
-          const msgtype = (oldContent.msgtype as string) ?? MsgType.Text;
-
-          const newContent: IContent = { msgtype, body: plainText };
-          if (!customHtmlEqualsPlainText(customHtml, plainText)) {
-            newContent.format = 'org.matrix.custom.html';
-            newContent.formatted_body = customHtml;
-          }
-          // Preserve media and extension fields from the original event so
-          // that image/file/sticker captions retain their attachments, and
-          // vendor extensions (spoiler, link previews, per-message profile)
-          // are not silently dropped.
-          for (const key of [
-            'filename',
-            'info',
-            'file',
-            'url',
-            'page.codeberg.everypizza.msc4193.spoiler',
-            'com.beeper.linkpreviews',
-            'com.beeper.per_message_profile',
-          ] as const) {
-            if (key in oldContent) {
-              newContent[key as string] = oldContent[key as string];
+        const nicknameReplacement = new Map<RegExp, string>();
+        if (replyEvent) {
+          /**
+           * the id of the user being replied to,
+           * whose nickname (if any) should be stripped
+           * from the message content and replaced with their
+           * user ID for correct mention processing
+           */
+          const senderId = replyEvent.getSender();
+          if (senderId) {
+            const nick = nicknames[senderId];
+            if (typeof nick === 'string' && nick.length > 0) {
+              nicknameReplacement.set(
+                new RegExp(`@?${nick}`, 'g'),
+                room.getMember(senderId)?.rawDisplayName ?? senderId
+              );
             }
           }
-          const mentionData = getMentions(mx, roomId, editor);
-          newContent['m.mentions'] = getMentionContent(
-            Array.from(mentionData.users),
-            mentionData.room
-          );
-
-          const sendContent: IContent = {
-            ...oldContent,
-            'm.relates_to': {
-              event_id: editDraft.eventId,
-              rel_type: RelationType.Replace,
-            },
-            body: `* ${plainText}`,
-            'm.new_content': newContent,
-            'm.mentions': newContent['m.mentions'],
-          };
-          if (newContent.format) {
-            sendContent.format = newContent.format;
-            sendContent.formatted_body = `* ${newContent.formatted_body as string}`;
-          }
-
-          resetEditor(editor);
-          resetEditorHistory(editor);
-          setInputKey((prev) => prev + 1);
-          setEditDraft(undefined);
-          sendTypingStatus(false);
-
-          mx.sendMessage(roomId, sendContent as RoomMessageEventContent).catch((error: unknown) => {
-            log.error('failed to send edit', { roomId }, error);
-          });
-        } else {
-          // Original event evicted from timeline — cannot send edit.
-          // Clear the edit state so the user is not stuck.
-          log.error('failed to send edit: original event not found', {
-            roomId,
-            eventId: editDraft.eventId,
-          });
-          setEditDraft(undefined);
-          resetEditor(editor);
-          resetEditorHistory(editor);
-          sendTypingStatus(false);
         }
-        return;
-      }
+        /**
+         * any other users mentioned in the message being replied to,
+         * whose nicknames should also be stripped and replaced with user IDs
+         */
+        const mentions = getMentions(mx, roomId, editor);
+        if (mentions?.users) {
+          mentions.users.forEach((id) => {
+            const nick = nicknames[id];
+            if (typeof nick === 'string' && nick.length > 0) {
+              nicknameReplacement.set(
+                new RegExp(`@?${nick}`, 'g'),
+                room.getMember(id)?.rawDisplayName ?? id
+              );
+            }
+          });
+        }
+        /**
+         * the plain text we will send
+         */
+        let serializedChildren = editor.children;
+        if (commandName) {
+          // Strip the empty text node and command node from the beginning of the first paragraph
+          const firstPara = serializedChildren[0];
+          if (
+            firstPara &&
+            'type' in firstPara &&
+            firstPara.type === BlockType.Paragraph &&
+            firstPara.children.length >= 2
+          ) {
+            serializedChildren = [
+              {
+                ...firstPara,
+                children: firstPara.children.slice(2),
+              },
+              ...serializedChildren.slice(1),
+            ];
+          }
+        }
+        const outgoingTransformContext = {
+          isMarkdown: true,
+          settingsLinkBaseUrl,
+        };
 
-      // PluralKit-style proxy wrappers (per-message profile proxies) must be stripped
-      // *before* building `content`, otherwise we end up sending the wrapper verbatim.
-      let proxiedPerMessageProfile:
-        | Awaited<ReturnType<(typeof pluralkitProxyMessageHandler)['getPmpBasedOnMessage']>>
-        | undefined;
-      if (pmpProxyingEnable) {
-        proxiedPerMessageProfile =
-          await pluralkitProxyMessageHandler.getPmpBasedOnMessage(plainText);
-        if (proxiedPerMessageProfile) {
-          const stripped = pluralkitProxyMessageHandler.stripProxyFromMessage(plainText);
-          if (stripped !== undefined) {
-            // Re-run the normal outgoing pipeline on the stripped content so the message
-            // goes through the same transforms/parsers as any other message.
-            serializedChildren = plainToEditorInput(stripped);
+        outgoingMessageTransforms.forEach((transform) => {
+          if (!transform.shouldApply(serializedChildren, outgoingTransformContext)) return;
+          serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
+        });
 
-            outgoingMessageTransforms.forEach((transform) => {
-              if (!transform.shouldApply(serializedChildren, outgoingTransformContext)) return;
-              serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
-            });
+        let plainText = toPlainText(serializedChildren, true, nicknameReplacement).trim();
 
-            plainText = toPlainText(serializedChildren, true, nicknameReplacement).trim();
+        /**
+         * the html we will send
+         */
+        let customHtml = trimCustomHtml(
+          toMatrixCustomHTML(serializedChildren, {
+            stripNickname: true,
+            nickNameReplacement: nicknameReplacement,
+            forEmote: commandName === Command.Me,
+            room,
+          })
+        );
+
+        let msgType = MsgType.Text;
+
+        // quick text react
+        if (canSendReaction && plainText.startsWith('+#')) {
+          handleQuickReact(plainText.substring(2));
+          return;
+        }
+
+        // check if its a pk command
+        if (pkCompatEnable && PKitCommandMessageHandler.isPKCommand(plainText)) {
+          await pluralkitCmdMessageHandler.handleMessage(plainText);
+          resetEditor(editor); // clear the editor
+          return; // don't do anything besides handling the command
+        }
+
+        if (commandName) {
+          plainText = trimCommand(commandName, plainText);
+          customHtml = trimCommand(commandName, customHtml);
+        }
+        if (commandName === Command.Me) {
+          msgType = MsgType.Emote;
+        } else if (commandName === Command.Notice) {
+          msgType = MsgType.Notice;
+        } else if (commandName === Command.Shrug) {
+          plainText = `${SHRUG} ${plainText}`;
+          customHtml = `${SHRUG} ${customHtml}`;
+        } else if (commandName === Command.TableFlip) {
+          plainText = `${TABLEFLIP} ${plainText}`;
+          customHtml = `${TABLEFLIP} ${customHtml}`;
+        } else if (commandName === Command.UnFlip) {
+          plainText = `${UNFLIP} ${plainText}`;
+          customHtml = `${UNFLIP} ${customHtml}`;
+        } else if (commandName === Command.CreatePoll) {
+          prepareComposerOverlayTrigger();
+          await openPollCreator();
+          resetEditor(editor);
+          resetEditorHistory(editor);
+          sendTypingStatus(false);
+          return;
+        } else if (commandName) {
+          if ((commandName as Command) === Command.Location && plainText.trim().length === 0) {
+            prepareComposerOverlayTrigger();
+            await openLocationPicker();
+          } else {
+            const commandContent = commands[commandName as Command];
+            if (commandContent) {
+              commandContent.exe(plainText, customHtml);
+            }
+          }
+          resetEditor(editor);
+          resetEditorHistory(editor);
+          sendTypingStatus(false);
+
+          return;
+        }
+
+        if (emojiAutoExpand) {
+          const nextPlainText = applyEmojiAutoReplacementAtEnd(plainText);
+          if (nextPlainText !== plainText && customHtmlEqualsPlainText(customHtml, plainText)) {
             customHtml = trimCustomHtml(
-              toMatrixCustomHTML(serializedChildren, {
+              toMatrixCustomHTML(plainToEditorInput(nextPlainText), {
                 stripNickname: true,
                 nickNameReplacement: nicknameReplacement,
                 forEmote: commandName === Command.Me,
                 room,
               })
             );
+            plainText = nextPlainText;
           }
         }
-      }
 
-      const body = plainText;
-      const formattedBody = customHtml;
-      const mentionData = getMentions(mx, roomId, editor);
+        if (plainText === '') return;
 
-      const content: IContent & Pick<RoomMessageEventContent, 'msgtype' | 'body'> = {
-        msgtype: msgType,
-        body,
-      };
+        // Discord-style edit: when an editDraft is active, send an m.replace event
+        // instead of a new message and clear the edit state.
+        if (editDraft) {
+          const editEvent = room.findEventById(editDraft.eventId);
+          if (editEvent) {
+            const oldContent = editEvent.getContent();
+            const msgtype = (oldContent.msgtype as string) ?? MsgType.Text;
 
-      if (replyDraft && !silentReply) {
-        mentionData.users.add(replyDraft.userId);
-      }
+            const newContent: IContent = { msgtype, body: plainText };
+            if (!customHtmlEqualsPlainText(customHtml, plainText)) {
+              newContent.format = 'org.matrix.custom.html';
+              newContent.formatted_body = customHtml;
+            }
+            // Preserve media and extension fields from the original event so
+            // that image/file/sticker captions retain their attachments, and
+            // vendor extensions (spoiler, link previews, per-message profile)
+            // are not silently dropped.
+            for (const key of [
+              'filename',
+              'info',
+              'file',
+              'url',
+              'page.codeberg.everypizza.msc4193.spoiler',
+              'com.beeper.linkpreviews',
+              'com.beeper.per_message_profile',
+            ] as const) {
+              if (key in oldContent) {
+                newContent[key as string] = oldContent[key as string];
+              }
+            }
+            const mentionData = getMentions(mx, roomId, editor);
+            newContent['m.mentions'] = getMentionContent(
+              Array.from(mentionData.users),
+              mentionData.room
+            );
 
-      content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
-      content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
-        imagePacksUsedRef.current.toJSON();
+            const sendContent: IContent = {
+              ...oldContent,
+              'm.relates_to': {
+                event_id: editDraft.eventId,
+                rel_type: RelationType.Replace,
+              },
+              body: `* ${plainText}`,
+              'm.new_content': newContent,
+              'm.mentions': newContent['m.mentions'],
+            };
+            if (newContent.format) {
+              sendContent.format = newContent.format;
+              sendContent.formatted_body = `* ${newContent.formatted_body as string}`;
+            }
 
-      const links = getLinks(serializedChildren);
-      content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
-      links?.forEach((link) =>
-        content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
-          matched_url: link,
-        })
-      );
+            resetEditor(editor);
+            resetEditorHistory(editor);
+            setInputKey((prev) => prev + 1);
+            setEditDraft(undefined);
+            sendTypingStatus(false);
 
-      if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
-        content.format = 'org.matrix.custom.html';
-        content.formatted_body = formattedBody;
-      }
-
-      /**
-       * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
-       * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
-       * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
-       */
-      let perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
-      if (pmpProxyingEnable) {
-        if (proxiedPerMessageProfile) perMessageProfile = proxiedPerMessageProfile;
-      }
-      if (perMessageProfile) {
-        content[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
-          convertPerMessageProfileToBeeperFormat(
-            perMessageProfile,
-            perMessageProfile.name.trim() !== ''
-          );
-
-        if (perMessageProfile.name.trim() !== '') {
-          // if a per-message profile is used, it must per spec include a fallback
-          const pmpPrefix = `${perMessageProfile.name}: `;
-
-          if (!content.body.startsWith(pmpPrefix)) {
-            // to prevent double-prefixing when the fallback is already present
-            content.body = pmpPrefix + content.body;
-          }
-
-          /**
-           * html escaped version of the display name
-           */
-          const escapedName = sanitizeText(perMessageProfile.name);
-
-          const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
-
-          if (content.formatted_body && !content.formatted_body.startsWith(htmlPrefix)) {
-            content.formatted_body = htmlPrefix + content.formatted_body;
+            mx.sendMessage(roomId, sendContent as RoomMessageEventContent).catch(
+              (error: unknown) => {
+                log.error('failed to send edit', { roomId }, error);
+              }
+            );
           } else {
-            // we don't have a formatted body, but we need one
-            content.format = 'org.matrix.custom.html';
-            const escapedBody = sanitizeText(plainText).replaceAll('\n', '<br/>');
-            content.formatted_body = `${htmlPrefix}${escapedBody}`;
+            // Original event evicted from timeline — cannot send edit.
+            // Clear the edit state so the user is not stuck.
+            log.error('failed to send edit: original event not found', {
+              roomId,
+              eventId: editDraft.eventId,
+            });
+            setEditDraft(undefined);
+            resetEditor(editor);
+            resetEditorHistory(editor);
+            sendTypingStatus(false);
+          }
+          return;
+        }
+
+        // PluralKit-style proxy wrappers (per-message profile proxies) must be stripped
+        // *before* building `content`, otherwise we end up sending the wrapper verbatim.
+        let proxiedPerMessageProfile:
+          | Awaited<ReturnType<(typeof pluralkitProxyMessageHandler)['getPmpBasedOnMessage']>>
+          | undefined;
+        if (pmpProxyingEnable) {
+          proxiedPerMessageProfile =
+            await pluralkitProxyMessageHandler.getPmpBasedOnMessage(plainText);
+          if (proxiedPerMessageProfile) {
+            const stripped = pluralkitProxyMessageHandler.stripProxyFromMessage(plainText);
+            if (stripped !== undefined) {
+              // Re-run the normal outgoing pipeline on the stripped content so the message
+              // goes through the same transforms/parsers as any other message.
+              serializedChildren = plainToEditorInput(stripped);
+
+              outgoingMessageTransforms.forEach((transform) => {
+                if (!transform.shouldApply(serializedChildren, outgoingTransformContext)) return;
+                serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
+              });
+
+              plainText = toPlainText(serializedChildren, true, nicknameReplacement).trim();
+              customHtml = trimCustomHtml(
+                toMatrixCustomHTML(serializedChildren, {
+                  stripNickname: true,
+                  nickNameReplacement: nicknameReplacement,
+                  forEmote: commandName === Command.Me,
+                  room,
+                })
+              );
+            }
           }
         }
-      }
 
-      if (replyDraft) {
-        content['m.relates_to'] = getReplyContent(replyDraft, room);
-      }
-      const invalidate = () =>
-        queryClient.invalidateQueries({
-          queryKey: ['delayedEvents', roomId],
-        });
+        const body = plainText;
+        const formattedBody = customHtml;
+        const mentionData = getMentions(mx, roomId, editor);
 
-      const clearSentMessageContext = (
-        sentReplyDraftSnapshot?: string,
-        sentImagePacksSnapshot?: string
-      ) => {
-        if (
-          sentImagePacksSnapshot === undefined ||
-          JSON.stringify(imagePacksUsedRef.current.toJSON()) === sentImagePacksSnapshot
-        ) {
-          imagePacksUsedRef.current.clear();
+        const content: IContent & Pick<RoomMessageEventContent, 'msgtype' | 'body'> = {
+          msgtype: msgType,
+          body,
+        };
+
+        if (replyDraft && !silentReply) {
+          mentionData.users.add(replyDraft.userId);
         }
 
-        if (
-          sentReplyDraftSnapshot !== undefined &&
-          serializeReplyDraft(latestReplyDraftRef.current) === sentReplyDraftSnapshot
-        ) {
-          setReplyDraft(replyDraftBase);
+        content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
+        content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
+          imagePacksUsedRef.current.toJSON();
+
+        const links = getLinks(serializedChildren);
+        content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
+        links?.forEach((link) =>
+          content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
+            matched_url: link,
+          })
+        );
+
+        if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
+          content.format = 'org.matrix.custom.html';
+          content.formatted_body = formattedBody;
         }
-      };
 
-      const restoreFailedImmediateSendContext = (
-        sentMsgDraftSnapshot: typeof editor.children,
-        sentReplyDraftSnapshot: string,
-        sentImagePacksSnapshot: string,
-        sentSilentReplySnapshot: boolean
-      ) => {
-        if (!isMountedRef.current) return;
+        /**
+         * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
+         * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
+         * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
+         */
+        let perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
+        if (pmpProxyingEnable) {
+          if (proxiedPerMessageProfile) perMessageProfile = proxiedPerMessageProfile;
+        }
+        if (perMessageProfile) {
+          content[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+            convertPerMessageProfileToBeeperFormat(
+              perMessageProfile,
+              perMessageProfile.name.trim() !== ''
+            );
 
-        if (isEmptyEditor(editor)) {
-          const restoredMsgDraft = structuredClone(sentMsgDraftSnapshot);
-          setMsgDraft(restoredMsgDraft);
-          requestAnimationFrame(() => {
-            try {
-              ReactEditor.focus(editor);
-              moveCursor(editor);
-            } catch {
-              // Ignore focus errors
+          if (perMessageProfile.name.trim() !== '') {
+            // if a per-message profile is used, it must per spec include a fallback
+            const pmpPrefix = `${perMessageProfile.name}: `;
+
+            if (!content.body.startsWith(pmpPrefix)) {
+              // to prevent double-prefixing when the fallback is already present
+              content.body = pmpPrefix + content.body;
             }
-          });
-        }
 
-        const currentReplyDraftSnapshot = serializeReplyDraft(latestReplyDraftRef.current);
-        if (
-          currentReplyDraftSnapshot === serializeReplyDraft(replyDraftBase) ||
-          currentReplyDraftSnapshot === sentReplyDraftSnapshot
-        ) {
-          const restoredReplyDraft = JSON.parse(sentReplyDraftSnapshot) as IReplyDraft | null;
-          restoredSilentReplyRef.current = restoredReplyDraft ? sentSilentReplySnapshot : null;
-          setReplyDraft(restoredReplyDraft ?? replyDraftBase);
-        }
+            /**
+             * html escaped version of the display name
+             */
+            const escapedName = sanitizeText(perMessageProfile.name);
 
-        if (imagePacksUsedRef.current.size === 0) {
-          const restoredImagePacks = JSON.parse(sentImagePacksSnapshot) as Record<
-            string,
-            MSC4459ImagePackReference
-          >;
-          Object.entries(restoredImagePacks).forEach(([key, value]) => {
-            imagePacksUsedRef.current.set(key, value);
-          });
-        }
+            const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
 
-        sendTypingStatus(false);
-      };
-
-      const resetInput = (
-        sentReplyDraftSnapshot?: string,
-        sentImagePacksSnapshot?: string,
-        options?: { refocus?: boolean }
-      ) => {
-        setMsgDraft([]);
-        resetEditor(editor);
-        resetEditorHistory(editor);
-        setInputKey((prev) => prev + 1);
-        clearSentMessageContext(sentReplyDraftSnapshot, sentImagePacksSnapshot);
-        sendTypingStatus(false);
-
-        if (options?.refocus) {
-          requestAnimationFrame(() => {
-            try {
-              ReactEditor.focus(editor);
-              moveCursor(editor);
-            } catch {
-              // Ignore focus errors
+            if (content.formatted_body && !content.formatted_body.startsWith(htmlPrefix)) {
+              content.formatted_body = htmlPrefix + content.formatted_body;
+            } else {
+              // we don't have a formatted body, but we need one
+              content.format = 'org.matrix.custom.html';
+              const escapedBody = sanitizeText(plainText).replaceAll('\n', '<br/>');
+              content.formatted_body = `${htmlPrefix}${escapedBody}`;
             }
-          });
+          }
         }
-      };
-      if (scheduledTime) {
-        try {
-          const delayMs = computeDelayMs(scheduledTime);
-          if (editingScheduledDelayId) {
+
+        if (replyDraft) {
+          content['m.relates_to'] = getReplyContent(replyDraft, room);
+        }
+        const invalidate = () =>
+          queryClient.invalidateQueries({
+            queryKey: ['delayedEvents', roomId],
+          });
+
+        const clearSentMessageContext = (
+          sentReplyDraftSnapshot?: string,
+          sentImagePacksSnapshot?: string
+        ) => {
+          if (
+            sentImagePacksSnapshot === undefined ||
+            JSON.stringify(imagePacksUsedRef.current.toJSON()) === sentImagePacksSnapshot
+          ) {
+            imagePacksUsedRef.current.clear();
+          }
+
+          if (
+            sentReplyDraftSnapshot !== undefined &&
+            serializeReplyDraft(latestReplyDraftRef.current) === sentReplyDraftSnapshot
+          ) {
+            setReplyDraft(replyDraftBase);
+          }
+        };
+
+        const restoreFailedImmediateSendContext = (
+          sentMsgDraftSnapshot: typeof editor.children,
+          sentReplyDraftSnapshot: string,
+          sentImagePacksSnapshot: string,
+          sentSilentReplySnapshot: boolean
+        ) => {
+          if (!isMountedRef.current) return;
+
+          if (isEmptyEditor(editor)) {
+            const restoredMsgDraft = structuredClone(sentMsgDraftSnapshot);
+            setMsgDraft(restoredMsgDraft);
+            requestAnimationFrame(() => {
+              try {
+                ReactEditor.focus(editor);
+                moveCursor(editor);
+              } catch {
+                // Ignore focus errors
+              }
+            });
+          }
+
+          const currentReplyDraftSnapshot = serializeReplyDraft(latestReplyDraftRef.current);
+          if (
+            currentReplyDraftSnapshot === serializeReplyDraft(replyDraftBase) ||
+            currentReplyDraftSnapshot === sentReplyDraftSnapshot
+          ) {
+            const restoredReplyDraft = JSON.parse(sentReplyDraftSnapshot) as IReplyDraft | null;
+            restoredSilentReplyRef.current = restoredReplyDraft ? sentSilentReplySnapshot : null;
+            setReplyDraft(restoredReplyDraft ?? replyDraftBase);
+          }
+
+          if (imagePacksUsedRef.current.size === 0) {
+            const restoredImagePacks = JSON.parse(sentImagePacksSnapshot) as Record<
+              string,
+              MSC4459ImagePackReference
+            >;
+            Object.entries(restoredImagePacks).forEach(([key, value]) => {
+              imagePacksUsedRef.current.set(key, value);
+            });
+          }
+
+          sendTypingStatus(false);
+        };
+
+        const resetInput = (
+          sentReplyDraftSnapshot?: string,
+          sentImagePacksSnapshot?: string,
+          options?: { refocus?: boolean }
+        ) => {
+          setMsgDraft([]);
+          resetEditor(editor);
+          resetEditorHistory(editor);
+          setInputKey((prev) => prev + 1);
+          clearSentMessageContext(sentReplyDraftSnapshot, sentImagePacksSnapshot);
+          sendTypingStatus(false);
+
+          if (options?.refocus) {
+            requestAnimationFrame(() => {
+              try {
+                ReactEditor.focus(editor);
+                moveCursor(editor);
+              } catch {
+                // Ignore focus errors
+              }
+            });
+          }
+        };
+        if (scheduledTime) {
+          try {
+            const delayMs = computeDelayMs(scheduledTime);
+            if (editingScheduledDelayId) {
+              await cancelDelayedEvent(mx, editingScheduledDelayId);
+            }
+            if (isEncrypted) {
+              await sendDelayedMessageE2EE(mx, roomId, room, content, delayMs);
+            } else {
+              await sendDelayedMessage(mx, roomId, content as RoomMessageEventContent, delayMs);
+            }
+            setSendError(undefined);
+            invalidate();
+            setEditingScheduledDelayId(null);
+            setScheduledTime(null);
+            resetInput();
+          } catch (e: unknown) {
+            if (
+              e instanceof MatrixError &&
+              (e.errcode === ErrorCode.M_MAX_DELAY_EXCEEDED ||
+                e.data?.['org.matrix.msc4140.errcode'] === 'M_MAX_DELAY_EXCEEDED')
+            ) {
+              const maxDelay =
+                (e.data as { max_delay?: number })?.max_delay ??
+                e.data?.['org.matrix.msc4140.max_delay'];
+              if (typeof maxDelay === 'number') setServerMaxDelayMs(maxDelay);
+              const maxDelayDays = maxDelay / daysToMs(1);
+              setSendError(
+                `Scheduled time exceeds the maximum delay allowed by this server. Please choose an earlier time. The Maximum Delay is of ${maxDelayDays} day${maxDelayDays > 1 ? 's' : ''}.`
+              );
+            } else {
+              setSendError('Failed to schedule message. Please try again.');
+            }
+          }
+        } else if (editingScheduledDelayId) {
+          try {
             await cancelDelayedEvent(mx, editingScheduledDelayId);
+            debugLog.info('message', 'Sending message after cancelling scheduled event', {
+              roomId,
+              scheduledDelayId: editingScheduledDelayId,
+            });
+            const res = await mx.sendMessage(
+              roomId,
+              threadRootId ?? null,
+              content as RoomMessageEventContent
+            );
+            debugLog.info('message', 'Message sent successfully', {
+              roomId,
+              eventId: res.event_id,
+            });
+            invalidate();
+            setEditingScheduledDelayId(null);
+            resetInput();
+          } catch (error) {
+            debugLog.error('message', 'Failed to send message after cancelling scheduled event', {
+              roomId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            // Cancel failed — leave state intact for retry
           }
-          if (isEncrypted) {
-            await sendDelayedMessageE2EE(mx, roomId, room, content, delayMs);
-          } else {
-            await sendDelayedMessage(mx, roomId, content as RoomMessageEventContent, delayMs);
-          }
+        } else {
+          const msgSendStart = performance.now();
+          const sentMsgDraftSnapshot = structuredClone(editor.children);
+          const sentReplyDraftSnapshot = serializeReplyDraft(replyDraft);
+          const sentImagePacksSnapshot = JSON.stringify(imagePacksUsedRef.current.toJSON());
+          const sentSilentReplySnapshot = silentReply;
+          const txnId = mx.makeTxnId();
           setSendError(undefined);
-          invalidate();
-          setEditingScheduledDelayId(null);
-          setScheduledTime(null);
-          resetInput();
-        } catch (e: unknown) {
-          if (
-            e instanceof MatrixError &&
-            (e.errcode === ErrorCode.M_MAX_DELAY_EXCEEDED ||
-              e.data?.['org.matrix.msc4140.errcode'] === 'M_MAX_DELAY_EXCEEDED')
-          ) {
-            const maxDelay =
-              (e.data as { max_delay?: number })?.max_delay ??
-              e.data?.['org.matrix.msc4140.max_delay'];
-            if (typeof maxDelay === 'number') setServerMaxDelayMs(maxDelay);
-            const maxDelayDays = maxDelay / daysToMs(1);
-            setSendError(
-              `Scheduled time exceeds the maximum delay allowed by this server. Please choose an earlier time. The Maximum Delay is of ${maxDelayDays} day${maxDelayDays > 1 ? 's' : ''}.`
+          resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot, { refocus: true });
+          debugLog.info('message', 'Sending message', {
+            roomId,
+            msgtype: content.msgtype,
+          });
+          try {
+            const res = await sendImmediateMessage({
+              content: content as RoomMessageEventContent,
+              isEncrypted,
+              mx,
+              roomId,
+              threadRootId: threadRootId ?? undefined,
+              txnId,
+            });
+            debugLog.info('message', 'Message sent successfully', {
+              roomId,
+              eventId: res.event_id,
+            });
+            Sentry.metrics.distribution(
+              'sable.message.send_latency_ms',
+              performance.now() - msgSendStart,
+              { attributes: { encrypted: String(isEncrypted) } }
             );
-          } else {
-            setSendError('Failed to schedule message. Please try again.');
-          }
-        }
-      } else if (editingScheduledDelayId) {
-        try {
-          await cancelDelayedEvent(mx, editingScheduledDelayId);
-          debugLog.info('message', 'Sending message after cancelling scheduled event', {
-            roomId,
-            scheduledDelayId: editingScheduledDelayId,
-          });
-          const res = await mx.sendMessage(
-            roomId,
-            threadRootId ?? null,
-            content as RoomMessageEventContent
-          );
-          debugLog.info('message', 'Message sent successfully', {
-            roomId,
-            eventId: res.event_id,
-          });
-          invalidate();
-          setEditingScheduledDelayId(null);
-          resetInput();
-        } catch (error) {
-          debugLog.error('message', 'Failed to send message after cancelling scheduled event', {
-            roomId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          // Cancel failed — leave state intact for retry
-        }
-      } else {
-        const msgSendStart = performance.now();
-        const sentMsgDraftSnapshot = structuredClone(editor.children);
-        const sentReplyDraftSnapshot = serializeReplyDraft(replyDraft);
-        const sentImagePacksSnapshot = JSON.stringify(imagePacksUsedRef.current.toJSON());
-        const sentSilentReplySnapshot = silentReply;
-        const txnId = mx.makeTxnId();
-        setSendError(undefined);
-        resetInput(sentReplyDraftSnapshot, sentImagePacksSnapshot, { refocus: true });
-        debugLog.info('message', 'Sending message', {
-          roomId,
-          msgtype: content.msgtype,
-        });
-        try {
-          const res = await sendImmediateMessage({
-            content: content as RoomMessageEventContent,
-            isEncrypted,
-            mx,
-            roomId,
-            threadRootId: threadRootId ?? undefined,
-            txnId,
-          });
-          debugLog.info('message', 'Message sent successfully', {
-            roomId,
-            eventId: res.event_id,
-          });
-          Sentry.metrics.distribution(
-            'sable.message.send_latency_ms',
-            performance.now() - msgSendStart,
-            { attributes: { encrypted: String(isEncrypted) } }
-          );
-        } catch (error: unknown) {
-          setSendError('Failed to send message. Please try again.');
-          const pendingImmediateEvent = room.getEventForTxnId(txnId);
-          const pendingImmediateEventStatus = pendingImmediateEvent?.getAssociatedStatus();
+          } catch (error: unknown) {
+            setSendError('Failed to send message. Please try again.');
+            const pendingImmediateEvent = room.getEventForTxnId(txnId);
+            const pendingImmediateEventStatus = pendingImmediateEvent?.getAssociatedStatus();
 
-          if (
-            pendingImmediateEventStatus !== EventStatus.ENCRYPTING &&
-            pendingImmediateEventStatus !== EventStatus.SENDING &&
-            pendingImmediateEventStatus !== EventStatus.QUEUED &&
-            pendingImmediateEventStatus !== EventStatus.NOT_SENT
-          ) {
-            restoreFailedImmediateSendContext(
-              sentMsgDraftSnapshot,
-              sentReplyDraftSnapshot,
-              sentImagePacksSnapshot,
-              sentSilentReplySnapshot
-            );
+            if (
+              pendingImmediateEventStatus !== EventStatus.ENCRYPTING &&
+              pendingImmediateEventStatus !== EventStatus.SENDING &&
+              pendingImmediateEventStatus !== EventStatus.QUEUED &&
+              pendingImmediateEventStatus !== EventStatus.NOT_SENT
+            ) {
+              restoreFailedImmediateSendContext(
+                sentMsgDraftSnapshot,
+                sentReplyDraftSnapshot,
+                sentImagePacksSnapshot,
+                sentSilentReplySnapshot
+              );
+            }
+            debugLog.error('message', 'Failed to send message', {
+              roomId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            Sentry.metrics.count('sable.message.send_error', 1, {
+              attributes: { encrypted: String(isEncrypted) },
+            });
+            log.error('failed to send message', { roomId }, error);
           }
-          debugLog.error('message', 'Failed to send message', {
-            roomId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          Sentry.metrics.count('sable.message.send_error', 1, {
-            attributes: { encrypted: String(isEncrypted) },
-          });
-          log.error('failed to send message', { roomId }, error);
         }
+      } finally {
+        submitInFlightRef.current = false;
       }
     }, [
       editor,

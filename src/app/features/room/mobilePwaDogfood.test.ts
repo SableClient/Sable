@@ -116,6 +116,7 @@ describe('mobile PWA dogfood contract', () => {
     expect(widgetsDrawer).toContain('const isPhoneLayout =');
     expect(widgetsDrawer).toContain('screenSize === ScreenSize.Mobile ||');
     expect(widgetsDrawer).toContain('isPhoneLayoutDevice();');
+    expect(widgetsDrawer).toContain("grow={isDesktopLayout ? undefined : 'Yes'}");
     expect(widgetsDrawer).toContain("backgroundColor: 'var(--sable-surface)'");
     expect(widgetsDrawer).toContain('fullScreen={isPhoneLayout}');
   });

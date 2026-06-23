@@ -301,7 +301,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
   return (
     <Box
       className={css.WidgetsDrawer}
-      grow="Yes"
+      grow={isDesktopLayout ? undefined : 'Yes'}
       shrink="No"
       direction="Column"
       style={{

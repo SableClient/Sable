@@ -12,7 +12,6 @@ globalStyle(
   `
     ${floatingEditor} > div, 
     ${floatingEditor} [class*="Editor"], 
-    ${floatingEditor} [class*="EditorTextarea"],
     ${floatingEditor} [role="textbox"]`,
   {
     backgroundColor: 'transparent',
@@ -21,6 +20,14 @@ globalStyle(
     color: 'var(--sable-primary-on-container)',
   }
 );
+
+globalStyle(`${floatingEditor} [class*="EditorTextarea"]`, {
+  paddingTop: '13px !important',
+});
+
+globalStyle(`${floatingEditor} [class*="EditorPlaceholderTextVisual"]`, {
+  paddingTop: '13px !important',
+});
 
 globalStyle(`${floatingEditor} ${floatingToolbar} button`, {
   borderRadius: '20px',

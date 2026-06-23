@@ -226,7 +226,16 @@ export function GifItem({
                     setFavorited(true);
                     await mx
                       .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
-                        gifs: [...favoritedContent.gifs, { ...gif, url: mxcUrl }],
+                        gifs: [
+                          ...favoritedContent.gifs,
+                          {
+                            title: gif.title,
+                            url: mxcUrl,
+                            width: gif.width,
+                            height: gif.height,
+                            size: gif.size,
+                          },
+                        ],
                       })
                       .catch(() => setFavorited(false));
                   } else {

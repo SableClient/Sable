@@ -25,4 +25,5 @@ export type GifData = {
   preview_url?: string;
   width?: number;
   height?: number;
+  size?: number;
 };

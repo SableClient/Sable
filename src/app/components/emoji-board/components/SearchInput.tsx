@@ -10,12 +10,14 @@ type SearchInputProps = {
   onChange: ChangeEventHandler<HTMLInputElement>;
   allowTextCustomEmoji?: boolean;
   onTextCustomEmojiSelect?: (text: string) => void;
+  tab?: EmojiBoardTab;
 };
 export function SearchInput({
   query,
   onChange,
   allowTextCustomEmoji,
   onTextCustomEmojiSelect,
+  tab,
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -31,11 +33,15 @@ export function SearchInput({
       variant="SurfaceVariant"
       size="400"
       placeholder={
-        allowTextCustomEmoji && !EmojiBoardTab.Gif ? 'Search or Text Reaction ' : 'Search'
+        tab === EmojiBoardTab.Gif
+          ? 'Search KLIPY'
+          : allowTextCustomEmoji
+            ? 'Search or Text Reaction '
+            : 'Search'
       }
       maxLength={50}
       after={
-        allowTextCustomEmoji && query && !EmojiBoardTab.Gif ? (
+        allowTextCustomEmoji && query && tab !== EmojiBoardTab.Gif ? (
           <Chip
             variant="Primary"
             radii="Pill"

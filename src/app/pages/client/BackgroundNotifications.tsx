@@ -532,7 +532,7 @@ export function BackgroundNotifications() {
               return;
             }
 
-            if (!isNotificationEvent(mEvent)) {
+            if (!isNotificationEvent(mEvent, room, mx.getUserId() ?? undefined)) {
               return;
             }
 

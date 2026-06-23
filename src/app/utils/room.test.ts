@@ -5,6 +5,7 @@ import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import {
   getRoomReadMarkerId,
   getUnreadInfo,
+  isNotificationEvent,
   resolveSpaceNavigationRoot,
   roomHaveUnread,
 } from './room';
@@ -108,6 +109,29 @@ function makeSpaceRoom(
 }
 
 describe('room read markers', () => {
+  it('treats reactions to the current user messages as notification events only with context', () => {
+    const root = makeEvent('$event1', USER_ID);
+    const reaction = makeReactionEvent('$event2', '$event1');
+    const room = makeRoom({
+      fullyReadId: '$event1',
+      events: [root, reaction],
+    });
+
+    expect(isNotificationEvent(reaction)).toBe(false);
+    expect(isNotificationEvent(reaction, room, USER_ID)).toBe(true);
+  });
+
+  it('does not treat reactions to other users messages as notification events', () => {
+    const root = makeEvent('$event1', '@carol:example.com');
+    const reaction = makeReactionEvent('$event2', '$event1');
+    const room = makeRoom({
+      fullyReadId: '$event1',
+      events: [root, reaction],
+    });
+
+    expect(isNotificationEvent(reaction, room, USER_ID)).toBe(false);
+  });
+
   it('falls back to m.fully_read when a receipt is not available', () => {
     const room = makeRoom({ fullyReadId: '$event1', events: [makeEvent('$event1')] });
 

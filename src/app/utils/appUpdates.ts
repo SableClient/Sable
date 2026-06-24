@@ -5,6 +5,9 @@ import { reloadWithTelemetry } from '$utils/reloadWithTelemetry';
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const APPLY_UPDATE_TIMEOUT_MS = 4000;
 const UPDATE_CHECK_FAILURE_MESSAGE = 'Failed to check for updates. Reload the app and try again.';
+const HOSTED_SHELL_CHECK_TIMEOUT_MS = 5000;
+const APP_SHELL_ASSET_PATHNAME = /^\/assets\/.+\.(?:css|js|mjs)$/;
+let hostedAppShellUpdateDetected = false;
 
 export type AppUpdateCheckResult =
   | {
@@ -48,6 +51,92 @@ const getCurrentAppUrl = (): URL | undefined => {
   } catch {
     return undefined;
   }
+};
+
+const normalizeAssetUrlPath = (value: string): string | undefined => {
+  try {
+    const url = new URL(value, window.location.origin);
+    return APP_SHELL_ASSET_PATHNAME.test(url.pathname) ? url.pathname : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const getCurrentDocumentAppShellAssetSignature = (): string | undefined => {
+  if (typeof document === 'undefined') return undefined;
+
+  const assetPaths = Array.from(
+    document.querySelectorAll<HTMLScriptElement | HTMLLinkElement>('script[src], link[href]')
+  )
+    .map((element) =>
+      normalizeAssetUrlPath(element instanceof HTMLScriptElement ? element.src : element.href)
+    )
+    .filter((assetPath): assetPath is string => assetPath !== undefined)
+    .toSorted();
+
+  return assetPaths.length > 0 ? assetPaths.join('|') : undefined;
+};
+
+const getHostedAppShellUrl = (): URL | undefined => {
+  try {
+    return new URL(document.baseURI);
+  } catch {
+    return getCurrentAppUrl();
+  }
+};
+
+const getHostedDocumentAppShellAssetSignature = (html: string): string | undefined => {
+  if (typeof DOMParser === 'undefined') return undefined;
+
+  const parsedDocument = new DOMParser().parseFromString(html, 'text/html');
+  const assetPaths = Array.from(
+    parsedDocument.querySelectorAll<HTMLScriptElement | HTMLLinkElement>('script[src], link[href]')
+  )
+    .map((element) => {
+      const rawValue =
+        element instanceof HTMLScriptElement
+          ? element.getAttribute('src')
+          : element.getAttribute('href');
+      return rawValue ? normalizeAssetUrlPath(rawValue) : undefined;
+    })
+    .filter((assetPath): assetPath is string => assetPath !== undefined)
+    .toSorted();
+
+  return assetPaths.length > 0 ? assetPaths.join('|') : undefined;
+};
+
+const fetchHostedAppShellAssetSignature = async (): Promise<string | undefined> => {
+  const hostedShellUrl = getHostedAppShellUrl();
+  if (!hostedShellUrl) return undefined;
+
+  hostedShellUrl.searchParams.set('__app_update_check', Date.now().toString(36));
+  const abortController = new AbortController();
+  const timeoutId = window.setTimeout(() => abortController.abort(), HOSTED_SHELL_CHECK_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(hostedShellUrl, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+      signal: abortController.signal,
+    });
+    if (!response.ok) return undefined;
+    return getHostedDocumentAppShellAssetSignature(await response.text());
+  } catch {
+    return undefined;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
+const getHostedAppShellUpdateStatus = async (): Promise<
+  'update-available' | 'up-to-date' | 'unknown'
+> => {
+  const currentSignature = getCurrentDocumentAppShellAssetSignature();
+  if (!currentSignature) return 'unknown';
+
+  const hostedSignature = await fetchHostedAppShellAssetSignature();
+  if (!hostedSignature) return 'unknown';
+  return hostedSignature !== currentSignature ? 'update-available' : 'up-to-date';
 };
 
 const getWinningScopeRegistrations = (
@@ -277,13 +366,6 @@ const waitForUpdatedActiveServiceWorker = async (
 
 export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
   const registrations = await getAppServiceWorkerRegistrations();
-  if (registrations.length === 0) {
-    return {
-      kind: 'native-unsupported',
-      message: 'Native binary update checking is not configured in this build.',
-      canApply: false,
-    };
-  }
 
   if (getPendingAppUpdateRegistration(registrations)) {
     return {
@@ -306,22 +388,39 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
   const rejectedUpdates = updateResults.filter(
     (result): result is PromiseRejectedResult => result.status === 'rejected'
   );
-  if (successfulUpdates.length === 0) {
-    const firstError = rejectedUpdates[0]?.reason;
-    throw firstError instanceof Error
-      ? new Error(UPDATE_CHECK_FAILURE_MESSAGE, { cause: firstError })
-      : new Error(UPDATE_CHECK_FAILURE_MESSAGE);
-  }
 
-  const updateAvailable = await waitForAnyWaitingServiceWorker(
-    successfulUpdates.map(({ value: registration }) => registration)
-  );
+  const updateAvailable =
+    successfulUpdates.length > 0 &&
+    (await waitForAnyWaitingServiceWorker(
+      successfulUpdates.map(({ value: registration }) => registration)
+    ));
   if (updateAvailable) {
     return {
       kind: 'update-available',
       message: 'An update is ready to apply.',
       canApply: true,
     };
+  }
+
+  if (registrations.length > 0 && successfulUpdates.length === 0) {
+    const firstError = rejectedUpdates[0]?.reason;
+    throw firstError instanceof Error
+      ? new Error(UPDATE_CHECK_FAILURE_MESSAGE, { cause: firstError })
+      : new Error(UPDATE_CHECK_FAILURE_MESSAGE);
+  }
+
+  const hostedAppShellUpdateStatus = await getHostedAppShellUpdateStatus();
+  if (hostedAppShellUpdateStatus === 'update-available') {
+    hostedAppShellUpdateDetected = true;
+    return {
+      kind: 'update-available',
+      message: 'A newer hosted app version is ready to apply.',
+      canApply: true,
+    };
+  }
+
+  if (hostedAppShellUpdateStatus === 'up-to-date') {
+    hostedAppShellUpdateDetected = false;
   }
 
   if (rejectedUpdates.length > 0) {
@@ -331,6 +430,22 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
       : new Error(UPDATE_CHECK_FAILURE_MESSAGE);
   }
 
+  if (registrations.length === 0) {
+    if (hostedAppShellUpdateStatus === 'up-to-date') {
+      return {
+        kind: 'up-to-date',
+        message: 'You are already on the latest available web app version.',
+        canApply: false,
+      };
+    }
+
+    return {
+      kind: 'native-unsupported',
+      message: 'Native binary update checking is not configured in this build.',
+      canApply: false,
+    };
+  }
+
   return {
     kind: 'up-to-date',
     message: 'You are already on the latest available web app version.',
@@ -338,14 +453,19 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
   };
 }
 
-export async function applyPendingAppUpdate(): Promise<void> {
+export async function applyPendingAppUpdate(): Promise<boolean> {
   const registrations = await getAppServiceWorkerRegistrations();
   const registration = getPendingAppUpdateRegistration(registrations);
-  if (!registration) return;
+  const serviceWorkerSupported = hasServiceWorker();
+  const hostedAppShellUpdateStatus = hostedAppShellUpdateDetected
+    ? 'update-available'
+    : await getHostedAppShellUpdateStatus();
+  if (hostedAppShellUpdateStatus === 'unknown' && !registration) return false;
+  if (!registration && hostedAppShellUpdateStatus !== 'update-available') return false;
 
-  const currentController = navigator.serviceWorker.controller;
+  const currentController = serviceWorkerSupported ? navigator.serviceWorker.controller : null;
 
-  if (registration.waiting) {
+  if (serviceWorkerSupported && registration?.waiting) {
     const waitForControllerChange = waitForServiceWorkerControllerChange();
     const waitForUpdatedActiveWorker = waitForUpdatedActiveServiceWorker(
       registration,
@@ -364,13 +484,19 @@ export async function applyPendingAppUpdate(): Promise<void> {
       activeWorker.postMessage({ type: 'CLAIM_CLIENTS' });
     }
     await waitForControllerChange;
-  } else if (registration.active && registration.active !== currentController) {
+  } else if (
+    serviceWorkerSupported &&
+    registration?.active &&
+    registration.active !== currentController
+  ) {
     const waitForControllerChange = waitForServiceWorkerControllerChange();
     // oxlint-disable-next-line unicorn/require-post-message-target-origin
     registration.active.postMessage({ type: 'CLAIM_CLIENTS' });
     await waitForControllerChange;
   }
 
-  await clearClientCachesAndServiceWorkers();
+  await clearClientCachesAndServiceWorkers({ unregisterServiceWorkers: true });
+  hostedAppShellUpdateDetected = false;
   reloadWithTelemetry('apply_pending_app_update');
+  return true;
 }

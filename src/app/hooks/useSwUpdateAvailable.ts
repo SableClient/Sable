@@ -34,7 +34,6 @@ export function useSwUpdateAvailable(): boolean {
 
     const requestAutomaticUpdateCheck = () => {
       if (disposed) return;
-      if (!('serviceWorker' in navigator)) return;
       if (document.visibilityState === 'hidden' || updateCheckInFlight) return;
 
       updateCheckInFlight = true;

@@ -337,6 +337,9 @@ function SmokeEmojiPolish() {
           }}
         >
           <Text size="H4">Timeline emoji scaling</Text>
+          <Text size="T300" data-testid="smoke-jumbo-emoji-prev-line">
+            Header text should keep clear space above the jumbo emoji line.
+          </Text>
           <MessageTextBody jumboEmoji="normal" data-testid="smoke-jumbo-emoji-line">
             {scaleSystemEmoji('❤️')}
           </MessageTextBody>

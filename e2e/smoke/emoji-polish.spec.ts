@@ -215,16 +215,27 @@ test.describe('emoji polish smoke', () => {
       };
 
       return {
+        prevLine: measure('[data-testid="smoke-jumbo-emoji-prev-line"]'),
         jumboLine: measure('[data-testid="smoke-jumbo-emoji-line"]'),
         jumboEmoji: measure('[data-testid="smoke-jumbo-emoji-line"] span[title]'),
         nextLine: measure('[data-testid="smoke-emoji-inline-line"]'),
+        jumboPaddingTop: getComputedStyle(
+          document.querySelector('[data-testid="smoke-jumbo-emoji-line"]')!
+        ).paddingTop,
+        jumboPaddingBottom: getComputedStyle(
+          document.querySelector('[data-testid="smoke-jumbo-emoji-line"]')!
+        ).paddingBottom,
       };
     });
 
+    expect(metrics.prevLine).not.toBeNull();
     expect(metrics.jumboLine).not.toBeNull();
     expect(metrics.jumboEmoji).not.toBeNull();
     expect(metrics.nextLine).not.toBeNull();
 
+    expect(metrics.jumboPaddingTop).not.toBe('0px');
+    expect(metrics.jumboPaddingBottom).not.toBe('0px');
+    expect(metrics.jumboLine!.top - metrics.prevLine!.bottom).toBeGreaterThanOrEqual(4);
     expect(metrics.jumboEmoji!.top).toBeGreaterThanOrEqual(metrics.jumboLine!.top - 2);
     expect(metrics.jumboEmoji!.bottom).toBeLessThanOrEqual(metrics.jumboLine!.bottom + 2);
     expect(metrics.nextLine!.top - metrics.jumboLine!.bottom).toBeGreaterThanOrEqual(4);

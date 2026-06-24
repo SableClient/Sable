@@ -9,8 +9,7 @@ export type RoomPhosphorIcon = ComponentType<IconProps>;
 export type RoomIconOverlay = 'globe' | 'lock';
 
 const isRegularRoom = (roomType?: string): boolean =>
-  roomType !== RoomType.Space &&
-  roomType !== RoomType.UnstableCall;
+  roomType !== RoomType.Space && roomType !== RoomType.UnstableCall;
 
 export function getRoomIconOverlay(
   roomType?: string,

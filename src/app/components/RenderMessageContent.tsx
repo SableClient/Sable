@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { memo, useMemo, useCallback } from 'react';
 import type { IPreviewUrlResponse, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { MsgType } from '$types/matrix-sdk';
+import { EventType, MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
@@ -23,6 +23,7 @@ import {
   MImage,
   MLocation,
   MNotice,
+  MStrickerWrappper,
   MText,
   MVideo,
   ReadPdfFile,
@@ -48,7 +49,7 @@ import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
 import { PollEvent } from './message/PollEvent';
-import { M_TEXT } from 'matrix-js-sdk';
+import { M_POLL_START, M_TEXT } from 'matrix-js-sdk';
 import type { IImageInfo } from '$types/matrix/common';
 
 type RenderMessageContentProps = {
@@ -70,6 +71,7 @@ type RenderMessageContentProps = {
   mEvent?: MatrixEvent;
   mx?: MatrixClient;
   room?: Room;
+  autoplayStickers?: boolean;
 };
 
 const getMediaType = (url: string) => {
@@ -106,6 +108,7 @@ function RenderMessageContentInternal({
   mEvent,
   mx,
   room,
+  autoplayStickers,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
@@ -460,11 +463,21 @@ function RenderMessageContentInternal({
         }
       />
     );
-  if (content['org.matrix.msc3381.poll.start']) {
+  if (content[M_POLL_START.name]) {
     if (mEvent && mx && room)
       return <PollEvent content={content} mEvent={mEvent} mx={mx} room={room} />;
     else return <UnsupportedContent />;
   }
+  if (mEvent?.getType() === EventType.Sticker) {
+    return (
+      <MStrickerWrappper
+        mEvent={mEvent}
+        autoplayStickers={autoplayStickers}
+        mediaAutoLoad={mediaAutoLoad}
+      />
+    );
+  }
+
   return (
     <UnsupportedContent
       body={

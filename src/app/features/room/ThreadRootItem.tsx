@@ -18,6 +18,7 @@ import { useSetting } from '$state/hooks/settings';
 import type { GetContentCallback } from '$types/matrix/room';
 import { nicknamesAtom } from '$state/nicknames';
 import { EncryptedContent, Message, Reactions } from './message';
+import { useMatrixClient } from '$hooks/useMatrixClient';
 
 export type ThreadRootItemProps = {
   room: Room;
@@ -43,6 +44,7 @@ export type ThreadRootItemProps = {
   showDeveloperTools: boolean;
   onReferenceClick: MouseEventHandler<HTMLButtonElement>;
   hideReplyButton?: boolean;
+  showMaps?: boolean;
 };
 
 export function ThreadRootItem({
@@ -69,7 +71,9 @@ export function ThreadRootItem({
   showDeveloperTools,
   onReferenceClick,
   hideReplyButton,
+  showMaps,
 }: ThreadRootItemProps) {
+  const mx = useMatrixClient();
   const nicknames = useAtomValue(nicknamesAtom);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
@@ -178,7 +182,9 @@ export function ThreadRootItem({
                 return (
                   <RenderMessageContent
                     displayName={senderDisplayName}
-                    msgType={(editedNewContent ?? safeContent).msgtype ?? ''}
+                    msgType={
+                      ((editedNewContent ?? safeContent) as { msgtype?: string }).msgtype ?? ''
+                    }
                     ts={mEvent.getTs()}
                     edited={!!editedEvent}
                     getContent={getContent}
@@ -187,6 +193,10 @@ export function ThreadRootItem({
                     htmlReactParserOptions={htmlReactParserOptions}
                     linkifyOpts={linkifyOpts}
                     outlineAttachment
+                    mEvent={mEvent}
+                    mx={mx}
+                    room={room}
+                    showMaps={showMaps}
                   />
                 );
               }}

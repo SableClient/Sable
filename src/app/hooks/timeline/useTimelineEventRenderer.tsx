@@ -674,6 +674,7 @@ export function useTimelineEventRenderer({
                 displayName={senderDisplayName}
                 msgType={((editedNewContent ?? safeContent) as { msgtype?: string }).msgtype ?? ''}
                 ts={mEvent.getTs()}
+                mEvent={mEvent}
                 edited={!!editedEvent}
                 getContent={getContent}
                 mediaAutoLoad={mediaAutoLoad}
@@ -851,6 +852,7 @@ export function useTimelineEventRenderer({
                       }
                       ts={mEvent.getTs()}
                       edited={!!editedEvent}
+                      mEvent={mEvent}
                       getContent={getContent}
                       mediaAutoLoad={mediaAutoLoad}
                       bundledPreview={showBundledPreview}
@@ -861,6 +863,7 @@ export function useTimelineEventRenderer({
                       outlineAttachment={messageLayout === MessageLayout.Bubble}
                       mx={mx}
                       room={room}
+                      showMaps={showMaps}
                     />
                   );
                 }
@@ -896,6 +899,16 @@ export function useTimelineEventRenderer({
         const senderDisplayName =
           getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
         const content = mEvent.getContent() ?? {};
+
+        const editedEvent = getEditedEvent(mEventId, mEvent, timelineSet);
+        let editedNewContent: unknown;
+        if (editedEvent) {
+          editedNewContent = editedEvent.getContent()['m.new_content'];
+        }
+        const baseContent = mEvent.getContent() || {};
+        const safeContent =
+          Object.keys(baseContent).length > 0 ? baseContent : mEvent.getOriginalContent();
+        const getContent = (() => editedNewContent ?? safeContent) as GetContentCallback;
 
         return (
           <Message
@@ -974,25 +987,23 @@ export function useTimelineEventRenderer({
             {mEvent.isRedacted() ? (
               <RedactedContent reason={mEvent.getUnsigned().redacted_because?.content.reason} />
             ) : (
-              <MSticker
-                content={mEvent.getContent() as unknown as IImageContent}
-                renderImageContent={(props) => (
-                  <ImageContent
-                    {...props}
-                    autoPlay={mediaAutoLoad}
-                    renderImage={(p) => {
-                      if (!autoplayStickers && p.src) {
-                        return (
-                          <ClientSideHoverFreeze src={p.src}>
-                            <Image {...p} loading="lazy" />
-                          </ClientSideHoverFreeze>
-                        );
-                      }
-                      return <Image {...p} loading="lazy" />;
-                    }}
-                    renderViewer={(p) => <ImageViewer {...p} />}
-                  />
-                )}
+              <RenderMessageContent
+                displayName={senderDisplayName}
+                msgType={((editedNewContent ?? safeContent) as { msgtype?: string }).msgtype ?? ''}
+                ts={mEvent.getTs()}
+                mEvent={mEvent}
+                edited={!!editedEvent}
+                getContent={getContent}
+                mediaAutoLoad={mediaAutoLoad}
+                urlPreview={showUrlPreview}
+                bundledPreview={showBundledPreview}
+                clientUrlPreview={showClientUrlPreview}
+                showMaps={showMaps}
+                htmlReactParserOptions={htmlReactParserOptions}
+                linkifyOpts={linkifyOpts}
+                outlineAttachment={messageLayout === MessageLayout.Bubble}
+                mx={mx}
+                room={room}
               />
             )}
           </Message>
@@ -1160,6 +1171,7 @@ export function useTimelineEventRenderer({
                 mEvent={mEvent}
                 mx={mx}
                 room={room}
+                showMaps={showMaps}
               />
             )}
           </Message>

@@ -23,7 +23,12 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { nicknamesAtom } from '$state/nicknames';
-import { getMemberAvatarMxc, getMemberDisplayName, reactionOrEditEvent } from '$utils/room';
+import {
+  getEditedEvent,
+  getMemberAvatarMxc,
+  getMemberDisplayName,
+  reactionOrEditEvent,
+} from '$utils/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
 import { MessageNotDecryptedContent, MessageBadEncryptedContent } from '$components/message';
@@ -68,9 +73,10 @@ type ThreadPreviewProps = {
   thread: Thread;
   onClick: (threadId: string) => void;
   onJump?: () => void;
+  showMaps?: boolean;
 };
 
-function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
+function ThreadPreview({ room, thread, onClick, onJump, showMaps }: ThreadPreviewProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const { navigateRoom } = useRoomNavigate();
@@ -156,6 +162,13 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   const displayName =
     getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
   const senderAvatarMxc = getMemberAvatarMxc(room, senderId);
+  const timelineSet = thread?.timelineSet ?? room.getUnfilteredTimelineSet();
+  const rootEventId = rootEvent.getId() ?? '';
+  const editedEvent = getEditedEvent(rootEventId, rootEvent, timelineSet);
+  const editedNewContent = editedEvent?.getContent()['m.new_content'];
+  const baseContent = rootEvent.getContent();
+  const safeContent =
+    Object.keys(baseContent).length > 0 ? baseContent : rootEvent.getOriginalContent();
   const getContent = (() => rootEvent.getContent()) as GetContentCallback;
 
   const localReplyCount = thread.events.filter(
@@ -254,7 +267,9 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
               return (
                 <RenderMessageContent
                   displayName={displayName}
-                  msgType={rootEvent.getContent().msgtype ?? ''}
+                  msgType={
+                    ((editedNewContent ?? safeContent) as { msgtype?: string }).msgtype ?? ''
+                  }
                   ts={rootEvent.getTs()}
                   getContent={getContent}
                   edited={!!rootEvent.replacingEvent()}
@@ -266,6 +281,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
                   mEvent={rootEvent}
                   mx={mx}
                   room={room}
+                  showMaps={showMaps}
                 />
               );
             }}
@@ -316,6 +332,9 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
   const canLoadMoreRef = useRef(false);
   canLoadMoreRef.current = canLoadMore;
 
+  const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
+  const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
+  const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
   // On mount, set up thread event listeners, create the server-side thread
   // timeline sets, then fetch page 1 via paginate.  The two operations are
   // sequenced in a single effect so that createThreadsTimelineSets() always
@@ -481,7 +500,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           setCurWidth={setCurWidth}
           sidebarWidth={threadSidebarWidth}
           setSidebarWidth={setThreadSidebarWidth}
-          minValue={150}
+          minValue={250}
           maxValue={600}
           isReversed
         />
@@ -588,6 +607,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                       thread={thread}
                       onClick={onOpenThread}
                       onJump={onClose}
+                      showMaps={showMaps}
                     />
                   ))}
                 </Box>

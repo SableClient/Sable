@@ -1,4 +1,5 @@
 import { style } from '@vanilla-extract/css';
+import { recipe } from '@vanilla-extract/recipes';
 import { DefaultReset, color, config, toRem } from 'folds';
 
 export const UploadBoardBase = style([
@@ -9,16 +10,27 @@ export const UploadBoardBase = style([
   },
 ]);
 
-export const UploadBoardContainer = style([
-  DefaultReset,
-  {
-    position: 'absolute',
-    bottom: config.space.S200,
-    left: 0,
-    right: 0,
-    zIndex: config.zIndex.Max,
+export const UploadBoardContainer = recipe({
+  base: [
+    DefaultReset,
+    {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      zIndex: config.zIndex.Max,
+    },
+  ],
+  variants: {
+    isBottom: {
+      true: {
+        top: config.space.S200,
+      },
+      false: {
+        bottom: config.space.S200,
+      },
+    },
   },
-]);
+});
 
 export const UploadBoard = style({
   maxWidth: toRem(400),

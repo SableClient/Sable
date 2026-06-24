@@ -50,6 +50,7 @@ import {
   renderMatrixMention,
 } from '$plugins/react-custom-html-parser';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { GlobalModalManager } from '$components/message/modals/GlobalModalManager';
 
 type ForumPost = {
   eventId: string;
@@ -100,7 +101,6 @@ const collectForumPosts = (room: Room): ForumPost[] => {
     // that just reference a thread root via m.in_reply_to
     if (ev.getRelation()?.rel_type === 'm.thread') return;
     if (ev.isState()) return; // skip state events
-    if (!ev.getContent()?.msgtype) return; // not a displayable message
 
     posts.set(evId, {
       eventId: evId,
@@ -397,6 +397,10 @@ export function ForumView() {
     [setOpenThread]
   );
 
+  const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
+  const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
+  const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
+
   return (
     <PowerLevelsContextProvider value={powerLevels}>
       <Box grow="Yes">
@@ -463,6 +467,7 @@ export function ForumView() {
                             editor={editor}
                             roomId={room.roomId}
                             fileDropContainerRef={roomViewRef}
+                            showUploadCardBottom
                           />
                         )}
                         {!canMessage && (
@@ -505,6 +510,7 @@ export function ForumView() {
                       showDeveloperTools={showDeveloperTools}
                       onReferenceClick={handleOpenReply}
                       onClick={handleOpenThread}
+                      showMaps={showMaps}
                     />
                   ))}
                   {posts.length === 0 && (
@@ -552,6 +558,7 @@ export function ForumView() {
           />
         )}
       </Box>
+      <GlobalModalManager />
     </PowerLevelsContextProvider>
   );
 }

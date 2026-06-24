@@ -278,7 +278,9 @@ export const MessageTextBody = recipe({
     width: '100%',
     minWidth: 0,
     wordBreak: 'break-word',
-    fontSize: '1rem !important', // Override folds Text component to enable page zoom scaling
+    fontSize: '1rem',
+    lineHeight: config.lineHeight.T400,
+    letterSpacing: config.letterSpacing.T400,
   },
   variants: {
     preWrap: {
@@ -294,12 +296,8 @@ export const MessageTextBody = recipe({
       extraSmall: {
         fontSize: '1.25rem !important',
         lineHeight: '1.4em',
-        selectors: {
-          '&&': {
-            paddingTop: '0.08em',
-            paddingBottom: '0.08em',
-          },
-        },
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',
@@ -308,12 +306,8 @@ export const MessageTextBody = recipe({
       small: {
         fontSize: '1.5rem !important',
         lineHeight: '1.5em',
-        selectors: {
-          '&&': {
-            paddingTop: '0.08em',
-            paddingBottom: '0.08em',
-          },
-        },
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',
@@ -322,12 +316,8 @@ export const MessageTextBody = recipe({
       normal: {
         fontSize: '1.805rem !important',
         lineHeight: '1.625em',
-        selectors: {
-          '&&': {
-            paddingTop: '0.08em',
-            paddingBottom: '0.08em',
-          },
-        },
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',
@@ -336,12 +326,8 @@ export const MessageTextBody = recipe({
       large: {
         fontSize: '2.1rem !important',
         lineHeight: '1.675em',
-        selectors: {
-          '&&': {
-            paddingTop: '0.08em',
-            paddingBottom: '0.08em',
-          },
-        },
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',
@@ -350,12 +336,8 @@ export const MessageTextBody = recipe({
       extraLarge: {
         fontSize: '2.4rem !important',
         lineHeight: '1.7em',
-        selectors: {
-          '&&': {
-            paddingTop: '0.08em',
-            paddingBottom: '0.08em',
-          },
-        },
+        paddingTop: '0.08em',
+        paddingBottom: '0.08em',
         vars: {
           '--sable-system-emoji-top-offset': '-0.2em',
           '--sable-custom-emoji-top-offset': '-0.2em',
@@ -372,3 +354,12 @@ export const MessageTextBody = recipe({
 });
 
 export type MessageTextBodyVariants = RecipeVariants<typeof MessageTextBody>;
+
+export const MessageTextBodyPriority = styleVariants({
+  notice: {
+    opacity: config.opacity.P300,
+  },
+  default: {
+    opacity: config.opacity.P400,
+  },
+});

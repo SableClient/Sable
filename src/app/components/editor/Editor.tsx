@@ -1,6 +1,6 @@
 import type { ClipboardEventHandler, KeyboardEventHandler, ReactNode } from 'react';
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Box, Scroll, Text } from 'folds';
+import { Box, Scroll } from 'folds';
 import type { Descendant, Editor, Node, NodeEntry, BaseRange } from 'slate';
 import { Node as SlateNode, createEditor, Text as SlateText } from 'slate';
 import type { RenderLeafProps, RenderElementProps, RenderPlaceholderProps } from 'slate-react';
@@ -499,10 +499,8 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const renderPlaceholder = useCallback(
       ({ attributes, children }: RenderPlaceholderProps) => (
         <span {...attributes} className={css.EditorPlaceholderContainer}>
-          {/* Inner component to style the actual text position and appearance */}
-          <Text as="span" className={css.EditorPlaceholderTextVisual} truncate>
-            {children}
-          </Text>
+          {/* Keep placeholder text on a plain span so its padding is not reset by folds Text. */}
+          <span className={css.EditorPlaceholderTextVisual}>{children}</span>
         </span>
       ),
       []

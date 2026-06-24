@@ -1,20 +1,33 @@
 import { style } from '@vanilla-extract/css';
+import { recipe } from '@vanilla-extract/recipes';
 import { toRem, color, config, DefaultReset, FocusOutline } from 'folds';
 
 /**
  * Layout
  */
 
-export const Base = style({
-  maxWidth: toRem(432),
-  width: `calc(100vw - 2 * ${config.space.S400})`,
-  height: toRem(450),
-  backgroundColor: color.Surface.Container,
-  color: color.Surface.OnContainer,
-  border: `${config.borderWidth.B300} solid ${color.Surface.ContainerLine}`,
-  borderRadius: config.radii.R400,
-  boxShadow: config.shadow.E200,
-  overflow: 'hidden',
+export const Base = recipe({
+  base: [
+    {
+      maxWidth: toRem(432),
+      width: `calc(100vw - 2 * ${config.space.S400})`,
+      height: toRem(450),
+      backgroundColor: color.Surface.Container,
+      color: color.Surface.OnContainer,
+      border: `${config.borderWidth.B300} solid ${color.Surface.ContainerLine}`,
+      borderRadius: config.radii.R400,
+      boxShadow: config.shadow.E200,
+      overflow: 'hidden',
+    },
+  ],
+  variants: {
+    isFullWidth: {
+      true: {
+        maxWidth: '100vw',
+        width: `calc(100vw - ${config.borderWidth.B300})`,
+      },
+    },
+  },
 });
 
 export const Header = style({

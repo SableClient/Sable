@@ -1,6 +1,6 @@
 import type { MouseEventHandler, ReactElement } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { RectCords } from 'folds';
 import {
   Avatar,
@@ -113,6 +113,7 @@ import type { RoomBannerContent } from '$types/matrix-sdk-events';
 import { ModalWide } from '$styles/Modal.css';
 import { ImageViewer } from '$components/image-viewer';
 import * as css from './styles.css';
+import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 
 const debugLog = createDebugLogger('Space');
 
@@ -527,6 +528,7 @@ export function Space() {
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
+  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   useEffect(() => {
@@ -1047,6 +1049,7 @@ export function Space() {
                             room.roomId
                           )}
                           joinCallOnSingleClick={joinCallOnSingleClick}
+                          isStrict={showRoomIcon === ShowRoomIcon.Strict}
                         />
                       </div>
                     </VirtualTile>
@@ -1054,6 +1057,7 @@ export function Space() {
                 })}
                 {getConnectorSVG(hierarchy, virtualizedItems)}
               </NavCategory>
+              <div style={{ height: toRem(40) }} />
             </Box>
           </PageNavContent>
         </SwipeableOverlayWrapper>
@@ -1067,6 +1071,7 @@ export function Space() {
           outstep={190}
           minValue={50}
           maxValue={500}
+          setAnnouncement={setIsResizingSidebar}
         />
       )}
     </Box>

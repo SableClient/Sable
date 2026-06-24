@@ -65,6 +65,15 @@ export const messageJumpHighlight = style({
   animationIterationCount: 'infinite',
 });
 
+const MobileVariant = styleVariants({
+  true: {
+    WebkitUserSelect: 'none',
+    msUserSelect: 'none',
+    userSelect: 'none',
+    MozUserSelect: 'none',
+  },
+});
+
 const HighlightVariant = styleVariants({
   true: [messageJumpHighlight],
 });
@@ -108,6 +117,8 @@ export const MessageBase = recipe({
       borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
       minHeight: toRem(16),
       contain: 'layout',
+      flexGrow: '1',
+      width: '100',
     },
   ],
   variants: {
@@ -124,6 +135,7 @@ export const MessageBase = recipe({
     notifyHighlight: NotifyHighlightVariant,
     selected: SelectedVariant,
     isMarked: MarkedVariant,
+    mobile: MobileVariant,
   },
   defaultVariants: {
     space: '400',

@@ -26,6 +26,7 @@ export enum CaptionPosition {
 
 export enum ShowRoomIcon {
   Always = 'always',
+  Strict = 'strict',
   Smart = 'smart',
   Never = 'never',
 }
@@ -348,7 +349,7 @@ export const defaultSettings: Settings = {
   showPersonaSetting: false,
   closeFoldersByDefault: false,
   perRoomShowRoomIcon: [],
-  showRoomIcon: ShowRoomIcon.Smart,
+  showRoomIcon: ShowRoomIcon.Strict,
   roomIconOverlay: true,
   showRoomBanners: true,
   roomSidebarWidth: 256,

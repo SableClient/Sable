@@ -280,7 +280,7 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
         <FocusTrap
           focusTrapOptions={{
             initialFocus: () => inputRef.current,
-            returnFocusOnDeactivate: false,
+            returnFocusOnDeactivate: true,
             allowOutsideClick: true,
             clickOutsideDeactivates: true,
             onDeactivate: requestClose,
@@ -521,7 +521,7 @@ export function SearchModalRenderer() {
     window,
     useCallback(
       (event) => {
-        if (isKeyHotkey('mod+k', event) || isKeyHotkey('mod+f', event)) {
+        if (isKeyHotkey('mod+k', event)) {
           event.preventDefault();
           if (opened) {
             setOpen(false);

@@ -13,6 +13,7 @@ export const MessageBase = as<'div', css.MessageBaseVariants>(
       collapse,
       autoCollapse,
       space,
+      mobile,
       ...props
     },
     ref
@@ -27,6 +28,7 @@ export const MessageBase = as<'div', css.MessageBaseVariants>(
           collapse,
           autoCollapse,
           space,
+          mobile,
         }),
         className
       )}

@@ -15,6 +15,7 @@ export function SidebarResizer({
   outstep,
   isReversed,
   topSided,
+  setAnnouncement,
 }: {
   sidebarWidth: number;
   setSidebarWidth: (arg0: number) => void;
@@ -25,6 +26,7 @@ export function SidebarResizer({
   outstep?: number;
   isReversed?: boolean;
   topSided?: boolean;
+  setAnnouncement?: (announcement: boolean) => void;
 }) {
   const [isPointerOver, setIsPointerOver] = useState(false);
   const [isPointerDown, setIsPointerDown] = useState(false);
@@ -57,6 +59,7 @@ export function SidebarResizer({
     e.preventDefault();
     setNewPos(topSided ? e.clientY : e.clientX);
     setIsPointerDown(false);
+    setAnnouncement?.(false);
     window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('pointermove', onPointerMove);
   }, []);
@@ -67,6 +70,7 @@ export function SidebarResizer({
       e.currentTarget.setPointerCapture(e.pointerId);
       setOldPos(topSided ? e.clientY : e.clientX);
       setIsPointerDown(true);
+      setAnnouncement?.(true);
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointermove', onPointerMove);
     },

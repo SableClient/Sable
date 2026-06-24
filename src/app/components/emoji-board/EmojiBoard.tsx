@@ -16,7 +16,7 @@ import { atom, useAtom, useSetAtom } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { IEmoji } from '$plugins/emoji';
 import { emojiGroups, emojis } from '$plugins/emoji';
-import { preventScrollWithArrowKey, stopPropagation } from '$utils/keyboard';
+import { preventScrollWithArrowKey } from '$utils/keyboard';
 import { useRelevantImagePacks } from '$hooks/useImagePacks';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
@@ -386,6 +386,7 @@ type EmojiBoardProps = {
   onStickerSelect?: (mxc: string, shortcode: string, label: string) => void;
   allowTextCustomEmoji?: boolean;
   addToRecentEmoji?: boolean;
+  isFullWidth?: boolean;
 };
 
 export function EmojiBoard({
@@ -399,6 +400,7 @@ export function EmojiBoard({
   onStickerSelect,
   allowTextCustomEmoji,
   addToRecentEmoji = true,
+  isFullWidth,
 }: Readonly<EmojiBoardProps>) {
   const mx = useMatrixClient();
   const [saveStickerEmojiBandwidth] = useSetting(settingsAtom, 'saveStickerEmojiBandwidth');
@@ -539,13 +541,17 @@ export function EmojiBoard({
         returnFocusOnDeactivate,
         initialFocus: false,
         onDeactivate: requestClose,
-        clickOutsideDeactivates: true,
-        allowOutsideClick: true,
+
+        allowOutsideClick: (e) => {
+          e.preventDefault();
+          requestClose();
+          return false;
+        },
         isKeyForward: (evt: KeyboardEvent) =>
           !editableActiveElement() && isKeyHotkey(['arrowdown', 'arrowright'], evt),
         isKeyBackward: (evt: KeyboardEvent) =>
           !editableActiveElement() && isKeyHotkey(['arrowup', 'arrowleft'], evt),
-        escapeDeactivates: stopPropagation,
+        escapeDeactivates: true,
       }}
     >
       <EmojiBoardLayout
@@ -578,6 +584,7 @@ export function EmojiBoard({
             />
           )
         }
+        isFullWidth={isFullWidth}
       >
         <Box grow="Yes">
           <EmojiGroupHolder

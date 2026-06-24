@@ -706,7 +706,7 @@ describe('appUpdates', () => {
   });
 
   it('does not reload when there is no pending app update to apply', async () => {
-    await applyPendingAppUpdate();
+    await expect(applyPendingAppUpdate()).resolves.toBe(false);
 
     expect(mockClearClientCachesAndServiceWorkers).not.toHaveBeenCalled();
     expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
@@ -730,7 +730,7 @@ describe('appUpdates', () => {
       )
     );
 
-    await applyPendingAppUpdate();
+    await expect(applyPendingAppUpdate()).resolves.toBe(true);
 
     expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
       unregisterServiceWorkers: true,
@@ -762,7 +762,7 @@ describe('appUpdates', () => {
       value: {},
     });
 
-    await applyPendingAppUpdate();
+    await expect(applyPendingAppUpdate()).resolves.toBe(true);
 
     expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
       unregisterServiceWorkers: true,
@@ -773,7 +773,7 @@ describe('appUpdates', () => {
   it('does nothing when applying an update cannot confirm the hosted shell and no pending worker exists', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('network failed'));
 
-    await applyPendingAppUpdate();
+    await expect(applyPendingAppUpdate()).resolves.toBe(false);
 
     expect(mockClearClientCachesAndServiceWorkers).not.toHaveBeenCalled();
     expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
@@ -808,7 +808,7 @@ describe('appUpdates', () => {
       canApply: true,
     });
 
-    await applyPendingAppUpdate();
+    await expect(applyPendingAppUpdate()).resolves.toBe(true);
 
     expect(mockClearClientCachesAndServiceWorkers).toHaveBeenCalledWith({
       unregisterServiceWorkers: true,
@@ -868,7 +868,7 @@ describe('appUpdates', () => {
       canApply: false,
     });
 
-    await applyPendingAppUpdate();
+    await expect(applyPendingAppUpdate()).resolves.toBe(false);
 
     expect(mockClearClientCachesAndServiceWorkers).not.toHaveBeenCalled();
     expect(mockReloadWithTelemetry).not.toHaveBeenCalled();

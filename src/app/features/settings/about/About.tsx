@@ -229,7 +229,11 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
     setIsApplyingUpdate(true);
 
     try {
-      await applyPendingAppUpdate();
+      const updateApplied = await applyPendingAppUpdate();
+      if (isMountedRef.current && !updateApplied) {
+        isApplyingUpdateRef.current = false;
+        setIsApplyingUpdate(false);
+      }
     } catch (error) {
       if (isMountedRef.current) {
         setUpdateStatusMessage(
@@ -334,7 +338,11 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                           radii="300"
                           outlined
                           disabled={isApplyingUpdate}
-                          before={isApplyingUpdate ? <Spinner variant="Secondary" size="100" /> : undefined}
+                          before={
+                            isApplyingUpdate ? (
+                              <Spinner variant="Secondary" size="100" />
+                            ) : undefined
+                          }
                         >
                           <Text size="B300">{isApplyingUpdate ? 'Applying…' : 'Apply Update'}</Text>
                         </Button>

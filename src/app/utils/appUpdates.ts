@@ -453,15 +453,15 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
   };
 }
 
-export async function applyPendingAppUpdate(): Promise<void> {
+export async function applyPendingAppUpdate(): Promise<boolean> {
   const registrations = await getAppServiceWorkerRegistrations();
   const registration = getPendingAppUpdateRegistration(registrations);
   const serviceWorkerSupported = hasServiceWorker();
   const hostedAppShellUpdateStatus = hostedAppShellUpdateDetected
     ? 'update-available'
     : await getHostedAppShellUpdateStatus();
-  if (hostedAppShellUpdateStatus === 'unknown' && !registration) return;
-  if (!registration && hostedAppShellUpdateStatus !== 'update-available') return;
+  if (hostedAppShellUpdateStatus === 'unknown' && !registration) return false;
+  if (!registration && hostedAppShellUpdateStatus !== 'update-available') return false;
 
   const currentController = serviceWorkerSupported ? navigator.serviceWorker.controller : null;
 
@@ -498,4 +498,5 @@ export async function applyPendingAppUpdate(): Promise<void> {
   await clearClientCachesAndServiceWorkers({ unregisterServiceWorkers: true });
   hostedAppShellUpdateDetected = false;
   reloadWithTelemetry('apply_pending_app_update');
+  return true;
 }

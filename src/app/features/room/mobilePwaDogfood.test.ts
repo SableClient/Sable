@@ -72,6 +72,25 @@ describe('mobile PWA dogfood contract', () => {
     expect(roomInput).toContain('const openEmojiBoard = useCallback(');
   });
 
+  it('keeps the mobile emoji picker centered above the composer rail', () => {
+    const roomInput = readWorkspaceFile('src/app/features/room/RoomInput.tsx');
+
+    expect(roomInput).toContain(
+      'left: (window.innerWidth - getEmojiBoardWidth(window.innerWidth)) / 2'
+    );
+    expect(roomInput).toContain('width: getEmojiBoardWidth(window.innerWidth)');
+  });
+
+  it('keeps the mobile long-press menu wiring attached to message content', () => {
+    const message = readWorkspaceFile('src/app/features/room/message/Message.tsx');
+
+    expect(message).toContain('function useMobileLongPress(callback: () => void, delay = 500)');
+    expect(message).toContain('const longPress = useMobileLongPress(() => {');
+    expect(message).toContain('setMobileOptionsOpen(true);');
+    expect(message).toContain('<div {...longPress}>{msgContentJSX}</div>');
+    expect(message).toContain('<div onContextMenu={handleContextMenu} {...longPress}>');
+  });
+
   it('keeps members and widgets reachable from the mobile room menu', () => {
     const roomHeader = readWorkspaceFile('src/app/features/room/RoomViewHeader.tsx');
 

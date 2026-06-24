@@ -30,7 +30,10 @@ function formatKey(key: string): string {
 const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
   {
     name: 'General',
-    shortcuts: [{ keys: 'Ctrl+F / ⌘+F', description: 'Search for messages' }],
+    shortcuts: [
+      { keys: 'Ctrl+F / ⌘+F', description: 'Search for messages in the current room' },
+      { keys: 'Ctrl+Shift+F / ⌘+Shift+F', description: 'Search for messages globally' },
+    ],
   },
   {
     name: 'Navigation',

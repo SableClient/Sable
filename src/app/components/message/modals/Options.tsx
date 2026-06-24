@@ -31,7 +31,7 @@ import { MessageForwardItem } from './MessageForward';
 import * as css from '$features/room/message/styles.css';
 import { useAtom, useSetAtom, useStore } from 'jotai';
 import type { Dispatch, MouseEventHandler, ReactNode, SetStateAction } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { MessageDeleteItem } from './MessageDelete';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
@@ -233,6 +233,7 @@ export type OptionEmojiMenuProps = {
   isQuickOptions?: boolean;
   isModal?: boolean;
   ActualMessage?: ReactNode;
+  dragOpts?: DragOptsProps;
 };
 export function OptionsEmojiBoard({
   mEvent,
@@ -244,6 +245,7 @@ export function OptionsEmojiBoard({
   isQuickOptions,
   isModal,
   ActualMessage,
+  dragOpts,
 }: OptionEmojiMenuProps) {
   const position =
     (!isQuickOptions && 'Left') ||
@@ -258,6 +260,7 @@ export function OptionsEmojiBoard({
       style={isModal ? { width: '100%' } : {}}
       content={
         <Menu>
+          {dragOpts?.dragHandle}
           {ActualMessage}
           <EmojiBoard
             imagePackRooms={imagePackRooms ?? []}
@@ -422,6 +425,13 @@ export function OptionQuickMenu({
   );
 }
 
+export type DragOptsProps = {
+  dragHandle?: ReactNode;
+  onTouchStart?: (evt: React.TouchEvent) => void;
+  onTouchMove?: (evt: React.TouchEvent) => void;
+  onTouchEnd?: () => void;
+};
+
 export type OptionMenuProps = {
   mEvent: MatrixEvent;
   room: Room;
@@ -446,6 +456,7 @@ export type OptionMenuProps = {
   setIsEmoji?: Dispatch<SetStateAction<boolean>>;
   ActualMessage?: ReactNode;
   isModal?: boolean;
+  dragOpts?: DragOptsProps;
 };
 
 export function OptionMenu({
@@ -465,12 +476,13 @@ export function OptionMenu({
   setIsEmoji,
   ActualMessage,
   isModal,
+  dragOpts,
 }: OptionMenuProps) {
   const setModal = useSetAtom(modalAtom);
   const store = useStore();
   const mx = useMatrixClient();
   const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
-  const isStickerMessage = mEvent.getType() === 'm.sticker';
+  const isStickerMessage = mEvent.getType() === 'm.stidoecker';
   const evtId = mEvent.getId()!;
   const evtTimeline = room.getTimelineForEvent(evtId);
   const edits =
@@ -520,6 +532,7 @@ export function OptionMenu({
           imagePackRooms={imagePackRooms}
           isModal={isModal}
           ActualMessage={<WrappedMessage isModal={isModal} ActualMessage={ActualMessage} />}
+          dragOpts={dragOpts}
         />
       )}
       <FocusTrap
@@ -541,13 +554,22 @@ export function OptionMenu({
           onContextMenu={(e) => e.preventDefault()}
           className={isModal ? css.MessageOptionsMenu : ''}
         >
+          {dragOpts?.dragHandle}
           {ActualMessage && !emojiBoardAnchor && (
             <>
               <WrappedMessage isModal={isModal} ActualMessage={ActualMessage} />
               <Line direction="Horizontal" variant="SurfaceVariant" />
             </>
           )}
-          <Box direction="Column" grow="Yes" shrink="No" style={{ maxHeight: '75%' }}>
+          <Box
+            direction="Column"
+            grow="Yes"
+            shrink="No"
+            style={{ maxHeight: '75%' }}
+            onTouchStart={dragOpts?.onTouchStart}
+            onTouchMove={dragOpts?.onTouchMove}
+            onTouchEnd={dragOpts?.onTouchEnd}
+          >
             {canSendReaction && onReactionToggle && setIsEmoji && (
               <MessageQuickReactions
                 onReaction={(key, shortcode) => {
@@ -716,14 +738,82 @@ export function OptionMenu({
 export function MobileOptionsInternal({ options }: { options: OptionMenuProps }) {
   const [isActive, setIsActive] = useState(true);
   const [modal, setModal] = useAtom(modalAtom);
+  const touchStartY = useRef<number | null>(null);
+  const [touchYDiff, setTouchYDiff] = useState(0);
+  const date = new Date();
+  const startTime = useRef(0);
+
   useEffect(() => {
     if (modal?.type === ModalType.MobileOptions) setIsActive(true);
     if (!isActive) setModal(null);
   }, [modal, setIsActive, isActive, setModal]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0]?.clientY ?? null;
+    startTime.current = date.getTime();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null || !e.touches[0]) return;
+    const touchY = e.touches[0].clientY;
+    const diff = touchY - touchStartY.current;
+
+    // Only allow pulling down
+    if (diff > 0) {
+      setTouchYDiff(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    const endTime = date.getTime();
+    if (touchYDiff > 100 || (endTime - startTime.current < 600 && touchYDiff > 20)) {
+      options.closeMenu();
+      setIsActive(false);
+    } else {
+      setTouchYDiff(0);
+    }
+    touchStartY.current = null;
+  };
+
+  const dragHandleJSX = (
+    <div
+      className={css.MessageMobileDragHandle}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className={css.MessageMobileDragIndicator} />
+    </div>
+  );
+
+  const dragOpts: DragOptsProps = {
+    dragHandle: dragHandleJSX,
+    onTouchStart: handleTouchStart,
+    onTouchMove: handleTouchMove,
+    onTouchEnd: handleTouchEnd,
+  };
+
   if (isActive)
     return (
-      <Box className={css.MessageMobileOptionsWrapped}>
-        <Box className={css.MessageMobileOptionsContainer}>
+      <Box
+        className={css.MessageMobileOptionsWrapped}
+        data-gestures="ignore"
+        onClick={() => {
+          options.closeMenu();
+          setIsActive(false);
+        }}
+        onTouchStart={(e: React.TouchEvent) => e.stopPropagation()}
+        onTouchMove={(e: React.TouchEvent) => e.stopPropagation()}
+        onTouchEnd={(e: React.TouchEvent) => e.stopPropagation()}
+      >
+        <Box
+          className={css.MessageMobileOptionsContainer}
+          style={{
+            transform: touchYDiff > 0 ? `translateY(${touchYDiff}px)` : undefined,
+            transition: touchStartY.current === null ? 'transform 0.2s ease-out' : 'none',
+          }}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
           <OptionMenu
             mEvent={options.mEvent}
             room={options.room}
@@ -743,6 +833,7 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
             ActualMessage={options.ActualMessage}
             canSendReaction={options.canSendReaction}
             isModal
+            dragOpts={dragOpts}
           />
         </Box>
       </Box>

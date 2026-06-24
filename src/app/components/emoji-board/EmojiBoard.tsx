@@ -16,7 +16,7 @@ import { atom, useAtom, useSetAtom } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { IEmoji } from '$plugins/emoji';
 import { emojiGroups, emojis } from '$plugins/emoji';
-import { preventScrollWithArrowKey, stopPropagation } from '$utils/keyboard';
+import { preventScrollWithArrowKey } from '$utils/keyboard';
 import { useRelevantImagePacks } from '$hooks/useImagePacks';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
@@ -551,7 +551,7 @@ export function EmojiBoard({
           !editableActiveElement() && isKeyHotkey(['arrowdown', 'arrowright'], evt),
         isKeyBackward: (evt: KeyboardEvent) =>
           !editableActiveElement() && isKeyHotkey(['arrowup', 'arrowleft'], evt),
-        escapeDeactivates: stopPropagation,
+        escapeDeactivates: true,
       }}
     >
       <EmojiBoardLayout

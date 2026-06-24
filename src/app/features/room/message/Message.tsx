@@ -119,22 +119,35 @@ export type MessageProps = {
   msc2723ForwardedMessageProps?: MSC2723ForwardedMessageProps;
 };
 
-function useMobileDoubleTap(callback: () => void, delay = 300) {
-  const lastTapRef = useRef(0);
+function useMobileLongPress(callback: () => void, delay = 500) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firedRef = useRef(false);
 
-  return useCallback(() => {
-    if (!mobileOrTablet()) return;
-
-    const now = Date.now();
-    const timeSinceLastTap = now - lastTapRef.current;
-
-    if (timeSinceLastTap < delay && timeSinceLastTap > 0) {
-      callback();
-      lastTapRef.current = 0;
-    } else {
-      lastTapRef.current = now;
+  const clear = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
+  }, []);
+
+  const onTouchStart = useCallback(() => {
+    if (!mobileOrTablet()) return;
+    firedRef.current = false;
+    timerRef.current = setTimeout(() => {
+      firedRef.current = true;
+      callback();
+    }, delay);
   }, [callback, delay]);
+
+  const onTouchEnd = useCallback(() => {
+    clear();
+  }, [clear]);
+
+  const onTouchMove = useCallback(() => {
+    clear();
+  }, [clear]);
+
+  return { onTouchStart, onTouchEnd, onTouchMove, firedRef };
 }
 
 const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
@@ -268,7 +281,6 @@ type WrappedMessageProps = {
   avatarJSX: JSX.Element;
   msgContentJSX: JSX.Element;
   messageLayout?: MessageLayout;
-  onDoubleTap: () => void;
   handleSwipeReply?: () => void;
   handleContextMenu: MouseEventHandler<HTMLDivElement>;
   align?: 'left' | 'right';
@@ -278,7 +290,6 @@ function WrappedMessage({
   avatarJSX,
   msgContentJSX,
   messageLayout,
-  onDoubleTap,
   handleSwipeReply,
   handleContextMenu,
   align,
@@ -289,7 +300,7 @@ function WrappedMessage({
     return (
       <SwipeableMessageWrapper onReply={handleSwipeReply}>
         <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
-          <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+          {msgContentJSX}
         </CompactLayout>
       </SwipeableMessageWrapper>
     );
@@ -302,17 +313,15 @@ function WrappedMessage({
           onContextMenu={handleContextMenu}
           align={align}
         >
-          <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+          {msgContentJSX}
         </BubbleLayout>
       </SwipeableMessageWrapper>
     );
   return (
     <SwipeableMessageWrapper onReply={handleSwipeReply}>
       <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
-        <div onPointerDown={onDoubleTap}>
-          {headerJSX}
-          {msgContentJSX}
-        </div>
+        {headerJSX}
+        {msgContentJSX}
       </ModernLayout>
     </SwipeableMessageWrapper>
   );
@@ -477,7 +486,6 @@ function MessageInternal(
     ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
     : undefined;
 
-  const [isMobileHover, setIsMobileHoverOpen] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
 
   const [showPronouns] = useSetting(settingsAtom, 'showPronouns');
@@ -505,17 +513,6 @@ function MessageInternal(
 
     return existing;
   }, [pronouns, inlinePronoun]);
-
-  useEffect(() => {
-    if (!isMobileHover) return undefined;
-    const handleClickOutside = (e: globalThis.Event) => {
-      if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
-        setIsMobileHoverOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', handleClickOutside, { capture: true });
-    return () => document.removeEventListener('pointerdown', handleClickOutside, { capture: true });
-  }, [isMobileHover]);
 
   const headerJSX = (collapsed?: boolean) => {
     if (!collapsed)
@@ -816,43 +813,67 @@ function MessageInternal(
     </Box>
   );
 
+  const closeMenu = () => {
+    setMenuAnchor(undefined);
+    setIsDesktopHover(false);
+    setIsEmoji(false);
+  };
+
+  const openMobileOptions = () => {
+    setModal({
+      type: ModalType.MobileOptions,
+      options: {
+        mEvent: mEvent,
+        room: room,
+        closeMenu: closeMenu,
+        onReactionToggle: onReactionToggle,
+        relations: relations,
+        onReplyClick: onReplyClick,
+        onEditId: onEditId,
+        hideReadReceipts: hideReadReceipts,
+        showDeveloperTools: showDeveloperTools,
+        canPinEvent: canPinEvent,
+        canDelete: canDelete,
+        setIsEmoji: setIsEmoji,
+        ActualMessage: (
+          <div style={{ width: '100%' }}>
+            <WrappedMessage
+              headerJSX={headerJSX()}
+              avatarJSX={avatarJSX()}
+              msgContentJSX={msgContentJSX}
+              messageLayout={messageLayout}
+              handleContextMenu={() => {}}
+              align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
+            />
+          </div>
+        ),
+        canSendReaction: canSendReaction,
+      },
+    });
+  };
+
+  const {
+    onTouchStart,
+    onTouchEnd,
+    onTouchMove,
+    firedRef: longPressFiredRef,
+  } = useMobileLongPress(() => {
+    if (!edit) openMobileOptions();
+  });
+
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     if (evt.altKey || !window.getSelection()?.isCollapsed || edit) return;
     const tag = (evt.target as HTMLElement).tagName;
     if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
     if (mobileOrTablet()) {
+      // If our long-press handler already fired (iOS), suppress the native contextmenu
+      if (longPressFiredRef.current) {
+        evt.preventDefault();
+        longPressFiredRef.current = false;
+        return;
+      }
       evt.preventDefault();
-      setModal({
-        type: ModalType.MobileOptions,
-        options: {
-          mEvent: mEvent,
-          room: room,
-          closeMenu: closeMenu,
-          onReactionToggle: onReactionToggle,
-          relations: relations,
-          onReplyClick: onReplyClick,
-          onEditId: onEditId,
-          hideReadReceipts: hideReadReceipts,
-          showDeveloperTools: showDeveloperTools,
-          canPinEvent: canPinEvent,
-          canDelete: canDelete,
-          setIsEmoji: setIsEmoji,
-          ActualMessage: (
-            <div style={{ width: '100%' }}>
-              <WrappedMessage
-                headerJSX={headerJSX()}
-                avatarJSX={avatarJSX()}
-                msgContentJSX={msgContentJSX}
-                messageLayout={messageLayout}
-                onDoubleTap={() => {}}
-                handleContextMenu={() => {}}
-                align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
-              />
-            </div>
-          ),
-          canSendReaction: canSendReaction,
-        },
-      });
+      openMobileOptions();
       return;
     }
 
@@ -874,13 +895,6 @@ function MessageInternal(
     });
   };
 
-  const closeMenu = () => {
-    setMenuAnchor(undefined);
-    setIsMobileHoverOpen(false);
-    setIsDesktopHover(false);
-    setIsEmoji(false);
-  };
-
   const handleSwipeReply = () => {
     const currentId = mEvent.getId();
     const targetId = activeReplyId === currentId ? null : currentId;
@@ -892,10 +906,6 @@ function MessageInternal(
 
     onReplyClick(mockEvent);
   };
-
-  const onDoubleTap = useMobileDoubleTap(() => {
-    setIsMobileHoverOpen(true);
-  });
 
   return (
     <MessageBase
@@ -915,9 +925,8 @@ function MessageInternal(
       {...focusWithinProps}
       ref={ref}
     >
-      {!edit && (isDesktopHover || !!menuAnchor || isEmoji || isMobileHover) && (
+      {!edit && (isDesktopHover || !!menuAnchor || isEmoji) && (
         <div className={css.MessageOptionsBase} ref={optionsRef}>
-          {/*<b>{`${isDesktopHover? 'isDesktopHover ' : ''}${menuAnchor? 'menuAnchor ' : ''}${isEmoji? 'isEmoji ' : ''}${isMobileHover? 'isMobileHover ' : ''}`}</b>*/}
           <OptionQuickMenu
             mEvent={mEvent}
             room={room}
@@ -939,13 +948,18 @@ function MessageInternal(
         </div>
       )}
 
-      <div style={{ width: '100%' }} onContextMenu={handleContextMenu} onPointerDown={onDoubleTap}>
+      <div
+        style={{ width: '100%' }}
+        onContextMenu={handleContextMenu}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchMove={onTouchMove}
+      >
         <WrappedMessage
           headerJSX={headerJSX(collapse)}
           avatarJSX={avatarJSX(collapse)}
           msgContentJSX={msgContentJSX}
           messageLayout={messageLayout}
-          onDoubleTap={onDoubleTap}
           handleSwipeReply={handleSwipeReply}
           handleContextMenu={handleContextMenu}
           align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}

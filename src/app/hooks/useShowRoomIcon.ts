@@ -14,8 +14,12 @@ export const useShowRoomIcon = (): MessageLayoutItem[] =>
         name: 'Always',
       },
       {
+        layout: ShowRoomIcon.Strict,
+        name: 'Sometimes',
+      },
+      {
         layout: ShowRoomIcon.Smart,
-        name: 'Smart',
+        name: 'Collapsed',
       },
       {
         layout: ShowRoomIcon.Never,
@@ -37,8 +41,12 @@ export const useShowPerRoomRoomIcon = (): MessageLayoutItem[] =>
         name: 'Always',
       },
       {
+        layout: ShowRoomIcon.Strict,
+        name: 'Sometimes',
+      },
+      {
         layout: ShowRoomIcon.Smart,
-        name: 'Smart',
+        name: 'Collapsed',
       },
       {
         layout: ShowRoomIcon.Never,

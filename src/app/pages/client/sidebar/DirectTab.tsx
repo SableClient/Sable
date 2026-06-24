@@ -14,7 +14,7 @@ import { getDirectPath, joinPathComponent } from '$pages/pathUtils';
 import { useRoomsUnread } from '$state/hooks/unread';
 import {
   SidebarAvatar,
-  SidebarItem,
+  SidebarItemLeft,
   SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
@@ -105,7 +105,7 @@ export function DirectTab() {
     });
   };
   return (
-    <SidebarItem active={directSelected}>
+    <SidebarItemLeft active={directSelected}>
       <SidebarItemTooltip tooltip="Direct Messages">
         {(triggerRef) => (
           <SidebarAvatar
@@ -151,6 +151,6 @@ export function DirectTab() {
           }
         />
       )}
-    </SidebarItem>
+    </SidebarItemLeft>
   );
 }

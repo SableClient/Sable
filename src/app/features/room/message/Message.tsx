@@ -1158,12 +1158,19 @@ function MessageInternal(
                             data-event-id={mEvent.getId()}
                             onClick={(evt: React.MouseEvent) => {
                               onReplyClick(
-                                evt as unknown as Parameters<MouseEventHandler<HTMLButtonElement>>[0]
+                                evt as unknown as Parameters<
+                                  MouseEventHandler<HTMLButtonElement>
+                                >[0]
                               );
                               closeMenu();
                             }}
                           >
-                            <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                            <Text
+                              className={css.MessageMenuItemText}
+                              as="span"
+                              size="T300"
+                              truncate
+                            >
                               Reply
                             </Text>
                           </MenuItem>

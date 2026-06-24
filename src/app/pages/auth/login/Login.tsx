@@ -70,6 +70,12 @@ export function Login() {
     return null;
   }
 
+  const isAddingAccount = searchParams.get('addAccount') === '1';
+
+  const registerUrl = isAddingAccount
+    ? withSearchParam(getRegisterPath(server), { addAccount: '1' })
+    : getRegisterPath(server);
+
   return (
     <Box direction="Column" gap="500">
       <Text size="H2" priority="400">
@@ -108,7 +114,7 @@ export function Login() {
         </>
       )}
       <Text align="Center">
-        Do not have an account? <Link to={getRegisterPath(server)}>Register</Link>
+        Do not have an account? <Link to={registerUrl}>Register</Link>
       </Text>
     </Box>
   );

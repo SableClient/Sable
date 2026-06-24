@@ -34,6 +34,11 @@ export const hasPendingAppUpdate = (registration: ServiceWorkerRegistration | un
       (registration.active && registration.active !== navigator.serviceWorker.controller))
   );
 
+export const hasPendingScopedAppUpdate = async (): Promise<boolean> => {
+  const registrations = await getAppServiceWorkerRegistrations();
+  return getPendingAppUpdateRegistration(registrations) !== undefined;
+};
+
 const getUniqueRegistrations = (
   registrations: Array<ServiceWorkerRegistration | undefined>
 ): ServiceWorkerRegistration[] => {

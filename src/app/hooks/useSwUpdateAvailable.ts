@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { checkForAppUpdates, hasPendingAppUpdate } from '$utils/appUpdates';
+import { checkForAppUpdates, hasPendingScopedAppUpdate } from '$utils/appUpdates';
 
 const AUTO_UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -18,11 +18,10 @@ export function useSwUpdateAvailable(): boolean {
 
     const syncUpdateAvailable = () => {
       if (!('serviceWorker' in navigator)) return;
-      void navigator.serviceWorker
-        .getRegistration()
-        .then((registration) => {
+      void hasPendingScopedAppUpdate()
+        .then((pendingUpdate) => {
           if (!disposed) {
-            setUpdateAvailable(hasPendingAppUpdate(registration));
+            setUpdateAvailable(pendingUpdate);
           }
         })
         .catch(() => {

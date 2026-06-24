@@ -1,6 +1,5 @@
 import { Box, config, toRem } from 'folds';
 import { AccountSwitcherTab } from './AccountSwitcherTab';
-import { UnverifiedTab } from './UnverifiedTab';
 import { InboxTab } from './InboxTab';
 import { SearchTab } from './SearchTab';
 import { SettingsTab } from './SettingsTab';
@@ -47,7 +46,6 @@ export function UserQuickTools({
             >
               {!isCollapsed && (
                 <>
-                  <UnverifiedTab isBottom />
                   <InboxTab isBottom />
                   <SearchTab isBottom />
                   <SettingsTab isBottom />

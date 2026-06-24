@@ -145,10 +145,10 @@ export function SidebarNav() {
           }
           sticky={
             <SidebarStack>
+              <UnverifiedTab />
               {oldSidebar ? (
                 <>
                   <SearchTab />
-                  <UnverifiedTab />
                   <InboxTab />
                   <div style={{ paddingBottom: config.space.S100 }}>
                     {/*PROBS ADD SETTINGSTAB HERE WHEN ADDING THE STATUSES*/}
@@ -160,7 +160,6 @@ export function SidebarNav() {
                   {isCollapsed && (
                     <>
                       <SearchTab />
-                      <UnverifiedTab />
                       <InboxTab />
                       <SettingsTab />
                     </>

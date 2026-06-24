@@ -1,6 +1,7 @@
 import { type CSSProperties, type ReactNode, useMemo } from 'react';
 import { ArrowSquareOut, sizedIcon, Link } from '$components/icons/phosphor';
 import { Box, Chip, Text, toRem } from 'folds';
+import type { MatrixEvent } from '$types/matrix-sdk';
 import { type IContent, type IPreviewUrlResponse, type MatrixClient } from '$types/matrix-sdk';
 import { isJumboEmojiText } from '$utils/emojiDetection';
 import { trimReplyFromBody } from '$utils/room';
@@ -25,6 +26,7 @@ import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile'
 import { Attachment, AttachmentBox, AttachmentContent, AttachmentHeader } from './attachment';
 import { FileHeader, FileDownloadButton } from './FileHeader';
 import {
+  ImageContent,
   MessageBadEncryptedContent,
   MessageBrokenContent,
   MessageDeletedContent,
@@ -40,9 +42,12 @@ import { copyToClipboard } from '$utils/dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Image } from '$components/media';
+import { ImageViewer } from '$components/image-viewer';
 
 import * as css from './MsgTypeRenderers.css';
 import { markerIcon } from '$features/room/location-modal/LocationDialog';
+import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -775,5 +780,39 @@ export function MSticker({ content, renderImageContent }: MStickerProps) {
         encInfo: content.file,
       })}
     </AttachmentBox>
+  );
+}
+type MStrickerWrappperProps = {
+  mEvent: MatrixEvent;
+  autoplayStickers?: boolean;
+  mediaAutoLoad?: boolean;
+};
+
+export function MStrickerWrappper({
+  mEvent,
+  autoplayStickers,
+  mediaAutoLoad,
+}: MStrickerWrappperProps) {
+  return (
+    <MSticker
+      content={mEvent.getContent() as unknown as IImageContent}
+      renderImageContent={(props) => (
+        <ImageContent
+          {...props}
+          autoPlay={mediaAutoLoad}
+          renderImage={(p) => {
+            if (!autoplayStickers && p.src) {
+              return (
+                <ClientSideHoverFreeze src={p.src}>
+                  <Image {...p} loading="lazy" />
+                </ClientSideHoverFreeze>
+              );
+            }
+            return <Image {...p} loading="lazy" />;
+          }}
+          renderViewer={(p) => <ImageViewer {...p} />}
+        />
+      )}
+    />
   );
 }

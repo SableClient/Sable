@@ -125,6 +125,14 @@ test.describe('emoji polish smoke', () => {
         compactPreviewEmojiFontSize: getComputedStyle(
           document.querySelector('[data-testid="smoke-compact-preview-block"] span[title]')!
         ).fontSize,
+        editorComposer: measure('[data-testid="smoke-editor-composer"] [data-editable-name]'),
+        editorEmoji: measure('[data-testid="smoke-editor-composer"] span[title]'),
+        editorPaddingTop: getComputedStyle(
+          document.querySelector('[data-testid="smoke-editor-composer"] [data-editable-name]')!
+        ).paddingTop,
+        editorPaddingBottom: getComputedStyle(
+          document.querySelector('[data-testid="smoke-editor-composer"] [data-editable-name]')!
+        ).paddingBottom,
         fixedCellBlackSquareFontFamily: getComputedStyle(
           document.querySelector(
             '[data-testid="smoke-emoji-fixed-cell-line"] span[title="black_large_square"]'
@@ -146,6 +154,8 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.baselineEmoji).not.toBeNull();
     expect(metrics.compactPreview).not.toBeNull();
     expect(metrics.compactPreviewEmoji).not.toBeNull();
+    expect(metrics.editorComposer).not.toBeNull();
+    expect(metrics.editorEmoji).not.toBeNull();
     expect(metrics.fixedCellBlackSquareFontFamily).toContain('Twemoji');
 
     expect(metrics.pickerButton!.width).toBe(48);
@@ -177,6 +187,10 @@ test.describe('emoji polish smoke', () => {
     expect(parseFloat(metrics.compactPreviewEmojiFontSize)).toBeGreaterThan(
       parseFloat(metrics.compactPreviewTextFontSize)
     );
+    expect(metrics.editorPaddingTop).toBe('13px');
+    expect(metrics.editorPaddingBottom).toBe('13px');
+    expect(metrics.editorEmoji!.top).toBeGreaterThanOrEqual(metrics.editorComposer!.top - 2);
+    expect(metrics.editorEmoji!.bottom).toBeLessThanOrEqual(metrics.editorComposer!.bottom + 2);
 
     await captureSnapshot(page, 'emoji-polish/sticker-fit-and-baseline');
   });

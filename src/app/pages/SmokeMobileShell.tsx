@@ -3,6 +3,7 @@ import { Box, Button, Header, IconButton, Menu, MenuItem, Text, config } from 'f
 import { useParams } from 'react-router-dom';
 import { Modal500 } from '$components/Modal500';
 import { Page, PageNav, PageNavContent, PageRoot } from '$components/page';
+import { CustomEditor, plainToEditorInput, useEditor } from '$components/editor';
 import {
   ClockCounterClockwise,
   Smiley,
@@ -114,6 +115,27 @@ function SmokeStickerButton({
     >
       <img className={emojiBoardCss.StickerImg} alt="" src={src} />
     </button>
+  );
+}
+
+function SmokeComposerEmojiAlignment() {
+  const editor = useEditor();
+
+  useEffect(() => {
+    editor.children = plainToEditorInput('✅ 🫩');
+    editor.onChange();
+  }, [editor]);
+
+  return (
+    <Box
+      data-testid="smoke-editor-composer"
+      direction="Column"
+      gap="200"
+      style={{ width: '100%', maxWidth: 420 }}
+    >
+      <Text size="T300">Composer emoji baseline</Text>
+      <CustomEditor editableName="SmokeComposer" editor={editor} readOnly />
+    </Box>
   );
 }
 
@@ -368,6 +390,7 @@ function SmokeEmojiPolish() {
               <b>Alice:</b> {scaleSystemEmoji('Status checks ✅ 😮 🫩 👍🏽')}
             </Text>
           </Box>
+          <SmokeComposerEmojiAlignment />
         </Box>
 
         <Box

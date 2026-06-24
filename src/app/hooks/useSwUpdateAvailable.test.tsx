@@ -141,6 +141,19 @@ describe('useSwUpdateAvailable', () => {
     vi.useRealTimers();
   });
 
+  it('still performs automatic hosted update checks when service workers are unavailable', async () => {
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {},
+    });
+
+    renderHook(() => useSwUpdateAvailable());
+
+    await waitFor(() => {
+      expect(appUpdatesMocks.checkForAppUpdates).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('skips hidden checks and retries once the app becomes visible again', async () => {
     setVisibility('hidden');
 

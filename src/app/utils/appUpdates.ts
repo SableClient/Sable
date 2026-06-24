@@ -402,7 +402,7 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
     };
   }
 
-  if (registrations.length > 0 && (successfulUpdates.length === 0 || rejectedUpdates.length > 0)) {
+  if (registrations.length > 0 && successfulUpdates.length === 0) {
     const firstError = rejectedUpdates[0]?.reason;
     throw firstError instanceof Error
       ? new Error(UPDATE_CHECK_FAILURE_MESSAGE, { cause: firstError })
@@ -417,6 +417,17 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
       message: 'A newer hosted app version is ready to apply.',
       canApply: true,
     };
+  }
+
+  if (hostedAppShellUpdateStatus === 'up-to-date') {
+    hostedAppShellUpdateDetected = false;
+  }
+
+  if (rejectedUpdates.length > 0) {
+    const firstError = rejectedUpdates[0]?.reason;
+    throw firstError instanceof Error
+      ? new Error(UPDATE_CHECK_FAILURE_MESSAGE, { cause: firstError })
+      : new Error(UPDATE_CHECK_FAILURE_MESSAGE);
   }
 
   if (registrations.length === 0) {

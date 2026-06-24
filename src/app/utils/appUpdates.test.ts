@@ -386,7 +386,52 @@ describe('appUpdates', () => {
     expect((result as Error).message).toBe(
       'Failed to check for updates. Reload the app and try again.'
     );
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the hosted shell check when one service worker probe fails', async () => {
+    const currentRegistration = createRegistration('/current');
+    const secondaryRegistration = createRegistration('/secondary');
+    secondaryRegistration.update.mockRejectedValueOnce(new TypeError('network failed'));
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        `
+          <!doctype html>
+          <html>
+            <head>
+              <link rel="stylesheet" href="/assets/index-next.css" />
+            </head>
+            <body>
+              <script type="module" src="/assets/index-next.js"></script>
+            </body>
+          </html>
+        `,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
+    );
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        serviceWorker: {
+          controller: { postMessage: vi.fn() },
+          getRegistration: vi.fn().mockResolvedValue(currentRegistration),
+          getRegistrations: vi.fn().mockResolvedValue([currentRegistration, secondaryRegistration]),
+          ready: Promise.resolve(currentRegistration),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        },
+      },
+    });
+
+    const resultPromise = checkForAppUpdates();
+    await vi.runAllTimersAsync();
+
+    await expect(resultPromise).resolves.toEqual({
+      kind: 'update-available',
+      message: 'A newer hosted app version is ready to apply.',
+      canApply: true,
+    });
   });
 
   it('returns once any registration confirms an update', async () => {
@@ -769,6 +814,64 @@ describe('appUpdates', () => {
       unregisterServiceWorkers: true,
     });
     expect(mockReloadWithTelemetry).toHaveBeenCalledWith('apply_pending_app_update');
+  });
+
+  it('clears a stale hosted shell update detection after a later up-to-date check', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <!doctype html>
+            <html>
+              <head>
+                <link rel="stylesheet" href="/assets/index-next.css" />
+              </head>
+              <body>
+                <script type="module" src="/assets/index-next.js"></script>
+              </body>
+            </html>
+          `,
+          { status: 200, headers: { 'Content-Type': 'text/html' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <!doctype html>
+            <html>
+              <head>
+                <link rel="stylesheet" href="/assets/index-current.css" />
+              </head>
+              <body>
+                <script type="module" src="/assets/index-current.js"></script>
+              </body>
+            </html>
+          `,
+          { status: 200, headers: { 'Content-Type': 'text/html' } }
+        )
+      )
+      .mockRejectedValueOnce(new TypeError('network failed'));
+
+    const firstCheckPromise = checkForAppUpdates();
+    await vi.runAllTimersAsync();
+    await expect(firstCheckPromise).resolves.toEqual({
+      kind: 'update-available',
+      message: 'A newer hosted app version is ready to apply.',
+      canApply: true,
+    });
+
+    const secondCheckPromise = checkForAppUpdates();
+    await vi.runAllTimersAsync();
+    await expect(secondCheckPromise).resolves.toEqual({
+      kind: 'up-to-date',
+      message: 'You are already on the latest available web app version.',
+      canApply: false,
+    });
+
+    await applyPendingAppUpdate();
+
+    expect(mockClearClientCachesAndServiceWorkers).not.toHaveBeenCalled();
+    expect(mockReloadWithTelemetry).not.toHaveBeenCalled();
   });
 
   it('reports hosted updates even when service workers are unavailable', async () => {

@@ -235,9 +235,6 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
         setUpdateStatusMessage(
           error instanceof Error ? error.message : 'Failed to apply the update.'
         );
-      }
-    } finally {
-      if (isMountedRef.current) {
         isApplyingUpdateRef.current = false;
         setIsApplyingUpdate(false);
       }

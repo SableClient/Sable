@@ -541,8 +541,6 @@ export function ClientRoot({ children }: ClientRootProps) {
                   .then(() => {
                     if (!isMountedRef.current) return;
                     setSwUpdateError(undefined);
-                    isApplyingSwUpdateRef.current = false;
-                    setIsApplyingSwUpdate(false);
                   })
                   .catch((error) => {
                     if (!isMountedRef.current) return;

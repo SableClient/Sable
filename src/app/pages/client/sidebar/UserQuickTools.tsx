@@ -1,5 +1,4 @@
 import { Box, config, toRem } from 'folds';
-import { AccountSwitcherTab } from './AccountSwitcherTab';
 import { InboxTab } from './InboxTab';
 import { SearchTab } from './SearchTab';
 import { SettingsTab } from './SettingsTab';
@@ -7,6 +6,7 @@ import { useAtom } from 'jotai';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import * as css from './UserQuickTools.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { UserMenuTab } from './UserMenuTab';
 
 export function UserQuickTools({
   width,
@@ -38,7 +38,7 @@ export function UserQuickTools({
               paddingRight: config.space.S300,
             }}
           >
-            <AccountSwitcherTab isBottom />
+            <UserMenuTab isBottom />
             <Box
               style={{
                 gap: config.space.S300,

@@ -6,20 +6,13 @@ import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Sidebar, SidebarContent, SidebarStack } from '$components/sidebar';
-import {
-  DirectTab,
-  DirectDMsList,
-  HomeTab,
-  SpaceTabs,
-  InboxTab,
-  UnverifiedTab,
-  AccountSwitcherTab,
-} from './sidebar';
+import { DirectTab, DirectDMsList, HomeTab, SpaceTabs, InboxTab, UnverifiedTab } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
 import { SearchTab } from './sidebar/SearchTab';
 import { SettingsTab } from './sidebar/SettingsTab';
 import { UserQuickTools } from './sidebar/UserQuickTools';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { UserMenuTab } from './sidebar/UserMenuTab';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -152,7 +145,7 @@ export function SidebarNav() {
                   <InboxTab />
                   <div style={{ paddingBottom: config.space.S100 }}>
                     {/*PROBS ADD SETTINGSTAB HERE WHEN ADDING THE STATUSES*/}
-                    <AccountSwitcherTab />
+                    <UserMenuTab />
                   </div>
                 </>
               ) : (
@@ -166,7 +159,7 @@ export function SidebarNav() {
                   )}
 
                   <Box style={{ height: toRem(57) }} alignItems="Center">
-                    <AccountSwitcherTab />
+                    <UserMenuTab />
                   </Box>
                 </>
               )}

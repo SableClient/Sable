@@ -110,6 +110,9 @@ export const EditorPlaceholderContainer = style({
 
 export const EditorPlaceholderTextVisual = style({
   display: 'block',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
   lineHeight: config.lineHeight.T400,
   paddingTop: toRem(13),
   paddingBottom: toRem(13),

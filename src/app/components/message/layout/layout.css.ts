@@ -290,7 +290,7 @@ export const MessageTextBody = recipe({
     jumboEmoji: {
       none: {
         fontSize: '1rem !important',
-        lineHeight: 'inherit',
+        lineHeight: config.lineHeight.T400,
       },
       extraSmall: {
         fontSize: '1.25rem !important',

@@ -238,7 +238,10 @@ export function UserHero({
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden',
                       fontStyle: allowEditing && !status ? 'italic' : 'normal',
+<<<<<<< HEAD
                       opacity: allowEditing && !status ? config.opacity.Placeholder : 1,
+=======
+>>>>>>> f873d334 (Redesign the user menu tab)
                     }}
                   >
                     {status || (allowEditing && "What's on your mind?")}

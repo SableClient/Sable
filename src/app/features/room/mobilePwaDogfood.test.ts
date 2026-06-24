@@ -72,13 +72,15 @@ describe('mobile PWA dogfood contract', () => {
     expect(roomInput).toContain('const openEmojiBoard = useCallback(');
   });
 
-  it('keeps the mobile emoji picker centered above the composer rail', () => {
+  it('keeps the mobile emoji picker centered on phones but trigger-aligned on tablets', () => {
     const roomInput = readWorkspaceFile('src/app/features/room/RoomInput.tsx');
 
+    expect(roomInput).toContain('...(isPhoneLayoutDevice()');
     expect(roomInput).toContain(
       'left: (window.innerWidth - getEmojiBoardWidth(window.innerWidth)) / 2'
     );
     expect(roomInput).toContain('width: getEmojiBoardWidth(window.innerWidth)');
+    expect(roomInput).toContain('right: getEmojiBoardRightOffset(');
   });
 
   it('keeps the mobile long-press menu wiring attached to message content', () => {

@@ -49,10 +49,10 @@ export function InboxTab({ isBottom }: { isBottom?: boolean }) {
             ref={triggerRef}
             outlined
             onClick={handleInboxClick}
-            size="300"
+            size={'400'}
           >
             <Tray
-              size={getPhosphorIconSize('inline')}
+              size={getPhosphorIconSize(isBottom ? 'inline' : 'toolbar')}
               weight={inboxSelected ? 'fill' : 'regular'}
             />
           </SidebarAvatar>

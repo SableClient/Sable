@@ -171,7 +171,7 @@ export function CreateTab() {
               ref={triggerRef}
               outlined
               onClick={handleMenu}
-              size="300"
+              size="400"
             >
               {(joinAddress && <Link size={getPhosphorSize().toolbar} />) ||
                 (exploreSelected && (

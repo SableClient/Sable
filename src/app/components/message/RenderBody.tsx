@@ -119,6 +119,11 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
 
   return (
     <>
+      {anchor && (
+        <PopOut anchor={anchor} position="Top" align="Center" content={tooltipContent}>
+          {null}
+        </PopOut>
+      )}
       <TooltipProvider position="Top" tooltip={tooltipContent}>
         {(triggerRef) => (
           <button
@@ -141,11 +146,6 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
           </button>
         )}
       </TooltipProvider>
-      {anchor && (
-        <PopOut anchor={anchor} position="Top" align="Center" content={tooltipContent}>
-          {null}
-        </PopOut>
-      )}
     </>
   );
 }

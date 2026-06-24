@@ -69,7 +69,7 @@ import {
 import { ClientBindAtoms, ClientLayout, ClientRoot, ClientRouteOutlet } from './client';
 import { HandleNotificationClick, ClientNonUIFeatures } from './client/ClientNonUIFeatures';
 import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
-import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
+import { Direct, DirectCreate, DirectRouteRoomProvider, DirectSearch } from './client/direct';
 import { RouteSpaceProvider, Space, SpaceRouteRoomProvider, SpaceSearch } from './client/space';
 // Lazy-loaded: auth subtree, settings, inbox/bookmarks, explore
 const AuthLayout = lazy(() => import('./auth').then((m) => ({ default: m.AuthLayout })));
@@ -343,6 +343,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
         >
           {mobile ? null : <Route index element={<WelcomePage />} />}
           <Route path={CREATE_PATH_SEGMENT} element={<DirectCreate />} />
+          <Route path={SEARCH_PATH_SEGMENT} element={<DirectSearch />} />
           <Route
             path={ROOM_PATH_SEGMENT}
             element={

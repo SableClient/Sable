@@ -1,0 +1,231 @@
+From 2d92ae6de64cfeee41d4af520a091610cc1a8d74 Mon Sep 17 00:00:00 2001
+From: niki <295591807+nikiwastaken@users.noreply.github.com>
+Date: Sun, 5 Jul 2026 16:16:08 +0000
+Subject: [PATCH] Stylistic UI changes
+
+---
+ src/app/pages/client/profile/Profile.tsx     | 51 +++++++++-----------
+ src/app/pages/client/sidebar/UserMenuTab.tsx | 37 ++++++++------
+ 2 files changed, 45 insertions(+), 43 deletions(-)
+
+diff --git a/src/app/pages/client/profile/Profile.tsx b/src/app/pages/client/profile/Profile.tsx
+index 24f928b6..0d3598f6 100644
+--- a/src/app/pages/client/profile/Profile.tsx
++++ b/src/app/pages/client/profile/Profile.tsx
+@@ -5,15 +5,13 @@ import {
+   color,
+   config,
+   Menu,
+-  Icon,
+-  Icons,
+   Line,
+   MenuItem,
+   OverlayBackdrop,
+   Overlay,
+   OverlayCenter,
+ } from 'folds';
+-import { SquaresFour, menuIcon, settingsNavIcon, sizedIcon } from '$components/icons/phosphor';
++import { GearSix, SquaresFour, menuIcon, sizedIcon } from '$components/icons/phosphor';
+ import { PageNav, PageNavHeader } from '$components/page';
+ import { useEffect, useMemo, useState } from 'react';
+ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+@@ -36,7 +34,7 @@ import { useUserProfile } from '$hooks/useUserProfile';
+ import type { SettingsMenuItem } from '$features/settings';
+ import { settingsMenuIcons, settingsSections, useOpenSettings } from '$features/settings';
+ import { UserQuickTools } from '../sidebar/UserQuickTools';
+-import { SignOutIcon } from '@phosphor-icons/react';
++import { CaretDownIcon, CaretRightIcon, SignOutIcon } from '@phosphor-icons/react';
+ import { UseStateProvider } from '$components/UseStateProvider';
+ import { FocusTrap } from 'focus-trap-react';
+ import { LogoutDialog } from '$components/LogoutDialog';
+@@ -144,17 +142,19 @@ export function ProfileMobile() {
+             background: color.Background.Container,
+           }}
+         >
+-          <UserHero
+-            userId={userId}
+-            avatarUrl={heroAvatarUrl}
+-            bannerUrl={heroBannerUrl}
+-            presence={presence}
+-            showColor={false}
+-            allowEditing={true}
+-          />
++          <Box direction="Column" gap="200">
++            <UserHero
++              userId={userId}
++              avatarUrl={heroAvatarUrl}
++              bannerUrl={heroBannerUrl}
++              presence={presence}
++              showColor={false}
++              allowEditing={true}
++            />
+ 
+-          <Box style={{ padding: `0 ${config.space.S200} ${config.space.S200}` }}>
+-            <GlobalUserHeroName displayName={displayName} userId={userId} />
++            <Box style={{ padding: `0 ${config.space.S400}` }}>
++              <GlobalUserHeroName displayName={displayName} userId={userId} />
++            </Box>
+           </Box>
+ 
+           <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+@@ -169,18 +169,15 @@ export function ProfileMobile() {
+ 
+           <Line variant="Surface" size="300" />
+ 
+-          <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
++          <Box direction="Column" style={{ padding: config.space.S100 }}>
+             <MenuItem
+               size="300"
+               radii="300"
+-              variant="Background"
+-              before={<Icon size="100" src={Icons.Setting} />}
+-              after={
+-                <Icon
+-                  size="100"
+-                  src={isSettingsOpen && isMobile ? Icons.ChevronBottom : Icons.ChevronRight}
+-                />
+-              }
++              before={menuIcon(GearSix)}
++              style={{
++                background: isSettingsOpen ? color.Surface.Container : color.Background.Container,
++              }}
++              after={menuIcon(isSettingsOpen && isMobile ? CaretDownIcon : CaretRightIcon)}
+               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+             >
+               <Text style={{ flexGrow: 1 }} size="T300">
+@@ -188,17 +185,17 @@ export function ProfileMobile() {
+               </Text>
+             </MenuItem>
+             {isSettingsOpen && (
+-              <div style={{ paddingLeft: config.space.S100 }}>
++              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                 {menuItems.map((item) => {
+                   const IconComponent = item.icon;
+ 
+                   return (
+                     <MenuItem
+                       key={item.id}
+-                      radii="400"
++                      radii="300"
+                       size="300"
+                       variant="Background"
+-                      before={settingsNavIcon(IconComponent, false)}
++                      before={menuIcon(IconComponent)}
+                       onClick={() => openSettings(item.id)}
+                     >
+                       <Text size="T300" truncate>
+@@ -238,7 +235,7 @@ export function ProfileMobile() {
+                     </>
+                   )}
+                 </UseStateProvider>
+-              </div>
++              </Box>
+             )}
+           </Box>
+         </Menu>
+diff --git a/src/app/pages/client/sidebar/UserMenuTab.tsx b/src/app/pages/client/sidebar/UserMenuTab.tsx
+index 6f321da7..66b489cd 100644
+--- a/src/app/pages/client/sidebar/UserMenuTab.tsx
++++ b/src/app/pages/client/sidebar/UserMenuTab.tsx
+@@ -8,8 +8,6 @@ import {
+   Chip,
+   Dialog,
+   Header,
+-  Icon,
+-  Icons,
+   Line,
+   Menu,
+   MenuItem,
+@@ -38,7 +36,7 @@ import { createLogger } from '$utils/debug';
+ import type { Session } from '$state/sessions';
+ import { activeSessionIdAtom, backgroundUnreadCountsAtom, sessionsAtom } from '$state/sessions';
+ import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
+-import { Check, chipIcon, Plus } from '$components/icons/phosphor';
++import { Check, chipIcon, menuIcon, Plus } from '$components/icons/phosphor';
+ import { useSessionProfiles } from '$hooks/useSessionProfiles';
+ import { useClientConfig } from '$hooks/useClientConfig';
+ import { getHomePath, getLoginPath, getProfilePath, withSearchParam } from '$pages/pathUtils';
+@@ -56,7 +54,14 @@ import {
+   useUnverifiedDeviceCount,
+   VerificationStatus,
+ } from '$hooks/useDeviceVerificationStatus';
+-import { ShieldWarningIcon } from '@phosphor-icons/react';
++import {
++  CaretDownIcon,
++  CaretRightIcon,
++  GearSixIcon,
++  PencilIcon,
++  ShieldWarningIcon,
++  UserIcon,
++} from '@phosphor-icons/react';
+ import * as css from './UserMenuTab.css';
+ 
+ const log = createLogger('AccountSwitcherTab');
+@@ -262,14 +267,14 @@ export function AccountMenuOption({ isMobile, isRight }: { isMobile: boolean; is
+         <MenuItem
+           size="300"
+           radii="300"
+-          before={<Icon size="100" src={Icons.User} />}
+-          after={
+-            <Icon size="100" src={isOpen && isMobile ? Icons.ChevronBottom : Icons.ChevronRight} />
+-          }
++          before={menuIcon(UserIcon)}
++          after={menuIcon(isOpen && isMobile ? CaretDownIcon : CaretRightIcon)}
+           style={{
+             position: 'relative',
+             background: isMobile
+-              ? color.Background.Container
++              ? isOpen
++                ? color.Surface.Container
++                : color.Background.Container
+               : isOpen
+                 ? color.Secondary.Container
+                 : color.Surface.Container,
+@@ -479,13 +484,13 @@ export function PresenceMenuOption({
+             )}
+           </div>
+         }
+-        after={
+-          <Icon size="100" src={isOpen && isMobile ? Icons.ChevronBottom : Icons.ChevronRight} />
+-        }
++        after={menuIcon(isOpen && isMobile ? CaretDownIcon : CaretRightIcon)}
+         style={{
+           position: 'relative',
+           background: isMobile
+-            ? color.Background.Container
++            ? isOpen
++              ? color.Surface.Container
++              : color.Background.Container
+             : isOpen
+               ? color.Secondary.Container
+               : color.Surface.Container,
+@@ -751,7 +756,7 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
+                     showColor={false}
+                     allowEditing={true}
+                   />
+-                  <Box style={{ padding: `0 ${config.space.S200} ${config.space.S200}` }}>
++                  <Box style={{ padding: `0 ${config.space.S400}` }}>
+                     <GlobalUserHeroName displayName={displayName} userId={userId} />
+                   </Box>
+                 </Box>
+@@ -766,7 +771,7 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
+                     onClick={() => openSettings('account')}
+                     size="300"
+                     radii="300"
+-                    before={<Icon size="100" src={Icons.Pencil} />}
++                    before={menuIcon(PencilIcon)}
+                   >
+                     <Text style={{ flexGrow: 1 }} size="T300">
+                       Edit Profile
+@@ -790,7 +795,7 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
+                       <MenuItem
+                         size="300"
+                         radii="300"
+-                        before={<Icon size="100" src={Icons.Setting} />}
++                        before={menuIcon(GearSixIcon)}
+                         onClick={() => openSettings()}
+                       >
+                         <Text style={{ flexGrow: 1 }} size="T300">
+-- 
+2.54.0
+

@@ -402,6 +402,13 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
     };
   }
 
+  if (registrations.length > 0 && (successfulUpdates.length === 0 || rejectedUpdates.length > 0)) {
+    const firstError = rejectedUpdates[0]?.reason;
+    throw firstError instanceof Error
+      ? new Error(UPDATE_CHECK_FAILURE_MESSAGE, { cause: firstError })
+      : new Error(UPDATE_CHECK_FAILURE_MESSAGE);
+  }
+
   const hostedAppShellUpdateStatus = await getHostedAppShellUpdateStatus();
   if (hostedAppShellUpdateStatus === 'update-available') {
     hostedAppShellUpdateDetected = true;
@@ -410,13 +417,6 @@ export async function checkForAppUpdates(): Promise<AppUpdateCheckResult> {
       message: 'A newer hosted app version is ready to apply.',
       canApply: true,
     };
-  }
-
-  if (registrations.length > 0 && (successfulUpdates.length === 0 || rejectedUpdates.length > 0)) {
-    const firstError = rejectedUpdates[0]?.reason;
-    throw firstError instanceof Error
-      ? new Error(UPDATE_CHECK_FAILURE_MESSAGE, { cause: firstError })
-      : new Error(UPDATE_CHECK_FAILURE_MESSAGE);
   }
 
   if (registrations.length === 0) {

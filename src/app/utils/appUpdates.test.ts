@@ -386,6 +386,7 @@ describe('appUpdates', () => {
     expect((result as Error).message).toBe(
       'Failed to check for updates. Reload the app and try again.'
     );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('returns once any registration confirms an update', async () => {

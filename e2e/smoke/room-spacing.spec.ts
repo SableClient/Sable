@@ -14,7 +14,7 @@ const captureSnapshot = async (page: Page, name: string) => {
   await page.screenshot({ path: outputPath, fullPage: true });
 };
 
-test.describe('room spacing smoke', () => {
+test.describe('room spacing fixture smoke', () => {
   test.beforeEach(async ({ page }) => {
     await installSmokeApp(page, { authenticatedSession: true, hashRouter: false });
     await seedStoredSession(page);
@@ -49,6 +49,6 @@ test.describe('room spacing smoke', () => {
       16
     );
 
-    await captureSnapshot(page, 'room-spacing/drawer-and-footer-gutters');
+    await captureSnapshot(page, 'layout-harness/room-spacing/drawer-and-footer-gutters');
   });
 });

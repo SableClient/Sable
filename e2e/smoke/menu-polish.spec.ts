@@ -14,7 +14,7 @@ const captureSnapshot = async (page: Page, name: string) => {
   await page.screenshot({ path: outputPath, fullPage: true });
 };
 
-test.describe('menu polish smoke', () => {
+test.describe('menu polish fixture smoke', () => {
   test.beforeEach(async ({ page }) => {
     await installSmokeApp(page, { hashRouter: false });
   });
@@ -60,6 +60,6 @@ test.describe('menu polish smoke', () => {
     expect(metrics.accountButtonCount).toBeGreaterThanOrEqual(4);
     expect(metrics.featuresHref).toBe('https://github.com/CloudHub-Social/Charm/releases');
 
-    await captureSnapshot(page, 'menu-polish/menu-groups-and-links');
+    await captureSnapshot(page, 'layout-harness/menu-polish/menu-groups-and-links');
   });
 });

@@ -14,7 +14,7 @@ const captureSnapshot = async (page: Page, name: string) => {
   await page.screenshot({ path: outputPath, fullPage: true });
 };
 
-test.describe('emoji polish smoke', () => {
+test.describe('emoji polish fixture smoke', () => {
   test.beforeEach(async ({ page }) => {
     await installSmokeApp(page, { hashRouter: false });
   });
@@ -50,7 +50,7 @@ test.describe('emoji polish smoke', () => {
       peopleFirstEmojiBox!.y - (peopleLabelBox!.y + peopleLabelBox!.height)
     ).toBeGreaterThanOrEqual(8);
 
-    await captureSnapshot(page, 'emoji-polish/desktop-picker-spacing');
+    await captureSnapshot(page, 'layout-harness/emoji-polish/desktop-picker-spacing');
   });
 
   test('keeps the picker inside a mobile viewport gutter', async ({ page }) => {
@@ -66,7 +66,7 @@ test.describe('emoji polish smoke', () => {
     expect(pickerBox!.x).toBeGreaterThanOrEqual(12);
     expect(390 - (pickerBox!.x + pickerBox!.width)).toBeGreaterThanOrEqual(12);
 
-    await captureSnapshot(page, 'emoji-polish/mobile-picker-gutter');
+    await captureSnapshot(page, 'layout-harness/emoji-polish/mobile-picker-gutter');
   });
 
   test('matches picker icon scale, keeps stickers separated, and aligns inline emoji', async ({
@@ -192,7 +192,7 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.editorEmoji!.top).toBeGreaterThanOrEqual(metrics.editorComposer!.top - 2);
     expect(metrics.editorEmoji!.bottom).toBeLessThanOrEqual(metrics.editorComposer!.bottom + 2);
 
-    await captureSnapshot(page, 'emoji-polish/sticker-fit-and-baseline');
+    await captureSnapshot(page, 'layout-harness/emoji-polish/sticker-fit-and-baseline');
   });
 
   test('keeps jumbo emoji inside its own line box', async ({ page }) => {
@@ -240,6 +240,6 @@ test.describe('emoji polish smoke', () => {
     expect(metrics.jumboEmoji!.bottom).toBeLessThanOrEqual(metrics.jumboLine!.bottom + 2);
     expect(metrics.nextLine!.top - metrics.jumboLine!.bottom).toBeGreaterThanOrEqual(4);
 
-    await captureSnapshot(page, 'emoji-polish/jumbo-line-height');
+    await captureSnapshot(page, 'layout-harness/emoji-polish/jumbo-line-height');
   });
 });

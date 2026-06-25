@@ -11,7 +11,7 @@ import { useInboxBookmarksSelected } from '$hooks/router/useInbox';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useFiredReminderCount } from '$features/bookmarks/useBookmarks';
-import { Icon, Icons } from '$app/icons';
+import { BookmarkSimple, getPhosphorIconSize } from '$components/icons/phosphor';
 
 export function BookmarksTab() {
   const navigate = useNavigate();
@@ -29,8 +29,11 @@ export function BookmarksTab() {
     <SidebarItem active={bookmarksSelected}>
       <SidebarItemTooltip tooltip="Bookmarks">
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick}>
-            <Icon src={Icons.Bookmark} filled={bookmarksSelected} />
+          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="300">
+            <BookmarkSimple
+              size={getPhosphorIconSize('inline')}
+              weight={bookmarksSelected ? 'fill' : 'regular'}
+            />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

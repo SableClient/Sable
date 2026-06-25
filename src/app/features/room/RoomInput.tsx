@@ -100,7 +100,7 @@ import {
   getEditedEvent,
 } from '$utils/room';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
-import { mobileOrTablet } from '$utils/user-agent';
+import { isPhoneLayoutDevice, mobileOrTablet } from '$utils/user-agent';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
 import { Reply, ThreadIndicator } from '$components/message';
 import { roomToParentsAtom } from '$state/room/roomToParents';
@@ -140,7 +140,7 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
-import { getEmojiBoardRightOffset } from './emojiBoardPosition';
+import { getEmojiBoardRightOffset, getEmojiBoardWidth } from './emojiBoardPosition';
 import {
   convertPerMessageProfileToBeeperFormat,
   getCurrentlyUsedPerMessageProfileForRoom,
@@ -2291,10 +2291,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       zIndex: 999,
                       // Position above the emoji button (mirrors PopOut position="Top" offset=16).
                       bottom: window.innerHeight - emojiBoardAnchorRect.top + 16,
-                      right: getEmojiBoardRightOffset(
-                        emojiBoardAnchorRect.right,
-                        window.innerWidth
-                      ),
+                      ...(isPhoneLayoutDevice()
+                        ? {
+                            left: (window.innerWidth - getEmojiBoardWidth(window.innerWidth)) / 2,
+                            width: getEmojiBoardWidth(window.innerWidth),
+                          }
+                        : {
+                            right: getEmojiBoardRightOffset(
+                              emojiBoardAnchorRect.right,
+                              window.innerWidth
+                            ),
+                          }),
                       display: emojiBoardTab !== undefined ? undefined : 'none',
                     }}
                   >

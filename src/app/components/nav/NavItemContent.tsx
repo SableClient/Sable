@@ -1,12 +1,18 @@
 import type { ComponentProps } from 'react';
-import { Text, as } from 'folds';
+import { as } from 'folds';
 import classNames from 'classnames';
 import * as css from './styles.css';
 
-export const NavItemContent = as<'p', ComponentProps<typeof Text>>(
+export const NavItemContent = as<'div', ComponentProps<'div'>>(
   ({ children, className, ...props }, ref) => (
-    <Text className={classNames(css.NavItemContent, className)} size="T300" {...props} ref={ref}>
+    <div
+      // Keep nav row spacing on a plain element so the shared folds reset cannot
+      // zero out padding or text metrics later through CSS chunk order.
+      className={classNames(css.NavItemContent, className)}
+      {...props}
+      ref={ref}
+    >
       {children}
-    </Text>
+    </div>
   )
 );

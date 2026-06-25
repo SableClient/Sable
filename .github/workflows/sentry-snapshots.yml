@@ -32,7 +32,7 @@ on:
       - '.github/actions/setup/**'
 
 concurrency:
-  group: sentry-snapshots-${{ github.event.pull_request.number || github.sha }}
+  group: sentry-snapshots-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

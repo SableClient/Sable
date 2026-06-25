@@ -61,6 +61,7 @@ describe('room view spacing contract', () => {
     expect(baseLayout).not.toContain("priority={notice ? '300' : '400'}");
     expect(messageLayout).toContain("width: '100%'");
     expect(messageLayout).toContain("alignSelf: 'stretch'");
+    expect(messageLayout).not.toContain('DefaultReset,\n    {');
     expect(messageLayout).not.toContain('export const ModernRow = style({');
     expect(messageLayout).not.toContain('export const ModernContent = style({');
     expect(messageLayout).not.toContain('export const BubbleRow = style({');

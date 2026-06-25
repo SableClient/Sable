@@ -1,6 +1,24 @@
 name: Sentry Snapshots
 
 on:
+  push:
+    branches:
+      - integration
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'playwright.config.ts'
+      - 'e2e/**'
+      - '.github/workflows/sentry-snapshots.yml'
+      - '.github/actions/setup/**'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual run (e.g. seed base snapshot)'
+        required: false
+        default: 'manual base snapshot seed'
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -14,12 +32,12 @@ on:
       - '.github/actions/setup/**'
 
 concurrency:
-  group: sentry-snapshots-${{ github.event.pull_request.number }}
+  group: sentry-snapshots-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
   snapshots:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     environment: preview
     permissions:

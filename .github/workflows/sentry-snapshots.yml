@@ -85,8 +85,8 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Capture deterministic observability snapshots
-        run: pnpm run test:e2e:observability
+      - name: Capture real-route observability and layout harness snapshots
+        run: pnpm run test:e2e:snapshots
 
       - name: Upload snapshot artifact for debugging
         if: always() && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
@@ -111,7 +111,7 @@ jobs:
           {
             echo "### Sentry Snapshot Upload"
             echo
-            echo "- Deterministic screenshot coverage ran successfully for this pull request."
+            echo "- Real-route observability snapshots and layout harness coverage ran successfully for this pull request."
             echo "- Snapshot upload to Sentry failed, but the workflow is continuing."
             echo "- Review the \`Upload snapshots to Sentry\` step logs for the CLI/server error details."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -122,7 +122,7 @@ jobs:
           {
             echo "### Sentry Snapshot Upload"
             echo
-            echo "- Deterministic screenshot coverage ran successfully for this pull request."
+            echo "- Real-route observability snapshots and layout harness coverage ran successfully for this pull request."
             echo "- Upload to Sentry is currently disabled for this repository."
             echo "- Enable the repository variable \`SENTRY_SNAPSHOTS_ENABLED=true\` after the Sentry project has snapshot upload support."
           } >> "$GITHUB_STEP_SUMMARY"

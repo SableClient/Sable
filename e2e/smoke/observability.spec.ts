@@ -36,8 +36,8 @@ const captureSnapshot = async (page: Page, name: string) => {
   await page.screenshot({ path: outputPath, fullPage: true });
 };
 
-test.describe('observability smoke', () => {
-  test('shows the telemetry consent banner for authenticated preview sessions', async ({
+test.describe('observability real-route smoke', () => {
+  test('shows the telemetry consent banner on the logged-in home route for preview sessions', async ({
     page,
   }) => {
     assertSentryConfigured();
@@ -47,8 +47,10 @@ test.describe('observability smoke', () => {
 
     await page.goto('/');
 
+    await expect(page).toHaveURL(/#\/home\/?$/);
+    await expect(page.getByRole('link', { name: 'Source Code' })).toBeVisible();
     await expect(page.getByRole('region', { name: /crash reporting prompt/i })).toBeVisible();
-    await captureSnapshot(page, 'authenticated-home/telemetry-consent-banner');
+    await captureSnapshot(page, 'real-routes/home-telemetry-consent-banner');
 
     await page.getByRole('button', { name: /no thanks/i }).click();
 
@@ -57,7 +59,7 @@ test.describe('observability smoke', () => {
       .toBe('false');
   });
 
-  test('persists diagnostics toggles and exposes the preview toolbar build signal', async ({
+  test('persists diagnostics toggles and exposes the preview toolbar build signal on real settings routes', async ({
     page,
   }) => {
     assertSentryConfigured();
@@ -71,7 +73,7 @@ test.describe('observability smoke', () => {
 
     const errorReportingTile = page.locator('[data-settings-focus="error-reporting"]');
     await expect(errorReportingTile).toBeVisible();
-    await captureSnapshot(page, 'settings/general-diagnostics');
+    await captureSnapshot(page, 'real-routes/settings-general-diagnostics');
 
     await errorReportingTile.getByRole('switch').click();
     await expect
@@ -98,6 +100,6 @@ test.describe('observability smoke', () => {
       )
       .toBe(toolbarEnabled ? 'enabled' : 'disabled');
 
-    await captureSnapshot(page, 'settings/developer-tools-sentry');
+    await captureSnapshot(page, 'real-routes/settings-developer-tools-sentry');
   });
 });

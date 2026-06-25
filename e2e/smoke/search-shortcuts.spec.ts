@@ -14,7 +14,7 @@ const triggerShortcut = async (page: Page, key: string) => {
   }, key);
 };
 
-test.describe('search shortcut smoke', () => {
+test.describe('search shortcut fixture smoke', () => {
   test.beforeEach(async ({ page }) => {
     await installSmokeApp(page, { authenticatedSession: true, hashRouter: false });
     await seedStoredSession(page);

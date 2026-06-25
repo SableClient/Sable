@@ -9,7 +9,7 @@ on:
 
 jobs:
   smoke:
-    name: Live Matrix login smoke
+    name: Live Matrix authenticated smoke
     runs-on: ubuntu-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
@@ -50,7 +50,7 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run live Matrix login smoke
+      - name: Run live Matrix authenticated smoke
         env:
           LIVE_MATRIX_SERVER: ${{ secrets.LIVE_MATRIX_SERVER }}
           LIVE_MATRIX_USERNAME: ${{ secrets.LIVE_MATRIX_USERNAME }}
@@ -58,7 +58,7 @@ jobs:
           LIVE_MATRIX_ROOM_ID: '!mxyMeeQ8S0qXUqcCkgBei4cnb4grSEwIaK1sQxzAvpM'
           LIVE_MATRIX_ROOM_NAME: Test
           PLAYWRIGHT_TRACE: off
-        run: pnpm exec playwright test e2e/live/liveMatrix.spec.ts --project chromium --workers 1
+        run: pnpm run test:e2e:live
 
       - name: Upload Playwright report
         if: failure()

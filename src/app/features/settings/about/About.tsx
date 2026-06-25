@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Text, Scroll, Button, config, toRem, Spinner } from 'folds';
 import { ArrowsClockwise, Code, Heart, menuIcon } from '$components/icons/phosphor';
 import { PageContent } from '$components/page';
@@ -195,11 +195,21 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
   const openBugReport = useOpenBugReportModal();
   const [updateStatusMessage, setUpdateStatusMessage] = useState<string | undefined>();
+  const [isApplyingUpdate, setIsApplyingUpdate] = useState(false);
+  const isApplyingUpdateRef = useRef(false);
+  const isMountedRef = useRef(true);
   const [updateCheckState, runUpdateCheck] = useAsyncCallback<
     Awaited<ReturnType<typeof checkForAppUpdates>>,
     Error,
     []
   >(checkForAppUpdates);
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+    },
+    []
+  );
 
   const handleCheckForUpdates = useCallback(async () => {
     try {
@@ -213,8 +223,26 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
     }
   }, [runUpdateCheck]);
 
-  const handleApplyUpdate = useCallback(() => {
-    void applyPendingAppUpdate();
+  const handleApplyUpdate = useCallback(async () => {
+    if (isApplyingUpdateRef.current) return;
+    isApplyingUpdateRef.current = true;
+    setIsApplyingUpdate(true);
+
+    try {
+      const updateApplied = await applyPendingAppUpdate();
+      if (isMountedRef.current && !updateApplied) {
+        isApplyingUpdateRef.current = false;
+        setIsApplyingUpdate(false);
+      }
+    } catch (error) {
+      if (isMountedRef.current) {
+        setUpdateStatusMessage(
+          error instanceof Error ? error.message : 'Failed to apply the update.'
+        );
+        isApplyingUpdateRef.current = false;
+        setIsApplyingUpdate(false);
+      }
+    }
   }, []);
 
   return (
@@ -309,8 +337,14 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                           size="300"
                           radii="300"
                           outlined
+                          disabled={isApplyingUpdate}
+                          before={
+                            isApplyingUpdate ? (
+                              <Spinner variant="Secondary" size="100" />
+                            ) : undefined
+                          }
                         >
-                          <Text size="B300">Apply Update</Text>
+                          <Text size="B300">{isApplyingUpdate ? 'Applying…' : 'Apply Update'}</Text>
                         </Button>
                       ) : (
                         <Button

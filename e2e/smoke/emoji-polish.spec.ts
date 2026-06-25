@@ -125,6 +125,14 @@ test.describe('emoji polish fixture smoke', () => {
         compactPreviewEmojiFontSize: getComputedStyle(
           document.querySelector('[data-testid="smoke-compact-preview-block"] span[title]')!
         ).fontSize,
+        editorComposer: measure('[data-testid="smoke-editor-composer"] [data-editable-name]'),
+        editorEmoji: measure('[data-testid="smoke-editor-composer"] span[title]'),
+        editorPaddingTop: getComputedStyle(
+          document.querySelector('[data-testid="smoke-editor-composer"] [data-editable-name]')!
+        ).paddingTop,
+        editorPaddingBottom: getComputedStyle(
+          document.querySelector('[data-testid="smoke-editor-composer"] [data-editable-name]')!
+        ).paddingBottom,
         fixedCellBlackSquareFontFamily: getComputedStyle(
           document.querySelector(
             '[data-testid="smoke-emoji-fixed-cell-line"] span[title="black_large_square"]'
@@ -146,6 +154,8 @@ test.describe('emoji polish fixture smoke', () => {
     expect(metrics.baselineEmoji).not.toBeNull();
     expect(metrics.compactPreview).not.toBeNull();
     expect(metrics.compactPreviewEmoji).not.toBeNull();
+    expect(metrics.editorComposer).not.toBeNull();
+    expect(metrics.editorEmoji).not.toBeNull();
     expect(metrics.fixedCellBlackSquareFontFamily).toContain('Twemoji');
 
     expect(metrics.pickerButton!.width).toBe(48);
@@ -177,6 +187,10 @@ test.describe('emoji polish fixture smoke', () => {
     expect(parseFloat(metrics.compactPreviewEmojiFontSize)).toBeGreaterThan(
       parseFloat(metrics.compactPreviewTextFontSize)
     );
+    expect(metrics.editorPaddingTop).toBe('13px');
+    expect(metrics.editorPaddingBottom).toBe('13px');
+    expect(metrics.editorEmoji!.top).toBeGreaterThanOrEqual(metrics.editorComposer!.top - 2);
+    expect(metrics.editorEmoji!.bottom).toBeLessThanOrEqual(metrics.editorComposer!.bottom + 2);
 
     await captureSnapshot(page, 'layout-harness/emoji-polish/sticker-fit-and-baseline');
   });
@@ -201,16 +215,27 @@ test.describe('emoji polish fixture smoke', () => {
       };
 
       return {
+        prevLine: measure('[data-testid="smoke-jumbo-emoji-prev-line"]'),
         jumboLine: measure('[data-testid="smoke-jumbo-emoji-line"]'),
         jumboEmoji: measure('[data-testid="smoke-jumbo-emoji-line"] span[title]'),
         nextLine: measure('[data-testid="smoke-emoji-inline-line"]'),
+        jumboPaddingTop: getComputedStyle(
+          document.querySelector('[data-testid="smoke-jumbo-emoji-line"]')!
+        ).paddingTop,
+        jumboPaddingBottom: getComputedStyle(
+          document.querySelector('[data-testid="smoke-jumbo-emoji-line"]')!
+        ).paddingBottom,
       };
     });
 
+    expect(metrics.prevLine).not.toBeNull();
     expect(metrics.jumboLine).not.toBeNull();
     expect(metrics.jumboEmoji).not.toBeNull();
     expect(metrics.nextLine).not.toBeNull();
 
+    expect(metrics.jumboPaddingTop).not.toBe('0px');
+    expect(metrics.jumboPaddingBottom).not.toBe('0px');
+    expect(metrics.jumboLine!.top - metrics.prevLine!.bottom).toBeGreaterThanOrEqual(4);
     expect(metrics.jumboEmoji!.top).toBeGreaterThanOrEqual(metrics.jumboLine!.top - 2);
     expect(metrics.jumboEmoji!.bottom).toBeLessThanOrEqual(metrics.jumboLine!.bottom + 2);
     expect(metrics.nextLine!.top - metrics.jumboLine!.bottom).toBeGreaterThanOrEqual(4);

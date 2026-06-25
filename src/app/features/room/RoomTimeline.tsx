@@ -290,7 +290,7 @@ export function RoomTimeline({
   const isMobileScreen = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();
   const timelineBottomSpacing = hasTypingIndicator ? config.space.S700 : config.space.S600;
   const timelineRightSpacing = isMobileScreen
-    ? config.space.S200
+    ? config.space.S100
     : hasDesktopRightDrawer
       ? config.space.S400
       : config.space.S0;

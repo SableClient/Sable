@@ -107,6 +107,7 @@ export const NavItem = recipe({
 
 export type RoomSelectorVariants = RecipeVariants<typeof NavItem>;
 export const NavItemContent = style({
+  margin: 0,
   paddingLeft: config.space.S200,
   paddingRight: config.space.S300,
   height: 'inherit',
@@ -114,6 +115,9 @@ export const NavItemContent = style({
   flexGrow: 1,
   display: 'flex',
   alignItems: 'center',
+  fontSize: config.fontSize.T300,
+  lineHeight: config.lineHeight.T300,
+  letterSpacing: config.letterSpacing.T300,
   fontWeight: config.fontWeight.W500,
 
   selectors: {

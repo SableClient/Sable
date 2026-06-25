@@ -101,7 +101,6 @@ const AutoCollapse = style({
 
 export const MessageBase = recipe({
   base: [
-    DefaultReset,
     {
       marginTop: SpacingVar,
       padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
@@ -278,7 +277,9 @@ export const MessageTextBody = recipe({
     width: '100%',
     minWidth: 0,
     wordBreak: 'break-word',
-    fontSize: '1rem !important', // Override folds Text component to enable page zoom scaling
+    fontSize: '1rem',
+    lineHeight: config.lineHeight.T400,
+    letterSpacing: config.letterSpacing.T400,
   },
   variants: {
     preWrap: {
@@ -289,7 +290,7 @@ export const MessageTextBody = recipe({
     jumboEmoji: {
       none: {
         fontSize: '1rem !important',
-        lineHeight: 'inherit',
+        lineHeight: config.lineHeight.T400,
       },
       extraSmall: {
         fontSize: '1.25rem !important',
@@ -352,3 +353,12 @@ export const MessageTextBody = recipe({
 });
 
 export type MessageTextBodyVariants = RecipeVariants<typeof MessageTextBody>;
+
+export const MessageTextBodyPriority = styleVariants({
+  notice: {
+    opacity: config.opacity.P300,
+  },
+  default: {
+    opacity: config.opacity.P400,
+  },
+});

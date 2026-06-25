@@ -4,15 +4,13 @@ import { useSwUpdateAvailable } from './useSwUpdateAvailable';
 
 const appUpdatesMocks = vi.hoisted(() => ({
   checkForAppUpdates: vi.fn<() => Promise<unknown>>(),
-  hasPendingAppUpdate: vi.fn<(registration: ServiceWorkerRegistration | undefined) => boolean>(),
+  hasPendingScopedAppUpdate: vi.fn<() => Promise<boolean>>(),
 }));
 
 vi.mock('$utils/appUpdates', () => appUpdatesMocks);
 
 describe('useSwUpdateAvailable', () => {
   let serviceWorkerListeners: Map<string, EventListener>;
-  let registration: ServiceWorkerRegistration | undefined;
-  let controller: ServiceWorker | null;
   let visibilityState: DocumentVisibilityState;
 
   const setVisibility = (state: DocumentVisibilityState) => {
@@ -25,8 +23,6 @@ describe('useSwUpdateAvailable', () => {
 
   beforeEach(() => {
     serviceWorkerListeners = new Map();
-    registration = undefined;
-    controller = null;
     setVisibility('visible');
 
     appUpdatesMocks.checkForAppUpdates.mockReset();
@@ -35,25 +31,13 @@ describe('useSwUpdateAvailable', () => {
       message: 'You are already on the latest available web app version.',
       canApply: false,
     });
-    appUpdatesMocks.hasPendingAppUpdate.mockReset();
-    appUpdatesMocks.hasPendingAppUpdate.mockImplementation(
-      (currentRegistration: ServiceWorkerRegistration | undefined) =>
-        Boolean(
-          currentRegistration &&
-          controller &&
-          (currentRegistration.waiting ||
-            (currentRegistration.active &&
-              currentRegistration.active !== navigator.serviceWorker.controller))
-        )
-    );
+    appUpdatesMocks.hasPendingScopedAppUpdate.mockReset();
+    appUpdatesMocks.hasPendingScopedAppUpdate.mockResolvedValue(false);
 
     Object.defineProperty(window, 'navigator', {
       configurable: true,
       value: {
         serviceWorker: {
-          getRegistration: vi
-            .fn<() => Promise<ServiceWorkerRegistration | undefined>>()
-            .mockImplementation(async () => registration),
           addEventListener: vi.fn<(event: string, listener: EventListener) => void>(
             (event, listener) => {
               serviceWorkerListeners.set(event, listener);
@@ -62,9 +46,7 @@ describe('useSwUpdateAvailable', () => {
           removeEventListener: vi.fn<(event: string) => void>((event) => {
             serviceWorkerListeners.delete(event);
           }),
-          get controller() {
-            return controller;
-          },
+          controller: null,
         },
       },
     });
@@ -76,11 +58,7 @@ describe('useSwUpdateAvailable', () => {
   });
 
   it('starts as available when a waiting worker already exists', async () => {
-    controller = { postMessage: vi.fn<() => void>() } as unknown as ServiceWorker;
-    registration = {
-      waiting: { postMessage: vi.fn<() => void>() },
-      active: controller,
-    } as unknown as ServiceWorkerRegistration;
+    appUpdatesMocks.hasPendingScopedAppUpdate.mockResolvedValue(true);
 
     const { result } = renderHook(() => useSwUpdateAvailable());
 
@@ -90,25 +68,18 @@ describe('useSwUpdateAvailable', () => {
   });
 
   it('clears the update flag after controllerchange when no pending update remains', async () => {
-    const currentController = { postMessage: vi.fn<() => void>() } as unknown as ServiceWorker;
-    const nextController = { postMessage: vi.fn<() => void>() } as unknown as ServiceWorker;
-    controller = currentController;
-    registration = {
-      waiting: { postMessage: vi.fn<() => void>() },
-      active: nextController,
-    } as unknown as ServiceWorkerRegistration;
+    appUpdatesMocks.hasPendingScopedAppUpdate.mockResolvedValueOnce(true).mockResolvedValue(false);
+    appUpdatesMocks.checkForAppUpdates.mockResolvedValueOnce({
+      kind: 'update-available',
+      message: 'An update is ready to apply.',
+      canApply: true,
+    });
 
     const { result } = renderHook(() => useSwUpdateAvailable());
 
     await waitFor(() => {
       expect(result.current).toBe(true);
     });
-
-    controller = nextController;
-    registration = {
-      waiting: null,
-      active: nextController,
-    } as unknown as ServiceWorkerRegistration;
 
     act(() => {
       serviceWorkerListeners.get('controllerchange')?.(new Event('controllerchange'));
@@ -139,6 +110,19 @@ describe('useSwUpdateAvailable', () => {
     expect(appUpdatesMocks.checkForAppUpdates).toHaveBeenCalledTimes(2);
 
     vi.useRealTimers();
+  });
+
+  it('still performs automatic hosted update checks when service workers are unavailable', async () => {
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {},
+    });
+
+    renderHook(() => useSwUpdateAvailable());
+
+    await waitFor(() => {
+      expect(appUpdatesMocks.checkForAppUpdates).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('skips hidden checks and retries once the app becomes visible again', async () => {
@@ -173,11 +157,7 @@ describe('useSwUpdateAvailable', () => {
   });
 
   it('re-syncs local update state when the update probe fails', async () => {
-    controller = { postMessage: vi.fn<() => void>() } as unknown as ServiceWorker;
-    registration = {
-      waiting: { postMessage: vi.fn<() => void>() },
-      active: controller,
-    } as unknown as ServiceWorkerRegistration;
+    appUpdatesMocks.hasPendingScopedAppUpdate.mockResolvedValue(true);
     appUpdatesMocks.checkForAppUpdates.mockRejectedValue(new Error('network failed'));
 
     const { result } = renderHook(() => useSwUpdateAvailable());
@@ -185,5 +165,20 @@ describe('useSwUpdateAvailable', () => {
     await waitFor(() => {
       expect(result.current).toBe(true);
     });
+  });
+
+  it('clears a false-positive banner when only a stale broader registration has an update', async () => {
+    appUpdatesMocks.hasPendingScopedAppUpdate
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValue(false);
+
+    const { result } = renderHook(() => useSwUpdateAvailable());
+
+    await waitFor(() => {
+      expect(result.current).toBe(false);
+    });
+
+    expect(appUpdatesMocks.hasPendingScopedAppUpdate).toHaveBeenCalledTimes(2);
   });
 });

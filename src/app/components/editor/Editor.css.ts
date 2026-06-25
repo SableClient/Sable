@@ -60,32 +60,29 @@ export const EditorTextareaScrollMultiline = style({
   gridArea: 'textarea',
 });
 
-export const EditorTextarea = style([
-  DefaultReset,
-  {
-    flexGrow: 1,
-    height: 'auto',
-    unicodeBidi: 'plaintext',
-    lineHeight: config.lineHeight.T400,
-    paddingTop: toRem(13),
-    paddingBottom: toRem(13),
-    selectors: {
-      [`${EditorTextareaScrollMultiline} &`]: {
-        paddingRight: toRem(13),
-        paddingBottom: 0,
-      },
-      [`${EditorTextareaScroll}:first-child &`]: {
-        paddingLeft: toRem(13),
-      },
-      [`${EditorTextareaScroll}:last-child &`]: {
-        paddingRight: toRem(13),
-      },
-      '&:focus': {
-        outline: 'none',
-      },
+export const EditorTextarea = style({
+  flexGrow: 1,
+  height: 'auto',
+  unicodeBidi: 'plaintext',
+  lineHeight: config.lineHeight.T400,
+  paddingTop: toRem(13),
+  paddingBottom: toRem(13),
+  selectors: {
+    [`${EditorTextareaScrollMultiline} &`]: {
+      paddingRight: toRem(13),
+      paddingBottom: 0,
+    },
+    [`${EditorTextareaScroll}:first-child &`]: {
+      paddingLeft: toRem(13),
+    },
+    [`${EditorTextareaScroll}:last-child &`]: {
+      paddingRight: toRem(13),
+    },
+    '&:focus': {
+      outline: 'none',
     },
   },
-]);
+});
 
 export const EditorResponsiveAfterMultiline = style([
   EditorOptions,
@@ -105,37 +102,34 @@ export const EditorFooterAfterMultiline = style([
   },
 ]);
 
-export const EditorPlaceholderContainer = style([
-  DefaultReset,
-  {
-    opacity: config.opacity.Placeholder,
-    pointerEvents: 'none',
-    userSelect: 'none',
-  },
-]);
+export const EditorPlaceholderContainer = style({
+  opacity: config.opacity.Placeholder,
+  pointerEvents: 'none',
+  userSelect: 'none',
+});
 
-export const EditorPlaceholderTextVisual = style([
-  DefaultReset,
-  {
-    display: 'block',
-    lineHeight: config.lineHeight.T400,
-    paddingTop: toRem(13),
-    paddingBottom: toRem(13),
-    paddingLeft: toRem(1),
-    selectors: {
-      [`${EditorTextareaScrollMultiline} &`]: {
-        paddingRight: toRem(13),
-        paddingBottom: 0,
-      },
-      [`${EditorTextareaScroll}:first-child &`]: {
-        paddingLeft: toRem(13),
-      },
-      [`${EditorTextareaScroll}:last-child &`]: {
-        paddingRight: toRem(13),
-      },
+export const EditorPlaceholderTextVisual = style({
+  display: 'block',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  lineHeight: config.lineHeight.T400,
+  paddingTop: toRem(13),
+  paddingBottom: toRem(13),
+  paddingLeft: toRem(1),
+  selectors: {
+    [`${EditorTextareaScrollMultiline} &`]: {
+      paddingRight: toRem(13),
+      paddingBottom: 0,
+    },
+    [`${EditorTextareaScroll}:first-child &`]: {
+      paddingLeft: toRem(13),
+    },
+    [`${EditorTextareaScroll}:last-child &`]: {
+      paddingRight: toRem(13),
     },
   },
-]);
+});
 
 export const EditorToolbarBase = style({
   padding: `0 ${config.borderWidth.B300}`,

@@ -208,6 +208,10 @@ export function ClientRoot({ children }: ClientRootProps) {
   const [activeSessionId, setActiveSessionId] = useAtom(activeSessionIdAtom);
   const setSessions = useSetAtom(sessionsAtom);
   const [defaultLandingScreen] = useSetting(settingsAtom, 'defaultLandingScreen');
+  const [swUpdateError, setSwUpdateError] = useState<string | undefined>();
+  const [isApplyingSwUpdate, setIsApplyingSwUpdate] = useState(false);
+  const isApplyingSwUpdateRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   const activeSession: Session | undefined =
     sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
@@ -217,6 +221,13 @@ export function ClientRoot({ children }: ClientRootProps) {
   const loadedUserIdRef = useRef<string | undefined>(undefined);
   const syncStartTimeRef = useRef(performance.now());
   const firstSyncReadyRef = useRef(false);
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+    },
+    []
+  );
 
   const [loading, setLoading] = useState(true);
 
@@ -514,17 +525,43 @@ export function ClientRoot({ children }: ClientRootProps) {
               style={{
                 padding: `${config.space.S100} 0`,
                 width: '100%',
-                cursor: 'pointer',
+                cursor: isApplyingSwUpdate ? 'progress' : 'pointer',
                 border: 'none',
                 background: 'none',
               }}
+              disabled={isApplyingSwUpdate}
               alignItems="Center"
               justifyContent="Center"
               onClick={() => {
-                void applyPendingAppUpdate();
+                if (isApplyingSwUpdateRef.current) return;
+                isApplyingSwUpdateRef.current = true;
+                setIsApplyingSwUpdate(true);
+
+                void applyPendingAppUpdate()
+                  .then((updateApplied) => {
+                    if (!isMountedRef.current) return;
+                    setSwUpdateError(undefined);
+                    if (!updateApplied) {
+                      isApplyingSwUpdateRef.current = false;
+                      setIsApplyingSwUpdate(false);
+                    }
+                  })
+                  .catch((error) => {
+                    if (!isMountedRef.current) return;
+                    setSwUpdateError(
+                      error instanceof Error ? error.message : 'Failed to apply the update.'
+                    );
+                    isApplyingSwUpdateRef.current = false;
+                    setIsApplyingSwUpdate(false);
+                  });
               }}
             >
-              <Text size="L400">Update available — tap to reload</Text>
+              <Box direction="Column" alignItems="Center" gap="100">
+                <Text size="L400">
+                  {isApplyingSwUpdate ? 'Applying update…' : 'Update available — tap to reload'}
+                </Text>
+                {swUpdateError && <Text size="T200">{swUpdateError}</Text>}
+              </Box>
             </Box>
             <Line variant="Primary" size="300" />
           </Box>

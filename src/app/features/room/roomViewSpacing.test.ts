@@ -34,7 +34,7 @@ describe('room view spacing contract', () => {
     const roomTimeline = readWorkspaceFile('src/app/features/room/RoomTimeline.tsx');
 
     expect(roomTimeline).toContain('const timelineRightSpacing = isMobileScreen');
-    expect(roomTimeline).toContain('? config.space.S200');
+    expect(roomTimeline).toContain('? config.space.S100');
     expect(roomTimeline).toContain('? config.space.S400');
     expect(roomTimeline).toContain(': config.space.S0;');
     expect(roomTimeline).toContain('paddingRight: timelineRightSpacing');
@@ -48,6 +48,7 @@ describe('room view spacing contract', () => {
     expect(messageLayout).toContain(
       'padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`'
     );
+    expect(messageLayout).not.toContain('DefaultReset,\n    {\n      marginTop: SpacingVar');
     expect(roomTimeline).toContain('key={`${room.roomId}:${messageLayout}:${messageSpacing}`}');
   });
 

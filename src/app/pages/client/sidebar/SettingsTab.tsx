@@ -1,5 +1,5 @@
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
-import { GearSix, getPhosphorSize } from '$components/icons/phosphor';
+import { GearSix, getPhosphorIconSize } from '$components/icons/phosphor';
 import { useOpenSettings } from '$features/settings';
 import { matchPath } from 'react-router-dom';
 import { SETTINGS_PATH } from '$pages/paths';
@@ -10,10 +10,13 @@ export function SettingsTab({ isBottom }: { isBottom?: boolean }) {
 
   return (
     <SidebarItem active={opened} isBottom={isBottom}>
-      <SidebarItemTooltip tooltip="Search" position={isBottom ? 'Top' : 'Right'}>
+      <SidebarItemTooltip tooltip="Settings" position={isBottom ? 'Top' : 'Right'}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={openSettings} size="300">
-            <GearSix size={getPhosphorSize().inline} weight={opened ? 'fill' : 'regular'} />
+          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={openSettings} size={'400'}>
+            <GearSix
+              size={getPhosphorIconSize(isBottom ? 'inline' : 'toolbar')}
+              weight={opened ? 'fill' : 'regular'}
+            />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

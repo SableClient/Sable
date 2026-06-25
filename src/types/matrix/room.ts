@@ -20,9 +20,8 @@ export const CustomStateEvent = {
 } as const;
 export type CustomStateEvent = (typeof CustomStateEvent)[keyof typeof CustomStateEvent];
 
-// Custom room types not covered by the Matrix SDK's RoomType enum.
 export const CustomRoomType = {
-  Forum: 'm.forum',
+  Forum: 'pl.chrome.forum',
 } as const;
 export type CustomRoomType = (typeof CustomRoomType)[keyof typeof CustomRoomType];
 

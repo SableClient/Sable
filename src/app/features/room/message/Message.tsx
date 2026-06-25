@@ -940,6 +940,7 @@ function MessageInternal(
             onReplyClick={onReplyClick}
             onEditId={onEditId}
             hideReadReceipts={hideReadReceipts}
+            hideReplyButton={hideReplyButton}
             showDeveloperTools={showDeveloperTools}
             canPinEvent={canPinEvent}
             cleanedDisplayName={cleanedDisplayName}
@@ -949,7 +950,6 @@ function MessageInternal(
             imagePackRooms={imagePackRooms}
             setIsEmoji={setIsEmoji}
             canSendReaction={canSendReaction}
-            hideReplyButton={hideReplyButton}
           />
         </div>
       )}

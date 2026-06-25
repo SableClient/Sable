@@ -190,7 +190,7 @@ export function ForumView() {
   const canRedact = permissions.action('redact', mx.getSafeUserId());
   const canDeleteOwn = permissions.event(EventType.RoomRedaction, mx.getSafeUserId());
   const canSendReaction = permissions.event(EventType.Reaction, mx.getSafeUserId());
-  const canPinEvent = permissions.stateEvent('m.room.pinned_events', mx.getSafeUserId());
+  const canPinEvent = permissions.stateEvent(EventType.RoomPinnedEvents, mx.getSafeUserId());
   const canMessage = permissions.event(EventType.RoomMessage, mx.getSafeUserId());
   const tombstoneEvent = useStateEvent(room, EventType.RoomTombstone);
 

@@ -249,6 +249,7 @@ export function OptionQuickMenu({
   onReplyClick,
   onEditId,
   hideReadReceipts,
+  hideReplyButton,
   showDeveloperTools,
   canPinEvent,
   cleanedDisplayName,
@@ -257,7 +258,6 @@ export function OptionQuickMenu({
   menuAnchor,
   imagePackRooms,
   setIsEmoji,
-  hideReplyButton,
 }: OptionMenuProps) {
   const mx = useMatrixClient();
   const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
@@ -430,6 +430,7 @@ export function OptionMenu({
   onReplyClick,
   onEditId,
   hideReadReceipts,
+  hideReplyButton,
   showDeveloperTools,
   canPinEvent,
   cleanedDisplayName,
@@ -439,7 +440,6 @@ export function OptionMenu({
   ActualMessage,
   isModal,
   dragOpts,
-  hideReplyButton,
 }: OptionMenuProps) {
   const setModal = useSetAtom(modalAtom);
   const store = useStore();

@@ -82,7 +82,6 @@ import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { getMxIdServer } from '$utils/mxIdHelper';
-import { UserQuickTools } from '../sidebar/UserQuickTools';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 
 type HomeMenuProps = {
@@ -560,7 +559,6 @@ export function Home() {
           setAnnouncement={setIsResizingSidebar}
         />
       )}
-      <UserQuickTools width={curWidth + 66} />
     </Box>
   );
 }

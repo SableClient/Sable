@@ -117,8 +117,8 @@ export const MessageBase = recipe({
       borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
       minHeight: toRem(16),
       contain: 'layout',
-      flexGrow: '1',
-      width: '100',
+      alignSelf: 'stretch',
+      width: '100%',
     },
   ],
   variants: {
@@ -288,6 +288,11 @@ export const MessageTextBody = recipe({
       true: {
         color: color.Success.Main,
         fontStyle: 'italic',
+      },
+    },
+    notice: {
+      true: {
+        opacity: config.opacity.P300,
       },
     },
   },

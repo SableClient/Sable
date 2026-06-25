@@ -56,11 +56,11 @@ describe('room view spacing contract', () => {
     const baseLayout = readWorkspaceFile('src/app/components/message/layout/Base.tsx');
     const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
 
-    expect(baseLayout).toContain("import { Text, as } from 'folds';");
-    expect(baseLayout).toContain('<Text');
-    expect(baseLayout).toContain('size="T400"');
-    expect(baseLayout).toContain("priority={notice ? '300' : '400'}");
-    expect(messageLayout).toContain("width: '100'");
+    expect(baseLayout).not.toContain('<Text');
+    expect(baseLayout).not.toContain('size="T400"');
+    expect(baseLayout).not.toContain("priority={notice ? '300' : '400'}");
+    expect(messageLayout).toContain("width: '100%'");
+    expect(messageLayout).toContain("alignSelf: 'stretch'");
     expect(messageLayout).not.toContain('export const ModernRow = style({');
     expect(messageLayout).not.toContain('export const ModernContent = style({');
     expect(messageLayout).not.toContain('export const BubbleRow = style({');

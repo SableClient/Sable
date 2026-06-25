@@ -9,6 +9,10 @@ const roomName = process.env.LIVE_MATRIX_ROOM_NAME;
 const LIVE_TEST_TIMEOUT_MS = 90_000;
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const requireEnv = (value: string | undefined, name: string): string => {
+  if (!value) throw new Error(`${name} must be set`);
+  return value;
+};
 
 const expectStoredSession = async (page: Page) => {
   await expect
@@ -31,14 +35,18 @@ const expectStoredSession = async (page: Page) => {
 };
 
 const loginToLiveMatrix = async (page: Page) => {
-  await page.goto(`/login/${encodeURIComponent(server!)}`);
+  const liveServer = requireEnv(server, 'LIVE_MATRIX_SERVER');
+  const liveUsername = requireEnv(username, 'LIVE_MATRIX_USERNAME');
+  const livePassword = requireEnv(password, 'LIVE_MATRIX_PASSWORD');
 
-  await expect(page.locator('input').first()).toHaveValue(server!);
+  await page.goto(`/login/${encodeURIComponent(liveServer)}`);
+
+  await expect(page.locator('input').first()).toHaveValue(liveServer);
   await expect(page.locator('#login-username-input')).toBeVisible();
   await expect(page.locator('#login-password-input')).toBeVisible();
 
-  await page.locator('#login-username-input').fill(username!);
-  await page.locator('#login-password-input').fill(password!);
+  await page.locator('#login-username-input').fill(liveUsername);
+  await page.locator('#login-password-input').fill(livePassword);
   await page.getByRole('button', { name: 'Login' }).click();
 
   await expect(page).toHaveURL(/\/home\/?$/, { timeout: 60_000 });
@@ -123,7 +131,7 @@ test.describe.serial('live matrix authenticated smoke', () => {
   test('opens a known room when LIVE_MATRIX_ROOM_ID is configured', async () => {
     test.skip(!roomId, 'LIVE_MATRIX_ROOM_ID must be set to validate room navigation');
 
-    const encodedRoomId = encodeURIComponent(roomId!);
+    const encodedRoomId = encodeURIComponent(requireEnv(roomId, 'LIVE_MATRIX_ROOM_ID'));
     await page.goto(`/home/${encodedRoomId}`);
 
     await expect

@@ -9,6 +9,7 @@ on:
       - 'public/**'
       - 'index.html'
       - 'package.json'
+      - 'pnpm-lock.yaml'
       - 'playwright.config.ts'
       - 'e2e/**'
       - '.github/workflows/sentry-snapshots.yml'
@@ -26,6 +27,7 @@ on:
       - 'public/**'
       - 'index.html'
       - 'package.json'
+      - 'pnpm-lock.yaml'
       - 'playwright.config.ts'
       - 'e2e/**'
       - '.github/workflows/sentry-snapshots.yml'
@@ -90,13 +92,13 @@ jobs:
         if: always() && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: sentry-snapshots-pr-${{ github.event.pull_request.number }}
+          name: sentry-snapshots-${{ github.event.pull_request.number || github.sha }}
           path: .artifacts/sentry-snapshots
 
       - name: Upload snapshots to Sentry
         id: sentry_upload
         if: env.SENTRY_SNAPSHOTS_ENABLED == 'true' && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''
-        continue-on-error: true
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: >
           pnpm dlx @sentry/cli@3.5.1 snapshots upload
           "$PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR"

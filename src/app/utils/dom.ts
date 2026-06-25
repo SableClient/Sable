@@ -187,6 +187,18 @@ export const scrollToBottom = (scrollEl: HTMLElement, behavior?: 'auto' | 'insta
   });
 };
 
+export const copyImageToClipboard = async (blob: Blob): Promise<boolean> => {
+  if (navigator.clipboard) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+};
+
 export const copyToClipboard = async (text: string): Promise<boolean> => {
   if (navigator.clipboard) {
     try {

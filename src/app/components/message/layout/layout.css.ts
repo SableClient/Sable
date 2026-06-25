@@ -246,8 +246,12 @@ export const MessageTextBody = recipe({
   base: {
     unicodeBidi: 'plaintext',
     alignSelf: 'start',
+    width: '100%',
+    minWidth: 0,
     wordBreak: 'break-word',
     fontSize: '1rem !important',
+    lineHeight: config.lineHeight.T400,
+    letterSpacing: config.letterSpacing.T400,
   },
   variants: {
     preWrap: {

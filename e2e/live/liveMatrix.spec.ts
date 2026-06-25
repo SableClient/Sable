@@ -1,5 +1,16 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import type { BrowserContext, Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
+
+const snapshotOutputDir = process.env.PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR;
+
+const captureSnapshot = async (page: Page, name: string) => {
+  if (!snapshotOutputDir) return;
+  const outputPath = path.join(snapshotOutputDir, `${name}.png`);
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  await page.screenshot({ path: outputPath, fullPage: true });
+};
 
 const server = process.env.LIVE_MATRIX_SERVER;
 const username = process.env.LIVE_MATRIX_USERNAME;
@@ -164,5 +175,22 @@ test.describe.serial('live matrix authenticated smoke', () => {
     await expect(
       page.getByText('Sentry is not configured. Set VITE_SENTRY_DSN to enable error tracking.')
     ).toBeVisible({ timeout: 60_000 });
+  });
+
+  test('renders the Emoji QA room and captures a layout snapshot', async () => {
+    const emojiQaRoomId = '!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA';
+    const encodedRoomId = encodeURIComponent(emojiQaRoomId);
+    await page.goto(`/home/${encodedRoomId}`);
+
+    await expect
+      .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
+      .toMatch(new RegExp(`/home/${escapeRegExp(encodedRoomId)}/?$`));
+
+    await expect(page.getByRole('button', { name: /^Emoji QA,/ })).toBeVisible({
+      timeout: 60_000,
+    });
+
+    await page.waitForTimeout(2_000);
+    await captureSnapshot(page, 'live/emoji-qa/room-view');
   });
 });

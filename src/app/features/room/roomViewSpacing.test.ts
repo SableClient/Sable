@@ -30,12 +30,11 @@ describe('room view spacing contract', () => {
     expect(roomTimeline).toContain('paddingBottom: timelineBottomSpacing');
   });
 
-  it('restores a desktop right gutter whenever a side drawer is open', () => {
+  it('adds mobile-only right gutter; desktop uses no extra padding regardless of drawer state', () => {
     const roomTimeline = readWorkspaceFile('src/app/features/room/RoomTimeline.tsx');
 
     expect(roomTimeline).toContain('const timelineRightSpacing = isMobileScreen');
     expect(roomTimeline).toContain('? config.space.S100');
-    expect(roomTimeline).toContain('? config.space.S400');
     expect(roomTimeline).toContain(': config.space.S0;');
     expect(roomTimeline).toContain('paddingRight: timelineRightSpacing');
   });

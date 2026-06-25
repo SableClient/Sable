@@ -48,21 +48,22 @@ describe('room view spacing contract', () => {
     expect(messageLayout).toContain(
       'padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`'
     );
-    expect(messageLayout).not.toContain('DefaultReset,\n    {\n      marginTop: SpacingVar');
+    expect(messageLayout).toContain('DefaultReset,');
     expect(roomTimeline).toContain('key={`${room.roomId}:${messageLayout}:${messageSpacing}`}');
   });
 
-  it('keeps the message body inside a full-width content column', () => {
-    const modernLayout = readWorkspaceFile('src/app/components/message/layout/Modern.tsx');
-    const bubbleLayout = readWorkspaceFile('src/app/components/message/layout/Bubble.tsx');
+  it('keeps message layout aligned with the current Sable contract', () => {
+    const baseLayout = readWorkspaceFile('src/app/components/message/layout/Base.tsx');
     const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
 
-    expect(modernLayout).toContain('className={css.ModernRow}');
-    expect(modernLayout).toContain('className={css.ModernContent}');
-    expect(bubbleLayout).toContain('className={css.BubbleRow}');
-    expect(bubbleLayout).toContain('className={css.BubbleMain}');
-    expect(messageLayout).toContain("width: '100%'");
-    expect(messageLayout).toContain('export const ModernContent = style({');
-    expect(messageLayout).toContain('export const BubbleMain = style({');
+    expect(baseLayout).toContain("import { Text, as } from 'folds';");
+    expect(baseLayout).toContain('<Text');
+    expect(baseLayout).toContain('size="T400"');
+    expect(baseLayout).toContain("priority={notice ? '300' : '400'}");
+    expect(messageLayout).toContain("width: '100'");
+    expect(messageLayout).not.toContain('export const ModernRow = style({');
+    expect(messageLayout).not.toContain('export const ModernContent = style({');
+    expect(messageLayout).not.toContain('export const BubbleRow = style({');
+    expect(messageLayout).not.toContain('export const BubbleMain = style({');
   });
 });

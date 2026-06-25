@@ -65,6 +65,15 @@ export const messageJumpHighlight = style({
   animationIterationCount: 'infinite',
 });
 
+const MobileVariant = styleVariants({
+  true: {
+    WebkitUserSelect: 'none',
+    msUserSelect: 'none',
+    userSelect: 'none',
+    MozUserSelect: 'none',
+  },
+});
+
 const HighlightVariant = styleVariants({
   true: [messageJumpHighlight],
 });
@@ -101,12 +110,15 @@ const AutoCollapse = style({
 
 export const MessageBase = recipe({
   base: [
+    DefaultReset,
     {
       marginTop: SpacingVar,
       padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
       borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
       minHeight: toRem(16),
       contain: 'layout',
+      flexGrow: '1',
+      width: '100',
     },
   ],
   variants: {
@@ -123,6 +135,7 @@ export const MessageBase = recipe({
     notifyHighlight: NotifyHighlightVariant,
     selected: SelectedVariant,
     isMarked: MarkedVariant,
+    mobile: MobileVariant,
   },
   defaultVariants: {
     space: '400',
@@ -154,49 +167,11 @@ export const AvatarBase = style({
 });
 
 export const ModernBefore = style({
-  width: toRem(36),
   minWidth: toRem(36),
-  flex: `0 0 ${toRem(36)}`,
-});
-
-export const ModernRow = style({
-  alignItems: 'flex-start',
-  boxSizing: 'border-box',
-  width: '100%',
-  minWidth: 0,
-  maxWidth: '100%',
-  paddingInline: config.space.S200,
-});
-
-export const ModernContent = style({
-  display: 'flex',
-  flexDirection: 'column',
-  flex: 1,
-  width: '100%',
-  minWidth: 0,
 });
 
 export const BubbleBefore = style({
-  width: toRem(36),
   minWidth: toRem(36),
-  flex: `0 0 ${toRem(36)}`,
-});
-
-export const BubbleRow = style({
-  alignItems: 'flex-start',
-  boxSizing: 'border-box',
-  width: '100%',
-  minWidth: 0,
-  maxWidth: '100%',
-  paddingInline: config.space.S200,
-});
-
-export const BubbleMain = style({
-  display: 'flex',
-  flexDirection: 'column',
-  flex: 1,
-  width: '100%',
-  minWidth: 0,
 });
 
 export const BubbleWrapper = style({
@@ -274,12 +249,8 @@ export const MessageTextBody = recipe({
   base: {
     unicodeBidi: 'plaintext',
     alignSelf: 'start',
-    width: '100%',
-    minWidth: 0,
     wordBreak: 'break-word',
-    fontSize: '1rem',
-    lineHeight: config.lineHeight.T400,
-    letterSpacing: config.letterSpacing.T400,
+    fontSize: '1rem !important',
   },
   variants: {
     preWrap: {
@@ -290,57 +261,27 @@ export const MessageTextBody = recipe({
     jumboEmoji: {
       none: {
         fontSize: '1rem !important',
-        lineHeight: config.lineHeight.T400,
+        lineHeight: 'inherit',
       },
       extraSmall: {
         fontSize: '1.25rem !important',
         lineHeight: '1.4em',
-        paddingTop: '0.08em',
-        paddingBottom: '0.08em',
-        vars: {
-          '--sable-system-emoji-top-offset': '-0.2em',
-          '--sable-custom-emoji-top-offset': '-0.2em',
-        },
       },
       small: {
         fontSize: '1.5rem !important',
         lineHeight: '1.5em',
-        paddingTop: '0.08em',
-        paddingBottom: '0.08em',
-        vars: {
-          '--sable-system-emoji-top-offset': '-0.2em',
-          '--sable-custom-emoji-top-offset': '-0.2em',
-        },
       },
       normal: {
         fontSize: '1.805rem !important',
         lineHeight: '1.625em',
-        paddingTop: '0.08em',
-        paddingBottom: '0.08em',
-        vars: {
-          '--sable-system-emoji-top-offset': '-0.2em',
-          '--sable-custom-emoji-top-offset': '-0.2em',
-        },
       },
       large: {
         fontSize: '2.1rem !important',
         lineHeight: '1.675em',
-        paddingTop: '0.08em',
-        paddingBottom: '0.08em',
-        vars: {
-          '--sable-system-emoji-top-offset': '-0.2em',
-          '--sable-custom-emoji-top-offset': '-0.2em',
-        },
       },
       extraLarge: {
         fontSize: '2.4rem !important',
         lineHeight: '1.7em',
-        paddingTop: '0.08em',
-        paddingBottom: '0.08em',
-        vars: {
-          '--sable-system-emoji-top-offset': '-0.2em',
-          '--sable-custom-emoji-top-offset': '-0.2em',
-        },
       },
     },
     emote: {
@@ -353,12 +294,3 @@ export const MessageTextBody = recipe({
 });
 
 export type MessageTextBodyVariants = RecipeVariants<typeof MessageTextBody>;
-
-export const MessageTextBodyPriority = styleVariants({
-  notice: {
-    opacity: config.opacity.P300,
-  },
-  default: {
-    opacity: config.opacity.P400,
-  },
-});

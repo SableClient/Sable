@@ -1,4 +1,4 @@
-import { as } from 'folds';
+import { Text, as } from 'folds';
 import classNames from 'classnames';
 import * as css from './layout.css';
 
@@ -13,6 +13,7 @@ export const MessageBase = as<'div', css.MessageBaseVariants>(
       collapse,
       autoCollapse,
       space,
+      mobile,
       ...props
     },
     ref
@@ -27,6 +28,7 @@ export const MessageBase = as<'div', css.MessageBaseVariants>(
           collapse,
           autoCollapse,
           space,
+          mobile,
         }),
         className
       )}
@@ -58,24 +60,17 @@ export const MessageTextBody = as<'div', css.MessageTextBodyVariants & { notice?
   (
     { as: asComp = 'div', children, className, preWrap, jumboEmoji, emote, notice, ...props },
     ref
-  ) => {
-    const AsComp = asComp;
-
-    return (
-      <AsComp
-        // Message text owns its own text metrics because using folds Text here
-        // reintroduces shared reset classes whose padding can win later in split CSS.
-        className={classNames(
-          css.MessageTextBody({ preWrap, jumboEmoji, emote }),
-          notice ? css.MessageTextBodyPriority.notice : css.MessageTextBodyPriority.default,
-          className
-        )}
-        {...props}
-        ref={ref}
-        dir="auto"
-      >
-        {children}
-      </AsComp>
-    );
-  }
+  ) => (
+    <Text
+      as={asComp}
+      size="T400"
+      priority={notice ? '300' : '400'}
+      className={classNames(css.MessageTextBody({ preWrap, jumboEmoji, emote }), className)}
+      {...props}
+      ref={ref}
+      dir="auto"
+    >
+      {children}
+    </Text>
+  )
 );

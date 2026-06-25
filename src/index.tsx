@@ -19,6 +19,7 @@ import './app/styles/overrides/Privacy.css';
 import './app/styles/overrides/TauriDesktop.css';
 import { createLogger } from './app/utils/debug';
 import { installConsolePasteScamWarning } from './app/utils/consolePasteScamWarning';
+import { primeAppShellAssetBaseline } from './app/utils/appUpdates';
 import { reloadWithTelemetry } from './app/utils/reloadWithTelemetry';
 import { registerAppServiceWorker } from './serviceWorkerBootstrap';
 import { registerMatrixUriProtocol } from './app/plugins/matrix-uri';
@@ -29,6 +30,7 @@ registerMatrixUriProtocol();
 const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
+primeAppShellAssetBaseline();
 
 registerAppServiceWorker();
 

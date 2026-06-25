@@ -1,6 +1,10 @@
 /* oxlint-disable vitest/require-mock-type-parameters */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyPendingAppUpdate, checkForAppUpdates } from './appUpdates';
+import {
+  applyPendingAppUpdate,
+  checkForAppUpdates,
+  primeAppShellAssetBaseline,
+} from './appUpdates';
 
 const { mockHasServiceWorker } = vi.hoisted(() => ({
   mockHasServiceWorker: vi.fn(),
@@ -120,6 +124,7 @@ describe('appUpdates', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.resetModules();
   });
 
   it('reports an available update when a waiting service worker already exists', async () => {
@@ -193,6 +198,52 @@ describe('appUpdates', () => {
             <body>
               <script type="module" src="/assets/index-next.js"></script>
             </body>
+          </html>
+        `,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      )
+    );
+
+    const resultPromise = checkForAppUpdates();
+    await vi.runAllTimersAsync();
+
+    await expect(resultPromise).resolves.toEqual({
+      kind: 'update-available',
+      message: 'A newer hosted app version is ready to apply.',
+      canApply: true,
+    });
+  });
+
+  it('ignores extra runtime-loaded assets when the hosted shell already matches', async () => {
+    primeAppShellAssetBaseline();
+
+    document.head.innerHTML = `
+      <link rel="stylesheet" href="/assets/index-current.css">
+      <link rel="stylesheet" href="/assets/katex-extra.css">
+    `;
+    document.body.innerHTML = '<script type="module" src="/assets/index-current.js"></script>';
+
+    const resultPromise = checkForAppUpdates();
+    await vi.runAllTimersAsync();
+
+    await expect(resultPromise).resolves.toEqual({
+      kind: 'up-to-date',
+      message: 'You are already on the latest available web app version.',
+      canApply: false,
+    });
+  });
+
+  it('detects hosted shell updates when an initial shell asset was removed', async () => {
+    primeAppShellAssetBaseline();
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        `
+          <!doctype html>
+          <html>
+            <head>
+              <link rel="stylesheet" href="/assets/index-current.css" />
+            </head>
+            <body></body>
           </html>
         `,
         { status: 200, headers: { 'Content-Type': 'text/html' } }

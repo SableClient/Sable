@@ -17,6 +17,7 @@ import {
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
+  Line,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
@@ -43,7 +44,9 @@ import { useOpenSettings } from '$features/settings';
 import { createLogger } from '$utils/debug';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
-import { Check, chipIcon, Plus } from '$components/icons/phosphor';
+import { Check, chipIcon, GearSix, menuIcon, Plus } from '$components/icons/phosphor';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 
 const log = createLogger('AccountSwitcherTab');
 
@@ -146,6 +149,7 @@ export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
   const backgroundUnreads = useAtomValue(backgroundUnreadCountsAtom);
   const setBackgroundUnreads = useSetAtom(backgroundUnreadCountsAtom);
   const openSettings = useOpenSettings();
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
 
   // Total unread count across all background sessions (for the sidebar badge).
   const totalBackgroundUnread = Object.entries(backgroundUnreads)
@@ -247,6 +251,11 @@ export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
     setTimeout(() => window.location.assign(url), 100);
   };
 
+  const handleOpenSettings = () => {
+    setMenuAnchor(undefined);
+    openSettings();
+  };
+
   const activeLocalPart =
     getMxIdLocalPart(activeSession?.userId ?? '') ?? activeSession?.userId ?? '';
   const label = activeDisplayName ?? activeLocalPart;
@@ -333,6 +342,24 @@ export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
                 <MenuItem size="300" radii="300" before={chipIcon(Plus)} onClick={handleAddAccount}>
                   <Text size="T300">Add Account</Text>
                 </MenuItem>
+                {/*This will defo need to be reverted w the new statuses, w the right changes in the SidebarNav to make the cog a permanent fixture but democracy wants old style*/}
+                {oldSidebar && (
+                  <>
+                    <Line
+                      variant="Surface"
+                      size="300"
+                      style={{ margin: `${config.space.S100} 0` }}
+                    />
+                    <MenuItem
+                      size="300"
+                      radii="300"
+                      before={menuIcon(GearSix)}
+                      onClick={handleOpenSettings}
+                    >
+                      <Text size="T300">Settings</Text>
+                    </MenuItem>
+                  </>
+                )}
               </Box>
             </Menu>
           </FocusTrap>

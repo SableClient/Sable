@@ -52,7 +52,7 @@ function UnverifiedIndicator({ isBottom }: { isBottom?: boolean }) {
           >
             {(triggerRef) => (
               <SidebarAvatar
-                size="300"
+                size={'400'}
                 className={unverified ? css.UnverifiedAvatar : css.UnverifiedOtherAvatar}
                 as="button"
                 ref={triggerRef}
@@ -63,7 +63,7 @@ function UnverifiedIndicator({ isBottom }: { isBottom?: boolean }) {
                   style={{
                     color: unverified ? color.Critical.Main : color.Warning.Main,
                   }}
-                  size={getPhosphorIconSize('toolbar')}
+                  size={getPhosphorIconSize(isBottom ? 'inline' : 'toolbar')}
                 />
               </SidebarAvatar>
             )}

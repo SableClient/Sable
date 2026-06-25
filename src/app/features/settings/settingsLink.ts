@@ -87,6 +87,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
   persona: ['enable-pk-commands', 'enable-pk-shorthands'],
   appearance: [
     'autoplay-emojis',
+    'old-sidebar',
     'autoplay-gifs',
     'autoplay-stickers',
     'blur-avatars',

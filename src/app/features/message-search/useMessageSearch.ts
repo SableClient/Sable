@@ -376,11 +376,15 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       // paging until a filtered result appears or the server runs out of pages.
       // Bounded to avoid hammering the server on large, low-hit-rate searches;
       // the surviving nextToken lets the UI resume paging from where we stopped.
+      //
+      // Skip the prefetch when there are local (encrypted) hits to merge below:
+      // mergeSearchGroups already yields virtual items the UI can paginate from,
+      // so prefetching would only delay those results behind a burst of requests.
       const hasClientFilter = (isExactMatch && Boolean(serverTerm)) || Boolean(hasHasTypes);
       const MAX_FILTER_PAGES = 10;
 
       let filteredServerResult = await fetchServerPage(nextBatch);
-      if (hasClientFilter) {
+      if (hasClientFilter && inMemoryGroups.length === 0) {
         for (
           let page = 1;
           filteredServerResult.groups.length === 0 &&

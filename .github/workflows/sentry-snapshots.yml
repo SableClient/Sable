@@ -56,6 +56,7 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
       SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      LIVE_MATRIX_REFERENCE_SNAPSHOTS_ENABLED: ${{ secrets.LIVE_MATRIX_SERVER != '' && secrets.LIVE_MATRIX_USERNAME != '' && secrets.LIVE_MATRIX_PASSWORD != '' }}
       PLAYWRIGHT_TRACE: off
     steps:
       - name: Checkout repository
@@ -90,7 +91,7 @@ jobs:
         run: pnpm run test:e2e:snapshots
 
       - name: Capture live Matrix reference snapshots
-        if: secrets.LIVE_MATRIX_SERVER != '' && secrets.LIVE_MATRIX_USERNAME != '' && secrets.LIVE_MATRIX_PASSWORD != ''
+        if: env.LIVE_MATRIX_REFERENCE_SNAPSHOTS_ENABLED == 'true'
         env:
           LIVE_MATRIX_SERVER: ${{ secrets.LIVE_MATRIX_SERVER }}
           LIVE_MATRIX_USERNAME: ${{ secrets.LIVE_MATRIX_USERNAME }}

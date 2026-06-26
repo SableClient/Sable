@@ -230,6 +230,7 @@ function ThemeVisualPreferences() {
   const [autoplayGifs, setAutoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [autoplayStickers, setAutoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis, setAutoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
+  const [oldSidebar, setOldSidebar] = useSetting(settingsAtom, 'oldSidebar');
   const [pixelatedImageRendering, setPixelatedImageRendering] = useSetting(
     settingsAtom,
     'pixelatedImageRendering'
@@ -335,6 +336,14 @@ function ThemeVisualPreferences() {
           focusId="autoplay-gifs"
           description="Automatically play animated image uploads and links."
           after={<Switch variant="Primary" value={autoplayGifs} onChange={setAutoplayGifs} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Go back to old sidebar"
+          focusId="old-sidebar"
+          description="Reset the sidebar to its old style"
+          after={<Switch variant="Primary" value={oldSidebar} onChange={setOldSidebar} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

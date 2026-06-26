@@ -12,11 +12,17 @@ import {
   getInboxPath,
   joinPathComponent,
 } from '$pages/pathUtils';
-import { useInboxSelected } from '$hooks/router/useInbox';
+import {
+  useInboxBookmarksSelected,
+  useInboxInvitesSelected,
+  useInboxNotificationsSelected,
+  useInboxSelected,
+} from '$hooks/router/useInbox';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useInviteCount } from '$hooks/useInviteCount';
-import { getPhosphorIconSize, Tray } from '$components/icons/phosphor';
+import { EnvelopeSimple, getPhosphorIconSize, Tray } from '$components/icons/phosphor';
+import { BookmarkIcon, ChatCircleDotsIcon } from '@phosphor-icons/react';
 
 export function InboxTab({ isBottom }: { isBottom?: boolean }) {
   const screenSize = useScreenSizeContext();
@@ -24,6 +30,11 @@ export function InboxTab({ isBottom }: { isBottom?: boolean }) {
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const inboxSelected = useInboxSelected();
   const inviteCount = useInviteCount();
+  const InboxIconSize = getPhosphorIconSize(isBottom ? 'inline' : 'toolbar');
+
+  const notificationsSelected = useInboxNotificationsSelected();
+  const bookmarksSelected = useInboxBookmarksSelected();
+  const invitesSelected = useInboxInvitesSelected();
 
   const handleInboxClick = () => {
     if (screenSize === ScreenSize.Mobile) {
@@ -49,12 +60,13 @@ export function InboxTab({ isBottom }: { isBottom?: boolean }) {
             ref={triggerRef}
             outlined
             onClick={handleInboxClick}
-            size="300"
+            size={'400'}
           >
-            <Tray
-              size={getPhosphorIconSize('inline')}
-              weight={inboxSelected ? 'fill' : 'regular'}
-            />
+            {(notificationsSelected && <ChatCircleDotsIcon size={InboxIconSize} weight="fill" />) ||
+              (bookmarksSelected && <BookmarkIcon size={InboxIconSize} weight="fill" />) ||
+              (invitesSelected && <EnvelopeSimple size={InboxIconSize} weight="regular" />) || (
+                <Tray size={InboxIconSize} weight={inboxSelected ? 'fill' : 'regular'} />
+              )}
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

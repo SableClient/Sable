@@ -1,6 +1,5 @@
 import { Box, config, toRem } from 'folds';
 import { AccountSwitcherTab } from './AccountSwitcherTab';
-import { UnverifiedTab } from './UnverifiedTab';
 import { InboxTab } from './InboxTab';
 import { SearchTab } from './SearchTab';
 import { SettingsTab } from './SettingsTab';
@@ -16,44 +15,45 @@ export function UserQuickTools({
   underOutstep?: boolean;
   width: number;
 }) {
-  const [isResizingSidebar] = useAtom(isResizingSidebarAtom);
-  const underOutstep = width < 190 + 66;
-  const isCollapsed = width < 50 + 66;
-
   const screenSize = useScreenSizeContext();
   const compact = screenSize === ScreenSize.Mobile;
+
+  const [isResizingSidebar] = useAtom(isResizingSidebarAtom);
+  const isCollapsed = compact ? false : width < 190 + 66;
 
   return (
     <>
       {/* Doing it properly and nicely would require a major rewrite that would cause more trouble*/}
       {!isCollapsed && (
-        <Box
-          direction="Row"
-          justifyContent="SpaceBetween"
-          className={css.UserQuickTools}
-          style={{
-            opacity: isResizingSidebar ? '0%' : '100%',
-            transition: isResizingSidebar ? 'opacity 0.2s ease' : 'opacity 0.5s ease',
-            width: compact ? '100%' : toRem(width),
-            paddingRight: underOutstep ? config.space.S200 : config.space.S300,
-          }}
-        >
-          <AccountSwitcherTab isBottom />
+        <div style={{ position: 'relative' }}>
           <Box
+            direction="Row"
+            justifyContent="SpaceBetween"
+            alignItems="Center"
+            className={css.UserQuickTools}
             style={{
-              gap: config.space.S300,
+              opacity: isResizingSidebar ? '0%' : '100%',
+              transition: isResizingSidebar ? 'opacity 0.2s ease' : 'opacity 0.5s ease',
+              width: compact ? '100vw' : toRem(width),
+              paddingRight: config.space.S300,
             }}
           >
-            {!underOutstep && (
-              <>
-                <UnverifiedTab isBottom />
-                <InboxTab isBottom />
-                <SearchTab isBottom />
-              </>
-            )}
-            <SettingsTab isBottom />
+            <AccountSwitcherTab isBottom />
+            <Box
+              style={{
+                gap: config.space.S300,
+              }}
+            >
+              {!isCollapsed && (
+                <>
+                  <InboxTab isBottom />
+                  <SearchTab isBottom />
+                  <SettingsTab isBottom />
+                </>
+              )}
+            </Box>
           </Box>
-        </Box>
+        </div>
       )}
     </>
   );

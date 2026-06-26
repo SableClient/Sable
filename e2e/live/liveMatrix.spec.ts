@@ -9,7 +9,6 @@ const password = process.env.LIVE_MATRIX_PASSWORD;
 const roomId = process.env.LIVE_MATRIX_ROOM_ID;
 const snapshotOutputDir = process.env.PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR;
 const emojiQaRoomId = process.env.LIVE_MATRIX_EMOJI_QA_ROOM_ID;
-const emojiQaRoomName = process.env.LIVE_MATRIX_EMOJI_QA_ROOM_NAME;
 const sentryDsn = process.env.VITE_SENTRY_DSN;
 const LIVE_TEST_TIMEOUT_MS = 90_000;
 
@@ -109,28 +108,11 @@ const enableDeveloperTools = async (page: Page) => {
 };
 
 const openLiveRoom = async (page: Page, targetRoomId: string) => {
-  const encodedRoomId = encodeURIComponent(targetRoomId);
-  await page.goto(`/home/${encodedRoomId}`);
+  await page.goto(`/home/${targetRoomId}`);
 
   await expect
     .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
-    .toMatch(new RegExp(`/home/${escapeRegExp(encodedRoomId)}/?$`));
-};
-
-const openHomeRoomFromList = async (page: Page, targetRoomId: string, targetRoomName: string) => {
-  const encodedRoomId = encodeURIComponent(targetRoomId);
-  await page.goto('/home');
-
-  const roomButton = page.getByRole('button', {
-    name: new RegExp(`^${escapeRegExp(targetRoomName)},`),
-  });
-
-  await expect(roomButton).toBeVisible({ timeout: 60_000 });
-  await roomButton.click();
-
-  await expect
-    .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
-    .toMatch(new RegExp(`/home/${escapeRegExp(encodedRoomId)}/?$`));
+    .toMatch(new RegExp(`/home/${escapeRegExp(targetRoomId)}/?$`));
 };
 
 test.describe.serial('live matrix authenticated smoke', () => {
@@ -176,15 +158,11 @@ test.describe.serial('live matrix authenticated smoke', () => {
 
   test('captures the Emoji QA alignment reference room', async () => {
     test.skip(
-      !emojiQaRoomId || !emojiQaRoomName,
-      'LIVE_MATRIX_EMOJI_QA_ROOM_ID and LIVE_MATRIX_EMOJI_QA_ROOM_NAME must be set to capture the Emoji QA alignment reference room'
+      !emojiQaRoomId,
+      'LIVE_MATRIX_EMOJI_QA_ROOM_ID must be set to capture the Emoji QA alignment reference room'
     );
 
-    await openHomeRoomFromList(
-      page,
-      requireEnv(emojiQaRoomId, 'LIVE_MATRIX_EMOJI_QA_ROOM_ID'),
-      requireEnv(emojiQaRoomName, 'LIVE_MATRIX_EMOJI_QA_ROOM_NAME')
-    );
+    await openLiveRoom(page, requireEnv(emojiQaRoomId, 'LIVE_MATRIX_EMOJI_QA_ROOM_ID'));
 
     await expect(page.getByText('joined the room')).toBeVisible({
       timeout: 60_000,

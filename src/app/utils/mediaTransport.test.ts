@@ -15,7 +15,12 @@ const mediaCache = vi.hoisted(() => {
   };
 });
 
+const appFetch = vi.hoisted(() => ({
+  fetch: vi.fn((input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init)),
+}));
+
 vi.mock('$utils/platform', () => platform);
+vi.mock('$utils/fetch', () => appFetch);
 vi.mock('./mediaCache', () => mediaCache);
 
 describe('fetchMediaBlob', () => {
@@ -25,6 +30,7 @@ describe('fetchMediaBlob', () => {
     vi.resetModules();
     platform.hasControllingServiceWorker.mockReset();
     platform.hasControllingServiceWorker.mockReturnValue(false);
+    appFetch.fetch.mockClear();
     mediaCache.cache.clear();
     mediaCache.getFromMediaCache.mockClear();
     mediaCache.putInMediaCache.mockClear();
@@ -226,7 +232,7 @@ describe('fetchMediaBlob', () => {
 
   it('re-resolves auth once after a 401 in direct-fetch mode', async () => {
     const { fetchMediaBlob } = await import('./mediaTransport');
-    const url = 'https://example.org/auth-media.png';
+    const url = 'https://matrix.example.org/_matrix/client/v1/media/download/example.org/media-id';
     localStorage.setItem(
       'matrixSessions',
       JSON.stringify([
@@ -267,6 +273,66 @@ describe('fetchMediaBlob', () => {
     expect(headersSeen).toEqual(['Bearer token-1', 'Bearer token-2']);
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(mediaCache.putInMediaCache).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not send stored auth to untrusted origins', async () => {
+    const { fetchMediaBlob } = await import('./mediaTransport');
+    const url = 'https://attacker.example/media.png';
+    const headersSeen: Array<string | null> = [];
+
+    localStorage.setItem(
+      'matrixSessions',
+      JSON.stringify([
+        {
+          baseUrl: 'https://matrix.example.org',
+          userId: '@alice:example.org',
+          deviceId: 'DEVICE',
+          accessToken: 'token-1',
+        },
+      ])
+    );
+    localStorage.setItem('matrixActiveSession', '@alice:example.org');
+
+    vi.mocked(fetch).mockImplementation(async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      headersSeen.push(headers.get('authorization'));
+      return new Response('ok', { status: 200 });
+    });
+
+    const blob = await fetchMediaBlob(url);
+
+    expect(await blob.text()).toBe('ok');
+    expect(headersSeen).toEqual([null]);
+  });
+
+  it('does not send stored auth to non-media paths on the homeserver origin', async () => {
+    const { fetchMediaBlob } = await import('./mediaTransport');
+    const url = 'https://matrix.example.org/not-media.png';
+    const headersSeen: Array<string | null> = [];
+
+    localStorage.setItem(
+      'matrixSessions',
+      JSON.stringify([
+        {
+          baseUrl: 'https://matrix.example.org',
+          userId: '@alice:example.org',
+          deviceId: 'DEVICE',
+          accessToken: 'token-1',
+        },
+      ])
+    );
+    localStorage.setItem('matrixActiveSession', '@alice:example.org');
+
+    vi.mocked(fetch).mockImplementation(async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      headersSeen.push(headers.get('authorization'));
+      return new Response('ok', { status: 200 });
+    });
+
+    const blob = await fetchMediaBlob(url);
+
+    expect(await blob.text()).toBe('ok');
+    expect(headersSeen).toEqual([null]);
   });
 
   it('retries once on the service worker path without direct auth headers', async () => {
@@ -317,7 +383,7 @@ describe('fetchMediaBlob', () => {
   it('uses direct auth fetches when service workers are supported but not controlling', async () => {
     platform.hasControllingServiceWorker.mockReturnValue(false);
     const { fetchMediaBlob } = await import('./mediaTransport');
-    const url = 'https://example.org/auth-media.png';
+    const url = 'https://matrix.example.org/_matrix/client/v1/media/download/example.org/media-id';
     const headersSeen: Array<string | null> = [];
 
     localStorage.setItem(

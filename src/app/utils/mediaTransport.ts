@@ -3,6 +3,7 @@ import { fetch } from '$utils/fetch';
 import { getFromMediaCache, putInMediaCache } from './mediaCache';
 
 type StoredSession = {
+  baseUrl?: string;
   userId: string;
   accessToken: string;
 };
@@ -23,6 +24,7 @@ const ACTIVE_SESSION_KEY = 'matrixActiveSession';
 const FALLBACK_ACCESS_TOKEN_KEY = 'cinny_access_token';
 const FALLBACK_USER_ID_KEY = 'cinny_user_id';
 const FALLBACK_BASE_URL_KEY = 'cinny_hs_base_url';
+const MATRIX_MEDIA_PATH_PREFIXES = ['/_matrix/media/', '/_matrix/client/v1/media/'];
 
 function parseStoredSessions(): StoredSession[] {
   if (typeof localStorage === 'undefined') return [];
@@ -46,6 +48,10 @@ function parseStoredSessions(): StoredSession[] {
 
       return [
         {
+          baseUrl:
+            typeof (session as { baseUrl?: unknown }).baseUrl === 'string'
+              ? (session as { baseUrl: string }).baseUrl
+              : undefined,
           userId: (session as StoredSession).userId,
           accessToken: (session as StoredSession).accessToken,
         },
@@ -56,23 +62,61 @@ function parseStoredSessions(): StoredSession[] {
   }
 }
 
-function getStoredAccessToken(): string | undefined {
+function getActiveStoredSession(): StoredSession | undefined {
   if (typeof localStorage === 'undefined') return undefined;
 
   const sessions = parseStoredSessions();
   const activeSessionId = localStorage.getItem(ACTIVE_SESSION_KEY);
-  const activeSession =
+  return (
     (activeSessionId
       ? sessions.find((session) => session.userId === activeSessionId)
-      : undefined) ?? sessions[0];
+      : undefined) ?? sessions[0]
+  );
+}
 
-  if (activeSession?.accessToken) return activeSession.accessToken;
+function getUrlOrigin(url: string): string | undefined {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function isMatrixMediaPath(pathname: string): boolean {
+  return MATRIX_MEDIA_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function isTrustedMatrixMediaUrl(url: string, baseUrl: string | undefined): boolean {
+  if (!baseUrl) return false;
+
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return false;
+    return parsedUrl.origin === getUrlOrigin(baseUrl) && isMatrixMediaPath(parsedUrl.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function getStoredAccessToken(url: string): string | undefined {
+  if (typeof localStorage === 'undefined') return undefined;
+
+  const activeSession = getActiveStoredSession();
+
+  if (activeSession?.accessToken && isTrustedMatrixMediaUrl(url, activeSession.baseUrl)) {
+    return activeSession.accessToken;
+  }
 
   const fallbackBaseUrl = localStorage.getItem(FALLBACK_BASE_URL_KEY);
   const fallbackUserId = localStorage.getItem(FALLBACK_USER_ID_KEY);
   const fallbackAccessToken = localStorage.getItem(FALLBACK_ACCESS_TOKEN_KEY);
 
-  if (fallbackBaseUrl && fallbackUserId && fallbackAccessToken) {
+  if (
+    fallbackBaseUrl &&
+    fallbackUserId &&
+    fallbackAccessToken &&
+    isTrustedMatrixMediaUrl(url, fallbackBaseUrl)
+  ) {
     return fallbackAccessToken;
   }
 
@@ -82,12 +126,7 @@ function getStoredAccessToken(): string | undefined {
 export function getCurrentMediaSessionScope(): string {
   if (typeof localStorage === 'undefined') return 'anonymous';
 
-  const sessions = parseStoredSessions();
-  const activeSessionId = localStorage.getItem(ACTIVE_SESSION_KEY);
-  const activeSession =
-    (activeSessionId
-      ? sessions.find((session) => session.userId === activeSessionId)
-      : undefined) ?? sessions[0];
+  const activeSession = getActiveStoredSession();
 
   if (activeSession) {
     return activeSession.userId;
@@ -117,7 +156,7 @@ function getScopedMediaCacheKey(url: string, sessionScope?: string): string {
   return `${sessionScope ?? getCurrentMediaSessionScope()}:${url}`;
 }
 
-function resolveAccessToken(options?: MediaTransportOptions): string | undefined {
+function resolveAccessToken(url: string, options?: MediaTransportOptions): string | undefined {
   if (options && Object.hasOwn(options, 'getAccessToken')) {
     return typeof options.getAccessToken === 'function'
       ? (options.getAccessToken() ?? undefined)
@@ -128,7 +167,7 @@ function resolveAccessToken(options?: MediaTransportOptions): string | undefined
     return options.accessToken ?? undefined;
   }
 
-  return getStoredAccessToken();
+  return getStoredAccessToken(url);
 }
 
 function resolveSessionScope(options?: MediaTransportOptions): string {
@@ -203,7 +242,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     return fetchAndCache(await fetchMediaResponse(url, undefined, cacheMode));
   }
 
-  const initialAccessToken = resolveAccessToken(options);
+  const initialAccessToken = resolveAccessToken(url, options);
   const initialResponse = await fetchMediaResponse(url, initialAccessToken, cacheMode);
   if (initialResponse.ok) {
     return fetchAndCache(initialResponse);
@@ -215,7 +254,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     );
   }
 
-  const retryAccessToken = resolveAccessToken(options);
+  const retryAccessToken = resolveAccessToken(url, options);
   return fetchAndCache(await fetchMediaResponse(url, retryAccessToken, cacheMode));
 }
 

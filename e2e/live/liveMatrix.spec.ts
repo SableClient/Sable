@@ -12,6 +12,7 @@ const snapshotOutputDir = process.env.PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR;
 const emojiQaRoomId =
   process.env.LIVE_MATRIX_EMOJI_QA_ROOM_ID ?? '!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA';
 const emojiQaRoomName = process.env.LIVE_MATRIX_EMOJI_QA_ROOM_NAME ?? 'Emoji QA';
+const sentryDsn = process.env.VITE_SENTRY_DSN;
 const LIVE_TEST_TIMEOUT_MS = 90_000;
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -256,6 +257,8 @@ test.describe.serial('live matrix authenticated smoke', () => {
   });
 
   test('renders diagnostics and privacy settings on the real settings route', async () => {
+    test.skip(Boolean(sentryDsn), 'Settings assertions run in the non-Sentry live smoke environment');
+
     await page.goto('/settings/general');
 
     await expect(page).toHaveURL(/\/settings\/general\/?$/);
@@ -264,6 +267,8 @@ test.describe.serial('live matrix authenticated smoke', () => {
   });
 
   test('renders the developer tools Sentry section on the real settings route', async () => {
+    test.skip(Boolean(sentryDsn), 'Settings assertions run in the non-Sentry live smoke environment');
+
     await enableDeveloperTools(page);
 
     await expect(page).toHaveURL(/\/settings\/developer-tools\/?$/);

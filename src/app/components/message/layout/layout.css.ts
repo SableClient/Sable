@@ -9,6 +9,7 @@ export const StickySection = style({
 });
 
 const SpacingVar = createVar();
+const ContentSpacingVar = createVar();
 const SpacingVariant = styleVariants({
   '0': {
     vars: {
@@ -44,8 +45,9 @@ const SpacingVariant = styleVariants({
 
 const ContentSpacingVariant = styleVariants({
   '0': {
-    paddingTop: config.space.S0,
-    paddingBottom: config.space.S0,
+    vars: {
+      [ContentSpacingVar]: config.space.S0,
+    },
   },
   '100': {},
   '200': {},
@@ -114,9 +116,9 @@ const AutoCollapse = style({
 export const MessageBase = recipe({
   base: {
     marginTop: SpacingVar,
-    paddingTop: config.space.S100,
+    paddingTop: `var(${ContentSpacingVar}, ${config.space.S100})`,
     paddingRight: config.space.S200,
-    paddingBottom: config.space.S100,
+    paddingBottom: `var(${ContentSpacingVar}, ${config.space.S100})`,
     paddingLeft: config.space.S400,
     borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
     minHeight: toRem(16),

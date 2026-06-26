@@ -50,6 +50,7 @@ test.describe('observability real-route smoke', () => {
     await expect(page).toHaveURL(/#\/home\/?$/);
     await expect(page.getByRole('link', { name: 'Source Code' })).toBeVisible();
     await expect(page.getByRole('region', { name: /crash reporting prompt/i })).toBeVisible();
+    await page.waitForTimeout(500);
     await captureSnapshot(page, 'real-routes/home-telemetry-consent-banner');
 
     await page.getByRole('button', { name: /no thanks/i }).click();

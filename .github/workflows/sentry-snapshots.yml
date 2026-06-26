@@ -56,6 +56,14 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
       SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      LIVE_MATRIX_SERVER: ${{ secrets.LIVE_MATRIX_SERVER }}
+      LIVE_MATRIX_USERNAME: ${{ secrets.LIVE_MATRIX_USERNAME }}
+      LIVE_MATRIX_PASSWORD: ${{ secrets.LIVE_MATRIX_PASSWORD }}
+      LIVE_MATRIX_ROOM_ID: '!mxyMeeQ8S0qXUqcCkgBei4cnb4grSEwIaK1sQxzAvpM'
+      LIVE_MATRIX_ROOM_NAME: Test
+      LIVE_MATRIX_EMOJI_QA_ROOM_ID: '!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA'
+      LIVE_MATRIX_EMOJI_QA_ROOM_NAME: Emoji QA
+      PLAYWRIGHT_TRACE: off
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -85,8 +93,12 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Capture real-route observability and layout harness snapshots
+      - name: Capture deterministic observability and layout harness snapshots
         run: pnpm run test:e2e:snapshots
+
+      - name: Capture live Matrix reference snapshots
+        if: env.LIVE_MATRIX_SERVER != '' && env.LIVE_MATRIX_USERNAME != '' && env.LIVE_MATRIX_PASSWORD != ''
+        run: pnpm exec playwright test e2e/live/liveMatrix.spec.ts --project chromium --workers 1
 
       - name: Upload snapshot artifact for debugging
         if: always() && hashFiles('.artifacts/sentry-snapshots/**/*.png') != ''

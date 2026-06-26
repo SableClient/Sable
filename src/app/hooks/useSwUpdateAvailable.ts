@@ -15,19 +15,28 @@ export function useSwUpdateAvailable(): boolean {
   useEffect(() => {
     let disposed = false;
     let updateCheckInFlight = false;
+    // Tracks whether checkForAppUpdates has authoritatively confirmed a pending
+    // update. When true, syncUpdateAvailable will not reset the banner on a
+    // transient false-negative — only a controllerchange (update applied) clears
+    // this flag so the banner can be dismissed.
+    let updateConfirmedByCheck = false;
 
     const syncUpdateAvailable = () => {
       if (!('serviceWorker' in navigator)) return;
       void hasPendingScopedAppUpdate()
         .then((pendingUpdate) => {
-          if (!disposed) {
-            setUpdateAvailable(pendingUpdate);
+          if (disposed) return;
+          if (pendingUpdate) {
+            setUpdateAvailable(true);
+          } else if (!updateConfirmedByCheck) {
+            // Only allow resetting to false if the update was never authoritatively
+            // confirmed. This prevents transient false-negatives from hiding a real
+            // pending-update banner mid-session (flicker bug).
+            setUpdateAvailable(false);
           }
         })
         .catch(() => {
-          if (!disposed) {
-            setUpdateAvailable(false);
-          }
+          // Don't reset to false on error — a pending update may still be waiting.
         });
     };
 
@@ -40,6 +49,7 @@ export function useSwUpdateAvailable(): boolean {
         .then((result) => {
           if (disposed) return;
           if (result.kind === 'update-available') {
+            updateConfirmedByCheck = true;
             setUpdateAvailable(true);
             return;
           }
@@ -62,7 +72,13 @@ export function useSwUpdateAvailable(): boolean {
     requestAutomaticUpdateCheck();
 
     const handleUpdate = () => syncUpdateAvailable();
-    const handleControllerChange = () => syncUpdateAvailable();
+    const handleControllerChange = () => {
+      // The controller changed — the waiting SW took over (or was superseded).
+      // Clear the confirmed flag so syncUpdateAvailable can reset the banner if
+      // the new controller has no pending update.
+      updateConfirmedByCheck = false;
+      syncUpdateAvailable();
+    };
     const handleVisibilityChange = () => {
       if (disposed) return;
       if (document.visibilityState === 'visible') {

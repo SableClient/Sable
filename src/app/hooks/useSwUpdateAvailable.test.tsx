@@ -167,6 +167,43 @@ describe('useSwUpdateAvailable', () => {
     });
   });
 
+  it('keeps the banner visible when a periodic check returns up-to-date during a transient SW state', async () => {
+    // Simulate: checkForAppUpdates confirmed an update, then a later periodic
+    // check transiently returns up-to-date (e.g. during a SW restart), while
+    // hasPendingScopedAppUpdate also briefly returns false. The banner must not
+    // flicker away.
+    appUpdatesMocks.checkForAppUpdates
+      .mockResolvedValueOnce({
+        kind: 'update-available',
+        message: 'An update is ready to apply.',
+        canApply: true,
+      })
+      .mockResolvedValue({
+        kind: 'up-to-date',
+        message: 'You are already on the latest available web app version.',
+        canApply: false,
+      });
+    appUpdatesMocks.hasPendingScopedAppUpdate.mockResolvedValue(false);
+
+    const { result } = renderHook(() => useSwUpdateAvailable());
+
+    await waitFor(() => {
+      expect(result.current).toBe(true);
+    });
+
+    // Trigger a second update check (simulates interval/focus/visibility)
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    // Allow async ops to settle — banner must remain true
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current).toBe(true);
+  });
+
   it('clears a false-positive banner when only a stale broader registration has an update', async () => {
     appUpdatesMocks.hasPendingScopedAppUpdate
       .mockResolvedValueOnce(true)

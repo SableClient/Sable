@@ -205,6 +205,12 @@ test.describe.serial('live matrix authenticated smoke', () => {
             (left, right) =>
               left.rect.width * left.rect.height - right.rect.width * right.rect.height
           )[0]?.el;
+      const pickFirstExactBelow = (needle: string, minY: number) =>
+        Array.from(document.querySelectorAll<HTMLElement>('body *'))
+          .filter((el) => el.textContent?.trim() === needle)
+          .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+          .filter(({ rect }) => rect.y > minY)
+          .toSorted((left, right) => left.rect.y - right.rect.y)[0]?.el;
 
       const rect = (el: Element | null | undefined) => {
         if (!(el instanceof HTMLElement || el instanceof SVGElement)) return null;
@@ -222,7 +228,9 @@ test.describe.serial('live matrix authenticated smoke', () => {
 
       const followupText = pickSmallestContaining('<3');
       const multilineText = pickSmallestContaining('multi-line message test');
-      const heartEmoji = pickSmallestExact('❤️');
+      const followupBottom = followupText?.getBoundingClientRect().bottom ?? 0;
+      const heartEmoji =
+        pickFirstExactBelow('❤️', followupBottom) ?? pickSmallestExact('❤️');
       const firstAvatarButton = Array.from(document.querySelectorAll<HTMLElement>('button')).find(
         (el) => el.dataset.userId && el.querySelector('img, svg')
       );

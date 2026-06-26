@@ -371,27 +371,25 @@ export const useMessageSearch = (params: MessageSearchParams) => {
 
       // When a client-side filter is active it can empty an entire server page
       // while more pages remain. Returning empty groups alongside a live
-      // nextToken makes the UI show "No results" and never page further — there
-      // are no virtual items to scroll past to trigger the next fetch. So keep
-      // paging until a filtered result appears or the server runs out of pages.
-      // Bounded to avoid hammering the server on large, low-hit-rate searches;
-      // the surviving nextToken lets the UI resume paging from where we stopped.
+      // nextToken makes the UI show "No results" and never page further — the
+      // search view only fetches the next page once a rendered item scrolls into
+      // view, so there is nothing to scroll past. Keep paging until a filtered
+      // result appears or the server runs out of pages; never stop on an empty
+      // page that still has a cursor. The `seenCursors` guard only breaks out if
+      // the server stops advancing (returns a repeated cursor), to avoid an
+      // infinite loop against a misbehaving homeserver.
       //
       // Skip the prefetch when there are local (encrypted) hits to merge below:
       // mergeSearchGroups already yields virtual items the UI can paginate from,
       // so prefetching would only delay those results behind a burst of requests.
       const hasClientFilter = (isExactMatch && Boolean(serverTerm)) || Boolean(hasHasTypes);
-      const MAX_FILTER_PAGES = 10;
 
       let filteredServerResult = await fetchServerPage(nextBatch);
       if (hasClientFilter && inMemoryGroups.length === 0) {
-        for (
-          let page = 1;
-          filteredServerResult.groups.length === 0 &&
-          filteredServerResult.nextToken &&
-          page < MAX_FILTER_PAGES;
-          page += 1
-        ) {
+        const seenCursors = new Set<string>();
+        while (filteredServerResult.groups.length === 0 && filteredServerResult.nextToken) {
+          if (seenCursors.has(filteredServerResult.nextToken)) break;
+          seenCursors.add(filteredServerResult.nextToken);
           // eslint-disable-next-line no-await-in-loop -- pages are sequential: each fetch needs the previous next_batch
           filteredServerResult = await fetchServerPage(filteredServerResult.nextToken);
         }

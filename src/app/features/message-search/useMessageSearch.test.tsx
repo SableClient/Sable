@@ -139,9 +139,16 @@ describe('useMessageSearch — has: filter pagination', () => {
     expect(search.nextToken).toBeUndefined();
   });
 
-  it('is bounded and does not page indefinitely when every page is filtered out', async () => {
-    // Always returns a non-matching page with a live cursor.
-    mockMx.search.mockResolvedValue(searchPage([textItem], 'more'));
+  it('pages past many filtered-empty pages (no fixed cap) to find a later match', async () => {
+    // 14 filtered-empty pages with advancing cursors, then an image on page 15.
+    // Exceeds the old 10-page cap to prove the hook never stops on an empty page
+    // that still has a cursor (which would strand the UI on "No results").
+    let call = 0;
+    mockMx.search.mockImplementation(async () => {
+      call += 1;
+      if (call < 15) return searchPage([textItem], `page-${call + 1}`);
+      return searchPage([imageItem], undefined);
+    });
 
     const { result } = renderHook(() =>
       useMessageSearch({ term: 'hello', hasTypes: ['image'], order: 'recent' })
@@ -149,10 +156,26 @@ describe('useMessageSearch — has: filter pagination', () => {
 
     const search = await result.current();
 
-    expect(mockMx.search).toHaveBeenCalledTimes(10);
+    expect(mockMx.search).toHaveBeenCalledTimes(15);
+    expect(search.groups).toHaveLength(1);
+    expect(search.groups[0]?.items[0]?.event.content?.msgtype).toBe('m.image');
+    expect(search.nextToken).toBeUndefined();
+  });
+
+  it('stops when the server stops advancing the cursor', async () => {
+    // Same cursor returned forever (misbehaving server) must not loop forever.
+    mockMx.search.mockResolvedValue(searchPage([textItem], 'stuck'));
+
+    const { result } = renderHook(() =>
+      useMessageSearch({ term: 'hello', hasTypes: ['image'], order: 'recent' })
+    );
+
+    const search = await result.current();
+
+    // Initial fetch + one follow-up that returns the same cursor, then break.
+    expect(mockMx.search).toHaveBeenCalledTimes(2);
     expect(search.groups).toHaveLength(0);
-    // Cursor preserved so a later explicit fetch can continue.
-    expect(search.nextToken).toBe('more');
+    expect(search.nextToken).toBe('stuck');
   });
 
   it('does not prefetch extra server pages when local encrypted hits exist', async () => {

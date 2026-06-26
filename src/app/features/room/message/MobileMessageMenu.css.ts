@@ -40,6 +40,16 @@ export const Handle = style({
   margin: `${config.space.S200} auto ${config.space.S100}`,
 });
 
+export const MessagePreview = style({
+  padding: `${config.space.S300} ${config.space.S400}`,
+  borderBottom: `1px solid ${color.SurfaceVariant.ContainerLine}`,
+  pointerEvents: 'none',
+  userSelect: 'none',
+  opacity: 0.85,
+  overflow: 'hidden',
+  maxHeight: toRem(120),
+});
+
 export const ReactionsRow = style({
   display: 'flex',
   gap: config.space.S200,

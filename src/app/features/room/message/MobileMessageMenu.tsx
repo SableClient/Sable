@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { MenuItem, Text } from 'folds';
 import * as messageCss from './styles.css';
 import type { MouseEventHandler, ReactNode, TouchEvent as ReactTouchEvent } from 'react';
+import { memo } from 'react';
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { EmojiBoard } from '$components/emoji-board';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -49,7 +50,10 @@ export type MobileMessageMenuProps = {
   imagePackRooms: Room[];
   onReactionToggle: (targetEventId: string, key: string, shortcode?: string) => void;
   onClose: () => void;
+  messagePreview?: ReactNode;
 };
+
+const PreviewBody = memo(({ children }: { children: ReactNode }) => children);
 
 function QuickReactions({
   onReaction,
@@ -59,7 +63,7 @@ function QuickReactions({
   onOpenEmojiBoard?: () => void;
 }) {
   const mx = useMatrixClient();
-  const recentEmojis = useRecentEmoji(mx, 5);
+  const recentEmojis = useRecentEmoji(mx, 6);
 
   return (
     <div className={css.ReactionsRow}>
@@ -125,6 +129,7 @@ export function MobileMessageMenu({
   onReactionToggle,
   imagePackRooms,
   onClose,
+  messagePreview,
 }: MobileMessageMenuProps) {
   const mx = useMatrixClient();
   const setModal = useSetAtom(modalAtom);
@@ -324,6 +329,12 @@ export function MobileMessageMenu({
         onTouchEnd={handleSheetTouchEnd}
       >
         <div className={css.Handle} />
+
+        {messagePreview && !showEmojiPicker && (
+          <div className={css.MessagePreview}>
+            <PreviewBody>{messagePreview}</PreviewBody>
+          </div>
+        )}
 
         {showEmojiPicker ? (
           <>

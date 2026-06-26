@@ -46,6 +46,7 @@ jobs:
       contents: read
     env:
       PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR: .artifacts/sentry-snapshots
+      SENTRY_SNAPSHOT_DIFF_THRESHOLD: '0.01'
       SENTRY_SNAPSHOTS_ENABLED: ${{ vars.SENTRY_SNAPSHOTS_ENABLED }}
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       VITE_SENTRY_ENVIRONMENT: preview
@@ -127,6 +128,7 @@ jobs:
           pnpm dlx @sentry/cli@3.5.1 snapshots upload
           "$PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR"
           --app-id charm-web-preview
+          --diff-threshold "$SENTRY_SNAPSHOT_DIFF_THRESHOLD"
           --log-level debug
 
       - name: Note Sentry snapshot upload failure

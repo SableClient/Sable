@@ -13,6 +13,7 @@ export const MessageBase = as<'div', css.MessageBaseVariants>(
       collapse,
       autoCollapse,
       space,
+      contentSpacing,
       ...props
     },
     ref
@@ -27,6 +28,7 @@ export const MessageBase = as<'div', css.MessageBaseVariants>(
           collapse,
           autoCollapse,
           space,
+          contentSpacing,
         }),
         className
       )}
@@ -56,26 +58,16 @@ export const PronounPill = as<'span'>(
 
 export const MessageTextBody = as<'div', css.MessageTextBodyVariants & { notice?: boolean }>(
   (
-    { as: asComp = 'div', children, className, preWrap, jumboEmoji, emote, notice, ...props },
+    { as: AsComp = 'div', children, className, preWrap, jumboEmoji, emote, notice, ...props },
     ref
-  ) => {
-    const AsComp = asComp;
-
-    return (
-      <AsComp
-        // Message text owns its own text metrics because using folds Text here
-        // reintroduces shared reset classes whose padding can win later in split CSS.
-        className={classNames(
-          css.MessageTextBody({ preWrap, jumboEmoji, emote }),
-          notice ? css.MessageTextBodyPriority.notice : css.MessageTextBodyPriority.default,
-          className
-        )}
-        {...props}
-        ref={ref}
-        dir="auto"
-      >
-        {children}
-      </AsComp>
-    );
-  }
+  ) => (
+    <AsComp
+      className={classNames(css.MessageTextBody({ preWrap, jumboEmoji, emote, notice }), className)}
+      {...props}
+      ref={ref}
+      dir="auto"
+    >
+      {children}
+    </AsComp>
+  )
 );

@@ -9,6 +9,10 @@ export const StickySection = style({
 });
 
 const SpacingVar = createVar();
+const ContentSpacingVar = createVar();
+const withVarFallback = (cssVar: string, fallback: string): string =>
+  `var(${cssVar.slice(4, -1)}, ${fallback})`;
+
 const SpacingVariant = styleVariants({
   '0': {
     vars: {
@@ -38,6 +42,39 @@ const SpacingVariant = styleVariants({
   '500': {
     vars: {
       [SpacingVar]: config.space.S500,
+    },
+  },
+});
+
+const ContentSpacingVariant = styleVariants({
+  '0': {
+    vars: {
+      [ContentSpacingVar]: config.space.S0,
+    },
+  },
+  '100': {
+    vars: {
+      [ContentSpacingVar]: config.space.S100,
+    },
+  },
+  '200': {
+    vars: {
+      [ContentSpacingVar]: config.space.S200,
+    },
+  },
+  '300': {
+    vars: {
+      [ContentSpacingVar]: config.space.S300,
+    },
+  },
+  '400': {
+    vars: {
+      [ContentSpacingVar]: config.space.S400,
+    },
+  },
+  '500': {
+    vars: {
+      [ContentSpacingVar]: config.space.S500,
     },
   },
 });
@@ -100,17 +137,21 @@ const AutoCollapse = style({
 });
 
 export const MessageBase = recipe({
-  base: [
-    {
-      marginTop: SpacingVar,
-      padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
-      borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
-      minHeight: toRem(16),
-      contain: 'layout',
-    },
-  ],
+  base: {
+    marginTop: SpacingVar,
+    paddingTop: withVarFallback(ContentSpacingVar, config.space.S100),
+    paddingRight: config.space.S200,
+    paddingBottom: withVarFallback(ContentSpacingVar, config.space.S100),
+    paddingLeft: config.space.S400,
+    borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
+    minHeight: toRem(16),
+    contain: 'layout',
+    alignSelf: 'stretch',
+    width: '100%',
+  },
   variants: {
     space: SpacingVariant,
+    contentSpacing: ContentSpacingVariant,
     collapse: {
       true: {
         marginTop: 0,
@@ -156,47 +197,13 @@ export const AvatarBase = style({
 export const ModernBefore = style({
   width: toRem(36),
   minWidth: toRem(36),
-  flex: `0 0 ${toRem(36)}`,
-});
-
-export const ModernRow = style({
-  alignItems: 'flex-start',
-  boxSizing: 'border-box',
-  width: '100%',
-  minWidth: 0,
-  maxWidth: '100%',
-  paddingInline: config.space.S200,
-});
-
-export const ModernContent = style({
-  display: 'flex',
-  flexDirection: 'column',
-  flex: 1,
-  width: '100%',
-  minWidth: 0,
+  flexBasis: toRem(36),
 });
 
 export const BubbleBefore = style({
   width: toRem(36),
   minWidth: toRem(36),
-  flex: `0 0 ${toRem(36)}`,
-});
-
-export const BubbleRow = style({
-  alignItems: 'flex-start',
-  boxSizing: 'border-box',
-  width: '100%',
-  minWidth: 0,
-  maxWidth: '100%',
-  paddingInline: config.space.S200,
-});
-
-export const BubbleMain = style({
-  display: 'flex',
-  flexDirection: 'column',
-  flex: 1,
-  width: '100%',
-  minWidth: 0,
+  flexBasis: toRem(36),
 });
 
 export const BubbleWrapper = style({
@@ -277,7 +284,7 @@ export const MessageTextBody = recipe({
     width: '100%',
     minWidth: 0,
     wordBreak: 'break-word',
-    fontSize: '1rem',
+    fontSize: '1rem !important',
     lineHeight: config.lineHeight.T400,
     letterSpacing: config.letterSpacing.T400,
   },
@@ -349,16 +356,18 @@ export const MessageTextBody = recipe({
         fontStyle: 'italic',
       },
     },
+    notice: {
+      false: {
+        opacity: config.opacity.P400,
+      },
+      true: {
+        opacity: config.opacity.P300,
+      },
+    },
+  },
+  defaultVariants: {
+    notice: false,
   },
 });
 
 export type MessageTextBodyVariants = RecipeVariants<typeof MessageTextBody>;
-
-export const MessageTextBodyPriority = styleVariants({
-  notice: {
-    opacity: config.opacity.P300,
-  },
-  default: {
-    opacity: config.opacity.P400,
-  },
-});

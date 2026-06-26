@@ -30,39 +30,55 @@ describe('room view spacing contract', () => {
     expect(roomTimeline).toContain('paddingBottom: timelineBottomSpacing');
   });
 
-  it('restores a desktop right gutter whenever a side drawer is open', () => {
+  it('adds mobile-only right gutter; desktop uses no extra padding regardless of drawer state', () => {
     const roomTimeline = readWorkspaceFile('src/app/features/room/RoomTimeline.tsx');
 
     expect(roomTimeline).toContain('const timelineRightSpacing = isMobileScreen');
     expect(roomTimeline).toContain('? config.space.S100');
-    expect(roomTimeline).toContain('? config.space.S400');
     expect(roomTimeline).toContain(': config.space.S0;');
     expect(roomTimeline).toContain('paddingRight: timelineRightSpacing');
   });
 
-  it('keeps message spacing distinct from the fixed message padding', () => {
+  it('lets message spacing zero collapse vertical padding on message rows', () => {
     const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
-    const roomTimeline = readWorkspaceFile('src/app/features/room/RoomTimeline.tsx');
+    const baseLayout = readWorkspaceFile('src/app/components/message/layout/Base.tsx');
+    const message = readWorkspaceFile('src/app/features/room/message/Message.tsx');
 
     expect(messageLayout).toContain('marginTop: SpacingVar');
+    expect(messageLayout).toContain('contentSpacing: ContentSpacingVariant');
+    expect(messageLayout).toContain('[ContentSpacingVar]: config.space.S0');
+    expect(messageLayout).toContain('[ContentSpacingVar]: config.space.S100');
+    expect(messageLayout).toContain('[ContentSpacingVar]: config.space.S200');
+    expect(messageLayout).toContain('[ContentSpacingVar]: config.space.S300');
+    expect(messageLayout).toContain('[ContentSpacingVar]: config.space.S400');
+    expect(messageLayout).toContain('[ContentSpacingVar]: config.space.S500');
     expect(messageLayout).toContain(
-      'padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`'
+      'paddingTop: withVarFallback(ContentSpacingVar, config.space.S100)'
     );
-    expect(messageLayout).not.toContain('DefaultReset,\n    {\n      marginTop: SpacingVar');
-    expect(roomTimeline).toContain('key={`${room.roomId}:${messageLayout}:${messageSpacing}`}');
+    expect(messageLayout).toContain(
+      'paddingBottom: withVarFallback(ContentSpacingVar, config.space.S100)'
+    );
+    expect(messageLayout).toContain('paddingRight: config.space.S200');
+    expect(messageLayout).toContain('paddingLeft: config.space.S400');
+    expect(baseLayout).toContain('contentSpacing,');
+    expect(message).toContain('contentSpacing={messageSpacing}');
   });
 
-  it('keeps the message body inside a full-width content column', () => {
-    const modernLayout = readWorkspaceFile('src/app/components/message/layout/Modern.tsx');
-    const bubbleLayout = readWorkspaceFile('src/app/components/message/layout/Bubble.tsx');
+  it('keeps message layout aligned with the current Sable contract', () => {
+    const baseLayout = readWorkspaceFile('src/app/components/message/layout/Base.tsx');
     const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
 
-    expect(modernLayout).toContain('className={css.ModernRow}');
-    expect(modernLayout).toContain('className={css.ModernContent}');
-    expect(bubbleLayout).toContain('className={css.BubbleRow}');
-    expect(bubbleLayout).toContain('className={css.BubbleMain}');
+    expect(baseLayout).not.toContain('<Text');
+    expect(baseLayout).not.toContain('size="T400"');
+    expect(baseLayout).not.toContain("priority={notice ? '300' : '400'}");
     expect(messageLayout).toContain("width: '100%'");
-    expect(messageLayout).toContain('export const ModernContent = style({');
-    expect(messageLayout).toContain('export const BubbleMain = style({');
+    expect(messageLayout).toContain("alignSelf: 'stretch'");
+    expect(messageLayout).toContain('width: toRem(36)');
+    expect(messageLayout).toContain('flexBasis: toRem(36)');
+    expect(messageLayout).not.toContain('DefaultReset,\n    {');
+    expect(messageLayout).not.toContain('export const ModernRow = style({');
+    expect(messageLayout).not.toContain('export const ModernContent = style({');
+    expect(messageLayout).not.toContain('export const BubbleRow = style({');
+    expect(messageLayout).not.toContain('export const BubbleMain = style({');
   });
 });

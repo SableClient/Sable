@@ -292,7 +292,7 @@ export function RoomTimeline({
   const timelineRightSpacing = isMobileScreen
     ? config.space.S100
     : hasDesktopRightDrawer
-      ? config.space.S400
+      ? config.space.S0
       : config.space.S0;
   const imagePackRooms = useImagePackRooms(room.roomId, roomParents);
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);

@@ -54,4 +54,14 @@ test.describe('mobile shell layout harness smoke', () => {
     await expect(page.getByText('Profile detail block 6')).toBeVisible();
     await captureSnapshot(page, 'layout-harness/mobile-shell/member-profile-fullscreen');
   });
+
+  test('captures the Emoji QA alignment reference fixture in the layout harness', async ({
+    page,
+  }) => {
+    await page.goto('/__smoke/mobile-shell/emoji-qa');
+    await expect(page.getByTestId('emoji-qa-membership-copy')).toBeVisible();
+    await expect(page.getByTestId('emoji-qa-monkey')).toBeVisible();
+    await expect(page.getByTestId('emoji-qa-heart')).toBeVisible();
+    await captureSnapshot(page, 'layout-harness/mobile-shell/emoji-qa-reference-room');
+  });
 });

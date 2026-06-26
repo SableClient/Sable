@@ -40,9 +40,12 @@ dist-js
 src-tauri/target/
 # Tauri Android build outputs
 src-tauri/gen/android/app/build/
+# Tauri Android release keystore
+*.jks
 
 # Tauri-typegen cache
 .typecache
 
 # Worktrees
 .worktrees
+

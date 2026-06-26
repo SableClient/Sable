@@ -197,6 +197,7 @@ export function ClientRoot({ children }: ClientRootProps) {
   const loadedUserIdRef = useRef<string | undefined>(undefined);
   const syncStartTimeRef = useRef(performance.now());
   const firstSyncReadyRef = useRef(false);
+  const loadingStateLoggedRef = useRef<'unknown' | 'true' | 'false'>('unknown');
 
   const [loadState, loadMatrix, setLoadState] = useAsyncCallback<MatrixClient, Error, []>(
     useCallback(async () => {
@@ -227,7 +228,7 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   const mx = loadState.status === AsyncStatus.Success ? loadState.data : undefined;
 
-  const [startState, startMatrix] = useAsyncCallback<void, Error, [MatrixClient]>(
+  const [startState, startMatrix, setStartState] = useAsyncCallback<void, Error, [MatrixClient]>(
     useCallback(
       (m) =>
         startClient(m, {
@@ -238,6 +239,19 @@ export function ClientRoot({ children }: ClientRootProps) {
       [activeSession?.baseUrl, activeSession?.slidingSyncOptIn, clientConfig.slidingSync]
     )
   );
+
+  useEffect(() => {
+    if (loadState.status === AsyncStatus.Loading) {
+      firstSyncReadyRef.current = false;
+      syncStartTimeRef.current = performance.now();
+    }
+    if (loadState.status !== AsyncStatus.Success) {
+      setStartState((prev) => {
+        if (prev.status === AsyncStatus.Idle) return prev;
+        return { status: AsyncStatus.Idle };
+      });
+    }
+  }, [loadState.status, setStartState]);
 
   useEffect(() => {
     if (!activeSession) return;
@@ -289,6 +303,32 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [loadState, loadMatrix]);
 
+  useSyncState(
+    mx,
+    useCallback((state: string) => {
+      if (isClientReady(state)) {
+        if (!firstSyncReadyRef.current) {
+          firstSyncReadyRef.current = true;
+          try {
+            Sentry.metrics.distribution(
+              'sable.sync.time_to_ready_ms',
+              performance.now() - syncStartTimeRef.current
+            );
+          } catch {
+            // no-op: never block loading gate on telemetry
+          }
+        }
+        setLoading(false);
+      }
+    }, [])
+  );
+
+  useEffect(() => {
+    const next = loading ? 'true' : 'false';
+    if (loadingStateLoggedRef.current === next) return;
+    loadingStateLoggedRef.current = next;
+  }, [loading]);
+
   useEffect(() => {
     if (mx && !mx.clientRunning) {
       startMatrix(mx);
@@ -302,21 +342,12 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [mx]);
 
-  useSyncState(
-    mx,
-    useCallback((state: string) => {
-      if (isClientReady(state)) {
-        if (!firstSyncReadyRef.current) {
-          firstSyncReadyRef.current = true;
-          Sentry.metrics.distribution(
-            'sable.sync.time_to_ready_ms',
-            performance.now() - syncStartTimeRef.current
-          );
-        }
-        setLoading(false);
-      }
-    }, [])
-  );
+  useEffect(() => {
+    if (startState.status !== AsyncStatus.Success || !mx) return;
+    const syncState = mx.getSyncState();
+    if (!isClientReady(syncState)) return;
+    setLoading(false);
+  }, [startState.status, mx]);
 
   // Set matrix client context: homeserver and sync type (not PII)
   useEffect(() => {

@@ -21,7 +21,7 @@ on:
         required: false
         default: 'manual base snapshot seed'
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
     paths:
       - 'src/**'
       - 'public/**'
@@ -56,7 +56,7 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
       SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-      LIVE_MATRIX_REFERENCE_SNAPSHOTS_ENABLED: ${{ secrets.LIVE_MATRIX_SERVER != '' && secrets.LIVE_MATRIX_USERNAME != '' && secrets.LIVE_MATRIX_PASSWORD != '' }}
+      LIVE_MATRIX_REFERENCE_SNAPSHOTS_ENABLED: ${{ secrets.LIVE_MATRIX_SERVER != '' && secrets.LIVE_MATRIX_USERNAME != '' && secrets.LIVE_MATRIX_PASSWORD != '' && secrets.LIVE_MATRIX_RECOVERY_KEY != '' }}
       PLAYWRIGHT_TRACE: off
     steps:
       - name: Checkout repository
@@ -91,11 +91,21 @@ jobs:
         run: pnpm run test:e2e:snapshots
 
       - name: Capture live Matrix reference snapshots
-        if: env.LIVE_MATRIX_REFERENCE_SNAPSHOTS_ENABLED == 'true'
+        if: >
+          env.LIVE_MATRIX_REFERENCE_SNAPSHOTS_ENABLED == 'true' &&
+          (
+            github.event_name == 'push' ||
+            github.event_name == 'workflow_dispatch' ||
+            (
+              github.event_name == 'pull_request' &&
+              contains(github.event.pull_request.labels.*.name, 'live-smoke')
+            )
+          )
         env:
           LIVE_MATRIX_SERVER: ${{ secrets.LIVE_MATRIX_SERVER }}
           LIVE_MATRIX_USERNAME: ${{ secrets.LIVE_MATRIX_USERNAME }}
           LIVE_MATRIX_PASSWORD: ${{ secrets.LIVE_MATRIX_PASSWORD }}
+          LIVE_MATRIX_RECOVERY_KEY: ${{ secrets.LIVE_MATRIX_RECOVERY_KEY }}
           LIVE_MATRIX_ROOM_ID: '!mxyMeeQ8S0qXUqcCkgBei4cnb4grSEwIaK1sQxzAvpM'
           LIVE_MATRIX_ROOM_NAME: Test
           LIVE_MATRIX_EMOJI_QA_ROOM_PATH_SEGMENT: '!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA'

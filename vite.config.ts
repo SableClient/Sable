@@ -274,6 +274,20 @@ export default defineConfig(({ command }) => ({
               main: './worker/index.ts',
               observability: {
                 enabled: true,
+                head_sampling_rate: 1,
+                logs: {
+                  enabled: true,
+                  destinations: ['sentry-logs'],
+                  head_sampling_rate: 1,
+                  persist: true,
+                  invocation_logs: true,
+                },
+                traces: {
+                  enabled: true,
+                  destinations: ['sentry-traces'],
+                  persist: true,
+                  head_sampling_rate: 1,
+                },
               },
               assets: {
                 not_found_handling: 'single-page-application',

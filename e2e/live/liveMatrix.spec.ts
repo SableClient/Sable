@@ -6,7 +6,9 @@ import { expect, test } from '@playwright/test';
 const server = process.env.LIVE_MATRIX_SERVER;
 const username = process.env.LIVE_MATRIX_USERNAME;
 const password = process.env.LIVE_MATRIX_PASSWORD;
+const recoveryKey = process.env.LIVE_MATRIX_RECOVERY_KEY;
 const roomId = process.env.LIVE_MATRIX_ROOM_ID;
+const roomName = process.env.LIVE_MATRIX_ROOM_NAME;
 const roomPathSegment = process.env.LIVE_MATRIX_ROOM_PATH_SEGMENT;
 const snapshotOutputDir = process.env.PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR;
 const emojiQaRoomPathSegment =
@@ -65,6 +67,77 @@ const loginToLiveMatrix = async (page: Page) => {
 
   await expect(page).toHaveURL(/\/home\/?$/, { timeout: 60_000 });
   await expectStoredSession(page);
+};
+
+const ensureVerifiedSession = async (page: Page) => {
+  await page.goto('/settings/devices');
+
+  await expect(page).toHaveURL(/\/settings\/devices\/?$/, { timeout: 60_000 });
+  await expect(page.getByText('Device Verification', { exact: true })).toBeVisible({
+    timeout: 60_000,
+  });
+
+  const manualVerificationButton = page.getByRole('button', {
+    name: 'Verify Manually',
+    exact: true,
+  });
+  const verificationBadge = page.getByText(/^(Verified|Unverified|\d+ Unverified)$/, {
+    exact: true,
+  });
+  const getVerificationState = async () => {
+    if (await manualVerificationButton.isVisible().catch(() => false)) {
+      return 'manual';
+    }
+
+    const badgeText = await verificationBadge
+      .first()
+      .textContent()
+      .catch(() => null);
+
+    if (badgeText === 'Verified' || /^\d+ Unverified$/.test(badgeText ?? '')) {
+      return 'settled';
+    }
+
+    return 'loading';
+  };
+
+  await expect.poll(getVerificationState, { timeout: 60_000 }).not.toBe('loading');
+
+  const verificationState = await getVerificationState();
+
+  if (verificationState === 'settled') {
+    return;
+  }
+
+  const liveRecoveryKey = requireEnv(
+    recoveryKey,
+    'LIVE_MATRIX_RECOVERY_KEY (required when the CI session is unverified)'
+  );
+
+  await manualVerificationButton.click();
+
+  const methodSwitcher = page.getByRole('button', {
+    name: 'Recovery Passphrase',
+    exact: true,
+  });
+  if (await methodSwitcher.isVisible().catch(() => false)) {
+    await methodSwitcher.click();
+    await page.getByRole('menuitem', { name: 'Recovery Key', exact: true }).click();
+  }
+
+  const recoveryKeyInput = page.locator('input[name="recoveryKeyInput"]');
+  await expect(recoveryKeyInput).toBeVisible({ timeout: 60_000 });
+  await recoveryKeyInput.fill(liveRecoveryKey);
+
+  const verificationForm = recoveryKeyInput.locator('xpath=ancestor::form[1]');
+  await verificationForm.getByRole('button', { name: 'Verify', exact: true }).click();
+
+  await expect(page.getByText('Device verified!', { exact: true })).toBeVisible({
+    timeout: 60_000,
+  });
+
+  await page.goto('/home');
+  await expect(page).toHaveURL(/\/home\/?$/, { timeout: 60_000 });
 };
 
 const logoutAndClearSession = async (page: Page) => {
@@ -141,6 +214,7 @@ test.describe.serial('live matrix authenticated smoke', () => {
     context = await browser.newContext();
     page = await context.newPage();
     await loginToLiveMatrix(page);
+    await ensureVerifiedSession(page);
   });
 
   test.afterAll(async () => {
@@ -162,13 +236,22 @@ test.describe.serial('live matrix authenticated smoke', () => {
   });
 
   test('opens a known room when LIVE_MATRIX_ROOM_ID is configured', async () => {
-    const configuredRoomId = roomId ?? roomPathSegment;
     test.skip(
-      !configuredRoomId,
+      !roomId && !roomPathSegment,
       'LIVE_MATRIX_ROOM_ID or LIVE_MATRIX_ROOM_PATH_SEGMENT must be set to validate room navigation'
     );
 
-    await openLiveRoom(page, requireEnv(configuredRoomId, 'LIVE_MATRIX_ROOM_ID'));
+    if (roomId) {
+      await openLiveRoom(page, requireEnv(roomId, 'LIVE_MATRIX_ROOM_ID'));
+    } else {
+      await openLiveRoomPath(page, requireEnv(roomPathSegment, 'LIVE_MATRIX_ROOM_PATH_SEGMENT'));
+    }
+
+    if (roomName) {
+      await expect(page.getByText(roomName, { exact: true })).toBeVisible({
+        timeout: 60_000,
+      });
+    }
   });
 
   test('captures the Emoji QA alignment reference room', async () => {
@@ -229,8 +312,7 @@ test.describe.serial('live matrix authenticated smoke', () => {
       const followupText = pickSmallestContaining('<3');
       const multilineText = pickSmallestContaining('multi-line message test');
       const followupBottom = followupText?.getBoundingClientRect().bottom ?? 0;
-      const heartEmoji =
-        pickFirstExactBelow('❤️', followupBottom) ?? pickSmallestExact('❤️');
+      const heartEmoji = pickFirstExactBelow('❤️', followupBottom) ?? pickSmallestExact('❤️');
       const firstAvatarButton = Array.from(document.querySelectorAll<HTMLElement>('button')).find(
         (el) => el.dataset.userId && el.querySelector('img, svg')
       );

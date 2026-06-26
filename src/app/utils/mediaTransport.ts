@@ -121,9 +121,17 @@ export function getScopedMediaCacheKey(url: string, sessionScope?: string): stri
 }
 
 // Matrix media endpoints the stored token may be attached to. Mirrors the
-// service worker's `validMediaRequest()` gate in src/sw.ts: legacy media
-// (`/_matrix/media/{r0,v3}/...`) plus authenticated media (`/_matrix/client/v1/media/...`).
-const MEDIA_PATH_PREFIXES = ['/_matrix/media/', '/_matrix/client/v1/media/'];
+// `MEDIA_PATHS` whitelist behind the service worker's `validMediaRequest()`
+// gate in src/sw.ts: legacy media (`/_matrix/media/{v3,r0}/...`) plus
+// authenticated media across the v1/v3/r0 and MSC3916-unstable client APIs.
+// Keep in sync with src/sw.ts.
+const MEDIA_PATH_PREFIXES = [
+  '/_matrix/media/',
+  '/_matrix/client/v1/media/',
+  '/_matrix/client/v3/media/',
+  '/_matrix/client/r0/media/',
+  '/_matrix/client/unstable/org.matrix.msc3916/media/',
+];
 
 function isMatrixMediaPath(pathname: string): boolean {
   return MEDIA_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));

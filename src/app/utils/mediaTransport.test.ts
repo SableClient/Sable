@@ -164,11 +164,18 @@ describe('fetchMediaBlob', () => {
     TEST_TIMEOUT
   );
 
-  it(
-    'attaches the stored token when fetching the signed-in homeserver',
-    async () => {
+  it.each([
+    '/_matrix/media/v3/download/example.org/abc',
+    '/_matrix/media/r0/thumbnail/example.org/abc',
+    '/_matrix/client/v1/media/download/example.org/abc',
+    '/_matrix/client/v3/media/download/example.org/abc',
+    '/_matrix/client/r0/media/thumbnail/example.org/abc',
+    '/_matrix/client/unstable/org.matrix.msc3916/media/download/example.org/abc',
+  ])(
+    'attaches the stored token on Matrix media path %s for the signed-in homeserver',
+    async (path) => {
       const { fetchMediaBlob } = await import('./mediaTransport');
-      const url = 'https://matrix.example.org/_matrix/client/v1/media/download/example.org/abc';
+      const url = `https://matrix.example.org${path}`;
       const freshBlob = new Blob(['fresh'], { type: 'image/png' });
       const headersSeen: Array<string | null> = [];
 

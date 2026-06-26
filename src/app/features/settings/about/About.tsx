@@ -62,7 +62,11 @@ export function HomeserverInfo() {
       })
       .then((fetched_version) =>
         setVersion({
-          server: fetched_version as { name?: string; version?: string; compiler?: string },
+          server: fetched_version as {
+            name?: string;
+            version?: string;
+            compiler?: string;
+          },
         })
       )
       .catch((error) => {

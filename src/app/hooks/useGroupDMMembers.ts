@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
+import { loadRoomMembersOnce } from '$utils/loadRoomMembers';
 
 export type GroupMemberInfo = {
   userId: string;
   displayName?: string;
   avatarUrl?: string;
 };
-
-const loadedMemberRoomIds = new Set<string>();
-const memberLoadPromises = new Map<string, Promise<void>>();
 
 // Filter out bridge bots (not bridged users)
 const isBridgeBot = (userId: string): boolean => {
@@ -21,26 +19,6 @@ const isBridgeBot = (userId: string): boolean => {
 
   return false;
 };
-
-async function loadRoomMembersOnce(room: Room): Promise<void> {
-  const { roomId } = room;
-  if (loadedMemberRoomIds.has(roomId)) return;
-
-  let loadPromise = memberLoadPromises.get(roomId);
-  if (!loadPromise) {
-    loadPromise = room
-      .loadMembersIfNeeded()
-      .then(() => {
-        loadedMemberRoomIds.add(roomId);
-      })
-      .finally(() => {
-        memberLoadPromises.delete(roomId);
-      });
-    memberLoadPromises.set(roomId, loadPromise);
-  }
-
-  await loadPromise;
-}
 
 /**
  * Read member info synchronously from already-loaded room state.

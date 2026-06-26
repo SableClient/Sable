@@ -3,7 +3,7 @@ name: Live Matrix smoke
 on:
   workflow_dispatch:
   schedule:
-    - cron: "23 6 * * *"
+    - cron: '23 6 * * *'
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 
@@ -57,7 +57,7 @@ jobs:
           LIVE_MATRIX_USERNAME: ${{ secrets.LIVE_MATRIX_USERNAME }}
           LIVE_MATRIX_PASSWORD: ${{ secrets.LIVE_MATRIX_PASSWORD }}
           LIVE_MATRIX_RECOVERY_KEY: ${{ secrets.LIVE_MATRIX_RECOVERY_KEY }}
-          LIVE_MATRIX_ROOM_ID: "!mxyMeeQ8S0qXUqcCkgBei4cnb4grSEwIaK1sQxzAvpM"
+          LIVE_MATRIX_ROOM_ID: '!mxyMeeQ8S0qXUqcCkgBei4cnb4grSEwIaK1sQxzAvpM'
           LIVE_MATRIX_ROOM_NAME: Test
           PLAYWRIGHT_TRACE: off
         run: pnpm run test:e2e:live

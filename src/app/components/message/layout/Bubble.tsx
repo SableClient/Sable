@@ -66,12 +66,7 @@ export const BubbleLayout = as<'div', BubbleLayoutProps>(
           </Box>
         )}
 
-        <Box
-          grow="Yes"
-          direction="Column"
-          alignItems={isRight ? 'End' : 'Start'}
-          style={{ minWidth: 0 }}
-        >
+        <Box grow="Yes" direction="Column" alignItems={isRight ? 'End' : 'Start'}>
           {header}
           {hideBubble ? (
             children

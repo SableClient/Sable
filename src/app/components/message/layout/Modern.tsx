@@ -11,7 +11,7 @@ export const ModernLayout = as<'div', ModernLayoutProps>(({ before, children, ..
     <Box className={css.ModernBefore} shrink="No">
       {before}
     </Box>
-    <Box grow="Yes" direction="Column" style={{ minWidth: 0 }}>
+    <Box grow="Yes" direction="Column">
       {children}
     </Box>
   </Box>

@@ -1,4 +1,4 @@
-import { as } from 'folds';
+import { Text, as } from 'folds';
 import classNames from 'classnames';
 import * as css from './layout.css';
 
@@ -13,7 +13,7 @@ export const MessageBase = as<'div', css.MessageBaseVariants>(
       collapse,
       autoCollapse,
       space,
-      contentSpacing,
+      mobile,
       ...props
     },
     ref
@@ -28,7 +28,7 @@ export const MessageBase = as<'div', css.MessageBaseVariants>(
           collapse,
           autoCollapse,
           space,
-          contentSpacing,
+          mobile,
         }),
         className
       )}
@@ -58,16 +58,19 @@ export const PronounPill = as<'span'>(
 
 export const MessageTextBody = as<'div', css.MessageTextBodyVariants & { notice?: boolean }>(
   (
-    { as: AsComp = 'div', children, className, preWrap, jumboEmoji, emote, notice, ...props },
+    { as: asComp = 'div', children, className, preWrap, jumboEmoji, emote, notice, ...props },
     ref
   ) => (
-    <AsComp
-      className={classNames(css.MessageTextBody({ preWrap, jumboEmoji, emote, notice }), className)}
+    <Text
+      as={asComp}
+      size="T400"
+      priority={notice ? '300' : '400'}
+      className={classNames(css.MessageTextBody({ preWrap, jumboEmoji, emote }), className)}
       {...props}
       ref={ref}
       dir="auto"
     >
       {children}
-    </AsComp>
+    </Text>
   )
 );

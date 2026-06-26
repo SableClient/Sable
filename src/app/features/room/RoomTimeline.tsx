@@ -2130,7 +2130,7 @@ export function RoomTimeline({
           {(eventData, index) => {
             if (showLoadingPlaceholders) {
               return (
-                <MessageBase key={`placeholder-${index}`} mobile={isMobileScreen}>
+                <MessageBase key={`placeholder-${index}`}>
                   {messageLayout === MessageLayout.Compact ? (
                     <CompactPlaceholder />
                   ) : (
@@ -2177,7 +2177,7 @@ export function RoomTimeline({
             const dividers = showDividers ? (
               <>
                 {eventData.willRenderDayDivider && (
-                  <MessageBase space={messageSpacing} mobile={isMobileScreen}>
+                  <MessageBase space={messageSpacing}>
                     <TimelineDivider variant="Surface">
                       <div className={css.dividerInset}>
                         <Badge as="span" size="500" variant="Secondary" fill="None" radii="300">
@@ -2188,7 +2188,7 @@ export function RoomTimeline({
                   </MessageBase>
                 )}
                 {eventData.willRenderNewDivider && (
-                  <MessageBase space={messageSpacing} mobile={isMobileScreen}>
+                  <MessageBase space={messageSpacing}>
                     <TimelineDivider style={{ color: color.Success.Main }} variant="Inherit">
                       <div className={css.dividerInset}>
                         <Badge as="span" size="500" variant="Success" fill="Solid" radii="300">
@@ -2279,21 +2279,21 @@ export function RoomTimeline({
             pointerEvents: 'none',
           }}
         >
-          <MessageBase space={messageSpacing} mobile={isMobileScreen}>
+          <MessageBase space={messageSpacing}>
             {messageLayout === MessageLayout.Compact ? (
               <CompactPlaceholder />
             ) : (
               <DefaultPlaceholder />
             )}
           </MessageBase>
-          <MessageBase space={messageSpacing} mobile={isMobileScreen}>
+          <MessageBase space={messageSpacing}>
             {messageLayout === MessageLayout.Compact ? (
               <CompactPlaceholder />
             ) : (
               <DefaultPlaceholder />
             )}
           </MessageBase>
-          <MessageBase space={messageSpacing} mobile={isMobileScreen}>
+          <MessageBase space={messageSpacing}>
             {messageLayout === MessageLayout.Compact ? (
               <CompactPlaceholder />
             ) : (

@@ -764,7 +764,6 @@ function MessageInternal(
   const optionsRef = useRef<HTMLDivElement>(null);
   const [showPronouns] = useSetting(settingsAtom, 'showPronouns');
   const [parsePronouns] = useSetting(settingsAtom, 'parsePronouns');
-  const isMobileMessageSurface = mobileOrTablet();
 
   const [useRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
   const { cleanedDisplayName, inlinePronoun } = useMemo(() => {
@@ -1182,7 +1181,6 @@ function MessageInternal(
       })}
       tabIndex={0}
       space={messageSpacing}
-      mobile={isMobileMessageSurface}
       collapse={collapse}
       highlight={highlight}
       notifyHighlight={highlightMentions ? notifyHighlight : undefined}
@@ -1700,7 +1698,6 @@ export const Event = as<'div', EventProps>(
     const longPress = useMobileLongPress(() => {
       setMobileOptionsOpen(true);
     });
-    const isMobileMessageSurface = mobileOrTablet();
 
     const evtId = mEvent.getId()!;
     const evtTimeline = room.getTimelineForEvent(evtId);
@@ -1714,7 +1711,6 @@ export const Event = as<'div', EventProps>(
         className={classNames(css.MessageBase, className)}
         tabIndex={0}
         space={messageSpacing}
-        mobile={isMobileMessageSurface}
         collapse={collapse}
         highlight={highlight}
         notifyHighlight={highlightMentions ? notifyHighlight : undefined}

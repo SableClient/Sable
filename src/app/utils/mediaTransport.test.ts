@@ -313,6 +313,80 @@ describe('fetchMediaBlob', () => {
   );
 
   it(
+    'prefers the active session token when accounts share a homeserver origin',
+    async () => {
+      const { fetchMediaBlob } = await import('./mediaTransport');
+      const url = 'https://matrix.example.org/_matrix/client/v1/media/download/example.org/abc';
+      const freshBlob = new Blob(['fresh'], { type: 'image/png' });
+      const headersSeen: Array<string | null> = [];
+
+      // Alice is stored first, but Bob (same homeserver origin) is the active session.
+      localStorage.setItem(
+        'matrixSessions',
+        JSON.stringify([
+          {
+            baseUrl: 'https://matrix.example.org',
+            userId: '@alice:example.org',
+            deviceId: 'DEVICE_A',
+            accessToken: 'alice-token',
+          },
+          {
+            baseUrl: 'https://matrix.example.org',
+            userId: '@bob:example.org',
+            deviceId: 'DEVICE_B',
+            accessToken: 'bob-token',
+          },
+        ])
+      );
+      localStorage.setItem('matrixActiveSession', '@bob:example.org');
+
+      vi.mocked(fetch).mockImplementation(async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        headersSeen.push(headers.get('authorization'));
+        return new Response(freshBlob, { status: 200 });
+      });
+
+      await expect(fetchMediaBlob(url)).resolves.toEqual(freshBlob);
+      expect(headersSeen).toEqual(['Bearer bob-token']);
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
+    'attaches the stored token for media under a path-prefixed homeserver base URL',
+    async () => {
+      const { fetchMediaBlob } = await import('./mediaTransport');
+      // Homeserver discovered with a path prefix; media lives under it.
+      const url = 'https://example.org/matrix/_matrix/client/v1/media/download/example.org/abc';
+      const freshBlob = new Blob(['fresh'], { type: 'image/png' });
+      const headersSeen: Array<string | null> = [];
+
+      localStorage.setItem(
+        'matrixSessions',
+        JSON.stringify([
+          {
+            baseUrl: 'https://example.org/matrix',
+            userId: '@alice:example.org',
+            deviceId: 'DEVICE',
+            accessToken: 'alice-token',
+          },
+        ])
+      );
+      localStorage.setItem('matrixActiveSession', '@alice:example.org');
+
+      vi.mocked(fetch).mockImplementation(async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        headersSeen.push(headers.get('authorization'));
+        return new Response(freshBlob, { status: 200 });
+      });
+
+      await expect(fetchMediaBlob(url)).resolves.toEqual(freshBlob);
+      expect(headersSeen).toEqual(['Bearer alice-token']);
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
     'uses caller-provided auth and cache scope when present',
     async () => {
       const { fetchMediaBlob } = await import('./mediaTransport');

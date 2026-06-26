@@ -133,8 +133,29 @@ const MEDIA_PATH_PREFIXES = [
   '/_matrix/client/unstable/org.matrix.msc3916/media/',
 ];
 
-function isMatrixMediaPath(pathname: string): boolean {
-  return MEDIA_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+/**
+ * Whether `requestUrl` is a Matrix media endpoint served by the homeserver at
+ * `baseUrl`. The media path is matched *relative to* the base URL so that
+ * homeservers discovered with a path prefix (e.g. `https://example.org/matrix`,
+ * yielding media URLs like `/matrix/_matrix/client/v1/media/...`) still match.
+ */
+function isMediaUrlForBase(requestUrl: URL, baseUrl: string | null | undefined): boolean {
+  if (!baseUrl) return false;
+
+  let base: URL;
+  try {
+    base = new URL(baseUrl);
+  } catch {
+    return false;
+  }
+
+  if (base.origin !== requestUrl.origin) return false;
+
+  const basePath = base.pathname.replace(/\/+$/, '');
+  if (basePath && !requestUrl.pathname.startsWith(basePath)) return false;
+
+  const relativePath = requestUrl.pathname.slice(basePath.length);
+  return MEDIA_PATH_PREFIXES.some((prefix) => relativePath.startsWith(prefix));
 }
 
 /**
@@ -147,7 +168,8 @@ function isMatrixMediaPath(pathname: string): boolean {
  * targets a homeserver this client is signed in to AND hits a Matrix media
  * endpoint. The token of the session whose `baseUrl` matches the request is
  * returned — never another session's — so one homeserver can never receive a
- * different homeserver's bearer token.
+ * different homeserver's bearer token. The active session is preferred when
+ * multiple stored accounts share the same homeserver origin.
  */
 function resolveStoredTokenForUrl(url: string): string | undefined {
   if (typeof localStorage === 'undefined') return undefined;
@@ -159,19 +181,20 @@ function resolveStoredTokenForUrl(url: string): string | undefined {
     return undefined;
   }
 
-  if (!isMatrixMediaPath(parsed.pathname)) return undefined;
+  const sessions = parseStoredSessions();
+  const activeSessionId = localStorage.getItem(ACTIVE_SESSION_KEY);
+  const activeSession = activeSessionId
+    ? sessions.find((session) => session.userId === activeSessionId)
+    : undefined;
 
-  const matchesRequestOrigin = (baseUrl: string | null | undefined): boolean => {
-    if (!baseUrl) return false;
-    try {
-      return new URL(baseUrl).origin === parsed.origin;
-    } catch {
-      return false;
-    }
-  };
+  // Prefer the active session, then any other stored session on the same origin,
+  // so a same-origin account can't be served under a different account's token.
+  const orderedSessions = activeSession
+    ? [activeSession, ...sessions.filter((session) => session !== activeSession)]
+    : sessions;
 
-  for (const session of parseStoredSessions()) {
-    if (session.accessToken && matchesRequestOrigin(session.baseUrl)) {
+  for (const session of orderedSessions) {
+    if (session.accessToken && isMediaUrlForBase(parsed, session.baseUrl)) {
       return session.accessToken;
     }
   }
@@ -179,7 +202,7 @@ function resolveStoredTokenForUrl(url: string): string | undefined {
   const fallbackBaseUrl = localStorage.getItem(FALLBACK_BASE_URL_KEY);
   const fallbackUserId = localStorage.getItem(FALLBACK_USER_ID_KEY);
   const fallbackAccessToken = localStorage.getItem(FALLBACK_ACCESS_TOKEN_KEY);
-  if (fallbackAccessToken && fallbackUserId && matchesRequestOrigin(fallbackBaseUrl)) {
+  if (fallbackAccessToken && fallbackUserId && isMediaUrlForBase(parsed, fallbackBaseUrl)) {
     return fallbackAccessToken;
   }
 

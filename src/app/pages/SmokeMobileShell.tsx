@@ -15,7 +15,13 @@ import {
 import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
 import { EmojiGroupId, emojis } from '$plugins/emoji';
 import { scaleSystemEmoji } from '$plugins/react-custom-html-parser';
-import { MessageTextBody } from '$components/message/layout/Base';
+import {
+  AvatarBase,
+  MessageBase,
+  MessageTextBody,
+  Username,
+} from '$components/message/layout/Base';
+import { ModernLayout } from '$components/message/layout/Modern';
 import {
   EmojiBoardLayout,
   EmojiGroup,
@@ -305,6 +311,126 @@ function SmokeRoomSpacing() {
           <MenuItem variant="Background" radii="400">
             <Text size="T300">Drawer content</Text>
           </MenuItem>
+        </Box>
+      </Box>
+    </Page>
+  );
+}
+
+function SmokeEmojiQaRoom() {
+  const avatarStyle = {
+    width: 32,
+    height: 32,
+    borderRadius: '999px',
+    display: 'grid',
+    placeItems: 'center',
+    color: '#fff',
+    fontSize: '0.875rem',
+    fontWeight: 700,
+  } as const;
+
+  return (
+    <Page>
+      <Box
+        direction="Column"
+        grow="Yes"
+        style={{ minHeight: 0, backgroundColor: 'var(--sable-surface)' }}
+      >
+        <Box
+          direction="Column"
+          gap="100"
+          style={{
+            paddingTop: config.space.S600,
+            paddingBottom: config.space.S700,
+          }}
+        >
+          <Box
+            alignItems="Center"
+            gap="300"
+            style={{
+              padding: `0 ${config.space.S400}`,
+              color: 'var(--sable-on-surface-variant)',
+            }}
+          >
+            <Text size="T300" style={{ width: 20, textAlign: 'center' }}>
+              ↪
+            </Text>
+            <Text size="T300" data-testid="emoji-qa-membership-copy">
+              test joined the room
+            </Text>
+            <Box grow="Yes" />
+            <Text size="T300">Yesterday 01:19 PM</Text>
+          </Box>
+
+          <MessageBase
+            data-testid="emoji-qa-text-row"
+            space="0"
+            contentSpacing="0"
+            style={{ backgroundColor: 'transparent' }}
+          >
+            <ModernLayout
+              before={
+                <AvatarBase>
+                  <div style={{ ...avatarStyle, backgroundColor: '#f0a6e8' }}>t</div>
+                </AvatarBase>
+              }
+            >
+              <Box direction="Column" gap="100">
+                <Box alignItems="Center" gap="200" wrap="Wrap">
+                  <Username as="span">
+                    <Text size="T300" style={{ color: '#7c3aed', fontWeight: 700 }}>
+                      test
+                    </Text>
+                  </Username>
+                  <Box grow="Yes" />
+                  <Text size="T300">Yesterday 01:20 PM</Text>
+                </Box>
+                <MessageTextBody preWrap>test{'\n'}&lt;3</MessageTextBody>
+              </Box>
+            </ModernLayout>
+          </MessageBase>
+
+          <MessageBase
+            data-testid="emoji-qa-jumbo-row"
+            space="0"
+            contentSpacing="0"
+            style={{ backgroundColor: 'transparent' }}
+          >
+            <ModernLayout
+              before={
+                <AvatarBase>
+                  <div style={{ ...avatarStyle, backgroundColor: '#111827' }}>E</div>
+                </AvatarBase>
+              }
+            >
+              <Box direction="Column" gap="100">
+                <Box alignItems="Center" gap="200" wrap="Wrap">
+                  <Username as="span">
+                    <Text size="T300" style={{ color: '#ec4899', fontWeight: 700 }}>
+                      Evie
+                    </Text>
+                  </Username>
+                  <Text
+                    size="B300"
+                    style={{
+                      paddingInline: 6,
+                      borderRadius: 999,
+                      backgroundColor: 'rgba(236, 72, 153, 0.12)',
+                      color: '#ec4899',
+                    }}
+                  >
+                    she/they/it
+                  </Text>
+                </Box>
+                <MessageTextBody jumboEmoji="normal" data-testid="emoji-qa-monkey">
+                  🙉
+                </MessageTextBody>
+                <MessageTextBody jumboEmoji="normal" data-testid="emoji-qa-heart">
+                  ❤️
+                </MessageTextBody>
+              </Box>
+            </ModernLayout>
+          </MessageBase>
         </Box>
       </Box>
     </Page>
@@ -919,6 +1045,7 @@ export function SmokeMobileShell() {
   const { mode = 'home' } = useParams();
 
   if (mode === 'emoji-polish') return <SmokeEmojiPolish />;
+  if (mode === 'emoji-qa') return <SmokeEmojiQaRoom />;
   if (mode === 'menu-polish') return <SmokeMenuPolish />;
   if (mode === 'search-shortcuts') return <SmokeSearchShortcuts />;
   if (mode === 'settings') return <SmokeSettingsModal />;

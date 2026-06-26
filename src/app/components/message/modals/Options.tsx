@@ -299,32 +299,34 @@ export function OptionQuickMenu({
           </>
         )}
         {!hideReplyButton && (
-          <IconButton
-            onClick={(ev) => {
-              onReplyClick(ev);
-              closeMenu();
-            }}
-            data-event-id={mEvent.getId()}
-            variant="SurfaceVariant"
-            size="300"
-            radii="300"
-          >
-            {menuIcon(ArrowBendUpLeftIcon)}
-          </IconButton>
-        )}
-        {!isThreadedMessage && (
-          <IconButton
-            onClick={(ev) => {
-              onReplyClick(ev, true);
-              closeMenu();
-            }}
-            data-event-id={mEvent.getId()}
-            variant="SurfaceVariant"
-            size="300"
-            radii="300"
-          >
-            {menuIcon(ChatCircleDots)}
-          </IconButton>
+          <>
+            <IconButton
+              onClick={(ev) => {
+                onReplyClick(ev);
+                closeMenu();
+              }}
+              data-event-id={mEvent.getId()}
+              variant="SurfaceVariant"
+              size="300"
+              radii="300"
+            >
+              {menuIcon(ArrowBendUpLeftIcon)}
+            </IconButton>
+            {!isThreadedMessage && (
+              <IconButton
+                onClick={(ev) => {
+                  onReplyClick(ev, true);
+                  closeMenu();
+                }}
+                data-event-id={mEvent.getId()}
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+              >
+                {menuIcon(ChatCircleDots)}
+              </IconButton>
+            )}
+          </>
         )}
         {canEditEvent(mx, mEvent) && onEditId && (
           <IconButton
@@ -581,36 +583,38 @@ export function OptionMenu({
                 )}
               {relations && <MessageAllReactionItem room={room} relations={relations} />}
               {!hideReplyButton && (
-                <MenuItem
-                  size="300"
-                  after={menuIcon(ArrowBendUpLeftIcon)}
-                  radii="300"
-                  data-event-id={mEvent.getId()}
-                  onClick={(evt) => {
-                    onReplyClick(evt);
-                    onTotalClose();
-                  }}
-                >
-                  <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                    Reply
-                  </Text>
-                </MenuItem>
-              )}
-              {!isThreadedMessage && (
-                <MenuItem
-                  size="300"
-                  after={menuIcon(ChatCircleDots)}
-                  radii="300"
-                  data-event-id={mEvent.getId()}
-                  onClick={(evt) => {
-                    onReplyClick(evt, true);
-                    onTotalClose();
-                  }}
-                >
-                  <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                    Reply in Thread
-                  </Text>
-                </MenuItem>
+                <>
+                  <MenuItem
+                    size="300"
+                    after={menuIcon(ArrowBendUpLeftIcon)}
+                    radii="300"
+                    data-event-id={mEvent.getId()}
+                    onClick={(evt) => {
+                      onReplyClick(evt);
+                      onTotalClose();
+                    }}
+                  >
+                    <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                      Reply
+                    </Text>
+                  </MenuItem>
+                  {!isThreadedMessage && (
+                    <MenuItem
+                      size="300"
+                      after={menuIcon(ChatCircleDots)}
+                      radii="300"
+                      data-event-id={mEvent.getId()}
+                      onClick={(evt) => {
+                        onReplyClick(evt, true);
+                        onTotalClose();
+                      }}
+                    >
+                      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                        Reply in Thread
+                      </Text>
+                    </MenuItem>
+                  )}
+                </>
               )}
               {canEditEvent(mx, mEvent) && onEditId && (
                 <MenuItem
@@ -836,6 +840,7 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
             canSendReaction={options.canSendReaction}
             isModal
             dragOpts={dragOpts}
+            hideReplyButton={options.hideReplyButton}
           />
         </Box>
       </Box>

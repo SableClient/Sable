@@ -851,6 +851,7 @@ function MessageInternal(
           </div>
         ),
         canSendReaction: canSendReaction,
+        hideReplyButton: hideReplyButton,
       },
     });
   };

@@ -50,8 +50,6 @@ export function SystemBarShell({ children, onPortalContainerChange }: SystemBarS
 
   return (
     <>
-      {enabled && <SystemBarStrip position="top" size={safeAreaTop} />}
-
       <div
         style={
           {

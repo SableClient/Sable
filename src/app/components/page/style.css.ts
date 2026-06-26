@@ -25,6 +25,7 @@ export type PageNavVariants = RecipeVariants<typeof PageNav>;
 
 export const PageNavHeader = recipe({
   base: {
+    position: 'relative',
     paddingRight: config.space.S200,
     paddingLeft: config.space.S200,
     flexShrink: 0,
@@ -40,6 +41,17 @@ export const PageNavHeader = recipe({
       },
       'button&:active': {
         backgroundColor: color.Background.ContainerActive,
+      },
+      // Extend background into the iOS top safe area so the header color
+      // fills the status bar region regardless of which view is active.
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 'calc(-1 * var(--sable-safe-area-top, 0px))',
+        left: 0,
+        right: 0,
+        height: 'var(--sable-safe-area-top, 0px)',
+        background: 'inherit',
       },
     },
   },
@@ -66,8 +78,22 @@ export const PageNavContent = style({
 
 export const PageHeader = recipe({
   base: {
+    position: 'relative',
     paddingLeft: config.space.S400,
     paddingRight: config.space.S200,
+    selectors: {
+      // Extend background into the iOS top safe area so the header color
+      // fills the status bar region regardless of which view is active.
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 'calc(-1 * var(--sable-safe-area-top, 0px))',
+        left: 0,
+        right: 0,
+        height: 'var(--sable-safe-area-top, 0px)',
+        background: 'inherit',
+      },
+    },
   },
   variants: {
     balance: {

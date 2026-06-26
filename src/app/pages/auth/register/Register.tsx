@@ -7,7 +7,7 @@ import { useAuthServer } from '$hooks/useAuthServer';
 import { RegisterFlowStatus, useAuthFlows } from '$hooks/useAuthFlows';
 import { useParsedLoginFlows } from '$hooks/useParsedLoginFlows';
 import { SupportedUIAFlowsLoader } from '$components/SupportedUIAFlowsLoader';
-import { getLoginPath } from '$pages/pathUtils';
+import { getLoginPath, withSearchParam } from '$pages/pathUtils';
 import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
 import type { RegisterPathSearchParams } from '$pages/paths';
 import { SSOLogin } from '$pages/auth/SSOLogin';
@@ -31,10 +31,20 @@ export function Register() {
   const [searchParams] = useSearchParams();
   const registerSearchParams = useRegisterSearchParams(searchParams);
   const { sso } = useParsedLoginFlows(loginFlows.flows);
+  const isAddingAccount = searchParams.get('addAccount') === '1';
 
   // redirect to /login because only that path handle m.login.token
-  const webSsoRedirectUrl = usePathWithOrigin(getLoginPath(server));
-  const ssoRedirectUrl = isTauri() ? buildTauriSsoRedirectUrl(server) : webSsoRedirectUrl;
+  const webSsoRedirectUrl = usePathWithOrigin(
+    isAddingAccount
+      ? withSearchParam(getLoginPath(server), { addAccount: '1' })
+      : getLoginPath(server)
+  );
+  const ssoRedirectUrl = isTauri()
+    ? buildTauriSsoRedirectUrl(server, { addAccount: isAddingAccount })
+    : webSsoRedirectUrl;
+  const loginUrl = isAddingAccount
+    ? withSearchParam(getLoginPath(server), { addAccount: '1' })
+    : getLoginPath(server);
 
   return (
     <Box direction="Column" gap="500">
@@ -94,7 +104,7 @@ export function Register() {
         </>
       )}
       <Text align="Center">
-        Already have an account? <Link to={getLoginPath(server)}>Login</Link>
+        Already have an account? <Link to={loginUrl}>Login</Link>
       </Text>
     </Box>
   );

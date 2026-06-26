@@ -11,6 +11,9 @@ import {
   Icons,
   Menu,
   MenuItem,
+  Overlay,
+  OverlayBackdrop,
+  OverlayCenter,
   PopOut,
   Text,
   config,
@@ -42,7 +45,6 @@ import { useUserProfile } from '$hooks/useUserProfile';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSessionProfiles } from '$hooks/useSessionProfiles';
 import { useOpenSettings } from '$features/settings/useOpenSettings';
-import { Modal500 } from '$components/Modal500';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
@@ -539,41 +541,53 @@ export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
       />
 
       {confirmSignOutSession && (
-        <Modal500 requestClose={() => setConfirmSignOutSession(undefined)}>
-          <Dialog variant="Surface">
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
+        <Overlay open backdrop={<OverlayBackdrop />}>
+          <OverlayCenter>
+            <FocusTrap
+              focusTrapOptions={{
+                initialFocus: false,
+                fallbackFocus: () => document.body,
+                clickOutsideDeactivates: true,
+                onDeactivate: () => setConfirmSignOutSession(undefined),
+                escapeDeactivates: stopPropagation,
               }}
-              variant="Surface"
-              size="500"
             >
-              <Box grow="Yes">
-                <Text size="H4">Sign out</Text>
-              </Box>
-            </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              <Text priority="400">
-                Are you sure you want to sign out of <b>{confirmSignOutSession.userId}</b>?
-              </Text>
-              <Box direction="Column" gap="200">
-                <Button
-                  variant="Critical"
-                  onClick={() => {
-                    handleSignOut(confirmSignOutSession);
-                    setConfirmSignOutSession(undefined);
+              <Dialog variant="Surface">
+                <Header
+                  style={{
+                    padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                    borderBottomWidth: config.borderWidth.B300,
                   }}
+                  variant="Surface"
+                  size="500"
                 >
-                  <Text size="B400">Sign out</Text>
-                </Button>
-                <Button variant="Secondary" onClick={() => setConfirmSignOutSession(undefined)}>
-                  <Text size="B400">Cancel</Text>
-                </Button>
-              </Box>
-            </Box>
-          </Dialog>
-        </Modal500>
+                  <Box grow="Yes">
+                    <Text size="H4">Sign out</Text>
+                  </Box>
+                </Header>
+                <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+                  <Text priority="400">
+                    Are you sure you want to sign out of <b>{confirmSignOutSession.userId}</b>?
+                  </Text>
+                  <Box direction="Column" gap="200">
+                    <Button
+                      variant="Critical"
+                      onClick={() => {
+                        handleSignOut(confirmSignOutSession);
+                        setConfirmSignOutSession(undefined);
+                      }}
+                    >
+                      <Text size="B400">Sign out</Text>
+                    </Button>
+                    <Button variant="Secondary" onClick={() => setConfirmSignOutSession(undefined)}>
+                      <Text size="B400">Cancel</Text>
+                    </Button>
+                  </Box>
+                </Box>
+              </Dialog>
+            </FocusTrap>
+          </OverlayCenter>
+        </Overlay>
       )}
     </SidebarItem>
   );

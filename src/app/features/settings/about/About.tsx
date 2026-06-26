@@ -31,8 +31,12 @@ export function HomeserverInfo() {
   const mx = useMatrixClient();
   const [federationUrl, setFederationUrl] = useState<string>(mx.baseUrl);
   const [version, setVersion] = useState<VersionResult>(undefined);
+  const fetchedRef = useRef(false);
 
-  if (!version) {
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
     // Step 1: Fetch well-known first to discover federation server
     const userDomain = mx.getSafeUserId().split(':')[1];
     mx.http
@@ -65,7 +69,7 @@ export function HomeserverInfo() {
         // Federation may not be exposed to clients — treat as optional
         setVersion({ error: { message: String(error) } });
       });
-  }
+  }, [mx]);
 
   return (
     <Box direction="Column" gap="100" id="homeserver-info">

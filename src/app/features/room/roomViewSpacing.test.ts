@@ -39,16 +39,20 @@ describe('room view spacing contract', () => {
     expect(roomTimeline).toContain('paddingRight: timelineRightSpacing');
   });
 
-  it('keeps message spacing distinct from the fixed message padding', () => {
+  it('lets message spacing zero collapse vertical padding on message rows', () => {
     const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
-    const roomTimeline = readWorkspaceFile('src/app/features/room/RoomTimeline.tsx');
+    const baseLayout = readWorkspaceFile('src/app/components/message/layout/Base.tsx');
+    const message = readWorkspaceFile('src/app/features/room/message/Message.tsx');
 
     expect(messageLayout).toContain('marginTop: SpacingVar');
+    expect(messageLayout).toContain('contentSpacing: ContentSpacingVariant');
+    expect(messageLayout).toContain('paddingTop: config.space.S0');
+    expect(messageLayout).toContain('paddingBottom: config.space.S0');
     expect(messageLayout).toContain(
       'padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`'
     );
-    expect(messageLayout).toContain('DefaultReset,');
-    expect(roomTimeline).toContain('key={`${room.roomId}:${messageLayout}:${messageSpacing}`}');
+    expect(baseLayout).toContain('contentSpacing,');
+    expect(message).toContain('contentSpacing={messageSpacing}');
   });
 
   it('keeps message layout aligned with the current Sable contract', () => {

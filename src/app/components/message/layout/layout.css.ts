@@ -42,6 +42,18 @@ const SpacingVariant = styleVariants({
   },
 });
 
+const ContentSpacingVariant = styleVariants({
+  '0': {
+    paddingTop: config.space.S0,
+    paddingBottom: config.space.S0,
+  },
+  '100': {},
+  '200': {},
+  '300': {},
+  '400': {},
+  '500': {},
+});
+
 const highlightAnime = keyframes({
   '0%': {
     backgroundColor: color.Primary.Container,
@@ -111,6 +123,7 @@ export const MessageBase = recipe({
   },
   variants: {
     space: SpacingVariant,
+    contentSpacing: ContentSpacingVariant,
     collapse: {
       true: {
         marginTop: 0,

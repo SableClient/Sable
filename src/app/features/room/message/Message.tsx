@@ -1181,6 +1181,7 @@ function MessageInternal(
       })}
       tabIndex={0}
       space={messageSpacing}
+      contentSpacing={messageSpacing}
       collapse={collapse}
       highlight={highlight}
       notifyHighlight={highlightMentions ? notifyHighlight : undefined}
@@ -1711,6 +1712,7 @@ export const Event = as<'div', EventProps>(
         className={classNames(css.MessageBase, className)}
         tabIndex={0}
         space={messageSpacing}
+        contentSpacing={messageSpacing}
         collapse={collapse}
         highlight={highlight}
         notifyHighlight={highlightMentions ? notifyHighlight : undefined}

@@ -165,6 +165,72 @@ describe('fetchMediaBlob', () => {
   );
 
   it(
+    'attaches the stored token when fetching the signed-in homeserver',
+    async () => {
+      const { fetchMediaBlob } = await import('./mediaTransport');
+      const url = 'https://matrix.example.org/_matrix/client/v1/media/download/example.org/abc';
+      const freshBlob = new Blob(['fresh'], { type: 'image/png' });
+      const headersSeen: Array<string | null> = [];
+
+      localStorage.setItem(
+        'matrixSessions',
+        JSON.stringify([
+          {
+            baseUrl: 'https://matrix.example.org',
+            userId: '@alice:example.org',
+            deviceId: 'DEVICE',
+            accessToken: 'alice-token',
+          },
+        ])
+      );
+      localStorage.setItem('matrixActiveSession', '@alice:example.org');
+
+      vi.mocked(fetch).mockImplementation(async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        headersSeen.push(headers.get('authorization'));
+        return new Response(freshBlob, { status: 200 });
+      });
+
+      await expect(fetchMediaBlob(url)).resolves.toEqual(freshBlob);
+      expect(headersSeen).toEqual(['Bearer alice-token']);
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
+    'never sends the stored token to a non-homeserver media URL',
+    async () => {
+      const { fetchMediaBlob } = await import('./mediaTransport');
+      const url = 'https://evil.example.com/room-controlled-icon.png';
+      const freshBlob = new Blob(['fresh'], { type: 'image/png' });
+      const headersSeen: Array<string | null> = [];
+
+      localStorage.setItem(
+        'matrixSessions',
+        JSON.stringify([
+          {
+            baseUrl: 'https://matrix.example.org',
+            userId: '@alice:example.org',
+            deviceId: 'DEVICE',
+            accessToken: 'alice-token',
+          },
+        ])
+      );
+      localStorage.setItem('matrixActiveSession', '@alice:example.org');
+
+      vi.mocked(fetch).mockImplementation(async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        headersSeen.push(headers.get('authorization'));
+        return new Response(freshBlob, { status: 200 });
+      });
+
+      await expect(fetchMediaBlob(url)).resolves.toEqual(freshBlob);
+      expect(headersSeen).toEqual([null]);
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
     'uses caller-provided auth and cache scope when present',
     async () => {
       const { fetchMediaBlob } = await import('./mediaTransport');
@@ -341,7 +407,7 @@ describe('fetchMediaBlob', () => {
 
   it('re-resolves auth once after a 401 in direct-fetch mode', async () => {
     const { fetchMediaBlob } = await import('./mediaTransport');
-    const url = 'https://example.org/auth-media.png';
+    const url = 'https://matrix.example.org/auth-media.png';
     localStorage.setItem(
       'matrixSessions',
       JSON.stringify([
@@ -387,7 +453,7 @@ describe('fetchMediaBlob', () => {
   it('retries once on the service worker path without direct auth headers', async () => {
     platform.hasControllingServiceWorker.mockReturnValue(true);
     const { fetchMediaBlob } = await import('./mediaTransport');
-    const url = 'https://example.org/auth-media.png';
+    const url = 'https://matrix.example.org/auth-media.png';
 
     const headersSeen: Array<string | null> = [];
     vi.mocked(fetch).mockImplementation(async (_input, init) => {
@@ -409,7 +475,7 @@ describe('fetchMediaBlob', () => {
   it('falls back to direct auth when Safari cannot read a service worker media body', async () => {
     platform.hasControllingServiceWorker.mockReturnValue(true);
     const { fetchMediaBlob } = await import('./mediaTransport');
-    const url = 'https://example.org/auth-media.png';
+    const url = 'https://matrix.example.org/auth-media.png';
     const swResponse = new Response('sw ok', { status: 200 });
     const headersSeen: Array<string | null> = [];
     const cacheModesSeen: Array<RequestCache | undefined> = [];
@@ -449,7 +515,7 @@ describe('fetchMediaBlob', () => {
   it('bypasses the service worker path when explicit auth overrides are provided', async () => {
     platform.hasControllingServiceWorker.mockReturnValue(true);
     const { fetchMediaBlob } = await import('./mediaTransport');
-    const url = 'https://example.org/auth-media.png';
+    const url = 'https://matrix.example.org/auth-media.png';
     const getAccessToken = vi.fn(() => 'widget-token');
     const headersSeen: Array<string | null> = [];
 
@@ -472,7 +538,7 @@ describe('fetchMediaBlob', () => {
   it('uses direct auth fetches when service workers are supported but not controlling', async () => {
     platform.hasControllingServiceWorker.mockReturnValue(false);
     const { fetchMediaBlob } = await import('./mediaTransport');
-    const url = 'https://example.org/auth-media.png';
+    const url = 'https://matrix.example.org/auth-media.png';
     const headersSeen: Array<string | null> = [];
 
     localStorage.setItem(

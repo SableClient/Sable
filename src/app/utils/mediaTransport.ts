@@ -10,6 +10,7 @@ import {
 type StoredSession = {
   userId: string;
   accessToken: string;
+  baseUrl?: string;
 };
 
 export type MediaFetchCacheMode = 'default' | 'reload' | 'bypass';
@@ -66,10 +67,13 @@ function parseStoredSessions(): StoredSession[] {
         return [];
       }
 
+      const baseUrl = (session as { baseUrl?: unknown }).baseUrl;
+
       return [
         {
           userId: (session as StoredSession).userId,
           accessToken: (session as StoredSession).accessToken,
+          ...(typeof baseUrl === 'string' ? { baseUrl } : {}),
         },
       ];
     });
@@ -139,7 +143,48 @@ export function getScopedMediaCacheKey(url: string, sessionScope?: string): stri
   return `${sessionScope ?? getCurrentMediaSessionScope()}:${url}`;
 }
 
-function resolveAccessToken(options?: MediaTransportOptions): string | undefined {
+/**
+ * Origins of the homeservers this client is signed in to. The stored Matrix
+ * access token may only ever be attached to requests bound for one of these
+ * origins — never to an arbitrary, room-controlled media URL.
+ */
+function getTrustedHomeserverOrigins(): Set<string> {
+  const origins = new Set<string>();
+  if (typeof localStorage === 'undefined') return origins;
+
+  const addOrigin = (baseUrl: string | null | undefined): void => {
+    if (!baseUrl) return;
+    try {
+      origins.add(new URL(baseUrl).origin);
+    } catch {
+      // Ignore malformed base URLs.
+    }
+  };
+
+  for (const session of parseStoredSessions()) {
+    addOrigin(session.baseUrl);
+  }
+  addOrigin(localStorage.getItem(FALLBACK_BASE_URL_KEY));
+
+  return origins;
+}
+
+/**
+ * Whether `url` points at a homeserver this client is signed in to. Used to
+ * decide if the implicitly-resolved stored token may be attached.
+ */
+function isTrustedHomeserverUrl(url: string): boolean {
+  let origin: string;
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    return false;
+  }
+
+  return getTrustedHomeserverOrigins().has(origin);
+}
+
+function resolveAccessToken(url: string, options?: MediaTransportOptions): string | undefined {
   if (options && Object.hasOwn(options, 'getAccessToken')) {
     return typeof options.getAccessToken === 'function'
       ? (options.getAccessToken() ?? undefined)
@@ -149,6 +194,11 @@ function resolveAccessToken(options?: MediaTransportOptions): string | undefined
   if (options && Object.hasOwn(options, 'accessToken')) {
     return options.accessToken ?? undefined;
   }
+
+  // The implicitly-resolved stored token must never leak to an arbitrary media
+  // URL (e.g. a room-controlled avatar or external icon). Only attach it when
+  // the request targets a homeserver this client is actually signed in to.
+  if (!isTrustedHomeserverUrl(url)) return undefined;
 
   return getStoredAccessToken();
 }
@@ -246,7 +296,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     return blob;
   };
   const fetchAndCacheViaDirectAuth = async (): Promise<Blob | undefined> => {
-    const directAccessToken = resolveAccessToken(options);
+    const directAccessToken = resolveAccessToken(url, options);
     if (!directAccessToken) return undefined;
 
     const directCacheMode = cacheMode === 'default' ? 'reload' : cacheMode;
@@ -280,7 +330,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     return fetchAndCache(retryResponse);
   }
 
-  const initialAccessToken = resolveAccessToken(options);
+  const initialAccessToken = resolveAccessToken(url, options);
   const initialResponse = await fetchMediaResponse(url, initialAccessToken, cacheMode);
   if (initialResponse.ok) {
     return fetchAndCache(initialResponse);
@@ -290,7 +340,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     throw buildMediaFetchError(url, initialResponse);
   }
 
-  const retryAccessToken = resolveAccessToken(options);
+  const retryAccessToken = resolveAccessToken(url, options);
   return fetchAndCache(await fetchMediaResponse(url, retryAccessToken, cacheMode));
 }
 

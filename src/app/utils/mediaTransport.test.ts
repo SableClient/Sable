@@ -271,7 +271,15 @@ describe('fetchMediaBlob', () => {
     TEST_TIMEOUT
   );
 
-  it.each(['/_matrix/media/v3/config', '/_matrix/client/v1/media/foo', '/_matrix/media/v3/create'])(
+  it.each([
+    '/_matrix/media/v3/config',
+    '/_matrix/client/v1/media/foo',
+    '/_matrix/media/v3/create',
+    // Endpoint-name prefixes without a segment boundary must not match.
+    '/_matrix/media/v3/downloaded/foo',
+    '/_matrix/client/v1/media/downloadXYZ',
+    '/_matrix/media/v3/preview_url_evil',
+  ])(
     'never sends the stored token to non-endpoint media-subtree path %s',
     async (path) => {
       const { fetchMediaBlob } = await import('./mediaTransport');

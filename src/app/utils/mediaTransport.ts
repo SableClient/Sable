@@ -160,7 +160,14 @@ function isMediaUrlForBase(requestUrl: URL, baseUrl: string | null | undefined):
   if (basePath && !requestUrl.pathname.startsWith(basePath)) return false;
 
   const relativePath = requestUrl.pathname.slice(basePath.length);
-  return MEDIA_PATHS.some((prefix) => relativePath.startsWith(prefix));
+  // Require a segment boundary after the endpoint so that an endpoint-name
+  // prefix (e.g. `/download/{server}/{id}`) matches, but a room-controlled path
+  // like `/downloaded/foo` or `/downloadXYZ` does not. `preview_url` carries no
+  // path suffix (its args are query params, excluded from pathname), so an exact
+  // match covers it.
+  return MEDIA_PATHS.some(
+    (endpoint) => relativePath === endpoint || relativePath.startsWith(`${endpoint}/`)
+  );
 }
 
 /**

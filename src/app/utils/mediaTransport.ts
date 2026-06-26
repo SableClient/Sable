@@ -82,29 +82,6 @@ function parseStoredSessions(): StoredSession[] {
   }
 }
 
-function getStoredAccessToken(): string | undefined {
-  if (typeof localStorage === 'undefined') return undefined;
-
-  const sessions = parseStoredSessions();
-  const activeSessionId = localStorage.getItem(ACTIVE_SESSION_KEY);
-  const activeSession =
-    (activeSessionId
-      ? sessions.find((session) => session.userId === activeSessionId)
-      : undefined) ?? sessions[0];
-
-  if (activeSession?.accessToken) return activeSession.accessToken;
-
-  const fallbackBaseUrl = localStorage.getItem(FALLBACK_BASE_URL_KEY);
-  const fallbackUserId = localStorage.getItem(FALLBACK_USER_ID_KEY);
-  const fallbackAccessToken = localStorage.getItem(FALLBACK_ACCESS_TOKEN_KEY);
-
-  if (fallbackBaseUrl && fallbackUserId && fallbackAccessToken) {
-    return fallbackAccessToken;
-  }
-
-  return undefined;
-}
-
 export function getCurrentMediaSessionScope(): string {
   if (typeof localStorage === 'undefined') return 'anonymous';
 
@@ -143,45 +120,62 @@ export function getScopedMediaCacheKey(url: string, sessionScope?: string): stri
   return `${sessionScope ?? getCurrentMediaSessionScope()}:${url}`;
 }
 
-/**
- * Origins of the homeservers this client is signed in to. The stored Matrix
- * access token may only ever be attached to requests bound for one of these
- * origins — never to an arbitrary, room-controlled media URL.
- */
-function getTrustedHomeserverOrigins(): Set<string> {
-  const origins = new Set<string>();
-  if (typeof localStorage === 'undefined') return origins;
+// Matrix media endpoints the stored token may be attached to. Mirrors the
+// service worker's `validMediaRequest()` gate in src/sw.ts: legacy media
+// (`/_matrix/media/{r0,v3}/...`) plus authenticated media (`/_matrix/client/v1/media/...`).
+const MEDIA_PATH_PREFIXES = ['/_matrix/media/', '/_matrix/client/v1/media/'];
 
-  const addOrigin = (baseUrl: string | null | undefined): void => {
-    if (!baseUrl) return;
+function isMatrixMediaPath(pathname: string): boolean {
+  return MEDIA_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/**
+ * Resolve the stored access token to attach to an implicitly-authenticated
+ * media request, or `undefined` if none should be sent.
+ *
+ * The stored Matrix token must never leak to an arbitrary, room-controlled URL
+ * (e.g. an avatar or external icon). Mirroring the service worker's
+ * `validMediaRequest()` gate, the token is attached only when the request both
+ * targets a homeserver this client is signed in to AND hits a Matrix media
+ * endpoint. The token of the session whose `baseUrl` matches the request is
+ * returned — never another session's — so one homeserver can never receive a
+ * different homeserver's bearer token.
+ */
+function resolveStoredTokenForUrl(url: string): string | undefined {
+  if (typeof localStorage === 'undefined') return undefined;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return undefined;
+  }
+
+  if (!isMatrixMediaPath(parsed.pathname)) return undefined;
+
+  const matchesRequestOrigin = (baseUrl: string | null | undefined): boolean => {
+    if (!baseUrl) return false;
     try {
-      origins.add(new URL(baseUrl).origin);
+      return new URL(baseUrl).origin === parsed.origin;
     } catch {
-      // Ignore malformed base URLs.
+      return false;
     }
   };
 
   for (const session of parseStoredSessions()) {
-    addOrigin(session.baseUrl);
-  }
-  addOrigin(localStorage.getItem(FALLBACK_BASE_URL_KEY));
-
-  return origins;
-}
-
-/**
- * Whether `url` points at a homeserver this client is signed in to. Used to
- * decide if the implicitly-resolved stored token may be attached.
- */
-function isTrustedHomeserverUrl(url: string): boolean {
-  let origin: string;
-  try {
-    origin = new URL(url).origin;
-  } catch {
-    return false;
+    if (session.accessToken && matchesRequestOrigin(session.baseUrl)) {
+      return session.accessToken;
+    }
   }
 
-  return getTrustedHomeserverOrigins().has(origin);
+  const fallbackBaseUrl = localStorage.getItem(FALLBACK_BASE_URL_KEY);
+  const fallbackUserId = localStorage.getItem(FALLBACK_USER_ID_KEY);
+  const fallbackAccessToken = localStorage.getItem(FALLBACK_ACCESS_TOKEN_KEY);
+  if (fallbackAccessToken && fallbackUserId && matchesRequestOrigin(fallbackBaseUrl)) {
+    return fallbackAccessToken;
+  }
+
+  return undefined;
 }
 
 function resolveAccessToken(url: string, options?: MediaTransportOptions): string | undefined {
@@ -195,12 +189,7 @@ function resolveAccessToken(url: string, options?: MediaTransportOptions): strin
     return options.accessToken ?? undefined;
   }
 
-  // The implicitly-resolved stored token must never leak to an arbitrary media
-  // URL (e.g. a room-controlled avatar or external icon). Only attach it when
-  // the request targets a homeserver this client is actually signed in to.
-  if (!isTrustedHomeserverUrl(url)) return undefined;
-
-  return getStoredAccessToken();
+  return resolveStoredTokenForUrl(url);
 }
 
 function resolveSessionScope(options?: MediaTransportOptions): string {

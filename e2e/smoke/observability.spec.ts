@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { installSmokeApp, seedSentryPreference, seedSettings, seedStoredSession } from './smokeApp';
 
@@ -28,12 +28,12 @@ const stubToolbar = async (page: Page) => {
   });
 };
 
-const captureSnapshot = async (page: Page, name: string) => {
+const captureSnapshot = async (page: Page, name: string, mask?: Locator[]) => {
   if (!snapshotOutputDir) return;
 
   const outputPath = path.join(snapshotOutputDir, `${name}.png`);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await page.screenshot({ path: outputPath, fullPage: true });
+  await page.screenshot({ path: outputPath, fullPage: true, mask });
 };
 
 test.describe('observability real-route smoke', () => {
@@ -51,7 +51,10 @@ test.describe('observability real-route smoke', () => {
     await expect(page.getByRole('link', { name: 'Source Code' })).toBeVisible();
     await expect(page.getByRole('region', { name: /crash reporting prompt/i })).toBeVisible();
     await page.waitForTimeout(900);
-    await captureSnapshot(page, 'real-routes/home-telemetry-consent-banner');
+    // Mask the version/build-hash link — it changes every commit and would fail snapshot diffing.
+    await captureSnapshot(page, 'real-routes/home-telemetry-consent-banner', [
+      page.locator('a[href="https://github.com/CloudHub-Social/Charm"]').filter({ hasText: /^v/ }),
+    ]);
 
     await page.getByRole('button', { name: /no thanks/i }).click();
 

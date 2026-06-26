@@ -322,6 +322,9 @@ export const MessageTextBody = recipe({
       },
     },
     notice: {
+      false: {
+        opacity: config.opacity.P400,
+      },
       true: {
         opacity: config.opacity.P300,
       },

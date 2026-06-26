@@ -39,31 +39,37 @@ describe('room view spacing contract', () => {
     expect(roomTimeline).toContain('paddingRight: timelineRightSpacing');
   });
 
-  it('keeps message spacing distinct from the fixed message row padding', () => {
+  it('lets message spacing zero collapse vertical padding on message rows', () => {
     const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
     const baseLayout = readWorkspaceFile('src/app/components/message/layout/Base.tsx');
     const message = readWorkspaceFile('src/app/features/room/message/Message.tsx');
 
     expect(messageLayout).toContain('marginTop: SpacingVar');
+    expect(messageLayout).toContain('contentSpacing: ContentSpacingVariant');
+    expect(messageLayout).toContain('paddingTop: config.space.S0');
+    expect(messageLayout).toContain('paddingBottom: config.space.S0');
     expect(messageLayout).toContain(
       'padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`'
     );
-    expect(baseLayout).toContain('mobile,');
-    expect(message).not.toContain('contentSpacing={messageSpacing}');
+    expect(baseLayout).toContain('contentSpacing,');
+    expect(message).toContain('contentSpacing={messageSpacing}');
   });
 
   it('keeps message layout aligned with the current Sable contract', () => {
     const baseLayout = readWorkspaceFile('src/app/components/message/layout/Base.tsx');
     const messageLayout = readWorkspaceFile('src/app/components/message/layout/layout.css.ts');
 
-    expect(baseLayout).toContain('<Text');
-    expect(baseLayout).toContain('size="T400"');
-    expect(baseLayout).toContain("priority={notice ? '300' : '400'}");
-    expect(messageLayout).toContain('DefaultReset,');
-    expect(messageLayout).toContain("flexGrow: '1'");
-    expect(messageLayout).toContain("width: '100'");
-    expect(messageLayout).toContain('minWidth: toRem(36)');
-    expect(messageLayout).not.toContain("alignSelf: 'stretch'");
-    expect(messageLayout).not.toContain('flexBasis: toRem(36)');
+    expect(baseLayout).not.toContain('<Text');
+    expect(baseLayout).not.toContain('size="T400"');
+    expect(baseLayout).not.toContain("priority={notice ? '300' : '400'}");
+    expect(messageLayout).toContain("width: '100%'");
+    expect(messageLayout).toContain("alignSelf: 'stretch'");
+    expect(messageLayout).toContain('width: toRem(36)');
+    expect(messageLayout).toContain('flexBasis: toRem(36)');
+    expect(messageLayout).not.toContain('DefaultReset,\n    {');
+    expect(messageLayout).not.toContain('export const ModernRow = style({');
+    expect(messageLayout).not.toContain('export const ModernContent = style({');
+    expect(messageLayout).not.toContain('export const BubbleRow = style({');
+    expect(messageLayout).not.toContain('export const BubbleMain = style({');
   });
 });

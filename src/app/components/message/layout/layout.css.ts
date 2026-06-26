@@ -10,6 +10,9 @@ export const StickySection = style({
 
 const SpacingVar = createVar();
 const ContentSpacingVar = createVar();
+const withVarFallback = (cssVar: string, fallback: string): string =>
+  `var(${cssVar.slice(4, -1)}, ${fallback})`;
+
 const SpacingVariant = styleVariants({
   '0': {
     vars: {
@@ -49,11 +52,31 @@ const ContentSpacingVariant = styleVariants({
       [ContentSpacingVar]: config.space.S0,
     },
   },
-  '100': {},
-  '200': {},
-  '300': {},
-  '400': {},
-  '500': {},
+  '100': {
+    vars: {
+      [ContentSpacingVar]: config.space.S100,
+    },
+  },
+  '200': {
+    vars: {
+      [ContentSpacingVar]: config.space.S200,
+    },
+  },
+  '300': {
+    vars: {
+      [ContentSpacingVar]: config.space.S300,
+    },
+  },
+  '400': {
+    vars: {
+      [ContentSpacingVar]: config.space.S400,
+    },
+  },
+  '500': {
+    vars: {
+      [ContentSpacingVar]: config.space.S500,
+    },
+  },
 });
 
 const highlightAnime = keyframes({
@@ -116,9 +139,9 @@ const AutoCollapse = style({
 export const MessageBase = recipe({
   base: {
     marginTop: SpacingVar,
-    paddingTop: `var(${ContentSpacingVar}, ${config.space.S100})`,
+    paddingTop: withVarFallback(ContentSpacingVar, config.space.S100),
     paddingRight: config.space.S200,
-    paddingBottom: `var(${ContentSpacingVar}, ${config.space.S100})`,
+    paddingBottom: withVarFallback(ContentSpacingVar, config.space.S100),
     paddingLeft: config.space.S400,
     borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
     minHeight: toRem(16),

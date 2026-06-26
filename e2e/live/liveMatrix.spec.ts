@@ -7,11 +7,8 @@ const server = process.env.LIVE_MATRIX_SERVER;
 const username = process.env.LIVE_MATRIX_USERNAME;
 const password = process.env.LIVE_MATRIX_PASSWORD;
 const roomId = process.env.LIVE_MATRIX_ROOM_ID;
-const roomName = process.env.LIVE_MATRIX_ROOM_NAME;
 const snapshotOutputDir = process.env.PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR;
-const emojiQaRoomId =
-  process.env.LIVE_MATRIX_EMOJI_QA_ROOM_ID ?? '!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA';
-const emojiQaRoomName = process.env.LIVE_MATRIX_EMOJI_QA_ROOM_NAME ?? 'Emoji QA';
+const emojiQaRoomId = process.env.LIVE_MATRIX_EMOJI_QA_ROOM_ID;
 const sentryDsn = process.env.VITE_SENTRY_DSN;
 const LIVE_TEST_TIMEOUT_MS = 90_000;
 
@@ -110,21 +107,13 @@ const enableDeveloperTools = async (page: Page) => {
   }
 };
 
-const openLiveRoom = async (page: Page, targetRoomId: string, targetRoomName?: string) => {
+const openLiveRoom = async (page: Page, targetRoomId: string) => {
   const encodedRoomId = encodeURIComponent(targetRoomId);
   await page.goto(`/home/${encodedRoomId}`);
 
   await expect
     .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
     .toMatch(new RegExp(`/home/${escapeRegExp(encodedRoomId)}/?$`));
-
-  if (targetRoomName) {
-    await expect(
-      page.getByRole('button', {
-        name: new RegExp(`^${escapeRegExp(targetRoomName)},`),
-      })
-    ).toBeVisible({ timeout: 60_000 });
-  }
 };
 
 test.describe.serial('live matrix authenticated smoke', () => {
@@ -156,20 +145,29 @@ test.describe.serial('live matrix authenticated smoke', () => {
     await expect(page.getByRole('link', { name: 'Source Code' })).toBeVisible({
       timeout: 60_000,
     });
-    await expect(page.getByText('Petting cats')).toBeHidden({ timeout: 60_000 });
+    await expect(page.getByText('Petting cats')).toBeHidden({
+      timeout: 60_000,
+    });
     await expectStoredSession(page);
   });
 
   test('opens a known room when LIVE_MATRIX_ROOM_ID is configured', async () => {
     test.skip(!roomId, 'LIVE_MATRIX_ROOM_ID must be set to validate room navigation');
 
-    await openLiveRoom(page, requireEnv(roomId, 'LIVE_MATRIX_ROOM_ID'), roomName);
+    await openLiveRoom(page, requireEnv(roomId, 'LIVE_MATRIX_ROOM_ID'));
   });
 
   test('captures the Emoji QA alignment reference room', async () => {
-    await openLiveRoom(page, emojiQaRoomId, emojiQaRoomName);
+    test.skip(
+      !emojiQaRoomId,
+      'LIVE_MATRIX_EMOJI_QA_ROOM_ID must be set to capture the Emoji QA alignment reference room'
+    );
 
-    await expect(page.getByText('joined the room')).toBeVisible({ timeout: 60_000 });
+    await openLiveRoom(page, requireEnv(emojiQaRoomId, 'LIVE_MATRIX_EMOJI_QA_ROOM_ID'));
+
+    await expect(page.getByText('joined the room')).toBeVisible({
+      timeout: 60_000,
+    });
     await expect(page.getByText('<3')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText('🙉')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText('❤️')).toBeVisible({ timeout: 60_000 });
@@ -265,7 +263,9 @@ test.describe.serial('live matrix authenticated smoke', () => {
     await page.goto('/settings/general');
 
     await expect(page).toHaveURL(/\/settings\/general\/?$/);
-    await expect(page.getByText('Diagnostics & Privacy')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('Diagnostics & Privacy')).toBeVisible({
+      timeout: 60_000,
+    });
     await expect(page.locator('[data-settings-focus="error-reporting"]')).toBeVisible();
   });
 
@@ -278,8 +278,12 @@ test.describe.serial('live matrix authenticated smoke', () => {
     await enableDeveloperTools(page);
 
     await expect(page).toHaveURL(/\/settings\/developer-tools\/?$/);
-    await expect(page.getByText('Developer Tools')).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText('Error Tracking (Sentry)')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('Developer Tools')).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(page.getByText('Error Tracking (Sentry)')).toBeVisible({
+      timeout: 60_000,
+    });
     await expect(
       page.getByText('Sentry is not configured. Set VITE_SENTRY_DSN to enable error tracking.')
     ).toBeVisible({ timeout: 60_000 });

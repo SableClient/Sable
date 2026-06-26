@@ -5,33 +5,33 @@ on:
     branches:
       - integration
     paths:
-      - 'src/**'
-      - 'public/**'
-      - 'index.html'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'playwright.config.ts'
-      - 'e2e/**'
-      - '.github/workflows/sentry-snapshots.yml'
-      - '.github/actions/setup/**'
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "playwright.config.ts"
+      - "e2e/**"
+      - ".github/workflows/sentry-snapshots.yml"
+      - ".github/actions/setup/**"
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Reason for manual run (e.g. seed base snapshot)'
+        description: "Reason for manual run (e.g. seed base snapshot)"
         required: false
-        default: 'manual base snapshot seed'
+        default: "manual base snapshot seed"
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - 'src/**'
-      - 'public/**'
-      - 'index.html'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'playwright.config.ts'
-      - 'e2e/**'
-      - '.github/workflows/sentry-snapshots.yml'
-      - '.github/actions/setup/**'
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "playwright.config.ts"
+      - "e2e/**"
+      - ".github/workflows/sentry-snapshots.yml"
+      - ".github/actions/setup/**"
 
 concurrency:
   group: sentry-snapshots-${{ github.event.pull_request.number || github.ref }}
@@ -50,13 +50,13 @@ jobs:
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       VITE_SENTRY_ENVIRONMENT: preview
       VITE_SENTRY_PR: ${{ github.event.pull_request.number }}
-      VITE_SENTRY_TOOLBAR: 'true'
+      VITE_SENTRY_TOOLBAR: "true"
       VITE_SENTRY_ORGANIZATION: ${{ secrets.SENTRY_ORG }}
       VITE_SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
       SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-      LIVE_MATRIX_REFERENCE_SNAPSHOTS_ENABLED: ${{ secrets.LIVE_MATRIX_SERVER != '' && secrets.LIVE_MATRIX_USERNAME != '' && secrets.LIVE_MATRIX_PASSWORD != '' }}
+      LIVE_MATRIX_REFERENCE_SNAPSHOTS_ENABLED: ${{ secrets.LIVE_MATRIX_SERVER != '' && secrets.LIVE_MATRIX_USERNAME != '' && secrets.LIVE_MATRIX_PASSWORD != '' && secrets.LIVE_MATRIX_RECOVERY_KEY != '' }}
       PLAYWRIGHT_TRACE: off
     steps:
       - name: Checkout repository
@@ -96,9 +96,10 @@ jobs:
           LIVE_MATRIX_SERVER: ${{ secrets.LIVE_MATRIX_SERVER }}
           LIVE_MATRIX_USERNAME: ${{ secrets.LIVE_MATRIX_USERNAME }}
           LIVE_MATRIX_PASSWORD: ${{ secrets.LIVE_MATRIX_PASSWORD }}
-          LIVE_MATRIX_ROOM_ID: '!mxyMeeQ8S0qXUqcCkgBei4cnb4grSEwIaK1sQxzAvpM'
+          LIVE_MATRIX_RECOVERY_KEY: ${{ secrets.LIVE_MATRIX_RECOVERY_KEY }}
+          LIVE_MATRIX_ROOM_ID: "!mxyMeeQ8S0qXUqcCkgBei4cnb4grSEwIaK1sQxzAvpM"
           LIVE_MATRIX_ROOM_NAME: Test
-          LIVE_MATRIX_EMOJI_QA_ROOM_PATH_SEGMENT: '!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA'
+          LIVE_MATRIX_EMOJI_QA_ROOM_PATH_SEGMENT: "!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA"
           LIVE_MATRIX_EMOJI_QA_ROOM_NAME: Emoji QA
         run: pnpm exec playwright test e2e/live/liveMatrix.spec.ts --project chromium --workers 1
 

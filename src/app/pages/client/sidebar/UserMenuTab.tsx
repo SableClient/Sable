@@ -2,7 +2,6 @@ import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { RectCords } from 'folds';
 import {
-  Badge,
   Box,
   Button,
   Chip,

@@ -8,6 +8,9 @@ export const useRoomMembers = (mx: MatrixClient, roomId: string): RoomMember[] =
   const loadInitiatedRef = useRef(false);
 
   useEffect(() => {
+    // Reset on every room change so navigating to a new room always triggers a load.
+    loadInitiatedRef.current = false;
+
     const room = mx.getRoom(roomId);
     let loadingMembers = true;
     let disposed = false;
@@ -21,12 +24,12 @@ export const useRoomMembers = (mx: MatrixClient, roomId: string): RoomMember[] =
     if (room) {
       setMembers(room.getMembers());
 
-      // Only load members if we haven't already loaded them for this room.
-      // Uses shared concurrency-limited loader to prevent N+1 API calls (CHARM-1C).
+      // Foreground load bypasses the background concurrency queue so sidebar
+      // preloads cannot delay the active room's member list or autocomplete.
       const alreadyLoaded = isRoomMembersLoaded(roomId);
       if (!alreadyLoaded && !loadInitiatedRef.current) {
         loadInitiatedRef.current = true;
-        loadRoomMembersOnce(room)
+        loadRoomMembersOnce(room, { foreground: true })
           .then(() => {
             loadingMembers = false;
             if (disposed) return;

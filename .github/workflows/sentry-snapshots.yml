@@ -98,7 +98,7 @@ jobs:
           LIVE_MATRIX_PASSWORD: ${{ secrets.LIVE_MATRIX_PASSWORD }}
           LIVE_MATRIX_ROOM_ID: '!mxyMeeQ8S0qXUqcCkgBei4cnb4grSEwIaK1sQxzAvpM'
           LIVE_MATRIX_ROOM_NAME: Test
-          LIVE_MATRIX_EMOJI_QA_ROOM_ID: '!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA'
+          LIVE_MATRIX_EMOJI_QA_ROOM_PATH_SEGMENT: '!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA'
           LIVE_MATRIX_EMOJI_QA_ROOM_NAME: Emoji QA
         run: pnpm exec playwright test e2e/live/liveMatrix.spec.ts --project chromium --workers 1
 

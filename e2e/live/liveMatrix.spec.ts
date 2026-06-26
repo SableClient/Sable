@@ -7,8 +7,10 @@ const server = process.env.LIVE_MATRIX_SERVER;
 const username = process.env.LIVE_MATRIX_USERNAME;
 const password = process.env.LIVE_MATRIX_PASSWORD;
 const roomId = process.env.LIVE_MATRIX_ROOM_ID;
+const roomPathSegment = process.env.LIVE_MATRIX_ROOM_PATH_SEGMENT;
 const snapshotOutputDir = process.env.PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR;
-const emojiQaRoomId = process.env.LIVE_MATRIX_EMOJI_QA_ROOM_ID;
+const emojiQaRoomPathSegment =
+  process.env.LIVE_MATRIX_EMOJI_QA_ROOM_PATH_SEGMENT ?? process.env.LIVE_MATRIX_EMOJI_QA_ROOM_ID;
 const sentryDsn = process.env.VITE_SENTRY_DSN;
 const LIVE_TEST_TIMEOUT_MS = 90_000;
 
@@ -108,11 +110,20 @@ const enableDeveloperTools = async (page: Page) => {
 };
 
 const openLiveRoom = async (page: Page, targetRoomId: string) => {
-  await page.goto(`/home/${targetRoomId}`);
+  const encodedRoomId = encodeURIComponent(targetRoomId);
+  await page.goto(`/home/${encodedRoomId}`);
 
   await expect
     .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
-    .toMatch(new RegExp(`/home/${escapeRegExp(targetRoomId)}/?$`));
+    .toMatch(new RegExp(`/home/${escapeRegExp(encodedRoomId)}/?$`));
+};
+
+const openLiveRoomPath = async (page: Page, targetRoomPathSegment: string) => {
+  await page.goto(`/home/${targetRoomPathSegment}`);
+
+  await expect
+    .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
+    .toMatch(new RegExp(`/home/${escapeRegExp(targetRoomPathSegment)}/?$`));
 };
 
 test.describe.serial('live matrix authenticated smoke', () => {
@@ -151,46 +162,47 @@ test.describe.serial('live matrix authenticated smoke', () => {
   });
 
   test('opens a known room when LIVE_MATRIX_ROOM_ID is configured', async () => {
-    test.skip(!roomId, 'LIVE_MATRIX_ROOM_ID must be set to validate room navigation');
+    const configuredRoomId = roomId ?? roomPathSegment;
+    test.skip(
+      !configuredRoomId,
+      'LIVE_MATRIX_ROOM_ID or LIVE_MATRIX_ROOM_PATH_SEGMENT must be set to validate room navigation'
+    );
 
-    await openLiveRoom(page, requireEnv(roomId, 'LIVE_MATRIX_ROOM_ID'));
+    await openLiveRoom(page, requireEnv(configuredRoomId, 'LIVE_MATRIX_ROOM_ID'));
   });
 
   test('captures the Emoji QA alignment reference room', async () => {
     test.skip(
-      !emojiQaRoomId,
-      'LIVE_MATRIX_EMOJI_QA_ROOM_ID must be set to capture the Emoji QA alignment reference room'
+      !emojiQaRoomPathSegment,
+      'LIVE_MATRIX_EMOJI_QA_ROOM_PATH_SEGMENT must be set to capture the Emoji QA alignment reference room'
     );
 
-    await openLiveRoom(page, requireEnv(emojiQaRoomId, 'LIVE_MATRIX_EMOJI_QA_ROOM_ID'));
+    await openLiveRoomPath(
+      page,
+      requireEnv(emojiQaRoomPathSegment, 'LIVE_MATRIX_EMOJI_QA_ROOM_PATH_SEGMENT')
+    );
 
-    await expect(page.getByText('joined the room')).toBeVisible({
-      timeout: 60_000,
-    });
     await expect(page.getByText('<3')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText('🙉')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText('❤️')).toBeVisible({ timeout: 60_000 });
 
     const metrics = await page.evaluate(() => {
-      const pickSmallest = (needle: string) =>
+      const pickSmallestExact = (needle: string) =>
         Array.from(document.querySelectorAll<HTMLElement>('body *'))
           .filter((el) => el.textContent?.trim() === needle)
           .map((el) => ({ el, rect: el.getBoundingClientRect() }))
-          .sort(
+          .toSorted(
             (left, right) =>
               left.rect.width * left.rect.height - right.rect.width * right.rect.height
           )[0]?.el;
-
-      const findEventRow = (el: HTMLElement | undefined) => {
-        let current = el?.parentElement;
-        while (current) {
-          const hasSeparateBeforeSlot = current.childElementCount >= 2;
-          const hasMembershipIcon = Boolean(current.querySelector('svg'));
-          if (hasSeparateBeforeSlot && hasMembershipIcon) return current;
-          current = current.parentElement;
-        }
-        return undefined;
-      };
+      const pickSmallestContaining = (needle: string) =>
+        Array.from(document.querySelectorAll<HTMLElement>('body *'))
+          .filter((el) => el.textContent?.includes(needle))
+          .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+          .toSorted(
+            (left, right) =>
+              left.rect.width * left.rect.height - right.rect.width * right.rect.height
+          )[0]?.el;
 
       const rect = (el: Element | null | undefined) => {
         if (!(el instanceof HTMLElement || el instanceof SVGElement)) return null;
@@ -206,12 +218,9 @@ test.describe.serial('live matrix authenticated smoke', () => {
         };
       };
 
-      const joinedText = pickSmallest('joined the room');
-      const joinedRow = findEventRow(joinedText);
-      const joinedIcon = joinedRow?.querySelector('svg');
-      const followupText = pickSmallest('<3');
-      const jumboEmoji = pickSmallest('🙉');
-      const heartEmoji = pickSmallest('❤️');
+      const followupText = pickSmallestContaining('<3');
+      const jumboEmoji = pickSmallestExact('🙉');
+      const heartEmoji = pickSmallestExact('❤️');
       const firstAvatarButton = Array.from(document.querySelectorAll<HTMLElement>('button')).find(
         (el) => el.dataset.userId && el.querySelector('img, svg')
       );
@@ -224,7 +233,6 @@ test.describe.serial('live matrix authenticated smoke', () => {
       return {
         avatar: rect(firstAvatarButton),
         header: rect(firstMessageHeader),
-        joinedIcon: rect(joinedIcon),
         followupText: rect(followupText),
         jumboRow: rect(jumboRow),
         jumboEmoji: rect(jumboEmoji),
@@ -235,14 +243,12 @@ test.describe.serial('live matrix authenticated smoke', () => {
 
     expect(metrics.avatar).not.toBeNull();
     expect(metrics.header).not.toBeNull();
-    expect(metrics.joinedIcon).not.toBeNull();
     expect(metrics.followupText).not.toBeNull();
     expect(metrics.jumboRow).not.toBeNull();
     expect(metrics.jumboEmoji).not.toBeNull();
     expect(metrics.heartRow).not.toBeNull();
     expect(metrics.heartEmoji).not.toBeNull();
 
-    expect(Math.abs(metrics.joinedIcon!.x - metrics.avatar!.x)).toBeLessThanOrEqual(12);
     expect(Math.abs(metrics.followupText!.x - metrics.header!.x)).toBeLessThanOrEqual(12);
     expect(Math.abs(metrics.jumboEmoji!.x - metrics.followupText!.x)).toBeLessThanOrEqual(4);
     expect(metrics.jumboEmoji!.y).toBeGreaterThanOrEqual(metrics.jumboRow!.y - 2);

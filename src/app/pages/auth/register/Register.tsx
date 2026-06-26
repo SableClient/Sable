@@ -31,12 +31,17 @@ export function Register() {
   const [searchParams] = useSearchParams();
   const registerSearchParams = useRegisterSearchParams(searchParams);
   const { sso } = useParsedLoginFlows(loginFlows.flows);
+  const isAddingAccount = searchParams.get('addAccount') === '1';
 
   // redirect to /login because only that path handle m.login.token
-  const webSsoRedirectUrl = usePathWithOrigin(getLoginPath(server));
-  const ssoRedirectUrl = isTauri() ? buildTauriSsoRedirectUrl(server) : webSsoRedirectUrl;
-
-  const isAddingAccount = searchParams.get('addAccount') === '1';
+  const webSsoRedirectUrl = usePathWithOrigin(
+    isAddingAccount
+      ? withSearchParam(getLoginPath(server), { addAccount: '1' })
+      : getLoginPath(server)
+  );
+  const ssoRedirectUrl = isTauri()
+    ? buildTauriSsoRedirectUrl(server, { addAccount: isAddingAccount })
+    : webSsoRedirectUrl;
   const loginUrl = isAddingAccount
     ? withSearchParam(getLoginPath(server), { addAccount: '1' })
     : getLoginPath(server);

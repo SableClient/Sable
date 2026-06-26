@@ -73,6 +73,9 @@ if (dsn && sentryEnabled) {
     tracesSampleRate: environment === 'development' || environment === 'preview' ? 1.0 : 0.5,
 
     // Browser profiling — profiles every sampled session (requires Document-Policy: js-profiling response header)
+    // 'trace' ties the profiling lifecycle to traces automatically; without this it defaults to
+    // 'manual' when profilesSampleRate is absent, and profiling never starts.
+    profileLifecycle: 'trace',
     profileSessionSampleRate:
       environment === 'development' || environment === 'preview' ? 1.0 : 0.5,
 

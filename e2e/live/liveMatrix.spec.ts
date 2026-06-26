@@ -183,8 +183,10 @@ test.describe.serial('live matrix authenticated smoke', () => {
     );
 
     await expect(page.getByText('<3')).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText('🙉')).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText('❤️')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('multi-line message test')).toBeVisible({
+      timeout: 60_000,
+    });
 
     const metrics = await page.evaluate(() => {
       const pickSmallestExact = (needle: string) =>
@@ -219,7 +221,7 @@ test.describe.serial('live matrix authenticated smoke', () => {
       };
 
       const followupText = pickSmallestContaining('<3');
-      const jumboEmoji = pickSmallestExact('🙉');
+      const multilineText = pickSmallestContaining('multi-line message test');
       const heartEmoji = pickSmallestExact('❤️');
       const firstAvatarButton = Array.from(document.querySelectorAll<HTMLElement>('button')).find(
         (el) => el.dataset.userId && el.querySelector('img, svg')
@@ -227,15 +229,15 @@ test.describe.serial('live matrix authenticated smoke', () => {
       const firstMessageHeader = Array.from(document.querySelectorAll<HTMLElement>('button')).find(
         (el) => el.dataset.userId && /test/i.test(el.textContent ?? '')
       );
-      const jumboRow = jumboEmoji?.closest('div');
+      const multilineRow = multilineText?.closest('div');
       const heartRow = heartEmoji?.closest('div');
 
       return {
         avatar: rect(firstAvatarButton),
         header: rect(firstMessageHeader),
         followupText: rect(followupText),
-        jumboRow: rect(jumboRow),
-        jumboEmoji: rect(jumboEmoji),
+        multilineRow: rect(multilineRow),
+        multilineText: rect(multilineText),
         heartRow: rect(heartRow),
         heartEmoji: rect(heartEmoji),
       };
@@ -244,15 +246,15 @@ test.describe.serial('live matrix authenticated smoke', () => {
     expect(metrics.avatar).not.toBeNull();
     expect(metrics.header).not.toBeNull();
     expect(metrics.followupText).not.toBeNull();
-    expect(metrics.jumboRow).not.toBeNull();
-    expect(metrics.jumboEmoji).not.toBeNull();
+    expect(metrics.multilineRow).not.toBeNull();
+    expect(metrics.multilineText).not.toBeNull();
     expect(metrics.heartRow).not.toBeNull();
     expect(metrics.heartEmoji).not.toBeNull();
 
     expect(Math.abs(metrics.followupText!.x - metrics.header!.x)).toBeLessThanOrEqual(12);
-    expect(Math.abs(metrics.jumboEmoji!.x - metrics.followupText!.x)).toBeLessThanOrEqual(4);
-    expect(metrics.jumboEmoji!.y).toBeGreaterThanOrEqual(metrics.jumboRow!.y - 2);
-    expect(metrics.jumboEmoji!.bottom).toBeLessThanOrEqual(metrics.jumboRow!.bottom + 2);
+    expect(Math.abs(metrics.multilineText!.x - metrics.followupText!.x)).toBeLessThanOrEqual(4);
+    expect(metrics.multilineText!.y).toBeGreaterThanOrEqual(metrics.multilineRow!.y - 2);
+    expect(metrics.multilineText!.bottom).toBeLessThanOrEqual(metrics.multilineRow!.bottom + 2);
     expect(metrics.heartEmoji!.y).toBeGreaterThanOrEqual(metrics.heartRow!.y - 2);
     expect(metrics.heartEmoji!.bottom).toBeLessThanOrEqual(metrics.heartRow!.bottom + 2);
 

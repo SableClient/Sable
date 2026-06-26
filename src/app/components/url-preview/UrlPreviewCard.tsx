@@ -26,17 +26,16 @@ const linkStyles = { color: color.Success.Main };
 // Module-level in-flight deduplication: prevents N+1 concurrent requests when a
 // large event batch renders many UrlPreviewCard instances for the same URL.
 // Scoped by MatrixClient to avoid cross-account dedup if multiple clients exist.
-// Inner cache keyed by URL only (not ts) â€ Ethe same URL shows the same preview
-// regardless of which message referenced it. Promises are evicted after settling
+// Keyed by `${url}:${ts}` — promises are evicted after settling
 // so a later render can retry after network recovery.
 const previewRequestCache = new WeakMap<MatrixClient, Map<string, Promise<IPreviewUrlResponse>>>();
 
-// Settled-result cache: stores resolved preview data (no expiry) and suppresses
-// error responses for 60 s to prevent hammering a failing preview endpoint (e.g.
-// homeserver returning 502). Eliminates redundant requests when the same URL
-// appears in multiple messages or a component re-mounts.
-type PreviewResultEntry = { data: IPreviewUrlResponse | null; expiry?: number };
-const previewResultCache = new WeakMap<MatrixClient, Map<string, PreviewResultEntry>>();
+// Settled-result cache keyed by `${url}:${ts}`: honours the Matrix spec requirement
+// that `ts` selects the point-in-time snapshot of a URL's Open Graph metadata.
+// Successful entries are stored indefinitely for the session; error entries expire
+// after 60 s to suppress retry storms without masking recovery.
+type SettledEntry = { ok: true; data: IPreviewUrlResponse } | { ok: false; expiry: number };
+const previewResultCache = new WeakMap<MatrixClient, Map<string, SettledEntry>>();
 
 const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlResponse>> => {
   let clientCache = previewRequestCache.get(mx);
@@ -47,7 +46,7 @@ const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlRespon
   return clientCache;
 };
 
-const getResultCache = (mx: MatrixClient): Map<string, PreviewResultEntry> => {
+const getResultCache = (mx: MatrixClient): Map<string, SettledEntry> => {
   let resultCache = previewResultCache.get(mx);
   if (!resultCache) {
     resultCache = new Map();
@@ -160,32 +159,38 @@ export const UrlPreviewCard = as<
       if (!ts && !bundle) return null;
       if (urlPreview && ts) {
         const resultCache = getResultCache(mx);
-        const settled = resultCache.get(url);
-        if (
-          settled !== undefined &&
-          (settled.expiry === undefined || settled.expiry > Date.now())
-        ) {
-          return settled.data;
+        const cacheKey = `${url}:${ts}`;
+        const settled = resultCache.get(cacheKey);
+        if (settled !== undefined) {
+          if (settled.ok) return settled.data;
+          if (settled.expiry > Date.now()) return null;
+          resultCache.delete(cacheKey);
         }
 
         const clientCache = getClientCache(mx);
-        const cached = clientCache.get(url);
-        if (cached !== undefined) return cached;
+        const cached = clientCache.get(cacheKey);
+        if (cached !== undefined) {
+          try {
+            return await cached;
+          } catch {
+            return null;
+          }
+        }
 
         try {
           const previewResult = mx?.getUrlPreview(url, ts);
           if (!previewResult) return null;
-          clientCache.set(url, previewResult);
+          clientCache.set(cacheKey, previewResult);
           const preview = await previewResult;
-          clientCache.delete(url);
-          resultCache.set(url, { data: preview });
+          clientCache.delete(cacheKey);
+          resultCache.set(cacheKey, { ok: true, data: preview });
           return preview;
         } catch {
           // Synapse returns 502/404/403 when the external URL is unreachable, forbidden,
           // or the preview service is unavailable. Suppress for 60 s to avoid hammering
           // a failing endpoint, then allow a retry after the TTL expires.
-          clientCache.delete(url);
-          resultCache.set(url, { data: null, expiry: Date.now() + 60_000 });
+          clientCache.delete(cacheKey);
+          resultCache.set(cacheKey, { ok: false, expiry: Date.now() + 60_000 });
           return null;
         }
       }

@@ -332,34 +332,68 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         },
       };
 
-      const r = await mx.search({
-        body: requestBody,
-        next_batch: nextBatch === '' ? undefined : nextBatch,
-      });
-      const serverResult = parseSearchResult(r);
+      // Apply the client-side filters the server cannot evaluate: the exact-match
+      // substring filter (for quoted terms) and the has: message-type filter.
+      // Either can drop every match on a server page.
+      const applyClientFilters = (serverResult: SearchResult): SearchResult => {
+        const exactMatchFiltered =
+          isExactMatch && serverTerm
+            ? {
+                ...serverResult,
+                groups: serverResult.groups
+                  .map((group) => ({
+                    ...group,
+                    items: group.items.filter((item) => {
+                      const body = item.event.content?.body;
+                      if (typeof body !== 'string') return false;
+                      return body.toLowerCase().includes(serverTerm.toLowerCase());
+                    }),
+                  }))
+                  .filter((group) => group.items.length > 0),
+              }
+            : serverResult;
 
-      // Filter for exact matches when quotes were used
-      const exactMatchFiltered =
-        isExactMatch && serverTerm
-          ? {
-              ...serverResult,
-              groups: serverResult.groups
-                .map((group) => ({
-                  ...group,
-                  items: group.items.filter((item) => {
-                    const body = item.event.content?.body;
-                    if (typeof body !== 'string') return false;
-                    return body.toLowerCase().includes(serverTerm.toLowerCase());
-                  }),
-                }))
-                .filter((group) => group.items.length > 0),
-            }
-          : serverResult;
-
-      const filteredServerResult = {
-        ...exactMatchFiltered,
-        groups: filterGroupsByHasType(exactMatchFiltered.groups),
+        return {
+          ...exactMatchFiltered,
+          groups: filterGroupsByHasType(exactMatchFiltered.groups),
+        };
       };
+
+      const fetchServerPage = async (batch?: string): Promise<SearchResult> =>
+        applyClientFilters(
+          parseSearchResult(
+            await mx.search({
+              body: requestBody,
+              next_batch: batch === '' ? undefined : batch,
+            })
+          )
+        );
+
+      // When a client-side filter is active it can empty an entire server page
+      // while more pages remain. Returning empty groups alongside a live
+      // nextToken makes the UI show "No results" and never page further — the
+      // search view only fetches the next page once a rendered item scrolls into
+      // view, so there is nothing to scroll past. Keep paging until a filtered
+      // result appears or the server runs out of pages; never stop on an empty
+      // page that still has a cursor. The `seenCursors` guard only breaks out if
+      // the server stops advancing (returns a repeated cursor), to avoid an
+      // infinite loop against a misbehaving homeserver.
+      //
+      // Skip the prefetch when there are local (encrypted) hits to merge below:
+      // mergeSearchGroups already yields virtual items the UI can paginate from,
+      // so prefetching would only delay those results behind a burst of requests.
+      const hasClientFilter = (isExactMatch && Boolean(serverTerm)) || Boolean(hasHasTypes);
+
+      let filteredServerResult = await fetchServerPage(nextBatch);
+      if (hasClientFilter && inMemoryGroups.length === 0) {
+        const seenCursors = new Set<string>();
+        while (filteredServerResult.groups.length === 0 && filteredServerResult.nextToken) {
+          if (seenCursors.has(filteredServerResult.nextToken)) break;
+          seenCursors.add(filteredServerResult.nextToken);
+          // eslint-disable-next-line no-await-in-loop -- pages are sequential: each fetch needs the previous next_batch
+          filteredServerResult = await fetchServerPage(filteredServerResult.nextToken);
+        }
+      }
 
       if (inMemoryGroups.length === 0) {
         return filteredServerResult;

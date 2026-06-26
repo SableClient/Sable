@@ -158,47 +158,92 @@ function BugReportModal() {
         ? { description, reproduction, 'expected-behavior': expectedBehavior, context }
         : { problem, solution, alternatives, context };
 
-    // Send to Sentry if bug report and option is enabled
-    if (sendToSentry && type === 'bug') {
+    // Send to Sentry when enabled and user opted in
+    if (sendToSentry && sentryEnabled) {
       const debugLogger = getDebugLogger();
 
-      // Attach recent logs if user opted in
-      if (includeDebugLogs) {
+      // Attach recent logs if user opted in (only meaningful for bug reports)
+      if (includeDebugLogs && type === 'bug') {
         debugLogger.attachLogsToSentry(100);
       }
 
       const version = `v${APP_VERSION}${IS_RELEASE_TAG ? '' : '-dev'}${BUILD_HASH ? ` (${BUILD_HASH})` : ''}`;
 
+      const isPwa = window.matchMedia('(display-mode: standalone)').matches;
+      const envLines = [
+        `${APP_NAME}: ${version}`,
+        `Platform: ${navigator.platform}`,
+        `Browser: ${navigator.userAgent}`,
+        `Language: ${navigator.language}`,
+        `Screen: ${screen.width}×${screen.height} @${window.devicePixelRatio}x`,
+        `Online: ${navigator.onLine}`,
+        `PWA: ${isPwa}`,
+        `URL: ${window.location.href}`,
+      ].join('\n');
+
       // Build a fully self-contained message so all fields are visible
       // directly in the Sentry issue detail without digging into sub-sections.
-      const sentryMessage = [
-        `[Bug Report] ${title.trim()}`,
-        '',
-        `Description:\n${description}`,
-        reproduction ? `\nSteps to Reproduce:\n${reproduction}` : '',
-        expectedBehavior ? `\nExpected Behavior:\n${expectedBehavior}` : '',
-        context ? `\nAdditional Context:\n${context}` : '',
-        `\nEnvironment: ${version} · ${navigator.platform}`,
-      ]
-        .filter(Boolean)
-        .join('\n');
+      const prefix = type === 'bug' ? '[Bug Report]' : '[Feature Request]';
+      const sentryMessage =
+        type === 'bug'
+          ? [
+              `${prefix} ${title.trim()}`,
+              '',
+              `Description:\n${description}`,
+              reproduction ? `\nSteps to Reproduce:\n${reproduction}` : '',
+              expectedBehavior ? `\nExpected Behavior:\n${expectedBehavior}` : '',
+              context ? `\nAdditional Context:\n${context}` : '',
+              `\nEnvironment:\n${envLines}`,
+            ]
+              .filter(Boolean)
+              .join('\n')
+          : [
+              `${prefix} ${title.trim()}`,
+              '',
+              `Problem:\n${problem}`,
+              `\nSolution:\n${solution}`,
+              alternatives ? `\nAlternatives Considered:\n${alternatives}` : '',
+              context ? `\nAdditional Context:\n${context}` : '',
+              `\nEnvironment:\n${envLines}`,
+            ]
+              .filter(Boolean)
+              .join('\n');
+
+      const extra =
+        type === 'bug'
+          ? {
+              title: title.trim(),
+              description,
+              reproduction: reproduction || '(not provided)',
+              expectedBehavior: expectedBehavior || '(not provided)',
+              context: context || '(not provided)',
+            }
+          : {
+              title: title.trim(),
+              problem,
+              solution,
+              alternatives: alternatives || '(not provided)',
+              context: context || '(not provided)',
+            };
 
       const eventId = Sentry.captureMessage(sentryMessage, {
         level: 'info',
-        // Group all user bug reports together in Sentry Issues
-        fingerprint: ['bug-report-modal'],
+        // Group all user feedback together in Sentry Issues by type
+        fingerprint: [`${type}-report-modal`],
         tags: {
           source: 'bug-report-modal',
           reportType: type,
         },
         extra: {
-          title: title.trim(),
-          description,
-          reproduction: reproduction || '(not provided)',
-          expectedBehavior: expectedBehavior || '(not provided)',
-          context: context || '(not provided)',
+          ...extra,
           userAgent: navigator.userAgent,
           platform: navigator.platform,
+          language: navigator.language,
+          screen: `${screen.width}×${screen.height}`,
+          devicePixelRatio: window.devicePixelRatio,
+          online: navigator.onLine,
+          isPwa,
+          url: window.location.href,
           version,
         },
       });
@@ -207,15 +252,14 @@ function BugReportModal() {
       if (eventId) {
         Sentry.captureFeedback({
           message: sentryMessage,
-          name: 'User Bug Report',
+          name: type === 'bug' ? 'User Bug Report' : 'User Feature Request',
           associatedEventId: eventId,
         });
       }
     }
 
-    // Feature requests always go to GitHub; bugs go to GitHub only when Sentry
-    // is unavailable or the user explicitly opts in.
-    const shouldOpenGitHub = type === 'feature' || !sentryEnabled || openOnGitHub;
+    // Open GitHub when Sentry is unavailable or the user explicitly opts in
+    const shouldOpenGitHub = !sentryEnabled || openOnGitHub;
     if (shouldOpenGitHub) {
       const url = buildGitHubUrl(type, title.trim(), fields);
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -431,10 +475,10 @@ function BugReportModal() {
                     />
                   </Box>
 
-                  {/* Sentry integration options (only for bug reports when Sentry is configured) */}
-                  {type === 'bug' && sentryEnabled && (
+                  {/* Sentry integration options (when Sentry is configured) */}
+                  {sentryEnabled && (
                     <Box direction="Column" gap="200">
-                      <Text size="L400">Error Tracking</Text>
+                      <Text size="L400">Feedback Submission</Text>
                       <Box as="label" gap="200" alignItems="Center" style={{ cursor: 'pointer' }}>
                         <Checkbox
                           variant="Primary"
@@ -442,16 +486,14 @@ function BugReportModal() {
                           onClick={() => setSendToSentry((v) => !v)}
                         />
                         <Box direction="Column" gap="100" grow="Yes">
-                          <Text size="T300">
-                            Send anonymous report to Sentry for error tracking
-                          </Text>
+                          <Text size="T300">Send anonymous report for issue tracking</Text>
                           <Text size="T200" style={{ opacity: 0.7 }}>
                             Helps developers identify and fix issues faster. No personal data is
                             sent.
                           </Text>
                         </Box>
                       </Box>
-                      {sendToSentry && (
+                      {sendToSentry && type === 'bug' && (
                         <Box
                           as="label"
                           gap="200"
@@ -504,9 +546,7 @@ function BugReportModal() {
                       onClick={handleSubmit}
                       after={chipIcon(ArrowRight)}
                     >
-                      <Text size="B400">
-                        {sentryEnabled && type === 'bug' ? 'Submit Report' : 'Open on GitHub'}
-                      </Text>
+                      <Text size="B400">{sentryEnabled ? 'Submit Report' : 'Open on GitHub'}</Text>
                     </Button>
                   </Box>
                 </Box>

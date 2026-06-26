@@ -17,7 +17,7 @@ import { produce } from 'immer';
 import { useSpace } from '$hooks/useSpace';
 import { Page, PageContent, PageContentCenter, PageHeroSection } from '$components/page';
 import type { HierarchyItem, HierarchyItemSpace } from '$hooks/useSpaceHierarchy';
-import { useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
+import { useSpaceHierarchy, useSequentialSpaceHierarchies } from '$hooks/useSpaceHierarchy';
 import { VirtualTile } from '$components/virtualizer';
 import { spaceRoomsAtom } from '$state/spaceRooms';
 import { useSetting } from '$state/hooks/settings';
@@ -298,6 +298,10 @@ export function Lobby() {
       [draggingItem, getInClosedCategories, space.roomId]
     )
   );
+
+  // Collect space room IDs for sequential pre-fetching to prevent N+1 API calls.
+  const spaceRoomIds = useMemo(() => hierarchy.map((i) => i.space.roomId), [hierarchy]);
+  const spaceHierarchies = useSequentialSpaceHierarchies(spaceRoomIds);
 
   const virtualizer = useVirtualizer({
     count: hierarchy.length,
@@ -698,6 +702,7 @@ export function Lobby() {
                               togglePinToSidebar={togglePinToSidebar}
                               onSpacesFound={handleSpacesFound}
                               onOpenRoom={handleOpenRoom}
+                              hierarchyData={spaceHierarchies.get(item.space.roomId)}
                             />
                           ) : (
                             <SpaceHierarchyNavItem

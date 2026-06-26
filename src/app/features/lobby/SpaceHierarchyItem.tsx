@@ -7,6 +7,7 @@ import type {
   HierarchyItemRoom,
   HierarchyItemSpace,
 } from '$hooks/useSpaceHierarchy';
+import type { FetchSpaceHierarchyLevelData } from '$hooks/useSpaceHierarchy';
 import { useFetchSpaceHierarchyLevel } from '$hooks/useSpaceHierarchy';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -41,6 +42,9 @@ type SpaceHierarchyItemProps = {
   togglePinToSidebar: (roomId: string) => void;
   onSpacesFound: (spaceItems: IHierarchyRoom[]) => void;
   onOpenRoom: MouseEventHandler<HTMLButtonElement>;
+  /** Pre-fetched hierarchy data from the parent. When provided the component
+   *  skips its own API call, eliminating the N+1 request pattern. */
+  hierarchyData?: FetchSpaceHierarchyLevelData;
 };
 export const SpaceHierarchyItem = forwardRef<HTMLDivElement, SpaceHierarchyItemProps>(
   (
@@ -64,12 +68,16 @@ export const SpaceHierarchyItem = forwardRef<HTMLDivElement, SpaceHierarchyItemP
       togglePinToSidebar,
       onOpenRoom,
       onSpacesFound,
+      hierarchyData,
     },
     ref
   ) => {
     const mx = useMatrixClient();
 
-    const { fetching, error, rooms } = useFetchSpaceHierarchyLevel(spaceItem.roomId, true);
+    // When hierarchyData is provided by a parent (sequential fetching), skip
+    // the independent request to avoid the N+1 API call pattern.
+    const ownFetch = useFetchSpaceHierarchyLevel(spaceItem.roomId, !hierarchyData);
+    const { fetching, error, rooms } = hierarchyData ?? ownFetch;
 
     const subspaces = useMemo(() => {
       const s: Map<string, IHierarchyRoom> = new Map();

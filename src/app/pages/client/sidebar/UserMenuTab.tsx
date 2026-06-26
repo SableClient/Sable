@@ -2,7 +2,6 @@ import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { RectCords } from 'folds';
 import {
-  Badge,
   Box,
   Button,
   Chip,
@@ -517,30 +516,6 @@ export function PresenceMenuOption() {
                   </Text>
                 </MenuItem>
               ))}
-              <Line variant="Surface" size="300" />
-              <MenuItem
-                size="300"
-                radii="300"
-                // variant={currentPresence === option.value ? 'Primary' : 'Surface'}
-                // fill={currentPresence === option.value ? 'Soft' : 'None'}
-                // aria-pressed={currentPresence === option.value}
-                disabled={savingStatus}
-                onClick={() => {
-                  // handleSelectPresence(option.value).catch(() => undefined);
-                }}
-                after={<Badge size={'400'} variant={'Primary'} fill={'Solid'} radii="Pill" />}
-              >
-                <Text
-                  size="T300"
-                  style={{
-                    flexGrow: 1,
-                    // fontWeight:
-                    // currentPresence === option.value ? config.fontWeight.W600 : undefined,
-                  }}
-                >
-                  Automatic
-                </Text>
-              </MenuItem>
             </Box>
           </Menu>
         </div>

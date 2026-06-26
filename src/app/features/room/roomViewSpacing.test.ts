@@ -48,9 +48,10 @@ describe('room view spacing contract', () => {
     expect(messageLayout).toContain('contentSpacing: ContentSpacingVariant');
     expect(messageLayout).toContain('paddingTop: config.space.S0');
     expect(messageLayout).toContain('paddingBottom: config.space.S0');
-    expect(messageLayout).toContain(
-      'padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`'
-    );
+    expect(messageLayout).toContain('paddingTop: config.space.S100');
+    expect(messageLayout).toContain('paddingRight: config.space.S200');
+    expect(messageLayout).toContain('paddingBottom: config.space.S100');
+    expect(messageLayout).toContain('paddingLeft: config.space.S400');
     expect(baseLayout).toContain('contentSpacing,');
     expect(message).toContain('contentSpacing={messageSpacing}');
   });

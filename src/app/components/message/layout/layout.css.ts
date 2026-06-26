@@ -114,7 +114,10 @@ const AutoCollapse = style({
 export const MessageBase = recipe({
   base: {
     marginTop: SpacingVar,
-    padding: `${config.space.S100} ${config.space.S200} ${config.space.S100} ${config.space.S400}`,
+    paddingTop: config.space.S100,
+    paddingRight: config.space.S200,
+    paddingBottom: config.space.S100,
+    paddingLeft: config.space.S400,
     borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
     minHeight: toRem(16),
     contain: 'layout',

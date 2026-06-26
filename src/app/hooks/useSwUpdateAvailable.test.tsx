@@ -168,10 +168,11 @@ describe('useSwUpdateAvailable', () => {
   });
 
   it('keeps the banner visible when a periodic check returns up-to-date during a transient SW state', async () => {
-    // Simulate: checkForAppUpdates confirmed an update, then a later periodic
-    // check transiently returns up-to-date (e.g. during a SW restart), while
-    // hasPendingScopedAppUpdate also briefly returns false. The banner must not
-    // flicker away.
+    // Simulate: checkForAppUpdates detects a SW update (call 1 → update-available),
+    // which triggers a hasPendingScopedAppUpdate confirmation (call 2 → true, sets
+    // the SW latch). A later periodic check transiently returns up-to-date while
+    // hasPendingScopedAppUpdate also briefly returns false (call 3+). The banner
+    // must not flicker away because the latch was already set.
     appUpdatesMocks.checkForAppUpdates
       .mockResolvedValueOnce({
         kind: 'update-available',
@@ -183,7 +184,10 @@ describe('useSwUpdateAvailable', () => {
         message: 'You are already on the latest available web app version.',
         canApply: false,
       });
-    appUpdatesMocks.hasPendingScopedAppUpdate.mockResolvedValue(false);
+    appUpdatesMocks.hasPendingScopedAppUpdate
+      .mockResolvedValueOnce(false) // mount sync (before update is detected)
+      .mockResolvedValueOnce(true) // SW confirmation after update-available (sets latch)
+      .mockResolvedValue(false); // subsequent calls: transient false-negative
 
     const { result } = renderHook(() => useSwUpdateAvailable());
 
@@ -196,8 +200,9 @@ describe('useSwUpdateAvailable', () => {
       window.dispatchEvent(new Event('focus'));
     });
 
-    // Allow async ops to settle — banner must remain true
+    // Allow async ops to settle — banner must remain true despite transient false-negative
     await act(async () => {
+      await Promise.resolve();
       await Promise.resolve();
     });
 

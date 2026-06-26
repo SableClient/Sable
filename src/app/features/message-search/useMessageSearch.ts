@@ -332,34 +332,66 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         },
       };
 
-      const r = await mx.search({
-        body: requestBody,
-        next_batch: nextBatch === '' ? undefined : nextBatch,
-      });
-      const serverResult = parseSearchResult(r);
+      // Apply the client-side filters the server cannot evaluate: the exact-match
+      // substring filter (for quoted terms) and the has: message-type filter.
+      // Either can drop every match on a server page.
+      const applyClientFilters = (serverResult: SearchResult): SearchResult => {
+        const exactMatchFiltered =
+          isExactMatch && serverTerm
+            ? {
+                ...serverResult,
+                groups: serverResult.groups
+                  .map((group) => ({
+                    ...group,
+                    items: group.items.filter((item) => {
+                      const body = item.event.content?.body;
+                      if (typeof body !== 'string') return false;
+                      return body.toLowerCase().includes(serverTerm.toLowerCase());
+                    }),
+                  }))
+                  .filter((group) => group.items.length > 0),
+              }
+            : serverResult;
 
-      // Filter for exact matches when quotes were used
-      const exactMatchFiltered =
-        isExactMatch && serverTerm
-          ? {
-              ...serverResult,
-              groups: serverResult.groups
-                .map((group) => ({
-                  ...group,
-                  items: group.items.filter((item) => {
-                    const body = item.event.content?.body;
-                    if (typeof body !== 'string') return false;
-                    return body.toLowerCase().includes(serverTerm.toLowerCase());
-                  }),
-                }))
-                .filter((group) => group.items.length > 0),
-            }
-          : serverResult;
-
-      const filteredServerResult = {
-        ...exactMatchFiltered,
-        groups: filterGroupsByHasType(exactMatchFiltered.groups),
+        return {
+          ...exactMatchFiltered,
+          groups: filterGroupsByHasType(exactMatchFiltered.groups),
+        };
       };
+
+      const fetchServerPage = async (batch?: string): Promise<SearchResult> =>
+        applyClientFilters(
+          parseSearchResult(
+            await mx.search({
+              body: requestBody,
+              next_batch: batch === '' ? undefined : batch,
+            })
+          )
+        );
+
+      // When a client-side filter is active it can empty an entire server page
+      // while more pages remain. Returning empty groups alongside a live
+      // nextToken makes the UI show "No results" and never page further — there
+      // are no virtual items to scroll past to trigger the next fetch. So keep
+      // paging until a filtered result appears or the server runs out of pages.
+      // Bounded to avoid hammering the server on large, low-hit-rate searches;
+      // the surviving nextToken lets the UI resume paging from where we stopped.
+      const hasClientFilter = (isExactMatch && Boolean(serverTerm)) || Boolean(hasHasTypes);
+      const MAX_FILTER_PAGES = 10;
+
+      let filteredServerResult = await fetchServerPage(nextBatch);
+      if (hasClientFilter) {
+        for (
+          let page = 1;
+          filteredServerResult.groups.length === 0 &&
+          filteredServerResult.nextToken &&
+          page < MAX_FILTER_PAGES;
+          page += 1
+        ) {
+          // eslint-disable-next-line no-await-in-loop -- pages are sequential: each fetch needs the previous next_batch
+          filteredServerResult = await fetchServerPage(filteredServerResult.nextToken);
+        }
+      }
 
       if (inMemoryGroups.length === 0) {
         return filteredServerResult;

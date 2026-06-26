@@ -342,9 +342,6 @@ export const MessageTextBody = recipe({
       },
     },
   },
-  defaultVariants: {
-    notice: false,
-  },
 });
 
 export type MessageTextBodyVariants = RecipeVariants<typeof MessageTextBody>;

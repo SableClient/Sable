@@ -62,7 +62,7 @@ const loginToLiveMatrix = async (page: Page) => {
 
   await page.locator('#login-username-input').fill(liveUsername);
   await page.locator('#login-password-input').fill(livePassword);
-  await page.getByRole('button', { name: 'Login' }).click();
+  await page.getByRole('button', { name: 'Login', exact: true }).click();
 
   await expect(page).toHaveURL(/\/home\/?$/, { timeout: 60_000 });
   await expectStoredSession(page);
@@ -257,7 +257,10 @@ test.describe.serial('live matrix authenticated smoke', () => {
   });
 
   test('renders diagnostics and privacy settings on the real settings route', async () => {
-    test.skip(Boolean(sentryDsn), 'Settings assertions run in the non-Sentry live smoke environment');
+    test.skip(
+      Boolean(sentryDsn),
+      'Settings assertions run in the non-Sentry live smoke environment'
+    );
 
     await page.goto('/settings/general');
 
@@ -267,7 +270,10 @@ test.describe.serial('live matrix authenticated smoke', () => {
   });
 
   test('renders the developer tools Sentry section on the real settings route', async () => {
-    test.skip(Boolean(sentryDsn), 'Settings assertions run in the non-Sentry live smoke environment');
+    test.skip(
+      Boolean(sentryDsn),
+      'Settings assertions run in the non-Sentry live smoke environment'
+    );
 
     await enableDeveloperTools(page);
 

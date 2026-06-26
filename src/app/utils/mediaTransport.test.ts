@@ -271,6 +271,41 @@ describe('fetchMediaBlob', () => {
     TEST_TIMEOUT
   );
 
+  it.each(['/_matrix/media/v3/config', '/_matrix/client/v1/media/foo', '/_matrix/media/v3/create'])(
+    'never sends the stored token to non-endpoint media-subtree path %s',
+    async (path) => {
+      const { fetchMediaBlob } = await import('./mediaTransport');
+      // On the signed-in homeserver origin and under a media subtree, but NOT one
+      // of the whitelisted download/thumbnail/preview_url endpoints.
+      const url = `https://matrix.example.org${path}`;
+      const freshBlob = new Blob(['fresh'], { type: 'image/png' });
+      const headersSeen: Array<string | null> = [];
+
+      localStorage.setItem(
+        'matrixSessions',
+        JSON.stringify([
+          {
+            baseUrl: 'https://matrix.example.org',
+            userId: '@alice:example.org',
+            deviceId: 'DEVICE',
+            accessToken: 'alice-token',
+          },
+        ])
+      );
+      localStorage.setItem('matrixActiveSession', '@alice:example.org');
+
+      vi.mocked(fetch).mockImplementation(async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        headersSeen.push(headers.get('authorization'));
+        return new Response(freshBlob, { status: 200 });
+      });
+
+      await expect(fetchMediaBlob(url)).resolves.toEqual(freshBlob);
+      expect(headersSeen).toEqual([null]);
+    },
+    TEST_TIMEOUT
+  );
+
   it(
     'sends the matching homeserver token, not the active session token, across signed-in servers',
     async () => {

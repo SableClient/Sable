@@ -120,18 +120,23 @@ export function getScopedMediaCacheKey(url: string, sessionScope?: string): stri
   return `${sessionScope ?? getCurrentMediaSessionScope()}:${url}`;
 }
 
-// Matrix media endpoints the stored token may be attached to. Mirrors the
-// `MEDIA_PATHS` whitelist behind the service worker's `validMediaRequest()`
-// gate in src/sw.ts: legacy media (`/_matrix/media/{v3,r0}/...`) plus
-// authenticated media across the v1/v3/r0 and MSC3916-unstable client APIs.
-// Keep in sync with src/sw.ts.
-const MEDIA_PATH_PREFIXES = [
-  '/_matrix/media/',
-  '/_matrix/client/v1/media/',
-  '/_matrix/client/v3/media/',
-  '/_matrix/client/r0/media/',
-  '/_matrix/client/unstable/org.matrix.msc3916/media/',
+// Matrix media endpoints the stored token may be attached to. Mirrors the exact
+// `MEDIA_PATHS` whitelist behind the service worker's `validMediaRequest()` gate
+// in src/sw.ts — only the concrete download/thumbnail/preview_url endpoints, not
+// whole media subtrees, so room-controlled routes like `/_matrix/media/v3/config`
+// don't receive the token. Keep in sync with src/sw.ts.
+const MEDIA_API_BASES = [
+  '/_matrix/media/v3',
+  '/_matrix/media/r0',
+  '/_matrix/client/v1/media',
+  '/_matrix/client/v3/media',
+  '/_matrix/client/r0/media',
+  '/_matrix/client/unstable/org.matrix.msc3916/media',
 ];
+const MEDIA_ENDPOINTS = ['download', 'thumbnail', 'preview_url'];
+const MEDIA_PATHS = MEDIA_API_BASES.flatMap((base) =>
+  MEDIA_ENDPOINTS.map((endpoint) => `${base}/${endpoint}`)
+);
 
 /**
  * Whether `requestUrl` is a Matrix media endpoint served by the homeserver at
@@ -155,7 +160,7 @@ function isMediaUrlForBase(requestUrl: URL, baseUrl: string | null | undefined):
   if (basePath && !requestUrl.pathname.startsWith(basePath)) return false;
 
   const relativePath = requestUrl.pathname.slice(basePath.length);
-  return MEDIA_PATH_PREFIXES.some((prefix) => relativePath.startsWith(prefix));
+  return MEDIA_PATHS.some((prefix) => relativePath.startsWith(prefix));
 }
 
 /**

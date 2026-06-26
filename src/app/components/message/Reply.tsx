@@ -355,7 +355,8 @@ export const Reply = as<'div', ReplyProps>(
         }
       )?.question;
       image = timelineIcon(ListBullets);
-      bodyJSX = `'s poll asking ${(question[M_TEXT.name] as string) ?? question.body ?? ''}`;
+      if (question)
+        bodyJSX = `'s poll asking ${(question[M_TEXT.name] as string) ?? question?.body ?? ''}`;
     } else if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
       if (shouldParseReplyFormattedPreview(sanitizedHtml)) {

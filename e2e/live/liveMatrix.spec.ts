@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import type { BrowserContext, Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
@@ -6,12 +8,24 @@ const username = process.env.LIVE_MATRIX_USERNAME;
 const password = process.env.LIVE_MATRIX_PASSWORD;
 const roomId = process.env.LIVE_MATRIX_ROOM_ID;
 const roomName = process.env.LIVE_MATRIX_ROOM_NAME;
+const snapshotOutputDir = process.env.PLAYWRIGHT_SNAPSHOT_OUTPUT_DIR;
+const emojiQaRoomId =
+  process.env.LIVE_MATRIX_EMOJI_QA_ROOM_ID ?? '!OUj74q04t8IrfJzG-m5YSEFn9k028-A1EgPQc0ZU3bA';
+const emojiQaRoomName = process.env.LIVE_MATRIX_EMOJI_QA_ROOM_NAME ?? 'Emoji QA';
 const LIVE_TEST_TIMEOUT_MS = 90_000;
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const requireEnv = (value: string | undefined, name: string): string => {
   if (!value) throw new Error(`${name} must be set`);
   return value;
+};
+
+const captureSnapshot = async (page: Page, name: string) => {
+  if (!snapshotOutputDir) return;
+
+  const outputPath = path.join(snapshotOutputDir, `${name}.png`);
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  await page.screenshot({ path: outputPath, fullPage: true });
 };
 
 const expectStoredSession = async (page: Page) => {
@@ -95,6 +109,23 @@ const enableDeveloperTools = async (page: Page) => {
   }
 };
 
+const openLiveRoom = async (page: Page, targetRoomId: string, targetRoomName?: string) => {
+  const encodedRoomId = encodeURIComponent(targetRoomId);
+  await page.goto(`/home/${encodedRoomId}`);
+
+  await expect
+    .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
+    .toMatch(new RegExp(`/home/${escapeRegExp(encodedRoomId)}/?$`));
+
+  if (targetRoomName) {
+    await expect(
+      page.getByRole('button', {
+        name: new RegExp(`^${escapeRegExp(targetRoomName)},`),
+      })
+    ).toBeVisible({ timeout: 60_000 });
+  }
+};
+
 test.describe.serial('live matrix authenticated smoke', () => {
   test.describe.configure({ retries: 0, timeout: LIVE_TEST_TIMEOUT_MS });
 
@@ -131,20 +162,86 @@ test.describe.serial('live matrix authenticated smoke', () => {
   test('opens a known room when LIVE_MATRIX_ROOM_ID is configured', async () => {
     test.skip(!roomId, 'LIVE_MATRIX_ROOM_ID must be set to validate room navigation');
 
-    const encodedRoomId = encodeURIComponent(requireEnv(roomId, 'LIVE_MATRIX_ROOM_ID'));
-    await page.goto(`/home/${encodedRoomId}`);
+    await openLiveRoom(page, requireEnv(roomId, 'LIVE_MATRIX_ROOM_ID'), roomName);
+  });
 
-    await expect
-      .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
-      .toMatch(new RegExp(`/home/${escapeRegExp(encodedRoomId)}/?$`));
+  test('captures the Emoji QA alignment reference room', async () => {
+    await openLiveRoom(page, emojiQaRoomId, emojiQaRoomName);
 
-    if (roomName) {
-      await expect(
-        page.getByRole('button', {
-          name: new RegExp(`^${escapeRegExp(roomName)},`),
-        })
-      ).toBeVisible({ timeout: 60_000 });
-    }
+    await expect(page.getByText('joined the room')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('<3')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('🙉')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('❤️')).toBeVisible({ timeout: 60_000 });
+
+    const metrics = await page.evaluate(() => {
+      const pickSmallest = (needle: string) =>
+        Array.from(document.querySelectorAll<HTMLElement>('body *'))
+          .filter((el) => el.textContent?.trim() === needle)
+          .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+          .sort(
+            (left, right) =>
+              left.rect.width * left.rect.height - right.rect.width * right.rect.height
+          )[0]?.el;
+
+      const rect = (el: Element | null | undefined) => {
+        if (!(el instanceof HTMLElement || el instanceof SVGElement)) return null;
+        const box = el.getBoundingClientRect();
+        return {
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: box.height,
+          right: box.right,
+          bottom: box.bottom,
+          centerY: box.y + box.height / 2,
+        };
+      };
+
+      const joinedText = pickSmallest('joined the room');
+      const joinedRow = joinedText?.closest('div');
+      const joinedIcon = joinedRow?.querySelector('svg');
+      const followupText = pickSmallest('<3');
+      const jumboEmoji = pickSmallest('🙉');
+      const heartEmoji = pickSmallest('❤️');
+      const firstAvatarButton = Array.from(document.querySelectorAll<HTMLElement>('button')).find(
+        (el) => el.dataset.userId && el.querySelector('img, svg')
+      );
+      const firstMessageHeader = Array.from(document.querySelectorAll<HTMLElement>('button')).find(
+        (el) => el.dataset.userId && /test/i.test(el.textContent ?? '')
+      );
+      const jumboRow = jumboEmoji?.closest('div');
+      const heartRow = heartEmoji?.closest('div');
+
+      return {
+        avatar: rect(firstAvatarButton),
+        header: rect(firstMessageHeader),
+        joinedIcon: rect(joinedIcon),
+        followupText: rect(followupText),
+        jumboRow: rect(jumboRow),
+        jumboEmoji: rect(jumboEmoji),
+        heartRow: rect(heartRow),
+        heartEmoji: rect(heartEmoji),
+      };
+    });
+
+    expect(metrics.avatar).not.toBeNull();
+    expect(metrics.header).not.toBeNull();
+    expect(metrics.joinedIcon).not.toBeNull();
+    expect(metrics.followupText).not.toBeNull();
+    expect(metrics.jumboRow).not.toBeNull();
+    expect(metrics.jumboEmoji).not.toBeNull();
+    expect(metrics.heartRow).not.toBeNull();
+    expect(metrics.heartEmoji).not.toBeNull();
+
+    expect(Math.abs(metrics.joinedIcon!.x - metrics.avatar!.x)).toBeLessThanOrEqual(12);
+    expect(Math.abs(metrics.followupText!.x - metrics.header!.x)).toBeLessThanOrEqual(12);
+    expect(Math.abs(metrics.jumboEmoji!.x - metrics.followupText!.x)).toBeLessThanOrEqual(4);
+    expect(metrics.jumboEmoji!.y).toBeGreaterThanOrEqual(metrics.jumboRow!.y - 2);
+    expect(metrics.jumboEmoji!.bottom).toBeLessThanOrEqual(metrics.jumboRow!.bottom + 2);
+    expect(metrics.heartEmoji!.y).toBeGreaterThanOrEqual(metrics.heartRow!.y - 2);
+    expect(metrics.heartEmoji!.bottom).toBeLessThanOrEqual(metrics.heartRow!.bottom + 2);
+
+    await captureSnapshot(page, 'live-matrix/emoji-qa/timeline-alignment');
   });
 
   test('renders diagnostics and privacy settings on the real settings route', async () => {

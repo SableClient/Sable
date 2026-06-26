@@ -289,11 +289,7 @@ export function RoomTimeline({
   const roomParents = useAtomValue(roomToParentsAtom);
   const isMobileScreen = screenSize === ScreenSize.Mobile || isPhoneLayoutDevice();
   const timelineBottomSpacing = hasTypingIndicator ? config.space.S700 : config.space.S600;
-  const timelineRightSpacing = isMobileScreen
-    ? config.space.S100
-    : hasDesktopRightDrawer
-      ? config.space.S400
-      : config.space.S0;
+  const timelineRightSpacing = isMobileScreen ? config.space.S100 : config.space.S0;
   const imagePackRooms = useImagePackRooms(room.roomId, roomParents);
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);
   const parseMemberEvent = useMemberEventParser();

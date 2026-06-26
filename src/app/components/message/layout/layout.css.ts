@@ -164,11 +164,15 @@ export const AvatarBase = style({
 });
 
 export const ModernBefore = style({
+  width: toRem(36),
   minWidth: toRem(36),
+  flexBasis: toRem(36),
 });
 
 export const BubbleBefore = style({
+  width: toRem(36),
   minWidth: toRem(36),
+  flexBasis: toRem(36),
 });
 
 export const BubbleWrapper = style({

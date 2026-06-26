@@ -10,6 +10,7 @@ import {
 type StoredSession = {
   userId: string;
   accessToken: string;
+  baseUrl?: string;
 };
 
 export type MediaFetchCacheMode = 'default' | 'reload' | 'bypass';
@@ -66,39 +67,19 @@ function parseStoredSessions(): StoredSession[] {
         return [];
       }
 
+      const baseUrl = (session as { baseUrl?: unknown }).baseUrl;
+
       return [
         {
           userId: (session as StoredSession).userId,
           accessToken: (session as StoredSession).accessToken,
+          ...(typeof baseUrl === 'string' ? { baseUrl } : {}),
         },
       ];
     });
   } catch {
     return [];
   }
-}
-
-function getStoredAccessToken(): string | undefined {
-  if (typeof localStorage === 'undefined') return undefined;
-
-  const sessions = parseStoredSessions();
-  const activeSessionId = localStorage.getItem(ACTIVE_SESSION_KEY);
-  const activeSession =
-    (activeSessionId
-      ? sessions.find((session) => session.userId === activeSessionId)
-      : undefined) ?? sessions[0];
-
-  if (activeSession?.accessToken) return activeSession.accessToken;
-
-  const fallbackBaseUrl = localStorage.getItem(FALLBACK_BASE_URL_KEY);
-  const fallbackUserId = localStorage.getItem(FALLBACK_USER_ID_KEY);
-  const fallbackAccessToken = localStorage.getItem(FALLBACK_ACCESS_TOKEN_KEY);
-
-  if (fallbackBaseUrl && fallbackUserId && fallbackAccessToken) {
-    return fallbackAccessToken;
-  }
-
-  return undefined;
 }
 
 export function getCurrentMediaSessionScope(): string {
@@ -139,7 +120,108 @@ export function getScopedMediaCacheKey(url: string, sessionScope?: string): stri
   return `${sessionScope ?? getCurrentMediaSessionScope()}:${url}`;
 }
 
-function resolveAccessToken(options?: MediaTransportOptions): string | undefined {
+// Matrix media endpoints the stored token may be attached to. Mirrors the exact
+// `MEDIA_PATHS` whitelist behind the service worker's `validMediaRequest()` gate
+// in src/sw.ts — only the concrete download/thumbnail/preview_url endpoints, not
+// whole media subtrees, so room-controlled routes like `/_matrix/media/v3/config`
+// don't receive the token. Keep in sync with src/sw.ts.
+const MEDIA_API_BASES = [
+  '/_matrix/media/v3',
+  '/_matrix/media/r0',
+  '/_matrix/client/v1/media',
+  '/_matrix/client/v3/media',
+  '/_matrix/client/r0/media',
+  '/_matrix/client/unstable/org.matrix.msc3916/media',
+];
+const MEDIA_ENDPOINTS = ['download', 'thumbnail', 'preview_url'];
+const MEDIA_PATHS = MEDIA_API_BASES.flatMap((base) =>
+  MEDIA_ENDPOINTS.map((endpoint) => `${base}/${endpoint}`)
+);
+
+/**
+ * Whether `requestUrl` is a Matrix media endpoint served by the homeserver at
+ * `baseUrl`. The media path is matched *relative to* the base URL so that
+ * homeservers discovered with a path prefix (e.g. `https://example.org/matrix`,
+ * yielding media URLs like `/matrix/_matrix/client/v1/media/...`) still match.
+ */
+function isMediaUrlForBase(requestUrl: URL, baseUrl: string | null | undefined): boolean {
+  if (!baseUrl) return false;
+
+  let base: URL;
+  try {
+    base = new URL(baseUrl);
+  } catch {
+    return false;
+  }
+
+  if (base.origin !== requestUrl.origin) return false;
+
+  const basePath = base.pathname.replace(/\/+$/, '');
+  if (basePath && !requestUrl.pathname.startsWith(basePath)) return false;
+
+  const relativePath = requestUrl.pathname.slice(basePath.length);
+  // Require a segment boundary after the endpoint so that an endpoint-name
+  // prefix (e.g. `/download/{server}/{id}`) matches, but a room-controlled path
+  // like `/downloaded/foo` or `/downloadXYZ` does not. `preview_url` carries no
+  // path suffix (its args are query params, excluded from pathname), so an exact
+  // match covers it.
+  return MEDIA_PATHS.some(
+    (endpoint) => relativePath === endpoint || relativePath.startsWith(`${endpoint}/`)
+  );
+}
+
+/**
+ * Resolve the stored access token to attach to an implicitly-authenticated
+ * media request, or `undefined` if none should be sent.
+ *
+ * The stored Matrix token must never leak to an arbitrary, room-controlled URL
+ * (e.g. an avatar or external icon). Mirroring the service worker's
+ * `validMediaRequest()` gate, the token is attached only when the request both
+ * targets a homeserver this client is signed in to AND hits a Matrix media
+ * endpoint. The token of the session whose `baseUrl` matches the request is
+ * returned — never another session's — so one homeserver can never receive a
+ * different homeserver's bearer token. The active session is preferred when
+ * multiple stored accounts share the same homeserver origin.
+ */
+function resolveStoredTokenForUrl(url: string): string | undefined {
+  if (typeof localStorage === 'undefined') return undefined;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return undefined;
+  }
+
+  const sessions = parseStoredSessions();
+  const activeSessionId = localStorage.getItem(ACTIVE_SESSION_KEY);
+  const activeSession = activeSessionId
+    ? sessions.find((session) => session.userId === activeSessionId)
+    : undefined;
+
+  // Prefer the active session, then any other stored session on the same origin,
+  // so a same-origin account can't be served under a different account's token.
+  const orderedSessions = activeSession
+    ? [activeSession, ...sessions.filter((session) => session !== activeSession)]
+    : sessions;
+
+  for (const session of orderedSessions) {
+    if (session.accessToken && isMediaUrlForBase(parsed, session.baseUrl)) {
+      return session.accessToken;
+    }
+  }
+
+  const fallbackBaseUrl = localStorage.getItem(FALLBACK_BASE_URL_KEY);
+  const fallbackUserId = localStorage.getItem(FALLBACK_USER_ID_KEY);
+  const fallbackAccessToken = localStorage.getItem(FALLBACK_ACCESS_TOKEN_KEY);
+  if (fallbackAccessToken && fallbackUserId && isMediaUrlForBase(parsed, fallbackBaseUrl)) {
+    return fallbackAccessToken;
+  }
+
+  return undefined;
+}
+
+function resolveAccessToken(url: string, options?: MediaTransportOptions): string | undefined {
   if (options && Object.hasOwn(options, 'getAccessToken')) {
     return typeof options.getAccessToken === 'function'
       ? (options.getAccessToken() ?? undefined)
@@ -150,7 +232,7 @@ function resolveAccessToken(options?: MediaTransportOptions): string | undefined
     return options.accessToken ?? undefined;
   }
 
-  return getStoredAccessToken();
+  return resolveStoredTokenForUrl(url);
 }
 
 function resolveSessionScope(options?: MediaTransportOptions): string {
@@ -246,7 +328,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     return blob;
   };
   const fetchAndCacheViaDirectAuth = async (): Promise<Blob | undefined> => {
-    const directAccessToken = resolveAccessToken(options);
+    const directAccessToken = resolveAccessToken(url, options);
     if (!directAccessToken) return undefined;
 
     const directCacheMode = cacheMode === 'default' ? 'reload' : cacheMode;
@@ -280,7 +362,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     return fetchAndCache(retryResponse);
   }
 
-  const initialAccessToken = resolveAccessToken(options);
+  const initialAccessToken = resolveAccessToken(url, options);
   const initialResponse = await fetchMediaResponse(url, initialAccessToken, cacheMode);
   if (initialResponse.ok) {
     return fetchAndCache(initialResponse);
@@ -290,7 +372,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     throw buildMediaFetchError(url, initialResponse);
   }
 
-  const retryAccessToken = resolveAccessToken(options);
+  const retryAccessToken = resolveAccessToken(url, options);
   return fetchAndCache(await fetchMediaResponse(url, retryAccessToken, cacheMode));
 }
 

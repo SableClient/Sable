@@ -183,6 +183,17 @@ test.describe.serial('live matrix authenticated smoke', () => {
               left.rect.width * left.rect.height - right.rect.width * right.rect.height
           )[0]?.el;
 
+      const findEventRow = (el: HTMLElement | undefined) => {
+        let current = el?.parentElement;
+        while (current) {
+          const hasSeparateBeforeSlot = current.childElementCount >= 2;
+          const hasMembershipIcon = Boolean(current.querySelector('svg'));
+          if (hasSeparateBeforeSlot && hasMembershipIcon) return current;
+          current = current.parentElement;
+        }
+        return undefined;
+      };
+
       const rect = (el: Element | null | undefined) => {
         if (!(el instanceof HTMLElement || el instanceof SVGElement)) return null;
         const box = el.getBoundingClientRect();
@@ -198,7 +209,7 @@ test.describe.serial('live matrix authenticated smoke', () => {
       };
 
       const joinedText = pickSmallest('joined the room');
-      const joinedRow = joinedText?.closest('div');
+      const joinedRow = findEventRow(joinedText);
       const joinedIcon = joinedRow?.querySelector('svg');
       const followupText = pickSmallest('<3');
       const jumboEmoji = pickSmallest('🙉');

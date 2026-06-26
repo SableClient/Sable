@@ -70,8 +70,6 @@ export function Login() {
     return null;
   }
 
-  const isAddingAccount = searchParams.get('addAccount') === '1';
-
   const registerUrl = isAddingAccount
     ? withSearchParam(getRegisterPath(server), { addAccount: '1' })
     : getRegisterPath(server);

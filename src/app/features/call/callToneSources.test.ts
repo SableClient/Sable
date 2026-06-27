@@ -36,16 +36,22 @@ describe('resolveCallToneSources', () => {
 
   it('loads custom blobs when custom tones are selected', async () => {
     vi.mocked(getCustomCallRingtone).mockResolvedValue({
+      id: 'custom-ringtone',
       blob: new Blob(['a'], { type: 'audio/mpeg' }),
-      name: 'ring.mp3',
+      fileName: 'ring.mp3',
+      mimeType: 'audio/mpeg',
       sizeBytes: 4,
       durationMs: 1000,
+      savedAt: 0,
     });
     vi.mocked(getCustomCallRingback).mockResolvedValue({
+      id: 'custom-ringback',
       blob: new Blob(['b'], { type: 'audio/mpeg' }),
-      name: 'back.mp3',
+      fileName: 'back.mp3',
+      mimeType: 'audio/mpeg',
       sizeBytes: 4,
       durationMs: 1000,
+      savedAt: 0,
     });
 
     const resolved = await resolveCallToneSources({

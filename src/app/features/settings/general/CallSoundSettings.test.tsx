@@ -6,6 +6,12 @@ import { CallSoundSettings } from './CallSoundSettings';
 vi.mock('$state/settings', () => ({
   CALL_TONE_IDS: ['sable-default', 'classic-soft', 'minimal-ping', 'silent', 'custom'],
   settingsAtom: {},
+  getSettings: () => ({
+    iconCompactSizePx: 16,
+    iconInlineSizePx: 20,
+    iconToolbarSizePx: 24,
+    iconEmptySizePx: 32,
+  }),
 }));
 
 vi.mock('$state/hooks/settings', () => ({

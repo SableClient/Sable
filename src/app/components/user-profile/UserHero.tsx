@@ -13,6 +13,7 @@ import {
   Tooltip,
   toRem,
   Chip,
+  config,
 } from 'folds';
 import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
@@ -237,6 +238,7 @@ export function UserHero({
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden',
                       fontStyle: allowEditing && !status ? 'italic' : 'normal',
+                      opacity: allowEditing && !status ? config.opacity.Placeholder : 1
                     }}
                   >
                     {status || (allowEditing && "What's on your mind?")}

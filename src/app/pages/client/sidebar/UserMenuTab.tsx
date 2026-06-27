@@ -247,25 +247,26 @@ export function AccountMenuOption() {
   return (
     <>
       <Line variant="Surface" size="300" />
-
-      <MenuItem
-        size="300"
-        radii="300"
-        before={<Icon size="100" src={Icons.User} />}
-        after={
-          <Icon size="100" src={isOpen && isMobile ? Icons.ChevronBottom : Icons.ChevronRight} />
-        }
-        style={{
-          position: 'relative',
-        }}
-        onClick={() => isMobile && setIsOpen(!isOpen)}
-        {...hoverProps}
-        {...focusWithinProps}
-      >
-        <Text style={{ flexGrow: 1 }} size="T300">
-          Switch account
-        </Text>
-      </MenuItem>
+      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+        <MenuItem
+          size="300"
+          radii="300"
+          before={<Icon size="100" src={Icons.User} />}
+          after={
+            <Icon size="100" src={isOpen && isMobile ? Icons.ChevronBottom : Icons.ChevronRight} />
+          }
+          style={{
+            position: 'relative',
+          }}
+          onClick={() => isMobile && setIsOpen(!isOpen)}
+          {...hoverProps}
+          {...focusWithinProps}
+        >
+          <Text style={{ flexGrow: 1 }} size="T300">
+            Switch account
+          </Text>
+        </MenuItem>
+      </Box>
       {isOpen && (
         <div
           {...hoverProps}
@@ -624,79 +625,15 @@ export function UserMenuTab({ isBottom }: { isBottom?: boolean }) {
                       Edit Profile
                     </Text>
                   </MenuItem>
+
                   <PresenceMenuOption />
-                  {/* <Box as="form" gap="200" onSubmit={handleSaveStatus}>
-                    <Box grow="Yes" direction="Column">
-                      <Input
-                        value={statusValue}
-                        onChange={handleStatusChange}
-                        placeholder="What's on your mind?"
-                        variant="Background"
-                        size="300"
-                        radii="300"
-                        readOnly={savingStatus}
-                        after={
-                          hasStatusChanges &&
-                          !savingStatus && (
-                            <IconButton
-                              type="reset"
-                              onClick={handleResetStatus}
-                              size="300"
-                              radii="300"
-                              variant="Background"
-                            >
-                              <Icon src={Icons.Cross} size="100" />
-                            </IconButton>
-                          )
-                        }
-                      />
-                    </Box>
-                    {showSaveStatus && (
-                      <Button
-                        size="300"
-                        variant={hasStatusChanges ? 'Success' : 'Secondary'}
-                        fill={hasStatusChanges ? 'Solid' : 'Soft'}
-                        outlined
-                        radii="300"
-                        disabled={!hasStatusChanges || savingStatus}
-                        type="submit"
-                      >
-                        {savingStatus && <Spinner variant="Success" fill="Solid" size="300" />}
-                        <Text size="B300">Save</Text>
-                      </Button>
-                    )}
-                  </Box> */}
-                  {/* {PresenceOptions.map((option) => (
-                    <MenuItem
-                      key={option.value}
-                      size="300"
-                      radii="300"
-                      variant={currentPresence === option.value ? 'Primary' : 'Surface'}
-                      fill={currentPresence === option.value ? 'Soft' : 'None'}
-                      aria-pressed={currentPresence === option.value}
-                      disabled={savingStatus}
-                      onClick={() => {
-                        handleSelectPresence(option.value).catch(() => undefined);
-                      }}
-                      after={<PresenceBadge presence={option.value} size="400" />}
-                    >
-                      <Text
-                        size="T300"
-                        style={{
-                          flexGrow: 1,
-                          fontWeight:
-                            currentPresence === option.value ? config.fontWeight.W600 : undefined,
-                        }}
-                      >
-                        {option.label}
-                      </Text>
-                    </MenuItem>
-                  ))} */}
+                </Box>
 
-                  <AccountMenuOption />
+                <AccountMenuOption />
 
-                  <Line variant="Surface" size="300" />
+                <Line variant="Surface" size="300" />
 
+                <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
                   <MenuItem
                     size="300"
                     radii="300"

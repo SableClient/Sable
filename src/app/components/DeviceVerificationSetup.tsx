@@ -1,22 +1,10 @@
 import type { FormEventHandler } from 'react';
 import { forwardRef, useCallback, useState } from 'react';
-import {
-  Dialog,
-  Header,
-  Box,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-  config,
-  Button,
-  Chip,
-  color,
-  Spinner,
-} from 'folds';
+import { Dialog, Header, Box, Text, IconButton, config, Button, Chip, color, Spinner } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import FileSaver from 'file-saver';
 import to from 'await-to-js';
-import type { AuthDict, IAuthData, UIAuthCallback } from '$types/matrix-sdk';
+import type { AuthDict, IAuthData, UIAuthCallback, UIAFlow } from '$types/matrix-sdk';
 import { MatrixError } from '$types/matrix-sdk';
 import { clearSecretStorageKeys } from '$client/secretStorageKeys';
 import { ContainerColor } from '$styles/ContainerColor.css';
@@ -67,6 +55,32 @@ function makeUIAAction<T>(
   };
 
   return action;
+}
+
+function renderUnsupportedUIAFlow() {
+  return (
+    <Text size="T200">
+      Authentication steps to perform this action are not supported by client.
+    </Text>
+  );
+}
+
+type SetupVerificationUIAProps = {
+  authData: IAuthData;
+  ongoingFlow: UIAFlow;
+  action: (authDict: AuthDict) => void;
+  onCancel: () => void;
+};
+
+function SetupVerificationUIA({
+  authData,
+  ongoingFlow,
+  action,
+  onCancel,
+}: SetupVerificationUIAProps) {
+  return (
+    <ActionUIA authData={authData} ongoingFlow={ongoingFlow} action={action} onCancel={onCancel} />
+  );
 }
 
 type SetupVerificationProps = {
@@ -181,6 +195,21 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
     setup(passphrase);
   };
 
+  const renderSetupVerificationUIA = useCallback(
+    (ongoingFlow: UIAFlow) => {
+      if (!uiaAction) return null;
+      return (
+        <SetupVerificationUIA
+          authData={nextAuthData ?? uiaAction.authData}
+          ongoingFlow={ongoingFlow}
+          action={handleAction}
+          onCancel={uiaAction.cancelCallback}
+        />
+      );
+    },
+    [uiaAction, nextAuthData, handleAction]
+  );
+
   return (
     <Box as="form" onSubmit={handleSubmit} direction="Column" gap="400">
       <Text size="T300">
@@ -206,20 +235,9 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
       {nextAuthData !== null && uiaAction && (
         <ActionUIAFlowsLoader
           authData={nextAuthData ?? uiaAction.authData}
-          unsupported={() => (
-            <Text size="T200">
-              Authentication steps to perform this action are not supported by client.
-            </Text>
-          )}
+          unsupported={renderUnsupportedUIAFlow}
         >
-          {(ongoingFlow) => (
-            <ActionUIA
-              authData={nextAuthData ?? uiaAction.authData}
-              ongoingFlow={ongoingFlow}
-              action={handleAction}
-              onCancel={uiaAction.cancelCallback}
-            />
-          )}
+          {renderSetupVerificationUIA}
         </ActionUIAFlowsLoader>
       )}
     </Box>
@@ -304,7 +322,7 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
             <Text size="H4">Setup Device Verification</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
-            <Icon src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Header>
         <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -339,7 +357,7 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
             <Text size="H4">Reset Device Verification</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
-            <Icon src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Header>
         {reset ? (

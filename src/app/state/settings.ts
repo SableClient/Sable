@@ -1,6 +1,7 @@
 import { atom, type WritableAtom } from 'jotai';
 import type { Store } from 'jotai/vanilla/store';
 import { mobileOrTablet } from '$utils/user-agent';
+import type { IImageInfo } from '$types/matrix/common';
 
 const STORAGE_KEY = 'settings';
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
@@ -25,9 +26,15 @@ export enum CaptionPosition {
 
 export enum ShowRoomIcon {
   Always = 'always',
+  Strict = 'strict',
   Smart = 'smart',
   Never = 'never',
 }
+export type PerRoomShowRoomIcon = {
+  roomId: string;
+  display: ShowRoomIcon;
+};
+
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 export const CALL_TONE_IDS = [
   'sable-default',
@@ -58,13 +65,25 @@ export type ThemeRemoteTweakFavorite = {
 /** Custom profile card hero colors: which brightness schemes to honor. */
 export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
 
+/** Where to use crisp nearest-neighbor (pixelated) image scaling. */
+export type PixelatedImageRenderingMode = 'always' | 'smart' | 'never';
+
+export function isPixelatedRendering(
+  mode: PixelatedImageRenderingMode,
+  info?: IImageInfo
+): boolean {
+  if (mode === 'smart') return !!info && !!info.w && !!info.h && (info.w < 192 || info.h < 192);
+  return mode === 'always';
+}
+
 export function shouldApplyUserHeroCards(
   mode: RenderUserCardsMode,
-  brightness: string | undefined
+  brightness?: string,
+  color?: string
 ): boolean {
+  if (!color || (brightness !== 'light' && brightness !== 'dark')) return false;
   if (mode === 'none') return false;
   if (mode === 'both') return true;
-  if (brightness !== 'light' && brightness !== 'dark') return false;
   return brightness === mode;
 }
 
@@ -88,6 +107,7 @@ export interface Settings {
   memberSortFilterIndex: number;
   enterForNewline: boolean;
   editorToolbar: boolean;
+  editorOldAddFile: boolean;
   composerToolbarOpen: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
@@ -95,6 +115,12 @@ export interface Settings {
   hideNickAvatarEvents: boolean;
   showHiddenEvents: boolean;
   showTombstoneEvents: boolean;
+  hiddenEventEdits: boolean;
+  hiddenEventRedactionTimeline: boolean;
+  hiddenEventReactions: boolean;
+  hiddenEventReactionTombstone: boolean;
+  hiddenEventReactionRedactionTimeline: boolean;
+  hiddenEventOther: boolean;
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
@@ -105,11 +131,14 @@ export interface Settings {
   clientUrlPreview: boolean;
   encClientUrlPreview: boolean;
   clientPreviewYoutube: boolean;
+  showInteractiveMap: boolean;
+  showEncInteractiveMap: boolean;
 
   usePushNotifications: boolean;
   useInAppNotifications: boolean;
   useSystemNotifications: boolean;
   isNotificationSounds: boolean;
+  backgroundNotificationSounds: boolean;
   showMessageContentInNotifications: boolean;
   showMessageContentInEncryptedNotifications: boolean;
   clearNotificationsOnRead: boolean;
@@ -122,12 +151,18 @@ export interface Settings {
   settingsSyncEnabled: boolean;
 
   // Cosmetics!
+  iconCompactSizePx: number;
+  iconInlineSizePx: number;
+  iconToolbarSizePx: number;
+  iconEmptySizePx: number;
   jumboEmojiSize: JumboEmojiSize;
   privacyBlur: boolean;
   privacyBlurAvatars: boolean;
   privacyBlurEmotes: boolean;
   showPronouns: boolean;
   parsePronouns: boolean;
+  pronounPillMaxCount: number;
+  pronounPillMaxLength: number;
   renderGlobalNameColors: boolean;
   renderUserCards: RenderUserCardsMode;
   filterPronounsBasedOnLanguage?: boolean;
@@ -154,6 +189,8 @@ export interface Settings {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  oldSidebar: boolean;
+  pixelatedImageRendering: PixelatedImageRenderingMode;
   incomingInlineImagesDefaultHeight: number;
   incomingInlineImagesMaxHeight: number;
   linkPreviewImageMaxHeight: number;
@@ -174,7 +211,9 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
+  perRoomShowRoomIcon: PerRoomShowRoomIcon[];
   showRoomIcon: ShowRoomIcon;
+  roomIconOverlay: boolean;
   showRoomBanners: boolean;
   roomSidebarWidth: number;
   roomBannerHeight: number;
@@ -183,6 +222,7 @@ export interface Settings {
   threadRootHeight: number;
   vcmsgSidebarWidth: number;
   widgetSidebarWidth: number;
+  isShowingAllRoomsInHome: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -225,6 +265,7 @@ export const defaultSettings: Settings = {
   memberSortFilterIndex: 0,
   enterForNewline: false,
   editorToolbar: false,
+  editorOldAddFile: false,
   composerToolbarOpen: false,
   messageLayout: 0,
   messageSpacing: '400',
@@ -238,8 +279,16 @@ export const defaultSettings: Settings = {
   clientUrlPreview: false,
   encClientUrlPreview: false,
   clientPreviewYoutube: false,
+  showInteractiveMap: true,
+  showEncInteractiveMap: false,
   showHiddenEvents: false,
-  showTombstoneEvents: false,
+  showTombstoneEvents: true,
+  hiddenEventEdits: true,
+  hiddenEventRedactionTimeline: true,
+  hiddenEventReactions: true,
+  hiddenEventReactionTombstone: true,
+  hiddenEventReactionRedactionTimeline: true,
+  hiddenEventOther: true,
   legacyUsernameColor: false,
 
   enableMSC4268CMD: false,
@@ -251,6 +300,7 @@ export const defaultSettings: Settings = {
   useInAppNotifications: mobileOrTablet(),
   useSystemNotifications: !mobileOrTablet(),
   isNotificationSounds: true,
+  backgroundNotificationSounds: true,
   showMessageContentInNotifications: false,
   showMessageContentInEncryptedNotifications: false,
   clearNotificationsOnRead: false,
@@ -262,12 +312,18 @@ export const defaultSettings: Settings = {
   settingsSyncEnabled: false,
 
   // Cosmetics!
+  iconCompactSizePx: 16,
+  iconInlineSizePx: 20,
+  iconToolbarSizePx: 24,
+  iconEmptySizePx: 32,
   jumboEmojiSize: 'normal',
   privacyBlur: false,
   privacyBlurAvatars: false,
   privacyBlurEmotes: false,
   showPronouns: true,
   parsePronouns: true,
+  pronounPillMaxCount: 3,
+  pronounPillMaxLength: 16,
   renderGlobalNameColors: true,
   renderUserCards: 'both',
   renderRoomColors: true,
@@ -292,6 +348,8 @@ export const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
+  oldSidebar: false,
+  pixelatedImageRendering: 'smart',
   incomingInlineImagesDefaultHeight: 32,
   incomingInlineImagesMaxHeight: 64,
   linkPreviewImageMaxHeight: 640,
@@ -312,7 +370,9 @@ export const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
-  showRoomIcon: ShowRoomIcon.Smart,
+  perRoomShowRoomIcon: [],
+  showRoomIcon: ShowRoomIcon.Strict,
+  roomIconOverlay: true,
   showRoomBanners: true,
   roomSidebarWidth: 256,
   roomBannerHeight: 190,
@@ -321,6 +381,7 @@ export const defaultSettings: Settings = {
   threadRootHeight: 220,
   vcmsgSidebarWidth: 399,
   widgetSidebarWidth: 420,
+  isShowingAllRoomsInHome: false,
   // furry stuff
   renderAnimals: true,
 
@@ -376,6 +437,16 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
     parsed.renderUserCards !== 'none'
   ) {
     parsed.renderUserCards = 'both';
+  }
+
+  if (typeof parsed.pixelatedImageRendering === 'boolean') {
+    parsed.pixelatedImageRendering = parsed.pixelatedImageRendering ? 'both' : 'none';
+  } else if (
+    parsed.pixelatedImageRendering !== 'always' &&
+    parsed.pixelatedImageRendering !== 'smart' &&
+    parsed.pixelatedImageRendering !== 'never'
+  ) {
+    delete parsed.pixelatedImageRendering;
   }
 
   if (
@@ -444,6 +515,10 @@ const JUMBO_EMOJI_VALUES = new Set<JumboEmojiSize>([
   'large',
   'extraLarge',
 ]);
+
+function sanitizeIconSizePx(val: unknown): number | undefined {
+  return typeof val === 'number' && Number.isInteger(val) && val >= 0 ? val : undefined;
+}
 
 function sanitizeStringArray(val: unknown): string[] | undefined {
   if (!Array.isArray(val)) return undefined;
@@ -538,8 +613,23 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
         ? val
         : undefined;
+    case 'pixelatedImageRendering':
+      return val === 'always' || val === 'smart' || val === 'never' ? val : undefined;
+    case 'iconCompactSizePx':
+    case 'iconInlineSizePx':
+    case 'iconToolbarSizePx':
+    case 'iconEmptySizePx':
+      return sanitizeIconSizePx(val);
     case 'jumboEmojiSize':
       return typeof val === 'string' && JUMBO_EMOJI_VALUES.has(val as JumboEmojiSize)
+        ? val
+        : undefined;
+    case 'pronounPillMaxCount':
+      return typeof val === 'number' && Number.isInteger(val) && val >= 1 && val <= 10
+        ? val
+        : undefined;
+    case 'pronounPillMaxLength':
+      return typeof val === 'number' && Number.isInteger(val) && val >= 1 && val <= 64
         ? val
         : undefined;
     case 'themeRemoteManualKind':

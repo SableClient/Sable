@@ -35,8 +35,9 @@ export const RoomCoverContainer = style({
 export const RoomCover = style({
   height: '100%',
   width: '100%',
-  objectFit: 'cover',
-  objectPosition: 'center',
+  position: 'relative',
+  display: 'block',
+  overflow: 'hidden',
 });
 
 export const RoomCoverFallback = style({
@@ -47,4 +48,15 @@ export const RoomCoverFallback = style({
 export const RoomCoverImage = style({
   objectFit: 'cover',
   width: '100%',
+  height: '100%',
+});
+
+export const RoomCoverImageButton = style({
+  display: 'block',
+  width: '100%',
+  height: '100%',
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  cursor: 'pointer',
 });

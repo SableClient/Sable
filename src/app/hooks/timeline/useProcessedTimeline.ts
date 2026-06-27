@@ -1,19 +1,30 @@
 import { useMemo } from 'react';
 import type { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
+import { EventType } from '$types/matrix-sdk';
 import {
   getTimelineAndBaseIndex,
   getTimelineRelativeIndex,
   getTimelineEvent,
 } from '$utils/timeline';
-import { isMembershipChanged, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
+import {
+  isMembershipChanged,
+  isThreadRelationEvent,
+  isEditEvent,
+  isReactionEvent,
+  isRedactableMessageType,
+  shouldShowRedactionTimelineEvent,
+  getRedactionTargetEvent,
+  collectRelationReactionEvents,
+  collectRelationEditEvents,
+} from '$utils/room';
 import { inSameDay, minuteDifference } from '$utils/time';
+import type { ResolvedHiddenEventSettings } from '$state/hooks/settings';
 
 export interface UseProcessedTimelineOptions {
   items: number[];
   linkedTimelines: EventTimeline[];
   ignoredUsersSet: Set<string>;
-  showHiddenEvents: boolean;
-  showTombstoneEvents: boolean;
+  hiddenEvents: ResolvedHiddenEventSettings;
   mxUserId: string | null;
   readUptoEventId: string | undefined;
   hideMembershipEvents: boolean;
@@ -62,15 +73,249 @@ const MESSAGE_EVENT_TYPES = new Set([
 const normalizeMessageType = (t: string): string =>
   t === 'm.room.encrypted' || t === 'm.room.message.encrypted' ? 'm.room.message' : t;
 
+const isMessageRow = (mEvent: MatrixEvent): boolean =>
+  MESSAGE_EVENT_TYPES.has(mEvent.getType()) && !isEditEvent(mEvent);
+
 const getPmpId = (ev: MatrixEvent): string | null =>
   ev.getContent()?.['com.beeper.per_message_profile']?.id ?? null;
+
+type ProcessedEventDraft = Omit<
+  ProcessedEvent,
+  'collapsed' | 'willRenderNewDivider' | 'willRenderDayDivider'
+>;
+
+const computeCollapseAndDividers = (
+  drafts: ProcessedEventDraft[],
+  mxUserId: string | null,
+  readUptoEventId: string | undefined
+): ProcessedEvent[] => {
+  let prevEvent: MatrixEvent | undefined;
+  let isPrevRendered = false;
+  let newDivider = false;
+  let dayDivider = false;
+
+  return drafts.map((draft) => {
+    const { mEvent, eventSender } = draft;
+    const type = mEvent.getType();
+
+    if (!newDivider && readUptoEventId) {
+      const prevId = prevEvent ? prevEvent.getId() : undefined;
+      newDivider = prevId === readUptoEventId;
+    }
+
+    if (!dayDivider) {
+      dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
+    }
+
+    const isMessageEvent = isMessageRow(mEvent);
+
+    let collapsed = false;
+    if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
+      if (isMessageEvent) {
+        const withinTimeThreshold = minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
+        const senderMatch = prevEvent.getSender() === eventSender;
+        const typeMatch = normalizeMessageType(prevEvent.getType()) === normalizeMessageType(type);
+        const dividerOk = !newDivider || eventSender === mxUserId;
+
+        collapsed =
+          dividerOk &&
+          isMessageRow(prevEvent) &&
+          senderMatch &&
+          typeMatch &&
+          withinTimeThreshold &&
+          getPmpId(prevEvent) === getPmpId(mEvent);
+      } else {
+        collapsed = !isMessageRow(prevEvent);
+      }
+    }
+
+    const willRenderNewDivider = newDivider && eventSender !== mxUserId;
+    const willRenderDayDivider = dayDivider;
+
+    prevEvent = mEvent;
+    isPrevRendered = true;
+    if (willRenderNewDivider) newDivider = false;
+    if (willRenderDayDivider) dayDivider = false;
+
+    return {
+      ...draft,
+      collapsed,
+      willRenderNewDivider,
+      willRenderDayDivider,
+    };
+  });
+};
+
+const mergeDraftsAndExtras = (
+  result: ProcessedEvent[],
+  extras: {
+    mEvent: MatrixEvent;
+    timelineSet: EventTimelineSet;
+    parentId: string;
+    itemIndex?: number;
+  }[]
+): ProcessedEventDraft[] => {
+  const resultDrafts = result.map(
+    ({ collapsed: _c, willRenderNewDivider: _n, willRenderDayDivider: _d, ...draft }) => draft
+  );
+
+  const extraDrafts = extras
+    .map(({ mEvent, timelineSet, parentId, itemIndex = -1 }) => ({
+      draft: {
+        id: mEvent.getId()!,
+        itemIndex,
+        mEvent,
+        timelineSet,
+        eventSender: mEvent.getSender() ?? null,
+      },
+      effectiveTs: mEvent.getTs(),
+      parentId,
+    }))
+    .toSorted((a, b) => a.effectiveTs - b.effectiveTs);
+
+  const buckets: ProcessedEventDraft[][] = Array.from(
+    { length: resultDrafts.length + 1 },
+    () => []
+  );
+
+  for (const extra of extraDrafts) {
+    const extraTs = extra.effectiveTs;
+    let parentIdx = -1;
+    for (let i = 0; i < resultDrafts.length; i += 1) {
+      if (resultDrafts[i]!.id === extra.parentId) {
+        parentIdx = i;
+        break;
+      }
+    }
+
+    let insertIdx = parentIdx + 1;
+    for (let i = parentIdx + 1; i < resultDrafts.length; i += 1) {
+      if (resultDrafts[i]!.mEvent.getTs() > extraTs) {
+        break;
+      }
+      insertIdx = i + 1;
+    }
+    buckets[insertIdx]!.push(extra.draft);
+  }
+
+  const mergedDrafts: ProcessedEventDraft[] = [...buckets[0]!];
+  for (let i = 0; i < resultDrafts.length; i += 1) {
+    mergedDrafts.push(resultDrafts[i]!);
+    mergedDrafts.push(...buckets[i + 1]!);
+  }
+
+  return mergedDrafts;
+};
+
+const mergeRelationReactions = (
+  result: ProcessedEvent[],
+  linkedTimelines: EventTimeline[],
+  ignoredUsersSet: Set<string>,
+  hiddenEventReactions: boolean,
+  hiddenEventReactionTombstone: boolean,
+  hideMemberInReadOnly: boolean,
+  isReadOnly: boolean,
+  mxUserId: string | null,
+  readUptoEventId: string | undefined
+): ProcessedEvent[] => {
+  if (hideMemberInReadOnly && isReadOnly) return result;
+
+  const existingIds = new Set(result.map((event) => event.id));
+  const baseDrafts: ProcessedEvent[] = [];
+  const inlineExtras: {
+    mEvent: MatrixEvent;
+    timelineSet: EventTimelineSet;
+    parentId: string;
+    itemIndex: number;
+  }[] = [];
+
+  for (const draft of result) {
+    if (isReactionEvent(draft.mEvent)) {
+      const relation = draft.mEvent.getRelation();
+      const parentId = relation?.event_id;
+      if (parentId) {
+        inlineExtras.push({
+          mEvent: draft.mEvent,
+          timelineSet: draft.timelineSet,
+          parentId,
+          itemIndex: draft.itemIndex,
+        });
+        continue;
+      }
+    }
+    baseDrafts.push(draft);
+  }
+
+  const extras = collectRelationReactionEvents(
+    linkedTimelines,
+    existingIds,
+    ignoredUsersSet,
+    hiddenEventReactions,
+    hiddenEventReactionTombstone
+  );
+
+  const allExtras = [...inlineExtras, ...extras];
+  if (allExtras.length === 0) return baseDrafts;
+
+  const mergedDrafts = mergeDraftsAndExtras(baseDrafts, allExtras);
+
+  return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
+};
+
+const mergeRelationEdits = (
+  result: ProcessedEvent[],
+  linkedTimelines: EventTimeline[],
+  ignoredUsersSet: Set<string>,
+  hiddenEventEdits: boolean,
+  mxUserId: string | null,
+  readUptoEventId: string | undefined
+): ProcessedEvent[] => {
+  const existingIds = new Set(result.map((event) => event.id));
+  const baseDrafts: ProcessedEvent[] = [];
+  const inlineExtras: {
+    mEvent: MatrixEvent;
+    timelineSet: EventTimelineSet;
+    parentId: string;
+    itemIndex: number;
+  }[] = [];
+
+  for (const draft of result) {
+    if (isEditEvent(draft.mEvent)) {
+      const relation = draft.mEvent.getRelation();
+      const parentId = relation?.event_id;
+      if (parentId) {
+        inlineExtras.push({
+          mEvent: draft.mEvent,
+          timelineSet: draft.timelineSet,
+          parentId,
+          itemIndex: draft.itemIndex,
+        });
+        continue;
+      }
+    }
+    baseDrafts.push(draft);
+  }
+
+  const extras = collectRelationEditEvents(
+    linkedTimelines,
+    existingIds,
+    ignoredUsersSet,
+    hiddenEventEdits
+  );
+
+  const allExtras = [...inlineExtras, ...extras];
+  if (allExtras.length === 0) return baseDrafts;
+
+  const mergedDrafts = mergeDraftsAndExtras(baseDrafts, allExtras);
+
+  return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
+};
 
 export function useProcessedTimeline({
   items,
   linkedTimelines,
   ignoredUsersSet,
-  showHiddenEvents,
-  showTombstoneEvents,
+  hiddenEvents,
   mxUserId,
   readUptoEventId,
   hideMembershipEvents,
@@ -79,6 +324,17 @@ export function useProcessedTimeline({
   hideMemberInReadOnly,
   skipThreadFilter,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
+  const {
+    showHiddenEvents,
+    showTombstoneEvents,
+    hiddenEventEdits,
+    hiddenEventRedactionTimeline,
+    hiddenEventReactions,
+    hiddenEventReactionTombstone,
+    hiddenEventReactionRedactionTimeline,
+    hiddenEventOther,
+  } = hiddenEvents;
+
   return useMemo(() => {
     let prevEvent: MatrixEvent | undefined;
     let isPrevRendered = false;
@@ -102,9 +358,27 @@ export function useProcessedTimeline({
       const eventSender = mEvent.getSender() ?? null;
 
       if (eventSender && ignoredUsersSet.has(eventSender)) return acc;
-      if (mEvent.isRedacted() && !(showHiddenEvents || showTombstoneEvents)) return acc;
 
       const type = mEvent.getType();
+      const isEdit = isEditEvent(mEvent);
+      const isReaction = isReactionEvent(mEvent);
+      const isRedactionEvt = mEvent.isRedaction();
+
+      if (hideMemberInReadOnly && isReadOnly) {
+        if (isReaction) return acc;
+        if (
+          isRedactionEvt &&
+          getRedactionTargetEvent(timelineSet, mEvent)?.getType() === (EventType.Reaction as string)
+        ) {
+          return acc;
+        }
+      }
+
+      if (mEvent.isRedacted()) {
+        const showMessageTombstone = showTombstoneEvents && isRedactableMessageType(type);
+        const showReactionTombstone = hiddenEventReactionTombstone && isReaction;
+        if (!showMessageTombstone && !showReactionTombstone) return acc;
+      }
 
       if (type === 'm.room.member') {
         const membershipChanged = isMembershipChanged(mEvent);
@@ -113,7 +387,19 @@ export function useProcessedTimeline({
         if (!membershipChanged && hideNickAvatarEvents) return acc;
       }
 
-      if (!showHiddenEvents) {
+      const allowSpecificHiddenEvent =
+        (isEdit && hiddenEventEdits) ||
+        (isReaction && !mEvent.isRedacted() && hiddenEventReactions) ||
+        (isReaction && mEvent.isRedacted() && hiddenEventReactionTombstone) ||
+        (isRedactionEvt &&
+          shouldShowRedactionTimelineEvent(
+            mEvent,
+            timelineSet,
+            hiddenEventRedactionTimeline,
+            hiddenEventReactionRedactionTimeline
+          ));
+
+      if (!(showHiddenEvents && hiddenEventOther)) {
         const isStandardRendered = [
           'm.room.message',
           'm.room.message.encrypted',
@@ -126,9 +412,12 @@ export function useProcessedTimeline({
         ].includes(type);
 
         if (!isStandardRendered) {
-          if (Object.keys(mEvent.getContent()).length === 0) return acc;
-          if (mEvent.getRelation()) return acc;
-          if (mEvent.isRedaction()) return acc;
+          if (Object.keys(mEvent.getContent()).length === 0 && !allowSpecificHiddenEvent)
+            return acc;
+          if (!allowSpecificHiddenEvent) {
+            if (mEvent.getRelation()) return acc;
+            if (mEvent.isRedaction()) return acc;
+          }
         }
       }
 
@@ -140,8 +429,24 @@ export function useProcessedTimeline({
       )
         return acc;
 
-      const isReactionOrEdit = reactionOrEditEvent(mEvent);
-      if (isReactionOrEdit) return acc;
+      if (isEdit && !hiddenEventEdits) return acc;
+      if (isReaction) {
+        if (mEvent.isRedacted()) {
+          if (!hiddenEventReactionTombstone) return acc;
+        } else if (!hiddenEventReactions) {
+          return acc;
+        }
+      }
+      if (
+        isRedactionEvt &&
+        !shouldShowRedactionTimelineEvent(
+          mEvent,
+          timelineSet,
+          hiddenEventRedactionTimeline,
+          hiddenEventReactionRedactionTimeline
+        )
+      )
+        return acc;
 
       if (!newDivider && readUptoEventId) {
         const prevId = prevEvent ? prevEvent.getId() : undefined;
@@ -152,7 +457,7 @@ export function useProcessedTimeline({
         dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
       }
 
-      const isMessageEvent = MESSAGE_EVENT_TYPES.has(type);
+      const isMessageEvent = isMessageRow(mEvent);
 
       let collapsed = false;
       if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
@@ -165,13 +470,13 @@ export function useProcessedTimeline({
 
           collapsed =
             dividerOk &&
+            isMessageRow(prevEvent) &&
             senderMatch &&
             typeMatch &&
             withinTimeThreshold &&
             getPmpId(prevEvent) === getPmpId(mEvent);
         } else {
-          const prevIsMessageEvent = MESSAGE_EVENT_TYPES.has(prevEvent.getType());
-          collapsed = !prevIsMessageEvent;
+          collapsed = !isMessageRow(prevEvent);
         }
       }
 
@@ -197,13 +502,37 @@ export function useProcessedTimeline({
       acc.push(processed);
       return acc;
     }, []);
-    return result;
+
+    return mergeRelationEdits(
+      mergeRelationReactions(
+        result,
+        linkedTimelines,
+        ignoredUsersSet,
+        hiddenEventReactions,
+        hiddenEventReactionTombstone,
+        hideMemberInReadOnly,
+        isReadOnly,
+        mxUserId,
+        readUptoEventId
+      ),
+      linkedTimelines,
+      ignoredUsersSet,
+      hiddenEventEdits,
+      mxUserId,
+      readUptoEventId
+    );
   }, [
     items,
     linkedTimelines,
     ignoredUsersSet,
     showHiddenEvents,
     showTombstoneEvents,
+    hiddenEventEdits,
+    hiddenEventRedactionTimeline,
+    hiddenEventReactions,
+    hiddenEventReactionTombstone,
+    hiddenEventReactionRedactionTimeline,
+    hiddenEventOther,
     mxUserId,
     readUptoEventId,
     hideMembershipEvents,

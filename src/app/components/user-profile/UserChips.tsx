@@ -14,14 +14,22 @@ import {
   Text,
   Line,
   Chip,
-  Icon,
-  Icons,
   Spinner,
   toRem,
   Box,
   Scroll,
   Avatar,
 } from 'folds';
+import {
+  CaretDown,
+  Check,
+  DotsThree,
+  HardDrives,
+  Link,
+  PencilSimple,
+  profileIcon,
+  Prohibit,
+} from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
@@ -30,7 +38,11 @@ import { copyToClipboard } from '$utils/dom';
 import { getExploreServerPath } from '$pages/pathUtils';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
-import { useMutualRooms, useMutualRoomsSupport } from '$hooks/useMutualRooms';
+import {
+  useMutualRooms,
+  useMutualRoomsSupport,
+  useUnstableMutualRoomsSupport,
+} from '$hooks/useMutualRooms';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -183,13 +195,7 @@ export function ServerChip({
       <Chip
         variant={cardColor ? undefined : myServer === server ? 'SurfaceVariant' : 'Warning'}
         radii="Pill"
-        before={
-          cords ? (
-            <Icon size="50" src={Icons.ChevronBottom} />
-          ) : (
-            <Icon size="50" src={copied ? Icons.Check : Icons.Server} />
-          )
-        }
+        before={cords ? profileIcon(CaretDown) : profileIcon(copied ? Check : HardDrives)}
         onClick={open}
         aria-pressed={!!cords}
         className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
@@ -303,13 +309,7 @@ export function ShareChip({
       <Chip
         variant={copied ? 'Success' : cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
-        before={
-          cords ? (
-            <Icon size="50" src={Icons.ChevronBottom} />
-          ) : (
-            <Icon size="50" src={copied ? Icons.Check : Icons.Link} />
-          )
-        }
+        before={cords ? profileIcon(CaretDown) : profileIcon(copied ? Check : Link)}
         onClick={open}
         aria-pressed={!!cords}
         className={!copied && cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
@@ -352,6 +352,7 @@ export function MutualRoomsChip({
   const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const mutualRoomSupported = useMutualRoomsSupport();
+  const mutualRoomUnstable = useUnstableMutualRoomsSupport();
   const mutualRoomsState = useMutualRooms(userId);
   const { navigateRoom, navigateSpace } = useRoomNavigate();
   const closeUserRoomProfile = useCloseUserRoomProfile();
@@ -398,7 +399,7 @@ export function MutualRoomsChip({
 
   if (
     userId === mx.getSafeUserId() ||
-    !mutualRoomSupported ||
+    (!mutualRoomSupported && !mutualRoomUnstable) ||
     mutualRoomsState.status === AsyncStatus.Error
   ) {
     return null;
@@ -725,7 +726,7 @@ export function OptionsChip({
                     fill="None"
                     size="300"
                     radii="300"
-                    before={<Icon size="50" src={Icons.Pencil} />}
+                    before={profileIcon(PencilSimple)}
                     onClick={() => setEditingNick(true)}
                     className={css.UserHeroMenuItem}
                     style={heroMenuItemStyle(
@@ -751,11 +752,7 @@ export function OptionsChip({
                   className={css.UserHeroMenuItem}
                   style={heroMenuItemStyle({ backgroundColor: menuItemBg }, chipHoverBrightness)}
                   before={
-                    ignoring ? (
-                      <Spinner variant="Critical" size="50" />
-                    ) : (
-                      <Icon size="50" src={Icons.Prohibited} />
-                    )
+                    ignoring ? <Spinner variant="Critical" size="50" /> : profileIcon(Prohibit)
                   }
                   disabled={ignoring}
                 >
@@ -780,11 +777,7 @@ export function OptionsChip({
           chipHoverBrightness
         )}
       >
-        {ignoring ? (
-          <Spinner variant="Secondary" size="50" />
-        ) : (
-          <Icon size="50" src={Icons.HorizontalDots} />
-        )}
+        {ignoring ? <Spinner variant="Secondary" size="50" /> : profileIcon(DotsThree)}
       </Chip>
     </PopOut>
   );

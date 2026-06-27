@@ -52,6 +52,8 @@ import {
   deletePerMessageProfile,
   setCurrentlyUsedPerMessageProfileIdForRoom,
 } from './usePerMessageProfile';
+import type { LocationPoint } from '$features/room/location-modal/LocationDialog';
+import { filterLocationString, LocationErrors } from '$features/room/location-modal/LocationDialog';
 
 export const SHRUG = String.raw`¯\_(ツ)_/¯`;
 export const TABLEFLIP = '(╯°□°)╯︵ ┻━┻';
@@ -285,6 +287,7 @@ export enum Command {
   // Spec missing from cinny
   Location = 'location',
   ShareMyLocation = 'sharemylocation',
+  Poll = 'poll',
 }
 
 export type CommandContent = {
@@ -1540,31 +1543,28 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.Location]: {
         name: Command.Location,
-        description: 'Share a location as /location <latitude> <longitude>',
+        description:
+          'Open location sharing menu or share a location as /location <latitude> <longitude>',
         exe: async (payload) => {
-          const target = payload
-            .replace(',', ' ')
-            .replace('/', ' ')
-            .replace('  ', ' ')
-            .trim()
-            .split(' ');
-
-          const mlat = target[0];
-          const mlon = target[1];
-          const malt = target[2];
-          if (!mlat || !mlon) {
+          const coords: LocationPoint = filterLocationString(payload);
+          if (!coords.lat || !coords.lon || coords.status !== LocationErrors.none) {
             sendFeedback(
-              'You need to specify a latitude, a longitude parameter, and optionally an altitude, as for example: /location 43.959971 -59.790623 or use the /sharemylocation to share the current location',
+              'You need to specify a latitude, and a longitude parameter, as for example: /location 43.959971 -59.790623 or have nothing after the /location to open the map to click which location to share',
               room,
               mx.getSafeUserId()
             );
             return;
           }
-          await mx.sendMessage(room.roomId, {
-            msgtype: 'm.location',
-            geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=0`,
-            body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
-          } as unknown as RoomMessageEventContent);
+
+          const mlat = coords.lat;
+          const mlon = coords.lon;
+
+          if (mlat && mlon)
+            await mx.sendMessage(room.roomId, {
+              msgtype: 'm.location',
+              geo_uri: `geo:${mlat},${mlon};u=0`,
+              body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
+            } as RoomMessageEventContent);
         },
       },
       [Command.ShareMyLocation]: {
@@ -1588,7 +1588,6 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             const mlat = crd.latitude;
             const mlon = crd.longitude;
             const malt = crd.altitude;
-            const macc = crd.accuracy;
             if (!mlat || !mlon) {
               sendFeedback(
                 'Unable to retrieve the location data for an unknown reason',
@@ -1599,7 +1598,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             }
             mx.sendMessage(room.roomId, {
               msgtype: 'm.location',
-              geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=${macc}`,
+              geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=0`,
               body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
             } as unknown as RoomMessageEventContent);
           }
@@ -1612,6 +1611,13 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             sendFeedback(response, room, mx.getSafeUserId());
           }
           navigator.geolocation.getCurrentPosition(success, error, options);
+        },
+      },
+      [Command.Poll]: {
+        name: Command.Poll,
+        description: 'Create a poll',
+        exe: async () => {
+          return;
         },
       },
     }),

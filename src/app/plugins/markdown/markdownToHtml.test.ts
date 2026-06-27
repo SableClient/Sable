@@ -35,12 +35,25 @@ describe('markdownToHtml', () => {
   it('converts links', () => {
     const result = markdownToHtml('[link](https://example.com)');
     expect(result).toContain('<a href="https://example.com"');
+    expect(result).not.toContain('target=');
+    expect(result).not.toContain('rel=');
   });
 
   it('converts spoiler syntax', () => {
     const result = markdownToHtml('||spoiler||');
     expect(result).toContain('data-mx-spoiler');
     expect(result).toContain('spoiler');
+  });
+
+  it('converts MFM fg.color syntax', () => {
+    const result = markdownToHtml('$[fg.color=f00 red]');
+    expect(result).toContain('data-mx-color="#ff0000"');
+    expect(result).toContain('red');
+  });
+
+  it('converts MFM bg.color with 6-digit hex', () => {
+    const result = markdownToHtml('$[bg.color=00ff00 green]');
+    expect(result).toContain('data-mx-bg-color="#00ff00"');
   });
 
   it('converts inline math syntax', () => {
@@ -137,6 +150,27 @@ describe('markdownToHtml', () => {
       expect(markdownToHtml('intro\n> quote')).toContain('<blockquote>');
     });
 
+    it('ends blockquote when the next line does not start with >', () => {
+      const html = markdownToHtml('> test\ntest 2');
+      expect(html).toContain('<blockquote>');
+      expect(html).toContain('test');
+      expect(html).not.toMatch(/<blockquote>[\s\S]*test 2[\s\S]*<\/blockquote>/);
+      expect(html).toContain('test 2');
+    });
+
+    it('keeps consecutive blockquote lines with > markers', () => {
+      const html = markdownToHtml('> line one\n> line two');
+      expect(html).toContain('<blockquote>');
+      expect(html).toContain('line one');
+      expect(html).toContain('line two');
+      expect((html.match(/<blockquote/g) ?? []).length).toBe(1);
+    });
+
+    it('keeps three or more consecutive blockquote lines in one blockquote', () => {
+      const html = markdownToHtml('> test\n> test\n> test');
+      expect((html.match(/<blockquote/g) ?? []).length).toBe(1);
+    });
+
     it('does not promote -# inside fenced code when the fence follows a single newline', () => {
       const html = markdownToHtml('test\n```\n-# not sub\n```');
       expect(html).not.toContain('<sub');
@@ -188,6 +222,17 @@ describe('markdownToHtml', () => {
     expect(result).not.toContain('<li>');
     expect(result).not.toContain('<ol>');
     expect(result).not.toContain('<ul>');
+  });
+
+  it('preserves arbitrary ordered list start numbers', () => {
+    const result = markdownToHtml('23423. hello');
+    expect(result).toContain('start="23423"');
+  });
+
+  it('strips invalid ol start values', () => {
+    const result = markdownToHtml('<ol start="javascript:alert(1)"><li>x</li></ol>');
+    expect(result).toContain('<ol>');
+    expect(result).not.toContain('start=');
   });
 
   it('handles text without markdown', () => {
@@ -324,5 +369,40 @@ describe('markdownToHtml', () => {
     const result = markdownToHtml('join https://matrix.to/#/#room:example.org please');
     expect(result).toContain('https://matrix.to/#/#room:example.org');
     expect(result).not.toMatch(/<a[^>]*matrix\.to/);
+  });
+
+  it('renders backslash-escaped angle brackets as literal < and > in HTML output', () => {
+    const html = markdownToHtml(String.raw`\<test\>`);
+    expect(html).toContain('&lt;test&gt;');
+    expect(html).not.toMatch(/<test[^>]*>/);
+  });
+
+  it('does not double-encode when only the opening bracket is backslash-escaped', () => {
+    const html = markdownToHtml(String.raw`\<test>`);
+    expect(html).toContain('&lt;test&gt;');
+    expect(html).not.toContain('&amp;lt;');
+    expect(html).not.toMatch(/<test[^>]*>/);
+  });
+
+  it('entity-escapes unknown html-like tags instead of stripping them', () => {
+    expect(markdownToHtml('<test>')).toContain('&lt;test&gt;');
+    expect(markdownToHtml('<test>')).not.toMatch(/<test[^>]*>/);
+    expect(markdownToHtml('<test> <\\test>')).toContain('&lt;test&gt;');
+    expect(markdownToHtml('<b>nope</b>')).toContain('&lt;b&gt;');
+    expect(markdownToHtml('<b>nope</b>')).toContain('nope');
+  });
+
+  it('entity-escapes allowlisted tags without a proper closing tag', () => {
+    const result = markdownToHtml('<strong>bold');
+    expect(result).toContain('&lt;strong&gt;');
+    expect(result).toContain('bold');
+    expect(result).not.toMatch(/<strong[^>]*>bold/);
+  });
+
+  it('preserves preview-suppressed angle-bracket URLs', () => {
+    const url = 'https://example.com/doc';
+    const result = markdownToHtml(`see <${url}> there`);
+    expect(result).toContain(url);
+    expect(result).not.toContain('&lt;https');
   });
 });

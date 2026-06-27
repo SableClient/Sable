@@ -53,8 +53,8 @@ describe('sanitizeCustomHtml', () => {
     expect(result).toContain('data-mx-maths="x"');
     expect(result).toContain('data-md="**"');
     expect(result).toContain('href="https://example.com"');
-    expect(result).toContain('target="_blank"');
     expect(result).toContain('data-md="[]()"');
+    expect(result).not.toContain('target=');
     expect(result).not.toContain('rel=');
     expect(result).toContain('<ol start="2" data-md="1.">');
     expect(result).not.toContain('type=');
@@ -91,11 +91,21 @@ describe('sanitizeCustomHtml', () => {
     );
 
     expect(sanitizeCustomHtml('<a href="/relative">relative</a>')).toBe('<a>relative</a>');
-    expect(sanitizeCustomHtml('<a href="matrix:u/alice:example.com">matrix</a>')).toBe(
-      '<a>matrix</a>'
-    );
     expect(sanitizeCustomHtml('<a href="javascript:alert(1)">bad</a>')).toBe('<a>bad</a>');
     expect(sanitizeCustomHtml('<a href="vbscript:msgbox(1)">bad</a>')).toBe('<a>bad</a>');
+  });
+
+  it('keeps valid matrix: URIs but strips malformed ones', () => {
+    expect(sanitizeCustomHtml('<a href="matrix:u/alice:example.com">matrix</a>')).toContain(
+      'href="matrix:u/alice:example.com"'
+    );
+    expect(
+      sanitizeCustomHtml('<a href="matrix:roomid/room:example.com/e/event">matrix</a>')
+    ).toContain('href="matrix:roomid/room:example.com/e/event"');
+
+    // Malformed matrix: URIs (unknown type, missing id) are dropped.
+    expect(sanitizeCustomHtml('<a href="matrix:nonsense">bad</a>')).toBe('<a>bad</a>');
+    expect(sanitizeCustomHtml('<a href="matrix:u/">bad</a>')).toBe('<a>bad</a>');
   });
 
   it('keeps only mxc image sources and preserves custom-emote markers', () => {
@@ -120,6 +130,14 @@ describe('sanitizeCustomHtml', () => {
     expect(result).not.toContain('mxc://example.com/secondary');
     expect(result).not.toContain('srcset=');
     expect(result.match(/\ssrc=/g)).toHaveLength(1);
+  });
+
+  it('drops invalid ol start values', () => {
+    expect(sanitizeCustomHtml('<ol start="2"><li>ok</li></ol>')).toContain('start="2"');
+    expect(sanitizeCustomHtml('<ol start="javascript:alert(1)"><li>x</li></ol>')).not.toContain(
+      'start='
+    );
+    expect(sanitizeCustomHtml('<ol start="1.5"><li>x</li></ol>')).not.toContain('start=');
   });
 
   it('drops invalid Matrix color attributes instead of translating them to style', () => {

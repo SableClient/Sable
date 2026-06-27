@@ -9,8 +9,6 @@ import {
   config,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Input,
   Button,
   Spinner,
@@ -32,6 +30,7 @@ import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { BreakWord } from '$styles/Text.css';
 import { useAlive } from '$hooks/useAlive';
@@ -170,7 +169,7 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
                 </Box>
                 <Box shrink="No">
                   <IconButton size="300" radii="300" onClick={requestClose}>
-                    <Icon src={Icons.Cross} />
+                    {composerIcon(X)}
                   </IconButton>
                 </Box>
               </Header>

@@ -10,9 +10,16 @@ import {
   getReactCustomHtmlParser,
   makeMentionCustomProps,
   renderMatrixMention,
+  scaleSystemEmoji,
 } from './react-custom-html-parser';
+import { registerMatrixUriProtocol } from './matrix-uri';
+import { markdownToHtml } from './markdown/markdownToHtml';
 
 const settingsLinkBaseUrl = 'https://app.example';
+
+// Ensure linkify recognizes `matrix:` URIs in plain text before any tokenization
+// happens in this file.
+registerMatrixUriProtocol();
 
 const { CodeHighlightRenderer } = vi.hoisted(() => ({
   CodeHighlightRenderer: vi.fn<
@@ -159,6 +166,19 @@ describe('react custom html parser', () => {
     expect(img).toBeInTheDocument();
     // Default max is 64 unless overridden by settings.
     expect(img).toHaveAttribute('height', '64');
+  });
+
+  it.each(['🫩', '🫪', '🫯', '🇩🇪', '🙂‍↔️'])(
+    'wraps modern emoji text %s in emoticon markup',
+    (emoji) => {
+      const result = scaleSystemEmoji(emoji);
+      expect(result).toHaveLength(1);
+      expect(typeof result[0]).not.toBe('string');
+    }
+  );
+
+  it('does not wrap emojis inside urls', () => {
+    expect(scaleSystemEmoji('https://example.com/🫩')).toEqual(['https://example.com/🫩']);
   });
 
   it('renders same-origin raw settings links as mention-style chips through the factory link render path', () => {
@@ -434,5 +454,97 @@ describe('react custom html parser', () => {
         name: 'https://github.com/SableClient/Sable/pull/PR/626',
       })
     ).toHaveAttribute('href', 'https://github.com/SableClient/Sable/pull/PR/626');
+  });
+
+  it.each([String.raw`\<test\>`, String.raw`\<test>`])(
+    'renders %s as literal angle brackets, not entity text',
+    (md) => {
+      renderParsedHtml(markdownToHtml(md));
+
+      expect(screen.getByText('<test>')).toBeInTheDocument();
+      expect(screen.queryByText('&lt;test&gt;')).not.toBeInTheDocument();
+    }
+  );
+
+  it('unwraps paragraph tags inside list items instead of rendering block breaks', () => {
+    const { container } = renderMessage(
+      '<ol><li><p>one</p></li><li><p>two</p></li></ol><ul><li><p>bullet</p></li></ul>'
+    );
+
+    expect(container.querySelector('p')).toBeNull();
+    expect(container.textContent).toContain('one');
+    expect(container.textContent).toContain('two');
+    expect(container.textContent).toContain('bullet');
+  });
+});
+
+describe('matrix: URI mentions', () => {
+  const roomMx = () =>
+    createMatrixClient({
+      getRoom: () => ({ roomId: '!room:example.org', name: 'Lobby' }),
+      getRooms: () => [],
+    });
+
+  it('renders a matrix: user URI in an html anchor as a mention pill', () => {
+    renderParsedHtml('<a href="matrix:u/bob:example.org">bob</a>', { sanitize: false });
+
+    const link = screen.getByRole('link', { name: '@bob' });
+    expect(link).toHaveAttribute('data-mention-id', '@bob:example.org');
+    expect(link.className).toContain(customHtmlCss.Mention({}));
+  });
+
+  it('keeps valid matrix: URIs through sanitization and renders them as mentions', () => {
+    renderParsedHtml('<a href="matrix:u/bob:example.org">bob</a>', { sanitize: true });
+
+    expect(screen.getByRole('link', { name: '@bob' })).toHaveAttribute(
+      'data-mention-id',
+      '@bob:example.org'
+    );
+  });
+
+  it('renders a matrix: room URI with via servers and falls back to the room name', () => {
+    renderParsedHtml(
+      '<a href="matrix:roomid/room:example.org?via=elsewhere.ca">matrix:roomid/room:example.org?via=elsewhere.ca</a>',
+      { sanitize: false, mx: roomMx() }
+    );
+
+    const link = screen.getByRole('link', { name: '#Lobby' });
+    expect(link).toHaveAttribute('data-mention-id', '!room:example.org');
+    expect(link).toHaveAttribute('data-mention-via', 'elsewhere.ca');
+  });
+
+  it('renders a matrix: event URI with the event id and message icon', () => {
+    renderParsedHtml('<a href="matrix:roomid/room:example.org/e/event123">see this</a>', {
+      sanitize: false,
+      mx: roomMx(),
+    });
+
+    const link = screen.getByRole('link', { name: 'see this' });
+    expect(link).toHaveAttribute('data-mention-id', '!room:example.org');
+    expect(link).toHaveAttribute('data-mention-event-id', '$event123');
+    expect(link.className).toContain(customHtmlCss.MentionWithIcon);
+  });
+
+  it('autolinks bare matrix: URIs in plain text as mention pills', () => {
+    const mx = roomMx();
+    const linkifyOpts = {
+      ...LINKIFY_OPTS,
+      render: factoryRenderLinkifyWithMention(
+        settingsLinkBaseUrl,
+        (href) =>
+          renderMatrixMention(mx, '!room:example.com', href, makeMentionCustomProps(undefined)),
+        undefined
+      ),
+    };
+    const parserOptions = getReactCustomHtmlParser(mx, '!room:example.com', {
+      settingsLinkBaseUrl,
+      linkifyOpts,
+      handleMentionClick: undefined,
+    });
+
+    render(<div>{parse('<p>see matrix:r/room:example.org now</p>', parserOptions)}</div>);
+
+    const link = screen.getByRole('link', { name: '#Lobby' });
+    expect(link).toHaveAttribute('data-mention-id', '!room:example.org');
   });
 });

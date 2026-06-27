@@ -1,23 +1,23 @@
-import { Avatar, Box, Icon, Icons, Text, toRem } from 'folds';
-import { useAtomValue } from 'jotai';
+import { Avatar, Box, Text, toRem } from 'folds';
+import { ChatCircleDots, EnvelopeSimple, Tray, sizedIcon } from '$components/icons/phosphor';
 import { NavCategory, NavItem, NavItemContent, NavLink } from '$components/nav';
 import { getInboxInvitesPath, getInboxNotificationsPath } from '$pages/pathUtils';
 import { useInboxInvitesSelected, useInboxNotificationsSelected } from '$hooks/router/useInbox';
 import { UnreadBadge } from '$components/unread-badge';
-import { allInvitesAtom } from '$state/room-list/inviteList';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useEffect, useState } from 'react';
-import { mobileOrTablet } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { useInviteCount } from '$hooks/useInviteCount';
+import { isResizingSidebarAtom } from '$state/isResizingSidebar';
+import { useSetAtom } from 'jotai';
 
 function InvitesNavItem({ hideText }: { hideText?: boolean }) {
   const invitesSelected = useInboxInvitesSelected();
-  const allInvites = useAtomValue(allInvitesAtom);
-  const inviteCount = allInvites.length;
+  const inviteCount = useInviteCount();
 
   return (
     <NavItem
@@ -34,7 +34,7 @@ function InvitesNavItem({ hideText }: { hideText?: boolean }) {
               radii="400"
               style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
             >
-              <Icon src={Icons.Mail} size="100" filled={invitesSelected} />
+              {sizedIcon(EnvelopeSimple, '100', { filled: invitesSelected })}
             </Avatar>
             {!hideText && (
               <Box as="span" grow="Yes">
@@ -55,6 +55,7 @@ export function Inbox() {
   useNavToActivePathMapper('inbox');
   const notificationsSelected = useInboxNotificationsSelected();
 
+  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
@@ -62,7 +63,7 @@ export function Inbox() {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
@@ -74,7 +75,7 @@ export function Inbox() {
       }}
     >
       <PageNav>
-        <PageNavHeader>
+        <PageNavHeader size="600">
           <Box grow="Yes" gap="300" justifyContent="Center">
             {!hideText ? (
               <Box grow="Yes">
@@ -83,7 +84,7 @@ export function Inbox() {
                 </Text>
               </Box>
             ) : (
-              <Icon src={Icons.Inbox} size="200" filled />
+              sizedIcon(Tray, '200', { filled: true })
             )}
           </Box>
         </PageNavHeader>
@@ -100,7 +101,7 @@ export function Inbox() {
                         radii="400"
                         style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                       >
-                        <Icon src={Icons.MessageUnread} size="100" filled={notificationsSelected} />
+                        {sizedIcon(ChatCircleDots, '100', { filled: notificationsSelected })}
                       </Avatar>
                       {!hideText && (
                         <Box as="span" grow="Yes">
@@ -118,7 +119,7 @@ export function Inbox() {
           </Box>
         </PageNavContent>
       </PageNav>
-      {!mobileOrTablet() && (
+      {!isMobile && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
@@ -127,6 +128,7 @@ export function Inbox() {
           outstep={190}
           minValue={50}
           maxValue={500}
+          setAnnouncement={setIsResizingSidebar}
         />
       )}
     </Box>

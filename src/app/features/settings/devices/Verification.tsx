@@ -7,8 +7,6 @@ import {
   Button,
   Chip,
   config,
-  Icon,
-  Icons,
   Spinner,
   Text,
   Overlay,
@@ -19,6 +17,7 @@ import {
   Menu,
   MenuItem,
 } from 'folds';
+import { DotsThreeOutlineVerticalIcon, menuIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import type { CryptoApi, VerificationRequest } from '$types/matrix-sdk';
 import { VerificationStatus } from '$hooks/useDeviceVerificationStatus';
@@ -155,7 +154,7 @@ export function VerifyCurrentDeviceTile({
               radii="Pill"
               onClick={handleCancelVerification}
             >
-              <Icon size="100" src={Icons.Cross} />
+              {menuIcon(X)}
             </Chip>
           }
         />
@@ -296,7 +295,7 @@ export function DeviceVerificationOptions() {
         radii="300"
         onClick={handleMenu}
       >
-        <Icon size="100" src={Icons.VerticalDots} />
+        {menuIcon(DotsThreeOutlineVerticalIcon, { weight: menuCords ? 'fill' : 'regular' })}
       </IconButton>
       <PopOut
         anchor={menuCords}

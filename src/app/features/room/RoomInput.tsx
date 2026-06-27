@@ -21,9 +21,7 @@ import {
   color,
   config,
   Dialog,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   Overlay,
@@ -129,7 +127,27 @@ import {
   convertPerMessageProfileToBeeperFormat,
   getCurrentlyUsedPerMessageProfileForRoom,
 } from '$hooks/usePerMessageProfile';
-import { Microphone, Stop } from '@phosphor-icons/react';
+import {
+  Bell,
+  BellSlash,
+  CaretDown,
+  chipIcon,
+  Clock,
+  composerIcon,
+  dropzoneIcon,
+  File as FileIcon,
+  ListBullets,
+  MapPinPlusIcon,
+  menuIcon,
+  Microphone,
+  PaperPlaneTilt,
+  getPhosphorIconSize,
+  PlusCircle,
+  Smiley,
+  Sticker,
+  Stop,
+  X,
+} from '$components/icons/phosphor';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { ErrorCode } from '../../cs-errorcode';
 import { sanitizeText } from '$utils/sanitize';
@@ -159,10 +177,12 @@ import type {
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
+import { PollDialog } from './poll-modals';
+import { LocationDialog } from './location-modal';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
-const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
+export const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   const thread = room.getThread(threadRootId);
   const threadEvents: MatrixEvent[] = thread?.events ?? [];
   const filtered = threadEvents.filter(
@@ -191,7 +211,10 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   return threadRootId;
 };
 
-const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEventRelation => {
+export const getReplyContent = (
+  replyDraft: IReplyDraft | undefined,
+  room?: Room
+): IEventRelation => {
   if (!replyDraft) return {};
 
   const relatesTo: IEventRelation = {};
@@ -247,6 +270,7 @@ interface RoomInputProps {
   threadRootId?: string;
   onEditLastMessage?: () => void;
 }
+
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
   ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
     // When in thread mode, isolate drafts by thread root ID so thread replies
@@ -255,6 +279,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
+    const [editorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
 
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
@@ -314,6 +339,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [autocompleteQuery, setAutocompleteQuery] =
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
+
+    const replyDraftBase = useMemo(
+      () =>
+        threadRootId
+          ? {
+              userId: mx.getUserId() ?? '',
+              eventId: threadRootId,
+              body: '',
+              relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+            }
+          : undefined,
+      [mx, threadRootId]
+    );
 
     const sendTypingStatus = useTypingStatusUpdater(mx, roomId, { disabled: !!threadRootId });
 
@@ -381,6 +419,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [editingScheduledDelayId, setEditingScheduledDelayId] = useAtom(
       roomIdToEditingScheduledDelayIdAtomFamily(roomId)
     );
+    const [AddMenuAnchor, setAddMenuAnchor] = useState<RectCords>();
+    const [showPollPicker, setShowPollPicker] = useState(false);
+    const [showLocationPicker, setShowLocationPicker] = useState(false);
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
@@ -388,6 +429,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
+    const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -569,16 +611,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (contents.length > 0) {
         const replyContent =
           plainText?.length === 0 ? getReplyContent(replyDraft, room) : undefined;
-        if (replyContent) contents[0]!['m.relates_to'] = replyContent;
-        if (threadRootId) {
-          setReplyDraft({
-            userId: mx.getUserId() ?? '',
-            eventId: threadRootId,
-            body: '',
-            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
-          });
-        } else {
-          setReplyDraft(undefined);
+        if (replyContent) {
+          contents[0]!['m.relates_to'] = replyContent;
+          setReplyDraft(replyDraftBase);
         }
       }
 
@@ -815,9 +850,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         plainText = `${UNFLIP} ${plainText}`;
         customHtml = `${UNFLIP} ${customHtml}`;
       } else if (commandName) {
-        const commandContent = commands[commandName as Command];
-        if (commandContent) {
-          commandContent.exe(plainText, customHtml);
+        if ((commandName as Command) === Command.Poll) setShowPollPicker(true);
+        else if ((commandName as Command) === Command.Location && plainText.trim().length === 0)
+          setShowLocationPicker(true);
+        else {
+          const commandContent = commands[commandName as Command];
+          if (commandContent) {
+            commandContent.exe(plainText, customHtml);
+          }
         }
         resetEditor(editor);
         resetEditorHistory(editor);
@@ -945,17 +985,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetEditorHistory(editor);
         setInputKey((prev) => prev + 1);
         imagePacksUsedRef.current.clear();
-        if (threadRootId) {
-          // Re-seed the thread reply draft so the next message also goes to the thread.
-          setReplyDraft({
-            userId: mx.getUserId() ?? '',
-            eventId: threadRootId,
-            body: '',
-            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
-          });
-        } else {
-          setReplyDraft(undefined);
-        }
+        setReplyDraft(replyDraftBase);
         sendTypingStatus(false);
       };
       if (scheduledTime) {
@@ -1082,6 +1112,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setEditingScheduledDelayId,
       setScheduledTime,
       setServerMaxDelayMs,
+      replyDraftBase,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1149,6 +1180,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
           setReplyDraft(undefined);
         }
+
+        if (isKeyHotkey('control+e', evt)) {
+          evt.preventDefault();
+          setEmojiBoardTab(EmojiBoardTab.Sticker);
+        }
       },
       [
         submit,
@@ -1160,6 +1196,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         showAudioRecorder,
         editor,
         onEditLastMessage,
+        setEmojiBoardTab,
       ]
     );
 
@@ -1258,16 +1295,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       if (replyDraft) {
         content['m.relates_to'] = getReplyContent(replyDraft, room);
-        if (threadRootId) {
-          setReplyDraft({
-            userId: mx.getUserId() ?? '',
-            eventId: threadRootId,
-            body: '',
-            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
-          });
-        } else {
-          setReplyDraft(undefined);
-        }
+        setReplyDraft(replyDraftBase);
       }
       mx.sendEvent(roomId, EventType.Sticker, content);
     };
@@ -1322,7 +1350,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 gap="500"
                 style={{ padding: toRem(60) }}
               >
-                <Icon size="600" src={Icons.File} />
+                {dropzoneIcon(FileIcon)}
                 <Text size="H4" align="Center">
                   {`Drop Files in "${room?.name || 'Room'}"`}
                 </Text>
@@ -1419,10 +1447,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       radii="300"
                       title="schedule message send"
                     >
-                      <Icon src={Icons.Cross} size="50" />
+                      {chipIcon(X)}
                     </IconButton>
                     <Box direction="Row" gap="200" alignItems="Center">
-                      <Icon size="100" src={Icons.Clock} />
+                      {menuIcon(Clock)}
                       <Text size="T300">
                         Scheduled for {timeDayMonthYear(scheduledTime.getTime())} at{' '}
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
@@ -1475,7 +1503,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       aria-label="Cancel reply"
                       title="Cancel reply"
                     >
-                      <Icon src={Icons.Cross} size="50" />
+                      {chipIcon(X)}
                     </IconButton>
                     <Box
                       direction="Row"
@@ -1509,8 +1537,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         }
                         onClick={() => setSilentReply(!silentReply)}
                       >
-                        {!silentReply && <Icon src={Icons.BellPing} />}
-                        {silentReply && <Icon src={Icons.BellMute} />}
+                        {!silentReply && composerIcon(Bell)}
+                        {silentReply && composerIcon(BellSlash)}
                       </IconButton>
                     </Box>
                   </Box>
@@ -1519,16 +1547,76 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            <IconButton
-              onClick={() => pickFile('*')}
-              variant="SurfaceVariant"
-              size="300"
-              radii="300"
-              title="Upload File"
-              aria-label="Upload and attach a File"
-            >
-              <Icon src={Icons.PlusCircle} />
-            </IconButton>
+            <>
+              <PopOut
+                anchor={AddMenuAnchor}
+                position="Top"
+                align="Start"
+                offset={5}
+                content={
+                  <FocusTrap
+                    focusTrapOptions={{
+                      initialFocus: false,
+                      onDeactivate: () => setAddMenuAnchor(undefined),
+                      clickOutsideDeactivates: true,
+                      escapeDeactivates: stopPropagation,
+                    }}
+                  >
+                    <Menu>
+                      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          onClick={() => {
+                            setAddMenuAnchor(undefined);
+                            setShowPollPicker(true);
+                          }}
+                          before={menuIcon(ListBullets)}
+                        >
+                          <Text size="B300">Create Poll</Text>
+                        </MenuItem>
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          onClick={() => {
+                            setAddMenuAnchor(undefined);
+                            setShowLocationPicker(true);
+                          }}
+                          before={menuIcon(MapPinPlusIcon)}
+                        >
+                          <Text size="B300">Add Location</Text>
+                        </MenuItem>
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          onClick={() => {
+                            pickFile('*');
+                            setAddMenuAnchor(undefined);
+                          }}
+                          before={menuIcon(PlusCircle)}
+                        >
+                          <Text size="B300">Add File</Text>
+                        </MenuItem>
+                      </Box>
+                    </Menu>
+                  </FocusTrap>
+                }
+              />
+              <IconButton
+                onClick={(evt) =>
+                  editorOldAddFile
+                    ? pickFile('*')
+                    : setAddMenuAnchor(evt.currentTarget.getBoundingClientRect())
+                }
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+                title={editorOldAddFile ? 'Upload File' : 'Add'}
+                aria-label={editorOldAddFile ? 'Upload and attach a File' : 'Add new Item'}
+              >
+                {composerIcon(PlusCircle)}
+              </IconButton>
+            </>
           }
           after={
             <>
@@ -1577,16 +1665,20 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 }}
               >
                 {showAudioRecorder ? (
-                  <Stop size={20} weight="fill" style={{ color: color.Critical.Main }} />
+                  <Stop
+                    size={getPhosphorIconSize('toolbar')}
+                    weight="fill"
+                    style={{ color: color.Critical.Main }}
+                  />
                 ) : (
-                  <Microphone size={20} />
+                  composerIcon(Microphone)
                 )}
               </IconButton>
 
               <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
 
               <UseStateProvider initial={undefined}>
-                {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
+                {() => (
                   <PopOut
                     offset={16}
                     alignOffset={-44}
@@ -1628,10 +1720,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         title="open sticker picker"
                         aria-label="Open sticker picker"
                       >
-                        <Icon
-                          src={Icons.Sticker}
-                          filled={emojiBoardTab === EmojiBoardTab.Sticker}
-                        />
+                        {composerIcon(Sticker, {
+                          weight: emojiBoardTab === EmojiBoardTab.Sticker ? 'fill' : 'regular',
+                        })}
                       </IconButton>
                     )}
                     <IconButton
@@ -1646,12 +1737,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       title="open emoji picker"
                       aria-label="Open emoji picker"
                     >
-                      <Icon
-                        src={Icons.Smile}
-                        filled={
-                          hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
-                        }
-                      />
+                      {composerIcon(Smiley, {
+                        weight: hideStickerBtn
+                          ? emojiBoardTab
+                            ? 'fill'
+                            : 'regular'
+                          : emojiBoardTab === EmojiBoardTab.Emoji
+                            ? 'fill'
+                            : 'regular',
+                      })}
                     </IconButton>
                   </PopOut>
                 )}
@@ -1679,7 +1773,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             setScheduleMenuAnchor(undefined);
                             submit();
                           }}
-                          before={<Icon size="100" src={Icons.Send} />}
+                          before={menuIcon(PaperPlaneTilt)}
                         >
                           <Text size="B300">Send Now</Text>
                         </MenuItem>
@@ -1690,7 +1784,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             setScheduleMenuAnchor(undefined);
                             setShowSchedulePicker(true);
                           }}
-                          before={<Icon size="100" src={Icons.Clock} />}
+                          before={menuIcon(Clock)}
                         >
                           <Text size="B300">Schedule Send</Text>
                         </MenuItem>
@@ -1737,7 +1831,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   radii="0"
                   className={delayedEventsSupported ? css.SplitSendButton : undefined}
                 >
-                  <Icon src={scheduledTime ? Icons.Clock : Icons.Send} />
+                  {scheduledTime ? composerIcon(Clock) : composerIcon(PaperPlaneTilt)}
                 </IconButton>
                 {delayedEventsSupported && !mobileOrTablet() && (
                   <IconButton
@@ -1751,7 +1845,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     radii="0"
                     className={css.SplitChevronButton}
                   >
-                    <Icon size="50" src={Icons.ChevronBottom} />
+                    {chipIcon(CaretDown)}
                   </IconButton>
                 )}
               </Box>
@@ -1769,6 +1863,24 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               setShowSchedulePicker(false);
               setSendError(undefined);
             }}
+          />
+        )}
+        {showPollPicker && (
+          <PollDialog
+            onCancel={() => setShowPollPicker(false)}
+            mx={mx}
+            room={room}
+            replyDraft={replyDraft}
+            clearReplyDraft={() => setReplyDraft(replyDraftBase)}
+          />
+        )}
+        {showLocationPicker && (
+          <LocationDialog
+            onCancel={() => setShowLocationPicker(false)}
+            mx={mx}
+            room={room}
+            replyDraft={replyDraft}
+            clearReplyDraft={() => setReplyDraft(replyDraftBase)}
           />
         )}
       </div>

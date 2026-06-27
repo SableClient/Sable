@@ -2,7 +2,8 @@ import type { KeyboardEventHandler } from 'react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, config } from 'folds';
+import { Box, Chip, IconButton, PopOut, Spinner, Text, config } from 'folds';
+import { composerIcon, Smiley } from '$components/icons/phosphor';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -39,8 +40,6 @@ type BioEditorProps = {
   onSave: (htmlContent: string, plainText: string) => void;
 };
 
-const BIO_LIMIT = 1024;
-
 export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditorProps) {
   const editor = useEditor();
   const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
@@ -48,19 +47,12 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
   const [autocompleteQuery, setAutocompleteQuery] =
     useState<AutocompleteQuery<AutocompletePrefix>>();
   const [hasChanged, setHasChanged] = useState(false);
-  const [charCount, setCharCount] = useState(0);
 
   const prevValue = useRef(value);
   const initialized = useRef(false);
 
-  const updateStats = useCallback(() => {
-    const plainText = toPlainText(editor.children).trim();
-    setCharCount(plainText.length);
-  }, [editor]);
-
   const handleSave = useCallback(() => {
     const plainText = toPlainText(editor.children).trim();
-    if (plainText.length > BIO_LIMIT) return;
 
     const customHtml = trimCustomHtml(toMatrixCustomHTML(editor.children, {}));
 
@@ -104,9 +96,8 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
 
       initialized.current = true;
       setHasChanged(false);
-      updateStats();
     }
-  }, [value, editor, updateStats]);
+  }, [value, editor]);
 
   const handleKeyDown: KeyboardEventHandler = useCallback(
     (evt) => {
@@ -142,10 +133,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
     editor.insertNode(createEmoticonElement(key, shortcode));
     moveCursor(editor);
     setHasChanged(true);
-    updateStats();
   };
-
-  const isOverLimit = charCount > BIO_LIMIT;
 
   return (
     <Box direction="Column" gap="100">
@@ -164,7 +152,6 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
           placeholder="Write a bio..."
           onChange={() => {
             if (!hasChanged) setHasChanged(true);
-            updateStats();
           }}
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
@@ -183,9 +170,9 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                   {hasChanged && (
                     <Chip
                       onClick={handleSave}
-                      variant={isOverLimit ? 'Background' : 'Primary'}
+                      variant="Primary"
                       radii="Pill"
-                      disabled={isSaving || isOverLimit}
+                      disabled={isSaving}
                       outlined
                       before={
                         isSaving ? <Spinner variant="Primary" fill="Soft" size="100" /> : undefined
@@ -194,13 +181,6 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                       <Text size="B300">{isSaving ? 'Saving' : 'Save'}</Text>
                     </Chip>
                   )}
-                  <Text
-                    size="T200"
-                    priority={isOverLimit ? '500' : '300'}
-                    style={{ opacity: isOverLimit ? 1 : 0.6 }}
-                  >
-                    {charCount} / {BIO_LIMIT}
-                  </Text>
                 </Box>
                 <Box gap="Inherit">
                   <MarkdownFormattingToolbarToggle variant="Background" />
@@ -236,7 +216,9 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                           radii="300"
                           onClick={(evt) => setAnchor(evt.currentTarget.getBoundingClientRect())}
                         >
-                          <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                          {composerIcon(Smiley, {
+                            weight: anchor !== undefined ? 'fill' : 'regular',
+                          })}
                         </IconButton>
                       </PopOut>
                     )}

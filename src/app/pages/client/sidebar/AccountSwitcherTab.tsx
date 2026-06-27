@@ -6,8 +6,6 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -16,6 +14,9 @@ import {
   toRem,
   Chip,
   Spinner,
+  Overlay,
+  OverlayBackdrop,
+  OverlayCenter,
   Line,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
@@ -24,10 +25,10 @@ import { useNavigate } from 'react-router-dom';
 import type { Session } from '$state/sessions';
 import { sessionsAtom, activeSessionIdAtom, backgroundUnreadCountsAtom } from '$state/sessions';
 import {
-  SidebarItem,
   SidebarItemTooltip,
   SidebarAvatar,
   SidebarUnreadBadge,
+  SidebarItem,
 } from '$components/sidebar';
 import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
@@ -40,14 +41,14 @@ import { useUserProfile } from '$hooks/useUserProfile';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSessionProfiles } from '$hooks/useSessionProfiles';
 import { useOpenSettings } from '$features/settings';
-import { Modal500 } from '$components/Modal500';
 import { createLogger } from '$utils/debug';
-import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
+import { Check, chipIcon, GearSix, menuIcon, Plus } from '$components/icons/phosphor';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 
 const log = createLogger('AccountSwitcherTab');
-const debugLog = createDebugLogger('AccountSwitcherTab');
 
 function AccountRow({
   session,
@@ -97,9 +98,7 @@ function AccountRow({
               <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
             </UnreadBadgeCenter>
           )}
-          {isActive && (
-            <Icon size="200" src={Icons.Check} style={{ color: 'var(--mx-c-success)' }} />
-          )}
+          {isActive && chipIcon(Check, { style: { color: 'var(--mx-c-success)' } })}
           {isBusy ? (
             <Spinner size="200" variant="Secondary" />
           ) : (
@@ -140,7 +139,7 @@ function AccountRow({
   );
 }
 
-export function AccountSwitcherTab() {
+export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
   const mx = useMatrixClient();
   const navigate = useNavigate();
   const sessions = useAtomValue(sessionsAtom);
@@ -150,6 +149,7 @@ export function AccountSwitcherTab() {
   const backgroundUnreads = useAtomValue(backgroundUnreadCountsAtom);
   const setBackgroundUnreads = useSetAtom(backgroundUnreadCountsAtom);
   const openSettings = useOpenSettings();
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
 
   // Total unread count across all background sessions (for the sidebar badge).
   const totalBackgroundUnread = Object.entries(backgroundUnreads)
@@ -252,9 +252,6 @@ export function AccountSwitcherTab() {
   };
 
   const handleOpenSettings = () => {
-    debugLog.info('ui', 'Settings button clicked', {
-      userId: activeSession?.userId,
-    });
     setMenuAnchor(undefined);
     openSettings();
   };
@@ -266,8 +263,8 @@ export function AccountSwitcherTab() {
   if (!activeSession) return null;
 
   return (
-    <SidebarItem active={!!menuAnchor}>
-      <SidebarItemTooltip tooltip={label}>
+    <SidebarItem active={!!menuAnchor} isBottom={isBottom}>
+      <SidebarItemTooltip tooltip={label} position={isBottom ? 'Top' : 'Right'}>
         {(triggerRef) => (
           <SidebarAvatar
             as="button"
@@ -293,7 +290,7 @@ export function AccountSwitcherTab() {
 
       <PopOut
         anchor={menuAnchor}
-        position="Right"
+        position={isBottom ? 'Top' : 'Right'}
         align="End"
         offset={6}
         content={
@@ -342,23 +339,27 @@ export function AccountSwitcherTab() {
                     />
                   );
                 })}
-                <MenuItem
-                  size="300"
-                  radii="300"
-                  before={<Icon size="50" src={Icons.Plus} />}
-                  onClick={handleAddAccount}
-                >
+                <MenuItem size="300" radii="300" before={chipIcon(Plus)} onClick={handleAddAccount}>
                   <Text size="T300">Add Account</Text>
                 </MenuItem>
-                <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
-                <MenuItem
-                  size="300"
-                  radii="300"
-                  before={<Icon size="200" src={Icons.Setting} />}
-                  onClick={handleOpenSettings}
-                >
-                  <Text size="T300">Settings</Text>
-                </MenuItem>
+                {/*This will defo need to be reverted w the new statuses, w the right changes in the SidebarNav to make the cog a permanent fixture but democracy wants old style*/}
+                {oldSidebar && (
+                  <>
+                    <Line
+                      variant="Surface"
+                      size="300"
+                      style={{ margin: `${config.space.S100} 0` }}
+                    />
+                    <MenuItem
+                      size="300"
+                      radii="300"
+                      before={menuIcon(GearSix)}
+                      onClick={handleOpenSettings}
+                    >
+                      <Text size="T300">Settings</Text>
+                    </MenuItem>
+                  </>
+                )}
               </Box>
             </Menu>
           </FocusTrap>
@@ -366,41 +367,53 @@ export function AccountSwitcherTab() {
       />
 
       {confirmSignOutSession && (
-        <Modal500 requestClose={() => setConfirmSignOutSession(undefined)}>
-          <Dialog variant="Surface">
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
+        <Overlay open backdrop={<OverlayBackdrop />}>
+          <OverlayCenter>
+            <FocusTrap
+              focusTrapOptions={{
+                initialFocus: false,
+                fallbackFocus: () => document.body,
+                clickOutsideDeactivates: true,
+                onDeactivate: () => setConfirmSignOutSession(undefined),
+                escapeDeactivates: stopPropagation,
               }}
-              variant="Surface"
-              size="500"
             >
-              <Box grow="Yes">
-                <Text size="H4">Sign out</Text>
-              </Box>
-            </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              <Text priority="400">
-                Are you sure you want to sign out of <b>{confirmSignOutSession.userId}</b>?
-              </Text>
-              <Box direction="Column" gap="200">
-                <Button
-                  variant="Critical"
-                  onClick={() => {
-                    handleSignOut(confirmSignOutSession);
-                    setConfirmSignOutSession(undefined);
+              <Dialog variant="Surface">
+                <Header
+                  style={{
+                    padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                    borderBottomWidth: config.borderWidth.B300,
                   }}
+                  variant="Surface"
+                  size="500"
                 >
-                  <Text size="B400">Sign out</Text>
-                </Button>
-                <Button variant="Secondary" onClick={() => setConfirmSignOutSession(undefined)}>
-                  <Text size="B400">Cancel</Text>
-                </Button>
-              </Box>
-            </Box>
-          </Dialog>
-        </Modal500>
+                  <Box grow="Yes">
+                    <Text size="H4">Sign out</Text>
+                  </Box>
+                </Header>
+                <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+                  <Text priority="400">
+                    Are you sure you want to sign out of <b>{confirmSignOutSession.userId}</b>?
+                  </Text>
+                  <Box direction="Column" gap="200">
+                    <Button
+                      variant="Critical"
+                      onClick={() => {
+                        handleSignOut(confirmSignOutSession);
+                        setConfirmSignOutSession(undefined);
+                      }}
+                    >
+                      <Text size="B400">Sign out</Text>
+                    </Button>
+                    <Button variant="Secondary" onClick={() => setConfirmSignOutSession(undefined)}>
+                      <Text size="B400">Cancel</Text>
+                    </Button>
+                  </Box>
+                </Box>
+              </Dialog>
+            </FocusTrap>
+          </OverlayCenter>
+        </Overlay>
       )}
     </SidebarItem>
   );

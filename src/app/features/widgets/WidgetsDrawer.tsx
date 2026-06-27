@@ -3,9 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   MenuItem,
   Scroll,
@@ -17,6 +15,15 @@ import {
   Line,
   toRem,
 } from 'folds';
+import {
+  ArrowLeft,
+  composerIcon,
+  GridFour,
+  sizedIcon,
+  Plus,
+  Trash,
+  X,
+} from '$components/icons/phosphor';
 import type { Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -52,7 +59,7 @@ function WidgetDrawerHeader({ activeWidget, onBack }: WidgetsDrawerHeaderProps) 
         {activeWidget && (
           <Box shrink="No" alignItems="Center">
             <IconButton fill="None" onClick={onBack}>
-              <Icon src={Icons.ArrowLeft} />
+              {composerIcon(ArrowLeft)}
             </IconButton>
           </Box>
         )}
@@ -78,7 +85,7 @@ function WidgetDrawerHeader({ activeWidget, onBack }: WidgetsDrawerHeaderProps) 
                 variant="Background"
                 onClick={() => setWidgetDrawer(false)}
               >
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             )}
           </TooltipProvider>
@@ -197,7 +204,7 @@ function WidgetListItemView({ widget, onSelect, onRemove, canRemove }: WidgetLis
                 fill="None"
                 onClick={handleRemove}
               >
-                <Icon size="100" src={Icons.Delete} />
+                {sizedIcon(Trash, '100')}
               </IconButton>
             )}
           </TooltipProvider>
@@ -316,7 +323,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
                       variant="Primary"
                       fill="Soft"
                       onClick={() => setShowIntegrationManager(true)}
-                      before={<Icon size="100" src={Icons.Category} />}
+                      before={sizedIcon(GridFour, '100')}
                     >
                       <Text size="B300">Integration Manager</Text>
                     </Button>
@@ -325,7 +332,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
                       variant="Secondary"
                       fill="Soft"
                       onClick={() => setShowAddForm(true)}
-                      before={<Icon size="100" src={Icons.Plus} />}
+                      before={sizedIcon(Plus, '100')}
                     >
                       <Text size="B300">Add Custom Widget</Text>
                     </Button>

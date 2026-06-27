@@ -4,9 +4,12 @@ import {
   MX_EMOTICON_MD_SEP,
   MX_EMOTICON_MD_START,
 } from './extensions/matrix-emoticon';
+import { toMatrixCustomHTML, trimCustomHtml } from '$components/editor/output';
 import { plainToEditorInput } from '$components/editor/input';
 import { BlockType } from '$components/editor/types';
+import { injectDataMd } from './injectDataMd';
 import { htmlToMarkdown } from './htmlToMarkdown';
+import { markdownToHtml } from './markdownToHtml';
 
 describe('htmlToMarkdown', () => {
   it('converts headings', () => {
@@ -67,6 +70,22 @@ describe('htmlToMarkdown', () => {
     expect(htmlToMarkdown(html)).toBe('[https://example.org/](<https://example.org/>)');
   });
 
+  it('does not use preview-suppressed destinations for matrix.to user mentions', () => {
+    const html = '<p>&lt;<a href="https://matrix.to/#/@alice:example.org">Alice</a>&gt;</p>';
+    expect(htmlToMarkdown(html)).toBe('[Alice](https://matrix.to/#/@alice:example.org)');
+  });
+
+  it('does not use preview-suppressed destinations for matrix.to event permalinks', () => {
+    const url = 'https://matrix.to/#/!room:example.org/$event123?via=sable.moe&via=matrix.org';
+    const html = `<p>&lt;<a href="${url}">${url}</a>&gt;</p>`;
+    expect(htmlToMarkdown(html)).toBe(`[${url}](${url})`);
+  });
+
+  it('converts hidden-preview wrapped links when angle brackets are decimal entities', () => {
+    const html = '<p>&#60;<a href="https://example.org/">https://example.org/</a>&#62;</p>';
+    expect(htmlToMarkdown(html)).toBe('[https://example.org/](<https://example.org/>)');
+  });
+
   it('converts spoiler spans', () => {
     expect(htmlToMarkdown('<span data-mx-spoiler>hidden</span>')).toContain('||hidden||');
   });
@@ -84,9 +103,17 @@ describe('htmlToMarkdown', () => {
   });
 
   it('converts blockquotes', () => {
-    const result = htmlToMarkdown('<blockquote>Quote text</blockquote>');
-    expect(result).toContain('>');
-    expect(result).toContain('Quote text');
+    expect(htmlToMarkdown('<blockquote>Quote text</blockquote>')).toBe('> Quote text');
+    expect(htmlToMarkdown('<blockquote><p>test</p></blockquote><p>test</p>')).toBe('> test\ntest');
+    expect(htmlToMarkdown('<blockquote><p>line one</p><p>line two</p></blockquote>')).toBe(
+      '> line one\n> line two'
+    );
+    expect(htmlToMarkdown('<blockquote><p>line one<br>line two</p></blockquote>')).toBe(
+      '> line one\n> line two'
+    );
+    expect(
+      htmlToMarkdown('<blockquote><p>first</p></blockquote><blockquote><p>second</p></blockquote>')
+    ).toBe('> first\n\n> second');
   });
 
   it('converts unordered lists', () => {
@@ -99,6 +126,20 @@ describe('htmlToMarkdown', () => {
     const result = htmlToMarkdown('<ol><li>Item 1</li><li>Item 2</li></ol>');
     expect(result).toContain('1.');
     expect(result).toContain('Item 1');
+  });
+
+  it('indents nested sublists with four spaces per level', () => {
+    const html = '<ol><li><p>parent</p><ul><li><p>child</p></li></ul></li></ol>';
+    expect(htmlToMarkdown(html)).toContain('1. parent');
+    expect(htmlToMarkdown(html)).toContain('    - child');
+  });
+
+  it('edit-load and save round-trip keeps nested sublist', () => {
+    const md = '1. test\n    - sub\n';
+    const loaded = htmlToMarkdown(injectDataMd(markdownToHtml(md)));
+    expect(loaded).toContain('    - sub');
+    const html = trimCustomHtml(toMatrixCustomHTML(plainToEditorInput(loaded), {}));
+    expect(html).toMatch(/<li>[\s\S]*<ul/i);
   });
 
   it('preserves data-md attributes for round-trip', () => {
@@ -123,6 +164,11 @@ describe('htmlToMarkdown', () => {
     expect(md).toContain(
       `${MX_EMOTICON_MD_START}${src}${MX_EMOTICON_MD_SEP}blobcat${MX_EMOTICON_MD_END}`
     );
+  });
+
+  it('preserves unknown tags as escaped markdown literals', () => {
+    expect(htmlToMarkdown('<p><test>hi</test></p>')).toContain('\\<test\\>');
+    expect(htmlToMarkdown('<p><test></p>')).toContain('\\<test\\>');
   });
 
   it('plainToEditorInput expands emoticon placeholders into Slate emoticon elements', () => {

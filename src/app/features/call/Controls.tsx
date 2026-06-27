@@ -1,4 +1,15 @@
-import { Icon, IconButton, Icons, Line, Text, Tooltip, TooltipProvider } from 'folds';
+import { IconButton, Line, Text, Tooltip, TooltipProvider } from 'folds';
+import {
+  ChatCircle,
+  Headphones,
+  sizedIcon,
+  Microphone,
+  MicrophoneSlash,
+  SpeakerSlash,
+  VideoCamera,
+  VideoCameraSlash,
+  ScreenShare,
+} from '$components/icons/phosphor';
 import { useAtom } from 'jotai';
 import * as css from './styles.css';
 import { callChatAtom } from '../../state/callEmbed';
@@ -34,7 +45,7 @@ export function MicrophoneButton({ enabled, onToggle }: MicrophoneButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          <Icon size="400" src={enabled ? Icons.Mic : Icons.MicMute} filled={!enabled} />
+          {sizedIcon(enabled ? Microphone : MicrophoneSlash, '300', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -66,11 +77,7 @@ export function SoundButton({ enabled, onToggle }: SoundButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          <Icon
-            size="400"
-            src={enabled ? Icons.Headphone : Icons.HeadphoneMute}
-            filled={!enabled}
-          />
+          {sizedIcon(enabled ? Headphones : SpeakerSlash, '300', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -102,11 +109,7 @@ export function VideoButton({ enabled, onToggle }: VideoButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          <Icon
-            size="400"
-            src={enabled ? Icons.VideoCamera : Icons.VideoCameraMute}
-            filled={enabled}
-          />
+          {sizedIcon(enabled ? VideoCamera : VideoCameraSlash, '300', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -138,7 +141,7 @@ export function ScreenShareButton({ enabled, onToggle }: ScreenShareButtonProps)
           onClick={() => onToggle()}
           outlined
         >
-          <Icon size="400" src={Icons.ScreenShare} filled={enabled} />
+          {sizedIcon(ScreenShare, '300', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -168,7 +171,7 @@ export function ChatButton() {
           onClick={() => setChat(!chat)}
           outlined
         >
-          <Icon size="400" src={Icons.Message} filled={chat} />
+          {sizedIcon(ChatCircle, '300', { filled: chat })}
         </IconButton>
       )}
     </TooltipProvider>

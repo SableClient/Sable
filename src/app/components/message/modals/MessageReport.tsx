@@ -7,8 +7,6 @@ import {
   Dialog,
   Header,
   IconButton,
-  Icon,
-  Icons,
   Text,
   Input,
   Button,
@@ -17,6 +15,7 @@ import {
   config,
   color,
 } from 'folds';
+import { menuIcon, Warning, X } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import * as css from '$features/room/message/styles.css';
@@ -26,7 +25,15 @@ import * as Sentry from '@sentry/react';
 
 const debugLog = createDebugLogger('MessageReport');
 
-export function MessageReportItem({ room, mEvent }: { room: Room; mEvent: MatrixEvent }) {
+export function MessageReportItem({
+  room,
+  mEvent,
+  closeMenu,
+}: {
+  room: Room;
+  mEvent: MatrixEvent;
+  closeMenu?: () => void;
+}) {
   const setModal = useSetAtom(modalAtom);
 
   return (
@@ -34,7 +41,7 @@ export function MessageReportItem({ room, mEvent }: { room: Room; mEvent: Matrix
       size="300"
       variant="Critical"
       fill="None"
-      after={<Icon size="100" src={Icons.Warning} />}
+      after={menuIcon(Warning)}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();
@@ -44,6 +51,7 @@ export function MessageReportItem({ room, mEvent }: { room: Room; mEvent: Matrix
           room,
           mEvent,
         });
+        closeMenu?.();
       }}
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
@@ -114,7 +122,7 @@ export function MessageReportInternal({ room, mEvent, onClose }: MessageReportIn
           <Text size="H4">Report Message</Text>
         </Box>
         <IconButton size="300" onClick={onClose} radii="300">
-          <Icon src={Icons.Cross} />
+          {menuIcon(X)}
         </IconButton>
       </Header>
       <Box

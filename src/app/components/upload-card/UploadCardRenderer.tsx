@@ -3,9 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Scroll,
   Text,
   Tooltip,
@@ -14,6 +12,19 @@ import {
   config,
   toRem,
 } from 'folds';
+import {
+  Check,
+  EyeSlash,
+  File,
+  Image,
+  Info,
+  PencilSimple,
+  VideoCamera,
+  X,
+  sizedIcon,
+  type PhosphorIcon,
+  phosphorSizeRem,
+} from '$components/icons/phosphor';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { Play, Pause } from '@phosphor-icons/react';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -25,7 +36,7 @@ import type { UploadSuccess } from '$state/upload';
 import { UploadStatus, useBindUploadAtom } from '$state/upload';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { TUploadContent } from '$utils/matrix';
-import { bytesToSize, getFileTypeIcon } from '$utils/common';
+import { bytesToSize } from '$utils/common';
 import type { TUploadItem, TUploadMetadata } from '$state/room/roomInputDrafts';
 import { roomUploadAtomFamily } from '$state/room/roomInputDrafts';
 import { useObjectURL } from '$hooks/useObjectURL';
@@ -36,6 +47,14 @@ import { settingsAtom } from '$state/settings';
 import { UploadCard, UploadCardError, UploadCardProgress } from './UploadCard';
 import * as css from './UploadCard.css';
 import { DescriptionEditor } from './UploadDescriptionEditor';
+
+function getFileTypeIconComponent(fileType: string): PhosphorIcon {
+  const type = fileType.toLowerCase();
+  if (type.startsWith('audio')) return Play;
+  if (type.startsWith('video')) return VideoCamera;
+  if (type.startsWith('image')) return Image;
+  return File;
+}
 
 type PreviewImageProps = {
   fileItem: TUploadItem;
@@ -82,6 +101,7 @@ function PreviewVideo({ fileItem }: Readonly<PreviewVideoProps>) {
 const BAR_COUNT = 44;
 
 function formatAudioTime(s: number): string {
+  if (!Number.isFinite(s) || s < 0) return '0:00';
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${m}:${sec.toString().padStart(2, '0')}`;
@@ -206,7 +226,7 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
       setCurrentTime(targetTime);
     } else {
       // Metadata not yet loaded (Firefox, first scrub before load() resolves).
-      // Do NOT call load() again here — that resets currentTime to 0 and
+      // Do NOT call load() again here  Ethat resets currentTime to 0 and
       // restarts the fetch. load() was already called in the useEffect;
       // just wait for the in-flight loadedmetadata event.
       el.addEventListener(
@@ -265,7 +285,11 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
         aria-label={isPlaying ? 'Pause' : 'Play voice message'}
         aria-pressed={isPlaying}
       >
-        {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
+        {isPlaying ? (
+          <Pause size={phosphorSizeRem(20)} weight="fill" />
+        ) : (
+          <Play size={phosphorSizeRem(20)} weight="fill" />
+        )}
       </IconButton>
 
       <Box
@@ -335,7 +359,7 @@ function MediaPreview({ fileItem, onSpoiler, children }: MediaPreviewProps) {
           fill="Soft"
           radii="Pill"
           aria-pressed={metadata.markedAsSpoiler}
-          before={<Icon src={Icons.EyeBlind} size="50" />}
+          before={sizedIcon(EyeSlash, '50')}
           onClick={() => onSpoiler(!metadata.markedAsSpoiler)}
         >
           <Text size="B300">Spoiler</Text>
@@ -428,7 +452,7 @@ export function UploadCardRenderer({
   return (
     <UploadCard
       radii="300"
-      before={<Icon src={getFileTypeIcon(Icons, file.type)} />}
+      before={sizedIcon(getFileTypeIconComponent(file.type))}
       after={
         <>
           {upload.status === UploadStatus.Error && (
@@ -453,7 +477,7 @@ export function UploadCardRenderer({
               radii="Pill"
               size="300"
             >
-              <Icon src={Icons.Pencil} size="50" />
+              {sizedIcon(PencilSimple, '50')}
             </IconButton>
           )}
           {isDescribed && (
@@ -469,7 +493,7 @@ export function UploadCardRenderer({
                 </Tooltip>
               }
             >
-              {(triggerRef) => <Icon ref={triggerRef} src={Icons.Info} size="50" />}
+              {(triggerRef) => <span ref={triggerRef}>{sizedIcon(Info, '50')}</span>}
             </TooltipProvider>
           )}
 
@@ -480,7 +504,7 @@ export function UploadCardRenderer({
             radii="Pill"
             size="300"
           >
-            <Icon src={Icons.Cross} size="200" />
+            {sizedIcon(X, '200')}
           </IconButton>
         </>
       }
@@ -560,9 +584,8 @@ export function UploadCardRenderer({
       <Text size="H6" truncate>
         {file.name}
       </Text>
-      {upload.status === UploadStatus.Success && (
-        <Icon style={{ color: color.Success.Main }} src={Icons.Check} size="100" />
-      )}
+      {upload.status === UploadStatus.Success &&
+        sizedIcon(Check, '100', { style: { color: color.Success.Main } })}
     </UploadCard>
   );
 }

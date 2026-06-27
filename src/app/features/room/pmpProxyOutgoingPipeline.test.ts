@@ -47,9 +47,16 @@ describe('PMP proxy outgoing pipeline parity', () => {
   it('escapes raw html so it is not treated as markup', () => {
     const { plain, html } = runOutgoingPipeline('<b>nope</b>');
     expect(plain).toBe('<b>nope</b>');
-    // markdownToHtml sanitizes/strips raw tags; ensure it does not render as actual <b>.
     expect(html).toContain('nope');
-    expect(html).not.toContain('<b>nope</b>');
+    expect(html).toContain('&lt;b&gt;');
+    expect(html).not.toMatch(/<b>nope<\/b>/);
+  });
+
+  it('renders backslash-escaped angle brackets as literal characters, not entity text', () => {
+    const { plain, html } = runOutgoingPipeline(String.raw`\<test\>`);
+    expect(plain).toBe(String.raw`\<test\>`);
+    expect(html).toContain('&lt;test&gt;');
+    expect(html).not.toMatch(/<test[^>]*>/);
   });
 
   it('applies outgoing transforms (settings link rewrite) like normal messages', () => {

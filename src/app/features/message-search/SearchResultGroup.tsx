@@ -1,10 +1,10 @@
-import type { MouseEventHandler } from 'react';
+import type { MouseEventHandler, ComponentProps } from 'react';
 import { useMemo } from 'react';
 import type { IEventWithRoomId, Room } from '$types/matrix-sdk';
 import { JoinRule, RelationType, EventType } from '$types/matrix-sdk';
 import type { IImageContent } from '$types/matrix/common';
 import type { HTMLReactParserOptions } from 'html-react-parser';
-import { Avatar, Box, Chip, Header, Icon, Icons, Text, config } from 'folds';
+import { Avatar, Box, Chip, Header, Text, config } from 'folds';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
@@ -29,6 +29,7 @@ import {
   Time,
   Username,
   UsernameBold,
+  type RenderImageContentProps,
 } from '$components/message';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { Image } from '$components/media';
@@ -40,6 +41,7 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { SequenceCard } from '$components/sequence-card';
 import { UserAvatar } from '$components/user-avatar';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -59,6 +61,104 @@ import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUr
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import type { ResultItem } from './useMessageSearch';
+
+type SearchResultRendererContext = {
+  mx: ReturnType<typeof useMatrixClient>;
+  room: Room;
+  mediaAutoLoad?: boolean;
+  urlPreview?: boolean;
+  htmlReactParserOptions: HTMLReactParserOptions;
+  linkifyOpts: LinkifyOpts;
+  highlightRegex: RegExp | undefined;
+};
+
+function LazyImage(props: ComponentProps<typeof Image>) {
+  return <Image {...props} loading="lazy" />;
+}
+
+function renderSearchStickerImageContent(
+  mediaAutoLoad: boolean | undefined,
+  props: RenderImageContentProps
+) {
+  return (
+    <ImageContent
+      {...props}
+      autoPlay={mediaAutoLoad}
+      renderImage={LazyImage}
+      renderViewer={ImageViewer}
+    />
+  );
+}
+
+function renderSearchResultRoomMessage(
+  ctx: SearchResultRendererContext,
+  event: IEventWithRoomId,
+  displayName: string,
+  getContent: GetContentCallback
+) {
+  if (event.unsigned?.redacted_because) {
+    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
+  }
+
+  return (
+    <RenderMessageContent
+      displayName={displayName}
+      msgType={event.content.msgtype ?? ''}
+      ts={event.origin_server_ts}
+      getContent={getContent}
+      mediaAutoLoad={ctx.mediaAutoLoad}
+      urlPreview={ctx.urlPreview}
+      htmlReactParserOptions={ctx.htmlReactParserOptions}
+      linkifyOpts={ctx.linkifyOpts}
+      highlightRegex={ctx.highlightRegex}
+      outlineAttachment
+      mx={ctx.mx}
+      room={ctx.room}
+    />
+  );
+}
+
+function renderSearchResultReaction(
+  ctx: SearchResultRendererContext,
+  event: IEventWithRoomId,
+  _displayName: string,
+  getContent: GetContentCallback
+) {
+  if (event.unsigned?.redacted_because) {
+    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
+  }
+  return (
+    <MSticker
+      content={getContent() as IImageContent}
+      renderImageContent={renderSearchStickerImageContent.bind(null, ctx.mediaAutoLoad)}
+    />
+  );
+}
+
+function renderSearchResultTombstone(_ctx: SearchResultRendererContext, event: IEventWithRoomId) {
+  const { content } = event;
+  return (
+    <Box grow="Yes" direction="Column">
+      <Text size="T400" priority="300">
+        Room Tombstone. {content.body}
+      </Text>
+    </Box>
+  );
+}
+
+function renderSearchResultFallback(_ctx: SearchResultRendererContext, event: IEventWithRoomId) {
+  if (event.unsigned?.redacted_because) {
+    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
+  }
+  return (
+    <Box grow="Yes" direction="Column">
+      <Text size="T400" priority="300">
+        <code className={customHtmlCss.Code}>{event.type}</code>
+        {' event'}
+      </Text>
+    </Box>
+  );
+}
 
 type SearchResultGroupProps = {
   room: Room;
@@ -152,71 +252,32 @@ export function SearchResultGroup({
     ]
   );
 
-  const renderMatrixEvent = useMatrixEventRenderer<[IEventWithRoomId, string, GetContentCallback]>(
-    {
-      [EventType.RoomMessage]: (event, displayName, getContent) => {
-        if (event.unsigned?.redacted_because) {
-          return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-        }
+  const rendererContext = useMemo<SearchResultRendererContext>(
+    () => ({
+      mx,
+      room,
+      mediaAutoLoad,
+      urlPreview,
+      htmlReactParserOptions,
+      linkifyOpts,
+      highlightRegex,
+    }),
+    [mx, room, mediaAutoLoad, urlPreview, htmlReactParserOptions, linkifyOpts, highlightRegex]
+  );
 
-        return (
-          <RenderMessageContent
-            displayName={displayName}
-            msgType={event.content.msgtype ?? ''}
-            ts={event.origin_server_ts}
-            getContent={getContent}
-            mediaAutoLoad={mediaAutoLoad}
-            urlPreview={urlPreview}
-            htmlReactParserOptions={htmlReactParserOptions}
-            linkifyOpts={linkifyOpts}
-            highlightRegex={highlightRegex}
-            outlineAttachment
-          />
-        );
-      },
-      [EventType.Reaction]: (event, displayName, getContent) => {
-        if (event.unsigned?.redacted_because) {
-          return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-        }
-        return (
-          <MSticker
-            content={getContent() as IImageContent}
-            renderImageContent={(props) => (
-              <ImageContent
-                {...props}
-                autoPlay={mediaAutoLoad}
-                renderImage={(p) => <Image {...p} loading="lazy" />}
-                renderViewer={(p) => <ImageViewer {...p} />}
-              />
-            )}
-          />
-        );
-      },
-      [EventType.RoomTombstone]: (event) => {
-        const { content } = event;
-        return (
-          <Box grow="Yes" direction="Column">
-            <Text size="T400" priority="300">
-              Room Tombstone. {content.body}
-            </Text>
-          </Box>
-        );
-      },
-    },
+  const matrixEventHandlers = useMemo(
+    () => ({
+      [EventType.RoomMessage]: renderSearchResultRoomMessage.bind(null, rendererContext),
+      [EventType.Reaction]: renderSearchResultReaction.bind(null, rendererContext),
+      [EventType.RoomTombstone]: renderSearchResultTombstone.bind(null, rendererContext),
+    }),
+    [rendererContext]
+  );
+
+  const renderMatrixEvent = useMatrixEventRenderer<[IEventWithRoomId, string, GetContentCallback]>(
+    matrixEventHandlers,
     undefined,
-    (event) => {
-      if (event.unsigned?.redacted_because) {
-        return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-      }
-      return (
-        <Box grow="Yes" direction="Column">
-          <Text size="T400" priority="300">
-            <code className={customHtmlCss.Code}>{event.type}</code>
-            {' event'}
-          </Text>
-        </Box>
-      );
-    }
+    renderSearchResultFallback.bind(null, rendererContext)
   );
 
   const handleOpenClick: MouseEventHandler = (evt) => {
@@ -306,7 +367,7 @@ export function SearchResultGroup({
                             : undefined
                         }
                         alt={displayName}
-                        renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+                        renderFallback={() => userFallbackIcon('lg')}
                       />
                     </Avatar>
                   </AvatarBase>

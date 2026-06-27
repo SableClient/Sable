@@ -1,5 +1,5 @@
-import type { FormEventHandler } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import type { FormEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import {
@@ -8,9 +8,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Overlay,
   OverlayBackdrop,
@@ -20,10 +18,29 @@ import {
   config,
   toRem,
 } from 'folds';
-import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';
+import {
+  Compass,
+  HardDrives,
+  Lightbulb,
+  Plus,
+  Trash,
+  X,
+  composerIcon,
+  sizedIcon,
+  menuIcon,
+} from '$components/icons/phosphor';
+import {
+  NavCategory,
+  NavCategoryHeader,
+  NavItem,
+  NavItemContent,
+  NavItemOptions,
+  NavLink,
+} from '$components/nav';
 import { getExploreFeaturedPath, getExploreServerPath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useExploreFeaturedSelected, useExploreServer } from '$hooks/router/useExploreSelected';
+import { useExploreServers } from '$hooks/useExploreServers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
@@ -32,14 +49,22 @@ import { stopPropagation } from '$utils/keyboard';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { mobileOrTablet } from '$utils/user-agent';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { isServerName } from '$utils/matrix';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { isResizingSidebarAtom } from '$state/isResizingSidebar';
+import { useSetAtom } from 'jotai';
 
-export function AddServer({ hideText }: { hideText?: boolean }) {
+type AddServerProps = {
+  hideText?: boolean;
+  onAddServer: (server: string) => Promise<boolean>;
+};
+
+export function AddServer({ hideText, onAddServer }: AddServerProps) {
   const mx = useMatrixClient();
   const navigate = useNavigate();
   const [dialog, setDialog] = useState(false);
+  const [serverError, setServerError] = useState<string>();
   const serverInputRef = useRef<HTMLInputElement>(null);
 
   const [exploreState] = useAsyncCallback(
@@ -53,21 +78,33 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
     return server || undefined;
   };
 
+  const addAndNavigate = useCallback(
+    async (server: string) => {
+      if (!isServerName(server)) {
+        setServerError('Invalid server name.');
+        return;
+      }
+
+      setServerError(undefined);
+      const added = await onAddServer(server);
+      if (!added) {
+        setServerError('Failed to save server. Please try again.');
+        return;
+      }
+
+      navigate(getExploreServerPath(server));
+      setDialog(false);
+    },
+    [navigate, onAddServer]
+  );
+
   const handleSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
     evt.preventDefault();
     const server = getInputServer();
     if (!server) return;
-    // explore(server);
-
-    navigate(getExploreServerPath(server));
-    setDialog(false);
-  };
-
-  const handleView = () => {
-    const server = getInputServer();
-    if (!server) return;
-    navigate(getExploreServerPath(server));
-    setDialog(false);
+    addAndNavigate(server).catch(() => {
+      setServerError('Failed to save server. Please try again.');
+    });
   };
 
   return (
@@ -95,7 +132,7 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
                   <Text size="H4">Add Server</Text>
                 </Box>
                 <IconButton size="300" onClick={() => setDialog(false)} radii="300">
-                  <Icon src={Icons.Cross} />
+                  {composerIcon(X)}
                 </IconButton>
               </Header>
               <Box
@@ -109,6 +146,11 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
                 <Box direction="Column" gap="100">
                   <Text size="L400">Server Name</Text>
                   <Input ref={serverInputRef} name="serverInput" variant="Background" required />
+                  {serverError && (
+                    <Text style={{ color: color.Critical.Main }} size="T300">
+                      {serverError}
+                    </Text>
+                  )}
                   {exploreState.status === AsyncStatus.Error && (
                     <Text style={{ color: color.Critical.Main }} size="T300">
                       Failed to load public rooms. Please try again.
@@ -129,8 +171,8 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
                     <Text size="B400">Save</Text>
                   </Button> */}
 
-                  <Button type="submit" onClick={handleView} variant="Secondary" fill="Soft">
-                    <Text size="B400">View</Text>
+                  <Button type="submit" variant="Secondary" fill="Soft">
+                    <Text size="B400">Add</Text>
                   </Button>
                 </Box>
               </Box>
@@ -143,7 +185,7 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
           variant="Secondary"
           fill="Soft"
           size="300"
-          before={<Icon size="100" src={Icons.Plus} />}
+          before={menuIcon(Plus)}
           onClick={() => setDialog(true)}
         >
           <Text size="B300" truncate>
@@ -152,7 +194,7 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
         </Button>
       ) : (
         <IconButton aria-pressed variant="Background" onClick={() => setDialog(true)}>
-          <Icon src={Icons.Plus} size="200" filled />
+          {sizedIcon(Plus, '200', { filled: true })}
         </IconButton>
       )}
     </>
@@ -161,16 +203,61 @@ export function AddServer({ hideText }: { hideText?: boolean }) {
 
 export function Explore() {
   const mx = useMatrixClient();
+  const navigate = useNavigate();
   useNavToActivePathMapper('explore');
   const userId = mx.getUserId();
   const clientConfig = useClientConfig();
+  const { servers: addedServers, addServer, removeServer } = useExploreServers();
   const userServer = userId ? getMxIdServer(userId) : undefined;
-  const servers =
-    clientConfig.featuredCommunities?.servers?.filter((server) => server !== userServer) ?? [];
+  const featuredCommunityServers = clientConfig.featuredCommunities?.servers;
+  const servers = useMemo(() => {
+    const featuredServers =
+      featuredCommunityServers?.filter((server) => server !== userServer) ?? [];
+    const seen = new Set<string>();
+    const merged: string[] = [];
+
+    [...featuredServers, ...addedServers].forEach((server) => {
+      if (server === userServer) return;
+      const key = server.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(server);
+    });
+
+    return merged;
+  }, [featuredCommunityServers, addedServers, userServer]);
 
   const featuredSelected = useExploreFeaturedSelected();
   const selectedServer = useExploreServer();
 
+  const isUserAddedServer = useCallback(
+    (server: string) => addedServers.some((entry) => entry.toLowerCase() === server.toLowerCase()),
+    [addedServers]
+  );
+
+  const handleRemoveServer = useCallback(
+    (server: string) => {
+      removeServer(server)
+        .then((removed) => {
+          if (!removed) return;
+          if (selectedServer?.toLowerCase() === server.toLowerCase()) {
+            navigate(getExploreFeaturedPath());
+          }
+        })
+        .catch(() => undefined);
+    },
+    [navigate, removeServer, selectedServer]
+  );
+
+  const handleRemoveServerClick =
+    (server: string): MouseEventHandler<HTMLButtonElement> =>
+    (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      handleRemoveServer(server);
+    };
+
+  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
@@ -178,7 +265,7 @@ export function Explore() {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
@@ -190,7 +277,7 @@ export function Explore() {
       }}
     >
       <PageNav>
-        <PageNavHeader>
+        <PageNavHeader size="600">
           <Box grow="Yes" gap="300" justifyContent="Center">
             {!hideText ? (
               <Box grow="Yes">
@@ -199,7 +286,7 @@ export function Explore() {
                 </Text>
               </Box>
             ) : (
-              <Icon src={Icons.Explore} size="200" filled />
+              sizedIcon(Compass, '200', { filled: true })
             )}
           </Box>
         </PageNavHeader>
@@ -216,7 +303,7 @@ export function Explore() {
                         radii="400"
                         style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                       >
-                        <Icon src={Icons.Bulb} size="100" filled={featuredSelected} />
+                        {sizedIcon(Lightbulb, '100', { filled: featuredSelected })}
                       </Avatar>
                       {!hideText && (
                         <Box as="span" grow="Yes">
@@ -243,11 +330,7 @@ export function Explore() {
                           radii="400"
                           style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                         >
-                          <Icon
-                            src={Icons.Server}
-                            size="100"
-                            filled={selectedServer === userServer}
-                          />
+                          {sizedIcon(HardDrives, '100', { filled: selectedServer === userServer })}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
@@ -286,11 +369,7 @@ export function Explore() {
                             radii="400"
                             style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                           >
-                            <Icon
-                              src={Icons.Server}
-                              size="100"
-                              filled={server === selectedServer}
-                            />
+                            {sizedIcon(HardDrives, '100', { filled: server === selectedServer })}
                           </Avatar>
                           {!hideText && (
                             <Box as="span" grow="Yes">
@@ -302,17 +381,31 @@ export function Explore() {
                         </Box>
                       </NavItemContent>
                     </NavLink>
+                    {!hideText && isUserAddedServer(server) && (
+                      <NavItemOptions>
+                        <IconButton
+                          size="300"
+                          variant="Critical"
+                          fill="None"
+                          radii="300"
+                          aria-label={`Remove ${server}`}
+                          onClick={handleRemoveServerClick(server)}
+                        >
+                          {menuIcon(Trash)}
+                        </IconButton>
+                      </NavItemOptions>
+                    )}
                   </NavItem>
                 ))}
               </NavCategory>
             )}
             <Box direction="Column">
-              <AddServer hideText={hideText} />
+              <AddServer hideText={hideText} onAddServer={addServer} />
             </Box>
           </Box>
         </PageNavContent>
       </PageNav>
-      {!mobileOrTablet() && (
+      {!isMobile && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
@@ -321,6 +414,7 @@ export function Explore() {
           outstep={190}
           minValue={50}
           maxValue={500}
+          setAnnouncement={setIsResizingSidebar}
         />
       )}
     </Box>

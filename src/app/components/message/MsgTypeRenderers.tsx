@@ -1,8 +1,8 @@
-import type { CSSProperties, ReactNode } from 'react';
-import { useMemo } from 'react';
-import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
-import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
-import { JUMBO_EMOJI_REG } from '$utils/regex';
+import { type CSSProperties, type ReactNode, useMemo } from 'react';
+import { ArrowSquareOut, sizedIcon, Link } from '$components/icons/phosphor';
+import { Box, Chip, Text, toRem } from 'folds';
+import { type IContent, type IPreviewUrlResponse, type MatrixClient } from '$types/matrix-sdk';
+import { isJumboEmojiText } from '$utils/emojiDetection';
 import { trimReplyFromBody } from '$utils/room';
 import type {
   IAudioContent,
@@ -30,11 +30,19 @@ import {
   MessageDeletedContent,
   MessageEditedContent,
   MessageUnsupportedContent,
+  ReactionDeletedContent,
 } from './content';
 import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
 import { LINKINPUTREGEX } from '$components/editor';
 import { MATRIX_TO_BASE } from '$plugins/matrix-to';
+import { copyToClipboard } from '$utils/dom';
+import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import type { LatLngExpression } from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+import * as css from './MsgTypeRenderers.css';
+import { markerIcon } from '$features/room/location-modal/LocationDialog';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -55,6 +63,34 @@ export function RedactedContent({ reason }: RedactedContentProps) {
   return (
     <Text>
       <MessageDeletedContent reason={reason} />
+    </Text>
+  );
+}
+
+type RedactedReactionContentProps = {
+  reactionKey?: string;
+  shortcode?: string;
+  mx?: MatrixClient;
+  useAuthentication?: boolean;
+  reason?: string;
+};
+export function RedactedReactionContent({
+  reactionKey,
+  shortcode,
+  mx,
+  useAuthentication,
+  reason,
+}: RedactedReactionContentProps) {
+  return (
+    <Text>
+      <ReactionDeletedContent
+        reactionKey={reactionKey}
+        shortcode={shortcode}
+        mx={mx}
+        useAuthentication={useAuthentication}
+        reason={reason}
+        hideIcon
+      />
     </Text>
   );
 }
@@ -190,7 +226,7 @@ export function MText({
       )
     )
       return true;
-    if (!JUMBO_EMOJI_REG.test(trimmedBody)) return false;
+    if (!isJumboEmojiText(trimmedBody)) return false;
 
     if (trimmedBody.includes(':')) {
       const hasImage = customBody && /<img[^>]*>/i.test(customBody);
@@ -301,7 +337,7 @@ export function MEmote({
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
   const trimmedBody = trimReplyFromBody(body);
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const isJumbo = isJumboEmojiText(trimmedBody);
 
   const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
 
@@ -356,7 +392,7 @@ export function MNotice({
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
   const trimmedBody = trimReplyFromBody(body);
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const isJumbo = isJumboEmojiText(trimmedBody);
 
   const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
 
@@ -382,7 +418,7 @@ export function MNotice({
   );
 }
 
-type RenderImageContentProps = {
+export type RenderImageContentProps = {
   body: string;
   filename?: string;
   info?: IImageInfo & IThumbnailContent;
@@ -426,7 +462,7 @@ export function MImage({ content, renderImageContent, outlined }: MImageProps) {
         }}
       >
         {renderImageContent({
-          body: content.filename || 'Image',
+          body: content.filename || content.body || 'Image',
           info: imgInfo,
           mimeType: imgInfo?.mimetype,
           url: mxcUrl,
@@ -511,6 +547,28 @@ export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: 
   );
 }
 
+const getAudioDurationMs = (content: IAudioContent, info?: IAudioInfo): number | undefined => {
+  const fromInfo = info?.duration;
+  if (typeof fromInfo === 'number' && Number.isFinite(fromInfo) && fromInfo > 0) {
+    return fromInfo;
+  }
+  const voiceV2 = (content as Record<string, unknown>)['org.matrix.msc3245.voice.v2'];
+  if (voiceV2 && typeof voiceV2 === 'object') {
+    const seconds = (voiceV2 as { duration?: number }).duration;
+    if (typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0) {
+      return seconds * 1000;
+    }
+  }
+  const msc1767Audio = (content as Record<string, unknown>)['org.matrix.msc1767.audio'];
+  if (msc1767Audio && typeof msc1767Audio === 'object') {
+    const ms = (msc1767Audio as { duration?: number }).duration;
+    if (typeof ms === 'number' && Number.isFinite(ms) && ms > 0) {
+      return ms;
+    }
+  }
+  return undefined;
+};
+
 type RenderAudioContentProps = {
   info: IAudioInfo;
   mimeType: string;
@@ -536,6 +594,9 @@ export function MAudio({ content, renderAsFile, renderAudioContent, outlined }: 
   }
 
   const filename = content.filename ?? content.body ?? 'Audio';
+  const durationMs = getAudioDurationMs(content, audioInfo);
+  const resolvedInfo =
+    durationMs !== undefined ? { ...audioInfo, duration: durationMs } : audioInfo;
   return (
     <Attachment outlined={outlined}>
       <AttachmentHeader>
@@ -555,7 +616,7 @@ export function MAudio({ content, renderAsFile, renderAudioContent, outlined }: 
       <AttachmentBox>
         <AttachmentContent>
           {renderAudioContent({
-            info: audioInfo,
+            info: resolvedInfo,
             mimeType: safeMimeType,
             url: mxcUrl,
             encInfo: content.file,
@@ -611,30 +672,78 @@ export function MFile({ content, renderFileContent, outlined }: MFileProps) {
 
 type MLocationProps = {
   content: IContent;
+  showMaps?: boolean;
 };
-export function MLocation({ content }: MLocationProps) {
+export function MLocation({ content, showMaps }: MLocationProps) {
   const geoUri = content.geo_uri;
   if (typeof geoUri !== 'string') {
     return <BrokenContent body={typeof content.body === 'string' ? content.body : undefined} />;
   }
   const location = parseGeoUri(geoUri);
   if (!location) return <BrokenContent />;
+  const coords: LatLngExpression = [Number(location.latitude), Number(location.longitude)];
 
   return (
-    <Box direction="Column" alignItems="Start" gap="100">
-      <Text size="T400">{geoUri}</Text>
-      <Chip
-        as="a"
-        size="400"
-        href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
-        target="_blank"
-        rel="noreferrer noopener"
-        variant="Primary"
-        radii="Pill"
-        before={<Icon src={Icons.External} size="50" />}
+    <Box
+      direction="Column"
+      className={css.LocationRendererBody}
+      onPointerMove={(evt) => evt.stopPropagation()}
+    >
+      <Box
+        direction="Row"
+        alignItems="Center"
+        gap="100"
+        justifyContent="SpaceBetween"
+        className={css.LocationRendererHeader}
       >
-        <Text size="B300">Open Location</Text>
-      </Chip>
+        <Chip
+          size="400"
+          variant="SurfaceVariant"
+          onClick={() => copyToClipboard(`${location.latitude}, ${location.longitude}`)}
+          before={sizedIcon(Link, '50')}
+          className={css.LocationCoordsChip}
+        >
+          <Text size="T400">{`${location.latitude}, ${location.longitude}`}</Text>
+        </Chip>
+
+        <Chip
+          as="a"
+          size="400"
+          href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          variant="Primary"
+          radii="Pill"
+          className={css.LocationExternalChip}
+          before={sizedIcon(ArrowSquareOut, '50')}
+        >
+          <Text size="B300">Open Location</Text>
+        </Chip>
+      </Box>
+      {showMaps && (
+        <MapContainer
+          center={coords}
+          zoom={16}
+          scrollWheelZoom={true}
+          className={css.LocationMapContainer}
+          attributionControl
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <Marker
+            position={coords}
+            eventHandlers={{
+              mousedown: (e) => {
+                e.originalEvent.preventDefault();
+                e.originalEvent.stopPropagation();
+              },
+            }}
+            icon={markerIcon}
+          />
+        </MapContainer>
+      )}
     </Box>
   );
 }

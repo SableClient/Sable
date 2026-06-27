@@ -1,4 +1,5 @@
-import { IconButton, Icon, Icons, TooltipProvider, Tooltip, Text } from 'folds';
+import { IconButton, TooltipProvider, Tooltip, Text } from 'folds';
+import { composerIcon, Phone, VideoCamera } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
@@ -43,7 +44,7 @@ export function RoomCallButton({
 
   const readyCopy = startingVideoCall ? 'Start Video Call' : 'Start Voice Call';
   const ariaLabel = startingVideoCall ? 'Start Video Call' : 'Start Voice Call';
-  const icon = startingVideoCall ? Icons.VideoCamera : Icons.Phone;
+  const icon = startingVideoCall ? VideoCamera : Phone;
 
   return (
     <TooltipProvider
@@ -69,7 +70,7 @@ export function RoomCallButton({
           disabled={startDisabled}
           aria-label={ariaLabel}
         >
-          <Icon size="400" src={icon} />
+          {composerIcon(icon)}
         </IconButton>
       )}
     </TooltipProvider>

@@ -11,8 +11,6 @@ import {
   OverlayCenter,
   OverlayBackdrop,
   IconButton,
-  Icon,
-  Icons,
   Tooltip,
   TooltipProvider,
   Menu,
@@ -37,6 +35,24 @@ import {
 
 import { useStateEvent } from '$hooks/useStateEvent';
 import { PageHeader } from '$components/page';
+import {
+  ArrowLeft,
+  ChatCircleDots,
+  Checks,
+  Chats,
+  ClockCounterClockwise,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  GearSix,
+  GridFour,
+  Link,
+  MagnifyingGlass,
+  menuIcon,
+  PushPin,
+  SignOut,
+  UserCircle,
+  UserPlus,
+} from '$components/icons/phosphor';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
@@ -73,7 +89,7 @@ import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { RoomNotificationModeSwitcher } from '$components/RoomNotificationSwitcher';
 import {
   getRoomNotificationMode,
-  getRoomNotificationModeIcon,
+  roomNotificationModeIcon,
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -218,7 +234,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={menuIcon(Checks)}
           radii="300"
           disabled={!unread}
         >
@@ -234,7 +250,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
                 changing ? (
                   <Spinner size="100" variant="Secondary" />
                 ) : (
-                  <Icon size="100" src={getRoomNotificationModeIcon(notificationMode)} />
+                  roomNotificationModeIcon(notificationMode)
                 )
               }
               radii="300"
@@ -255,7 +271,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
           variant="Primary"
           fill="None"
           size="300"
-          after={<Icon size="100" src={Icons.UserPlus} />}
+          after={menuIcon(UserPlus)}
           radii="300"
           aria-pressed={invitePrompt}
           disabled={!canInvite}
@@ -264,22 +280,12 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
             Invite
           </Text>
         </MenuItem>
-        <MenuItem
-          onClick={handleCopyLink}
-          size="300"
-          after={<Icon size="100" src={Icons.Link} />}
-          radii="300"
-        >
+        <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Copy Link
           </Text>
         </MenuItem>
-        <MenuItem
-          onClick={handleOpenSettings}
-          size="300"
-          after={<Icon size="100" src={Icons.Setting} />}
-          radii="300"
-        >
+        <MenuItem onClick={handleOpenSettings} size="300" after={menuIcon(GearSix)} radii="300">
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Room Settings
           </Text>
@@ -290,7 +296,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
               <MenuItem
                 onClick={() => setPromptJump(true)}
                 size="300"
-                after={<Icon size="100" src={Icons.RecentClock} />}
+                after={menuIcon(ClockCounterClockwise)}
                 radii="300"
                 aria-pressed={promptJump}
               >
@@ -322,7 +328,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
                 variant="Critical"
                 fill="None"
                 size="300"
-                after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                after={menuIcon(SignOut)}
                 radii="300"
                 aria-pressed={promptLeave}
               >
@@ -604,7 +610,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
             {(onBack) => (
               <Box shrink="No" alignItems="Center">
                 <IconButton fill="None" onClick={onBack}>
-                  <Icon src={Icons.ArrowLeft} />
+                  {composerIcon(ArrowLeft)}
                 </IconButton>
               </Box>
             )}
@@ -618,7 +624,12 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                 src={avatarUrl}
                 alt={name}
                 renderFallback={() => (
-                  <RoomIcon size="200" joinRule={room.getJoinRule()} roomType={room.getType()} />
+                  <RoomIcon
+                    size="200"
+                    joinRule={room.getJoinRule()}
+                    roomType={room.getType()}
+                    withOverlay={false}
+                  />
                 )}
               />
             </Avatar>
@@ -682,7 +693,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                 >
                   {(triggerRef) => (
                     <IconButton fill="None" ref={triggerRef} onClick={handleSearchClick}>
-                      <Icon size="400" src={Icons.Search} />
+                      {composerIcon(MagnifyingGlass)}
                     </IconButton>
                   )}
                 </TooltipProvider>
@@ -721,7 +732,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                         </Text>
                       </Badge>
                     )}
-                    <Icon size="400" src={Icons.Pin} filled={!!pinMenuAnchor} />
+                    {composerIcon(PushPin, { weight: pinMenuAnchor ? 'fill' : 'regular' })}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -810,7 +821,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                         </Text>
                       </Badge>
                     )}
-                    <Icon size="400" src={Icons.Thread} filled={threadBrowserOpen} />
+                    {composerIcon(Chats, { weight: threadBrowserOpen ? 'fill' : 'regular' })}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -851,7 +862,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                       </Text>
                     </Badge>
                   )}
-                  <Icon size="400" src={Icons.Category} filled={widgetDrawer} />
+                  {composerIcon(GridFour, { weight: widgetDrawer ? 'fill' : 'regular' })}
                 </IconButton>
               )}
             </TooltipProvider>
@@ -872,7 +883,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
             >
               {(triggerRef) => (
                 <IconButton fill="None" ref={triggerRef} onClick={handleMemberToggle}>
-                  <Icon size="400" src={Icons.User} filled={peopleDrawer} />
+                  {composerIcon(UserCircle, { weight: peopleDrawer ? 'fill' : 'regular' })}
                 </IconButton>
               )}
             </TooltipProvider>
@@ -896,7 +907,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                     setChat(!chat);
                   }}
                 >
-                  <Icon size="400" src={Icons.Message} filled={chat} />
+                  {composerIcon(ChatCircleDots, { weight: chat ? 'fill' : 'regular' })}
                 </IconButton>
               )}
             </TooltipProvider>
@@ -919,7 +930,9 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                 ref={triggerRef}
                 aria-pressed={!!menuAnchor}
               >
-                <Icon size="400" src={Icons.VerticalDots} filled={!!menuAnchor} />
+                {composerIcon(DotsThreeOutlineVerticalIcon, {
+                  weight: menuAnchor ? 'fill' : 'regular',
+                })}
               </IconButton>
             )}
           </TooltipProvider>

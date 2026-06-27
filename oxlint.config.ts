@@ -35,6 +35,21 @@ export default defineConfig({
     'typescript/no-unnecessary-type-arguments': 'off',
     'oxc/no-map-spread': 'off',
     'promise/always-return': 'off',
+    'no-underscore-dangle': [
+      'warn',
+      {
+        allow: [
+          '_fetched',
+          '__dirname',
+          '__WB_MANIFEST',
+          '_unstable_sendDelayedEvent',
+          '_unstable_getDelayedEvents',
+          '_unstable_updateDelayedEvent',
+          '_unstable_sendDelayedStateEvent',
+          '_unstable_getSharedRooms',
+        ],
+      },
+    ],
   },
   overrides: [
     {

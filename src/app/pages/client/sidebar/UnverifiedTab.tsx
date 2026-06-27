@@ -1,4 +1,4 @@
-import { Badge, color, Icon, Icons, Text } from 'folds';
+import { Badge, color, Text } from 'folds';
 import {
   SidebarAvatar,
   SidebarItem,
@@ -14,9 +14,10 @@ import {
 } from '$hooks/useDeviceVerificationStatus';
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
 import { useOpenSettings } from '$features/settings';
+import { getPhosphorIconSize, ShieldWarning } from '$components/icons/phosphor';
 import * as css from './UnverifiedTab.css';
 
-function UnverifiedIndicator() {
+function UnverifiedIndicator({ isBottom }: { isBottom?: boolean }) {
   const mx = useMatrixClient();
   const openSettings = useOpenSettings();
 
@@ -44,28 +45,32 @@ function UnverifiedIndicator() {
   return (
     <>
       {hasUnverified && (
-        <SidebarItem className={css.UnverifiedTab}>
-          <SidebarItemTooltip tooltip={unverified ? 'Unverified Device' : 'Unverified Devices'}>
+        <SidebarItem className={css.UnverifiedTab} isBottom={isBottom}>
+          <SidebarItemTooltip
+            tooltip={unverified ? 'Unverified Device' : 'Unverified Devices'}
+            position={isBottom ? 'Top' : 'Right'}
+          >
             {(triggerRef) => (
               <SidebarAvatar
+                size={'400'}
                 className={unverified ? css.UnverifiedAvatar : css.UnverifiedOtherAvatar}
                 as="button"
                 ref={triggerRef}
                 outlined
                 onClick={() => openSettings('devices')}
               >
-                <Icon
+                <ShieldWarning
                   style={{
                     color: unverified ? color.Critical.Main : color.Warning.Main,
                   }}
-                  src={Icons.ShieldUser}
+                  size={getPhosphorIconSize(isBottom ? 'inline' : 'toolbar')}
                 />
               </SidebarAvatar>
             )}
           </SidebarItemTooltip>
           {!unverified && unverifiedDeviceCount && unverifiedDeviceCount > 0 && (
             <SidebarItemBadge mode="count">
-              <Badge variant="Warning" size="400" fill="Solid" radii="Pill" outlined={false}>
+              <Badge variant="Warning" size="300" fill="Solid" radii="Pill" outlined={false}>
                 <Text as="span" size="L400">
                   {unverifiedDeviceCount}
                 </Text>
@@ -78,10 +83,10 @@ function UnverifiedIndicator() {
   );
 }
 
-export function UnverifiedTab() {
+export function UnverifiedTab({ isBottom }: { isBottom?: boolean }) {
   const crossSigningActive = useCrossSigningActive();
 
   if (!crossSigningActive) return null;
 
-  return <UnverifiedIndicator />;
+  return <UnverifiedIndicator isBottom={isBottom} />;
 }

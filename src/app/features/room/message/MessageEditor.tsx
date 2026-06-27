@@ -1,7 +1,9 @@
 import type { KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAtomValue } from 'jotai';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, as, config } from 'folds';
+import { Box, Chip, IconButton, PopOut, Spinner, Text, as, config } from 'folds';
+import { composerIcon, Smiley } from '$components/icons/phosphor';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import type {
@@ -46,6 +48,7 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { EmojiBoard } from '$components/emoji-board';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { nicknamesAtom } from '$state/nicknames';
 import { getEditedEvent, getMentionContent, trimReplyFromFormattedBody } from '$utils/room';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useComposingCheck } from '$hooks/useComposingCheck';
@@ -53,6 +56,7 @@ import { floatingEditor } from '$styles/overrides/Composer.css';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
+import { testMatrixTo } from '$plugins/matrix-to';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -75,6 +79,7 @@ type MessageEditorProps = {
 export const MessageEditor = as<'div', MessageEditorProps>(
   ({ room, roomId, mEvent, imagePackRooms, onCancel, ...props }, ref) => {
     const mx = useMatrixClient();
+    const nicknames = useAtomValue(nicknamesAtom);
     const editor = useEditor();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const isComposing = useComposingCheck();
@@ -121,9 +126,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         );
       }
 
-      const bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+      const bundleContent =
+        (content['com.beeper.linkpreviews'] as BundleContent[] | undefined) ?? [];
       const markHiddenLinks = (original: string, isHTML?: boolean) => {
-        if (!bundleContent) return original;
         if (!isHTML) {
           return readdAngleBracketsForHiddenPreviews(original, bundleContent);
         }
@@ -151,11 +156,25 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             // it needs to be separated such that it can be reintroduced before the < in case of regular text
             // or after it in case that it is matching a <a> tag
             const strippedS = s.substring(1);
+            const matrixToAnchorHref =
+              isHTML && s.toLowerCase().startsWith('<a')
+                ? s.match(/href\s*=\s*["']([^"']+)["']/i)?.[1]
+                : undefined;
+            const urlFromChunk = strippedS.match(/https?:\/\/[^\s)]+/)?.[0];
+            const isMatrixToPermalink = testMatrixTo(matrixToAnchorHref ?? urlFromChunk ?? '');
             const isHidden =
+              !isMatrixToPermalink &&
               (bundleContent?.length === 0 ||
                 bundleContent.filter((b) => s.includes(b.matched_url)).length === 0) &&
               strippedS.match(LINKINPUTREGEX) !== null;
-            newBody += `${isHidden ? (isHTML && ((s.startsWith('<a') && `&lt;${s[0]}`) || `${s[0]}&lt;`)) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
+
+            // Wrap whole <a>…</a> as &lt;…&gt; once; duplicating the leading "<" breaks htmlToMarkdown's [<][a][>] detection.
+            if (isHidden && isHTML && s.toLowerCase().startsWith('<a')) {
+              newBody += `&lt;${s}&gt;`;
+              return;
+            }
+
+            newBody += `${isHidden ? (isHTML && `${s[0]}&lt;`) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
           });
         return newBody;
       };
@@ -274,9 +293,10 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         content.format = contentBody.format;
         content.formatted_body = contentBody.formatted_body;
         content['m.new_content'] = newContent;
-        if (oldContent.info !== undefined && oldContent.filename?.length > 0) {
-          content.filename = oldContent.filename;
-          content['m.new_content'].filename = oldContent.filename;
+        if (oldContent.info !== undefined && oldContent.msgtype !== 'm.text') {
+          content.filename = 'filename' in oldContent ? oldContent.filename : oldContent.body;
+          content['m.new_content'].filename =
+            'filename' in oldContent ? oldContent.filename : oldContent.body;
           content.info = oldContent.info;
           content['m.new_content'].info = oldContent.info;
 
@@ -357,12 +377,18 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     useEffect(() => {
       const [body, customHtml] = getPrevBodyAndFormattedBody();
 
+      const mentionOptions = {
+        room,
+        nicknames,
+        mxUserId: mx.getUserId() ?? undefined,
+      };
       const initialValue = plainToEditorInput(
         customHtml
           ? stripMarkdownEscapesForHiddenPreviews(htmlToMarkdown(customHtml))
           : typeof body === 'string'
-            ? body
-            : ''
+            ? stripMarkdownEscapesForHiddenPreviews(body)
+            : '',
+        mentionOptions
       );
 
       Transforms.select(editor, {
@@ -372,7 +398,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
 
       editor.insertFragment(initialValue);
       if (!mobileOrTablet()) ReactEditor.focus(editor);
-    }, [editor, getPrevBodyAndFormattedBody]);
+    }, [editor, getPrevBodyAndFormattedBody, room, nicknames, mx]);
 
     useEffect(() => {
       if (saveState.status === AsyncStatus.Success) {
@@ -565,7 +591,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                               size="300"
                               radii="300"
                             >
-                              <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                              {composerIcon(Smiley, {
+                                weight: anchor !== undefined ? 'fill' : 'regular',
+                              })}
                             </IconButton>
                           </PopOut>
                         )}

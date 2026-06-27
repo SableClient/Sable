@@ -8,8 +8,6 @@ import {
   Box,
   Button,
   Dialog,
-  Icon,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -18,9 +16,11 @@ import {
   as,
   color,
   config,
+  toRem,
 } from 'folds';
 import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { nameInitials } from '$utils/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -36,6 +36,9 @@ import { KnockRoomPrompt } from '$components/knock-room-prompt';
 import { RoomAvatar } from '$components/room-avatar';
 import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './style.css';
+import type { RoomBannerContent } from '$types/matrix-sdk-events';
+import { CustomStateEvent } from '$types/matrix/room';
+import colorMXID from '$utils/colorMXID';
 
 type GridColumnCount = '1' | '2' | '3';
 const getGridColumnCount = (gridWidth: number): GridColumnCount => {
@@ -66,7 +69,6 @@ export function RoomCardGrid({ children }: { children: ReactNode }) {
 export const RoomCardBase = as<'div'>(({ className, ...props }, ref) => (
   <Box
     direction="Column"
-    gap="300"
     className={classNames(css.RoomCardBase, className)}
     {...props}
     ref={ref}
@@ -185,6 +187,11 @@ export const RoomCard = as<'div', RoomCardProps>(
       ? getRoomAvatarUrl(mx, joinedRoom, 96, useAuthentication)
       : avatarUrl && mxcUrlToHttp(mx, avatarUrl, useAuthentication, 96, 96, 'crop');
 
+    const bannerState = joinedRoom
+      ? getStateEvent(joinedRoom, CustomStateEvent.RoomBanner)
+      : undefined;
+    const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
+    const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
     const roomName = joinedRoom?.name || name || fallbackName;
     const roomTopic =
       (topicEvent?.getContent().topic as string) || undefined || topic || fallbackTopic;
@@ -215,11 +222,25 @@ export const RoomCard = as<'div', RoomCardProps>(
     const [viewTopic, setViewTopic] = useState(false);
     const closeTopic = () => setViewTopic(false);
     const openTopic = () => setViewTopic(true);
-
     return (
       <RoomCardBase {...props} ref={ref}>
-        <Box gap="200" justifyContent="SpaceBetween">
-          <Avatar size="500">
+        <Box style={{ height: toRem(120) }} direction="Column">
+          {!bannerURI && !avatar ? (
+            <span
+              className={css.RoomCardBanner({ trueBanner: false })}
+              style={{
+                backgroundColor: colorMXID(roomIdOrAlias),
+              }}
+            />
+          ) : (
+            <img
+              className={css.RoomCardBanner({ trueBanner: !!bannerURI })}
+              src={bannerURI || avatar || undefined}
+              alt={`${name} cover`}
+              draggable="false"
+            />
+          )}
+          <Avatar className={css.RoomCardAvatar} size="500">
             <RoomAvatar
               roomId={roomIdOrAlias}
               src={avatar ?? undefined}
@@ -231,117 +252,120 @@ export const RoomCard = as<'div', RoomCardProps>(
               )}
             />
           </Avatar>
-          {(roomType === RoomType.Space || joinedRoom?.isSpaceRoom()) && (
-            <Badge variant="Secondary" fill="Soft" outlined>
-              <Text size="L400">Space</Text>
-            </Badge>
-          )}
         </Box>
-        <Box grow="Yes" direction="Column" gap="100">
-          <RoomCardName>{roomName}</RoomCardName>
-          <RoomCardTopic onClick={openTopic} onKeyDown={onEnterOrSpace(openTopic)} tabIndex={0}>
-            {roomTopic}
-          </RoomCardTopic>
-
-          <Overlay open={viewTopic} backdrop={<OverlayBackdrop />}>
-            <OverlayCenter>
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  clickOutsideDeactivates: true,
-                  onDeactivate: closeTopic,
-                  escapeDeactivates: stopPropagation,
-                }}
-              >
-                {renderTopicViewer(roomName, roomTopic, closeTopic)}
-              </FocusTrap>
-            </OverlayCenter>
-          </Overlay>
-        </Box>
-        {typeof joinedMemberCount === 'number' && (
-          <Box gap="100">
-            <Icon size="50" src={Icons.User} />
-            <Text size="T200">{`${formatCompactNumber(joinedMemberCount)} Members`}</Text>
-          </Box>
-        )}
-        {typeof joinedRoomId === 'string' && (
-          <Button
-            onClick={onView ? () => onView(joinedRoomId) : undefined}
-            variant="Secondary"
-            fill="Soft"
-            size="300"
-          >
-            <Text size="B300" truncate>
-              View
-            </Text>
-          </Button>
-        )}
-        {typeof joinedRoomId !== 'string' &&
-          joinState.status !== AsyncStatus.Error &&
-          (joinRule === JoinRule.Knock ? (
-            <>
-              <Button onClick={() => setKnocking(true)} variant="Secondary" size="300">
-                <Text size="B300" truncate>
-                  Knock
-                </Text>
-              </Button>
-
-              {knocking && (
-                <KnockRoomPrompt
-                  roomId={roomIdOrAlias}
-                  via={viaServers}
-                  onDone={() => setKnocking(false)}
-                  onCancel={() => setKnocking(false)}
-                />
-              )}
-            </>
-          ) : (
-            <Button
-              onClick={join}
-              variant="Secondary"
-              size="300"
-              disabled={joining}
-              before={joining && <Spinner size="50" variant="Secondary" fill="Soft" />}
-            >
-              <Text size="B300" truncate>
-                {joining ? 'Joining' : 'Join'}
-              </Text>
-            </Button>
-          ))}
-        {typeof joinedRoomId !== 'string' && joinState.status === AsyncStatus.Error && (
-          <Box gap="200">
-            <Button
-              onClick={join}
-              className={css.ActionButton}
-              variant="Critical"
-              fill="Solid"
-              size="300"
-            >
-              <Text size="B300" truncate>
-                Retry
-              </Text>
-            </Button>
-            <ErrorDialog
-              title="Join Error"
-              message={joinState.error.message || 'Failed to join. Unknown Error.'}
-            >
-              {(openError) => (
-                <Button
-                  onClick={openError}
-                  className={css.ActionButton}
-                  variant="Critical"
-                  fill="Soft"
-                  outlined
-                  size="300"
+        <Box className={css.RoomCardItems} direction="Column" gap="300">
+          <Box gap="200" justifyContent="SpaceBetween">
+            <Box grow="Yes" direction="Column" gap="100">
+              <RoomCardName>{roomName}</RoomCardName>
+              <RoomCardTopic onClick={openTopic} onKeyDown={onEnterOrSpace(openTopic)} tabIndex={0}>
+                {roomTopic}
+              </RoomCardTopic>
+            </Box>
+            <Overlay open={viewTopic} backdrop={<OverlayBackdrop />}>
+              <OverlayCenter>
+                <FocusTrap
+                  focusTrapOptions={{
+                    initialFocus: false,
+                    clickOutsideDeactivates: true,
+                    onDeactivate: closeTopic,
+                    escapeDeactivates: stopPropagation,
+                  }}
                 >
+                  {renderTopicViewer(roomName, roomTopic, closeTopic)}
+                </FocusTrap>
+              </OverlayCenter>
+            </Overlay>
+            {(roomType === RoomType.Space || joinedRoom?.isSpaceRoom()) && (
+              <Badge variant="Secondary" fill="Soft" outlined>
+                <Text size="L400">Space</Text>
+              </Badge>
+            )}
+          </Box>
+          {typeof joinedMemberCount === 'number' && (
+            <Box gap="100">
+              {userFallbackIcon('sm')}
+              <Text size="T200">{`${formatCompactNumber(joinedMemberCount)} Members`}</Text>
+            </Box>
+          )}
+          {typeof joinedRoomId === 'string' && (
+            <Button
+              onClick={onView ? () => onView(joinedRoomId) : undefined}
+              variant="Secondary"
+              fill="Soft"
+              size="300"
+            >
+              <Text size="B300" truncate>
+                View
+              </Text>
+            </Button>
+          )}
+          {typeof joinedRoomId !== 'string' &&
+            joinState.status !== AsyncStatus.Error &&
+            (joinRule === JoinRule.Knock ? (
+              <>
+                <Button onClick={() => setKnocking(true)} variant="Secondary" size="300">
                   <Text size="B300" truncate>
-                    View Error
+                    Knock
                   </Text>
                 </Button>
-              )}
-            </ErrorDialog>
-          </Box>
-        )}
+
+                {knocking && (
+                  <KnockRoomPrompt
+                    roomId={roomIdOrAlias}
+                    via={viaServers}
+                    onDone={() => setKnocking(false)}
+                    onCancel={() => setKnocking(false)}
+                  />
+                )}
+              </>
+            ) : (
+              <Button
+                onClick={join}
+                variant="Secondary"
+                size="300"
+                disabled={joining}
+                before={joining && <Spinner size="50" variant="Secondary" fill="Soft" />}
+              >
+                <Text size="B300" truncate>
+                  {joining ? 'Joining' : 'Join'}
+                </Text>
+              </Button>
+            ))}
+          {typeof joinedRoomId !== 'string' && joinState.status === AsyncStatus.Error && (
+            <Box gap="200">
+              <Button
+                onClick={join}
+                className={css.ActionButton}
+                variant="Critical"
+                fill="Solid"
+                size="300"
+              >
+                <Text size="B300" truncate>
+                  Retry
+                </Text>
+              </Button>
+              <ErrorDialog
+                title="Join Error"
+                message={joinState.error.message || 'Failed to join. Unknown Error.'}
+              >
+                {(openError) => (
+                  <Button
+                    onClick={openError}
+                    className={css.ActionButton}
+                    variant="Critical"
+                    fill="Soft"
+                    outlined
+                    size="300"
+                  >
+                    <Text size="B300" truncate>
+                      View Error
+                    </Text>
+                  </Button>
+                )}
+              </ErrorDialog>
+            </Box>
+          )}
+        </Box>
       </RoomCardBase>
     );
   }

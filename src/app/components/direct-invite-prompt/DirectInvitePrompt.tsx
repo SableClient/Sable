@@ -4,9 +4,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -15,6 +13,7 @@ import {
   color,
   config,
 } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
 
 type DirectInvitePromptProps = {
@@ -56,7 +55,7 @@ export function DirectInvitePrompt({
                 <Text size="H4">Invite another Member</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

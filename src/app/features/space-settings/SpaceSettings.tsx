@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
+import type { IconProps } from '@phosphor-icons/react';
 import { useAtomValue } from 'jotai';
-import type { IconSrc } from 'folds';
-import { Avatar, Box, config, Icon, IconButton, Icons, MenuItem, Text } from 'folds';
+import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -17,15 +18,31 @@ import { EmojisStickers } from '$features/common-settings/emojis-stickers';
 import { Members } from '$features/common-settings/members';
 import { DeveloperTools } from '$features/common-settings/developer-tools';
 import { Cosmetics } from '$features/common-settings/cosmetics/Cosmetics';
+import { Appearance } from '$features/common-settings/appearance/Appearance';
 import { RoomAbbreviations } from '$features/room-settings/abbreviations/RoomAbbreviations';
+import {
+  composerIcon,
+  GearSix,
+  Info,
+  Lock,
+  PaintBrush,
+  Palette,
+  settingsNavIcon,
+  Smiley,
+  Terminal,
+  User,
+  X,
+} from '$components/icons/phosphor';
 import { General } from './general';
 import { Permissions } from './permissions';
+
+type PhosphorIcon = ComponentType<IconProps>;
 
 type SpaceSettingsMenuItem = {
   page: SpaceSettingsPage;
   name: string;
-  icon: IconSrc;
-  activeIcon?: IconSrc;
+  icon: PhosphorIcon;
+  activeIcon?: PhosphorIcon;
 };
 
 const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
@@ -34,38 +51,42 @@ const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
       {
         page: SpaceSettingsPage.GeneralPage,
         name: 'General',
-        icon: Icons.Setting,
+        icon: GearSix,
       },
       {
         page: SpaceSettingsPage.MembersPage,
         name: 'Members',
-        icon: Icons.User,
+        icon: User,
       },
       {
         page: SpaceSettingsPage.PermissionsPage,
         name: 'Permissions',
-        icon: Icons.Lock,
+        icon: Lock,
       },
       {
         page: SpaceSettingsPage.CosmeticsPage,
         name: 'Cosmetics',
-        icon: Icons.Alphabet,
-        activeIcon: Icons.AlphabetUnderline,
+        icon: PaintBrush,
       },
       {
         page: SpaceSettingsPage.AbbreviationsPage,
         name: 'Abbreviations',
-        icon: Icons.Info,
+        icon: Info,
       },
       {
         page: SpaceSettingsPage.EmojisStickersPage,
         name: 'Emojis & Stickers',
-        icon: Icons.Smile,
+        icon: Smiley,
       },
       {
         page: SpaceSettingsPage.DeveloperToolsPage,
         name: 'Developer Tools',
-        icon: Icons.Terminal,
+        icon: Terminal,
+      },
+      {
+        page: SpaceSettingsPage.AppearancePage,
+        name: 'Appearance',
+        icon: Palette,
       },
     ],
     []
@@ -133,7 +154,7 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
               <Box shrink="No">
                 {screenSize === ScreenSize.Mobile && (
                   <IconButton onClick={requestClose} variant="Background">
-                    <Icon src={Icons.Cross} />
+                    {composerIcon(X)}
                   </IconButton>
                 )}
               </Box>
@@ -142,24 +163,21 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
               <PageNavContent>
                 <div style={{ flexGrow: 1 }}>
                   {menuItems.map((item) => {
-                    const currentIcon =
-                      activePage === item.page && item.activeIcon ? item.activeIcon : item.icon;
+                    const active = activePage === item.page;
+                    const IconComponent = active && item.activeIcon ? item.activeIcon : item.icon;
 
                     return (
                       <MenuItem
                         key={item.name}
                         variant="Background"
                         radii="400"
-                        aria-pressed={activePage === item.page}
-                        before={
-                          <Icon src={currentIcon} size="100" filled={activePage === item.page} />
-                        }
+                        aria-pressed={active}
+                        before={settingsNavIcon(IconComponent, active)}
                         onClick={() => setActivePage(item.page)}
                       >
                         <Text
                           style={{
-                            fontWeight:
-                              activePage === item.page ? config.fontWeight.W600 : undefined,
+                            fontWeight: active ? config.fontWeight.W600 : undefined,
                           }}
                           size="T300"
                           truncate
@@ -196,6 +214,9 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
       )}
       {activePage === SpaceSettingsPage.AbbreviationsPage && (
         <RoomAbbreviations isSpace requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SpaceSettingsPage.AppearancePage && (
+        <Appearance requestClose={handlePageRequestClose} />
       )}
     </PageRoot>
   );

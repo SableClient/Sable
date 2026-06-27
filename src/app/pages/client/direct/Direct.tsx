@@ -1,14 +1,12 @@
 import type { MouseEventHandler } from 'react';
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -16,6 +14,17 @@ import {
   config,
   toRem,
 } from 'folds';
+import {
+  At,
+  Checks,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  dropzoneIcon,
+  menuIcon,
+  getPhosphorSize,
+  Plus,
+  User,
+} from '$components/icons/phosphor';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
@@ -54,8 +63,8 @@ import {
 import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTablet } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -78,7 +87,7 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={menuIcon(Checks)}
           radii="300"
           aria-disabled={!unread}
         >
@@ -107,7 +116,7 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
         {hideText ? (
           <Box alignItems="Center" grow="Yes" justifyContent="Center">
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.User} size="200" filled={!!menuAnchor} />
+              <User size={getPhosphorSize().toolbar} weight={menuAnchor ? 'fill' : 'regular'} />
             </IconButton>
           </Box>
         ) : (
@@ -119,7 +128,9 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
             </Box>
             <Box shrink="No">
               <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-                <Icon src={Icons.VerticalDots} size="200" filled={!!menuAnchor} />
+                {composerIcon(DotsThreeOutlineVerticalIcon, {
+                  weight: menuAnchor ? 'fill' : 'regular',
+                })}
               </IconButton>
             </Box>
           </Box>
@@ -156,7 +167,7 @@ function DirectEmpty() {
   return (
     <NavEmptyCenter>
       <NavEmptyLayout
-        icon={<Icon size="600" src={Icons.Mention} />}
+        icon={dropzoneIcon(At)}
         title={
           <Text size="H5" align="Center">
             No Direct Messages
@@ -189,6 +200,7 @@ export function Direct() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
@@ -256,7 +268,7 @@ export function Direct() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
@@ -286,7 +298,7 @@ export function Direct() {
                         justifyContent="Center"
                       >
                         <Avatar size="200" radii="400">
-                          <Icon src={Icons.Plus} size="100" />
+                          {menuIcon(Plus)}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
@@ -338,6 +350,7 @@ export function Direct() {
                                   width: '100%',
                                   aspectRatio: 1,
                                   display: 'flex',
+                                  flexDirection: 'column',
                                 }
                               : {}
                           }
@@ -362,11 +375,12 @@ export function Direct() {
                   })}
                 </div>
               </NavCategory>
+              <div style={{ height: toRem(40) }} />
             </Box>
           </PageNavContent>
         )}
       </PageNav>
-      {!mobileOrTablet() && (
+      {!isMobile && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
@@ -375,6 +389,7 @@ export function Direct() {
           outstep={190}
           minValue={50}
           maxValue={500}
+          setAnnouncement={setIsResizingSidebar}
         />
       )}
     </Box>

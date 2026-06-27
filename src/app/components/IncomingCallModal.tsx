@@ -5,9 +5,7 @@ import {
   color,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -41,6 +39,7 @@ import { dismissSystemCallNotifications } from '$features/call/callNotificationB
 import { getIncomingCallBlockers } from '$features/call/getIncomingCallBlockers';
 import { RoomAvatar } from './room-avatar';
 import { UserAvatar } from './user-avatar';
+import { composerIcon, menuIcon, Phone, X, Hash, VideoCamera, User, sizedIcon } from '$components/icons/phosphor';
 
 const debugLog = createDebugLogger('IncomingCall');
 
@@ -218,7 +217,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
           aria-label={closeLabel}
           title={closeLabel}
         >
-          <Icon src={Icons.Cross} />
+          {composerIcon(X)}
         </IconButton>
       </Header>
 
@@ -237,14 +236,14 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
               userId={incomingCall.senderId}
               src={callerAvatarUrl}
               alt={callerDisplayName}
-              renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+              renderFallback={() => sizedIcon(User, '200', { filled: true })}
             />
           ) : (
             <RoomAvatar
               roomId={room.roomId}
               src={roomAvatarUrl ?? undefined}
               alt={roomName}
-              renderFallback={() => <Icon size="200" src={Icons.Hash} filled />}
+              renderFallback={() => sizedIcon(Hash, '200', { filled: true })}
             />
           )}
         </Avatar>
@@ -297,7 +296,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
             style={{ minWidth: '110px' }}
             onClick={handleAnswer}
             disabled={!canAnswer}
-            before={<Icon size="100" src={isVideoIntent ? Icons.VideoCamera : Icons.Phone} />}
+            before={menuIcon(isVideoIntent ? VideoCamera : Phone)}
             aria-label={isVideoIntent ? 'Answer video call' : 'Answer voice call'}
             autoFocus={canAnswer}
           >

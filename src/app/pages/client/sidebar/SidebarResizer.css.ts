@@ -1,5 +1,6 @@
 import { style } from '@vanilla-extract/css';
-import { color } from 'folds';
+import { recipe } from '@vanilla-extract/recipes';
+import { color, toRem } from 'folds';
 
 /** Out-of-flow so flex siblings (e.g. PageRoot vertical Line) stay flush with the panel edge. */
 export const SidebarResizerDockRight = style({
@@ -29,17 +30,33 @@ export const SidebarResizerDockTop = style({
   cursor: 'ns-resize',
 });
 
-export const SidebarResizer = style({
-  backgroundColor: 'inherit',
-  transition: '0.2s',
-  ':hover': {},
+export const SidebarResizer = recipe({
+  base: {
+    backgroundColor: 'inherit',
+    transition: '0.2s',
+    ':hover': {},
+    touchAction: 'none',
+  },
+  variants: {
+    topSided: {
+      true: {
+        width: '100%',
+        height: toRem(8),
+      },
+      false: {
+        width: toRem(4),
+        height: '100%',
+      },
+    },
+  },
 });
 export const SidebarResizerHover = style({
-  zIndex: 100,
+  zIndex: 110,
 });
 export const SideBarResizerAnimation = style({
   width: '100%',
   height: '100%',
   backgroundColor: color.Surface.ContainerLine,
   transition: '0.5s',
+  touchAction: 'none',
 });

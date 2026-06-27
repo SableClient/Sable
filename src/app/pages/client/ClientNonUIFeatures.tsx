@@ -25,6 +25,7 @@ import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { IconSizesProvider } from '$components/icons/phosphor';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -180,6 +181,7 @@ function InviteNotifications() {
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
 
   const notify = useCallback(
     (count: number) => {
@@ -200,7 +202,7 @@ function InviteNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
+    audioElement?.play()?.catch(() => {});
     clearMediaSessionQuickly();
   }, []);
 
@@ -218,8 +220,8 @@ function InviteNotifications() {
         // window.Notification may be unavailable in sandboxed environments.
       }
     }
-    // Audio API requires a visible document; skip when hidden.
-    if (document.visibilityState === 'visible' && notificationSound) {
+    const tabVisible = document.visibilityState === 'visible';
+    if (notificationSound && (tabVisible || backgroundNotificationSounds)) {
       playSound();
     }
   }, [
@@ -229,6 +231,7 @@ function InviteNotifications() {
     showSystemNotifications,
     usePushNotifications,
     notificationSound,
+    backgroundNotificationSounds,
     notify,
     playSound,
   ]);
@@ -255,6 +258,7 @@ function MessageNotifications() {
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
   const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
   const [showEncryptedMessageContent] = useSetting(
     settingsAtom,
@@ -274,7 +278,7 @@ function MessageNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
+    audioElement?.play()?.catch(() => {});
     clearMediaSessionQuickly();
   }, []);
 
@@ -455,8 +459,13 @@ function MessageNotifications() {
         }
       }
 
-      // Everything below requires the page to be visible (in-app UI + audio).
-      if (document.visibilityState !== 'visible') return;
+      const tabVisible = document.visibilityState === 'visible';
+      if (notificationSound && isLoud && (tabVisible || backgroundNotificationSounds)) {
+        playSound();
+      }
+
+      // In-app banner requires a visible tab.
+      if (!tabVisible) return;
 
       // Page is visible — show the themed in-app notification banner.
       // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
@@ -532,11 +541,6 @@ function MessageNotifications() {
           },
         });
       }
-
-      // In-app audio: play when notification sounds are enabled AND this notification is loud.
-      if (notificationSound && isLoud) {
-        playSound();
-      }
     };
     mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
@@ -545,6 +549,7 @@ function MessageNotifications() {
   }, [
     mx,
     notificationSound,
+    backgroundNotificationSounds,
     notificationSelected,
     showNotifications,
     showSystemNotifications,
@@ -897,7 +902,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />
-      {children}
+      <IconSizesProvider>{children}</IconSizesProvider>
     </>
   );
 }

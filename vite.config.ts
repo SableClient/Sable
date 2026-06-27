@@ -255,6 +255,9 @@ export default defineConfig(({ command }) => ({
     outDir: 'dist',
     sourcemap: true,
     copyPublicDir: false,
+    // es2022+ avoids esbuild 0.27.7 failing to downlevel destructuring when
+    // vite-plugin-top-level-await re-transpiles chunks (see vitejs/vite#22225).
+    target: 'es2022',
     rollupOptions: {
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] }) as PluginOption],
     },

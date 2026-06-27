@@ -1,11 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import {
   Avatar,
   Box,
   color as standardColors,
-  Icon,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -14,6 +12,7 @@ import {
   Text,
   Tooltip,
   toRem,
+  Chip,
 } from 'folds';
 import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
@@ -29,10 +28,20 @@ import { useBlobCache } from '$hooks/useBlobCache';
 import { ImageViewer } from '$components/image-viewer';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { UserAvatar } from '$components/user-avatar';
+import {
+  CaretDown,
+  CaretUp,
+  Check,
+  profileIcon,
+  userFallbackIcon,
+} from '$components/icons/phosphor';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { shadeColor, areColorsTooSimilar } from '$utils/shadeColor';
 import * as css from './styles.css';
+import { copyToClipboard } from '$utils/dom';
+import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
+import { CopyIcon, CrossIcon } from '@phosphor-icons/react';
 
 type UserHeroProps = {
   userId: string;
@@ -125,7 +134,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                 userId={userId}
                 src={avatarUrl}
                 alt={userId}
-                renderFallback={() => <Icon size="500" src={Icons.User} filled />}
+                renderFallback={() => userFallbackIcon('hero')}
               />
             </Avatar>
           </AvatarPresence>
@@ -214,7 +223,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                       alignSelf: isFullStatus ? 'flex-start' : 'center',
                     }}
                   >
-                    <Icon size="50" src={isFullStatus ? Icons.ChevronTop : Icons.ChevronBottom} />
+                    {profileIcon(isFullStatus ? CaretUp : CaretDown)}
                   </Box>
                 )}
               </Box>
@@ -229,11 +238,15 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
 type UserHeroNameProps = {
   displayName?: string;
   userId: string;
+  server?: string;
   customHeroCards?: boolean;
 };
-export function UserHeroName({ displayName, userId, customHeroCards }: UserHeroNameProps) {
+export function UserHeroName({ displayName, userId, server, customHeroCards }: UserHeroNameProps) {
   const username = getMxIdLocalPart(userId);
   const nick = useNickname(userId);
+  const [copied, setCopied] = useTimeoutToggle();
+  const [isHovered, setIsHovered] = useState(false);
+  const isSuccess = useRef(false);
 
   // Sable username color and fonts
   const { color, font } = useSableCosmetics(userId, useRoom(), customHeroCards);
@@ -258,7 +271,26 @@ export function UserHeroName({ displayName, userId, customHeroCards }: UserHeroN
       </Box>
       <Box alignItems="Center" gap="100" wrap="Wrap">
         <Text size="T200" className={classNames(BreakWord, LineClamp3)} title={username}>
-          @{username}
+          <Chip
+            onClick={() => {
+              if (username && server) {
+                copyToClipboard(`@${username}:${server}`);
+                isSuccess.current = true;
+              } else isSuccess.current = false;
+              setCopied();
+            }}
+            style={{ backgroundColor: '#0000', padding: '0' }}
+            onPointerEnter={() => setIsHovered(true)}
+            onPointerLeave={() => setIsHovered(false)}
+            before={`@${username}`}
+            after={
+              copied || isHovered ? (
+                profileIcon(copied ? (isSuccess ? Check : CrossIcon) : CopyIcon)
+              ) : (
+                <></>
+              )
+            }
+          />
         </Text>
       </Box>
     </Box>

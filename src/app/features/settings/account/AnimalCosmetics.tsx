@@ -5,11 +5,67 @@ import type { UserProfile } from '$hooks/useUserProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { profilesCacheAtom } from '$state/userRoomProfile';
-import { Box, Switch, Text } from 'folds';
+import { Box, IconButton, Input, Switch, Text } from 'folds';
 import { useSetAtom } from 'jotai';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
 import { SequenceCardStyle } from '../styles.css';
 import * as prefix from '$unstable/prefixes';
+import { menuIcon, X } from '$components/icons/phosphor';
+
+type inputProps = {
+  onSave: (newValue: unknown) => void;
+  onReset?: () => void;
+  initialValue?: string;
+  disabled?: boolean;
+  placeholder?: string;
+};
+
+function FreeInput({ initialValue: current, onSave, onReset, disabled, placeholder }: inputProps) {
+  const [val, setVal] = useState(current);
+
+  useEffect(() => setVal(current), [current]);
+
+  const handleSave = () => {
+    if (val === current) return;
+    onSave(val);
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setVal(e.currentTarget.value);
+  };
+
+  return (
+    <>
+      <Input
+        value={val}
+        size="300"
+        radii="300"
+        disabled={disabled ?? false}
+        variant="Secondary"
+        placeholder={placeholder ?? 'Input...'}
+        onChange={handleChange}
+        onBlur={handleSave}
+        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+        style={{ width: '232px' }}
+      />
+      <Box gap="0">
+        {onReset && (
+          <IconButton
+            size="300"
+            variant="Critical"
+            fill="None"
+            onClick={onReset}
+            radii="300"
+            title="Reset"
+            disabled={disabled}
+          >
+            {menuIcon(X)}
+          </IconButton>
+        )}
+      </Box>
+    </>
+  );
+}
 
 type AnimalCosmeticsProps = {
   profile: UserProfile;
@@ -20,15 +76,12 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
   const setGlobalProfiles = useSetAtom(profilesCacheAtom);
   const [renderAnimals, setRenderAnimals] = useSetting(settingsAtom, 'renderAnimals');
 
-  const isCat =
-    profile.isCat ||
-    profile.extended?.[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] === true;
-  const hasCats =
-    profile.hasCats ||
-    profile.extended?.[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME] === true;
+  const isAnimal = profile.isAnimal;
+  const hasAnimal = profile.hasAnimal;
+  const animalNeed = profile.animalNeed;
 
   const handleSaveField = useCallback(
-    async (key: string, value: boolean) => {
+    async (key: string, value: unknown) => {
       await mx.setExtendedProfileProperty?.(key, value);
       setGlobalProfiles((prev) => {
         const newCache = { ...prev };
@@ -38,6 +91,34 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
     },
     [mx, userId, setGlobalProfiles]
   );
+  // this is for backwards compatibility, whenever someone will see this again, a long time from now, this will be safe to remove alongside the parent key
+  useEffect(() => {
+    const asyncClean = async () => {
+      const isCat = profile.isCat;
+      if (typeof isCat === 'boolean') {
+        await handleSaveField(
+          prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
+          null
+        );
+        await handleSaveField(
+          prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME,
+          'cat'
+        );
+      }
+      const hasCats = profile.hasCats;
+      if (typeof hasCats === 'boolean') {
+        await handleSaveField(
+          prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
+          null
+        );
+        await handleSaveField(
+          prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME,
+          'cats'
+        );
+      }
+    };
+    asyncClean();
+  }, [handleSaveField, profile.hasCats, profile.isCat]);
 
   return (
     <Box direction="Column" gap="100">
@@ -46,44 +127,81 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
         <SettingTile
           title="Render Animals"
           focusId="render-animals"
-          description="Render animals as animals as opposed to normal humans."
+          description="Render animals statuses."
           after={<Switch variant="Primary" value={renderAnimals} onChange={setRenderAnimals} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Is Cat"
-          focusId="is-cat"
-          description="Marks you as a cat."
+          title="Is animal"
+          focusId="is-animal"
+          description="Marks which animals you are."
           after={
-            <Switch
-              variant="Primary"
-              value={isCat}
-              onChange={() =>
+            <FreeInput
+              initialValue={isAnimal}
+              onSave={(newValue) =>
                 handleSaveField(
-                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
-                  !isCat
+                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME,
+                  newValue
                 )
               }
+              onReset={() =>
+                handleSaveField(
+                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME,
+                  null
+                )
+              }
+              placeholder="bunny..."
             />
           }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Has Cats"
+          title="Has animals"
           focusId="has-cats"
-          description="Marks that you have cats."
+          description="Marks which animals you have"
           after={
-            <Switch
-              variant="Primary"
-              value={hasCats}
-              onChange={() =>
+            <FreeInput
+              initialValue={hasAnimal}
+              onSave={(newValue) =>
                 handleSaveField(
-                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
-                  !hasCats
+                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME,
+                  newValue
                 )
               }
+              onReset={() =>
+                handleSaveField(
+                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME,
+                  null
+                )
+              }
+              placeholder="sables..."
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Requires"
+          focusId="animal-requires"
+          description="What do you need 🥺"
+          after={
+            <FreeInput
+              initialValue={animalNeed}
+              onSave={(newValue) =>
+                handleSaveField(
+                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME,
+                  newValue
+                )
+              }
+              onReset={() =>
+                handleSaveField(
+                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME,
+                  null
+                )
+              }
+              placeholder="hugs..."
             />
           }
         />

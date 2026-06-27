@@ -1,22 +1,21 @@
-import {
-  Box,
-  Button,
-  color,
-  config,
-  Icon,
-  Icons,
-  Menu,
-  MenuItem,
-  Scroll,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Button, color, config, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
 import type { CSSProperties, SyntheticEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { HTMLReactParserOptions } from 'html-react-parser';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CaretDown,
+  CaretUp,
+  ChatCircle,
+  Clock,
+  Heart,
+  profileIcon,
+  User,
+} from '$components/icons/phosphor';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -108,14 +107,17 @@ function UserExtendedSection({
   const [renderAnimals] = useSetting(settingsAtom, 'renderAnimals');
   const isCat = profile.isCat === true;
   const hasCats = profile.hasCats === true;
+  const isAnimal = profile.isAnimal ?? (isCat && 'cat');
+  const hasAnimal = profile.hasAnimal ?? (hasCats && 'cats');
+  const animalNeed = profile.animalNeed ?? 'headpats';
 
   const catStatusText = useMemo(() => {
     if (!renderAnimals) return null;
-    if (isCat && hasCats) return 'Cat with cats—needs pets & love!';
-    if (isCat) return 'Is a cat—give pets & love!';
-    if (hasCats) return 'Has cats—send love!';
+    if (isAnimal && hasAnimal) return `${isAnimal} with ${hasAnimal}, give ${animalNeed}!`;
+    if (isAnimal) return `Is ${isAnimal}, give ${animalNeed}!`;
+    if (hasAnimal) return `Has ${hasAnimal}, give ${animalNeed}!`;
     return null;
-  }, [renderAnimals, isCat, hasCats]);
+  }, [renderAnimals, isAnimal, hasAnimal, animalNeed]);
 
   const languageFilterEnabled = getSettings().filterPronounsBasedOnLanguage ?? false;
   const languagesToFilterFor = getSettings().filterPronounsLanguages ?? ['en'];
@@ -206,7 +208,7 @@ function UserExtendedSection({
           }}
           onClick={() => handleMiscSelector(-1)}
         >
-          <Icon src={Icons.ChevronTop} size="50" />
+          {profileIcon(CaretUp)}
           <Text>Show less</Text>
         </MenuItem>
         {unknownFields.map(([key], index) => (
@@ -232,9 +234,7 @@ function UserExtendedSection({
           size="300"
           className={css.MiscDataToggleButton}
           onClick={() => setShowMisc(!showMisc)}
-          after={
-            <Icon size="50" src={miscDataIndex === -1 ? Icons.ChevronBottom : Icons.ChevronTop} />
-          }
+          after={profileIcon(miscDataIndex === -1 ? CaretDown : CaretUp)}
           style={{
             padding: '1rem',
             justifyContent: 'flex-start',
@@ -256,11 +256,11 @@ function UserExtendedSection({
   );
   return (
     <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100, color: textColor }}>
-      {(pronouns || localTime) && (
+      {(pronouns || localTime || catStatusText) && (
         <Box alignItems="Center" gap="300" wrap="Wrap">
           {pronouns && (
             <Box alignItems="Center" gap="100">
-              <Icon size="50" src={Icons.User} style={{ opacity: 0.5 }} />
+              {profileIcon(User, { style: { opacity: 0.5 } })}
               <Text size="T200" priority="400">
                 {pronouns}
               </Text>
@@ -268,7 +268,7 @@ function UserExtendedSection({
           )}
           {localTime && profile.timezone && (
             <Box alignItems="Center" gap="100">
-              <Icon size="50" src={Icons.Clock} style={{ opacity: 0.5 }} />
+              {profileIcon(Clock, { style: { opacity: 0.5 } })}
               <Text size="T200" priority="400">
                 {localTime} ({profile.timezone.replaceAll(/^["']|["']$/g, '')})
               </Text>
@@ -276,7 +276,7 @@ function UserExtendedSection({
           )}
           {catStatusText && (
             <Box alignItems="Center" gap="100">
-              <Icon size="50" src={Icons.Heart} style={{ opacity: 0.5 }} />
+              {profileIcon(Heart, { style: { opacity: 0.5 } })}
               <Text size="T200" priority="400">
                 {catStatusText}
               </Text>
@@ -345,7 +345,7 @@ function UserExtendedSection({
                     }
                     style={{ color: textColor }}
                   >
-                    <Icon src={Icons.ArrowLeft} size="50" />
+                    {profileIcon(ArrowLeft)}
                   </Button>
                 )}
                 {miscHeader}
@@ -357,7 +357,7 @@ function UserExtendedSection({
                     onClick={() => setMiscDataIndex((miscDataIndex + 1) % unknownFields.length)}
                     style={{ color: textColor }}
                   >
-                    <Icon src={Icons.ArrowRight} size="50" />
+                    {profileIcon(ArrowRight)}
                   </Button>
                 )}
               </Box>
@@ -584,6 +584,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
               displayName={displayName}
               userId={userId}
               customHeroCards={showCustomHeroCard}
+              server={server}
             />
             {userId !== myUserId && (
               <Button
@@ -591,7 +592,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 variant="Primary"
                 fill="Solid"
                 radii="300"
-                before={<Icon size="50" src={Icons.Message} filled />}
+                before={profileIcon(ChatCircle, { filled: true })}
                 onClick={handleMessage}
                 className={showCustomHeroCard ? css.UserHeroChipThemed : css.UserHeroChip}
                 style={{

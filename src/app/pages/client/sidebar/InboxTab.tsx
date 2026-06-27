@@ -1,13 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Icon, Icons } from 'folds';
 import { useAtomValue } from 'jotai';
 import {
   SidebarAvatar,
-  SidebarItem,
   SidebarUnreadBadge,
   SidebarItemTooltip,
+  SidebarItem,
 } from '$components/sidebar';
-import { allInvitesAtom } from '$state/room-list/inviteList';
 import {
   getInboxInvitesPath,
   getInboxNotificationsPath,
@@ -17,14 +15,15 @@ import {
 import { useInboxSelected } from '$hooks/router/useInbox';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
+import { useInviteCount } from '$hooks/useInviteCount';
+import { getPhosphorIconSize, Tray } from '$components/icons/phosphor';
 
-export function InboxTab() {
+export function InboxTab({ isBottom }: { isBottom?: boolean }) {
   const screenSize = useScreenSizeContext();
   const navigate = useNavigate();
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const inboxSelected = useInboxSelected();
-  const allInvites = useAtomValue(allInvitesAtom);
-  const inviteCount = allInvites.length;
+  const inviteCount = useInviteCount();
 
   const handleInboxClick = () => {
     if (screenSize === ScreenSize.Mobile) {
@@ -42,11 +41,20 @@ export function InboxTab() {
   };
 
   return (
-    <SidebarItem active={inboxSelected}>
-      <SidebarItemTooltip tooltip="Inbox">
+    <SidebarItem active={inboxSelected} isBottom={isBottom}>
+      <SidebarItemTooltip tooltip="Inbox" position={isBottom ? 'Top' : 'Right'}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleInboxClick}>
-            <Icon src={Icons.Inbox} filled={inboxSelected} />
+          <SidebarAvatar
+            as="button"
+            ref={triggerRef}
+            outlined
+            onClick={handleInboxClick}
+            size={'400'}
+          >
+            <Tray
+              size={getPhosphorIconSize(isBottom ? 'inline' : 'toolbar')}
+              weight={inboxSelected ? 'fill' : 'regular'}
+            />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

@@ -1,9 +1,11 @@
+import type { CSSProperties } from 'react';
 import { memo, useMemo, useCallback } from 'react';
-import type { IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
+import { testMatrixUri } from '$plugins/matrix-uri';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
 import type { HTMLReactParserOptions } from 'html-react-parser';
@@ -45,6 +47,9 @@ import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
+import { PollEvent } from './message/PollEvent';
+import { M_TEXT } from 'matrix-js-sdk';
+import type { IImageInfo } from '$types/matrix/common';
 
 type RenderMessageContentProps = {
   displayName: string;
@@ -56,11 +61,15 @@ type RenderMessageContentProps = {
   bundledPreview?: boolean;
   urlPreview?: boolean;
   clientUrlPreview?: boolean;
+  showMaps?: boolean;
   highlightRegex?: RegExp;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
   outlineAttachment?: boolean;
   hideCaption?: boolean;
+  mEvent?: MatrixEvent;
+  mx?: MatrixClient;
+  room?: Room;
 };
 
 const getMediaType = (url: string) => {
@@ -75,7 +84,8 @@ const isSableChatEmbedCandidate = (url: string): boolean =>
   /^https:\/\//i.test(url) &&
   (/\.preview\.sable\.css(\?|#|$)/i.test(url) || isHttpsFullSableCssUrl(url));
 
-const CAPTION_STYLE = { marginTop: config.space.S200 };
+const CAPTION_STYLE: CSSProperties = { marginTop: config.space.S200, maxWidth: '100%' };
+const TEXT_STYLE: CSSProperties = { maxWidth: '100%' };
 
 function RenderMessageContentInternal({
   displayName,
@@ -87,11 +97,15 @@ function RenderMessageContentInternal({
   bundledPreview,
   urlPreview,
   clientUrlPreview,
+  showMaps,
   highlightRegex,
   htmlReactParserOptions,
   linkifyOpts,
   outlineAttachment,
   hideCaption,
+  mEvent,
+  mx,
+  room,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
@@ -124,7 +138,8 @@ function RenderMessageContentInternal({
   const renderUrlsPreview = useCallback(
     (urls: string[]) => {
       const filteredUrls = urls.filter(
-        (url) => !testMatrixTo(url) && !parseSettingsLink(settingsLinkBaseUrl, url)
+        (url) =>
+          !testMatrixTo(url) && !testMatrixUri(url) && !parseSettingsLink(settingsLinkBaseUrl, url)
       );
       if (filteredUrls.length === 0) return undefined;
 
@@ -216,6 +231,7 @@ function RenderMessageContentInternal({
         <Box
           style={{
             padding: config.space.S200,
+            paddingRight: config.space.S0,
             wordBreak: 'break-word',
             maxWidth: '100%',
             display: 'flex',
@@ -230,6 +246,7 @@ function RenderMessageContentInternal({
             renderBody={renderBody}
             renderUrlsPreview={messageUrlsPreview}
             renderBundledPreviews={messageBundlePreview}
+            style={TEXT_STYLE}
           />
         </Box>
       );
@@ -293,6 +310,7 @@ function RenderMessageContentInternal({
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
+        style={TEXT_STYLE}
       />
     );
   }
@@ -334,7 +352,7 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === (MsgType.Image as string)) {
-    const info = (content as { info?: { mimetype?: string } }).info;
+    const { info } = content as { info?: IImageInfo };
     const isGif =
       info?.mimetype === 'image/gif' ||
       info?.mimetype === 'image/apng' ||
@@ -358,11 +376,11 @@ function RenderMessageContentInternal({
               if (isGif && !autoplayGifs && p.src) {
                 return (
                   <ClientSideHoverFreeze src={p.src}>
-                    <Image {...p} loading="lazy" />
+                    <Image info={info} {...p} loading="lazy" />
                   </ClientSideHoverFreeze>
                 );
               }
-              return <Image {...p} loading="lazy" />;
+              return <Image info={info} {...p} loading="lazy" />;
             }}
             renderViewer={(p) => <ImageViewer {...p} />}
           />
@@ -416,7 +434,8 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === (MsgType.File as string)) return renderFile();
-  if (msgType === (MsgType.Location as string)) return <MLocation content={content} />;
+  if (msgType === (MsgType.Location as string))
+    return <MLocation showMaps={showMaps} content={content} />;
   if (msgType === 'm.bad.encrypted') return <MBadEncrypted />;
 
   // cute events
@@ -441,7 +460,21 @@ function RenderMessageContentInternal({
         }
       />
     );
-  return <UnsupportedContent body={(content as { body?: string }).body ?? ''} />;
+  if (content['org.matrix.msc3381.poll.start']) {
+    if (mEvent && mx && room)
+      return <PollEvent content={content} mEvent={mEvent} mx={mx} room={room} />;
+    else return <UnsupportedContent />;
+  }
+  return (
+    <UnsupportedContent
+      body={
+        (content as { body?: string }).body ??
+        (content as { [M_TEXT.name]?: string })[M_TEXT.name] ??
+        (content as { [M_TEXT.name]?: { body: string } })[M_TEXT.name]?.body ??
+        ''
+      }
+    />
+  );
 }
 
 export const RenderMessageContent = memo(RenderMessageContentInternal);

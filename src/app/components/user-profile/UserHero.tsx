@@ -238,7 +238,7 @@ export function UserHero({
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden',
                       fontStyle: allowEditing && !status ? 'italic' : 'normal',
-                      opacity: allowEditing && !status ? config.opacity.Placeholder : 1
+                      opacity: allowEditing && !status ? config.opacity.Placeholder : 1,
                     }}
                   >
                     {status || (allowEditing && "What's on your mind?")}

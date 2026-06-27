@@ -1,7 +1,21 @@
+import type { MouseEventHandler } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import FileSaver from 'file-saver';
 import classNames from 'classnames';
-import { Box, Chip, Header, IconButton, Text, as } from 'folds';
+import {
+  Box,
+  Chip,
+  Header,
+  IconButton,
+  Menu,
+  MenuItem,
+  PopOut,
+  type RectCords,
+  Text,
+  as,
+  config,
+  toRem,
+} from 'folds';
 import {
   ArrowLeft,
   ArrowsClockwise,
@@ -9,6 +23,7 @@ import {
   Image,
   Minus,
   Plus,
+  menuIcon,
   phosphorSizeRem,
   sizedIcon,
 } from '$components/icons/phosphor';
@@ -18,7 +33,10 @@ import { isPixelatedRendering, settingsAtom } from '$state/settings';
 import { downloadMedia } from '$utils/matrix';
 import * as css from './ImageViewer.css';
 import type { IImageInfo } from '$types/matrix/common';
-import { CheckerboardIcon } from '@phosphor-icons/react';
+import { CheckerboardIcon, CopyIcon, DownloadIcon } from '@phosphor-icons/react';
+import FocusTrap from 'focus-trap-react';
+import { stopPropagation } from '$utils/keyboard';
+import { copyImageToClipboard } from '$utils/dom';
 
 export type ImageViewerProps = {
   alt: string;
@@ -83,195 +101,263 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       FileSaver.saveAs(fileContent, alt);
     };
 
+    const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+
+    const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
+      if (evt.altKey || !window.getSelection()?.isCollapsed) return;
+      const tag = (evt.target as HTMLElement).tagName;
+      if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
+
+      evt.preventDefault();
+      setMenuAnchor({
+        x: evt.clientX,
+        y: evt.clientY,
+        width: 0,
+        height: 0,
+      });
+    };
+
     return (
-      <Box
-        className={classNames(css.ImageViewer, className)}
-        direction="Column"
-        {...props}
-        ref={ref}
-      >
-        <Header className={css.ImageViewerHeader} size="400">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <IconButton size="300" radii="300" onClick={requestClose}>
-              {sizedIcon(ArrowLeft, '200')}
-            </IconButton>
-            <Text size="T300" truncate>
-              {alt}
-            </Text>
-          </Box>
-          <Box shrink="No" alignItems="Center" gap="200">
-            <IconButton
-              variant="Surface"
-              size="300"
-              radii="Pill"
-              onClick={() => setIsPixelated(!isPixelated)}
-              aria-label="Toggle Pixelation"
-              title={`Turn ${isPixelated ? 'Anti-aliasing' : 'Pixelation'} on`}
+      <>
+        <PopOut
+          anchor={menuAnchor}
+          align={menuAnchor?.width === 0 ? 'Start' : 'End'}
+          offset={menuAnchor?.width === 0 ? 0 : undefined}
+          content={
+            <FocusTrap
+              focusTrapOptions={{
+                initialFocus: false,
+                onDeactivate: () => setMenuAnchor(undefined),
+                clickOutsideDeactivates: true,
+                escapeDeactivates: stopPropagation,
+              }}
             >
-              <CheckerboardIcon
-                size={phosphorSizeRem(20)}
-                weight={isPixelated ? 'duotone' : 'fill'}
-              />
-            </IconButton>
-            <IconButton
-              variant="Surface"
-              style={{
-                // Only show when the image isn't already larger than the container
-                // and isn't already at 100% zoom
-                // (Otherwise, the Reset Zoom button does the same thing)
-                display: fitRatio !== 1 && transforms.zoom !== 1 ? 'flex' : 'none',
-              }}
-              size="300"
-              radii="Pill"
-              onClick={() => {
-                setZoom(1);
-              }}
-              aria-label="View Original Size"
-              title="View Original Size"
-            >
-              {sizedIcon(Image, '200')}
-            </IconButton>
-            <IconButton
-              variant="Surface"
-              style={{
-                // Only show when the image has had any transforms applied (zoom or pan)
-                display:
-                  transforms.zoom !== fitRatio || transforms.pan.x !== 0 || transforms.pan.y !== 0
-                    ? 'flex'
-                    : 'none',
-              }}
-              size="300"
-              radii="Pill"
-              onClick={() => {
-                resetTransforms();
-                enableResizeWithWindow();
-                setZoom(fitRatio);
-              }}
-              aria-label="Reset Zoom"
-              title="Zoom to Fill Container"
-            >
-              {sizedIcon(ArrowsClockwise, '200')}
-            </IconButton>
-            <IconButton
-              variant={transforms.zoom < 1 ? 'Success' : 'SurfaceVariant'}
-              outlined={transforms.zoom < 1}
-              size="300"
-              radii="Pill"
-              onClick={zoomOut}
-              aria-label="Zoom Out"
-              title="Zoom Out"
-            >
-              {sizedIcon(Minus, '50')}
-            </IconButton>
-            <Chip
-              variant="SurfaceVariant"
-              radii="Pill"
-              style={{
-                // For zoom levels below 100%, keep the pill at the same size as it would be at 100% zoom.
-                // This prevents the Zoom Out button from moving from the pill changing size.
-                // 4em should be generous enough to fit without manually determining the width of the text.
-                minWidth: '4em',
-              }}
-              onClick={() => {
-                setZoomInput(Math.round(transforms.zoom * 100).toString());
-                setIsEditingZoom(true);
-              }}
-              title="Update Zoom"
-            >
-              <Text
-                size="B300"
-                style={{
-                  cursor: 'text',
-                  margin: 'auto',
-                }}
+              <Menu variant="Surface" style={{ maxWidth: toRem(160), width: '100vw' }}>
+                <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                  <MenuItem
+                    as="button"
+                    radii="300"
+                    size="300"
+                    after={menuIcon(CopyIcon)}
+                    onClick={async () => {
+                      setMenuAnchor(undefined);
+                      const fileContent = await downloadMedia(src);
+                      await copyImageToClipboard(fileContent);
+                    }}
+                  >
+                    <Text size="T300" style={{ flexGrow: 1 }}>
+                      Copy image
+                    </Text>
+                  </MenuItem>
+                  <MenuItem
+                    as="button"
+                    radii="300"
+                    size="300"
+                    after={menuIcon(DownloadIcon)}
+                    onClick={() => {
+                      setMenuAnchor(undefined);
+                      handleDownload();
+                    }}
+                  >
+                    <Text size="T300" style={{ flexGrow: 1 }}>
+                      Save image
+                    </Text>
+                  </MenuItem>
+                </Box>
+              </Menu>
+            </FocusTrap>
+          }
+        />
+        <Box
+          className={classNames(css.ImageViewer, className)}
+          direction="Column"
+          {...props}
+          ref={ref}
+        >
+          <Header className={css.ImageViewerHeader} size="400">
+            <Box grow="Yes" alignItems="Center" gap="200">
+              <IconButton size="300" radii="300" onClick={requestClose}>
+                {sizedIcon(ArrowLeft, '200')}
+              </IconButton>
+              <Text size="T300" truncate>
+                {alt}
+              </Text>
+            </Box>
+            <Box shrink="No" alignItems="Center" gap="200">
+              <IconButton
+                variant="Surface"
+                size="300"
+                radii="Pill"
+                onClick={() => setIsPixelated(!isPixelated)}
+                aria-label="Toggle Pixelation"
+                title={`Turn ${isPixelated ? 'Anti-aliasing' : 'Pixelation'} on`}
               >
-                {isEditingZoom ? (
-                  <span>
-                    <input
-                      className={css.ImageViewerInput}
-                      ref={zoomInputRef}
-                      type="text"
-                      aria-label="Set Zoom Level"
-                      value={zoomInput}
-                      onChange={(e) => {
-                        setZoomInput(e.target.value);
-                      }}
-                      onBlur={() => {
-                        const next = parseInt(zoomInput, 10);
-                        if (!Number.isNaN(next)) {
-                          setZoom(next / 100);
-                        }
-                        setIsEditingZoom(false);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
+                <CheckerboardIcon
+                  size={phosphorSizeRem(20)}
+                  weight={isPixelated ? 'duotone' : 'fill'}
+                />
+              </IconButton>
+              <IconButton
+                variant="Surface"
+                style={{
+                  // Only show when the image isn't already larger than the container
+                  // and isn't already at 100% zoom
+                  // (Otherwise, the Reset Zoom button does the same thing)
+                  display: fitRatio !== 1 && transforms.zoom !== 1 ? 'flex' : 'none',
+                }}
+                size="300"
+                radii="Pill"
+                onClick={() => {
+                  setZoom(1);
+                }}
+                aria-label="View Original Size"
+                title="View Original Size"
+              >
+                {sizedIcon(Image, '200')}
+              </IconButton>
+              <IconButton
+                variant="Surface"
+                style={{
+                  // Only show when the image has had any transforms applied (zoom or pan)
+                  display:
+                    transforms.zoom !== fitRatio || transforms.pan.x !== 0 || transforms.pan.y !== 0
+                      ? 'flex'
+                      : 'none',
+                }}
+                size="300"
+                radii="Pill"
+                onClick={() => {
+                  resetTransforms();
+                  enableResizeWithWindow();
+                  setZoom(fitRatio);
+                }}
+                aria-label="Reset Zoom"
+                title="Zoom to Fill Container"
+              >
+                {sizedIcon(ArrowsClockwise, '200')}
+              </IconButton>
+              <IconButton
+                variant={transforms.zoom < 1 ? 'Success' : 'SurfaceVariant'}
+                outlined={transforms.zoom < 1}
+                size="300"
+                radii="Pill"
+                onClick={zoomOut}
+                aria-label="Zoom Out"
+                title="Zoom Out"
+              >
+                {sizedIcon(Minus, '50')}
+              </IconButton>
+              <Chip
+                variant="SurfaceVariant"
+                radii="Pill"
+                style={{
+                  // For zoom levels below 100%, keep the pill at the same size as it would be at 100% zoom.
+                  // This prevents the Zoom Out button from moving from the pill changing size.
+                  // 4em should be generous enough to fit without manually determining the width of the text.
+                  minWidth: '4em',
+                }}
+                onClick={() => {
+                  setZoomInput(Math.round(transforms.zoom * 100).toString());
+                  setIsEditingZoom(true);
+                }}
+                title="Update Zoom"
+              >
+                <Text
+                  size="B300"
+                  style={{
+                    cursor: 'text',
+                    margin: 'auto',
+                  }}
+                >
+                  {isEditingZoom ? (
+                    <span>
+                      <input
+                        className={css.ImageViewerInput}
+                        ref={zoomInputRef}
+                        type="text"
+                        aria-label="Set Zoom Level"
+                        value={zoomInput}
+                        onChange={(e) => {
+                          setZoomInput(e.target.value);
+                        }}
+                        onBlur={() => {
                           const next = parseInt(zoomInput, 10);
                           if (!Number.isNaN(next)) {
                             setZoom(next / 100);
                           }
                           setIsEditingZoom(false);
-                        }
-                      }}
-                    />
-                    <span>%</span>
-                  </span>
-                ) : (
-                  `${Math.round(transforms.zoom * 100)}%`
-                )}
-              </Text>
-            </Chip>
-            <IconButton
-              variant={transforms.zoom > 1 ? 'Success' : 'SurfaceVariant'}
-              outlined={transforms.zoom > 1}
-              size="300"
-              radii="Pill"
-              onClick={zoomIn}
-              aria-label="Zoom In"
-              title="Zoom In"
-            >
-              {sizedIcon(Plus, '50')}
-            </IconButton>
-            <Chip
-              variant="Primary"
-              onClick={handleDownload}
-              radii="300"
-              before={sizedIcon(Download, '50')}
-              outlined
-            >
-              <Text size="B300">Download</Text>
-            </Chip>
-          </Box>
-        </Header>
-        <Box
-          grow="Yes"
-          ref={containerRef}
-          onWheel={handleWheel}
-          className={css.ImageViewerContent}
-          data-gestures="ignore"
-          justifyContent="Center"
-          alignItems="Center"
-          style={{ overflow: 'hidden', touchAction: 'none', cursor }}
-          onPointerDown={onPointerDown}
-        >
-          <img
-            className={classNames(css.ImageViewerImg, isPixelated && css.ImageViewerImgPixelated)}
-            draggable={false}
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const next = parseInt(zoomInput, 10);
+                            if (!Number.isNaN(next)) {
+                              setZoom(next / 100);
+                            }
+                            setIsEditingZoom(false);
+                          }
+                        }}
+                      />
+                      <span>%</span>
+                    </span>
+                  ) : (
+                    `${Math.round(transforms.zoom * 100)}%`
+                  )}
+                </Text>
+              </Chip>
+              <IconButton
+                variant={transforms.zoom > 1 ? 'Success' : 'SurfaceVariant'}
+                outlined={transforms.zoom > 1}
+                size="300"
+                radii="Pill"
+                onClick={zoomIn}
+                aria-label="Zoom In"
+                title="Zoom In"
+              >
+                {sizedIcon(Plus, '50')}
+              </IconButton>
+              <Chip
+                variant="Primary"
+                onClick={handleDownload}
+                radii="300"
+                before={sizedIcon(Download, '50')}
+                outlined
+              >
+                <Text size="B300">Download</Text>
+              </Chip>
+            </Box>
+          </Header>
+          <Box
+            grow="Yes"
+            ref={containerRef}
+            onWheel={handleWheel}
+            className={css.ImageViewerContent}
             data-gestures="ignore"
-            style={{
-              cursor,
-              opacity: isImageReady ? 1 : 0, // Hide image until fit to container
-              transform: `translate(${transforms.pan.x}px, ${transforms.pan.y}px) scale(${transforms.zoom})`,
-            }}
-            src={src}
-            alt={alt}
+            justifyContent="Center"
+            alignItems="Center"
+            style={{ overflow: 'hidden', touchAction: 'none', cursor }}
             onPointerDown={onPointerDown}
-            onLoad={(event: React.SyntheticEvent<HTMLImageElement>) => {
-              handleImageLoad(event);
-              setIsImageReady(true);
-            }}
-          />
+            onContextMenu={handleContextMenu}
+          >
+            <img
+              className={classNames(css.ImageViewerImg, isPixelated && css.ImageViewerImgPixelated)}
+              draggable={false}
+              data-gestures="ignore"
+              style={{
+                cursor,
+                opacity: isImageReady ? 1 : 0, // Hide image until fit to container
+                transform: `translate(${transforms.pan.x}px, ${transforms.pan.y}px) scale(${transforms.zoom})`,
+              }}
+              src={src}
+              alt={alt}
+              onPointerDown={onPointerDown}
+              onLoad={(event: React.SyntheticEvent<HTMLImageElement>) => {
+                handleImageLoad(event);
+                setIsImageReady(true);
+              }}
+            />
+          </Box>
         </Box>
-      </Box>
+      </>
     );
   }
 );

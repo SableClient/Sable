@@ -47,6 +47,7 @@ import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { Check, chipIcon, GearSix, menuIcon, Plus } from '$components/icons/phosphor';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
 
 const log = createLogger('AccountSwitcherTab');
 
@@ -179,6 +180,8 @@ export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
 
   const { disableAccountSwitcher } = useClientConfig();
 
+  const loginUrl = usePathWithOrigin(getLoginPath());
+
   const handleToggle: MouseEventHandler<HTMLButtonElement> = (evt) => {
     if (disableAccountSwitcher) {
       openSettings();
@@ -245,7 +248,7 @@ export function AccountSwitcherTab({ isBottom }: { isBottom?: boolean }) {
   );
 
   const handleAddAccount = () => {
-    const url = withSearchParam(getLoginPath(), { addAccount: '1' });
+    const url = withSearchParam(loginUrl, { addAccount: '1' });
     setMenuAnchor(undefined);
     stopClient(mx);
     setTimeout(() => window.location.assign(url), 100);

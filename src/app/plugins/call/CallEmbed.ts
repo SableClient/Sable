@@ -106,6 +106,7 @@ export class CallEmbed {
 
     if (!room.isCallRoom() && CallEmbed.startingCall(intent)) {
       params.append('sendNotificationType', CallEmbed.dmCall(intent) ? 'ring' : 'notification');
+      params.append('waitForCallPickup', 'false');
     }
 
     let widgetUrl: URL;
@@ -458,12 +459,18 @@ export class CallEmbed {
           gap: ${getVar(config.space.S100)} !important;
         }
         
-        /* Ensure primary/muted buttons maintain a solid border */
-        [class*="button_"][data-kind="primary"], [class*="Button_"][data-kind="primary"], button[data-kind="primary"] {
+        /* Ensure primary/muted buttons maintain a solid border by applying to both the element and its background overlays */
+        [class*="button_"][data-kind="primary"], [class*="Button_"][data-kind="primary"], button[data-kind="primary"],
+        [class*="button_"][data-kind="primary"]::before, [class*="Button_"][data-kind="primary"]::before, button[data-kind="primary"]::before,
+        [class*="button_"][data-kind="primary"]::after, [class*="Button_"][data-kind="primary"]::after, button[data-kind="primary"]::after {
           border: 1px solid ${getVar(color.Primary.ContainerLine)} !important;
+          box-sizing: border-box !important;
         }
-        [class*="button_"][data-kind="primary"][class*="_destructive_"] {
+        [class*="button_"][data-kind="primary"][class*="_destructive_"],
+        [class*="button_"][data-kind="primary"][class*="_destructive_"]::before,
+        [class*="button_"][data-kind="primary"][class*="_destructive_"]::after {
           border: 1px solid ${getVar(color.Critical.ContainerLine)} !important;
+          box-sizing: border-box !important;
         }
         
         /* Fix secondary buttons inside the footer to have Sable's exact container styling */
@@ -504,8 +511,16 @@ export class CallEmbed {
 
 
         /* Slider overrides */
-        [role="slider"] {
+        [role="slider"], [class*="handle"] {
           background-color: ${getVar(color.Primary.Main)} !important;
+          box-shadow: 0 0 0 2px ${getVar(color.Surface.Container)} !important;
+        }
+        [class*="highlight"] {
+          background-color: ${getVar(color.Primary.Main)} !important;
+        }
+        [class*="track"] {
+          background-color: ${getVar(color.SurfaceVariant.ContainerHover)} !important;
+          outline: none !important;
         }
 
         /* Tooltips and Menus */
@@ -524,7 +539,7 @@ export class CallEmbed {
           color: inherit !important;
         }
         /* Use parent app's font for emojis/reactions */
-        [class*="reaction" i], [class*="emoji" i] {
+        [class*="reaction" i], [class*="emoji" i], [class*="reaction" i] * {
           font-family: ${appFontFamily} !important;
         }
       `;

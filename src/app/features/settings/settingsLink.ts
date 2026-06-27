@@ -215,6 +215,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'sharehistory-command',
     'show-personas-tab',
     'media-galleries',
+    'local-message-indexing',
   ],
   about: [
     'base-url',

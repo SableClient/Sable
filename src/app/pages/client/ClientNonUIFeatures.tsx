@@ -78,6 +78,7 @@ import { NotificationTransportRuntimeFeature } from '$features/settings/notifica
 import { UnverifiedNoticeBanner } from '$components/unverified-notice';
 import { GlobalBannerRenderer } from '$components/global-banner/GlobalBannerRenderer';
 import { getRenderableMediaUrlStats } from '$hooks/useRenderableMediaUrl';
+import { SearchIndexProvider } from '$components/SearchIndexProvider';
 
 const pushRelayLog = createDebugLogger('push-relay');
 
@@ -1004,7 +1005,7 @@ function NativeNotificationClickRouting() {
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useIncomingCallSignaling();
   return (
-    <>
+    <SearchIndexProvider>
       <SettingsSyncFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
@@ -1032,6 +1033,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <HealthMonitor />
       <ShareTargetFeature />
       <IconSizesProvider>{children}</IconSizesProvider>
-    </>
+    </SearchIndexProvider>
   );
 }

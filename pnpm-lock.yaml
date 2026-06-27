@@ -98,6 +98,9 @@ importers:
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5
+      flexsearch:
+        specifier: 0.8.212
+        version: 0.8.212
       focus-trap-react:
         specifier: ^10.3.1
         version: 10.3.1(prop-types@15.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3523,6 +3526,9 @@ packages:
 
   flatted@3.4.2:
     resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
+
+  flexsearch@0.8.212:
+    resolution: {integrity: sha512-wSyJr1GUWoOOIISRu+X2IXiOcVfg9qqBRyCPRUdLMIGJqPzMo+jMRlvE83t14v1j0dRMEaBbER/adQjp6Du2pw==}
 
   focus-trap-react@10.3.1:
     resolution: {integrity: sha512-PN4Ya9xf9nyj/Nd9VxBNMuD7IrlRbmaG6POAQ8VLqgtc6IY/Ln1tYakow+UIq4fihYYYFM70/2oyidE6bbiPgw==}
@@ -8198,6 +8204,8 @@ snapshots:
       path-exists: 4.0.0
 
   flatted@3.4.2: {}
+
+  flexsearch@0.8.212: {}
 
   focus-trap-react@10.3.1(prop-types@15.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:

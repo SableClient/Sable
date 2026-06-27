@@ -11,6 +11,7 @@ import {
 import { CallWidgetDriver } from './CallWidgetDriver';
 import { trimTrailingSlash } from '../../utils/common';
 import type { ElementCallThemeKind, ElementMediaStateDetail } from './types';
+import { color, config } from 'folds';
 import { ElementCallIntent, ElementWidgetActions } from './types';
 import { CallControl } from './CallControl';
 import { CallControlState } from './CallControlState';
@@ -330,11 +331,224 @@ export class CallEmbed {
     if (!doc) return;
 
     doc.body.style.setProperty('background', 'none', 'important');
-    const controls = getInCallControlsContainer(doc);
-    if (controls) {
-      controls.style.setProperty('position', 'absolute');
-      controls.style.setProperty('visibility', 'hidden');
-    }
+    
+    // Copy stylesheets from parent just in case
+    const syncStyles = () => {
+      Array.from(document.styleSheets).forEach((sheet) => {
+        try {
+          if (!sheet.href || sheet.href.startsWith(window.location.origin)) {
+            const rules = Array.from(sheet.cssRules).map(r => r.cssText).join('\\n');
+            if (rules && !doc.head.innerHTML.includes(rules.substring(0, 50))) {
+              const styleEl = doc.createElement('style');
+              styleEl.textContent = rules;
+              doc.head.append(styleEl);
+            }
+          } else if (sheet.href) {
+            const link = doc.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = sheet.href;
+            doc.head.append(link);
+          }
+        } catch (e) {
+          // Ignore CORS errors
+        }
+      });
+    };
+    syncStyles();
+
+    const getVar = (variable: string) => {
+      const match = variable.match(/var\((--[^,)]+)/);
+      if (match && match[1]) {
+        const bodyVal = window.getComputedStyle(document.body).getPropertyValue(match[1]).trim();
+        if (bodyVal) return bodyVal;
+        const docElVal = window.getComputedStyle(document.documentElement).getPropertyValue(match[1]).trim();
+        if (docElVal) return docElVal;
+      }
+      return variable;
+    };
+
+    const getSableVar = (variable: string, fallback: string) => {
+      const isDark = document.documentElement.className.includes('dark-theme') || document.body.className.includes('dark-theme');
+      
+      const lightTheme = {
+        '--sable-bg-container': '#ffffff',
+        '--sable-surface-var-container': '#e4e4e7',
+        '--sable-surface-var-container-hover': '#d4d4d8',
+        '--sable-surface-var-container-active': '#a1a1aa',
+        '--sable-surface-container': '#f4f4f5',
+        '--sable-surface-container-line': '#d4d4d8',
+        '--sable-surface-on-container': '#18181b',
+      };
+      
+      const darkTheme = {
+        '--sable-bg-container': '#1b1a21',
+        '--sable-surface-var-container': '#121116',
+        '--sable-surface-var-container-hover': '#1b1a21',
+        '--sable-surface-var-container-active': '#24232c',
+        '--sable-surface-container': '#24232c',
+        '--sable-surface-container-line': '#403f4c',
+        '--sable-surface-on-container': '#eae8f0',
+      };
+      
+      const theme = isDark ? darkTheme : lightTheme;
+      return theme[variable as keyof typeof theme] || fallback;
+    };
+
+    const updateInjectedCSS = () => {
+      const styleId = 'sable-call-embed-styles';
+      let styleEl = doc.getElementById(styleId);
+      if (!styleEl) {
+        styleEl = doc.createElement('style');
+        styleEl.id = styleId;
+        doc.head.append(styleEl);
+      }
+      
+      const appFontFamily = window.getComputedStyle(document.body).fontFamily;
+
+      styleEl.textContent = `
+        :root {
+          /* Backgrounds */
+          --cpd-color-bg-canvas-default: ${getSableVar('--sable-bg-container', getVar(color.Background.Container))} !important;
+          --cpd-color-bg-surface-default: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
+          
+          /* Soft Fills for normal buttons */
+          --cpd-color-bg-subtle-primary: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
+          --cpd-color-bg-subtle-secondary: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
+          --cpd-color-bg-action-secondary-rest: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
+          --cpd-color-bg-action-secondary-hovered: ${getSableVar('--sable-surface-var-container-hover', getVar(color.SurfaceVariant.ContainerHover))} !important;
+          --cpd-color-bg-action-secondary-pressed: ${getSableVar('--sable-surface-var-container-active', getVar(color.SurfaceVariant.ContainerActive))} !important;
+          
+          /* Soft Fills for primary/active buttons */
+          --cpd-color-bg-action-primary-rest: ${getVar(color.Primary.Container)} !important;
+          --cpd-color-bg-action-primary-hovered: ${getVar(color.Primary.ContainerHover)} !important;
+          --cpd-color-bg-action-primary-pressed: ${getVar(color.Primary.ContainerActive)} !important;
+          
+          /* Soft Fills for critical buttons (Hangup) */
+          --cpd-color-bg-critical-primary: ${getVar(color.Critical.Container)} !important;
+          
+          /* Borders */
+          --cpd-color-border-interactive-primary: ${getVar(color.Primary.Main)} !important;
+          --cpd-color-border-interactive-secondary: ${getVar(color.Surface.ContainerLine)} !important;
+          --cpd-color-border-focused: ${getVar(color.Primary.Main)} !important;
+
+          /* Typography and Icons */
+          --cpd-font-family-sans: "Nunito Variable", sans-serif !important;
+          --cpd-color-text-primary: ${getVar(color.Background.OnContainer)} !important;
+          --cpd-color-text-secondary: ${getVar(color.Surface.OnContainer)} !important;
+          --cpd-color-icon-primary: ${getVar(color.Background.OnContainer)} !important;
+          --cpd-color-icon-secondary: ${getVar(color.Surface.OnContainer)} !important;
+          --cpd-color-icon-tertiary: ${getVar(color.SurfaceVariant.OnContainer)} !important;
+          
+          /* Icons/Text on Soft Fill Backgrounds */
+          --cpd-color-icon-on-solid-primary: ${getVar(color.Primary.OnContainer)} !important;
+          --cpd-color-text-on-solid-primary: ${getVar(color.Primary.OnContainer)} !important;
+          --cpd-color-icon-critical-primary: ${getVar(color.Critical.OnContainer)} !important;
+          --cpd-color-text-critical-primary: ${getVar(color.Critical.OnContainer)} !important;
+        }
+
+        /* Enforce rounded rectangles instead of circles */
+        [class*="button_"], [class*="Button_"], button {
+          border-radius: ${getVar(config.radii.R400)} !important;
+        }
+        
+        /* Completely dismantle Element Call's grouping pills to match Sable's discrete buttons */
+        [data-testid="footer-container"] [class*="_container_"] {
+          background-color: transparent !important;
+          border: none !important;
+          gap: ${getVar(config.space.S100)} !important;
+        }
+        
+        /* Ensure primary/muted buttons maintain a solid border */
+        [class*="button_"][data-kind="primary"], [class*="Button_"][data-kind="primary"], button[data-kind="primary"] {
+          border: 1px solid ${getVar(color.Primary.ContainerLine)} !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"] {
+          border: 1px solid ${getVar(color.Critical.ContainerLine)} !important;
+        }
+        
+        /* Fix secondary buttons inside the footer to have Sable's exact container styling */
+        [data-testid="footer-container"] button[data-kind="secondary"],
+        [data-testid="footer-container"] button[aria-haspopup="menu"] {
+          background-color: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
+          border: 1px solid ${getSableVar('--sable-surface-var-container-line', getVar(color.Surface.ContainerLine))} !important;
+          color: var(--cpd-color-icon-secondary) !important;
+        }
+        [data-testid="footer-container"] button[data-kind="secondary"]:hover,
+        [data-testid="footer-container"] button[aria-haspopup="menu"]:hover {
+          background-color: ${getSableVar('--sable-surface-var-container-hover', getVar(color.SurfaceVariant.ContainerHover))} !important;
+        }
+        
+        [class*="button_"]::before, [class*="Button_"]::before, button::before,
+        [class*="button_"]::after, [class*="Button_"]::after, button::after,
+        [data-testid="footer-container"] [class*="_container_"]::before,
+        [data-testid="footer-container"] [class*="_container_"]::after {
+          border-radius: inherit !important;
+        }
+        
+        .tile {
+          border-radius: ${getVar(config.radii.R500)} !important;
+        }
+
+        .tile.speaking::before {
+          background: ${getVar(color.Primary.Main)} !important;
+          opacity: 0.8 !important;
+        }
+
+        /* Settings 3-dots button overrides */
+        [data-testid="settings-bottom-left"] {
+          --cpd-icon-button-size: 48px !important;
+          background-color: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
+          border-radius: ${getVar(config.radii.R400)} !important;
+        }
+
+
+
+        /* Slider overrides */
+        [role="slider"] {
+          background-color: ${getVar(color.Primary.Main)} !important;
+        }
+
+        /* Tooltips and Menus */
+        [role="tooltip"], .cpd-tooltip, [data-radix-popper-content-wrapper] > div, div[class*="_tooltip_"] {
+          background-color: ${getVar(color.Surface.Container)} !important;
+          color: ${getVar(color.Surface.OnContainer)} !important;
+          border: 1px solid ${getVar(color.Surface.ContainerLine)} !important;
+          border-radius: ${getVar(config.radii.R400)} !important;
+          padding: ${getVar(config.space.S200)} ${getVar(config.space.S300)} !important;
+          font-size: ${getVar(config.fontSize.B300)} !important;
+          box-shadow: 0 4px 6px ${getVar(color.Other.Shadow)} !important;
+        }
+        
+        /* Ensure tooltip text inside wrapper inherits correctly */
+        [role="tooltip"] *, .cpd-tooltip *, [data-radix-popper-content-wrapper] * {
+          color: inherit !important;
+        }
+        /* Use parent app's font for emojis/reactions */
+        [class*="reaction" i], [class*="emoji" i] {
+          font-family: ${appFontFamily} !important;
+        }
+      `;
+    };
+
+    // Sync theme classes from parent html/body
+    const syncThemeClasses = () => {
+      doc.documentElement.className = document.documentElement.className;
+      doc.body.className = document.body.className;
+      
+      const theme = document.documentElement.getAttribute('data-theme');
+      if (theme) doc.documentElement.setAttribute('data-theme', theme);
+
+      // Re-evaluate vars and update CSS on theme change
+      updateInjectedCSS();
+    };
+    
+    // Initial injection
+    syncThemeClasses();
+
+    const observer = new MutationObserver(syncThemeClasses);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
+    this.disposables.push(() => observer.disconnect());
   }
 
   private onEvent(ev: MatrixEvent): void {

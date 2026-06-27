@@ -11,7 +11,6 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import * as css from './styles.css';
 import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
-import { CallControls } from './CallControls';
 import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 
 function LivekitServerMissingMessage() {
@@ -152,25 +151,6 @@ function CallJoined({ joined, containerRef }: CallJoinedProps) {
   return (
     <Box grow="Yes" direction="Column" style={{ position: 'relative' }}>
       <Box grow="Yes" ref={containerRef} style={{ height: '100%', width: '100%' }} />
-
-      {callEmbed && joined && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: toRem(16),
-            left: 0,
-            right: 0,
-            zIndex: 50,
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          <div style={{ pointerEvents: 'all', maxWidth: '100%' }}>
-            <CallControls callEmbed={callEmbed} />
-          </div>
-        </div>
-      )}
     </Box>
   );
 }

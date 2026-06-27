@@ -31,6 +31,7 @@ import * as css from './styles.css';
 import {
   ChatButton,
   ControlDivider,
+  LayoutButton,
   MicrophoneButton,
   ScreenShareButton,
   SoundButton,
@@ -143,6 +144,11 @@ export function CallControls({ callEmbed }: CallControlsProps) {
           direction="Row"
         >
           {room?.isCallRoom() && <ChatButton />}
+          
+          <LayoutButton
+            spotlight={spotlight}
+            onToggle={() => callEmbed.control.toggleSpotlight()}
+          />
 
           <PopOut
             anchor={cords}
@@ -161,16 +167,6 @@ export function CallControls({ callEmbed }: CallControlsProps) {
               >
                 <Menu>
                   <Box direction="Column" style={{ padding: config.space.S100 }}>
-                    <MenuItem
-                      size="300"
-                      variant="Surface"
-                      radii="300"
-                      onClick={handleSpotlightClick}
-                    >
-                      <Text size="B300" truncate>
-                        {spotlight ? 'Grid View' : 'Spotlight View'}
-                      </Text>
-                    </MenuItem>
                     <MenuItem
                       size="300"
                       variant="Surface"

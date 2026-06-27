@@ -9,6 +9,8 @@ import {
   VideoCamera,
   VideoCameraSlash,
   ScreenShare,
+  SquaresFour,
+  Presentation,
 } from '$components/icons/phosphor';
 import { useAtom } from 'jotai';
 import * as css from './styles.css';
@@ -172,6 +174,38 @@ export function ChatButton() {
           outlined
         >
           {sizedIcon(ChatCircle, '300', { filled: chat })}
+        </IconButton>
+      )}
+    </TooltipProvider>
+  );
+}
+
+type LayoutButtonProps = {
+  spotlight: boolean;
+  onToggle: () => void;
+};
+export function LayoutButton({ spotlight, onToggle }: LayoutButtonProps) {
+  return (
+    <TooltipProvider
+      position="Top"
+      delay={500}
+      tooltip={
+        <Tooltip>
+          <Text size="T200">{spotlight ? 'Switch to Grid View' : 'Switch to Spotlight View'}</Text>
+        </Tooltip>
+      }
+    >
+      {(anchorRef) => (
+        <IconButton
+          ref={anchorRef}
+          variant="Surface"
+          fill="Soft"
+          radii="400"
+          size="400"
+          onClick={() => onToggle()}
+          outlined
+        >
+          {sizedIcon(spotlight ? SquaresFour : Presentation, '300', { filled: true })}
         </IconButton>
       )}
     </TooltipProvider>

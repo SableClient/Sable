@@ -38,19 +38,13 @@ export const getScreenshareButton = (doc: Document | undefined): HTMLElement | u
   });
 
 export const getSettingsButton = (doc: Document | undefined): HTMLElement | undefined => {
-  const leaveButton = getLeaveButton(doc);
-  const sibling = leaveButton?.previousElementSibling as HTMLElement | null;
-  if (sibling) return sibling;
   return queryFirst(doc, {
     key: 'settings_button',
-    selectors: ['[data-testid="incall_settings"]', 'button[aria-label*="Settings" i]'],
+    selectors: ['[data-testid="settings-bottom-left"]', '[data-testid="settings-bottom-center"]', 'button[aria-label*="Settings" i]'],
   });
 };
 
 export const getReactionsButton = (doc: Document | undefined): HTMLElement | undefined => {
-  const settingsButton = getSettingsButton(doc);
-  const sibling = settingsButton?.previousElementSibling as HTMLElement | null;
-  if (sibling) return sibling;
   return queryFirst(doc, {
     key: 'reactions_button',
     selectors: ['[data-testid="incall_reactions"]', 'button[aria-label*="Reaction" i]'],

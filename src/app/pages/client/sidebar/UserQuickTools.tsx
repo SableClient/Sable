@@ -7,6 +7,7 @@ import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import * as css from './UserQuickTools.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { UserMenuTab } from './UserMenuTab';
+import { MessageTab } from './MessageTab';
 
 export function UserQuickTools({
   width,
@@ -28,7 +29,7 @@ export function UserQuickTools({
         <div style={{ position: 'relative' }}>
           <Box
             direction="Row"
-            justifyContent="SpaceBetween"
+            justifyContent={compact ? 'SpaceAround' : 'SpaceBetween'}
             alignItems="Center"
             className={css.UserQuickTools}
             style={{
@@ -38,20 +39,31 @@ export function UserQuickTools({
               paddingRight: config.space.S300,
             }}
           >
-            <UserMenuTab isBottom />
-            <Box
-              style={{
-                gap: config.space.S300,
-              }}
-            >
-              {!isCollapsed && (
-                <>
-                  <InboxTab isBottom />
-                  <SearchTab isBottom />
-                  <SettingsTab isBottom />
-                </>
-              )}
-            </Box>
+            {compact ? (
+              <>
+                <MessageTab isBottom />
+                <InboxTab isBottom />
+                <SearchTab isBottom />
+                <UserMenuTab isBottom />
+              </>
+            ) : (
+              <>
+                <UserMenuTab isBottom />
+                <Box
+                  style={{
+                    gap: config.space.S300,
+                  }}
+                >
+                  {!isCollapsed && (
+                    <>
+                      <InboxTab isBottom />
+                      <SearchTab isBottom />
+                      <SettingsTab isBottom />
+                    </>
+                  )}
+                </Box>
+              </>
+            )}
           </Box>
         </div>
       )}

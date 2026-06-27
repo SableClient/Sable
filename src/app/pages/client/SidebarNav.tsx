@@ -144,7 +144,6 @@ export function SidebarNav() {
                   <SearchTab />
                   <InboxTab />
                   <div style={{ paddingBottom: config.space.S100 }}>
-                    {/*PROBS ADD SETTINGSTAB HERE WHEN ADDING THE STATUSES*/}
                     <UserMenuTab />
                   </div>
                 </>

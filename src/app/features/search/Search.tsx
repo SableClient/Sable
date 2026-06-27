@@ -3,6 +3,7 @@ import {
   Avatar,
   Box,
   config,
+  Header,
   IconButton,
   Input,
   Line,
@@ -50,6 +51,7 @@ import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -133,6 +135,7 @@ export type RoomSearchPickRoomConfig = {
 export type RoomSearchModalProps = {
   requestClose: () => void;
   pickRoom?: RoomSearchPickRoomConfig;
+  headerText?: string;
 };
 
 export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps) {
@@ -274,6 +277,9 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
     }
   }, [listFocus.index]);
 
+  const screenSize = useScreenSizeContext();
+  const isMobile = screenSize === ScreenSize.Mobile;
+
   return (
     <Overlay open>
       <OverlayCenter>
@@ -285,34 +291,40 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
             clickOutsideDeactivates: true,
             onDeactivate: requestClose,
             escapeDeactivates: (evt: KeyboardEvent) => {
-              evt.stopPropagation();
+              if (!isMobile) evt.stopPropagation();
               return true;
             },
           }}
         >
-          <Modal size="400" style={{ maxHeight: toRem(400), borderRadius: config.radii.R500 }}>
-            {pickRoom && (
-              <Box
-                shrink="No"
-                direction="Row"
-                alignItems="Center"
-                justifyContent="SpaceBetween"
-                style={{
-                  padding: `${config.space.S400} ${config.space.S400} ${config.space.S200}`,
-                }}
-              >
-                <Text size="H4">{pickRoom.title}</Text>
-                <IconButton
-                  size="300"
-                  onClick={requestClose}
-                  radii="300"
-                  aria-label="Close"
-                  disabled={pickRoom.busy}
-                >
+          <Modal
+            size="400"
+            style={
+              isMobile
+                ? {
+                    maxHeight: '100%',
+                    top: '0px',
+                    position: 'absolute',
+                    borderRadius: config.radii.R500,
+                  }
+                : { maxHeight: toRem(400), borderRadius: config.radii.R500 }
+            }
+          >
+            <Header
+              style={{
+                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                borderBottomWidth: config.borderWidth.B300,
+              }}
+              variant="Surface"
+              size="500"
+            >
+              <Box grow="Yes" justifyContent="SpaceBetween" alignItems="Center">
+                <Text size="H4">{pickRoom ? pickRoom.title : 'Search Message'}</Text>
+
+                <IconButton size="300" onClick={requestClose}>
                   {composerIcon(X)}
                 </IconButton>
               </Box>
-            )}
+            </Header>
             {pickRoom?.errorMessage ? (
               <Box shrink="No" style={{ padding: `0 ${config.space.S400} ${config.space.S200}` }}>
                 <Text size="T200" color="Critical600">

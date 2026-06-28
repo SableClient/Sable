@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Room } from '$types/matrix-sdk';
 import { MatrixRTCSession } from '$types/matrix-sdk';
 import {
   getCallMembershipPresence,
@@ -10,9 +11,7 @@ import {
 
 const MY_USER_ID = '@self:example.org';
 const SESSION_DESCRIPTION = {} as SessionDescription;
-const room = { roomId: '!room:example.org' } as Parameters<
-  typeof MatrixRTCSession.sessionMembershipsForRoom
->[0];
+const room = { roomId: '!room:example.org' } as unknown as Room;
 
 describe('callMembershipState', () => {
   afterEach(() => {

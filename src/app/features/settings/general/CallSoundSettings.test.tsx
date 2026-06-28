@@ -38,19 +38,19 @@ const defaultSettingValues: Record<string, unknown> = {
 
 describe('CallSoundSettings', () => {
   beforeEach(() => {
-    vi.mocked(useSetting).mockImplementation((_atom: unknown, key: string) => {
-      return [defaultSettingValues[key], vi.fn<(value: unknown) => void>()] as const;
-    });
+    vi.mocked(useSetting).mockImplementation(((_atom: unknown, key: string) => {
+      return [defaultSettingValues[key], vi.fn<() => void>()] as never;
+    }) as never);
   });
 
   it('falls back to default ringtone when custom ringtone is unavailable', async () => {
-    const setCallRingtoneId = vi.fn<(value: unknown) => void>();
-    vi.mocked(useSetting).mockImplementation((_atom: unknown, key: string) => {
+    const setCallRingtoneId = vi.fn<() => void>();
+    vi.mocked(useSetting).mockImplementation(((_atom: unknown, key: string) => {
       if (key === 'callRingtoneId') {
-        return ['custom', setCallRingtoneId] as const;
+        return ['custom', setCallRingtoneId] as never;
       }
-      return [defaultSettingValues[key], vi.fn<(value: unknown) => void>()] as const;
-    });
+      return [defaultSettingValues[key], vi.fn<() => void>()] as never;
+    }) as never);
 
     render(<CallSoundSettings />);
 

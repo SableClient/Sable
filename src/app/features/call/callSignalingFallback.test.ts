@@ -5,9 +5,11 @@ import {
   evaluateOutgoingRingbackFallback,
   type OutgoingRingbackState,
 } from './callSignalingFallback';
+import type { SessionDescription } from './callMembershipState';
 import { INCOMING_MEMBERSHIP_GRACE_MS, OUTGOING_RING_TIMEOUT_MS } from './callSignalingPolicy';
 
 const NOW = 1_700_000_000_000;
+const EMPTY_SESSION = {} as SessionDescription;
 
 const incomingCall: IncomingCall = {
   roomId: '!room:example.org',
@@ -27,7 +29,7 @@ describe('evaluateIncomingCallFallback', () => {
       evaluateIncomingCallFallback({ ...incomingCall, expiresAt: NOW - 1 }, NOW, {
         myUserId: '@self:example.org',
         getRoom: () => null,
-        getSessionDescription: () => ({}),
+        getSessionDescription: () => EMPTY_SESSION,
       })
     ).toEqual({ kind: 'clear', reason: 'expired' });
   });
@@ -37,7 +39,7 @@ describe('evaluateIncomingCallFallback', () => {
       evaluateIncomingCallFallback(incomingCall, NOW, {
         myUserId: '@self:example.org',
         getRoom: () => ({ roomId: incomingCall.roomId }) as never,
-        getSessionDescription: () => ({}),
+        getSessionDescription: () => EMPTY_SESSION,
         isIncomingActive: () => false,
       })
     ).toEqual({ kind: 'none' });
@@ -50,7 +52,7 @@ describe('evaluateIncomingCallFallback', () => {
       {
         myUserId: '@self:example.org',
         getRoom: () => ({ roomId: incomingCall.roomId }) as never,
-        getSessionDescription: () => ({}),
+        getSessionDescription: () => EMPTY_SESSION,
         isIncomingActive: () => false,
       }
     );
@@ -65,7 +67,7 @@ describe('evaluateOutgoingRingbackFallback', () => {
     outgoingRingbackAllowed: true,
     declinedRoomId: null,
     getRoom: () => ({ roomId: '!room:example.org' }) as never,
-    getSessionDescription: () => ({}),
+    getSessionDescription: () => EMPTY_SESSION,
   };
 
   it('stops ringback when outgoing call is no longer pending', () => {

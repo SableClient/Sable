@@ -25,7 +25,7 @@ export const decryptRtcTimelineEvent = async (
 
     const decryptionPromise = event.getDecryptionPromise();
     if (decryptionPromise) {
-      let timeoutId: ReturnType<typeof window.setTimeout> | undefined;
+      let timeoutId: number | undefined;
       await Promise.race([
         decryptionPromise.finally(() => {
           if (timeoutId !== undefined) window.clearTimeout(timeoutId);

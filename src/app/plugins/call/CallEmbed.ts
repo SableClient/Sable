@@ -16,9 +16,51 @@ import { ElementCallIntent, ElementWidgetActions } from './types';
 import { CallControl } from './CallControl';
 import { CallControlState } from './CallControlState';
 import { createDebugLogger } from '../../utils/debugLogger';
-import { getInCallControlsContainer } from './elementCallDomAdapter';
 
 const debugLog = createDebugLogger('CallEmbed');
+
+const resolveCssVar = (variable: string): string => {
+  const match = variable.match(/var\((--[^,)]+)/);
+  if (match && match[1]) {
+    const bodyVal = window.getComputedStyle(document.body).getPropertyValue(match[1]).trim();
+    if (bodyVal) return bodyVal;
+    const docElVal = window
+      .getComputedStyle(document.documentElement)
+      .getPropertyValue(match[1])
+      .trim();
+    if (docElVal) return docElVal;
+  }
+  return variable;
+};
+
+const SABLE_THEME_TOKENS = {
+  light: {
+    '--sable-bg-container': '#ffffff',
+    '--sable-surface-var-container': '#e4e4e7',
+    '--sable-surface-var-container-hover': '#d4d4d8',
+    '--sable-surface-var-container-active': '#a1a1aa',
+    '--sable-surface-container': '#f4f4f5',
+    '--sable-surface-container-line': '#d4d4d8',
+    '--sable-surface-on-container': '#18181b',
+  },
+  dark: {
+    '--sable-bg-container': '#1b1a21',
+    '--sable-surface-var-container': '#121116',
+    '--sable-surface-var-container-hover': '#1b1a21',
+    '--sable-surface-var-container-active': '#24232c',
+    '--sable-surface-container': '#24232c',
+    '--sable-surface-container-line': '#403f4c',
+    '--sable-surface-on-container': '#eae8f0',
+  },
+} as const;
+
+const resolveSableThemeToken = (variable: string, fallback: string): string => {
+  const isDark =
+    document.documentElement.className.includes('dark-theme') ||
+    document.body.className.includes('dark-theme');
+  const theme = isDark ? SABLE_THEME_TOKENS.dark : SABLE_THEME_TOKENS.light;
+  return theme[variable as keyof typeof theme] || fallback;
+};
 
 export class CallEmbed {
   private mx: MatrixClient;
@@ -278,10 +320,8 @@ export class CallEmbed {
       this.readUpToMap[room.roomId] = roomEvent.getId()!;
     });
 
-    // Attach listeners for feeding events - the underlying widget classes handle permissions for us.
-    // Bind once and store via disposables so the same function reference is used for removal.
-    // Using .bind(this) at call-site would create a new function every time, making .off() a no-op
-    // and causing MaxListeners warnings when the embed is recreated during sync retries.
+    // Bind handlers once and route removal through `disposables` so listeners can be
+    // cleanly torn down when the embed is recreated.
     const boundOnEvent = this.onEvent.bind(this);
     const boundOnEventDecrypted = this.onEventDecrypted.bind(this);
     const boundOnStateUpdate = this.onStateUpdate.bind(this);
@@ -352,55 +392,12 @@ export class CallEmbed {
             link.href = sheet.href;
             doc.head.append(link);
           }
-        } catch (e) {
+        } catch {
           // Ignore CORS errors
         }
       });
     };
     syncStyles();
-
-    const getVar = (variable: string) => {
-      const match = variable.match(/var\((--[^,)]+)/);
-      if (match && match[1]) {
-        const bodyVal = window.getComputedStyle(document.body).getPropertyValue(match[1]).trim();
-        if (bodyVal) return bodyVal;
-        const docElVal = window
-          .getComputedStyle(document.documentElement)
-          .getPropertyValue(match[1])
-          .trim();
-        if (docElVal) return docElVal;
-      }
-      return variable;
-    };
-
-    const getSableVar = (variable: string, fallback: string) => {
-      const isDark =
-        document.documentElement.className.includes('dark-theme') ||
-        document.body.className.includes('dark-theme');
-
-      const lightTheme = {
-        '--sable-bg-container': '#ffffff',
-        '--sable-surface-var-container': '#e4e4e7',
-        '--sable-surface-var-container-hover': '#d4d4d8',
-        '--sable-surface-var-container-active': '#a1a1aa',
-        '--sable-surface-container': '#f4f4f5',
-        '--sable-surface-container-line': '#d4d4d8',
-        '--sable-surface-on-container': '#18181b',
-      };
-
-      const darkTheme = {
-        '--sable-bg-container': '#1b1a21',
-        '--sable-surface-var-container': '#121116',
-        '--sable-surface-var-container-hover': '#1b1a21',
-        '--sable-surface-var-container-active': '#24232c',
-        '--sable-surface-container': '#24232c',
-        '--sable-surface-container-line': '#403f4c',
-        '--sable-surface-on-container': '#eae8f0',
-      };
-
-      const theme = isDark ? darkTheme : lightTheme;
-      return theme[variable as keyof typeof theme] || fallback;
-    };
 
     const updateInjectedCSS = () => {
       const styleId = 'sable-call-embed-styles';
@@ -416,80 +413,80 @@ export class CallEmbed {
       styleEl.textContent = `
         :root {
           /* Backgrounds */
-          --cpd-color-bg-canvas-default: ${getSableVar('--sable-bg-container', getVar(color.Background.Container))} !important;
-          --cpd-color-bg-surface-default: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
+          --cpd-color-bg-canvas-default: ${resolveSableThemeToken('--sable-bg-container', resolveCssVar(color.Background.Container))} !important;
+          --cpd-color-bg-surface-default: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
           
           /* Soft Fills for normal buttons */
-          --cpd-color-bg-subtle-primary: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
-          --cpd-color-bg-subtle-secondary: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
-          --cpd-color-bg-action-secondary-rest: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
-          --cpd-color-bg-action-secondary-hovered: ${getSableVar('--sable-surface-var-container-hover', getVar(color.SurfaceVariant.ContainerHover))} !important;
-          --cpd-color-bg-action-secondary-pressed: ${getSableVar('--sable-surface-var-container-active', getVar(color.SurfaceVariant.ContainerActive))} !important;
+          --cpd-color-bg-subtle-primary: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
+          --cpd-color-bg-subtle-secondary: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
+          --cpd-color-bg-action-secondary-rest: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
+          --cpd-color-bg-action-secondary-hovered: ${resolveSableThemeToken('--sable-surface-var-container-hover', resolveCssVar(color.SurfaceVariant.ContainerHover))} !important;
+          --cpd-color-bg-action-secondary-pressed: ${resolveSableThemeToken('--sable-surface-var-container-active', resolveCssVar(color.SurfaceVariant.ContainerActive))} !important;
           
           /* Soft Fills for primary/active buttons */
-          --cpd-color-bg-action-primary-rest: ${getVar(color.Primary.Container)} !important;
-          --cpd-color-bg-action-primary-hovered: ${getVar(color.Primary.ContainerHover)} !important;
-          --cpd-color-bg-action-primary-pressed: ${getVar(color.Primary.ContainerActive)} !important;
+          --cpd-color-bg-action-primary-rest: ${resolveCssVar(color.Primary.Container)} !important;
+          --cpd-color-bg-action-primary-hovered: ${resolveCssVar(color.Primary.ContainerHover)} !important;
+          --cpd-color-bg-action-primary-pressed: ${resolveCssVar(color.Primary.ContainerActive)} !important;
           
           /* Soft Fills for critical buttons (Hangup) */
-          --cpd-color-bg-critical-primary: ${getVar(color.Critical.Container)} !important;
+          --cpd-color-bg-critical-primary: ${resolveCssVar(color.Critical.Container)} !important;
           
           /* Borders */
-          --cpd-color-border-interactive-primary: ${getVar(color.Primary.Main)} !important;
-          --cpd-color-border-interactive-secondary: ${getVar(color.Surface.ContainerLine)} !important;
-          --cpd-color-border-focused: ${getVar(color.Primary.Main)} !important;
+          --cpd-color-border-interactive-primary: ${resolveCssVar(color.Primary.Main)} !important;
+          --cpd-color-border-interactive-secondary: ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          --cpd-color-border-focused: ${resolveCssVar(color.Primary.Main)} !important;
 
           /* Typography and Icons */
           --cpd-font-family-sans: "Nunito Variable", sans-serif !important;
-          --cpd-color-text-primary: ${getVar(color.Background.OnContainer)} !important;
-          --cpd-color-text-secondary: ${getVar(color.Surface.OnContainer)} !important;
-          --cpd-color-icon-primary: ${getVar(color.Background.OnContainer)} !important;
-          --cpd-color-icon-secondary: ${getVar(color.Surface.OnContainer)} !important;
-          --cpd-color-icon-tertiary: ${getVar(color.SurfaceVariant.OnContainer)} !important;
+          --cpd-color-text-primary: ${resolveCssVar(color.Background.OnContainer)} !important;
+          --cpd-color-text-secondary: ${resolveCssVar(color.Surface.OnContainer)} !important;
+          --cpd-color-icon-primary: ${resolveCssVar(color.Background.OnContainer)} !important;
+          --cpd-color-icon-secondary: ${resolveCssVar(color.Surface.OnContainer)} !important;
+          --cpd-color-icon-tertiary: ${resolveCssVar(color.SurfaceVariant.OnContainer)} !important;
           
           /* Icons/Text on Soft Fill Backgrounds */
-          --cpd-color-icon-on-solid-primary: ${getVar(color.Primary.OnContainer)} !important;
-          --cpd-color-text-on-solid-primary: ${getVar(color.Primary.OnContainer)} !important;
-          --cpd-color-icon-critical-primary: ${getVar(color.Critical.OnContainer)} !important;
-          --cpd-color-text-critical-primary: ${getVar(color.Critical.OnContainer)} !important;
+          --cpd-color-icon-on-solid-primary: ${resolveCssVar(color.Primary.OnContainer)} !important;
+          --cpd-color-text-on-solid-primary: ${resolveCssVar(color.Primary.OnContainer)} !important;
+          --cpd-color-icon-critical-primary: ${resolveCssVar(color.Critical.OnContainer)} !important;
+          --cpd-color-text-critical-primary: ${resolveCssVar(color.Critical.OnContainer)} !important;
         }
 
         /* Enforce rounded rectangles instead of circles */
         [class*="button_"], [class*="Button_"], button {
-          border-radius: ${getVar(config.radii.R400)} !important;
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
         }
         
         /* Completely dismantle Element Call's grouping pills to match Sable's discrete buttons */
         [data-testid="footer-container"] [class*="_container_"] {
           background-color: transparent !important;
           border: none !important;
-          gap: ${getVar(config.space.S100)} !important;
+          gap: ${resolveCssVar(config.space.S100)} !important;
         }
         
         /* Ensure primary/muted buttons maintain a solid border by applying to both the element and its background overlays */
         [class*="button_"][data-kind="primary"], [class*="Button_"][data-kind="primary"], button[data-kind="primary"],
         [class*="button_"][data-kind="primary"]::before, [class*="Button_"][data-kind="primary"]::before, button[data-kind="primary"]::before,
         [class*="button_"][data-kind="primary"]::after, [class*="Button_"][data-kind="primary"]::after, button[data-kind="primary"]::after {
-          border: 1px solid ${getVar(color.Primary.ContainerLine)} !important;
+          border: 1px solid ${resolveCssVar(color.Primary.ContainerLine)} !important;
           box-sizing: border-box !important;
         }
         [class*="button_"][data-kind="primary"][class*="_destructive_"],
         [class*="button_"][data-kind="primary"][class*="_destructive_"]::before,
         [class*="button_"][data-kind="primary"][class*="_destructive_"]::after {
-          border: 1px solid ${getVar(color.Critical.ContainerLine)} !important;
+          border: 1px solid ${resolveCssVar(color.Critical.ContainerLine)} !important;
           box-sizing: border-box !important;
         }
         
         /* Fix secondary buttons inside the footer to have Sable's exact container styling */
         [data-testid="footer-container"] button[data-kind="secondary"],
         [data-testid="footer-container"] button[aria-haspopup="menu"] {
-          background-color: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
-          border: 1px solid ${getSableVar('--sable-surface-var-container-line', getVar(color.Surface.ContainerLine))} !important;
+          background-color: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
+          border: 1px solid ${resolveSableThemeToken('--sable-surface-var-container-line', resolveCssVar(color.Surface.ContainerLine))} !important;
           color: var(--cpd-color-icon-secondary) !important;
         }
         [data-testid="footer-container"] button[data-kind="secondary"]:hover,
         [data-testid="footer-container"] button[aria-haspopup="menu"]:hover {
-          background-color: ${getSableVar('--sable-surface-var-container-hover', getVar(color.SurfaceVariant.ContainerHover))} !important;
+          background-color: ${resolveSableThemeToken('--sable-surface-var-container-hover', resolveCssVar(color.SurfaceVariant.ContainerHover))} !important;
         }
         
         [class*="button_"]::before, [class*="Button_"]::before, button::before,
@@ -500,45 +497,45 @@ export class CallEmbed {
         }
         
         .tile {
-          border-radius: ${getVar(config.radii.R500)} !important;
+          border-radius: ${resolveCssVar(config.radii.R500)} !important;
         }
 
         .tile.speaking::before {
-          background: ${getVar(color.Primary.Main)} !important;
+          background: ${resolveCssVar(color.Primary.Main)} !important;
           opacity: 0.8 !important;
         }
 
         /* Settings 3-dots button overrides */
         [data-testid="settings-bottom-left"] {
           --cpd-icon-button-size: 48px !important;
-          background-color: ${getSableVar('--sable-surface-var-container', getVar(color.SurfaceVariant.Container))} !important;
-          border-radius: ${getVar(config.radii.R400)} !important;
+          background-color: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
         }
 
 
 
         /* Slider overrides */
         [role="slider"], [class*="handle"] {
-          background-color: ${getVar(color.Primary.Main)} !important;
-          box-shadow: 0 0 0 2px ${getVar(color.Surface.Container)} !important;
+          background-color: ${resolveCssVar(color.Primary.Main)} !important;
+          box-shadow: 0 0 0 2px ${resolveCssVar(color.Surface.Container)} !important;
         }
         [class*="highlight"] {
-          background-color: ${getVar(color.Primary.Main)} !important;
+          background-color: ${resolveCssVar(color.Primary.Main)} !important;
         }
         [class*="track"] {
-          background-color: ${getVar(color.SurfaceVariant.ContainerHover)} !important;
+          background-color: ${resolveCssVar(color.SurfaceVariant.ContainerHover)} !important;
           outline: none !important;
         }
 
         /* Tooltips and Menus */
         [role="tooltip"], .cpd-tooltip, [data-radix-popper-content-wrapper] > div, div[class*="_tooltip_"] {
-          background-color: ${getVar(color.Surface.Container)} !important;
-          color: ${getVar(color.Surface.OnContainer)} !important;
-          border: 1px solid ${getVar(color.Surface.ContainerLine)} !important;
-          border-radius: ${getVar(config.radii.R400)} !important;
-          padding: ${getVar(config.space.S200)} ${getVar(config.space.S300)} !important;
-          font-size: ${getVar(config.fontSize.B300)} !important;
-          box-shadow: 0 4px 6px ${getVar(color.Other.Shadow)} !important;
+          background-color: ${resolveCssVar(color.Surface.Container)} !important;
+          color: ${resolveCssVar(color.Surface.OnContainer)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
+          padding: ${resolveCssVar(config.space.S200)} ${resolveCssVar(config.space.S300)} !important;
+          font-size: ${resolveCssVar(config.fontSize.B300)} !important;
+          box-shadow: 0 4px 6px ${resolveCssVar(color.Other.Shadow)} !important;
         }
         
         /* Ensure tooltip text inside wrapper inherits correctly */

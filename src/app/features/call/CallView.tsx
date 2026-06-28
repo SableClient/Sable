@@ -142,12 +142,9 @@ function CallPrescreen() {
 
 type CallJoinedProps = {
   containerRef: RefObject<HTMLDivElement>;
-  joined: boolean;
 };
 
-function CallJoined({ joined, containerRef }: CallJoinedProps) {
-  const callEmbed = useCallEmbed();
-
+function CallJoined({ containerRef }: CallJoinedProps) {
   return (
     <Box grow="Yes" direction="Column" style={{ position: 'relative' }}>
       <Box grow="Yes" ref={containerRef} style={{ height: '100%', width: '100%' }} />
@@ -269,7 +266,7 @@ export function CallView({ resizable }: CallViewProps) {
       )}
 
       {!currentJoined && <CallPrescreen />}
-      <CallJoined joined={currentJoined} containerRef={callContainerRef} />
+      <CallJoined containerRef={callContainerRef} />
 
       {resizable && (
         <button

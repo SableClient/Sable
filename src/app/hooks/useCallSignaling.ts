@@ -37,7 +37,7 @@ import { callRingtoneVolumeToGain, canPlayCallAudio } from '$features/call/callR
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
 import { resolveCallToneSources } from '$features/call/callToneSources';
 import { isIncomingCallSuppressed } from '$features/call/callIncomingIngress';
-import { getRemoteRtcMemberUserIds } from '$features/call/callMembershipState';
+import { getRemoteRtcMemberUserIds, isCallActive } from '$features/call/callMembershipState';
 import { useMatrixClient } from './useMatrixClient';
 import { createDebugLogger } from '../utils/debugLogger';
 
@@ -85,6 +85,7 @@ export function useIncomingCallSignaling() {
   const outgoingStartRef = useRef<number | null>(null);
   const activeOutgoingNotificationIdRef = useRef<string | null>(null);
   const seenDeclineEventIdsRef = useRef<Set<string>>(new Set());
+  const hasCallBeenActiveRef = useRef<boolean>(false);
 
   type SignalingHandlerRefs = {
     callEmbed: typeof callEmbed;
@@ -113,6 +114,7 @@ export function useIncomingCallSignaling() {
     outgoingDeclinesRef.current.clear();
     activeOutgoingNotificationIdRef.current = null;
     seenDeclineEventIdsRef.current.clear();
+    hasCallBeenActiveRef.current = false;
   }, [callEmbed]);
 
   useEffect(() => {
@@ -559,6 +561,15 @@ export function useIncomingCallSignaling() {
     };
 
     const evaluateOutgoingFallback = () => {
+      const activeCallRoomId = handlers().callEmbed?.roomId;
+      const outgoingRoom = activeCallRoomId ? mx.getRoom(activeCallRoomId) : null;
+      if (outgoingRoom) {
+        const session = mx.matrixRTC.getRoomSession(outgoingRoom).sessionDescription;
+        if (isCallActive(myUserId, outgoingRoom, session)) {
+          hasCallBeenActiveRef.current = true;
+        }
+      }
+
       const ringAction = evaluateOutgoingRingbackFallback(
         {
           ringRoomId: outgoingRingRoomIdRef.current,
@@ -567,9 +578,10 @@ export function useIncomingCallSignaling() {
         Date.now(),
         {
           ...fallbackContext,
-          activeCallRoomId: handlers().callEmbed?.roomId,
+          activeCallRoomId,
           outgoingRingbackAllowed: handlers().outgoingRingbackAllowed,
           declinedRoomId: declinedOutgoingRoomIdRef.current,
+          hasCallBeenActive: hasCallBeenActiveRef.current,
         }
       );
 

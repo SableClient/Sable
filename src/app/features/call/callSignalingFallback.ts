@@ -58,6 +58,7 @@ export type OutgoingRingbackContext = {
   activeCallRoomId: string | undefined;
   outgoingRingbackAllowed: boolean;
   declinedRoomId: string | null;
+  hasCallBeenActive: boolean;
   getRoom: (roomId: string) => Room | null | undefined;
   getSessionDescription: (room: Room) => SessionDescription;
   isOutgoingPending?: typeof isOutgoingCallPending;
@@ -97,7 +98,7 @@ export const evaluateOutgoingRingbackFallback = (
   const pendingOutgoing = isOutgoingPending(context.myUserId, outgoingRoom, sessionDescription);
   const activeCall = isActive(context.myUserId, outgoingRoom, sessionDescription);
 
-  if (!pendingOutgoing || activeCall) {
+  if (!pendingOutgoing || activeCall || context.hasCallBeenActive) {
     return stop();
   }
 

@@ -66,6 +66,7 @@ describe('evaluateOutgoingRingbackFallback', () => {
     activeCallRoomId: '!room:example.org',
     outgoingRingbackAllowed: true,
     declinedRoomId: null,
+    hasCallBeenActive: false,
     getRoom: () => ({ roomId: '!room:example.org' }) as never,
     getSessionDescription: () => EMPTY_SESSION,
   };
@@ -109,6 +110,20 @@ describe('evaluateOutgoingRingbackFallback', () => {
       NOW,
       {
         ...baseContext,
+        isOutgoingPending: () => true,
+        isCallActive: () => false,
+      }
+    );
+    expect(action.kind).toBe('stop');
+  });
+
+  it('stops ringback if call has been active previously', () => {
+    const action = evaluateOutgoingRingbackFallback(
+      { ringRoomId: null, ringStartedAt: null },
+      NOW,
+      {
+        ...baseContext,
+        hasCallBeenActive: true,
         isOutgoingPending: () => true,
         isCallActive: () => false,
       }

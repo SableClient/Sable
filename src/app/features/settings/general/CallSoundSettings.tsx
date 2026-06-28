@@ -42,6 +42,10 @@ export function CallSoundSettings() {
     settingsAtom,
     'incomingCallSoundEnabled'
   );
+  const [incomingVoiceRoomCallSoundEnabled, setIncomingVoiceRoomCallSoundEnabled] = useSetting(
+    settingsAtom,
+    'incomingVoiceRoomCallSoundEnabled'
+  );
   const [outgoingRingbackEnabled, setOutgoingRingbackEnabled] = useSetting(
     settingsAtom,
     'outgoingRingbackEnabled'
@@ -284,6 +288,18 @@ export function CallSoundSettings() {
               variant="Primary"
               value={incomingCallSoundEnabled}
               onChange={setIncomingCallSoundEnabled}
+            />
+          }
+        />
+        <SettingTile
+          title="Notify For Voice Rooms"
+          focusId="notify-voice-rooms"
+          description="Play ringtone audio when someone starts or joins a voice room."
+          after={
+            <Switch
+              variant="Primary"
+              value={incomingVoiceRoomCallSoundEnabled}
+              onChange={setIncomingVoiceRoomCallSoundEnabled}
             />
           }
         />

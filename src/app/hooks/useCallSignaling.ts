@@ -301,7 +301,14 @@ export function useIncomingCallSignaling() {
 
   const handleIncomingCall = useCallback(
     (nextIncomingCall: IncomingCall) => {
-      if (isIncomingCallSuppressed(nextIncomingCall, mutedRoomIdRef.current)) return;
+      if (
+        isIncomingCallSuppressed(
+          nextIncomingCall,
+          mutedRoomIdRef.current,
+          settings.incomingVoiceRoomCallSoundEnabled
+        )
+      )
+        return;
       if (!rememberNotificationId(nextIncomingCall.notificationEventId)) return;
       setIncomingCall(nextIncomingCall);
 
@@ -390,7 +397,9 @@ export function useIncomingCallSignaling() {
       stopIncomingRing();
       return;
     }
-    if (isIncomingCallSuppressed(incomingCall, mutedRoomId)) {
+    if (
+      isIncomingCallSuppressed(incomingCall, mutedRoomId, settings.incomingVoiceRoomCallSoundEnabled)
+    ) {
       setIncomingCall(null);
       return;
     }

@@ -199,6 +199,7 @@ export interface Settings {
   alwaysShowCallButton: boolean;
   joinCallOnSingleClick: boolean;
   incomingCallSoundEnabled: boolean;
+  incomingVoiceRoomCallSoundEnabled: boolean;
   outgoingRingbackEnabled: boolean;
   callRingtoneVolume: number;
   callRingtoneId: CallRingtoneId;
@@ -358,6 +359,7 @@ export const defaultSettings: Settings = {
   alwaysShowCallButton: false,
   joinCallOnSingleClick: true,
   incomingCallSoundEnabled: true,
+  incomingVoiceRoomCallSoundEnabled: false,
   outgoingRingbackEnabled: true,
   callRingtoneVolume: 80,
   callRingtoneId: 'sable-default',

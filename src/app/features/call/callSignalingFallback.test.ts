@@ -68,6 +68,7 @@ describe('evaluateOutgoingRingbackFallback', () => {
     declinedRoomId: null,
     hasCallBeenActive: false,
     getRoom: () => ({ roomId: '!room:example.org' }) as never,
+    isDirectRoom: () => true,
     getSessionDescription: () => EMPTY_SESSION,
   };
 

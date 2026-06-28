@@ -619,6 +619,7 @@ export function HandleNotificationClick() {
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const setIncomingCall = useSetAtom(incomingCallAtom);
   const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
+  const [incomingVoiceRoomCallSoundEnabled] = useSetting(settingsAtom, 'incomingVoiceRoomCallSoundEnabled');
   const mDirects = useAtomValue(mDirectAtom);
   const navigate = useNavigate();
 
@@ -650,14 +651,14 @@ export function HandleNotificationClick() {
         data as Record<string, unknown>,
         mDirects.has(roomId)
       );
-      if (incomingCall && !isIncomingCallSuppressed(incomingCall, mutedRoomId)) {
+      if (incomingCall && !isIncomingCallSuppressed(incomingCall, mutedRoomId, incomingVoiceRoomCallSoundEnabled)) {
         setIncomingCall(incomingCall);
       }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [mDirects, mutedRoomId, navigate, setActiveSessionId, setIncomingCall, setPending]);
+  }, [mDirects, mutedRoomId, navigate, setActiveSessionId, setIncomingCall, setPending, incomingVoiceRoomCallSoundEnabled]);
 
   return null;
 }

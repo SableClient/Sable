@@ -437,9 +437,9 @@ export class CallEmbed {
           border-radius: ${resolveCssVar(config.radii.R400)} !important;
         }
 
-        /* Make the main room background mimic standard DM call appearance */
-        [class*="_inRoom_"], body {
-          background: ${resolveCssVar(color.Background.Container)} !important;
+        /* Make the main room background transparent to inherit CallView's background */
+        [class*="_inRoom_"] {
+          background: transparent !important;
         }
         
         /* Completely dismantle Element Call's grouping pills to match Sable's discrete buttons */

@@ -6,6 +6,8 @@ import { mDirectAtom } from '$state/mDirectList';
 import { incomingCallAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import { resolveIncomingCallFromSearchParams } from '$features/call/callNotificationBridge';
 import { isIncomingCallSuppressed } from '$features/call/callIncomingIngress';
+import { settingsAtom } from '$state/settings';
+import { useSetting } from '$state/hooks/settings';
 
 // ToRoomEvent handles /to/:user_id/:room_id/:event_id? — the canonical deep-link
 // URL used by the service worker's notificationclick handler.
@@ -24,6 +26,7 @@ export function ToRoomEvent() {
   const [searchParams] = useSearchParams();
   const mDirects = useAtomValue(mDirectAtom);
   const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
+  const [incomingVoiceRoomCallSoundEnabled] = useSetting(settingsAtom, 'incomingVoiceRoomCallSoundEnabled');
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const setPending = useSetAtom(pendingNotificationAtom);
   const setIncomingCall = useSetAtom(incomingCallAtom);
@@ -41,7 +44,7 @@ export function ToRoomEvent() {
       eventId,
       mDirects.has(roomId)
     );
-    if (incomingCall && !isIncomingCallSuppressed(incomingCall, mutedRoomId)) {
+    if (incomingCall && !isIncomingCallSuppressed(incomingCall, mutedRoomId, incomingVoiceRoomCallSoundEnabled)) {
       setIncomingCall(incomingCall);
     }
 
@@ -57,6 +60,7 @@ export function ToRoomEvent() {
     setIncomingCall,
     setPending,
     userId,
+    incomingVoiceRoomCallSoundEnabled,
   ]);
 
   return null;

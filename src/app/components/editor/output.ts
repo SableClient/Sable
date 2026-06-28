@@ -74,11 +74,11 @@ const elementToCustomHtml = (
       return sanitizeText(matrixTo);
     }
     case BlockType.Emoticon:
-      return node.key.startsWith('mxc://')
+      return node.key?.startsWith('mxc://')
         ? `<img data-mx-emoticon src="${node.key}" alt="${sanitizeText(
             node.shortcode
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
-        : sanitizeText(node.key);
+        : sanitizeText(node.key ?? '');
     case BlockType.Link:
       return testMatrixTo(node.href)
         ? sanitizeText(node.href)
@@ -111,10 +111,9 @@ export const toMatrixCustomHTML = (
 
       // strip nicknames if needed
       if (opts.stripNickname && opts.nickNameReplacement) {
-        opts.nickNameReplacement?.keys().forEach((key) => {
-          const replacement = opts.nickNameReplacement!.get(key) ?? '';
+        for (const [key, replacement] of opts.nickNameReplacement) {
           line = line.replaceAll(key, replacement);
-        });
+        }
       }
       markdownLines += line;
       if (index === targetNodes.length - 1) {
@@ -145,7 +144,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
     case BlockType.Mention:
       return node.name === '@room' ? node.name : node.id;
     case BlockType.Emoticon:
-      return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
+      return node.key?.startsWith('mxc://') ? `:${node.shortcode}:` : (node.key ?? '');
     case BlockType.Link:
       return `[${children}](${node.href})`;
     case BlockType.Command:
@@ -182,10 +181,9 @@ export const toPlainText = (
     text = text.replaceAll(SPOILEREDLINKINPUTREGEX, '$1');
 
     if (stripNickname && nickNameReplacement) {
-      nickNameReplacement?.keys().forEach((key) => {
-        const replacement = nickNameReplacement.get(key) ?? '';
+      for (const [key, replacement] of nickNameReplacement) {
         text = text.replaceAll(key, replacement);
-      });
+      }
     }
     return text;
   }
@@ -211,7 +209,7 @@ export const toRawText = (node: Descendant | Descendant[]): string => {
     case BlockType.Link:
       return `[${children}](${node.href})`;
     case BlockType.Emoticon:
-      return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
+      return node.key?.startsWith('mxc://') ? `:${node.shortcode}:` : (node.key ?? '');
     case BlockType.Mention:
       return node.name === '@room' ? node.name : node.id;
     case BlockType.Command:

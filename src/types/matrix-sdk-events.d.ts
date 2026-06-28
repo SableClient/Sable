@@ -50,7 +50,8 @@ declare module 'matrix-js-sdk/lib/@types/event' {
 
   interface AccountDataEvents {
     [prefix.MATRIX_CINNY_UNSTABLE_ACCOUNT_SPACES_PROPERTY_NAME]: InCinnySpacesContent;
-    [prefix.MATRIX_ELEMENT_UNSTABLE_ACCOUNT_RECENT_EMOJIS_PROPERTY_NAME]: IRecentEmojiContent;
+    [prefix.MATRIX_ACCOUNT_RECENT_EMOJIS_PROPERTY_NAME]: IRecentEmojiContent;
+    [prefix.MATRIX_LEGACY_ELEMENT_UNSTABLE_ACCOUNT_RECENT_EMOJIS_PROPERTY_NAME]: IRecentEmojiContent;
     [prefix.MATRIX_UNSTABLE_ACCOUNT_USER_EMOTES_PROPERTY_NAME]: PackContent;
     [prefix.MATRIX_UNSTABLE_ACCOUNT_EMOTE_ROOMS_PROPERTY_NAME]: EmoteRoomsContent;
     [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_NICKNAMES_PROPERTY_NAME]: Record<string, string>;

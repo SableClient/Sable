@@ -33,34 +33,6 @@ const resolveCssVar = (variable: string): string => {
   return variable;
 };
 
-const SABLE_THEME_TOKENS = {
-  light: {
-    '--sable-bg-container': '#ffffff',
-    '--sable-surface-var-container': '#e4e4e7',
-    '--sable-surface-var-container-hover': '#d4d4d8',
-    '--sable-surface-var-container-active': '#a1a1aa',
-    '--sable-surface-container': '#f4f4f5',
-    '--sable-surface-container-line': '#d4d4d8',
-    '--sable-surface-on-container': '#18181b',
-  },
-  dark: {
-    '--sable-bg-container': '#1b1a21',
-    '--sable-surface-var-container': '#121116',
-    '--sable-surface-var-container-hover': '#1b1a21',
-    '--sable-surface-var-container-active': '#24232c',
-    '--sable-surface-container': '#24232c',
-    '--sable-surface-container-line': '#403f4c',
-    '--sable-surface-on-container': '#eae8f0',
-  },
-} as const;
-
-const resolveSableThemeToken = (variable: string, fallback: string): string => {
-  const isDark =
-    document.documentElement.className.includes('dark-theme') ||
-    document.body.className.includes('dark-theme');
-  const theme = isDark ? SABLE_THEME_TOKENS.dark : SABLE_THEME_TOKENS.light;
-  return theme[variable as keyof typeof theme] || fallback;
-};
 
 export class CallEmbed {
   private mx: MatrixClient;
@@ -413,15 +385,22 @@ export class CallEmbed {
       styleEl.textContent = `
         :root {
           /* Backgrounds */
-          --cpd-color-bg-canvas-default: ${resolveSableThemeToken('--sable-bg-container', resolveCssVar(color.Background.Container))} !important;
-          --cpd-color-bg-surface-default: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
+          --cpd-color-bg-canvas-default: ${resolveCssVar(color.Background.Container)} !important;
+          --cpd-color-bg-canvas-solid: ${resolveCssVar(color.Background.Container)} !important;
+          --cpd-color-bg-surface-default: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-surface-solid: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-surface-raised: ${resolveCssVar(color.Surface.Container)} !important;
           
           /* Soft Fills for normal buttons */
-          --cpd-color-bg-subtle-primary: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
-          --cpd-color-bg-subtle-secondary: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
-          --cpd-color-bg-action-secondary-rest: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
-          --cpd-color-bg-action-secondary-hovered: ${resolveSableThemeToken('--sable-surface-var-container-hover', resolveCssVar(color.SurfaceVariant.ContainerHover))} !important;
-          --cpd-color-bg-action-secondary-pressed: ${resolveSableThemeToken('--sable-surface-var-container-active', resolveCssVar(color.SurfaceVariant.ContainerActive))} !important;
+          --cpd-color-bg-subtle-primary: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-subtle-secondary: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-action-secondary-rest: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-action-secondary-hovered: ${resolveCssVar(color.SurfaceVariant.ContainerHover)} !important;
+          --cpd-color-bg-action-secondary-pressed: ${resolveCssVar(color.SurfaceVariant.ContainerActive)} !important;
+
+          --cpd-color-bg-action-tertiary-rest: transparent !important;
+          --cpd-color-bg-action-tertiary-hovered: ${resolveCssVar(color.SurfaceVariant.ContainerHover)} !important;
+          --cpd-color-bg-action-tertiary-pressed: ${resolveCssVar(color.SurfaceVariant.ContainerActive)} !important;
           
           /* Soft Fills for primary/active buttons */
           --cpd-color-bg-action-primary-rest: ${resolveCssVar(color.Primary.Container)} !important;
@@ -430,6 +409,9 @@ export class CallEmbed {
           
           /* Soft Fills for critical buttons (Hangup) */
           --cpd-color-bg-critical-primary: ${resolveCssVar(color.Critical.Container)} !important;
+          --cpd-color-bg-action-critical-rest: ${resolveCssVar(color.Critical.Container)} !important;
+          --cpd-color-bg-action-critical-hovered: ${resolveCssVar(color.Critical.ContainerHover)} !important;
+          --cpd-color-bg-action-critical-pressed: ${resolveCssVar(color.Critical.ContainerActive)} !important;
           
           /* Borders */
           --cpd-color-border-interactive-primary: ${resolveCssVar(color.Primary.Main)} !important;
@@ -480,13 +462,20 @@ export class CallEmbed {
         /* Fix secondary buttons inside the footer to have Sable's exact container styling */
         [data-testid="footer-container"] button[data-kind="secondary"],
         [data-testid="footer-container"] button[aria-haspopup="menu"] {
-          background-color: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
-          border: 1px solid ${resolveSableThemeToken('--sable-surface-var-container-line', resolveCssVar(color.Surface.ContainerLine))} !important;
+          background: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
           color: var(--cpd-color-icon-secondary) !important;
         }
+        
+        /* Disable Compound's hover backgrounds on the pseudo-elements for these buttons so our background shows through */
+        [data-testid="footer-container"] button[data-kind="secondary"]::before,
+        [data-testid="footer-container"] button[aria-haspopup="menu"]::before {
+          background: none !important;
+        }
+
         [data-testid="footer-container"] button[data-kind="secondary"]:hover,
         [data-testid="footer-container"] button[aria-haspopup="menu"]:hover {
-          background-color: ${resolveSableThemeToken('--sable-surface-var-container-hover', resolveCssVar(color.SurfaceVariant.ContainerHover))} !important;
+          background: ${resolveCssVar(color.SurfaceVariant.ContainerHover)} !important;
         }
         
         [class*="button_"]::before, [class*="Button_"]::before, button::before,
@@ -496,23 +485,67 @@ export class CallEmbed {
           border-radius: inherit !important;
         }
         
-        .tile {
+        /* Tile styling */
+        [class*="_tile_"] {
           border-radius: ${resolveCssVar(config.radii.R500)} !important;
         }
 
-        .tile.speaking::before {
+        [class*="_tile_"][class*="_speaking_"]::before {
           background: ${resolveCssVar(color.Primary.Main)} !important;
           opacity: 0.8 !important;
+        }
+
+        /* Avatar background */
+        [class*="_tile_"] > [class*="_bg_"] {
+          background-color: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+        }
+        
+        /* Remove the dark gradient overlay from the tile foreground */
+        [class*="_fg_"] {
+          background: none !important;
+        }
+        
+        /* Ensure the options button in the tile remains visible without the gradient */
+        [class*="_fg_"] button {
+          background-color: ${resolveCssVar(color.Surface.Container)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          color: ${resolveCssVar(color.Surface.OnContainer)} !important;
+        }
+        [class*="_fg_"] button:hover {
+          background-color: ${resolveCssVar(color.Surface.ContainerHover)} !important;
+        }
+
+        /* Nametag styling */
+        [class*="_nameTag_"] {
+          background-color: ${resolveCssVar(color.Surface.Container)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          color: ${resolveCssVar(color.Surface.OnContainer)} !important;
+          border-radius: ${resolveCssVar(config.radii.R300)} !important;
         }
 
         /* Settings 3-dots button overrides */
         [data-testid="settings-bottom-left"] {
           --cpd-icon-button-size: 48px !important;
-          background-color: ${resolveSableThemeToken('--sable-surface-var-container', resolveCssVar(color.SurfaceVariant.Container))} !important;
+          background-color: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
           border-radius: ${resolveCssVar(config.radii.R400)} !important;
         }
 
+        /* Layout switcher overrides */
+        fieldset[class*="_toggle_"] {
+          background-color: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
+        }
+        fieldset[class*="_toggle_"] input:checked + svg {
+          background-color: ${resolveCssVar(color.Primary.Container)} !important;
+          color: ${resolveCssVar(color.Primary.OnContainer)} !important;
+          border-radius: ${resolveCssVar(config.radii.R300)} !important;
+        }
 
+        /* Overlay styling */
+        [class*="_overlay_"] {
+          background-color: var(--cpd-color-bg-canvas-default) !important;
+        }
 
         /* Slider overrides */
         [role="slider"], [class*="handle"] {

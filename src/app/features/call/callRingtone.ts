@@ -28,9 +28,8 @@ export const CALL_RINGTONE_OPTIONS: CallToneOption<CallRingtoneId>[] = CALL_TONE
   })
 );
 
-export const CALL_RINGBACK_OPTIONS: CallToneOption<CallRingtoneId>[] = CALL_RINGTONE_OPTIONS.filter(
-  (option) => option.value !== 'silent'
-);
+export const CALL_RINGBACK_OPTIONS: CallToneOption<CallRingtoneId>[] =
+  CALL_RINGTONE_OPTIONS;
 
 type ToneSettings = Pick<Settings, 'isNotificationSounds' | 'callSoundOverrideGlobalNotifications'>;
 

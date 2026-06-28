@@ -293,7 +293,10 @@ export function useIncomingCallSignaling() {
     callSoundOverrideGlobalNotifications: settings.callSoundOverrideGlobalNotifications,
   });
   const incomingRingtoneAllowed = settings.incomingCallSoundEnabled && callAudioAllowed;
-  const outgoingRingbackAllowed = settings.outgoingRingbackEnabled && callAudioAllowed;
+  const outgoingRingbackAllowed =
+    settings.outgoingRingbackEnabled &&
+    callAudioAllowed &&
+    settings.callRingbackTone !== 'silent';
   const incomingToneIsSilent = settings.callRingtoneId === 'silent';
 
   const handleIncomingCall = useCallback(
@@ -579,6 +582,7 @@ export function useIncomingCallSignaling() {
         {
           ...fallbackContext,
           activeCallRoomId,
+          isDirectRoom: (roomId: string) => handlers().mDirects.has(roomId),
           outgoingRingbackAllowed: handlers().outgoingRingbackAllowed,
           declinedRoomId: declinedOutgoingRoomIdRef.current,
           hasCallBeenActive: hasCallBeenActiveRef.current,

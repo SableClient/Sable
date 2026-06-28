@@ -60,6 +60,7 @@ export type OutgoingRingbackContext = {
   declinedRoomId: string | null;
   hasCallBeenActive: boolean;
   getRoom: (roomId: string) => Room | null | undefined;
+  isDirectRoom: (roomId: string) => boolean;
   getSessionDescription: (room: Room) => SessionDescription;
   isOutgoingPending?: typeof isOutgoingCallPending;
   isCallActive?: typeof isCallActive;
@@ -84,6 +85,11 @@ export const evaluateOutgoingRingbackFallback = (
     return stop();
   }
   if (context.declinedRoomId === context.activeCallRoomId) {
+    return stop();
+  }
+
+  // Only direct (1:1) calls should play an outgoing ringback tone. Voice rooms should not ring.
+  if (!context.isDirectRoom(context.activeCallRoomId)) {
     return stop();
   }
 

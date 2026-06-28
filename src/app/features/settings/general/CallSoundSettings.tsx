@@ -377,7 +377,6 @@ export function CallSoundSettings() {
         previewing={previewing}
         previewActions={[
           { label: 'Preview Ringtone', tone: 'incoming', icon: Icons.Play },
-          { label: 'Preview Outgoing', tone: 'outgoing', icon: Icons.Phone },
         ]}
         onImport={handleImportCustomRingtone}
         onPreview={playPreviewTone}

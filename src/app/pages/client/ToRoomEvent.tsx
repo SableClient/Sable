@@ -26,7 +26,10 @@ export function ToRoomEvent() {
   const [searchParams] = useSearchParams();
   const mDirects = useAtomValue(mDirectAtom);
   const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
-  const [incomingVoiceRoomCallSoundEnabled] = useSetting(settingsAtom, 'incomingVoiceRoomCallSoundEnabled');
+  const [incomingVoiceRoomCallSoundEnabled] = useSetting(
+    settingsAtom,
+    'incomingVoiceRoomCallSoundEnabled'
+  );
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const setPending = useSetAtom(pendingNotificationAtom);
   const setIncomingCall = useSetAtom(incomingCallAtom);
@@ -44,7 +47,10 @@ export function ToRoomEvent() {
       eventId,
       mDirects.has(roomId)
     );
-    if (incomingCall && !isIncomingCallSuppressed(incomingCall, mutedRoomId, incomingVoiceRoomCallSoundEnabled)) {
+    if (
+      incomingCall &&
+      !isIncomingCallSuppressed(incomingCall, mutedRoomId, incomingVoiceRoomCallSoundEnabled)
+    ) {
       setIncomingCall(incomingCall);
     }
 

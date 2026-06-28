@@ -1,7 +1,7 @@
 import type { PermissionLocation } from '$hooks/usePowerLevels';
 
 export type PermissionItem = {
-  location: PermissionLocation;
+  location: PermissionLocation | PermissionLocation[];
   name: string;
   description?: string;
 };

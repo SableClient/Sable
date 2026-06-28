@@ -28,7 +28,7 @@ type PermissionGroupsProps = {
   permissionGroups: PermissionGroup[];
 };
 
-const getPermissionLocationKey = (location: PermissionLocation): string => JSON.stringify(location);
+const getPermissionLocationKey = (location: PermissionLocation | PermissionLocation[]): string => JSON.stringify(location);
 
 export function PermissionGroups({
   powerLevels,
@@ -51,7 +51,7 @@ export function PermissionGroups({
   }, [permissionGroups]);
 
   const handleChangePermission = (
-    location: PermissionLocation,
+    location: PermissionLocation | PermissionLocation[],
     newPower: number,
     currentPower: number
   ) => {
@@ -82,7 +82,7 @@ export function PermissionGroups({
         permissionUpdate.forEach((power, locationKey) =>
           applyPermissionPower(
             draftPowerLevels,
-            JSON.parse(locationKey) as PermissionLocation,
+            JSON.parse(locationKey) as PermissionLocation | PermissionLocation[],
             power
           )
         );

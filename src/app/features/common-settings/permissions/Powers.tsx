@@ -19,7 +19,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import type { PermissionGroup } from './types';
 
-const getPermissionLocationKey = (location: PermissionLocation): string => JSON.stringify(location);
+const getPermissionLocationKey = (location: PermissionLocation | PermissionLocation[]): string => JSON.stringify(location);
 
 type PeekPermissionsProps = {
   powerLevels: IPowerLevels;

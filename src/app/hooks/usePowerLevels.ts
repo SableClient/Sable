@@ -209,8 +209,12 @@ export type PermissionLocation =
 
 export const getPermissionPower = (
   powerLevels: IPowerLevels,
-  location: PermissionLocation
+  location: PermissionLocation | PermissionLocation[]
 ): number => {
+  if (Array.isArray(location)) {
+    return Math.max(...location.map((loc) => getPermissionPower(powerLevels, loc)));
+  }
+
   if ('user' in location) {
     return readPowerLevel.user(powerLevels, location.key);
   }
@@ -229,9 +233,17 @@ export const getPermissionPower = (
 
 export const applyPermissionPower = (
   powerLevels: IPowerLevels,
-  location: PermissionLocation,
+  location: PermissionLocation | PermissionLocation[],
   power: number
 ): IPowerLevels => {
+  if (Array.isArray(location)) {
+    let result = powerLevels;
+    location.forEach((loc) => {
+      result = applyPermissionPower(result, loc, power);
+    });
+    return result;
+  }
+
   if ('user' in location) {
     if (typeof location.key === 'string') {
       const users = powerLevels.users ?? {};

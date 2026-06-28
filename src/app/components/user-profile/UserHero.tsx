@@ -279,7 +279,7 @@ export function UserHeroName({ displayName, userId, server, customHeroCards }: U
               } else isSuccess.current = false;
               setCopied();
             }}
-            style={{ backgroundColor: '#0000', padding: '0' }}
+            style={{ backgroundColor: 'transparent', padding: '0' }}
             onPointerEnter={() => setIsHovered(true)}
             onPointerLeave={() => setIsHovered(false)}
             before={`@${username}`}

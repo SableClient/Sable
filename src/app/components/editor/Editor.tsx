@@ -444,6 +444,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 onBlur={() => {
                   if (mobileOrTablet()) ReactEditor.focus(editor);
                 }}
+                style={{ boxShadow: 'none' }}
               />
             </Scroll>
             {(hasAfter || showResponsiveAfterInline) && (

@@ -1615,6 +1615,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 variant="SurfaceVariant"
                 size="300"
                 radii="300"
+                style={{ backgroundColor: 'transparent' }}
                 title={editorOldAddFile ? 'Upload File' : 'Add'}
                 aria-label={editorOldAddFile ? 'Upload and attach a File' : 'Add new Item'}
               >
@@ -1632,6 +1633,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 radii="300"
                 title={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
                 aria-label={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
+                style={{ backgroundColor: 'transparent' }}
                 aria-pressed={showAudioRecorder}
                 onClick={() => {
                   if (mobileOrTablet() && !showAudioRecorder) return;
@@ -1721,6 +1723,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         variant="SurfaceVariant"
                         size="300"
                         radii="300"
+                        style={{ backgroundColor: 'transparent' }}
                         title="open sticker picker"
                         aria-label="Open sticker picker"
                       >
@@ -1738,6 +1741,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       variant="SurfaceVariant"
                       size="300"
                       radii="300"
+                      style={{ backgroundColor: 'transparent' }}
                       title="open emoji picker"
                       aria-label="Open emoji picker"
                     >
@@ -1801,6 +1805,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 <IconButton
                   title="Send Message"
                   aria-label="Send your composed Message"
+                  style={{ backgroundColor: 'transparent' }}
                   onClick={() => {
                     if (isLongPress.current) {
                       isLongPress.current = false;
@@ -1845,6 +1850,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     title="Schedule Message"
                     aria-label="Schedule message send"
                     variant={scheduledTime ? 'Primary' : 'SurfaceVariant'}
+                    style={{ backgroundColor: 'transparent' }}
                     size="300"
                     radii="0"
                     className={css.SplitChevronButton}

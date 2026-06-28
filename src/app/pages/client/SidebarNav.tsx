@@ -8,7 +8,7 @@ import { settingsAtom } from '$state/settings';
 import { Sidebar, SidebarContent, SidebarStack } from '$components/sidebar';
 import { DirectTab, DirectDMsList, HomeTab, SpaceTabs, InboxTab, UnverifiedTab } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
-import { SearchTab } from './sidebar/SearchTab';
+import { NavigateTab } from './sidebar/NavigateTab';
 import { SettingsTab } from './sidebar/SettingsTab';
 import { UserQuickTools } from './sidebar/UserQuickTools';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
@@ -137,36 +137,39 @@ export function SidebarNav() {
             </Scroll>
           }
           sticky={
-            <SidebarStack>
-              <UnverifiedTab />
-              {oldSidebar ? (
-                <>
-                  <SearchTab />
-                  <InboxTab />
-                  <div style={{ paddingBottom: config.space.S100 }}>
-                    <UserMenuTab />
-                  </div>
-                </>
-              ) : (
-                <>
-                  {isCollapsed && (
+            <>
+              {(oldSidebar || isCollapsed) && (
+                <SidebarStack>
+                  <UnverifiedTab />
+                  {oldSidebar ? (
                     <>
-                      <SearchTab />
+                      <NavigateTab />
+                      <InboxTab />
+                    </>
+                  ) : (
+                    <>
+                      <NavigateTab />
                       <InboxTab />
                       <SettingsTab />
                     </>
                   )}
-
-                  <Box style={{ height: toRem(57) }} alignItems="Center">
-                    <UserMenuTab />
-                  </Box>
-                </>
+                </SidebarStack>
               )}
-            </SidebarStack>
+              {!compact && (
+                <div
+                  style={{
+                    paddingBottom: config.space.S400,
+                    paddingTop: !oldSidebar ? config.space.S400 : undefined,
+                  }}
+                >
+                  <UserMenuTab />
+                </div>
+              )}
+            </>
           }
         />
       </Sidebar>
-      {!oldSidebar && <UserQuickTools width={width} />}
+      {!oldSidebar && !compact && <UserQuickTools width={width} compact={false} />}
     </>
   );
 }

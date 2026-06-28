@@ -17,7 +17,7 @@ import * as Sentry from '@sentry/react';
 import { isRoomPrivate } from '$utils/roomVisibility';
 import { canForwardEvent } from '$utils/room';
 import * as prefix from '$unstable/prefixes';
-import { RoomSearchModal } from '$features/search';
+import { SearchWrapper } from '$features/search';
 const debugLog = createDebugLogger('MessageForward');
 
 // Message forwarding component
@@ -270,7 +270,7 @@ export function MessageForwardInternal({
 
   if (!forwardable) return null;
 
-  return <RoomSearchModal requestClose={onClose} pickRoom={pickRoom} />;
+  return <SearchWrapper requestClose={onClose} pickRoom={pickRoom} />;
 }
 
 type MessageForwardItemProps = {

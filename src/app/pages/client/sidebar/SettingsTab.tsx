@@ -3,8 +3,9 @@ import { GearSix, getPhosphorIconSize } from '$components/icons/phosphor';
 import { useOpenSettings } from '$features/settings';
 import { matchPath } from 'react-router-dom';
 import { SETTINGS_PATH } from '$pages/paths';
+import { color } from 'folds';
 
-export function SettingsTab({ isBottom }: { isBottom?: boolean }) {
+export function SettingsTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
   const opened = !!matchPath(SETTINGS_PATH, location.pathname);
   const openSettings = useOpenSettings();
 
@@ -16,6 +17,7 @@ export function SettingsTab({ isBottom }: { isBottom?: boolean }) {
             <GearSix
               size={getPhosphorIconSize(isBottom ? 'inline' : 'toolbar')}
               weight={opened ? 'fill' : 'regular'}
+              color={opened && isMobile ? color.Primary.Main : color.Background.OnContainer}
             />
           </SidebarAvatar>
         )}

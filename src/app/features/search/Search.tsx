@@ -3,7 +3,6 @@ import {
   Avatar,
   Box,
   config,
-  Header,
   IconButton,
   Input,
   Line,
@@ -51,7 +50,6 @@ import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
-import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -133,16 +131,14 @@ export type RoomSearchPickRoomConfig = {
 };
 
 export type RoomSearchModalProps = {
-  requestClose: () => void;
+  requestClose?: () => void;
   pickRoom?: RoomSearchPickRoomConfig;
-  headerText?: string;
 };
 
 export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const { navigateRoom, navigateSpace } = useRoomNavigate();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
 
@@ -217,7 +213,7 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
     }
     if (isSpace) navigateSpace(roomId);
     else navigateRoom(roomId);
-    requestClose();
+    requestClose?.();
   };
 
   const handleInputChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
@@ -277,252 +273,227 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
     }
   }, [listFocus.index]);
 
-  const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
-
   return (
-    <Overlay open>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: () => inputRef.current,
-            returnFocusOnDeactivate: true,
-            allowOutsideClick: true,
-            clickOutsideDeactivates: true,
-            onDeactivate: requestClose,
-            escapeDeactivates: (evt: KeyboardEvent) => {
-              if (!isMobile) evt.stopPropagation();
-              return true;
-            },
+    <Box direction="Column" style={{ width: '100%' }}>
+      {pickRoom && (
+        <Box
+          shrink="No"
+          direction="Row"
+          alignItems="Center"
+          justifyContent="SpaceBetween"
+          style={{
+            padding: `${config.space.S400} ${config.space.S400} ${config.space.S200}`,
           }}
         >
-          <Modal
-            size="400"
-            style={
-              isMobile
-                ? {
-                    maxHeight: '100%',
-                    top: '0px',
-                    position: 'absolute',
-                    borderRadius: config.radii.R500,
-                  }
-                : { maxHeight: toRem(400), borderRadius: config.radii.R500 }
-            }
+          <Text size="H4">{pickRoom.title}</Text>
+          <IconButton
+            size="300"
+            onClick={requestClose}
+            radii="300"
+            aria-label="Close"
+            disabled={pickRoom.busy}
           >
-            <Header
+            {composerIcon(X)}
+          </IconButton>
+        </Box>
+      )}
+      {pickRoom?.errorMessage ? (
+        <Box shrink="No" style={{ padding: `0 ${config.space.S400} ${config.space.S200}` }}>
+          <Text size="T200" color="Critical600">
+            {pickRoom.errorMessage}
+          </Text>
+        </Box>
+      ) : null}
+      <Box
+        shrink="No"
+        grow="Yes"
+        style={{ padding: config.space.S400, paddingBottom: 0, width: '100%' }}
+        direction="Column"
+      >
+        <Input
+          size="500"
+          variant="Background"
+          radii="400"
+          outlined
+          placeholder={pickRoom ? 'Search rooms' : 'Search'}
+          before={menuIcon(MagnifyingGlass)}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          disabled={pickRoom?.busy}
+        />
+      </Box>
+      <Scroll>
+        {roomsToRender.length === 0 && (
+          <Box
+            style={{ paddingTop: config.space.S700, width: '100%' }}
+            grow="Yes"
+            alignItems="Center"
+            justifyContent="Center"
+            direction="Column"
+            gap="100"
+          >
+            <Text size="H6" align="Center">
+              {pickRoom
+                ? result
+                  ? 'No Match Found'
+                  : pickRoom.eligibleRoomIds.length === 0
+                    ? 'No rooms to forward to'
+                    : 'No rooms match this filter'
+                : result
+                  ? 'No Match Found'
+                  : 'No Rooms'}
+            </Text>
+            <Text size="T200" align="Center">
+              {pickRoom
+                ? result
+                  ? `No match found for "${result.query}".`
+                  : pickRoom.eligibleRoomIds.length === 0
+                    ? 'You cannot send messages in any joined room yet.'
+                    : 'Try another search, or use # for group rooms and @ for direct messages.'
+                : result
+                  ? `No match found for "${result.query}".`
+                  : 'You do not have any Rooms to display yet.'}
+            </Text>
+          </Box>
+        )}
+        {roomsToRender.length > 0 && (
+          <Scroll ref={scrollRef} size="300" hideTrack>
+            <div
               style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
+                padding: config.space.S400,
+                paddingRight: config.space.S0,
+                width: '100%',
+                height: '100%',
               }}
-              variant="Surface"
-              size="500"
             >
-              <Box grow="Yes" justifyContent="SpaceBetween" alignItems="Center">
-                <Text size="H4">{pickRoom ? pickRoom.title : 'Search Message'}</Text>
+              {roomsToRender.map((roomId, index) => {
+                const room = getRoom(roomId);
+                if (!room) return null;
 
-                <IconButton size="300" onClick={requestClose}>
-                  {composerIcon(X)}
-                </IconButton>
-              </Box>
-            </Header>
-            {pickRoom?.errorMessage ? (
-              <Box shrink="No" style={{ padding: `0 ${config.space.S400} ${config.space.S200}` }}>
-                <Text size="T200" color="Critical600">
-                  {pickRoom.errorMessage}
-                </Text>
-              </Box>
-            ) : null}
-            <Box
-              shrink="No"
-              style={{ padding: config.space.S400, paddingBottom: 0 }}
-              direction="Column"
-            >
-              <Input
-                ref={inputRef}
-                size="500"
-                variant="Background"
-                radii="400"
-                outlined
-                placeholder={pickRoom ? 'Search rooms' : 'Search'}
-                before={menuIcon(MagnifyingGlass)}
-                onChange={handleInputChange}
-                onKeyDown={handleInputKeyDown}
-                disabled={pickRoom?.busy}
-              />
-            </Box>
-            <Box grow="Yes">
-              {roomsToRender.length === 0 && (
-                <Box
-                  style={{ paddingTop: config.space.S700 }}
-                  grow="Yes"
-                  alignItems="Center"
-                  justifyContent="Center"
-                  direction="Column"
-                  gap="100"
-                >
-                  <Text size="H6" align="Center">
-                    {pickRoom
-                      ? result
-                        ? 'No Match Found'
-                        : pickRoom.eligibleRoomIds.length === 0
-                          ? 'No rooms to forward to'
-                          : 'No rooms match this filter'
-                      : result
-                        ? 'No Match Found'
-                        : 'No Rooms'}
-                  </Text>
-                  <Text size="T200" align="Center">
-                    {pickRoom
-                      ? result
-                        ? `No match found for "${result.query}".`
-                        : pickRoom.eligibleRoomIds.length === 0
-                          ? 'You cannot send messages in any joined room yet.'
-                          : 'Try another search, or use # for group rooms and @ for direct messages.'
-                      : result
-                        ? `No match found for "${result.query}".`
-                        : 'You do not have any Rooms to display yet.'}
-                  </Text>
-                </Box>
-              )}
-              {roomsToRender.length > 0 && (
-                <Scroll ref={scrollRef} size="300" hideTrack>
-                  <div
-                    style={{
-                      padding: config.space.S400,
-                      paddingRight: config.space.S200,
-                    }}
+                const dm = mDirects.has(roomId);
+                const dmUserId = dm && getDmUserId(roomId, getRoom, mx.getSafeUserId());
+                const dmUsername = dmUserId && getMxIdLocalPart(dmUserId);
+                const dmUserServer = dmUserId && getMxIdServer(dmUserId);
+
+                const allParents = getAllParents(roomToParents, roomId);
+                const orphanParents = allParents && orphanSpaces.filter((o) => allParents.has(o));
+                const perfectOrphanParent =
+                  orphanParents && guessPerfectParent(mx, roomId, orphanParents);
+
+                const exactParents = roomToParents.get(roomId);
+                const perfectParent =
+                  exactParents && guessPerfectParent(mx, roomId, Array.from(exactParents));
+
+                const unread = roomToUnread.get(roomId);
+
+                return (
+                  <MenuItem
+                    key={roomId}
+                    as="button"
+                    data-focus-index={index}
+                    data-room-id={roomId}
+                    data-space={room.isSpaceRoom()}
+                    onClick={handleRoomClick}
+                    disabled={pickRoom?.busy}
+                    variant={listFocus.index === index ? 'Primary' : 'Surface'}
+                    aria-pressed={listFocus.index === index}
+                    radii="400"
+                    style={{ width: '100%' }}
+                    after={
+                      <Box gap="100">
+                        {dmUserServer && (
+                          <Text size="T200" priority="300" truncate>
+                            <b>{dmUserServer}</b>
+                          </Text>
+                        )}
+                        {!dm && perfectOrphanParent && (
+                          <Text size="T200" priority="300" truncate>
+                            <b>{getRoom(perfectOrphanParent)?.name ?? perfectOrphanParent}</b>
+                          </Text>
+                        )}
+                        {unread && (
+                          <UnreadBadgeCenter>
+                            <UnreadBadge
+                              highlight={unread.highlight > 0}
+                              count={unread.highlight > 0 ? unread.highlight : unread.total}
+                            />
+                          </UnreadBadgeCenter>
+                        )}
+                      </Box>
+                    }
+                    before={
+                      <Avatar size="200" radii={dm ? '400' : '300'}>
+                        {dm || room.isSpaceRoom() ? (
+                          <RoomAvatar
+                            roomId={room.roomId}
+                            src={
+                              dm
+                                ? getDirectRoomAvatarUrl(mx, room, 32, useAuthentication)
+                                : getRoomAvatarUrl(mx, room, 32, useAuthentication)
+                            }
+                            alt={room.name}
+                            renderFallback={() => (
+                              <Text as="span" size="H6">
+                                {nameInitials(room.name)}
+                              </Text>
+                            )}
+                          />
+                        ) : (
+                          <RoomIcon
+                            size="100"
+                            joinRule={room.getJoinRule()}
+                            roomType={room.getType()}
+                          />
+                        )}
+                      </Avatar>
+                    }
                   >
-                    {roomsToRender.map((roomId, index) => {
-                      const room = getRoom(roomId);
-                      if (!room) return null;
-
-                      const dm = mDirects.has(roomId);
-                      const dmUserId = dm && getDmUserId(roomId, getRoom, mx.getSafeUserId());
-                      const dmUsername = dmUserId && getMxIdLocalPart(dmUserId);
-                      const dmUserServer = dmUserId && getMxIdServer(dmUserId);
-
-                      const allParents = getAllParents(roomToParents, roomId);
-                      const orphanParents =
-                        allParents && orphanSpaces.filter((o) => allParents.has(o));
-                      const perfectOrphanParent =
-                        orphanParents && guessPerfectParent(mx, roomId, orphanParents);
-
-                      const exactParents = roomToParents.get(roomId);
-                      const perfectParent =
-                        exactParents && guessPerfectParent(mx, roomId, Array.from(exactParents));
-
-                      const unread = roomToUnread.get(roomId);
-
-                      return (
-                        <MenuItem
-                          key={roomId}
-                          as="button"
-                          data-focus-index={index}
-                          data-room-id={roomId}
-                          data-space={room.isSpaceRoom()}
-                          onClick={handleRoomClick}
-                          disabled={pickRoom?.busy}
-                          variant={listFocus.index === index ? 'Primary' : 'Surface'}
-                          aria-pressed={listFocus.index === index}
-                          radii="400"
-                          after={
-                            <Box gap="100">
-                              {dmUserServer && (
-                                <Text size="T200" priority="300" truncate>
-                                  <b>{dmUserServer}</b>
-                                </Text>
-                              )}
-                              {!dm && perfectOrphanParent && (
-                                <Text size="T200" priority="300" truncate>
-                                  <b>{getRoom(perfectOrphanParent)?.name ?? perfectOrphanParent}</b>
-                                </Text>
-                              )}
-                              {unread && (
-                                <UnreadBadgeCenter>
-                                  <UnreadBadge
-                                    highlight={unread.highlight > 0}
-                                    count={unread.highlight > 0 ? unread.highlight : unread.total}
-                                  />
-                                </UnreadBadgeCenter>
-                              )}
-                            </Box>
-                          }
-                          before={
-                            <Avatar size="200" radii={dm ? '400' : '300'}>
-                              {dm || room.isSpaceRoom() ? (
-                                <RoomAvatar
-                                  roomId={room.roomId}
-                                  src={
-                                    dm
-                                      ? getDirectRoomAvatarUrl(mx, room, 32, useAuthentication)
-                                      : getRoomAvatarUrl(mx, room, 32, useAuthentication)
-                                  }
-                                  alt={room.name}
-                                  renderFallback={() => (
-                                    <Text as="span" size="H6">
-                                      {nameInitials(room.name)}
-                                    </Text>
-                                  )}
-                                />
-                              ) : (
-                                <RoomIcon
-                                  size="100"
-                                  joinRule={room.getJoinRule()}
-                                  roomType={room.getType()}
-                                />
-                              )}
-                            </Avatar>
-                          }
-                        >
-                          <Box grow="Yes" alignItems="Center" gap="100">
-                            <Text size="T400" truncate>
-                              {queryHighlighRegex
-                                ? highlightText(queryHighlighRegex, [room.name])
-                                : room.name}
-                            </Text>
-                            {dmUsername && (
-                              <Text as="span" size="T200" priority="300" truncate>
-                                @
-                                {queryHighlighRegex
-                                  ? highlightText(queryHighlighRegex, [dmUsername])
-                                  : dmUsername}
-                              </Text>
-                            )}
-                            {!dm && perfectParent && perfectParent !== perfectOrphanParent && (
-                              <Text size="T200" priority="300" truncate>
-                                — {getRoom(perfectParent)?.name ?? perfectParent}
-                              </Text>
-                            )}
-                          </Box>
-                        </MenuItem>
-                      );
-                    })}
-                  </div>
-                </Scroll>
-              )}
-            </Box>
-            <Line size="300" />
-            <Box shrink="No" justifyContent="Center" style={{ padding: config.space.S200 }}>
-              <Text size="T200" priority="300">
-                {pickRoom ? (
-                  <>
-                    Type <b>#</b> for rooms and <b>@</b> for direct messages. Choose a room to
-                    forward this message.
-                  </>
-                ) : (
-                  <>
-                    Type <b>#</b> for rooms, <b>@</b> for DMs and <b>*</b> for spaces. Hotkey:{' '}
-                    <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
-                    {' / '}
-                    <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + f</b>
-                  </>
-                )}
-              </Text>
-            </Box>
-          </Modal>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+                    <Box grow="Yes" alignItems="Center" gap="100">
+                      <Text size="T400" truncate>
+                        {queryHighlighRegex
+                          ? highlightText(queryHighlighRegex, [room.name])
+                          : room.name}
+                      </Text>
+                      {dmUsername && (
+                        <Text as="span" size="T200" priority="300" truncate>
+                          @
+                          {queryHighlighRegex
+                            ? highlightText(queryHighlighRegex, [dmUsername])
+                            : dmUsername}
+                        </Text>
+                      )}
+                      {!dm && perfectParent && perfectParent !== perfectOrphanParent && (
+                        <Text size="T200" priority="300" truncate>
+                          — {getRoom(perfectParent)?.name ?? perfectParent}
+                        </Text>
+                      )}
+                    </Box>
+                  </MenuItem>
+                );
+              })}
+            </div>
+          </Scroll>
+        )}
+      </Scroll>
+      <Line size="300" />
+      <Box shrink="No" justifyContent="Center" style={{ padding: config.space.S200 }}>
+        <Text size="T200" priority="300">
+          {pickRoom ? (
+            <>
+              Type <b>#</b> for rooms and <b>@</b> for direct messages. Choose a room to forward
+              this message.
+            </>
+          ) : (
+            <>
+              Type <b>#</b> for rooms, <b>@</b> for DMs and <b>*</b> for spaces. Hotkey:{' '}
+              <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
+              {' / '}
+              <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + f</b>
+            </>
+          )}
+        </Text>
+      </Box>
+    </Box>
   );
 }
 
@@ -551,9 +522,34 @@ export function SearchModalRenderer() {
     )
   );
 
-  return opened && <RoomSearchModal requestClose={() => setOpen(false)} />;
+  return opened && <SearchWrapper requestClose={() => setOpen(false)} />;
+}
+
+export function SearchWrapper({ requestClose, pickRoom }: RoomSearchModalProps) {
+  return (
+    <Overlay open>
+      <OverlayCenter>
+        <FocusTrap
+          focusTrapOptions={{
+            returnFocusOnDeactivate: true,
+            allowOutsideClick: true,
+            clickOutsideDeactivates: true,
+            onDeactivate: requestClose,
+            escapeDeactivates: (evt: KeyboardEvent) => {
+              evt.stopPropagation();
+              return true;
+            },
+          }}
+        >
+          <Modal size="400" style={{ maxHeight: toRem(400), borderRadius: config.radii.R500 }}>
+            <RoomSearchModal requestClose={requestClose} pickRoom={pickRoom} />
+          </Modal>
+        </FocusTrap>
+      </OverlayCenter>
+    </Overlay>
+  );
 }
 
 export function Search(props: { requestClose: () => void }) {
-  return <RoomSearchModal requestClose={props.requestClose} />;
+  return <SearchWrapper requestClose={props.requestClose} />;
 }

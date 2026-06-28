@@ -53,6 +53,7 @@ import {
   CREATE_PATH,
   TO_ROOM_EVENT_PATH,
   SETTINGS_PATH,
+  NAVIGATE_PATH,
 } from './paths';
 import {
   getAppPathFromHref,
@@ -81,6 +82,8 @@ import { HomeCreateRoom } from './client/home/CreateRoom';
 import { Create } from './client/create';
 import { ToRoomEvent } from './client/ToRoomEvent';
 import { CallStatusRenderer } from './CallStatusRenderer';
+import { UserQuickToolsProvider } from '$components/UserQuickToolsProvider';
+import { Navigate } from './client/navigate';
 
 /**
  * Returns true if there is at least one stored session.
@@ -191,6 +194,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                           </ClientLayout>
                           <CallStatusRenderer />
                         </CallEmbedProvider>
+                        <MobileFriendlyClientNav>
+                          <UserQuickToolsProvider />
+                        </MobileFriendlyClientNav>
                         <SearchModalRenderer />
                         <UserRoomProfileRenderer />
                         <CreateRoomModalRenderer />
@@ -346,6 +352,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
         </Route>
         <Route path={CREATE_PATH} element={<Create />} />
+        <Route path={NAVIGATE_PATH} element={<Navigate />} />
         <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
         <Route
           path={INBOX_PATH}

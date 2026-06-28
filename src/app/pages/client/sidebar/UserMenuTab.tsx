@@ -525,7 +525,7 @@ export function PresenceMenuOption() {
   );
 }
 
-export function UserMenuTab({ isBottom }: { isBottom?: boolean }) {
+export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
@@ -552,7 +552,7 @@ export function UserMenuTab({ isBottom }: { isBottom?: boolean }) {
     ? (mxcUrlToHttp(mx, parsedBanner, useAuthentication, 640, 192, 'scale') ?? undefined)
     : undefined;
 
-  const handleToggle: MouseEventHandler<HTMLButtonElement> = (evt) => {
+  const handleToggle: MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (evt) => {
     const cords = evt.currentTarget.getBoundingClientRect();
     setMenuAnchor((cur) => (cur ? undefined : cords));
   };
@@ -561,21 +561,38 @@ export function UserMenuTab({ isBottom }: { isBottom?: boolean }) {
 
   return (
     <SidebarItem active={!!menuAnchor} isBottom={isBottom}>
-      <SidebarItemTooltip tooltip={currentStatus || displayName}>
+      <SidebarItemTooltip
+        tooltip={currentStatus || displayName}
+        position={isBottom ? 'Top' : 'Right'}
+      >
         {(triggerRef) => (
-          <AvatarPresence
-            ref={triggerRef}
-            badge={<PresenceBadge presence={currentPresence} size="200" />}
-          >
-            <SidebarAvatar as="button" onClick={handleToggle}>
-              <UserAvatar
-                userId={userId}
-                src={avatarUrl}
-                alt={userId}
-                renderFallback={() => <Text size="H4">{nameInitials(displayName)}</Text>}
-              />
+          <Box direction="Column" alignItems="Center" onClick={handleToggle}>
+            <SidebarAvatar
+              as="button"
+              onClick={handleToggle}
+              size="400"
+              style={{ overflow: 'visible' }}
+            >
+              <AvatarPresence
+                ref={triggerRef}
+                badge={<PresenceBadge presence={currentPresence} size="200" />}
+              >
+                <SidebarAvatar size={isMobile ? '300' : '400'} as="button" onClick={handleToggle}>
+                  <UserAvatar
+                    userId={userId}
+                    src={avatarUrl}
+                    alt={userId}
+                    renderFallback={() => <Text size="H4">{nameInitials(displayName)}</Text>}
+                  />
+                </SidebarAvatar>
+              </AvatarPresence>
             </SidebarAvatar>
-          </AvatarPresence>
+            {isMobile && (
+              <Text size="O400" priority="300">
+                Account
+              </Text>
+            )}
+          </Box>
         )}
       </SidebarItemTooltip>
 

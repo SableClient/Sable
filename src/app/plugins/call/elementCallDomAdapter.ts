@@ -40,7 +40,11 @@ export const getScreenshareButton = (doc: Document | undefined): HTMLElement | u
 export const getSettingsButton = (doc: Document | undefined): HTMLElement | undefined => {
   return queryFirst(doc, {
     key: 'settings_button',
-    selectors: ['[data-testid="settings-bottom-left"]', '[data-testid="settings-bottom-center"]', 'button[aria-label*="Settings" i]'],
+    selectors: [
+      '[data-testid="settings-bottom-left"]',
+      '[data-testid="settings-bottom-center"]',
+      'button[aria-label*="Settings" i]',
+    ],
   });
 };
 

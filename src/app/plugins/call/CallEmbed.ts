@@ -332,13 +332,15 @@ export class CallEmbed {
     if (!doc) return;
 
     doc.body.style.setProperty('background', 'none', 'important');
-    
+
     // Copy stylesheets from parent just in case
     const syncStyles = () => {
       Array.from(document.styleSheets).forEach((sheet) => {
         try {
           if (!sheet.href || sheet.href.startsWith(window.location.origin)) {
-            const rules = Array.from(sheet.cssRules).map(r => r.cssText).join('\\n');
+            const rules = Array.from(sheet.cssRules)
+              .map((r) => r.cssText)
+              .join('\\n');
             if (rules && !doc.head.innerHTML.includes(rules.substring(0, 50))) {
               const styleEl = doc.createElement('style');
               styleEl.textContent = rules;
@@ -362,15 +364,20 @@ export class CallEmbed {
       if (match && match[1]) {
         const bodyVal = window.getComputedStyle(document.body).getPropertyValue(match[1]).trim();
         if (bodyVal) return bodyVal;
-        const docElVal = window.getComputedStyle(document.documentElement).getPropertyValue(match[1]).trim();
+        const docElVal = window
+          .getComputedStyle(document.documentElement)
+          .getPropertyValue(match[1])
+          .trim();
         if (docElVal) return docElVal;
       }
       return variable;
     };
 
     const getSableVar = (variable: string, fallback: string) => {
-      const isDark = document.documentElement.className.includes('dark-theme') || document.body.className.includes('dark-theme');
-      
+      const isDark =
+        document.documentElement.className.includes('dark-theme') ||
+        document.body.className.includes('dark-theme');
+
       const lightTheme = {
         '--sable-bg-container': '#ffffff',
         '--sable-surface-var-container': '#e4e4e7',
@@ -380,7 +387,7 @@ export class CallEmbed {
         '--sable-surface-container-line': '#d4d4d8',
         '--sable-surface-on-container': '#18181b',
       };
-      
+
       const darkTheme = {
         '--sable-bg-container': '#1b1a21',
         '--sable-surface-var-container': '#121116',
@@ -390,7 +397,7 @@ export class CallEmbed {
         '--sable-surface-container-line': '#403f4c',
         '--sable-surface-on-container': '#eae8f0',
       };
-      
+
       const theme = isDark ? darkTheme : lightTheme;
       return theme[variable as keyof typeof theme] || fallback;
     };
@@ -403,7 +410,7 @@ export class CallEmbed {
         styleEl.id = styleId;
         doc.head.append(styleEl);
       }
-      
+
       const appFontFamily = window.getComputedStyle(document.body).fontFamily;
 
       styleEl.textContent = `
@@ -549,20 +556,26 @@ export class CallEmbed {
     const syncThemeClasses = () => {
       doc.documentElement.className = document.documentElement.className;
       doc.body.className = document.body.className;
-      
+
       const theme = document.documentElement.getAttribute('data-theme');
       if (theme) doc.documentElement.setAttribute('data-theme', theme);
 
       // Re-evaluate vars and update CSS on theme change
       updateInjectedCSS();
     };
-    
+
     // Initial injection
     syncThemeClasses();
 
     const observer = new MutationObserver(syncThemeClasses);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme', 'style'],
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme', 'style'],
+    });
     this.disposables.push(() => observer.disconnect());
   }
 
@@ -579,6 +592,16 @@ export class CallEmbed {
     if (this.call === null) return;
     const raw = ev.getEffectiveEvent();
     this.call.feedStateUpdate(raw as IRoomEvent).catch((e) => {
+      console.error('Error sending state update to widget: ', e);
+    });
+  }
+
+  private feedStateUpdateForTimelineEvent(ev: MatrixEvent): void {
+    if (this.call === null) return;
+    if (!ev.isState()) return;
+    const raw = ev.getEffectiveEvent() as IRoomEvent | undefined;
+    if (raw === undefined) return;
+    this.call.feedStateUpdate(raw).catch((e) => {
       console.error('Error sending state update to widget: ', e);
     });
   }
@@ -640,7 +663,7 @@ export class CallEmbed {
       return true;
     }
 
-    // We can't say for sure whether the widget has seen the event; let's
+    // We can't say for sure whether the widget has seen the event
     // just assume that it has
     return false;
   }
@@ -687,7 +710,10 @@ export class CallEmbed {
         this.call.feedEvent(raw as IRoomEvent).catch((e) => {
           console.error('Error sending event to widget: ', e);
         });
+        this.feedStateUpdateForTimelineEvent(ev);
       }
+    } else if (ev.isState()) {
+      this.feedStateUpdateForTimelineEvent(ev);
     }
   }
 

@@ -39,7 +39,16 @@ import { dismissSystemCallNotifications } from '$features/call/callNotificationB
 import { getIncomingCallBlockers } from '$features/call/getIncomingCallBlockers';
 import { RoomAvatar } from './room-avatar';
 import { UserAvatar } from './user-avatar';
-import { composerIcon, menuIcon, Phone, X, Hash, VideoCamera, User, sizedIcon } from '$components/icons/phosphor';
+import {
+  composerIcon,
+  menuIcon,
+  Phone,
+  X,
+  Hash,
+  VideoCamera,
+  User,
+  sizedIcon,
+} from '$components/icons/phosphor';
 
 const debugLog = createDebugLogger('IncomingCall');
 

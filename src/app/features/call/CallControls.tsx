@@ -144,7 +144,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
           direction="Row"
         >
           {room?.isCallRoom() && <ChatButton />}
-          
+
           <LayoutButton
             spotlight={spotlight}
             onToggle={() => callEmbed.control.toggleSpotlight()}

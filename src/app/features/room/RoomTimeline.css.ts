@@ -12,6 +12,8 @@ export const TimelineFloat = recipe({
       transform: 'translateX(-50%)',
       zIndex: 10,
       minWidth: 'max-content',
+      overflow: 'hidden',
+      borderRadius: config.radii.Pill,
     },
   ],
   variants: {

@@ -195,8 +195,8 @@ export function RoomView({ eventId }: { eventId?: string }) {
                     )}
                   </>
                 )}
+                {hideReads ? <RoomViewFollowingPlaceholder /> : <RoomViewFollowing room={room} />}
               </div>
-              {hideReads ? <RoomViewFollowingPlaceholder /> : <RoomViewFollowing room={room} />}
             </Box>
           </SwipeableChatWrapper>
         </Page>

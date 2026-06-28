@@ -91,7 +91,8 @@ export const readAudioDurationMs = async (file: Blob): Promise<number> =>
     audio.preload = 'metadata';
 
     const cleanup = () => {
-      audio.src = '';
+      audio.removeAttribute('src');
+      audio.load();
       URL.revokeObjectURL(objectUrl);
     };
 
@@ -113,7 +114,8 @@ export const readAudioDurationMs = async (file: Blob): Promise<number> =>
       { once: true }
     );
 
-    audio.src = objectUrl;
+    audio.setAttribute('src', objectUrl);
+    audio.load();
   });
 
 type CustomRingtoneValidationInput = {

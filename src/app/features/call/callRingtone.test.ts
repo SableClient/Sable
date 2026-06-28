@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   CALL_RINGBACK_OPTIONS,
-  CALL_RINGTONE_OPTIONS,
   callRingtoneVolumeToGain,
   canPlayCallAudio,
   clampCallRingtoneVolume,

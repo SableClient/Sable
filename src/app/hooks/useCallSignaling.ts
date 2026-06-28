@@ -294,9 +294,7 @@ export function useIncomingCallSignaling() {
   });
   const incomingRingtoneAllowed = settings.incomingCallSoundEnabled && callAudioAllowed;
   const outgoingRingbackAllowed =
-    settings.outgoingRingbackEnabled &&
-    callAudioAllowed &&
-    settings.callRingbackTone !== 'silent';
+    settings.outgoingRingbackEnabled && callAudioAllowed && settings.callRingbackTone !== 'silent';
   const incomingToneIsSilent = settings.callRingtoneId === 'silent';
 
   const handleIncomingCall = useCallback(
@@ -333,7 +331,7 @@ export function useIncomingCallSignaling() {
         },
       });
     },
-    [setIncomingCall]
+    [setIncomingCall, settings.incomingVoiceRoomCallSoundEnabled]
   );
 
   const playIncomingRing = useCallback(() => {
@@ -398,13 +396,24 @@ export function useIncomingCallSignaling() {
       return;
     }
     if (
-      isIncomingCallSuppressed(incomingCall, mutedRoomId, settings.incomingVoiceRoomCallSoundEnabled)
+      isIncomingCallSuppressed(
+        incomingCall,
+        mutedRoomId,
+        settings.incomingVoiceRoomCallSoundEnabled
+      )
     ) {
       setIncomingCall(null);
       return;
     }
     playIncomingRing();
-  }, [incomingCall, mutedRoomId, playIncomingRing, setIncomingCall, stopIncomingRing]);
+  }, [
+    incomingCall,
+    mutedRoomId,
+    playIncomingRing,
+    setIncomingCall,
+    settings.incomingVoiceRoomCallSoundEnabled,
+    stopIncomingRing,
+  ]);
 
   useEffect(() => {
     if (!mx || !mx.matrixRTC) return undefined;

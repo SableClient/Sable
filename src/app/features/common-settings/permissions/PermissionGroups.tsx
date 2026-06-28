@@ -28,7 +28,8 @@ type PermissionGroupsProps = {
   permissionGroups: PermissionGroup[];
 };
 
-const getPermissionLocationKey = (location: PermissionLocation | PermissionLocation[]): string => JSON.stringify(location);
+const getPermissionLocationKey = (location: PermissionLocation | PermissionLocation[]): string =>
+  JSON.stringify(location);
 
 export function PermissionGroups({
   powerLevels,

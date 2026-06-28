@@ -33,7 +33,6 @@ const resolveCssVar = (variable: string): string => {
   return variable;
 };
 
-
 export class CallEmbed {
   private mx: MatrixClient;
 
@@ -436,6 +435,11 @@ export class CallEmbed {
         /* Enforce rounded rectangles instead of circles */
         [class*="button_"], [class*="Button_"], button {
           border-radius: ${resolveCssVar(config.radii.R400)} !important;
+        }
+
+        /* Make the main room background mimic standard DM call appearance */
+        [class*="_inRoom_"], body {
+          background: ${resolveCssVar(color.Background.Container)} !important;
         }
         
         /* Completely dismantle Element Call's grouping pills to match Sable's discrete buttons */

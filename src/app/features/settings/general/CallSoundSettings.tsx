@@ -391,9 +391,7 @@ export function CallSoundSettings() {
         emptyLabel="No custom ringtone imported."
         hasCustomTone={hasCustomRingtone}
         previewing={previewing}
-        previewActions={[
-          { label: 'Preview Ringtone', tone: 'incoming', icon: Icons.Play },
-        ]}
+        previewActions={[{ label: 'Preview Ringtone', tone: 'incoming', icon: Icons.Play }]}
         onImport={handleImportCustomRingtone}
         onPreview={playPreviewTone}
         onReset={handleResetCustomRingtone}

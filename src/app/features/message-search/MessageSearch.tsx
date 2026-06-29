@@ -17,7 +17,6 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { decodeSearchParamValueArray, encodeSearchParamValueArray } from '$pages/pathUtils';
-import { useRooms } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { mDirectAtom } from '$state/mDirectList';
 import { VirtualTile } from '$components/virtualizer';

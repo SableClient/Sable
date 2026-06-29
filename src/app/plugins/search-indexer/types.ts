@@ -1,4 +1,4 @@
-import { IEncryptedFile, IFileInfo, IThumbnailContent } from '$types/matrix/common';
+import type { IFileInfo } from '$types/matrix/common';
 
 export type SearchIndexEvent = {
   eventId: string;
@@ -13,7 +13,7 @@ export type SearchIndexEvent = {
   filename?: string;
   url?: string;
   info?: IFileInfo;
-  file?: any;
+  file?: unknown;
 };
 
 export enum WorkerMessageTypeIn {
@@ -50,13 +50,13 @@ export type IndexWorkerMessageIn =
       roomId: string;
       state: BackfillState;
     }
-  |{
+  | {
       type: WorkerMessageTypeIn.RedactEvents;
-      eventIds: string[]
+      eventIds: string[];
     }
-    |{
+  | {
       type: WorkerMessageTypeIn.EditEvents;
-      events: Record<string, SearchIndexEvent>
+      events: Record<string, SearchIndexEvent>;
     }
   | {
       type: WorkerMessageTypeIn.Index;

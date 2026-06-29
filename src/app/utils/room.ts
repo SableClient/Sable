@@ -28,7 +28,8 @@ import {
 import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
 import { NotificationType } from '$types/matrix/room';
 import { getMxIdLocalPart } from '$utils/matrix';
-import { IconName, IconSrc } from 'folds';
+import * as Sentry from '@sentry/react';
+import type { IconName, IconSrc } from 'folds';
 
 export const getStateEvent = (
   room: Room,

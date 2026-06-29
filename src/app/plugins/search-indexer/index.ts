@@ -1,12 +1,11 @@
-import { Document, IndexedDB, Resolver } from 'flexsearch';
-import {
+import { Document } from 'flexsearch';
+import type {
   BackfillState,
   IndexWorkerMessageIn,
   IndexWorkerMessageOut,
   SearchIndexEvent,
-  WorkerMessageTypeIn,
-  WorkerMessageTypeOut,
 } from './types';
+import { WorkerMessageTypeIn, WorkerMessageTypeOut } from './types';
 
 export const HAS_TYPE_TO_MSGTYPE: Record<string, string> = {
   image: 'm.image',
@@ -19,7 +18,7 @@ function openIdb(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(name, 1);
 
-    req.onupgradeneeded = (e) => {
+    req.onupgradeneeded = () => {
       const db = req.result;
 
       db.createObjectStore('index');
@@ -76,9 +75,7 @@ function idbClear(db: IDBDatabase, store: string): Promise<void> {
   });
 }
 
-function getDocument(
-  data: Record<string, string> | undefined = undefined
-): Document<SearchIndexEvent> {
+function getDocument(data?: Record<string, string>): Document<SearchIndexEvent> {
   const document = new Document<SearchIndexEvent>({
     document: {
       id: 'eventId',
@@ -143,17 +140,19 @@ function scheduleFlush(): void {
 }
 
 function post(msg: IndexWorkerMessageOut): void {
-  self.postMessage(msg);
+  self.postMessage(msg, self.location.origin);
 }
 
 function makeTypeFilter(
   hasTypes: string[] | undefined
 ): ((ev: SearchIndexEvent) => boolean) | null {
   if (!hasTypes || hasTypes.length === 0) return null;
-  const allowedMsgtypes = hasTypes.filter((v) => v != 'link').map((t) => HAS_TYPE_TO_MSGTYPE[t]);
+  const allowedMsgtypes = new Set(
+    hasTypes.filter((v) => v != 'link').map((t) => HAS_TYPE_TO_MSGTYPE[t])
+  );
   const needsLink = hasTypes.includes('link');
   return (ev: SearchIndexEvent) => {
-    if (allowedMsgtypes.includes(ev.msgtype)) return true;
+    if (allowedMsgtypes.has(ev.msgtype)) return true;
     if (needsLink && ev.hasLink) return true;
     return false;
   };
@@ -183,9 +182,6 @@ self.addEventListener('message', async (event: MessageEvent<IndexWorkerMessageIn
         if (savedQueues) {
           for (const [roomId, queue] of Object.entries(savedQueues)) {
             roomQueues.set(roomId, queue);
-            for (const [eventId] of queue) {
-              const fields = document.get(eventId);
-            }
           }
         }
       } else {
@@ -236,7 +232,7 @@ self.addEventListener('message', async (event: MessageEvent<IndexWorkerMessageIn
         .filter((r) => r != undefined)
         .filter((v) => matchesFilters(v));
 
-      post({ type: WorkerMessageTypeOut.QueryResult, id: msg.id, events: result! });
+      post({ type: WorkerMessageTypeOut.QueryResult, id: msg.id, events: result });
 
     case WorkerMessageTypeIn.State:
       if (!document) {

@@ -1,34 +1,30 @@
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import {
-  SearchIndexContext,
-  SearchIndexContextType,
-  SearchIndexState,
-} from '$hooks/useSearchIndex';
-import {
+import type { SearchIndexContextType, SearchIndexState } from '$hooks/useSearchIndex';
+import { SearchIndexContext } from '$hooks/useSearchIndex';
+import type {
   SearchIndexEvent,
   IndexWorkerMessageIn,
-  WorkerMessageTypeIn,
   IndexWorkerMessageOut,
-  WorkerMessageTypeOut,
   BackfillState,
 } from '$plugins/search-indexer/types';
+import { WorkerMessageTypeIn, WorkerMessageTypeOut } from '$plugins/search-indexer/types';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import type { MatrixEvent, Room } from 'matrix-js-sdk';
 import {
-  MatrixEvent,
   EventType,
   MatrixEventEvent,
-  Room,
   EventTimelineSet,
   Direction,
   ClientEvent,
   RoomEvent,
   SyncState,
 } from 'matrix-js-sdk';
-import { ReactNode, useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
+// oxlint-disable-next-line import/default
 import CreateSearchWorker from '$plugins/search-indexer/index.ts?worker';
-import { is } from 'immer/dist/internal.js';
 
 const BACKFILL_PAGE_SIZE = 50;
 const HAS_IDLE_CALLBACK = typeof requestIdleCallback === 'function';
@@ -50,21 +46,24 @@ function scheduleIdle(cb: () => void): () => void {
   return () => clearTimeout(id);
 }
 
-const MEDIA_MSGTYPES = ['m.image', 'm.file', 'm.audio', 'm.video'];
+const MEDIA_MSGTYPES = new Set(['m.image', 'm.file', 'm.audio', 'm.video']);
 
-function toSearchIndexEvent(event: MatrixEvent, replaced: boolean = false): SearchIndexEvent | null {
+function toSearchIndexEvent(
+  event: MatrixEvent,
+  replaced: boolean = false
+): SearchIndexEvent | null {
   const eventId = event.getId();
   if (!eventId) return null;
 
   const roomId = event.getRoomId();
   if (!roomId) return null;
 
-  if (event.getType() !== EventType.RoomMessage) return null;
+  if (event.getType() !== EventType.RoomMessage.toString()) return null;
   if (event.isRedacted()) return null;
 
   const content = event.getContent();
 
-  const body: string = (replaced ? event.getContent()["m.new_content"]?.body : content.body) ?? '';
+  const body: string = (replaced ? event.getContent()['m.new_content']?.body : content.body) ?? '';
   if (!body.trim()) return null;
 
   const sender = event.getSender();
@@ -72,11 +71,19 @@ function toSearchIndexEvent(event: MatrixEvent, replaced: boolean = false): Sear
 
   const msgtype = content.msgtype ?? 'm.text';
   const ts = event.getTs();
-  const hasLink =  /https?:\/\//i.test(body) 
+  const hasLink = /https?:\/\//i.test(body);
 
-  const searchIndexEvent: SearchIndexEvent = { eventId, roomId, sender, msgtype, body, ts, hasLink };
+  const searchIndexEvent: SearchIndexEvent = {
+    eventId,
+    roomId,
+    sender,
+    msgtype,
+    body,
+    ts,
+    hasLink,
+  };
 
-  if (MEDIA_MSGTYPES.includes(msgtype)) {
+  if (MEDIA_MSGTYPES.has(msgtype)) {
     if (content.url !== undefined) searchIndexEvent.url = content.url;
     if (content.file !== undefined) searchIndexEvent.file = content.file;
     if (content.info !== undefined) searchIndexEvent.info = content.info;
@@ -132,184 +139,186 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
       if (event.getType() === 'm.room.encrypted') {
         event.once(MatrixEventEvent.Decrypted, handleEvent);
-      } 
-      else if (event.isSending()) {
-        event.once(MatrixEventEvent.LocalEventIdReplaced, handleEvent)
-      }
-      else {
+      } else if (event.isSending()) {
+        event.once(MatrixEventEvent.LocalEventIdReplaced, handleEvent);
+      } else {
         handleEvent();
       }
     },
     [postToWorker]
   );
 
-  const backfillRoom = useCallback(async (room: Room, state: BackfillState) => {
-    if (state.done) return;
+  const backfillRoom = useCallback(
+    async (room: Room, state: BackfillState) => {
+      if (state.done) return;
 
-    if (!canRunMobileBackfill()) {
-      backfillingRoomsRef.current.delete(room.roomId);
-      backfillQueueRef.current.unshift({ room, state });
-      Sentry.addBreadcrumb({
-        category: 'search.backfill',
-        message: `Backfill deferred for room ${room.roomId}`,
-        data: {
-          reason: 'mobile_not_focused',
-          isMobile: !HAS_IDLE_CALLBACK,
-          visibilityState: document.visibilityState,
-          focused: document.hasFocus(),
-        },
-        level: 'info',
-      });
-      return;
-    }
+      if (!canRunMobileBackfill()) {
+        backfillingRoomsRef.current.delete(room.roomId);
+        backfillQueueRef.current.unshift({ room, state });
+        Sentry.addBreadcrumb({
+          category: 'search.backfill',
+          message: `Backfill deferred for room ${room.roomId}`,
+          data: {
+            reason: 'mobile_not_focused',
+            isMobile: !HAS_IDLE_CALLBACK,
+            visibilityState: document.visibilityState,
+            focused: document.hasFocus(),
+          },
+          level: 'info',
+        });
+        return;
+      }
 
-    let headlessSet = headlessSetsRef.current.get(room.roomId);
-    if (!headlessSet) {
-      headlessSet = new EventTimelineSet(room, {});
-      headlessSetsRef.current.set(room.roomId, headlessSet);
-    }
-    const headlessTimeline = headlessSet.getLiveTimeline();
+      let headlessSet = headlessSetsRef.current.get(room.roomId);
+      if (!headlessSet) {
+        headlessSet = new EventTimelineSet(room, {});
+        headlessSetsRef.current.set(room.roomId, headlessSet);
+      }
+      const headlessTimeline = headlessSet.getLiveTimeline();
 
-    const seedToken = state.token ?? room.getLiveTimeline().getPaginationToken(Direction.Backward);
-    if (!seedToken) {
+      const seedToken =
+        state.token ?? room.getLiveTimeline().getPaginationToken(Direction.Backward);
+      if (!seedToken) {
+        postToWorker({
+          type: WorkerMessageTypeIn.SetBackfillState,
+          roomId: room.roomId,
+          state: { ...state, done: true },
+        });
+        backfillingRoomsRef.current.delete(room.roomId);
+        return;
+      }
+
+      headlessTimeline.setPaginationToken(seedToken, Direction.Backward);
+
+      const prevEventCount = headlessTimeline.getEvents().length;
+
+      let hasMore = false;
+      try {
+        hasMore = await mx.paginateEventTimeline(headlessTimeline, {
+          backwards: true,
+          limit: BACKFILL_PAGE_SIZE,
+        });
+      } catch {
+        backfillingRoomsRef.current.delete(room.roomId);
+      }
+
+      const allEvents = headlessTimeline.getEvents();
+      const newEvents = allEvents.slice(0, allEvents.length - prevEventCount);
+
+      const recoveryFrontier = state.token === null ? state.oldestTs : undefined;
+      const unindexedEvents =
+        recoveryFrontier !== undefined
+          ? newEvents.filter((ev) => ev.getTs() < recoveryFrontier)
+          : newEvents;
+
+      const events: SearchIndexEvent[] = [];
+      for (const ev of unindexedEvents) {
+        try {
+          const relatesTo = ev.getContent()?.['m.relates_to'];
+          if (relatesTo?.rel_type === 'm.thread' || ev.isRedacted()) {
+            continue;
+          }
+
+          if (ev.getType() === 'm.room.encrypted') {
+            indexEvent(ev);
+          } else {
+            const indexable = toSearchIndexEvent(ev);
+            if (indexable) events.push(indexable);
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      if (events.length > 0) {
+        postToWorker({ type: WorkerMessageTypeIn.Index, events });
+      }
+
+      const nextToken = headlessTimeline.getPaginationToken(Direction.Backward);
+      const done = !hasMore && !nextToken;
+
+      // Track the oldest event timestamp we've indexed so far. Only update when
+      // we actually processed new events (unindexedEvents may be empty on the
+      // first page of expired-token recovery while fast-forwarding the frontier).
+      const minTsThisPage =
+        unindexedEvents.length > 0 ? Math.min(...unindexedEvents.map((e) => e.getTs())) : undefined;
+      const newOldestTs =
+        minTsThisPage !== undefined
+          ? Math.min(state.oldestTs ?? Infinity, minTsThisPage)
+          : state.oldestTs;
+
       postToWorker({
         type: WorkerMessageTypeIn.SetBackfillState,
         roomId: room.roomId,
-        state: { ...state, done: true },
+        state: {
+          token: nextToken,
+          done,
+          indexedCount: state.indexedCount + events.length,
+          oldestTs: newOldestTs,
+        },
       });
-      backfillingRoomsRef.current.delete(room.roomId);
-      return;
-    }
 
-    headlessTimeline.setPaginationToken(seedToken, Direction.Backward);
+      if (!done) {
+        // Schedule next page — but yield to the main sync if it's struggling.
+        // resumeBackfill will restart this room once sync recovers.
+        const nextState: BackfillState = {
+          token: nextToken,
+          done: false,
+          indexedCount: state.indexedCount + events.length,
+          oldestTs: newOldestTs,
+        };
+        const cancel = scheduleIdle(() => {
+          const s = syncStateRef.current;
+          if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) {
+            backfillingRoomsRef.current.delete(room.roomId);
+            backfillQueueRef.current.unshift({ room, state: nextState });
+            Sentry.addBreadcrumb({
+              category: 'search.backfill',
+              message: `Backfill deferred for room ${room.roomId}`,
+              data: { reason: 'sync_not_healthy', syncState: s },
+              level: 'info',
+            });
+            return;
+          }
 
-    const prevEventCount = headlessTimeline.getEvents().length;
-
-    let hasMore = false;
-    try {
-      hasMore = await mx.paginateEventTimeline(headlessTimeline, {
-        backwards: true,
-        limit: BACKFILL_PAGE_SIZE,
-      });
-    } catch {
-      backfillingRoomsRef.current.delete(room.roomId);
-    }
-
-    const allEvents = headlessTimeline.getEvents();
-    const newEvents = allEvents.slice(0, allEvents.length - prevEventCount);
-
-    const recoveryFrontier = state.token === null ? state.oldestTs : undefined;
-    const unindexedEvents =
-      recoveryFrontier !== undefined
-        ? newEvents.filter((ev) => ev.getTs() < recoveryFrontier)
-        : newEvents;
-
-    const events: SearchIndexEvent[] = [];
-    for (const ev of unindexedEvents) {
-      try {
-        const relatesTo = ev.getContent()?.['m.relates_to'];
-        if (relatesTo?.rel_type === 'm.thread' || ev.isRedacted()) {
-          continue;
-        }
-
-        if (ev.getType() === 'm.room.encrypted') {
-          indexEvent(ev);
-        } else {
-          const indexable = toSearchIndexEvent(ev);
-          if (indexable) events.push(indexable);
-        }
-      } catch (e) {
-        continue;
-      }
-    }
-
-    if (events.length > 0) {
-      postToWorker({ type: WorkerMessageTypeIn.Index, events });
-    }
-
-    const nextToken = headlessTimeline.getPaginationToken(Direction.Backward);
-    const done = !hasMore && !nextToken;
-
-    // Track the oldest event timestamp we've indexed so far. Only update when
-    // we actually processed new events (unindexedEvents may be empty on the
-    // first page of expired-token recovery while fast-forwarding the frontier).
-    const minTsThisPage =
-      unindexedEvents.length > 0 ? Math.min(...unindexedEvents.map((e) => e.getTs())) : undefined;
-    const newOldestTs =
-      minTsThisPage !== undefined
-        ? Math.min(state.oldestTs ?? Infinity, minTsThisPage)
-        : state.oldestTs;
-
-    postToWorker({
-      type: WorkerMessageTypeIn.SetBackfillState,
-      roomId: room.roomId,
-      state: {
-        token: nextToken,
-        done,
-        indexedCount: state.indexedCount + events.length,
-        oldestTs: newOldestTs,
-      },
-    });
-
-    if (!done) {
-      // Schedule next page — but yield to the main sync if it's struggling.
-      // resumeBackfill will restart this room once sync recovers.
-      const nextState: BackfillState = {
-        token: nextToken,
-        done: false,
-        indexedCount: state.indexedCount + events.length,
-        oldestTs: newOldestTs,
-      };
-      const cancel = scheduleIdle(() => {
-        const s = syncStateRef.current;
-        if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) {
-          backfillingRoomsRef.current.delete(room.roomId);
-          backfillQueueRef.current.unshift({ room, state: nextState });
-          Sentry.addBreadcrumb({
-            category: 'search.backfill',
-            message: `Backfill deferred for room ${room.roomId}`,
-            data: { reason: 'sync_not_healthy', syncState: s },
-            level: 'info',
-          });
-          return;
-        }
-
-        if (!canRunMobileBackfill()) {
-          backfillingRoomsRef.current.delete(room.roomId);
-          backfillQueueRef.current.unshift({ room, state: nextState });
-          Sentry.addBreadcrumb({
-            category: 'search.backfill',
-            message: `Backfill deferred for room ${room.roomId}`,
-            data: {
-              reason: 'mobile_not_focused',
-              isMobile: !HAS_IDLE_CALLBACK,
-              visibilityState: document.visibilityState,
-              focused: document.hasFocus(),
-            },
-            level: 'info',
-          });
-          return;
-        }
-        void backfillRoom(room, nextState);
-      });
-      cancelIdlesRef.current.push(cancel);
-    } else {
-      backfillingRoomsRef.current.delete(room.roomId);
-      // Dequeue the next room from the concurrency queue while under the limit
-      while (
-        backfillingRoomsRef.current.size < MAX_CONCURRENT_BACKFILLS &&
-        backfillQueueRef.current.length > 0
-      ) {
-        const next = backfillQueueRef.current.shift()!;
-        backfillingRoomsRef.current.add(next.room.roomId);
-        const cancel = scheduleIdle(() => void backfillRoom(next.room, next.state));
+          if (!canRunMobileBackfill()) {
+            backfillingRoomsRef.current.delete(room.roomId);
+            backfillQueueRef.current.unshift({ room, state: nextState });
+            Sentry.addBreadcrumb({
+              category: 'search.backfill',
+              message: `Backfill deferred for room ${room.roomId}`,
+              data: {
+                reason: 'mobile_not_focused',
+                isMobile: !HAS_IDLE_CALLBACK,
+                visibilityState: document.visibilityState,
+                focused: document.hasFocus(),
+              },
+              level: 'info',
+            });
+            return;
+          }
+          void backfillRoom(room, nextState);
+        });
         cancelIdlesRef.current.push(cancel);
+      } else {
+        backfillingRoomsRef.current.delete(room.roomId);
+        // Dequeue the next room from the concurrency queue while under the limit
+        while (
+          backfillingRoomsRef.current.size < MAX_CONCURRENT_BACKFILLS &&
+          backfillQueueRef.current.length > 0
+        ) {
+          const next = backfillQueueRef.current.shift()!;
+          backfillingRoomsRef.current.add(next.room.roomId);
+          const cancel = scheduleIdle(() => void backfillRoom(next.room, next.state));
+          cancelIdlesRef.current.push(cancel);
+        }
+        if (backfillingRoomsRef.current.size === 0 && backfillQueueRef.current.length === 0) {
+          setIsBackfilling(false);
+        }
       }
-      if (backfillingRoomsRef.current.size === 0 && backfillQueueRef.current.length === 0) {
-        setIsBackfilling(false);
-      }
-    }
-  }, []);
+    },
+    [mx, postToWorker, indexEvent]
+  );
 
   const resumeBackfill = useCallback(() => {
     if (!backfillReadyRef.current) return;
@@ -358,37 +367,40 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     [mx, resumeBackfill]
   );
 
-  const handleWorkerMessage = useCallback((event: MessageEvent<IndexWorkerMessageOut>) => {
-    const msg = event.data;
+  const handleWorkerMessage = useCallback(
+    (event: MessageEvent<IndexWorkerMessageOut>) => {
+      const msg = event.data;
 
-    switch (msg.type) {
-      case WorkerMessageTypeOut.Ready:
-        setIsReady(true);
-        postToWorker({ type: WorkerMessageTypeIn.GetBackfillStates });
-        break;
-      case WorkerMessageTypeOut.State:
-        const pending = pendingStatsRef.current;
-        if (pending) {
-          pendingStatsRef.current = null;
-          pending.resolve({
-            indexedEventsCount: msg.indexedEventCount,
-            roomCount: msg.roomCount,
-            backfillingRoomCount: pending.backfillingRoomCount,
-          });
-        }
-        break;
-      case WorkerMessageTypeOut.QueryResult:
-        const pendingQuery = pendingQueriesRef.current.get(msg.id);
-        if (pendingQuery) {
-          pendingQueriesRef.current.delete(msg.id);
-          pendingQuery.resolve(msg.events);
-        }
-        break;
-      case WorkerMessageTypeOut.BackfillStatesDone:
-        startBackfill(msg.states);
-        break;
-    }
-  }, []);
+      switch (msg.type) {
+        case WorkerMessageTypeOut.Ready:
+          setIsReady(true);
+          postToWorker({ type: WorkerMessageTypeIn.GetBackfillStates });
+          break;
+        case WorkerMessageTypeOut.State:
+          const pending = pendingStatsRef.current;
+          if (pending) {
+            pendingStatsRef.current = null;
+            pending.resolve({
+              indexedEventsCount: msg.indexedEventCount,
+              roomCount: msg.roomCount,
+              backfillingRoomCount: pending.backfillingRoomCount,
+            });
+          }
+          break;
+        case WorkerMessageTypeOut.QueryResult:
+          const pendingQuery = pendingQueriesRef.current.get(msg.id);
+          if (pendingQuery) {
+            pendingQueriesRef.current.delete(msg.id);
+            pendingQuery.resolve(msg.events);
+          }
+          break;
+        case WorkerMessageTypeOut.BackfillStatesDone:
+          startBackfill(msg.states);
+          break;
+      }
+    },
+    [startBackfill, postToWorker]
+  );
 
   useEffect(() => {
     if (!idbSearchIndex) {
@@ -403,8 +415,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         level: 'info',
       });
       worker = new CreateSearchWorker();
-    } catch (e) {
-      console.error('Error!');
+    } catch {
       return () => {};
     }
 
@@ -435,9 +446,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
     const handleSync = (state: SyncState) => {
       syncStateRef.current = state;
-      if (
-        state === SyncState.Syncing
-      ) {
+      if (state === SyncState.Syncing) {
         resumeBackfill();
       }
     };
@@ -446,7 +455,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     const handleTimeline = (mEvent: MatrixEvent, room: Room | undefined) => {
       const relation = mEvent.getRelation();
 
-      if (relation && relation.rel_type === "m.replace") {
+      if (relation && relation.rel_type === 'm.replace') {
         const targetEventId = relation.event_id;
         if (!targetEventId) return;
         const searchEvent = toSearchIndexEvent(mEvent, true);
@@ -455,9 +464,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         postToWorker({
           type: WorkerMessageTypeIn.EditEvents,
           events: {
-            [targetEventId]: searchEvent
-          }
-        })
+            [targetEventId]: searchEvent,
+          },
+        });
         return;
       }
 
@@ -467,17 +476,17 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     mx.on(RoomEvent.Timeline, handleTimeline);
 
     const handleRedaction = (mEvent: MatrixEvent) => {
-      if (mEvent.getType() !== EventType.RoomRedaction) return;
+      if (mEvent.getType() !== EventType.RoomRedaction.toString()) return;
       let eventId = mEvent.event.redacts;
       if (!eventId) return;
 
       postToWorker({
         type: WorkerMessageTypeIn.RedactEvents,
-        eventIds: [eventId]
-      })
+        eventIds: [eventId],
+      });
     };
     mx.on(RoomEvent.Redaction, handleRedaction);
-    
+
     const handleRoomAdded = (room: Room) => {
       if (room.isSpaceRoom()) return;
       if (backfillingRoomsRef.current.has(room.roomId)) return;
@@ -505,8 +514,8 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       window.addEventListener('pageshow', handleForegroundFocus);
     }
 
-const handleOnBeforeUnload = () => {
-           postToWorker({ type: WorkerMessageTypeIn.Flush });
+    const handleOnBeforeUnload = () => {
+      postToWorker({ type: WorkerMessageTypeIn.Flush });
 
       worker.addEventListener(
         'message',
@@ -519,29 +528,23 @@ const handleOnBeforeUnload = () => {
         },
         { once: true }
       );
-}
+    };
 
-  window.addEventListener('beforeunload', handleOnBeforeUnload);
+    window.addEventListener('beforeunload', handleOnBeforeUnload);
 
     return () => {
       mx.removeListener(ClientEvent.Sync, handleSync);
-      mx.removeListener(
-        RoomEvent.Timeline,
-        handleTimeline
-      );
-      mx.removeListener(
-        ClientEvent.Room,
-        handleRoomAdded
-      );
-      mx.removeListener(RoomEvent.Redaction, handleRedaction)
+      mx.removeListener(RoomEvent.Timeline, handleTimeline);
+      mx.removeListener(ClientEvent.Room, handleRoomAdded);
+      mx.removeListener(RoomEvent.Redaction, handleRedaction);
       worker.removeEventListener('message', handleWorkerMessage);
       //   worker.removeEventListener('error', handleWorkerError);
-          window.removeEventListener('beforeunload', handleOnBeforeUnload);
+      window.removeEventListener('beforeunload', handleOnBeforeUnload);
 
       setIsReady(false);
       setIsBackfilling(false);
     };
-  }, [idbSearchIndex, mx, handleWorkerMessage, indexEvent, postToWorker]);
+  }, [idbSearchIndex, mx, handleWorkerMessage, indexEvent, postToWorker, resumeBackfill]);
 
   const query = useCallback(
     (
@@ -582,7 +585,14 @@ const handleOnBeforeUnload = () => {
     });
   }, [isReady, postToWorker]);
 
-  const clearIndex = () => {};
+  const clearIndex = useCallback((): Promise<void> => {
+    if (!workerRef.current || !isReady) {
+      return Promise.resolve();
+    }
+    return new Promise(() => {
+      postToWorker({ type: WorkerMessageTypeIn.Clear });
+    });
+  }, [isReady, postToWorker]);
 
   const ctx = useMemo<SearchIndexContextType>(
     () => ({ query, state, clearIndex, isBackfilling, ready: isReady }),

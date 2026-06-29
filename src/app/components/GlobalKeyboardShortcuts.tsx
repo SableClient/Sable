@@ -199,7 +199,7 @@ export function GlobalKeyboardShortcuts() {
       navigate(withSearchParam(path, searchParams));
       announce(`Start Searching messages ${roomName ? `in ${roomName}` : ''}`);
     },
-    [mx, currentRoom, currentSpace, navigate]
+    [mx, currentRoom, currentSpace, navigate, direct]
   );
 
   const handleSearchMessageGlobally = useCallback(
@@ -219,7 +219,7 @@ export function GlobalKeyboardShortcuts() {
       navigate(withSearchParam(path, searchParams));
       announce(`Start Searching messages ${roomName ? `in ${roomName}` : ''}`);
     },
-    [mx, currentRoom, currentSpace, navigate, shortcutOverrides]
+    [mx, currentRoom, currentSpace, navigate, direct]
   );
 
   useKeyDown(window, handleNextUnreadKeyDown);

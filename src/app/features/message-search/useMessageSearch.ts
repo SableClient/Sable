@@ -14,7 +14,7 @@ import { searchEncryptedRoomsInMemory, partitionRoomsByEncryption } from './sear
 import { useSearchIndex } from '$hooks/useSearchIndex';
 import { useAtomValue } from 'jotai';
 import { settingsAtom } from '$state/settings';
-import { SearchIndexEvent } from '$plugins/search-indexer/types';
+import type { SearchIndexEvent } from '$plugins/search-indexer/types';
 
 export function toSearchEvent(mEvent: MatrixEvent, roomId: string): IEventWithRoomId {
   return {
@@ -161,57 +161,34 @@ export type MessageSearchParams = {
   senders?: string[];
   hasTypes?: SearchHasType[];
 };
+
+const mergeSearchGroups = (
+  serverGroups: ResultGroup[],
+  inMemoryGroups: ResultGroup[],
+  order?: string
+): ResultGroup[] => {
+  if (inMemoryGroups.length === 0) return serverGroups;
+  if (serverGroups.length === 0) return inMemoryGroups;
+
+  const all = [...serverGroups, ...inMemoryGroups];
+
+  if (order === 'rank') {
+    return all;
+  }
+
+  return all.toSorted((a, b) => {
+    const aTs = a.items[0]?.event.origin_server_ts ?? 0;
+    const bTs = b.items[0]?.event.origin_server_ts ?? 0;
+    return bTs - aTs;
+  });
+};
+
 export const useMessageSearch = (params: MessageSearchParams) => {
   const mx = useMatrixClient();
   const searchIndex = useSearchIndex();
   const settings = useAtomValue(settingsAtom);
 
   const { term, order, rooms, senders, hasTypes } = params;
-
-  const filterGroupsByHasType = useCallback(
-    (grps: ResultGroup[]): ResultGroup[] => {
-      if (!hasTypes || hasTypes.length === 0) return grps;
-      const withMsgtype = hasTypes.filter((t) => t !== 'link');
-      return grps
-        .map((g) => ({
-          ...g,
-          items: g.items.filter((item) => {
-            const content = item.event.content;
-            if (
-              withMsgtype.length > 0 &&
-              withMsgtype.some((t) => content.msgtype === HAS_TYPE_TO_MSGTYPE[t])
-            )
-              return true;
-
-            if (hasTypes.includes('link') && /https?:\/\//i.test(content.body ?? '')) return true; // TODO: maybe regex isn't the best idea
-            return false;
-          }),
-        }))
-        .filter((g) => g.items.length > 0);
-    },
-    [hasTypes]
-  );
-
-  const mergeSearchGroups = (
-    serverGroups: ResultGroup[],
-    inMemoryGroups: ResultGroup[],
-    order?: string
-  ): ResultGroup[] => {
-    if (inMemoryGroups.length === 0) return serverGroups;
-    if (serverGroups.length === 0) return inMemoryGroups;
-
-    const all = [...serverGroups, ...inMemoryGroups];
-
-    if (order === 'rank') {
-      return all;
-    }
-
-    return all.toSorted((a, b) => {
-      const aTs = a.items[0]?.event.origin_server_ts ?? 0;
-      const bTs = b.items[0]?.event.origin_server_ts ?? 0;
-      return bTs - aTs;
-    });
-  };
 
   const searchMessages = useCallback(
     async (nextBatch?: string) => {
@@ -240,7 +217,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       }
 
       const { encryptedRoomIds, serverRooms } = partitionRoomsByEncryption(mx, rooms);
-      let skipServerSearch = !!!serverRooms;
+      let skipServerSearch = !serverRooms;
 
       let foundGroups: ResultGroup[] = [];
 
@@ -294,7 +271,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       };
       return filteredServerResult;
     },
-    [mx, term, order, rooms, senders, hasTypes, filterGroupsByHasType]
+    [mx, term, order, rooms, senders, hasTypes, settings, searchIndex]
   );
 
   return searchMessages;

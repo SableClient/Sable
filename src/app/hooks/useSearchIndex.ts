@@ -1,7 +1,5 @@
-import { SearchIndexEvent, WorkerMessageTypeIn } from '$plugins/search-indexer/types';
-import { EventType, MatrixEvent, MatrixEventEvent, MsgType } from 'matrix-js-sdk';
-import { createContext, ReactNode, useCallback, useContext, useRef, useState } from 'react';
-import { useMatrixClient } from './useMatrixClient';
+import type { SearchIndexEvent } from '$plugins/search-indexer/types';
+import { createContext, useContext } from 'react';
 
 export type SearchIndexState = {
   indexedEventsCount: number;

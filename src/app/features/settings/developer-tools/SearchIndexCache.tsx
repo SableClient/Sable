@@ -8,26 +8,8 @@ import { useSearchIndex } from '$hooks/useSearchIndex';
 import type { SearchIndexState } from '$hooks/useSearchIndex';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 
-const LIMIT_OPTIONS: Array<{ label: string; value: number }> = [
-  { label: '500 messages', value: 500 },
-  { label: '1,000 messages', value: 1000 },
-  { label: '2,000 messages (default)', value: 2000 },
-  { label: '5,000 messages', value: 5000 },
-  { label: 'Unlimited', value: Number.MAX_SAFE_INTEGER },
-];
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function SearchIndexCache() {
   const [idbSearchIndex] = useSetting(settingsAtom, 'idbSearchIndex');
-  //   const [searchIndexMessageLimit, setSearchIndexMessageLimit] = useSetting(
-  //     settingsAtom,
-  //     'searchIndexMessageLimit'
-  //   );
   const searchIndex = useSearchIndex();
 
   const [stats, setStats] = useState<SearchIndexState | null>(null);

@@ -384,6 +384,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const direct = useIsDirectRoom();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
   const { microphone, video, sound } = useCallPreferences();
+  const idbSearchAvailable = useSetting(settingsAtom, 'idbSearchIndex');
 
   const [chat, setChat] = useAtom(callChatAtom);
   const [threadBrowserOpen, setThreadBrowserOpen] = useAtom(
@@ -708,7 +709,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
         </Box>
 
         <Box shrink="No">
-          {(!room.isCallRoom() || chat) && (
+          {(!room.isCallRoom() || chat) && (!encryptedRoom || idbSearchAvailable) && (
             <>
               <TooltipProvider
                 position="Bottom"

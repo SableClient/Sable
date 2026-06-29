@@ -1,16 +1,29 @@
 import { EventType } from '$types/matrix-sdk';
-import type {
-  IEventWithRoomId,
-  IResultContext,
-  MatrixClient,
-  MatrixEvent,
-} from '$types/matrix-sdk';
-import {
-  HAS_TYPE_TO_MSGTYPE,
-  SearchHasType,
-  type ResultGroup,
-  type ResultItem,
-} from './useMessageSearch';
+import type { IEventWithRoomId, MatrixClient, MatrixEvent } from '$types/matrix-sdk';
+import type { SearchHasType } from './useMessageSearch';
+import { HAS_TYPE_TO_MSGTYPE, type ResultGroup, type ResultItem } from './useMessageSearch';
+
+function toSearchEvent(mEvent: MatrixEvent, roomId: string): IEventWithRoomId {
+  return {
+    event_id: mEvent.getId() ?? '',
+    room_id: roomId,
+    sender: mEvent.getSender() ?? '',
+    origin_server_ts: mEvent.getTs(),
+    content: mEvent.getContent(),
+    type: mEvent.getType(),
+    unsigned: mEvent.getUnsigned(),
+  } as IEventWithRoomId;
+}
+
+function mEventMatchesHasTypes(mEvent: MatrixEvent, hasTypes: SearchHasType[]): boolean {
+  const content = mEvent.getContent() as { msgtype?: string; body?: string };
+  for (const type of hasTypes) {
+    const msgtype = HAS_TYPE_TO_MSGTYPE[type];
+    if (msgtype && content.msgtype === msgtype) return true;
+    if (type === 'link' && /https?:\/\//i.test(content.body ?? '')) return true;
+  }
+  return false;
+}
 
 /**
  * Searches a single room's live timeline for message events that contain
@@ -22,33 +35,11 @@ export function searchRoomTimeline(
   senders?: string[],
   hasTypes?: SearchHasType[]
 ): ResultGroup | undefined {
-  function toSearchEvent(mEvent: MatrixEvent, roomId: string): IEventWithRoomId {
-    return {
-      event_id: mEvent.getId() ?? '',
-      room_id: roomId,
-      sender: mEvent.getSender() ?? '',
-      origin_server_ts: mEvent.getTs(),
-      content: mEvent.getContent(),
-      type: mEvent.getType(),
-      unsigned: mEvent.getUnsigned(),
-    } as IEventWithRoomId;
-  }
-
-  function mEventMatchesHasTypes(mEvent: MatrixEvent, hasTypes: SearchHasType[]): boolean {
-    const content = mEvent.getContent() as { msgtype?: string; body?: string };
-    for (const type of hasTypes) {
-      const msgtype = HAS_TYPE_TO_MSGTYPE[type];
-      if (msgtype && content.msgtype === msgtype) return true;
-      if (type === 'link' && /https?:\/\//i.test(content.body ?? '')) return true;
-    }
-    return false;
-  }
-
   const events = room.getLiveTimeline().getEvents();
   const items: ResultItem[] = [];
 
   for (const event of events) {
-    if (event.getType() !== EventType.RoomMessage) continue;
+    if (event.getType() !== EventType.RoomMessage.toString()) continue;
     if (event.isBeingDecrypted() || event.isDecryptionFailure()) continue;
 
     const sender = event.getSender();

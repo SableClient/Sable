@@ -41,6 +41,12 @@ export const MessageOptionsMenu = style({
   flexDirection: 'column',
 });
 
+export const PreventSelect = style({
+  WebkitUserSelect: 'none',
+  msUserSelect: 'none',
+  userSelect: 'none',
+  MozUserSelect: 'none',
+});
 //I have zero clue where these numbers and vars are from but they should be changed
 //I just copied the hardcoded value in a more correct place
 

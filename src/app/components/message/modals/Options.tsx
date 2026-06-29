@@ -28,8 +28,7 @@ import { MessageSourceCodeItem } from './MessageSource';
 import { MessageForwardItem } from './MessageForward';
 
 import * as css from '$features/room/message/styles.css';
-import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai';
-import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
+import { useAtom, useSetAtom, useStore } from 'jotai';
 import type { Dispatch, MouseEventHandler, ReactNode, SetStateAction } from 'react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { MessageDeleteItem } from './MessageDelete';
@@ -50,6 +49,7 @@ import {
   useBookmarkActions,
   useIsBookmarked,
 } from '$features/bookmarks';
+import { CopyIcon } from '@phosphor-icons/react';
 
 function WrappedMessage({
   isModal,
@@ -136,6 +136,38 @@ const MessageCopyLinkItem = as<
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
         Copy Link
+      </Text>
+    </MenuItem>
+  );
+});
+
+const MessageCopyTextItem = as<
+  'button',
+  {
+    room: Room;
+    mEvent: MatrixEvent;
+    onClose: () => void;
+  }
+>(({ room, mEvent, onClose, ...props }, ref) => {
+  const handleCopy = () => {
+    const content = mEvent.getContent();
+    const body = content?.body;
+
+    if (body) copyToClipboard(body);
+    onClose();
+  };
+
+  return (
+    <MenuItem
+      size="300"
+      after={menuIcon(CopyIcon)}
+      radii="300"
+      onClick={handleCopy}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        Copy Message
       </Text>
     </MenuItem>
   );
@@ -296,7 +328,6 @@ export function OptionQuickMenu({
   hideReadReceipts,
   showDeveloperTools,
   canPinEvent,
-  cleanedDisplayName,
   canDelete,
   handleOpenMenu,
   menuAnchor,
@@ -398,7 +429,6 @@ export function OptionQuickMenu({
               hideReadReceipts={hideReadReceipts}
               showDeveloperTools={showDeveloperTools}
               canPinEvent={canPinEvent}
-              cleanedDisplayName={cleanedDisplayName}
               canDelete={canDelete}
               setIsEmoji={setIsEmoji}
               emojiBoardAnchor={menuAnchor}
@@ -445,7 +475,6 @@ export type OptionMenuProps = {
   hideReadReceipts?: boolean;
   showDeveloperTools?: boolean;
   canPinEvent?: boolean;
-  cleanedDisplayName?: string;
   canDelete?: boolean;
   handleOpenMenu?: MouseEventHandler<HTMLButtonElement>;
   menuAnchor?: RectCords | undefined;
@@ -470,7 +499,6 @@ export function OptionMenu({
   hideReadReceipts,
   showDeveloperTools,
   canPinEvent,
-  cleanedDisplayName,
   canDelete,
   imagePackRooms,
   setIsEmoji,
@@ -489,12 +517,6 @@ export function OptionMenu({
     evtTimeline &&
     getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
   const isEdited = !!edits?.length;
-
-  const [nickEditOpen, setNickEditOpen] = useState(false);
-  const [nickDraft, setNickDraft] = useState('');
-  const nicknames = useAtomValue(nicknamesAtom);
-  const setNickname = useSetAtom(setNicknameAtom);
-  const senderId = mEvent.getSender() ?? '';
 
   const onTotalClose = () => {
     setModal(null);
@@ -552,10 +574,7 @@ export function OptionMenu({
           escapeDeactivates: stopPropagation,
         }}
       >
-        <Menu
-          onContextMenu={(e) => e.preventDefault()}
-          className={isModal ? css.MessageOptionsMenu : ''}
-        >
+        <Menu className={isModal ? css.MessageOptionsMenu : ''}>
           {dragOpts?.dragHandle}
           {ActualMessage && !emojiBoardAnchor && (
             <>
@@ -564,6 +583,7 @@ export function OptionMenu({
             </>
           )}
           <Box
+            className={css.PreventSelect}
             direction="Column"
             grow="Yes"
             shrink="No"
@@ -571,6 +591,7 @@ export function OptionMenu({
             onTouchStart={dragOpts?.onTouchStart}
             onTouchMove={dragOpts?.onTouchMove}
             onTouchEnd={dragOpts?.onTouchEnd}
+            onContextMenu={(e) => e.preventDefault()}
           >
             {canSendReaction && onReactionToggle && setIsEmoji && (
               <MessageQuickReactions
@@ -614,7 +635,7 @@ export function OptionMenu({
                     }}
                   >
                     <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                      Add to User Sticker Pack
+                      Steal Sticker
                     </Text>
                   </MenuItem>
                 )}
@@ -680,80 +701,12 @@ export function OptionMenu({
               )}
               <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={onTotalClose} />
 
-              <MessageBookmarkItem room={room} mEvent={mEvent} onClose={closeMenu} />
+              <MessageCopyTextItem room={room} mEvent={mEvent} onClose={onTotalClose} />
               {canForwardEvent(mEvent) && (
                 <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
               )}
+              <MessageBookmarkItem room={room} mEvent={mEvent} onClose={closeMenu} />
               {canPinEvent && <MessagePinItem room={room} mEvent={mEvent} onClose={onTotalClose} />}
-              {cleanedDisplayName &&
-                senderId !== mx.getUserId() &&
-                (nickEditOpen ? (
-                  <Box
-                    direction="Column"
-                    gap="100"
-                    style={{
-                      padding: `${config.space.S100} ${config.space.S200}`,
-                    }}
-                  >
-                    <Text size="L400">Nickname</Text>
-                    <input
-                      autoFocus
-                      value={nickDraft}
-                      onChange={(e) => setNickDraft(e.target.value)}
-                      placeholder={cleanedDisplayName}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          setNickname(senderId, nickDraft || undefined, mx);
-                          closeMenu();
-                        }
-                        if (e.key === 'Escape') closeMenu();
-                      }}
-                      className={css.MessageNickEditor}
-                    />
-                    <Box gap="200">
-                      <MenuItem
-                        size="300"
-                        radii="300"
-                        variant="Success"
-                        fill="None"
-                        onClick={() => {
-                          setNickname(senderId, nickDraft || undefined, mx);
-                          closeMenu();
-                        }}
-                      >
-                        <Text size="B300">Save</Text>
-                      </MenuItem>
-                      {nicknames[senderId] && (
-                        <MenuItem
-                          size="300"
-                          radii="300"
-                          variant="Critical"
-                          fill="None"
-                          onClick={() => {
-                            setNickname(senderId, undefined, mx);
-                            onTotalClose();
-                          }}
-                        >
-                          <Text size="B300">Clear</Text>
-                        </MenuItem>
-                      )}
-                    </Box>
-                  </Box>
-                ) : (
-                  <MenuItem
-                    size="300"
-                    after={menuIcon(PencilSimple)}
-                    radii="300"
-                    onClick={() => {
-                      setNickDraft(nicknames[senderId] ?? '');
-                      setNickEditOpen(true);
-                    }}
-                  >
-                    <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                      {nicknames[senderId] ? 'Edit Nickname' : 'Set Nickname'}
-                    </Text>
-                  </MenuItem>
-                ))}
             </Box>
             {((!mEvent.isRedacted() && canDelete) || mEvent.getSender() !== mx.getUserId()) && (
               <>
@@ -868,7 +821,6 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
             hideReadReceipts={options.hideReadReceipts}
             showDeveloperTools={options.showDeveloperTools}
             canPinEvent={options.canPinEvent}
-            cleanedDisplayName={options.cleanedDisplayName}
             canDelete={options.canDelete}
             setIsEmoji={options.setIsEmoji}
             ActualMessage={options.ActualMessage}

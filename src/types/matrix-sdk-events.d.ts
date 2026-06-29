@@ -6,6 +6,7 @@ import type { MemberPowerTag } from '$types/matrix/room';
 import type { RoomAbbreviationsContent } from '$utils/abbreviations';
 import type { PronounSet } from '$utils/pronouns';
 import type * as prefix from '$unstable/prefixes';
+import type { GifData } from '$components/emoji-board';
 
 type PowerLevelTagsEventContent = Record<number, MemberPowerTag>;
 
@@ -82,5 +83,6 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_ADDED_SERVERS_PROPERTY_NAME]: AddedServersContent;
     [prefix.MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT]: BookmarkIndexContent;
     [prefix.MATRIX_SABLE_UNSTABLE_BOOKMARK_ITEM_EVENT_PREFIX]: BookmarkItemContent;
+    [prefix.MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS]: { gifs: Omit<GifData, 'id'>[] };
   }
 }

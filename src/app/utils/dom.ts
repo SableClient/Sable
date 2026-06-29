@@ -99,9 +99,10 @@ export const getImageFileUrl = (fileOrBlob: File | Blob) => URL.createObjectURL(
 
 export const getVideoFileUrl = (fileOrBlob: File | Blob) => URL.createObjectURL(fileOrBlob);
 
-export const loadImageElement = (url: string): Promise<HTMLImageElement> =>
+export const loadImageElement = (url: string, crossOrigin?: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const img = document.createElement('img');
+    if (crossOrigin) img.crossOrigin = crossOrigin;
     img.addEventListener('load', () => resolve(img));
     img.addEventListener('error', (err) => reject(err));
     img.src = url;

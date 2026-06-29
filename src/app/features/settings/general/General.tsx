@@ -1218,6 +1218,7 @@ function Embeds() {
     settingsAtom,
     'clientPreviewYoutube'
   );
+  const [enableGifPicker, setEnableGifPicker] = useSetting(settingsAtom, 'enableGifPicker');
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Embeds</Text>
@@ -1310,6 +1311,21 @@ function Embeds() {
           </SequenceCard>
         </>
       )}
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Enable Gif Picker"
+          focusId="enable-gif-picker"
+          description="Enables the gif picker in the emoji board. This reduces Privacy because it makes requests to klipy.com whenever you search for a gif."
+          after={
+            <Switch
+              variant="Primary"
+              value={enableGifPicker}
+              onChange={setEnableGifPicker}
+              title={enableGifPicker ? 'Disable Gif Picker' : 'Enable Gif Picker'}
+            />
+          }
+        />
+      </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Interactive maps"

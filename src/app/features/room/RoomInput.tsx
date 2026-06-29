@@ -64,6 +64,7 @@ import {
   BlockType,
 } from '$components/editor';
 import { plainToEditorInput } from '$components/editor/input';
+import type { GifData } from '$components/emoji-board';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
 import type { TUploadContent } from '$utils/matrix';
@@ -168,8 +169,10 @@ import {
   getFileMsgContent,
   getImageMsgContent,
   getVideoMsgContent,
+  getGifMsgContent,
 } from './msgContent';
 import { outgoingMessageTransforms } from './outgoingMessageTransforms';
+import { getKlipyMxcUrl } from '$utils/klipy';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import type {
   AudioMessageRecorderHandle,
@@ -179,6 +182,8 @@ import { AudioMessageRecorder } from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
 import { PollDialog } from './poll-modals';
 import { LocationDialog } from './location-modal';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { GifIcon } from '@phosphor-icons/react';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -277,9 +282,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     // don't clobber the main room draft (and vice versa).
     const draftKey = threadRootId ?? roomId;
     const mx = useMatrixClient();
+    const clientConfig = useClientConfig();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [editorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
+    const [showGifPicker] = useSetting(settingsAtom, 'enableGifPicker');
 
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
@@ -570,26 +577,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       handleRemoveUpload(uploads.map((upload) => upload.file));
     };
 
-    const handleSendUpload = async (uploads: UploadSuccess[]) => {
+    const handleSendContents = async (contents: IContent[]) => {
       const plainText = toPlainText(editor.children).trim();
-
-      const contentsPromises = uploads.map(async (upload) => {
-        const fileItem = selectedFiles.find((f) => f.file === upload.file);
-        if (!fileItem) throw new Error('Broken upload');
-
-        if (fileItem.file.type.startsWith('image')) {
-          return getImageMsgContent(mx, fileItem, upload.mxc);
-        }
-        if (fileItem.file.type.startsWith('video')) {
-          return getVideoMsgContent(mx, fileItem, upload.mxc);
-        }
-        if (fileItem.file.type.startsWith('audio')) {
-          return getAudioMsgContent(fileItem, upload.mxc);
-        }
-        return getFileMsgContent(fileItem, upload.mxc);
-      });
-      handleCancelUpload(uploads);
-      const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
 
       /**
        * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
@@ -642,11 +631,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           setEditingScheduledDelayId(null);
           setScheduledTime(null);
         } catch (error) {
-          debugLog.error('message', 'Failed to schedule uploaded file message', {
+          debugLog.error('message', 'Failed to schedule message', {
             roomId,
             error: error instanceof Error ? error.message : String(error),
           });
-          log.error('failed to schedule uploaded message', { roomId }, error);
+          log.error('failed to schedule message', { roomId }, error);
           throw error;
         }
       } else {
@@ -656,11 +645,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             invalidate();
             setEditingScheduledDelayId(null);
           } catch {
-            debugLog.error(
-              'message',
-              'Failed to cancel scheduled event before immediate file send',
-              { roomId }
-            );
+            debugLog.error('message', 'Failed to cancel scheduled event before immediate send', {
+              roomId,
+            });
           }
         }
 
@@ -669,7 +656,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             mx
               .sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
               .then((res: { event_id: string }) => {
-                debugLog.info('message', 'Uploaded file message sent', {
+                debugLog.info('message', 'Message sent', {
                   roomId,
                   eventId: res.event_id,
                   msgtype: content.msgtype,
@@ -677,16 +664,38 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 return res;
               })
               .catch((error: unknown) => {
-                debugLog.error('message', 'Failed to send uploaded file message', {
+                debugLog.error('message', 'Failed to send message', {
                   roomId,
                   error: error instanceof Error ? error.message : String(error),
                 });
-                log.error('failed to send uploaded message', { roomId }, error);
+                log.error('failed to send message', { roomId }, error);
                 throw error;
               })
           )
         );
       }
+    };
+
+    const handleSendUpload = async (uploads: UploadSuccess[]) => {
+      const contentsPromises = uploads.map(async (upload) => {
+        const fileItem = selectedFiles.find((f) => f.file === upload.file);
+        if (!fileItem) throw new Error('Broken upload');
+
+        if (fileItem.file.type.startsWith('image')) {
+          return getImageMsgContent(mx, fileItem, upload.mxc);
+        }
+        if (fileItem.file.type.startsWith('video')) {
+          return getVideoMsgContent(mx, fileItem, upload.mxc);
+        }
+        if (fileItem.file.type.startsWith('audio')) {
+          return getAudioMsgContent(fileItem, upload.mxc);
+        }
+        return getFileMsgContent(fileItem, upload.mxc);
+      });
+      handleCancelUpload(uploads);
+      const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
+
+      await handleSendContents(contents);
     };
 
     const handleCloseAutocomplete = useCallback(() => {
@@ -1304,6 +1313,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       mx.sendEvent(roomId, EventType.Sticker, content);
     };
 
+    const handleGifSelect = async (gif: GifData, spoiler?: boolean) => {
+      const url = getKlipyMxcUrl(gif.url, clientConfig.gifs?.proxyUrl);
+
+      const content = await getGifMsgContent(mx, gif, url, spoiler);
+
+      await handleSendContents([content]);
+    };
+
     return (
       <div ref={ref}>
         {selectedFiles.length > 0 && (
@@ -1702,6 +1719,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         onEmojiSelect={handleEmoticonSelect}
                         onCustomEmojiSelect={handleEmoticonSelect}
                         onStickerSelect={handleStickerSelect}
+                        onGifSelect={handleGifSelect}
                         requestClose={() => {
                           setEmojiBoardTab((t) => {
                             if (t) {
@@ -1714,6 +1732,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       />
                     }
                   >
+                    {showGifPicker && (
+                      <IconButton
+                        aria-pressed={emojiBoardTab === EmojiBoardTab.Gif}
+                        onClick={() => setEmojiBoardTab(EmojiBoardTab.Gif)}
+                        variant="SurfaceVariant"
+                        size="300"
+                        radii="300"
+                      >
+                        {composerIcon(GifIcon, {
+                          weight: emojiBoardTab === EmojiBoardTab.Gif ? 'fill' : 'regular',
+                        })}
+                      </IconButton>
+                    )}
                     {!hideStickerBtn && (
                       <IconButton
                         aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
@@ -1732,7 +1763,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     <IconButton
                       ref={emojiBtnRef}
                       aria-pressed={
-                        hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
+                        hideStickerBtn
+                          ? emojiBoardTab === EmojiBoardTab.Emoji ||
+                            emojiBoardTab === EmojiBoardTab.Gif
+                          : emojiBoardTab === EmojiBoardTab.Emoji
                       }
                       onClick={() => setEmojiBoardTab(EmojiBoardTab.Emoji)}
                       variant="SurfaceVariant"

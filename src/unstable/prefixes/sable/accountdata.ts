@@ -14,3 +14,4 @@ export const MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME =
 
 export const MATRIX_SABLE_UNSTABLE_DISMISSED_INVITES = 'moe.sable.dismissed_invites';
 export const MATRIX_SABLE_UNSTABLE_ACCOUNT_ADDED_SERVERS_PROPERTY_NAME = 'moe.sable.added_servers';
+export const MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS = 'moe.sable.favorite_gifs';

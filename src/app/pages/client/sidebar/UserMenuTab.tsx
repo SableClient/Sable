@@ -39,7 +39,7 @@ import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { Check, chipIcon, Plus } from '$components/icons/phosphor';
 import { useSessionProfiles } from '$hooks/useSessionProfiles';
 import { useClientConfig } from '$hooks/useClientConfig';
-import { getHomePath, getLoginPath, withSearchParam } from '$pages/pathUtils';
+import { getHomePath, getLoginPath, getProfilePath, withSearchParam } from '$pages/pathUtils';
 import { initClient, logoutClient, stopClient } from '$client/initMatrix';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
@@ -48,6 +48,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { setUserPresence } from '$utils/presence';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { useProfileSelected } from '$hooks/router/useProfileSelected';
 
 const log = createLogger('AccountSwitcherTab');
 
@@ -528,6 +529,8 @@ export function PresenceMenuOption() {
 export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const profileSelected = useProfileSelected();
+  const navigate = useNavigate();
 
   const userId = mx.getUserId() ?? '';
   const profile = useUserProfile(userId);
@@ -553,6 +556,11 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
     : undefined;
 
   const handleToggle: MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (evt) => {
+    if(isMobile){
+      navigate(getProfilePath());
+      return;
+    }
+    
     const cords = evt.currentTarget.getBoundingClientRect();
     setMenuAnchor((cur) => (cur ? undefined : cords));
   };
@@ -560,7 +568,7 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
   const handleCloseMenu = () => setMenuAnchor(undefined);
 
   return (
-    <SidebarItem active={!!menuAnchor} isBottom={isBottom}>
+    <SidebarItem active={!!menuAnchor || profileSelected} isBottom={isBottom}>
       <SidebarItemTooltip
         tooltip={currentStatus || displayName}
         position={isBottom ? 'Top' : 'Right'}

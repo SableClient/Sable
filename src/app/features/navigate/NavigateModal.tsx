@@ -274,7 +274,7 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
   }, [listFocus.index]);
 
   return (
-    <Box direction="Column" style={{ width: '100%' }}>
+    <Box direction="Column" style={{ width: '100%', height: '100%' }}>
       {pickRoom && (
         <Box
           shrink="No"
@@ -320,12 +320,13 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
           onChange={handleInputChange}
           onKeyDown={handleInputKeyDown}
           disabled={pickRoom?.busy}
+          autoFocus
         />
       </Box>
       <Scroll>
         {roomsToRender.length === 0 && (
           <Box
-            style={{ paddingTop: config.space.S700, width: '100%' }}
+            style={{ paddingTop: config.space.S700, width: '100%', height: '100%' }}
             grow="Yes"
             alignItems="Center"
             justifyContent="Center"
@@ -506,16 +507,8 @@ export function SearchModalRenderer() {
       (event) => {
         if (isKeyHotkey('mod+k', event)) {
           event.preventDefault();
-          if (opened) {
-            setOpen(false);
-            return;
-          }
-
-          const portalContainer = document.getElementById('portalContainer');
-          if (portalContainer && portalContainer.children.length > 0) {
-            return;
-          }
-          setOpen(true);
+          setOpen(!opened);
+          return;
         }
       },
       [opened, setOpen]

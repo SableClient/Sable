@@ -15,10 +15,15 @@ import { settingsAtom } from '$state/settings';
 import { SidebarResizer } from '../sidebar/SidebarResizer';
 import { useSetAtom } from 'jotai';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
-import { ListMagnifyingGlassIcon } from '@phosphor-icons/react';
-import { RoomSearchModal } from '$features/navigate';
+import { AccountMenuOption, PresenceMenuOption } from '../sidebar/UserMenuTab';
+import { UserRoomProfile } from '$components/user-profile';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
 
-export function Navigate() {
+export function ProfileMobile() {
+  const mx = useMatrixClient();
+  const userId = mx.getUserId() ?? '';
+
   const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
@@ -77,8 +82,8 @@ export function Navigate() {
               <PageContentCenter style={{ height: '100%' }}>
                 <PageHeroSection style={{ height: '100%', paddingBottom: '0' }}>
                   <Box direction="Column" gap="700" alignItems="Center" style={{ height: '100%' }}>
-                    {sizedIcon(ListMagnifyingGlassIcon, '600')}
-                    <RoomSearchModal />
+                    <PresenceMenuOption/>
+                    <AccountMenuOption/>
                   </Box>
                 </PageHeroSection>
               </PageContentCenter>

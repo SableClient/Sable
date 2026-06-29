@@ -8,16 +8,19 @@ import { searchModalAtom } from '$state/searchModal';
 import { useInboxSelected } from '$hooks/router/useInbox';
 import { Box, color, Text } from 'folds';
 import { useNavigateSelected } from '$hooks/router/useNavigateSelected';
+import { useProfileSelected } from '$hooks/router/useProfileSelected';
 
 export function MessageTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
   const navigate = useNavigate();
   const [searchSelected] = useAtom(searchModalAtom);
   const navigateRouteActive = useNavigateSelected();
+  const profileRouteActive = useProfileSelected();
   const inboxSelected = useInboxSelected();
   const opened = !(
     matchPath(SETTINGS_PATH, location.pathname) ||
     searchSelected ||
     navigateRouteActive ||
+    profileRouteActive ||
     inboxSelected
   );
   const openSettings = () => navigate(HOME_PATH);

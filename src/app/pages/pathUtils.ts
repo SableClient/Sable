@@ -29,6 +29,7 @@ import {
   SPACE_SEARCH_PATH,
   CREATE_PATH,
   NAVIGATE_PATH,
+  PROFILE_PATH,
 } from './paths';
 
 export const joinPathComponent = (path: Path): string => path.pathname + path.search + path.hash;
@@ -156,6 +157,7 @@ export const getExploreServerPath = (server: string): string => {
 
 export const getCreatePath = (): string => CREATE_PATH;
 export const getNavigatePath = (): string => NAVIGATE_PATH;
+export const getProfilePath = (): string => PROFILE_PATH;
 
 export const getInboxPath = (): string => INBOX_PATH;
 export const getInboxNotificationsPath = (): string => INBOX_NOTIFICATIONS_PATH;

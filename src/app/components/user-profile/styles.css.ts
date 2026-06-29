@@ -44,6 +44,7 @@ export const UserAvatarContainer = style({
   position: 'relative',
   top: 0,
   transform: 'translateY(-50%)',
+  backgroundColor: color.Surface.Container,
 });
 export const UserHeroStatusContainer = style({
   position: 'relative',

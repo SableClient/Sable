@@ -17,7 +17,7 @@ import * as Sentry from '@sentry/react';
 import { isRoomPrivate } from '$utils/roomVisibility';
 import { canForwardEvent } from '$utils/room';
 import * as prefix from '$unstable/prefixes';
-import { SearchWrapper } from '$features/search';
+import { SearchWrapper } from '$features/navigate';
 const debugLog = createDebugLogger('MessageForward');
 
 // Message forwarding component

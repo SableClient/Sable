@@ -472,6 +472,7 @@ export function EmojiBoard({
 }: Readonly<EmojiBoardProps>) {
   const mx = useMatrixClient();
   const [saveStickerEmojiBandwidth] = useSetting(settingsAtom, 'saveStickerEmojiBandwidth');
+  const [showGifPicker] = useSetting(settingsAtom, 'enableGifPicker');
 
   const emojiTab = tab === EmojiBoardTab.Emoji;
   const gifTab = tab === EmojiBoardTab.Gif;
@@ -556,6 +557,10 @@ export function EmojiBoard({
 
     const searchGifs = useCallback(
       async (query: string) => {
+        if (!showGifPicker) {
+          return;
+        }
+
         const trimmedQuery = query.trim();
 
         setLoading(true);

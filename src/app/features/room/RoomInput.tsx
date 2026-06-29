@@ -286,6 +286,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [editorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
+    const [showGifPicker] = useSetting(settingsAtom, 'enableGifPicker');
 
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
@@ -1731,17 +1732,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       />
                     }
                   >
-                    <IconButton
-                      aria-pressed={emojiBoardTab === EmojiBoardTab.Gif}
-                      onClick={() => setEmojiBoardTab(EmojiBoardTab.Gif)}
-                      variant="SurfaceVariant"
-                      size="300"
-                      radii="300"
-                    >
-                      {composerIcon(GifIcon, {
-                        weight: emojiBoardTab === EmojiBoardTab.Gif ? 'fill' : 'regular',
-                      })}
-                    </IconButton>
+                    {showGifPicker && (
+                      <IconButton
+                        aria-pressed={emojiBoardTab === EmojiBoardTab.Gif}
+                        onClick={() => setEmojiBoardTab(EmojiBoardTab.Gif)}
+                        variant="SurfaceVariant"
+                        size="300"
+                        radii="300"
+                      >
+                        {composerIcon(GifIcon, {
+                          weight: emojiBoardTab === EmojiBoardTab.Gif ? 'fill' : 'regular',
+                        })}
+                      </IconButton>
+                    )}
                     {!hideStickerBtn && (
                       <IconButton
                         aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}

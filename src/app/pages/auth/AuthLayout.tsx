@@ -30,6 +30,7 @@ import type { SpecVersions } from '../../cs-api';
 import { ServerPicker } from './ServerPicker';
 import * as css from './styles.css';
 import { AuthFooter } from './AuthFooter';
+import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
 
 const currentAuthPath = (pathname: string): string => {
   if (matchPath(LOGIN_PATH, pathname)) {
@@ -116,6 +117,8 @@ export function AuthLayout() {
   const isAddingAccount = searchParams.get('addAccount') === '1';
 
   const clientConfig = useClientConfig();
+
+  const homeUrl = usePathWithOrigin(getHomePath());
 
   const defaultServer = clientDefaultServer(clientConfig);
   const decodedServer = urlEncodedServer && decodeURIComponent(urlEncodedServer);
@@ -208,11 +211,7 @@ export function AuthLayout() {
                 <Text size="T200" priority="300">
                   Adding account
                 </Text>
-                <Chip
-                  variant="Surface"
-                  radii="300"
-                  onClick={() => window.location.assign(getHomePath())}
-                >
+                <Chip variant="Surface" radii="300" onClick={() => window.location.assign(homeUrl)}>
                   <Text size="T200">Cancel</Text>
                 </Chip>
               </Box>

@@ -43,6 +43,7 @@ import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
 import { EmojiBoard } from '$components/emoji-board';
 import { MemoizedBody, type ReactionHandler } from '$features/room/message';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
+import { CopyIcon } from '@phosphor-icons/react';
 
 function WrappedMessage({
   isModal,
@@ -129,6 +130,38 @@ const MessageCopyLinkItem = as<
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
         Copy Link
+      </Text>
+    </MenuItem>
+  );
+});
+
+const MessageCopyTextItem = as<
+  'button',
+  {
+    room: Room;
+    mEvent: MatrixEvent;
+    onClose: () => void;
+  }
+>(({ room, mEvent, onClose, ...props }, ref) => {
+  const handleCopy = () => {
+    const content = mEvent.getContent();
+    const body = content?.body;
+
+    if (body) copyToClipboard(body);
+    onClose();
+  };
+
+  return (
+    <MenuItem
+      size="300"
+      after={menuIcon(CopyIcon)}
+      radii="300"
+      onClick={handleCopy}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        Copy Message
       </Text>
     </MenuItem>
   );
@@ -299,34 +332,32 @@ export function OptionQuickMenu({
           </>
         )}
         {!hideReplyButton && (
-          <>
-            <IconButton
-              onClick={(ev) => {
-                onReplyClick(ev);
-                closeMenu();
-              }}
-              data-event-id={mEvent.getId()}
-              variant="SurfaceVariant"
-              size="300"
-              radii="300"
-            >
-              {menuIcon(ArrowBendUpLeftIcon)}
-            </IconButton>
-            {!isThreadedMessage && (
-              <IconButton
-                onClick={(ev) => {
-                  onReplyClick(ev, true);
-                  closeMenu();
-                }}
-                data-event-id={mEvent.getId()}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-              >
-                {menuIcon(ChatCircleDots)}
-              </IconButton>
-            )}
-          </>
+          <IconButton
+            onClick={(ev) => {
+              onReplyClick(ev);
+              closeMenu();
+            }}
+            data-event-id={mEvent.getId()}
+            variant="SurfaceVariant"
+            size="300"
+            radii="300"
+          >
+            {menuIcon(ArrowBendUpLeftIcon)}
+          </IconButton>
+        )}
+        {!isThreadedMessage && (
+          <IconButton
+            onClick={(ev) => {
+              onReplyClick(ev, true);
+              closeMenu();
+            }}
+            data-event-id={mEvent.getId()}
+            variant="SurfaceVariant"
+            size="300"
+            radii="300"
+          >
+            {menuIcon(ChatCircleDots)}
+          </IconButton>
         )}
         {canEditEvent(mx, mEvent) && onEditId && (
           <IconButton
@@ -515,10 +546,7 @@ export function OptionMenu({
           escapeDeactivates: stopPropagation,
         }}
       >
-        <Menu
-          onContextMenu={(e) => e.preventDefault()}
-          className={isModal ? css.MessageOptionsMenu : ''}
-        >
+        <Menu className={isModal ? css.MessageOptionsMenu : ''}>
           {dragOpts?.dragHandle}
           {ActualMessage && !emojiBoardAnchor && (
             <>
@@ -527,6 +555,7 @@ export function OptionMenu({
             </>
           )}
           <Box
+            className={css.PreventSelect}
             direction="Column"
             grow="Yes"
             shrink="No"
@@ -534,6 +563,7 @@ export function OptionMenu({
             onTouchStart={dragOpts?.onTouchStart}
             onTouchMove={dragOpts?.onTouchMove}
             onTouchEnd={dragOpts?.onTouchEnd}
+            onContextMenu={(e) => e.preventDefault()}
           >
             {canSendReaction && onReactionToggle && setIsEmoji && (
               <MessageQuickReactions
@@ -577,44 +607,42 @@ export function OptionMenu({
                     }}
                   >
                     <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                      Add to User Sticker Pack
+                      Steal Sticker
                     </Text>
                   </MenuItem>
                 )}
               {relations && <MessageAllReactionItem room={room} relations={relations} />}
               {!hideReplyButton && (
-                <>
-                  <MenuItem
-                    size="300"
-                    after={menuIcon(ArrowBendUpLeftIcon)}
-                    radii="300"
-                    data-event-id={mEvent.getId()}
-                    onClick={(evt) => {
-                      onReplyClick(evt);
-                      onTotalClose();
-                    }}
-                  >
-                    <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                      Reply
-                    </Text>
-                  </MenuItem>
-                  {!isThreadedMessage && (
-                    <MenuItem
-                      size="300"
-                      after={menuIcon(ChatCircleDots)}
-                      radii="300"
-                      data-event-id={mEvent.getId()}
-                      onClick={(evt) => {
-                        onReplyClick(evt, true);
-                        onTotalClose();
-                      }}
-                    >
-                      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                        Reply in Thread
-                      </Text>
-                    </MenuItem>
-                  )}
-                </>
+                <MenuItem
+                  size="300"
+                  after={menuIcon(ArrowBendUpLeftIcon)}
+                  radii="300"
+                  data-event-id={mEvent.getId()}
+                  onClick={(evt) => {
+                    onReplyClick(evt);
+                    onTotalClose();
+                  }}
+                >
+                  <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                    Reply
+                  </Text>
+                </MenuItem>
+              )}
+              {!isThreadedMessage && (
+                <MenuItem
+                  size="300"
+                  after={menuIcon(ChatCircleDots)}
+                  radii="300"
+                  data-event-id={mEvent.getId()}
+                  onClick={(evt) => {
+                    onReplyClick(evt, true);
+                    onTotalClose();
+                  }}
+                >
+                  <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                    Reply in Thread
+                  </Text>
+                </MenuItem>
               )}
               {canEditEvent(mx, mEvent) && onEditId && (
                 <MenuItem
@@ -646,6 +674,7 @@ export function OptionMenu({
                 <MessageSourceCodeItem room={room} mEvent={mEvent} closeMenu={closeMenu} />
               )}
               <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={onTotalClose} />
+              <MessageCopyTextItem room={room} mEvent={mEvent} onClose={onTotalClose} />
               {canForwardEvent(mEvent) && (
                 <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
               )}

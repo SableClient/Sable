@@ -408,6 +408,8 @@ export function useProcessedTimeline({
           'm.room.name',
           'm.room.topic',
           'm.room.avatar',
+          'm.poll.start',
+          'org.matrix.msc3381.poll.start',
           'org.matrix.msc3401.call.member',
         ].includes(type);
 

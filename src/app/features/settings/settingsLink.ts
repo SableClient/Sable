@@ -27,6 +27,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'disable-media-auto-load',
     'display-bundled-embeds',
     'display-multiple-embeds',
+    'enable-gif-picker',
     'embed-youtube-links',
     'emoji-selector-threshold',
     'enable-swiping',

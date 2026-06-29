@@ -123,6 +123,7 @@ export interface Settings {
   clientUrlPreview: boolean;
   encClientUrlPreview: boolean;
   clientPreviewYoutube: boolean;
+  enableGifPicker: boolean;
   showInteractiveMap: boolean;
   showEncInteractiveMap: boolean;
 
@@ -265,6 +266,7 @@ export const defaultSettings: Settings = {
   clientUrlPreview: false,
   encClientUrlPreview: false,
   clientPreviewYoutube: false,
+  enableGifPicker: true,
   showInteractiveMap: true,
   showEncInteractiveMap: false,
   showHiddenEvents: false,

@@ -110,7 +110,9 @@ export function MessageSearch({
   ]);
 
   const isSearching =
-    !!msgSearchParams.term || (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0);
+    !!msgSearchParams.term ||
+    (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0) ||
+    (!!msgSearchParams.senders && msgSearchParams.senders.length > 0);
 
   const searchMessages = useMessageSearch(msgSearchParams);
 

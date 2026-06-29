@@ -99,7 +99,7 @@ function getDocument(
 let dirty = false;
 const FLUSH_DEBOUNCE_MS = 5000;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
-let flushTries = 0
+let flushTries = 0;
 
 let db: IDBDatabase | null = null;
 let document: Document<SearchIndexEvent> | null = null;
@@ -132,9 +132,9 @@ async function flushIndex(): Promise<void> {
 
 function scheduleFlush(): void {
   if (flushTimer !== null && flushTries <= 100) {
-    clearTimeout(flushTimer)
+    clearTimeout(flushTimer);
     flushTries += 1;
-  };
+  }
   flushTimer = setTimeout(() => {
     flushTimer = null;
     flushTries = 0;
@@ -215,28 +215,26 @@ self.addEventListener('message', async (event: MessageEvent<IndexWorkerMessageIn
         if (typeFilter && !typeFilter(ev)) return false;
         return true;
       }
-      
+
       if (!msg.term) {
-        const results: SearchIndexEvent[] = 
+        const results: SearchIndexEvent[] =
           //@ts-expect-error flexsearch types are very bad
-          [...document.store.values()]
-          .filter((v) => matchesFilters(v))
-          .slice(0, 1000);
-          post({ type: WorkerMessageTypeOut.QueryResult, id: msg.id, events: results });
+          [...document.store.values()].filter((v) => matchesFilters(v)).slice(0, 1000);
+
+        post({ type: WorkerMessageTypeOut.QueryResult, id: msg.id, events: results });
         return;
       }
 
-
-      let result = 
-        document.search(msg.term, {
+      let result = (
+        await document.searchAsync(msg.term, {
           //@ts-expect-error flexsearch types are very bad
           limit: document.store.size,
           enrich: true,
         })
+      )
         .flatMap((r) => r.result.map((v) => v.doc!))
         .filter((r) => r != undefined)
-        .filter((v) => matchesFilters(v))
-        .slice(0, 1000);
+        .filter((v) => matchesFilters(v));
 
       post({ type: WorkerMessageTypeOut.QueryResult, id: msg.id, events: result! });
 
@@ -307,20 +305,20 @@ self.addEventListener('message', async (event: MessageEvent<IndexWorkerMessageIn
     case WorkerMessageTypeIn.RedactEvents:
       if (!document) return;
       for (const ev of msg.eventIds) {
-        document.remove(ev)
+        document.remove(ev);
       }
       dirty = true;
       scheduleFlush();
-      break
+      break;
     case WorkerMessageTypeIn.EditEvents:
       if (!document) return;
       for (const id in msg.events) {
-        if (!msg.events[id]) continue
-        document.set(id, msg.events[id])
+        if (!msg.events[id]) continue;
+        document.set(id, msg.events[id]);
       }
       dirty = true;
       scheduleFlush();
-      break
+      break;
     case WorkerMessageTypeIn.Flush:
       void flushIndex().then(() => {
         post({

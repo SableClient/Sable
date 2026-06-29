@@ -215,10 +215,9 @@ export const useMessageSearch = (params: MessageSearchParams) => {
 
   const searchMessages = useCallback(
     async (nextBatch?: string) => {
-      const idbSearchAvailable =
-        settings.idbSearchIndex && !!searchIndex?.ready;
+      const idbSearchAvailable = settings.idbSearchIndex && !!searchIndex?.ready;
       const hasHasTypes = hasTypes && hasTypes.length > 0;
-      if (!(term || (idbSearchAvailable && hasHasTypes)))
+      if (!(term || (idbSearchAvailable && (hasHasTypes || senders))))
         return {
           highlights: [],
           groups: [],

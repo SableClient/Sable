@@ -13,6 +13,7 @@ import {
   Tooltip,
   toRem,
   Chip,
+  config,
 } from 'folds';
 import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
@@ -42,6 +43,7 @@ import * as css from './styles.css';
 import { copyToClipboard } from '$utils/dom';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { CopyIcon, CrossIcon } from '@phosphor-icons/react';
+import { useOpenSettings } from '$features/settings';
 
 type UserHeroProps = {
   userId: string;
@@ -49,8 +51,18 @@ type UserHeroProps = {
   bannerUrl?: string;
   presence?: UserPresence;
   autoplayGifs?: boolean;
+  showColor?: boolean;
+  allowEditing?: boolean;
 };
-export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs }: UserHeroProps) {
+export function UserHero({
+  userId,
+  avatarUrl,
+  bannerUrl,
+  presence,
+  autoplayGifs,
+  allowEditing = false,
+  showColor = true,
+}: UserHeroProps) {
   const [viewAvatar, setViewAvatar] = useState<string>();
   const [isFullStatus, setIsFullStatus] = useState(false);
 
@@ -96,9 +108,14 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
     ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF', cardColor)) && '#000000') ||
     undefined;
   const statusHoverBrightness = fetchedBrightness === 'light' ? 0.94 : 1.08;
+  const openSettings = useOpenSettings();
 
   return (
-    <Box direction="Column" className={css.UserHero} style={{ backgroundColor: backgroundColor }}>
+    <Box
+      direction="Column"
+      className={css.UserHero}
+      style={showColor ? { backgroundColor: backgroundColor } : {}}
+    >
       <div
         className={css.UserHeroCoverContainer}
         style={{
@@ -164,22 +181,28 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
             </Overlay>
           )}
         </div>
-        {status && status.length > 0 && (
+        {((status && status.length > 0) || allowEditing) && (
           <div className={css.UserHeroStatusContainer}>
             <Tooltip
               radii="400"
               variant="Surface"
-              onClick={isExpandable ? () => setIsFullStatus(!isFullStatus) : undefined}
+              role={allowEditing ? 'button' : undefined}
+              onClick={
+                allowEditing
+                  ? () => openSettings('account', 'status')
+                  : isExpandable
+                    ? () => setIsFullStatus(!isFullStatus)
+                    : undefined
+              }
               className={classNames(
                 css.UserHeroStatusTooltip,
                 isExpandable && css.UserHeroStatusTooltipInteractive
               )}
               style={{
                 maxHeight: isFullStatus ? toRem(105) : toRem(48),
-                cursor: isExpandable ? 'pointer' : 'default',
-                transform: 'none',
-                transition: 'none',
+                cursor: allowEditing || isExpandable ? 'pointer' : 'default',
                 display: 'flex',
+                width: 'fit-content',
                 padding: `${toRem(8)} ${toRem(12)}`,
                 backgroundColor: statusSurfaceColor,
                 color: textColor,
@@ -195,8 +218,14 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
               <Box direction="Row" gap="100" style={{ height: '100%', width: '100%' }}>
                 {isFullStatus ? (
                   <Scroll visibility="Hover" hideTrack style={{ height: '100%', flex: 1 }}>
-                    <Text size="T200" style={{ wordBreak: 'break-word' }}>
-                      {status}
+                    <Text
+                      size="T200"
+                      style={{
+                        wordBreak: 'break-word',
+                        fontStyle: allowEditing && !status ? 'italic' : 'normal',
+                      }}
+                    >
+                      {status || (allowEditing && "What's on your mind?")}
                     </Text>
                   </Scroll>
                 ) : (
@@ -208,9 +237,11 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden',
+                      fontStyle: allowEditing && !status ? 'italic' : 'normal',
+                      opacity: allowEditing && !status ? config.opacity.Placeholder : 1,
                     }}
                   >
-                    {status}
+                    {status || (allowEditing && "What's on your mind?")}
                   </Text>
                 )}
 
@@ -241,16 +272,28 @@ type UserHeroNameProps = {
   server?: string;
   customHeroCards?: boolean;
 };
-export function UserHeroName({ displayName, userId, server, customHeroCards }: UserHeroNameProps) {
-  const username = getMxIdLocalPart(userId);
-  const nick = useNickname(userId);
+
+type UserHeroNameInnerProps = {
+  shownName: string;
+  username?: string;
+  nick?: string;
+  server?: string;
+  color?: string;
+  font?: string;
+  customHeroCards?: boolean;
+};
+
+function UserHeroNameInner({
+  shownName,
+  nick,
+  username,
+  server,
+  color,
+  font,
+}: UserHeroNameInnerProps) {
   const [copied, setCopied] = useTimeoutToggle();
   const [isHovered, setIsHovered] = useState(false);
   const isSuccess = useRef(false);
-
-  // Sable username color and fonts
-  const { color, font } = useSableCosmetics(userId, useRoom(), customHeroCards);
-  const shownName = nick ?? displayName ?? username ?? userId;
 
   return (
     <Box grow="Yes" direction="Column" gap="0">
@@ -294,5 +337,42 @@ export function UserHeroName({ displayName, userId, server, customHeroCards }: U
         </Text>
       </Box>
     </Box>
+  );
+}
+
+export function UserHeroName({ displayName, userId, server, customHeroCards }: UserHeroNameProps) {
+  const username = getMxIdLocalPart(userId);
+  const nick = useNickname(userId);
+
+  // Sable username color and fonts
+  const { color, font } = useSableCosmetics(userId, useRoom(), customHeroCards);
+  const shownName = nick ?? displayName ?? username ?? userId;
+
+  return (
+    <UserHeroNameInner
+      username={username}
+      server={server}
+      shownName={shownName}
+      color={color}
+      font={font}
+    />
+  );
+}
+
+export function GlobalUserHeroName({ displayName, userId, server }: UserHeroNameProps) {
+  const username = getMxIdLocalPart(userId);
+  const nick = useNickname(userId);
+  const profile = useUserProfile(userId);
+
+  const shownName = nick ?? displayName ?? username ?? userId;
+
+  return (
+    <UserHeroNameInner
+      username={username}
+      server={server}
+      shownName={shownName}
+      font={profile.resolvedFont}
+      color={profile.resolvedColor}
+    />
   );
 }

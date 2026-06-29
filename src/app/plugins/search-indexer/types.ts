@@ -13,7 +13,8 @@ export type SearchIndexEvent = {
   filename?: string;
   url?: string;
   info?: IFileInfo;
-  file?: unknown;
+  // oxlint-disable-next-line typescript/no-explicit-any
+  file?: any;
 };
 
 export enum WorkerMessageTypeIn {

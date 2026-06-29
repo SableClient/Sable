@@ -140,7 +140,8 @@ function scheduleFlush(): void {
 }
 
 function post(msg: IndexWorkerMessageOut): void {
-  self.postMessage(msg, self.location.origin);
+  // oxlint-disable-next-line unicorn/require-post-message-target-origin
+  self.postMessage(msg);
 }
 
 function makeTypeFilter(

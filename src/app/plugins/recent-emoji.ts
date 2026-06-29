@@ -13,8 +13,20 @@ export type IRecentEmojiContent = {
 };
 
 export const getRecentEmojis = (mx: MatrixClient, limit?: number): IEmoji[] => {
-  const recentEmojiEvent = getAccountData(mx, CustomAccountDataEvent.ElementRecentEmoji);
+  let recentEmojiEvent = getAccountData(mx, CustomAccountDataEvent.RecentEmoji);
+  let isLegacy = false;
+  if (!recentEmojiEvent) {
+    recentEmojiEvent = getAccountData(mx, CustomAccountDataEvent.LegacyElementRecentEmoji);
+    isLegacy = true;
+  }
   const recentEmoji = recentEmojiEvent?.getContent<IRecentEmojiContent>().recent_emoji;
+
+  if (isLegacy && Array.isArray(recentEmoji)) {
+    mx.setAccountData(CustomAccountDataEvent.RecentEmoji, {
+      recent_emoji: recentEmoji,
+    }).catch(() => {});
+  }
+
   if (!Array.isArray(recentEmoji)) return [];
 
   return recentEmoji
@@ -28,7 +40,10 @@ export const getRecentEmojis = (mx: MatrixClient, limit?: number): IEmoji[] => {
 };
 
 export function addRecentEmoji(mx: MatrixClient, unicode: string) {
-  const recentEmojiEvent = getAccountData(mx, CustomAccountDataEvent.ElementRecentEmoji);
+  let recentEmojiEvent = getAccountData(mx, CustomAccountDataEvent.RecentEmoji);
+  if (!recentEmojiEvent) {
+    recentEmojiEvent = getAccountData(mx, CustomAccountDataEvent.LegacyElementRecentEmoji);
+  }
   const recentEmojiContent = recentEmojiEvent?.getContent<IRecentEmojiContent>();
   const recentEmoji =
     recentEmojiContent && Array.isArray(recentEmojiContent.recent_emoji)
@@ -45,7 +60,7 @@ export function addRecentEmoji(mx: MatrixClient, unicode: string) {
     entry[1] += 1;
   }
   recentEmoji.unshift(entry);
-  mx.setAccountData(CustomAccountDataEvent.ElementRecentEmoji, {
+  mx.setAccountData(CustomAccountDataEvent.RecentEmoji, {
     recent_emoji: recentEmoji.slice(0, 100),
   });
 }

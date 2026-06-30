@@ -348,16 +348,16 @@ export class CallEmbed {
     const syncStyles = () => {
       Array.from(document.styleSheets).forEach((sheet) => {
         try {
-          if (!sheet.href || sheet.href.startsWith(window.location.origin)) {
+          if (!sheet.href) {
             const rules = Array.from(sheet.cssRules)
               .map((r) => r.cssText)
-              .join('\\n');
+              .join('\n');
             if (rules && !doc.head.innerHTML.includes(rules.substring(0, 50))) {
               const styleEl = doc.createElement('style');
               styleEl.textContent = rules;
               doc.head.append(styleEl);
             }
-          } else if (sheet.href) {
+          } else {
             const link = doc.createElement('link');
             link.rel = 'stylesheet';
             link.href = sheet.href;
@@ -418,7 +418,7 @@ export class CallEmbed {
           --cpd-color-border-focused: ${resolveCssVar(color.Primary.Main)} !important;
 
           /* Typography and Icons */
-          --cpd-font-family-sans: "Nunito Variable", sans-serif !important;
+          --cpd-font-family-sans: ${appFontFamily} !important;
           --cpd-color-text-primary: ${resolveCssVar(color.Background.OnContainer)} !important;
           --cpd-color-text-secondary: ${resolveCssVar(color.Surface.OnContainer)} !important;
           --cpd-color-icon-primary: ${resolveCssVar(color.Background.OnContainer)} !important;

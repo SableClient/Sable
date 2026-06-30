@@ -234,5 +234,5 @@ export const TextLink = style({
   ':hover': {
     textDecoration: 'underline',
     cursor: 'pointer',
-  }
+  },
 });

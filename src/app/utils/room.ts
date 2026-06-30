@@ -23,11 +23,13 @@ import {
   MsgType,
   KnownMembership,
   RoomType,
+  JoinRule,
 } from '$types/matrix-sdk';
 
 import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
 import { NotificationType } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';
+import { IconName, IconSrc } from 'folds';
 
 export const getStateEvent = (
   room: Room,
@@ -508,6 +510,46 @@ export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): U
   }, []);
 
   return unreadInfos;
+};
+
+export const getRoomIconSrc = (
+  icons: Record<IconName, IconSrc>,
+  roomType?: string,
+  joinRule?: JoinRule
+): IconSrc => {
+  if (roomType === RoomType.Space) {
+    if (joinRule === JoinRule.Public) return icons.SpaceGlobe;
+    if (
+      joinRule === JoinRule.Invite ||
+      joinRule === JoinRule.Knock ||
+      joinRule === JoinRule.Private
+    ) {
+      return icons.SpaceLock;
+    }
+    return icons.Space;
+  }
+
+  if (roomType === RoomType.UnstableCall) {
+    if (joinRule === JoinRule.Public) return icons.VolumeHighGlobe;
+    if (
+      joinRule === JoinRule.Invite ||
+      joinRule === JoinRule.Knock ||
+      joinRule === JoinRule.Private
+    ) {
+      return icons.VolumeHighLock;
+    }
+    return icons.VolumeHigh;
+  }
+
+  if (joinRule === JoinRule.Public) return icons.HashGlobe;
+  if (
+    joinRule === JoinRule.Invite ||
+    joinRule === JoinRule.Knock ||
+    joinRule === JoinRule.Private
+  ) {
+    return icons.HashLock;
+  }
+  return icons.Hash;
 };
 
 export const getRoomAvatarUrl = (

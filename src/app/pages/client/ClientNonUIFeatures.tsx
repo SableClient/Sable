@@ -63,6 +63,7 @@ import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
+import { SearchIndexProvider } from '$components/SearchIndexProvider';
 
 const pushRelayLog = createDebugLogger('push-relay');
 
@@ -869,7 +870,7 @@ function SettingsSyncFeature() {
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
-    <>
+    <SearchIndexProvider>
       <SettingsSyncFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
@@ -889,6 +890,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SentryTagsFeature />
       <HealthMonitor />
       <IconSizesProvider>{children}</IconSizesProvider>
-    </>
+    </SearchIndexProvider>
   );
 }

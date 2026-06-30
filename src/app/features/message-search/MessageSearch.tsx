@@ -21,8 +21,8 @@ import { useRooms } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { mDirectAtom } from '$state/mDirectList';
 import { VirtualTile } from '$components/virtualizer';
-import type { MessageSearchParams } from './useMessageSearch';
-import { useMessageSearch } from './useMessageSearch';
+import type { MessageSearchParams, SearchHasType } from './useMessageSearch';
+import { useMessageSearch, VALID_HAS_TYPES } from './useMessageSearch';
 import { SearchResultGroup } from './SearchResultGroup';
 import { SearchInput } from './SearchInput';
 import { SearchFilters } from './SearchFilters';
@@ -35,6 +35,7 @@ const useSearchPathSearchParams = (searchParams: URLSearchParams): SearchPathSea
       order: searchParams.get('order') ?? undefined,
       rooms: searchParams.get('rooms') ?? undefined,
       senders: searchParams.get('senders') ?? undefined,
+      has: searchParams.get('has') ?? undefined,
     }),
     [searchParams]
   );
@@ -55,7 +56,7 @@ export function MessageSearch({
 }: Readonly<MessageSearchProps>) {
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
-  const allRooms = useRooms(mx, allRoomsAtom, mDirects);
+  const allRooms = useAtomValue(allRoomsAtom);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
@@ -84,6 +85,13 @@ export function MessageSearch({
     }
     return undefined;
   }, [searchPathSearchParams.senders]);
+  const searchParamHasTypes = useMemo(() => {
+    if (!searchPathSearchParams.has) return undefined;
+    const decoded = decodeSearchParamValueArray(searchPathSearchParams.has).filter(
+      (t): t is SearchHasType => VALID_HAS_TYPES.includes(t as SearchHasType)
+    );
+    return decoded.length > 0 ? decoded : undefined;
+  }, [searchPathSearchParams.has]);
 
   const msgSearchParams: MessageSearchParams = useMemo(() => {
     const isGlobal = searchPathSearchParams.global === 'true';
@@ -94,19 +102,31 @@ export function MessageSearch({
       order: searchPathSearchParams.order ?? SearchOrderBy.Recent,
       rooms: searchParamRooms ?? defaultRooms,
       senders: searchParamsSenders ?? senders,
+      hasTypes: searchParamHasTypes,
     };
-  }, [searchPathSearchParams, searchParamRooms, searchParamsSenders, rooms, senders]);
+  }, [
+    searchPathSearchParams,
+    searchParamRooms,
+    searchParamsSenders,
+    searchParamHasTypes,
+    rooms,
+    senders,
+  ]);
+
+  const isSearching =
+    !!msgSearchParams.term || (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0);
 
   const searchMessages = useMessageSearch(msgSearchParams);
 
   const { status, data, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    enabled: !!msgSearchParams.term,
+    enabled: isSearching,
     queryKey: [
       'search',
       msgSearchParams.term,
       msgSearchParams.order,
       msgSearchParams.rooms,
       msgSearchParams.senders,
+      msgSearchParams.hasTypes,
     ],
     queryFn: ({ pageParam }) => searchMessages(pageParam),
     initialPageParam: '',
@@ -178,6 +198,28 @@ export function MessageSearch({
     });
   };
 
+  const handleHasTypesChange = (hasTypes?: SearchHasType[]) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('has');
+      if (hasTypes && hasTypes.length > 0) {
+        newParams.append('has', encodeSearchParamValueArray(hasTypes));
+      }
+      return newParams;
+    });
+  };
+
+  const handleSendersChange = (newSenders?: string[]) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('senders');
+      if (newSenders && newSenders.length > 0) {
+        newParams.append('senders', encodeSearchParamValueArray(newSenders));
+      }
+      return newParams;
+    });
+  };
+
   const lastVItem = vItems.at(-1);
   const lastVItemIndex: number | undefined = lastVItem?.index;
   const lastGroupIndex = groups.length - 1;
@@ -224,6 +266,10 @@ export function MessageSearch({
           onGlobalChange={handleGlobalChange}
           order={msgSearchParams.order}
           onOrderChange={handleOrderChange}
+          hasTypes={searchParamHasTypes}
+          onHasTypesChange={handleHasTypesChange}
+          senders={searchParamsSenders ?? senders}
+          onSendersChange={handleSendersChange}
         />
       </Box>
 

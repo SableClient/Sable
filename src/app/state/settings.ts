@@ -142,6 +142,7 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
+  idbSearchIndex: boolean;
 
   // Cosmetics!
   iconCompactSizePx: number;
@@ -298,6 +299,7 @@ export const defaultSettings: Settings = {
 
   developerTools: false,
   settingsSyncEnabled: false,
+  idbSearchIndex: false,
 
   // Cosmetics!
   iconCompactSizePx: 16,

@@ -201,7 +201,12 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'session-replay',
     'traces-profiles',
   ],
-  experimental: ['bandwidth-saving-emojis', 'sharehistory-command', 'show-personas-tab'],
+  experimental: [
+    'bandwidth-saving-emojis',
+    'sharehistory-command',
+    'show-personas-tab',
+    'local-message-indexing',
+  ],
   about: [
     'base-url',
     'clear-cache-and-reload',

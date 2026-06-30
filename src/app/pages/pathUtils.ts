@@ -28,6 +28,7 @@ import {
   SPACE_ROOM_PATH,
   SPACE_SEARCH_PATH,
   CREATE_PATH,
+  DIRECT_SEARCH_PATH,
 } from './paths';
 
 export const joinPathComponent = (path: Path): string => path.pathname + path.search + path.hash;
@@ -102,6 +103,7 @@ export const getHomeRoomPath = (roomIdOrAlias: string, eventId?: string): string
 
 export const getDirectPath = (): string => DIRECT_PATH;
 export const getDirectCreatePath = (): string => DIRECT_CREATE_PATH;
+export const getDirectSearchPath = (): string => DIRECT_SEARCH_PATH;
 export const getDirectRoomPath = (roomIdOrAlias: string, eventId?: string): string => {
   const params = {
     roomIdOrAlias: encodeURIComponent(roomIdOrAlias),

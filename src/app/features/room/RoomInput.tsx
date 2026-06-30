@@ -274,10 +274,22 @@ interface RoomInputProps {
   room: Room;
   threadRootId?: string;
   onEditLastMessage?: () => void;
+  showUploadCardBottom?: boolean;
 }
 
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
-  ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
+  (
+    {
+      editor,
+      fileDropContainerRef,
+      roomId,
+      room,
+      threadRootId,
+      onEditLastMessage,
+      showUploadCardBottom,
+    },
+    ref
+  ) => {
     // When in thread mode, isolate drafts by thread root ID so thread replies
     // don't clobber the main room draft (and vice versa).
     const draftKey = threadRootId ?? roomId;
@@ -1323,7 +1335,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     return (
       <div ref={ref}>
-        {selectedFiles.length > 0 && (
+        {selectedFiles.length > 0 && !showUploadCardBottom && (
           <UploadBoard
             header={
               <UploadBoardHeader
@@ -1891,6 +1903,41 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
           bottom={<MarkdownFormattingToolbarBottom />}
         />
+        {selectedFiles.length > 0 && showUploadCardBottom && (
+          <UploadBoard
+            header={
+              <UploadBoardHeader
+                open={uploadBoard}
+                onToggle={() => setUploadBoard(!uploadBoard)}
+                uploadFamilyObserverAtom={uploadFamilyObserverAtom}
+                onSend={handleSendUpload}
+                imperativeHandlerRef={uploadBoardHandlers}
+                onCancel={handleCancelUpload}
+              />
+            }
+            showUploadCardBottom
+          >
+            {uploadBoard && (
+              <Scroll size="300" hideTrack visibility="Hover">
+                <UploadBoardContent>
+                  {Array.from(selectedFiles)
+                    .toReversed()
+                    .map((fileItem) => (
+                      <UploadCardRenderer
+                        key={getUploadItemKey(fileItem)}
+                        isEncrypted={!!fileItem.encInfo}
+                        fileItem={fileItem}
+                        setMetadata={handleFileMetadata}
+                        onRemove={handleRemoveUpload}
+                        setDesc={setDesc}
+                        roomId={roomId}
+                      />
+                    ))}
+                </UploadBoardContent>
+              </Scroll>
+            )}
+          </UploadBoard>
+        )}
         {showSchedulePicker && (
           <SchedulePickerDialog
             initialTime={scheduledTime?.getTime()}

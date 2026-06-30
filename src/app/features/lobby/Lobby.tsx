@@ -37,7 +37,8 @@ import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { getCanonicalAliasOrRoomId, rateLimitedActions } from '$utils/matrix';
-import { getSpaceRoomPath } from '$pages/pathUtils';
+import { getSpaceRoomPath, getSpaceForumPath } from '$pages/pathUtils';
+import { CustomRoomType } from '$types/matrix/room';
 
 import { ASCIILexicalTable, orderKeys } from '$utils/ASCIILexicalTable';
 import { getStateEvent } from '$utils/room';
@@ -527,7 +528,12 @@ export function Lobby() {
     const rId = evt.currentTarget.getAttribute('data-room-id');
     if (!rId) return;
     const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, space.roomId);
-    navigate(getSpaceRoomPath(pSpaceIdOrAlias, getCanonicalAliasOrRoomId(mx, rId)));
+    const targetRoom = mx.getRoom(rId);
+    if (targetRoom?.getType() === CustomRoomType.Forum) {
+      navigate(getSpaceForumPath(pSpaceIdOrAlias, getCanonicalAliasOrRoomId(mx, rId)));
+    } else {
+      navigate(getSpaceRoomPath(pSpaceIdOrAlias, getCanonicalAliasOrRoomId(mx, rId)));
+    }
   };
 
   const togglePinToSidebar = useCallback(

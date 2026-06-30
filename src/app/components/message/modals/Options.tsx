@@ -282,6 +282,7 @@ export function OptionQuickMenu({
   onReplyClick,
   onEditId,
   hideReadReceipts,
+  hideReplyButton,
   showDeveloperTools,
   canPinEvent,
   cleanedDisplayName,
@@ -330,18 +331,20 @@ export function OptionQuickMenu({
             </IconButton>
           </>
         )}
-        <IconButton
-          onClick={(ev) => {
-            onReplyClick(ev);
-            closeMenu();
-          }}
-          data-event-id={mEvent.getId()}
-          variant="SurfaceVariant"
-          size="300"
-          radii="300"
-        >
-          {menuIcon(ArrowBendUpLeftIcon)}
-        </IconButton>
+        {!hideReplyButton && (
+          <IconButton
+            onClick={(ev) => {
+              onReplyClick(ev);
+              closeMenu();
+            }}
+            data-event-id={mEvent.getId()}
+            variant="SurfaceVariant"
+            size="300"
+            radii="300"
+          >
+            {menuIcon(ArrowBendUpLeftIcon)}
+          </IconButton>
+        )}
         {!isThreadedMessage && (
           <IconButton
             onClick={(ev) => {
@@ -384,6 +387,7 @@ export function OptionQuickMenu({
               onReplyClick={onReplyClick}
               onEditId={onEditId}
               hideReadReceipts={hideReadReceipts}
+              hideReplyButton={hideReplyButton}
               showDeveloperTools={showDeveloperTools}
               canPinEvent={canPinEvent}
               cleanedDisplayName={cleanedDisplayName}
@@ -431,6 +435,7 @@ export type OptionMenuProps = {
   ) => void;
   onEditId?: (eventId?: string) => void;
   hideReadReceipts?: boolean;
+  hideReplyButton?: boolean;
   showDeveloperTools?: boolean;
   canPinEvent?: boolean;
   cleanedDisplayName?: string;
@@ -456,6 +461,7 @@ export function OptionMenu({
   onReplyClick,
   onEditId,
   hideReadReceipts,
+  hideReplyButton,
   showDeveloperTools,
   canPinEvent,
   cleanedDisplayName,
@@ -606,20 +612,22 @@ export function OptionMenu({
                   </MenuItem>
                 )}
               {relations && <MessageAllReactionItem room={room} relations={relations} />}
-              <MenuItem
-                size="300"
-                after={menuIcon(ArrowBendUpLeftIcon)}
-                radii="300"
-                data-event-id={mEvent.getId()}
-                onClick={(evt) => {
-                  onReplyClick(evt);
-                  onTotalClose();
-                }}
-              >
-                <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                  Reply
-                </Text>
-              </MenuItem>
+              {!hideReplyButton && (
+                <MenuItem
+                  size="300"
+                  after={menuIcon(ArrowBendUpLeftIcon)}
+                  radii="300"
+                  data-event-id={mEvent.getId()}
+                  onClick={(evt) => {
+                    onReplyClick(evt);
+                    onTotalClose();
+                  }}
+                >
+                  <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                    Reply
+                  </Text>
+                </MenuItem>
+              )}
               {!isThreadedMessage && (
                 <MenuItem
                   size="300"
@@ -861,6 +869,7 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
             canSendReaction={options.canSendReaction}
             isModal
             dragOpts={dragOpts}
+            hideReplyButton={options.hideReplyButton}
           />
         </Box>
       </Box>

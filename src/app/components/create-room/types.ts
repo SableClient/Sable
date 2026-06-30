@@ -1,6 +1,7 @@
 export enum CreateRoomType {
   TextRoom = 'text',
   VoiceRoom = 'voice',
+  ForumRoom = 'forum',
 }
 
 export enum CreateRoomAccess {

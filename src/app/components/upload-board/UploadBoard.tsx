@@ -11,21 +11,27 @@ import * as css from './UploadBoard.css';
 
 type UploadBoardProps = {
   header: ReactNode;
+  showUploadCardBottom?: boolean;
 };
-export const UploadBoard = as<'div', UploadBoardProps>(({ header, children, ...props }, ref) => (
-  <Box className={css.UploadBoardBase} {...props} ref={ref}>
-    <Box className={css.UploadBoardContainer} justifyContent="End">
-      <Box className={classNames(css.UploadBoard)} direction="Column">
-        <Box grow="Yes" direction="Column">
-          {children}
-        </Box>
-        <Box direction="Column" shrink="No">
-          {header}
+export const UploadBoard = as<'div', UploadBoardProps>(
+  ({ header, showUploadCardBottom, children, ...props }, ref) => (
+    <Box className={css.UploadBoardBase} {...props} ref={ref}>
+      <Box
+        className={css.UploadBoardContainer({ isBottom: showUploadCardBottom === true })}
+        justifyContent="End"
+      >
+        <Box className={classNames(css.UploadBoard)} direction="Column">
+          <Box grow="Yes" direction="Column">
+            {children}
+          </Box>
+          <Box direction="Column" shrink="No">
+            {header}
+          </Box>
         </Box>
       </Box>
     </Box>
-  </Box>
-));
+  )
+);
 
 export type UploadBoardImperativeHandlers = { handleSend: () => Promise<void> };
 

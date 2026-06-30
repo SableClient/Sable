@@ -45,12 +45,14 @@ export type RoomSearchParams = {
   viaServers?: string;
 };
 export const ROOM_PATH_SEGMENT = ':roomIdOrAlias/:eventId?/';
+export const ROOM_FORUM_PATH_SEGMENT = ':roomIdOrAlias/forum/';
 
 export const HOME_PATH = '/home/';
 export const HOME_CREATE_PATH = `/home/${CREATE_PATH_SEGMENT}`;
 export const HOME_JOIN_PATH = `/home/${JOIN_PATH_SEGMENT}`;
 export const HOME_SEARCH_PATH = `/home/${SEARCH_PATH_SEGMENT}`;
 export const HOME_ROOM_PATH = `/home/${ROOM_PATH_SEGMENT}`;
+export const HOME_ROOM_FORUM_PATH = `/home/${ROOM_FORUM_PATH_SEGMENT}`;
 
 export const DIRECT_PATH = '/direct/';
 export type DirectCreateSearchParams = {
@@ -58,11 +60,13 @@ export type DirectCreateSearchParams = {
 };
 export const DIRECT_CREATE_PATH = `/direct/${CREATE_PATH_SEGMENT}`;
 export const DIRECT_ROOM_PATH = `/direct/${ROOM_PATH_SEGMENT}`;
+export const DIRECT_ROOM_FORUM_PATH = `/direct/${ROOM_FORUM_PATH_SEGMENT}`;
 
 export const SPACE_PATH = '/:spaceIdOrAlias/';
 export const SPACE_LOBBY_PATH = `/:spaceIdOrAlias/${LOBBY_PATH_SEGMENT}`;
 export const SPACE_SEARCH_PATH = `/:spaceIdOrAlias/${SEARCH_PATH_SEGMENT}`;
 export const SPACE_ROOM_PATH = `/:spaceIdOrAlias/${ROOM_PATH_SEGMENT}`;
+export const SPACE_ROOM_FORUM_PATH = `/:spaceIdOrAlias/${ROOM_FORUM_PATH_SEGMENT}`;
 
 export const FEATURED_PATH_SEGMENT = 'featured/';
 export const SERVER_PATH_SEGMENT = ':server/';

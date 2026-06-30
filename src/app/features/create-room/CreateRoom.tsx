@@ -27,12 +27,14 @@ import { getRoomStandaloneIconComponent } from '$components/icons/roomIcons';
 import {
   CaretDown,
   CaretUp,
+  Chats,
   Hash,
   sizedIcon,
   SpeakerHigh,
   Warning,
   type IconSizeToken,
 } from '$components/icons/phosphor';
+import { CustomRoomType } from '$types/matrix/room';
 import { createDebugLogger } from '$utils/debugLogger';
 import {
   restrictedSupported,
@@ -49,20 +51,20 @@ const getCreateRoomAccessToIcon = (
   type?: CreateRoomType,
   size: IconSizeToken = '400'
 ): ReactNode => {
-  const isVoiceRoom = type === CreateRoomType.VoiceRoom;
+  let roomType: string | undefined;
+  if (type === CreateRoomType.VoiceRoom) roomType = RoomType.UnstableCall;
+  if (type === CreateRoomType.ForumRoom) roomType = CustomRoomType.Forum;
 
   let joinRule: JoinRule = JoinRule.Public;
   if (access === CreateRoomAccess.Restricted) joinRule = JoinRule.Restricted;
   if (access === CreateRoomAccess.Private) joinRule = JoinRule.Knock;
 
-  return sizedIcon(
-    getRoomStandaloneIconComponent(isVoiceRoom ? RoomType.UnstableCall : undefined, joinRule),
-    size
-  );
+  return sizedIcon(getRoomStandaloneIconComponent(roomType, joinRule), size);
 };
 
 const getCreateRoomTypeToIcon = (type: CreateRoomType): ReactNode => {
   if (type === CreateRoomType.VoiceRoom) return sizedIcon(SpeakerHigh, '400');
+  if (type === CreateRoomType.ForumRoom) return sizedIcon(Chats, '400');
   return sizedIcon(Hash, '400');
 };
 
@@ -144,8 +146,9 @@ export function CreateRoomForm({
       roomKnock = knock;
     }
 
-    let roomType: RoomType | undefined;
+    let roomType: RoomType | CustomRoomType | undefined;
     if (type === CreateRoomType.VoiceRoom) roomType = RoomType.UnstableCall;
+    if (type === CreateRoomType.ForumRoom) roomType = CustomRoomType.Forum;
 
     debugLog.info('ui', 'Create room button clicked', {
       roomName,

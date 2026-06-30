@@ -5,9 +5,12 @@ import { useAtomValue } from 'jotai';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import {
   getDirectRoomPath,
+  getDirectForumPath,
   getHomeRoomPath,
+  getHomeForumPath,
   getSpacePath,
   getSpaceRoomPath,
+  getSpaceForumPath,
 } from '$pages/pathUtils';
 import { getOrphanParents, guessPerfectParent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
@@ -16,6 +19,7 @@ import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useSelectedSpace } from './router/useSelectedSpace';
 import { useMatrixClient } from './useMatrixClient';
+import { CustomRoomType } from '$types/matrix/room';
 
 export const useRoomNavigate = () => {
   const navigate = useNavigate();
@@ -37,6 +41,7 @@ export const useRoomNavigate = () => {
     (roomId: string, eventId?: string, opts?: NavigateOptions) => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
       const openSpaceTimeline = developerTools && spaceSelectedId === roomId;
+      const isForum = mx.getRoom(roomId)?.getType() === CustomRoomType.Forum;
 
       const orphanParents = openSpaceTimeline ? [roomId] : getOrphanParents(roomToParents, roomId);
       if (orphanParents.length > 0) {
@@ -49,19 +54,31 @@ export const useRoomNavigate = () => {
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);
 
-        navigate(
-          getSpaceRoomPath(pSpaceIdOrAlias, openSpaceTimeline ? roomId : roomIdOrAlias, eventId),
-          opts
-        );
+        if (isForum && !openSpaceTimeline) {
+          navigate(getSpaceForumPath(pSpaceIdOrAlias, roomIdOrAlias), opts);
+        } else {
+          navigate(
+            getSpaceRoomPath(pSpaceIdOrAlias, openSpaceTimeline ? roomId : roomIdOrAlias, eventId),
+            opts
+          );
+        }
         return;
       }
 
       if (mDirects.has(roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
+        if (isForum) {
+          navigate(getDirectForumPath(roomIdOrAlias), opts);
+        } else {
+          navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
+        }
         return;
       }
 
-      navigate(getHomeRoomPath(roomIdOrAlias, eventId), opts);
+      if (isForum) {
+        navigate(getHomeForumPath(roomIdOrAlias), opts);
+      } else {
+        navigate(getHomeRoomPath(roomIdOrAlias, eventId), opts);
+      }
     },
     [mx, navigate, spaceSelectedId, roomToParents, mDirects, developerTools]
   );

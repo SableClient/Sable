@@ -817,7 +817,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
           setCurWidth={setCurWidth}
           sidebarWidth={threadSidebarWidth}
           setSidebarWidth={setThreadSidebarWidth}
-          minValue={150}
+          minValue={250}
           maxValue={600}
           isReversed
         />

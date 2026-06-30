@@ -407,10 +407,10 @@ export class CallEmbed {
           --cpd-color-bg-action-primary-pressed: ${resolveCssVar(color.Primary.ContainerActive)} !important;
           
           /* Soft Fills for critical buttons (Hangup) */
-          --cpd-color-bg-critical-primary: ${resolveCssVar(color.Critical.Container)} !important;
-          --cpd-color-bg-action-critical-rest: ${resolveCssVar(color.Critical.Container)} !important;
-          --cpd-color-bg-action-critical-hovered: ${resolveCssVar(color.Critical.ContainerHover)} !important;
-          --cpd-color-bg-action-critical-pressed: ${resolveCssVar(color.Critical.ContainerActive)} !important;
+          --cpd-color-bg-critical-primary: ${resolveCssVar(color.Critical.Main)} !important;
+          --cpd-color-bg-action-critical-rest: ${resolveCssVar(color.Critical.Main)} !important;
+          --cpd-color-bg-action-critical-hovered: ${resolveCssVar(color.Critical.MainHover)} !important;
+          --cpd-color-bg-action-critical-pressed: ${resolveCssVar(color.Critical.MainActive)} !important;
           
           /* Borders */
           --cpd-color-border-interactive-primary: ${resolveCssVar(color.Primary.Main)} !important;
@@ -428,8 +428,12 @@ export class CallEmbed {
           /* Icons/Text on Soft Fill Backgrounds */
           --cpd-color-icon-on-solid-primary: ${resolveCssVar(color.Primary.OnContainer)} !important;
           --cpd-color-text-on-solid-primary: ${resolveCssVar(color.Primary.OnContainer)} !important;
-          --cpd-color-icon-critical-primary: ${resolveCssVar(color.Critical.OnContainer)} !important;
-          --cpd-color-text-critical-primary: ${resolveCssVar(color.Critical.OnContainer)} !important;
+          --cpd-color-icon-critical-primary: ${resolveCssVar(color.Critical.OnMain)} !important;
+          --cpd-color-text-critical-primary: ${resolveCssVar(color.Critical.OnMain)} !important;
+          
+          /* Accent/Primary Colors for Checkboxes/Switches */
+          --cpd-color-text-action-accent: ${resolveCssVar(color.Primary.Main)} !important;
+          --stopgap-color-on-solid-accent: ${resolveCssVar(color.Primary.OnMain)} !important;
         }
 
         /* Enforce rounded rectangles instead of circles */
@@ -449,18 +453,56 @@ export class CallEmbed {
           gap: ${resolveCssVar(config.space.S100)} !important;
         }
         
-        /* Ensure primary/muted buttons maintain a solid border by applying to both the element and its background overlays */
-        [class*="button_"][data-kind="primary"], [class*="Button_"][data-kind="primary"], button[data-kind="primary"],
-        [class*="button_"][data-kind="primary"]::before, [class*="Button_"][data-kind="primary"]::before, button[data-kind="primary"]::before,
-        [class*="button_"][data-kind="primary"]::after, [class*="Button_"][data-kind="primary"]::after, button[data-kind="primary"]::after {
+        /* Explicitly style normal primary (muted) buttons to use Sable's colors and disable Compound's overlays */
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]), button[data-kind="primary"]:not([class*="_destructive_"]) {
+          background-color: ${resolveCssVar(color.Primary.Container)} !important;
           border: 1px solid ${resolveCssVar(color.Primary.ContainerLine)} !important;
+          color: ${resolveCssVar(color.Primary.OnContainer)} !important;
           box-sizing: border-box !important;
         }
-        [class*="button_"][data-kind="primary"][class*="_destructive_"],
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]) svg,
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]) *,
+        button[data-kind="primary"]:not([class*="_destructive_"]) svg,
+        button[data-kind="primary"]:not([class*="_destructive_"]) * {
+          color: ${resolveCssVar(color.Primary.OnContainer)} !important;
+        }
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"])::before,
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"])::after,
+        button[data-kind="primary"]:not([class*="_destructive_"])::before,
+        button[data-kind="primary"]:not([class*="_destructive_"])::after {
+          background-color: transparent !important;
+          border: none !important;
+          box-sizing: border-box !important;
+        }
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]):hover,
+        button[data-kind="primary"]:not([class*="_destructive_"]):hover {
+          background-color: ${resolveCssVar(color.Primary.ContainerHover)} !important;
+        }
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]):active,
+        button[data-kind="primary"]:not([class*="_destructive_"]):active {
+          background-color: ${resolveCssVar(color.Primary.ContainerActive)} !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"] {
+          background-color: ${resolveCssVar(color.Critical.Main)} !important;
+          border: 1px solid ${resolveCssVar(color.Critical.MainLine)} !important;
+          color: ${resolveCssVar(color.Critical.OnMain)} !important;
+          box-sizing: border-box !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"] svg,
+        [class*="button_"][data-kind="primary"][class*="_destructive_"] * {
+          color: ${resolveCssVar(color.Critical.OnMain)} !important;
+        }
         [class*="button_"][data-kind="primary"][class*="_destructive_"]::before,
         [class*="button_"][data-kind="primary"][class*="_destructive_"]::after {
-          border: 1px solid ${resolveCssVar(color.Critical.ContainerLine)} !important;
+          background-color: transparent !important;
+          border: 1px solid ${resolveCssVar(color.Critical.MainLine)} !important;
           box-sizing: border-box !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"]:hover {
+          background-color: ${resolveCssVar(color.Critical.MainHover)} !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"]:active {
+          background-color: ${resolveCssVar(color.Critical.MainActive)} !important;
         }
         
         /* Fix secondary buttons inside the footer to have Sable's exact container styling */
@@ -560,8 +602,35 @@ export class CallEmbed {
           background-color: ${resolveCssVar(color.Primary.Main)} !important;
         }
         [class*="track"] {
-          background-color: ${resolveCssVar(color.SurfaceVariant.ContainerHover)} !important;
+          background-color: ${resolveCssVar(color.Surface.ContainerLine)} !important;
           outline: none !important;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+          width: 16px;
+          height: 16px;
+        }
+        ::-webkit-scrollbar-track,
+        ::-webkit-scrollbar-thumb {
+          background-color: transparent;
+          border-radius: ${resolveCssVar(config.radii.Pill)} !important;
+          border: 4px solid transparent;
+          background-clip: padding-box;
+        }
+        ::-webkit-scrollbar-thumb {
+          min-height: 35px;
+        }
+        :hover::-webkit-scrollbar-thumb, :has(*:hover)::-webkit-scrollbar-thumb {
+          background-color: ${resolveCssVar(color.SurfaceVariant.ContainerLine)} !important;
+        }
+        :hover::-webkit-scrollbar-track, :has(*:hover)::-webkit-scrollbar-track {
+          background-color: ${resolveCssVar(color.SurfaceVariant.ContainerActive)} !important;
+        }
+
+        /* Modal Dialog overrides */
+        [role="dialog"] {
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
         }
 
         /* Tooltips and Menus */

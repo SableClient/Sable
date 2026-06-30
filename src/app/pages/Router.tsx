@@ -28,7 +28,7 @@ import type { Sessions } from '$state/sessions';
 import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
-import { SearchModalRenderer } from '$features/search';
+import { SearchModalRenderer } from '$features/navigate';
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
 import { CallEmbedProvider } from '$components/CallEmbedProvider';
 import { AuthLayout, Login, Register, ResetPassword } from './auth';
@@ -53,6 +53,8 @@ import {
   CREATE_PATH,
   TO_ROOM_EVENT_PATH,
   SETTINGS_PATH,
+  NAVIGATE_PATH,
+  PROFILE_PATH,
 } from './paths';
 import {
   getAppPathFromHref,
@@ -73,7 +75,11 @@ import { Notifications, Inbox, Invites } from './client/inbox';
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
-import { MobileFriendlyPageNav, MobileFriendlyClientNav } from './MobileFriendly';
+import {
+  MobileFriendlyPageNav,
+  MobileFriendlySidebarNav,
+  MobileFriendlyBottomNav,
+} from './MobileFriendly';
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
@@ -81,6 +87,9 @@ import { HomeCreateRoom } from './client/home/CreateRoom';
 import { Create } from './client/create';
 import { ToRoomEvent } from './client/ToRoomEvent';
 import { CallStatusRenderer } from './CallStatusRenderer';
+import { UserQuickToolsProvider } from '$components/UserQuickToolsProvider';
+import { Navigate } from './client/navigate';
+import { ProfileMobile } from './client/profile';
 
 /**
  * Returns true if there is at least one stored session.
@@ -182,15 +191,18 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                         <CallEmbedProvider>
                           <ClientLayout
                             nav={
-                              <MobileFriendlyClientNav>
+                              <MobileFriendlySidebarNav>
                                 <SidebarNav />
-                              </MobileFriendlyClientNav>
+                              </MobileFriendlySidebarNav>
                             }
                           >
                             <ClientRouteOutlet />
                           </ClientLayout>
                           <CallStatusRenderer />
                         </CallEmbedProvider>
+                        <MobileFriendlyBottomNav>
+                          <UserQuickToolsProvider />
+                        </MobileFriendlyBottomNav>
                         <SearchModalRenderer />
                         <UserRoomProfileRenderer />
                         <CreateRoomModalRenderer />
@@ -346,6 +358,8 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
         </Route>
         <Route path={CREATE_PATH} element={<Create />} />
+        <Route path={NAVIGATE_PATH} element={<Navigate />} />
+        <Route path={PROFILE_PATH} element={<ProfileMobile />} />
         <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
         <Route
           path={INBOX_PATH}

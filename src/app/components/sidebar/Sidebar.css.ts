@@ -132,7 +132,7 @@ export const SidebarItemBottom = recipe({
 
       selectors: {
         '&:hover': {
-          transform: `translateY(${toRem(PUSH_Y)})`,
+          transform: `translateY(${toRem(-PUSH_Y)})`,
         },
         '&::before': {
           content: '',

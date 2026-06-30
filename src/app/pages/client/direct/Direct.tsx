@@ -65,6 +65,7 @@ import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
+import { UserQuickTools } from '../sidebar/UserQuickTools';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -270,6 +271,7 @@ export function Direct() {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
 
   return (
     <Box
@@ -392,6 +394,7 @@ export function Direct() {
           setAnnouncement={setIsResizingSidebar}
         />
       )}
+      {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
     </Box>
   );
 }

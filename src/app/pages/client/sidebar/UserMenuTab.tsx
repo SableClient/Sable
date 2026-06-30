@@ -39,7 +39,7 @@ import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { Check, chipIcon, Plus } from '$components/icons/phosphor';
 import { useSessionProfiles } from '$hooks/useSessionProfiles';
 import { useClientConfig } from '$hooks/useClientConfig';
-import { getHomePath, getLoginPath, withSearchParam } from '$pages/pathUtils';
+import { getHomePath, getLoginPath, getProfilePath, withSearchParam } from '$pages/pathUtils';
 import { initClient, logoutClient, stopClient } from '$client/initMatrix';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
@@ -48,6 +48,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { setUserPresence } from '$utils/presence';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { useProfileSelected } from '$hooks/router/useProfileSelected';
 
 const log = createLogger('AccountSwitcherTab');
 
@@ -377,7 +378,7 @@ const PresenceOptions: Array<{ value: Presence; label: string }> = [
   { value: Presence.Offline, label: 'Offline' },
 ];
 
-export function PresenceMenuOption() {
+export function PresenceMenuOption({ initialOpen }: { initialOpen: boolean }) {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
 
@@ -387,7 +388,7 @@ export function PresenceMenuOption() {
   const isMobile = screenSize === ScreenSize.Mobile;
   const currentPresence = presence?.presence ?? Presence.Online;
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const { hoverProps } = useHover({
     onHoverChange: (h) => {
       if (!isMobile) setIsOpen(h);
@@ -525,9 +526,11 @@ export function PresenceMenuOption() {
   );
 }
 
-export function UserMenuTab({ isBottom }: { isBottom?: boolean }) {
+export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const profileSelected = useProfileSelected();
+  const navigate = useNavigate();
 
   const userId = mx.getUserId() ?? '';
   const profile = useUserProfile(userId);
@@ -552,7 +555,12 @@ export function UserMenuTab({ isBottom }: { isBottom?: boolean }) {
     ? (mxcUrlToHttp(mx, parsedBanner, useAuthentication, 640, 192, 'scale') ?? undefined)
     : undefined;
 
-  const handleToggle: MouseEventHandler<HTMLButtonElement> = (evt) => {
+  const handleToggle: MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (evt) => {
+    if (isMobile) {
+      navigate(getProfilePath());
+      return;
+    }
+
     const cords = evt.currentTarget.getBoundingClientRect();
     setMenuAnchor((cur) => (cur ? undefined : cords));
   };
@@ -560,22 +568,39 @@ export function UserMenuTab({ isBottom }: { isBottom?: boolean }) {
   const handleCloseMenu = () => setMenuAnchor(undefined);
 
   return (
-    <SidebarItem active={!!menuAnchor} isBottom={isBottom}>
-      <SidebarItemTooltip tooltip={currentStatus || displayName}>
+    <SidebarItem active={!!menuAnchor || profileSelected} isBottom={isBottom}>
+      <SidebarItemTooltip
+        tooltip={currentStatus || displayName}
+        position={isBottom ? 'Top' : 'Right'}
+      >
         {(triggerRef) => (
-          <AvatarPresence
-            ref={triggerRef}
-            badge={<PresenceBadge presence={currentPresence} size="200" />}
-          >
-            <SidebarAvatar as="button" onClick={handleToggle}>
-              <UserAvatar
-                userId={userId}
-                src={avatarUrl}
-                alt={userId}
-                renderFallback={() => <Text size="H4">{nameInitials(displayName)}</Text>}
-              />
+          <Box direction="Column" alignItems="Center" onClick={handleToggle}>
+            <SidebarAvatar
+              as="button"
+              onClick={handleToggle}
+              size="400"
+              style={{ overflow: 'visible' }}
+            >
+              <AvatarPresence
+                ref={triggerRef}
+                badge={<PresenceBadge presence={currentPresence} size="200" />}
+              >
+                <SidebarAvatar size={isMobile ? '300' : '400'} as="button" onClick={handleToggle}>
+                  <UserAvatar
+                    userId={userId}
+                    src={avatarUrl}
+                    alt={userId}
+                    renderFallback={() => <Text size="H4">{nameInitials(displayName)}</Text>}
+                  />
+                </SidebarAvatar>
+              </AvatarPresence>
             </SidebarAvatar>
-          </AvatarPresence>
+            {isMobile && (
+              <Text size="O400" priority="300">
+                Account
+              </Text>
+            )}
+          </Box>
         )}
       </SidebarItemTooltip>
 
@@ -626,7 +651,7 @@ export function UserMenuTab({ isBottom }: { isBottom?: boolean }) {
                     </Text>
                   </MenuItem>
 
-                  <PresenceMenuOption />
+                  <PresenceMenuOption initialOpen={false} />
                 </Box>
 
                 <AccountMenuOption />

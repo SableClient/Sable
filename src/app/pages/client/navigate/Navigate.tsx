@@ -4,13 +4,10 @@ import {
   Page,
   PageContent,
   PageContentCenter,
-  PageHero,
   PageHeroSection,
   PageNav,
   PageNavHeader,
 } from '$components/page';
-import { CreateSpaceForm } from '$features/create-space';
-import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useEffect, useState } from 'react';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useSetting } from '$state/hooks/settings';
@@ -18,11 +15,10 @@ import { settingsAtom } from '$state/settings';
 import { SidebarResizer } from '../sidebar/SidebarResizer';
 import { useSetAtom } from 'jotai';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
-import { UserQuickTools } from '../sidebar/UserQuickTools';
+import { ListMagnifyingGlassIcon } from '@phosphor-icons/react';
+import { RoomSearchModal } from '$features/navigate';
 
-export function Create() {
-  const { navigateSpace } = useRoomNavigate();
-
+export function Navigate() {
   const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
@@ -33,7 +29,6 @@ export function Create() {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
-  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
 
   return (
     <>
@@ -54,7 +49,7 @@ export function Create() {
                 {!hideText ? (
                   <Box grow="Yes">
                     <Text size="H4" truncate align="Center">
-                      Create Space
+                      Navigate
                     </Text>
                   </Box>
                 ) : (
@@ -73,22 +68,17 @@ export function Create() {
               setAnnouncement={setIsResizingSidebar}
             />
           </PageNav>
-          {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
         </Box>
       )}
       <Page>
         <Box grow="Yes">
           <Scroll hideTrack visibility="Hover">
-            <PageContent>
-              <PageContentCenter>
-                <PageHeroSection>
-                  <Box direction="Column" gap="700">
-                    <PageHero
-                      icon={sizedIcon(SquaresFour, '600')}
-                      title="Create Space"
-                      subTitle="Build a space for your community."
-                    />
-                    <CreateSpaceForm onCreate={navigateSpace} />
+            <PageContent style={{ height: '100%', paddingBottom: '0' }}>
+              <PageContentCenter style={{ height: '100%' }}>
+                <PageHeroSection style={{ height: '100%', paddingBottom: '0' }}>
+                  <Box direction="Column" gap="700" alignItems="Center" style={{ height: '100%' }}>
+                    {sizedIcon(ListMagnifyingGlassIcon, '600')}
+                    <RoomSearchModal />
                   </Box>
                 </PageHeroSection>
               </PageContentCenter>

@@ -53,11 +53,16 @@ import {
   chipIcon,
   DotsThreeOutlineVerticalIcon,
   GearSix,
+  LockSimple,
+  Lock,
+  ShieldCheck,
+  ShieldWarning,
   Link,
   menuIcon,
   Phone,
   SignOut,
   UserPlus,
+  getPhosphorSize,
 } from '$components/icons/phosphor';
 import { Copy as CopyIcon } from '@phosphor-icons/react';
 import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
@@ -80,6 +85,8 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { warmupRoomDecryption } from '$utils/decryptScheduler';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 import { useOpenMobileDrawerContent } from '$components/page/MobileNavDrawerContext';
+import { useRoomEncryptionStatus } from '$hooks/useRoomEncryptionStatus';
+import { useRoomUnverifiedMembers } from '$hooks/useRoomUnverifiedMembers';
 
 // Call Hooks & Plugins
 import { useCallMembers, useCallSession } from '$hooks/useCall';
@@ -362,6 +369,10 @@ export function RoomNavItem({
   const isMobile = screenSize === ScreenSize.Mobile;
   const openMobileDrawerContent = useOpenMobileDrawerContent();
 
+  // Encryption & verification indicators
+  const encryptionStatus = useRoomEncryptionStatus(room);
+  const unverifiedCount = useRoomUnverifiedMembers(room);
+
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(room, callSession);
   const startCall = useCallStart(direct);
@@ -617,6 +628,17 @@ export function RoomNavItem({
                           >
                             {roomName}
                           </Text>
+                          {/* Encryption & verification indicators */}
+                          {encryptionStatus === 'encrypted' && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                              <LockSimple size={getPhosphorSize().compact} weight="fill" style={{ opacity: config.opacity.P500 }} />
+                            </span>
+                          )}
+                          {unverifiedCount > 0 && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, marginLeft: '2px' }}>
+                              <ShieldWarning size={getPhosphorSize().compact} weight="fill" style={{ color: 'var(--mx-danger)', opacity: config.opacity.P500 }} />
+                            </span>
+                          )}
                           {roomTopic && (
                             <Text
                               truncate

@@ -127,6 +127,7 @@ import { nicknamesAtom } from '$state/nicknames';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useComposingCheck } from '$hooks/useComposingCheck';
+import { useRoomUnverifiedMembers } from '$hooks/useRoomUnverifiedMembers';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import FocusTrap from 'focus-trap-react';
@@ -168,6 +169,7 @@ import {
   Gif,
   Image as ImageIcon,
   ListBullets,
+  LockSimple,
   MapPinPlusIcon,
   menuIcon,
   Microphone,
@@ -178,6 +180,7 @@ import {
   Smiley,
   Sticker,
   Stop,
+  ShieldWarning,
   X,
 } from '$components/icons/phosphor';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
@@ -540,6 +543,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
+    // Check for unverified sessions in encrypted rooms
+    const unverifiedMembers = useRoomUnverifiedMembers(room);
+    // Dynamic placeholder based on encryption status
+    const inputPlaceholder = isEncrypted
+      ? 'Send an encrypted message...'
+      : 'Send an unencrypted message...';
     const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
     // Android back closes the mobile emoji board instead of navigating away.
     useDismissOnBack(() => setEmojiBoardTab(undefined), emojiBoardTab !== undefined);
@@ -1882,7 +1891,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           editableName="RoomInput"
           editor={editor}
           key={inputKey}
-          placeholder="Send a message..."
+          placeholder={inputPlaceholder}
           enterKeyHint={enterForNewline ? 'enter' : 'send'}
           suppressBlurRefocusRef={suppressBlurRefocusRef}
           onKeyDown={handleKeyDown}

@@ -1,5 +1,38 @@
 # Sable Client Changelog
 
+## 1.19.0 (2026-06-30)
+
+### Features
+
+* Added a GIF search functionality ([#970](<https://github.com/SableClient/Sable/pull/970>) by @7w1, @nikiwastaken)
+* Change animal identity to allow arbitrary animals ([#984](<https://github.com/SableClient/Sable/pull/984>) by @nushea)
+* Add a new Mobile Context ([#946](<https://github.com/SableClient/Sable/pull/946>) by @7w1, @nushea)
+* Add Copy Message button to copy unformatted version. ([#1001](<https://github.com/SableClient/Sable/pull/1001>) by @nushea)
+* Change profile handle part to a button that copies it ([#981](<https://github.com/SableClient/Sable/pull/981>) by @nushea)
+* Add reactions to arbitrary events ([#946](<https://github.com/SableClient/Sable/pull/946>) by @7w1, @nushea)
+* Add a context menu for copying and downloading images. ([#994](<https://github.com/SableClient/Sable/pull/994>) by @nikiwastaken, @nushea)
+* Add search message keybind and combine sidebar items. ([#943](<https://github.com/SableClient/Sable/pull/943>) by @nushea)
+* Add option for showing icons only when available and changed default to it ([#978](<https://github.com/SableClient/Sable/pull/978>) by @nushea)
+* Add CTRL+E shortcut to editor to bring sticker menu up ([#982](<https://github.com/SableClient/Sable/pull/982>) by @nushea)
+* Redesign the user menu tab ([#990](<https://github.com/SableClient/Sable/pull/990>) by @nikiwastaken, @nushea)
+
+### Fixes
+
+* Swap to using the stable identifier `m.recent_emoji` for recent emojis and add migration logic. ([#1009](<https://github.com/SableClient/Sable/pull/1009>) by @7w1)
+* Fix leaving modal looking outsized ([#991](<https://github.com/SableClient/Sable/pull/991>) by @nushea)
+* Fix cat status not being present on its own. ([#971](<https://github.com/SableClient/Sable/pull/971>) by @nikiwastaken)
+* Fix encrypted thread messages not appearing until reopened. ([#975](<https://github.com/SableClient/Sable/pull/975>) by @7w1)
+* Fix account switcher's add account button redirecting to the wrong path when hashRouter is enabled ([#993](<https://github.com/SableClient/Sable/pull/993>) by @EphemeralFog)
+* Fix mentions not sending in non-textual replies ([#1004](<https://github.com/SableClient/Sable/pull/1004>) by @nushea)
+* Fix crash when opening pins with stickers. ([#972](<https://github.com/SableClient/Sable/pull/972>) by @7w1)
+* Fix registration not working when accessed from add account button ([#992](<https://github.com/SableClient/Sable/pull/992>) by @EphemeralFog)
+* Reverse the order of message header elements in the right aligned bubbles layout. ([#967](<https://github.com/SableClient/Sable/pull/967>) by @EphemeralFog)
+* Fix timeline sorting order regression when "show hidden events" is enabled. ([#974](<https://github.com/SableClient/Sable/pull/974>) by @7w1)
+* Fix ghost quickmenu ([#946](<https://github.com/SableClient/Sable/pull/946>) by @7w1, @nushea)
+* Fix Collapsed mode showing the wrong icon ([#978](<https://github.com/SableClient/Sable/pull/978>) by @nushea)
+* Fix poll crashing sable if interacted with different clients ([#969](<https://github.com/SableClient/Sable/pull/969>) by @nushea)
+* Update `@sableclient/twemoji-font` to fix missing Twemoji emoji coverage. ([#964](<https://github.com/SableClient/Sable/pull/964>) by @7w1)
+
 ## 1.18.3 (2026-06-17)
 
 ### Fixes

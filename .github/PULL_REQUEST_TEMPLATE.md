@@ -25,4 +25,7 @@ Fixes #
 
 - [ ] Partially AI assisted (clarify which code was AI assisted and briefly explain what it does).
 - [ ] Fully AI generated (explain what all the generated code does in moderate detail).
-<!-- Write any explanation required here, but do not generate the explanation using AI!! You must prove you understand what the code in this PR does. -->
+  <!-- Write any explanation required here, but do not generate the explanation using AI!! You MUST prove you understand what the code in this PR does. -->
+  <!-- If the entirety or a majority of the PR is made through the help of AI you MUST explain what modifications you have made in order to ensure that the result is licensible and compatible with THE LICENSE -->
+
+  <!-- By deleting this section or comment, if this PR contains AI generated content, in code or in PR body, the PR should be rejected and closed. -->

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, Icons, Input, Switch, Text, toRem } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -8,12 +8,11 @@ import { settingsAtom, type CallRingtoneId } from '$state/settings';
 import {
   CALL_RINGBACK_OPTIONS,
   CALL_RINGTONE_OPTIONS,
-  callRingtoneVolumeToGain,
   clampCallRingtoneVolume,
   readAudioDurationMs,
   validateCustomCallRingtone,
 } from '$features/call/callRingtone';
-import { resolveCallToneSources, revokeUnusedCustomToneUrls } from '$features/call/callToneSources';
+import { ringtoneManager } from '$features/call/CallRingtoneManager';
 import {
   clearCustomCallRingback,
   clearCustomCallRingtone,
@@ -66,8 +65,6 @@ export function CallSoundSettings() {
   const [customRingtoneMeta, setCustomRingtoneMeta] = useState<CustomToneMetadata | null>(null);
   const [customRingbackMeta, setCustomRingbackMeta] = useState<CustomToneMetadata | null>(null);
   const [customError, setCustomError] = useState<string | null>(null);
-  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
-
   useEffect(() => {
     let mounted = true;
     Promise.all([getCustomCallRingtone(), getCustomCallRingback()])
@@ -85,8 +82,7 @@ export function CallSoundSettings() {
 
     return () => {
       mounted = false;
-      previewAudioRef.current?.pause();
-      previewAudioRef.current = null;
+      ringtoneManager.stopPreview();
     };
   }, []);
 
@@ -136,45 +132,28 @@ export function CallSoundSettings() {
     [customRingbackMeta, loadingCustomState]
   );
 
-  const resolveToneForPreview = useCallback(
-    async (tone: PreviewTone): Promise<string | null> => {
-      const resolved = await resolveCallToneSources({ callRingtoneId, callRingbackTone });
-      const source = tone === 'incoming' ? resolved.incomingUrl : resolved.outgoingUrl;
-      revokeUnusedCustomToneUrls(resolved, source);
-      return source;
-    },
-    [callRingtoneId, callRingbackTone]
-  );
-
   const playPreviewTone = useCallback(
     async (tone: PreviewTone) => {
       setCustomError(null);
       setPreviewing(true);
       try {
-        const source = await resolveToneForPreview(tone);
-        if (!source) return;
-        const revokeSource = source.startsWith('blob:');
+        await ringtoneManager.playPreview(tone, {
+          callRingtoneId,
+          callRingbackTone,
+          callRingtoneVolume,
+        });
 
-        previewAudioRef.current?.pause();
-        const audio = new Audio(source);
-        audio.loop = true;
-        audio.volume = callRingtoneVolumeToGain(callRingtoneVolume);
-        previewAudioRef.current = audio;
-        await audio.play();
         window.setTimeout(() => {
-          if (previewAudioRef.current === audio) {
-            audio.pause();
-            audio.currentTime = 0;
-          }
-          if (revokeSource) URL.revokeObjectURL(source);
+          ringtoneManager.stopPreview();
         }, 2500);
-      } catch {
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
         setCustomError('Unable to preview this ringtone in your browser.');
       } finally {
         setPreviewing(false);
       }
     },
-    [callRingtoneVolume, resolveToneForPreview]
+    [callRingtoneId, callRingbackTone, callRingtoneVolume]
   );
 
   const importCustomTone = useCallback(

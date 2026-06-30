@@ -8,12 +8,7 @@ vi.mock('../../utils/debugLogger', () => ({
     debug: vi.fn<(...args: unknown[]) => void>(),
   }),
 }));
-import {
-  getInCallControlsContainer,
-  getLeaveButton,
-  getScreenshareButton,
-  isElementToggledOn,
-} from './elementCallDomAdapter';
+import { getScreenshareButton, isElementToggledOn } from './elementCallDomAdapter';
 
 type FakeElement = {
   checked?: boolean;
@@ -31,31 +26,15 @@ const createFakeElement = (
 });
 
 describe('elementCallDomAdapter', () => {
-  it('finds call controls container from leave button ancestry', () => {
-    const container = createFakeElement();
-    const row = createFakeElement({}, { parentElement: container });
-    const leave = createFakeElement({}, { parentElement: row });
-    const doc = {
-      querySelector: (selector: string) =>
-        selector === '[data-testid="incall_leave"]' ? leave : null,
-    } as Document;
-
-    expect(getLeaveButton(doc)).toBe(leave);
-    expect(getInCallControlsContainer(doc)).toBe(container);
-  });
-
   it('falls back to aria-label selectors when test ids are missing', () => {
-    const leave = createFakeElement();
     const screenshare = createFakeElement();
     const doc = {
       querySelector: (selector: string) => {
-        if (selector === 'button[aria-label*="Leave" i]') return leave;
         if (selector === 'button[aria-label*="screen" i]') return screenshare;
         return null;
       },
     } as Document;
 
-    expect(getLeaveButton(doc)).toBe(leave);
     expect(getScreenshareButton(doc)).toBe(screenshare);
   });
 

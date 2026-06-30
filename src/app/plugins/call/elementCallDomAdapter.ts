@@ -25,69 +25,11 @@ const queryFirst = (doc: Document | undefined, { key, selectors }: SelectorQuery
   return undefined;
 };
 
-export const getLeaveButton = (doc: Document | undefined): HTMLElement | undefined =>
-  queryFirst(doc, {
-    key: 'leave_button',
-    selectors: ['[data-testid="incall_leave"]', 'button[aria-label*="Leave" i]'],
-  });
-
 export const getScreenshareButton = (doc: Document | undefined): HTMLElement | undefined =>
   queryFirst(doc, {
     key: 'screenshare_button',
     selectors: ['[data-testid="incall_screenshare"]', 'button[aria-label*="screen" i]'],
   });
-
-export const getSettingsButton = (doc: Document | undefined): HTMLElement | undefined => {
-  return queryFirst(doc, {
-    key: 'settings_button',
-    selectors: [
-      '[data-testid="settings-bottom-left"]',
-      '[data-testid="settings-bottom-center"]',
-      'button[aria-label*="Settings" i]',
-    ],
-  });
-};
-
-export const getReactionsButton = (doc: Document | undefined): HTMLElement | undefined => {
-  return queryFirst(doc, {
-    key: 'reactions_button',
-    selectors: ['[data-testid="incall_reactions"]', 'button[aria-label*="Reaction" i]'],
-  });
-};
-
-export const getSpotlightControl = (doc: Document | undefined): HTMLElement | undefined =>
-  queryFirst(doc, {
-    key: 'spotlight_control',
-    selectors: [
-      'input[value="spotlight"]',
-      'button[value="spotlight"]',
-      '[data-testid="layout_spotlight"]',
-      'button[aria-label*="spotlight" i]',
-    ],
-  });
-
-export const getGridControl = (doc: Document | undefined): HTMLElement | undefined =>
-  queryFirst(doc, {
-    key: 'grid_control',
-    selectors: [
-      'input[value="grid"]',
-      'button[value="grid"]',
-      '[data-testid="layout_grid"]',
-      'button[aria-label*="grid" i]',
-    ],
-  });
-
-export const getInCallControlsContainer = (doc: Document | undefined): HTMLElement | undefined => {
-  const leaveButton = getLeaveButton(doc);
-
-  const container = leaveButton?.parentElement?.parentElement;
-  if (container) return container;
-
-  return queryFirst(doc, {
-    key: 'incall_controls_container',
-    selectors: ['[data-testid="incall_controls"]', '[data-testid="incall_toolbar"]'],
-  });
-};
 
 export const isElementToggledOn = (element: HTMLElement | undefined): boolean => {
   if (!element) return false;

@@ -29,15 +29,17 @@ import {
   type OutgoingDeclineEvent,
 } from '$features/call/outgoingDeclineHandler';
 import { parseRtcDeclineFromTimelineEvent } from '$features/call/rtcTimelineDecline';
-import {
-  evaluateIncomingCallFallback,
-  evaluateOutgoingRingbackFallback,
-} from '$features/call/callSignalingFallback';
-import { callRingtoneVolumeToGain, canPlayCallAudio } from '$features/call/callRingtone';
+import { evaluateIncomingCallFallback } from '$features/call/callSignalingFallback';
+import { canPlayCallAudio } from '$features/call/callRingtone';
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
-import { resolveCallToneSources } from '$features/call/callToneSources';
 import { isIncomingCallSuppressed } from '$features/call/callIncomingIngress';
-import { getRemoteRtcMemberUserIds, isCallActive } from '$features/call/callMembershipState';
+import {
+  getRemoteRtcMemberUserIds,
+  isCallActive,
+  isOutgoingCallPending,
+} from '$features/call/callMembershipState';
+import { ringtoneManager } from '$features/call/CallRingtoneManager';
+import { OUTGOING_RING_TIMEOUT_MS } from '$features/call/callSignalingPolicy';
 import { useMatrixClient } from './useMatrixClient';
 import { createDebugLogger } from '../utils/debugLogger';
 
@@ -59,8 +61,6 @@ export function useIncomingCallSignaling() {
   const setCallSoundBlocked = useSetAtom(callSoundBlockedAtom);
   const setCallEmbed = useSetAtom(callEmbedAtom);
 
-  const incomingAudioRef = useRef<HTMLAudioElement | null>(null);
-  const outgoingAudioRef = useRef<HTMLAudioElement | null>(null);
   const incomingCallRef = useRef<IncomingCall | null>(incomingCall);
   const mutedRoomIdRef = useRef<string | null>(mutedRoomId);
   const seenNotificationIdsRef = useRef<Set<string>>(new Set());
@@ -118,83 +118,20 @@ export function useIncomingCallSignaling() {
   }, [callEmbed]);
 
   useEffect(() => {
-    const incoming = new Audio();
-    incoming.loop = true;
-    incomingAudioRef.current = incoming;
-
-    const outgoing = new Audio();
-    outgoing.loop = true;
-    outgoingAudioRef.current = outgoing;
-
-    return () => {
-      incoming.pause();
-      outgoing.pause();
-    };
-  }, []);
-
-  useEffect(() => {
-    let canceled = false;
-    let revokeToneUrls: (() => void) | undefined;
-
-    const incoming = incomingAudioRef.current;
-    const outgoing = outgoingAudioRef.current;
-    if (!incoming || !outgoing) return undefined;
-
-    const syncSources = async () => {
-      const resolved = await resolveCallToneSources({
-        callRingtoneId: settings.callRingtoneId,
-        callRingbackTone: settings.callRingbackTone,
-      });
-
-      if (canceled) {
-        resolved.revoke();
-        return;
-      }
-
-      revokeToneUrls?.();
-      revokeToneUrls = resolved.revoke;
-
-      incoming.pause();
-      incoming.currentTime = 0;
-      outgoing.pause();
-      outgoing.currentTime = 0;
-
-      const gain = callRingtoneVolumeToGain(settings.callRingtoneVolume);
-
-      if (resolved.incomingUrl) {
-        incoming.src = resolved.incomingUrl;
-      } else {
-        incoming.removeAttribute('src');
-      }
-      if (resolved.outgoingUrl) {
-        outgoing.src = resolved.outgoingUrl;
-      } else {
-        outgoing.removeAttribute('src');
-      }
-
-      incoming.volume = gain;
-      outgoing.volume = gain;
-    };
-
-    syncSources();
-
-    return () => {
-      canceled = true;
-      revokeToneUrls?.();
-    };
+    ringtoneManager.syncSources(
+      settings.callRingtoneId,
+      settings.callRingbackTone,
+      settings.callRingtoneVolume
+    );
   }, [settings.callRingtoneId, settings.callRingbackTone, settings.callRingtoneVolume]);
 
   const stopIncomingRing = useCallback(() => {
-    incomingAudioRef.current?.pause();
-    if (incomingAudioRef.current) incomingAudioRef.current.currentTime = 0;
+    ringtoneManager.stopIncoming();
     setCallSoundBlocked(false);
   }, [setCallSoundBlocked]);
 
   const stopOutgoingRing = useCallback(() => {
-    outgoingAudioRef.current?.pause();
-    if (outgoingAudioRef.current) outgoingAudioRef.current.currentTime = 0;
-    outgoingRingRoomIdRef.current = null;
-    outgoingStartRef.current = null;
+    ringtoneManager.stopOutgoing();
   }, []);
 
   const clearIncomingCall = useCallback(() => {
@@ -340,34 +277,16 @@ export function useIncomingCallSignaling() {
       return;
     }
 
-    const audio = incomingAudioRef.current;
-    if (!audio?.src) {
-      stopIncomingRing();
-      return;
-    }
-
-    if (callEmbed && incomingCall && callEmbed.roomId !== incomingCall.roomId) {
-      stopIncomingRing();
-      return;
-    }
-
-    audio
-      .play()
-      .then(() => {
+    ringtoneManager
+      .playIncoming()
+      ?.then(() => {
         setCallSoundBlocked(false);
       })
       .catch(() => {
+        // AbortError is handled in ringtoneManager, any other error comes here
         setCallSoundBlocked(true);
-        Sentry.metrics.count('sable.call.ringtone.blocked', 1);
       });
-  }, [
-    callEmbed,
-    incomingCall,
-    incomingRingtoneAllowed,
-    incomingToneIsSilent,
-    setCallSoundBlocked,
-    stopIncomingRing,
-  ]);
+  }, [incomingRingtoneAllowed, incomingToneIsSilent, setCallSoundBlocked, stopIncomingRing]);
 
   signalingHandlerRefs.current = {
     callEmbed,
@@ -581,49 +500,61 @@ export function useIncomingCallSignaling() {
       handlers().clearIncomingCall();
     };
 
+    let outgoingRingTimeoutId: number | undefined;
+
     const evaluateOutgoingFallback = () => {
       const activeCallRoomId = handlers().callEmbed?.roomId;
-      const outgoingRoom = activeCallRoomId ? mx.getRoom(activeCallRoomId) : null;
-      if (outgoingRoom) {
-        const session = mx.matrixRTC.getRoomSession(outgoingRoom).sessionDescription;
-        if (isCallActive(myUserId, outgoingRoom, session)) {
-          hasCallBeenActiveRef.current = true;
-        }
-      }
 
-      const ringAction = evaluateOutgoingRingbackFallback(
-        {
-          ringRoomId: outgoingRingRoomIdRef.current,
-          ringStartedAt: outgoingStartRef.current,
-        },
-        Date.now(),
-        {
-          ...fallbackContext,
-          activeCallRoomId,
-          isDirectRoom: (roomId: string) => handlers().mDirects.has(roomId),
-          outgoingRingbackAllowed: handlers().outgoingRingbackAllowed,
-          declinedRoomId: declinedOutgoingRoomIdRef.current,
-          hasCallBeenActive: hasCallBeenActiveRef.current,
-        }
-      );
-
-      outgoingRingRoomIdRef.current = ringAction.nextState.ringRoomId;
-      outgoingStartRef.current = ringAction.nextState.ringStartedAt;
-
-      if (ringAction.kind === 'stop') {
+      const stop = () => {
         handlers().stopOutgoingRing();
-        return;
+        window.clearTimeout(outgoingRingTimeoutId);
+        outgoingRingTimeoutId = undefined;
+      };
+
+      if (
+        !activeCallRoomId ||
+        !handlers().outgoingRingbackAllowed ||
+        declinedOutgoingRoomIdRef.current === activeCallRoomId
+      ) {
+        outgoingRingRoomIdRef.current = null;
+        outgoingStartRef.current = null;
+        return stop();
       }
 
-      if (ringAction.started) {
-        debugLog.info('call', 'Outgoing ringing fallback started', { roomId: ringAction.roomId });
+      if (!handlers().mDirects.has(activeCallRoomId)) {
+        return stop();
       }
 
-      const outgoingAudio = outgoingAudioRef.current;
-      if (outgoingAudio && (ringAction.started || outgoingAudio.paused)) {
-        outgoingAudio.play().catch(() => {
-          Sentry.metrics.count('sable.call.ringback.blocked', 1);
-        });
+      const outgoingRoom = mx.getRoom(activeCallRoomId);
+      if (!outgoingRoom) {
+        return stop();
+      }
+
+      const session = mx.matrixRTC.getRoomSession(outgoingRoom).sessionDescription;
+
+      if (isCallActive(myUserId, outgoingRoom, session)) {
+        hasCallBeenActiveRef.current = true;
+      }
+
+      if (hasCallBeenActiveRef.current) {
+        return stop();
+      }
+
+      const isPending = isOutgoingCallPending(myUserId, outgoingRoom, session);
+      if (!isPending) {
+        return stop();
+      }
+
+      if (!outgoingStartRef.current || outgoingRingRoomIdRef.current !== activeCallRoomId) {
+        outgoingStartRef.current = Date.now();
+        outgoingRingRoomIdRef.current = activeCallRoomId;
+        debugLog.info('call', 'Outgoing ringing fallback started', { roomId: activeCallRoomId });
+        ringtoneManager.playOutgoing();
+
+        window.clearTimeout(outgoingRingTimeoutId);
+        outgoingRingTimeoutId = window.setTimeout(() => {
+          stop();
+        }, OUTGOING_RING_TIMEOUT_MS);
       }
     };
 

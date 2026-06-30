@@ -3,14 +3,7 @@ import EventEmitter from 'eventemitter3';
 import { CallControlState } from './CallControlState';
 import type { ElementMediaStateDetail, ElementMediaStatePayload } from './types';
 import { ElementWidgetActions } from './types';
-import {
-  getGridControl,
-  getReactionsButton,
-  getScreenshareButton,
-  getSettingsButton,
-  getSpotlightControl,
-  isElementToggledOn,
-} from './elementCallDomAdapter';
+import { getScreenshareButton, isElementToggledOn } from './elementCallDomAdapter';
 
 export enum CallControlEvent {
   StateUpdate = 'state_update',
@@ -31,22 +24,6 @@ export class CallControl extends EventEmitter implements CallControlState {
 
   private get screenshareButton(): HTMLElement | undefined {
     return getScreenshareButton(this.document);
-  }
-
-  private get settingsButton(): HTMLElement | undefined {
-    return getSettingsButton(this.document);
-  }
-
-  private get reactionsButton(): HTMLElement | undefined {
-    return getReactionsButton(this.document);
-  }
-
-  private get spotlightControl(): HTMLElement | undefined {
-    return getSpotlightControl(this.document);
-  }
-
-  private get gridControl(): HTMLElement | undefined {
-    return getGridControl(this.document);
   }
 
   constructor(state: CallControlState, call: ClientWidgetApi, iframe: HTMLIFrameElement) {
@@ -79,10 +56,6 @@ export class CallControl extends EventEmitter implements CallControlState {
     return this.state.screenshare;
   }
 
-  public get spotlight(): boolean {
-    return this.state.spotlight;
-  }
-
   public async applyState() {
     await this.setMediaState({
       audio_enabled: this.microphone,
@@ -100,13 +73,6 @@ export class CallControl extends EventEmitter implements CallControlState {
       this.controlMutationObserver.observe(screenshareBtn, {
         attributes: true,
         attributeFilter: ['data-kind', 'aria-pressed', 'aria-checked', 'class'],
-      });
-    }
-    const spotlightControl = this.spotlightControl;
-    if (spotlightControl) {
-      this.controlMutationObserver.observe(spotlightControl, {
-        attributes: true,
-        attributeFilter: ['checked', 'aria-pressed', 'aria-checked', 'data-kind', 'class'],
       });
     }
 
@@ -143,8 +109,7 @@ export class CallControl extends EventEmitter implements CallControlState {
       data.audio_enabled ?? this.microphone,
       data.video_enabled ?? this.video,
       this.sound,
-      this.screenshare,
-      this.spotlight
+      this.screenshare
     );
 
     this.state = state;
@@ -157,15 +122,8 @@ export class CallControl extends EventEmitter implements CallControlState {
 
   public onControlMutation() {
     const screenshare: boolean = isElementToggledOn(this.screenshareButton);
-    const spotlight: boolean = isElementToggledOn(this.spotlightControl);
 
-    this.state = new CallControlState(
-      this.microphone,
-      this.video,
-      this.sound,
-      screenshare,
-      spotlight
-    );
+    this.state = new CallControlState(this.microphone, this.video, this.sound, screenshare);
     this.emitStateUpdate();
   }
 
@@ -190,13 +148,7 @@ export class CallControl extends EventEmitter implements CallControlState {
 
     this.setSound(sound);
 
-    const state = new CallControlState(
-      this.microphone,
-      this.video,
-      sound,
-      this.screenshare,
-      this.spotlight
-    );
+    const state = new CallControlState(this.microphone, this.video, sound, this.screenshare);
     this.state = state;
     this.emitStateUpdate();
 
@@ -207,22 +159,6 @@ export class CallControl extends EventEmitter implements CallControlState {
 
   public toggleScreenshare() {
     this.screenshareButton?.click();
-  }
-
-  public toggleSpotlight() {
-    if (this.spotlight) {
-      this.gridControl?.click();
-      return;
-    }
-    this.spotlightControl?.click();
-  }
-
-  public toggleReactions() {
-    this.reactionsButton?.click();
-  }
-
-  public toggleSettings() {
-    this.settingsButton?.click();
   }
 
   public dispose() {

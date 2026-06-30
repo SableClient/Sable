@@ -29,6 +29,7 @@ export const RoomViewFollowing = recipe({
         selectors: {
           '&:hover, &:focus-visible': {
             color: color.Primary.Main,
+            transform: 'none',
           },
           '&:active': {
             color: color.Primary.Main,

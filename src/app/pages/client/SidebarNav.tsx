@@ -10,7 +10,6 @@ import { DirectTab, DirectDMsList, HomeTab, SpaceTabs, InboxTab, UnverifiedTab }
 import { CreateTab } from './sidebar/CreateTab';
 import { NavigateTab } from './sidebar/NavigateTab';
 import { SettingsTab } from './sidebar/SettingsTab';
-import { UserQuickTools } from './sidebar/UserQuickTools';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 import { UserMenuTab } from './sidebar/UserMenuTab';
 
@@ -22,11 +21,9 @@ export function SidebarNav() {
   const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
-
-  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
-
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
 
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
   const screenSize = useScreenSizeContext();
   const compact = screenSize === ScreenSize.Mobile;
 
@@ -169,7 +166,6 @@ export function SidebarNav() {
           }
         />
       </Sidebar>
-      {!oldSidebar && !compact && <UserQuickTools width={width} compact={false} />}
     </>
   );
 }

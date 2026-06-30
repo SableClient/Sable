@@ -14,6 +14,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useInviteCount } from '$hooks/useInviteCount';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import { useSetAtom } from 'jotai';
+import { UserQuickTools } from '../sidebar/UserQuickTools';
 
 function InvitesNavItem({ hideText }: { hideText?: boolean }) {
   const invitesSelected = useInboxInvitesSelected();
@@ -58,6 +59,7 @@ export function Inbox() {
   const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
 
   useEffect(() => {
     setCurWidth(roomSidebarWidth);
@@ -131,6 +133,7 @@ export function Inbox() {
           setAnnouncement={setIsResizingSidebar}
         />
       )}
+      {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
     </Box>
   );
 }

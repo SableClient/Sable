@@ -378,7 +378,7 @@ const PresenceOptions: Array<{ value: Presence; label: string }> = [
   { value: Presence.Offline, label: 'Offline' },
 ];
 
-export function PresenceMenuOption() {
+export function PresenceMenuOption({ initialOpen }: { initialOpen: boolean }) {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
 
@@ -388,7 +388,7 @@ export function PresenceMenuOption() {
   const isMobile = screenSize === ScreenSize.Mobile;
   const currentPresence = presence?.presence ?? Presence.Online;
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const { hoverProps } = useHover({
     onHoverChange: (h) => {
       if (!isMobile) setIsOpen(h);
@@ -556,11 +556,11 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
     : undefined;
 
   const handleToggle: MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (evt) => {
-    if(isMobile){
+    if (isMobile) {
       navigate(getProfilePath());
       return;
     }
-    
+
     const cords = evt.currentTarget.getBoundingClientRect();
     setMenuAnchor((cur) => (cur ? undefined : cords));
   };
@@ -651,7 +651,7 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
                     </Text>
                   </MenuItem>
 
-                  <PresenceMenuOption />
+                  <PresenceMenuOption initialOpen={false} />
                 </Box>
 
                 <AccountMenuOption />

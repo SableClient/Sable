@@ -75,7 +75,11 @@ import { Notifications, Inbox, Invites } from './client/inbox';
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
-import { MobileFriendlyPageNav, MobileFriendlyClientNav } from './MobileFriendly';
+import {
+  MobileFriendlyPageNav,
+  MobileFriendlySidebarNav,
+  MobileFriendlyBottomNav,
+} from './MobileFriendly';
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
@@ -187,18 +191,18 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                         <CallEmbedProvider>
                           <ClientLayout
                             nav={
-                              <MobileFriendlyClientNav>
+                              <MobileFriendlySidebarNav>
                                 <SidebarNav />
-                              </MobileFriendlyClientNav>
+                              </MobileFriendlySidebarNav>
                             }
                           >
                             <ClientRouteOutlet />
                           </ClientLayout>
                           <CallStatusRenderer />
                         </CallEmbedProvider>
-                        <MobileFriendlyClientNav>
+                        <MobileFriendlyBottomNav>
                           <UserQuickToolsProvider />
-                        </MobileFriendlyClientNav>
+                        </MobileFriendlyBottomNav>
                         <SearchModalRenderer />
                         <UserRoomProfileRenderer />
                         <CreateRoomModalRenderer />

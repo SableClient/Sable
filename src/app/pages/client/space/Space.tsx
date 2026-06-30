@@ -109,6 +109,7 @@ import { ModalWide } from '$styles/Modal.css';
 import { ImageViewer } from '$components/image-viewer';
 import * as css from './styles.css';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
+import { UserQuickTools } from '../sidebar/UserQuickTools';
 
 const debugLog = createDebugLogger('Space');
 
@@ -859,6 +860,8 @@ export function Space() {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
+
   return (
     <Box
       shrink="No"
@@ -1064,6 +1067,7 @@ export function Space() {
           setAnnouncement={setIsResizingSidebar}
         />
       )}
+      {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
     </Box>
   );
 }

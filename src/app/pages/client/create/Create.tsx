@@ -18,6 +18,7 @@ import { settingsAtom } from '$state/settings';
 import { SidebarResizer } from '../sidebar/SidebarResizer';
 import { useSetAtom } from 'jotai';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
+import { UserQuickTools } from '../sidebar/UserQuickTools';
 
 export function Create() {
   const { navigateSpace } = useRoomNavigate();
@@ -32,6 +33,7 @@ export function Create() {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
 
   return (
     <>
@@ -71,6 +73,7 @@ export function Create() {
               setAnnouncement={setIsResizingSidebar}
             />
           </PageNav>
+          {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
         </Box>
       )}
       <Page>

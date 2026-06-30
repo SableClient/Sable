@@ -28,8 +28,7 @@ import { MessageSourceCodeItem } from './MessageSource';
 import { MessageForwardItem } from './MessageForward';
 
 import * as css from '$features/room/message/styles.css';
-import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai';
-import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
+import { useAtom, useSetAtom, useStore } from 'jotai';
 import type { Dispatch, MouseEventHandler, ReactNode, SetStateAction } from 'react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { MessageDeleteItem } from './MessageDelete';
@@ -43,6 +42,13 @@ import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
 import { EmojiBoard } from '$components/emoji-board';
 import { MemoizedBody, type ReactionHandler } from '$features/room/message';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
+import { BookmarkIcon } from '@phosphor-icons/react';
+import {
+  computeBookmarkId,
+  createBookmarkItem,
+  useBookmarkActions,
+  useIsBookmarked,
+} from '$features/bookmarks';
 import { CopyIcon } from '@phosphor-icons/react';
 
 function WrappedMessage({
@@ -207,6 +213,44 @@ export const MessagePinItem = as<
   );
 });
 
+export const MessageBookmarkItem = as<
+  'button',
+  {
+    room: Room;
+    mEvent: MatrixEvent;
+    onClose?: () => void;
+  }
+>(({ room, mEvent, onClose, ...props }, ref) => {
+  const eventId = mEvent.getId() ?? '';
+  const bookmarked = useIsBookmarked(room.roomId, eventId);
+  const { add, remove } = useBookmarkActions();
+
+  const handleClick = async () => {
+    onClose?.();
+    if (bookmarked) {
+      await remove(computeBookmarkId(room.roomId, eventId));
+    } else {
+      const item = createBookmarkItem(room, mEvent);
+      if (item) await add(item);
+    }
+  };
+
+  return (
+    <MenuItem
+      size="300"
+      after={menuIcon(BookmarkIcon)}
+      radii="300"
+      onClick={handleClick}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        {bookmarked ? 'Remove Bookmark' : 'Bookmark Message'}
+      </Text>
+    </MenuItem>
+  );
+});
+
 export type OptionEmojiMenuProps = {
   mEvent: MatrixEvent;
   closeMenu: () => void;
@@ -284,7 +328,6 @@ export function OptionQuickMenu({
   hideReadReceipts,
   showDeveloperTools,
   canPinEvent,
-  cleanedDisplayName,
   canDelete,
   handleOpenMenu,
   menuAnchor,
@@ -386,7 +429,6 @@ export function OptionQuickMenu({
               hideReadReceipts={hideReadReceipts}
               showDeveloperTools={showDeveloperTools}
               canPinEvent={canPinEvent}
-              cleanedDisplayName={cleanedDisplayName}
               canDelete={canDelete}
               setIsEmoji={setIsEmoji}
               emojiBoardAnchor={menuAnchor}
@@ -433,7 +475,6 @@ export type OptionMenuProps = {
   hideReadReceipts?: boolean;
   showDeveloperTools?: boolean;
   canPinEvent?: boolean;
-  cleanedDisplayName?: string;
   canDelete?: boolean;
   handleOpenMenu?: MouseEventHandler<HTMLButtonElement>;
   menuAnchor?: RectCords | undefined;
@@ -458,7 +499,6 @@ export function OptionMenu({
   hideReadReceipts,
   showDeveloperTools,
   canPinEvent,
-  cleanedDisplayName,
   canDelete,
   imagePackRooms,
   setIsEmoji,
@@ -477,12 +517,6 @@ export function OptionMenu({
     evtTimeline &&
     getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
   const isEdited = !!edits?.length;
-
-  const [nickEditOpen, setNickEditOpen] = useState(false);
-  const [nickDraft, setNickDraft] = useState('');
-  const nicknames = useAtomValue(nicknamesAtom);
-  const setNickname = useSetAtom(setNicknameAtom);
-  const senderId = mEvent.getSender() ?? '';
 
   const onTotalClose = () => {
     setModal(null);
@@ -666,80 +700,13 @@ export function OptionMenu({
                 <MessageSourceCodeItem room={room} mEvent={mEvent} closeMenu={closeMenu} />
               )}
               <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={onTotalClose} />
+
               <MessageCopyTextItem room={room} mEvent={mEvent} onClose={onTotalClose} />
               {canForwardEvent(mEvent) && (
                 <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
               )}
+              <MessageBookmarkItem room={room} mEvent={mEvent} onClose={closeMenu} />
               {canPinEvent && <MessagePinItem room={room} mEvent={mEvent} onClose={onTotalClose} />}
-              {cleanedDisplayName &&
-                senderId !== mx.getUserId() &&
-                (nickEditOpen ? (
-                  <Box
-                    direction="Column"
-                    gap="100"
-                    style={{
-                      padding: `${config.space.S100} ${config.space.S200}`,
-                    }}
-                  >
-                    <Text size="L400">Nickname</Text>
-                    <input
-                      autoFocus
-                      value={nickDraft}
-                      onChange={(e) => setNickDraft(e.target.value)}
-                      placeholder={cleanedDisplayName}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          setNickname(senderId, nickDraft || undefined, mx);
-                          closeMenu();
-                        }
-                        if (e.key === 'Escape') closeMenu();
-                      }}
-                      className={css.MessageNickEditor}
-                    />
-                    <Box gap="200">
-                      <MenuItem
-                        size="300"
-                        radii="300"
-                        variant="Success"
-                        fill="None"
-                        onClick={() => {
-                          setNickname(senderId, nickDraft || undefined, mx);
-                          closeMenu();
-                        }}
-                      >
-                        <Text size="B300">Save</Text>
-                      </MenuItem>
-                      {nicknames[senderId] && (
-                        <MenuItem
-                          size="300"
-                          radii="300"
-                          variant="Critical"
-                          fill="None"
-                          onClick={() => {
-                            setNickname(senderId, undefined, mx);
-                            onTotalClose();
-                          }}
-                        >
-                          <Text size="B300">Clear</Text>
-                        </MenuItem>
-                      )}
-                    </Box>
-                  </Box>
-                ) : (
-                  <MenuItem
-                    size="300"
-                    after={menuIcon(PencilSimple)}
-                    radii="300"
-                    onClick={() => {
-                      setNickDraft(nicknames[senderId] ?? '');
-                      setNickEditOpen(true);
-                    }}
-                  >
-                    <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                      {nicknames[senderId] ? 'Edit Nickname' : 'Set Nickname'}
-                    </Text>
-                  </MenuItem>
-                ))}
             </Box>
             {((!mEvent.isRedacted() && canDelete) || mEvent.getSender() !== mx.getUserId()) && (
               <>
@@ -854,7 +821,6 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
             hideReadReceipts={options.hideReadReceipts}
             showDeveloperTools={options.showDeveloperTools}
             canPinEvent={options.canPinEvent}
-            cleanedDisplayName={options.cleanedDisplayName}
             canDelete={options.canDelete}
             setIsEmoji={options.setIsEmoji}
             ActualMessage={options.ActualMessage}

@@ -53,6 +53,7 @@ import {
   CREATE_PATH,
   TO_ROOM_EVENT_PATH,
   SETTINGS_PATH,
+  BOOKMARKS_PATH_SEGMENT,
 } from './paths';
 import {
   getAppPathFromHref,
@@ -69,7 +70,7 @@ import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
 import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
 import { RouteSpaceProvider, Space, SpaceRouteRoomProvider, SpaceSearch } from './client/space';
 import { Explore, FeaturedRooms, PublicRooms } from './client/explore';
-import { Notifications, Inbox, Invites } from './client/inbox';
+import { Notifications, Inbox, Invites, Bookmarks } from './client/inbox';
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
@@ -370,6 +371,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           )}
           <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
           <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
+          <Route path={BOOKMARKS_PATH_SEGMENT} element={<Bookmarks />} />
         </Route>
         <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
       </Route>

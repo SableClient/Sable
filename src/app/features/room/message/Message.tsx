@@ -833,7 +833,6 @@ function MessageInternal(
         hideReadReceipts: hideReadReceipts,
         showDeveloperTools: showDeveloperTools,
         canPinEvent: canPinEvent,
-        cleanedDisplayName: cleanedDisplayName,
         canDelete: canDelete,
         setIsEmoji: setIsEmoji,
         ActualMessage: (
@@ -939,7 +938,6 @@ function MessageInternal(
             hideReadReceipts={hideReadReceipts}
             showDeveloperTools={showDeveloperTools}
             canPinEvent={canPinEvent}
-            cleanedDisplayName={cleanedDisplayName}
             canDelete={canDelete}
             handleOpenMenu={handleOpenMenu}
             menuAnchor={menuAnchor}

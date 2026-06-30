@@ -20,6 +20,7 @@ import {
   getDirectRoomPath,
   getHomeRoomPath,
   getHomeSearchPath,
+  getInboxBookmarksPath,
   getSpaceRoomPath,
   getSpaceSearchPath,
   withSearchParam,
@@ -162,6 +163,17 @@ export function GlobalKeyboardShortcuts() {
     [currentRoom, replyDraft, setReplyDraft]
   );
 
+  const handleBookmarkKeyDown = useCallback(
+    (evt: KeyboardEvent) => {
+      if (!isKeyHotkey('mod+b', evt)) return;
+      evt.preventDefault();
+
+      navigate(getInboxBookmarksPath());
+      announce(`Navigated to bookmarks`);
+    },
+    [navigate]
+  );
+
   /** Ctrl+F: Search for messages */
   const handleSearchMessageInRoom = useCallback(
     (evt: KeyboardEvent) => {
@@ -184,6 +196,7 @@ export function GlobalKeyboardShortcuts() {
   useKeyDown(window, handleNextUnreadKeyDown);
   useKeyDown(window, handleUnreadNavKeyDown);
   useKeyDown(window, handleReplyKeyDown);
+  useKeyDown(window, handleBookmarkKeyDown);
   useKeyDown(window, handleSearchMessageInRoom);
 
   return null;

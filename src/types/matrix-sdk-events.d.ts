@@ -37,6 +37,29 @@ type RoomCosmeticsPronounsEventContent = {
 type RoomBannerContent = {
   url?: string;
 };
+
+type BookmarkIndexContent = {
+  version: 1;
+  revision: number;
+  updated_ts: number;
+  bookmark_ids: string[];
+};
+
+type BookmarkItemContent = {
+  version: 1;
+  bookmark_id: string;
+  uri: string;
+  room_id: string;
+  event_id: string;
+  event_ts: number;
+  bookmarked_ts: number;
+  sender?: string;
+  room_name?: string;
+  body_preview?: string;
+  msgtype?: string;
+  deleted?: boolean;
+};
+
 declare module 'matrix-js-sdk/lib/@types/event' {
   interface StateEvents {
     [prefix.MATRIX_UNSTABLE_STATE_ROOM_EMOTES_PROPERTY_NAME]: PackContent;
@@ -59,6 +82,8 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME]: Record<string, unknown>;
     [prefix.MATRIX_SABLE_UNSTABLE_DISMISSED_INVITES]: { roomIds: string[] };
     [prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_ADDED_SERVERS_PROPERTY_NAME]: AddedServersContent;
+    [prefix.MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT]: BookmarkIndexContent;
+    [prefix.MATRIX_SABLE_UNSTABLE_BOOKMARK_ITEM_EVENT_PREFIX]: BookmarkItemContent;
     [prefix.MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS]: { gifs: Omit<GifData, 'id'>[] };
   }
 }

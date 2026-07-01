@@ -104,10 +104,7 @@ export function MGallery({ content, renderItem, renderCaption }: MGalleryProps) 
             )}
             <Box alignItems="Inherit" gap="200">
               {items.map((item, index) => (
-                <div
-                  key={item.url ?? item.file?.url ?? index}
-                  className={css.GalleryItem({ isImage: item.itemtype === MsgType.Image })}
-                >
+                <div key={item.url ?? item.file?.url ?? index} className={css.GalleryItem()}>
                   {renderItem(galleryItemToContent(item), index)}
                 </div>
               ))}

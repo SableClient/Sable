@@ -3,7 +3,6 @@ import { style } from '@vanilla-extract/css';
 import { DefaultReset, color, config, toRem } from 'folds';
 
 export const GalleryHolder = style({
-  position: 'relative',
   marginTop: config.space.S200,
 });
 
@@ -11,22 +10,16 @@ export const GalleryItem = recipe({
   base: [
     DefaultReset,
     {
+      display: 'flex',
       maxWidth: toRem(450),
       flexShrink: 0,
+      flexGrow: 1,
       overflow: 'hidden',
       borderRadius: config.radii.R300,
+      alignSelf: 'stretch',
+      backgroundColor: '#AA00AA',
     },
   ],
-  variants: {
-    isImage: {
-      true: {
-        height: toRem(300),
-      },
-      false: {
-        maxHeight: toRem(300),
-      },
-    },
-  },
 });
 
 export const GalleryHolderGradient = recipe({

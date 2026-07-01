@@ -447,13 +447,14 @@ export function MImage({ content, renderImageContent, outlined, fitParent }: MIm
   // this garbage is for portrait images, we cap the width so the card doesn't exceed the bounds of the image
   const displayWidth = imgH > imgW ? Math.round(MAX_SIZE * (imgW / imgH)) : MAX_SIZE;
   const height = scaleYDimension(imgInfo?.w || 400, displayWidth, imgInfo?.h || 400);
+
   return (
     <Attachment
       style={{
         flexGrow: 1,
         flexShrink: 0,
         width: fitParent ? '100%' : toRem(displayWidth),
-        height: fitParent ? '100%' : 'auto',
+        height: fitParent ? MAX_SIZE : 'auto',
       }}
       outlined={outlined}
     >
@@ -461,7 +462,7 @@ export function MImage({ content, renderImageContent, outlined, fitParent }: MIm
         style={{
           flexGrow: 1,
           aspectRatio,
-          width: fitParent ? '100%' : toRem(displayWidth),
+          width: fitParent ? 'auto' : toRem(displayWidth),
           height: fitParent ? '100%' : toRem(height < 48 ? 48 : height),
         }}
       >
@@ -524,7 +525,7 @@ export function MVideo({
         flexGrow: 1,
         flexShrink: 0,
         width: fitParent ? '100%' : toRem(displayWidth),
-        height: fitParent ? '100%' : 'auto',
+        height: fitParent ? 400 : 'auto',
       }}
       outlined={outlined}
     >
@@ -544,7 +545,7 @@ export function MVideo({
       </AttachmentHeader>
       <AttachmentBox
         style={{
-          width: fitParent ? '100%' : toRem(displayWidth),
+          width: fitParent ? 'auto' : toRem(displayWidth),
           height: fitParent ? '100%' : toRem(height < 48 ? 48 : height),
         }}
       >

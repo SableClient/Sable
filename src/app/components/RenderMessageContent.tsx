@@ -10,7 +10,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts } from 'linkifyjs';
-import { Box, config } from 'folds';
+import { Box, config, toRem } from 'folds';
 import {
   AudioContent,
   DownloadFile,
@@ -264,14 +264,12 @@ function RenderMessageContentInternal({
         style={{
           display: 'flex',
           flexDirection: attachmentDirection,
-          width: '100%',
-          height: '100%',
         }}
       >
         <div
           style={{
-            width: '100%',
-            height: '100%',
+            // height: '100%',
+            backgroundColor: '#00AA00',
           }}
         >
           {attachment}

@@ -119,7 +119,7 @@ export class CallEmbed {
 
     if (!room.isCallRoom() && CallEmbed.startingCall(intent)) {
       params.append('sendNotificationType', CallEmbed.dmCall(intent) ? 'ring' : 'notification');
-      params.append('waitForCallPickup', 'false');
+      params.append('waitForCallPickup', CallEmbed.dmCall(intent) ? 'true' : 'false');
     }
 
     let widgetUrl: URL;

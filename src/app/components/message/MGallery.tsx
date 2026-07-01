@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Icon, IconButton, Icons, Scroll } from 'folds';
-import type { IContent } from 'matrix-js-sdk';
+import { MsgType, type IContent } from 'matrix-js-sdk';
 import type { IGalleryContent, IGalleryItem } from '$types/matrix/common';
 import {
   getIntersectionObserverEntry,
@@ -104,7 +104,10 @@ export function MGallery({ content, renderItem, renderCaption }: MGalleryProps) 
             )}
             <Box alignItems="Inherit" gap="200">
               {items.map((item, index) => (
-                <div key={item.url ?? item.file?.url ?? index} className={css.GalleryItem}>
+                <div
+                  key={item.url ?? item.file?.url ?? index}
+                  className={css.GalleryItem({ isImage: item.itemtype === MsgType.Image })}
+                >
                   {renderItem(galleryItemToContent(item), index)}
                 </div>
               ))}

@@ -28,7 +28,8 @@ type PermissionGroupsProps = {
   permissionGroups: PermissionGroup[];
 };
 
-const getPermissionLocationKey = (location: PermissionLocation): string => JSON.stringify(location);
+const getPermissionLocationKey = (location: PermissionLocation | PermissionLocation[]): string =>
+  JSON.stringify(location);
 
 export function PermissionGroups({
   powerLevels,
@@ -42,9 +43,7 @@ export function PermissionGroups({
   const powerLevelTags = usePowerLevelTags(room, powerLevels);
   const maxPower = useMemo(() => Math.max(...getPowers(powerLevelTags)), [powerLevelTags]);
 
-  const [permissionUpdate, setPermissionUpdate] = useState<Map<PermissionLocation, number>>(
-    new Map()
-  );
+  const [permissionUpdate, setPermissionUpdate] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     // reset permission update if component rerender
@@ -53,19 +52,20 @@ export function PermissionGroups({
   }, [permissionGroups]);
 
   const handleChangePermission = (
-    location: PermissionLocation,
+    location: PermissionLocation | PermissionLocation[],
     newPower: number,
     currentPower: number
   ) => {
+    const locationKey = getPermissionLocationKey(location);
     setPermissionUpdate((p) => {
       const up: typeof p = new Map();
       p.forEach((value, key) => {
         up.set(key, value);
       });
       if (newPower === currentPower) {
-        up.delete(location);
+        up.delete(locationKey);
       } else {
-        up.set(location, newPower);
+        up.set(locationKey, newPower);
       }
       return up;
     });
@@ -80,8 +80,12 @@ export function PermissionGroups({
             applyPermissionPower(draftPowerLevels, item.location, power);
           })
         );
-        permissionUpdate.forEach((power, location) =>
-          applyPermissionPower(draftPowerLevels, location, power)
+        permissionUpdate.forEach((power, locationKey) =>
+          applyPermissionPower(
+            draftPowerLevels,
+            JSON.parse(locationKey) as PermissionLocation | PermissionLocation[],
+            power
+          )
         );
 
         return draftPowerLevels;
@@ -111,7 +115,7 @@ export function PermissionGroups({
 
   const renderUserGroup = () => {
     const power = getPermissionPower(powerLevels, USER_DEFAULT_LOCATION);
-    const powerUpdate = permissionUpdate.get(USER_DEFAULT_LOCATION);
+    const powerUpdate = permissionUpdate.get(getPermissionLocationKey(USER_DEFAULT_LOCATION));
     const value = powerUpdate ?? power;
 
     const tag = getPowerLevelTag(powerLevelTags, value);
@@ -172,7 +176,7 @@ export function PermissionGroups({
           <Text size="L400">{group.name}</Text>
           {group.items.map((item) => {
             const power = getPermissionPower(powerLevels, item.location);
-            const powerUpdate = permissionUpdate.get(item.location);
+            const powerUpdate = permissionUpdate.get(getPermissionLocationKey(item.location));
             const value = powerUpdate ?? power;
 
             const tag = getPowerLevelTag(powerLevelTags, value);

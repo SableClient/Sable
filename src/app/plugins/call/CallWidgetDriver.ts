@@ -52,7 +52,17 @@ export class CallWidgetDriver extends WidgetDriver {
   }
 
   public async validateCapabilities(requested: Set<Capability>): Promise<Set<Capability>> {
-    const allow = Array.from(requested).filter((cap) => this.allowedCapabilities.has(cap));
+    const requestedArray = Array.from(requested);
+    const allow = requestedArray.filter((cap) => this.allowedCapabilities.has(cap));
+    const denied = requestedArray.filter((cap) => !this.allowedCapabilities.has(cap));
+
+    if (denied.length > 0) {
+      debugLog.warn('call', 'Call widget requested unsupported capabilities', {
+        roomId: this.inRoomId,
+        deniedCapabilities: denied,
+      });
+    }
+
     return new Set(allow);
   }
 

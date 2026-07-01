@@ -220,8 +220,8 @@ importers:
         specifier: ^6.2.2
         version: 6.2.2(rollup@2.80.0)
       '@sableclient/sable-call-embedded':
-        specifier: 1.1.4
-        version: 1.1.4
+        specifier: 1.1.6
+        version: 1.1.6
       '@sentry/vite-plugin':
         specifier: ^5.3.0
         version: 5.3.0(rollup@2.80.0)
@@ -2495,8 +2495,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@sableclient/sable-call-embedded@1.1.4':
-    resolution: {integrity: sha512-XLRcbUPcn7i3QKZAPjIfUkUEXP0E4DOr0dyRoVCWMjHWj28kq+T7jeB2fRr5lB77olBwNHMjIuoTwrv02xiepQ==}
+  '@sableclient/sable-call-embedded@1.1.6':
+    resolution: {integrity: sha512-acvx+6Cp7OU6fiXHs5gISyiTjEDAmh9h1xSL4LI1/QezSzb1AAV4v0PDfzNqzPweTZGIrr0b+8I5/Z7Bu9gVSQ==}
 
   '@sableclient/twemoji-font@1.0.4':
     resolution: {integrity: sha512-LzvQB/VZtv5KEq1VYq2azr7v7cYT8oklOVRGkAN2RNwa3sF0XcnqM3lBHSYRFXQleGLSUgs3gA0slbwkD2+sJw==}
@@ -7005,7 +7005,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.62.0':
     optional: true
 
-  '@sableclient/sable-call-embedded@1.1.4': {}
+  '@sableclient/sable-call-embedded@1.1.6': {}
 
   '@sableclient/twemoji-font@1.0.4': {}
 

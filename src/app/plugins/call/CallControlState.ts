@@ -7,19 +7,10 @@ export class CallControlState {
 
   public readonly screenshare: boolean;
 
-  public readonly spotlight: boolean;
-
-  constructor(
-    microphone: boolean,
-    video: boolean,
-    sound: boolean,
-    screenshare = false,
-    spotlight = false
-  ) {
+  constructor(microphone: boolean, video: boolean, sound: boolean, screenshare = false) {
     this.microphone = microphone;
     this.video = video;
     this.sound = sound;
     this.screenshare = screenshare;
-    this.spotlight = spotlight;
   }
 }

@@ -36,6 +36,14 @@ export type PerRoomShowRoomIcon = {
 };
 
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
+export const CALL_TONE_IDS = [
+  'sable-default',
+  'classic-soft',
+  'minimal-ping',
+  'silent',
+  'custom',
+] as const;
+export type CallRingtoneId = (typeof CALL_TONE_IDS)[number];
 
 export type ThemeRemoteFavorite = {
   fullUrl: string;
@@ -191,6 +199,13 @@ export interface Settings {
   subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
   joinCallOnSingleClick: boolean;
+  incomingCallSoundEnabled: boolean;
+  incomingVoiceRoomCallSoundEnabled: boolean;
+  outgoingRingbackEnabled: boolean;
+  callRingtoneVolume: number;
+  callRingtoneId: CallRingtoneId;
+  callRingbackTone: CallRingtoneId;
+  callSoundOverrideGlobalNotifications: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
   pkCompat: boolean;
@@ -345,6 +360,13 @@ export const defaultSettings: Settings = {
   subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,
   joinCallOnSingleClick: true,
+  incomingCallSoundEnabled: true,
+  incomingVoiceRoomCallSoundEnabled: false,
+  outgoingRingbackEnabled: true,
+  callRingtoneVolume: 80,
+  callRingtoneId: 'sable-default',
+  callRingbackTone: 'sable-default',
+  callSoundOverrideGlobalNotifications: false,
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,
@@ -396,6 +418,12 @@ function cloneDefaultSettings(): Settings {
   };
 }
 
+const CALL_TONE_ID_SET = new Set<unknown>(CALL_TONE_IDS);
+
+const isCallToneId = (value: unknown): value is CallRingtoneId => CALL_TONE_ID_SET.has(value);
+
+const clampPercent = (value: number): number => Math.max(0, Math.min(100, Math.round(value)));
+
 function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (parsed.monochromeMode === true && parsed.saturationLevel === undefined) {
     parsed.saturationLevel = 0;
@@ -433,6 +461,37 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   }
   delete parsed.themeChatPreviewAnyUrl;
   delete parsed.themeChatPreviewApprovedCatalogOnly;
+
+  if (typeof parsed.callRingtoneVolume === 'number' && Number.isFinite(parsed.callRingtoneVolume)) {
+    parsed.callRingtoneVolume = clampPercent(parsed.callRingtoneVolume);
+  }
+
+  if (!isCallToneId(parsed.callRingtoneId)) {
+    delete parsed.callRingtoneId;
+  }
+
+  if (parsed.callRingbackTone === 'same-as-ringtone') {
+    parsed.callRingbackTone = parsed.callRingtoneId ?? defaultSettings.callRingtoneId;
+  } else if (parsed.callRingbackTone === 'default-ringback') {
+    parsed.callRingbackTone = 'classic-soft';
+  }
+
+  if (!isCallToneId(parsed.callRingbackTone)) {
+    delete parsed.callRingbackTone;
+  }
+
+  const legacyCallCustomMetadataKeys = [
+    'callCustomRingtoneName',
+    'callCustomRingtoneSizeBytes',
+    'callCustomRingtoneDurationMs',
+    'callCustomRingbackName',
+    'callCustomRingbackSizeBytes',
+    'callCustomRingbackDurationMs',
+  ] as const;
+
+  for (const key of legacyCallCustomMetadataKeys) {
+    delete parsed[key];
+  }
 }
 
 export function mergePersistedSettings(
@@ -548,6 +607,12 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         : undefined;
     case 'rightSwipeAction':
       return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
+    case 'callRingtoneId':
+    case 'callRingbackTone':
+      return isCallToneId(val) ? val : undefined;
+    case 'callRingtoneVolume':
+      if (typeof val !== 'number' || !Number.isFinite(val)) return undefined;
+      return clampPercent(val);
     case 'renderUserCards':
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
         ? val

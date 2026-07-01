@@ -1,247 +1,592 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import * as Sentry from '@sentry/react';
-import { RoomStateEvent } from '$types/matrix-sdk';
-import { MatrixRTCSession } from '$types/matrix-sdk';
-import { MatrixRTCSessionManagerEvents } from '$types/matrix-sdk';
-import { useSetAtom, useAtomValue } from 'jotai';
+import { useAtomValue, useSetAtom, useStore } from 'jotai';
+import type { RoomEventHandlerMap, MatrixEvent, Room } from '$types/matrix-sdk';
+import { MatrixRTCSessionManagerEvents, RoomEvent } from '$types/matrix-sdk';
 import { mDirectAtom } from '$state/mDirectList';
-import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
-import RingtoneSound from '$public/sound/ringtone.webm';
+import {
+  callEmbedAtom,
+  callSoundBlockedAtom,
+  incomingCallAtom,
+  mutedCallRoomIdAtom,
+  type IncomingCall,
+} from '$state/callEmbed';
+import { settingsAtom } from '$state/settings';
+import {
+  parseIncomingRtcNotification,
+  RTC_DECLINE_EVENT_TYPE,
+  REFERENCE_REL_TYPE,
+  RTC_NOTIFICATION_EVENT_TYPE,
+} from '$features/call/rtcNotificationParser';
+import { decryptRtcTimelineEvent } from '$features/call/callSignalingDecrypt';
+import {
+  FALLBACK_INTERVAL_MS,
+  MAX_NOTIFICATION_LIFETIME_MS,
+  OUTGOING_DECLINE_EMBED_CLEAR_MS,
+} from '$features/call/callSignalingPolicy';
+import {
+  applyOutgoingDeclineToTracker,
+  type OutgoingDeclineEvent,
+} from '$features/call/outgoingDeclineHandler';
+import { parseRtcDeclineFromTimelineEvent } from '$features/call/rtcTimelineDecline';
+import { evaluateIncomingCallFallback } from '$features/call/callSignalingFallback';
+import { canPlayCallAudio } from '$features/call/callRingtone';
+import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
+import { isIncomingCallSuppressed } from '$features/call/callIncomingIngress';
+import {
+  getRemoteRtcMemberUserIds,
+  isCallActive,
+  isOutgoingCallPending,
+} from '$features/call/callMembershipState';
+import { ringtoneManager } from '$features/call/CallRingtoneManager';
+import { OUTGOING_RING_TIMEOUT_MS } from '$features/call/callSignalingPolicy';
 import { useMatrixClient } from './useMatrixClient';
 import { createDebugLogger } from '../utils/debugLogger';
 
 const debugLog = createDebugLogger('CallSignaling');
 
-type CallPhase = 'IDLE' | 'RINGING_OUT' | 'RINGING_IN' | 'ACTIVE' | 'ENDED';
+const canSenderStartCalls = (room: Room, senderId: string): boolean =>
+  room.currentState?.maySendStateEvent('org.matrix.msc3401.call.member', senderId) ?? false;
 
-interface SignalState {
-  incoming: string | null;
-  outgoing: string | null;
-}
-
-export function useCallSignaling() {
+export function useIncomingCallSignaling() {
   const mx = useMatrixClient();
-  const setIncomingCall = useSetAtom(incomingCallRoomIdAtom);
+  const store = useStore();
+  const callEmbed = useAtomValue(callEmbedAtom);
   const mDirects = useAtomValue(mDirectAtom);
-
-  const incomingAudioRef = useRef<HTMLAudioElement | null>(null);
-  const outgoingAudioRef = useRef<HTMLAudioElement | null>(null);
-  const ringingRoomIdRef = useRef<string | null>(null);
-  const outgoingStartRef = useRef<number | null>(null);
-  const callPhaseRef = useRef<Record<string, CallPhase>>({});
-
+  const settings = useAtomValue(settingsAtom);
+  const incomingCall = useAtomValue(incomingCallAtom);
   const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
+  const setIncomingCall = useSetAtom(incomingCallAtom);
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
+  const setCallSoundBlocked = useSetAtom(callSoundBlockedAtom);
+  const setCallEmbed = useSetAtom(callEmbedAtom);
 
-  // Stable refs so volatile values (mutedRoomId, ring callbacks) don't force
-  // the listener registration effect to re-run — which would cause the
-  // SessionEnded and RoomState.events listeners to accumulate when muting
-  // or when call state changes rapidly during a sync retry cycle.
-  const mutedRoomIdRef = useRef(mutedRoomId);
+  const incomingCallRef = useRef<IncomingCall | null>(incomingCall);
+  const mutedRoomIdRef = useRef<string | null>(mutedRoomId);
+  const seenNotificationIdsRef = useRef<Set<string>>(new Set());
+  const MAX_SEEN_NOTIFICATION_IDS = 256;
+
+  const rememberNotificationId = (notificationEventId: string) => {
+    const seen = seenNotificationIdsRef.current;
+    if (seen.has(notificationEventId)) return false;
+    seen.add(notificationEventId);
+    while (seen.size > MAX_SEEN_NOTIFICATION_IDS) {
+      const oldest = seen.values().next().value;
+      if (!oldest) break;
+      seen.delete(oldest);
+    }
+    return true;
+  };
+  const outgoingRingRoomIdRef = useRef<string | null>(null);
+  const declinedOutgoingRoomIdRef = useRef<string | null>(null);
+  const outgoingDeclinesRef = useRef<
+    Map<string, { notificationEventId: string; declinerIds: Set<string> }>
+  >(new Map());
+  const outgoingStartRef = useRef<number | null>(null);
+  const activeOutgoingNotificationIdRef = useRef<string | null>(null);
+  const seenDeclineEventIdsRef = useRef<Set<string>>(new Set());
+  const hasCallBeenActiveRef = useRef<boolean>(false);
+
+  type SignalingHandlerRefs = {
+    callEmbed: typeof callEmbed;
+    mDirects: typeof mDirects;
+    outgoingRingbackAllowed: boolean;
+    handleIncomingCall: (incoming: IncomingCall) => void;
+    handleOutgoingDecline: (decline: {
+      roomId: string;
+      declineEventId: string;
+      notificationEventId: string;
+      senderId: string;
+    }) => void;
+    clearIncomingCall: () => void;
+    stopIncomingRing: () => void;
+    stopOutgoingRing: () => void;
+    setMutedRoomId: (roomId: string | null) => void;
+  };
+
+  const signalingHandlerRefs = useRef<SignalingHandlerRefs | null>(null);
+
+  incomingCallRef.current = incomingCall;
   mutedRoomIdRef.current = mutedRoomId;
 
   useEffect(() => {
-    const inc = new Audio(RingtoneSound);
-    inc.loop = true;
-    incomingAudioRef.current = inc;
+    declinedOutgoingRoomIdRef.current = null;
+    outgoingDeclinesRef.current.clear();
+    activeOutgoingNotificationIdRef.current = null;
+    seenDeclineEventIdsRef.current.clear();
+    hasCallBeenActiveRef.current = false;
+    outgoingRingRoomIdRef.current = null;
+    outgoingStartRef.current = null;
+  }, [callEmbed]);
 
-    const out = new Audio(RingtoneSound);
-    out.loop = true;
-    outgoingAudioRef.current = out;
+  useEffect(() => {
+    ringtoneManager.syncSources(
+      settings.callRingtoneId,
+      settings.callRingbackTone,
+      settings.callRingtoneVolume
+    );
+  }, [settings.callRingtoneId, settings.callRingbackTone, settings.callRingtoneVolume]);
 
-    return () => {
-      inc.pause();
-      out.pause();
-    };
+  const stopIncomingRing = useCallback(() => {
+    ringtoneManager.stopIncoming();
+    setCallSoundBlocked(false);
+  }, [setCallSoundBlocked]);
+
+  const stopOutgoingRing = useCallback(() => {
+    ringtoneManager.stopOutgoing();
   }, []);
 
-  const stopRinging = useCallback(() => {
-    incomingAudioRef.current?.pause();
-    outgoingAudioRef.current?.pause();
-    if (incomingAudioRef.current) incomingAudioRef.current.currentTime = 0;
-    if (outgoingAudioRef.current) outgoingAudioRef.current.currentTime = 0;
-
-    ringingRoomIdRef.current = null;
+  const clearIncomingCall = useCallback(() => {
+    const activeIncomingCall = incomingCallRef.current;
+    stopIncomingRing();
     setIncomingCall(null);
-  }, [setIncomingCall]);
-
-  const playOutgoingRinging = useCallback((roomId: string) => {
-    if (outgoingAudioRef.current && ringingRoomIdRef.current !== roomId) {
-      outgoingAudioRef.current.play().catch(() => {});
-      ringingRoomIdRef.current = roomId;
+    if (activeIncomingCall) {
+      void dismissSystemCallNotifications(activeIncomingCall.roomId);
     }
-  }, []);
+  }, [setIncomingCall, stopIncomingRing]);
 
-  const playRinging = useCallback(
-    (roomId: string) => {
-      if (incomingAudioRef.current && ringingRoomIdRef.current !== roomId) {
-        incomingAudioRef.current.play().catch(() => {});
-        ringingRoomIdRef.current = roomId;
-        setIncomingCall(roomId);
+  const handleOutgoingDecline = useCallback(
+    (decline: OutgoingDeclineEvent) => {
+      if (!callEmbed || callEmbed.roomId !== decline.roomId) {
+        return;
       }
+
+      if (seenDeclineEventIdsRef.current.has(decline.declineEventId)) {
+        return;
+      }
+      seenDeclineEventIdsRef.current.add(decline.declineEventId);
+
+      const activeNotificationId = activeOutgoingNotificationIdRef.current;
+      if (activeNotificationId && decline.notificationEventId !== activeNotificationId) {
+        debugLog.info('call', 'Ignoring stale outgoing decline for previous notification', {
+          roomId: decline.roomId,
+          declineEventId: decline.declineEventId,
+          notificationEventId: decline.notificationEventId,
+          activeNotificationId,
+        });
+        return;
+      }
+
+      const outgoingRoom = mx.getRoom(decline.roomId);
+      if (!outgoingRoom) {
+        return;
+      }
+
+      const myUserId = mx.getSafeUserId();
+      const sessionDescription = mx.matrixRTC.getRoomSession(outgoingRoom).sessionDescription;
+      let remoteJoinedIds = getRemoteRtcMemberUserIds(myUserId, outgoingRoom, sessionDescription);
+      if (remoteJoinedIds.size === 0) {
+        remoteJoinedIds = new Set([decline.senderId]);
+      }
+
+      const decision = applyOutgoingDeclineToTracker(outgoingDeclinesRef.current, decline, {
+        remoteJoinedIds,
+        isDirectRoom: mDirects.has(decline.roomId),
+      });
+
+      if (decision.kind === 'ignore_partial') {
+        debugLog.info('call', 'Ignoring partial outgoing decline for group call', {
+          roomId: decline.roomId,
+          declineEventId: decline.declineEventId,
+          notificationEventId: decline.notificationEventId,
+          declinedCount: decision.declinedCount,
+          targetCount: decision.targetCount,
+        });
+        Sentry.metrics.count('sable.call.outgoing.declined.partial', 1);
+        return;
+      }
+
+      declinedOutgoingRoomIdRef.current = decline.roomId;
+      debugLog.info('call', 'Outgoing call declined and ending call', {
+        roomId: decline.roomId,
+        declineEventId: decline.declineEventId,
+        notificationEventId: decline.notificationEventId,
+        declinedCount: decision.declinedCount,
+        targetCount: decision.targetCount,
+      });
+      Sentry.metrics.count('sable.call.outgoing.declined', 1);
+      stopOutgoingRing();
+
+      void callEmbed
+        .hangup()
+        .catch((error) => {
+          debugLog.warn('call', 'Failed to hang up after outgoing decline', {
+            roomId: decline.roomId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          Sentry.metrics.count('sable.call.outgoing.decline_hangup_error', 1);
+        })
+        .finally(() => {
+          window.setTimeout(() => {
+            const activeEmbed = store.get(callEmbedAtom);
+            if (activeEmbed !== callEmbed) return;
+            setCallEmbed(undefined);
+          }, OUTGOING_DECLINE_EMBED_CLEAR_MS);
+        });
     },
-    [setIncomingCall]
+    [callEmbed, mDirects, mx, setCallEmbed, stopOutgoingRing, store]
   );
 
-  // Must be declared after the callbacks above so the initial useRef(value) call
-  // sees their current identity. Updated on every render so the effect closure
-  // always calls the latest version without needing them in the dep array.
-  const playRingingRef = useRef(playRinging);
-  playRingingRef.current = playRinging;
-  const stopRingingRef = useRef(stopRinging);
-  stopRingingRef.current = stopRinging;
-  const playOutgoingRingingRef = useRef(playOutgoingRinging);
-  playOutgoingRingingRef.current = playOutgoingRinging;
+  const callAudioAllowed = canPlayCallAudio({
+    isNotificationSounds: settings.isNotificationSounds,
+    callSoundOverrideGlobalNotifications: settings.callSoundOverrideGlobalNotifications,
+  });
+  const incomingRingtoneAllowed = settings.incomingCallSoundEnabled && callAudioAllowed;
+  const outgoingRingbackAllowed =
+    settings.outgoingRingbackEnabled && callAudioAllowed && settings.callRingbackTone !== 'silent';
+  const incomingToneIsSilent = settings.callRingtoneId === 'silent';
+
+  const handleIncomingCall = useCallback(
+    (nextIncomingCall: IncomingCall) => {
+      if (
+        isIncomingCallSuppressed(
+          nextIncomingCall,
+          mutedRoomIdRef.current,
+          settings.incomingVoiceRoomCallSoundEnabled
+        )
+      )
+        return;
+      if (!rememberNotificationId(nextIncomingCall.notificationEventId)) return;
+      setIncomingCall(nextIncomingCall);
+
+      debugLog.info('call', 'Incoming RTC notification accepted', {
+        roomId: nextIncomingCall.roomId,
+        notificationType: nextIncomingCall.notificationType,
+        intent: nextIncomingCall.intentRaw,
+      });
+      Sentry.addBreadcrumb({
+        category: 'call.signal',
+        message: 'Incoming RTC notification',
+        data: {
+          roomId: nextIncomingCall.roomId,
+          notificationType: nextIncomingCall.notificationType,
+          intent: nextIncomingCall.intentRaw,
+        },
+      });
+      Sentry.metrics.count('sable.call.incoming.shown', 1, {
+        attributes: {
+          type: nextIncomingCall.notificationType,
+          dm: String(nextIncomingCall.isDirect),
+        },
+      });
+    },
+    [setIncomingCall, settings.incomingVoiceRoomCallSoundEnabled]
+  );
+
+  const playIncomingRing = useCallback(() => {
+    if (!incomingRingtoneAllowed || incomingToneIsSilent) {
+      stopIncomingRing();
+      return;
+    }
+
+    ringtoneManager
+      .playIncoming()
+      ?.then(() => {
+        setCallSoundBlocked(false);
+      })
+      .catch(() => {
+        // AbortError is handled in ringtoneManager, any other error comes here
+        setCallSoundBlocked(true);
+      });
+  }, [incomingRingtoneAllowed, incomingToneIsSilent, setCallSoundBlocked, stopIncomingRing]);
+
+  signalingHandlerRefs.current = {
+    callEmbed,
+    mDirects,
+    outgoingRingbackAllowed,
+    handleIncomingCall,
+    handleOutgoingDecline,
+    clearIncomingCall,
+    stopIncomingRing,
+    stopOutgoingRing,
+    setMutedRoomId,
+  };
+
+  useEffect(() => {
+    if (!incomingRingtoneAllowed) {
+      stopIncomingRing();
+    }
+    if (!outgoingRingbackAllowed) {
+      stopOutgoingRing();
+    }
+  }, [incomingRingtoneAllowed, outgoingRingbackAllowed, stopIncomingRing, stopOutgoingRing]);
+
+  useEffect(() => {
+    if (!incomingCall) {
+      stopIncomingRing();
+      return;
+    }
+    if (
+      isIncomingCallSuppressed(
+        incomingCall,
+        mutedRoomId,
+        settings.incomingVoiceRoomCallSoundEnabled
+      )
+    ) {
+      setIncomingCall(null);
+      return;
+    }
+    playIncomingRing();
+  }, [
+    incomingCall,
+    mutedRoomId,
+    playIncomingRing,
+    setIncomingCall,
+    settings.incomingVoiceRoomCallSoundEnabled,
+    stopIncomingRing,
+  ]);
 
   useEffect(() => {
     if (!mx || !mx.matrixRTC) return undefined;
 
-    const checkDMsForActiveCalls = () => {
-      const myUserId = mx.getUserId();
-      const now = Date.now();
+    const myUserId = mx.getSafeUserId();
+    const handlers = () => signalingHandlerRefs.current!;
 
-      const signal = Array.from(mDirects).reduce<SignalState>(
-        (acc, roomId) => {
-          if (acc.incoming || mutedRoomIdRef.current === roomId) return acc;
+    const parseEvent = async (
+      event: MatrixEvent,
+      room: Room,
+      liveEvent: boolean
+    ): Promise<IncomingCall | undefined> => {
+      const relation = event.getRelation();
+      if (relation?.rel_type !== REFERENCE_REL_TYPE || !relation.event_id) return undefined;
 
-          const room = mx.getRoom(roomId);
-          if (!room) return acc;
+      let eventType = event.getType();
+      let content = event.getContent();
 
-          const session = mx.matrixRTC.getRoomSession(room);
-          const memberships = MatrixRTCSession.sessionMembershipsForRoom(
-            room,
-            session.sessionDescription
-          );
+      if (event.isEncrypted()) {
+        const decrypted = await decryptRtcTimelineEvent(event, mx);
+        if (!decrypted?.content || !decrypted.type) {
+          Sentry.metrics.count('sable.call.signal.decrypt_timeout', 1);
+          return undefined;
+        }
+        eventType = decrypted.type;
+        content = decrypted.content;
+      }
 
-          const remoteMembers = memberships.filter(
-            (m: { userId?: string; sender?: string }) => (m.userId || m.sender) !== myUserId
-          );
-          const isSelfInCall = memberships.some(
-            (m: { userId?: string; sender?: string }) => (m.userId || m.sender) === myUserId
-          );
-          const currentPhase = callPhaseRef.current[roomId] || 'IDLE';
-
-          // no one here
-          if (!isSelfInCall && remoteMembers.length === 0) {
-            callPhaseRef.current[roomId] = 'IDLE';
-            return acc;
-          }
-
-          // being called
-          if (remoteMembers.length > 0 && !isSelfInCall) {
-            if (currentPhase !== 'RINGING_IN') {
-              debugLog.info('call', 'Incoming call detected', {
-                roomId,
-                remoteCount: remoteMembers.length,
-              });
-              Sentry.addBreadcrumb({
-                category: 'call.signal',
-                message: 'Incoming call ringing',
-                data: { roomId },
-              });
-            }
-            callPhaseRef.current[roomId] = 'RINGING_IN';
-            acc.incoming = roomId;
-            return acc;
-          }
-
-          // multiple people no ringtone
-          if (isSelfInCall && remoteMembers.length > 0) {
-            if (currentPhase !== 'ACTIVE') {
-              debugLog.info('call', 'Call became active', { roomId });
-              Sentry.addBreadcrumb({
-                category: 'call.signal',
-                message: 'Call active',
-                data: { roomId },
-              });
-              Sentry.metrics.count('sable.call.active', 1);
-            }
-            callPhaseRef.current[roomId] = 'ACTIVE';
-            return acc;
-          }
-
-          // alone in call
-          if (isSelfInCall && remoteMembers.length === 0) {
-            // Check if post call
-            if (currentPhase === 'ACTIVE' || currentPhase === 'ENDED') {
-              if (currentPhase !== 'ENDED') {
-                debugLog.info('call', 'Call ended', { roomId });
-                Sentry.addBreadcrumb({
-                  category: 'call.signal',
-                  message: 'Call ended',
-                  data: { roomId },
-                });
-                Sentry.metrics.count('sable.call.ended', 1);
-              }
-              callPhaseRef.current[roomId] = 'ENDED';
-              return acc;
-            }
-
-            // Check if new call
-            if (currentPhase === 'IDLE' || currentPhase === 'RINGING_OUT') {
-              if (!outgoingStartRef.current) outgoingStartRef.current = now;
-
-              if (now - outgoingStartRef.current < 30000) {
-                if (currentPhase !== 'RINGING_OUT') {
-                  debugLog.info('call', 'Outgoing call ringing', { roomId });
-                  Sentry.addBreadcrumb({
-                    category: 'call.signal',
-                    message: 'Outgoing call ringing',
-                    data: { roomId },
-                  });
-                }
-                callPhaseRef.current[roomId] = 'RINGING_OUT';
-                acc.outgoing = roomId;
-                return acc;
-              }
-
-              debugLog.info('call', 'Outgoing call timed out (unanswered)', {
-                roomId,
-              });
-              Sentry.metrics.count('sable.call.timeout', 1);
-              callPhaseRef.current[roomId] = 'ENDED';
-            }
-          }
-
-          return acc;
+      const parsed = await parseIncomingRtcNotification(
+        {
+          type: eventType,
+          sender: event.getSender() ?? '',
+          roomId: room.roomId,
+          eventId: event.getId() ?? '',
+          originServerTs: event.getTs(),
+          content,
+          relation: {
+            rel_type: relation.rel_type,
+            event_id: relation.event_id,
+          },
+          isLiveEvent: liveEvent,
+          isEncrypted: false,
         },
-        { incoming: null, outgoing: null }
+        {
+          myUserId,
+          now: Date.now(),
+          maxLifetimeMs: MAX_NOTIFICATION_LIFETIME_MS,
+        }
       );
 
-      if (signal.incoming) {
-        playRingingRef.current(signal.incoming);
-      } else if (signal.outgoing) {
-        playOutgoingRingingRef.current(signal.outgoing);
-      } else {
-        stopRingingRef.current();
-        if (!signal.outgoing) outgoingStartRef.current = null;
+      if (!parsed) return undefined;
+      if (!canSenderStartCalls(room, parsed.senderId)) {
+        debugLog.warn('call', 'Rejected incoming call without call-member permission', {
+          roomId: room.roomId,
+          senderId: parsed.senderId,
+        });
+        return undefined;
+      }
+
+      return {
+        ...parsed,
+        isDirect: handlers().mDirects.has(room.roomId),
+      };
+    };
+
+    let timelineHandlerEpoch = 0;
+
+    const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = async (
+      event,
+      room,
+      _toStartOfTimeline,
+      _removed,
+      data
+    ) => {
+      if (!room || !data.liveEvent) return;
+
+      const epochAtStart = timelineHandlerEpoch;
+      const isStale = () => epochAtStart !== timelineHandlerEpoch;
+
+      const relation = event.getRelation();
+      if (relation?.rel_type !== REFERENCE_REL_TYPE && !event.isEncrypted()) return;
+
+      const type = event.getType();
+      if (
+        type !== RTC_NOTIFICATION_EVENT_TYPE &&
+        type !== RTC_DECLINE_EVENT_TYPE &&
+        !event.isEncrypted()
+      ) {
+        return;
+      }
+      const senderId = event.getSender();
+      const eventId = event.getId();
+      if (!senderId || !eventId) return;
+
+      if (senderId === myUserId) {
+        if (type === RTC_NOTIFICATION_EVENT_TYPE && handlers().callEmbed?.roomId === room.roomId) {
+          activeOutgoingNotificationIdRef.current = eventId;
+        }
+        return;
+      }
+
+      const incoming = await parseEvent(event, room, data.liveEvent);
+      if (isStale()) return;
+      if (incoming) {
+        handlers().handleIncomingCall(incoming);
+        return;
+      }
+
+      // Only inspect declines for the active outgoing call room. Cleartext declines are
+      // cheap; encrypted events are decrypted only when they might be RTC declines.
+      const activeEmbed = handlers().callEmbed;
+      if (!activeEmbed || activeEmbed.roomId !== room.roomId) {
+        return;
+      }
+      if (event.isDecryptionFailure()) {
+        return;
+      }
+      const shouldCheckDecline =
+        type === RTC_DECLINE_EVENT_TYPE ||
+        (event.isEncrypted() && relation?.rel_type === REFERENCE_REL_TYPE);
+      if (!shouldCheckDecline) {
+        return;
+      }
+
+      const decline = await parseRtcDeclineFromTimelineEvent(
+        event,
+        room,
+        data.liveEvent,
+        myUserId,
+        mx
+      );
+      if (isStale()) return;
+      if (decline) {
+        handlers().handleOutgoingDecline(decline);
       }
     };
 
-    const interval = setInterval(checkDMsForActiveCalls, 1000);
+    const fallbackContext = {
+      myUserId,
+      getRoom: (roomId: string) => mx.getRoom(roomId),
+      getSessionDescription: (room: Room) => mx.matrixRTC.getRoomSession(room).sessionDescription,
+    };
 
-    const handleUpdate = () => checkDMsForActiveCalls();
+    const evaluateIncomingFallback = () => {
+      const action = evaluateIncomingCallFallback(
+        incomingCallRef.current,
+        Date.now(),
+        fallbackContext
+      );
+      if (action.kind !== 'clear') return;
+
+      if (action.reason === 'expired') {
+        const currentIncoming = incomingCallRef.current;
+        debugLog.info('call', 'Incoming call timed out', {
+          roomId: currentIncoming?.roomId,
+          notificationEventId: currentIncoming?.notificationEventId,
+        });
+        Sentry.metrics.count('sable.call.timeout', 1);
+      } else if (action.reason === 'membership_dropped') {
+        debugLog.info('call', 'Incoming call cleared after membership drop', {
+          roomId: incomingCallRef.current?.roomId,
+        });
+      }
+
+      handlers().clearIncomingCall();
+    };
+
+    let outgoingRingTimeoutId: number | undefined;
+
+    const evaluateOutgoingFallback = () => {
+      const activeCallRoomId = handlers().callEmbed?.roomId;
+
+      const stop = () => {
+        handlers().stopOutgoingRing();
+        window.clearTimeout(outgoingRingTimeoutId);
+        outgoingRingTimeoutId = undefined;
+      };
+
+      if (
+        !activeCallRoomId ||
+        !handlers().outgoingRingbackAllowed ||
+        declinedOutgoingRoomIdRef.current === activeCallRoomId
+      ) {
+        outgoingRingRoomIdRef.current = null;
+        outgoingStartRef.current = null;
+        return stop();
+      }
+
+      if (!handlers().mDirects.has(activeCallRoomId)) {
+        return stop();
+      }
+
+      const outgoingRoom = mx.getRoom(activeCallRoomId);
+      if (!outgoingRoom) {
+        return stop();
+      }
+
+      const session = mx.matrixRTC.getRoomSession(outgoingRoom).sessionDescription;
+
+      if (isCallActive(myUserId, outgoingRoom, session)) {
+        hasCallBeenActiveRef.current = true;
+      }
+
+      if (hasCallBeenActiveRef.current) {
+        return stop();
+      }
+
+      const isPending = isOutgoingCallPending(myUserId, outgoingRoom, session);
+      if (!isPending) {
+        return stop();
+      }
+
+      if (!outgoingStartRef.current || outgoingRingRoomIdRef.current !== activeCallRoomId) {
+        outgoingStartRef.current = Date.now();
+        outgoingRingRoomIdRef.current = activeCallRoomId;
+        debugLog.info('call', 'Outgoing ringing fallback started', { roomId: activeCallRoomId });
+        ringtoneManager.playOutgoing();
+
+        window.clearTimeout(outgoingRingTimeoutId);
+        outgoingRingTimeoutId = window.setTimeout(() => {
+          stop();
+        }, OUTGOING_RING_TIMEOUT_MS);
+      }
+    };
+
+    const evaluateFallbackState = () => {
+      evaluateIncomingFallback();
+      evaluateOutgoingFallback();
+    };
 
     const handleSessionEnded = (roomId: string) => {
-      if (mutedRoomIdRef.current === roomId) setMutedRoomId(null);
-      callPhaseRef.current[roomId] = 'IDLE';
-      checkDMsForActiveCalls();
+      if (mutedRoomIdRef.current === roomId) handlers().setMutedRoomId(null);
+      evaluateFallbackState();
     };
 
-    mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionStarted, handleUpdate);
+    mx.on(RoomEvent.Timeline, handleTimelineEvent);
+    mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionStarted, evaluateFallbackState);
     mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionEnded, handleSessionEnded);
-    mx.on(RoomStateEvent.Events, handleUpdate);
 
-    checkDMsForActiveCalls();
+    const intervalId = window.setInterval(evaluateFallbackState, FALLBACK_INTERVAL_MS);
+    evaluateFallbackState();
 
     return () => {
-      clearInterval(interval);
-      mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionStarted, handleUpdate);
+      timelineHandlerEpoch += 1;
+      mx.off(RoomEvent.Timeline, handleTimelineEvent);
+      mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionStarted, evaluateFallbackState);
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionEnded, handleSessionEnded);
-      mx.off(RoomStateEvent.Events, handleUpdate);
-      stopRingingRef.current();
+      window.clearInterval(intervalId);
+      handlers().stopIncomingRing();
+      handlers().stopOutgoingRing();
     };
-  }, [mx, mDirects, setMutedRoomId]); // stable: volatile deps accessed via refs above
+  }, [mx]);
 
   return null;
 }

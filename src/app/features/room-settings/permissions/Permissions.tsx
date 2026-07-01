@@ -26,7 +26,7 @@ export function Permissions({ requestClose }: PermissionsProps) {
 
   const canEditPowers = permissions.stateEvent(CustomStateEvent.PowerLevelTags, mx.getSafeUserId());
   const canEditPermissions = permissions.stateEvent(EventType.RoomPowerLevels, mx.getSafeUserId());
-  const permissionGroups = usePermissionGroups(room.isCallRoom());
+  const permissionGroups = usePermissionGroups();
 
   const [powerEditor, setPowerEditor] = useState(false);
 

@@ -1,55 +1,50 @@
 import { IconButton, TooltipProvider, Tooltip, Text } from 'folds';
-import { composerIcon, Phone } from '$components/icons/phosphor';
+import { composerIcon, Phone, VideoCamera } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
-import type { Room, TimelineEvents } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
+import type { CallPreferences } from '$state/callPreferences';
 import { callEmbedAtom } from '$state/callEmbed';
-import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useCallPreferences } from '$state/hooks/callPreferences';
 
 interface RoomCallButtonProps {
   room: Room;
+  direct: boolean;
+  defaultPreferences: CallPreferences;
+  kind: 'voice' | 'video';
+  allowVideoStart?: boolean;
 }
 
-export function RoomCallButton({ room }: RoomCallButtonProps) {
-  const startCall = useCallStart();
+export function RoomCallButton({
+  room,
+  direct,
+  defaultPreferences,
+  kind,
+  allowVideoStart = true,
+}: RoomCallButtonProps) {
+  const startCall = useCallStart(direct);
   const callEmbed = useAtomValue(callEmbedAtom);
   const joined = useCallJoined(callEmbed);
-  const mx = useMatrixClient();
-  const { microphone, video, sound } = useCallPreferences();
 
   const isJoinedInThisRoom = joined && callEmbed?.roomId === room.roomId;
+  const callStartingInThisRoom = !!callEmbed && callEmbed.roomId === room.roomId && !joined;
+  const inAnotherCall = !!callEmbed && callEmbed.roomId !== room.roomId;
+  const startDisabled = inAnotherCall || callStartingInThisRoom;
+  const startingVideoCall = kind === 'video';
 
+  if (kind === 'video' && !allowVideoStart) return null;
   if (isJoinedInThisRoom) return null;
 
-  const handleStartCall = async () => {
-    startCall(room, { microphone, video, sound });
-    try {
-      const now = Date.now();
-      // TODO not use as any one day someday i swear
-      await mx.sendEvent(
-        room.roomId,
-        'org.matrix.msc4075.rtc.notification' as keyof TimelineEvents,
-        {
-          notification_type: 'ring',
-          sender_ts: now,
-          lifetime: 30000,
-          'm.mentions': {
-            room: true,
-          },
-          application: 'm.call',
-          call_id: room.roomId,
-          'm.text': [
-            {
-              body: `Call started by ${mx.getUser(mx.getSafeUserId())?.displayName || 'User'} 🎶`,
-            },
-          ],
-        } as unknown as TimelineEvents[keyof TimelineEvents]
-      );
-    } catch {
-      /* skill issue block */
-    }
+  const startSelectedCall = () => {
+    startCall(room, {
+      microphone: defaultPreferences.microphone,
+      video: startingVideoCall,
+      sound: defaultPreferences.sound,
+    });
   };
+
+  const readyCopy = startingVideoCall ? 'Start Video Call' : 'Start Voice Call';
+  const ariaLabel = startingVideoCall ? 'Start Video Call' : 'Start Voice Call';
+  const icon = startingVideoCall ? VideoCamera : Phone;
 
   return (
     <TooltipProvider
@@ -57,7 +52,13 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
       offset={4}
       tooltip={
         <Tooltip>
-          <Text>Start Voice Call</Text>
+          {inAnotherCall ? (
+            <Text>Already in another call</Text>
+          ) : callStartingInThisRoom ? (
+            <Text>Call is starting</Text>
+          ) : (
+            <Text>{readyCopy}</Text>
+          )}
         </Tooltip>
       }
     >
@@ -65,10 +66,11 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
         <IconButton
           fill="None"
           ref={triggerRef}
-          onClick={handleStartCall}
-          aria-label="Start Voice Call"
+          onClick={startSelectedCall}
+          disabled={startDisabled}
+          aria-label={ariaLabel}
         >
-          {composerIcon(Phone)}
+          {composerIcon(icon)}
         </IconButton>
       )}
     </TooltipProvider>

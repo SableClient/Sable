@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 
 import type { PermissionGroup } from '$features/common-settings/permissions';
+import { CALL_PERMISSIONS_GROUP } from '$features/common-settings/permissions';
 import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
 
-export const usePermissionGroups = (isCallRoom: boolean): PermissionGroup[] => {
+export const usePermissionGroups = (): PermissionGroup[] => {
   const groups: PermissionGroup[] = useMemo(() => {
     const messagesGroup: PermissionGroup = {
       name: 'Messages',
@@ -44,19 +45,6 @@ export const usePermissionGroups = (isCallRoom: boolean): PermissionGroup[] => {
         {
           location: {},
           name: 'Other Message Events',
-        },
-      ],
-    };
-
-    const callSettingsGroup: PermissionGroup = {
-      name: 'Calls',
-      items: [
-        {
-          location: {
-            state: true,
-            key: EventType.GroupCallMemberPrefix,
-          },
-          name: 'Join Call',
         },
       ],
     };
@@ -218,13 +206,13 @@ export const usePermissionGroups = (isCallRoom: boolean): PermissionGroup[] => {
 
     return [
       messagesGroup,
-      ...(isCallRoom ? [callSettingsGroup] : []),
+      CALL_PERMISSIONS_GROUP,
       moderationGroup,
       roomOverviewGroup,
       roomSettingsGroup,
       otherSettingsGroup,
     ];
-  }, [isCallRoom]);
+  }, []);
 
   return groups;
 };

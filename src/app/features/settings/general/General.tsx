@@ -55,6 +55,7 @@ import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 import { SettingsSectionPage } from '../SettingsSectionPage';
+import { CallSoundSettings } from './CallSoundSettings';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -896,6 +897,7 @@ function Calls() {
           }
         />
       </SequenceCard>
+      <CallSoundSettings />
     </Box>
   );
 }

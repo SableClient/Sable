@@ -174,9 +174,9 @@ export function CallView({ resizable }: CallViewProps) {
   const [availableHeight, setAvailableHeight] = useState(0);
 
   useEffect(() => {
-    if (!resizable || !callViewRef.current) return;
+    if (!resizable || !callViewRef.current) return undefined;
     const container = callViewRef.current.parentElement?.parentElement;
-    if (!container) return;
+    if (!container) return undefined;
 
     const observer = new ResizeObserver((entries) => {
       if (entries[0]) {

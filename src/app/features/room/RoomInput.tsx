@@ -170,6 +170,8 @@ import {
   getImageMsgContent,
   getVideoMsgContent,
   getGifMsgContent,
+  buildGalleryContent,
+  getGalleryItemContent,
 } from './msgContent';
 import { outgoingMessageTransforms } from './outgoingMessageTransforms';
 import { getKlipyMxcUrl } from '$utils/klipy';
@@ -437,6 +439,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
     const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
+    const [enableMediaGalleries] = useSetting(settingsAtom, 'enableMediaGalleries');
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -677,6 +680,44 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     const handleSendUpload = async (uploads: UploadSuccess[]) => {
+      if (uploads.length >= 2 && enableMediaGalleries) {
+        const plainText = toPlainText(editor.children).trim();
+        const caption = plainText.length > 0 ? plainText : undefined;
+        let customHtml = trimCustomHtml(
+          toMatrixCustomHTML(editor.children, {
+            stripNickname: true,
+            room,
+          })
+        );
+        const formattedCaption =
+          caption && !customHtmlEqualsPlainText(customHtml, plainText) ? customHtml : undefined;
+
+        const itemsPromises = uploads.map(async (upload) => {
+          const fileItem = selectedFiles.find((f) => f.file === upload.file);
+          if (!fileItem) throw new Error('Broken upload');
+          return getGalleryItemContent(mx, fileItem, upload.mxc);
+        });
+        handleCancelUpload(uploads);
+        const items = fulfilledPromiseSettledResult(await Promise.allSettled(itemsPromises));
+
+        if (items.length === 0) return;
+
+        const galleryContent = buildGalleryContent(items, caption, formattedCaption);
+
+        const mentionData = getMentions(mx, roomId, editor);
+        if (replyDraft && replyDraft.userId !== mx.getUserId()) {
+          mentionData.users.add(replyDraft.userId);
+        }
+        const mMentions = getMentionContent(Array.from(mentionData.users), mentionData.room);
+        galleryContent['m.mentions'] = mMentions;
+
+        if (replyDraft) {
+          galleryContent['m.relates_to'] = getReplyContent(replyDraft);
+        }
+
+        await handleSendContents([galleryContent]);
+        return;
+      }
       const contentsPromises = uploads.map(async (upload) => {
         const fileItem = selectedFiles.find((f) => f.file === upload.file);
         if (!fileItem) throw new Error('Broken upload');
@@ -735,6 +776,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const submit = useCallback(async () => {
       uploadBoardHandlers.current?.handleSend();
+      if (selectedFiles.length >= 2) {
+        resetEditor(editor);
+        resetEditorHistory(editor);
+        sendTypingStatus(false);
+        return;
+      }
 
       const commandName = getBeginCommand(editor);
       /**
@@ -1124,6 +1171,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setScheduledTime,
       setServerMaxDelayMs,
       replyDraftBase,
+      selectedFiles,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(

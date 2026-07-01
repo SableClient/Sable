@@ -1,7 +1,8 @@
 import type { IContent, MatrixClient } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import to from 'await-to-js';
-import type { IThumbnailContent } from '$types/matrix/common';
+import type { IGalleryItem } from '$types/matrix/common';
+import { GALLERY_MSGTYPE, type IThumbnailContent } from '$types/matrix/common';
 import {
   getImageFileUrl,
   getThumbnail,
@@ -284,6 +285,55 @@ export const getGifMsgContent = async (
     if (blurHash) {
       content.info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME] = blurHash;
     }
+  }
+
+  return content;
+};
+
+const swapMsgTypeToItemType = (
+  content: IContent,
+  itemtype: IGalleryItem['itemtype']
+): IGalleryItem => {
+  const result = { ...content, itemtype };
+  delete result.msgtype;
+  return result as IGalleryItem;
+};
+
+export const getGalleryItemContent = async (
+  mx: MatrixClient,
+  item: TUploadItem,
+  mxc: string
+): Promise<IGalleryItem> => {
+  if (item.file.type.startsWith('image')) {
+    return swapMsgTypeToItemType(await getImageMsgContent(mx, item, mxc), MsgType.Image);
+  }
+  if (item.file.type.startsWith('video')) {
+    return swapMsgTypeToItemType(await getVideoMsgContent(mx, item, mxc), MsgType.Video);
+  }
+  if (item.file.type.startsWith('audio')) {
+    return swapMsgTypeToItemType(getAudioMsgContent(item, mxc), MsgType.Audio);
+  }
+  return swapMsgTypeToItemType(getFileMsgContent(item, mxc), MsgType.File);
+};
+
+export const buildGalleryContent = (
+  items: IGalleryItem[],
+  caption?: string,
+  formattedCaption?: string
+): IContent => {
+  const body =
+    caption ||
+    items.map((item) => `[${item.filename ?? item.itemtype}: ${item.url ?? 'file'}]`).join('\n');
+
+  const content: IContent = {
+    msgtype: GALLERY_MSGTYPE,
+    body,
+    itemtypes: items,
+  };
+
+  if (formattedCaption) {
+    content.format = 'org.matrix.custom.html';
+    content.formatted_body = formattedCaption;
   }
 
   return content;

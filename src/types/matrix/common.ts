@@ -142,3 +142,23 @@ export type ILocationContent = {
   geo_uri?: string;
   info?: IThumbnailContent;
 };
+
+export type IGalleryImageItem = Omit<IImageContent, 'msgtype'> & { itemtype: MsgType.Image };
+export type IGalleryVideoItem = Omit<IVideoContent, 'msgtype'> & { itemtype: MsgType.Video };
+export type IGalleryAudioItem = Omit<IAudioContent, 'msgtype'> & { itemtype: MsgType.Audio };
+export type IGalleryFileItem = Omit<IFileContent, 'msgtype'> & { itemtype: MsgType.File };
+export type IGalleryItem =
+  | IGalleryImageItem
+  | IGalleryVideoItem
+  | IGalleryAudioItem
+  | IGalleryFileItem;
+
+export const GALLERY_MSGTYPE = 'dm.filament.gallery';
+
+export type IGalleryContent = {
+  msgtype: typeof GALLERY_MSGTYPE;
+  body: string;
+  format?: string;
+  formatted_body?: string;
+  itemtypes: IGalleryItem[];
+};

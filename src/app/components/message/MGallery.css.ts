@@ -7,12 +7,26 @@ export const GalleryHolder = style({
   marginTop: config.space.S200,
 });
 
-export const GalleryItem = style({
-  width: toRem(300),
-  height: toRem(200),
-  flexShrink: 0,
-  overflow: 'hidden',
-  borderRadius: config.radii.R300,
+export const GalleryItem = recipe({
+  base: [
+    DefaultReset,
+    {
+      maxWidth: toRem(450),
+      flexShrink: 0,
+      overflow: 'hidden',
+      borderRadius: config.radii.R300,
+    },
+  ],
+  variants: {
+    isImage: {
+      true: {
+        height: toRem(300),
+      },
+      false: {
+        maxHeight: toRem(300),
+      },
+    },
+  },
 });
 
 export const GalleryHolderGradient = recipe({

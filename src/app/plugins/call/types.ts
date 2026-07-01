@@ -14,6 +14,7 @@ export type ElementCallThemeKind = 'light' | 'dark';
 export type ElementMediaStatePayload = {
   audio_enabled?: boolean;
   video_enabled?: boolean;
+  audio_output_enabled?: boolean;
 };
 export type ElementMediaStateDetail = {
   data?: ElementMediaStatePayload;

@@ -60,8 +60,8 @@ export class CallControl extends EventEmitter implements CallControlState {
     await this.setMediaState({
       audio_enabled: this.microphone,
       video_enabled: this.video,
+      audio_output_enabled: this.sound,
     });
-    this.setSound(this.sound);
     this.emitStateUpdate();
   }
 
@@ -88,35 +88,32 @@ export class CallControl extends EventEmitter implements CallControlState {
   }
 
   private setSound(sound: boolean): void {
-    this.applyOutputMute(sound);
-  }
-
-  private applyOutputMute(sound = this.sound): void {
-    const callDocument = this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
-    const shouldMute = !sound;
-    if (callDocument) {
-      callDocument.querySelectorAll<HTMLMediaElement>('audio, video').forEach((el) => {
-        el.muted = shouldMute;
-      });
-    }
+    this.setMediaState({
+      audio_output_enabled: sound,
+    });
   }
 
   public onMediaState(evt: CustomEvent<ElementMediaStateDetail>) {
     const { data } = evt.detail;
     if (!data) return;
 
+    const micTurnedOn = data.audio_enabled === true && !this.microphone;
+    const soundTurnedOff = data.audio_output_enabled === false && this.sound;
+
     const state = new CallControlState(
       data.audio_enabled ?? this.microphone,
       data.video_enabled ?? this.video,
-      this.sound,
+      data.audio_output_enabled ?? this.sound,
       this.screenshare
     );
 
     this.state = state;
     this.emitStateUpdate();
 
-    if (this.microphone && !this.sound) {
+    if (micTurnedOn && !this.sound) {
       this.toggleSound();
+    } else if (soundTurnedOff && this.microphone) {
+      this.toggleMicrophone();
     }
   }
 

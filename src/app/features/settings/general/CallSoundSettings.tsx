@@ -270,6 +270,8 @@ export function CallSoundSettings() {
             />
           }
         />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Notify For Voice Rooms"
           focusId="notify-voice-rooms"
@@ -331,7 +333,6 @@ export function CallSoundSettings() {
         <SettingTile
           title="Ringtone Volume"
           focusId="call-ringtone-volume"
-          description={`${clampCallRingtoneVolume(callRingtoneVolume)}%`}
           after={
             <Input
               style={{ width: toRem(76) }}

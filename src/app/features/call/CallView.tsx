@@ -161,7 +161,6 @@ export function CallView({ resizable }: CallViewProps) {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
 
-
   const callViewRef = useRef<HTMLDivElement>(null);
   const callContainerRef = useRef<HTMLDivElement>(null);
   useCallEmbedPlacementSync(callContainerRef);

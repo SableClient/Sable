@@ -115,6 +115,8 @@ export function useIncomingCallSignaling() {
     activeOutgoingNotificationIdRef.current = null;
     seenDeclineEventIdsRef.current.clear();
     hasCallBeenActiveRef.current = false;
+    outgoingRingRoomIdRef.current = null;
+    outgoingStartRef.current = null;
   }, [callEmbed]);
 
   useEffect(() => {

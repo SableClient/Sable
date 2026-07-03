@@ -10,7 +10,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts } from 'linkifyjs';
-import { Box, config, toRem } from 'folds';
+import { Box, config } from 'folds';
 import {
   AudioContent,
   DownloadFile,
@@ -264,16 +264,11 @@ function RenderMessageContentInternal({
         style={{
           display: 'flex',
           flexDirection: attachmentDirection,
+          height: '100%',
+          width: '100%',
         }}
       >
-        <div
-          style={{
-            // height: '100%',
-            backgroundColor: '#00AA00',
-          }}
-        >
-          {attachment}
-        </div>
+        {attachment}
         {renderCaption()}
       </div>
     );
@@ -283,7 +278,7 @@ function RenderMessageContentInternal({
     renderCaptionedAttachment(
       <MFile
         content={content as Record<string, never> & { msgtype: MsgType.File }}
-        fitParent={isGallery}
+        //fitParent={isGallery}
         renderFileContent={({ body, mimeType, info, encInfo, url }) => (
           <FileContent
             body={body}

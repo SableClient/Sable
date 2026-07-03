@@ -454,15 +454,15 @@ export function MImage({ content, renderImageContent, outlined, fitParent }: MIm
         flexGrow: 1,
         flexShrink: 0,
         width: fitParent ? '100%' : toRem(displayWidth),
-        height: fitParent ? MAX_SIZE : 'auto',
+        height: fitParent ? '100%' : 'auto',
       }}
       outlined={outlined}
     >
       <AttachmentBox
         style={{
           flexGrow: 1,
-          aspectRatio,
-          width: fitParent ? 'auto' : toRem(displayWidth),
+          aspectRatio: fitParent ? undefined : aspectRatio,
+          width: fitParent ? '100%' : toRem(displayWidth),
           height: fitParent ? '100%' : toRem(height < 48 ? 48 : height),
         }}
       >
@@ -545,6 +545,7 @@ export function MVideo({
       </AttachmentHeader>
       <AttachmentBox
         style={{
+          flexGrow: 1,
           width: fitParent ? 'auto' : toRem(displayWidth),
           height: fitParent ? '100%' : toRem(height < 48 ? 48 : height),
         }}

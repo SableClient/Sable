@@ -13,25 +13,27 @@ type UploadCardProps = {
   bottom?: ReactNode;
 };
 
-export const UploadCard = forwardRef<HTMLDivElement, UploadCardProps & css.UploadCardVariant>(
-  ({ before, after, children, bottom, radii, outlined, compact }, ref) => (
-    <Box
-      className={css.UploadCard({ radii, outlined, compact })}
-      direction="Column"
-      gap="200"
-      ref={ref}
-    >
-      <Box alignItems="Center" gap="200">
-        {before}
-        <Box alignItems="Center" grow="Yes" gap="200">
-          {children}
-        </Box>
-        {after}
+export const UploadCard = forwardRef<
+  HTMLDivElement,
+  UploadCardProps & css.UploadCardVariant & { style?: React.CSSProperties }
+>(({ before, after, children, bottom, radii, outlined, compact, style }, ref) => (
+  <Box
+    className={css.UploadCard({ radii, outlined, compact })}
+    direction="Column"
+    gap="200"
+    style={style}
+    ref={ref}
+  >
+    <Box alignItems="Center" gap="200">
+      {before}
+      <Box alignItems="Center" grow="Yes" gap="200">
+        {children}
       </Box>
-      {bottom}
+      {after}
     </Box>
-  )
-);
+    {bottom}
+  </Box>
+));
 
 type UploadCardProgressProps = {
   sentBytes: number;

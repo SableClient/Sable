@@ -1,7 +1,7 @@
 import type { MutableRefObject, ReactNode } from 'react';
 import { useImperativeHandle, useRef } from 'react';
 import { Badge, Box, Chip, Header, Spinner, Text, as, percent } from 'folds';
-import { CaretRight, CaretUp, PaperPlaneTilt, X, sizedIcon } from '$components/icons/phosphor';
+import { CaretRight, CaretUp, X, sizedIcon } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
 
@@ -92,18 +92,6 @@ export function UploadBoardHeader({
         <Text size="H6">Files</Text>
       </Box>
       <Box className={css.UploadBoardHeaderContent} alignItems="Center" gap="100">
-        {isSuccess && (
-          <Chip
-            as="button"
-            onClick={handleSend}
-            variant="Primary"
-            radii="Pill"
-            outlined
-            after={sizedIcon(PaperPlaneTilt, '50', { filled: true })}
-          >
-            <Text size="B300">Send</Text>
-          </Chip>
-        )}
         {isError && !open && (
           <Badge variant="Critical" fill="Solid" radii="300">
             <Text size="L400">Upload Failed</Text>
@@ -117,7 +105,7 @@ export function UploadBoardHeader({
             <Spinner variant="Secondary" size="200" />
           </>
         )}
-        {!isSuccess && open && (
+        {open && (
           <Chip
             as="button"
             onClick={handleCancel}
@@ -136,7 +124,7 @@ export function UploadBoardHeader({
 export const UploadBoardContent = as<'div'>(({ className, children, ...props }, ref) => (
   <Box
     className={classNames(css.UploadBoardContent, className)}
-    direction="Column"
+    direction="Row"
     gap="200"
     {...props}
     ref={ref}

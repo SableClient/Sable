@@ -1,17 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Box,
-  Chip,
-  IconButton,
-  Scroll,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  color,
-  config,
-  toRem,
-} from 'folds';
+import { Box, Chip, IconButton, Text, Tooltip, TooltipProvider, color, config, toRem } from 'folds';
 import {
   Check,
   EyeSlash,
@@ -452,6 +441,8 @@ export function UploadCardRenderer({
   return (
     <UploadCard
       radii="300"
+      compact
+      style={{ maxWidth: toRem(400), flexShrink: 0 }}
       before={sizedIcon(getFileTypeIconComponent(file.type))}
       after={
         <>
@@ -553,30 +544,16 @@ export function UploadCardRenderer({
             />
           )}
           {!isDescribed && fileItem.body && fileItem.body.length > 0 && (
-            <Scroll
-              direction="Vertical"
-              variant="SurfaceVariant"
-              visibility="Always"
-              size="300"
-              style={{
-                backgroundColor: 'var(--sable-bg-container)',
-                borderRadius: config.radii.R400,
-                maxHeight: '180px',
-                marginTop: config.space.S0,
-                overflowY: 'auto',
-              }}
-            >
-              <Box style={{ padding: config.space.S200, wordBreak: 'break-word' }}>
-                <Text size="T200" priority="400" as="div">
-                  <RenderBody
-                    body={fileItem.body}
-                    customBody={fileItem.formatted_body}
-                    htmlReactParserOptions={htmlReactParserOptions}
-                    linkifyOpts={linkifyOpts}
-                  />
-                </Text>
-              </Box>
-            </Scroll>
+            <Box style={{ padding: config.space.S200, wordBreak: 'break-word' }}>
+              <Text size="T200" priority="400" as="div">
+                <RenderBody
+                  body={fileItem.body}
+                  customBody={fileItem.formatted_body}
+                  htmlReactParserOptions={htmlReactParserOptions}
+                  linkifyOpts={linkifyOpts}
+                />
+              </Text>
+            </Box>
           )}
         </>
       }

@@ -22,7 +22,7 @@ export const GalleryImageGrid = recipe({
     type: {
       ThreeItems: {
         gridTemplateColumns: '1fr 1fr',
-        gridTemplateRows: `repeat(2, ${toRem(200)})`,
+        gridTemplateRows: `repeat(2, 1fr)`,
       },
       ThreeByThree: {
         gridTemplateColumns: 'repeat(3,minmax(0,1fr))',
@@ -43,8 +43,7 @@ export const GalleryItem = recipe({
     DefaultReset,
     {
       borderRadius: config.radii.R300,
-      minHeight: toRem(175),
-      minWidth: toRem(175),
+      overflow: 'hidden',
       width: '100%',
       height: '100%',
       aspectRatio: '1/1',

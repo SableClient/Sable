@@ -10,7 +10,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts } from 'linkifyjs';
-import { Box, config } from 'folds';
+import { Box, config, Tooltip, TooltipProvider } from 'folds';
 import {
   AudioContent,
   DownloadFile,
@@ -217,8 +217,9 @@ function RenderMessageContentInternal({
     if (captionPosition === CaptionPosition.Hidden || hideCaption) return null;
     if (
       hasCaption &&
-      (content as { filename?: string }).filename &&
-      (content as { filename?: string }).filename !== content.body
+      (((content as { filename?: string }).filename &&
+        (content as { filename?: string }).filename !== content.body) ||
+        msgType === GALLERY_MSGTYPE)
     ) {
       if (captionPosition !== CaptionPosition.Inline)
         return (
@@ -449,7 +450,7 @@ function RenderMessageContentInternal({
     return <MLocation showMaps={showMaps} content={content} />;
 
   if (msgType === GALLERY_MSGTYPE) {
-    return (
+    return renderCaptionedAttachment(
       <MGallery
         content={content as IGalleryContent}
         renderItem={(itemContent) => (
@@ -467,26 +468,6 @@ function RenderMessageContentInternal({
             isGallery={true}
           />
         )}
-        renderCaption={
-          content.body
-            ? () => (
-                <MText
-                  style={{ marginTop: config.space.S200 }}
-                  edited={edited}
-                  content={content}
-                  renderBody={(props) => (
-                    <RenderBody
-                      {...props}
-                      highlightRegex={highlightRegex}
-                      htmlReactParserOptions={htmlReactParserOptions}
-                      linkifyOpts={linkifyOpts}
-                    />
-                  )}
-                  renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
-                />
-              )
-            : undefined
-        }
       />
     );
   }

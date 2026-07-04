@@ -17,7 +17,6 @@ function galleryItemToContent(item: IGalleryItem): IContent {
 type MGalleryProps = {
   content: IGalleryContent;
   renderItem: (content: IContent, index: number) => ReactNode;
-  renderCaption?: () => ReactNode;
 };
 
 type PartitionedMediaItem = {
@@ -25,7 +24,7 @@ type PartitionedMediaItem = {
   type: 'ThreeByThree' | 'TwoByTwo' | 'OneByOne' | 'ThreeItems';
 };
 
-export function MGallery({ content, renderItem, renderCaption }: MGalleryProps) {
+export function MGallery({ content, renderItem }: MGalleryProps) {
   const items = content.itemtypes;
 
   let mediaItems = items.filter(
@@ -95,37 +94,34 @@ export function MGallery({ content, renderItem, renderCaption }: MGalleryProps) 
     }
   }
   return (
-    <Box display="Flex" direction="Column">
-      <Box display="Flex" direction="Column" gap="400">
-        {partitionedMediaItems.length > 0 && (
-          <Box direction="Column" gap="200">
-            {partitionedMediaItems.map((item) => (
-              <div
-                key={`${item.type}-${item.items[0]?.url ?? item.items[0]?.file?.url}`}
-                className={css.GalleryImageGrid({
-                  type: item.type,
-                })}
-              >
-                {item.items.map((mediaItem, index) => (
-                  <div key={mediaItem.url ?? mediaItem.file?.url} className={css.GalleryItem()}>
-                    {renderItem(galleryItemToContent(mediaItem), index)}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </Box>
-        )}
-        {columnItems.length > 0 && (
-          <Box alignItems="Start" gap="200" direction="Column">
-            {columnItems.map((item, index) => (
-              <div key={item.url ?? item.file?.url ?? index}>
-                {renderItem(galleryItemToContent(item), index)}
-              </div>
-            ))}
-          </Box>
-        )}
-      </Box>
-      {renderCaption?.()}
+    <Box display="Flex" direction="Column" gap="400">
+      {partitionedMediaItems.length > 0 && (
+        <Box direction="Column" gap="200">
+          {partitionedMediaItems.map((item) => (
+            <div
+              key={`${item.type}-${item.items[0]?.url ?? item.items[0]?.file?.url}`}
+              className={css.GalleryImageGrid({
+                type: item.type,
+              })}
+            >
+              {item.items.map((mediaItem, index) => (
+                <div key={mediaItem.url ?? mediaItem.file?.url} className={css.GalleryItem()}>
+                  {renderItem(galleryItemToContent(mediaItem), index)}
+                </div>
+              ))}
+            </div>
+          ))}
+        </Box>
+      )}
+      {columnItems.length > 0 && (
+        <Box alignItems="Start" gap="200" direction="Column">
+          {columnItems.map((item, index) => (
+            <div key={item.url ?? item.file?.url ?? index}>
+              {renderItem(galleryItemToContent(item), index)}
+            </div>
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }

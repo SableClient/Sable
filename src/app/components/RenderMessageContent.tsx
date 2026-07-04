@@ -10,7 +10,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts } from 'linkifyjs';
-import { Box, config, Tooltip, TooltipProvider } from 'folds';
+import { Box, config } from 'folds';
 import {
   AudioContent,
   DownloadFile,

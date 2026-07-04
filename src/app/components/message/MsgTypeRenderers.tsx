@@ -467,7 +467,7 @@ export function MImage({ content, renderImageContent, outlined, fitParent }: MIm
         }}
       >
         {renderImageContent({
-          body: content.filename || content.body || 'Image',
+          body: content.body || content.filename || 'Image',
           info: imgInfo,
           mimeType: imgInfo?.mimetype,
           url: mxcUrl,
@@ -680,7 +680,7 @@ export function MFile({ content, renderFileContent, outlined }: MFileProps) {
       <AttachmentBox>
         <AttachmentContent>
           {renderFileContent({
-            body: content.filename ?? content.body ?? 'File',
+            body: content.body ?? content.filename ?? 'File',
             info: fileInfo ?? {},
             mimeType: fileInfo?.mimetype ?? FALLBACK_MIMETYPE,
             url: mxcUrl,

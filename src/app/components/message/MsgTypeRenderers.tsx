@@ -496,13 +496,7 @@ type MVideoProps = {
   outlined?: boolean;
   fitParent?: boolean;
 };
-export function MVideo({
-  content,
-  renderAsFile,
-  renderVideoContent,
-  outlined,
-  fitParent,
-}: MVideoProps) {
+export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: MVideoProps) {
   const videoInfo = content?.info;
   const mxcUrl = content.file?.url ?? content.url;
   const safeMimeType = getBlobSafeMimeType(videoInfo?.mimetype ?? '');
@@ -524,8 +518,8 @@ export function MVideo({
       style={{
         flexGrow: 1,
         flexShrink: 0,
-        width: fitParent ? '100%' : toRem(displayWidth),
-        height: fitParent ? 400 : 'auto',
+        width: toRem(displayWidth),
+        height: 'auto',
       }}
       outlined={outlined}
     >
@@ -546,8 +540,8 @@ export function MVideo({
       <AttachmentBox
         style={{
           flexGrow: 1,
-          width: fitParent ? 'auto' : toRem(displayWidth),
-          height: fitParent ? '100%' : toRem(height < 48 ? 48 : height),
+          width: toRem(displayWidth),
+          height: toRem(height < 48 ? 48 : height),
         }}
       >
         {renderVideoContent({
@@ -667,7 +661,7 @@ type MFileProps = {
   outlined?: boolean;
   fitParent?: boolean;
 };
-export function MFile({ content, renderFileContent, outlined, fitParent }: MFileProps) {
+export function MFile({ content, renderFileContent, outlined }: MFileProps) {
   const fileInfo = content?.info;
   const mxcUrl = content.file?.url ?? content.url;
 
@@ -676,10 +670,7 @@ export function MFile({ content, renderFileContent, outlined, fitParent }: MFile
   }
 
   return (
-    <Attachment
-      outlined={outlined}
-      style={{ width: fitParent ? '100%' : toRem(400), height: fitParent ? '100%' : 'auto' }}
-    >
+    <Attachment outlined={outlined} style={{ width: toRem(400), height: 'auto' }}>
       <AttachmentHeader>
         <FileHeader
           body={content.filename ?? content.body ?? 'Unnamed File'}

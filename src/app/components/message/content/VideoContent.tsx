@@ -241,7 +241,6 @@ export const VideoContent = as<'div', VideoContentProps>(
             <Menu style={{ padding: config.space.S0 }}>
               <MenuItem
                 size="300"
-                after={menuIcon(blurred ? Eye : EyeSlash)}
                 radii="300"
                 fill="Soft"
                 variant="Secondary"
@@ -253,7 +252,9 @@ export const VideoContent = as<'div', VideoContentProps>(
                     setBlurred(false);
                   } else setBlurred(!blurred);
                 }}
-              />
+              >
+                {menuIcon(blurred ? Eye : EyeSlash)}
+              </MenuItem>
             </Menu>
           </Box>
         )}

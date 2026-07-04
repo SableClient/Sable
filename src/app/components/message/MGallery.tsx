@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Box } from 'folds';
 import { MsgType, type IContent } from 'matrix-js-sdk';
 import type {
@@ -36,7 +36,6 @@ export function MGallery({ content, renderItem, renderCaption }: MGalleryProps) 
   );
 
   let partitionedMediaItems: PartitionedMediaItem[] = [];
-
   while (mediaItems.length > 0) {
     if (mediaItems.length >= 9) {
       partitionedMediaItems.unshift({
@@ -95,36 +94,36 @@ export function MGallery({ content, renderItem, renderCaption }: MGalleryProps) 
       continue;
     }
   }
-
   return (
     <Box display="Flex" direction="Column">
       <Box display="Flex" direction="Column" gap="400">
-        <Box direction="Column" gap="200">
-          {partitionedMediaItems.map((item) => (
-            <div
-              key={crypto.randomUUID()}
-              className={css.GalleryImageGrid({
-                type: item.type,
-              })}
-            >
-              {item.items.map((mediaItem, index) => (
-                <div
-                  key={mediaItem.url ?? mediaItem.file?.url ?? index}
-                  className={css.GalleryItem()}
-                >
-                  {renderItem(galleryItemToContent(mediaItem), index)}
-                </div>
-              ))}
-            </div>
-          ))}
-        </Box>
-        <Box alignItems="Start" gap="200" direction="Column">
-          {columnItems.map((item, index) => (
-            <div key={item.url ?? item.file?.url ?? index}>
-              {renderItem(galleryItemToContent(item), index)}
-            </div>
-          ))}
-        </Box>
+        {partitionedMediaItems.length > 0 && (
+          <Box direction="Column" gap="200">
+            {partitionedMediaItems.map((item) => (
+              <div
+                key={`${item.type}-${item.items[0]?.url ?? item.items[0]?.file?.url}`}
+                className={css.GalleryImageGrid({
+                  type: item.type,
+                })}
+              >
+                {item.items.map((mediaItem, index) => (
+                  <div key={mediaItem.url ?? mediaItem.file?.url} className={css.GalleryItem()}>
+                    {renderItem(galleryItemToContent(mediaItem), index)}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </Box>
+        )}
+        {columnItems.length > 0 && (
+          <Box alignItems="Start" gap="200" direction="Column">
+            {columnItems.map((item, index) => (
+              <div key={item.url ?? item.file?.url ?? index}>
+                {renderItem(galleryItemToContent(item), index)}
+              </div>
+            ))}
+          </Box>
+        )}
       </Box>
       {renderCaption?.()}
     </Box>

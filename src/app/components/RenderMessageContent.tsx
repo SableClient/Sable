@@ -258,7 +258,7 @@ function RenderMessageContentInternal({
     return null;
   };
 
-  function renderCaptionedAttachment(attachment: JSX.Element): JSX.Element {
+  function renderCaptionedAttachment(attachment: JSX.Element, isInGallery?: boolean): JSX.Element {
     return (
       <div
         style={{
@@ -266,10 +266,11 @@ function RenderMessageContentInternal({
           flexDirection: attachmentDirection,
           height: '100%',
           width: '100%',
+          position: 'relative',
         }}
       >
         {attachment}
-        {renderCaption()}
+        {!isInGallery && renderCaption()}
       </div>
     );
   }
@@ -278,7 +279,6 @@ function RenderMessageContentInternal({
     renderCaptionedAttachment(
       <MFile
         content={content as Record<string, never> & { msgtype: MsgType.File }}
-        //fitParent={isGallery}
         renderFileContent={({ body, mimeType, info, encInfo, url }) => (
           <FileContent
             body={body}
@@ -394,7 +394,8 @@ function RenderMessageContentInternal({
           />
         )}
         outlined={outlineAttachment}
-      />
+      />,
+      isGallery
     );
   }
 
@@ -403,7 +404,6 @@ function RenderMessageContentInternal({
       <MVideo
         content={content as Record<string, never> & { msgtype: MsgType.Video }}
         renderAsFile={renderFile}
-        fitParent={isGallery}
         renderVideoContent={({ body, info, ...videoProps }) => (
           <VideoContent
             body={body}
@@ -425,7 +425,8 @@ function RenderMessageContentInternal({
           />
         )}
         outlined={outlineAttachment}
-      />
+      />,
+      isGallery
     );
   }
 
@@ -448,12 +449,11 @@ function RenderMessageContentInternal({
     return <MLocation showMaps={showMaps} content={content} />;
 
   if (msgType === GALLERY_MSGTYPE) {
-    const galleryContent = getContent() as IGalleryContent;
     return (
       <MGallery
-        content={galleryContent}
+        content={content as IGalleryContent}
         renderItem={(itemContent) => (
-          <RenderMessageContent
+          <RenderMessageContentInternal
             displayName={displayName}
             msgType={itemContent.msgtype as string}
             ts={ts}
@@ -468,12 +468,12 @@ function RenderMessageContentInternal({
           />
         )}
         renderCaption={
-          galleryContent.body
+          content.body
             ? () => (
                 <MText
                   style={{ marginTop: config.space.S200 }}
                   edited={edited}
-                  content={galleryContent}
+                  content={content}
                   renderBody={(props) => (
                     <RenderBody
                       {...props}

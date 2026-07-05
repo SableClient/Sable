@@ -440,6 +440,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const isEncrypted = room.hasEncryptionStateEvent();
     const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
     const [enableMediaGalleries] = useSetting(settingsAtom, 'enableMediaGalleries');
+    const [sendIndividualAttachmentAsCaption] = useSetting(
+      settingsAtom,
+      'sendIndividualAttachmentAsCaption'
+    );
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -679,19 +683,52 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
     };
 
-    const handleSendUpload = async (uploads: UploadSuccess[]) => {
-      if (uploads.length >= 2 && enableMediaGalleries) {
-        const plainText = toPlainText(editor.children).trim();
-        const caption = plainText.length > 0 ? plainText : undefined;
-        let customHtml = trimCustomHtml(
-          toMatrixCustomHTML(editor.children, {
-            stripNickname: true,
-            room,
-          })
-        );
-        const formattedCaption =
-          caption && !customHtmlEqualsPlainText(customHtml, plainText) ? customHtml : undefined;
+    const uploadToContent = async (upload: UploadSuccess) => {
+      const fileItem = selectedFiles.find((f) => f.file === upload.file);
+      if (!fileItem) throw new Error('Broken upload');
 
+      if (fileItem.file.type.startsWith('image')) {
+        return getImageMsgContent(mx, fileItem, upload.mxc);
+      }
+      if (fileItem.file.type.startsWith('video')) {
+        return getVideoMsgContent(mx, fileItem, upload.mxc);
+      }
+      if (fileItem.file.type.startsWith('audio')) {
+        return getAudioMsgContent(fileItem, upload.mxc);
+      }
+      return getFileMsgContent(fileItem, upload.mxc);
+    };
+
+    const handleSendUpload = async (uploads: UploadSuccess[]) => {
+      const plainText = toPlainText(editor.children).trim();
+      const caption = plainText.length > 0 ? plainText : undefined;
+      let customHtml = trimCustomHtml(
+        toMatrixCustomHTML(editor.children, {
+          stripNickname: true,
+          room,
+        })
+      );
+      const formattedCaption =
+        caption && !customHtmlEqualsPlainText(customHtml, plainText) ? customHtml : undefined;
+
+      if (uploads.length == 1 && sendIndividualAttachmentAsCaption) {
+        const upload = uploads[0];
+        if (!upload) throw new Error('Broken upload');
+        let content = await uploadToContent(upload);
+        handleCancelUpload(uploads);
+
+        content.body = caption;
+        content.formatted_body = undefined;
+
+        if (formattedCaption) {
+          content.format = 'org.matrix.custom.html';
+          content.formatted_body = formattedCaption;
+        }
+
+        await handleSendContents([content]);
+        return;
+      }
+      if (uploads.length >= 2 && enableMediaGalleries) {
         const itemsPromises = uploads.map(async (upload) => {
           const fileItem = selectedFiles.find((f) => f.file === upload.file);
           if (!fileItem) throw new Error('Broken upload');
@@ -704,35 +741,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
         const galleryContent = buildGalleryContent(items, caption, formattedCaption);
 
-        const mentionData = getMentions(mx, roomId, editor);
-        if (replyDraft && replyDraft.userId !== mx.getUserId()) {
-          mentionData.users.add(replyDraft.userId);
-        }
-        const mMentions = getMentionContent(Array.from(mentionData.users), mentionData.room);
-        galleryContent['m.mentions'] = mMentions;
-
-        if (replyDraft) {
-          galleryContent['m.relates_to'] = getReplyContent(replyDraft);
-        }
-
         await handleSendContents([galleryContent]);
         return;
       }
-      const contentsPromises = uploads.map(async (upload) => {
-        const fileItem = selectedFiles.find((f) => f.file === upload.file);
-        if (!fileItem) throw new Error('Broken upload');
-
-        if (fileItem.file.type.startsWith('image')) {
-          return getImageMsgContent(mx, fileItem, upload.mxc);
-        }
-        if (fileItem.file.type.startsWith('video')) {
-          return getVideoMsgContent(mx, fileItem, upload.mxc);
-        }
-        if (fileItem.file.type.startsWith('audio')) {
-          return getAudioMsgContent(fileItem, upload.mxc);
-        }
-        return getFileMsgContent(fileItem, upload.mxc);
-      });
+      const contentsPromises = uploads.map(uploadToContent);
       handleCancelUpload(uploads);
       const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
 
@@ -776,7 +788,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const submit = useCallback(async () => {
       uploadBoardHandlers.current?.handleSend();
-      if (selectedFiles.length >= 2) {
+      if (
+        (selectedFiles.length >= 2 && enableMediaGalleries) ||
+        (selectedFiles.length == 1 && sendIndividualAttachmentAsCaption)
+      ) {
         resetEditor(editor);
         resetEditorHistory(editor);
         sendTypingStatus(false);
@@ -1172,6 +1187,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setServerMaxDelayMs,
       replyDraftBase,
       selectedFiles,
+      enableMediaGalleries,
+      sendIndividualAttachmentAsCaption,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1489,6 +1506,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                               onRemove={handleRemoveUpload}
                               setDesc={setDesc}
                               roomId={roomId}
+                              hideCaption={
+                                selectedFiles.length == 1 && sendIndividualAttachmentAsCaption
+                              }
                             />
                           ))}
                       </UploadBoardContent>

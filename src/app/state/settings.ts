@@ -226,6 +226,7 @@ export interface Settings {
   vcmsgSidebarWidth: number;
   widgetSidebarWidth: number;
   isShowingAllRoomsInHome: boolean;
+  sendIndividualAttachmentAsCaption: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -388,6 +389,7 @@ export const defaultSettings: Settings = {
   vcmsgSidebarWidth: 399,
   widgetSidebarWidth: 420,
   isShowingAllRoomsInHome: false,
+  sendIndividualAttachmentAsCaption: true,
   // furry stuff
   renderAnimals: true,
 

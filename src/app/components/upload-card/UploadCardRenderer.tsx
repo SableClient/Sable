@@ -57,7 +57,7 @@ function PreviewImage({ fileItem }: Readonly<PreviewImageProps>) {
       style={{
         objectFit: 'contain',
         width: '100%',
-        height: toRem(152),
+        height: toRem(128),
         filter: metadata.markedAsSpoiler ? 'blur(44px)' : undefined,
       }}
       alt={originalFile.name}
@@ -79,7 +79,7 @@ function PreviewVideo({ fileItem }: Readonly<PreviewVideoProps>) {
       style={{
         objectFit: 'contain',
         width: '100%',
-        height: toRem(152),
+        height: toRem(128),
         filter: metadata.markedAsSpoiler ? 'blur(44px)' : undefined,
       }}
       src={fileUrl}
@@ -366,6 +366,7 @@ type UploadCardRendererProps = {
   onRemove: (file: TUploadContent) => void;
   onComplete?: (upload: UploadSuccess) => void;
   roomId: string;
+  hideCaption?: boolean;
 };
 export function UploadCardRenderer({
   isEncrypted,
@@ -375,6 +376,7 @@ export function UploadCardRenderer({
   onRemove,
   onComplete,
   roomId,
+  hideCaption,
 }: Readonly<UploadCardRendererProps>) {
   const mx = useMatrixClient();
   const mediaConfig = useMediaConfig();
@@ -458,7 +460,7 @@ export function UploadCardRenderer({
               <Text size="B300">Retry</Text>
             </Chip>
           )}
-          {!isDescribed && (
+          {!isDescribed && !hideCaption && (
             <IconButton
               onClick={() => {
                 setIsDescribed(true);
@@ -471,7 +473,7 @@ export function UploadCardRenderer({
               {sizedIcon(PencilSimple, '50')}
             </IconButton>
           )}
-          {isDescribed && (
+          {isDescribed && !hideCaption && (
             <TooltipProvider
               delay={400}
               position="Top"
@@ -533,7 +535,7 @@ export function UploadCardRenderer({
             </UploadCardError>
           )}
 
-          {isDescribed && (
+          {isDescribed && !hideCaption && (
             <DescriptionEditor
               value={fileItem.formatted_body || fileItem.body}
               onSave={(plainText, htmlContent) => {
@@ -543,7 +545,7 @@ export function UploadCardRenderer({
               onCancel={() => setIsDescribed(false)}
             />
           )}
-          {!isDescribed && fileItem.body && fileItem.body.length > 0 && (
+          {!isDescribed && !hideCaption && fileItem.body && fileItem.body.length > 0 && (
             <Box style={{ padding: config.space.S200, wordBreak: 'break-word' }}>
               <Text size="T200" priority="400" as="div">
                 <RenderBody

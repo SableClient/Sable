@@ -428,6 +428,10 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [mentionInReplies, setMentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
+  const [sendIndividualAttachmentAsCaption, setSendIndividualAttachmentAsCaption] = useSetting(
+    settingsAtom,
+    'sendIndividualAttachmentAsCaption'
+  );
 
   return (
     <Box direction="Column" gap="100">
@@ -501,6 +505,20 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           description="Disable to use silent replies by default. You can still toggle reply notifications for each reply."
           after={
             <Switch variant="Primary" value={mentionInReplies} onChange={setMentionInReplies} />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Send text with individual attachment as caption"
+          focusId="reply-notifications"
+          description="Send the contents of the message field as the attachment caption if present."
+          after={
+            <Switch
+              variant="Primary"
+              value={sendIndividualAttachmentAsCaption}
+              onChange={setSendIndividualAttachmentAsCaption}
+            />
           }
         />
       </SequenceCard>

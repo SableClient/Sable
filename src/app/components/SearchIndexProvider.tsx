@@ -104,6 +104,7 @@ type PendingQuery = {
 export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const mx = useMatrixClient();
   const [idbSearchIndex] = useSetting(settingsAtom, 'idbSearchIndex');
+  const [maxResults] = useSetting(settingsAtom, 'idbSearchMaxResults');
 
   const [isReady, setIsReady] = useState(false);
   const [isBackfilling, setIsBackfilling] = useState(false);
@@ -559,13 +560,14 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           type: WorkerMessageTypeIn.Query,
           id,
           term,
+          maxResults,
           roomIds: opts?.roomIds,
           senders: opts?.senders,
           hasTypes: opts?.hasTypes,
         });
       });
     },
-    [isReady, postToWorker]
+    [isReady, maxResults, postToWorker]
   );
 
   const state = useCallback((): Promise<SearchIndexState> => {
@@ -589,9 +591,13 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     if (!workerRef.current || !isReady) {
       return Promise.resolve();
     }
-    return new Promise(() => {
-      postToWorker({ type: WorkerMessageTypeIn.Clear });
-    });
+    postToWorker({ type: WorkerMessageTypeIn.Clear });
+    headlessSetsRef.current.clear();
+    for (const cancel of cancelIdlesRef.current) cancel();
+    cancelIdlesRef.current = [];
+    backfillingRoomsRef.current.clear();
+    setIsBackfilling(false);
+    return Promise.resolve();
   }, [isReady, postToWorker]);
 
   const ctx = useMemo<SearchIndexContextType>(

@@ -216,6 +216,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'show-personas-tab',
     'media-galleries',
     'local-message-indexing',
+    'idb-search-max-results',
   ],
   about: [
     'base-url',

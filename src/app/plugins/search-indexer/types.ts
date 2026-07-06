@@ -45,6 +45,7 @@ export type IndexWorkerMessageIn =
       roomIds?: string[];
       senders?: string[];
       hasTypes?: string[];
+      maxResults: number;
     }
   | {
       type: WorkerMessageTypeIn.SetBackfillState;

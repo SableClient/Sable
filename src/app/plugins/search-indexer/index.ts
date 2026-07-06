@@ -216,7 +216,7 @@ self.addEventListener('message', async (event: MessageEvent<IndexWorkerMessageIn
       if (!msg.term) {
         const results: SearchIndexEvent[] =
           //@ts-expect-error flexsearch types are very bad
-          [...document.store.values()].filter((v) => matchesFilters(v)).slice(0, 1000);
+          [...document.store.values()].filter((v) => matchesFilters(v)).slice(0, msg.maxResults);
 
         post({ type: WorkerMessageTypeOut.QueryResult, id: msg.id, events: results });
         return;
@@ -231,7 +231,8 @@ self.addEventListener('message', async (event: MessageEvent<IndexWorkerMessageIn
       )
         .flatMap((r) => r.result.map((v) => v.doc!))
         .filter((r) => r != undefined)
-        .filter((v) => matchesFilters(v));
+        .filter((v) => matchesFilters(v))
+        .slice(0, msg.maxResults);
 
       post({ type: WorkerMessageTypeOut.QueryResult, id: msg.id, events: result });
 
@@ -249,7 +250,11 @@ self.addEventListener('message', async (event: MessageEvent<IndexWorkerMessageIn
       break;
     case WorkerMessageTypeIn.Clear:
       if (!db) return;
-      Promise.all([idbClear(db, 'index'), idbClear(db, 'backfill')]);
+      document = getDocument();
+      roomQueues.clear();
+      dirty = false;
+      await idbClear(db, 'index');
+      await idbClear(db, 'backfill');
       break;
     case WorkerMessageTypeIn.SetBackfillState:
       if (!db) return;

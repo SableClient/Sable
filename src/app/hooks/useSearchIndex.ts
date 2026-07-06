@@ -8,7 +8,7 @@ export type SearchIndexState = {
 };
 
 export type SearchIndexContextType = {
-  clearIndex(): unknown;
+  clearIndex: () => Promise<void>;
   query: (
     term: string,
     opts?: { roomIds?: string[]; senders?: string[]; hasTypes?: string[] }

@@ -62,24 +62,6 @@ export function SearchIndexCache() {
             description={`Building history index in the background (${stats?.backfillingRoomCount ?? '…'} rooms remaining)…`}
           />
         )}
-        {/* <SettingTile
-          title="Per-room message limit"
-          focusId="search-index-limit"
-          description="Maximum number of messages indexed per room. Increasing this uses more storage."
-          after={
-            <select
-              value={searchIndexMessageLimit}
-              onChange={(e) => setSearchIndexMessageLimit(Number(e.target.value))}
-              style={{ padding: '4px 8px', borderRadius: '4px' }}
-            >
-              {LIMIT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          }
-        /> */}
         <SettingTile
           title="Clear search index"
           focusId="search-index-clear"

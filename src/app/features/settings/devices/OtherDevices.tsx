@@ -116,7 +116,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
       (state: typeof deleteState) => {
         if (state.status === AsyncStatus.Success) {
           setDeleted(new Set());
-          refreshDeviceList();
+          void refreshDeviceList();
         }
         setDeleteState(state);
       },
@@ -146,11 +146,15 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
     [authData, deleteDevices, handleCancelAuth]
   );
 
+  // check for MSC4191 support for account deeplink, in particular the sessions list
+  const actionsSupported = authMetadata?.account_management_actions_supported ?? [];
+  const supportsSessionManager = actionsSupported.includes('org.matrix.sessions_list');
+
   return devices.length > 0 ? (
     <>
       <Box direction="Column" gap="100">
         <Text size="L400">Others</Text>
-        {authMetadata && (
+        {supportsSessionManager && (
           <SequenceCard
             className={SequenceCardStyle}
             variant="SurfaceVariant"
@@ -195,7 +199,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
                 refreshDeviceList={refreshDeviceList}
                 disabled={deleting}
                 options={
-                  authMetadata ? (
+                  supportsSessionManager ? (
                     <DeviceDeleteBtn
                       deviceId={device.device_id}
                       deleted={false}

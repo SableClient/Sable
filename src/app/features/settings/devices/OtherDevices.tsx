@@ -11,7 +11,6 @@ import { DeviceVerificationStatus } from '$components/DeviceVerificationStatus';
 import { VerificationStatus } from '$hooks/useDeviceVerificationStatus';
 import { useAuthMetadata } from '$hooks/useAuthMetadata';
 import { withSearchParam } from '$pages/pathUtils';
-import { useAccountManagementActions } from '$hooks/useAccountManagement';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { VerifyOtherDeviceTile } from './Verification';
@@ -57,13 +56,25 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
   const mx = useMatrixClient();
   const crypto = mx.getCrypto();
   const authMetadata = useAuthMetadata();
-  const accountManagementActions = useAccountManagementActions();
+
+  // check for MSC4191 support for account deeplink, in particular the sessions/devices list
+  const actionsSupported = new Set(authMetadata?.account_management_actions_supported ?? []);
+  const firstSupported = (...types: string[]) => types.find((x) => actionsSupported.has(x));
+
+  const accountManagementActions = {
+    sessionsList: firstSupported(
+      'org.matrix.devices_list',
+      'sessions_list',
+      'org.matrix.sessions_list'
+    ),
+    sessionEnd: firstSupported('org.matrix.device_delete', 'session_end', 'org.matrix.session_end'),
+  };
 
   const [deleted, setDeleted] = useState(new Set());
 
   const handleDashboardOIDC = useCallback(() => {
     const authUrl = authMetadata?.account_management_uri ?? authMetadata?.issuer;
-    if (!authUrl) return;
+    if (!authUrl || !accountManagementActions.sessionsList) return;
 
     window.open(
       withSearchParam(authUrl, {
@@ -71,12 +82,12 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
       }),
       '_blank'
     );
-  }, [authMetadata, accountManagementActions]);
+  }, [authMetadata, accountManagementActions.sessionsList]);
 
   const handleDeleteOIDC = useCallback(
     (deviceId: string) => {
       const authUrl = authMetadata?.account_management_uri ?? authMetadata?.issuer;
-      if (!authUrl) return;
+      if (!authUrl || !accountManagementActions.sessionEnd) return;
 
       window.open(
         withSearchParam(authUrl, {
@@ -86,7 +97,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
         '_blank'
       );
     },
-    [authMetadata, accountManagementActions]
+    [authMetadata, accountManagementActions.sessionEnd]
   );
 
   const handleToggleDelete = useCallback((deviceId: string) => {
@@ -146,15 +157,11 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
     [authData, deleteDevices, handleCancelAuth]
   );
 
-  // check for MSC4191 support for account deeplink, in particular the sessions list
-  const actionsSupported = authMetadata?.account_management_actions_supported ?? [];
-  const supportsSessionManager = actionsSupported.includes('org.matrix.sessions_list');
-
   return devices.length > 0 ? (
     <>
       <Box direction="Column" gap="100">
         <Text size="L400">Others</Text>
-        {supportsSessionManager && (
+        {accountManagementActions.sessionsList && (
           <SequenceCard
             className={SequenceCardStyle}
             variant="SurfaceVariant"
@@ -199,7 +206,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
                 refreshDeviceList={refreshDeviceList}
                 disabled={deleting}
                 options={
-                  supportsSessionManager ? (
+                  accountManagementActions.sessionEnd ? (
                     <DeviceDeleteBtn
                       deviceId={device.device_id}
                       deleted={false}

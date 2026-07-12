@@ -38,7 +38,6 @@ import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { SearchHasType } from './useMessageSearch';
 import { useSetting } from '$state/hooks/settings';
-import { useAtomValue } from 'jotai';
 import { settingsAtom } from '$state/settings';
 
 type OrderButtonProps = {
@@ -661,41 +660,43 @@ export function SearchFilters({
         <Box grow="Yes" data-spacing-node />
         <OrderButton order={order} onChange={onOrderChange} />
       </Box>
-      {idbSearchIndex && <Box gap="200" wrap="Wrap" alignItems="Center">
-        <Text size="L400" style={{ lineHeight: toRem(28) }}>
-          Has:
-        </Text>
-        <HasFilterChips hasTypes={hasTypes} onChange={onHasTypesChange} />
-        <Line
-          style={{ margin: `${config.space.S100} 0` }}
-          direction="Vertical"
-          variant="Surface"
-          size="300"
-        />
-        <Text size="L400" style={{ lineHeight: toRem(28) }}>
-          From:
-        </Text>
-        {senders?.map((sender) => (
-          <Chip
-            key={sender}
-            variant="Success"
-            onClick={() => {
-              const next = senders.filter((s) => s !== sender);
-              onSendersChange(next.length > 0 ? next : undefined);
-            }}
-            radii="Pill"
-            before={<Icon size="50" src={Icons.User} />}
-            after={<Icon size="50" src={Icons.Cross} />}
-          >
-            <Text size="T200">{mx.getUser(sender)?.displayName ?? sender}</Text>
-          </Chip>
-        ))}
-        <SelectSenderButton
-          roomList={senderScope}
-          selectedSenders={senders}
-          onChange={onSendersChange}
-        />
-      </Box>}
+      {idbSearchIndex && (
+        <Box gap="200" wrap="Wrap" alignItems="Center">
+          <Text size="L400" style={{ lineHeight: toRem(28) }}>
+            Has:
+          </Text>
+          <HasFilterChips hasTypes={hasTypes} onChange={onHasTypesChange} />
+          <Line
+            style={{ margin: `${config.space.S100} 0` }}
+            direction="Vertical"
+            variant="Surface"
+            size="300"
+          />
+          <Text size="L400" style={{ lineHeight: toRem(28) }}>
+            From:
+          </Text>
+          {senders?.map((sender) => (
+            <Chip
+              key={sender}
+              variant="Success"
+              onClick={() => {
+                const next = senders.filter((s) => s !== sender);
+                onSendersChange(next.length > 0 ? next : undefined);
+              }}
+              radii="Pill"
+              before={<Icon size="50" src={Icons.User} />}
+              after={<Icon size="50" src={Icons.Cross} />}
+            >
+              <Text size="T200">{mx.getUser(sender)?.displayName ?? sender}</Text>
+            </Chip>
+          ))}
+          <SelectSenderButton
+            roomList={senderScope}
+            selectedSenders={senders}
+            onChange={onSendersChange}
+          />
+        </Box>
+      )}
     </Box>
   );
 }

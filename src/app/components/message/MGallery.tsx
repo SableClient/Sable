@@ -27,7 +27,7 @@ type PartitionedMediaItem = {
 export function MGallery({ content, renderItem }: MGalleryProps) {
   const items = content.itemtypes;
   if (!items || (items && items.length == 0)) {
-    return
+    return <></>;
   }
 
   let mediaItems = items.filter(

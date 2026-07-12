@@ -37,6 +37,9 @@ import { stopPropagation } from '$utils/keyboard';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { SearchHasType } from './useMessageSearch';
+import { useSetting } from '$state/hooks/settings';
+import { useAtomValue } from 'jotai';
+import { settingsAtom } from '$state/settings';
 
 type OrderButtonProps = {
   order?: string;
@@ -599,6 +602,7 @@ export function SearchFilters({
 }: SearchFiltersProps) {
   const senderScope = selectedRooms && selectedRooms.length > 0 ? selectedRooms : roomList;
   const mx = useMatrixClient();
+  const [idbSearchIndex] = useSetting(settingsAtom, 'idbSearchIndex');
 
   return (
     <Box direction="Column" gap="100">
@@ -657,7 +661,7 @@ export function SearchFilters({
         <Box grow="Yes" data-spacing-node />
         <OrderButton order={order} onChange={onOrderChange} />
       </Box>
-      <Box gap="200" wrap="Wrap" alignItems="Center">
+      {idbSearchIndex && <Box gap="200" wrap="Wrap" alignItems="Center">
         <Text size="L400" style={{ lineHeight: toRem(28) }}>
           Has:
         </Text>
@@ -691,7 +695,7 @@ export function SearchFilters({
           selectedSenders={senders}
           onChange={onSendersChange}
         />
-      </Box>
+      </Box>}
     </Box>
   );
 }

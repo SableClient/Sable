@@ -11,6 +11,10 @@ export function useRoom(): Room {
   return room;
 }
 
+export function useRoomOptionally(): Room | null {
+  return useContext(RoomContext);
+}
+
 const IsDirectRoomContext = createContext(false);
 
 export const IsDirectRoomProvider = IsDirectRoomContext.Provider;

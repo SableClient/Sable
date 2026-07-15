@@ -11,6 +11,7 @@ import { makeOpenedSidebarFolderAtom } from '$state/openedSidebarFolder';
 import { OpenedSidebarFolderProvider } from '$state/hooks/openedSidebarFolder';
 import { makeCallPreferencesAtom } from '$state/callPreferences';
 import { CallPreferencesProvider } from '$state/hooks/callPreferences';
+import { useSyncAnimalKind } from '$state/useSyncAnimalKind';
 
 type ClientInitStorageAtomProps = {
   children: ReactNode;
@@ -18,6 +19,9 @@ type ClientInitStorageAtomProps = {
 export function ClientInitStorageAtom({ children }: ClientInitStorageAtomProps) {
   const mx = useMatrixClient();
   const userId = mx.getUserId()!;
+
+  // could probably be put somewhere else, doesnt affect the execution time of the program here :shrug:
+  useSyncAnimalKind(userId);
 
   const closedNavCategoriesAtom = useMemo(() => makeClosedNavCategoriesAtom(userId), [userId]);
 

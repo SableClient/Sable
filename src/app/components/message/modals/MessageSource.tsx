@@ -1,19 +1,28 @@
 import type { MouseEvent } from 'react';
 import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
-import { MenuItem, Icon, Icons, Text } from 'folds';
+import { MenuItem, Text } from 'folds';
+import { CodeBlock, menuIcon } from '$components/icons/phosphor';
 import { TextViewer } from '$components/text-viewer';
 import { getEventEdits } from '$utils/room';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 
-export function MessageSourceCodeItem({ room, mEvent }: { room: Room; mEvent: MatrixEvent }) {
+export function MessageSourceCodeItem({
+  room,
+  mEvent,
+  closeMenu,
+}: {
+  room: Room;
+  mEvent: MatrixEvent;
+  closeMenu: () => void;
+}) {
   const setModal = useSetAtom(modalAtom);
 
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.BlockCode} />}
+      after={menuIcon(CodeBlock)}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();
@@ -23,6 +32,7 @@ export function MessageSourceCodeItem({ room, mEvent }: { room: Room; mEvent: Ma
           room,
           mEvent,
         });
+        closeMenu();
       }}
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>

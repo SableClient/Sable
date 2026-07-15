@@ -5,8 +5,6 @@ import {
   Box,
   Text,
   Button,
-  Icon,
-  Icons,
   IconButton,
   Avatar,
   AvatarImage,
@@ -22,6 +20,7 @@ import {
   Line,
   Chip,
 } from 'folds';
+import { composerIcon, menuIcon, Plus, Sticker, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
@@ -198,7 +197,7 @@ function GlobalPackSelector({
                                   />
                                 ) : (
                                   <AvatarFallback>
-                                    <Icon size="400" src={Icons.Sticker} filled />
+                                    {composerIcon(Sticker, { weight: 'fill' })}
                                   </AvatarFallback>
                                 )}
                               </Avatar>
@@ -308,9 +307,13 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
   const [applyState, applyChanges] = useAsyncCallback(
     useCallback(async () => {
       const content =
-        mx
-          .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
-          ?.getContent<EmoteRoomsContent>() ?? {};
+        (mx
+          .getAccountData(CustomAccountDataEvent.ImagePackRooms)
+          ?.getContent<EmoteRoomsContent>() ||
+          mx
+            .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
+            ?.getContent<EmoteRoomsContent>()) ??
+        {};
       const updatedContent: EmoteRoomsContent = JSON.parse(JSON.stringify(content));
 
       selectedPacks.forEach((addr) => {
@@ -327,7 +330,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
         }
       });
 
-      await mx.setAccountData(CustomAccountDataEvent.PoniesEmoteRooms, updatedContent);
+      await mx.setAccountData(CustomAccountDataEvent.ImagePackRooms, updatedContent);
     }, [mx, selectedPacks, removedPacks])
   );
 
@@ -383,7 +386,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                   onClick={() => handleUndoRemove(address)}
                   disabled={applyingChanges}
                 >
-                  <Icon src={Icons.Plus} size="100" />
+                  {menuIcon(Plus)}
                 </IconButton>
               ) : (
                 <IconButton
@@ -393,16 +396,14 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                   onClick={() => handleRemove(address)}
                   disabled={applyingChanges}
                 >
-                  <Icon src={Icons.Cross} size="100" />
+                  {menuIcon(X)}
                 </IconButton>
               )}
               <Avatar size="300" radii="300">
                 {avatarUrl ? (
                   <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
                 ) : (
-                  <AvatarFallback>
-                    <Icon size="400" src={Icons.Sticker} filled />
-                  </AvatarFallback>
+                  <AvatarFallback>{composerIcon(Sticker, { weight: 'fill' })}</AvatarFallback>
                 )}
               </Avatar>
             </Box>

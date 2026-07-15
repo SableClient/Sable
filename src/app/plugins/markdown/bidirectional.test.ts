@@ -4,6 +4,12 @@ import { markdownToHtml } from './markdownToHtml';
 import { htmlToMarkdown } from './htmlToMarkdown';
 import { injectDataMd } from './injectDataMd';
 
+const roundtrip = (markdown: string) => {
+  const html = markdownToHtml(markdown);
+  const injected = injectDataMd(html);
+  return htmlToMarkdown(injected);
+};
+
 describe('bidirectional round-trip', () => {
   it('round-trips headings', () => {
     const markdown = '## Hello World';
@@ -73,11 +79,11 @@ describe('bidirectional round-trip', () => {
   });
 
   it('round-trips blockquotes', () => {
-    const markdown = '> Quote text';
-    const html = markdownToHtml(markdown);
-    const injected = injectDataMd(html);
-    const result = htmlToMarkdown(injected);
-    expect(result).toContain('> Quote text');
+    expect(roundtrip('> Quote text')).toBe('> Quote text');
+    expect(roundtrip('> line one\n> line two')).toBe('> line one\n> line two');
+    expect(roundtrip('> test\ntest')).toBe('> test\ntest');
+    expect(roundtrip('> test\n\n> test')).toBe('> test\n\n> test');
+    expect((markdownToHtml('> test\n\n> test').match(/<blockquote/g) ?? []).length).toBe(2);
   });
 
   it('round-trips unordered lists', () => {
@@ -96,6 +102,26 @@ describe('bidirectional round-trip', () => {
     const result = htmlToMarkdown(injected);
     expect(result).toContain('1. First');
     expect(result).toContain('2. Second');
+  });
+
+  it('round-trips nested sublists with four-space indent', () => {
+    const markdown = '1. parent\n    - child';
+    const html = markdownToHtml(markdown);
+    expect(html).toMatch(/<li>[\s\S]*<ul/i);
+    const injected = injectDataMd(html);
+    const result = htmlToMarkdown(injected);
+    expect(result).toContain('1. parent');
+    expect(result).toContain('    - child');
+  });
+
+  it('round-trips nested sublists written with two-space indent', () => {
+    const markdown = '1. parent\n  - child';
+    const html = markdownToHtml(markdown);
+    expect(html).toMatch(/<li>[\s\S]*<ul/i);
+    const injected = injectDataMd(html);
+    const result = htmlToMarkdown(injected);
+    expect(result).toContain('1. parent');
+    expect(result).toContain('- child');
   });
 
   it('round-trips spoiler syntax', () => {

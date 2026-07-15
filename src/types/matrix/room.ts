@@ -1,4 +1,5 @@
 import type { IImageInfo } from './common';
+import * as prefix from '$unstable/prefixes';
 
 export type IMemberContent = {
   avatar_url?: string;
@@ -9,6 +10,7 @@ export type IMemberContent = {
 };
 
 export const CustomStateEvent = {
+  ImagePack: prefix.MATRIX_STATE_ROOM_IMAGE_PACK_PROPERTY_NAME,
   PoniesRoomEmotes: 'im.ponies.room_emotes',
   PowerLevelTags: 'in.cinny.room.power_level_tags',
   RoomWidget: 'im.vector.modular.widgets',

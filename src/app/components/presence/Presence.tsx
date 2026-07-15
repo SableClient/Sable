@@ -5,7 +5,7 @@ import { useId } from 'react';
 import { Presence, usePresenceLabel } from '$hooks/useUserPresence';
 import * as css from './styles.css';
 
-const PresenceToColor: Record<Presence, MainColor> = {
+export const PresenceToColor: Record<Presence, MainColor> = {
   [Presence.Online]: 'Success',
   [Presence.Unavailable]: 'Warning',
   [Presence.Offline]: 'Secondary',

@@ -38,6 +38,43 @@ export function scrubDataObject(data: unknown): unknown {
   return data;
 }
 
+/** Structured fields that should never be sent to Sentry, even redacted. */
+export const SENTRY_IDENTIFIER_KEYS = new Set([
+  'roomId',
+  'notificationEventId',
+  'refEventId',
+  'senderId',
+  'declineEventId',
+  'eventId',
+  'userId',
+  'targetEventId',
+  'deviceId',
+  'activeNotificationId',
+  'activeRefEventId',
+  'callerId',
+  'recipientId',
+]);
+
+/** Drop identifier-bearing keys before values are scrubbed for Sentry export. */
+export function omitSentryIdentifierFields(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(omitSentryIdentifierFields);
+  }
+  if (data !== null && typeof data === 'object') {
+    return Object.fromEntries(
+      Object.entries(data as Record<string, unknown>)
+        .filter(([key]) => !SENTRY_IDENTIFIER_KEYS.has(key))
+        .map(([key, value]) => [key, omitSentryIdentifierFields(value)])
+    );
+  }
+  return data;
+}
+
+/** Full sanitization pass for Sentry breadcrumbs, logs, and contexts. */
+export function sanitizeSentryPayload(data: unknown): unknown {
+  return scrubDataObject(omitSentryIdentifierFields(data));
+}
+
 /**
  * Scrub Matrix-specific identifiers from URLs that appear in Sentry spans, breadcrumbs,
  * transaction names, and page URLs. Covers both Matrix API paths and client-side app routes.

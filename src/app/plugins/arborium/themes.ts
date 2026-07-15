@@ -1,6 +1,8 @@
+import { pluginVersion } from '@arborium/arborium';
+
 export type ArboriumThemeKind = 'light' | 'dark';
 
-export const ARBORIUM_CDN_VERSION = '2.16.0';
+export const ARBORIUM_CDN_VERSION = pluginVersion;
 
 const ARBORIUM_THEME_DEFINITIONS = [
   { id: 'alabaster', label: 'Alabaster', kind: 'light' },
@@ -33,6 +35,7 @@ const ARBORIUM_THEME_DEFINITIONS = [
   { id: 'zenburn', label: 'Zenburn', kind: 'dark' },
   { id: 'cobalt2', label: 'Cobalt2', kind: 'dark' },
   { id: 'ef-melissa-dark', label: 'Ef Melissa Dark', kind: 'dark' },
+  { id: 'evergarden-fall', label: 'Evergarden Fall', kind: 'dark' },
   { id: 'rustdoc-dark', label: 'Rustdoc Dark', kind: 'dark' },
   { id: 'rustdoc-ayu', label: 'Rustdoc Ayu', kind: 'dark' },
 ] as const;

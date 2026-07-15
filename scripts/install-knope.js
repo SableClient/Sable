@@ -102,11 +102,12 @@ function getSystemKnopePath() {
   );
 }
 
+const toComparablePath = (value) => {
+  const resolved = resolve(value);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+};
+
 function isPathWithin(candidatePath, rootPath) {
-  const toComparablePath = (value) => {
-    const resolved = resolve(value);
-    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
-  };
   const candidate = toComparablePath(candidatePath);
   const root = toComparablePath(rootPath);
   return candidate === root || candidate.startsWith(`${root}${sep}`);

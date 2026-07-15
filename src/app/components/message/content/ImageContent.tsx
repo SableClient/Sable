@@ -5,8 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   Modal,
@@ -18,9 +16,19 @@ import {
   Tooltip,
   TooltipProvider,
   as,
+  color,
   config,
   toRem,
 } from 'folds';
+import {
+  Eye,
+  EyeSlash,
+  menuIcon,
+  sizedIcon,
+  Image,
+  Warning,
+  Star,
+} from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
 import FocusTrap from 'focus-trap-react';
@@ -36,7 +44,11 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
-import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../../unstable/prefixes';
+import {
+  MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS,
+  MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
+} from '../../../../unstable/prefixes';
+import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 
 function thumbnailDimsForMaxEdge(
   maxEdge: number,
@@ -59,6 +71,7 @@ type RenderViewerProps = {
   src: string;
   alt: string;
   requestClose: () => void;
+  info?: IImageInfo;
 };
 type RenderImageProps = {
   alt: string;
@@ -70,7 +83,7 @@ type RenderImageProps = {
   tabIndex: number;
 };
 export type ImageContentProps = {
-  body: string;
+  body?: string;
   mimeType?: string;
   url: string;
   info?: IImageInfo;
@@ -118,6 +131,22 @@ export const ImageContent = as<'div', ImageContentProps>(
     const [viewerFullSrc, setViewerFullSrc] = useState<string | null>(null);
     const [blurred, setBlurred] = useState(markedAsSpoiler ?? false);
     const [isHovered, setIsHovered] = useState(false);
+
+    const favoritedContent = useFavoriteGifs();
+    const [favorited, setFavorited] = useState(
+      favoritedContent.gifs.find((v) => v.url == url) != undefined
+    );
+
+    const isGif =
+      info?.mimetype === 'image/gif' ||
+      info?.mimetype === 'image/apng' ||
+      info?.mimetype === 'image/webp' ||
+      (body ?? '').toLowerCase().endsWith('.gif') ||
+      (body ?? '').toLowerCase().endsWith('.apng') ||
+      (body ?? '').toLowerCase().endsWith('.webp') ||
+      url.toLowerCase().endsWith('.gif') ||
+      url.toLowerCase().endsWith('.apng') ||
+      url.toLowerCase().endsWith('.webp');
 
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
@@ -240,8 +269,9 @@ export const ImageContent = as<'div', ImageContentProps>(
                 >
                   {renderViewer({
                     src: viewerFullSrc ?? srcState.data,
-                    alt: body,
+                    alt: body ?? '',
                     requestClose: () => setViewer(false),
+                    info: info,
                   })}
                 </Modal>
               </FocusTrap>
@@ -270,7 +300,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               radii="300"
               size="300"
               onClick={loadSrc}
-              before={<Icon size="Inherit" src={Icons.Photo} filled />}
+              before={sizedIcon(Image, 'Inherit', { filled: true })}
             >
               <Text size="B300">View</Text>
             </Button>
@@ -285,8 +315,8 @@ export const ImageContent = as<'div', ImageContentProps>(
             style={{ width: '100%' }}
           >
             {renderImage({
-              alt: body,
-              title: body,
+              alt: body ?? '',
+              title: body ?? '',
               src: srcState.data,
               onLoad: handleLoad,
               onError: handleError,
@@ -362,7 +392,7 @@ export const ImageContent = as<'div', ImageContentProps>(
                   outlined
                   radii="300"
                   onClick={handleRetry}
-                  before={<Icon size="Inherit" src={Icons.Warning} filled />}
+                  before={sizedIcon(Warning, 'Inherit', { filled: true })}
                 >
                   <Text size="B300">Retry</Text>
                 </Button>
@@ -373,21 +403,68 @@ export const ImageContent = as<'div', ImageContentProps>(
         {isHovered && (
           <Box style={{ padding: config.space.S200, right: 0, position: 'absolute' }}>
             <Menu style={{ padding: config.space.S0 }}>
-              <MenuItem
-                size="300"
-                after={<Icon size="200" src={blurred ? Icons.Eye : Icons.EyeBlind} />}
-                radii="300"
-                fill="Soft"
-                variant="Secondary"
-                title={blurred ? 'Reveal Image' : 'Hide Image'}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (srcState.status === AsyncStatus.Idle) {
-                    loadSrc();
-                    setBlurred(false);
-                  } else setBlurred(!blurred);
-                }}
-              />
+              <Box>
+                <MenuItem
+                  size="300"
+                  radii="0"
+                  fill="Soft"
+                  variant="Secondary"
+                  title={blurred ? 'Reveal Image' : 'Hide Image'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (srcState.status === AsyncStatus.Idle) {
+                      loadSrc();
+                      setBlurred(false);
+                    } else setBlurred(!blurred);
+                  }}
+                >
+                  {menuIcon(blurred ? Eye : EyeSlash)}
+                </MenuItem>
+                {isGif && (
+                  <MenuItem
+                    size="300"
+                    radii="0"
+                    fill="Soft"
+                    variant="Secondary"
+                    title={favorited ? 'Unfavorite gif' : 'Favorite gif'}
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      if (srcState.status === AsyncStatus.Success) {
+                        if (!favorited) {
+                          setFavorited(true);
+                          await mx
+                            .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
+                              gifs: [
+                                ...favoritedContent.gifs,
+                                {
+                                  title: body ?? '',
+                                  url: url,
+                                  width: imageW,
+                                  height: imageH,
+                                  size: info?.size,
+                                  mimetype: info?.mimetype,
+                                },
+                              ],
+                            })
+                            .catch(() => setFavorited(false));
+                        } else {
+                          setFavorited(false);
+                          await mx
+                            .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
+                              gifs: favoritedContent.gifs.filter((v) => v.url != url),
+                            })
+                            .catch(() => setFavorited(true));
+                        }
+                      }
+                    }}
+                  >
+                    {menuIcon(Star, {
+                      weight: favorited ? 'fill' : 'regular',
+                      color: favorited ? color.Warning.MainHover : color.Surface.OnContainer,
+                    })}
+                  </MenuItem>
+                )}
+              </Box>
             </Menu>
           </Box>
         )}

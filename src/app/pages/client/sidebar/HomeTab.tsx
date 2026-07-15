@@ -2,7 +2,7 @@ import type { MouseEventHandler } from 'react';
 import { forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
+import { Box, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
 import { useOrphanRooms } from '$state/hooks/roomList';
@@ -15,7 +15,7 @@ import { getHomePath, joinPathComponent } from '$pages/pathUtils';
 import { useRoomsUnread } from '$state/hooks/unread';
 import {
   SidebarAvatar,
-  SidebarItem,
+  SidebarItemLeft,
   SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
@@ -27,6 +27,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useHomeRooms } from '$pages/client/home/useHomeRooms';
+import { Checks, House, menuIcon, getPhosphorIconSize } from '$components/icons/phosphor';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -49,7 +50,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={menuIcon(Checks)}
           radii="300"
           aria-disabled={!unread}
         >
@@ -95,7 +96,7 @@ export function HomeTab() {
   };
 
   return (
-    <SidebarItem active={homeSelected}>
+    <SidebarItemLeft active={homeSelected}>
       <SidebarItemTooltip tooltip="Home">
         {(triggerRef) => (
           <SidebarAvatar
@@ -105,7 +106,10 @@ export function HomeTab() {
             onClick={handleHomeClick}
             onContextMenu={handleContextMenu}
           >
-            <Icon src={Icons.Home} filled={homeSelected} />
+            <House
+              size={getPhosphorIconSize('toolbar')}
+              weight={homeSelected ? 'fill' : 'regular'}
+            />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>
@@ -137,6 +141,6 @@ export function HomeTab() {
           }
         />
       )}
-    </SidebarItem>
+    </SidebarItemLeft>
   );
 }

@@ -3,6 +3,7 @@ import type { Room } from '$types/matrix-sdk';
 import {
   formatMentionElementDisplayName,
   formatUserMentionDisplayName,
+  mentionNameForUserAutocomplete,
   resolveUserMentionName,
 } from './utils';
 import { BlockType } from './types';
@@ -33,5 +34,12 @@ describe('mention resolve', () => {
 
   it('formatUserMentionDisplayName is idempotent for names that already include @', () => {
     expect(formatUserMentionDisplayName('@Alice')).toBe('@Alice');
+  });
+
+  it('mentionNameForUserAutocomplete keeps @room for room pings', () => {
+    expect(mentionNameForUserAutocomplete('!room:example.org', '@room')).toBe('@room');
+    expect(mentionNameForUserAutocomplete('!room:example.org', '@room')).not.toBe(
+      '@!room:example.org'
+    );
   });
 });

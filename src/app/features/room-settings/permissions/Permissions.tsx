@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { usePowerLevels } from '$hooks/usePowerLevels';
@@ -25,7 +26,7 @@ export function Permissions({ requestClose }: PermissionsProps) {
 
   const canEditPowers = permissions.stateEvent(CustomStateEvent.PowerLevelTags, mx.getSafeUserId());
   const canEditPermissions = permissions.stateEvent(EventType.RoomPowerLevels, mx.getSafeUserId());
-  const permissionGroups = usePermissionGroups(room.isCallRoom());
+  const permissionGroups = usePermissionGroups();
 
   const [powerEditor, setPowerEditor] = useState(false);
 
@@ -48,7 +49,7 @@ export function Permissions({ requestClose }: PermissionsProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

@@ -1,4 +1,15 @@
-import { Box, Chip, Icon, IconButton, Icons, Spinner, Text, Tooltip, TooltipProvider } from 'folds';
+import { Box, Chip, IconButton, Spinner, Text, Tooltip, TooltipProvider } from 'folds';
+import {
+  Headphones,
+  sizedIcon,
+  Microphone,
+  MicrophoneSlash,
+  PhoneDisconnect,
+  SpeakerSlash,
+  VideoCamera,
+  VideoCameraSlash,
+  ScreenShare,
+} from '$components/icons/phosphor';
 import { useCallback } from 'react';
 import { useSetAtom } from 'jotai';
 import { StatusDivider } from './components';
@@ -33,7 +44,7 @@ function MicrophoneButton({ enabled, onToggle, disabled }: MicrophoneButtonProps
           outlined
           disabled={disabled}
         >
-          <Icon size="100" src={enabled ? Icons.Mic : Icons.MicMute} filled={!enabled} />
+          {sizedIcon(enabled ? Microphone : MicrophoneSlash, '100', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -66,11 +77,7 @@ function SoundButton({ enabled, onToggle, disabled }: SoundButtonProps) {
           outlined
           disabled={disabled}
         >
-          <Icon
-            size="100"
-            src={enabled ? Icons.Headphone : Icons.HeadphoneMute}
-            filled={!enabled}
-          />
+          {sizedIcon(enabled ? Headphones : SpeakerSlash, '100', { filled: !enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -103,11 +110,7 @@ function VideoButton({ enabled, onToggle, disabled }: VideoButtonProps) {
           outlined
           disabled={disabled}
         >
-          <Icon
-            size="100"
-            src={enabled ? Icons.VideoCamera : Icons.VideoCameraMute}
-            filled={enabled}
-          />
+          {sizedIcon(enabled ? VideoCamera : VideoCameraSlash, '100', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -140,7 +143,7 @@ function ScreenShareButton({ enabled, onToggle, disabled }: ScreenShareButtonPro
           outlined
           disabled={disabled}
         >
-          <Icon size="100" src={Icons.ScreenShare} filled={enabled} />
+          {sizedIcon(ScreenShare, '100', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>
@@ -209,7 +212,7 @@ export function CallControl({
           exiting ? (
             <Spinner variant="Critical" fill="Soft" size="50" />
           ) : (
-            <Icon size="50" src={Icons.PhoneDown} filled />
+            sizedIcon(PhoneDisconnect, '50', { filled: true })
           )
         }
         disabled={exiting}

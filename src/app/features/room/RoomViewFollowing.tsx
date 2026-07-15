@@ -1,5 +1,6 @@
 import { useAtomValue } from 'jotai';
-import { Box, Icon, Icons, Text, as, config } from 'folds';
+import { Box, Text, as, config } from 'folds';
+import { Checks, menuIcon } from '$components/icons/phosphor';
 import type { Room } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtom } from 'jotai';
@@ -61,7 +62,7 @@ export const RoomViewFollowing = as<'div', RoomViewFollowingProps>(
       >
         {names.length > 0 && (
           <>
-            <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.CheckTwice} />
+            {menuIcon(Checks, { style: { opacity: config.opacity.P300 } })}
             <Text size="T300" truncate>
               {names.length === 1 && (
                 <>

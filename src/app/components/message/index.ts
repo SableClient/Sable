@@ -1,6 +1,8 @@
 export * from './layout';
 export * from './placeholder';
 export * from './Reaction';
+export * from './ReactionKeyInline';
+export * from './InlineTextDiff';
 export * from './attachment';
 export * from './Reply';
 export * from './content';
@@ -8,3 +10,4 @@ export * from './Time';
 export * from './MsgTypeRenderers';
 export * from './FileHeader';
 export * from './RenderBody';
+export * from './MGallery';

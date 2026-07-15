@@ -1,19 +1,6 @@
 import { useCallback, useState } from 'react';
 import classNames from 'classnames';
-import {
-  Avatar,
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  MenuItem,
-  Scroll,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Avatar, Box, Header, IconButton, Line, MenuItem, Scroll, Text, as, config } from 'folds';
 import type { MatrixEvent, Room, RoomMember, Relations } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { eventWithShortcode, getMxIdLocalPart } from '$utils/matrix';
@@ -24,6 +11,7 @@ import { getHexcodeForEmoji, getShortcodeFor } from '$plugins/emoji';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
+import { composerIcon, userFallbackIcon, X } from '$components/icons/phosphor';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
@@ -105,7 +93,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
               </Text>
             </Box>
             <IconButton size="300" onClick={requestClose}>
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Header>
 
@@ -151,7 +139,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
                             userId={senderId}
                             src={avatarUrl ?? undefined}
                             alt={name}
-                            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                            renderFallback={() => userFallbackIcon('sm')}
                           />
                         </Avatar>
                       }

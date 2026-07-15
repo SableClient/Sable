@@ -1,0 +1,60 @@
+name: Cloudflare Infra (Dev)
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.TF_CLOUDFLARE_API_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TF_VAR_workers_message: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}
+  TF_VAR_account_id: ${{ secrets.TF_VAR_ACCOUNT_ID }}
+  TF_VAR_zone_id: ${{ secrets.TF_VAR_ZONE_ID }}
+  TF_VAR_custom_domain: 'dev.sable.moe'
+  TF_VAR_worker_name: 'sable-dev'
+  TF_HTTP_ADDRESS: ${{ secrets.TF_HTTP_ADDRESS_DEV }}
+  TF_HTTP_LOCK_ADDRESS: ${{ secrets.TF_HTTP_LOCK_ADDRESS_DEV }}
+  TF_HTTP_UNLOCK_ADDRESS: ${{ secrets.TF_HTTP_UNLOCK_ADDRESS_DEV }}
+  TF_HTTP_USERNAME: ${{ secrets.TF_HTTP_USERNAME }}
+  TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
+  TF_HTTP_LOCK_METHOD: 'POST'
+  TF_HTTP_UNLOCK_METHOD: 'DELETE'
+  TF_HTTP_RETRY_WAIT_MIN: '5'
+
+concurrency:
+  group: cloudflare-infra-dev
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: infra/web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Prepare OpenTofu deployment
+        uses: ./.github/actions/prepare-tofu
+        with:
+          is_release_tag: 'false'
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: development
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+
+      - name: Plan infrastructure
+        run: tofu plan -input=false -no-color
+
+      - name: Apply infrastructure
+        run: tofu apply -input=false -auto-approve

@@ -12,6 +12,7 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { markAsRead } from '$utils/notifications';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomMembers } from '$hooks/useRoomMembers';
+import { Page } from '$components/page';
 import { CallView } from '$features/call/CallView';
 import { WidgetsDrawer } from '$features/widgets/WidgetsDrawer';
 import { callChatAtom } from '$state/callEmbed';
@@ -113,12 +114,12 @@ export function Room() {
       <RoomAbbreviationsContext.Provider value={abbreviations}>
         <Box grow="Yes" style={{ position: 'relative' }}>
           {callView && (screenSize === ScreenSize.Desktop || !chat) && (
-            <Box grow="Yes" direction="Column">
+            <Page>
               <RoomViewHeader callView />
               <Box grow="Yes">
                 <CallView />
               </Box>
-            </Box>
+            </Page>
           )}
           {!callView && (
             <Box grow="Yes" direction="Column">

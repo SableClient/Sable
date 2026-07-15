@@ -13,9 +13,7 @@ import {
   Button,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -25,6 +23,16 @@ import {
   Text,
   toRem,
 } from 'folds';
+import {
+  ArrowUp,
+  CaretDown,
+  composerIcon,
+  Download,
+  Info,
+  menuIcon,
+  Shield,
+  X,
+} from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -48,6 +56,7 @@ import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSe
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { t } from 'i18next';
+import { CallSoundSettings } from './CallSoundSettings';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -95,7 +104,8 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
                   <Text size="T300">
                     YYYY
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.four_digit_year')}
+                      {': '}
+                      {t('Settings.General.four_digit_year')}
                     </Text>
                   </Text>
                 </Box>
@@ -109,25 +119,29 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
                   <Text size="T300">
                     M
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.the_month')}
+                      {': '}
+                      {t('Settings.General.the_month')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     MM
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.two_digit_month')}
+                      {': '}
+                      {t('Settings.General.two_digit_month')}
                     </Text>{' '}
                   </Text>
                   <Text size="T300">
                     MMM
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.short_month_name')}
+                      {': '}
+                      {t('Settings.General.short_month_name')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     MMMM
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.full_month_name')}
+                      {': '}
+                      {t('Settings.General.full_month_name')}
                     </Text>
                   </Text>
                 </Box>
@@ -141,7 +155,8 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
                   <Text size="T300">
                     D
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.day_of_the_month')}
+                      {': '}
+                      {t('Settings.General.day_of_the_month')}
                     </Text>
                   </Text>
                   <Text size="T300">
@@ -160,25 +175,29 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
                   <Text size="T300">
                     d
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.day_of_the_week_sunday_0')}
+                      {': '}
+                      {t('Settings.General.day_of_the_week_sunday_0')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     dd
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.two_letter_day_name')}
+                      {': '}
+                      {t('Settings.General.two_letter_day_name')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     ddd
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.short_day_name')}
+                      {': '}
+                      {t('Settings.General.short_day_name')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     dddd
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}{t('Settings.General.full_day_name')}
+                      {': '}
+                      {t('Settings.General.full_day_name')}
                     </Text>
                   </Text>
                 </Box>
@@ -197,7 +216,7 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
           size="300"
           radii="300"
         >
-          <Icon src={Icons.Cross} size="100" />
+          {menuIcon(X)}
         </IconButton>
       ) : (
         <IconButton
@@ -209,7 +228,7 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
           radii="300"
           aria-pressed={!!anchor}
         >
-          <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.Info} />
+          {menuIcon(Info, { style: { opacity: config.opacity.P300 } })}
         </IconButton>
       )}
     </PopOut>
@@ -285,12 +304,13 @@ type PresetDateFormatProps = {
   value: string;
   onChange: (format: string) => void;
 };
+
+const getDisplayDate = (format: string): string =>
+  format === '' ? 'Custom' : dayjs().format(format);
+
 function PresetDateFormat({ value, onChange }: Readonly<PresetDateFormatProps>) {
   const [menuCords, setMenuCords] = useState<RectCords>();
   const dateFormatItems = useDateFormatItems();
-
-  const getDisplayDate = (format: string): string =>
-    format === '' ? 'Custom' : dayjs().format(format);
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(evt.currentTarget.getBoundingClientRect());
@@ -309,7 +329,7 @@ function PresetDateFormat({ value, onChange }: Readonly<PresetDateFormatProps>) 
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -383,10 +403,7 @@ function SelectDateFormat() {
   );
 }
 
-function getTombstoneSettingToggleTitle(showHidden: boolean, showTombstone: boolean): string {
-  if (showHidden) {
-    return 'Tombstone events are always shown when "Show Hidden Events" is enabled.';
-  }
+function getTombstoneSettingToggleTitle(showTombstone: boolean): string {
   if (showTombstone) {
     return 'Disable to hide redacted messages entirely instead of showing a tombstone.';
   }
@@ -417,10 +434,15 @@ function DateAndTime() {
 function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [editorToolbar, setEditorToolbar] = useSetting(settingsAtom, 'editorToolbar');
+  const [editorOldAddFile, setEditorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [mentionInReplies, setMentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
+  const [sendIndividualAttachmentAsCaption, setSendIndividualAttachmentAsCaption] = useSetting(
+    settingsAtom,
+    'sendIndividualAttachmentAsCaption'
+  );
 
   return (
     <Box direction="Column" gap="100">
@@ -451,6 +473,16 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           focusId="composer-formatting-toolbar"
           description="Enable the formatting toolbar in the message composer."
           after={<Switch variant="Primary" value={editorToolbar} onChange={setEditorToolbar} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Hide Add Menu in the Editor"
+          focusId="hide-add-menu"
+          description="Make the Plus button in the editor only add files. You may still send the special items using commands such as /poll and /location"
+          after={
+            <Switch variant="Primary" value={editorOldAddFile} onChange={setEditorOldAddFile} />
+          }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
@@ -487,6 +519,20 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           }
         />
       </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Send text with individual attachment as caption"
+          focusId="reply-notifications"
+          description="Send the contents of the message field as the attachment caption if present."
+          after={
+            <Switch
+              variant="Primary"
+              value={sendIndividualAttachmentAsCaption}
+              onChange={setSendIndividualAttachmentAsCaption}
+            />
+          }
+        />
+      </SequenceCard>
     </Box>
   );
 }
@@ -513,7 +559,7 @@ function SelectMessageLayout() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -581,7 +627,7 @@ function SelectCaptionPosition() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -650,7 +696,7 @@ function SelectMessageSpacing() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -724,7 +770,7 @@ function SelectRightSwipeAction({ disabled }: Readonly<{ disabled?: boolean }>) 
         fill="Soft"
         radii="300"
         disabled={disabled}
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">{options.find((o) => o.id === action)?.name ?? action}</Text>
@@ -880,6 +926,7 @@ function Calls() {
           }
         />
       </SequenceCard>
+      <CallSoundSettings />
     </Box>
   );
 }
@@ -899,6 +946,22 @@ function Messages() {
     settingsAtom,
     'showTombstoneEvents'
   );
+  const [hiddenEventEdits, setHiddenEventEdits] = useSetting(settingsAtom, 'hiddenEventEdits');
+  const [hiddenEventRedactionTimeline, setHiddenEventRedactionTimeline] = useSetting(
+    settingsAtom,
+    'hiddenEventRedactionTimeline'
+  );
+  const [hiddenEventReactions, setHiddenEventReactions] = useSetting(
+    settingsAtom,
+    'hiddenEventReactions'
+  );
+  const [hiddenEventReactionTombstone, setHiddenEventReactionTombstone] = useSetting(
+    settingsAtom,
+    'hiddenEventReactionTombstone'
+  );
+  const [hiddenEventReactionRedactionTimeline, setHiddenEventReactionRedactionTimeline] =
+    useSetting(settingsAtom, 'hiddenEventReactionRedactionTimeline');
+  const [hiddenEventOther, setHiddenEventOther] = useSetting(settingsAtom, 'hiddenEventOther');
   const [hideMembershipInReadOnly, setHideMembershipInReadOnly] = useSetting(
     settingsAtom,
     'hideMembershipInReadOnly'
@@ -990,6 +1053,7 @@ function Messages() {
         <SettingTile
           title="Hide Member Events in Read-Only Rooms"
           focusId="hide-member-events-read-only-rooms"
+          description="Hide membership changes, reactions, and reaction redactions in read-only rooms such as announcement channels."
           after={
             <Switch
               variant="Primary"
@@ -1003,6 +1067,7 @@ function Messages() {
         <SettingTile
           title="Show Hidden Events"
           focusId="show-hidden-events"
+          description="Reveal additional timeline events that are normally filtered out."
           after={
             <Switch
               variant="Primary"
@@ -1017,17 +1082,143 @@ function Messages() {
           }
         />
       </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
         <SettingTile
-          title="Show Tombstones for Redacted Messages"
-          focusId="show-redacted-message-tombstones"
+          title="Show Edit Events"
+          focusId="hidden-event-edits"
+          description="Show message edits as separate timeline events with a link to the previous version."
           after={
             <Switch
               variant="Primary"
-              value={showTombstoneEvents || showHiddenEvents}
+              value={hiddenEventEdits}
+              onChange={setHiddenEventEdits}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Tombstones for Redacted Messages"
+          focusId="show-redacted-message-tombstones"
+          description="Show a tombstone in place of redacted messages instead of hiding them entirely."
+          after={
+            <Switch
+              variant="Primary"
+              value={showTombstoneEvents}
               onChange={setShowTombstoneEvents}
-              disabled={showHiddenEvents}
-              title={getTombstoneSettingToggleTitle(showHiddenEvents, showTombstoneEvents)}
+              title={getTombstoneSettingToggleTitle(showTombstoneEvents)}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Redaction Events"
+          focusId="hidden-event-redaction-timeline"
+          description="Show when a message was redacted as a timeline event with a link to the original message."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventRedactionTimeline}
+              onChange={setHiddenEventRedactionTimeline}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Reaction Events"
+          focusId="hidden-event-reactions"
+          description="Show reactions as separate timeline events with a link to the target message."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventReactions}
+              onChange={setHiddenEventReactions}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Tombstones for Redacted Reactions"
+          focusId="hidden-event-reaction-tombstones"
+          description="Show a tombstone in place of redacted reactions instead of hiding them entirely."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventReactionTombstone}
+              onChange={setHiddenEventReactionTombstone}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Reaction Redaction Events"
+          focusId="hidden-event-reaction-redaction-timeline"
+          description="Show when a reaction was removed as a timeline event with a link to the target message."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventReactionRedactionTimeline}
+              onChange={setHiddenEventReactionRedactionTimeline}
+              disabled={!showHiddenEvents}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Show Other Hidden Events"
+          focusId="hidden-event-other"
+          description="Show generic state events and other unrecognized timeline events."
+          after={
+            <Switch
+              variant="Primary"
+              value={hiddenEventOther}
+              onChange={setHiddenEventOther}
+              disabled={!showHiddenEvents}
             />
           }
         />
@@ -1042,6 +1233,14 @@ function Embeds() {
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
+  const [showInteractiveMap, setShowInteractiveMap] = useSetting(
+    settingsAtom,
+    'showInteractiveMap'
+  );
+  const [showEncInteractiveMap, setEncShowInteractiveMap] = useSetting(
+    settingsAtom,
+    'showEncInteractiveMap'
+  );
   const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
     settingsAtom,
     'encClientUrlPreview'
@@ -1050,6 +1249,7 @@ function Embeds() {
     settingsAtom,
     'clientPreviewYoutube'
   );
+  const [enableGifPicker, setEnableGifPicker] = useSetting(settingsAtom, 'enableGifPicker');
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Embeds</Text>
@@ -1102,48 +1302,87 @@ function Embeds() {
           }
         />
       </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        style={clientUrlPreview ? {} : { display: 'none' }}
-      >
+      {clientUrlPreview && (
+        <>
+          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+            <SettingTile
+              title="Client-side Embeds in Encrypted Rooms"
+              focusId="encrypted-room-embeds"
+              after={
+                <Switch
+                  variant="Primary"
+                  value={encClientUrlPreview}
+                  onChange={setEncClientUrlPreview}
+                  title={
+                    encClientUrlPreview
+                      ? 'Disable client-side embeds in encrypted rooms'
+                      : 'Enable client-side embeds in encrypted rooms'
+                  }
+                />
+              }
+            />
+          </SequenceCard>
+          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+            <SettingTile
+              title="Embed YouTube Links"
+              focusId="embed-youtube-links"
+              after={
+                <Switch
+                  variant="Primary"
+                  value={clientPreviewYoutube}
+                  onChange={setClientPreviewYoutube}
+                  title={
+                    clientPreviewYoutube
+                      ? 'Disable client-side Youtube video embeds'
+                      : 'Enable client-side Youtube video embeds'
+                  }
+                />
+              }
+            />
+          </SequenceCard>
+        </>
+      )}
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Client-side Embeds in Encrypted Rooms"
-          focusId="encrypted-room-embeds"
+          title="Enable Gif Picker"
+          focusId="enable-gif-picker"
+          description="Enables the gif picker in the emoji board. This reduces Privacy because it makes requests to klipy.com whenever you search for a gif."
           after={
             <Switch
               variant="Primary"
-              value={encClientUrlPreview}
-              onChange={setEncClientUrlPreview}
-              title={
-                encClientUrlPreview
-                  ? 'Disable client-side embeds in encrypted rooms'
-                  : 'Enable client-side embeds in encrypted rooms'
-              }
+              value={enableGifPicker}
+              onChange={setEnableGifPicker}
+              title={enableGifPicker ? 'Disable Gif Picker' : 'Enable Gif Picker'}
             />
           }
         />
       </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        style={clientUrlPreview ? {} : { display: 'none' }}
-      >
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Embed YouTube Links"
-          focusId="embed-youtube-links"
+          title="Show Interactive maps"
+          focusId="show-interactive-map"
+          description="Show an interactive map in messages. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
           after={
             <Switch
               variant="Primary"
-              value={clientPreviewYoutube}
-              onChange={setClientPreviewYoutube}
-              title={
-                clientPreviewYoutube
-                  ? 'Disable client-side Youtube video embeds'
-                  : 'Enable client-side Youtube video embeds'
-              }
+              value={showInteractiveMap}
+              onChange={setShowInteractiveMap}
+              title={showInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Show Interactive maps in Encrypted Rooms"
+          focusId="show-interactive-map-enc"
+          description="Show an interactive map in Encrypted rooms. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
+          after={
+            <Switch
+              variant="Primary"
+              value={showEncInteractiveMap}
+              onChange={setEncShowInteractiveMap}
+              title={showEncInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
             />
           }
         />
@@ -1299,7 +1538,7 @@ function SettingsSyncSection() {
           fill="Soft"
           size="300"
           radii="300"
-          before={<Icon src={Icons.Download} size="100" />}
+          before={menuIcon(Download)}
           onClick={() => exportSettingsAsJson(fullSettings)}
         >
           <Text size="B300">Export Settings</Text>
@@ -1309,7 +1548,7 @@ function SettingsSyncSection() {
           fill="Soft"
           size="300"
           radii="300"
-          before={<Icon src={Icons.ArrowTop} size="100" />}
+          before={menuIcon(ArrowUp)}
           onClick={handleImport}
         >
           <Text size="B300">Import Settings</Text>
@@ -1419,7 +1658,7 @@ function DiagnosticsAndPrivacy() {
           fill="Soft"
           size="300"
           radii="300"
-          before={<Icon src={Icons.Shield} size="100" filled />}
+          before={menuIcon(Shield, { weight: 'fill' })}
         >
           <Text size="B300">Privacy Policy</Text>
         </Button>

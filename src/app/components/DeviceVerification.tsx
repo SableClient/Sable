@@ -8,15 +8,14 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Spinner,
   Text,
 } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import * as Sentry from '@sentry/react';
 import {
@@ -40,7 +39,7 @@ type WaitingMessageProps = {
 function WaitingMessage({ message }: WaitingMessageProps) {
   return (
     <Box alignItems="Center" gap="200">
-      <Spinner variant="Secondary" size="200" />
+      <Spinner variant="Secondary" size="200" style={{ backgroundColor: 'transparent' }} />
       <Text size="T300">{message}</Text>
     </Box>
   );
@@ -288,7 +287,7 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
                 <Text size="H4">{t('Settings.device_verification.device_verification')}</Text>
               </Box>
               <IconButton size="300" radii="300" onClick={handleCancel}>
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

@@ -5,8 +5,6 @@ import {
   Button,
   Chip,
   config,
-  Icon,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -16,6 +14,7 @@ import {
   toRem,
   type RectCords,
 } from 'folds';
+import { CaretDown, composerIcon, menuIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 
 import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
@@ -29,7 +28,8 @@ import {
 } from '$plugins/arborium';
 import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
-import type { PixelatedImageRenderingMode, ShowRoomIcon } from '$state/settings';
+import type { PixelatedImageRenderingMode } from '$state/settings';
+import { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ThemeAppearanceSection } from './ThemeAppearanceSection';
@@ -70,7 +70,7 @@ function ThemeTrigger({
       variant={active ? 'Primary' : 'Secondary'}
       outlined={active}
       radii="Pill"
-      after={<Icon size="200" src={Icons.ChevronBottom} />}
+      after={menuIcon(CaretDown)}
       onClick={onClick}
       disabled={disabled}
     >
@@ -210,6 +210,19 @@ function CodeBlockThemeSettings() {
   );
 }
 
+const onNumberInputKeyDown =
+  (reset: () => void): KeyboardEventHandler<HTMLInputElement> =>
+  (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      reset();
+      (evt.target as HTMLInputElement).blur();
+    }
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
 function ThemeVisualPreferences() {
   const [saturation, setSaturation] = useSetting(settingsAtom, 'saturationLevel');
   const [underlineLinks, setUnderlineLinks] = useSetting(settingsAtom, 'underlineLinks');
@@ -217,15 +230,15 @@ function ThemeVisualPreferences() {
   const [autoplayGifs, setAutoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [autoplayStickers, setAutoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis, setAutoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
+  const [oldSidebar, setOldSidebar] = useSetting(settingsAtom, 'oldSidebar');
   const [pixelatedImageRendering, setPixelatedImageRendering] = useSetting(
     settingsAtom,
     'pixelatedImageRendering'
   );
   const pixelatedImageRenderingOptions: SettingMenuOption<PixelatedImageRenderingMode>[] = [
-    { value: 'both', label: 'Both' },
-    { value: 'chat', label: 'Chat' },
-    { value: 'viewer', label: 'Image viewer' },
-    { value: 'none', label: 'Neither' },
+    { value: 'always', label: 'Always' },
+    { value: 'smart', label: 'Smart' },
+    { value: 'never', label: 'never' },
   ];
   const [incomingInlineImagesDefaultHeight, setIncomingInlineImagesDefaultHeight] = useSetting(
     settingsAtom,
@@ -270,19 +283,6 @@ function ThemeVisualPreferences() {
     const parsed = Number.parseInt(val, 10);
     if (!Number.isNaN(parsed)) setLinkPreviewImageMaxHeight(clampIncomingInlineImageHeight(parsed));
   };
-
-  const onNumberInputKeyDown =
-    (reset: () => void): KeyboardEventHandler<HTMLInputElement> =>
-    (evt) => {
-      if (isKeyHotkey('escape', evt)) {
-        evt.stopPropagation();
-        reset();
-        (evt.target as HTMLInputElement).blur();
-      }
-      if (isKeyHotkey('enter', evt)) {
-        (evt.target as HTMLInputElement).blur();
-      }
-    };
 
   return (
     <Box direction="Column" gap="100">
@@ -336,6 +336,14 @@ function ThemeVisualPreferences() {
           focusId="autoplay-gifs"
           description="Automatically play animated image uploads and links."
           after={<Switch variant="Primary" value={autoplayGifs} onChange={setAutoplayGifs} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Go back to old sidebar"
+          focusId="old-sidebar"
+          description="Reset the sidebar to its old style"
+          after={<Switch variant="Primary" value={oldSidebar} onChange={setOldSidebar} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
@@ -590,7 +598,7 @@ function PanelSelector({
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -756,7 +764,7 @@ function SelectShowRoomIcon() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -811,11 +819,13 @@ export function Appearance({
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
+  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
   const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
     settingsAtom,
     'closeFoldersByDefault'
   );
+  const [roomIconOverlay, setRoomIconOverlay] = useSetting(settingsAtom, 'roomIconOverlay');
 
   return (
     <Box direction="Column" gap="700">
@@ -870,7 +880,7 @@ export function Appearance({
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile
-                title="Show Easter Eggs"
+                title="Allow Whimsy"
                 focusId="show-easter-eggs"
                 description="Lets the interface keep a little mischief turned on."
                 after={
@@ -894,9 +904,36 @@ export function Appearance({
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile
+                title="Overlay Room Privacy Icons"
+                focusId="room-icon-overlay"
+                description="When enabled, public and private rooms show a globe or lock badge over the room hash icon in the sidebar. When disabled, show the globe or lock icon alone."
+                after={
+                  <Switch variant="Primary" value={roomIconOverlay} onChange={setRoomIconOverlay} />
+                }
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
                 title="Show Room Icons In Sidebars"
                 focusId="show-room-icons"
-                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
+                description={
+                  <>
+                    <Text size="T200">
+                      When do you want to show the specific room icons in the sidebar?
+                    </Text>
+                    {(showRoomIcon === ShowRoomIcon.Always &&
+                      'Always show icons, and fallback to initials') ||
+                      (showRoomIcon === ShowRoomIcon.Strict &&
+                        'Show icons when available, but fallback to hashes') ||
+                      (showRoomIcon === ShowRoomIcon.Smart &&
+                        'Show icons only when sidebar is minimized, else icons.') ||
+                      (showRoomIcon === ShowRoomIcon.Never &&
+                        'Never show icons, always only the hashes.') ||
+                      ''}
+                    <span style={{ opacity: '50%' }}>{' (current)'}</span>
+                  </>
+                }
                 after={<SelectShowRoomIcon />}
               />
             </SequenceCard>

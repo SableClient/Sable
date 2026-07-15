@@ -11,8 +11,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Input,
   color,
   Button,
@@ -22,6 +20,7 @@ import type { MatrixError } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
 import { createDebugLogger } from '$utils/debugLogger';
 
@@ -85,7 +84,7 @@ export function KnockRoomPrompt({ roomId, via, onDone, onCancel }: KnockRoomProp
                 <Text size="H4">Knock On Room</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box

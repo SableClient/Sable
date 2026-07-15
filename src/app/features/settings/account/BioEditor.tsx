@@ -2,7 +2,8 @@ import type { KeyboardEventHandler } from 'react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, config } from 'folds';
+import { Box, Chip, IconButton, PopOut, Spinner, Text, config } from 'folds';
+import { composerIcon, Smiley } from '$components/icons/phosphor';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -215,7 +216,9 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                           radii="300"
                           onClick={(evt) => setAnchor(evt.currentTarget.getBoundingClientRect())}
                         >
-                          <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                          {composerIcon(Smiley, {
+                            weight: anchor !== undefined ? 'fill' : 'regular',
+                          })}
                         </IconButton>
                       </PopOut>
                     )}

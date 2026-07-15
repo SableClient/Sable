@@ -4,9 +4,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -15,6 +13,7 @@ import {
   color,
   config,
 } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
 import { t } from 'i18next';
 
@@ -57,13 +56,18 @@ export function DirectInvitePrompt({
                 <Text size="H4">{t('Room.DirectInvite.invite_another_member')}</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
               <Box direction="Column" gap="200">
                 <Text size="T300">
-                  {t('Room.DirectInvite.this_is_a')} <b>{t('Room.DirectInvite.direct_message')}</b> {t('Room.DirectInvite.room_intended_for_a_conversation_between_two_persons_would_you_like_to_conv')} <b>{t('Room.DirectInvite.group_chat')}</b> {t('Room.DirectInvite.before_continuing')}
+                  {t('Room.DirectInvite.this_is_a')} <b>{t('Room.DirectInvite.direct_message')}</b>{' '}
+                  {t(
+                    'Room.DirectInvite.room_intended_for_a_conversation_between_two_persons_would_you_like_to_conv'
+                  )}{' '}
+                  <b>{t('Room.DirectInvite.group_chat')}</b>{' '}
+                  {t('Room.DirectInvite.before_continuing')}
                 </Text>
                 {convertError && (
                   <Text style={{ color: color.Critical.Main }} size="T300">
@@ -82,7 +86,9 @@ export function DirectInvitePrompt({
                   aria-disabled={converting}
                 >
                   <Text size="B400">
-                    {converting ? 'Converting...' : t('Room.DirectInvite.convert_to_group_chat_and_invite')}
+                    {converting
+                      ? 'Converting...'
+                      : t('Room.DirectInvite.convert_to_group_chat_and_invite')}
                   </Text>
                 </Button>
                 <Button

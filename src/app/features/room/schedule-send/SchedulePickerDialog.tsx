@@ -1,7 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { serverMaxDelayMsAtom } from '$state/scheduledMessages';
+import { CaretDown, chipIcon, composerIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
 import {
@@ -14,8 +14,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   color,
   Button,
   Chip,
@@ -26,6 +24,7 @@ import { timeDayMonthYear, timeHourMinute, hoursToMs, daysToMs } from '$utils/ti
 import { DatePicker, TimePicker } from '$components/time-date';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { serverMaxDelayMsAtom } from '$state/scheduledMessages';
 
 type SchedulePickerDialogProps = {
   initialTime?: number;
@@ -110,7 +109,7 @@ export function SchedulePickerDialog({
                 title="Cancel scheduling"
                 aria-label="Cancel scheduling"
               >
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box direction="Column" gap="500" style={{ padding: config.space.S400 }}>
@@ -127,7 +126,7 @@ export function SchedulePickerDialog({
                       outlined
                       radii="300"
                       aria-pressed={!!timePickerCords}
-                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                      after={chipIcon(CaretDown)}
                       onClick={handleTimePicker}
                     >
                       <Text size="B300">{timeHourMinute(ts, hour24Clock)}</Text>
@@ -168,7 +167,7 @@ export function SchedulePickerDialog({
                       outlined
                       radii="300"
                       aria-pressed={!!datePickerCords}
-                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                      after={chipIcon(CaretDown)}
                       onClick={handleDatePicker}
                     >
                       <Text size="B300">{timeDayMonthYear(ts)}</Text>

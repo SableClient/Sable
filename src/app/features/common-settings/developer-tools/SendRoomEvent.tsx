@@ -4,8 +4,6 @@ import type { MatrixError, StateEvents, TimelineEvents } from '$types/matrix-sdk
 import {
   Box,
   Chip,
-  Icon,
-  Icons,
   IconButton,
   Text,
   config,
@@ -15,6 +13,7 @@ import {
   TextArea as TextAreaComponent,
   Input,
 } from 'folds';
+import { ArrowLeft, composerIcon, menuIcon, X } from '$components/icons/phosphor';
 import { Page, PageHeader } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
@@ -118,18 +117,13 @@ export function SendRoomEvent({ type, stateKey, requestClose }: SendRoomEventPro
       <PageHeader outlined={false} balance>
         <Box alignItems="Center" grow="Yes" gap="200">
           <Box alignItems="Inherit" grow="Yes" gap="200">
-            <Chip
-              size="500"
-              radii="Pill"
-              onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
-            >
+            <Chip size="500" radii="Pill" onClick={requestClose} before={menuIcon(ArrowLeft)}>
               <Text size="T300">Developer Tools</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

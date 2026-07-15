@@ -80,7 +80,9 @@ export function LanguageSpecificPronouns() {
         <SettingTile
           title={t('Settings.Cosmetics.show_pronouns_only_in_selected_language')}
           focusId="show-pronouns-only-in-selected-language"
-          description={t('Settings.Cosmetics.if_enabled_pronouns_are_only_shown_when_they_match_your_selected_language_t')}
+          description={t(
+            'Settings.Cosmetics.if_enabled_pronouns_are_only_shown_when_they_match_your_selected_language_t'
+          )}
           after={
             <Switch
               variant="Primary"
@@ -93,7 +95,9 @@ export function LanguageSpecificPronouns() {
           <SettingTile
             title={t('Settings.Cosmetics.selected_language_for_pronouns')}
             focusId="selected-language-for-pronouns"
-            description={t('Settings.Cosmetics.the_language_to_show_pronouns_for_when_the_above_setting_is_enabled')}
+            description={t(
+              'Settings.Cosmetics.the_language_to_show_pronouns_for_when_the_above_setting_is_enabled'
+            )}
             after={
               <Input
                 value={languageList}

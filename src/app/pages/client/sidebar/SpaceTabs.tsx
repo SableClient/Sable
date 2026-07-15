@@ -1,5 +1,6 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode, RefObject, ChangeEvent } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
 import {
@@ -7,9 +8,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Line,
   Menu,
@@ -22,7 +21,18 @@ import {
   config,
   toRem,
 } from 'folds';
-import { useAtom, useAtomValue } from 'jotai';
+import {
+  CaretUp,
+  Checks,
+  composerIcon,
+  GearSix,
+  Link,
+  menuIcon,
+  PencilSimple,
+  PushPinSlash,
+  UserPlus,
+  X,
+} from '$components/icons/phosphor';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
 import {
   draggable,
@@ -48,7 +58,7 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { getSpaceLobbyPath, getSpacePath, joinPathComponent } from '$pages/pathUtils';
 import {
   SidebarAvatar,
-  SidebarItem,
+  SidebarItemLeft,
   SidebarUnreadBadge,
   SidebarItemTooltip,
   SidebarStack,
@@ -90,6 +100,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { lastVisitedSpaceIdAtom } from '$state/room/lastSpace';
 
 type SpaceMenuProps = {
   room: Room;
@@ -158,7 +169,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
           <MenuItem
             onClick={handleMarkAsRead}
             size="300"
-            after={<Icon size="100" src={Icons.CheckTwice} />}
+            after={menuIcon(Checks)}
             radii="300"
             disabled={!unread}
           >
@@ -167,12 +178,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
             </Text>
           </MenuItem>
           {onUnpin && (
-            <MenuItem
-              size="300"
-              radii="300"
-              onClick={handleUnpin}
-              after={<Icon size="100" src={Icons.Pin} />}
-            >
+            <MenuItem size="300" radii="300" onClick={handleUnpin} after={menuIcon(PushPinSlash)}>
               <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
                 Unpin
               </Text>
@@ -186,7 +192,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
             variant="Primary"
             fill="None"
             size="300"
-            after={<Icon size="100" src={Icons.UserPlus} />}
+            after={menuIcon(UserPlus)}
             radii="300"
             aria-pressed={invitePrompt}
             disabled={!canInvite}
@@ -195,22 +201,12 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
               Invite
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleCopyLink}
-            size="300"
-            after={<Icon size="100" src={Icons.Link} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Copy Link
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleRoomSettings}
-            size="300"
-            after={<Icon size="100" src={Icons.Setting} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleRoomSettings} size="300" after={menuIcon(GearSix)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Space Settings
             </Text>
@@ -236,7 +232,7 @@ const FolderMenu = forwardRef<HTMLDivElement, FolderMenuProps>(
             onRename();
             requestClose();
           }}
-          after={<Icon size="100" src={Icons.Pencil} />}
+          after={menuIcon(PencilSimple)}
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Rename
@@ -296,7 +292,7 @@ function RenameFolderDialog({ mx, folder, onClose, onSave }: Readonly<RenameFold
                 <Text size="H4">Rename Folder</Text>
               </Box>
               <IconButton size="300" onClick={onClose} radii="300">
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             </Header>
             <Box
@@ -546,7 +542,7 @@ function SpaceTab({
   return (
     <RoomUnreadProvider roomId={space.roomId}>
       {(unread) => (
-        <SidebarItem
+        <SidebarItemLeft
           active={selected}
           ref={targetRef}
           aria-disabled={disabled}
@@ -609,7 +605,7 @@ function SpaceTab({
               }
             />
           )}
-        </SidebarItem>
+        </SidebarItemLeft>
       )}
     </RoomUnreadProvider>
   );
@@ -644,7 +640,7 @@ function OpenedSpaceFolder({
       <SidebarFolderDropTarget ref={aboveTargetRef} position="Top" />
       <SidebarAvatar size="300" onContextMenu={onFolderContextMenu}>
         <IconButton data-id={folder.id} size="300" variant="Background" onClick={onClose}>
-          <Icon size="400" src={Icons.ChevronTop} filled />
+          {composerIcon(CaretUp, { weight: 'fill' })}
         </IconButton>
       </SidebarAvatar>
       {children}
@@ -683,7 +679,7 @@ function ClosedSpaceFolder({
   return (
     <RoomsUnreadProvider rooms={folder.content}>
       {(unread) => (
-        <SidebarItem
+        <SidebarItemLeft
           active={selected}
           ref={handlerRef}
           aria-disabled={disabled}
@@ -729,7 +725,7 @@ function ClosedSpaceFolder({
               count={unread.highlight > 0 ? unread.highlight : unread.total}
             />
           )}
-        </SidebarItem>
+        </SidebarItemLeft>
       )}
     </RoomsUnreadProvider>
   );
@@ -747,6 +743,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
   const [sidebarItems, localEchoSidebarItem] = useSidebarItems(orphanSpaces);
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const [openedFolder, setOpenedFolder] = useAtom(useOpenedSidebarFolderAtom());
+  const setLastSpaceId = useSetAtom(lastVisitedSpaceIdAtom);
   const [draggingItem, setDraggingItem] = useState<SidebarDraggable>();
   const [folderMenuState, setFolderMenuState] = useState<{
     folder: ISidebarFolder;
@@ -919,6 +916,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
     const targetSpaceId = target.getAttribute('data-id');
     if (!targetSpaceId) return;
 
+    setLastSpaceId(targetSpaceId);
     const spacePath = getSpacePath(getCanonicalAliasOrRoomId(mx, targetSpaceId));
     if (screenSize === ScreenSize.Mobile) {
       navigate(spacePath);

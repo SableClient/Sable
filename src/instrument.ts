@@ -15,7 +15,7 @@ import {
   createRoutesFromChildren,
   matchRoutes,
 } from 'react-router-dom';
-import { scrubMatrixIds, scrubDataObject, scrubMatrixUrl } from './app/utils/sentryScrubbers';
+import { scrubMatrixIds, sanitizeSentryPayload, scrubMatrixUrl } from './app/utils/sentryScrubbers';
 
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
@@ -100,7 +100,7 @@ if (dsn && sentryEnabled) {
       // Redact Matrix IDs from any string-valued log attributes (e.g. roomId, userId)
       // These are flattened from the structured data object and sent as searchable attributes.
       if (log.attributes && typeof log.attributes === 'object') {
-        log.attributes = scrubDataObject(log.attributes) as typeof log.attributes;
+        log.attributes = sanitizeSentryPayload(log.attributes) as typeof log.attributes;
       }
       return log;
     },
@@ -173,7 +173,9 @@ if (dsn && sentryEnabled) {
       // Scrub Matrix IDs from all remaining string values in the breadcrumb data object.
       // debugLog passes structured data (e.g. { roomId, targetEventId }) that would otherwise
       // bypass the URL-specific scrubbers above.
-      const scrubbedData = bData ? (scrubDataObject(bData) as Record<string, unknown>) : undefined;
+      const scrubbedData = bData
+        ? (sanitizeSentryPayload(bData) as Record<string, unknown>)
+        : undefined;
 
       // Scrub message text — token values and Matrix entity IDs
       const message = breadcrumb.message ? scrubMatrixIds(breadcrumb.message) : breadcrumb.message;
@@ -234,7 +236,7 @@ if (dsn && sentryEnabled) {
       // Scrub contexts (e.g. debugLog context from captureMessage in debugLogger.ts,
       // which can carry structured data fields like roomId, targetEventId, etc.)
       if (event.contexts) {
-        event.contexts = scrubDataObject(event.contexts) as typeof event.contexts;
+        event.contexts = sanitizeSentryPayload(event.contexts) as typeof event.contexts;
       }
 
       // Scrub request data

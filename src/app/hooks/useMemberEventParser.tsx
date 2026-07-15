@@ -1,9 +1,18 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback } from 'react';
-import type { IconSrc } from 'folds';
-import { Icons, Text } from 'folds';
+import { Text } from 'folds';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import type { IMemberContent } from '$types/matrix/room';
+import {
+  At,
+  EnvelopeSimple,
+  SignIn,
+  SignOut,
+  timelineIcon,
+  User,
+  UserMinus,
+  UserPlus,
+} from '$components/icons/phosphor';
 
 import { getMxIdLocalPart } from '$utils/matrix';
 import { isMembershipChanged } from '$utils/room';
@@ -41,42 +50,108 @@ function DecoratedUser({ roomId, userId, userName }: DecoratedUserProps) {
 }
 
 export type ParsedResult = {
-  icon: IconSrc;
+  icon: ReactNode;
   body: ReactNode;
 };
 
 export type MemberEventParser = (mEvent: MatrixEvent) => ParsedResult;
 
-export const useMemberEventParser = (): MemberEventParser => {
-  const parseMemberEvent: MemberEventParser = (mEvent) => {
-    const content = mEvent.getContent<IMemberContent>();
-    const prevContent = mEvent.getPrevContent() as IMemberContent;
-    const senderId = mEvent.getSender();
-    const userId = mEvent.getStateKey();
-    const roomId = mEvent.getRoomId();
-    const reason = typeof content.reason === 'string' ? content.reason : undefined;
+const parseMemberEvent: MemberEventParser = (mEvent) => {
+  const content = mEvent.getContent<IMemberContent>();
+  const prevContent = mEvent.getPrevContent() as IMemberContent;
+  const senderId = mEvent.getSender();
+  const userId = mEvent.getStateKey();
+  const roomId = mEvent.getRoomId();
+  const reason = typeof content.reason === 'string' ? content.reason : undefined;
 
-    if (!senderId || !userId)
+  if (!senderId || !userId)
+    return {
+      icon: timelineIcon(User),
+      body: 'Broken membership event',
+    };
+
+  const senderName = getMxIdLocalPart(senderId);
+  const userName =
+    typeof content.displayname === 'string'
+      ? content.displayname || getMxIdLocalPart(userId)
+      : getMxIdLocalPart(userId);
+
+  if (isMembershipChanged(mEvent)) {
+    if (content.membership === KnownMembership.Invite) {
+      if (prevContent.membership === KnownMembership.Knock) {
+        return {
+          icon: timelineIcon(UserPlus),
+          body: (
+            <>
+              <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
+              <Text>{' accepted '}</Text>
+              <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+              <Text>
+                {`'s join request `}
+                {reason}
+              </Text>
+            </>
+          ),
+        };
+      }
+
       return {
-        icon: Icons.User,
-        body: 'Broken membership event',
+        icon: timelineIcon(UserPlus),
+        body: (
+          <>
+            <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
+            <Text>{' invited '}</Text>
+            <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+            <Text>{reason}</Text>
+          </>
+        ),
       };
+    }
 
-    const senderName = getMxIdLocalPart(senderId);
-    const userName =
-      typeof content.displayname === 'string'
-        ? content.displayname || getMxIdLocalPart(userId)
-        : getMxIdLocalPart(userId);
+    if (content.membership === KnownMembership.Knock) {
+      return {
+        icon: timelineIcon(EnvelopeSimple),
+        body: (
+          <>
+            <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+            <Text>
+              {' requested to join room: '}
+              <i>{reason}</i>
+            </Text>
+          </>
+        ),
+      };
+    }
 
-    if (isMembershipChanged(mEvent)) {
-      if (content.membership === KnownMembership.Invite) {
-        if (prevContent.membership === KnownMembership.Knock) {
-          return {
-            icon: Icons.ArrowGoRightPlus,
-            body: (
+    if (content.membership === KnownMembership.Join) {
+      return {
+        icon: timelineIcon(SignIn),
+        body: (
+          <>
+            <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+            <Text>{' joined the room'}</Text>
+          </>
+        ),
+      };
+    }
+
+    if (content.membership === KnownMembership.Leave) {
+      if (prevContent.membership === KnownMembership.Invite) {
+        return {
+          icon: timelineIcon(UserMinus),
+          body:
+            senderId === userId ? (
+              <>
+                <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+                <Text>
+                  {' rejected the invitation '}
+                  {reason}
+                </Text>
+              </>
+            ) : (
               <>
                 <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-                <Text>{' accepted '}</Text>
+                <Text>{' rejected '}</Text>
                 <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
                 <Text>
                   {`'s join request `}
@@ -84,199 +159,131 @@ export const useMemberEventParser = (): MemberEventParser => {
                 </Text>
               </>
             ),
-          };
-        }
-
-        return {
-          icon: Icons.ArrowGoRightPlus,
-          body: (
-            <>
-              <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-              <Text>{' invited '}</Text>
-              <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              <Text>{reason}</Text>
-            </>
-          ),
         };
       }
 
-      if (content.membership === KnownMembership.Knock) {
+      if (prevContent.membership === KnownMembership.Knock) {
         return {
-          icon: Icons.Mail,
-          body: (
-            <>
-              <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              <Text>
-                {' requested to join room: '}
-                <i>{reason}</i>
-              </Text>
-            </>
-          ),
-        };
-      }
-
-      if (content.membership === KnownMembership.Join) {
-        return {
-          icon: Icons.ArrowGoRight,
-          body: (
-            <>
-              <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              <Text>{' joined the room'}</Text>
-            </>
-          ),
-        };
-      }
-
-      if (content.membership === KnownMembership.Leave) {
-        if (prevContent.membership === KnownMembership.Invite) {
-          return {
-            icon: Icons.ArrowGoRightCross,
-            body:
-              senderId === userId ? (
-                <>
-                  <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                  <Text>
-                    {' rejected the invitation '}
-                    {reason}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-                  <Text>{' rejected '}</Text>
-                  <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                  <Text>
-                    {`'s join request `}
-                    {reason}
-                  </Text>
-                </>
-              ),
-          };
-        }
-
-        if (prevContent.membership === KnownMembership.Knock) {
-          return {
-            icon: Icons.ArrowGoRightCross,
-            body:
-              senderId === userId ? (
-                <>
-                  <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                  <Text>
-                    {' revoked joined request '}
-                    {reason}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-                  {' revoked '}
-                  <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                  <Text>
-                    {`'s invite `}
-                    {reason}
-                  </Text>
-                </>
-              ),
-          };
-        }
-
-        if (prevContent.membership === KnownMembership.Ban) {
-          return {
-            icon: Icons.ArrowGoLeft,
-            body: (
-              <>
-                <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-                <Text>{' unbanned '}</Text>
-                <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                <Text>{reason}</Text>
-              </>
-            ),
-          };
-        }
-
-        return {
-          icon: Icons.ArrowGoLeft,
+          icon: timelineIcon(UserMinus),
           body:
             senderId === userId ? (
               <>
                 <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
                 <Text>
-                  {' left the room '}
+                  {' revoked joined request '}
                   {reason}
                 </Text>
               </>
             ) : (
               <>
                 <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-                <Text>{' kicked '}</Text>
+                {' revoked '}
                 <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                <Text>{reason}</Text>
+                <Text>
+                  {`'s invite `}
+                  {reason}
+                </Text>
               </>
             ),
         };
       }
 
-      if (content.membership === KnownMembership.Ban) {
+      if (prevContent.membership === KnownMembership.Ban) {
         return {
-          icon: Icons.ArrowGoLeft,
+          icon: timelineIcon(SignOut),
           body: (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-              <Text>{' banned '}</Text>
+              <Text>{' unbanned '}</Text>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
               <Text>{reason}</Text>
             </>
           ),
         };
       }
-    }
-
-    if (content.displayname !== prevContent.displayname) {
-      const prevUserName =
-        typeof prevContent.displayname === 'string'
-          ? prevContent.displayname || getMxIdLocalPart(userId)
-          : getMxIdLocalPart(userId);
 
       return {
-        icon: Icons.Mention,
+        icon: timelineIcon(SignOut),
         body:
-          typeof content.displayname === 'string' ? (
+          senderId === userId ? (
             <>
-              <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={prevUserName} />
-              <Text>{' changed display name to '}</Text>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+              <Text>
+                {' left the room '}
+                {reason}
+              </Text>
             </>
           ) : (
             <>
-              <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={prevUserName} />
-              <Text>{' removed their display name '}</Text>
+              <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
+              <Text>{' kicked '}</Text>
+              <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+              <Text>{reason}</Text>
             </>
           ),
       };
     }
-    if (content.avatar_url !== prevContent.avatar_url) {
+
+    if (content.membership === KnownMembership.Ban) {
       return {
-        icon: Icons.User,
-        body:
-          content.avatar_url && typeof content.avatar_url === 'string' ? (
-            <>
-              <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              <Text>{' changed their avatar'}</Text>
-            </>
-          ) : (
-            <>
-              <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              <Text>{' removed their avatar '}</Text>
-            </>
-          ),
+        icon: timelineIcon(SignOut),
+        body: (
+          <>
+            <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
+            <Text>{' banned '}</Text>
+            <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+            <Text>{reason}</Text>
+          </>
+        ),
       };
     }
+  }
+
+  if (content.displayname !== prevContent.displayname) {
+    const prevUserName =
+      typeof prevContent.displayname === 'string'
+        ? prevContent.displayname || getMxIdLocalPart(userId)
+        : getMxIdLocalPart(userId);
 
     return {
-      icon: Icons.User,
-      body: 'Membership event with no changes',
+      icon: timelineIcon(At),
+      body:
+        typeof content.displayname === 'string' ? (
+          <>
+            <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={prevUserName} />
+            <Text>{' changed display name to '}</Text>
+            <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+          </>
+        ) : (
+          <>
+            <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={prevUserName} />
+            <Text>{' removed their display name '}</Text>
+          </>
+        ),
     };
-  };
+  }
+  if (content.avatar_url !== prevContent.avatar_url) {
+    return {
+      icon: timelineIcon(User),
+      body:
+        content.avatar_url && typeof content.avatar_url === 'string' ? (
+          <>
+            <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+            <Text>{' changed their avatar'}</Text>
+          </>
+        ) : (
+          <>
+            <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
+            <Text>{' removed their avatar '}</Text>
+          </>
+        ),
+    };
+  }
 
-  return parseMemberEvent;
+  return {
+    icon: timelineIcon(User),
+    body: 'Membership event with no changes',
+  };
 };
+
+export const useMemberEventParser = (): MemberEventParser => parseMemberEvent;

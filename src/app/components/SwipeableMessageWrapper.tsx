@@ -3,7 +3,8 @@ import { useDrag } from '@use-gesture/react';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { config, Icon, Icons } from 'folds';
+import { config } from 'folds';
+import { ArrowBendUpLeftIcon, getPhosphorIconSize } from '$components/icons/phosphor';
 import { mobileOrTablet } from '$utils/user-agent';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
 
@@ -49,9 +50,8 @@ function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onRepl
         }}
       >
         <motion.div style={{ opacity: iconOpacity }}>
-          <Icon
-            src={Icons.ReplyArrow}
-            size="400"
+          <ArrowBendUpLeftIcon
+            size={getPhosphorIconSize('toolbar')}
             style={{
               color: isReady
                 ? 'var(--sable-surface-on-container)'
@@ -71,7 +71,7 @@ export function SwipeableMessageWrapper({
   onReply,
 }: {
   children: ReactNode;
-  onReply: () => void;
+  onReply?: () => void;
 }) {
   const settings = useAtomValue(settingsAtom);
 
@@ -83,7 +83,7 @@ export function SwipeableMessageWrapper({
     [settings.mobileGestures, settings.rightSwipeAction]
   );
 
-  if (!isSwipeToReplyEnabled) {
+  if (!isSwipeToReplyEnabled || !onReply) {
     return children;
   }
 

@@ -1,14 +1,12 @@
 import type { MouseEventHandler, ReactElement } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -52,6 +50,21 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRecursiveChildScopeFactory, useSpaceChildren } from '$state/hooks/roomList';
+import {
+  Checks,
+  chipIcon,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  Flag,
+  GearSix,
+  Link,
+  Lock,
+  MagnifyingGlass,
+  menuIcon,
+  SignOut,
+  Terminal,
+  UserPlus,
+} from '$components/icons/phosphor';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { roomToChildrenAtom } from '$state/room/roomToChildren';
 import { markAsRead } from '$utils/notifications';
@@ -95,7 +108,8 @@ import type { RoomBannerContent } from '$types/matrix-sdk-events';
 import { ModalWide } from '$styles/Modal.css';
 import { ImageViewer } from '$components/image-viewer';
 import * as css from './styles.css';
-import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
+import { isResizingSidebarAtom } from '$state/isResizingSidebar';
+import { UserQuickTools } from '../sidebar/UserQuickTools';
 
 const debugLog = createDebugLogger('Space');
 
@@ -168,7 +182,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={menuIcon(Checks)}
           radii="300"
           disabled={!unread}
         >
@@ -184,7 +198,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
           variant="Primary"
           fill="None"
           size="300"
-          after={<Icon size="100" src={Icons.UserPlus} />}
+          after={menuIcon(UserPlus)}
           radii="300"
           aria-pressed={invitePrompt}
           disabled={!canInvite}
@@ -193,33 +207,18 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
             Invite
           </Text>
         </MenuItem>
-        <MenuItem
-          onClick={handleCopyLink}
-          size="300"
-          after={<Icon size="100" src={Icons.Link} />}
-          radii="300"
-        >
+        <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Copy Link
           </Text>
         </MenuItem>
-        <MenuItem
-          onClick={handleRoomSettings}
-          size="300"
-          after={<Icon size="100" src={Icons.Setting} />}
-          radii="300"
-        >
+        <MenuItem onClick={handleRoomSettings} size="300" after={menuIcon(GearSix)} radii="300">
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Space Settings
           </Text>
         </MenuItem>
         {developerTools && (
-          <MenuItem
-            onClick={handleOpenTimeline}
-            size="300"
-            after={<Icon size="100" src={Icons.Terminal} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleOpenTimeline} size="300" after={menuIcon(Terminal)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Event Timeline
             </Text>
@@ -236,7 +235,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
                 variant="Critical"
                 fill="None"
                 size="300"
-                after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                after={menuIcon(SignOut)}
                 radii="300"
                 aria-pressed={promptLeave}
               >
@@ -330,16 +329,18 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                   <Text size="H4" truncate>
                     {spaceName}
                   </Text>
-                  {joinRules?.join_rule !== JoinRule.Public && <Icon src={Icons.Lock} size="50" />}
+                  {joinRules?.join_rule !== JoinRule.Public && chipIcon(Lock)}
                 </Box>
                 <Box shrink="No">
                   <IconButton
                     aria-pressed={!!menuAnchor}
                     variant="Background"
-                    style={hasBanner ? { backgroundColor: '#0000', color: '#fff' } : {}}
+                    style={hasBanner ? { backgroundColor: 'transparent', color: '#fff' } : {}}
                     onClick={handleOpenMenu}
                   >
-                    <Icon src={Icons.VerticalDots} size="200" />
+                    {composerIcon(DotsThreeOutlineVerticalIcon, {
+                      weight: menuAnchor ? 'fill' : 'regular',
+                    })}
                   </IconButton>
                 </Box>
               </Box>
@@ -373,14 +374,11 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
       {hasBanner && (
         <>
           <Box shrink="No" className={css.RoomCoverContainer} style={{ height: toRem(curHeight) }}>
-            <ClientSideHoverFreeze src={bannerURI} className={css.RoomCover}>
-              <img
-                className={css.RoomCoverImage}
-                src={bannerURI}
-                alt={`${spaceName}'s banner`}
-                draggable="false"
-                role="button"
-                tabIndex={0}
+            <div className={css.RoomCover}>
+              <button
+                type="button"
+                className={css.RoomCoverImageButton}
+                data-no-button-motion
                 aria-label={`View ${spaceName} banner`}
                 onClick={() => setBannerViewerOpen(true)}
                 onKeyDown={(e) => {
@@ -389,7 +387,9 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                     setBannerViewerOpen(true);
                   }
                 }}
-              />
+              >
+                <img className={css.RoomCoverImage} src={bannerURI} alt="" draggable="false" />
+              </button>
               <SidebarResizer
                 setCurWidth={setCurHeight}
                 sidebarWidth={roomBannerHeight}
@@ -400,7 +400,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                 maxValue={500}
                 topSided
               />
-            </ClientSideHoverFreeze>
+            </div>
           </Box>
         </>
       )}
@@ -503,6 +503,12 @@ export function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProp
   );
 }
 
+const getCategoryPadding = (depth: number): string | undefined => {
+  if (depth === 0) return undefined;
+  if (depth === 1) return config.space.S400;
+  return config.space.S0;
+};
+
 export function Space() {
   const mx = useMatrixClient();
   const space = useSpace();
@@ -518,6 +524,7 @@ export function Space() {
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
+  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   useEffect(() => {
@@ -840,12 +847,6 @@ export function Space() {
   const getToLink = (roomId: string) =>
     getSpaceRoomPath(spaceIdOrAlias, getCanonicalAliasOrRoomId(mx, roomId));
 
-  const getCategoryPadding = (depth: number): string | undefined => {
-    if (depth === 0) return undefined;
-    if (depth === 1) return config.space.S400;
-    return config.space.S0;
-  };
-
   const navigate = useNavigate();
   const lastRoomId = useAtomValue(lastVisitedRoomIdAtom);
 
@@ -859,6 +860,8 @@ export function Space() {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
+
   return (
     <Box
       shrink="No"
@@ -894,7 +897,7 @@ export function Space() {
                           radii="400"
                           style={hideText ? { width: '100%', padding: '0' } : undefined}
                         >
-                          <Icon src={Icons.Flag} size="100" filled={lobbySelected} />
+                          {menuIcon(Flag, { weight: lobbySelected ? 'fill' : 'regular' })}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
@@ -922,7 +925,9 @@ export function Space() {
                           radii="400"
                           style={hideText ? { width: '100%' } : undefined}
                         >
-                          <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                          {menuIcon(MagnifyingGlass, {
+                            weight: searchSelected ? 'fill' : 'regular',
+                          })}
                         </Avatar>
                         <Box as="span" grow="Yes">
                           {!hideText && (
@@ -1037,6 +1042,7 @@ export function Space() {
                             room.roomId
                           )}
                           joinCallOnSingleClick={joinCallOnSingleClick}
+                          isStrict={showRoomIcon === ShowRoomIcon.Strict}
                         />
                       </div>
                     </VirtualTile>
@@ -1044,6 +1050,7 @@ export function Space() {
                 })}
                 {getConnectorSVG(hierarchy, virtualizedItems)}
               </NavCategory>
+              {!isMobile && <div style={{ height: toRem(40) }} />}
             </Box>
           </PageNavContent>
         </SwipeableOverlayWrapper>
@@ -1053,12 +1060,14 @@ export function Space() {
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
           setSidebarWidth={setRoomSidebarWidth}
-          instep={80}
+          instep={50}
           outstep={190}
           minValue={50}
           maxValue={500}
+          setAnnouncement={setIsResizingSidebar}
         />
       )}
+      {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
     </Box>
   );
 }

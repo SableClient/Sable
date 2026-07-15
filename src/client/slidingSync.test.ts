@@ -1,18 +1,5 @@
 /**
- * Unit tests for SlidingSyncManager memory management:
- *
- * 1. dispose() — must call slidingSync.stop() to halt the polling loop and
- *    abort in-flight requests. Without this the SDK's Promise loop keeps
- *    running after the client is "stopped", leaking network traffic and
- *    event listeners.
- *
- * 2. onMembershipLeave — when the MatrixClient emits a RoomMemberEvent.Membership
- *    event indicating the local user left or was banned from a room that is
- *    actively subscribed, unsubscribeFromRoom() should be called automatically.
- *
- *    Note: navigation between rooms does not call unsubscribeFromRoom —
- *    subscriptions accumulate across the session so returning to a room is
- *    instant (matching Element Web's model).
+ * Unit tests for SlidingSyncManager memory management
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -21,8 +8,7 @@ import type { MatrixClient } from '$types/matrix-sdk';
 import { SlidingSyncManager, type SlidingSyncConfig } from './slidingSync';
 
 // ── vi.hoisted mocks ─────────────────────────────────────────────────────────
-// Must be defined via vi.hoisted so they're available before vi.mock runs
-// (vi.mock calls are hoisted above all imports by vitest's transformer).
+// Must be defined via vi.hoisted
 const mocks = vi.hoisted(() => ({
   slidingSyncInstance: {
     on: vi.fn<() => void>(),
@@ -55,8 +41,7 @@ vi.mock('@sentry/react', () => ({
 }));
 
 // ── SlidingSync SDK mock ─────────────────────────────────────────────────────
-// vi.fn() wrappers are arrow functions internally and cannot be called with `new`.
-// A plain function constructor (returning an object) is the correct pattern.
+// A plain function constructor is the correct pattern
 vi.mock('$types/matrix-sdk', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   function MockSlidingSync() {
@@ -101,25 +86,25 @@ describe('SlidingSyncManager.dispose()', () => {
 
 // ── onMembershipLeave: auto-unsubscribe on leave/ban ─────────────────────────
 
-describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
-  /** Fire the RoomMemberEvent.Membership listener registered on mx.on */
-  function fireMembershipEvent(
-    mx: ReturnType<typeof makeMockMx>,
-    membership: string,
-    roomId = '!room:example.com',
-    userId = '@user:example.com'
-  ) {
-    const onCall = (mx.on as ReturnType<typeof vi.fn>).mock.calls.find(
-      (args: unknown[]) => args[0] === 'RoomMember.membership'
-    );
-    if (!onCall) throw new Error('onMembershipLeave listener not registered');
-    const [, handler] = onCall as [
-      string,
-      (e: unknown, m: { userId: string; roomId: string; membership: string }) => void,
-    ];
-    handler(undefined, { userId, roomId, membership });
-  }
+/** Fire the RoomMemberEvent.Membership listener registered on mx.on */
+function fireMembershipEvent(
+  mx: ReturnType<typeof makeMockMx>,
+  membership: string,
+  roomId = '!room:example.com',
+  userId = '@user:example.com'
+) {
+  const onCall = (mx.on as ReturnType<typeof vi.fn>).mock.calls.find(
+    (args: unknown[]) => args[0] === 'RoomMember.membership'
+  );
+  if (!onCall) throw new Error('onMembershipLeave listener not registered');
+  const [, handler] = onCall as [
+    string,
+    (e: unknown, m: { userId: string; roomId: string; membership: string }) => void,
+  ];
+  handler(undefined, { userId, roomId, membership });
+}
 
+describe('SlidingSyncManager — membership leave auto-unsubscribe', () => {
   it('unsubscribes when the local user leaves an active room', () => {
     const mx = makeMockMx();
     const manager = makeManager(mx);

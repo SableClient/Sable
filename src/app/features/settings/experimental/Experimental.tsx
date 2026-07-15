@@ -1,4 +1,5 @@
-import { Box, Text, Icon, Icons, Scroll, Switch } from 'folds';
+import { Box, Text, Scroll, Switch } from 'folds';
+import { menuIcon, Warning } from '$components/icons/phosphor';
 import { PageContent } from '$components/page';
 import { InfoCard } from '$components/info-card';
 import { settingsAtom } from '$state/settings';
@@ -11,6 +12,7 @@ import { SettingsSectionPage } from '../SettingsSectionPage';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
 import { t } from 'i18next';
+import { MSC4274MediaGalleries } from './MSC4274MediaGalleries';
 
 function PersonaToggle() {
   const [showPersonaSetting, setShowPersonaSetting] = useSetting(
@@ -25,7 +27,9 @@ function PersonaToggle() {
         <SettingTile
           title={t('Settings.show_personas_tab')}
           focusId="show-personas-tab"
-          description={t('Settings.enables_the_personas_tab_in_the_settings_menu_for_per_message_profiles')}
+          description={t(
+            'Settings.enables_the_personas_tab_in_the_settings_menu_for_per_message_profiles'
+          )}
           after={
             <Switch variant="Primary" value={showPersonaSetting} onChange={setShowPersonaSetting} />
           }
@@ -41,12 +45,16 @@ type ExperimentalProps = {
 };
 export function Experimental({ requestBack, requestClose }: Readonly<ExperimentalProps>) {
   return (
-    <SettingsSectionPage title={t('Settings.experimental')} requestBack={requestBack} requestClose={requestClose}>
+    <SettingsSectionPage
+      title={t('Settings.experimental')}
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
             <InfoCard
-              before=<Icon src={Icons.Warning} size="100" filled />
+              before={menuIcon(Warning, { weight: 'fill' })}
               variant="Warning"
               description={
                 <>
@@ -63,6 +71,7 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
               <PersonaToggle />
+              <MSC4274MediaGalleries />
             </Box>
           </PageContent>
         </Scroll>

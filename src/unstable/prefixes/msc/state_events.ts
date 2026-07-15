@@ -1,6 +1,7 @@
 // state event related unstable prefixes
 // don't import this file directly, import '$unstable/prefixes'
 
+export const MATRIX_STATE_ROOM_IMAGE_PACK_PROPERTY_NAME = 'm.room.image_pack';
 export const MATRIX_UNSTABLE_STATE_ROOM_EMOTES_PROPERTY_NAME = 'im.ponies.room_emotes';
 /**
  * unstable prefix for call rooms

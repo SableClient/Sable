@@ -1,12 +1,9 @@
-import { useCallback, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { Badge, Box, color, Header, Scroll, Text, toRem } from 'folds';
+import { useAtomValue } from 'jotai';
 import { ContainerColor } from '$styles/ContainerColor.css';
-import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { useRoomCreators } from '$hooks/useRoomCreators';
-import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
-import { useLivekitSupport } from '$hooks/useLivekitSupport';
+import { useCallStartCapabilities } from '$hooks/useCallStartCapabilities';
 
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useCallEmbed, useCallEmbedPlacementSync, useCallJoined } from '$hooks/useCallEmbed';
@@ -14,13 +11,20 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import * as css from './styles.css';
 import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
-import { CallControls } from './CallControls';
-import { EventType } from '$types/matrix-sdk';
+import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 
 function LivekitServerMissingMessage() {
   return (
     <Text style={{ margin: 'auto', color: color.Critical.Main }} size="L400" align="Center">
-      Your homeserver does not support calling. But you can still join call started by others.
+      Your homeserver does not support calling. You can still join calls started by others.
+    </Text>
+  );
+}
+
+function WebRTCMissingError() {
+  return (
+    <Text style={{ margin: 'auto', color: color.Critical.Main }} size="L400" align="Center">
+      Your browser does not support WebRTC, which is required for calling.
     </Text>
   );
 }
@@ -28,19 +32,25 @@ function LivekitServerMissingMessage() {
 function JoinMessage({
   hasParticipant,
   livekitSupported,
+  rtcSupported,
 }: {
   hasParticipant?: boolean;
   livekitSupported?: boolean;
+  rtcSupported?: boolean;
 }) {
-  if (hasParticipant) return null;
+  if (rtcSupported === false) {
+    return <WebRTCMissingError />;
+  }
 
   if (livekitSupported === false) {
     return <LivekitServerMissingMessage />;
   }
 
+  if (hasParticipant) return null;
+
   return (
     <Text style={{ margin: 'auto' }} size="L400" align="Center">
-      Voice chat&apos;s empty — Be the first to hop in!
+      Voice chat&apos;s empty - be the first to hop in!
     </Text>
   );
 }
@@ -56,30 +66,37 @@ function NoPermissionMessage() {
 function AlreadyInCallMessage() {
   return (
     <Text style={{ margin: 'auto', color: color.Warning.Main }} size="L400" align="Center">
-      Already in another call — End the current call to join!
+      Already in another call - end the current call to join.
+    </Text>
+  );
+}
+
+function WidgetPreparationErrorMessage({ message }: { message: string }) {
+  return (
+    <Text style={{ margin: 'auto', color: color.Critical.Main }} size="L400" align="Center">
+      {message}
     </Text>
   );
 }
 
 function CallPrescreen() {
-  const mx = useMatrixClient();
   const room = useRoom();
-  const livekitSupported = useLivekitSupport();
-
-  const powerLevels = usePowerLevelsContext();
-  const creators = useRoomCreators(room);
-
-  const permissions = useRoomPermissions(creators, powerLevels);
-  const hasPermission = permissions.event(EventType.GroupCallMemberPrefix, mx.getSafeUserId());
+  const callEmbed = useAtomValue(callEmbedAtom);
+  const callEmbedStartError = useAtomValue(callEmbedStartErrorAtom);
+  const callJoined = useCallJoined(callEmbed);
+  const callStartCapabilities = useCallStartCapabilities(room);
 
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(room, callSession);
   const hasParticipant = callMembers.length > 0;
+  const showEmbedError =
+    callEmbed?.roomId === room.roomId && !callJoined && callEmbedStartError !== null;
+  const embedErrorMessage =
+    callEmbedStartError?.kind === 'capability'
+      ? 'Call setup failed because required call capabilities were rejected.'
+      : 'Call setup failed while preparing the embedded call app.';
 
-  const callEmbed = useCallEmbed();
-  const inOtherCall = callEmbed && callEmbed.roomId !== room.roomId;
-
-  const canJoin = hasPermission && (livekitSupported || hasParticipant);
+  const canJoin = callStartCapabilities.canStart;
 
   return (
     <Scroll variant="Surface" hideTrack>
@@ -100,13 +117,22 @@ function CallPrescreen() {
           <CallMemberRenderer members={callMembers} />
           <PrescreenControls canJoin={canJoin} />
           <Box className={css.PrescreenMessage} alignItems="Center">
-            {!inOtherCall &&
-              (hasPermission ? (
-                <JoinMessage hasParticipant={hasParticipant} livekitSupported={livekitSupported} />
+            {!callStartCapabilities.inAnotherCall &&
+              (callStartCapabilities.hasCallMemberPermission ? (
+                <JoinMessage
+                  hasParticipant={hasParticipant}
+                  livekitSupported={callStartCapabilities.livekitSupported}
+                  rtcSupported={callStartCapabilities.webRTCSupported}
+                />
               ) : (
                 <NoPermissionMessage />
               ))}
-            {inOtherCall && <AlreadyInCallMessage />}
+            {callStartCapabilities.inAnotherCall && <AlreadyInCallMessage />}
+            {showEmbedError && (
+              <WidgetPreparationErrorMessage
+                message={callEmbedStartError.message || embedErrorMessage}
+              />
+            )}
           </Box>
         </Box>
       </Box>
@@ -116,34 +142,12 @@ function CallPrescreen() {
 
 type CallJoinedProps = {
   containerRef: RefObject<HTMLDivElement>;
-  joined: boolean;
 };
 
-function CallJoined({ joined, containerRef }: CallJoinedProps) {
-  const callEmbed = useCallEmbed();
-
+function CallJoined({ containerRef }: CallJoinedProps) {
   return (
     <Box grow="Yes" direction="Column" style={{ position: 'relative' }}>
       <Box grow="Yes" ref={containerRef} style={{ height: '100%', width: '100%' }} />
-
-      {callEmbed && joined && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: toRem(16),
-            left: 0,
-            right: 0,
-            zIndex: 50,
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          <div style={{ pointerEvents: 'all', maxWidth: '100%' }}>
-            <CallControls callEmbed={callEmbed} />
-          </div>
-        </div>
-      )}
     </Box>
   );
 }
@@ -166,17 +170,40 @@ export function CallView({ resizable }: CallViewProps) {
 
   const currentJoined = callEmbed?.roomId === room.roomId && callJoined;
 
-  const [height, setHeight] = useState(isMobile ? 240 : 380);
+  const [heightRatio, setHeightRatio] = useState(isMobile ? 0.3 : 0.72);
+  const [availableHeight, setAvailableHeight] = useState(0);
+
+  useEffect(() => {
+    if (!resizable || !callViewRef.current) return undefined;
+    const container = callViewRef.current.parentElement?.parentElement;
+    if (!container) return undefined;
+
+    const observer = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        setAvailableHeight(entries[0].contentRect.height);
+      }
+    });
+    observer.observe(container);
+    setAvailableHeight(container.getBoundingClientRect().height);
+
+    return () => observer.disconnect();
+  }, [resizable]);
+
   const [isDragging, setIsDragging] = useState(false);
   const isResizing = useRef(false);
+  const previousBodyUserSelect = useRef<string | null>(null);
 
   const handleMove = useCallback(
     (clientY: number) => {
       if (!isResizing.current || !callViewRef.current) return;
       const { top } = callViewRef.current.getBoundingClientRect();
-      setHeight(Math.max(isMobile ? 120 : 150, Math.min(clientY - top, window.innerHeight * 0.8)));
+      const newHeight = clientY - top;
+      const baseHeight = availableHeight || window.innerHeight;
+      const ratio = newHeight / baseHeight;
+      const clampedRatio = Math.max(0.2, Math.min(ratio, 0.8));
+      setHeightRatio(clampedRatio);
     },
-    [isMobile]
+    [availableHeight]
   );
 
   const handleMouseMove = useCallback((e: MouseEvent) => handleMove(e.clientY), [handleMove]);
@@ -195,18 +222,35 @@ export function CallView({ resizable }: CallViewProps) {
     document.removeEventListener('mouseup', stopResizing);
     document.removeEventListener('touchmove', handleTouchMove);
     document.removeEventListener('touchend', stopResizing);
-    document.body.style.userSelect = 'auto';
+    document.body.style.userSelect = previousBodyUserSelect.current ?? '';
+    previousBodyUserSelect.current = null;
   }, [handleMouseMove, handleTouchMove]);
 
   const startResizing = useCallback(() => {
     isResizing.current = true;
     setIsDragging(true);
+    if (previousBodyUserSelect.current === null) {
+      previousBodyUserSelect.current = document.body.style.userSelect;
+    }
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', stopResizing);
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', stopResizing);
     document.body.style.userSelect = 'none';
   }, [handleMouseMove, handleTouchMove, stopResizing]);
+
+  useEffect(
+    () => () => {
+      isResizing.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', stopResizing);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', stopResizing);
+      document.body.style.userSelect = previousBodyUserSelect.current ?? '';
+      previousBodyUserSelect.current = null;
+    },
+    [handleMouseMove, handleTouchMove, stopResizing]
+  );
 
   return (
     <Box
@@ -216,7 +260,11 @@ export function CallView({ resizable }: CallViewProps) {
       style={{
         position: 'relative',
         minWidth: toRem(280),
-        height: resizable ? `${height}px` : undefined,
+        height: resizable
+          ? availableHeight > 0
+            ? `${availableHeight * heightRatio}px`
+            : `${heightRatio * 100}dvh`
+          : undefined,
         borderBottom: `1px solid var(--sable-surface-container-line)`,
         zIndex: 20,
         backgroundColor: currentJoined ? 'transparent' : undefined,
@@ -236,7 +284,7 @@ export function CallView({ resizable }: CallViewProps) {
       )}
 
       {!currentJoined && <CallPrescreen />}
-      <CallJoined joined={currentJoined} containerRef={callContainerRef} />
+      <CallJoined containerRef={callContainerRef} />
 
       {resizable && (
         <button

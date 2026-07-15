@@ -23,9 +23,11 @@ import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './a
 import { createLogger } from './app/utils/debug';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 import { installConsolePasteScamWarning } from './app/utils/consolePasteScamWarning';
+import { registerMatrixUriProtocol } from './app/plugins/matrix-uri';
 
 enableMapSet();
 installConsolePasteScamWarning();
+registerMatrixUriProtocol();
 const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
@@ -45,6 +47,14 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
     }
     window.location.reload();
   }
+};
+
+const sendSessionToSW = () => {
+  // Use the active session from the new multi-session store, fall back to legacy
+  const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+  const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
+  const active = sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
+  pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
 };
 
 if ('serviceWorker' in navigator) {
@@ -72,15 +82,6 @@ if ('serviceWorker' in navigator) {
       }
     });
   });
-
-  const sendSessionToSW = () => {
-    // Use the active session from the new multi-session store, fall back to legacy
-    const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
-    const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
-    const active =
-      sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
-    pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
-  };
 
   navigator.serviceWorker
     .register(swUrl)

@@ -6,9 +6,7 @@ import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -17,7 +15,7 @@ import {
   toRem,
 } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import FocusTrap from 'focus-trap-react';
 import { factoryRoomIdByActivity, factoryRoomIdByAtoZ } from '$utils/sort';
 import {
@@ -32,7 +30,9 @@ import {
 } from '$components/nav';
 import {
   encodeSearchParamValueArray,
+  getExploreFeaturedPath,
   getExplorePath,
+  getExploreServerPath,
   getHomeCreatePath,
   getHomeRoomPath,
   getHomeSearchPath,
@@ -59,11 +59,29 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
+import {
+  Checks,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  dropzoneIcon,
+  Globe,
+  Hash,
+  House,
+  Link,
+  MagnifyingGlass,
+  menuIcon,
+  Plus,
+  UsersThree,
+} from '$components/icons/phosphor';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { getMxIdServer } from '$utils/mxIdHelper';
+import { isResizingSidebarAtom } from '$state/isResizingSidebar';
+import { UserQuickTools } from '../sidebar/UserQuickTools';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -71,6 +89,10 @@ type HomeMenuProps = {
 const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, ref) => {
   const orphanRooms = useHomeRooms();
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
+  const [isShowingAllRoomsInHome, setIsShowingAllRoomsInHome] = useSetting(
+    settingsAtom,
+    'isShowingAllRoomsInHome'
+  );
   const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
   const mx = useMatrixClient();
 
@@ -86,12 +108,22 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={menuIcon(Checks)}
           radii="300"
           aria-disabled={!unread}
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Mark as Read
+          </Text>
+        </MenuItem>
+        <MenuItem
+          onClick={() => setIsShowingAllRoomsInHome(!isShowingAllRoomsInHome)}
+          size="300"
+          after={menuIcon(isShowingAllRoomsInHome ? House : Globe)}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            {isShowingAllRoomsInHome ? 'Show Home Rooms' : 'Show All Rooms'}
           </Text>
         </MenuItem>
       </Box>
@@ -116,7 +148,7 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
         {hideText ? (
           <Box alignItems="Center" grow="Yes" justifyContent="Center">
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.Home} size="200" filled={!!menuAnchor} />
+              {composerIcon(House, { weight: menuAnchor ? 'fill' : 'regular' })}
             </IconButton>
           </Box>
         ) : (
@@ -128,7 +160,9 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
             </Box>
             <Box shrink="No">
               <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-                <Icon src={Icons.VerticalDots} size="200" filled={!!menuAnchor} />
+                {composerIcon(DotsThreeOutlineVerticalIcon, {
+                  weight: menuAnchor ? 'fill' : 'regular',
+                })}
               </IconButton>
             </Box>
           </Box>
@@ -165,7 +199,7 @@ function HomeEmpty() {
   return (
     <NavEmptyCenter>
       <NavEmptyLayout
-        icon={<Icon size="600" src={Icons.Hash} />}
+        icon={dropzoneIcon(Hash)}
         title={
           <Text size="H5" align="Center">
             No Rooms
@@ -204,12 +238,15 @@ const DEFAULT_CATEGORY_ID = makeNavCategoryId('home', 'room');
 export function Home() {
   const mx = useMatrixClient();
   useNavToActivePathMapper('home');
+  const clientConfig = useClientConfig();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const rooms = useHomeRooms();
+  const [isShowingAllRoomsInHome] = useSetting(settingsAtom, 'isShowingAllRoomsInHome');
+  const rooms = useHomeRooms(isShowingAllRoomsInHome);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
 
+  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   useEffect(() => {
@@ -236,7 +273,7 @@ export function Home() {
 
   const sortedRooms = useMemo(() => {
     const items = Array.from(rooms).toSorted(
-      closedCategories.has(DEFAULT_CATEGORY_ID)
+      closedCategories.has(DEFAULT_CATEGORY_ID) || isShowingAllRoomsInHome
         ? factoryRoomIdByActivity(mx)
         : factoryRoomIdByAtoZ(mx)
     );
@@ -248,7 +285,7 @@ export function Home() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId]);
+  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId, isShowingAllRoomsInHome]);
 
   const virtualizer = useVirtualizer({
     count: sortedRooms.length,
@@ -261,9 +298,29 @@ export function Home() {
     closedCategories.has(categoryId)
   );
 
+  const handleExploreClick = () => {
+    if (screenSize === ScreenSize.Mobile) {
+      navigate(getExplorePath());
+      return;
+    }
+
+    if (clientConfig.featuredCommunities?.openAsDefault) {
+      navigate(getExploreFeaturedPath());
+      return;
+    }
+    const userId = mx.getUserId();
+    const userServer = userId ? getMxIdServer(userId) : undefined;
+    if (userServer) {
+      navigate(getExploreServerPath(userServer));
+      return;
+    }
+    navigate(getExplorePath());
+  };
+
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
 
   return (
     <Box
@@ -296,7 +353,7 @@ export function Home() {
                           radii="400"
                           style={hideText ? { width: '100%', padding: '0' } : undefined}
                         >
-                          <Icon src={Icons.Plus} size="100" />
+                          {menuIcon(Plus)}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
@@ -327,7 +384,7 @@ export function Home() {
                                 radii="400"
                                 style={hideText ? { width: '100%', padding: '0' } : undefined}
                               >
-                                <Icon src={Icons.Link} size="100" />
+                                {menuIcon(Link)}
                               </Avatar>
                               {!hideText && (
                                 <Box as="span" grow="Yes">
@@ -359,6 +416,36 @@ export function Home() {
                     </>
                   )}
                 </UseStateProvider>
+                <NavItem variant="Background" radii="400">
+                  <NavButton onClick={handleExploreClick}>
+                    <NavItemContent>
+                      <Box
+                        as="span"
+                        grow="Yes"
+                        alignItems="Center"
+                        justifyContent="Start"
+                        gap="200"
+                      >
+                        <Avatar
+                          size={hideText ? undefined : '200'}
+                          radii="400"
+                          style={hideText ? { width: '100%' } : undefined}
+                        >
+                          {menuIcon(UsersThree, {
+                            weight: 'regular',
+                          })}
+                        </Avatar>
+                        {!hideText && (
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Explore Spaces
+                            </Text>
+                          </Box>
+                        )}
+                      </Box>
+                    </NavItemContent>
+                  </NavButton>
+                </NavItem>
                 <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
                   <NavLink to={getHomeSearchPath()}>
                     <NavItemContent>
@@ -374,7 +461,9 @@ export function Home() {
                           radii="400"
                           style={hideText ? { width: '100%' } : undefined}
                         >
-                          <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                          {menuIcon(MagnifyingGlass, {
+                            weight: searchSelected ? 'fill' : 'regular',
+                          })}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
@@ -411,6 +500,7 @@ export function Home() {
                     const room = mx.getRoom(roomId);
                     if (!room) return null;
                     const selected = selectedRoomId === roomId;
+                    const canonicalName = getCanonicalAliasOrRoomId(mx, roomId);
 
                     return (
                       <VirtualTile
@@ -436,7 +526,7 @@ export function Home() {
                             selected={selected}
                             showAvatar={showIcons()}
                             hideText={hideText}
-                            linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                            linkPath={getHomeRoomPath(canonicalName)}
                             notificationMode={getRoomNotificationMode(
                               notificationPreferences,
                               room.roomId
@@ -449,6 +539,7 @@ export function Home() {
                   })}
                 </div>
               </NavCategory>
+              {!isMobile && <div style={{ height: toRem(40) }} />}
             </Box>
           </PageNavContent>
         )}
@@ -458,12 +549,14 @@ export function Home() {
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
           setSidebarWidth={setRoomSidebarWidth}
-          instep={80}
+          instep={50}
           outstep={190}
           minValue={50}
           maxValue={500}
+          setAnnouncement={setIsResizingSidebar}
         />
       )}
+      {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
     </Box>
   );
 }

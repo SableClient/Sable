@@ -1,7 +1,8 @@
 import type { IContent, MatrixClient } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import to from 'await-to-js';
-import type { IThumbnailContent } from '$types/matrix/common';
+import type { IGalleryItem } from '$types/matrix/common';
+import { GALLERY_MSGTYPE, type IThumbnailContent } from '$types/matrix/common';
 import {
   getImageFileUrl,
   getThumbnail,
@@ -10,8 +11,16 @@ import {
   loadImageElement,
   loadVideoElement,
 } from '$utils/dom';
-import { encryptFile, getImageInfo, getThumbnailContent, getVideoInfo } from '$utils/matrix';
+import {
+  encryptFile,
+  getImageInfo,
+  getThumbnailContent,
+  getVideoInfo,
+  mxcUrlToHttp,
+} from '$utils/matrix';
+import { mimeTypeToExt } from '$utils/mimeTypes';
 import type { TUploadItem } from '$state/room/roomInputDrafts';
+import type { GifData } from '$components/emoji-board/types';
 import { encodeBlurHash } from '$utils/blurHash';
 import { scaleYDimension } from '$utils/common';
 import { createLogger } from '$utils/debug';
@@ -235,5 +244,101 @@ export const getFileMsgContent = (item: TUploadItem, mxc: string): IContent => {
     content.format = 'org.matrix.custom.html';
     content.formatted_body = item.formatted_body;
   }
+  return content;
+};
+
+export const getGifMsgContent = async (
+  mx: MatrixClient,
+  gif: GifData,
+  mxcUrl: string,
+  spoiler?: boolean
+): Promise<IContent> => {
+  const proxyUrl = mxcUrlToHttp(mx, mxcUrl, true);
+  const [imgError, imgEl] = await to(loadImageElement(proxyUrl ?? gif.url, 'anonymous'));
+  if (imgError) {
+    log.warn(
+      'Failed to load image element anonymously for blurhash, falling back to basic metadata:',
+      imgError
+    );
+  }
+
+  const mimetype = gif.mimetype ?? 'image/gif';
+  const ext = mimeTypeToExt(mimetype);
+
+  const content: IContent = {
+    msgtype: MsgType.Image,
+    body: gif.title.endsWith(`.${ext}`) ? gif.title : `${gif.title}.${ext}`,
+    url: mxcUrl,
+    info: {
+      w: gif.width,
+      h: gif.height,
+      mimetype,
+    },
+  };
+
+  if (gif.size) {
+    content.info.size = gif.size;
+  }
+
+  if (spoiler) {
+    content[MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME] = true;
+  }
+
+  if (imgEl) {
+    const blurHash = encodeBlurHash(imgEl, 512, scaleYDimension(imgEl.width, 512, imgEl.height));
+    if (blurHash) {
+      content.info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME] = blurHash;
+    }
+  }
+
+  return content;
+};
+
+const swapMsgTypeToItemType = (
+  content: IContent,
+  itemtype: IGalleryItem['itemtype']
+): IGalleryItem => {
+  const result = { ...content, itemtype };
+  delete result.msgtype;
+  return result as IGalleryItem;
+};
+
+export const getGalleryItemContent = async (
+  mx: MatrixClient,
+  item: TUploadItem,
+  mxc: string
+): Promise<IGalleryItem> => {
+  if (item.file.type.startsWith('image')) {
+    return swapMsgTypeToItemType(await getImageMsgContent(mx, item, mxc), MsgType.Image);
+  }
+  if (item.file.type.startsWith('video')) {
+    return swapMsgTypeToItemType(await getVideoMsgContent(mx, item, mxc), MsgType.Video);
+  }
+  if (item.file.type.startsWith('audio')) {
+    return swapMsgTypeToItemType(getAudioMsgContent(item, mxc), MsgType.Audio);
+  }
+  return swapMsgTypeToItemType(getFileMsgContent(item, mxc), MsgType.File);
+};
+
+export const buildGalleryContent = (
+  items: IGalleryItem[],
+  caption?: string,
+  formattedCaption?: string
+): IContent => {
+  const body =
+    caption ||
+    items.map((item) => `[${item.filename ?? item.itemtype}: ${item.url ?? 'file'}]`).join('\n');
+
+  const content: IContent = {
+    msgtype: GALLERY_MSGTYPE,
+    body,
+    itemtypes: items,
+  };
+
+  if (formattedCaption) {
+    content.format = 'org.matrix.custom.html';
+    content.formatted_body = formattedCaption;
+  }
+
   return content;
 };

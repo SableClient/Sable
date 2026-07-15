@@ -4,8 +4,6 @@ import {
   Button,
   Chip,
   config,
-  Icon,
-  Icons,
   Input,
   Line,
   Menu,
@@ -15,6 +13,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { Plus, X, sizedIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { getMxIdServer } from '$utils/mxIdHelper';
@@ -149,7 +148,9 @@ export function AdditionalCreatorInput({
   return (
     <SettingTile
       title={t('RoomCreate.founders')}
-      description={t('RoomCreate.special_privileged_users_can_be_assigned_during_creation_these_users_have_e')}
+      description={t(
+        'RoomCreate.special_privileged_users_can_be_assigned_during_creation_these_users_have_e'
+      )}
     >
       <Box shrink="No" direction="Column" gap="100">
         <Box gap="200" wrap="Wrap">
@@ -162,7 +163,7 @@ export function AdditionalCreatorInput({
               key={creator}
               variant="Secondary"
               radii="Pill"
-              after={<Icon size="50" src={Icons.Cross} />}
+              after={sizedIcon(X, '50')}
               onClick={() => onRemove(creator)}
               disabled={disabled}
             >
@@ -285,7 +286,7 @@ export function AdditionalCreatorInput({
               aria-pressed={!!menuCords}
               disabled={disabled}
             >
-              <Icon size="50" src={Icons.Plus} />
+              {sizedIcon(Plus, '50')}
             </Chip>
           </PopOut>
         </Box>

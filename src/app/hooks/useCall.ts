@@ -31,13 +31,13 @@ export const useCallSession = (room: Room): MatrixRTCSession => {
 };
 
 export const useCallMembers = (room: Room, session: MatrixRTCSession): CallMembership[] => {
-  const [memberships, setMemberships] = useState(
-    MatrixRTCSession.sessionMembershipsForRoom(room, session.sessionDescription)
-  );
+  const [memberships, setMemberships] = useState<CallMembership[]>([]);
 
   useEffect(() => {
     const updateMemberships = () => {
-      setMemberships(MatrixRTCSession.sessionMembershipsForRoom(room, session.sessionDescription));
+      MatrixRTCSession.sessionMembershipsForSlot(room, session.slotDescription).then(
+        setMemberships
+      );
     };
 
     updateMemberships();

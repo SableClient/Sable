@@ -1,17 +1,5 @@
 import classNames from 'classnames';
-import {
-  Avatar,
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  MenuItem,
-  Scroll,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Avatar, Box, Header, IconButton, MenuItem, Scroll, Text, as, config } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { getMemberDisplayName } from '$utils/room';
@@ -24,6 +12,7 @@ import { getMouseEventCords } from '$utils/dom';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
+import { composerIcon, userFallbackIcon, X } from '$components/icons/phosphor';
 import * as css from './EventReaders.css';
 
 export type EventReadersProps = {
@@ -39,7 +28,6 @@ export const EventReaders = as<'div', EventReadersProps>(
     const openProfile = useOpenUserRoomProfile();
     const space = useSpaceOptionally();
     const nicknames = useAtomValue(nicknamesAtom);
-
     const getName = (userId: string) =>
       getMemberDisplayName(room, userId, nicknames) ?? getMxIdLocalPart(userId) ?? userId;
 
@@ -55,7 +43,7 @@ export const EventReaders = as<'div', EventReadersProps>(
             <Text size="H3">Seen by</Text>
           </Box>
           <IconButton size="300" onClick={requestClose}>
-            <Icon src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Header>
         <Box grow="Yes" style={{ width: '100%', minWidth: 0 }}>
@@ -101,7 +89,7 @@ export const EventReaders = as<'div', EventReadersProps>(
                           userId={readerId}
                           src={avatarUrl ?? undefined}
                           alt={name}
-                          renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                          renderFallback={() => userFallbackIcon('sm')}
                         />
                       </Avatar>
                     }

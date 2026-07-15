@@ -2,10 +2,11 @@ import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
-import { Box, Icon, Icons, Text, config, Avatar } from 'folds';
+import { Box, Text, config, Avatar } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import { NavButton, NavItem, NavItemContent } from '$components/nav';
 import { useRoomName } from '$hooks/useRoomMeta';
+import { menuIcon, SquaresFour } from '$components/icons/phosphor';
 
 type SpaceNavItemProps = {
   room: Room;
@@ -58,12 +59,10 @@ export function SpaceNavItem({ room, selected, linkPath, hideText }: SpaceNavIte
               style={{ padding: hideText ? '0' : '1' }}
             >
               <Avatar size="200" radii="400">
-                <Icon
-                  src={Icons.Space}
-                  style={{ opacity: config.opacity.P300 }}
-                  filled={selected}
-                  size="100"
-                />
+                {menuIcon(SquaresFour, {
+                  style: { opacity: config.opacity.P300 },
+                  weight: selected ? 'fill' : 'regular',
+                })}
               </Avatar>
               {!hideText && (
                 <Box as="span" grow="Yes">

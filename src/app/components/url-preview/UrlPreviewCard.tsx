@@ -1,19 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 import type { IPreviewUrlResponse } from '$types/matrix-sdk';
-import {
-  Box,
-  Icon,
-  IconButton,
-  Icons,
-  Scroll,
-  Spinner,
-  Text,
-  as,
-  color,
-  config,
-  toRem,
-} from 'folds';
+import { Box, IconButton, Scroll, Spinner, Text, as, color, config, toRem } from 'folds';
+import { ArrowLeft, ArrowRight, sizedIcon } from '$components/icons/phosphor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp, downloadMedia } from '$utils/matrix';
@@ -35,7 +24,7 @@ const linkStyles = { color: color.Success.Main };
 // Module-level in-flight deduplication: prevents N+1 concurrent requests when a
 // large event batch renders many UrlPreviewCard instances for the same URL.
 // Scoped by MatrixClient to avoid cross-account dedup if multiple clients exist.
-// Inner cache keyed by URL only (not ts) â€” the same URL shows the same preview
+// Inner cache keyed by URL only (not ts) â€ Ethe same URL shows the same preview
 // regardless of which message referenced it. Promises are evicted after settling
 // so a later render can retry after network recovery.
 const previewRequestCache = new WeakMap<MatrixClient, Map<string, Promise<IPreviewUrlResponse>>>();
@@ -91,19 +80,15 @@ export const UrlPreviewCard = as<
     urlPreview: boolean;
     url: string;
     ts?: number;
-    mediaType?: string | null;
     bundle?: IPreviewUrlResponse;
   }
->(({ urlPreview, url, ts, mediaType, bundle, ...props }, ref) => {
+>(({ urlPreview, url, ts, bundle, ...props }, ref) => {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
 
-  const isDirect = !!mediaType;
-
   const [previewStatus, loadPreview] = useAsyncCallback(
     useCallback(() => {
-      if (isDirect) return Promise.resolve(null);
       if (!ts && !bundle) return Promise.resolve(null);
       if (urlPreview && ts) {
         const clientCache = getClientCache(mx);
@@ -115,7 +100,7 @@ export const UrlPreviewCard = as<
         return previewResult;
       }
       return Promise.resolve(bundle);
-    }, [isDirect, ts, bundle, urlPreview, mx, url])
+    }, [ts, bundle, urlPreview, mx, url])
   );
 
   useEffect(() => {
@@ -305,6 +290,7 @@ export const UrlPreviewCard = as<
               renderViewer={(p) => <ImageViewer {...p} />}
               renderImage={(p) => (
                 <Image
+                  info={ogImageInfo}
                   {...p}
                   style={{
                     display: 'block',
@@ -365,25 +351,9 @@ export const UrlPreviewCard = as<
     <UrlPreview
       {...props}
       ref={ref}
-      style={
-        isDirect
-          ? {
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              boxShadow: 'none',
-              display: 'inline-block',
-              verticalAlign: 'middle',
-              width: 'max-content',
-              minWidth: 0,
-              maxWidth: '100%',
-              margin: 0,
-              alignSelf: 'start',
-            }
-          : {
-              alignSelf: 'start',
-            }
-      }
+      style={{
+        alignSelf: 'start',
+      }}
     >
       {previewContent}
     </UrlPreview>
@@ -460,7 +430,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                 outlined
                 onClick={handleScrollBack}
               >
-                <Icon size="300" src={Icons.ArrowLeft} />
+                {sizedIcon(ArrowLeft, '300')}
               </IconButton>
             </>
           )}
@@ -485,7 +455,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                 outlined
                 onClick={handleScrollFront}
               >
-                <Icon size="300" src={Icons.ArrowRight} />
+                {sizedIcon(ArrowRight, '300')}
               </IconButton>
             </>
           )}

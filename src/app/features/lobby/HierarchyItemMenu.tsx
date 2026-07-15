@@ -2,20 +2,7 @@ import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import {
-  Box,
-  IconButton,
-  Icon,
-  Icons,
-  PopOut,
-  Menu,
-  MenuItem,
-  Text,
-  config,
-  Line,
-  Spinner,
-  toRem,
-} from 'folds';
+import { Box, IconButton, PopOut, Menu, MenuItem, Text, config, Line, Spinner, toRem } from 'folds';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { MSpaceChildContent } from '$types/matrix/room';
@@ -37,6 +24,12 @@ import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useNavigate } from 'react-router-dom';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
 import { EventType } from '$types/matrix-sdk';
+import {
+  chipIcon,
+  DotsThreeOutlineVerticalIcon,
+  menuIcon,
+  SignOut,
+} from '$components/icons/phosphor';
 
 type HierarchyItemWithParent = HierarchyItem & {
   parentId: string;
@@ -255,7 +248,7 @@ export function HierarchyItemMenu({
         radii="300"
         aria-pressed={!!menuAnchor}
       >
-        <Icon size="50" src={Icons.VerticalDots} />
+        {chipIcon(DotsThreeOutlineVerticalIcon, { weight: menuAnchor ? 'fill' : 'regular' })}
       </IconButton>
       {menuAnchor && (
         <PopOut
@@ -316,7 +309,7 @@ export function HierarchyItemMenu({
                             variant="Critical"
                             fill="None"
                             size="300"
-                            after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                            after={menuIcon(SignOut)}
                             radii="300"
                             aria-pressed={promptLeave}
                           >

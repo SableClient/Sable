@@ -5,9 +5,7 @@ import {
   Box,
   Button,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   Overlay,
@@ -18,6 +16,7 @@ import {
   Text,
   config,
 } from 'folds';
+import { sizedIcon, Info } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { Link } from 'react-router-dom';
 import { getMxIdLocalPart, isUserId } from '$utils/matrix';
@@ -98,7 +97,7 @@ function UsernameHint({ server }: { server: string }) {
         radii="300"
         aria-pressed={!!anchor}
       >
-        <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.Info} />
+        {sizedIcon(Info, '100', { style: { opacity: config.opacity.P300 } })}
       </IconButton>
     </PopOut>
   );

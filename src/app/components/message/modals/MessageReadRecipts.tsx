@@ -1,18 +1,27 @@
 import type { MouseEvent } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
-import { MenuItem, Icon, Icons, Text } from 'folds';
+import { MenuItem, Text } from 'folds';
+import { Checks, menuIcon } from '$components/icons/phosphor';
 import { modalAtom, ModalType } from '$state/modal';
 import { EventReaders } from '$components/event-readers';
 import * as css from '$features/room/message/styles.css';
 
-export function MessageReadReceiptItem({ room, eventId }: { room: Room; eventId: string }) {
+export function MessageReadReceiptItem({
+  room,
+  eventId,
+  closeMenu,
+}: {
+  room: Room;
+  eventId: string;
+  closeMenu?: () => void;
+}) {
   const setModal = useSetAtom(modalAtom);
 
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.CheckTwice} />}
+      after={menuIcon(Checks)}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();
@@ -22,6 +31,7 @@ export function MessageReadReceiptItem({ room, eventId }: { room: Room; eventId:
           room,
           eventId,
         });
+        closeMenu?.();
       }}
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>

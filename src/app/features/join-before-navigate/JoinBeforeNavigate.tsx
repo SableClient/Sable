@@ -1,4 +1,5 @@
-import { Box, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
+import { Box, IconButton, Scroll, Text, toRem } from 'folds';
+import { ArrowLeft, composerIcon } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import { RoomCard } from '$components/room-card';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
@@ -36,11 +37,7 @@ export function JoinBeforeNavigate({
           <Box shrink="No">
             {screenSize === ScreenSize.Mobile && (
               <BackRouteHandler>
-                {(onBack) => (
-                  <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
-                  </IconButton>
-                )}
+                {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
               </BackRouteHandler>
             )}
           </Box>

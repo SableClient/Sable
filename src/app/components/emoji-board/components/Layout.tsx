@@ -9,11 +9,12 @@ export const EmojiBoardLayout = as<
     header: ReactNode;
     sidebar?: ReactNode;
     children: ReactNode;
+    isFullWidth?: boolean;
   }
->(({ className, header, sidebar, children, ...props }, ref) => (
+>(({ className, header, sidebar, children, isFullWidth, ...props }, ref) => (
   <Box
     display="InlineFlex"
-    className={classNames(css.Base, className)}
+    className={classNames(css.Base({ isFullWidth }), className)}
     direction="Row"
     {...props}
     ref={ref}

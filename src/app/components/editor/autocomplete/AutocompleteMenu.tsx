@@ -7,7 +7,7 @@ import { Header, Menu, Scroll, config } from 'folds';
 import { preventScrollWithArrowKey, stopPropagation } from '$utils/keyboard';
 import { useAlive } from '$hooks/useAlive';
 import type { Editor } from 'slate';
-import { ReactEditor } from 'slate-react';
+import { focusEditor } from '$components/editor/utils';
 import * as css from './AutocompleteMenu.css';
 import { BaseAutocompleteMenu } from './BaseAutocompleteMenu';
 
@@ -33,7 +33,7 @@ export function AutocompleteMenu({
     }
   };
   const [isActive, setIsActive] = useState(true);
-  useEffect(() => ReactEditor.focus(editor), [editor, isActive]);
+  useEffect(() => focusEditor(editor), [editor, isActive]);
   function handleInput(evt: KeyboardEvent) {
     if (!evt) return;
     if (

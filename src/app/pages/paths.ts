@@ -26,6 +26,7 @@ export type SettingsPathSearchParams = {
 export const CREATE_PATH_SEGMENT = 'create/';
 export const JOIN_PATH_SEGMENT = 'join/';
 export const LOBBY_PATH_SEGMENT = 'lobby/';
+export const BOOKMARKS_PATH_SEGMENT = 'bookmarks/';
 /**
  * array of rooms and senders mxId assigned
  * to search param as string should be "," separated
@@ -79,6 +80,8 @@ export type ExploreServerPathSearchParams = {
 export const EXPLORE_SERVER_PATH = `/explore/${SERVER_PATH_SEGMENT}`;
 
 export const CREATE_PATH = '/create';
+export const NAVIGATE_PATH = '/navigate';
+export const PROFILE_PATH = '/profile/';
 
 export const NOTIFICATIONS_PATH_SEGMENT = 'notifications/';
 export const INVITES_PATH_SEGMENT = 'invites/';
@@ -88,6 +91,7 @@ export type InboxNotificationsPathSearchParams = {
 };
 export const INBOX_NOTIFICATIONS_PATH = `/inbox/${NOTIFICATIONS_PATH_SEGMENT}`;
 export const INBOX_INVITES_PATH = `/inbox/${INVITES_PATH_SEGMENT}`;
+export const INBOX_BOOKMARKS_PATH = `/inbox/${BOOKMARKS_PATH_SEGMENT}`;
 
 export const TO_PATH = '/to';
 // Deep-link route used by push notification click-back URLs.

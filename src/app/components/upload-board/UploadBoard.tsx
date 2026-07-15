@@ -1,6 +1,7 @@
 import type { MutableRefObject, ReactNode } from 'react';
 import { useImperativeHandle, useRef } from 'react';
-import { Badge, Box, Chip, Header, Icon, Icons, Spinner, Text, as, percent } from 'folds';
+import { Badge, Box, Chip, Header, Spinner, Text, as, percent } from 'folds';
+import { CaretRight, CaretUp, X, sizedIcon } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
 
@@ -87,22 +88,10 @@ export function UploadBoardHeader({
         grow="Yes"
         gap="100"
       >
-        <Icon src={open ? Icons.ChevronTop : Icons.ChevronRight} size="50" />
+        {sizedIcon(open ? CaretUp : CaretRight, '50')}
         <Text size="H6">Files</Text>
       </Box>
       <Box className={css.UploadBoardHeaderContent} alignItems="Center" gap="100">
-        {isSuccess && (
-          <Chip
-            as="button"
-            onClick={handleSend}
-            variant="Primary"
-            radii="Pill"
-            outlined
-            after={<Icon src={Icons.Send} size="50" filled />}
-          >
-            <Text size="B300">Send</Text>
-          </Chip>
-        )}
         {isError && !open && (
           <Badge variant="Critical" fill="Solid" radii="300">
             <Text size="L400">Upload Failed</Text>
@@ -116,13 +105,13 @@ export function UploadBoardHeader({
             <Spinner variant="Secondary" size="200" />
           </>
         )}
-        {!isSuccess && open && (
+        {open && (
           <Chip
             as="button"
             onClick={handleCancel}
             variant="SurfaceVariant"
             radii="Pill"
-            after={<Icon src={Icons.Cross} size="50" />}
+            after={sizedIcon(X, '50')}
           >
             <Text size="B300">{uploads.length === 1 ? 'Remove' : 'Remove All'}</Text>
           </Chip>
@@ -135,7 +124,7 @@ export function UploadBoardHeader({
 export const UploadBoardContent = as<'div'>(({ className, children, ...props }, ref) => (
   <Box
     className={classNames(css.UploadBoardContent, className)}
-    direction="Column"
+    direction="Row"
     gap="200"
     {...props}
     ref={ref}

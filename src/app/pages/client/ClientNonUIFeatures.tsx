@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
+import { getPresenceSyncManager } from '$client/initMatrix';
 import {
   MatrixEvent,
   MatrixEventEvent,
@@ -25,6 +26,7 @@ import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { IconSizesProvider } from '$components/icons/phosphor';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -52,16 +54,19 @@ import {
 import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
-import { getSlidingSyncManager } from '$client/initMatrix';
 import { NotificationBanner } from '$components/notification-banner';
 import { ThemeMigrationBanner } from '$components/theme/ThemeMigrationBanner';
 import { TelemetryConsentBanner } from '$components/telemetry-consent';
-import { useCallSignaling } from '$hooks/useCallSignaling';
+import { useIncomingCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
+import { resolveIncomingCallFromNotificationData } from '$features/call/callNotificationBridge';
+import { isIncomingCallSuppressed } from '$features/call/callIncomingIngress';
+import { incomingCallAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
+import { UnverifiedNoticeBanner } from '$components/unverified-notice';
 
 const pushRelayLog = createDebugLogger('push-relay');
 
@@ -177,6 +182,7 @@ function InviteNotifications() {
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
 
   const notify = useCallback(
     (count: number) => {
@@ -197,7 +203,7 @@ function InviteNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
+    audioElement?.play()?.catch(() => {});
     clearMediaSessionQuickly();
   }, []);
 
@@ -215,8 +221,8 @@ function InviteNotifications() {
         // window.Notification may be unavailable in sandboxed environments.
       }
     }
-    // Audio API requires a visible document; skip when hidden.
-    if (document.visibilityState === 'visible' && notificationSound) {
+    const tabVisible = document.visibilityState === 'visible';
+    if (notificationSound && (tabVisible || backgroundNotificationSounds)) {
       playSound();
     }
   }, [
@@ -226,6 +232,7 @@ function InviteNotifications() {
     showSystemNotifications,
     usePushNotifications,
     notificationSound,
+    backgroundNotificationSounds,
     notify,
     playSound,
   ]);
@@ -252,6 +259,7 @@ function MessageNotifications() {
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
   const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
   const [showEncryptedMessageContent] = useSetting(
     settingsAtom,
@@ -271,7 +279,7 @@ function MessageNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
+    audioElement?.play()?.catch(() => {});
     clearMediaSessionQuickly();
   }, []);
 
@@ -452,8 +460,13 @@ function MessageNotifications() {
         }
       }
 
-      // Everything below requires the page to be visible (in-app UI + audio).
-      if (document.visibilityState !== 'visible') return;
+      const tabVisible = document.visibilityState === 'visible';
+      if (notificationSound && isLoud && (tabVisible || backgroundNotificationSounds)) {
+        playSound();
+      }
+
+      // In-app banner requires a visible tab.
+      if (!tabVisible) return;
 
       // Page is visible — show the themed in-app notification banner.
       // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
@@ -529,11 +542,6 @@ function MessageNotifications() {
           },
         });
       }
-
-      // In-app audio: play when notification sounds are enabled AND this notification is loud.
-      if (notificationSound && isLoud) {
-        playSound();
-      }
     };
     mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
@@ -542,6 +550,7 @@ function MessageNotifications() {
   }, [
     mx,
     notificationSound,
+    backgroundNotificationSounds,
     notificationSelected,
     showNotifications,
     showSystemNotifications,
@@ -609,6 +618,13 @@ type ClientNonUIFeaturesProps = {
 export function HandleNotificationClick() {
   const setPending = useSetAtom(pendingNotificationAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
+  const setIncomingCall = useSetAtom(incomingCallAtom);
+  const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
+  const [incomingVoiceRoomCallSoundEnabled] = useSetting(
+    settingsAtom,
+    'incomingVoiceRoomCallSoundEnabled'
+  );
+  const mDirects = useAtomValue(mDirectAtom);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -634,11 +650,30 @@ export function HandleNotificationClick() {
 
       if (!roomId) return;
       setPending({ roomId, eventId, targetSessionId: userId });
+
+      const incomingCall = resolveIncomingCallFromNotificationData(
+        data as Record<string, unknown>,
+        mDirects.has(roomId)
+      );
+      if (
+        incomingCall &&
+        !isIncomingCallSuppressed(incomingCall, mutedRoomId, incomingVoiceRoomCallSoundEnabled)
+      ) {
+        setIncomingCall(incomingCall);
+      }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [setPending, setActiveSessionId, navigate]);
+  }, [
+    mDirects,
+    mutedRoomId,
+    navigate,
+    setActiveSessionId,
+    setIncomingCall,
+    setPending,
+    incomingVoiceRoomCallSoundEnabled,
+  ]);
 
   return null;
 }
@@ -846,11 +881,10 @@ function PresenceFeature() {
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
 
   useEffect(() => {
-    // Classic sync: set_presence query param on every /sync poll.
+    // Classic sync / MSC4186 presence: set_presence query param on every /sync poll.
     // Passing undefined restores the default (online); Offline suppresses broadcasting.
     mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
-    getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
+    getPresenceSyncManager(mx)?.setPresenceEnabled(sendPresence);
   }, [mx, sendPresence]);
 
   return null;
@@ -862,7 +896,7 @@ function SettingsSyncFeature() {
 }
 
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
-  useCallSignaling();
+  useIncomingCallSignaling();
   return (
     <>
       <SettingsSyncFeature />
@@ -877,13 +911,14 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <HandleDecryptPushEvent />
       <NotificationBanner />
       <TelemetryConsentBanner />
+      <UnverifiedNoticeBanner />
       <ThemeMigrationBanner />
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />
-      {children}
+      <IconSizesProvider>{children}</IconSizesProvider>
     </>
   );
 }

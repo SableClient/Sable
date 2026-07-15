@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { scrubMatrixIds, scrubDataObject, scrubMatrixUrl } from './sentryScrubbers';
+import {
+  omitSentryIdentifierFields,
+  scrubMatrixIds,
+  scrubDataObject,
+  sanitizeSentryPayload,
+  scrubMatrixUrl,
+} from './sentryScrubbers';
 
 // ─── scrubMatrixIds ───────────────────────────────────────────────────────────
 
@@ -241,5 +247,34 @@ describe('scrubMatrixUrl – safe inputs', () => {
 
   it('passes through an empty string', () => {
     expect(scrubMatrixUrl('')).toBe('');
+  });
+});
+
+describe('omitSentryIdentifierFields', () => {
+  it('removes identifier keys from call telemetry payloads', () => {
+    expect(
+      omitSentryIdentifierFields({
+        roomId: '!room:example.org',
+        notificationEventId: '$notif',
+        notificationType: 'ring',
+        dm: true,
+      })
+    ).toEqual({
+      notificationType: 'ring',
+      dm: true,
+    });
+  });
+});
+
+describe('sanitizeSentryPayload', () => {
+  it('drops identifier keys and redacts remaining Matrix IDs', () => {
+    expect(
+      sanitizeSentryPayload({
+        roomId: '!room:example.org',
+        message: 'from @alice:example.org',
+      })
+    ).toEqual({
+      message: 'from @[USER_ID]',
+    });
   });
 });

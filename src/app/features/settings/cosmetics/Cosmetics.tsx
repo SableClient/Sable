@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MouseEventHandler } from 'react';
+import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import type { RectCords } from 'folds';
 import {
   Box,
   Button,
   config,
-  Icon,
-  Icons,
+  Input,
   Menu,
   MenuItem,
   PopOut,
   Scroll,
   Switch,
   Text,
+  toRem,
 } from 'folds';
+import { CaretDown, composerIcon } from '$components/icons/phosphor';
+import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -27,6 +29,183 @@ import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
 import { t } from 'i18next';
+
+function PronounPillMaxCountInput({ disabled }: { disabled: boolean }) {
+  const [maxCount, setMaxCount] = useSetting(settingsAtom, 'pronounPillMaxCount');
+  const [inputValue, setInputValue] = useState(maxCount.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 10) {
+      setMaxCount(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(maxCount.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={Number.parseInt(inputValue, 10) === maxCount ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="1"
+      max="10"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      disabled={disabled}
+      outlined
+    />
+  );
+}
+
+function PronounPillMaxLengthInput({ disabled }: { disabled: boolean }) {
+  const [maxLength, setMaxLength] = useSetting(settingsAtom, 'pronounPillMaxLength');
+  const [inputValue, setInputValue] = useState(maxLength.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 64) {
+      setMaxLength(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(maxLength.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={Number.parseInt(inputValue, 10) === maxLength ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="1"
+      max="64"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      disabled={disabled}
+      outlined
+    />
+  );
+}
+
+function IconSizePxInput({
+  settingKey,
+  disabled,
+}: {
+  settingKey: 'iconCompactSizePx' | 'iconInlineSizePx' | 'iconToolbarSizePx' | 'iconEmptySizePx';
+  disabled?: boolean;
+}) {
+  const [sizePx, setSizePx] = useSetting(settingsAtom, settingKey);
+  const [inputValue, setInputValue] = useState(sizePx.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed) && parsed >= 0) {
+      setSizePx(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(sizePx.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={Number.parseInt(inputValue, 10) === sizePx ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="0"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      disabled={disabled}
+      outlined
+    />
+  );
+}
+
+function IconSizeSettings() {
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Icon Sizes</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Compact Icon Size"
+          focusId="icon-compact-size"
+          description="Small icons such as profile chips (default 16px)."
+          after={<IconSizePxInput settingKey="iconCompactSizePx" />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Inline Icon Size"
+          focusId="icon-inline-size"
+          description="Menu items and timeline events (default 20px)."
+          after={<IconSizePxInput settingKey="iconInlineSizePx" />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Toolbar Icon Size"
+          focusId="icon-toolbar-size"
+          description="Composer controls and header icons (default 24px)."
+          after={<IconSizePxInput settingKey="iconToolbarSizePx" />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Empty State Icon Size"
+          focusId="icon-empty-size"
+          description="Other stuff (default 32px)."
+          after={<IconSizePxInput settingKey="iconEmptySizePx" />}
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
 
 const emojiSizeItems = [
   { id: 'none', name: t('Settings.Cosmetics.none_same_size_as_text') },
@@ -60,7 +239,7 @@ function SelectJumboEmojiSize() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">{currentSizeName}</Text>
@@ -126,7 +305,8 @@ function SelectRenderCustomProfileCards() {
   };
 
   const currentLabel =
-    profileCardRenderItems.find((i) => i.id === renderUserCardsMode)?.name ?? t('Settings.Cosmetics.light_and_dark');
+    profileCardRenderItems.find((i) => i.id === renderUserCardsMode)?.name ??
+    t('Settings.Cosmetics.light_and_dark');
 
   return (
     <>
@@ -136,7 +316,7 @@ function SelectRenderCustomProfileCards() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={composerIcon(CaretDown)}
         onClick={handleMenu}
       >
         <Text size="T300">{currentLabel}</Text>
@@ -265,7 +445,9 @@ function IdentityCosmetics() {
         <SettingTile
           title={t('Settings.Cosmetics.colorful_names')}
           focusId="colorful-names"
-          description={t('Settings.Cosmetics.assign_unique_colors_to_users_based_on_their_id_does_not_override_room_spac')}
+          description={t(
+            'Settings.Cosmetics.assign_unique_colors_to_users_based_on_their_id_does_not_override_room_spac'
+          )}
           after={
             <Switch
               variant="Primary"
@@ -283,11 +465,39 @@ function IdentityCosmetics() {
           after={<Switch variant="Primary" value={showPronouns} onChange={setShowPronouns} />}
         />
       </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showPronouns ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Max Pronoun Pills"
+          focusId="pronoun-pill-max-count"
+          description="Maximum number of pronoun pills shown per user in the timeline. Additional pronouns appear behind the ... pill."
+          after={<PronounPillMaxCountInput disabled={!showPronouns} />}
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={{ opacity: showPronouns ? 1 : 0.5 }}
+      >
+        <SettingTile
+          title="Max Pronoun Pill Length"
+          focusId="pronoun-pill-max-length"
+          description="Maximum characters shown in each pronoun pill before truncation."
+          after={<PronounPillMaxLengthInput disabled={!showPronouns} />}
+        />
+      </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title={t('Settings.Cosmetics.pronoun_pills_for_all')}
           focusId="pronoun-pills-for-all"
-          description={t('Settings.Cosmetics.attempts_to_convert_pronouns_in_names_into_pills_e_g_they_them_or_it_its_tu')}
+          description={t(
+            'Settings.Cosmetics.attempts_to_convert_pronouns_in_names_into_pills_e_g_they_them_or_it_its_tu'
+          )}
           after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
         />
       </SequenceCard>
@@ -295,7 +505,9 @@ function IdentityCosmetics() {
         <SettingTile
           title={t('Settings.Cosmetics.render_custom_profile_cards')}
           focusId="custom-profile-cards"
-          description={t('Settings.Cosmetics.choose_whose_profile_card_colors_to_show_everyone_with_a_scheme_only_light')}
+          description={t(
+            'Settings.Cosmetics.choose_whose_profile_card_colors_to_show_everyone_with_a_scheme_only_light'
+          )}
           after={<SelectRenderCustomProfileCards />}
         />
       </SequenceCard>
@@ -303,7 +515,9 @@ function IdentityCosmetics() {
         <SettingTile
           title={t('Settings.Cosmetics.render_global_username_colors')}
           focusId="render-global-username-colors"
-          description={t('Settings.Cosmetics.display_the_username_colors_anyone_can_set_in_their_account_settings')}
+          description={t(
+            'Settings.Cosmetics.display_the_username_colors_anyone_can_set_in_their_account_settings'
+          )}
           after={
             <Switch variant="Primary" value={renderGlobalColors} onChange={setRenderGlobalColors} />
           }
@@ -313,7 +527,9 @@ function IdentityCosmetics() {
         <SettingTile
           title={t('Settings.Cosmetics.render_space_room_username_colors')}
           focusId="render-space-room-username-colors"
-          description={t('Settings.Cosmetics.display_the_username_colors_that_can_be_set_with_color')}
+          description={t(
+            'Settings.Cosmetics.display_the_username_colors_that_can_be_set_with_color'
+          )}
           after={
             <Switch variant="Primary" value={renderRoomColors} onChange={setRenderRoomColors} />
           }
@@ -379,6 +595,7 @@ export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
               {!themeBrowserOpen && (
                 <>
                   <IdentityCosmetics />
+                  <IconSizeSettings />
                   <JumboEmoji />
                   <Privacy />
                   <LanguageSpecificPronouns />

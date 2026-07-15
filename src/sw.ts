@@ -481,6 +481,7 @@ async function handleMinimalPushPayload(
     room_id: roomId,
     event_id: eventId,
     user_id: session.userId,
+    sender_id: sender,
   };
 
   if (eventType === 'm.room.encrypted') {
@@ -623,6 +624,57 @@ const MEDIA_PATHS = [
   '/_matrix/media/r0/thumbnail',
 ];
 
+const ELEMENT_CALL_RINGTONE_PATH = '/public/element-call/assets/ringtone-';
+let silentWavBytesCache: Uint8Array | undefined;
+
+function createSilentWavBytes(durationMs = 250): Uint8Array {
+  if (silentWavBytesCache) return silentWavBytesCache;
+
+  const sampleRate = 8000;
+  const channels = 1;
+  const bitsPerSample = 16;
+  const bytesPerSample = bitsPerSample / 8;
+  const frameCount = Math.max(1, Math.floor((sampleRate * durationMs) / 1000));
+  const dataSize = frameCount * channels * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  // RIFF header
+  view.setUint32(0, 0x52494646, false); // "RIFF"
+  view.setUint32(4, 36 + dataSize, true);
+  view.setUint32(8, 0x57415645, false); // "WAVE"
+
+  // fmt chunk
+  view.setUint32(12, 0x666d7420, false); // "fmt "
+  view.setUint32(16, 16, true); // PCM chunk size
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+  view.setUint16(32, channels * bytesPerSample, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // data chunk
+  view.setUint32(36, 0x64617461, false); // "data"
+  view.setUint32(40, dataSize, true);
+
+  // PCM data is already zeroed => silence.
+  silentWavBytesCache = new Uint8Array(buffer);
+  return silentWavBytesCache;
+}
+
+function isElementCallRingtoneRequest(url: string): boolean {
+  try {
+    const { pathname } = new URL(url);
+    return (
+      pathname.startsWith(ELEMENT_CALL_RINGTONE_PATH) &&
+      (pathname.endsWith('.mp3') || pathname.endsWith('.ogg') || pathname.endsWith('.wav'))
+    );
+  } catch {
+    return false;
+  }
+}
+
 function mediaPath(url: string): boolean {
   try {
     const { pathname } = new URL(url);
@@ -665,7 +717,26 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 self.addEventListener('fetch', (event: FetchEvent) => {
   const { url, method } = event.request;
 
-  if (method !== 'GET' || !mediaPath(url)) return;
+  if (method !== 'GET') return;
+
+  if (isElementCallRingtoneRequest(url)) {
+    const silentWavBytes = createSilentWavBytes();
+    const silentWavBuffer = new Uint8Array(silentWavBytes).buffer;
+    event.respondWith(
+      Promise.resolve(
+        new Response(silentWavBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'audio/wav',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          },
+        })
+      )
+    );
+    return;
+  }
+
+  if (!mediaPath(url)) return;
 
   const { clientId } = event;
 
@@ -837,6 +908,15 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   const pushRoomId: string | undefined = data?.room_id ?? undefined;
   const pushEventId: string | undefined = data?.event_id ?? undefined;
   const isInvite = data?.content?.membership === 'invite';
+  const callNotificationType: string | undefined = data?.callNotificationType ?? undefined;
+  const callIntentKind: string | undefined = data?.callIntentKind ?? undefined;
+  const callIntentRaw: string | undefined = data?.callIntentRaw ?? undefined;
+  const callRefEventId: string | undefined = data?.callRefEventId ?? undefined;
+  const callSenderId: string | undefined = data?.sender_id ?? data?.callSenderId ?? undefined;
+  const callSenderTs: number | undefined =
+    typeof data?.callSenderTs === 'number' ? data.callSenderTs : undefined;
+  const callExpiresAt: number | undefined =
+    typeof data?.callExpiresAt === 'number' ? data.callExpiresAt : undefined;
 
   console.debug('[SW notificationclick] notification data:', JSON.stringify(data, null, 2));
   console.debug('[SW notificationclick] resolved fields:', {
@@ -864,11 +944,25 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     if (pushUserId) u.searchParams.set('uid', pushUserId);
     targetUrl = u.href;
   } else if (pushUserId && pushRoomId) {
-    const callParam = isCall ? '?joinCall=true' : '';
     const segments = pushEventId
-      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
-      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
-    targetUrl = new URL(segments, scope).href;
+      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}`
+      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}`;
+    const target = new URL(segments, scope);
+    if (isCall) {
+      target.searchParams.set('call', '1');
+      if (callNotificationType) target.searchParams.set('callType', callNotificationType);
+      if (callIntentKind) target.searchParams.set('callIntentKind', callIntentKind);
+      if (callIntentRaw) target.searchParams.set('callIntentRaw', callIntentRaw);
+      if (callRefEventId) target.searchParams.set('callRefEventId', callRefEventId);
+      if (callSenderId) target.searchParams.set('callSenderId', callSenderId);
+      if (typeof callSenderTs === 'number') {
+        target.searchParams.set('callSenderTs', String(callSenderTs));
+      }
+      if (typeof callExpiresAt === 'number') {
+        target.searchParams.set('callExpiresAt', String(callExpiresAt));
+      }
+    }
+    targetUrl = target.href;
   } else {
     // Fallback: no room ID or no user ID in payload.
     targetUrl = new URL('inbox/notifications/', scope).href;
@@ -906,6 +1000,13 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             eventId: pushEventId,
             isInvite,
             isCall,
+            callNotificationType,
+            callIntentKind,
+            callIntentRaw,
+            callRefEventId,
+            callSenderId,
+            callSenderTs,
+            callExpiresAt,
           });
           // oxlint-disable-next-line no-await-in-loop
           await wc.focus();

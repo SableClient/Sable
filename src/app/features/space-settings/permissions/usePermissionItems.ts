@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
 import type { PermissionGroup } from '$features/common-settings/permissions';
+import { CALL_PERMISSIONS_GROUP } from '$features/common-settings/permissions';
 import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
 
@@ -130,7 +131,7 @@ export const usePermissionGroups = (): PermissionGroup[] => {
         {
           location: {
             state: true,
-            key: CustomStateEvent.PoniesRoomEmotes,
+            key: CustomStateEvent.ImagePack,
           },
           name: 'Manage Emojis & Stickers',
         },
@@ -146,6 +147,7 @@ export const usePermissionGroups = (): PermissionGroup[] => {
 
     return [
       messagesGroup,
+      CALL_PERMISSIONS_GROUP,
       moderationGroup,
       roomOverviewGroup,
       roomSettingsGroup,

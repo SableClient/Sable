@@ -1,6 +1,15 @@
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Box, Text, Chip, Icon, Icons, IconButton } from 'folds';
+import { Box, Text, Chip, IconButton } from 'folds';
+import {
+  CaretDown,
+  CaretUp,
+  chipIcon,
+  Clock,
+  Lock,
+  PencilSimple,
+  X,
+} from '$components/icons/phosphor';
 import type { Room } from '$types/matrix-sdk';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -39,8 +48,9 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
     enabled: supported,
   });
 
-  const roomEvents = data?.delayed_events.filter(
-    (evt) =>
+  const roomEvents = data?.scheduled?.filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (evt: any) =>
       evt.room_id === room.roomId &&
       (evt.type === 'm.room.message' || evt.type === 'm.room.encrypted')
   );
@@ -78,7 +88,8 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
     [setScheduledTime, setEditingDelayId]
   );
 
-  const visibleEvents = roomEvents?.filter((e) => e.delay_id !== editingDelayId) ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const visibleEvents = roomEvents?.filter((e: any) => e.delay_id !== editingDelayId) ?? [];
 
   if (!supported || visibleEvents.length === 0) {
     return null;
@@ -90,8 +101,8 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
         <Chip
           variant="SurfaceVariant"
           radii="Pill"
-          before={<Icon size="50" src={Icons.Clock} />}
-          after={<Icon size="50" src={expanded ? Icons.ChevronTop : Icons.ChevronBottom} />}
+          before={chipIcon(Clock)}
+          after={chipIcon(expanded ? CaretUp : CaretDown)}
           onClick={() => setExpanded(!expanded)}
         >
           <Text size="B300">
@@ -101,7 +112,8 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
       </Box>
       {expanded && (
         <Box direction="Column" className={css.ScheduledMessagesPanel}>
-          {visibleEvents.map((evt) => {
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          {visibleEvents.map((evt: any) => {
             const deliveryTs = 'delay' in evt ? evt.running_since + evt.delay : evt.running_since;
             const isEncryptedEvt = evt.type === 'm.room.encrypted';
             const body =
@@ -123,7 +135,7 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
                 <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
                   {isEncryptedEvt ? (
                     <Box direction="Row" gap="100" alignItems="Center">
-                      <Icon size="50" src={Icons.Lock} />
+                      {chipIcon(Lock)}
                       <Text size="T300" priority="300">
                         Encrypted — cancel and resend to edit
                       </Text>
@@ -146,7 +158,7 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
                       onClick={() => handleEdit(evt.delay_id, body, formattedBody, deliveryTs)}
                       aria-label="Edit scheduled message"
                     >
-                      <Icon size="50" src={Icons.Pencil} />
+                      {chipIcon(PencilSimple)}
                     </IconButton>
                   )}
                   <IconButton
@@ -156,7 +168,7 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
                     onClick={() => handleCancel(evt.delay_id)}
                     aria-label="Cancel scheduled message"
                   >
-                    <Icon size="50" src={Icons.Cross} />
+                    {chipIcon(X)}
                   </IconButton>
                 </Box>
               </Box>

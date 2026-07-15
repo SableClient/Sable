@@ -1,5 +1,6 @@
 import type { BasePoint, BaseRange } from 'slate';
 import { Editor, Element, Point, Range, Text, Transforms } from 'slate';
+import { ReactEditor } from 'slate-react';
 import type { Room } from '$types/matrix-sdk';
 import type { Nicknames } from '$state/nicknames';
 import { getMxIdLocalPart, isUserId } from '$utils/matrix';
@@ -29,6 +30,16 @@ export const resolveUserMentionName = (userId: string, options?: MentionResolveO
     getMxIdLocalPart(userId) ??
     userId;
   return formatUserMentionDisplayName(base);
+};
+
+/** {@link UserMentionAutocomplete} passes a display label, @room must stay literal, not resolved as a user. */
+export const mentionNameForUserAutocomplete = (
+  id: string,
+  displayName: string,
+  options?: MentionResolveOptions
+): string => {
+  if (displayName === '@room') return '@room';
+  return resolveUserMentionName(id, options);
 };
 
 /** Same #-prefix rule as {@link RoomMentionAutocomplete}. */
@@ -145,6 +156,16 @@ export const moveCursor = (editor: Editor, withSpace?: boolean) => {
   Transforms.move(editor);
   if (withSpace) editor.insertText(' ');
   Transforms.collapse(editor, { edge: 'end' });
+};
+
+export const focusEditor = (editor: Editor) => {
+  requestAnimationFrame(() => {
+    try {
+      ReactEditor.focus(editor);
+    } catch {
+      // Slate DOM may not reflect the latest selection yet.
+    }
+  });
 };
 
 interface PointUntilCharOptions {

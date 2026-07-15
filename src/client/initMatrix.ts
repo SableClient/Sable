@@ -1,12 +1,10 @@
-import type { CryptoCallbacks, MatrixClient, ISyncStateData } from '$types/matrix-sdk';
-import {
-  ClientEvent,
-  createClient,
-  Filter,
-  IndexedDBStore,
-  IndexedDBCryptoStore,
-  SyncState,
+import type {
+  CryptoCallbacks,
+  MatrixClient,
+  MSC3575SlidingSyncRequest,
+  MSC3575SlidingSyncResponse,
 } from '$types/matrix-sdk';
+import { createClient, IndexedDBStore, IndexedDBCryptoStore } from '$types/matrix-sdk';
 
 import { clearNavToActivePathStore } from '$state/navToActivePath';
 import type { Session, Sessions, SessionStoreName } from '$state/sessions';
@@ -19,91 +17,83 @@ import { pushSessionToSW } from '../sw-session';
 import { cryptoCallbacks } from './secretStorageKeys';
 import type { SlidingSyncConfig, SlidingSyncDiagnostics } from './slidingSync';
 import { SlidingSyncManager } from './slidingSync';
+import { PresenceSyncManager } from './presenceSync';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
 const slidingSyncByClient = new WeakMap<MatrixClient, SlidingSyncManager>();
-const classicSyncObserverByClient = new WeakMap<
-  MatrixClient,
-  (state: SyncState, prevState: SyncState | null, data?: ISyncStateData) => void
->();
-const FAST_SYNC_POLL_TIMEOUT_MS = 30_000;
+const presenceSyncByClient = new WeakMap<MatrixClient, PresenceSyncManager>();
 const SLIDING_SYNC_POLL_TIMEOUT_MS = 20000;
-type SyncTransport = 'classic' | 'sliding';
-type SyncTransportReason =
-  | 'sliding_active'
-  | 'sliding_disabled_server'
-  | 'session_opt_out'
-  | 'missing_proxy'
-  | 'cold_cache_bootstrap'
-  | 'probe_failed_fallback'
-  | 'unknown';
-type SyncTransportMeta = {
-  transport: SyncTransport;
-  slidingConfigured: boolean;
-  slidingEnabledOnServer: boolean;
-  sessionOptIn: boolean;
-  slidingRequested: boolean;
-  fallbackFromSliding: boolean;
-  reason: SyncTransportReason;
-};
-const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
-const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
-const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 20000;
 
 type FetchRoomEventResult = Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>;
 type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
   fetchRoomEvent: (roomId: string, eventId: string) => Promise<FetchRoomEventResult>;
 };
 
-type StartupFetchRoomEventPatchOptions = {
-  stubOnCacheMiss: boolean;
+const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
+
+const slidingSyncConnIdCleanupByClient = new WeakMap<MatrixClient, () => void>();
+
+type SlidingSyncMethod = (
+  reqBody: MSC3575SlidingSyncRequest,
+  proxyBaseUrl?: string,
+  abortSignal?: AbortSignal
+) => Promise<MSC3575SlidingSyncResponse>;
+
+type MatrixClientWithWritableSlidingSync = MatrixClient & {
+  slidingSync: SlidingSyncMethod;
 };
+
+type SlidingSyncRequestWithConnId = MSC3575SlidingSyncRequest & { conn_id?: string };
+
+const SLIDING_SYNC_CONN_ID = 'sable-main';
+
+function installSlidingSyncConnId(mx: MatrixClient): void {
+  slidingSyncConnIdCleanupByClient.get(mx)?.();
+
+  const mxWritable = mx as MatrixClientWithWritableSlidingSync;
+  const original = mx.slidingSync.bind(mx) as SlidingSyncMethod;
+
+  mxWritable.slidingSync = (reqBody, proxyBaseUrl, abortSignal) => {
+    const req = reqBody as SlidingSyncRequestWithConnId;
+    if (req.conn_id === undefined) {
+      req.conn_id = SLIDING_SYNC_CONN_ID;
+    }
+    return original(reqBody, proxyBaseUrl, abortSignal);
+  };
+
+  slidingSyncConnIdCleanupByClient.set(mx, () => {
+    slidingSyncConnIdCleanupByClient.delete(mx);
+    mxWritable.slidingSync = original;
+  });
+}
 
 function installStartupFetchRoomEventPatch(
   mx: MatrixClient,
-  options: StartupFetchRoomEventPatchOptions
+  slidingSyncManager: SlidingSyncManager
 ): void {
   fetchRoomEventStartupCleanupByClient.get(mx)?.();
 
-  const { stubOnCacheMiss } = options;
   const mxWritable = mx as MatrixClientWithWritableFetchRoomEvent;
   const origFetchRoomEvent = mx.fetchRoomEvent.bind(mx);
-  let restored = false;
 
   const restore = () => {
-    if (restored) return;
-    restored = true;
     fetchRoomEventStartupCleanupByClient.delete(mx);
-    // Put the real fetchRoomEvent back and detach this
     mxWritable.fetchRoomEvent = origFetchRoomEvent;
-    mx.off(ClientEvent.Sync, onSync);
-  };
-
-  const onSync = (state: SyncState) => {
-    // Initial sync burst is over, let normal server fetches run again
-    if (state === SyncState.Prepared || state === SyncState.Syncing) {
-      restore();
-    }
   };
 
   mxWritable.fetchRoomEvent = (roomId: string, eventId: string) => {
-    if (restored) return origFetchRoomEvent(roomId, eventId);
+    if (slidingSyncManager.isRoomActive(roomId)) {
+      return origFetchRoomEvent(roomId, eventId);
+    }
     const cachedEvent = mx.getRoom(roomId)?.findEventById(eventId);
-    if (cachedEvent) {
-      return Promise.resolve(cachedEvent.event);
-    }
-    if (stubOnCacheMiss) {
-      const payload: FetchRoomEventResult = {
-        event_id: eventId,
-        room_id: roomId,
-      };
-      return Promise.resolve(payload);
-    }
-    return origFetchRoomEvent(roomId, eventId);
+    const payload: FetchRoomEventResult = cachedEvent?.event ?? {
+      event_id: eventId,
+      room_id: roomId,
+    };
+    return Promise.resolve(payload);
   };
 
-  mx.on(ClientEvent.Sync, onSync);
   fetchRoomEventStartupCleanupByClient.set(mx, restore);
 }
 
@@ -196,18 +186,6 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
     });
   });
 
-const databaseExists = async (dbName: string): Promise<boolean> => {
-  try {
-    const dbs = await window.indexedDB.databases();
-    return dbs.some((db) => db.name === dbName);
-  } catch {
-    return false;
-  }
-};
-
-const isClientReadyForUi = (syncState: string | null): boolean =>
-  syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
-
 const isMismatch = (err: unknown): boolean => {
   const msg = err instanceof Error ? err.message : String(err);
   return (
@@ -217,57 +195,6 @@ const isMismatch = (err: unknown): boolean => {
     msg.includes('account in the constructor')
   );
 };
-
-const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> =>
-  /* oxlint-disable promise/no-multiple-resolved */
-  new Promise((resolve) => {
-    const waitStart = performance.now();
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      mx.removeListener(ClientEvent.Sync, onSync);
-      clearTimeout(timer);
-      const waitMs = performance.now() - waitStart;
-      Sentry.metrics.distribution('sable.sync.client_ready_ms', waitMs, {
-        attributes: { timed_out: String(timedOut) },
-      });
-      if (timedOut) {
-        Sentry.addBreadcrumb({
-          category: 'sync',
-          message: 'waitForClientReady timed out — client may be stuck',
-          level: 'warning',
-          data: { timeout_ms: timeoutMs },
-        });
-      }
-      resolve();
-    };
-    /* oxlint-enable promise/no-multiple-resolved */
-
-    if (isClientReadyForUi(mx.getSyncState())) {
-      Sentry.metrics.distribution('sable.sync.client_ready_ms', 0, {
-        attributes: { timed_out: 'false' },
-      });
-      finish();
-      return;
-    }
-
-    let timer = 0;
-    let timedOut = false;
-    const onSync = (state: string) => {
-      debugLog.info('sync', `Sync state changed: ${state}`, {
-        state,
-        ready: isClientReadyForUi(state),
-      });
-      if (isClientReadyForUi(state)) finish();
-    };
-
-    timer = window.setTimeout(() => {
-      timedOut = true;
-      finish();
-    }, timeoutMs);
-    mx.on(ClientEvent.Sync, onSync);
-  });
 
 /**
  * Pre-flight check: scans every IndexedDB database and deletes any that
@@ -445,7 +372,8 @@ export type StartClientConfig = {
   timelineLimit?: number;
 };
 
-export type ClientSyncDiagnostics = SyncTransportMeta & {
+export type ClientSyncDiagnostics = {
+  transport: 'sliding' | 'classic';
   syncState: string | null;
   sliding?: SlidingSyncDiagnostics;
 };
@@ -457,268 +385,67 @@ const disposeSlidingSync = (mx: MatrixClient): void => {
   slidingSyncByClient.delete(mx);
 };
 
+const disposePresenceSync = (mx: MatrixClient): void => {
+  const manager = presenceSyncByClient.get(mx);
+  if (!manager) return;
+  manager.dispose();
+  presenceSyncByClient.delete(mx);
+};
+
 export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | undefined =>
   slidingSyncByClient.get(mx);
+
+export const getPresenceSyncManager = (mx: MatrixClient): PresenceSyncManager | undefined =>
+  presenceSyncByClient.get(mx);
 
 export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
   debugLog.info('sync', 'Starting Matrix client', { userId: mx.getUserId() });
   disposeSlidingSync(mx);
+  disposePresenceSync(mx);
+
   const slidingConfig = config?.slidingSync;
-  const slidingEnabledOnServer = resolveSlidingEnabled(slidingConfig?.enabled);
-  const slidingRequested = slidingEnabledOnServer && config?.sessionSlidingSyncOptIn === true;
-  const proxyBaseUrl = slidingConfig?.proxyBaseUrl ?? config?.baseUrl;
-  const hasSlidingProxy = typeof proxyBaseUrl === 'string' && proxyBaseUrl.trim().length > 0;
-  log.log('startClient sliding config', {
-    userId: mx.getUserId(),
-    enabled: slidingConfig?.enabled,
-    enabledOnServer: slidingEnabledOnServer,
-    sessionOptIn: config?.sessionSlidingSyncOptIn === true,
-    requestedEnabled: slidingRequested,
-    proxyBaseUrl,
-    hasSlidingProxy,
-  });
-  debugLog.info('sync', 'Sliding sync configuration', {
-    enabledOnServer: slidingEnabledOnServer,
-    requested: slidingRequested,
-    hasProxy: hasSlidingProxy,
-  });
+  const proxyBaseUrl = slidingConfig?.proxyBaseUrl ?? config?.baseUrl ?? mx.baseUrl;
+  const useSliding =
+    config?.sessionSlidingSyncOptIn === true &&
+    !!slidingConfig &&
+    resolveSlidingEnabled(slidingConfig?.enabled);
 
-  const CLASSIC_SYNC_STARTUP_TIMEOUT_MS = 45_000;
+  const presenceManager = new PresenceSyncManager(mx);
+  presenceSyncByClient.set(mx, presenceManager);
 
-  const startClassicSync = async (
-    fallbackFromSliding: boolean,
-    reason: SyncTransportReason
-  ): Promise<void> => {
-    syncTransportByClient.set(mx, {
-      transport: 'classic',
-      slidingConfigured: slidingEnabledOnServer,
-      slidingEnabledOnServer,
-      sessionOptIn: config?.sessionSlidingSyncOptIn === true,
-      slidingRequested,
-      fallbackFromSliding,
-      reason,
-    });
-    Sentry.metrics.count('sable.sync.transport', 1, {
-      attributes: {
-        transport: 'classic',
-        reason,
-        fallback: String(fallbackFromSliding),
-      },
+  presenceManager.start();
+
+  let manager: SlidingSyncManager | undefined;
+
+  if (useSliding) {
+    manager = new SlidingSyncManager(mx, proxyBaseUrl, {
+      ...slidingConfig,
+      includeInviteList: true,
+      pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
     });
 
-    const startupTimeout = new Promise<void>((resolve) => {
-      window.setTimeout(() => {
-        debugLog.warn('sync', 'Classic sync startup timed out', {
-          userId: mx.getUserId(),
-          timeoutMs: CLASSIC_SYNC_STARTUP_TIMEOUT_MS,
-        });
-        resolve();
-      }, CLASSIC_SYNC_STARTUP_TIMEOUT_MS);
-    });
+    installStartupFetchRoomEventPatch(mx, manager);
+    installSlidingSyncConnId(mx);
 
-    const effectivePollTimeout = config?.pollTimeoutMs ?? FAST_SYNC_POLL_TIMEOUT_MS;
-    const effectiveTimelineLimit = config?.timelineLimit ?? 10;
-
-    const classicFilter = new Filter(mx.getUserId() ?? undefined);
-    classicFilter.setTimelineLimit(effectiveTimelineLimit);
-    // Ensure lazy loading stays on (carried by buildDefaultFilter but explicit here
-    // since we replace the filter entirely rather than merging).
-    const filterDefinition = classicFilter.getDefinition();
-    if (filterDefinition.room) {
-      filterDefinition.room.timeline = filterDefinition.room.timeline ?? {};
-      (filterDefinition.room.timeline as { lazy_load_members?: boolean }).lazy_load_members = true;
-    }
-
-    installStartupFetchRoomEventPatch(mx, { stubOnCacheMiss: true });
-
-    let syncStarted: Promise<void>;
-    try {
-      syncStarted = mx.startClient({
-        lazyLoadMembers: true,
-        pollTimeout: effectivePollTimeout,
-        threadSupport: true,
-        filter: classicFilter,
-      });
-    } catch (syncErr) {
-      fetchRoomEventStartupCleanupByClient.get(mx)?.();
-      throw syncErr;
-    }
-
-    await Promise.race([syncStarted, startupTimeout]);
-    // Attach an ongoing classic-sync observer — equivalent to SlidingSyncManager's
-    // onLifecycle listener. Tracks state transitions, initial-sync timing, and errors.
-    let classicSyncCount = 0;
-    const classicSyncStartMs = performance.now();
-    let classicInitialSyncDone = false;
-    const classicSyncListener = (
-      state: SyncState,
-      prevState: SyncState | null,
-      data?: ISyncStateData
-    ) => {
-      classicSyncCount += 1;
-      Sentry.metrics.count('sable.sync.cycle', 1, {
-        attributes: { transport: 'classic', state },
-      });
-      debugLog.info('sync', `Classic sync state: ${state}`, {
-        state,
-        prevState: prevState ?? 'null',
-        syncNumber: classicSyncCount,
-        error: data?.error?.message,
-      });
-      if (state === SyncState.Error || state === SyncState.Reconnecting) {
-        debugLog.warn('sync', `Classic sync problem: ${state}`, {
-          state,
-          prevState: prevState ?? 'null',
-          errorMessage: data?.error?.message,
-          syncNumber: classicSyncCount,
-        });
-        Sentry.metrics.count('sable.sync.error', 1, {
-          attributes: { transport: 'classic', state },
-        });
-        Sentry.addBreadcrumb({
-          category: 'sync.classic',
-          message: `Classic sync problem: ${state}`,
-          level: 'warning',
-          data: {
-            state,
-            prevState,
-            error: data?.error?.message,
-            syncNumber: classicSyncCount,
-          },
-        });
-      }
-      if (
-        !classicInitialSyncDone &&
-        (state === SyncState.Syncing || state === SyncState.Prepared)
-      ) {
-        classicInitialSyncDone = true;
-        const elapsed = performance.now() - classicSyncStartMs;
-        debugLog.info('sync', 'Classic sync initial ready', {
-          state,
-          syncNumber: classicSyncCount,
-          elapsed: `${elapsed.toFixed(0)}ms`,
-        });
-        Sentry.metrics.distribution('sable.sync.initial_ms', elapsed, {
-          attributes: { transport: 'classic' },
-        });
-      }
-    };
-    classicSyncObserverByClient.set(mx, classicSyncListener);
-    mx.on(ClientEvent.Sync, classicSyncListener);
-  };
-
-  const shouldBootstrapClassicOnColdCache = async (): Promise<boolean> => {
-    if (slidingConfig?.bootstrapClassicOnColdCache === false) return false;
-    const userId = mx.getUserId();
-    if (!userId) return false;
-
-    const [storeHasAccount, fallbackStoreHasAccount, hasStoreDb, hasFallbackStoreDb] =
-      await Promise.all([
-        readStoredAccount(`sync${userId}`),
-        readStoredAccount('web-sync-store'),
-        databaseExists(`sync${userId}`),
-        databaseExists('web-sync-store'),
-      ]);
-
-    const hasWarmCache =
-      storeHasAccount === userId ||
-      fallbackStoreHasAccount === userId ||
-      hasStoreDb ||
-      hasFallbackStoreDb;
-
-    return !hasWarmCache;
-  };
-
-  if (!slidingEnabledOnServer || !slidingRequested) {
-    await startClassicSync(
-      false,
-      slidingEnabledOnServer ? 'session_opt_out' : 'sliding_disabled_server'
-    );
-    return;
+    manager.attach();
+    slidingSyncByClient.set(mx, manager);
   }
-
-  if (!hasSlidingProxy) {
-    await startClassicSync(false, 'missing_proxy');
-    return;
-  }
-
-  if (await shouldBootstrapClassicOnColdCache()) {
-    log.log('startClient cold-cache bootstrap: using classic sync for this run', mx.getUserId());
-    await startClassicSync(false, 'cold_cache_bootstrap');
-    waitForClientReady(mx, COLD_CACHE_BOOTSTRAP_TIMEOUT_MS).catch((err) => {
-      debugLog.warn('network', 'Cold cache bootstrap timed out', {
-        userId: mx.getUserId(),
-        timeout: `${COLD_CACHE_BOOTSTRAP_TIMEOUT_MS}ms`,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
-    return;
-  }
-
-  const resolvedProxyBaseUrl = proxyBaseUrl;
-  const probeTimeoutMs = (() => {
-    const v = slidingConfig?.probeTimeoutMs;
-    return typeof v === 'number' && !Number.isNaN(v) && v > 0 ? Math.round(v) : 5000;
-  })();
-  const supported = await SlidingSyncManager.probe(mx, resolvedProxyBaseUrl, probeTimeoutMs);
-  log.log('startClient sliding probe result', {
-    userId: mx.getUserId(),
-    requestedEnabled: slidingRequested,
-    hasSlidingProxy,
-    proxyBaseUrl: resolvedProxyBaseUrl,
-    supported,
-  });
-  if (!supported) {
-    log.warn('Sliding Sync unavailable, falling back to classic sync for', mx.getUserId());
-    debugLog.warn('network', 'Sliding Sync probe failed, falling back to classic sync', {
-      userId: mx.getUserId(),
-      proxyBaseUrl: resolvedProxyBaseUrl,
-      probeTimeout: `${probeTimeoutMs}ms`,
-    });
-    await startClassicSync(true, 'probe_failed_fallback');
-    return;
-  }
-
-  const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
-    ...slidingConfig,
-    includeInviteList: true,
-    pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
-  });
-  manager.attach();
-  slidingSyncByClient.set(mx, manager);
-  syncTransportByClient.set(mx, {
-    transport: 'sliding',
-    slidingConfigured: true,
-    slidingEnabledOnServer,
-    sessionOptIn: config?.sessionSlidingSyncOptIn === true,
-    slidingRequested,
-    fallbackFromSliding: false,
-    reason: 'sliding_active',
-  });
-  Sentry.metrics.count('sable.sync.transport', 1, {
-    attributes: {
-      transport: 'sliding',
-      reason: 'sliding_active',
-      fallback: 'false',
-    },
-  });
 
   try {
-    installStartupFetchRoomEventPatch(mx, { stubOnCacheMiss: false });
     await mx.startClient({
       lazyLoadMembers: true,
-      slidingSync: manager.slidingSync,
+      slidingSync: manager?.slidingSync,
       threadSupport: true,
     });
   } catch (err) {
-    fetchRoomEventStartupCleanupByClient.get(mx)?.();
     debugLog.error('network', 'Failed to start client with sliding sync', {
       error: err instanceof Error ? err.message : String(err),
       userId: mx.getUserId(),
-      proxyBaseUrl: resolvedProxyBaseUrl,
+      proxyBaseUrl: useSliding ? proxyBaseUrl : undefined,
       stack: err instanceof Error ? err.stack : undefined,
     });
     disposeSlidingSync(mx);
+    disposePresenceSync(mx);
     throw err;
   }
 };
@@ -726,15 +453,10 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
 export const stopClient = (mx: MatrixClient): void => {
   log.log('stopClient', mx.getUserId());
   debugLog.info('sync', 'Stopping client', { userId: mx.getUserId() });
-  fetchRoomEventStartupCleanupByClient.get(mx)?.();
+  slidingSyncConnIdCleanupByClient.get(mx)?.();
   disposeSlidingSync(mx);
-  const classicSyncListener = classicSyncObserverByClient.get(mx);
-  if (classicSyncListener) {
-    mx.removeListener(ClientEvent.Sync, classicSyncListener);
-    classicSyncObserverByClient.delete(mx);
-  }
+  disposePresenceSync(mx);
   mx.stopClient();
-  syncTransportByClient.delete(mx);
 };
 
 export const clearCacheAndReload = async (mx: MatrixClient) => {
@@ -746,19 +468,11 @@ export const clearCacheAndReload = async (mx: MatrixClient) => {
 };
 
 export const getClientSyncDiagnostics = (mx: MatrixClient): ClientSyncDiagnostics => {
-  const meta = syncTransportByClient.get(mx) ?? {
-    transport: 'classic',
-    slidingConfigured: false,
-    slidingEnabledOnServer: false,
-    sessionOptIn: false,
-    slidingRequested: false,
-    fallbackFromSliding: false,
-    reason: 'unknown',
-  };
+  const slidingManager = slidingSyncByClient.get(mx);
   return {
-    ...meta,
+    transport: slidingManager ? 'sliding' : 'classic',
     syncState: mx.getSyncState(),
-    sliding: slidingSyncByClient.get(mx)?.getDiagnostics(),
+    sliding: slidingManager?.getDiagnostics(),
   };
 };
 

@@ -16,6 +16,12 @@ export const ImageViewerHeader = style([
     borderBottomWidth: config.borderWidth.B300,
     flexShrink: 0,
     gap: config.space.S200,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    height: 'auto',
+    minHeight: config.space.S400,
+    paddingTop: config.space.S100,
+    paddingBottom: config.space.S100,
   },
 ]);
 
@@ -58,4 +64,5 @@ export const ImageViewerImg = style([
 
 export const ImageViewerImgPixelated = style({
   imageRendering: 'pixelated',
+  willChange: 'auto',
 });

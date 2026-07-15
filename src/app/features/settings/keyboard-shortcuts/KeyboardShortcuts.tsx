@@ -30,21 +30,39 @@ function formatKey(key: string): string {
 
 const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
   {
-    name: t('Settings.KeyboardShortcuts.navigation'),
+    name: 'General',
+    shortcuts: [{ keys: 'Ctrl+F / ⌘+F', description: 'Search for messages' }],
+  },
+  {
+    name: 'Navigation',
     shortcuts: [
-      { keys: 'Alt+N', description: t('Settings.KeyboardShortcuts.jump_to_the_highest_priority_unread_room') },
-      { keys: 'Alt+Shift+Down', description: t('Settings.KeyboardShortcuts.go_to_next_unread_room_cycle') },
-      { keys: 'Alt+Shift+Up', description: t('Settings.KeyboardShortcuts.go_to_previous_unread_room_cycle') },
+      {
+        keys: 'Alt+N',
+        description: t('Settings.KeyboardShortcuts.jump_to_the_highest_priority_unread_room'),
+      },
+      {
+        keys: 'Alt+Shift+Down',
+        description: t('Settings.KeyboardShortcuts.go_to_next_unread_room_cycle'),
+      },
+      {
+        keys: 'Alt+Shift+Up',
+        description: t('Settings.KeyboardShortcuts.go_to_previous_unread_room_cycle'),
+      },
+      { keys: 'Ctrl+K / ⌘+K', description: 'Search and go to Room' },
     ],
   },
   {
     name: t('Settings.KeyboardShortcuts.messages'),
     shortcuts: [
       { keys: 'Ctrl+Z / ⌘+Z', description: t('Settings.KeyboardShortcuts.undo_in_message_editor') },
-      { keys: 'Ctrl+Shift+Z / ⌘+Shift+Z', description: t('Settings.KeyboardShortcuts.redo_in_message_editor') },
+      {
+        keys: 'Ctrl+Shift+Z / ⌘+Shift+Z',
+        description: t('Settings.KeyboardShortcuts.redo_in_message_editor'),
+      },
       { keys: 'Ctrl+B / ⌘+B', description: t('Settings.KeyboardShortcuts.bold') },
       { keys: 'Ctrl+I / ⌘+I', description: t('Settings.KeyboardShortcuts.italic') },
       { keys: 'Ctrl+U / ⌘+U', description: t('Settings.KeyboardShortcuts.underline') },
+      { keys: 'Ctrl+E / ⌘+E', description: 'Open Sticker Picker' },
     ],
   },
 ];

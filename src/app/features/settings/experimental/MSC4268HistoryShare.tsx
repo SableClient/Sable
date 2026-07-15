@@ -24,7 +24,9 @@ export function MSC4268HistoryShare() {
         <SettingTile
           title={t('Settings.enable_the_sharehistory_command')}
           focusId="sharehistory-command"
-          description={t('Settings.if_enabled_this_command_will_allow_users_to_share_encrypted_history_with_ot')}
+          description={t(
+            'Settings.if_enabled_this_command_will_allow_users_to_share_encrypted_history_with_ot'
+          )}
           after={
             <Switch
               variant="Primary"

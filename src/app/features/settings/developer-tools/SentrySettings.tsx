@@ -19,6 +19,17 @@ const ALL_CATEGORIES: LogCategory[] = [
   'general',
 ];
 
+const handleExportLogs = () => {
+  const data = getDebugLogger().exportLogs();
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sable-debug-logs-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 export function SentrySettings() {
   const [categoryEnabled, setCategoryEnabled] = useState<Record<LogCategory, boolean>>(() => {
     const logger = getDebugLogger();
@@ -38,17 +49,6 @@ export function SentrySettings() {
   const handleCategoryToggle = (category: LogCategory, enabled: boolean) => {
     getDebugLogger().setBreadcrumbCategoryEnabled(category, enabled);
     setCategoryEnabled((prev) => ({ ...prev, [category]: enabled }));
-  };
-
-  const handleExportLogs = () => {
-    const data = getDebugLogger().exportLogs();
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sable-debug-logs-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);

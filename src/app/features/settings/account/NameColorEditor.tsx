@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Box, Button, config, Text, Input, IconButton, Icon, Icons } from 'folds';
+import { Box, Button, config, Text, Input, IconButton } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 import { HexColorPicker } from 'react-colorful';
 import { SettingTile } from '$components/setting-tile';
 import { HexColorPickerPopOut } from '$components/HexColorPickerPopOut';
@@ -138,7 +139,7 @@ export function NameColorEditor({
                     onClick={handleReset}
                     title="Reset to default"
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    {menuIcon(X)}
                   </IconButton>
                 )}
               </Box>

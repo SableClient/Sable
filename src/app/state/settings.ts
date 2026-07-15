@@ -1,6 +1,7 @@
 import { atom, type WritableAtom } from 'jotai';
 import type { Store } from 'jotai/vanilla/store';
 import { mobileOrTablet } from '$utils/user-agent';
+import type { IImageInfo } from '$types/matrix/common';
 
 const STORAGE_KEY = 'settings';
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
@@ -25,6 +26,7 @@ export enum CaptionPosition {
 
 export enum ShowRoomIcon {
   Always = 'always',
+  Strict = 'strict',
   Smart = 'smart',
   Never = 'never',
 }
@@ -34,6 +36,14 @@ export type PerRoomShowRoomIcon = {
 };
 
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
+export const CALL_TONE_IDS = [
+  'sable-default',
+  'classic-soft',
+  'minimal-ping',
+  'silent',
+  'custom',
+] as const;
+export type CallRingtoneId = (typeof CALL_TONE_IDS)[number];
 
 export type ThemeRemoteFavorite = {
   fullUrl: string;
@@ -56,23 +66,24 @@ export type ThemeRemoteTweakFavorite = {
 export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
 
 /** Where to use crisp nearest-neighbor (pixelated) image scaling. */
-export type PixelatedImageRenderingMode = 'both' | 'chat' | 'viewer' | 'none';
+export type PixelatedImageRenderingMode = 'always' | 'smart' | 'never';
 
-export function isPixelatedChatRendering(mode: PixelatedImageRenderingMode): boolean {
-  return mode === 'both' || mode === 'chat';
-}
-
-export function isPixelatedViewerRendering(mode: PixelatedImageRenderingMode): boolean {
-  return mode === 'both' || mode === 'viewer';
+export function isPixelatedRendering(
+  mode: PixelatedImageRenderingMode,
+  info?: IImageInfo
+): boolean {
+  if (mode === 'smart') return !!info && !!info.w && !!info.h && (info.w < 192 || info.h < 192);
+  return mode === 'always';
 }
 
 export function shouldApplyUserHeroCards(
   mode: RenderUserCardsMode,
-  brightness: string | undefined
+  brightness?: string,
+  color?: string
 ): boolean {
+  if (!color || (brightness !== 'light' && brightness !== 'dark')) return false;
   if (mode === 'none') return false;
   if (mode === 'both') return true;
-  if (brightness !== 'light' && brightness !== 'dark') return false;
   return brightness === mode;
 }
 
@@ -96,6 +107,7 @@ export interface Settings {
   memberSortFilterIndex: number;
   enterForNewline: boolean;
   editorToolbar: boolean;
+  editorOldAddFile: boolean;
   composerToolbarOpen: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
@@ -103,6 +115,12 @@ export interface Settings {
   hideNickAvatarEvents: boolean;
   showHiddenEvents: boolean;
   showTombstoneEvents: boolean;
+  hiddenEventEdits: boolean;
+  hiddenEventRedactionTimeline: boolean;
+  hiddenEventReactions: boolean;
+  hiddenEventReactionTombstone: boolean;
+  hiddenEventReactionRedactionTimeline: boolean;
+  hiddenEventOther: boolean;
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
@@ -113,11 +131,15 @@ export interface Settings {
   clientUrlPreview: boolean;
   encClientUrlPreview: boolean;
   clientPreviewYoutube: boolean;
+  enableGifPicker: boolean;
+  showInteractiveMap: boolean;
+  showEncInteractiveMap: boolean;
 
   usePushNotifications: boolean;
   useInAppNotifications: boolean;
   useSystemNotifications: boolean;
   isNotificationSounds: boolean;
+  backgroundNotificationSounds: boolean;
   showMessageContentInNotifications: boolean;
   showMessageContentInEncryptedNotifications: boolean;
   clearNotificationsOnRead: boolean;
@@ -127,15 +149,22 @@ export interface Settings {
 
   developerTools: boolean;
   enableMSC4268CMD: boolean;
+  enableMediaGalleries: boolean;
   settingsSyncEnabled: boolean;
 
   // Cosmetics!
+  iconCompactSizePx: number;
+  iconInlineSizePx: number;
+  iconToolbarSizePx: number;
+  iconEmptySizePx: number;
   jumboEmojiSize: JumboEmojiSize;
   privacyBlur: boolean;
   privacyBlurAvatars: boolean;
   privacyBlurEmotes: boolean;
   showPronouns: boolean;
   parsePronouns: boolean;
+  pronounPillMaxCount: number;
+  pronounPillMaxLength: number;
   renderGlobalNameColors: boolean;
   renderUserCards: RenderUserCardsMode;
   filterPronounsBasedOnLanguage?: boolean;
@@ -162,6 +191,7 @@ export interface Settings {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  oldSidebar: boolean;
   pixelatedImageRendering: PixelatedImageRenderingMode;
   incomingInlineImagesDefaultHeight: number;
   incomingInlineImagesMaxHeight: number;
@@ -170,6 +200,13 @@ export interface Settings {
   subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
   joinCallOnSingleClick: boolean;
+  incomingCallSoundEnabled: boolean;
+  incomingVoiceRoomCallSoundEnabled: boolean;
+  outgoingRingbackEnabled: boolean;
+  callRingtoneVolume: number;
+  callRingtoneId: CallRingtoneId;
+  callRingbackTone: CallRingtoneId;
+  callSoundOverrideGlobalNotifications: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
   pkCompat: boolean;
@@ -179,6 +216,7 @@ export interface Settings {
   closeFoldersByDefault: boolean;
   perRoomShowRoomIcon: PerRoomShowRoomIcon[];
   showRoomIcon: ShowRoomIcon;
+  roomIconOverlay: boolean;
   showRoomBanners: boolean;
   roomSidebarWidth: number;
   roomBannerHeight: number;
@@ -187,9 +225,12 @@ export interface Settings {
   threadRootHeight: number;
   vcmsgSidebarWidth: number;
   widgetSidebarWidth: number;
+  isShowingAllRoomsInHome: boolean;
+  sendIndividualAttachmentAsCaption: boolean;
 
   // furry stuff
   renderAnimals: boolean;
+  animalKind: string | undefined;
 
   // theme catalog
   themeCatalogOnboardingDone: boolean;
@@ -229,6 +270,7 @@ export const defaultSettings: Settings = {
   memberSortFilterIndex: 0,
   enterForNewline: false,
   editorToolbar: false,
+  editorOldAddFile: false,
   composerToolbarOpen: false,
   messageLayout: 0,
   messageSpacing: '400',
@@ -242,11 +284,21 @@ export const defaultSettings: Settings = {
   clientUrlPreview: false,
   encClientUrlPreview: false,
   clientPreviewYoutube: false,
+  enableGifPicker: true,
+  showInteractiveMap: true,
+  showEncInteractiveMap: false,
   showHiddenEvents: false,
-  showTombstoneEvents: false,
+  showTombstoneEvents: true,
+  hiddenEventEdits: true,
+  hiddenEventRedactionTimeline: true,
+  hiddenEventReactions: true,
+  hiddenEventReactionTombstone: true,
+  hiddenEventReactionRedactionTimeline: true,
+  hiddenEventOther: true,
   legacyUsernameColor: false,
 
   enableMSC4268CMD: false,
+  enableMediaGalleries: false,
 
   // Push notifications (SW/Sygnal): default on for mobile, opt-in on desktop.
   // In-app pill banner: default on for mobile (primary foreground alert), opt-in on desktop.
@@ -255,6 +307,7 @@ export const defaultSettings: Settings = {
   useInAppNotifications: mobileOrTablet(),
   useSystemNotifications: !mobileOrTablet(),
   isNotificationSounds: true,
+  backgroundNotificationSounds: true,
   showMessageContentInNotifications: false,
   showMessageContentInEncryptedNotifications: false,
   clearNotificationsOnRead: false,
@@ -266,12 +319,18 @@ export const defaultSettings: Settings = {
   settingsSyncEnabled: false,
 
   // Cosmetics!
+  iconCompactSizePx: 16,
+  iconInlineSizePx: 20,
+  iconToolbarSizePx: 24,
+  iconEmptySizePx: 32,
   jumboEmojiSize: 'normal',
   privacyBlur: false,
   privacyBlurAvatars: false,
   privacyBlurEmotes: false,
   showPronouns: true,
   parsePronouns: true,
+  pronounPillMaxCount: 3,
+  pronounPillMaxLength: 16,
   renderGlobalNameColors: true,
   renderUserCards: 'both',
   renderRoomColors: true,
@@ -296,14 +355,22 @@ export const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
-  pixelatedImageRendering: 'viewer',
+  oldSidebar: false,
+  pixelatedImageRendering: 'smart',
   incomingInlineImagesDefaultHeight: 32,
   incomingInlineImagesMaxHeight: 64,
   linkPreviewImageMaxHeight: 640,
   saveStickerEmojiBandwidth: false,
   subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,
-  joinCallOnSingleClick: true,
+  joinCallOnSingleClick: false,
+  incomingCallSoundEnabled: true,
+  incomingVoiceRoomCallSoundEnabled: false,
+  outgoingRingbackEnabled: true,
+  callRingtoneVolume: 80,
+  callRingtoneId: 'sable-default',
+  callRingbackTone: 'sable-default',
+  callSoundOverrideGlobalNotifications: false,
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,
@@ -312,7 +379,8 @@ export const defaultSettings: Settings = {
   showPersonaSetting: false,
   closeFoldersByDefault: false,
   perRoomShowRoomIcon: [],
-  showRoomIcon: ShowRoomIcon.Smart,
+  showRoomIcon: ShowRoomIcon.Strict,
+  roomIconOverlay: true,
   showRoomBanners: true,
   roomSidebarWidth: 256,
   roomBannerHeight: 190,
@@ -321,8 +389,11 @@ export const defaultSettings: Settings = {
   threadRootHeight: 220,
   vcmsgSidebarWidth: 399,
   widgetSidebarWidth: 420,
+  isShowingAllRoomsInHome: false,
+  sendIndividualAttachmentAsCaption: true,
   // furry stuff
   renderAnimals: true,
+  animalKind: undefined,
 
   // theme catalog
   themeCatalogOnboardingDone: false,
@@ -353,6 +424,12 @@ function cloneDefaultSettings(): Settings {
   };
 }
 
+const CALL_TONE_ID_SET = new Set<unknown>(CALL_TONE_IDS);
+
+const isCallToneId = (value: unknown): value is CallRingtoneId => CALL_TONE_ID_SET.has(value);
+
+const clampPercent = (value: number): number => Math.max(0, Math.min(100, Math.round(value)));
+
 function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (parsed.monochromeMode === true && parsed.saturationLevel === undefined) {
     parsed.saturationLevel = 0;
@@ -375,10 +452,9 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (typeof parsed.pixelatedImageRendering === 'boolean') {
     parsed.pixelatedImageRendering = parsed.pixelatedImageRendering ? 'both' : 'none';
   } else if (
-    parsed.pixelatedImageRendering !== 'both' &&
-    parsed.pixelatedImageRendering !== 'chat' &&
-    parsed.pixelatedImageRendering !== 'viewer' &&
-    parsed.pixelatedImageRendering !== 'none'
+    parsed.pixelatedImageRendering !== 'always' &&
+    parsed.pixelatedImageRendering !== 'smart' &&
+    parsed.pixelatedImageRendering !== 'never'
   ) {
     delete parsed.pixelatedImageRendering;
   }
@@ -391,6 +467,37 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   }
   delete parsed.themeChatPreviewAnyUrl;
   delete parsed.themeChatPreviewApprovedCatalogOnly;
+
+  if (typeof parsed.callRingtoneVolume === 'number' && Number.isFinite(parsed.callRingtoneVolume)) {
+    parsed.callRingtoneVolume = clampPercent(parsed.callRingtoneVolume);
+  }
+
+  if (!isCallToneId(parsed.callRingtoneId)) {
+    delete parsed.callRingtoneId;
+  }
+
+  if (parsed.callRingbackTone === 'same-as-ringtone') {
+    parsed.callRingbackTone = parsed.callRingtoneId ?? defaultSettings.callRingtoneId;
+  } else if (parsed.callRingbackTone === 'default-ringback') {
+    parsed.callRingbackTone = 'classic-soft';
+  }
+
+  if (!isCallToneId(parsed.callRingbackTone)) {
+    delete parsed.callRingbackTone;
+  }
+
+  const legacyCallCustomMetadataKeys = [
+    'callCustomRingtoneName',
+    'callCustomRingtoneSizeBytes',
+    'callCustomRingtoneDurationMs',
+    'callCustomRingbackName',
+    'callCustomRingbackSizeBytes',
+    'callCustomRingbackDurationMs',
+  ] as const;
+
+  for (const key of legacyCallCustomMetadataKeys) {
+    delete parsed[key];
+  }
 }
 
 export function mergePersistedSettings(
@@ -418,6 +525,10 @@ const JUMBO_EMOJI_VALUES = new Set<JumboEmojiSize>([
   'large',
   'extraLarge',
 ]);
+
+function sanitizeIconSizePx(val: unknown): number | undefined {
+  return typeof val === 'number' && Number.isInteger(val) && val >= 0 ? val : undefined;
+}
 
 function sanitizeStringArray(val: unknown): string[] | undefined {
   if (!Array.isArray(val)) return undefined;
@@ -502,16 +613,33 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         : undefined;
     case 'rightSwipeAction':
       return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
+    case 'callRingtoneId':
+    case 'callRingbackTone':
+      return isCallToneId(val) ? val : undefined;
+    case 'callRingtoneVolume':
+      if (typeof val !== 'number' || !Number.isFinite(val)) return undefined;
+      return clampPercent(val);
     case 'renderUserCards':
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
         ? val
         : undefined;
     case 'pixelatedImageRendering':
-      return val === 'both' || val === 'chat' || val === 'viewer' || val === 'none'
-        ? val
-        : undefined;
+      return val === 'always' || val === 'smart' || val === 'never' ? val : undefined;
+    case 'iconCompactSizePx':
+    case 'iconInlineSizePx':
+    case 'iconToolbarSizePx':
+    case 'iconEmptySizePx':
+      return sanitizeIconSizePx(val);
     case 'jumboEmojiSize':
       return typeof val === 'string' && JUMBO_EMOJI_VALUES.has(val as JumboEmojiSize)
+        ? val
+        : undefined;
+    case 'pronounPillMaxCount':
+      return typeof val === 'number' && Number.isInteger(val) && val >= 1 && val <= 10
+        ? val
+        : undefined;
+    case 'pronounPillMaxLength':
+      return typeof val === 'number' && Number.isInteger(val) && val >= 1 && val <= 64
         ? val
         : undefined;
     case 'themeRemoteManualKind':

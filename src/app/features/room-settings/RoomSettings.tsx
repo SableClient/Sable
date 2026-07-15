@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
+import type { IconProps } from '@phosphor-icons/react';
 import { useAtomValue } from 'jotai';
-import type { IconSrc } from 'folds';
-import { Avatar, Box, config, Icon, IconButton, Icons, MenuItem, Text } from 'folds';
+import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -20,15 +21,29 @@ import { DeveloperTools } from '$features/common-settings/developer-tools';
 import { Cosmetics } from '$features/common-settings/cosmetics/Cosmetics';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import {
+  composerIcon,
+  GearSix,
+  Info,
+  Lock,
+  PaintBrush,
+  settingsNavIcon,
+  Smiley,
+  Terminal,
+  User,
+  X,
+} from '$components/icons/phosphor';
 import { Permissions } from './permissions';
 import { General } from './general';
 import { RoomAbbreviations } from './abbreviations/RoomAbbreviations';
 
+type PhosphorIcon = ComponentType<IconProps>;
+
 type RoomSettingsMenuItem = {
   page: RoomSettingsPage;
   name: string;
-  icon: IconSrc;
-  activeIcon?: IconSrc;
+  icon: PhosphorIcon;
+  activeIcon?: PhosphorIcon;
 };
 
 const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
@@ -37,38 +52,37 @@ const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
       {
         page: RoomSettingsPage.GeneralPage,
         name: 'General',
-        icon: Icons.Setting,
+        icon: GearSix,
       },
       {
         page: RoomSettingsPage.MembersPage,
         name: 'Members',
-        icon: Icons.User,
+        icon: User,
       },
       {
         page: RoomSettingsPage.PermissionsPage,
         name: 'Permissions',
-        icon: Icons.Lock,
+        icon: Lock,
       },
       {
         page: RoomSettingsPage.CosmeticsPage,
         name: 'Cosmetics',
-        icon: Icons.Alphabet,
-        activeIcon: Icons.AlphabetUnderline,
+        icon: PaintBrush,
       },
       {
         page: RoomSettingsPage.AbbreviationsPage,
         name: 'Abbreviations',
-        icon: Icons.Info,
+        icon: Info,
       },
       {
         page: RoomSettingsPage.EmojisStickersPage,
         name: 'Emojis & Stickers',
-        icon: Icons.Smile,
+        icon: Smiley,
       },
       {
         page: RoomSettingsPage.DeveloperToolsPage,
         name: 'Developer Tools',
-        icon: Icons.Terminal,
+        icon: Terminal,
       },
     ],
     []
@@ -145,7 +159,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
                 <Box shrink="No">
                   {screenSize === ScreenSize.Mobile && (
                     <IconButton onClick={requestClose} variant="Background">
-                      <Icon src={Icons.Cross} />
+                      {composerIcon(X)}
                     </IconButton>
                   )}
                 </Box>
@@ -154,24 +168,21 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
                 <PageNavContent>
                   <div style={{ flexGrow: 1 }}>
                     {menuItems.map((item) => {
-                      const currentIcon =
-                        activePage === item.page && item.activeIcon ? item.activeIcon : item.icon;
+                      const active = activePage === item.page;
+                      const IconComponent = active && item.activeIcon ? item.activeIcon : item.icon;
 
                       return (
                         <MenuItem
                           key={item.name}
                           variant="Background"
                           radii="400"
-                          aria-pressed={activePage === item.page}
-                          before={
-                            <Icon src={currentIcon} size="100" filled={activePage === item.page} />
-                          }
+                          aria-pressed={active}
+                          before={settingsNavIcon(IconComponent, active)}
                           onClick={() => setActivePage(item.page)}
                         >
                           <Text
                             style={{
-                              fontWeight:
-                                activePage === item.page ? config.fontWeight.W600 : undefined,
+                              fontWeight: active ? config.fontWeight.W600 : undefined,
                             }}
                             size="T300"
                             truncate

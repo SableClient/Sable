@@ -1,13 +1,13 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback } from 'react';
-import type { MatrixClient, Room, MatrixEvent, IContent } from '$types/matrix-sdk';
+import type { MatrixClient, Room, MatrixEvent } from '$types/matrix-sdk';
 import type { UserProfile } from '$hooks/useUserProfile';
 import { EventStatus } from '$types/matrix-sdk';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
-import { getMemberDisplayName, getEditedEvent } from '$utils/room';
+import { extractReplyDraftBody, getMemberDisplayName, resolveReplyDraftTarget } from '$utils/room';
 import { createMentionElement, moveCursor } from '$components/editor';
 import * as prefix from '$unstable/prefixes';
 
@@ -126,27 +126,21 @@ export function useTimelineActions({
 
   const triggerReply = useCallback(
     (replyId: string, startThread = false) => {
-      if (activeReplyId === replyId) {
+      const resolved = resolveReplyDraftTarget(room, replyId);
+      if (!resolved) return;
+
+      const { eventId: draftEventId, replyEvt } = resolved;
+
+      if (activeReplyId === draftEventId) {
         setReplyDraft(undefined);
         return;
       }
 
-      const replyEvt = room.findEventById(replyId);
-      if (!replyEvt) return;
-
-      const editedReply = getEditedEvent(replyId, replyEvt, room.getUnfilteredTimelineSet());
-
-      let editedNewContent: unknown;
-
-      if (editedReply) {
-        editedNewContent = editedReply.getContent()['m.new_content'];
-      }
-
-      const content: IContent = (editedNewContent ?? replyEvt.getContent()) as IContent;
-      const { body, formatted_body: formattedBody } = content;
+      const timelineSet = room.getUnfilteredTimelineSet();
+      const { body, formattedBody } = extractReplyDraftBody(replyEvt, timelineSet);
 
       const { 'm.relates_to': relation } = startThread
-        ? { 'm.relates_to': { rel_type: 'm.thread', event_id: replyId } }
+        ? { 'm.relates_to': { rel_type: 'm.thread', event_id: draftEventId } }
         : replyEvt.getWireContent();
 
       const senderId = replyEvt.getSender();
@@ -154,9 +148,9 @@ export function useTimelineActions({
       if (senderId) {
         setReplyDraft({
           userId: senderId,
-          eventId: replyId,
-          body: typeof body === 'string' ? body : '',
-          formattedBody: typeof formattedBody === 'string' ? formattedBody : '',
+          eventId: draftEventId,
+          body,
+          formattedBody,
           relation,
         });
       }

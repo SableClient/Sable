@@ -1,8 +1,8 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCallback, useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
-import { ReactEditor } from 'slate-react';
-import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
+import { Avatar, MenuItem, Text } from 'folds';
+import { Hash, sizedIcon } from '$components/icons/phosphor';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { JoinRule } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
@@ -49,11 +49,7 @@ function UnknownRoomMentionItem({
       radii="300"
       onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) => onTabPress(evt, handleSelect)}
       onClick={handleSelect}
-      before={
-        <Avatar size="200">
-          <Icon src={Icons.Hash} size="100" />
-        </Avatar>
-      }
+      before={<Avatar size="200">{sizedIcon(Hash, '100')}</Avatar>}
     >
       <Text style={{ flexGrow: 1 }} size="B400">
         {roomAlias}
@@ -124,7 +120,6 @@ export function RoomMentionAutocomplete({
     );
     replaceWithElement(editor, query.range, mentionEl);
     moveCursor(editor, true);
-    ReactEditor.focus(editor);
     requestClose();
   };
 

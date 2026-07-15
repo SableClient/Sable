@@ -15,7 +15,7 @@ const normalizeMacName = (os?: string) => {
   return os;
 };
 
-const isMac = result.os.name === 'Mac OS';
+const isMac = result.os.name === 'Mac OS' || result.os.name === 'macOS';
 
 export const ua = () => result;
 export const isMacOS = () => isMac;

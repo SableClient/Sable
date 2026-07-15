@@ -24,7 +24,9 @@ export function BandwidthSavingEmojis() {
         <SettingTile
           title={t('Settings.enable_bandwidth_saving_for_stickers_and_emojis')}
           focusId="bandwidth-saving-emojis"
-          description={t('Settings.if_enabled_sticker_and_emoji_images_will_be_optimized_to_save_bandwidth_thi')}
+          description={t(
+            'Settings.if_enabled_sticker_and_emoji_images_will_be_optimized_to_save_bandwidth_thi'
+          )}
           after={
             <Switch variant="Primary" value={useBandwidthSaving} onChange={setUseBandwidthSaving} />
           }

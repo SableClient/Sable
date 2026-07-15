@@ -1,7 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
-import { ReactEditor } from 'slate-react';
 import { Box, MenuItem, Text, toRem } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 
@@ -93,7 +92,6 @@ export function EmoticonAutocomplete({
       const emoticonEl = createEmoticonElement(key, shortcode);
       replaceWithElement(editor, query.range, emoticonEl);
       moveCursor(editor, true);
-      ReactEditor.focus(editor);
       requestClose();
     });
 

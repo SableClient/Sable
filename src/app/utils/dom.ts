@@ -99,9 +99,10 @@ export const getImageFileUrl = (fileOrBlob: File | Blob) => URL.createObjectURL(
 
 export const getVideoFileUrl = (fileOrBlob: File | Blob) => URL.createObjectURL(fileOrBlob);
 
-export const loadImageElement = (url: string): Promise<HTMLImageElement> =>
+export const loadImageElement = (url: string, crossOrigin?: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const img = document.createElement('img');
+    if (crossOrigin) img.crossOrigin = crossOrigin;
     img.addEventListener('load', () => resolve(img));
     img.addEventListener('error', (err) => reject(err));
     img.src = url;
@@ -185,6 +186,53 @@ export const scrollToBottom = (scrollEl: HTMLElement, behavior?: 'auto' | 'insta
     top: Math.round(scrollEl.scrollHeight - scrollEl.offsetHeight),
     behavior,
   });
+};
+
+async function getBitmap(blob: Blob): Promise<ImageBitmap> {
+  if (!blob.type.startsWith('image/svg+xml')) return createImageBitmap(blob);
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+
+    await new Promise<void>((resolve, reject) => {
+      img.addEventListener('load', () => resolve(), { once: true });
+      img.addEventListener('error', reject, { once: true });
+      img.src = url;
+    });
+
+    return await createImageBitmap(img);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+export const copyImageToClipboard = async (blob: Blob): Promise<boolean> => {
+  const bitmap = await getBitmap(blob);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+
+  const ctx = canvas.getContext('2d');
+  ctx?.drawImage(bitmap, 0, 0);
+
+  try {
+    const finalBlob = await new Promise<Blob>((resolve) => {
+      canvas.toBlob((result) => {
+        if (result) resolve(result);
+      }, 'image/png');
+    });
+
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'image/png': finalBlob,
+      }),
+    ]);
+
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export const copyToClipboard = async (text: string): Promise<boolean> => {

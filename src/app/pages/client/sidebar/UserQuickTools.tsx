@@ -1,0 +1,79 @@
+import { Box, config, toRem } from 'folds';
+import { InboxTab } from './InboxTab';
+import { NavigateTab } from './NavigateTab';
+import { SettingsTab } from './SettingsTab';
+import * as css from './UserQuickTools.css';
+import { UserMenuTab } from './UserMenuTab';
+import { MessageTab } from './MessageTab';
+
+export function UserQuickTools({
+  width,
+  compact,
+}: {
+  isCollapsed?: boolean;
+  underOutstep?: boolean;
+  width?: number;
+  compact: boolean;
+}) {
+  const isCollapsed = compact ? false : (width ?? 0) < 190 + 66;
+
+  return (
+    <>
+      {/* Doing it properly and nicely would require a major rewrite that would cause more trouble*/}
+      {!isCollapsed && (
+        <div style={{ position: 'relative' }}>
+          <Box
+            direction="Row"
+            justifyContent={compact ? 'SpaceAround' : 'SpaceBetween'}
+            alignItems="Center"
+            className={css.UserQuickTools}
+            style={
+              compact
+                ? {
+                    borderTopLeftRadius: config.radii.R500,
+                    borderTopRightRadius: config.radii.R500,
+                    width: '100vw',
+                  }
+                : {
+                    width: toRem(width ?? 100),
+                    position: 'absolute',
+                    right: '0',
+                    padding: `0 ${config.space.S300}`,
+                  }
+            }
+          >
+            {compact ? (
+              <>
+                <MessageTab isBottom isMobile />
+                <InboxTab isBottom isMobile />
+                <NavigateTab isBottom isMobile />
+                <Box style={{ paddingTop: config.space.S0 }}>
+                  <UserMenuTab isBottom isMobile />
+                </Box>
+              </>
+            ) : (
+              <>
+                <UserMenuTab isBottom />
+                <Box
+                  shrink="No"
+                  grow="No"
+                  style={{
+                    gap: config.space.S300,
+                  }}
+                >
+                  {!isCollapsed && (
+                    <>
+                      <InboxTab isBottom />
+                      <NavigateTab isBottom />
+                      <SettingsTab isBottom />
+                    </>
+                  )}
+                </Box>
+              </>
+            )}
+          </Box>
+        </div>
+      )}
+    </>
+  );
+}

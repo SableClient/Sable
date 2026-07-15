@@ -1,10 +1,12 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Header, Icon, IconButton, Icons, Scroll, Spinner, Text, config, toRem } from 'folds';
-import type { IEvent, Room } from '$types/matrix-sdk';
+import { Box, Header, IconButton, Scroll, Spinner, Text, config, toRem } from 'folds';
+import { Chats, composerIcon, X } from '$components/icons/phosphor';
+import type { IEvent, Room, CryptoBackend } from '$types/matrix-sdk';
 import {
   Direction,
   MatrixEvent,
+  MatrixEventEvent,
   PushProcessor,
   ReceiptType,
   RelationType,
@@ -24,11 +26,14 @@ import {
   renderMatrixMention,
 } from '$plugins/react-custom-html-parser';
 import {
-  getEditedEvent,
+  extractReplyDraftBody,
   getMemberDisplayName,
   isThreadRelationEvent,
   reactionOrEditEvent,
+  resolveReplyDraftTarget,
   unwrapRelationJumpTarget,
+  getEditedEvent,
+  getEventReactions,
 } from '$utils/room';
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -36,7 +41,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { nicknamesAtom } from '$state/nicknames';
 import { settingsAtom } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
+import { useHiddenEventSettings, useSetting } from '$state/hooks/settings';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { createMentionElement, moveCursor, useEditor } from '$components/editor';
@@ -146,14 +151,16 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const [encClientUrlPreview] = useSetting(settingsAtom, 'encClientUrlPreview');
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
-  const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
-  const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
+  const hiddenEvents = useHiddenEventSettings(settingsAtom);
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
   const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
     ? clientUrlPreview && encClientUrlPreview
     : clientUrlPreview;
+  const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
+  const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
+  const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
 
   // Memoized parsing options
   const linkifyOpts = useMemo<LinkifyOpts>(
@@ -231,6 +238,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(threadRootId));
   const replyDraft = useAtomValue(roomIdToReplyDraftAtomFamily(threadRootId));
   const activeReplyId = replyDraft?.eventId;
+  const suppressMark = !replyDraft?.body;
 
   // User profile popup
   const openUserRoomProfile = useOpenUserRoomProfile();
@@ -255,8 +263,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     linkedTimelines,
     skipThreadFilter: true,
     ignoredUsersSet,
-    showHiddenEvents,
-    showTombstoneEvents,
+    hiddenEvents,
     mxUserId: mx.getUserId(),
     readUptoEventId: undefined,
     hideMembershipEvents: true,
@@ -283,6 +290,13 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       collapsed: false,
       willRenderNewDivider: false,
       willRenderDayDivider: false,
+      editId: getEditedEvent(ev.getId() ?? '', ev, timelineSet)?.getId(),
+      reactionsKey:
+        getEventReactions(timelineSet, ev.getId() ?? '')
+          ?.getSortedAnnotationsByKey()
+          ?.map((r) => `${r[0]}:${r[1].size}`)
+          .join(',') ?? '',
+      content: ev.getContent(),
     }));
     // forceUpdateCounter makes this recompute whenever events arrive
   }, [room, threadRootId, thread, processedEvents, forceUpdateCounter]);
@@ -392,18 +406,60 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         forceUpdate((n) => n + 1);
       }
     };
+    const onDecrypted = (mEvent: MatrixEvent) => {
+      if (isEventInThread(mEvent)) {
+        const currThread = room.getThread(threadRootId);
+        if (currThread && !currThread.events.includes(mEvent)) {
+          currThread.addEvents([mEvent], false);
+        }
+        forceUpdate((n) => n + 1);
+      }
+    };
     const onThreadUpdate = () => forceUpdate((n) => n + 1);
     mx.on(RoomEvent.Timeline, onTimeline);
     room.on(RoomEvent.Redaction, onRedaction);
     room.on(ThreadEvent.Update, onThreadUpdate);
     room.on(ThreadEvent.NewReply, onThreadUpdate);
+    mx.on(MatrixEventEvent.Decrypted, onDecrypted);
     return () => {
       mx.off(RoomEvent.Timeline, onTimeline);
       room.removeListener(RoomEvent.Redaction, onRedaction);
       room.removeListener(ThreadEvent.Update, onThreadUpdate);
       room.removeListener(ThreadEvent.NewReply, onThreadUpdate);
+      mx.removeListener(MatrixEventEvent.Decrypted, onDecrypted);
     };
   }, [mx, room, threadRootId]);
+
+  // Retry decryption for thread root events that failed because they were fetched before keys arrived
+  useEffect(() => {
+    if (!rootEvent?.isEncrypted() || !rootEvent.isDecryptionFailure()) return undefined;
+    const crypto = mx.getCrypto();
+    if (!crypto) return undefined;
+
+    const retryDecrypt = async () => {
+      try {
+        await rootEvent.attemptDecryption(crypto as CryptoBackend);
+        if (!rootEvent.isDecryptionFailure()) forceUpdate((n) => n + 1);
+      } catch {
+        // ignore
+      }
+    };
+
+    // Piggyback on other decryptions as a proxy signal for key arrival
+    const sentinels = room
+      .getLiveTimeline()
+      .getEvents()
+      .slice(-50)
+      .filter((e) => e.isEncrypted());
+    sentinels.forEach((e) => e.on(MatrixEventEvent.Decrypted, retryDecrypt));
+
+    // Attempt immediately in case keys arrived since the initial failure
+    retryDecrypt();
+
+    return () => {
+      sentinels.forEach((e) => e.off(MatrixEventEvent.Decrypted, retryDecrypt));
+    };
+  }, [rootEvent, room, mx]);
 
   // Mark thread as read when viewing it
   useEffect(() => {
@@ -450,11 +506,11 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   hasOlderRepliesRef.current = hasOlderReplies;
 
   const loadOlderReplies = useCallback(() => {
-    const t = room.getThread(threadRootId);
-    if (!t || !t.initialEventsFetched || paginatingOlderRef.current) return;
+    const fullThread = room.getThread(threadRootId);
+    if (!fullThread || !fullThread.initialEventsFetched || paginatingOlderRef.current) return;
     paginatingOlderRef.current = true;
     setLoadingOlderReplies(true);
-    mx.paginateEventTimeline(t.timelineSet.getLiveTimeline(), { backwards: true })
+    mx.paginateEventTimeline(fullThread.timelineSet.getLiveTimeline(), { backwards: true })
       .then((hasMore) => {
         paginatingOlderRef.current = false;
         if (!hasMore) setCanPageBack(false);
@@ -566,23 +622,25 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         });
         return;
       }
-      const replyEvt = room.findEventById(replyId);
-      if (!replyEvt) return;
-      const editedReply = getEditedEvent(replyId, replyEvt, room.getUnfilteredTimelineSet());
-      const content = editedReply?.getContent()['m.new_content'] ?? replyEvt.getContent();
-      const { body, formatted_body: formattedBody } = content;
+      const resolved = resolveReplyDraftTarget(room, replyId);
+      if (!resolved) return;
+      const { eventId: draftEventId, replyEvt } = resolved;
+      const { body, formattedBody } = extractReplyDraftBody(
+        replyEvt,
+        room.getUnfilteredTimelineSet()
+      );
       const senderId = replyEvt.getSender();
       if (senderId) {
         const draft: IReplyDraft = {
           userId: senderId,
-          eventId: replyId,
-          body: typeof body === 'string' ? body : '',
+          eventId: draftEventId,
+          body,
           formattedBody,
           relation: { rel_type: RelationType.Thread, event_id: threadRootId },
         };
         // Only toggle off if we're actively replying to this event (non-empty body distinguishes
         // a real reply draft from the seeded base-thread draft, which has body: '').
-        if (activeReplyId === replyId && replyDraft?.body) {
+        if (activeReplyId === draftEventId && replyDraft?.body) {
           // Toggle off — reset to base thread draft
           setReplyDraft({
             userId: mx.getUserId() ?? '',
@@ -704,15 +762,16 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       showUrlPreview,
       showClientUrlPreview,
       showBundledPreview,
+      showMaps,
       autoplayStickers,
       hideMemberInReadOnly,
       isReadOnly,
       hideMembershipEvents: true,
       hideNickAvatarEvents: true,
-      showHiddenEvents,
+      hiddenEvents,
       hideThreadChip: true,
     },
-    state: { focusItem, editId, activeReplyId, openThreadId: threadRootId },
+    state: { focusItem, editId, activeReplyId, openThreadId: threadRootId, suppressMark },
     permissions: {
       canRedact,
       canDeleteOwn,
@@ -776,7 +835,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       {/* Header */}
       <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
         <Box grow="Yes" alignItems="Center" gap="200">
-          <Icon size="200" src={Icons.Thread} />
+          {composerIcon(Chats)}
           <Text size="H4" truncate>
             {t('RoomView.Threads.thread')}
           </Text>
@@ -789,7 +848,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
             radii="300"
             aria-label="Close thread"
           >
-            <Icon size="200" src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Box>
       </Header>
@@ -869,7 +928,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
                   justifyContent="Center"
                   style={{ padding: config.space.S400, gap: config.space.S200 }}
                 >
-                  <Icon size="400" src={Icons.Thread} />
+                  {composerIcon(Chats, { style: { opacity: 0.6 } })}
                   <Text size="T300" align="Center">
                     {t('RoomView.Threads.no_replies_yet_start_the_thread_below')}
                   </Text>

@@ -1,18 +1,6 @@
 import type { MouseEventHandler, ReactElement } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  Scroll,
-  Spinner,
-  Text,
-  color,
-  config,
-} from 'folds';
+import { Box, Chip, IconButton, Line, Scroll, Spinner, Text, color, config } from 'folds';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
@@ -66,6 +54,7 @@ import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useGetRoom } from '$hooks/useGetRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { CaretUp, composerIcon } from '$components/icons/phosphor';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { MembersDrawer } from '$features/room/MembersDrawer';
 import { SpaceHierarchyItem } from './SpaceHierarchyItem';
@@ -652,7 +641,7 @@ export function Lobby() {
                       size="300"
                       aria-label="Scroll to Top"
                     >
-                      <Icon src={Icons.ChevronTop} size="300" />
+                      {composerIcon(CaretUp)}
                     </IconButton>
                   </ScrollTopContainer>
                   <div

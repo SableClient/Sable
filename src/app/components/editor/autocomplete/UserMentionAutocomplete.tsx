@@ -1,8 +1,8 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { Editor } from 'slate';
-import { ReactEditor } from 'slate-react';
-import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
+import { Avatar, MenuItem, Text } from 'folds';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 
 import { useRoomMembers } from '$hooks/useRoomMembers';
@@ -20,9 +20,9 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import {
   createMentionElement,
+  mentionNameForUserAutocomplete,
   moveCursor,
   replaceWithElement,
-  resolveUserMentionName,
 } from '$components/editor/utils';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { AutocompleteMenu } from './AutocompleteMenu';
@@ -55,10 +55,7 @@ function UnknownMentionItem({
       onClick={() => handleAutocomplete(userId, name)}
       before={
         <Avatar size="200">
-          <UserAvatar
-            userId={userId}
-            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
-          />
+          <UserAvatar userId={userId} renderFallback={() => userFallbackIcon('sm')} />
         </Avatar>
       }
     >
@@ -89,8 +86,6 @@ const SEARCH_OPTIONS: UseAsyncSearchOptions = {
 };
 
 const mxIdToName = (mxId: string) => getMxIdLocalPart(mxId) ?? mxId;
-const getRoomMemberStr: SearchItemStrGetter<RoomMember> = (m, query) =>
-  getMemberSearchStr(m, query, mxIdToName);
 
 export function UserMentionAutocomplete({
   room,
@@ -105,6 +100,11 @@ export function UserMentionAutocomplete({
   const roomAliasOrId = room.getCanonicalAlias() || roomId;
   const members = useRoomMembers(mx, roomId);
 
+  const getRoomMemberStr = useCallback<SearchItemStrGetter<RoomMember>>(
+    (m, searchQuery) => getMemberSearchStr(m, searchQuery, mxIdToName, nicknames),
+    [nicknames]
+  );
+
   const [result, search, resetSearch] = useAsyncSearch(members, getRoomMemberStr, SEARCH_OPTIONS);
   const autoCompleteMembers = (result ? result.items.slice(0, 20) : members.slice(0, 20)).filter(
     withAllowedMembership
@@ -115,15 +115,16 @@ export function UserMentionAutocomplete({
     else resetSearch();
   }, [query.text, search, resetSearch]);
 
-  const handleAutocomplete: MentionAutoCompleteHandler = (uId) => {
+  const handleAutocomplete: MentionAutoCompleteHandler = (id, displayName) => {
+    const isRoomPing = displayName === '@room';
+    const isCurrentRoom = roomId === id || room.getCanonicalAlias() === id || roomAliasOrId === id;
     const mentionEl = createMentionElement(
-      uId,
-      resolveUserMentionName(uId, { room, nicknames }),
-      mx.getUserId() === uId || roomAliasOrId === uId
+      id,
+      mentionNameForUserAutocomplete(id, displayName, { room, nicknames }),
+      isRoomPing ? isCurrentRoom : mx.getUserId() === id || isCurrentRoom
     );
     replaceWithElement(editor, query.range, mentionEl);
     moveCursor(editor, true);
-    ReactEditor.focus(editor);
     requestClose();
   };
 
@@ -196,7 +197,7 @@ export function UserMentionAutocomplete({
                     userId={roomMember.userId}
                     src={avatarUrl ?? undefined}
                     alt={getName(roomMember)}
-                    renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                    renderFallback={() => userFallbackIcon('sm')}
                   />
                 </Avatar>
               }

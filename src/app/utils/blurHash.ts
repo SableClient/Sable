@@ -14,8 +14,13 @@ export const encodeBlurHash = (
 
   if (!context) return undefined;
   context.drawImage(img, 0, 0, canvas.width, canvas.height);
-  const data = context.getImageData(0, 0, canvas.width, canvas.height);
-  return encode(data.data, data.width, data.height, 4, 4);
+  try {
+    const data = context.getImageData(0, 0, canvas.width, canvas.height);
+    return encode(data.data, data.width, data.height, 4, 4);
+  } catch (err) {
+    console.warn('Failed to encode blurhash, possibly due to cross-origin tainted canvas:', err);
+    return undefined;
+  }
 };
 
 export const validBlurHash = (hash?: string): string | undefined => {

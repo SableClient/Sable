@@ -6,14 +6,13 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Text,
 } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 
 import { stopPropagation } from '$utils/keyboard';
 
@@ -76,7 +75,7 @@ export function ThemeCatalogOnboarding({ open, onEnable, onDecline }: ThemeCatal
                 onClick={handleDeclineClick}
                 aria-label="Close"
               >
-                <Icon src={Icons.Cross} size="100" />
+                {menuIcon(X)}
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

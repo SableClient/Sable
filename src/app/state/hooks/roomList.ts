@@ -152,11 +152,15 @@ export const useOrphanRooms = (
   mx: MatrixClient,
   roomsAtom: RoomsAtom,
   mDirects: Set<string>,
-  roomToParents: RoomToParents
+  roomToParents: RoomToParents,
+  isShowingAllRoomsInHome?: boolean
 ) => {
   const selector: RoomSelector = useCallback(
-    (roomId) => isRoom(mx.getRoom(roomId)) && !mDirects.has(roomId) && !roomToParents.has(roomId),
-    [mx, mDirects, roomToParents]
+    (roomId) =>
+      isRoom(mx.getRoom(roomId)) &&
+      !mDirects.has(roomId) &&
+      (isShowingAllRoomsInHome || !roomToParents.has(roomId)),
+    [mx, mDirects, roomToParents, isShowingAllRoomsInHome]
   );
   return useSelectedRooms(roomsAtom, selector);
 };

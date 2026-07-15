@@ -1,5 +1,6 @@
 import type { MatrixClient } from 'matrix-js-sdk';
 import { SetPresence } from 'matrix-js-sdk';
+import { getPresenceSyncManager } from '$client/initMatrix';
 import { Presence } from '../hooks/useUserPresence';
 
 const PRESENCE_TO_SET_PRESENCE: Record<Presence, SetPresence> = {
@@ -16,8 +17,10 @@ export const setUserPresence = async (
   presence: Presence,
   statusMsg?: string
 ): Promise<void> => {
-  Promise.all([
-    mx.setSyncPresence(presenceToSetPresence(presence)),
+  const setPresence = presenceToSetPresence(presence);
+  getPresenceSyncManager(mx)?.setDesiredPresence(setPresence);
+  await Promise.all([
+    mx.setSyncPresence(setPresence),
     mx.setPresence({
       presence,
       status_msg: statusMsg,

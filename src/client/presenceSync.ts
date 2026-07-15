@@ -1,5 +1,12 @@
 import type { CryptoBackend, IDeviceLists, IToDeviceEvent, MatrixClient } from '$types/matrix-sdk';
-import { ClientEvent, Filter, Method, processToDeviceMessages, User } from '$types/matrix-sdk';
+import {
+  ClientEvent,
+  Filter,
+  Method,
+  processToDeviceMessages,
+  SetPresence,
+  User,
+} from '$types/matrix-sdk';
 import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('presenceSync');
@@ -18,6 +25,8 @@ export class PresenceSyncManager {
   private disposed = false;
 
   private enabled = true;
+
+  private desiredSetPresence = SetPresence.Online;
 
   private activeRequest: Promise<void> | null = null;
 
@@ -47,6 +56,10 @@ export class PresenceSyncManager {
     }
 
     if (!this.activeRequest && !this.disposed) this.poll();
+  }
+
+  public setDesiredPresence(presence: SetPresence): void {
+    this.desiredSetPresence = presence;
   }
 
   public start(): void {
@@ -135,7 +148,7 @@ export class PresenceSyncManager {
             filter: filterId,
             since: this.syncToken,
             timeout: this.pollTimeoutMs,
-            set_presence: 'online',
+            set_presence: this.desiredSetPresence,
           },
           undefined,
           { abortSignal: signal }

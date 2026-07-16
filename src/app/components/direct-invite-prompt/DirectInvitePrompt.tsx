@@ -61,14 +61,7 @@ export function DirectInvitePrompt({
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
               <Box direction="Column" gap="200">
-                <Text size="T300">
-                  {t('Room.DirectInvite.this_is_a')} <b>{t('Room.DirectInvite.direct_message')}</b>{' '}
-                  {t(
-                    'Room.DirectInvite.room_intended_for_a_conversation_between_two_persons_would_you_like_to_conv'
-                  )}{' '}
-                  <b>{t('Room.DirectInvite.group_chat')}</b>{' '}
-                  {t('Room.DirectInvite.before_continuing')}
-                </Text>
+                <Text size="T300">{t('Room.DirectInvite.direct_message_invite_prompt')}</Text>
                 {convertError && (
                   <Text style={{ color: color.Critical.Main }} size="T300">
                     {t('Room.DirectInvite.failed_to_convert_direct_message_to_room')} {convertError}

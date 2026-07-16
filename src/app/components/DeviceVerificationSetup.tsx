@@ -227,14 +227,11 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
   return (
     <Box as="form" onSubmit={handleSubmit} direction="Column" gap="400">
       <Text size="T300">
-        {t('Settings.device_verification.generate_a')} <b>{t('General.recovery_key')}</b>{' '}
-        {t(
-          'Settings.device_verification.for_verifying_identity_if_you_do_not_have_access_to_other_devices_additiona'
-        )}
+        {t('Settings.device_verification.generate_a_recovery_key')}
       </Text>
       <Box direction="Column" gap="100">
         <Text size="L400">
-          {t('General.passphrase')} ({t('General.optional')})
+          {t('Settings.device_verification.optional_passphrase')}
         </Text>
         <PasswordInput name="passphraseInput" size="400" readOnly={loading} />
       </Box>
@@ -402,7 +399,7 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
                 {t(
                   'Settings.device_verification.anyone_you_have_verified_with_will_see_security_alerts_and_your_encryption'
                 )}{' '}
-                <b>{t('General.recovery_key')}</b> or <b>{t('General.recovery_passphrase')}</b>{' '}
+                <b>{t('General.recovery_key')}</b> / <b>{t('General.recovery_passphrase')}</b>{' '}
                 {t('Settings.device_verification.and_every_device_you_can_verify_from')}
               </Text>
             </Box>

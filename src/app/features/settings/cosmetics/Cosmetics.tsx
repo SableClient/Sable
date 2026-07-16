@@ -28,7 +28,7 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 function PronounPillMaxCountInput({ disabled }: { disabled: boolean }) {
   const [maxCount, setMaxCount] = useSetting(settingsAtom, 'pronounPillMaxCount');
@@ -207,16 +207,18 @@ function IconSizeSettings() {
   );
 }
 
-const emojiSizeItems = [
-  { id: 'none', name: t('Settings.Cosmetics.none_same_size_as_text') },
-  { id: 'extraSmall', name: t('Settings.Cosmetics.extra_small') },
-  { id: 'small', name: t('Settings.Cosmetics.small') },
-  { id: 'normal', name: t('Settings.Cosmetics.normal') },
-  { id: 'large', name: t('Settings.Cosmetics.large') },
-  { id: 'extraLarge', name: t('Settings.Cosmetics.extra_large') },
-];
-
 function SelectJumboEmojiSize() {
+  const { t } = useTranslation();
+
+  const emojiSizeItems = [
+    { id: 'none', name: t('Settings.Cosmetics.none_same_size_as_text') },
+    { id: 'extraSmall', name: t('Settings.Cosmetics.extra_small') },
+    { id: 'small', name: t('Settings.Cosmetics.small') },
+    { id: 'normal', name: t('Settings.Cosmetics.normal') },
+    { id: 'large', name: t('Settings.Cosmetics.large') },
+    { id: 'extraLarge', name: t('Settings.Cosmetics.extra_large') },
+  ];
+
   const [menuCords, setMenuCords] = useState<RectCords>();
   const [jumboEmojiSize, setJumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
 
@@ -284,14 +286,15 @@ function SelectJumboEmojiSize() {
   );
 }
 
-const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
-  { id: 'both', name: t('Settings.Cosmetics.light_and_dark') },
-  { id: 'light', name: t('Settings.Cosmetics.light_only') },
-  { id: 'dark', name: t('Settings.Cosmetics.dark_only') },
-  { id: 'none', name: t('Settings.Cosmetics.off') },
-];
-
 function SelectRenderCustomProfileCards() {
+  const { t } = useTranslation();
+  const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
+    { id: 'both', name: t('Settings.Cosmetics.light_and_dark') },
+    { id: 'light', name: t('Settings.Cosmetics.light_only') },
+    { id: 'dark', name: t('Settings.Cosmetics.dark_only') },
+    { id: 'none', name: t('Settings.Cosmetics.off') },
+  ];
+
   const [menuCords, setMenuCords] = useState<RectCords>();
   const [renderUserCardsMode, setRenderUserCardsMode] = useSetting(settingsAtom, 'renderUserCards');
 
@@ -362,6 +365,7 @@ function SelectRenderCustomProfileCards() {
 }
 
 function JumboEmoji() {
+  const { t } = useTranslation();
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">{t('Settings.Cosmetics.jumbo_emoji')}</Text>
@@ -378,6 +382,7 @@ function JumboEmoji() {
 }
 
 function Privacy() {
+  const { t } = useTranslation();
   const [privacyBlur, setPrivacyBlur] = useSetting(settingsAtom, 'privacyBlur');
   const [privacyBlurAvatars, setPrivacyBlurAvatars] = useSetting(
     settingsAtom,
@@ -424,6 +429,7 @@ function Privacy() {
 }
 
 function IdentityCosmetics() {
+  const { t } = useTranslation();
   const [legacyUsernameColor, setLegacyUsernameColor] = useSetting(
     settingsAtom,
     'legacyUsernameColor'
@@ -472,9 +478,9 @@ function IdentityCosmetics() {
         style={{ opacity: showPronouns ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Max Pronoun Pills"
+          title={t('Settings.Cosmetics.max_pronoun_pills')}
           focusId="pronoun-pill-max-count"
-          description="Maximum number of pronoun pills shown per user in the timeline. Additional pronouns appear behind the ... pill."
+          description={t('Settings.Cosmetics.maximum_number_of_pronoun_pills')}
           after={<PronounPillMaxCountInput disabled={!showPronouns} />}
         />
       </SequenceCard>
@@ -485,9 +491,9 @@ function IdentityCosmetics() {
         style={{ opacity: showPronouns ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Max Pronoun Pill Length"
+          title={t('Settings.Cosmetics.max_pronoun_pill_length')}
           focusId="pronoun-pill-max-length"
-          description="Maximum characters shown in each pronoun pill before truncation."
+          description={t('Settings.Cosmetics.maximum_pronoun_pill_length')}
           after={<PronounPillMaxLengthInput disabled={!showPronouns} />}
         />
       </SequenceCard>

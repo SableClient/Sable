@@ -20,11 +20,11 @@ i18n
   .init<HttpBackendOptions>({
     // Prefer the browser / navigator language and avoid using cached localStorage value
     detection: {
-      // prefer querystring first (e.g. ?lng=de), then navigator, then html tag, path, subdomain
-      order: ['querystring', 'navigator', 'htmlTag', 'path', 'subdomain'],
+      // prefer querystring first (e.g. ?lng=de), then storage,System then navigator, then html tag, path, subdomain
+      order: ['querystring', 'localStorage', 'navigator', 'htmlTag', 'path', 'subdomain'],
       lookupQuerystring: 'lng',
       // do not cache the detected language in localStorage to avoid stale overrides
-      caches: [],
+      caches: ['localStorage'],
     },
     debug: false,
     fallbackLng: 'en',

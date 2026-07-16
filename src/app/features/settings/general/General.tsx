@@ -57,6 +57,9 @@ import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSyn
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { t } from 'i18next';
 import { CallSoundSettings } from './CallSoundSettings';
+import { useTranslation } from 'react-i18next';
+import type { SettingMenuOption } from '$components/setting-menu-selector';
+import { SettingMenuSelector } from '$components/setting-menu-selector';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -426,6 +429,50 @@ function DateAndTime() {
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SelectDateFormat />
+      </SequenceCard>
+    </Box>
+  );
+}
+
+function LanguageChange() {
+  const { i18n } = useTranslation();
+
+  const languageOptions: SettingMenuOption<string>[] = [
+    { value: '', label: 'System' },
+    { value: 'en', label: 'English' },
+    { value: 'ro', label: 'Română' },
+  ];
+  const [curLanguage, setCurLanguage] = useState(localStorage.getItem('i18nextLng') ?? '');
+
+  const handleLanguageChange = (language: string) => {
+    if (language) {
+      setCurLanguage(language);
+      i18n.changeLanguage(language);
+    } else {
+      localStorage.removeItem('i18nextLng');
+      setCurLanguage('');
+
+      const detected = i18n.services.languageDetector?.detect();
+      i18n.changeLanguage(Array.isArray(detected) ? detected[0] : (detected ?? 'en'));
+    }
+    window.location.reload();
+  };
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Language</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Current Language"
+          focusId="set-language"
+          after={
+            <SettingMenuSelector
+              value={curLanguage ?? ''}
+              options={languageOptions}
+              onSelect={handleLanguageChange}
+            />
+          }
+        />
       </SequenceCard>
     </Box>
   );
@@ -1675,6 +1722,7 @@ export function General({ requestBack, requestClose }: Readonly<GeneralProps>) {
           <PageContent>
             <Box direction="Column" gap="700">
               <DateAndTime />
+              <LanguageChange />
               <Gestures isMobile={mobileOrTablet()} />
               <Editor isMobile={mobileOrTablet()} />
               <Messages />

@@ -11,25 +11,24 @@ import { Sync } from '../general';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
-import { t } from 'i18next';
 import { MSC4274MediaGalleries } from './MSC4274MediaGalleries';
+import { useTranslation } from 'react-i18next';
 
 function PersonaToggle() {
   const [showPersonaSetting, setShowPersonaSetting] = useSetting(
     settingsAtom,
     'showPersonaSetting'
   );
+  const { t } = useTranslation(['settings/experimental']);
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">{t('Settings.personas_per_message_profiles')}</Text>
+      <Text size="L400">{t('personas_per_message_profiles')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('Settings.show_personas_tab')}
+          title={t('show_personas_tab')}
           focusId="show-personas-tab"
-          description={t(
-            'Settings.enables_the_personas_tab_in_the_settings_menu_for_per_message_profiles'
-          )}
+          description={t('enables_the_personas_tab_in_the_settings_menu_for_per_message_profiles')}
           after={
             <Switch variant="Primary" value={showPersonaSetting} onChange={setShowPersonaSetting} />
           }
@@ -44,9 +43,10 @@ type ExperimentalProps = {
   requestClose: () => void;
 };
 export function Experimental({ requestBack, requestClose }: Readonly<ExperimentalProps>) {
+  const { t } = useTranslation(['settings/experimental']);
   return (
     <SettingsSectionPage
-      title={t('Settings.experimental')}
+      title={t('experimental')}
       requestBack={requestBack}
       requestClose={requestClose}
     >
@@ -58,10 +58,10 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               variant="Warning"
               description={
                 <>
-                  {t('Settings.the_features_listed_below_may_be_unstable_or_incomplete')}{' '}
-                  <strong>{t('Settings.use_at_your_own_risk')}</strong>.
+                  {t('the_features_listed_below_may_be_unstable_or_incomplete')}{' '}
+                  <strong>{t('use_at_your_own_risk')}</strong>.
                   <br />
-                  {t('Settings.please_report_any_new_issues_potentially_caused_by_these_features')}
+                  {t('please_report_any_new_issues_potentially_caused_by_these_features')}
                 </>
               }
             />

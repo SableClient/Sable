@@ -1,0 +1,22 @@
+{
+  "save_bandwidth_for_sticker_and_emoji_images": "Save Bandwidth for Sticker and Emoji Images",
+  "enable_bandwidth_saving_for_stickers_and_emojis": "Enable bandwidth saving for stickers and emojis",
+  "if_enabled_sticker_and_emoji_images_will_be_optimized_to_save_bandwidth_thi": "If enabled, sticker and emoji images will be optimized to save bandwidth. This helps reduce data usage when viewing these images. But will increase server computation load.",
+  "personas_per_message_profiles": "Personas (Per-Message Profiles)",
+  "show_personas_tab": "Show Personas Tab",
+  "enables_the_personas_tab_in_the_settings_menu_for_per_message_profiles": "Enables the personas tab in the settings menu for per-message profiles",
+  "experimental": "Experimental",
+  "the_features_listed_below_may_be_unstable_or_incomplete": "The features listed below may be unstable or incomplete,",
+  "use_at_your_own_risk": "use at your own risk",
+  "please_report_any_new_issues_potentially_caused_by_these_features": "Please report any new issues potentially caused by these features!",
+  "enable_sharing_of_encrypted_history": "Enable Sharing of Encrypted History",
+  "enable_the_sharehistory_command": "Enable the /sharehistory command",
+  "if_enabled_this_command_will_allow_users_to_share_encrypted_history_with_ot": "If enabled, this command will allow users to share encrypted history with other newly joined users, as per MSC4268.",
+  "disable_sharehistory_command": "Disable /sharehistory command",
+  "enable_sharehistory_command": "Enable /sharehistory command",
+  "enable_media_galleries_support": "Enable Media Galleries Support",
+  "enable_media_galleries_title": "Enable Media Galleries",
+  "enable_media_galleries_description": "If enabled, multiple attachments will be sent in one message, as per MSC4274. Incompatible with clients that don't implement it.",
+  "disable_media_galleries": "Disable Media Galleries",
+  "enable_media_galleries": "Enable Media Gallleries"
+}

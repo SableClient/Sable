@@ -18,22 +18,22 @@ i18n
   // init i18next
   // for all options read: https://www.i18next.com/overview/configuration-options
   .init<HttpBackendOptions>({
-    // Prefer the browser / navigator language and avoid using cached localStorage value
+    defaultNS: 'general',
+    fallbackLng: 'en',
+    load: 'languageOnly',
+    interpolation: {
+      escapeValue: false,
+    },
     detection: {
-      // prefer querystring first (e.g. ?lng=de), then storage,System then navigator, then html tag, path, subdomain
       order: ['querystring', 'localStorage', 'navigator', 'htmlTag', 'path', 'subdomain'],
       lookupQuerystring: 'lng',
-      // do not cache the detected language in localStorage to avoid stale overrides
       caches: ['localStorage'],
     },
-    debug: false,
-    fallbackLng: 'en',
-    interpolation: {
-      escapeValue: false, // not needed for react as it escapes by default
-    },
-    load: 'languageOnly',
     backend: {
-      loadPath: `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/locales/{{lng}}.json`,
+      loadPath: `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/locales/{{lng}}/{{ns}}.json`,
+    },
+    react: {
+      useSuspense: false,
     },
   });
 

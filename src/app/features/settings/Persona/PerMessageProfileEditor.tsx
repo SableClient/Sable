@@ -18,7 +18,7 @@ import {
 import type { PronounSet } from '$utils/pronouns';
 import { parsePronounsStringToPronounsSetArray } from '$utils/pronouns';
 import { SequenceCardStyle } from '../styles.css';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 /**
  * the props we use for the per-message profile editor, which is used to edit a per-message profile. This is used in the settings page when the user wants to edit a profile.
@@ -46,6 +46,7 @@ export function PerMessageProfileEditor({
   const [currentDisplayName, setCurrentDisplayName] = useState(displayName ?? '');
   const [currentId, setCurrentId] = useState(profileId);
   const [newId, setNewId] = useState(profileId);
+  const { t } = useTranslation(['settings/persona', 'settings/profile', 'general']);
 
   console.warn(pronouns);
 
@@ -228,7 +229,7 @@ export function PerMessageProfileEditor({
           style={{ width: '100%', marginBottom: config.space.S200 }}
         >
           <Text size="H6" id={`profile-editor-title-${profileId}`} style={{ minWidth: 90 }}>
-            {t('Settings.PerMessageProfiles.profile_id')}
+            {t('profile_id')}
           </Text>
           <Input
             required
@@ -246,9 +247,9 @@ export function PerMessageProfileEditor({
               fontSize: 16,
               height: 50,
             }}
-            placeholder={t('Settings.PerMessageProfiles.profile_id')}
-            aria-label={t('Settings.PerMessageProfiles.profile_id')}
-            title={t('Settings.PerMessageProfiles.profile_id')}
+            placeholder={t('profile_id')}
+            aria-label={t('profile_id')}
+            title={t('profile_id')}
           />
         </Box>
         <Box direction="Row">
@@ -265,7 +266,7 @@ export function PerMessageProfileEditor({
               overflow: 'visible',
               marginTop: 20,
             }}
-            aria-label={t('Settings.Profile.avatar_and_upload')}
+            aria-label={t('settings/profile:avatar_and_upload')}
           >
             <Avatar
               size="300"
@@ -278,17 +279,17 @@ export function PerMessageProfileEditor({
                 maxWidth: 72,
                 maxHeight: 72,
               }}
-              aria-label={t('Settings.Profile.profile_avatar')}
+              aria-label={t('settings/profile:profile_avatar')}
             >
               <UserAvatar
                 userId={profileId}
                 src={avatarUrl}
                 renderFallback={() => (
-                  <Text size="H4" aria-label={t('Settings.Profile.avatar_fallback')}>
+                  <Text size="H4" aria-label={t('settings/profile:avatar_fallback')}>
                     p
                   </Text>
                 )}
-                alt={`Avatar for profile ${profileId}`}
+                alt={t('avatar_for', { profileId })}
               />
             </Avatar>
             <Button
@@ -305,9 +306,9 @@ export function PerMessageProfileEditor({
                 fontSize: 14,
                 padding: '0 8px',
               }}
-              aria-label={t('Settings.Profile.upload_avatar_image')}
+              aria-label={t('settings/profile:upload_avatar_image')}
             >
-              <Text size="T200">{t('General.upload')}</Text>
+              <Text size="T200">{t('general:upload')}</Text>
             </Button>
             {uploadAtom && (
               <Box
@@ -319,7 +320,7 @@ export function PerMessageProfileEditor({
                   maxHeight: 100,
                   overflow: 'visible',
                 }}
-                aria-label={t('General.upload_area')}
+                aria-label={t('general:upload_area')}
               >
                 <CompactUploadCardRenderer
                   uploadAtom={uploadAtom}
@@ -334,7 +335,7 @@ export function PerMessageProfileEditor({
             alignItems="Center"
             justifyContent="Center"
             style={{ flex: 1, minWidth: 0, height: '100%' }}
-            aria-label={t('Settings.Profile.display_name_input')}
+            aria-label={t('settings/profile:display_name_input')}
           >
             <Text
               size="T300"
@@ -343,7 +344,7 @@ export function PerMessageProfileEditor({
                 alignSelf: 'flex-start',
               }}
             >
-              {t('Settings.PerMessageProfiles.display_name')}
+              {t('display_name')}
             </Text>
             <Input
               required
@@ -362,10 +363,10 @@ export function PerMessageProfileEditor({
                 fontSize: 16,
                 height: 50,
               }}
-              placeholder={t('General.display_name')}
+              placeholder={t('general:display_name')}
               readOnly={changingDisplayName || disableSetDisplayname}
-              aria-label={`Display name for ${profileId}`}
-              title={`Display name for ${profileId}`}
+              aria-label={t('display_name_for', { profileId })}
+              title={t('display_name_for', { profileId })}
               after={
                 newDisplayName !== (currentDisplayName ?? '') &&
                 !changingDisplayName && (
@@ -375,8 +376,8 @@ export function PerMessageProfileEditor({
                     size="300"
                     radii="300"
                     variant="Secondary"
-                    aria-label={t('Settings.Profile.reset_display_name')}
-                    title="Reset display name"
+                    aria-label={t('settings/profile:reset_display_name')}
+                    title={t('settings/profile:reset_display_name')}
                   >
                     {menuIcon(X)}
                   </IconButton>
@@ -391,7 +392,7 @@ export function PerMessageProfileEditor({
                 alignSelf: 'flex-start',
               }}
             >
-              Pronouns:
+              {t('pronouns')}
             </Text>
             <Input
               required
@@ -410,10 +411,10 @@ export function PerMessageProfileEditor({
                 fontSize: 16,
                 height: 50,
               }}
-              placeholder={t('General.pronouns')}
+              placeholder={t('general:pronouns')}
               readOnly={changingDisplayName || disableSetDisplayname}
-              aria-label={`Pronouns for ${profileId}`}
-              title={`Pronouns for ${profileId}`}
+              aria-label={t('pronouns_for', { profileId })}
+              title={t('pronouns_for', { profileId })}
               after={
                 newPronounsString !== currentPronounsString && (
                   <IconButton
@@ -422,8 +423,8 @@ export function PerMessageProfileEditor({
                     size="300"
                     radii="300"
                     variant="Secondary"
-                    aria-label="Reset pronouns"
-                    title="Reset pronouns"
+                    aria-label={t('reset_pronouns')}
+                    title={t('reset_pronouns')}
                   >
                     {menuIcon(X)}
                   </IconButton>
@@ -442,7 +443,7 @@ export function PerMessageProfileEditor({
               flexShrink: 0,
               height: '100%',
             }}
-            aria-label={`Save button area for ${profileId}`}
+            aria-label={t('save_profile_button_area', { profileId })}
           >
             <Button
               onClick={handleSave}
@@ -457,10 +458,10 @@ export function PerMessageProfileEditor({
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
-              aria-label={`Save profile changes for ${profileId}`}
-              title={`Save profile changes for ${profileId}`}
+              aria-label={t('save_profile', { profileId })}
+              title={t('save_profile', { profileId })}
             >
-              <Text size="B300">Save</Text>
+              <Text size="B300">{t('general:save')}</Text>
             </Button>
             <Button
               onClick={handleDelete}
@@ -476,10 +477,10 @@ export function PerMessageProfileEditor({
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
-              aria-label={`Delete profile ${profileId}`}
-              title={`Delete profile ${profileId}`}
+              aria-label={t('delete_profile', { profileId })}
+              title={t('delete_profile', { profileId })}
             >
-              <Text size="B300">{t('General.delete')}</Text>
+              <Text size="B300">{t('general:delete')}</Text>
             </Button>
           </Box>
         </Box>

@@ -435,7 +435,7 @@ function DateAndTime() {
 }
 
 function LanguageChange() {
-  const { i18n } = useTranslation();
+  const { i18n } = useTranslation('general');
 
   const languageOptions: SettingMenuOption<string>[] = [
     { value: '', label: 'System' },

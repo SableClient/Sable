@@ -1,0 +1,21 @@
+{
+  "limited_compatibility_with_pluralkit_like_functions": "Limited Compatibility with PluralKit-like functions",
+  "enable_pk_commands": "Enable PK commands",
+  "if_enabled_it_will_enable_a_few_pk_style_commands_currently_verry_limited": "If enabled, it will enable a few pk style commands, currently verry limited",
+  "disable_pk_commands": "disable pk; commands",
+  "enable_pks_commands": "enable pk; commands",
+  "enable_shorthands": "Enable Shorthands",
+  "if_enabled_you_can_use_shorthands_to_use_a_persona_for_one_message_only_eg": "If enabled, you can use shorthands to use a Persona for one message only (eg. '✨:test')",
+  "disable_checking_typed_messages_for_shorthands": "disable checking typed messages for shorthands",
+  "enable_checking_typed_messages_for_shorthands": "enable checking typed messages for shorthands",
+  "profile_id": "Profile ID:",
+  "pronouns": "Pronouns:",
+  "reset_pronouns": "Reset Pronouns",
+  "display_name": "Display Name:",
+  "delete_profile": "Delete profile {{profileId}}",
+  "save_profile": "Save profile changes for {{profileId}}",
+  "save_profile_button_area": "Save button area for {{profileId}}",
+  "pronouns_for": "Pronouns for {{profileId}}",
+  "avatar_for": "Avatar for {{profileId}}",
+  "display_name_for": "Display name for {{profileId}}"
+}

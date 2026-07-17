@@ -15,16 +15,17 @@
   },
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.useFlakes": true,
+
   "i18n-ally.localesPaths": ["public/locales"],
-  "i18n-ally.dirStructure": "auto",
+  "i18n-ally.namespace": true,
+  "i18n-ally.pathMatcher": "{locale}/{namespaces}.json",
   "i18n-ally.enabledFrameworks": ["react", "react-i18next"],
+  "i18n-ally.keystyle": "nested",
   "i18n-ally.extract.keyMaxLength": 75,
   "i18n-ally.extract.targetPickingStrategy": "most-similar",
-  "i18n-ally.keystyle": "nested",
   "i18n-ally.extract.keygenStyle": "snake_case",
-  "i18n-ally.extract.ignoredByFiles": {
-    "src/app/components/DeviceVerificationSetup.tsx": ["Column"]
-  },
+  "i18n-ally.extract.ignored": ["@"],
+
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
     "package.json": "pnpm-*.yaml, yarn.lock, package-lock.json, .npmrc, .nvmrc, .node-version",

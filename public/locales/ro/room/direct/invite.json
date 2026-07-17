@@ -1,0 +1,7 @@
+{
+  "direct_message_invite_prompt": "Aceasa este o conversație directă, menită pentru discuții între două persoane, Doriți sa o tranformați intr-un group de conversație înainte de a continua?",
+  "failed_to_convert_direct_message_to_room": "Transformarea convesației directe in conversație de grup a eșuat!",
+  "convert_to_group_chat_and_invite": "Transformă in grup și invită",
+  "invite_to_direct_message_anyway": "Invită la mesaje directe oricum",
+  "invite_another_member": "Invită altă persoana"
+}

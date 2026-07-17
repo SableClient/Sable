@@ -7,7 +7,7 @@
 import { Box, Scroll, Text, config } from 'folds';
 import { PageContent } from '$components/page';
 import { SettingsSectionPage } from '../SettingsSectionPage';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 type ShortcutEntry = {
   keys: string;
@@ -19,6 +19,45 @@ type ShortcutCategory = {
   shortcuts: ShortcutEntry[];
 };
 
+// uses translation keys to avoid initializing it too early
+const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
+  {
+    name: 'general',
+    shortcuts: [{ keys: 'Ctrl+F / ⌘+F', description: 'search_for_messages' }],
+  },
+  {
+    name: 'navigation',
+    shortcuts: [
+      {
+        keys: 'Alt+N',
+        description: 'jump_to_the_highest_priority_unread_room',
+      },
+      {
+        keys: 'Alt+Shift+Down',
+        description: 'go_to_next_unread_room_cycle',
+      },
+      {
+        keys: 'Alt+Shift+Up',
+        description: 'go_to_previous_unread_room_cycle',
+      },
+      { keys: 'Ctrl+K / ⌘+K', description: 'seach_and_go_to_room' },
+    ],
+  },
+  {
+    name: 'messages',
+    shortcuts: [
+      { keys: 'Ctrl+Z / ⌘+Z', description: 'undo_in_message_editor' },
+      {
+        keys: 'Ctrl+Shift+Z / ⌘+Shift+Z',
+        description: 'redo_in_message_editor',
+      },
+      { keys: 'Ctrl+B / ⌘+B', description: 'bold' },
+      { keys: 'Ctrl+I / ⌘+I', description: 'italic' },
+      { keys: 'Ctrl+U / ⌘+U', description: 'underline' },
+      { keys: 'Ctrl+E / ⌘+E', description: 'open_sticker_picker' },
+    ],
+  },
+];
 function formatKey(key: string): string {
   const isMac =
     typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -27,45 +66,6 @@ function formatKey(key: string): string {
     .replace(/\balt\b/gi, isMac ? '⌥' : 'Alt')
     .replace(/\bshift\b/gi, '⇧');
 }
-
-const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
-  {
-    name: 'General',
-    shortcuts: [{ keys: 'Ctrl+F / ⌘+F', description: 'Search for messages' }],
-  },
-  {
-    name: 'Navigation',
-    shortcuts: [
-      {
-        keys: 'Alt+N',
-        description: t('Settings.KeyboardShortcuts.jump_to_the_highest_priority_unread_room'),
-      },
-      {
-        keys: 'Alt+Shift+Down',
-        description: t('Settings.KeyboardShortcuts.go_to_next_unread_room_cycle'),
-      },
-      {
-        keys: 'Alt+Shift+Up',
-        description: t('Settings.KeyboardShortcuts.go_to_previous_unread_room_cycle'),
-      },
-      { keys: 'Ctrl+K / ⌘+K', description: 'Search and go to Room' },
-    ],
-  },
-  {
-    name: t('Settings.KeyboardShortcuts.messages'),
-    shortcuts: [
-      { keys: 'Ctrl+Z / ⌘+Z', description: t('Settings.KeyboardShortcuts.undo_in_message_editor') },
-      {
-        keys: 'Ctrl+Shift+Z / ⌘+Shift+Z',
-        description: t('Settings.KeyboardShortcuts.redo_in_message_editor'),
-      },
-      { keys: 'Ctrl+B / ⌘+B', description: t('Settings.KeyboardShortcuts.bold') },
-      { keys: 'Ctrl+I / ⌘+I', description: t('Settings.KeyboardShortcuts.italic') },
-      { keys: 'Ctrl+U / ⌘+U', description: t('Settings.KeyboardShortcuts.underline') },
-      { keys: 'Ctrl+E / ⌘+E', description: 'Open Sticker Picker' },
-    ],
-  },
-];
 
 function ShortcutRow({ keys, description }: ShortcutEntry) {
   const parts = keys.split('/').map((k) => k.trim());
@@ -129,11 +129,13 @@ type KeyboardShortcutsProps = {
   requestClose: () => void;
 };
 export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcutsProps) {
+  const { t } = useTranslation(['settings/keyboard_shortcuts']);
+
   return (
     <SettingsSectionPage
-      title={t('Settings.KeyboardShortcuts.keyboard_shortcuts')}
+      title={t('keyboard_shortcuts')}
       titleAs="h1"
-      actionLabel={t('Settings.KeyboardShortcuts.close_keyboard_shortcuts')}
+      actionLabel={t('close_keyboard_shortcuts')}
       requestBack={requestBack}
       requestClose={requestClose}
     >
@@ -144,14 +146,14 @@ export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcu
               {SHORTCUT_CATEGORIES.map((category) => (
                 <Box key={category.name} direction="Column" gap="200">
                   <Text size="L400" as="h2">
-                    {category.name}
+                    {t(category.name)}
                   </Text>
                   <dl style={{ margin: 0 }}>
                     {category.shortcuts.map((entry) => (
                       <div key={entry.description}>
                         <dt style={{ display: 'none' }}>{entry.keys}</dt>
                         <dd style={{ margin: 0 }}>
-                          <ShortcutRow keys={entry.keys} description={entry.description} />
+                          <ShortcutRow keys={entry.keys} description={t(entry.description)} />
                         </dd>
                       </div>
                     ))}

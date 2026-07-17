@@ -63,7 +63,7 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
               <>
                 <b>{typingNames[0]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {t('RoomView.is_typing')}
+                  {` ${t('RoomView.is_typing')}`}
                 </Text>
               </>
             )}

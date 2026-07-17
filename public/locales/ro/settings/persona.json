@@ -1,0 +1,21 @@
+{
+  "limited_compatibility_with_pluralkit_like_functions": "Compatibilitate limitată cu functii similare cu PluralKit",
+  "enable_pk_commands": "Activează comenzi PK",
+  "if_enabled_it_will_enable_a_few_pk_style_commands_currently_verry_limited": "Dacă activat, va permite folosirea de comenzi in stil PK, deocamdată foarte limitate",
+  "disable_pk_commands": "dezactivează comenzile pk;",
+  "enable_pks_commands": "activează comenzile pk;",
+  "enable_shorthands": "Activează scurtături",
+  "if_enabled_you_can_use_shorthands_to_use_a_persona_for_one_message_only_eg": "Dacă activat, vei putea folosii scuraturi pentru a folosi personalități pentru un mesaj (ex. '✨:test')",
+  "disable_checking_typed_messages_for_shorthands": "dezactivează verificarea mesajelor scrise pentru scurataturi",
+  "enable_checking_typed_messages_for_shorthands": "activeaza verificarea mesajelor scrise pentru scurataturi",
+  "profile_id": "ID profil:",
+  "pronouns": "Pronume:",
+  "reset_pronouns": "Resetează Pronumele",
+  "display_name": "Nume Afișat:",
+  "delete_profile": "Șterge profilul {{profileId}}",
+  "save_profile": "Salvează schimbările pentru {{profileId}}",
+  "save_profile_button_area": "Zona butonului de salvare a profilului {{profileId}}",
+  "pronouns_for": "Pronumele profilului {{profileId}}",
+  "avatar_for": "Avatarul profilului {{profileId}}",
+  "display_name_for": "Numele afișat pentru {{profileId}}"
+}

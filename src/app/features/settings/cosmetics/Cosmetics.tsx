@@ -208,7 +208,7 @@ function IconSizeSettings() {
 }
 
 function SelectJumboEmojiSize() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('general');
 
   const emojiSizeItems = [
     { id: 'none', name: t('Settings.Cosmetics.none_same_size_as_text') },
@@ -287,7 +287,7 @@ function SelectJumboEmojiSize() {
 }
 
 function SelectRenderCustomProfileCards() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('general');
   const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
     { id: 'both', name: t('Settings.Cosmetics.light_and_dark') },
     { id: 'light', name: t('Settings.Cosmetics.light_only') },
@@ -365,7 +365,7 @@ function SelectRenderCustomProfileCards() {
 }
 
 function JumboEmoji() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('general');
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">{t('Settings.Cosmetics.jumbo_emoji')}</Text>
@@ -382,7 +382,7 @@ function JumboEmoji() {
 }
 
 function Privacy() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('general');
   const [privacyBlur, setPrivacyBlur] = useSetting(settingsAtom, 'privacyBlur');
   const [privacyBlurAvatars, setPrivacyBlurAvatars] = useSetting(
     settingsAtom,
@@ -429,7 +429,7 @@ function Privacy() {
 }
 
 function IdentityCosmetics() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('general');
   const [legacyUsernameColor, setLegacyUsernameColor] = useSetting(
     settingsAtom,
     'legacyUsernameColor'

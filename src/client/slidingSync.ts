@@ -37,6 +37,7 @@ export const LIST_SPACE = 'space';
 const LIST_TIMELINE_LIMIT = 1;
 const LIST_PAGE_SIZE = 30;
 const STEADY_STATE_DETAILED_ROOMS = 3;
+const JOINED_ROOMS_HYDRATION_TIMEOUT_MS = 2000;
 const DEFAULT_POLL_TIMEOUT_MS = 45000;
 
 const LIST_SORT_ORDER = ['by_recency', 'by_name'];
@@ -267,6 +268,8 @@ export class SlidingSyncManager {
   private sidebarCacheReconciled = false;
 
   private sidebarCacheReconciliationQueued = false;
+
+  private joinedRoomIdsPromise: Promise<Set<string> | undefined> | undefined;
 
   private readonly serverMembershipRoomIds = new Set<string>();
 
@@ -611,14 +614,9 @@ export class SlidingSyncManager {
     void this.cacheHydrationPromise.then(async () => {
       if (this.disposed || this.sidebarCacheReconciled) return;
 
-      let joinedRoomIds: string[];
-      try {
-        const response = await this.mx.getJoinedRooms();
-        joinedRoomIds = response.joined_rooms;
-      } catch (error) {
-        debugLog.warn('sync', 'Skipped sidebar cache reconciliation: joined rooms unavailable', {
-          error: error instanceof Error ? error.message : String(error),
-        });
+      const joinedRoomIds = await this.getJoinedRoomIds();
+      if (!joinedRoomIds) {
+        debugLog.warn('sync', 'Skipped sidebar cache reconciliation: joined rooms unavailable');
         return;
       }
 
@@ -636,7 +634,7 @@ export class SlidingSyncManager {
       if (removedRoomIds.length > 0) {
         debugLog.info('sync', 'Removed stale rooms from the sliding sync sidebar cache', {
           removedRoomCount: removedRoomIds.length,
-          joinedRoomCount: joinedRoomIds.length,
+          joinedRoomCount: joinedRoomIds.size,
           observedRoomCount: this.serverMembershipRoomIds.size,
         });
       }
@@ -663,6 +661,9 @@ export class SlidingSyncManager {
   public prepareSidebarCacheHydration(): void {
     if (this.disposed || this.cacheHydrationNewListener) return;
 
+    // Start the joined-rooms fetch now so it's ready before hydration prunes.
+    if (this.sidebarCache.size > 0) void this.getJoinedRoomIds();
+
     this.cacheHydrationPromise = new Promise<boolean>((resolve) => {
       this.cacheHydrationResolve = resolve;
     });
@@ -677,8 +678,8 @@ export class SlidingSyncManager {
 
       globalThis.queueMicrotask(() => {
         this.hydratingSidebarCache = true;
-        void this.sidebarCache
-          .hydrate(this.mx, this.slidingSync)
+        void this.pruneStaleCachedRoomsBeforeHydration()
+          .then(() => this.sidebarCache.hydrate(this.mx, this.slidingSync))
           .then((hydrated) => this.cacheHydrationResolve?.(hydrated))
           .catch(() => this.cacheHydrationResolve?.(false))
           .finally(() => {
@@ -689,6 +690,35 @@ export class SlidingSyncManager {
     };
 
     this.slidingSync.on(EventEmitterEvents.NewListener, this.cacheHydrationNewListener as never);
+  }
+
+  private getJoinedRoomIds(): Promise<Set<string> | undefined> {
+    if (!this.joinedRoomIdsPromise) {
+      this.joinedRoomIdsPromise = this.mx
+        .getJoinedRooms()
+        .then((response) => new Set(response.joined_rooms))
+        .catch((error) => {
+          debugLog.warn('sync', 'Failed to fetch joined rooms for sidebar cache', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return undefined;
+        });
+    }
+    return this.joinedRoomIdsPromise;
+  }
+
+  // Prune left-elsewhere rooms before hydration so stale spaces never render.
+  // No-op if joined rooms are slow/unavailable; reconciliation cleans up later.
+  private async pruneStaleCachedRoomsBeforeHydration(): Promise<void> {
+    if (this.sidebarCache.size === 0) return;
+    let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = globalThis.setTimeout(() => resolve(undefined), JOINED_ROOMS_HYDRATION_TIMEOUT_MS);
+    });
+    const joinedRoomIds = await Promise.race([this.getJoinedRoomIds(), timeout]);
+    globalThis.clearTimeout(timer);
+    if (!joinedRoomIds || this.disposed) return;
+    this.sidebarCache.pruneToJoined(joinedRoomIds);
   }
 
   public waitForSidebarCacheHydration(): Promise<boolean> {

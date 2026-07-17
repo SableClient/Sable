@@ -89,6 +89,8 @@ const mergeRoomData = (
   prev_batch: undefined,
 });
 
+const isInviteRoomData = (data: MSC3575RoomData): boolean => (data.invite_state?.length ?? 0) > 0;
+
 const parseCache = (value: string | null): SidebarCacheData => {
   if (!value) return emptyCache();
   try {
@@ -142,6 +144,20 @@ export class SlidingSyncSidebarCache {
       // Storage can be disabled for this origin.
     }
     this.data = parseCache(stored);
+  }
+
+  public get size(): number {
+    return Object.keys(this.data.rooms).length;
+  }
+
+  // Drops rooms left on another device while offline; keeps pending invites.
+  public pruneToJoined(joinedRoomIds: ReadonlySet<string>): void {
+    const stale = Object.entries(this.data.rooms)
+      .filter(([roomId, data]) => !joinedRoomIds.has(roomId) && !isInviteRoomData(data))
+      .map(([roomId]) => roomId);
+    if (stale.length === 0) return;
+    stale.forEach((roomId) => delete this.data.rooms[roomId]);
+    this.scheduleWrite();
   }
 
   public cacheRoom(roomId: string, roomData: MSC3575RoomData): void {

@@ -95,6 +95,43 @@ describe('SlidingSyncSidebarCache', () => {
     );
   });
 
+  it('prunes joined rooms absent from the joined set but keeps pending invites', async () => {
+    const cache = new SlidingSyncSidebarCache(userId);
+    cache.cacheRoom('!joined:example.com', {
+      name: 'Still Joined',
+      required_state: [stateEvent(EventType.RoomMember, userId, { membership: 'join' })],
+      timeline: [],
+    } as MSC3575RoomData);
+    cache.cacheRoom('!left:example.com', {
+      name: 'Left Elsewhere',
+      required_state: [stateEvent(EventType.RoomMember, userId, { membership: 'join' })],
+      timeline: [],
+    } as MSC3575RoomData);
+    cache.cacheRoom('!invited:example.com', {
+      name: 'Pending Invite',
+      required_state: [],
+      invite_state: [stateEvent(EventType.RoomMember, userId, { membership: 'invite' })],
+      timeline: [],
+    } as MSC3575RoomData);
+
+    cache.pruneToJoined(new Set(['!joined:example.com']));
+
+    const emitPromised = vi
+      .fn<(event: SlidingSyncEvent, roomId: string, data: MSC3575RoomData) => Promise<boolean>>()
+      .mockResolvedValue(true);
+    await cache.hydrate(
+      {
+        store: { storeAccountDataEvents: vi.fn<(events: MatrixEvent[]) => void>() },
+      } as unknown as MatrixClient,
+      { emitPromised } as unknown as SlidingSync
+    );
+
+    const hydratedRoomIds = emitPromised.mock.calls.map((call) => call[1]);
+    expect(hydratedRoomIds).toContain('!joined:example.com');
+    expect(hydratedRoomIds).toContain('!invited:example.com');
+    expect(hydratedRoomIds).not.toContain('!left:example.com');
+  });
+
   it('merges later state into the existing cached room snapshot', async () => {
     const cache = new SlidingSyncSidebarCache(userId);
     cache.cacheRoom('!room:example.com', {

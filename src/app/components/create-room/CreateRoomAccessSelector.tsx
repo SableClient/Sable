@@ -4,6 +4,7 @@ import { Check, sizedIcon } from '$components/icons/phosphor';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { CreateRoomAccess } from './types';
+import { useTranslation } from 'react-i18next';
 
 type CreateRoomAccessSelectorProps = {
   value?: CreateRoomAccess;
@@ -19,6 +20,7 @@ export function CreateRoomAccessSelector({
   disabled,
   getIcon,
 }: CreateRoomAccessSelectorProps) {
+  const { t } = useTranslation('room/create');
   return (
     <Box shrink="No" direction="Column" gap="100">
       {canRestrict && (
@@ -39,7 +41,7 @@ export function CreateRoomAccessSelector({
           >
             <Text size="H6">Restricted</Text>
             <Text size="T300" priority="300">
-              Only member of parent space can join.
+              {t('only_member_of_parent_space_can_join')}
             </Text>
           </SettingTile>
         </SequenceCard>
@@ -59,9 +61,9 @@ export function CreateRoomAccessSelector({
           before={getIcon(CreateRoomAccess.Private)}
           after={value === CreateRoomAccess.Private && sizedIcon(Check)}
         >
-          <Text size="H6">Private</Text>
+          <Text size="H6">{t('private')}</Text>
           <Text size="T300" priority="300">
-            Only people with invite can join.
+            {t('only_people_with_invite_can_join')}
           </Text>
         </SettingTile>
       </SequenceCard>
@@ -80,9 +82,9 @@ export function CreateRoomAccessSelector({
           before={getIcon(CreateRoomAccess.Public)}
           after={value === CreateRoomAccess.Public && sizedIcon(Check)}
         >
-          <Text size="H6">Public</Text>
+          <Text size="H6">{t('public')}</Text>
           <Text size="T300" priority="300">
-            Anyone with the address can join.
+            {t('anyone_with_the_address_can_join')}
           </Text>
         </SettingTile>
       </SequenceCard>

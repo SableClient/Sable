@@ -61,6 +61,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'sync-across-devices',
     'sync-status',
     'twenty-four-hour-time-format',
+    'set-language',
     'url-preview',
     'use-sliding-sync',
     'join-on-click-voicecalls',

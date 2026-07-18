@@ -4,14 +4,16 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Box, Switch, Text } from 'folds';
 import { SequenceCardStyle } from '../styles.css';
+import { useTranslation } from 'react-i18next';
 
 export function PKCompatSettings() {
   const [usePKCompat, setUsePKCompat] = useSetting(settingsAtom, 'pkCompat');
   const [usePmpProxying, setUsePmpProxying] = useSetting(settingsAtom, 'pmpProxying');
+  const { t } = useTranslation(['settings/persona']);
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Limited Compatibility with PluralKit-like functions</Text>
+      <Text size="L400">{t('limited_compatibility_with_pluralkit_like_functions')}</Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -20,21 +22,25 @@ export function PKCompatSettings() {
       >
         <SettingTile
           focusId="enable-pk-commands"
-          title="Enable PK commands"
-          description="If enabled, it will enable a few pk style commands, currently verry limited"
+          title={t('enable_pk_commands')}
+          description={t(
+            'if_enabled_it_will_enable_a_few_pk_style_commands_currently_verry_limited'
+          )}
           after={
             <Switch
               variant="Primary"
               value={usePKCompat}
               onChange={setUsePKCompat}
-              title={usePKCompat ? 'disable pk; commands' : 'enable pk; commands'}
+              title={usePKCompat ? t('disable_pk_commands') : t('enable_pks_commands')}
             />
           }
         />
         <SettingTile
           focusId="enable-pk-shorthands"
-          title="Enable Shorthands"
-          description="If enabled, you can use shorthands to use a Persona for one message only (eg. '✨:test')"
+          title={t('enable_shorthands')}
+          description={t(
+            'if_enabled_you_can_use_shorthands_to_use_a_persona_for_one_message_only_eg'
+          )}
           after={
             <Switch
               variant="Primary"
@@ -42,8 +48,8 @@ export function PKCompatSettings() {
               onChange={setUsePmpProxying}
               title={
                 usePmpProxying
-                  ? 'disable checking typed messages for shorthands'
-                  : 'enable checking typed messages for shorthands'
+                  ? t('disable_checking_typed_messages_for_shorthands')
+                  : t('enable_checking_typed_messages_for_shorthands')
               }
             />
           }

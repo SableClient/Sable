@@ -66,6 +66,7 @@ import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './MembersDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { t } from 'i18next';
 
 type MemberDrawerHeaderProps = {
   room: Room;
@@ -473,7 +474,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                     radii="Pill"
                     outlined
                     size="300"
-                    aria-label="Scroll to Top"
+                    aria-label={t('RoomView.scroll_to_top')}
                   >
                     {composerIcon(CaretUp)}
                   </IconButton>

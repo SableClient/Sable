@@ -4,16 +4,18 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Box, Switch, Text } from 'folds';
 import { SequenceCardStyle } from '../styles.css';
+import { useTranslation } from 'react-i18next';
 
 export function MSC4274MediaGalleries() {
   const [enabledMediaGalleries, setEnabledMediaGalleries] = useSetting(
     settingsAtom,
     'enableMediaGalleries'
   );
+  const { t } = useTranslation(['settings/experimental']);
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Enable Media Galleries Support</Text>
+      <Text size="L400">{t('enable_media_galleries_support')}</Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -21,15 +23,17 @@ export function MSC4274MediaGalleries() {
         gap="100"
       >
         <SettingTile
-          title="Enable Media Galleries"
+          title={t('enable_media_galleries_title')}
           focusId="media-galleries"
-          description="If enabled, multiple attachments will be sent in one message, as per MSC4274. Incompatible with clients that don't implement it."
+          description={t('enable_media_galleries_description')}
           after={
             <Switch
               variant="Primary"
               value={enabledMediaGalleries}
               onChange={setEnabledMediaGalleries}
-              title={enabledMediaGalleries ? 'Disable Media Galleries' : 'Enable Media Galleries'}
+              title={
+                enabledMediaGalleries ? t('disable_media_galleries') : t('enable_media_galleries')
+              }
             />
           }
         />

@@ -72,6 +72,7 @@ import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollo
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { t } from 'i18next';
 
 /**
  * Resolve the list of reply events to show in the thread drawer.
@@ -503,11 +504,11 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   hasOlderRepliesRef.current = hasOlderReplies;
 
   const loadOlderReplies = useCallback(() => {
-    const t = room.getThread(threadRootId);
-    if (!t || !t.initialEventsFetched || paginatingOlderRef.current) return;
+    const fullThread = room.getThread(threadRootId);
+    if (!fullThread || !fullThread.initialEventsFetched || paginatingOlderRef.current) return;
     paginatingOlderRef.current = true;
     setLoadingOlderReplies(true);
-    mx.paginateEventTimeline(t.timelineSet.getLiveTimeline(), { backwards: true })
+    mx.paginateEventTimeline(fullThread.timelineSet.getLiveTimeline(), { backwards: true })
       .then((hasMore) => {
         paginatingOlderRef.current = false;
         if (!hasMore) setCanPageBack(false);
@@ -835,7 +836,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         <Box grow="Yes" alignItems="Center" gap="200">
           {composerIcon(Chats)}
           <Text size="H4" truncate>
-            Thread
+            {t('RoomView.Threads.thread')}
           </Text>
         </Box>
         <Box alignItems="Center" gap="200" shrink="No">
@@ -928,7 +929,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
                 >
                   {composerIcon(Chats, { style: { opacity: 0.6 } })}
                   <Text size="T300" align="Center">
-                    No replies yet. Start the thread below!
+                    {t('RoomView.Threads.no_replies_yet_start_the_thread_below')}
                   </Text>
                 </Box>
               );

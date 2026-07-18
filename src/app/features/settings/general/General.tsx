@@ -53,7 +53,11 @@ import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 import { SettingsSectionPage } from '../SettingsSectionPage';
+import { t } from 'i18next';
 import { CallSoundSettings } from './CallSoundSettings';
+import { useTranslation } from 'react-i18next';
+import type { SettingMenuOption } from '$components/setting-menu-selector';
+import { SettingMenuSelector } from '$components/setting-menu-selector';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -82,26 +86,27 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
         >
           <Menu style={{ maxHeight: '85vh', overflowY: 'auto' }}>
             <Header size="300" style={{ padding: `0 ${config.space.S200}` }}>
-              <Text size="L400">Formatting</Text>
+              <Text size="L400">{t('Settings.General.formatting')}</Text>
             </Header>
 
             <Box direction="Column">
               <Box style={categoryPadding} direction="Column">
                 <Header size="300">
-                  <Text size="L400">Year</Text>
+                  <Text size="L400">{t('Settings.General.year')}</Text>
                 </Header>
                 <Box direction="Column" tabIndex={0} gap="100">
                   <Text size="T300">
                     YY
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      Two-digit year
+                      {t('Settings.General.two_digit_year')}
                     </Text>{' '}
                   </Text>
                   <Text size="T300">
                     YYYY
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Four-digit year
+                      {': '}
+                      {t('Settings.General.four_digit_year')}
                     </Text>
                   </Text>
                 </Box>
@@ -109,31 +114,35 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
 
               <Box style={categoryPadding} direction="Column">
                 <Header size="300">
-                  <Text size="L400">Month</Text>
+                  <Text size="L400">{t('Settings.General.month')}</Text>
                 </Header>
                 <Box direction="Column" tabIndex={0} gap="100">
                   <Text size="T300">
                     M
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}The month
+                      {': '}
+                      {t('Settings.General.the_month')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     MM
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Two-digit month
+                      {': '}
+                      {t('Settings.General.two_digit_month')}
                     </Text>{' '}
                   </Text>
                   <Text size="T300">
                     MMM
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Short month name
+                      {': '}
+                      {t('Settings.General.short_month_name')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     MMMM
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Full month name
+                      {': '}
+                      {t('Settings.General.full_month_name')}
                     </Text>
                   </Text>
                 </Box>
@@ -141,13 +150,14 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
 
               <Box style={categoryPadding} direction="Column">
                 <Header size="300">
-                  <Text size="L400">Day of the Month</Text>
+                  <Text size="L400">{t('Settings.General.day_of_the_month')}</Text>
                 </Header>
                 <Box direction="Column" tabIndex={0} gap="100">
                   <Text size="T300">
                     D
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Day of the month
+                      {': '}
+                      {t('Settings.General.day_of_the_month')}
                     </Text>
                   </Text>
                   <Text size="T300">
@@ -160,31 +170,35 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
               </Box>
               <Box style={categoryPadding} direction="Column">
                 <Header size="300">
-                  <Text size="L400">Day of the Week</Text>
+                  <Text size="L400">{t('Settings.General.day_of_the_week')}</Text>
                 </Header>
                 <Box direction="Column" tabIndex={0} gap="100">
                   <Text size="T300">
                     d
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Day of the week (Sunday = 0)
+                      {': '}
+                      {t('Settings.General.day_of_the_week_sunday_0')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     dd
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Two-letter day name
+                      {': '}
+                      {t('Settings.General.two_letter_day_name')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     ddd
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Short day name
+                      {': '}
+                      {t('Settings.General.short_day_name')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     dddd
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Full day name
+                      {': '}
+                      {t('Settings.General.full_day_name')}
                     </Text>
                   </Text>
                 </Box>
@@ -413,6 +427,50 @@ function DateAndTime() {
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SelectDateFormat />
+      </SequenceCard>
+    </Box>
+  );
+}
+
+function LanguageChange() {
+  const { i18n } = useTranslation('general');
+
+  const languageOptions: SettingMenuOption<string>[] = [
+    { value: '', label: 'System' },
+    { value: 'en', label: 'English' },
+    { value: 'ro', label: 'Română' },
+  ];
+  const [curLanguage, setCurLanguage] = useState(localStorage.getItem('i18nextLng') ?? '');
+
+  const handleLanguageChange = (language: string) => {
+    if (language) {
+      setCurLanguage(language);
+      i18n.changeLanguage(language);
+    } else {
+      localStorage.removeItem('i18nextLng');
+      setCurLanguage('');
+
+      const detected = i18n.services.languageDetector?.detect();
+      i18n.changeLanguage(Array.isArray(detected) ? detected[0] : (detected ?? 'en'));
+    }
+    window.location.reload();
+  };
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Language</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Current Language"
+          focusId="set-language"
+          after={
+            <SettingMenuSelector
+              value={curLanguage ?? ''}
+              options={languageOptions}
+              onSelect={handleLanguageChange}
+            />
+          }
+        />
       </SequenceCard>
     </Box>
   );
@@ -1620,6 +1678,7 @@ export function General({ requestBack, requestClose }: Readonly<GeneralProps>) {
           <PageContent>
             <Box direction="Column" gap="700">
               <DateAndTime />
+              <LanguageChange />
               <Gestures isMobile={mobileOrTablet()} />
               <Editor isMobile={mobileOrTablet()} />
               <Messages />

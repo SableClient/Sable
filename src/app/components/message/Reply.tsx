@@ -277,7 +277,7 @@ export const Reply = as<'div', ReplyProps>(
 
     const ignoredUsers = useIgnoredUsers();
     const isBlockedSender = !!sender && ignoredUsers.includes(sender);
-    const { t } = useTranslation();
+    const { t } = useTranslation('general');
 
     const parseMemberEvent = useMemberEventParser();
 

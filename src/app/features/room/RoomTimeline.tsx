@@ -75,6 +75,7 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
+import { t } from 'i18next';
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
@@ -901,7 +902,7 @@ export function RoomTimeline({
           style={{ padding: config.space.S300 }}
         >
           <Text style={{ color: color.Critical.Main }} size="T300">
-            Failed to load history.
+            {t('RoomView.failed_to_load_history')}
           </Text>
           <Chip
             variant="SurfaceVariant"
@@ -909,7 +910,7 @@ export function RoomTimeline({
             outlined
             onClick={() => timelineSync.handleTimelinePagination(true)}
           >
-            <Text size="B300">Retry</Text>
+            <Text size="B300">{t('General.retry')}</Text>
           </Chip>
         </Box>
       );
@@ -927,7 +928,7 @@ export function RoomTimeline({
           style={{ padding: config.space.S300 }}
         >
           <Text style={{ color: color.Critical.Main }} size="T300">
-            Failed to load messages.
+            {t('RoomView.failed_to_load_messages')}
           </Text>
           <Chip
             variant="SurfaceVariant"
@@ -935,7 +936,7 @@ export function RoomTimeline({
             outlined
             onClick={() => timelineSync.handleTimelinePagination(false)}
           >
-            <Text size="B300">Retry</Text>
+            <Text size="B300">{t('General.retry')}</Text>
           </Chip>
         </Box>
       );
@@ -1076,7 +1077,7 @@ export function RoomTimeline({
             before={chipIcon(ChatTeardropDots)}
             onClick={() => timelineSync.loadEventTimeline(unreadInfo.readUptoEventId)}
           >
-            <Text size="L400">Jump to Unread</Text>
+            <Text size="L400">{t('RoomView.jump_to_unread')}</Text>
           </Chip>
           <Chip
             variant="SurfaceVariant"
@@ -1085,7 +1086,7 @@ export function RoomTimeline({
             before={chipIcon(Checks)}
             onClick={() => markAsRead(mx, room.roomId, hideReads)}
           >
-            <Text size="L400">Mark as Read</Text>
+            <Text size="L400">{t('RoomView.mark_as_read')}</Text>
           </Chip>
         </TimelineFloat>
       )}
@@ -1174,7 +1175,7 @@ export function RoomTimeline({
               MozUserSelect: 'none',
             }}
           >
-            <Text size="L400">Jump to Latest</Text>
+            <Text size="L400">{t('RoomView.jump_to_latest')}</Text>
           </Chip>
         </TimelineFloat>
       )}

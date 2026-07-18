@@ -1,0 +1,22 @@
+{
+  "save_bandwidth_for_sticker_and_emoji_images": "Reduceți Consumul rețelei pentru stickere si emoticoane",
+  "enable_bandwidth_saving_for_stickers_and_emojis": "Porneste salvare de 'bandwidth' pentru stickere si emoticoane",
+  "if_enabled_sticker_and_emoji_images_will_be_optimized_to_save_bandwidth_thi": "Dacă pornit, stickerele si emoticoanele vor fi optimizate pentru a consuma mai puțin internet. Asta ajută consumul de date când văzănd aceste imagini, dar crește costul de computare a server-ului.",
+  "personas_per_message_profiles": "Personalități. (Profiluri per-mesaj)",
+  "show_personas_tab": "Prezintă meniul de Personalități",
+  "enables_the_personas_tab_in_the_settings_menu_for_per_message_profiles": "Adauga meniul de personalități in bara de setări pentru profile specifice fiecărui mesaj.",
+  "experimental": "Experimental",
+  "the_features_listed_below_may_be_unstable_or_incomplete": "Opțiunile listate ulterior pot fi instabile sau incomplete,",
+  "use_at_your_own_risk": "folosește la riscul vostru",
+  "please_report_any_new_issues_potentially_caused_by_these_features": "Vă rugăm sa raportati orice probleme noi cauzate potențial de aceste opțiuni! Mersi!",
+  "enable_sharing_of_encrypted_history": "Activează împărtășirea de Istorie Criptată.",
+  "enable_the_sharehistory_command": "Activează comanda de /sharehistory",
+  "if_enabled_this_command_will_allow_users_to_share_encrypted_history_with_ot": "Dacă activată, această optiune va permite utilizatorilor să impărtașească istoria criptată cu alți utilizatori noi, per MSC4268.",
+  "disable_sharehistory_command": "Dezactivează comanda /sharehistory",
+  "enable_sharehistory_command": "Activează comanda /sharehistory",
+  "enable_media_galleries_support": "Activează suportul pentru galerii de media",
+  "enable_media_galleries_title": "Activează galeriile media",
+  "enable_media_galleries_description": "Dacă activat, mai multe atașamente vor fi trimise intr-un singur mesaj, pe baza MSC4272. Incompatibil cu alte aplicatii care nu mermit galerii",
+  "disable_media_galleries": "Dezactivează galeriile media",
+  "enable_media_galleries": "Activează galeriile media"
+}

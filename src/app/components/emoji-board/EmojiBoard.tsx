@@ -59,6 +59,7 @@ import {
 } from './components';
 import type { GifData } from './types';
 import { EmojiBoardTab, EmojiType } from './types';
+import { t } from 'i18next';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 
@@ -109,7 +110,10 @@ const useGroups = (
 
     imagePacks.forEach((pack) => {
       let label = pack.meta.name;
-      if (!label) label = isUserId(pack.id) ? 'Personal Pack' : mx.getRoom(pack.id)?.name;
+      if (!label)
+        label = isUserId(pack.id)
+          ? t('RoomInput.EmojiBoard.personal_pack')
+          : mx.getRoom(pack.id)?.name;
 
       g.push({
         id: pack.id,
@@ -137,7 +141,10 @@ const useGroups = (
 
     imagePacks.forEach((pack) => {
       let label = pack.meta.name;
-      if (!label) label = isUserId(pack.id) ? 'Personal Pack' : mx.getRoom(pack.id)?.name;
+      if (!label)
+        label = isUserId(pack.id)
+          ? t('RoomInput.EmojiBoard.personal_pack')
+          : mx.getRoom(pack.id)?.name;
 
       g.push({
         id: pack.id,
@@ -275,7 +282,10 @@ function EmojiSidebar({
           <SidebarDivider />
           {packs.map((pack) => {
             let label = pack.meta.name;
-            if (!label) label = isUserId(pack.id) ? 'Personal Pack' : mx.getRoom(pack.id)?.name;
+            if (!label)
+              label = isUserId(pack.id)
+                ? t('RoomInput.EmojiBoard.personal_pack')
+                : mx.getRoom(pack.id)?.name;
 
             // limit width and height to 36 to prevent very large icons from breaking the layout, since custom emoji pack icons can be of any size
             // trying to get close to the render target size of the icons in the sidebar, which is around 24px
@@ -288,7 +298,7 @@ function EmojiSidebar({
                 key={pack.id}
                 active={activeGroupId === pack.id}
                 id={pack.id}
-                label={label ?? 'Unknown Pack'}
+                label={label ?? t('RoomInput.EmojiBoard.unknown_pack')}
                 url={url ?? undefined}
                 onClick={handleScrollToGroup}
               />
@@ -360,7 +370,7 @@ function StickerSidebar({
               key={pack.id}
               active={activeGroupId === pack.id}
               id={pack.id}
-              label={label ?? 'Unknown Pack'}
+              label={label ?? t('RoomInput.EmojiBoard.unknown_pack')}
               url={url ?? undefined}
               onClick={handleScrollToGroup}
             />
@@ -822,7 +832,11 @@ export function EmojiBoard({
             {tab !== EmojiBoardTab.Gif && searchedItems && (
               <EmojiGroup
                 id={SEARCH_GROUP_ID}
-                label={searchedItems.length ? 'Search Results' : 'No Results found'}
+                label={
+                  searchedItems.length
+                    ? t('RoomInput.EmojiBoard.search_results')
+                    : t('RoomInput.EmojiBoard.no_results_found')
+                }
               >
                 {searchedItems.map((element, index) => renderItem(element, index))}
               </EmojiGroup>

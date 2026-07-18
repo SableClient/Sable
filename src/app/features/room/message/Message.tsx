@@ -56,6 +56,7 @@ import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile'
 import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
+import { t } from 'i18next';
 import { modalAtom, ModalType } from '$state/modal';
 import { OptionQuickMenu } from '$components/message/modals/Options';
 
@@ -660,10 +661,10 @@ function MessageInternal(
       const originalRoomId = messageForwardedProps.originalRoomId;
       return {
         label: messageForwardedProps.originalEventPrivate
-          ? 'Forwarded private message'
+          ? t('RoomView.Message.forwarded_private_message')
           : isSameRoomForward(originalRoomId)
-            ? 'Forwarded from earlier in this room'
-            : 'Forwarded from another room',
+            ? t('RoomView.Message.forwarded_from_earlier_in_this_room')
+            : t('RoomView.Message.forwarded_from_another_room'),
         roomId: originalRoomId,
         eventId: messageForwardedProps.originalEventId,
         ts: messageForwardedProps.originalTimestamp ?? 0,
@@ -675,8 +676,8 @@ function MessageInternal(
       const originalRoomId = msc2723ForwardedMessageProps.room_id;
       return {
         label: isSameRoomForward(originalRoomId)
-          ? 'Forwarded from earlier in this room'
-          : 'Forwarded from another room',
+          ? t('RoomView.Message.forwarded_from_earlier_in_this_room')
+          : t('RoomView.Message.forwarded_from_another_room'),
         roomId: originalRoomId,
         eventId: msc2723ForwardedMessageProps.event_id,
         ts: msc2723ForwardedMessageProps.origin_server_ts ?? 0,
@@ -732,7 +733,7 @@ function MessageInternal(
                   data-mention-event-id={forwardedNotice.eventId}
                   onClick={mentionClickHandler}
                 >
-                  jump to original
+                  {t('RoomView.Message.jump_to_original')}
                 </a>
               </>
             )}
@@ -766,11 +767,11 @@ function MessageInternal(
       {isFailedSend && (
         <Box className={css.SendStatusRow}>
           <Text size="T200" priority="300">
-            Failed to send.
+            {t('RoomView.Message.failed_to_send')}
           </Text>
           {canResend && (
             <Chip type="button" variant="Primary" radii="Pill" outlined onClick={handleResendClick}>
-              <Text size="B300">Retry</Text>
+              <Text size="B300">{t('General.retry')}</Text>
             </Chip>
           )}
           {canDeleteFailedSend && (
@@ -780,7 +781,7 @@ function MessageInternal(
               radii="Pill"
               onClick={handleDeleteFailedSendClick}
             >
-              <Text size="B300">Delete</Text>
+              <Text size="B300">{t('General.delete')}</Text>
             </Chip>
           )}
         </Box>
@@ -789,7 +790,7 @@ function MessageInternal(
         <Box className={css.SendStatusRow} alignItems="Center" gap="100">
           {menuIcon(Info)}
           <Text size="T200" priority="300" as="span">
-            Only you can see this.
+            {t('RoomView.Message.only_you_can_see_this')}
           </Text>
           <Chip
             type="button"
@@ -806,7 +807,7 @@ function MessageInternal(
               }
             }}
           >
-            <Text size="B300">Dismiss</Text>
+            <Text size="B300">{t('General.dismiss')}</Text>
           </Chip>
         </Box>
       )}

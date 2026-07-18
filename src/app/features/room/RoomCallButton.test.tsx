@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type * as JotaiModule from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { RoomCallButton } from './RoomCallButton';
+import { t } from 'i18next';
 
 const { startCallMock, useCallJoinedMock } = vi.hoisted(() => ({
   startCallMock: vi.fn<(...args: unknown[]) => void>(),
@@ -40,7 +41,7 @@ describe('RoomCallButton', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /start voice call/i }));
+    fireEvent.click(screen.getByRole('button', { name: t('RoomView.start_voice_call') }));
 
     await waitFor(() => {
       expect(startCallMock).toHaveBeenCalledWith(room, {
@@ -61,7 +62,7 @@ describe('RoomCallButton', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /start video call/i }));
+    fireEvent.click(screen.getByRole('button', { name: t('RoomView.start_voice_call') }));
 
     await waitFor(() => {
       expect(startCallMock).toHaveBeenCalledWith(room, {

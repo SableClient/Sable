@@ -27,6 +27,7 @@ import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { SettingTile } from '$components/setting-tile';
+import { useTranslation } from 'react-i18next';
 
 export const useAdditionalCreators = (defaultCreators?: string[]) => {
   const mx = useMatrixClient();
@@ -82,6 +83,7 @@ export function AdditionalCreatorInput({
   const mx = useMatrixClient();
   const [menuCords, setMenuCords] = useState<RectCords>();
   const directUsers = useDirectUsers();
+  const { t } = useTranslation('room/create');
 
   const [validUserId, setValidUserId] = useState<string>();
   const filteredUsers = useMemo(
@@ -146,8 +148,8 @@ export function AdditionalCreatorInput({
 
   return (
     <SettingTile
-      title="Founders"
-      description="Special privileged users can be assigned during creation. These users have elevated control and can only be modified during a upgrade."
+      title={t('founders')}
+      description={t('special_privileged_users_can_be_assigned_during_creation_these_users_have_e')}
     >
       <Box shrink="No" direction="Column" gap="100">
         <Box gap="200" wrap="Wrap">
@@ -262,10 +264,10 @@ export function AdditionalCreatorInput({
                           gap="100"
                         >
                           <Text size="H6" align="Center">
-                            No Suggestions
+                            {t('no_suggestions')}
                           </Text>
                           <Text size="T200" align="Center">
-                            Please provide the user ID and hit Enter.
+                            {t('please_provide_the_user_id_and_hit_enter')}
                           </Text>
                         </Box>
                       )}

@@ -5,6 +5,7 @@ import type { Room } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
 import type { CallPreferences } from '$state/callPreferences';
 import { callEmbedAtom } from '$state/callEmbed';
+import { t } from 'i18next';
 
 interface RoomCallButtonProps {
   room: Room;
@@ -43,7 +44,7 @@ export function RoomCallButton({
   };
 
   const readyCopy = startingVideoCall ? 'Start Video Call' : 'Start Voice Call';
-  const ariaLabel = startingVideoCall ? 'Start Video Call' : 'Start Voice Call';
+  // const ariaLabel = startingVideoCall ? 'Start Video Call' : 'Start Voice Call';
   const icon = startingVideoCall ? VideoCamera : Phone;
 
   return (
@@ -66,9 +67,9 @@ export function RoomCallButton({
         <IconButton
           fill="None"
           ref={triggerRef}
+          aria-label={t('RoomView.start_voice_call')}
           onClick={startSelectedCall}
           disabled={startDisabled}
-          aria-label={ariaLabel}
         >
           {composerIcon(icon)}
         </IconButton>

@@ -23,6 +23,7 @@ import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { Page, PageHeader } from './page';
 import { SequenceCard } from './sequence-card';
 import { TextViewerContent } from './text-viewer';
+import { t } from 'i18next';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -121,7 +122,7 @@ function AccountDataEdit({
       aria-disabled={submitting}
     >
       <Box shrink="No" direction="Column" gap="100">
-        <Text size="L400">Account Data</Text>
+        <Text size="L400">{t('DevTools.account_data')}</Text>
         <Box gap="300">
           <Box grow="Yes" direction="Column">
             <Input
@@ -142,7 +143,7 @@ function AccountDataEdit({
             disabled={submitting}
             before={submitting && <Spinner variant="Primary" fill="Solid" size="300" />}
           >
-            <Text size="B400">Save</Text>
+            <Text size="B400">{t('General.save')}</Text>
           </Button>
           <Button
             variant="Secondary"
@@ -153,7 +154,7 @@ function AccountDataEdit({
             onClick={onCancel}
             disabled={submitting}
           >
-            <Text size="B400">Cancel</Text>
+            <Text size="B400">{t('General.cancel')}</Text>
           </Button>
         </Box>
 
@@ -165,7 +166,7 @@ function AccountDataEdit({
       </Box>
       <Box grow="Yes" direction="Column" gap="100">
         <Box shrink="No">
-          <Text size="L400">JSON Content</Text>
+          <Text size="L400">{t('DevTools.json_content')}</Text>
         </Box>
         <TextAreaComponent
           ref={textAreaRef}
@@ -208,7 +209,7 @@ function AccountDataView({ type, defaultContent, onEdit }: AccountDataViewProps)
     >
       <Box shrink="No" gap="300" alignItems="End">
         <Box grow="Yes" direction="Column" gap="100">
-          <Text size="L400">Account Data</Text>
+          <Text size="L400">{t('DevTools.account_data')}</Text>
           <Input
             variant="SurfaceVariant"
             size="400"
@@ -219,11 +220,11 @@ function AccountDataView({ type, defaultContent, onEdit }: AccountDataViewProps)
           />
         </Box>
         <Button variant="Secondary" size="400" radii="300" onClick={onEdit}>
-          <Text size="B400">Edit</Text>
+          <Text size="B400">{t('General.edit')}</Text>
         </Button>
       </Box>
       <Box grow="Yes" direction="Column" gap="100">
-        <Text size="L400">JSON Content</Text>
+        <Text size="L400">{t('DevTools.json_content')}</Text>
         <SequenceCard variant="SurfaceVariant">
           <Scroll visibility="Always" size="300" hideTrack>
             <TextViewerContent
@@ -290,7 +291,7 @@ export function AccountDataEditor({
               onClick={requestClose}
               before={sizedIcon(ArrowLeft, '100')}
             >
-              <Text size="T300">Developer Tools</Text>
+              <Text size="T300">{t('DevTools.developer_tools')}</Text>
             </Chip>
           </Box>
           <Box shrink="No">

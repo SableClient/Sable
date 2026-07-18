@@ -7,6 +7,7 @@ import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
+import { t } from 'i18next';
 
 export function RoomVersionSelector({
   versions,
@@ -64,7 +65,7 @@ export function RoomVersionSelector({
                     gap="200"
                     style={{ padding: config.space.S200, maxWidth: toRem(300) }}
                   >
-                    <Text size="L400">Versions</Text>
+                    <Text size="L400">{t('RoomCreate.versions')}</Text>
                     <Box wrap="Wrap" gap="100">
                       {versions.map((version) => (
                         <Chip

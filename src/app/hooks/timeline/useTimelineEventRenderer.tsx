@@ -385,7 +385,7 @@ export function useTimelineEventRenderer({
   },
   utils: { htmlReactParserOptions, linkifyOpts, getMemberPowerTag, parseMemberEvent },
 }: TimelineEventRendererOptions) {
-  const { t } = useTranslation();
+  const { t } = useTranslation('general');
   const {
     hiddenEventEdits,
     hiddenEventRedactionTimeline,

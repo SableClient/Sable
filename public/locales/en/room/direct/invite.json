@@ -1,0 +1,7 @@
+{
+  "direct_message_invite_prompt": "This is a Direct Message room, intended for a conversation between two persons. Would you like to convert it into a group chat before continuing?",
+  "failed_to_convert_direct_message_to_room": "Failed to convert direct message to room!",
+  "convert_to_group_chat_and_invite": "Convert to Group Chat and Invite",
+  "invite_to_direct_message_anyway": "Invite to Direct Message anyway",
+  "invite_another_member": "Invite another Member"
+}

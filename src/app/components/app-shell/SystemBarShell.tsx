@@ -45,6 +45,7 @@ function useBarColor(
     if (!enabled) return undefined;
 
     let frame = 0;
+    let timer = 0;
     const sample = () => {
       frame = 0;
       const rect = probeRef.current?.getBoundingClientRect();
@@ -65,13 +66,16 @@ function useBarColor(
         }
       }
     };
-    // Trailing edge: sample once mutations settle, so navigation recolors land.
-    const schedule = () => {
+    const runSample = () => {
       if (frame) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(sample);
     };
+    const schedule = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(runSample, 120);
+    };
 
-    schedule();
+    runSample();
     const observer = new MutationObserver(schedule);
     // childList = navigation; class/style = theme swaps and per-view recolors.
     observer.observe(document.body, {
@@ -84,6 +88,7 @@ function useBarColor(
     window.addEventListener('resize', schedule);
 
     return () => {
+      window.clearTimeout(timer);
       if (frame) cancelAnimationFrame(frame);
       observer.disconnect();
       window.removeEventListener('resize', schedule);

@@ -272,12 +272,15 @@ pub fn run() {
             #[cfg(desktop)]
             desktop::tray::sync_desktop_settings_inner(app.handle())?;
 
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
+            #[cfg(debug_assertions)]
+            {
+                let (log_plugin, _level, logger) = tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .split(app.handle())?;
+                let mut devtools = tauri_plugin_devtools::Builder::default();
+                devtools.attach_logger(logger);
+                app.handle().plugin(devtools.init())?;
+                app.handle().plugin(log_plugin)?;
             }
 
             Ok(())

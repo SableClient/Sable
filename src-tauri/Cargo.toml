@@ -45,6 +45,10 @@ tauri-plugin-http = "2.5.9"
 tauri-plugin-store = "2.4.3"
 tauri-plugin-clipboard-manager = "2.3.2"
 
+# Debug-only in practice: only initialized under #[cfg(debug_assertions)] in
+# lib.rs, so the release build never calls into it.
+tauri-plugin-devtools = "2.0.0"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 enigo = "0.5.0"
 windows = { version = "0.61", features = [
@@ -76,6 +80,8 @@ webkit2gtk = "2.0"
 gtk = "0.18"
 
 # CEF (Chromium) runtime — Linux only; other platforms use wry.
+# Repackage of tauri's unreleased feat/cef branch. Switch to the official
+# tauri-runtime-cef once it lands on crates.io.
 [target.'cfg(target_os = "linux")'.dependencies]
 tauri-runtime-cef = { git = "https://github.com/byeongsu-hong/tauri-runtime-cef", rev = "c215d6e52dd507956d9b8cc868906d690dc477c2", optional = true }
 cef = { version = "=148.0.0", optional = true }
@@ -97,8 +103,8 @@ jni = "0.21"
 default = ["wry"]
 custom-protocol = ["tauri/custom-protocol"]
 wry = ["tauri/wry"]
-# Linux uses the CEF runtime; wry stays available for the other platforms.
-cef = ["dep:tauri-runtime-cef", "dep:cef", "tauri/wry"]
+# CEF (Chromium) runtime. Build with --no-default-features --features cef.
+cef = ["dep:tauri-runtime-cef", "dep:cef"]
 [patch.crates-io]
 tauri-typegen = { git = "https://github.com/SableClient/tauri-typegen", branch = "fix/nondeterministic-generation-cache" }
 

@@ -60,12 +60,10 @@ fn main() {
         });
     }
 
-    // Force X11/XWayland: WebKitGTK needs it, and the CEF runtime's Wayland
+    // Force X11/XWayland: the tray's GTK needs it, and the CEF runtime's Wayland
     // window path is unstable (crate verified on X11 only).
     #[cfg(target_os = "linux")]
     unsafe {
-        use std::path::{Path, PathBuf};
-
         // Tao/Tauri Wayland decorations are don't respect server side decorations, forcing GTK onto X11/XWayland for now.
         // https://github.com/tauri-apps/tao/issues/1046
         // https://github.com/tauri-apps/tauri/issues/11856
@@ -78,6 +76,12 @@ fn main() {
         if std::env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_none() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
         }
+    }
+
+    // WebKitGTK/GStreamer workarounds, wry only; inert under CEF (Chromium).
+    #[cfg(all(not(feature = "cef"), target_os = "linux"))]
+    unsafe {
+        use std::path::{Path, PathBuf};
 
         // WebKit2GTK can hit compositor/DMABUF bugs
         // https://github.com/tauri-apps/tauri/issues/14424

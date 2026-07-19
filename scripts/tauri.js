@@ -48,6 +48,10 @@ if (!['dev', 'build'].includes(cmd)) {
 }
 
 tauriArgs.unshift('--features', runtime);
+// tauri's Linux bundler can't package CEF; scripts/cef-package.sh does that.
+if (runtime === 'cef' && cmd === 'build' && !tauriArgs.includes('--no-bundle')) {
+  tauriArgs.unshift('--no-bundle');
+}
 if (!tauriArgs.includes('--')) {
   tauriArgs.push('--');
 }

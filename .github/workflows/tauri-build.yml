@@ -141,90 +141,13 @@ jobs:
       - name: Build native packages
         if: matrix.cef
         shell: bash
-        run: |
-          VERSION="${TAG#v}"
-          STAGE="src-tauri/target/release"
-
-          # Binary plus the full CEF runtime (cef-copy-libs is the single source
-          # of truth for the runtime file set).
-          stage_runtime() {
-            local dest="$1"
-            mkdir -p "$dest"
-            cp "$STAGE/sable" "$dest/"
-            scripts/cef-copy-libs.sh release "$dest"
-          }
-
-          write_desktop() {
-            cat > "$1" <<'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Sable
-          Comment=A Matrix client
-          Exec=sable %U
-          Icon=sable
-          Terminal=false
-          Categories=Network;InstantMessaging;Chat;
-          StartupWMClass=sable
-          MimeType=x-scheme-handler/sable;x-scheme-handler/moe.sable.app;
-          EOF
-          }
-
-          ROOT="pkgroot"
-          stage_runtime "$ROOT/opt/sable"
-          mkdir -p "$ROOT/usr/bin" "$ROOT/usr/share/applications" \
-                   "$ROOT/usr/share/icons/hicolor/128x128/apps"
-          cat > "$ROOT/usr/bin/sable" <<'EOF'
-          #!/bin/sh
-          exec /opt/sable/sable "$@"
-          EOF
-          chmod 755 "$ROOT/usr/bin/sable"
-          write_desktop "$ROOT/usr/share/applications/sable.desktop"
-          cp src-tauri/icons/128x128.png "$ROOT/usr/share/icons/hicolor/128x128/apps/sable.png"
-
-          COMMON=(-s dir -n sable -v "$VERSION" --iteration 1
-            --description "Sable — a Matrix client"
-            --url "https://sable.moe" --maintainer "SableClient"
-            --category net)
-          # Stable-named deps only: version-suffixed names (e.g. the 24.04 t64
-          # set) would break install on other releases; CEF bundles its own libs.
-          DEB_DEPS=(--depends libwebkit2gtk-4.1-0 --depends libgtk-3-0
-            --depends libnss3 --depends libnspr4 --depends libgbm1
-            --depends libdrm2 --depends libxkbcommon0 --depends xdg-utils)
-          fpm "${COMMON[@]}" -t deb -a amd64 "${DEB_DEPS[@]}" -C "$ROOT" .
-
-          RPM_DEPS=(--depends webkit2gtk4.1 --depends gtk3 --depends nss
-            --depends nspr --depends mesa-libgbm --depends libdrm
-            --depends libxkbcommon --depends xdg-utils)
-          fpm "${COMMON[@]}" -t rpm -a x86_64 "${RPM_DEPS[@]}" -C "$ROOT" .
-
-          APPDIR="Sable.AppDir"
-          stage_runtime "$APPDIR/usr/bin"
-          # nosuid mount: a setuid chrome-sandbox can't work here and would stop
-          # Chromium from starting, so drop it and use the user-namespace sandbox.
-          rm -f "$APPDIR/usr/bin/chrome-sandbox"
-          write_desktop "$APPDIR/sable.desktop"
-          cp src-tauri/icons/128x128.png "$APPDIR/sable.png"
-          cat > "$APPDIR/AppRun" <<'EOF'
-          #!/bin/sh
-          HERE="$(dirname "$(readlink -f "$0")")"
-          exec "$HERE/usr/bin/sable" "$@"
-          EOF
-          chmod 755 "$APPDIR/AppRun"
-
-          APPIMAGETOOL_SHA256=ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
-          curl -fsSL -o appimagetool \
-            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
-          echo "${APPIMAGETOOL_SHA256}  appimagetool" | sha256sum -c -
-          chmod +x appimagetool
-          # Runner has no FUSE; extract-and-run instead of mounting.
-          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 \
-            ./appimagetool "$APPDIR" "Sable_${VERSION}_amd64.AppImage"
+        run: bash scripts/cef-package.sh "${TAG#v}"
 
       - name: Sign the AppImage for the updater
         if: ${{ matrix.cef && env.TAURI_SIGNING_PRIVATE_KEY != '' }}
         shell: bash
         run: |
-          for f in Sable_*_amd64.AppImage; do
+          for f in src-tauri/target/release/bundle/appimage/Sable_*_amd64.AppImage; do
             [ -e "$f" ] || continue
             pnpm tauri signer sign "$f"
           done
@@ -235,7 +158,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for f in sable_*.deb sable-*.rpm Sable_*_amd64.AppImage Sable_*_amd64.AppImage.sig; do
+          BUNDLE="src-tauri/target/release/bundle"
+          for f in "$BUNDLE"/deb/sable_*.deb "$BUNDLE"/rpm/sable-*.rpm \
+                   "$BUNDLE"/appimage/Sable_*_amd64.AppImage \
+                   "$BUNDLE"/appimage/Sable_*_amd64.AppImage.sig; do
             [ -e "$f" ] || continue
             echo "Uploading $f"
             gh release upload "$TAG" "$f" --clobber

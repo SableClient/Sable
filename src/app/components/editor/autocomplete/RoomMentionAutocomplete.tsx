@@ -1,4 +1,4 @@
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
 import { Avatar, MenuItem, Text } from 'folds';
@@ -48,6 +48,7 @@ function UnknownRoomMentionItem({
       as="button"
       radii="300"
       onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) => onTabPress(evt, handleSelect)}
+      onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
       onClick={handleSelect}
       before={<Avatar size="200">{sizedIcon(Hash, '100')}</Avatar>}
     >
@@ -161,6 +162,7 @@ export function RoomMentionAutocomplete({
               onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
                 onTabPress(evt, handleSelect)
               }
+              onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
               onClick={handleSelect}
               after={
                 <Text size="T200" priority="300" truncate>

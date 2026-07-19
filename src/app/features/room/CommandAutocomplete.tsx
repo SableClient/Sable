@@ -1,4 +1,4 @@
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
 import { Box, config, MenuItem, Text } from 'folds';
@@ -92,6 +92,7 @@ export function CommandAutocomplete({
           onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
             onTabPress(evt, () => handleAutocomplete(commandName))
           }
+          onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
           onClick={() => handleAutocomplete(commandName)}
         >
           <Box

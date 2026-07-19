@@ -161,7 +161,15 @@ function AccountRow({
   );
 }
 
-export function AccountMenuOption({ isMobile, isRight }: { isMobile: boolean; isRight?: boolean }) {
+export function AccountMenuOption({
+  isMobile,
+  isRight,
+  showSeparator,
+}: {
+  isMobile: boolean;
+  isRight?: boolean;
+  showSeparator?: boolean;
+}) {
   const mx = useMatrixClient();
   const navigate = useNavigate();
   const sessions = useAtomValue(sessionsAtom);
@@ -265,7 +273,7 @@ export function AccountMenuOption({ isMobile, isRight }: { isMobile: boolean; is
 
   return (
     <>
-      <Line variant="Surface" size="300" />
+      {(showSeparator ?? true) && <Line variant="Surface" size="300" />}
       <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
         <MenuItem
           size="300"

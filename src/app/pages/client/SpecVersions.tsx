@@ -6,6 +6,7 @@ import { SpecVersionsProvider } from '$hooks/useSpecVersions';
 import { SplashScreen } from '$components/splash-screen';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { SpecVersions } from '../../cs-api';
+import { AccountMenuOption } from './sidebar/UserMenuTab';
 
 const EMPTY_VERSIONS: SpecVersions = { versions: [] };
 
@@ -25,6 +26,9 @@ function HomeserverOfflineError({ baseUrl, onRetry }: HomeserverOfflineErrorProp
                 We can&apos;t reach <strong>{baseUrl}</strong>. The homeserver may be down, or you
                 may have a connection issue. Please try again.
               </Text>
+              <div style={{ position: 'relative' }}>
+                <AccountMenuOption isMobile={true} showSeparator={false} />
+              </div>
             </Box>
             <Button variant="Critical" onClick={onRetry} fill="Soft">
               <Text as="span" size="B400">

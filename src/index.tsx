@@ -24,6 +24,8 @@ import { initTauriMediaSession } from './app/utils/tauriMediaAuth';
 import { registerAppServiceWorker } from './serviceWorkerBootstrap';
 import { hasServiceWorker } from './app/utils/platform';
 import { installIosPwaViewportHeight } from './app/utils/iosPwaViewport';
+import { installTauriNativeBehaviors } from './app/utils/tauriNative';
+import { installAndroidBackBridge } from './app/utils/androidBack';
 
 enableMapSet();
 installConsolePasteScamWarning();
@@ -32,6 +34,8 @@ const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
 installIosPwaViewportHeight();
+installTauriNativeBehaviors();
+installAndroidBackBridge();
 
 registerAppServiceWorker();
 

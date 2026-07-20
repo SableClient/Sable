@@ -450,6 +450,14 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                   if (next && next !== editableRef.current && next.isContentEditable) return;
                   ReactEditor.focus(editor);
                 }}
+                // Once the virtual keyboard has settled, make sure the composer is
+                // not left hidden behind it.
+                onFocus={() => {
+                  if (!mobileOrTablet()) return;
+                  window.setTimeout(() => {
+                    rootRef.current?.scrollIntoView({ block: 'nearest' });
+                  }, 300);
+                }}
                 style={{ boxShadow: 'none' }}
               />
             </Scroll>

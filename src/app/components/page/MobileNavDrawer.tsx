@@ -18,6 +18,7 @@ import {
   SPACE_ROOM_PATH,
 } from '$pages/paths';
 import { resolveSection } from '$pages/pathUtils';
+import { haptic } from '$utils/haptics';
 import { isRoomAlias, isRoomId } from '$utils/matrix';
 import { PersistentRoomHost } from './PersistentRoomHost';
 
@@ -212,6 +213,7 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
         draggingRef.current = false;
         const opened = width + ox > width * OPEN_FRACTION || (vx > VELOCITY_THRESHOLD && dx > 0);
         if (opened) {
+          haptic('light');
           panelIntentRef.current = 0;
           setPanelIntent(0);
           settle(0);
@@ -252,6 +254,7 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
           const lastRoomId = lastRoom?.[section.key];
           if (lastRoomId) {
             const roomPath = section.getRoomPath(lastRoomId);
+            haptic('light');
             panelIntentRef.current = 1;
             setPanelIntent(1);
             settle(-width);

@@ -3,6 +3,7 @@ import { animate, motion, useMotionValue } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, RightSwipeAction } from '$state/settings';
+import { haptic } from '$utils/haptics';
 import { mobileOrTablet } from '$utils/user-agent';
 
 interface SwipeableChatWrapperProps {
@@ -48,6 +49,7 @@ export function SwipeableChatWrapper({
         const velocityThreshold = 0.5;
 
         if (val < -swipeThreshold || (vx > velocityThreshold && dx < 0 && val < 0)) {
+          haptic('light');
           if (rightSwipeAction === RightSwipeAction.Members) {
             onOpenMembers?.();
           } else {

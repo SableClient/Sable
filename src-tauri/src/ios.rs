@@ -5,6 +5,7 @@
 
 use std::ffi::CString;
 
+use objc2::rc::{Allocated, Retained};
 use objc2::runtime::{AnyClass, AnyObject, ClassBuilder, Sel};
 use objc2::{msg_send, sel};
 use tauri::webview::WebviewWindow;
@@ -21,6 +22,37 @@ pub fn enable_swipe_back_navigation(window: &WebviewWindow<crate::BrowserEngine>
         let webview: *mut AnyObject = webview.inner().cast();
         let _: () = msg_send![&*webview, setAllowsBackForwardNavigationGestures: true];
     });
+}
+
+// UIFeedbackGenerator must run on the main thread, where Tauri schedules mobile
+// commands.
+#[tauri::command]
+pub fn haptic_feedback(style: String) {
+    unsafe {
+        if style == "selection" {
+            let Some(cls) = AnyClass::get(c"UISelectionFeedbackGenerator") else {
+                return;
+            };
+            let allocated: Allocated<AnyObject> = msg_send![cls, alloc];
+            let generator: Retained<AnyObject> = msg_send![allocated, init];
+            let _: () = msg_send![&*generator, prepare];
+            let _: () = msg_send![&*generator, selectionChanged];
+        } else {
+            // UIImpactFeedbackStyle: light = 0, medium = 1, heavy = 2.
+            let intensity: isize = match style.as_str() {
+                "medium" => 1,
+                "heavy" => 2,
+                _ => 0,
+            };
+            let Some(cls) = AnyClass::get(c"UIImpactFeedbackGenerator") else {
+                return;
+            };
+            let allocated: Allocated<AnyObject> = msg_send![cls, alloc];
+            let generator: Retained<AnyObject> = msg_send![allocated, initWithStyle: intensity];
+            let _: () = msg_send![&*generator, prepare];
+            let _: () = msg_send![&*generator, impactOccurred];
+        }
+    }
 }
 
 pub fn hide_form_accessory_bar(window: &WebviewWindow<crate::BrowserEngine>) {

@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { config } from 'folds';
 import { ArrowBendUpLeftIcon, getPhosphorIconSize } from '$components/icons/phosphor';
+import { haptic } from '$utils/haptics';
 import { mobileOrTablet } from '$utils/user-agent';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
 
@@ -19,7 +20,11 @@ function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onRepl
       if (active) {
         const val = mx < 0 ? mx : 0;
         x.set(Math.max(-80, val));
-        if (mx < -50 !== isReady) setIsReady(mx < -50);
+        const nextReady = mx < -50;
+        if (nextReady !== isReady) {
+          setIsReady(nextReady);
+          if (nextReady) haptic('selection');
+        }
       } else {
         if (mx < -50) onReply();
         x.set(0);

@@ -2,17 +2,45 @@ package moe.sable.client
 
 import android.graphics.Color
 import android.os.Bundle
+import android.webkit.WebView
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 
 class MainActivity : TauriActivity() {
   private external fun nativeInitStatusBar()
 
+  // Route the hardware back button through the web app (see onWebViewCreate).
+  override val handleBackNavigation: Boolean = false
+  private var webView: WebView? = null
+
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     instance = this
     runCatching { nativeInitStatusBar() }
+  }
+
+  override fun onWebViewCreate(webView: WebView) {
+    this.webView = webView
+    onBackPressedDispatcher.addCallback(
+      this,
+      object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+          val wv = this@MainActivity.webView
+          if (wv == null) {
+            moveTaskToBack(true)
+            return
+          }
+          // If the web app didn't consume the back press, background the app.
+          wv.evaluateJavascript(
+            "(typeof window.__sableAndroidBack === 'function' && window.__sableAndroidBack() === true)"
+          ) { result ->
+            if (result != "true") moveTaskToBack(true)
+          }
+        }
+      }
+    )
   }
 
   override fun onDestroy() {

@@ -327,6 +327,8 @@ pub fn run() {
             mobile::set_status_bar_color,
             #[cfg(target_os = "android")]
             mobile::set_navigation_bar_color,
+            #[cfg(target_os = "ios")]
+            ios::haptic_feedback,
             #[cfg(desktop)]
             desktop::download::save_download,
             #[cfg(desktop)]

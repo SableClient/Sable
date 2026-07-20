@@ -1,0 +1,7 @@
+[settings]
+idiomatic_version_file_enable_tools = ["pnpm", "node", "rust"]
+experimental = true
+
+[tools]
+cargo-binstall = "1.21.0"
+"cargo:knope" = "0.23.0"

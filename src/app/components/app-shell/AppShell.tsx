@@ -6,7 +6,8 @@ import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 
 import { TauriFrontendReady } from '$components/tauri/TauriFrontendReady';
-import { WindowsTitleBar } from '$components/tauri/WindowsTitleBar';
+import { DesktopTitleBar } from '$components/tauri/DesktopTitleBar';
+import { MacTitleBar } from '$components/tauri/MacTitleBar';
 import { Toast } from '$components/toast/Toast';
 import type { ScreenSize } from '$hooks/useScreenSize';
 import { ScreenSizeProvider } from '$hooks/useScreenSize';
@@ -27,11 +28,11 @@ type AppShellProps = {
 
 export function AppShell({ children, queryClient, screenSize }: AppShellProps) {
   const tauriOs = isTauri() ? osType() : undefined;
-  const useCustomWindowsTitleBar = tauriOs === 'windows';
+  const useDesktopTitleBar = tauriOs === 'windows' || tauriOs === 'linux';
+  const useMacTitleBar = tauriOs === 'macos';
+  const hasCustomTitleBar = useDesktopTitleBar || useMacTitleBar;
   const reactQueryDevtoolsEnabled = isReactQueryDevtoolsEnabled();
-  const contentHeight = useCustomWindowsTitleBar
-    ? 'calc(100% - var(--tauri-titlebar-height))'
-    : '100%';
+  const contentHeight = hasCustomTitleBar ? 'calc(100% - var(--tauri-titlebar-height))' : '100%';
   const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(null);
 
   return (
@@ -52,7 +53,8 @@ export function AppShell({ children, queryClient, screenSize }: AppShellProps) {
                     height: '100%',
                   }}
                 >
-                  {useCustomWindowsTitleBar && <WindowsTitleBar />}
+                  {useDesktopTitleBar && <DesktopTitleBar />}
+                  {useMacTitleBar && <MacTitleBar />}
                   <div
                     style={{
                       display: 'flex',

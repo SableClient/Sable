@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow, type Window } from '@tauri-apps/api/window';
@@ -15,7 +15,7 @@ import {
   stopWindowTracking,
 } from '$generated/tauri/commands';
 
-const log = createLogger('WindowsTitleBar');
+const log = createLogger('DesktopTitleBar');
 const SNAP_OVERLAY_DELAY_MS = 620;
 const SNAP_POPUP_WINDOW_CLASS = 'Xaml_WindowedPopupClass';
 const SNAP_POPUP_EXE = 'explorer.exe';
@@ -90,24 +90,29 @@ function CloseIcon() {
   );
 }
 
-export function WindowsTitleBar() {
+// Custom titlebar with window controls for Windows and Linux (native chrome is
+// disabled there). The Snap Layouts overlay is Windows-only.
+export function DesktopTitleBar() {
   const [maximized, setMaximized] = useState(false);
   const [windowTitle, setWindowTitle] = useState('Sable');
   const appWindowRef = useRef<Window | null>(null);
   const snapTimerRef = useRef<number | undefined>(undefined);
-  const isWindowsDesktopTauri = isTauri() && osType() === 'windows';
+  const os = isTauri() ? osType() : undefined;
+  const isWindows = os === 'windows';
+  const isDesktopTitleBar = isWindows || os === 'linux';
   const titlebarStatus = useAtomValue(titlebarStatusAtom);
 
-  const hideSnapOverlay = async () => {
+  const hideSnapOverlay = useCallback(async () => {
+    if (!isWindows) return;
     try {
       await hideSnapOverlayCommand();
     } catch (error) {
       log.warn('Failed to hide snap overlay:', error);
     }
-  };
+  }, [isWindows]);
 
   useEffect(() => {
-    if (!isWindowsDesktopTauri) return undefined;
+    if (!isDesktopTitleBar) return undefined;
 
     const appWindow = getCurrentWindow();
     appWindowRef.current = appWindow;
@@ -149,70 +154,74 @@ export function WindowsTitleBar() {
         log.warn('Failed to subscribe to window resize:', error);
       });
 
-    listen<TrackingEventPayload>('window-tracking', (event) => {
-      const eventType = event.payload?.event_type;
-      if (eventType === 'TargetLost' || eventType === 'Timeout') {
-        hideSnapOverlay();
-      }
-    })
-      .then((removeListener) => {
-        unlistenTracking = removeListener;
+    if (isWindows) {
+      listen<TrackingEventPayload>('window-tracking', (event) => {
+        const eventType = event.payload?.event_type;
+        if (eventType === 'TargetLost' || eventType === 'Timeout') {
+          hideSnapOverlay();
+        }
       })
-      .catch((error) => {
-        log.warn('Failed to subscribe to window-tracking event:', error);
-      });
+        .then((removeListener) => {
+          unlistenTracking = removeListener;
+        })
+        .catch((error) => {
+          log.warn('Failed to subscribe to window-tracking event:', error);
+        });
+    }
 
     return () => {
       mounted = false;
       if (snapTimerRef.current !== undefined) {
         window.clearTimeout(snapTimerRef.current);
       }
-      stopWindowTracking().catch(() => {});
-      hideSnapOverlay();
+      if (isWindows) {
+        stopWindowTracking().catch(() => {});
+        hideSnapOverlay();
+      }
       unlistenResize?.();
       unlistenTracking?.();
     };
-  }, [isWindowsDesktopTauri]);
+  }, [isDesktopTitleBar, isWindows, hideSnapOverlay]);
 
-  if (!isWindowsDesktopTauri) return null;
+  if (!isDesktopTitleBar) return null;
 
   const minimize = () => {
-    if (!isWindowsDesktopTauri) return;
-
-    stopWindowTracking().catch(() => {});
-    hideSnapOverlay();
+    if (isWindows) {
+      stopWindowTracking().catch(() => {});
+      hideSnapOverlay();
+    }
     appWindowRef.current?.minimize().catch((error) => {
       log.warn('Failed to minimize window:', error);
     });
   };
 
   const toggleMaximize = () => {
-    if (!isWindowsDesktopTauri) return;
-
     if (snapTimerRef.current !== undefined) {
       window.clearTimeout(snapTimerRef.current);
       snapTimerRef.current = undefined;
     }
 
-    stopWindowTracking().catch(() => {});
-    hideSnapOverlay();
+    if (isWindows) {
+      stopWindowTracking().catch(() => {});
+      hideSnapOverlay();
+    }
     appWindowRef.current?.toggleMaximize().catch((error) => {
       log.warn('Failed to toggle maximize:', error);
     });
   };
 
   const close = () => {
-    if (!isWindowsDesktopTauri) return;
-
-    stopWindowTracking().catch(() => {});
-    hideSnapOverlay();
+    if (isWindows) {
+      stopWindowTracking().catch(() => {});
+      hideSnapOverlay();
+    }
     appWindowRef.current?.close().catch((error) => {
       log.warn('Failed to close window:', error);
     });
   };
 
   const showSnapOverlay = () => {
-    if (!isWindowsDesktopTauri) return;
+    if (!isWindows) return;
 
     if (snapTimerRef.current !== undefined) {
       window.clearTimeout(snapTimerRef.current);
@@ -230,7 +239,7 @@ export function WindowsTitleBar() {
   };
 
   const cancelSnapOverlay = () => {
-    if (!isWindowsDesktopTauri) return;
+    if (!isWindows) return;
 
     if (snapTimerRef.current !== undefined) {
       window.clearTimeout(snapTimerRef.current);

@@ -129,10 +129,14 @@ pub fn show_or_create_main_window(app: &AppHandle<crate::BrowserEngine>) -> taur
         .inner_size(1280.0, 720.0)
         .visible(false);
 
+    // Float the native traffic lights over the content for a unified look.
     #[cfg(target_os = "macos")]
-    let builder = builder.hidden_title(true);
+    let builder = builder
+        .hidden_title(true)
+        .title_bar_style(tauri::TitleBarStyle::Transparent);
 
-    #[cfg(target_os = "windows")]
+    // Windows and Linux draw their own titlebar (DesktopTitleBar).
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     let builder = builder.decorations(false);
 
     let _webview_window = builder.build()?;

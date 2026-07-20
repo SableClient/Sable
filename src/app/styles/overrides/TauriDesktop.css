@@ -20,6 +20,16 @@
   -webkit-app-region: drag;
 }
 
+/* macOS keeps native traffic lights (transparent titlebar); this is just a
+   draggable strip that reserves space for them and hosts the status pill. */
+.tauri-titlebar--mac {
+  display: block;
+  grid-template-columns: none;
+  padding-left: 72px;
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+
 .tauri-titlebar__drag {
   display: flex;
   align-items: center;

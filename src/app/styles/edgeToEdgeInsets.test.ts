@@ -47,7 +47,7 @@ describe('android edge-to-edge inset contract', () => {
     const systemBarShell = readWorkspaceFile('src/app/components/app-shell/SystemBarShell.tsx');
     const mobileCapability = readWorkspaceFile('src-tauri/capabilities/mobile.json');
 
-    expect(appShell).toContain('const contentHeight = useCustomWindowsTitleBar');
+    expect(appShell).toContain('const contentHeight = hasCustomTitleBar');
     expect(appShell).toContain("height: '100%'");
     expect(appShell).toContain('height: contentHeight');
     expect(appShell).toContain('<ScreenSizeProvider value={screenSize}>');

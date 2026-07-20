@@ -1,10 +1,12 @@
 import type { MatrixClient } from '$types/matrix-sdk';
 import { SyncState } from '$types/matrix-sdk';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Box, config, Line, Text } from 'folds';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { useSyncState } from '$hooks/useSyncState';
-import { ContainerColor } from '$styles/ContainerColor.css';
+import { type TitlebarStatusView, titlebarStatusAtom } from '$state/titlebarStatus';
+import { SyncConnectionStatusBanner } from '$components/SyncConnectionStatus';
+import { hasCustomDesktopTitlebar } from '$utils/tauriTitlebar';
 
 const DISCONNECTED_GRACE_MS = 2000;
 
@@ -29,6 +31,7 @@ type SyncStatusProps = {
   mx: MatrixClient;
 };
 export function SyncStatus({ mx }: SyncStatusProps) {
+  const setTitlebarStatus = useSetAtom(titlebarStatusAtom);
   const hasConnectedRef = useRef(false);
   const [stateData, setStateData] = useState<StateData>({
     current: null,
@@ -80,53 +83,25 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     }, [])
   );
 
-  if (stateData.showConnecting) {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Success' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connecting...</Text>
-        </Box>
-        <Line variant="Success" size="300" />
-      </Box>
-    );
-  }
+  const view = useMemo<TitlebarStatusView | null>(() => {
+    if (stateData.showConnecting) return { text: 'Connecting...', variant: 'Success' };
+    if (showDisconnected && stateData.current === SyncState.Reconnecting) {
+      return { text: 'Connection Lost! Reconnecting...', variant: 'Warning' };
+    }
+    if (showDisconnected && stateData.current === SyncState.Error) {
+      return { text: 'Connection Lost!', variant: 'Critical' };
+    }
+    return null;
+  }, [stateData, showDisconnected]);
 
-  if (showDisconnected && stateData.current === SyncState.Reconnecting) {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Warning' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connection Lost! Reconnecting...</Text>
-        </Box>
-        <Line variant="Warning" size="300" />
-      </Box>
-    );
-  }
+  // Publish to the atom that feeds the custom desktop titlebar's status pill.
+  useEffect(() => {
+    setTitlebarStatus(view);
+  }, [setTitlebarStatus, view]);
+  useEffect(() => () => setTitlebarStatus(null), [setTitlebarStatus]);
 
-  if (showDisconnected && stateData.current === SyncState.Error) {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Critical' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connection Lost!</Text>
-        </Box>
-        <Line variant="Critical" size="300" />
-      </Box>
-    );
-  }
+  // Where a custom titlebar renders the pill, skip the inline banner.
+  if (hasCustomDesktopTitlebar()) return null;
 
-  return null;
+  return <SyncConnectionStatusBanner status={view} />;
 }

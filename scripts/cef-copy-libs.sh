@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#MISE description="Copy CEF runtime libs next to the built binary"
 # Copy the CEF runtime (libcef.so + resources) next to a built binary so the app
 # is self-contained: works standalone, when launched by the OS via a sable://
 # deep link, or from a release package. Pair with the rpath=$ORIGIN that

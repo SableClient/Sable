@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#MISE description="Package CEF build into deb/rpm/AppImage"
 # Package the Linux CEF build into deb/rpm/AppImage. Used by CI and locally.
 # Run after the binary is built (pnpm tauri:cef build).
 # Usage: scripts/cef-package.sh [version]

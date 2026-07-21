@@ -1,18 +1,9 @@
 #!/usr/bin/env node
-
-/**
- * Script to run tauri commands for a given runtime (wry or cef) with prepended CLI args.
- *
- * Usage:
- *   script/tauri <runtime> <command> [prepended-args...]
- *
- * Examples:
- *   script/tauri cef dev --verbose
- *   script/tauri cef dev -- --verbose
- *   Both will run: tauri dev --features cef -- --verbose --no-default-features
- */
+//MISE description="Run Tauri CLI with platform-specific feature flags"
+//USAGE arg "<platform>" help="Target" default="wry" choices "wry" "cef" "android" "ios"
 
 import { run } from '@tauri-apps/cli';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import process from 'node:process';
@@ -27,19 +18,19 @@ const __dirname = dirname(__filename);
 const cmdlineArgs = process.argv.slice(2);
 
 if (cmdlineArgs.length < 2) {
-  logger.error('Usage: node scripts/tauri <runtime> <command> [prepended-args...]');
+  logger.error('Usage: node scripts/tauri <platform> <command> [prepended-args...]');
+  logger.error(`  ${dim('platform:')} wry, cef, android, or ios`);
   logger.error(`  ${dim('command:')} dev or build`);
-  logger.error(`  ${dim('runtime:')} wry or cef`);
-  logger.error(
-    `  ${dim('prepended-args:')} Arguments to prepend to the cargo args (-- separator is optional)`
-  );
   process.exit(1);
 }
 
-const [runtime, cmd, ...tauriArgs] = cmdlineArgs;
+const [platform, cmd, ...tauriArgs] = cmdlineArgs;
 
-if (!['wry', 'cef'].includes(runtime)) {
-  logger.error(`Invalid runtime: ${runtime}. Must be 'wry' or 'cef'`);
+const MOBILE = ['android', 'ios'];
+const DESKTOP = ['wry', 'cef'];
+
+if (![...DESKTOP, ...MOBILE].includes(platform)) {
+  logger.error(`Invalid platform: ${platform}. Must be wry, cef, android, or ios`);
   process.exit(1);
 }
 if (!['dev', 'build'].includes(cmd)) {
@@ -47,23 +38,30 @@ if (!['dev', 'build'].includes(cmd)) {
   process.exit(1);
 }
 
-tauriArgs.unshift('--features', `${runtime},updater`);
-// tauri's Linux bundler can't package CEF; scripts/cef-package.sh does that.
-if (runtime === 'cef' && cmd === 'build' && !tauriArgs.includes('--no-bundle')) {
-  tauriArgs.unshift('--no-bundle');
-}
-if (!tauriArgs.includes('--')) {
-  tauriArgs.push('--');
-}
-tauriArgs.push('--no-default-features');
-
-const args = [cmd, ...tauriArgs];
-
 process.chdir(join(__dirname, '..'));
 
-logger.info(`${dim('Running:')} tauri ${args.join(' ')}`);
+if (MOBILE.includes(platform)) {
+  logger.info(`${dim('Running:')} tauri ${[platform, cmd, ...tauriArgs].join(' ')}`);
+  const child = spawn('tauri', [platform, cmd, ...tauriArgs], {
+    stdio: 'inherit',
+    shell: true,
+  });
+  child.on('exit', (code) => process.exit(code ?? 1));
+} else {
+  const args = [cmd, '--features', `${platform},updater`, ...tauriArgs];
+  if (!tauriArgs.includes('--')) {
+    args.push('--');
+  }
+  args.push('--no-default-features');
 
-run(args, 'tauri').catch((error) => {
-  logger.error(`Failed to run tauri: ${error?.message ?? error}`);
-  process.exit(1);
-});
+  if (platform === 'cef' && cmd === 'build' && !tauriArgs.includes('--no-bundle')) {
+    args.unshift('--no-bundle');
+  }
+
+  logger.info(`${dim('Running:')} tauri ${args.join(' ')}`);
+
+  run(args, 'tauri').catch((error) => {
+    logger.error(`Failed to run tauri: ${error?.message ?? error}`);
+    process.exit(1);
+  });
+}

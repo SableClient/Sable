@@ -1,5 +1,5 @@
 [package]
-versioned_files = ["package.json", "src-tauri/tauri.conf.json"]
+versioned_files = ["package.json", "src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"]
 changelog = "CHANGELOG.md"
 extra_changelog_sections = [
   { name = "Security", types = [

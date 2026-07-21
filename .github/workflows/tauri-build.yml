@@ -275,7 +275,7 @@ jobs:
       - name: Build native packages
         if: matrix.cef
         shell: bash
-        run: bash scripts/cef-package.sh "$VERSION"
+        run: bash scripts/cef/package.sh "$VERSION"
 
       - name: Sign the AppImage for the updater
         if: ${{ matrix.cef && env.TAURI_SIGNING_PRIVATE_KEY != '' }}

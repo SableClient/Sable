@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 #MISE description="Package CEF build into deb/rpm/AppImage"
+#MISE tools={nfpm="2.47.0", "github:AppImage/appimagetool" = {version = "1.9.1", matching = ".AppImage"}}
 # Package the Linux CEF build into deb/rpm/AppImage. Used by CI and locally.
 # Run after the binary is built (pnpm tauri:cef build).
-# Usage: scripts/cef-package.sh [version]
+# Usage: scripts/cef/package.sh [version]
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 VERSION="${1:-$(grep -m1 '"version":' src-tauri/tauri.conf.json | sed 's/.*: *"\(.*\)".*/\1/')}"
+: "${VERSION:?version not found in src-tauri/tauri.conf.json}"
 DEB_VERSION="$VERSION"
 RPM_VERSION="$VERSION"
 RPM_ITERATION=1
@@ -45,7 +47,7 @@ stage_runtime() {
   local dest="$1"
   mkdir -p "$dest"
   cp "$STAGE/$BIN_NAME" "$dest/sable"
-  bash scripts/cef-copy-libs.sh release "$dest"
+  bash scripts/cef/copy-libs.sh release "$dest"
 }
 
 # Bundle the system-tray libraries (Tauri's linuxdeploy path normally does this,
@@ -87,8 +89,10 @@ MimeType=x-scheme-handler/sable;x-scheme-handler/moe.sable.app;
 EOF
 }
 
-if command -v fpm >/dev/null 2>&1; then
+CONFIG="$ROOT/nfpm.yaml"
+if command -v nfpm >/dev/null 2>&1; then
   PKGROOT="$WORK/pkgroot"
+  export PKGROOT
   stage_runtime "$PKGROOT/opt/sable"
   mkdir -p "$PKGROOT/usr/bin" "$PKGROOT/usr/share/applications"
   cat > "$PKGROOT/usr/bin/sable" <<'EOF'
@@ -102,57 +106,39 @@ EOF
     cp "src-tauri/icons/${size}.png" \
       "$PKGROOT/usr/share/icons/hicolor/${size}/apps/sable.png"
   done
-  # 128x128@2x is 256x256
   mkdir -p "$PKGROOT/usr/share/icons/hicolor/256x256/apps"
   cp "src-tauri/icons/128x128@2x.png" \
     "$PKGROOT/usr/share/icons/hicolor/256x256/apps/sable.png"
 
-  COMMON=(-s dir -n sable
-    --description "Sable, a Matrix client"
-    --url "https://sable.moe" --maintainer "SableClient"
-    --category net)
-  # CEF deps: no WebKitGTK. ALSA/CUPS are NEEDED by libcef.so;
-  # xwayland because main.rs forces GDK_BACKEND=x11.
-  DEB_DEPS=(--depends libgtk-3-0 --depends libnss3 --depends libnspr4
-    --depends libgbm1 --depends libdrm2 --depends libxkbcommon0
-    --depends libasound2 --depends libcups2 --depends xdg-utils
-    --depends xwayland --depends libayatana-appindicator3-1)
-  (cd "$OUT/deb" && fpm "${COMMON[@]}" -v "$DEB_VERSION" --iteration 1 \
-    -t deb -a amd64 -p "Sable-${VERSION}-linux-x86_64.deb" "${DEB_DEPS[@]}" -C "$PKGROOT" .)
+  PKG_VERSION="$DEB_VERSION" PKG_RELEASE=1 nfpm pkg -f "$CONFIG" -p deb \
+    -t "$OUT/deb/Sable-${VERSION}-linux-x86_64.deb"
 
-  RPM_DEPS=(--depends gtk3 --depends nss --depends nspr
-    --depends mesa-libgbm --depends libdrm --depends libxkbcommon
-    --depends alsa-lib --depends cups-libs --depends xdg-utils
-    --depends xorg-x11-server-Xwayland
-    --depends 'libayatana-appindicator3.so.1()(64bit)')
-  (cd "$OUT/rpm" && fpm "${COMMON[@]}" -v "$RPM_VERSION" --iteration "$RPM_ITERATION" \
-    -t rpm -a x86_64 -p "Sable-${VERSION}-linux-x86_64.rpm" "${RPM_DEPS[@]}" -C "$PKGROOT" .)
+  PKG_VERSION="$RPM_VERSION" PKG_RELEASE="$RPM_ITERATION" nfpm pkg -f "$CONFIG" -p rpm \
+    -t "$OUT/rpm/Sable-${VERSION}-linux-x86_64.rpm"
 else
-  echo "fpm not found; skipping deb/rpm (building AppImage only)"
+  echo "nfpm not found; skipping deb/rpm"
 fi
 
-APPDIR="$WORK/Sable.AppDir"
-stage_runtime "$APPDIR/usr/bin"
-stage_appindicator "$APPDIR/usr/bin"
-# nosuid AppImage mount: drop setuid chrome-sandbox, use the namespace sandbox.
-rm -f "$APPDIR/usr/bin/chrome-sandbox"
-write_desktop "$APPDIR/sable.desktop"
-cp src-tauri/icons/128x128.png "$APPDIR/sable.png"
-cat > "$APPDIR/AppRun" <<'EOF'
+if command -v appimagetool >/dev/null 2>&1; then
+  APPDIR="$WORK/Sable.AppDir"
+  stage_runtime "$APPDIR/usr/bin"
+  stage_appindicator "$APPDIR/usr/bin"
+  # nosuid AppImage mount: drop setuid chrome-sandbox, use the namespace sandbox.
+  rm -f "$APPDIR/usr/bin/chrome-sandbox"
+  write_desktop "$APPDIR/sable.desktop"
+  cp src-tauri/icons/128x128.png "$APPDIR/sable.png"
+  cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$HERE/usr/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 exec "$HERE/usr/bin/sable" "$@"
 EOF
-chmod 755 "$APPDIR/AppRun"
+  chmod 755 "$APPDIR/AppRun"
 
-APPIMAGETOOL_SHA256=ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
-APPIMAGETOOL="$WORK/appimagetool"
-curl -fsSL -o "$APPIMAGETOOL" \
-  https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
-echo "${APPIMAGETOOL_SHA256}  $APPIMAGETOOL" | sha256sum -c -
-chmod +x "$APPIMAGETOOL"
-APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 "$APPIMAGETOOL" "$APPDIR" \
-  "$OUT/appimage/Sable-${VERSION}-linux-x86_64.AppImage"
+  ARCH=x86_64 appimagetool "$APPDIR" \
+    "$OUT/appimage/Sable-${VERSION}-linux-x86_64.AppImage"
+else
+  echo "appimagetool not found; skipping AppImage" >&2
+fi
 
 echo "Packages in: $OUT"

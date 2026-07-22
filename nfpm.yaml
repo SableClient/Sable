@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=https://nfpm.goreleaser.com/schema.json
+
+name: sable
+arch: amd64
+platform: linux
+version: ${PKG_VERSION}
+release: ${PKG_RELEASE}
+version_schema: semver
+section: net
+maintainer: SableClient
+description: Sable, a Matrix client
+homepage: https://sable.moe
+
+contents:
+  - src: ${PKGROOT}/opt/sable/
+    dst: /opt/sable
+    type: tree
+  - src: ${PKGROOT}/usr/
+    dst: /usr
+    type: tree
+
+overrides:
+  deb:
+    depends:
+      - libgtk-3-0
+      - libnss3
+      - libnspr4
+      - libgbm1
+      - libdrm2
+      - libxkbcommon0
+      - libasound2
+      - libcups2
+      - xdg-utils
+      - xwayland
+      - libayatana-appindicator3-1
+  rpm:
+    depends:
+      - gtk3
+      - nss
+      - nspr
+      - mesa-libgbm
+      - libdrm
+      - libxkbcommon
+      - alsa-lib
+      - cups-libs
+      - xdg-utils
+      - xorg-x11-server-Xwayland
+      - libayatana-appindicator3.so.1()(64bit)

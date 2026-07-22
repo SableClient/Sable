@@ -40,7 +40,7 @@ jobs:
       - name: Setup app
         uses: ./.github/actions/setup
 
-      - name: Run ESLint
+      - name: Run Lint
         run: pnpm run lint
 
   typecheck:

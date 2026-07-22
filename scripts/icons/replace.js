@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-//MISE description="Replace logo/icon assets in public/ from SVG inputs via ffmpeg"
+//MISE description="Replace icon assets from SVG inputs"
 //MISE tools={ffmpeg="7.1.1"}
 
 import { execFileSync } from 'node:child_process';

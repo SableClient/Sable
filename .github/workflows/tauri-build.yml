@@ -152,28 +152,10 @@ jobs:
           ref: ${{ needs.setup-release.outputs.ref }}
           persist-credentials: false
 
-      - name: Install Linux build dependencies
-        if: matrix.cef
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libsoup-3.0-dev \
-            libssl-dev \
-            libxdo-dev \
-            build-essential \
-            file \
-            rpm \
-            ruby \
-            ruby-dev
-          sudo gem install --no-document fpm
-
       - name: Setup app
         uses: ./.github/actions/setup
+        with:
+          tauri: 'true'
 
       - name: Add Rust targets
         if: ${{ matrix.rust-targets != '' }}
@@ -191,8 +173,7 @@ jobs:
           UPDATER_ENDPOINT: ${{ needs.setup-release.outputs.nightly == 'true' && format('https://github.com/{0}/releases/download/nightly/latest.json', github.repository) || '' }}
         run: node .github/scripts/set-tauri-version.mjs "$VERSION" "$UPDATER_ENDPOINT"
 
-      # --- macOS / Windows: standard wry build via tauri-action ---
-      - name: Configure desktop build
+      - name: Configure build args
         shell: bash
         env:
           IS_NIGHTLY: ${{ needs.setup-release.outputs.nightly }}
@@ -211,11 +192,22 @@ jobs:
           echo "TAURI_BUILD_ARGS=${ARGS# }" >> "$GITHUB_ENV"
 
       - name: Build desktop bundles
-        id: tauri
         if: ${{ !matrix.cef }}
-        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
-        with:
-          args: ${{ matrix.args }} ${{ env.TAURI_BUILD_ARGS }}
+        shell: bash
+        run: pnpm tauri build ${{ matrix.args }} $TAURI_BUILD_ARGS
+
+      - name: Package macOS .app for updater
+        if: ${{ matrix.name == 'macOS' }}
+        shell: bash
+        run: |
+          macos_dir="${{ matrix.bundle_path }}/macos"
+          if [ -d "$macos_dir" ]; then
+            for app in "$macos_dir"/*.app; do
+              [ -e "$app" ] || continue
+              echo "Packaging $(basename "$app") into .tar.gz"
+              tar czf "$app.tar.gz" -C "$macos_dir" "$(basename "$app")"
+            done
+          fi
 
       - name: Normalize desktop artifact names
         if: ${{ !matrix.cef }}
@@ -276,7 +268,7 @@ jobs:
       - name: Build native packages
         if: matrix.cef
         shell: bash
-        run: bash scripts/cef/package.sh "$VERSION"
+        run: mise run cef:package "$VERSION"
 
       - name: Sign the AppImage for the updater
         if: ${{ matrix.cef && env.TAURI_SIGNING_PRIVATE_KEY != '' }}
@@ -346,15 +338,8 @@ jobs:
 
       - name: Setup app
         uses: ./.github/actions/setup
-
-      - name: Setup Java
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+          tauri: 'true'
 
       - name: Add Rust targets
         shell: bash
@@ -450,6 +435,8 @@ jobs:
 
       - name: Setup app
         uses: ./.github/actions/setup
+        with:
+          tauri: 'true'
 
       - name: Add Rust targets
         shell: bash

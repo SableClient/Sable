@@ -6,6 +6,10 @@ inputs:
     description: Command used to install dependencies.
     required: false
     default: pnpm install --frozen-lockfile
+  tauri:
+    description: Whether to install Tauri build dependencies via mise.
+    required: false
+    default: 'false'
   build:
     description: Whether to build the app after installing dependencies.
     required: false
@@ -29,6 +33,12 @@ runs:
       run: ${INPUTS_INSTALL_COMMAND}
       env:
         INPUTS_INSTALL_COMMAND: ${{ inputs.install-command }}
+
+    - name: Install Tauri build dependencies
+      if: ${{ inputs.tauri == 'true' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: mise run tauri:setup
 
     - name: Build app
       if: ${{ inputs.build == 'true' }}

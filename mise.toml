@@ -1,12 +1,21 @@
+min_version = '2026.7.11'
+
 [env]
 _.path = ["{{config_root}}/node_modules/.bin"]
 
 [settings]
-idiomatic_version_file_enable_tools = ["pnpm", "node", "rust"]
+idiomatic_version_file_enable_tools = ["pnpm", "node"]
+minimum_release_age = "1d"
 experimental = true
 
 [task_config]
 includes = ["scripts"]
+
+[tasks.setup]
+description = "Install dependencies with pnpm"
+run = 'pnpm install'
+sources = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'mise.toml']
+outputs = ['node_modules/.pnpm/lock.yaml']
 
 [tasks.dev]
 description = "Start Vite dev server"
@@ -25,12 +34,12 @@ alias = "p"
 run = "vite preview"
 
 [tasks.lint]
-description = "Run all linting, typechecking, formatting, and dead code checks"
+description = "Check lint, types, formatting, and dead code"
 alias = "l"
 run = ["tsc", "oxlint .", "oxfmt --check .", "knip"]
 
 [tasks."lint:fix"]
-description = "Fix lint issues, format, and run typecheck and dead code checks"
+description = "Fix lint, formatting, and dead code issues"
 alias = "lf"
 run = ["oxlint . --fix", "oxfmt .", "knip --fix"]
 
@@ -51,14 +60,32 @@ description = "Document a change with knope"
 alias = ["doc", "doc"]
 run = { task = "knope", args = ["document-change"] }
 
+[tasks."tauri:setup"]
+description = "Install Tauri tools and system packages"
+run = ["mise install", "mise bootstrap packages apply --yes"]
+env = { MISE_ENV = "tauri" }
+
+[tasks."tauri:setup:macos"]
+description = "Install Xcode"
+confirm = { message = "Install Xcode? (required for Tauri)", default = "no" }
+run = "xcode-select --install 2>/dev/null || true"
+
+[tasks."tauri:setup:windows"]
+description = "Install Visual Studio Build Tools + WebView2 runtime"
+confirm = { message = "Install Visual Studio Build Tools and WebView2 runtime? (required for Tauri)", default = "no" }
+run = [
+  "winget install --id Microsoft.VisualStudio.BuildTools --source winget --force --override '--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --add Microsoft.VisualStudio.Component.Windows11SDK.26100 --addProductLang En-us'",
+  "winget install --id Microsoft.EdgeWebView2Runtime --source winget",
+]
+
 [tasks."cargo:lint"]
-description = "Check Rust formatting and lint with Clippy"
+description = "Check Rust formatting and Clippy lints"
 alias = ["cl", "cargo-lint"]
 dir = "src-tauri"
-run = ["cargo fmt --check", "cargo clippy --all-targets --all-features -- -D warnings"]
+run = ["cargo fmt --check", "cargo clippy --locked --all-targets --all-features -- -D warnings"]
 
 [tasks."cargo:lint:fix"]
-description = "Fix Rust formatting and lint issues"
+description = "Fix Rust formatting and Clippy issues"
 alias = ["clf", "cargo-lint-fix"]
 dir = "src-tauri"
 run = ["cargo fmt", "cargo clippy --fix --allow-dirty --all-targets --all-features -- -D warnings"]
@@ -67,7 +94,7 @@ run = ["cargo fmt", "cargo clippy --fix --allow-dirty --all-targets --all-featur
 description = "Run Rust tests"
 alias = ["ct", "cargo-test"]
 dir = "src-tauri"
-run = "cargo test"
+run = "cargo test --locked"
 raw = true
 
 [tasks."actions:pin"]
@@ -84,7 +111,6 @@ tools = { "zizmor" = "latest" }
 description = "Update pinned GitHub Actions to latest SHAs"
 run = "pinact run -u"
 tools = { "pinact" = "latest" }
-
 
 [tasks.opentofu]
 run = "tofu"

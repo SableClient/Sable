@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-//MISE description="Run Tauri CLI with platform-specific feature flags"
+//MISE description="Run Tauri CLI"
+//MISE depends="tauri:setup"
 //USAGE arg "<platform>" help="Target" default="wry" choices "wry" "cef" "android" "ios"
 
 import { run } from '@tauri-apps/cli';

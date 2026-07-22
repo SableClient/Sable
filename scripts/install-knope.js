@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 //MISE hide=true
-//MISE description="Install or update knope to the pinned version"
+//MISE description="Install knope"
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 import { chmodSync, existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';

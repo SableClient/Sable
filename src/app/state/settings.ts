@@ -117,6 +117,7 @@ export interface Settings {
   editorToolbar: boolean;
   editorOldAddFile: boolean;
   composerToolbarOpen: boolean;
+  alwaysInlineEditor: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
   hideMembershipEvents: boolean;
@@ -288,6 +289,7 @@ export const defaultSettings: Settings = {
   editorToolbar: false,
   editorOldAddFile: false,
   composerToolbarOpen: false,
+  alwaysInlineEditor: false,
   messageLayout: 0,
   messageSpacing: '400',
   hideMembershipEvents: false,

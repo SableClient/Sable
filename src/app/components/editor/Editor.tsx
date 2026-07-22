@@ -132,7 +132,8 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const hasBefore = Boolean(before);
     const hasAfter = Boolean(after);
     const hasResponsiveAfter = Boolean(responsiveAfter);
-    const layoutIsMultiline = isMultiline || forceMultilineLayout;
+    const [alwaysInlineEditor] = useSetting(settingsAtom, 'alwaysInlineEditor');
+    const layoutIsMultiline = !alwaysInlineEditor && (isMultiline || forceMultilineLayout);
     const showResponsiveAfterInFooter = hasResponsiveAfter && layoutIsMultiline;
     const showResponsiveAfterInline = hasResponsiveAfter && !showResponsiveAfterInFooter;
 
@@ -449,7 +450,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
               <Editable
                 ref={editableRef}
                 data-editable-name={editableName}
-                className={css.EditorTextarea}
+                className={`${css.EditorTextarea} ${alwaysInlineEditor ? css.EditorTextareaInline : ''}`}
                 placeholder={placeholder}
                 renderPlaceholder={renderPlaceholder}
                 renderElement={renderElement}

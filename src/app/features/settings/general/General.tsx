@@ -421,6 +421,10 @@ function DateAndTime() {
 function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [editorToolbar, setEditorToolbar] = useSetting(settingsAtom, 'editorToolbar');
+  const [alwaysInlineEditor, setAlwaysInlineEditor] = useSetting(
+    settingsAtom,
+    'alwaysInlineEditor'
+  );
   const [editorOldAddFile, setEditorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
@@ -450,6 +454,20 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
               value={enterForNewline}
               onChange={setEnterForNewline}
               disabled={isMobile}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Always Inline Editor"
+          focusId="always-inline-editor"
+          description="Always keep the last line of the text editor inline with UI buttons"
+          after={
+            <Switch
+              variant="Primary"
+              value={alwaysInlineEditor}
+              onChange={setAlwaysInlineEditor}
             />
           }
         />

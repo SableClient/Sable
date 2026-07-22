@@ -15,6 +15,7 @@ import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
 import { DebugLogViewer } from './DebugLogViewer';
 import { SentrySettings } from './SentrySettings';
+import { SearchIndexCache } from './SearchIndexCache';
 
 type DeveloperToolsProps = {
   requestBack?: () => void;
@@ -125,6 +126,11 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
               {developerTools && (
                 <Box direction="Column" gap="100">
                   <SentrySettings />
+                </Box>
+              )}
+              {developerTools && (
+                <Box direction="Column" gap="100">
+                  <SearchIndexCache />
                 </Box>
               )}
             </Box>

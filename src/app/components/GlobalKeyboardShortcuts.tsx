@@ -20,6 +20,7 @@ import {
   getHomeRoomPath,
   getHomeSearchPath,
   getInboxBookmarksPath,
+  getDirectSearchPath,
   getSpaceRoomPath,
   getSpaceSearchPath,
   withSearchParam,
@@ -34,6 +35,8 @@ import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { matchesShortcut } from '../keyboard/shortcuts';
+import { useIsDirectRoom } from '$hooks/useRoom';
+import { isKeyHotkey } from 'is-hotkey';
 
 export function GlobalKeyboardShortcuts() {
   const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
@@ -42,6 +45,7 @@ export function GlobalKeyboardShortcuts() {
   const mx = useMatrixClient();
   const roomToParents = useAtomValue(roomToParentsAtom);
   const mDirects = useAtomValue(mDirectAtom);
+  const direct = useIsDirectRoom();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const unreadIndexRef = useRef(0);
 
@@ -188,12 +192,34 @@ export function GlobalKeyboardShortcuts() {
       };
       const path = currentSpace
         ? getSpaceSearchPath(getCanonicalAliasOrRoomId(mx, currentSpace))
-        : getHomeSearchPath();
+        : direct
+          ? getDirectSearchPath()
+          : getHomeSearchPath();
       const roomName = mx.getRoom(currentRoom?.roomId)?.name;
       navigate(withSearchParam(path, searchParams));
       announce(`Start Searching messages ${roomName ? `in ${roomName}` : ''}`);
     },
-    [mx, currentRoom, currentSpace, navigate, shortcutOverrides]
+    [mx, currentRoom, currentSpace, navigate, direct]
+  );
+
+  const handleSearchMessageGlobally = useCallback(
+    (evt: KeyboardEvent) => {
+      if (!isKeyHotkey('mod+shift+f', evt)) return;
+      evt.preventDefault();
+
+      const searchParams: SearchPathSearchParams = {
+        global: 'true',
+      };
+      const path = currentSpace
+        ? getSpaceSearchPath(getCanonicalAliasOrRoomId(mx, currentSpace))
+        : direct
+          ? getDirectSearchPath()
+          : getHomeSearchPath();
+      const roomName = mx.getRoom(currentRoom?.roomId)?.name;
+      navigate(withSearchParam(path, searchParams));
+      announce(`Start Searching messages ${roomName ? `in ${roomName}` : ''}`);
+    },
+    [mx, currentRoom, currentSpace, navigate, direct]
   );
 
   useKeyDown(window, handleNextUnreadKeyDown);
@@ -201,6 +227,7 @@ export function GlobalKeyboardShortcuts() {
   useKeyDown(window, handleReplyKeyDown);
   useKeyDown(window, handleBookmarkKeyDown);
   useKeyDown(window, handleSearchMessageInRoom);
+  useKeyDown(window, handleSearchMessageGlobally);
 
   return null;
 }

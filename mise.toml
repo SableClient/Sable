@@ -29,7 +29,7 @@ description = "Run all linting, typechecking, formatting, and dead code checks"
 alias = "l"
 run = ["tsc", "oxlint .", "oxfmt --check .", "knip"]
 
-[tasks.lint-fix]
+[tasks."lint:fix"]
 description = "Fix lint issues, format, and run typecheck and dead code checks"
 alias = "lf"
 run = ["oxlint . --fix", "oxfmt .", "knip --fix"]
@@ -40,10 +40,16 @@ alias = "t"
 run = "vitest"
 raw = true
 
-[tasks.document-change]
+[tasks.knope]
+run = "knope"
+raw_args = true
+hide = true
+tools = { "cargo:knope" = "0.23.0", cargo-binstall = "1.20.1" }
+
+[tasks."knope:document-change"]
 description = "Document a change with knope"
-alias = "doc"
-run = "knope document-change"
+alias = ["doc", "doc"]
+run = { task = "knope", args = ["document-change"] }
 
 [tasks."cargo:lint"]
 description = "Check Rust formatting and lint with Clippy"
@@ -51,7 +57,7 @@ alias = ["cl", "cargo-lint"]
 dir = "src-tauri"
 run = ["cargo fmt --check", "cargo clippy --all-targets --all-features -- -D warnings"]
 
-[tasks."cargo:lint-fix"]
+[tasks."cargo:lint:fix"]
 description = "Fix Rust formatting and lint issues"
 alias = ["clf", "cargo-lint-fix"]
 dir = "src-tauri"
@@ -63,3 +69,25 @@ alias = ["ct", "cargo-test"]
 dir = "src-tauri"
 run = "cargo test"
 raw = true
+
+[tasks."actions:pin"]
+description = "Pin GitHub Actions to SHA commit hashes"
+run = "pinact run"
+tools = { "pinact" = "latest" }
+
+[tasks."actions:audit"]
+description = "Audit GitHub Actions for security issues"
+run = "zizmor .github/workflows"
+tools = { "zizmor" = "latest" }
+
+[tasks."actions:update"]
+description = "Update pinned GitHub Actions to latest SHAs"
+run = "pinact run -u"
+tools = { "pinact" = "latest" }
+
+
+[tasks.opentofu]
+run = "tofu"
+raw_args = true
+hide = true
+tools = { "opentofu" = "1.11.5" }

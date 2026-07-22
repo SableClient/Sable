@@ -120,7 +120,7 @@ jobs:
           - name: macOS
             platform: macos-latest
             asset-platform: macos-universal
-            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            rust-targets: aarch64-apple-darwin x86_64-apple-darwin
             args: --target universal-apple-darwin
             bundle_path: src-tauri/target/universal-apple-darwin/release/bundle
           - name: Windows
@@ -140,6 +140,8 @@ jobs:
       VERSION: ${{ needs.setup-release.outputs.version }}
       VITE_APP_VERSION: ${{ needs.setup-release.outputs.version }}
       VITE_IS_RELEASE_TAG: ${{ needs.setup-release.outputs.nightly == 'true' && 'true' || '' }}
+      CARGO_INCREMENTAL: 0
+      CARGO_TERM_COLOR: always
       NODE_OPTIONS: --max-old-space-size=8192
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -173,11 +175,10 @@ jobs:
       - name: Setup app
         uses: ./.github/actions/setup
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # 2c7215f132e9ebf062739d9130488b56d53c060c
-        with:
-          toolchain: stable
-          targets: ${{ matrix.rust-targets }}
+      - name: Add Rust targets
+        if: ${{ matrix.rust-targets != '' }}
+        shell: bash
+        run: rustup target add ${{ matrix.rust-targets }}
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -329,7 +330,10 @@ jobs:
       VERSION: ${{ needs.setup-release.outputs.version }}
       VITE_APP_VERSION: ${{ needs.setup-release.outputs.version }}
       VITE_IS_RELEASE_TAG: ${{ needs.setup-release.outputs.nightly == 'true' && 'true' || '' }}
+      CARGO_INCREMENTAL: 0
+      CARGO_TERM_COLOR: always
       NODE_OPTIONS: --max-old-space-size=8192
+      RUST_TARGETS: aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
       ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -352,11 +356,9 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # 2c7215f132e9ebf062739d9130488b56d53c060c
-        with:
-          toolchain: stable
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - name: Add Rust targets
+        shell: bash
+        run: rustup target add $RUST_TARGETS
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -435,6 +437,9 @@ jobs:
       VERSION: ${{ needs.setup-release.outputs.version }}
       VITE_APP_VERSION: ${{ needs.setup-release.outputs.version }}
       VITE_IS_RELEASE_TAG: ${{ needs.setup-release.outputs.nightly == 'true' && 'true' || '' }}
+      CARGO_INCREMENTAL: 0
+      CARGO_TERM_COLOR: always
+      RUST_TARGETS: aarch64-apple-ios
       NODE_OPTIONS: --max-old-space-size=8192
     steps:
       - name: Checkout repository
@@ -446,11 +451,9 @@ jobs:
       - name: Setup app
         uses: ./.github/actions/setup
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # 2c7215f132e9ebf062739d9130488b56d53c060c
-        with:
-          toolchain: stable
-          targets: aarch64-apple-ios
+      - name: Add Rust targets
+        shell: bash
+        run: rustup target add $RUST_TARGETS
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -504,7 +507,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" "${{ steps.ipa.outputs.path }}" --clobber
+          STEPS_IPA_OUTPUTS_PATH: ${{ steps.ipa.outputs.path }}
+        run: gh release upload "$TAG" "${STEPS_IPA_OUTPUTS_PATH}" --clobber
 
       - name: Update AltStore/SideStore source
         shell: bash
@@ -513,8 +517,10 @@ jobs:
           REPO: ${{ github.repository }}
           ALTSTORE_VERSION: ${{ steps.ipa.outputs.ipa_version }}
           ALTSTORE_VERSION_BUILD: ${{ steps.ipa.outputs.ipa_build }}
+          STEPS_IPA_OUTPUTS_NAME: ${{ steps.ipa.outputs.name }}
+          STEPS_IPA_OUTPUTS_SIZE: ${{ steps.ipa.outputs.size }}
         run: |
-          DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/${{ steps.ipa.outputs.name }}"
+          DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/${STEPS_IPA_OUTPUTS_NAME}"
           DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           if gh release download "$TAG" --pattern 'altstore-source.json' --dir . --clobber 2>/dev/null; then
             echo "Using existing altstore-source.json from release $TAG"
@@ -522,7 +528,7 @@ jobs:
             echo "Using repo altstore-source.json"
           fi
           node .github/scripts/update-altstore-source.mjs \
-            altstore-source.json "${ALTSTORE_VERSION:-$VERSION}" "${ALTSTORE_VERSION_BUILD:-$VERSION}" "${{ steps.ipa.outputs.size }}" "$DOWNLOAD_URL" "$DATE" "Sable $VERSION"
+            altstore-source.json "${ALTSTORE_VERSION:-$VERSION}" "${ALTSTORE_VERSION_BUILD:-$VERSION}" "${STEPS_IPA_OUTPUTS_SIZE}" "$DOWNLOAD_URL" "$DATE" "Sable $VERSION"
           gh release upload "$TAG" altstore-source.json --clobber
 
   updater-manifest:
@@ -554,8 +560,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          NEEDS_SETUP_RELEASE_OUTPUTS_NIGHTLY: ${{ needs.setup-release.outputs.nightly }}
         run: |
-          if [ "${{ needs.setup-release.outputs.nightly }}" = "true" ]; then
+          if [ "${NEEDS_SETUP_RELEASE_OUTPUTS_NIGHTLY}" = "true" ]; then
             gh release view "$TAG" --json assets \
               | jq -r --arg cutoff "$STARTED_AT" \
                   '.assets[] | select(.updatedAt <= $cutoff and (.name | endswith(".sig"))) | .name' \

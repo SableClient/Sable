@@ -18,14 +18,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Setup pnpm
-      uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-
-    - name: Setup node
-      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+    - name: Setup tools (mise)
+      uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
       with:
-        node-version-file: '.node-version'
-        cache: 'pnpm'
+        cache: true
 
     - name: Install dependencies
       shell: bash

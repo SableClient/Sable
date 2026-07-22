@@ -2,10 +2,6 @@ name: Prepare OpenTofu Deployment
 description: Prepares OpenTofu in infra/web.
 
 inputs:
-  opentofu-version:
-    description: The OpenTofu version to install.
-    required: false
-    default: '1.11.5'
   is_release_tag:
     description: Whether the build is for a release tag. Passed through to VITE_IS_RELEASE_TAG.
     required: false
@@ -27,22 +23,20 @@ runs:
         SENTRY_ORG: ${{ env.SENTRY_ORG }}
         SENTRY_PROJECT: ${{ env.SENTRY_PROJECT }}
 
-    - name: Setup OpenTofu
-      uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1.0.8
-      with:
-        tofu_version: ${{ inputs.opentofu-version }}
+    - name: Setup OpenTofu via mise
+      uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
 
     - name: Check formatting
       shell: bash
       working-directory: ${{ github.workspace }}/infra/web
-      run: tofu fmt -check
+      run: mise run opentofu -- fmt -check
 
     - name: Initialize OpenTofu
       shell: bash
       working-directory: ${{ github.workspace }}/infra/web
-      run: tofu init -input=false -reconfigure
+      run: mise run opentofu -- init -input=false -reconfigure
 
     - name: Validate configuration
       shell: bash
       working-directory: ${{ github.workspace }}/infra/web
-      run: tofu validate -no-color
+      run: mise run opentofu -- validate -no-color

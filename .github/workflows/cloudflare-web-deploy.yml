@@ -55,8 +55,16 @@ jobs:
       - name: Resolve release version
         id: version
         shell: bash
+        env:
+          GIT_TAG: ${{ inputs.git_tag }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.git_tag || github.ref_name }}"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && -n "$GIT_TAG" ]]; then
+            TAG="$GIT_TAG"
+          else
+            TAG="$REF_NAME"
+          fi
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Prepare OpenTofu deployment
@@ -95,8 +103,16 @@ jobs:
       - name: Resolve release version
         id: version
         shell: bash
+        env:
+          GIT_TAG: ${{ inputs.git_tag }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.git_tag || github.ref_name }}"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && -n "$GIT_TAG" ]]; then
+            TAG="$GIT_TAG"
+          else
+            TAG="$REF_NAME"
+          fi
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Prepare OpenTofu deployment
@@ -112,7 +128,7 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
       - name: Plan infrastructure
-        run: tofu plan -input=false -no-color
+        run: mise run opentofu -- plan -input=false -no-color
 
       - name: Apply infrastructure
-        run: tofu apply -input=false -auto-approve
+        run: mise run opentofu -- apply -input=false -auto-approve

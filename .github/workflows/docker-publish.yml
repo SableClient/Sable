@@ -49,8 +49,8 @@ jobs:
         id: release_tag
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.git_tag }}" ]]; then
-            TAG="${{ inputs.git_tag }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${INPUTS_GIT_TAG}" ]]; then
+            TAG="${INPUTS_GIT_TAG}"
           else
             TAG="${GITHUB_REF#refs/tags/}"
           fi
@@ -65,6 +65,8 @@ jobs:
             echo "value=" >> "$GITHUB_OUTPUT"
             echo "is_release=false" >> "$GITHUB_OUTPUT"
           fi
+        env:
+          INPUTS_GIT_TAG: ${{ inputs.git_tag }}
 
       - name: Extract metadata
         id: meta

@@ -20,6 +20,8 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -29,12 +31,8 @@ jobs:
 
       - uses: fregante/setup-git-user@024bc0b8e177d7e77203b48dab6fb45666854b35 # v2.0.2
 
-      - uses: knope-dev/action@19617851f9f13ab2f27a05989c55efb18aca3675 # v2.1.2
-        with:
-          version: 0.22.3
-
       - name: Prepare Release
-        run: knope prepare-release --verbose
+        run: mise run knope -- prepare-release --verbose
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 

@@ -158,6 +158,9 @@
   "pnpm": {
     "overrides": {
       "jsdom>undici": "^7.28.0"
+    },
+    "patchedDependencies": {
+      "matrix-js-sdk@42.0.0": "patches/matrix-js-sdk@42.0.0.patch"
     }
   }
 }

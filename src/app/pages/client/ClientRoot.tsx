@@ -43,6 +43,7 @@ import {
   type SessionsAction,
 } from '$state/sessions';
 import { createLogger } from '$utils/debug';
+import { createDebugLogger } from '$utils/debugLogger';
 import { useSyncNicknames } from '$hooks/useNickname';
 import { useAppVisibility } from '$hooks/useAppVisibility';
 import { composerIcon, DotsThreeOutlineVerticalIcon } from '$components/icons/phosphor';
@@ -57,6 +58,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 
 const log = createLogger('ClientRoot');
+const debugLog = createDebugLogger('ClientRoot');
 
 const isClientReady = (syncState: string | null): boolean =>
   syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
@@ -255,8 +257,10 @@ export function ClientRoot({ children }: ClientRootProps) {
   const { baseUrl, userId } = activeSession ?? {};
 
   const loadedUserIdRef = useRef<string | undefined>(undefined);
+  const pettingCatStartTimeRef = useRef(performance.now());
   const syncStartTimeRef = useRef(performance.now());
   const firstSyncReadyRef = useRef(false);
+  const pettingCatCompletedRef = useRef(false);
   const [syncReadyClient, setSyncReadyClient] = useState<MatrixClient>();
 
   const [loadState, loadMatrix, setLoadState] = useAsyncCallback<MatrixClient, Error, []>(
@@ -278,7 +282,6 @@ export function ClientRoot({ children }: ClientRootProps) {
   );
 
   const mx = loadState.status === AsyncStatus.Success ? loadState.data : undefined;
-
   const roomMatch =
     matchPath(HOME_ROOM_PATH, location.pathname) ??
     matchPath(DIRECT_ROOM_PATH, location.pathname) ??
@@ -301,6 +304,25 @@ export function ClientRoot({ children }: ClientRootProps) {
     )
   );
 
+  const completePettingCat = useCallback(
+    (outcome: 'success' | 'error', finalSyncState: string | null) => {
+      if (pettingCatCompletedRef.current) return;
+      pettingCatCompletedRef.current = true;
+
+      const data = {
+        outcome,
+        totalDurationMs: Math.round(performance.now() - pettingCatStartTimeRef.current),
+        syncWaitDurationMs: Math.round(performance.now() - syncStartTimeRef.current),
+        finalSyncState: finalSyncState ?? 'none',
+        transport: activeSession?.slidingSyncOptIn === true ? 'sliding' : 'classic',
+      };
+
+      if (outcome === 'success') debugLog.info('sync', 'petting_cat_complete', data);
+      else debugLog.warn('sync', 'petting_cat_complete', data);
+    },
+    [activeSession?.slidingSyncOptIn]
+  );
+
   useEffect(() => {
     if (!activeSession) return;
     if (loadedUserIdRef.current && loadedUserIdRef.current !== activeSession.userId) {
@@ -316,6 +338,10 @@ export function ClientRoot({ children }: ClientRootProps) {
         stopClient(mx);
       }
       loadedUserIdRef.current = undefined;
+      pettingCatStartTimeRef.current = performance.now();
+      syncStartTimeRef.current = pettingCatStartTimeRef.current;
+      firstSyncReadyRef.current = false;
+      pettingCatCompletedRef.current = false;
       setLoadState({ status: AsyncStatus.Idle });
       navigate(getHomePath(), { replace: true });
     }
@@ -347,6 +373,10 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   useEffect(() => {
     if (loadState.status === AsyncStatus.Idle) {
+      pettingCatStartTimeRef.current = performance.now();
+      syncStartTimeRef.current = pettingCatStartTimeRef.current;
+      firstSyncReadyRef.current = false;
+      pettingCatCompletedRef.current = false;
       loadMatrix();
     }
   }, [loadState, loadMatrix]);
@@ -369,8 +399,9 @@ export function ClientRoot({ children }: ClientRootProps) {
     if (isClientReady(mx.getSyncState())) {
       setSyncReadyClient(mx);
       firstSyncReadyRef.current = true;
+      completePettingCat('success', mx.getSyncState());
     }
-  }, [mx]);
+  }, [completePettingCat, mx]);
 
   useSyncState(
     mx,
@@ -384,10 +415,11 @@ export function ClientRoot({ children }: ClientRootProps) {
               'sable.sync.time_to_ready_ms',
               performance.now() - syncStartTimeRef.current
             );
+            completePettingCat('success', state);
           }
         }
       },
-      [mx]
+      [completePettingCat, mx]
     )
   );
 
@@ -434,14 +466,16 @@ export function ClientRoot({ children }: ClientRootProps) {
   useEffect(() => {
     if (loadState.status === AsyncStatus.Error) {
       Sentry.captureException(loadState.error, { tags: { phase: 'load' } });
+      completePettingCat('error', mx?.getSyncState() ?? null);
     }
-  }, [loadState]);
+  }, [completePettingCat, loadState, mx]);
 
   useEffect(() => {
     if (startState.status === AsyncStatus.Error) {
       Sentry.captureException(startState.error, { tags: { phase: 'start' } });
+      completePettingCat('error', mx?.getSyncState() ?? null);
     }
-  }, [startState]);
+  }, [completePettingCat, mx, startState]);
 
   return (
     <AutoDiscovery userId={userId ?? ''} baseUrl={baseUrl ?? ''}>

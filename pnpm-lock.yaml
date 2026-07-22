@@ -7,6 +7,11 @@ settings:
 overrides:
   jsdom>undici: ^7.28.0
 
+patchedDependencies:
+  matrix-js-sdk@42.0.0:
+    hash: 900d58d3f1e71118cbcc42d34bc638d75dc48fcc0d3422ed04436241c8a29319
+    path: patches/matrix-js-sdk@42.0.0.patch
+
 importers:
 
   .:
@@ -184,7 +189,7 @@ importers:
         version: 18.0.5
       matrix-js-sdk:
         specifier: 42.0.0
-        version: 42.0.0
+        version: 42.0.0(patch_hash=900d58d3f1e71118cbcc42d34bc638d75dc48fcc0d3422ed04436241c8a29319)
       matrix-widget-api:
         specifier: ^1.17.0
         version: 1.17.0
@@ -8978,7 +8983,7 @@ snapshots:
 
   matrix-events-sdk@0.0.1: {}
 
-  matrix-js-sdk@42.0.0:
+  matrix-js-sdk@42.0.0(patch_hash=900d58d3f1e71118cbcc42d34bc638d75dc48fcc0d3422ed04436241c8a29319):
     dependencies:
       '@babel/runtime': 8.0.0
       '@matrix-org/matrix-sdk-crypto-wasm': 18.3.1

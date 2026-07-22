@@ -1,0 +1,26 @@
+diff --git a/lib/models/room.js b/lib/models/room.js
+index c2569abf4cb49aa42c24ecf7763c4cc671440172..812424ca29db3ecdaa26d68adf46974df3cc0dfb 100644
+--- a/lib/models/room.js
++++ b/lib/models/room.js
+@@ -2581,7 +2581,7 @@ export class Room extends ReadReceipt {
+         shouldLiveInThread,
+         threadId = ""
+       } = this.eventShouldLiveIn(event, neighbouringEvents, threadRoots);
+-      if (!shouldLiveInThread && !shouldLiveInRoom && event.isRelation()) {
++      if (!fromCache && !shouldLiveInThread && !shouldLiveInRoom && event.isRelation()) {
+         try {
+           const parentEvent = new MatrixEvent(await this.client.fetchRoomEvent(this.roomId, event.relationEventId));
+           neighbouringEvents.push(parentEvent);
+diff --git a/src/models/room.ts b/src/models/room.ts
+index 48ddfdae84997d3aa8cc1f0deed3cdb0248669c2..2d401736038f295178e3066305b645fe54631ceb 100644
+--- a/src/models/room.ts
++++ b/src/models/room.ts
+@@ -3128,7 +3128,7 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
+                 threadId = "",
+             } = this.eventShouldLiveIn(event, neighbouringEvents, threadRoots);
+
+-            if (!shouldLiveInThread && !shouldLiveInRoom && event.isRelation()) {
++            if (!fromCache && !shouldLiveInThread && !shouldLiveInRoom && event.isRelation()) {
+                 try {
+                     const parentEvent = new MatrixEvent(
+                         await this.client.fetchRoomEvent(this.roomId, event.relationEventId!),

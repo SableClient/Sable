@@ -1,15 +1,35 @@
 #!/usr/bin/env node
 //MISE description="Replace logo/icon assets in public/ from SVG inputs via ffmpeg"
+//MISE tools={ffmpeg="7.1.1"}
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, copyFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
-import { PrefixedLogger, createTextHelpers } from './utils/console-style.js';
+import { PrefixedLogger, createTextHelpers } from '../utils/console-style.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BASE_DIR = resolve(__dirname, '..');
+
+function resolveBinary(name) {
+  try {
+    const root = execFileSync('mise', ['where', name], { encoding: 'utf-8' }).trim();
+    const candidates = [
+      join(root, 'Library', 'bin', `${name}.exe`),
+      join(root, 'bin', `${name}.exe`),
+      join(root, `${name}.exe`),
+    ];
+    for (const exe of candidates) {
+      if (existsSync(exe)) return exe;
+    }
+  } catch {
+    /* fallback to path */
+  }
+  return name;
+}
+
+const FFMPEG = resolveBinary('ffmpeg');
 
 const logger = new PrefixedLogger('[replace-logo]');
 const { red } = createTextHelpers({ useColor: logger.useColor });
@@ -54,7 +74,7 @@ function ffmpegCmd(input, output, size) {
   mkdirSync(dirname(output), { recursive: true });
   logger.info(`Generating ${output} (${size} x ${size})`);
   execFileSync(
-    'ffmpeg',
+    FFMPEG,
     ['-y', '-width', String(size), '-height', String(size), '-i', input, output],
     {
       stdio: 'pipe',

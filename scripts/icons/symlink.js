@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { createTextHelpers } from './utils/console-style.js';
+import { createTextHelpers } from '../utils/console-style.js';
 
 const ANDROID_ICONS = [
   'mipmap-hdpi',

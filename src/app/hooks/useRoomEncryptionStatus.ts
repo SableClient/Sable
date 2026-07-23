@@ -49,7 +49,11 @@ export function useRoomEncryptionStatus(room: Room | undefined): RoomEncryptionS
       setStatus(isEncrypted ? RoomEncryptionStatus.Encrypted : RoomEncryptionStatus.Unencrypted);
     } catch {
       // Fallback to sync check
-      setStatus(mx.isRoomEncrypted(room.roomId) ? RoomEncryptionStatus.Encrypted : RoomEncryptionStatus.Unencrypted);
+      setStatus(
+        mx.isRoomEncrypted(room.roomId)
+          ? RoomEncryptionStatus.Encrypted
+          : RoomEncryptionStatus.Unencrypted
+      );
     }
   }, [room, mx]);
 

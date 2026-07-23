@@ -575,12 +575,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         mx.getCrypto()!.globalBlacklistUnverifiedDevices = blacklistUnverified;
         mx.getCrypto()!.setDeviceIsolationMode(
           blacklistUnverified
-            ?  new OnlySignedDevicesIsolationMode() :
-          new AllDevicesIsolationMode(false),
+            ? new OnlySignedDevicesIsolationMode()
+            : new AllDevicesIsolationMode(false)
         );
-        
       }
-       room.setBlacklistUnverifiedDevices(blacklistUnverified);
+      room.setBlacklistUnverifiedDevices(blacklistUnverified);
     }, [blacklistUnverified, mx]);
 
     // Dynamic placeholder based on encryption status
@@ -1992,7 +1991,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           onPaste={handlePaste}
           responsiveAfter={audioRecorder}
           forceMultilineLayout={showAudioRecorder}
-          glow={unverifiedGlowEnabled && unverifiedMembers > 0 ? { enabled: true, animationName: 'unverifiedGlowPulse' } : undefined}
+          glow={
+            unverifiedGlowEnabled && unverifiedMembers > 0
+              ? { enabled: true, animationName: 'unverifiedGlowPulse' }
+              : undefined
+          }
           top={
             <>
               {selectedFiles.length > 0 && (
@@ -2333,12 +2336,26 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 />
               )}
               {isEncrypted && unverifiedMembers > 0 && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '4px', opacity: config.opacity.P300 }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    marginLeft: '4px',
+                    opacity: config.opacity.P300,
+                  }}
+                >
                   <ShieldWarning size={14} weight="fill" style={{ color: 'var(--mx-danger)' }} />
                 </span>
               )}
               {isEncrypted && unverifiedMembers === 0 && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '4px', opacity: config.opacity.P300 }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    marginLeft: '4px',
+                    opacity: config.opacity.P300,
+                  }}
+                >
                   <LockSimple size={14} weight="fill" />
                 </span>
               )}

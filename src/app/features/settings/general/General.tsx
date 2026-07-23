@@ -530,8 +530,14 @@ function Editor() {
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [mentionInReplies, setMentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
-  const [unverifiedGlowEnabled, setUnverifiedGlowEnabled] = useSetting(settingsAtom, 'unverifiedSessionBorderGlow');
-    const [verifiedUsersOnly, setVerifiedUsersOnly] = useSetting(settingsAtom, 'blacklistUnverifiedDevices');
+  const [unverifiedGlowEnabled, setUnverifiedGlowEnabled] = useSetting(
+    settingsAtom,
+    'unverifiedSessionBorderGlow'
+  );
+  const [verifiedUsersOnly, setVerifiedUsersOnly] = useSetting(
+    settingsAtom,
+    'blacklistUnverifiedDevices'
+  );
   const [sendIndividualAttachmentAsCaption, setSendIndividualAttachmentAsCaption] = useSetting(
     settingsAtom,
     'sendIndividualAttachmentAsCaption'
@@ -678,7 +684,11 @@ function Editor() {
           focusId="unverified-session-glow"
           description="Show a pulsing yellow border around the chat input when the room has members with unverified sessions."
           after={
-            <Switch variant="Primary" value={unverifiedGlowEnabled} onChange={setUnverifiedGlowEnabled} />
+            <Switch
+              variant="Primary"
+              value={unverifiedGlowEnabled}
+              onChange={setUnverifiedGlowEnabled}
+            />
           }
         />
       </SequenceCard>

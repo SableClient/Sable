@@ -11,14 +11,17 @@ export const useUserVerificationState = (): UserVerificationState | undefined =>
 export const useSetUserVerification = (): ((state: UserVerificationState | undefined) => void) => {
   const setUserVerification = useSetAtom(userVerificationAtom);
 
-  const set = useCallback((state: UserVerificationState | undefined) => {
-    setUserVerification(state);
-  }, [setUserVerification]);
+  const set = useCallback(
+    (state: UserVerificationState | undefined) => {
+      setUserVerification(state);
+    },
+    [setUserVerification]
+  );
 
   return set;
 };
 
-export const useClearUserVerification = (): () => void => {
+export const useClearUserVerification = (): (() => void) => {
   const setUserVerification = useSetAtom(userVerificationAtom);
 
   const clear = useCallback(() => {

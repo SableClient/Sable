@@ -53,9 +53,10 @@ export const MemberTile = as<'button', MemberTileProps>(
         </Avatar>
         <Box grow="Yes" as="span" direction="Column">
           <Text as="span" size="T300" truncate style={{ color, fontFamily: font }}>
-              <b>{name}  <VerificationBadge status={verificationStatus} size={16} /></b>
-             
-            </Text>
+            <b>
+              {name} <VerificationBadge status={verificationStatus} size={16} />
+            </b>
+          </Text>
           {presence && presence.status && (
             <Box alignItems="Center" gap="100">
               <PresenceBadge presence={presence.presence} size="200" />

@@ -66,9 +66,7 @@ export function useUserVerificationStatus(
         // For our own devices, use stricter crossSigningVerified check
         if (
           deviceStatus &&
-          (isMe
-            ? !deviceStatus.crossSigningVerified
-            : !deviceStatus.isVerified())
+          (isMe ? !deviceStatus.crossSigningVerified : !deviceStatus.isVerified())
         ) {
           setStatus('warning');
           return;

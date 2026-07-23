@@ -529,11 +529,7 @@ function RenderMessageContentInternal({
     const sender = senderId ?? '';
     const senderLocalpart = displayName;
     return (
-      <MKeyVerificationRequest
-        sender={sender}
-        senderLocalpart={senderLocalpart}
-        isSelf={isSelf}
-      />
+      <MKeyVerificationRequest sender={sender} senderLocalpart={senderLocalpart} isSelf={isSelf} />
     );
   }
   return (

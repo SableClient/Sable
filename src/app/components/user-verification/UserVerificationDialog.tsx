@@ -78,9 +78,7 @@ function SasVerification({ verifier, onCancel }: SasVerificationProps) {
 
 function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
   const { t } = useTranslation();
-  const [confirmState, confirm] = useAsyncCallback(
-    useCallback(() => sasData.confirm(), [sasData])
-  );
+  const [confirmState, confirm] = useAsyncCallback(useCallback(() => sasData.confirm(), [sasData]));
   const emojiEntries = useMemo<{ id: string; emoji: string; name: string }[]>(
     () =>
       (sasData.sas.emoji ?? []).map(([emoji, name], index) => ({
@@ -92,8 +90,7 @@ function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
   );
 
   const confirming =
-    confirmState.status === AsyncStatus.Loading ||
-    confirmState.status === AsyncStatus.Success;
+    confirmState.status === AsyncStatus.Loading || confirmState.status === AsyncStatus.Success;
 
   return (
     <Box direction="Column" gap="400">
@@ -247,11 +244,7 @@ export function UserVerificationDialog({
                 ) : (
                   <Box direction="Column" gap="400">
                     <Text>{t('verification.verify_accept_button')}</Text>
-                    <Button
-                      variant="Primary"
-                      fill="Solid"
-                      onClick={handleAccept}
-                    >
+                    <Button variant="Primary" fill="Solid" onClick={handleAccept}>
                       <Text size="B400">{t('verification.verify_accept_button')}</Text>
                     </Button>
                   </Box>
@@ -260,11 +253,7 @@ export function UserVerificationDialog({
                 (request.initiatedByMe ? (
                   <Box direction="Column" gap="400">
                     <Text>{t('verification.verify_starting')}</Text>
-                    <Button
-                      variant="Primary"
-                      fill="Solid"
-                      onClick={handleStart}
-                    >
+                    <Button variant="Primary" fill="Solid" onClick={handleStart}>
                       <Text size="B400">{t('verification.verify_start_button')}</Text>
                     </Button>
                   </Box>
@@ -275,20 +264,13 @@ export function UserVerificationDialog({
                   </Box>
                 ))}
               {phase === VerificationPhase.Started && request.verifier && (
-                <SasVerification
-                  verifier={request.verifier}
-                  onCancel={handleCancel}
-                />
+                <SasVerification verifier={request.verifier} onCancel={handleCancel} />
               )}
               {phase === VerificationPhase.Done && (
                 <Box direction="Column" gap="400">
                   <Text size="H4">{t('verification.verify_done_title')}</Text>
                   <Text>{t('verification.verify_done_message')}</Text>
-                  <Button
-                    variant="Primary"
-                    fill="Solid"
-                    onClick={onClose}
-                  >
+                  <Button variant="Primary" fill="Solid" onClick={onClose}>
                     <Text size="B400">{t('verification.verify_done_button')}</Text>
                   </Button>
                 </Box>
@@ -296,11 +278,7 @@ export function UserVerificationDialog({
               {phase === VerificationPhase.Cancelled && (
                 <Box direction="Column" gap="400">
                   <Text>{t('verification.verify_cancelled_message')}</Text>
-                  <Button
-                    variant="Primary"
-                    fill="Soft"
-                    onClick={handleCancel}
-                  >
+                  <Button variant="Primary" fill="Soft" onClick={handleCancel}>
                     <Text size="B400">{t('verification.verify_cancel_button')}</Text>
                   </Button>
                 </Box>

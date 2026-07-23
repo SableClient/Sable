@@ -286,7 +286,7 @@ type UserHeroNameInnerProps = {
   server?: string;
   color?: string;
   font?: string;
-  userId?: string; 
+  userId?: string;
   customHeroCards?: boolean;
 };
 
@@ -297,7 +297,7 @@ function UserHeroNameInner({
   server,
   color,
   font,
-  userId
+  userId,
 }: UserHeroNameInnerProps) {
   const [copied, setCopied] = useTimeoutToggle();
   const [isHovered, setIsHovered] = useState(false);

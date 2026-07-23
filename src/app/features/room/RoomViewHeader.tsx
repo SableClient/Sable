@@ -126,7 +126,6 @@ import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { useRoomEncryptionStatus } from '$hooks/useRoomEncryptionStatus';
 import { useRoomUnverifiedMembers } from '$hooks/useRoomUnverifiedMembers';
 
-
 const log = createLogger('RoomViewHeader');
 
 async function getPinsHash(pinnedIds: string[]): Promise<string> {
@@ -674,7 +673,11 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
               {name}
               {encryptionStatus === 'encrypted' && unverifiedCount > 0 && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '6px' }}>
-                  <ShieldWarning size={14} weight="fill" style={{ color: 'var(--mx-danger)', opacity: config.opacity.P300 }} />
+                  <ShieldWarning
+                    size={14}
+                    weight="fill"
+                    style={{ color: 'var(--mx-danger)', opacity: config.opacity.P300 }}
+                  />
                 </span>
               )}
               {encryptionStatus === 'encrypted' && unverifiedCount === 0 && (

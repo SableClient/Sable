@@ -1,15 +1,4 @@
-import {
-  Box,
-  Button,
-  Chip,
-  color,
-  config,
-  Menu,
-  MenuItem,
-  Scroll,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Button, Chip, color, config, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
 import type { CSSProperties, SyntheticEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -513,30 +502,30 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   };
 
   const handleCloseVerification = () => {
-     setUserVerification(undefined);
-   };
+    setUserVerification(undefined);
+  };
 
-   const [showDiscardVerification, setShowDiscardVerification] = useState(false);
-   const [showVerify, setShowVerify] = useState(true);
+  const [showDiscardVerification, setShowDiscardVerification] = useState(false);
+  const [showVerify, setShowVerify] = useState(true);
 
-   useEffect(() => {
-     const checkVerification = async () => {
-       const crypto = mx.getCrypto();
-       if (!crypto) return;
-       try {
-         const userTrust = await crypto.getUserVerificationStatus(userId);
-         const isVerified = userTrust.isCrossSigningVerified();
-         setShowVerify(!isVerified);
-         setShowDiscardVerification(userTrust.wasCrossSigningVerified() && !isVerified);
-       } catch {
-         setShowVerify(true);
-         setShowDiscardVerification(false);
-       }
-     };
-     checkVerification();
-   }, [mx, userId]);
+  useEffect(() => {
+    const checkVerification = async () => {
+      const crypto = mx.getCrypto();
+      if (!crypto) return;
+      try {
+        const userTrust = await crypto.getUserVerificationStatus(userId);
+        const isVerified = userTrust.isCrossSigningVerified();
+        setShowVerify(!isVerified);
+        setShowDiscardVerification(userTrust.wasCrossSigningVerified() && !isVerified);
+      } catch {
+        setShowVerify(true);
+        setShowDiscardVerification(false);
+      }
+    };
+    checkVerification();
+  }, [mx, userId]);
 
-   // Todo eventually maybe
+  // Todo eventually maybe
   const mentionClickHandler = useCallback((e: SyntheticEvent<HTMLElement>) => {
     e.preventDefault();
   }, []);

@@ -50,7 +50,14 @@ export function VerificationBadge({ status, size = 16 }: VerificationBadgeProps)
   }
 
   return (
-    <TooltipProvider position="Top" tooltip={<Tooltip><Text size="T200">{label}</Text></Tooltip>}>
+    <TooltipProvider
+      position="Top"
+      tooltip={
+        <Tooltip>
+          <Text size="T200">{label}</Text>
+        </Tooltip>
+      }
+    >
       {(triggerRef) => (
         <Box
           ref={triggerRef}

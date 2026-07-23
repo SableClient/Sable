@@ -418,7 +418,11 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     );
 
     return (
-      <div className={`${css.Editor} ${className || ''}`} ref={setRootRef} style={{ position: 'relative' }}>
+      <div
+        className={`${css.Editor} ${className || ''}`}
+        ref={setRootRef}
+        style={{ position: 'relative' }}
+      >
         {glow?.enabled && (
           <div
             style={{

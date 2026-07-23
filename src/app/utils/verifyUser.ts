@@ -66,10 +66,7 @@ export async function verifyUser(
 
   // Check if there's already a pending verification request
   if (dmRoom) {
-    const existingRequest = crypto.findVerificationRequestDMInProgress(
-      dmRoom.roomId,
-      userId
-    );
+    const existingRequest = crypto.findVerificationRequestDMInProgress(dmRoom.roomId, userId);
     if (existingRequest) {
       // There's already a pending request, return it
       return existingRequest;
@@ -78,7 +75,7 @@ export async function verifyUser(
 
   // Start verification - this will create/find a DM and send a verification request
   const request = await crypto.requestVerificationDM(userId, dmRoom?.roomId);
-  
+
   // The verification request will be received via CryptoEvent.VerificationRequestReceived
   // and handled by the existing verification hooks
   return request;

@@ -258,6 +258,10 @@ export interface Settings {
   isShowingAllRoomsInHome: boolean;
   sendIndividualAttachmentAsCaption: boolean;
 
+  // Security indicators
+  unverifiedSessionBorderGlow: boolean;
+  blacklistUnverifiedDevices: boolean;
+
   // furry stuff
   renderAnimals: boolean;
   animalKind: string | undefined;
@@ -436,6 +440,10 @@ export const defaultSettings: Settings = {
   widgetSidebarWidth: 420,
   isShowingAllRoomsInHome: false,
   sendIndividualAttachmentAsCaption: true,
+  // Security indicators
+  unverifiedSessionBorderGlow: true,
+  blacklistUnverifiedDevices: true,
+
   // furry stuff
   renderAnimals: true,
   animalKind: undefined,

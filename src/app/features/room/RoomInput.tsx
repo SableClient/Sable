@@ -21,7 +21,11 @@ import type {
   RoomMessageEventContent,
   StickerEventContent,
 } from '$types/matrix-sdk';
-import { MatrixError } from '$types/matrix-sdk';
+import {
+  AllDevicesIsolationMode,
+  OnlySignedDevicesIsolationMode,
+  MatrixError,
+} from '$types/matrix-sdk';
 import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
@@ -130,6 +134,7 @@ import { useComposingCheck } from '$hooks/useComposingCheck';
 import { useRoomUnverifiedMembers } from '$hooks/useRoomUnverifiedMembers';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import { UnverifiedGlowBorder } from './RoomInputGlow.css';
 import FocusTrap from 'focus-trap-react';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
@@ -545,6 +550,21 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const isEncrypted = room.hasEncryptionStateEvent();
     // Check for unverified sessions in encrypted rooms
     const unverifiedMembers = useRoomUnverifiedMembers(room);
+    // Read the glow border setting
+    const [unverifiedGlowEnabled] = useSetting(settingsAtom, 'unverifiedSessionBorderGlow');
+    // Read the blacklist unverified devices setting
+    const [blacklistUnverified] = useSetting(settingsAtom, 'blacklistUnverifiedDevices');
+    // Sync device isolation mode with global setting
+    useEffect(() => {
+      if (mx.getCrypto()) {
+        mx.getCrypto()!.globalBlacklistUnverifiedDevices = blacklistUnverified;
+        mx.getCrypto()!.setDeviceIsolationMode(
+          blacklistUnverified
+            ? new OnlySignedDevicesIsolationMode()
+            : new AllDevicesIsolationMode(false),
+        );
+      }
+    }, [blacklistUnverified, mx]);
     // Dynamic placeholder based on encryption status
     const inputPlaceholder = isEncrypted
       ? 'Send an encrypted message...'
@@ -1807,7 +1827,46 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     return (
-      <div ref={ref}>
+      <div
+        ref={ref}
+        style={{
+          ...(unverifiedGlowEnabled && unverifiedMembers > 0 ? { animation: 'unverifiedGlowPulse 2s ease-in-out infinite' } : {}),
+        }}
+      >
+        {selectedFiles.length > 0 && (
+          <UploadBoard
+            header={
+              <UploadBoardHeader
+                open={uploadBoard}
+                onToggle={() => setUploadBoard(!uploadBoard)}
+                uploadFamilyObserverAtom={uploadFamilyObserverAtom}
+                onSend={handleSendUpload}
+                imperativeHandlerRef={uploadBoardHandlers}
+                onCancel={handleCancelUpload}
+              />
+            }
+          >
+            {uploadBoard && (
+              <Scroll size="300" hideTrack visibility="Hover">
+                <UploadBoardContent>
+                  {Array.from(selectedFiles)
+                    .toReversed()
+                    .map((fileItem) => (
+                      <UploadCardRenderer
+                        key={getUploadItemKey(fileItem)}
+                        isEncrypted={!!fileItem.encInfo}
+                        fileItem={fileItem}
+                        setMetadata={handleFileMetadata}
+                        onRemove={handleRemoveUpload}
+                        setDesc={setDesc}
+                        roomId={roomId}
+                      />
+                    ))}
+                </UploadBoardContent>
+              </Scroll>
+            )}
+          </UploadBoard>
+        )}
         <Overlay
           open={dropZoneVisible}
           backdrop={<OverlayBackdrop />}

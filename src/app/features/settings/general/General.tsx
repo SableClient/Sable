@@ -530,6 +530,8 @@ function Editor() {
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [mentionInReplies, setMentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
+  const [unverifiedGlowEnabled, setUnverifiedGlowEnabled] = useSetting(settingsAtom, 'unverifiedSessionBorderGlow');
+    const [verifiedUsersOnly, setVerifiedUsersOnly] = useSetting(settingsAtom, 'blacklistUnverifiedDevices');
   const [sendIndividualAttachmentAsCaption, setSendIndividualAttachmentAsCaption] = useSetting(
     settingsAtom,
     'sendIndividualAttachmentAsCaption'
@@ -667,6 +669,26 @@ function Editor() {
           description="Disable to use silent replies by default. You can still toggle reply notifications for each reply."
           after={
             <Switch variant="Primary" value={mentionInReplies} onChange={setMentionInReplies} />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Unverified session border glow"
+          focusId="unverified-session-glow"
+          description="Show a pulsing yellow border around the chat input when the room has members with unverified sessions."
+          after={
+            <Switch variant="Primary" value={unverifiedGlowEnabled} onChange={setUnverifiedGlowEnabled} />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="In encrypted rooms, only send messages to verified users"
+          focusId="verified-users-only"
+          description="In encrypted rooms, don't share encryption keys with unverified devices. Messages will not be decryptable by devices that haven't been verified."
+          after={
+            <Switch variant="Primary" value={verifiedUsersOnly} onChange={setVerifiedUsersOnly} />
           }
         />
       </SequenceCard>

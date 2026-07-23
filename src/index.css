@@ -208,3 +208,13 @@ body.reduced-motion button[class*='styles_MessageAvatar']:hover * {
   animation: none !important;
   margin: 0 !important;
 }
+
+/* Unverified session border glow animation */
+@keyframes unverifiedGlowPulse {
+  0%, 100% {
+    box-shadow: 0 0 4px 8px rgba(255, 193, 7, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 8px 16px rgba(255, 193, 7, 0.4);
+  }
+}

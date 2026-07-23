@@ -69,8 +69,8 @@ import {
   readdAngleBracketsForHiddenPreviews,
   stripMarkdownEscapesForHiddenPreviews,
 } from './hiddenLinkPreviews';
-import { t } from 'i18next';
 import * as prefixes from '$unstable/prefixes';
+import { useTranslation } from 'react-i18next';
 
 type MessageEditorProps = {
   roomId: string;
@@ -86,6 +86,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     const editor = useEditor();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const isComposing = useComposingCheck();
+    const { t } = useTranslation(['events', 'general']);
 
     const [autocompleteQuery, setAutocompleteQuery] =
       useState<AutocompleteQuery<AutocompletePrefix>>();
@@ -529,7 +530,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           >
             <CustomEditor
               editor={editor}
-              placeholder={t('RoomView.Message.Editor.edit_message')}
+              placeholder={t('Editor.edit_message')}
               onKeyDown={handleKeyDown}
               onKeyUp={handleKeyUp}
               bottom={
@@ -554,10 +555,10 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                           ) : undefined
                         }
                       >
-                        <Text size="B300">{t('General.save')}</Text>
+                        <Text size="B300">{t('save', { ns: 'general' })}</Text>
                       </Chip>
                       <Chip onClick={onCancel} variant="SurfaceVariant" radii="Pill">
-                        <Text size="B300">{t('General.cancel')}</Text>
+                        <Text size="B300">{t('cancel', { ns: 'general' })}</Text>
                       </Chip>
                     </Box>
                     <Box gap="Inherit">

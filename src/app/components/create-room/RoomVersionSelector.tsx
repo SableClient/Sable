@@ -7,7 +7,7 @@ import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 export function RoomVersionSelector({
   versions,
@@ -21,6 +21,7 @@ export function RoomVersionSelector({
   disabled?: boolean;
 }) {
   const [menuCords, setMenuCords] = useState<RectCords>();
+  const { t } = useTranslation(['room/create']);
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(evt.currentTarget.getBoundingClientRect());
@@ -65,7 +66,7 @@ export function RoomVersionSelector({
                     gap="200"
                     style={{ padding: config.space.S200, maxWidth: toRem(300) }}
                   >
-                    <Text size="L400">{t('RoomCreate.versions')}</Text>
+                    <Text size="L400">{t('versions')}</Text>
                     <Box wrap="Wrap" gap="100">
                       {versions.map((version) => (
                         <Chip

@@ -26,7 +26,7 @@ import {
 } from '$hooks/useVerificationRequest';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { ContainerColor } from '$styles/ContainerColor.css';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 const DialogHeaderStyles: CSSProperties = {
   padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -47,23 +47,23 @@ function WaitingMessage({ message }: WaitingMessageProps) {
 
 type VerificationUnexpectedProps = { message: string; onClose: () => void };
 function VerificationUnexpected({ message, onClose }: VerificationUnexpectedProps) {
+  const { t } = useTranslation(['general']);
   return (
     <Box direction="Column" gap="400">
       <Text>{message}</Text>
       <Button variant="Secondary" fill="Soft" onClick={onClose}>
-        <Text size="B400">{t('General.close')}</Text>
+        <Text size="B400">{t('close')}</Text>
       </Button>
     </Box>
   );
 }
 
 function VerificationWaitAccept() {
+  const { t } = useTranslation(['settings/device_verification']);
   return (
     <Box direction="Column" gap="400">
-      <Text>{t('Settings.device_verification.please_accept_the_request_from_other_device')}</Text>
-      <WaitingMessage
-        message={t('Settings.device_verification.waiting_for_request_to_be_accepted')}
-      />
+      <Text>{t('please_accept_the_request_from_other_device')}</Text>
+      <WaitingMessage message={t('waiting_for_request_to_be_accepted')} />
     </Box>
   );
 }
@@ -73,13 +73,12 @@ type VerificationAcceptProps = {
 };
 function VerificationAccept({ onAccept }: VerificationAcceptProps) {
   const [acceptState, accept] = useAsyncCallback(onAccept);
+  const { t } = useTranslation(['settings/device_verification', 'general']);
 
   const accepting = acceptState.status === AsyncStatus.Loading;
   return (
     <Box direction="Column" gap="400">
-      <Text>
-        {t('Settings.device_verification.click_accept_to_start_the_verification_process')}
-      </Text>
+      <Text>{t('click_accept_to_start_the_verification_process')}</Text>
       <Button
         variant="Primary"
         fill="Solid"
@@ -87,19 +86,18 @@ function VerificationAccept({ onAccept }: VerificationAcceptProps) {
         before={accepting && <Spinner size="100" variant="Primary" fill="Solid" />}
         disabled={accepting}
       >
-        <Text size="B400">{t('General.accept')}</Text>
+        <Text size="B400">{t('accept', { ns: 'general' })}</Text>
       </Button>
     </Box>
   );
 }
 
 function VerificationWaitStart() {
+  const { t } = useTranslation(['settings/device_verification']);
   return (
     <Box direction="Column" gap="400">
-      <Text>{t('Settings.device_verification.verification_request_has_been_accepted')}</Text>
-      <WaitingMessage
-        message={t('Settings.device_verification.waiting_for_the_response_from_other_device')}
-      />
+      <Text>{t('verification_request_has_been_accepted')}</Text>
+      <WaitingMessage message={t('waiting_for_the_response_from_other_device')} />
     </Box>
   );
 }
@@ -111,17 +109,17 @@ function AutoVerificationStart({ onStart }: VerificationStartProps) {
   useEffect(() => {
     onStart();
   }, [onStart]);
+  const { t } = useTranslation(['settings/device_verification']);
 
   return (
     <Box direction="Column" gap="400">
-      <WaitingMessage
-        message={t('Settings.device_verification.starting_verification_using_emoji_comparison')}
-      />
+      <WaitingMessage message={t('starting_verification_using_emoji_comparison')} />
     </Box>
   );
 }
 
 function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
+  const { t } = useTranslation(['settings/device_verification']);
   const [confirmState, confirm] = useAsyncCallback(useCallback(() => sasData.confirm(), [sasData]));
   const emojiEntries = useMemo<{ id: string; emoji: string; name: string }[]>(
     () =>
@@ -138,11 +136,7 @@ function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
 
   return (
     <Box direction="Column" gap="400">
-      <Text>
-        {t(
-          'Settings.device_verification.confirm_the_emoji_below_are_displayed_on_both_devices_in_the_same_order'
-        )}
-      </Text>
+      <Text>{t('confirm_the_emoji_below_are_displayed_on_both_devices_in_the_same_order')}</Text>
       <Box
         className={ContainerColor({ variant: 'SurfaceVariant' })}
         style={{
@@ -168,7 +162,7 @@ function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
           disabled={confirming}
           before={confirming && <Spinner size="100" variant="Primary" />}
         >
-          <Text size="B400">{t('Settings.device_verification.they_match')}</Text>
+          <Text size="B400">{t('they_match')}</Text>
         </Button>
         <Button
           variant="Primary"
@@ -176,7 +170,7 @@ function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
           onClick={() => sasData.mismatch()}
           disabled={confirming}
         >
-          <Text size="B400">{t('Settings.device_verification.do_not_match')}</Text>
+          <Text size="B400">{t('do_not_match')}</Text>
         </Button>
       </Box>
     </Box>
@@ -188,6 +182,7 @@ type SasVerificationProps = {
   onCancel: () => void;
 };
 function SasVerification({ verifier, onCancel }: SasVerificationProps) {
+  const { t } = useTranslation(['settings/device_verification']);
   const [sasData, setSasData] = useState<ShowSasCallbacks>();
 
   useVerifierShowSas(verifier, setSasData);
@@ -203,9 +198,7 @@ function SasVerification({ verifier, onCancel }: SasVerificationProps) {
 
   return (
     <Box direction="Column" gap="400">
-      <WaitingMessage
-        message={t('Settings.device_verification.starting_verification_using_emoji_comparison')}
-      />
+      <WaitingMessage message={t('starting_verification_using_emoji_comparison')} />
     </Box>
   );
 }
@@ -214,13 +207,14 @@ type VerificationDoneProps = {
   onExit: () => void;
 };
 function VerificationDone({ onExit }: VerificationDoneProps) {
+  const { t } = useTranslation(['settings/device_verification', 'general']);
   return (
     <Box direction="Column" gap="400">
       <div>
-        <Text>{t('Settings.device_verification.your_device_is_verified')}</Text>
+        <Text>{t('your_device_is_verified')}</Text>
       </div>
       <Button variant="Primary" fill="Solid" onClick={onExit}>
-        <Text size="B400">{t('General.okay')}</Text>
+        <Text size="B400">{t('okay', { ns: 'general' })}</Text>
       </Button>
     </Box>
   );
@@ -230,11 +224,12 @@ type VerificationCanceledProps = {
   onClose: () => void;
 };
 function VerificationCanceled({ onClose }: VerificationCanceledProps) {
+  const { t } = useTranslation(['settings/device_verification', 'general']);
   return (
     <Box direction="Column" gap="400">
-      <Text>{t('Settings.device_verification.verification_has_been_canceled')}</Text>
+      <Text>{t('verification_has_been_canceled')}</Text>
       <Button variant="Secondary" fill="Soft" onClick={onClose}>
-        <Text size="B400">{t('General.close')}</Text>
+        <Text size="B400">{t('close', { ns: 'general' })}</Text>
       </Button>
     </Box>
   );
@@ -245,6 +240,7 @@ type DeviceVerificationProps = {
   onExit: () => void;
 };
 export function DeviceVerification({ request, onExit }: DeviceVerificationProps) {
+  const { t } = useTranslation(['settings/device_verification']);
   const phase = useVerificationRequestPhase(request);
 
   const handleCancel = useCallback(() => {
@@ -284,7 +280,7 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
           <Dialog variant="Surface">
             <Header style={DialogHeaderStyles} variant="Surface" size="500">
               <Box grow="Yes">
-                <Text size="H4">{t('Settings.device_verification.device_verification')}</Text>
+                <Text size="H4">{t('device_verification')}</Text>
               </Box>
               <IconButton size="300" radii="300" onClick={handleCancel}>
                 {composerIcon(X)}
@@ -308,9 +304,7 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
                   <SasVerification verifier={request.verifier} onCancel={handleCancel} />
                 ) : (
                   <VerificationUnexpected
-                    message={t(
-                      'Settings.device_verification.unexpected_error_verification_is_started_but_verifier_is_missing'
-                    )}
+                    message={t('unexpected_error_verification_is_started_but_verifier_is_missing')}
                     onClose={handleCancel}
                   />
                 ))}

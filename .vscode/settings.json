@@ -34,5 +34,23 @@
     ".env": ".env.*",
     "flake.nix": "flake.lock",
     ".gitattributes": ".gitignore"
-  }
+  },
+  "i18n-ally.keysInUse": [
+    "settings.general.Messages.disable_to_hide_redacted_messages_entirely",
+    "settings.general.Messages.enable_to_show_tombstone_events_for_redacted",
+    "settings.keyboard_shortcuts.jump_to_the_highest_priority_unread_room",
+    "settings.keyboard_shortcuts.go_to_previous_unread_room_cycle",
+    "settings.keyboard_shortcuts.go_to_next_unread_room_cycle",
+    "settings.keyboard_shortcuts.undo_in_message_editor",
+    "settings.keyboard_shortcuts.redo_in_message_editor",
+    "settings.keyboard_shortcuts.search_for_messages",
+    "settings.keyboard_shortcuts.messages",
+    "settings.keyboard_shortcuts.underline",
+    "settings.keyboard_shortcuts.general",
+    "settings.keyboard_shortcuts.seach_and_go_to_room",
+    "settings.keyboard_shortcuts.open_sticker_picker",
+    "settings.keyboard_shortcuts.navigation",
+    "settings.keyboard_shortcuts.italic",
+    "settings.keyboard_shortcuts.bold"
+  ]
 }

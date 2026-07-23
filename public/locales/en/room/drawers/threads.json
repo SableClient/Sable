@@ -1,0 +1,13 @@
+{
+  "close_threads": "Close threads",
+  "search_threads": "Search threads...",
+  "clear_search": "Clear search",
+  "no_threads_match_your_search": "No threads match your search.",
+  "no_threads_yet": "No threads yet.",
+  "jump": "Jump",
+  "threads": "Threads",
+  "thread": "Thread",
+  "no_replies_yet_start_the_thread_below": "No replies yet. Start the thread below!",
+  "reply_one": " reply",
+  "reply_other": " replies"
+}

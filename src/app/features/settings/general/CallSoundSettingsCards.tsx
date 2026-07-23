@@ -7,6 +7,8 @@ import {
   CUSTOM_CALL_RINGTONE_MAX_DURATION_MS,
 } from '$features/call/callRingtone';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 export type PreviewTone = 'incoming' | 'outgoing';
 
@@ -37,7 +39,7 @@ export function CustomToneMeta({
         metadata.fileName,
         bytesToSize(metadata.sizeBytes),
         millisecondsToMinutesAndSeconds(metadata.durationMs),
-      ].join(' - ')}
+      ].join(', ')}
     </Text>
   );
 }
@@ -71,6 +73,7 @@ export function CustomToneSettingsCard({
   onPreview: (tone: PreviewTone) => void;
   onReset: () => void;
 }) {
+  const { t } = useTranslation(['settings/general', 'general']);
   return (
     <SequenceCard
       className={SequenceCardStyle}
@@ -90,7 +93,7 @@ export function CustomToneSettingsCard({
               before={<Icon src={Icons.ArrowTop} size="100" />}
               onClick={onImport}
             >
-              <Text size="B300">Import</Text>
+              <Text size="B300">{t('import', { ns: 'general' })}</Text>
             </Button>
             {previewActions.map(({ label, tone, icon }) => (
               <Button
@@ -121,12 +124,14 @@ export function CustomToneSettingsCard({
               onClick={onReset}
               disabled={!hasCustomTone}
             >
-              <Text size="B300">Reset</Text>
+              <Text size="B300">{t('reset', { ns: 'general' })}</Text>
             </Button>
           </Box>
           <Text size="T200" priority="300">
-            Max file size: {bytesToSize(CUSTOM_CALL_RINGTONE_MAX_BYTES)}. Max duration:{' '}
-            {millisecondsToMinutesAndSeconds(CUSTOM_CALL_RINGTONE_MAX_DURATION_MS)}.
+            {t('Calls.max_file_size', { maxSize: bytesToSize(CUSTOM_CALL_RINGTONE_MAX_BYTES) })}
+            {t('Calls.max_file_duration', {
+              maxDuration: millisecondsToMinutesAndSeconds(CUSTOM_CALL_RINGTONE_MAX_DURATION_MS),
+            })}
           </Text>
         </Box>
       </SettingTile>
@@ -136,14 +141,16 @@ export function CustomToneSettingsCard({
 
 export const customToneValidationError = (
   reason: 'type' | 'size' | 'duration',
-  label: 'Ringtone' | 'Ringback'
+  label: 'Ringtone' | 'Ringback',
+  t: TFunction
 ): string => {
-  if (reason === 'type') return 'Only audio files are supported.';
+  if (reason === 'type') return t('Calls.only_audio_files_supported');
   if (reason === 'size') {
-    return `File is too large. Max ${bytesToSize(CUSTOM_CALL_RINGTONE_MAX_BYTES)} allowed.`;
+    return t('Calls.file_too_large', { maxSize: bytesToSize(CUSTOM_CALL_RINGTONE_MAX_BYTES) });
   }
 
-  return `${label} must be between 1s and ${millisecondsToMinutesAndSeconds(
-    CUSTOM_CALL_RINGTONE_MAX_DURATION_MS
-  )}.`;
+  return t('Calls.file_too_long', {
+    label: label,
+    maxDuration: millisecondsToMinutesAndSeconds(CUSTOM_CALL_RINGTONE_MAX_DURATION_MS),
+  });
 };

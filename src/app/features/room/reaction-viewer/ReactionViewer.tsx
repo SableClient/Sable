@@ -17,7 +17,7 @@ import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { getMouseEventCords } from '$utils/dom';
 import * as css from './ReactionViewer.css';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 export type ReactionViewerProps = {
   room: Room;
@@ -36,6 +36,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
     const space = useSpaceOptionally();
     const openProfile = useOpenUserRoomProfile();
     const nicknames = useAtomValue(nicknamesAtom);
+    const { t } = useTranslation(['room/drawers/reactions']);
 
     const [selectedKey, setSelectedKey] = useState<string>(() => {
       if (initialKey) return initialKey;
@@ -89,7 +90,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
           <Header className={css.Header} variant="Surface" size="600">
             <Box grow="Yes">
               <Text size="H3" truncate>
-                {t('RoomView.Reactions.reacted_with')} {`:${selectedShortcode}:`}
+                {t('reacted_with')} {`:${selectedShortcode}:`}
               </Text>
             </Box>
             <IconButton size="300" onClick={requestClose}>

@@ -1,0 +1,12 @@
+{
+  "forwarded_private_message": "Mesaj privat redirecționat",
+  "forwarded_from_earlier_in_this_room": "Redirecționat dintr-un mesaj mai vechi din această cameră",
+  "forwarded_from_another_room": "Redirecționat din altă cameră",
+  "jump_to_original": "du-te la original",
+  "failed_to_send": "Trimitere eșuată.",
+  "only_you_can_see_this": "Doar tu poți vedea asta.",
+  "edit_message": "Editează mesajul",
+  "Editor": {
+    "edit_message": "Editează mesajul..."
+  }
+}

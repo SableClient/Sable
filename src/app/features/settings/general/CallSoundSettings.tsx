@@ -29,6 +29,7 @@ import {
   type CustomToneMetadata,
   type PreviewTone,
 } from './CallSoundSettingsCards';
+import { useTranslation } from 'react-i18next';
 
 const toCustomToneMetadata = (stored: StoredCallRingtone): CustomToneMetadata => ({
   fileName: stored.fileName,
@@ -37,6 +38,7 @@ const toCustomToneMetadata = (stored: StoredCallRingtone): CustomToneMetadata =>
 });
 
 export function CallSoundSettings() {
+  const { t } = useTranslation(['settings/general']);
   const [incomingCallSoundEnabled, setIncomingCallSoundEnabled] = useSetting(
     settingsAtom,
     'incomingCallSoundEnabled'
@@ -89,11 +91,11 @@ export function CallSoundSettings() {
   useEffect(() => {
     if (!loadingCustomState && !hasCustomRingtone && callRingtoneId === 'custom') {
       setCallRingtoneId('sable-default');
-      setCustomError('Custom ringtone is not available on this device. Falling back to default.');
+      setCustomError(t('Calls.custom_ringtone_not_available'));
     }
     if (!loadingCustomState && !hasCustomRingback && callRingbackTone === 'custom') {
       setCallRingbackTone('sable-default');
-      setCustomError('Custom ringback is not available on this device. Falling back to default.');
+      setCustomError(t('Calls.custom_ringback_not_available'));
     }
   }, [
     callRingtoneId,
@@ -103,6 +105,7 @@ export function CallSoundSettings() {
     loadingCustomState,
     setCallRingtoneId,
     setCallRingbackTone,
+    t,
   ]);
 
   const ringtoneOptions = useMemo(
@@ -111,12 +114,12 @@ export function CallSoundSettings() {
         option.value === 'custom'
           ? {
               ...option,
-              label: customRingtoneMeta ? 'Custom File (Imported)' : 'Custom File',
+              label: customRingtoneMeta ? t('Calls.custom_file_imported') : t('Calls.custom_file'),
               disabled: loadingCustomState,
             }
           : option
       ),
-    [customRingtoneMeta, loadingCustomState]
+    [customRingtoneMeta, loadingCustomState, t]
   );
   const ringbackOptions = useMemo(
     () =>
@@ -124,12 +127,12 @@ export function CallSoundSettings() {
         option.value === 'custom'
           ? {
               ...option,
-              label: customRingbackMeta ? 'Custom File (Imported)' : 'Custom File',
+              label: customRingbackMeta ? t('Calls.custom_file_imported') : t('Calls.custom_file'),
               disabled: loadingCustomState,
             }
           : option
       ),
-    [customRingbackMeta, loadingCustomState]
+    [customRingbackMeta, loadingCustomState, t]
   );
 
   const playPreviewTone = useCallback(
@@ -148,12 +151,12 @@ export function CallSoundSettings() {
         }, 2500);
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
-        setCustomError('Unable to preview this ringtone in your browser.');
+        setCustomError(t('Calls.unable_to_preview_this_ringtone'));
       } finally {
         setPreviewing(false);
       }
     },
-    [callRingtoneId, callRingbackTone, callRingtoneVolume]
+    [callRingtoneId, callRingbackTone, callRingtoneVolume, t]
   );
 
   const importCustomTone = useCallback(
@@ -179,20 +182,20 @@ export function CallSoundSettings() {
             durationMs,
           });
           if (!validation.valid) {
-            setCustomError(customToneValidationError(validation.reason, label));
+            setCustomError(customToneValidationError(validation.reason, label, t));
             return;
           }
 
           const stored = await putTone(file, durationMs);
           onImported(stored);
         } catch {
-          setCustomError('Could not import this file. Try a different audio format.');
+          setCustomError(t('Calls.could_not_import_file_format'));
         }
       });
 
       input.click();
     },
-    []
+    [t]
   );
 
   const handleImportCustomRingtone = useCallback(() => {
@@ -233,7 +236,7 @@ export function CallSoundSettings() {
 
   const handleRingtoneSelection = (next: CallRingtoneId) => {
     if (next === 'custom' && !hasCustomRingtone) {
-      setCustomError('Import a custom ringtone file first.');
+      setCustomError(t('Calls.import_custom_ringtone_file'));
       return;
     }
     setCustomError(null);
@@ -242,7 +245,7 @@ export function CallSoundSettings() {
 
   const handleRingbackSelection = (next: CallRingtoneId) => {
     if (next === 'custom' && !hasCustomRingback) {
-      setCustomError('Import a custom ringback file first.');
+      setCustomError(t('Calls.import_custom_ringback_file'));
       return;
     }
     setCustomError(null);
@@ -259,9 +262,9 @@ export function CallSoundSettings() {
     <Box direction="Column" gap="100">
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Incoming Call Sound"
+          title={t('Calls.incoming_call_sound_title')}
           focusId="incoming-call-sound"
-          description="Play ringtone audio for incoming calls."
+          description={t('Calls.incoming_call_sound_description')}
           after={
             <Switch
               variant="Primary"
@@ -273,9 +276,9 @@ export function CallSoundSettings() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Notify For Voice Rooms"
+          title={t('Calls.notify_voice_rooms_title')}
           focusId="notify-voice-rooms"
-          description="Play ringtone audio when someone starts or joins a voice room."
+          description={t('Calls.notify_voice_rooms_description')}
           after={
             <Switch
               variant="Primary"
@@ -287,9 +290,9 @@ export function CallSoundSettings() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Outgoing Ringback Sound"
+          title={t('Calls.outgoing_ringback_sound_title')}
           focusId="outgoing-ringback-sound"
-          description="Play ringback while waiting for someone to join."
+          description={t('Calls.outgoing_ringback_sound_description')}
           after={
             <Switch
               variant="Primary"
@@ -301,9 +304,9 @@ export function CallSoundSettings() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Ringtone"
+          title={t('Calls.call_ringtone_title')}
           focusId="call-ringtone"
-          description="Choose the incoming call ringtone."
+          description={t('Calls.call_ringtone_description')}
           after={
             <SettingMenuSelector
               value={callRingtoneId}
@@ -316,9 +319,9 @@ export function CallSoundSettings() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Ringback Tone"
+          title={t('Calls.call_ringback_tone_title')}
           focusId="call-ringback-tone"
-          description="Choose what plays while your outgoing call is waiting."
+          description={t('Calls.call_ringback_tone_description')}
           after={
             <SettingMenuSelector
               value={callRingbackTone}
@@ -331,7 +334,7 @@ export function CallSoundSettings() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Ringtone Volume"
+          title={t('Calls.call_ringtone_volume_title')}
           focusId="call-ringtone-volume"
           after={
             <Input
@@ -351,9 +354,9 @@ export function CallSoundSettings() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Always Play Call Sound"
+          title={t('Calls.always_play_call_sound_title')}
           focusId="always-play-call-sound"
-          description="Play call sounds even when message notification sounds are turned off."
+          description={t('Calls.always_play_call_sound_description')}
           after={
             <Switch
               variant="Primary"
@@ -364,27 +367,31 @@ export function CallSoundSettings() {
         />
       </SequenceCard>
       <CustomToneSettingsCard
-        title="Custom Ringtone"
+        title={t('Calls.custom_call_ringtone_title')}
         focusId="custom-call-ringtone"
-        description="Import an audio file for your ringtone."
+        description={t('Calls.custom_call_ringtone_description')}
         metadata={customRingtoneMeta}
-        emptyLabel="No custom ringtone imported."
+        emptyLabel={t('Calls.custom_call_ringtone_empty')}
         hasCustomTone={hasCustomRingtone}
         previewing={previewing}
-        previewActions={[{ label: 'Preview Ringtone', tone: 'incoming', icon: Icons.Play }]}
+        previewActions={[
+          { label: t('Calls.custom_call_ringtone_preview'), tone: 'incoming', icon: Icons.Play },
+        ]}
         onImport={handleImportCustomRingtone}
         onPreview={playPreviewTone}
         onReset={handleResetCustomRingtone}
       />
       <CustomToneSettingsCard
-        title="Custom Ringback"
+        title={t('Calls.custom_call_ringback_title')}
         focusId="custom-call-ringback"
-        description="Import an audio file for outgoing ringback."
+        description={t('Calls.custom_call_ringback_description')}
         metadata={customRingbackMeta}
-        emptyLabel="No custom ringback imported."
+        emptyLabel={t('Calls.custom_call_ringback_empty')}
         hasCustomTone={hasCustomRingback}
         previewing={previewing}
-        previewActions={[{ label: 'Preview Ringback', tone: 'outgoing', icon: Icons.Phone }]}
+        previewActions={[
+          { label: t('Calls.custom_call_ringback_preview'), tone: 'outgoing', icon: Icons.Phone },
+        ]}
         onImport={handleImportCustomRingback}
         onPreview={playPreviewTone}
         onReset={handleResetCustomRingback}

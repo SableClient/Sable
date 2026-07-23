@@ -5,7 +5,7 @@ import type { Room } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
 import type { CallPreferences } from '$state/callPreferences';
 import { callEmbedAtom } from '$state/callEmbed';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 interface RoomCallButtonProps {
   room: Room;
@@ -22,6 +22,7 @@ export function RoomCallButton({
   kind,
   allowVideoStart = true,
 }: RoomCallButtonProps) {
+  const { t } = useTranslation(['room/room-view/room-buttons']);
   const startCall = useCallStart(direct);
   const callEmbed = useAtomValue(callEmbedAtom);
   const joined = useCallJoined(callEmbed);
@@ -67,7 +68,7 @@ export function RoomCallButton({
         <IconButton
           fill="None"
           ref={triggerRef}
-          aria-label={t('RoomView.start_voice_call')}
+          aria-label={t('start_voice_call')}
           onClick={startSelectedCall}
           disabled={startDisabled}
         >

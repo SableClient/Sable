@@ -59,9 +59,9 @@ import {
 } from './components';
 import type { GifData } from './types';
 import { EmojiBoardTab, EmojiType } from './types';
-import { t } from 'i18next';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
+import { useTranslation } from 'react-i18next';
 
 /* oxlint-disable typescript/no-explicit-any */
 // TODO: type klipy api properly
@@ -97,6 +97,7 @@ const useGroups = (
 
   const recentEmojis = useRecentEmoji(mx, 21);
   const labels = useEmojiGroupLabels();
+  const { t } = useTranslation(['room/input']);
 
   const emojiGroupItems = useMemo(() => {
     const g: EmojiGroupItem[] = [];
@@ -111,9 +112,7 @@ const useGroups = (
     imagePacks.forEach((pack) => {
       let label = pack.meta.name;
       if (!label)
-        label = isUserId(pack.id)
-          ? t('RoomInput.EmojiBoard.personal_pack')
-          : mx.getRoom(pack.id)?.name;
+        label = isUserId(pack.id) ? t('EmojiBoard.personal_pack') : mx.getRoom(pack.id)?.name;
 
       g.push({
         id: pack.id,
@@ -133,7 +132,7 @@ const useGroups = (
     });
 
     return g;
-  }, [mx, recentEmojis, labels, imagePacks, tab]);
+  }, [mx, recentEmojis, labels, imagePacks, tab, t]);
 
   const stickerGroupItems = useMemo(() => {
     const g: StickerGroupItem[] = [];
@@ -142,9 +141,7 @@ const useGroups = (
     imagePacks.forEach((pack) => {
       let label = pack.meta.name;
       if (!label)
-        label = isUserId(pack.id)
-          ? t('RoomInput.EmojiBoard.personal_pack')
-          : mx.getRoom(pack.id)?.name;
+        label = isUserId(pack.id) ? t('EmojiBoard.personal_pack') : mx.getRoom(pack.id)?.name;
 
       g.push({
         id: pack.id,
@@ -156,7 +153,7 @@ const useGroups = (
     });
 
     return g;
-  }, [mx, imagePacks, tab]);
+  }, [mx, imagePacks, tab, t]);
 
   const gifGroupItems = useMemo(() => {
     if (tab !== EmojiBoardTab.Gif) return [];
@@ -255,6 +252,7 @@ function EmojiSidebar({
 }: Readonly<EmojiSidebarProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const { t } = useTranslation(['room/input']);
 
   const [activeGroupId, setActiveGroupId] = useAtom(activeGroupAtom);
   const usage = ImageUsage.Emoticon;
@@ -283,9 +281,7 @@ function EmojiSidebar({
           {packs.map((pack) => {
             let label = pack.meta.name;
             if (!label)
-              label = isUserId(pack.id)
-                ? t('RoomInput.EmojiBoard.personal_pack')
-                : mx.getRoom(pack.id)?.name;
+              label = isUserId(pack.id) ? t('EmojiBoard.personal_pack') : mx.getRoom(pack.id)?.name;
 
             // limit width and height to 36 to prevent very large icons from breaking the layout, since custom emoji pack icons can be of any size
             // trying to get close to the render target size of the icons in the sidebar, which is around 24px
@@ -298,7 +294,7 @@ function EmojiSidebar({
                 key={pack.id}
                 active={activeGroupId === pack.id}
                 id={pack.id}
-                label={label ?? t('RoomInput.EmojiBoard.unknown_pack')}
+                label={label ?? t('EmojiBoard.unknown_pack')}
                 url={url ?? undefined}
                 onClick={handleScrollToGroup}
               />
@@ -341,6 +337,7 @@ function StickerSidebar({
   saveStickerEmojiBandwidth,
   onScrollToGroup,
 }: Readonly<StickerSidebarProps>) {
+  const { t } = useTranslation(['room/input']);
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
@@ -370,7 +367,7 @@ function StickerSidebar({
               key={pack.id}
               active={activeGroupId === pack.id}
               id={pack.id}
-              label={label ?? t('RoomInput.EmojiBoard.unknown_pack')}
+              label={label ?? t('EmojiBoard.unknown_pack')}
               url={url ?? undefined}
               onClick={handleScrollToGroup}
             />
@@ -483,6 +480,7 @@ export function EmojiBoard({
   const mx = useMatrixClient();
   const [saveStickerEmojiBandwidth] = useSetting(settingsAtom, 'saveStickerEmojiBandwidth');
   const [showGifPicker] = useSetting(settingsAtom, 'enableGifPicker');
+  const { t } = useTranslation(['room/input']);
 
   const emojiTab = tab === EmojiBoardTab.Emoji;
   const gifTab = tab === EmojiBoardTab.Gif;
@@ -834,8 +832,8 @@ export function EmojiBoard({
                 id={SEARCH_GROUP_ID}
                 label={
                   searchedItems.length
-                    ? t('RoomInput.EmojiBoard.search_results')
-                    : t('RoomInput.EmojiBoard.no_results_found')
+                    ? t('EmojiBoard.search_results')
+                    : t('EmojiBoard.no_results_found')
                 }
               >
                 {searchedItems.map((element, index) => renderItem(element, index))}

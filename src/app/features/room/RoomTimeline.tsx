@@ -74,7 +74,7 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
@@ -311,6 +311,7 @@ export function RoomTimeline({
   );
   const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
+  const { t } = useTranslation(['room/room-view/timeline-pills', 'general']);
 
   const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
   const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
@@ -887,7 +888,7 @@ export function RoomTimeline({
           style={{ padding: config.space.S300 }}
         >
           <Text style={{ color: color.Critical.Main }} size="T300">
-            {t('RoomView.failed_to_load_history')}
+            {t('failed_to_load_history')}
           </Text>
           <Chip
             variant="SurfaceVariant"
@@ -895,7 +896,7 @@ export function RoomTimeline({
             outlined
             onClick={() => timelineSync.handleTimelinePagination(true)}
           >
-            <Text size="B300">{t('General.retry')}</Text>
+            <Text size="B300">{t('retry', { ns: 'general' })}</Text>
           </Chip>
         </Box>
       );
@@ -913,7 +914,7 @@ export function RoomTimeline({
           style={{ padding: config.space.S300 }}
         >
           <Text style={{ color: color.Critical.Main }} size="T300">
-            {t('RoomView.failed_to_load_messages')}
+            {t('failed_to_load_messages')}
           </Text>
           <Chip
             variant="SurfaceVariant"
@@ -921,7 +922,7 @@ export function RoomTimeline({
             outlined
             onClick={() => timelineSync.handleTimelinePagination(false)}
           >
-            <Text size="B300">{t('General.retry')}</Text>
+            <Text size="B300">{t('retry', { ns: 'general' })}</Text>
           </Chip>
         </Box>
       );
@@ -1051,7 +1052,7 @@ export function RoomTimeline({
             before={chipIcon(ChatTeardropDots)}
             onClick={() => timelineSync.loadEventTimeline(unreadInfo.readUptoEventId)}
           >
-            <Text size="L400">{t('RoomView.jump_to_unread')}</Text>
+            <Text size="L400">{t('jump_to_unread')}</Text>
           </Chip>
           <Chip
             variant="SurfaceVariant"
@@ -1060,7 +1061,7 @@ export function RoomTimeline({
             before={chipIcon(Checks)}
             onClick={() => markAsRead(mx, room.roomId, hideReads)}
           >
-            <Text size="L400">{t('RoomView.mark_as_read')}</Text>
+            <Text size="L400">{t('mark_as_read')}</Text>
           </Chip>
         </TimelineFloat>
       )}
@@ -1149,7 +1150,7 @@ export function RoomTimeline({
               MozUserSelect: 'none',
             }}
           >
-            <Text size="L400">{t('RoomView.jump_to_latest')}</Text>
+            <Text size="L400">{t('jump_to_latest')}</Text>
           </Chip>
         </TimelineFloat>
       )}

@@ -12,7 +12,7 @@ import { useVoiceRecorder } from '$plugins/voice-recorder-kit';
 import type { VoiceRecorderStopPayload } from '$plugins/voice-recorder-kit';
 import { Box, Text } from 'folds';
 import * as css from './AudioMessageRecorder.css';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 export type AudioRecordingCompletePayload = {
   audioBlob: Blob;
@@ -55,6 +55,7 @@ export const AudioMessageRecorder = forwardRef<
   const [isCanceling, setIsCanceling] = useState(false);
   const [announcedTime, setAnnouncedTime] = useState(0);
   const [barCount, setBarCount] = useState(MAX_BAR_COUNT);
+  const { t } = useTranslation(['room/input']);
 
   const onRecordingCompleteRef = useRef(onRecordingComplete);
   onRecordingCompleteRef.current = onRecordingComplete;
@@ -197,7 +198,7 @@ export const AudioMessageRecorder = forwardRef<
         </Text>
         {announcedTime > 0 && announcedTime === seconds && (
           <span className={css.SrOnly} aria-live="polite">
-            {t('RoomInput.recording_duration')} {formatTime(announcedTime)}
+            {t('recording_duration')} {formatTime(announcedTime)}
           </span>
         )}
       </Box>

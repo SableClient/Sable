@@ -47,6 +47,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'message-spacing',
     'presence-status',
     'reply-notifications',
+    'individual-attachments',
     'right-aligned-bubbles',
     'right-swipe-action',
     'session-replay',

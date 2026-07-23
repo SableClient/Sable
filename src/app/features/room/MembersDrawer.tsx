@@ -66,7 +66,7 @@ import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './MembersDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 type MemberDrawerHeaderProps = {
   room: Room;
@@ -74,6 +74,7 @@ type MemberDrawerHeaderProps = {
 };
 function MemberDrawerHeader({ room, hideText }: MemberDrawerHeaderProps) {
   const setPeopleDrawer = useSetSetting(settingsAtom, 'isPeopleDrawer');
+  const { t } = useTranslation(['general']);
 
   return (
     <Header className={css.MembersDrawerHeader} variant="Background" size="600">
@@ -92,7 +93,7 @@ function MemberDrawerHeader({ room, hideText }: MemberDrawerHeaderProps) {
             offset={4}
             tooltip={
               <Tooltip>
-                <Text>Close</Text>
+                <Text>{t('close')}</Text>
               </Tooltip>
             }
           >
@@ -250,6 +251,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
   const creators = useRoomCreators(room);
   const getPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
   const getPowerLevel = useGetMemberPowerLevel(powerLevels);
+  const { t } = useTranslation(['room/drawers/members', 'general']);
 
   const fetchingMembers = members.length < room.getJoinedMemberCount();
   const openUserRoomProfile = useOpenUserRoomProfile();
@@ -436,7 +438,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                       ref={searchInputRef}
                       onChange={handleSearchChange}
                       style={{ paddingRight: config.space.S200 }}
-                      placeholder="Type name..."
+                      placeholder={t('type_name')}
                       variant="Surface"
                       size="400"
                       radii="400"
@@ -457,9 +459,13 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                             }}
                             after={chipIcon(X)}
                           >
-                            <Text size="B300">{`${result.items.length || 'No'} ${
-                              result.items.length === 1 ? 'Result' : 'Results'
-                            }`}</Text>
+                            <Text size="B300">
+                              {result.items.length}
+                              {t('result', {
+                                ns: 'general',
+                                count: result.items.length,
+                              })}
+                            </Text>
                           </Chip>
                         )
                       }
@@ -474,7 +480,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                     radii="Pill"
                     outlined
                     size="300"
-                    aria-label={t('RoomView.scroll_to_top')}
+                    aria-label={t('scroll_to_top')}
                   >
                     {composerIcon(CaretUp)}
                   </IconButton>
@@ -482,7 +488,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
 
                 {!fetchingMembers && !result && processMembers.length === 0 && (
                   <Text style={{ padding: config.space.S300 }} align="Center">
-                    {`No "${membershipFilter.name}" Members`}
+                    {t('no_members', { filter: membershipFilter.name })}
                   </Text>
                 )}
               </>

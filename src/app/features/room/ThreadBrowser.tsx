@@ -62,7 +62,7 @@ import { EncryptedContent } from './message';
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 type ThreadPreviewProps = {
   room: Room;
@@ -83,6 +83,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const spoilerClickHandler = useSpoilerClickHandler();
+  const { t } = useTranslation(['room/room-view/drawer.threads', 'general']);
 
   const linkifyOpts = useMemo<LinkifyOpts>(
     () => ({
@@ -223,7 +224,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
               </UnreadBadgeCenter>
             )}
             <Chip data-event-id={thread.id} onClick={handleJumpClick} radii="Pill">
-              <Text size="T200">{t('RoomView.Threads.jump')}</Text>
+              <Text size="T200">{t('jump', { ns: 'general' })}</Text>
             </Chip>
           </Box>
         </Box>
@@ -316,6 +317,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
   const loadingMoreRef = useRef(false);
   const canLoadMoreRef = useRef(false);
   canLoadMoreRef.current = canLoadMore;
+  const { t } = useTranslation(['room/drawers/threads']);
 
   // On mount, set up thread event listeners, create the server-side thread
   // timeline sets, then fetch page 1 via paginate.  The two operations are
@@ -491,7 +493,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
         <Box grow="Yes" alignItems="Center" gap="200">
           {composerIcon(Chats)}
           <Text size="H4" truncate>
-            {t('RoomView.Threads.threads')}
+            {t('threads')}
           </Text>
         </Box>
         <Box alignItems="Center" gap="200" shrink="No">
@@ -500,7 +502,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
             variant="SurfaceVariant"
             size="300"
             radii="300"
-            aria-label={t('RoomView.close_threads')}
+            aria-label={t('close_threads')}
           >
             {composerIcon(X)}
           </IconButton>
@@ -517,7 +519,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           ref={searchRef}
           value={query}
           onChange={handleSearchChange}
-          placeholder={t('RoomView.search_threads')}
+          placeholder={t('search_threads')}
           variant="Surface"
           size="400"
           radii="400"
@@ -532,7 +534,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                   setQuery('');
                   searchRef.current?.focus();
                 }}
-                aria-label={t('RoomView.clear_search')}
+                aria-label={t('clear_search')}
               >
                 {chipIcon(X)}
               </IconButton>
@@ -572,9 +574,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                 >
                   {composerIcon(Chats, { style: { opacity: 0.6 } })}
                   <Text size="T300" align="Center">
-                    {lowerQuery
-                      ? t('RoomView.Threads.no_threads_match_your_search')
-                      : t('RoomView.Threads.no_threads_yet')}
+                    {lowerQuery ? t('no_threads_match_your_search') : t('no_threads_yet')}
                   </Text>
                 </Box>
               );

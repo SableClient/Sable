@@ -71,7 +71,7 @@ import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollo
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Resolve the list of reply events to show in the thread drawer.
@@ -161,6 +161,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
   const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
   const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
+  const { t } = useTranslation(['room/drawers/threads']);
 
   // Memoized parsing options
   const linkifyOpts = useMemo<LinkifyOpts>(
@@ -837,7 +838,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         <Box grow="Yes" alignItems="Center" gap="200">
           {composerIcon(Chats)}
           <Text size="H4" truncate>
-            {t('RoomView.Threads.thread')}
+            {t('thread')}
           </Text>
         </Box>
         <Box alignItems="Center" gap="200" shrink="No">
@@ -930,7 +931,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
                 >
                   {composerIcon(Chats, { style: { opacity: 0.6 } })}
                   <Text size="T300" align="Center">
-                    {t('RoomView.Threads.no_replies_yet_start_the_thread_below')}
+                    {t('no_replies_yet_start_the_thread_below')}
                   </Text>
                 </Box>
               );
@@ -952,7 +953,10 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
                   }}
                 >
                   <Text size="T300" priority="300">
-                    {processedReplies.length} {processedReplies.length === 1 ? 'reply' : 'replies'}
+                    {processedReplies.length}
+                    {t('reply', {
+                      count: processedReplies.length,
+                    })}
                   </Text>
                 </Box>
                 <Box

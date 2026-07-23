@@ -11,7 +11,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { nicknamesAtom } from '$state/nicknames';
 import * as css from './RoomViewTyping.css';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 export type RoomViewTypingProps = {
   room: Room;
@@ -22,6 +22,7 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
     const mx = useMatrixClient();
     const typingMembers = useRoomTypingMember(room.roomId);
     const nicknames = useAtomValue(nicknamesAtom);
+    const { t } = useTranslation(['room/room-view/typing']);
 
     const typingNames = typingMembers
       .filter((receipt) => receipt.userId !== mx.getUserId())
@@ -63,7 +64,7 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
               <>
                 <b>{typingNames[0]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {` ${t('RoomView.is_typing')}`}
+                  {t('is_typing')}
                 </Text>
               </>
             )}
@@ -71,11 +72,11 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
               <>
                 <b>{typingNames[0]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {t('RoomView.typing.typing_sep_word')}
+                  {t('typing_sep_word')}
                 </Text>
                 <b>{typingNames[1]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {t('RoomView.typing.are_typing')}
+                  {t('are_typing')}
                 </Text>
               </>
             )}
@@ -83,15 +84,15 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
               <>
                 <b>{typingNames[0]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {', '}
+                  {t('typing_comma')}
                 </Text>
                 <b>{typingNames[1]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {t('RoomView.typing.typing_sep_word')}
+                  {t('typing_sep_word')}
                 </Text>
                 <b>{typingNames[2]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {t('RoomView.typing.are_typing')}
+                  {t('are_typing')}
                 </Text>
               </>
             )}
@@ -99,19 +100,22 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
               <>
                 <b>{typingNames[0]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {', '}
+                  {t('typing_comma')}
                 </Text>
                 <b>{typingNames[1]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {', '}
+                  {t('typing_comma')}
                 </Text>
                 <b>{typingNames[2]}</b>
                 <Text as="span" size="Inherit" priority="300">
-                  {t('RoomView.typing.typing_sep_word')}
+                  {t('typing_sep_word')}
                 </Text>
-                <b>{typingNames.length - 3} others</b>
+                <b>
+                  {typingNames.length - 3}
+                  {t('typing_others')}
+                </b>
                 <Text as="span" size="Inherit" priority="300">
-                  {t('RoomView.typing.are_typing')}
+                  {t('are_typing')}
                 </Text>
               </>
             )}

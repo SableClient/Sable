@@ -1,0 +1,12 @@
+{
+  "forwarded_private_message": "Forwarded private message",
+  "forwarded_from_earlier_in_this_room": "Forwarded from earlier in this room",
+  "forwarded_from_another_room": "Forwarded from another room",
+  "jump_to_original": "jump to original",
+  "failed_to_send": "Failed to send.",
+  "only_you_can_see_this": "Only you can see this.",
+  "edit_message": "Edit Message",
+  "Editor": {
+    "edit_message": "Edit message..."
+  }
+}

@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type * as JotaiModule from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { RoomCallButton } from './RoomCallButton';
-import { t } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 const { startCallMock, useCallJoinedMock } = vi.hoisted(() => ({
   startCallMock: vi.fn<(...args: unknown[]) => void>(),
@@ -24,6 +24,7 @@ vi.mock('jotai', async (importOriginal: () => Promise<typeof JotaiModule>) => {
 });
 
 describe('RoomCallButton', () => {
+  const { t } = useTranslation(['room/room-view/room-buttons']);
   const room = { roomId: '!room:example.org' } as Room;
 
   beforeEach(() => {
@@ -41,7 +42,7 @@ describe('RoomCallButton', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: t('RoomView.start_voice_call') }));
+    fireEvent.click(screen.getByRole('button', { name: t('start_voice_call') }));
 
     await waitFor(() => {
       expect(startCallMock).toHaveBeenCalledWith(room, {
@@ -62,7 +63,7 @@ describe('RoomCallButton', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: t('RoomView.start_voice_call') }));
+    fireEvent.click(screen.getByRole('button', { name: t('start_voice_call') }));
 
     await waitFor(() => {
       expect(startCallMock).toHaveBeenCalledWith(room, {

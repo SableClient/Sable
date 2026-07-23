@@ -55,7 +55,6 @@ import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 import { SettingsSectionPage } from '../SettingsSectionPage';
-import { t } from 'i18next';
 import { CallSoundSettings } from './CallSoundSettings';
 import { useTranslation } from 'react-i18next';
 import type { SettingMenuOption } from '$components/setting-menu-selector';
@@ -66,6 +65,7 @@ type DateHintProps = {
   handleReset: () => void;
 };
 function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
+  const { t } = useTranslation(['settings/general', 'general']);
   const [anchor, setAnchor] = useState<RectCords>();
   const categoryPadding = { padding: config.space.S200, paddingTop: 0 };
 
@@ -88,27 +88,27 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
         >
           <Menu style={{ maxHeight: '85vh', overflowY: 'auto' }}>
             <Header size="300" style={{ padding: `0 ${config.space.S200}` }}>
-              <Text size="L400">{t('Settings.General.formatting')}</Text>
+              <Text size="L400">{t('formatting')}</Text>
             </Header>
 
             <Box direction="Column">
               <Box style={categoryPadding} direction="Column">
                 <Header size="300">
-                  <Text size="L400">{t('Settings.General.year')}</Text>
+                  <Text size="L400">{t('year')}</Text>
                 </Header>
                 <Box direction="Column" tabIndex={0} gap="100">
                   <Text size="T300">
                     YY
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.two_digit_year')}
+                      {t('two_digit_year')}
                     </Text>{' '}
                   </Text>
                   <Text size="T300">
                     YYYY
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.four_digit_year')}
+                      {t('four_digit_year')}
                     </Text>
                   </Text>
                 </Box>
@@ -116,35 +116,35 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
 
               <Box style={categoryPadding} direction="Column">
                 <Header size="300">
-                  <Text size="L400">{t('Settings.General.month')}</Text>
+                  <Text size="L400">{t('month')}</Text>
                 </Header>
                 <Box direction="Column" tabIndex={0} gap="100">
                   <Text size="T300">
                     M
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.the_month')}
+                      {t('the_month')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     MM
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.two_digit_month')}
+                      {t('two_digit_month')}
                     </Text>{' '}
                   </Text>
                   <Text size="T300">
                     MMM
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.short_month_name')}
+                      {t('short_month_name')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     MMMM
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.full_month_name')}
+                      {t('full_month_name')}
                     </Text>
                   </Text>
                 </Box>
@@ -152,55 +152,56 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
 
               <Box style={categoryPadding} direction="Column">
                 <Header size="300">
-                  <Text size="L400">{t('Settings.General.day_of_the_month')}</Text>
+                  <Text size="L400">{t('day_of_the_month')}</Text>
                 </Header>
                 <Box direction="Column" tabIndex={0} gap="100">
                   <Text size="T300">
                     D
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.day_of_the_month')}
+                      {t('day_of_the_month')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     DD
                     <Text as="span" size="Inherit" priority="300">
-                      {': '}Two-digit day of the month
+                      {': '}
+                      {t('two_digit_day_of_the_month')}
                     </Text>
                   </Text>
                 </Box>
               </Box>
               <Box style={categoryPadding} direction="Column">
                 <Header size="300">
-                  <Text size="L400">{t('Settings.General.day_of_the_week')}</Text>
+                  <Text size="L400">{t('day_of_the_week')}</Text>
                 </Header>
                 <Box direction="Column" tabIndex={0} gap="100">
                   <Text size="T300">
                     d
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.day_of_the_week_sunday_0')}
+                      {t('day_of_the_week_sunday_0')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     dd
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.two_letter_day_name')}
+                      {t('two_letter_day_name')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     ddd
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.short_day_name')}
+                      {t('short_day_name')}
                     </Text>
                   </Text>
                   <Text size="T300">
                     dddd
                     <Text as="span" size="Inherit" priority="300">
                       {': '}
-                      {t('Settings.General.full_day_name')}
+                      {t('full_day_name')}
                     </Text>
                   </Text>
                 </Box>
@@ -243,6 +244,7 @@ type CustomDateFormatProps = {
   onChange: (format: string) => void;
 };
 function CustomDateFormat({ value, onChange }: Readonly<CustomDateFormatProps>) {
+  const { t } = useTranslation(['settings/general', 'general']);
   const [dateFormatCustom, setDateFormatCustom] = useState(value);
 
   useEffect(() => {
@@ -296,7 +298,7 @@ function CustomDateFormat({ value, onChange }: Readonly<CustomDateFormatProps>) 
           disabled={!hasChanges}
           type="submit"
         >
-          <Text size="B400">Save</Text>
+          <Text size="B400">{t('save', { ns: 'general' })}</Text>
         </Button>
       </Box>
     </SettingTile>
@@ -383,6 +385,7 @@ function SelectDateFormat() {
   const [dateFormatString, setDateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const [selectedDateFormat, setSelectedDateFormat] = useState(dateFormatString);
   const customDateFormat = selectedDateFormat === '';
+  const { t } = useTranslation(['settings/general']);
 
   const handlePresetChange = (format: string) => {
     setSelectedDateFormat(format);
@@ -394,7 +397,7 @@ function SelectDateFormat() {
   return (
     <>
       <SettingTile
-        title="Date Format"
+        title={t('date_format')}
         focusId="date-format"
         description={customDateFormat ? dayjs().format(dateFormatString) : ''}
         after={<PresetDateFormat value={selectedDateFormat} onChange={handlePresetChange} />}
@@ -408,20 +411,21 @@ function SelectDateFormat() {
 
 function getTombstoneSettingToggleTitle(showTombstone: boolean): string {
   if (showTombstone) {
-    return 'Disable to hide redacted messages entirely instead of showing a tombstone.';
+    return 'disable_to_hide_redacted_messages_entirely';
   }
-  return 'Enable to show tombstone events for redacted messages instead of hiding them entirely.';
+  return 'enable_to_show_tombstone_events_for_redacted';
 }
 
 function DateAndTime() {
   const [hour24Clock, setHour24Clock] = useSetting(settingsAtom, 'hour24Clock');
+  const { t } = useTranslation(['settings/general']);
 
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Date & Time</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="24-Hour Time Format"
+          title={t('twenty_four_hour_time_format')}
           focusId="twenty-four-hour-time-format"
           after={<Switch variant="Primary" value={hour24Clock} onChange={setHour24Clock} />}
         />
@@ -436,6 +440,7 @@ function DateAndTime() {
 
 function LanguageChange() {
   const { i18n } = useTranslation('general');
+  const { t } = useTranslation(['settings/general']);
 
   const languageOptions: SettingMenuOption<string>[] = [
     { value: '', label: 'System' },
@@ -463,7 +468,7 @@ function LanguageChange() {
       <Text size="L400">Language</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Current Language"
+          title={t('current_language')}
           focusId="set-language"
           after={
             <SettingMenuSelector
@@ -490,43 +495,38 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
     settingsAtom,
     'sendIndividualAttachmentAsCaption'
   );
+  const { t } = useTranslation(['settings/general']);
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Editor</Text>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        style={{ opacity: isMobile ? 0.5 : 1 }}
-      >
-        <SettingTile
-          title="ENTER for Newline"
-          focusId="enter-for-newline"
-          description={`Use ${isMacOS() ? KeySymbol.Command : 'Ctrl'} + ENTER to send message. ${isMobile ? '(Disabled on Mobile)' : ''}`}
-          after={
-            <Switch
-              variant="Primary"
-              value={enterForNewline}
-              onChange={setEnterForNewline}
-              disabled={isMobile}
-            />
-          }
-        />
-      </SequenceCard>
+      <Text size="L400">{t('Editor.editor')}</Text>
+      {!isMobile && (
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title={t('Editor.enter_for_newline_title')}
+            focusId="enter-for-newline"
+            description={t('Editor.enter_for_newline_description', {
+              keycombo: isMacOS() ? KeySymbol.Command : 'Ctrl',
+            })}
+            after={
+              <Switch variant="Primary" value={enterForNewline} onChange={setEnterForNewline} />
+            }
+          />
+        </SequenceCard>
+      )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Message Formatting Toolbar"
+          title={t('Editor.composer_formatting_toolbar_title')}
           focusId="composer-formatting-toolbar"
-          description="Enable the formatting toolbar in the message composer."
+          description={t('Editor.composer_formatting_toolbar_description')}
           after={<Switch variant="Primary" value={editorToolbar} onChange={setEditorToolbar} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Hide Add Menu in the Editor"
+          title={t('Editor.hide_add_menu_title')}
           focusId="hide-add-menu"
-          description="Make the Plus button in the editor only add files. You may still send the special items using commands such as /poll and /location"
+          description={t('Editor.hide_add_menu_description')}
           after={
             <Switch variant="Primary" value={editorOldAddFile} onChange={setEditorOldAddFile} />
           }
@@ -534,33 +534,33 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Hide Typing Indicators"
+          title={t('Editor.hide_typing_indicators_title')}
           focusId="hide-typing-indicators"
-          description="Turn off typing status."
+          description={t('Editor.hide_typing_indicators_description')}
           after={<Switch variant="Primary" value={hideActivity} onChange={setHideActivity} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Hide Read Receipts"
+          title={t('Editor.hide_read_receipts_title')}
           focusId="hide-read-receipts"
-          description="Turn off read receipts."
+          description={t('Editor.hide_read_receipts_description')}
           after={<Switch variant="Primary" value={hideReads} onChange={setHideReads} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Presence Status"
+          title={t('Editor.presence_status_title')}
           focusId="presence-status"
-          description="Show and receive online status from other users."
+          description={t('Editor.presence_status_description')}
           after={<Switch variant="Primary" value={sendPresence} onChange={setSendPresence} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Send notifications for replies"
+          title={t('Editor.reply_notifications_title')}
           focusId="reply-notifications"
-          description="Disable to use silent replies by default. You can still toggle reply notifications for each reply."
+          description={t('Editor.reply_notifications_description')}
           after={
             <Switch variant="Primary" value={mentionInReplies} onChange={setMentionInReplies} />
           }
@@ -568,9 +568,9 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Send text with individual attachment as caption"
-          focusId="reply-notifications"
-          description="Send the contents of the message field as the attachment caption if present."
+          title={t('Editor.individual_attachments_title')}
+          focusId="individual-attachments"
+          description={t('Editor.individual_attachments_description')}
           after={
             <Switch
               variant="Primary"
@@ -860,15 +860,19 @@ function SelectRightSwipeAction({ disabled }: Readonly<{ disabled?: boolean }>) 
 
 function Gestures({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [mobileGestures, setMobileGestures] = useSetting(settingsAtom, 'mobileGestures');
+  const { t } = useTranslation(['settings/general']);
 
   return (
     <Box direction="Column" gap="100" style={{ opacity: isMobile ? 1 : 0.5 }}>
-      <Text size="L400">Gestures {!isMobile && '(Mobile Only)'}</Text>
+      <Text size="L400">
+        {t('Gestures.gestures')}
+        {!isMobile && t('Gestures.mobile_only')}
+      </Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Enable Swiping"
+          title={t('Gestures.enable_swiping_title')}
           focusId="enable-swiping"
-          description="Swipe left for rooms, swipe right for actions."
+          description={t('Gestures.enable_swiping_description')}
           after={
             <Switch
               variant="Primary"
@@ -881,9 +885,9 @@ function Gestures({ isMobile }: Readonly<{ isMobile: boolean }>) {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Right Swipe Action"
+          title={t('Gestures.right_swipe_action_title')}
           focusId="right-swipe-action"
-          description="What happens when you swipe right on a message."
+          description={t('Gestures.right_swipe_action_description')}
           after={<SelectRightSwipeAction disabled={!isMobile || !mobileGestures} />}
         />
       </SequenceCard>
@@ -935,6 +939,7 @@ function EmojiSelectorThresholdInput() {
 }
 
 function Calls() {
+  const { t } = useTranslation(['settings/general']);
   const [alwaysShowCallButton, setAlwaysShowCallButton] = useSetting(
     settingsAtom,
     'alwaysShowCallButton'
@@ -946,10 +951,10 @@ function Calls() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Calls</Text>
+      <Text size="L400">{t('Calls.calls')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Show Call Button for Large Rooms"
+          title={t('Calls.large_room_call_button_title')}
           focusId="large-room-call-button"
           after={
             <Switch
@@ -962,7 +967,7 @@ function Calls() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Join voice calls by just clicking the room's icon"
+          title={t('Calls.join_on_click_voicecalls_title')}
           focusId="join-on-click-voicecalls"
           after={
             <Switch
@@ -1016,9 +1021,11 @@ function Messages() {
 
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
   const [rightBubbles, setRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
+  const { t } = useTranslation(['settings/general']);
+
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Messages</Text>
+      <Text size="L400">{t('Messages.messages')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Message Layout"
@@ -1028,21 +1035,21 @@ function Messages() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Message Spacing"
+          title={t('Messages.message_spacing_title')}
           focusId="message-spacing"
           after={<SelectMessageSpacing />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="File description placement"
+          title={t('Messages.file_description_placement_title')}
           focusId="file-description-placement"
           after={<SelectCaptionPosition />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Emoji Selector Character Threshold"
+          title={t('Messages.emoji_selector_threshold_title')}
           focusId="emoji-selector-threshold"
           after={<EmojiSelectorThresholdInput />}
         />
@@ -1050,16 +1057,16 @@ function Messages() {
       {messageLayout === MessageLayout.Bubble && (
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
-            title="Right Aligned Bubbles"
+            title={t('Messages.right_aligned_bubbles_title')}
             focusId="right-aligned-bubbles"
-            description="While using bubble layout, have your bubbles right aligned."
+            description={t('Messages.right_aligned_bubbles_description')}
             after={<Switch variant="Primary" value={rightBubbles} onChange={setRightBubbles} />}
           />
         </SequenceCard>
       )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Disable Media Auto Load"
+          title={t('Messages.disable_media_auto_load_title')}
           focusId="disable-media-auto-load"
           after={
             <Switch
@@ -1072,7 +1079,7 @@ function Messages() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Hide Membership Change"
+          title={t('Messages.hide_membership_change_title')}
           focusId="hide-membership-change"
           after={
             <Switch
@@ -1085,7 +1092,7 @@ function Messages() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Hide Profile Change"
+          title={t('Messages.hide_profile_change_title')}
           focusId="hide-profile-change"
           after={
             <Switch
@@ -1098,9 +1105,9 @@ function Messages() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Hide Member Events in Read-Only Rooms"
+          title={t('Messages.hide_member_events_read_only_rooms_title')}
           focusId="hide-member-events-read-only-rooms"
-          description="Hide membership changes, reactions, and reaction redactions in read-only rooms such as announcement channels."
+          description={t('Messages.hide_member_events_read_only_rooms_description')}
           after={
             <Switch
               variant="Primary"
@@ -1112,9 +1119,9 @@ function Messages() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Show Hidden Events"
+          title={t('Messages.show_hidden_events_title')}
           focusId="show-hidden-events"
-          description="Reveal additional timeline events that are normally filtered out."
+          description={t('Messages.show_hidden_events_description')}
           after={
             <Switch
               variant="Primary"
@@ -1122,8 +1129,8 @@ function Messages() {
               onChange={setShowHiddenEvents}
               title={
                 showHiddenEvents
-                  ? 'Disable to hide hidden events'
-                  : 'Enable to show hidden events, this will cause visual clutter in busy rooms.'
+                  ? t('Messages.show_hidden_events_disable')
+                  : t('Messages.show_hidden_events_enable')
               }
             />
           }
@@ -1136,9 +1143,9 @@ function Messages() {
         style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Show Edit Events"
+          title={t('Messages.hidden_event_edits_title')}
           focusId="hidden-event-edits"
-          description="Show message edits as separate timeline events with a link to the previous version."
+          description={t('Messages.hidden_event_edits_description')}
           after={
             <Switch
               variant="Primary"
@@ -1156,15 +1163,15 @@ function Messages() {
         style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Show Tombstones for Redacted Messages"
+          title={t('Messages.show_redacted_message_tombstones_title')}
           focusId="show-redacted-message-tombstones"
-          description="Show a tombstone in place of redacted messages instead of hiding them entirely."
+          description={t('Messages.show_redacted_message_tombstones_description')}
           after={
             <Switch
               variant="Primary"
               value={showTombstoneEvents}
               onChange={setShowTombstoneEvents}
-              title={getTombstoneSettingToggleTitle(showTombstoneEvents)}
+              title={t(getTombstoneSettingToggleTitle(showTombstoneEvents))}
               disabled={!showHiddenEvents}
             />
           }
@@ -1177,9 +1184,9 @@ function Messages() {
         style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Show Redaction Events"
+          title={t('Messages.hidden_event_redaction_timeline_title')}
           focusId="hidden-event-redaction-timeline"
-          description="Show when a message was redacted as a timeline event with a link to the original message."
+          description={t('Messages.hidden_event_redaction_timeline_description')}
           after={
             <Switch
               variant="Primary"
@@ -1197,9 +1204,9 @@ function Messages() {
         style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Show Reaction Events"
+          title={t('Messages.hidden_event_reactions_title')}
           focusId="hidden-event-reactions"
-          description="Show reactions as separate timeline events with a link to the target message."
+          description={t('Messages.hidden_event_reactions_description')}
           after={
             <Switch
               variant="Primary"
@@ -1217,9 +1224,9 @@ function Messages() {
         style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Show Tombstones for Redacted Reactions"
+          title={t('Messages.hidden_event_reaction_tombstones_title')}
           focusId="hidden-event-reaction-tombstones"
-          description="Show a tombstone in place of redacted reactions instead of hiding them entirely."
+          description={t('Messages.hidden_event_reaction_tombstones_description')}
           after={
             <Switch
               variant="Primary"
@@ -1237,9 +1244,9 @@ function Messages() {
         style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Show Reaction Redaction Events"
+          title={t('Messages.hidden_event_reaction_redaction_timeline_title')}
           focusId="hidden-event-reaction-redaction-timeline"
-          description="Show when a reaction was removed as a timeline event with a link to the target message."
+          description={t('Messages.hidden_event_reaction_redaction_timeline_description')}
           after={
             <Switch
               variant="Primary"
@@ -1257,9 +1264,9 @@ function Messages() {
         style={{ opacity: showHiddenEvents ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Show Other Hidden Events"
+          title={t('Messages.hidden_event_other_title')}
           focusId="hidden-event-other"
-          description="Show generic state events and other unrecognized timeline events."
+          description={t('Messages.hidden_event_other_description')}
           after={
             <Switch
               variant="Primary"
@@ -1297,14 +1304,15 @@ function Embeds() {
     'clientPreviewYoutube'
   );
   const [enableGifPicker, setEnableGifPicker] = useSetting(settingsAtom, 'enableGifPicker');
+  const { t } = useTranslation(['settings/general']);
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Embeds</Text>
+      <Text size="L400">{t('Embeds.embeds')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Display Multiple Embeds"
+          title={t('Embeds.display_multiple_embeds_title')}
           focusId="display-multiple-embeds"
-          description="Display the embeds of all the links. Turning it off makes it only show the embed of the 1st item"
+          description={t('Embeds.display_multiple_embeds_description')}
           after={
             <Switch variant="Primary" value={multiplePreviews} onChange={setMultiplePreviews} />
           }
@@ -1312,39 +1320,43 @@ function Embeds() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Display Bundled Embeds"
+          title={t('Embeds.display_bundled_embeds_title')}
           focusId="display-bundled-embeds"
-          description="Show embeds when provided by the message itself. The embeds may be fabricated or incorrect."
+          description={t('Embeds.display_bundled_embeds_description')}
           after={<Switch variant="Primary" value={bundledPreview} onChange={setBundledPreview} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Server-side Embeds"
+          title={t('Embeds.url_preview_title')}
           focusId="url-preview"
-          description="Send the links from inside the messages to your homeserver to generate previews of the linked pages."
+          description={t('Embeds.url_preview_description')}
           after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Server-side Embeds in Encrypted Room"
+          title={t('Embeds.encrypted_room_url_preview_title')}
           focusId="encrypted-room-url-preview"
-          description="Request server-side embeds in E2EE chats. This partially decreases secrecy by revealing sent links to your homeserver"
+          description={t('Embeds.encrypted_room_url_preview_description')}
           after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Client-side Embeds"
+          title={t('Embeds.client_side_embeds_title')}
           focusId="client-side-embeds"
-          description="Attempt to preview supported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
+          description={t('Embeds.client_side_embeds_description')}
           after={
             <Switch
               variant="Primary"
               value={clientUrlPreview}
               onChange={setClientUrlPreview}
-              title={clientUrlPreview ? 'Disable client-side embeds' : 'Enable client-side embeds'}
+              title={
+                clientUrlPreview
+                  ? t('Embeds.client_side_embeds_disable')
+                  : t('Embeds.client_side_embeds_enable')
+              }
             />
           }
         />
@@ -1353,7 +1365,7 @@ function Embeds() {
         <>
           <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
             <SettingTile
-              title="Client-side Embeds in Encrypted Rooms"
+              title={t('Embeds.encrypted_room_embeds_title')}
               focusId="encrypted-room-embeds"
               after={
                 <Switch
@@ -1362,8 +1374,8 @@ function Embeds() {
                   onChange={setEncClientUrlPreview}
                   title={
                     encClientUrlPreview
-                      ? 'Disable client-side embeds in encrypted rooms'
-                      : 'Enable client-side embeds in encrypted rooms'
+                      ? t('Embeds.encrypted_room_embeds_disable')
+                      : t('Embeds.encrypted_room_embeds_enable')
                   }
                 />
               }
@@ -1371,7 +1383,7 @@ function Embeds() {
           </SequenceCard>
           <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
             <SettingTile
-              title="Embed YouTube Links"
+              title={t('Embeds.embed_youtube_links_title')}
               focusId="embed-youtube-links"
               after={
                 <Switch
@@ -1380,8 +1392,8 @@ function Embeds() {
                   onChange={setClientPreviewYoutube}
                   title={
                     clientPreviewYoutube
-                      ? 'Disable client-side Youtube video embeds'
-                      : 'Enable client-side Youtube video embeds'
+                      ? t('Embeds.embed_youtube_links_disable')
+                      : t('Embeds.embed_youtube_links_enable')
                   }
                 />
               }
@@ -1391,45 +1403,57 @@ function Embeds() {
       )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Enable Gif Picker"
+          title={t('Embeds.enable_gif_picker_title')}
           focusId="enable-gif-picker"
-          description="Enables the gif picker in the emoji board. This reduces Privacy because it makes requests to klipy.com whenever you search for a gif."
+          description={t('Embeds.enable_gif_picker_description')}
           after={
             <Switch
               variant="Primary"
               value={enableGifPicker}
               onChange={setEnableGifPicker}
-              title={enableGifPicker ? 'Disable Gif Picker' : 'Enable Gif Picker'}
+              title={
+                enableGifPicker
+                  ? t('Embeds.enable_gif_picker_disable')
+                  : t('Embeds.enable_gif_picker_enable')
+              }
             />
           }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Show Interactive maps"
+          title={t('Embeds.show_interactive_map_title')}
           focusId="show-interactive-map"
-          description="Show an interactive map in messages. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
+          description={t('Embeds.show_interactive_map_description')}
           after={
             <Switch
               variant="Primary"
               value={showInteractiveMap}
               onChange={setShowInteractiveMap}
-              title={showInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
+              title={
+                showInteractiveMap
+                  ? t('Embeds.show_interactive_map_disable')
+                  : t('Embeds.show_interactive_map_enable')
+              }
             />
           }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Show Interactive maps in Encrypted Rooms"
+          title={t('Embeds.show_interactive_map_enc_title')}
           focusId="show-interactive-map-enc"
-          description="Show an interactive map in Encrypted rooms. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
+          description={t('Embeds.show_interactive_map_enc_description')}
           after={
             <Switch
               variant="Primary"
               value={showEncInteractiveMap}
               onChange={setEncShowInteractiveMap}
-              title={showEncInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
+              title={
+                showEncInteractiveMap
+                  ? t('Embeds.show_interactive_map_enc_disable')
+                  : t('Embeds.show_interactive_map_enc_enable')
+              }
             />
           }
         />
@@ -1439,6 +1463,7 @@ function Embeds() {
 }
 
 export function Sync() {
+  const { t } = useTranslation(['settings/general']);
   const clientConfig = useClientConfig();
   const sessions = useAtomValue(sessionsAtom);
   const activeSessionId = useAtomValue(activeSessionIdAtom);
@@ -1463,7 +1488,7 @@ export function Sync() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400" style={{ opacity: serverSlidingEnabled ? 1 : 0.5 }}>
-        Sync
+        {t('Sync.sync')}
       </Text>
       <SequenceCard
         className={SequenceCardStyle}
@@ -1472,41 +1497,38 @@ export function Sync() {
         style={{ opacity: serverSlidingEnabled ? 1 : 0.5 }}
       >
         <SettingTile
-          title="Use Sliding Sync"
+          title={t('Sync.use_sliding_sync_title')}
           focusId="use-sliding-sync"
           description={
             serverSlidingEnabled ? (
               <>
-                Enable Sliding Sync for this current login/session. Requires server support and
-                admin configuration.{' '}
+                {t('Sync.use_sliding_sync_enable')}
                 <a
                   href="https://github.com/matrix-org/matrix-spec-proposals/blob/erikj/sss/proposals/4186-simplified-sliding-sync.md"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  More info/Documentation
+                  {t('Sync.use_sliding_sync_documentation')}
                 </a>
-                .{' '}
                 <a
                   href="https://github.com/SableClient/Sable/issues/39"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Known issues (Sable GitHub)
+                  {t('Sync.use_sliding_sync_issues')}
                 </a>
-                .
               </>
             ) : (
               <>
-                Unavailable: the server has disabled Sliding Sync in its config.{' '}
+                {t('Sync.use_sliding_sync_disable')}
+
                 <a
                   href="https://github.com/matrix-org/matrix-spec-proposals/blob/erikj/sss/proposals/4186-simplified-sliding-sync.md"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  More info
+                  {t('Sync.use_sliding_sync_documentation')}
                 </a>
-                .
               </>
             )
           }
@@ -1535,6 +1557,7 @@ function SettingsSyncSection() {
   const syncStatus = useAtomValue(settingsSyncStatusAtom);
   const fullSettings = useAtomValue(settingsAtom);
   const setSettings = useSetAtom(settingsAtom);
+  const { t } = useTranslation(['settings/general']);
 
   const [importError, setImportError] = useState<string | null>(null);
 
@@ -1542,7 +1565,7 @@ function SettingsSyncSection() {
     setImportError(null);
     const merged = await importSettingsFromJson(fullSettings);
     if (merged === null) {
-      setImportError('Could not import — file was invalid or you cancelled.');
+      setImportError(t('SettingsSync.sync_across_devices_invalid'));
       return;
     }
     setSettings(merged);
@@ -1550,15 +1573,17 @@ function SettingsSyncSection() {
 
   const syncStatusLabel: Record<typeof syncStatus, string> = {
     idle: lastSynced
-      ? `Last synced at ${dayjs(lastSynced).format('HH:mm:ss')}`
-      : 'Not yet synced this session',
-    syncing: 'Syncing…',
-    error: 'Sync failed — will retry on next change',
+      ? t('SettingsSync.sync_across_devices_existing', {
+          time: dayjs(lastSynced).format('HH:mm:ss'),
+        })
+      : t('SettingsSync.sync_across_devices_uninitialized'),
+    syncing: t('SettingsSync.sync_across_devices_syncing'),
+    error: t('SettingsSync.sync_across_devices_error'),
   };
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Settings Sync & Backup</Text>
+      <Text size="L400">{t('SettingsSync.settings_sync')}</Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -1566,15 +1591,15 @@ function SettingsSyncSection() {
         gap="400"
       >
         <SettingTile
-          title="Sync across devices"
+          title={t('SettingsSync.sync_across_devices_title')}
           focusId="sync-across-devices"
-          description="Store your settings in your Matrix account so they follow you to any Sable instance. Notification and zoom preferences are kept per-device."
+          description={t('SettingsSync.sync_across_devices_description')}
           after={<Switch variant="Primary" value={syncEnabled} onChange={setSyncEnabled} />}
         />
         {syncEnabled && (
           <SettingTile
             focusId="sync-status"
-            title="Sync status"
+            title={t('SettingsSync.sync_status_title')}
             description={syncStatusLabel[syncStatus]}
           />
         )}
@@ -1588,7 +1613,7 @@ function SettingsSyncSection() {
           before={menuIcon(Download)}
           onClick={() => exportSettingsAsJson(fullSettings)}
         >
-          <Text size="B300">Export Settings</Text>
+          <Text size="B300">{t('SettingsSync.sync_across_devices_export')}</Text>
         </Button>
         <Button
           variant="Secondary"
@@ -1598,7 +1623,7 @@ function SettingsSyncSection() {
           before={menuIcon(ArrowUp)}
           onClick={handleImport}
         >
-          <Text size="B300">Import Settings</Text>
+          <Text size="B300">{t('SettingsSync.sync_across_devices_import')}</Text>
         </Button>
       </Box>
       {importError && (
@@ -1611,6 +1636,7 @@ function SettingsSyncSection() {
 }
 
 function DiagnosticsAndPrivacy() {
+  const { t } = useTranslation(['settings/general']);
   const [sentryEnabled, setSentryEnabled] = useState(
     localStorage.getItem('sable_sentry_enabled') === 'true'
   );
@@ -1643,7 +1669,7 @@ function DiagnosticsAndPrivacy() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Diagnostics & Privacy</Text>
+      <Text size="L400">{t('DiagnosticsAndPriivacy.diagnostics_and_priivacy')}</Text>
       {needsRefresh && (
         <Box
           style={{
@@ -1653,7 +1679,7 @@ function DiagnosticsAndPrivacy() {
           }}
         >
           <Text size="T300" style={{ color: 'rgb(33, 150, 243)' }}>
-            Please refresh the page for these settings to take effect.
+            <Text size="L400">{t('DiagnosticsAndPriivacy.please_refresh')}</Text>
           </Text>
         </Box>
       )}
@@ -1664,12 +1690,12 @@ function DiagnosticsAndPrivacy() {
         gap="400"
       >
         <SettingTile
-          title="Error Reporting"
+          title={t('DiagnosticsAndPriivacy.error_reporting_title')}
           focusId="error-reporting"
           description={
             isSentryConfigured
-              ? 'Send anonymous crash reports to help improve Sable. No messages, room names, or personal data are included.'
-              : 'Error reporting is not configured for this build.'
+              ? t('DiagnosticsAndPriivacy.error_reporting_send')
+              : t('DiagnosticsAndPriivacy.error_reporting_unimplemented')
           }
           after={
             <Switch
@@ -1682,9 +1708,9 @@ function DiagnosticsAndPrivacy() {
         />
         {sentryEnabled && isSentryConfigured && (
           <SettingTile
-            title="Session Replay"
+            title={t('DiagnosticsAndPriivacy.session_replay_title')}
             focusId="session-replay"
-            description="Allow recording of UI interactions to help debug errors. All text, media, and inputs are fully masked before sending."
+            description={t('DiagnosticsAndPriivacy.session_replay_description')}
             after={
               <Switch
                 variant="Primary"
@@ -1707,7 +1733,7 @@ function DiagnosticsAndPrivacy() {
           radii="300"
           before={menuIcon(Shield, { weight: 'fill' })}
         >
-          <Text size="B300">Privacy Policy</Text>
+          <Text size="B300">{t('DiagnosticsAndPriivacy.privacy_policy')}</Text>
         </Button>
       </Box>
     </Box>

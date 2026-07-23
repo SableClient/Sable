@@ -1,0 +1,14 @@
+{
+  "close_threads": "Închide fire",
+  "search_threads": "Caută fir...",
+  "clear_search": "Curăță căutarea",
+  "no_threads_match_your_search": "Nu se potrivește nici un fir.",
+  "no_threads_yet": "Încă nu există nici un fir.",
+  "jump": "Sari",
+  "threads": "Fire",
+  "thread": "Fir",
+  "no_replies_yet_start_the_thread_below": "Nici un răspuns încă. Începe un fir!",
+  "reply_one": " răspuns",
+  "reply_few": " răspunsuri",
+  "reply_other": " de răspunsuri"
+}

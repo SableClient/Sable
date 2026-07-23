@@ -1,5 +1,5 @@
 import { ShieldCheckIcon, XCircleIcon } from '@phosphor-icons/react';
-import { Box, Tooltip, TooltipProvider } from 'folds';
+import { Box, Tooltip, TooltipProvider, Text } from 'folds';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UserVerification } from '$hooks/useUserVerificationStatus';
@@ -28,11 +28,11 @@ export function VerificationBadge({ status, size = 16 }: VerificationBadgeProps)
 
   const label =
     status === 'verified'
-      ? t('verification.user_verified')
+      ? t('verification:user_verified')
       : status === 'warning'
-        ? t('verification.user_previously_verified')
+        ? t('verification:user_previously_verified')
         : status === 'normal'
-          ? t('verification.user_not_verified')
+          ? t('verification:user_not_verified')
           : '';
 
   const Icon = status === 'verified' || status === 'warning' ? ShieldCheckIcon : XCircleIcon;
@@ -50,7 +50,7 @@ export function VerificationBadge({ status, size = 16 }: VerificationBadgeProps)
   }
 
   return (
-    <TooltipProvider position="Top" tooltip={<Box style={{ padding: '4px 8px' }}>{label}</Box>}>
+    <TooltipProvider position="Top" tooltip={<Tooltip><Text size="T200">{label}</Text></Tooltip>}>
       {(triggerRef) => (
         <Box
           ref={triggerRef}

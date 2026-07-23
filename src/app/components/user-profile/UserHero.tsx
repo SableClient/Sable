@@ -44,7 +44,8 @@ import { copyToClipboard } from '$utils/dom';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { CopyIcon, CrossIcon } from '@phosphor-icons/react';
 import { useOpenSettings } from '$features/settings';
-
+import { useUserVerificationStatus } from '$hooks/useUserVerificationStatus';
+import { VerificationBadge } from '$components/verification/VerificationBadge';
 type UserHeroProps = {
   userId: string;
   avatarUrl?: string;
@@ -285,6 +286,7 @@ type UserHeroNameInnerProps = {
   server?: string;
   color?: string;
   font?: string;
+  userId?: string; 
   customHeroCards?: boolean;
 };
 
@@ -295,10 +297,12 @@ function UserHeroNameInner({
   server,
   color,
   font,
+  userId
 }: UserHeroNameInnerProps) {
   const [copied, setCopied] = useTimeoutToggle();
   const [isHovered, setIsHovered] = useState(false);
   const isSuccess = useRef(false);
+  const verificationStatus = useUserVerificationStatus(userId!, undefined);
 
   return (
     <Box grow="Yes" direction="Column" gap="0">
@@ -309,7 +313,7 @@ function UserHeroNameInner({
           title={shownName}
           style={{ color, fontFamily: font }}
         >
-          {shownName}
+          {shownName} <VerificationBadge status={verificationStatus} size={16} />
         </Text>
         {nick && (
           <Text size="T200" priority="300" title={`Nickname (real: ${username})`}>
@@ -366,6 +370,7 @@ export function UserHeroName({ displayName, userId, server, customHeroCards }: U
       shownName={shownName}
       color={color}
       font={font}
+      userId={userId}
     />
   );
 }
@@ -384,6 +389,7 @@ export function GlobalUserHeroName({ displayName, userId, server }: UserHeroName
       shownName={shownName}
       font={profile.resolvedFont}
       color={profile.resolvedColor}
+      userId={userId}
     />
   );
 }

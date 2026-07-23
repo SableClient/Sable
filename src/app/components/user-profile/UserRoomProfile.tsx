@@ -1,6 +1,18 @@
-import { Box, Button, color, config, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
+import {
+  Box,
+  Button,
+  Chip,
+  color,
+  config,
+  Menu,
+  MenuItem,
+  Scroll,
+  Text,
+  toRem,
+} from 'folds';
 import type { CSSProperties, SyntheticEvent } from 'react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -14,6 +26,7 @@ import {
   Clock,
   Heart,
   profileIcon,
+  ShieldCheck,
   User,
 } from '$components/icons/phosphor';
 import { mxcUrlToHttp } from '$utils/matrix';
@@ -60,6 +73,11 @@ import { IgnoredUserAlert, MutualRoomsChip, OptionsChip, ServerChip, ShareChip }
 import { UserHero, UserHeroName } from './UserHero';
 import { KnownMembership } from '$types/matrix-sdk';
 import { useRoomMemberHydration } from '$hooks/useRoomMemberHydration';
+import { verifyUser } from '$utils/verifyUser';
+import { useUserVerificationState } from '$state/hooks/userVerification';
+import { useSetUserVerification } from '$state/hooks/userVerification';
+import { UserVerificationDialog } from '$components/user-verification/UserVerificationDialog';
+
 import * as css from './styles.css';
 import * as prefix from '$unstable/prefixes';
 
@@ -412,6 +430,9 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const ignored = ignoredUsers.includes(userId);
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
+  const { t } = useTranslation();
+  const verificationState = useUserVerificationState();
+  const setUserVerification = useSetUserVerification();
 
   const room = useRoom();
   const powerLevels = usePowerLevels(room);
@@ -468,7 +489,54 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     navigate(withSearchParam(getDirectCreatePath(), directSearchParam));
   };
 
-  // Todo eventually maybe
+  const handleVerify = async () => {
+    if (userId === myUserId) return;
+    const request = await verifyUser(mx, userId);
+    if (!request) return;
+    // Store the request in the atom so the dialog can track it
+    setUserVerification({
+      userId,
+      dmRoomId: request.roomId,
+      request,
+    });
+  };
+
+  const handleDiscardVerification = async () => {
+    if (userId === myUserId) return;
+    const crypto = mx.getCrypto();
+    if (!crypto) return;
+    try {
+      await crypto.withdrawVerificationRequirement(userId);
+    } catch (err) {
+      console.warn('Failed to discard verification:', err);
+    }
+  };
+
+  const handleCloseVerification = () => {
+     setUserVerification(undefined);
+   };
+
+   const [showDiscardVerification, setShowDiscardVerification] = useState(false);
+   const [showVerify, setShowVerify] = useState(true);
+
+   useEffect(() => {
+     const checkVerification = async () => {
+       const crypto = mx.getCrypto();
+       if (!crypto) return;
+       try {
+         const userTrust = await crypto.getUserVerificationStatus(userId);
+         const isVerified = userTrust.isCrossSigningVerified();
+         setShowVerify(!isVerified);
+         setShowDiscardVerification(userTrust.wasCrossSigningVerified() && !isVerified);
+       } catch {
+         setShowVerify(true);
+         setShowDiscardVerification(false);
+       }
+     };
+     checkVerification();
+   }, [mx, userId]);
+
+   // Todo eventually maybe
   const mentionClickHandler = useCallback((e: SyntheticEvent<HTMLElement>) => {
     e.preventDefault();
   }, []);
@@ -608,6 +676,40 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 <Text size="B300">Message</Text>
               </Button>
             )}
+            {showVerify && userId !== myUserId && (
+              <Button
+                size="300"
+                variant="Primary"
+                fill="Soft"
+                radii="300"
+                before={profileIcon(ShieldCheck)}
+                onClick={handleVerify}
+                className={showCustomHeroCard ? css.UserHeroChipThemed : css.UserHeroChip}
+                style={{
+                  ...(showCustomHeroCard && chipSurfaceStyle ? chipSurfaceStyle : {}),
+                  ...heroMenuItemStyle({}, chipHoverBrightness),
+                }}
+              >
+                <Text size="B300">{t('verification.Verify')}</Text>
+              </Button>
+            )}
+            {showDiscardVerification && (
+              <Button
+                size="300"
+                variant="Primary"
+                fill="Soft"
+                radii="300"
+                before={profileIcon(ShieldCheck)}
+                onClick={handleDiscardVerification}
+                className={showCustomHeroCard ? css.UserHeroChipThemed : css.UserHeroChip}
+                style={{
+                  ...(showCustomHeroCard && chipSurfaceStyle ? chipSurfaceStyle : {}),
+                  ...heroMenuItemStyle({}, chipHoverBrightness),
+                }}
+              >
+                <Text size="B300">{t('verification.DiscardVerification')}</Text>
+              </Button>
+            )}
           </Box>
           <UserExtendedSection
             profile={extendedProfile}
@@ -663,6 +765,14 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             canKick={canKickUser && membership === joinedMembership}
             canBan={canBanUser && membership !== bannedMembership}
           />
+          {verificationState && (
+            <UserVerificationDialog
+              userId={verificationState.userId}
+              dmRoomId={verificationState.dmRoomId}
+              request={verificationState.request}
+              onClose={handleCloseVerification}
+            />
+          )}
         </Box>
       </Box>
     </Box>

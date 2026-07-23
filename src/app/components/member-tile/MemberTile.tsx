@@ -10,6 +10,8 @@ import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
 import { useUserPresence } from '$hooks/useUserPresence';
 import { PresenceBadge } from '$components/presence';
+import { useUserVerificationStatus } from '$hooks/useUserVerificationStatus';
+import { VerificationBadge } from '$components/verification/VerificationBadge';
 import * as css from './style.css';
 
 const getName = (room: Room, member: RoomMember, nicknames: Record<string, string>) =>
@@ -37,6 +39,7 @@ export const MemberTile = as<'button', MemberTileProps>(
 
     // Sable username color and fonts
     const { color, font } = useSableCosmetics(member.userId, room, false, false);
+    const verificationStatus = useUserVerificationStatus(member.userId, room);
 
     return (
       <AsMemberTile className={css.MemberTile} {...props} ref={ref}>
@@ -50,8 +53,9 @@ export const MemberTile = as<'button', MemberTileProps>(
         </Avatar>
         <Box grow="Yes" as="span" direction="Column">
           <Text as="span" size="T300" truncate style={{ color, fontFamily: font }}>
-            <b>{name}</b>
-          </Text>
+              <b>{name}  <VerificationBadge status={verificationStatus} size={16} /></b>
+             
+            </Text>
           {presence && presence.status && (
             <Box alignItems="Center" gap="100">
               <PresenceBadge presence={presence.presence} size="200" />

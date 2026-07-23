@@ -19,9 +19,13 @@ export enum RoomEncryptionStatus {
   Unencrypted = 'unencrypted',
 }
 
+/**
+ * Hook to check if a room is encrypted.
+ * Uses the MatrixClient's deprecated isRoomEncrypted() for sync check,
+ * and falls back to CryptoApi.isEncryptionEnabledInRoom() for async verification.
+ */
 export function useRoomEncryptionStatus(room: Room | undefined): RoomEncryptionStatus {
   const mx = useMatrixClient();
-  /*
   const [status, setStatus] = useState<RoomEncryptionStatus>(() => {
     if (!room) return RoomEncryptionStatus.Unknown;
     // Quick sync check
@@ -29,7 +33,6 @@ export function useRoomEncryptionStatus(room: Room | undefined): RoomEncryptionS
       ? RoomEncryptionStatus.Encrypted
       : RoomEncryptionStatus.Unencrypted;
   });
-  */
 
   const updateStatus = useCallback(async () => {
     if (!room) {

@@ -1865,40 +1865,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     return (
       <div ref={ref}>
-        {selectedFiles.length > 0 && (
-          <UploadBoard
-            header={
-              <UploadBoardHeader
-                open={uploadBoard}
-                onToggle={() => setUploadBoard(!uploadBoard)}
-                uploadFamilyObserverAtom={uploadFamilyObserverAtom}
-                onSend={handleSendUpload}
-                imperativeHandlerRef={uploadBoardHandlers}
-                onCancel={handleCancelUpload}
-              />
-            }
-          >
-            {uploadBoard && (
-              <Scroll size="300" hideTrack visibility="Hover">
-                <UploadBoardContent>
-                  {Array.from(selectedFiles)
-                    .toReversed()
-                    .map((fileItem) => (
-                      <UploadCardRenderer
-                        key={getUploadItemKey(fileItem)}
-                        isEncrypted={!!fileItem.encInfo}
-                        fileItem={fileItem}
-                        setMetadata={handleFileMetadata}
-                        onRemove={handleRemoveUpload}
-                        setDesc={setDesc}
-                        roomId={roomId}
-                      />
-                    ))}
-                </UploadBoardContent>
-              </Scroll>
-            )}
-          </UploadBoard>
-        )}
         <Overlay
           open={dropZoneVisible}
           backdrop={<OverlayBackdrop />}

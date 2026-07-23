@@ -11,6 +11,7 @@ import {
   useMemo,
 } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useTranslation } from 'react-i18next';
 
 import { isKeyHotkey } from 'is-hotkey';
 import type {
@@ -305,6 +306,19 @@ export const getReplyContent = (
 
 const log = createLogger('RoomInput');
 const debugLog = createDebugLogger('RoomInput');
+
+// Rust SDK error message for unverified device blacklist
+const UNVERIFIED_DEVICE_ERROR = 'verified';
+
+function isUnverifiedDeviceError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.includes(UNVERIFIED_DEVICE_ERROR);
+}
+
+function unverifiedDeviceErrorMessage(room: Room, t: (key: string) => string): string {
+  const name = room.name || 'this room';
+  return t('unverified_sessions_warning', { roomName: name });
+}
 interface ReplyEventContent {
   'm.relates_to'?: IEventRelation;
 }
@@ -337,6 +351,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     },
     ref
   ) => {
+    const { t } = useTranslation();
     // When in thread mode, isolate drafts by thread root ID so thread replies
     // don't clobber the main room draft (and vice versa).
     const draftKey = threadRootId ?? roomId;
@@ -560,15 +575,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         mx.getCrypto()!.globalBlacklistUnverifiedDevices = blacklistUnverified;
         mx.getCrypto()!.setDeviceIsolationMode(
           blacklistUnverified
-            ? new OnlySignedDevicesIsolationMode()
-            : new AllDevicesIsolationMode(false),
+            ?  new OnlySignedDevicesIsolationMode() :
+          new AllDevicesIsolationMode(false),
         );
+        
       }
+       room.setBlacklistUnverifiedDevices(blacklistUnverified);
     }, [blacklistUnverified, mx]);
+
     // Dynamic placeholder based on encryption status
     const inputPlaceholder = isEncrypted
-      ? 'Send an encrypted message...'
-      : 'Send an unencrypted message...';
+      ? t('placeholder.send_encrypted')
+      : t('placeholder.send_unencrypted');
     const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
     // Android back closes the mobile emoji board instead of navigating away.
     useDismissOnBack(() => setEmojiBoardTab(undefined), emojiBoardTab !== undefined);
@@ -927,7 +945,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             error: error instanceof Error ? error.message : String(error),
           });
           log.error('failed to schedule message', { roomId }, error);
-          throw error;
+          if (isUnverifiedDeviceError(error)) {
+            setSendError(unverifiedDeviceErrorMessage(room, t));
+          } else {
+            setSendError('Failed to schedule message. Please try again.');
+          }
         }
       } else {
         if (editingScheduledDelayId) {
@@ -960,6 +982,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   error: error instanceof Error ? error.message : String(error),
                 });
                 log.error('failed to send message', { roomId }, error);
+                if (isUnverifiedDeviceError(error)) {
+                  setSendError(unverifiedDeviceErrorMessage(room, t));
+                } else {
+                  setSendError('Failed to send message. Please try again.');
+                }
                 throw error;
               })
           )
@@ -1517,6 +1544,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             setSendError(
               `Scheduled time exceeds the maximum delay allowed by this server. Please choose an earlier time. The Maximum Delay is of ${maxDelayDays} day${maxDelayDays > 1 ? 's' : ''}.`
             );
+          } else if (isUnverifiedDeviceError(e)) {
+            setSendError(unverifiedDeviceErrorMessage(room, t));
           } else {
             setSendError('Failed to schedule message. Please try again.');
           }
@@ -1545,7 +1574,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             roomId,
             error: error instanceof Error ? error.message : String(error),
           });
-          // Cancel failed — leave state intact for retry
+          if (isUnverifiedDeviceError(error)) {
+            setSendError(unverifiedDeviceErrorMessage(room, t));
+          } else {
+            setSendError('Failed to send message. Please try again.');
+          }
         }
       } else {
         const msgSendStart = performance.now();
@@ -1582,6 +1615,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               attributes: { encrypted: String(isEncrypted) },
             });
             log.error('failed to send message', { roomId }, error);
+            if (isUnverifiedDeviceError(error)) {
+              setSendError(unverifiedDeviceErrorMessage(room, t));
+            } else {
+              setSendError('Failed to send message. Please try again.');
+            }
           });
       }
     }, [
@@ -1827,12 +1865,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     return (
-      <div
-        ref={ref}
-        style={{
-          ...(unverifiedGlowEnabled && unverifiedMembers > 0 ? { animation: 'unverifiedGlowPulse 2s ease-in-out infinite' } : {}),
-        }}
-      >
+      <div ref={ref}>
         {selectedFiles.length > 0 && (
           <UploadBoard
             header={
@@ -1959,6 +1992,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           onPaste={handlePaste}
           responsiveAfter={audioRecorder}
           forceMultilineLayout={showAudioRecorder}
+          glow={unverifiedGlowEnabled && unverifiedMembers > 0 ? { enabled: true, animationName: 'unverifiedGlowPulse' } : undefined}
           top={
             <>
               {selectedFiles.length > 0 && (
@@ -2297,6 +2331,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   suppressEditorRefocus={suppressEditorRefocus}
                   onTabChange={setPersonaPickerTab}
                 />
+              )}
+              {isEncrypted && unverifiedMembers > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '4px', opacity: config.opacity.P300 }}>
+                  <ShieldWarning size={14} weight="fill" style={{ color: 'var(--mx-danger)' }} />
+                </span>
+              )}
+              {isEncrypted && unverifiedMembers === 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '4px', opacity: config.opacity.P300 }}>
+                  <LockSimple size={14} weight="fill" />
+                </span>
               )}
             </>
           }

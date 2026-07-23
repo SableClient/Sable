@@ -1,13 +1,13 @@
 import { keyframes, style } from '@vanilla-extract/css';
 import { color, config, toRem } from 'folds';
 
-// Yellow glow animation for unverified session warning
+// Subtle yellow inset glow for unverified session warning
 const glowPulse = keyframes({
   '0%, 100%': {
-    boxShadow: `0 0 ${toRem(4)} ${toRem(8)} ${color.Warning.Main}40`,
+    boxShadow: `inset 0 0 ${toRem(10)} ${toRem(2)} ${color.Warning.Main}20`,
   },
   '50%': {
-    boxShadow: `0 0 ${toRem(8)} ${toRem(16)} ${color.Warning.Main}60`,
+    boxShadow: `inset 0 0 ${toRem(16)} ${toRem(4)} ${color.Warning.Main}30`,
   },
 });
 

@@ -46,10 +46,7 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
     algorithm: string;
   }>();
   const enabled = content?.algorithm === ROOM_ENC_ALGO;
-
-  // Global setting (like Element Web) - RoomInput.tsx handles the crypto update
-  const [blacklistUnverified] = useSetting(settingsAtom, 'blacklistUnverifiedDevices');
-
+  
   const [enableState, enable] = useAsyncCallback(
     useCallback(async () => {
       await mx.sendStateEvent(room.roomId, EventType.RoomEncryption as keyof StateEvents, {

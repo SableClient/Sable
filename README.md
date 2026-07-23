@@ -102,22 +102,37 @@ Invalid or unknown keys are ignored.
     * For example, if you want to deploy on `https://sable.moe/app`, then set `base: '/app'`.
 
 ## Local development
-> [!TIP]
-> We recommend using a version manager as versions change quickly. [fnm](https://github.com/Schniz/fnm) is a great cross-platform option (Windows, macOS, and Linux). [NVM on Windows](https://github.com/coreybutler/nvm-windows#installation--upgrades) and [nvm](https://github.com/nvm-sh/nvm) on Linux/macOS are also good choices. Use the version defined in [`.node-version`](.node-version).
 
-Execute the following commands to start a development server:
-```sh
-fnm use --corepack-enabled # Activates the Node version and enables corepack
-# If you not using fnm, install corepack manually: npm install --global corepack@latest
-corepack install # Installs the pnpm version specified in package.json
-pnpm i # Installs all dependencies
-pnpm run dev # Serve a development version
+> [!TIP]
+> The easiest way to get started is with [mise](https://mise.jdx.dev/getting-started.html), it manages node, pnpm, rust, and other tooling.
+
+```bash
+mise install    # Install all required tools
+mise run setup  # Install dependencies (pnpm install)
+mise run dev    # Start the Vite dev server
 ```
+
+Run `mise tasks` to list all available tasks (build, test, lint, etc.).
 
 To build the app:
 ```sh
-pnpm run build # Compiles the app into the dist/ directory
+mise run build
 ```
+
+### Desktop & Mobile (Tauri)
+
+Sable uses [Tauri](https://v2.tauri.app) for native desktop and mobile builds.
+
+```bash
+mise run tauri:setup          # Install Rust toolchain + system packages
+mise run tauri:setup:macos    # Install Xcode (macOS only)
+mise run tauri:setup:windows  # Install VS Build Tools + WebView2 (Windows only)
+mise run tauri wry dev        # Dev server with system webview (WebKit/WebView2)
+mise run tauri cef build      # Production build with Chromium Embedded Framework
+mise run tauri --help         # Any other args pass through to the Tauri CLI
+```
+
+When the first argument is `wry` or `cef` and the second is `dev` or `build`, the wrapper injects `--features <runtime>,updater --no-default-features`. Everything else is forwarded to `tauri` as-is.
 
 ## Deployment and infrastructure
 Deployment workflows and infrastructure details live in

@@ -1,10 +1,19 @@
 #!/usr/bin/env node
 //MISE description="Run Tauri CLI"
 //MISE depends="tauri:setup"
-//USAGE arg "<platform>" help="Target" default="wry" choices "wry" "cef" "android" "ios"
+//MISE raw_args=true
+
+/**
+ * Passes through to the Tauri CLI. When the first argument is a desktop runtime
+ * (`wry` or `cef`) and the second is `dev` or `build`, injects the appropriate
+ * Cargo feature flags (`--features <runtime>,updater --no-default-features`).
+ * Everything else is forwarded to `tauri` as-is.
+ *
+ *   script/tauri cef dev --verbose
+ *     → tauri dev --features cef,updater -- --verbose --no-default-features
+ */
 
 import { run } from '@tauri-apps/cli';
-import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import process from 'node:process';
@@ -17,52 +26,43 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const cmdlineArgs = process.argv.slice(2);
-
-if (cmdlineArgs.length < 2) {
-  logger.error('Usage: node scripts/tauri <platform> <command> [prepended-args...]');
-  logger.error(`  ${dim('platform:')} wry, cef, android, or ios`);
-  logger.error(`  ${dim('command:')} dev or build`);
-  process.exit(1);
-}
-
-const [platform, cmd, ...tauriArgs] = cmdlineArgs;
-
-const MOBILE = ['android', 'ios'];
-const DESKTOP = ['wry', 'cef'];
-
-if (![...DESKTOP, ...MOBILE].includes(platform)) {
-  logger.error(`Invalid platform: ${platform}. Must be wry, cef, android, or ios`);
-  process.exit(1);
-}
-if (!['dev', 'build'].includes(cmd)) {
-  logger.error(`Invalid command: ${cmd}. Must be 'dev' or 'build'`);
-  process.exit(1);
-}
-
 process.chdir(join(__dirname, '..'));
 
-if (MOBILE.includes(platform)) {
-  logger.info(`${dim('Running:')} tauri ${[platform, cmd, ...tauriArgs].join(' ')}`);
-  const child = spawn('tauri', [platform, cmd, ...tauriArgs], {
-    stdio: 'inherit',
-    shell: true,
-  });
-  child.on('exit', (code) => process.exit(code ?? 1));
-} else {
-  const args = [cmd, '--features', `${platform},updater`, ...tauriArgs];
-  if (!tauriArgs.includes('--')) {
-    args.push('--');
-  }
-  args.push('--no-default-features');
+const DESKTOP = ['wry', 'cef'];
 
-  if (platform === 'cef' && cmd === 'build' && !tauriArgs.includes('--no-bundle')) {
-    args.unshift('--no-bundle');
-  }
-
+function runTauri(args) {
   logger.info(`${dim('Running:')} tauri ${args.join(' ')}`);
-
   run(args, 'tauri').catch((error) => {
     logger.error(`Failed to run tauri: ${error?.message ?? error}`);
     process.exit(1);
   });
 }
+
+if (cmdlineArgs.length === 0 || !DESKTOP.includes(cmdlineArgs[0])) {
+  runTauri(cmdlineArgs);
+  process.exit(0);
+}
+
+const [platform, cmd, ...tauriArgs] = cmdlineArgs;
+
+if (!cmd) {
+  runTauri(cmdlineArgs);
+  process.exit(0);
+}
+
+if (!['dev', 'build'].includes(cmd)) {
+  runTauri([cmd, ...tauriArgs]);
+  process.exit(0);
+}
+
+const args = [cmd, '--features', `${platform},updater`, ...tauriArgs];
+if (!tauriArgs.includes('--')) {
+  args.push('--');
+}
+args.push('--no-default-features');
+
+if (platform === 'cef' && cmd === 'build' && !tauriArgs.includes('--no-bundle')) {
+  args.splice(1, 0, '--no-bundle');
+}
+
+runTauri(args);

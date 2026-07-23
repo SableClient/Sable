@@ -28,11 +28,11 @@ export function VerificationBadge({ status, size = 16 }: VerificationBadgeProps)
 
   const label =
     status === 'verified'
-      ? t('verification:user_verified')
+      ? t('verification.user_verified')
       : status === 'warning'
-        ? t('verification:user_previously_verified')
+        ? t('verification.user_previously_verified')
         : status === 'normal'
-          ? t('verification:user_not_verified')
+          ? t('verification.user_not_verified')
           : '';
 
   const Icon = status === 'verified' || status === 'warning' ? ShieldCheckIcon : XCircleIcon;

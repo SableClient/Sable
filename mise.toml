@@ -68,7 +68,13 @@ env = { MISE_ENV = "tauri" }
 [tasks."tauri:setup:macos"]
 description = "Install Xcode"
 confirm = { message = "Install Xcode? (required for Tauri)", default = "no" }
-run = "xcode-select --install 2>/dev/null || true"
+run = "xcode-select --install"
+
+[tasks."tauri:setup:ios"]
+description = "Set up iOS Xcode project"
+depends = ["tauri:setup:macos"]
+confirm = { message = "Set up iOS Xcode project? (required for Tauri)", default = "no" }
+run = [{ task = "tauri", args = ["ios", "init"] }]
 
 [tasks."tauri:setup:windows"]
 description = "Install Visual Studio Build Tools + WebView2 runtime"

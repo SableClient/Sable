@@ -451,9 +451,9 @@ jobs:
         shell: bash
         run: node .github/scripts/set-tauri-version.mjs "$VERSION"
 
-      - name: Setup Xcode
+      - name: Set up iOS
         shell: bash
-        run: pnpm tauri ios init
+        run: mise -y run tauri:setup:ios
 
       - name: Symlink icons to the ios folder
         shell: bash

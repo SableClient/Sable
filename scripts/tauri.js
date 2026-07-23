@@ -28,41 +28,44 @@ const __dirname = dirname(__filename);
 const cmdlineArgs = process.argv.slice(2);
 process.chdir(join(__dirname, '..'));
 
-const DESKTOP = ['wry', 'cef'];
+const DESKTOP = new Set(['wry', 'cef']);
 
-function runTauri(args) {
+async function runTauri(args) {
   logger.info(`${dim('Running:')} tauri ${args.join(' ')}`);
-  run(args, 'tauri').catch((error) => {
+  try {
+    await run(args, 'tauri');
+  } catch (error) {
     logger.error(`Failed to run tauri: ${error?.message ?? error}`);
     process.exit(1);
-  });
+  }
 }
 
-if (cmdlineArgs.length === 0 || !DESKTOP.includes(cmdlineArgs[0])) {
-  runTauri(cmdlineArgs);
-  process.exit(0);
+async function main() {
+  if (cmdlineArgs.length === 0 || !DESKTOP.has(cmdlineArgs[0])) {
+    return runTauri(cmdlineArgs);
+  }
+
+  const [platform, cmd, ...tauriArgs] = cmdlineArgs;
+
+  if (!cmd) {
+    return runTauri(cmdlineArgs);
+  }
+
+  if (!['dev', 'build'].includes(cmd)) {
+    return runTauri([cmd, ...tauriArgs]);
+  }
+
+  const args = [cmd, '--features', `${platform},updater`, ...tauriArgs];
+  if (!tauriArgs.includes('--')) {
+    args.push('--');
+  }
+  args.push('--no-default-features');
+
+  if (platform === 'cef' && cmd === 'build' && !tauriArgs.includes('--no-bundle')) {
+    args.splice(1, 0, '--no-bundle');
+  }
+
+  return runTauri(args);
 }
 
-const [platform, cmd, ...tauriArgs] = cmdlineArgs;
-
-if (!cmd) {
-  runTauri(cmdlineArgs);
-  process.exit(0);
-}
-
-if (!['dev', 'build'].includes(cmd)) {
-  runTauri([cmd, ...tauriArgs]);
-  process.exit(0);
-}
-
-const args = [cmd, '--features', `${platform},updater`, ...tauriArgs];
-if (!tauriArgs.includes('--')) {
-  args.push('--');
-}
-args.push('--no-default-features');
-
-if (platform === 'cef' && cmd === 'build' && !tauriArgs.includes('--no-bundle')) {
-  args.splice(1, 0, '--no-bundle');
-}
-
-runTauri(args);
+main();

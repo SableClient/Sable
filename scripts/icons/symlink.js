@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 //MISE description="Create Tauri icon symlinks"
+//MISE raw_args=true
 /* eslint-disable no-console */
 
 import fs from 'node:fs';

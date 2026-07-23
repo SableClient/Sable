@@ -28,7 +28,7 @@
     "document-change": "knope document-change",
     "postinstall": "node scripts/install-knope.js",
     "setup:knope": "node scripts/install-knope.js",
-    "setup:tauri-icons": "node scripts/symlink-tauri-icons.js",
+    "setup:tauri-icons": "node scripts/icons/symlink.js",
     "lint:normalize-imports": "node scripts/normalize-imports.js"
   },
   "dependencies": {

@@ -457,7 +457,7 @@ jobs:
 
       - name: Symlink icons to the ios folder
         shell: bash
-        run: pnpm run setup:tauri-icons --write --force
+        run: mise run icons:symlink --write --force
 
       - name: Build unsigned IPA
         id: ipa

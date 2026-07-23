@@ -1,9 +1,9 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { type as osType } from '@tauri-apps/plugin-os';
 import { setTrayBadge } from '$generated/tauri/commands';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { resolveSection } from '$pages/pathUtils';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
@@ -11,6 +11,7 @@ import { getPresenceSyncManager } from '$client/initMatrix';
 import {
   MatrixEvent,
   MatrixEventEvent,
+  MsgType,
   PushProcessor,
   RoomEvent,
   SetPresence,
@@ -26,6 +27,7 @@ import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import {
   getTauriNotificationsApi,
+  isAndroidTauri,
   isDesktopTauri,
   isIosTauri,
   isNativeNotificationTauri,
@@ -53,13 +55,27 @@ import { useInboxNotificationsSelected } from '$hooks/router/useInbox';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ShareTargetFeature } from '$features/share-target/ShareTargetFeature';
 import { registrationAtom } from '$state/serviceWorkerRegistration';
-import { pendingNotificationAtom, inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
+import {
+  pendingNotificationAtom,
+  inAppBannerAtom,
+  activeSessionIdAtom,
+  sessionsAtom,
+} from '$state/sessions';
 import {
   buildRoomMessageNotification,
   resolveNotificationPreviewText,
 } from '$utils/notificationStyle';
 import { mobileOrTablet } from '$utils/user-agent';
 import { createDebugLogger } from '$utils/debugLogger';
+import { showToast } from '$state/toast';
+import {
+  nativeNotificationRepliesAtom,
+  nativeNotificationReplyInFlightAtom,
+  enqueueNativeNotificationReplyAtom,
+  removeNativeNotificationReplyAtom,
+  parseNativeNotificationReply,
+  NATIVE_REPLY_EXPIRY_MS,
+} from '$state/nativeNotificationReplies';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { NotificationBanner } from '$components/notification-banner';
 import { ThemeMigrationBanner } from '$components/theme/ThemeMigrationBanner';
@@ -513,6 +529,8 @@ function MessageNotifications() {
               body: osPayload.options.body,
               silent: osPayload.options.silent ?? false,
               extra,
+              actionTypeId: 'sable-message',
+              group: 'matrix_messages',
             }).catch(() => {});
           } else {
             const noti = new window.Notification(osPayload.title, osPayload.options);
@@ -1001,6 +1019,112 @@ function NativeNotificationClickRouting() {
   return null;
 }
 
+const SABLE_MESSAGE_ACTION_TYPE = 'sable-message';
+const SABLE_REPLY_ACTION = 'sable-reply';
+
+function NativeNotificationActionRouting() {
+  const mx = useMatrixClient();
+  const queue = useAtomValue(nativeNotificationRepliesAtom);
+  const sessions = useAtomValue(sessionsAtom);
+  const enqueue = useSetAtom(enqueueNativeNotificationReplyAtom);
+  const remove = useSetAtom(removeNativeNotificationReplyAtom);
+  const [inFlight, setInFlight] = useAtom(nativeNotificationReplyInFlightAtom);
+  const [replyWakeup, setReplyWakeup] = useState(0);
+  const setActiveSessionId = useSetAtom(activeSessionIdAtom);
+
+  useEffect(() => {
+    if (!isAndroidTauri() && !isIosTauri() && !isDesktopTauri()) return undefined;
+    let disposed = false;
+    let unregister: (() => Promise<void> | void) | undefined;
+
+    const route = (event: unknown) => {
+      const reply = parseNativeNotificationReply(event);
+      if (
+        !reply ||
+        !sessions.some((session) => session.userId === reply.userId) ||
+        !enqueue(reply)
+      ) {
+        showToast('Reply was not sent. Open the room to retry.');
+      }
+    };
+
+    getTauriNotificationsApi()
+      .then(async (api) => {
+        await api.registerActionTypes([
+          {
+            id: SABLE_MESSAGE_ACTION_TYPE,
+            actions: [{ id: SABLE_REPLY_ACTION, title: 'Reply', input: true }],
+          },
+        ]);
+        return api.onAction(route);
+      })
+      .then((listener) => {
+        if (disposed) listener.unregister();
+        else unregister = listener.unregister;
+      })
+      .catch(() => {});
+
+    return () => {
+      disposed = true;
+      unregister?.();
+    };
+  }, [enqueue, sessions]);
+
+  useEffect(() => {
+    const item = queue[0];
+    if (!item) return undefined;
+    const expiresIn = NATIVE_REPLY_EXPIRY_MS - (Date.now() - item.createdAt);
+    if (expiresIn <= 0) {
+      remove(item.key);
+      showToast('Reply was not sent. Open the room to retry.');
+      return undefined;
+    }
+    const expiryTimer = setTimeout(() => {
+      remove(item.key);
+      showToast('Reply was not sent. Open the room to retry.');
+    }, expiresIn);
+    const clearExpiryTimer = () => clearTimeout(expiryTimer);
+    if (mx.getUserId() !== item.userId) {
+      setActiveSessionId(item.userId);
+      return clearExpiryTimer;
+    }
+    const room = mx.getRoom(item.roomId);
+    const ready = [SyncState.Prepared, SyncState.Syncing, SyncState.Catchup].includes(
+      mx.getSyncState() as SyncState
+    );
+    if (!ready || !room) {
+      const readinessTimer = setTimeout(() => setReplyWakeup((value) => value + 1), 750);
+      return () => {
+        clearExpiryTimer();
+        clearTimeout(readinessTimer);
+      };
+    }
+    if (room.getMyMembership() !== 'join') {
+      remove(item.key);
+      showToast('Reply was not sent. Open the room to retry.');
+      return clearExpiryTimer;
+    }
+    if (inFlight.has(item.key)) return clearExpiryTimer;
+    setInFlight((previous: Set<string>) => new Set(previous).add(item.key));
+    void mx
+      .sendMessage(item.roomId, null, { msgtype: MsgType.Text, body: item.text })
+      .catch(() => {
+        showToast('Reply was not sent. Open the room to retry.');
+      })
+      .finally(() => {
+        setInFlight((previous: Set<string>) => {
+          const next = new Set(previous);
+          next.delete(item.key);
+          return next;
+        });
+        remove(item.key);
+      });
+    return clearExpiryTimer;
+  }, [mx, queue, remove, setActiveSessionId, inFlight, setInFlight, replyWakeup]);
+
+  return null;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useIncomingCallSignaling();
   return (
@@ -1014,6 +1138,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <InviteNotifications />
       <MessageNotifications />
       <NativeNotificationClickRouting />
+      <NativeNotificationActionRouting />
       <BackgroundNotifications />
       <DesktopUpdater />
       <WebUpdater />

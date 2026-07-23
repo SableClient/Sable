@@ -151,6 +151,8 @@ export interface Settings {
   backgroundNotificationSounds: boolean;
   showMessageContentInNotifications: boolean;
   showMessageContentInEncryptedNotifications: boolean;
+  useRichPushPayloads: boolean;
+  pushNotifyUrlOverride?: string;
   clearNotificationsOnRead: boolean;
   backgroundPushEnabled: boolean;
   backgroundPushProvider: NotificationTransportProvider | null;
@@ -327,6 +329,8 @@ export const defaultSettings: Settings = {
   backgroundNotificationSounds: true,
   showMessageContentInNotifications: false,
   showMessageContentInEncryptedNotifications: false,
+  useRichPushPayloads: true,
+  pushNotifyUrlOverride: undefined,
   clearNotificationsOnRead: false,
   backgroundPushEnabled: mobileOrTablet(),
   backgroundPushProvider: null,

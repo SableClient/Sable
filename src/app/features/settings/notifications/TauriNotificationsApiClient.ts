@@ -1,4 +1,4 @@
-import { isTauri } from '@tauri-apps/api/core';
+import { addPluginListener, invoke, isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 
 export type NotificationPluginListener = {
@@ -30,14 +30,81 @@ export type TauriNotificationsApi = {
   onNotificationClicked: (
     listener: (data: { id: number; data?: Record<string, string> }) => void
   ) => Promise<NotificationPluginListener>;
+  registerActionTypes: (types: NotificationActionType[]) => Promise<void>;
+  onAction: (
+    listener: (event: NotificationActionEvent) => void
+  ) => Promise<NotificationPluginListener>;
 };
+
+export type NotificationActionType = {
+  id: string;
+  actions: Array<{ id: string; title: string; input?: boolean }>;
+};
+
+export type NotificationActionNotification = Record<string, unknown> & {
+  actionTypeId: string;
+  extra?: Record<string, unknown>;
+};
+
+export type NotificationActionEvent = {
+  actionId: string;
+  inputValue?: string | null;
+  notification: NotificationActionNotification;
+};
+
+type ActionListenerDependencies = { addListener: typeof addPluginListener; invoke: typeof invoke };
+let actionListenerCount = 0;
+let actionListenerTransition: Promise<void> = Promise.resolve();
+
+const transitionActionListener = (invokeFn: typeof invoke, active: boolean): Promise<void> => {
+  actionListenerTransition = actionListenerTransition
+    .catch(() => {})
+    .then(async () => {
+      await invokeFn('plugin:notifications|set_action_listener_active', { active });
+    });
+  return actionListenerTransition;
+};
+
+export async function subscribeToNativeNotificationActions(
+  listener: (event: NotificationActionEvent) => void,
+  dependencies: ActionListenerDependencies = { addListener: addPluginListener, invoke }
+): Promise<NotificationPluginListener> {
+  const pluginListener = await dependencies.addListener(
+    'notifications',
+    'actionPerformed',
+    listener
+  );
+  try {
+    actionListenerCount += 1;
+    if (actionListenerCount === 1) await transitionActionListener(dependencies.invoke, true);
+  } catch (error) {
+    actionListenerCount = Math.max(0, actionListenerCount - 1);
+    await pluginListener.unregister();
+    throw error;
+  }
+  return {
+    unregister: async () => {
+      try {
+        actionListenerCount = Math.max(0, actionListenerCount - 1);
+        if (actionListenerCount === 0) await transitionActionListener(dependencies.invoke, false);
+      } finally {
+        await pluginListener.unregister();
+      }
+    },
+  };
+}
 
 let notificationsApiPromise: Promise<TauriNotificationsApi> | null = null;
 
 export async function getTauriNotificationsApi(): Promise<TauriNotificationsApi> {
   if (!notificationsApiPromise) {
-    notificationsApiPromise =
-      import('@choochmeque/tauri-plugin-notifications-api') as unknown as Promise<TauriNotificationsApi>;
+    notificationsApiPromise = import('@choochmeque/tauri-plugin-notifications-api').then(
+      (api) =>
+        ({
+          ...api,
+          onAction: subscribeToNativeNotificationActions,
+        }) as unknown as TauriNotificationsApi
+    );
   }
 
   return notificationsApiPromise;
@@ -70,6 +137,7 @@ export async function ensureTauriNotificationPermission(): Promise<boolean> {
 const DESKTOP_TAURI_OS = new Set(['linux', 'macos', 'windows']);
 export const isDesktopTauri = (): boolean => isTauri() && DESKTOP_TAURI_OS.has(osType());
 export const isIosTauri = (): boolean => isTauri() && osType() === 'ios';
+export const isAndroidTauri = (): boolean => isTauri() && osType() === 'android';
 // Platforms where OS notifications go through the native plugin instead of web APIs.
 export const isNativeNotificationTauri = (): boolean => isDesktopTauri() || isIosTauri();
 
@@ -84,8 +152,10 @@ export type NativeTauriNotification = {
   title: string;
   body?: string;
   silent?: boolean;
-  /** Attached to the notification and handed back by onNotificationClicked. */
   extra?: Record<string, string>;
+  actionTypeId?: string;
+  group?: string;
+  icon?: string;
 };
 
 export async function sendNativeTauriNotification({
@@ -93,6 +163,9 @@ export async function sendNativeTauriNotification({
   body,
   silent,
   extra,
+  actionTypeId,
+  group,
+  icon,
 }: NativeTauriNotification): Promise<void> {
   if (!(await ensureTauriNotificationPermission())) return;
   const api = await getTauriNotificationsApi();
@@ -102,5 +175,8 @@ export async function sendNativeTauriNotification({
     body,
     silent: silent ?? false,
     extra,
+    ...(actionTypeId ? { actionTypeId } : {}),
+    ...(group ? { group } : {}),
+    ...(icon ? { icon } : {}),
   });
 }

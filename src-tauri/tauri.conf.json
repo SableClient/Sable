@@ -79,6 +79,22 @@
           "appLink": false
         }
       ]
+    },
+    "notifications": {
+      "actionTypes": [
+        {
+          "id": "sable-message",
+          "actions": [
+            {
+              "id": "sable-reply",
+              "title": "Reply",
+              "input": true,
+              "inputButtonTitle": "Send",
+              "inputPlaceholder": "Type a reply"
+            }
+          ]
+        }
+      ]
     }
   }
 }

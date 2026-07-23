@@ -1,6 +1,14 @@
-import type { IPusherRequest, MatrixClient } from '$types/matrix-sdk';
+import {
+  type CryptoBackend,
+  type IPusherRequest,
+  type MatrixClient,
+  MatrixEvent,
+} from '$types/matrix-sdk';
 import { EventType } from 'matrix-js-sdk/lib/@types/event';
-import { resolveNotificationPreviewText } from '$utils/notificationStyle';
+import {
+  resolveNotificationPreviewText,
+  ENCRYPTED_MESSAGE_PREVIEW,
+} from '$utils/notificationStyle';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { getStateEvent, getMemberAvatarMxc } from '$utils/room';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -18,7 +26,16 @@ import {
 } from './UnifiedPushMessageListener';
 import { addPluginListener } from '@tauri-apps/api/core';
 import type { PushTransportConfig } from './NotificationTransport';
-import { getTauriNotificationsApi } from './TauriNotificationsApiClient';
+import {
+  getTauriNotificationsApi,
+  isAndroidTauri,
+  isIosTauri,
+} from './TauriNotificationsApiClient';
+import {
+  resolvePushNotifyUrl,
+  withPushPayloadFormat,
+  type PushPusherSettings,
+} from './PushPusherConfig';
 
 export { getUnifiedPushDistributors, getUnifiedPushDistributor, saveUnifiedPushDistributor };
 
@@ -54,7 +71,7 @@ export type UnifiedPushTransportConfigInput = Pick<
   vapidPublicKey?: string;
   webPushAppID?: string;
   pushNotifyUrl?: string;
-};
+} & PushPusherSettings;
 
 type UnifiedPushPusherConfig = {
   appId: string;
@@ -128,6 +145,7 @@ export async function tryEnableUnifiedPush(
     (await mx.getDevice(mx.getDeviceId() ?? ''))?.display_name ?? 'Android Device';
 
   if (registration.p256dh && registration.auth && config?.webPushAppID && config?.pushNotifyUrl) {
+    const pushNotifyUrl = resolvePushNotifyUrl(config.pushNotifyUrl, config?.pushNotifyUrlOverride);
     await mx.setPusher({
       kind: 'http',
       app_id: config.webPushAppID,
@@ -135,20 +153,23 @@ export async function tryEnableUnifiedPush(
       app_display_name: 'Sable (UnifiedPush)',
       device_display_name: deviceDisplayName,
       lang: navigator.language || 'en',
-      data: {
-        url: config.pushNotifyUrl,
-        format: 'event_id_only',
-        endpoint,
-        p256dh: registration.p256dh,
-        auth: registration.auth,
-      },
+      data: withPushPayloadFormat(
+        {
+          url: pushNotifyUrl,
+          endpoint,
+          p256dh: registration.p256dh,
+          auth: registration.auth,
+          default_payload: { user_id: mx.getSafeUserId() },
+        },
+        config?.useRichPushPayloads
+      ),
       append: false,
     } as unknown as IPusherRequest);
 
     return {
       status: 'registered',
       endpoint,
-      gatewayUrl: config.pushNotifyUrl,
+      gatewayUrl: pushNotifyUrl,
       distributor: registration.distributor,
     };
   }
@@ -167,7 +188,7 @@ export async function tryEnableUnifiedPush(
     app_display_name: 'Sable (UnifiedPush)',
     device_display_name: deviceDisplayName,
     lang: navigator.language || 'en',
-    data: pusherData,
+    data: withPushPayloadFormat({ url: gatewayUrl }, config?.useRichPushPayloads),
     append: false,
   } as unknown as IPusherRequest);
 
@@ -314,6 +335,28 @@ function hashCode(str: string): number {
   return Math.abs(hash);
 }
 
+async function resolvePreviewEvent(
+  mx: MatrixClient,
+  roomId: string,
+  eventId: string
+): Promise<MatrixEvent | undefined> {
+  try {
+    const evt = await mx.fetchRoomEvent(roomId, eventId);
+    const mEvent = new MatrixEvent(evt);
+    if (mEvent.isEncrypted() && mx.getCrypto()) {
+      await mEvent.attemptDecryption(mx.getCrypto() as CryptoBackend);
+    }
+    return mEvent;
+  } catch (error) {
+    unifiedPushLog.warn(
+      'notification',
+      'Failed to fetch/decrypt event for push preview',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return undefined;
+  }
+}
+
 const roomNotifId = (roomId: string) => hashCode(roomId);
 const SUMMARY_NOTIF_ID = hashCode('sable-group-summary');
 
@@ -387,7 +430,9 @@ async function postRoomNotification(
     silent: isSilent,
     autoCancel: true,
     extra,
+    ...(isAndroidTauri() || isIosTauri() ? { actionTypeId: 'sable-message' } : {}),
     inboxLines: inboxLines.length > 1 ? inboxLines : undefined,
+    largeBody: inboxLines.length > 1 ? undefined : latestBody,
   });
 
   const roomCount = roomNotifCaches.size;
@@ -430,7 +475,7 @@ async function handleRichPushPayload(pushData: UnifiedPushPayload, settings: Not
     case EventType.RoomMessageEncrypted: {
       const isEncrypted = eventType === EventType.RoomMessageEncrypted;
 
-      const previewText = resolveNotificationPreviewText({
+      let previewText = resolveNotificationPreviewText({
         content: pushData?.content,
         eventType: pushData?.type,
         isEncryptedRoom: isEncrypted,
@@ -439,7 +484,8 @@ async function handleRichPushPayload(pushData: UnifiedPushPayload, settings: Not
       });
 
       const roomId: string | undefined = pushData?.room_id;
-      const roomName: string = pushData?.room_name ?? 'Unknown Room';
+      const roomName: string =
+        pushData?.room_name ?? pushData?.sender_display_name ?? 'Unknown Room';
       const senderName: string | undefined = pushData?.sender_display_name;
       const senderId: string | undefined = pushData?.sender;
       const isSilent = !settings.notificationSoundEnabled;
@@ -455,6 +501,41 @@ async function handleRichPushPayload(pushData: UnifiedPushPayload, settings: Not
           autoCancel: true,
         });
         break;
+      }
+
+      const eventId: string | undefined = pushData?.event_id;
+
+      if (
+        previewText === ENCRYPTED_MESSAGE_PREVIEW &&
+        eventId &&
+        settings.showMessageContent &&
+        settings.showEncryptedMessageContent
+      ) {
+        const room = settings.mx.getRoom(roomId);
+        const mEvent = room
+          ?.getLiveTimeline()
+          .getEvents()
+          .find((e) => e.getId() === eventId);
+        if (mEvent) {
+          previewText = resolveNotificationPreviewText({
+            content: mEvent.getContent(),
+            eventType: mEvent.getType(),
+            isEncryptedRoom: true,
+            showMessageContent: settings.showMessageContent,
+            showEncryptedMessageContent: settings.showEncryptedMessageContent,
+          });
+        } else {
+          const fetched = await resolvePreviewEvent(settings.mx, roomId, eventId);
+          if (fetched) {
+            previewText = resolveNotificationPreviewText({
+              content: fetched.getContent(),
+              eventType: fetched.getType(),
+              isEncryptedRoom: true,
+              showMessageContent: settings.showMessageContent,
+              showEncryptedMessageContent: settings.showEncryptedMessageContent,
+            });
+          }
+        }
       }
 
       const sender: NotifPerson | undefined = senderName
@@ -473,7 +554,6 @@ async function handleRichPushPayload(pushData: UnifiedPushPayload, settings: Not
 
       const cache = getOrCreateRoomCache(roomId, roomName);
 
-      const eventId: string | undefined = pushData?.event_id;
       if (eventId && cache.seenEventIds.has(eventId)) break;
       if (eventId) cache.seenEventIds.add(eventId);
 
@@ -547,7 +627,7 @@ async function handleMinimalPushPayload(
   }
 
   const room = settings.mx.getRoom(roomId);
-  const roomName = room?.name ?? 'Unknown Room';
+  const roomName = room?.name ?? pushData?.sender_display_name ?? 'Unknown Room';
   const isEncryptedRoom = room ? !!getStateEvent(room, EventType.RoomEncryption) : false;
 
   let senderName: string | undefined;
@@ -567,6 +647,29 @@ async function handleMinimalPushPayload(
       previewText = resolveNotificationPreviewText({
         content: mEvent.getContent(),
         eventType: mEvent.getType(),
+        isEncryptedRoom,
+        showMessageContent: settings.showMessageContent,
+        showEncryptedMessageContent: settings.showEncryptedMessageContent,
+      });
+    }
+  }
+
+  if (
+    !previewText &&
+    eventId &&
+    settings.showMessageContent &&
+    (!isEncryptedRoom || settings.showEncryptedMessageContent)
+  ) {
+    const fetched = await resolvePreviewEvent(settings.mx, roomId, eventId);
+    if (fetched) {
+      const sender = fetched.getSender();
+      if (sender) {
+        senderName = room?.getMember(sender)?.name ?? getMxIdLocalPart(sender) ?? sender;
+        senderId = sender;
+      }
+      previewText = resolveNotificationPreviewText({
+        content: fetched.getContent(),
+        eventType: fetched.getType(),
         isEncryptedRoom,
         showMessageContent: settings.showMessageContent,
         showEncryptedMessageContent: settings.showEncryptedMessageContent,

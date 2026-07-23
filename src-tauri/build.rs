@@ -13,6 +13,11 @@ fn main() {
         println!("cargo:rustc-link-arg-bins=-Wl,-rpath,/usr/lib/swift");
     }
 
+    // Use the NDK's lld linker for faster Android linking.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+        println!("cargo:rustc-link-arg=-fuse-ld=lld");
+    }
+
     tauri_typegen::BuildSystem::generate_at_build_time()
         .expect("Failed to generate TypeScript bindings");
 

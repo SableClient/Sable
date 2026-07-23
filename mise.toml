@@ -65,6 +65,15 @@ description = "Install Tauri tools and system packages"
 run = ["mise install", "mise bootstrap packages apply --yes"]
 env = { MISE_ENV = "tauri" }
 
+[tasks."tauri:setup:android"]
+description = "Install Android SDK packages + NDK (no Android Studio needed)"
+depends = ["tauri:setup"]
+env = { MISE_ENV = "tauri" }
+run = [
+  "yes | sdkmanager --licenses",
+  'sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0" "ndk;{{env.ANDROID_NDK_VERSION}}"',
+]
+
 [tasks."tauri:setup:macos"]
 description = "Install Xcode"
 confirm = { message = "Install Xcode? (required for Tauri)", default = "no" }

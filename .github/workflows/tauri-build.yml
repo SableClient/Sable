@@ -324,6 +324,7 @@ jobs:
       VITE_IS_RELEASE_TAG: ${{ needs.setup-release.outputs.nightly == 'true' && 'true' || '' }}
       CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
+      MISE_ENV: tauri
       NODE_OPTIONS: --max-old-space-size=8192
       RUST_TARGETS: aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
       ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
@@ -341,6 +342,10 @@ jobs:
         with:
           tauri: 'true'
 
+      - name: Setup Android SDK + NDK
+        shell: bash
+        run: mise run tauri:setup:android
+
       - name: Add Rust targets
         shell: bash
         run: rustup target add $RUST_TARGETS
@@ -350,10 +355,13 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+
       - name: Resolve NDK
         shell: bash
         run: |
-          echo "NDK_HOME=$ANDROID_HOME/ndk/$(ls -1 "$ANDROID_HOME/ndk" | sort -V | tail -n1)" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
 
       - name: Stamp release version into tauri.conf.json
         shell: bash

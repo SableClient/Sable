@@ -58,7 +58,7 @@ tauri-plugin-log = "2.9.0"
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-os = "2"
 tauri-plugin-deep-link = "2.4.9"
-tauri-plugin-http = "2.5.9"
+tauri-plugin-http = { version = "2.5.9", features = ["gzip", "brotli"] }
 tauri-plugin-store = "2.4.3"
 tauri-plugin-clipboard-manager = "2.3.2"
 

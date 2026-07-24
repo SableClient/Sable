@@ -2,7 +2,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 
 type AppFetch = typeof globalThis.fetch;
 
-type LoopbackFetchRequest = {
+type HostFetchRequest = {
   requestId: string;
   method: string;
   url: string;
@@ -18,12 +18,17 @@ type LoopbackFetchResponse = {
   body: number[];
 };
 
+type NativeFetchMeta = {
+  status: number;
+  statusText: string;
+  url: string;
+  headers: [string, string][];
+};
+
 const nativeFetch: AppFetch = (input, init) => globalThis.fetch(input, init);
-let tauriFetchPromise: Promise<AppFetch> | undefined;
 const ABSOLUTE_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 const createRequestId = (): string =>
-  globalThis.crypto?.randomUUID?.() ??
-  `loopback-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  globalThis.crypto?.randomUUID?.() ?? `host-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 const isSameOriginUrl = (url: URL): boolean => url.origin === window.location.origin;
 
@@ -37,6 +42,9 @@ const isNetworkUrl = (url: URL): boolean => url.protocol === 'http:' || url.prot
 
 // Tauri custom-protocol hosts (`<scheme>.localhost`) are served by the webview, not the network.
 const isTauriProtocolHost = (hostname: string): boolean => hostname.endsWith('.localhost');
+
+// https://fetch.spec.whatwg.org/#null-body-status
+const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
 
 const getAbortSignal = (input: RequestInfo | URL, init?: RequestInit): AbortSignal | undefined => {
   if (input instanceof Request) {
@@ -85,11 +93,11 @@ async function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Prom
   });
 }
 
-async function buildLoopbackRequest(
+async function buildHostRequest(
   input: RequestInfo | URL,
   requestId: string,
   init?: RequestInit
-): Promise<LoopbackFetchRequest> {
+): Promise<HostFetchRequest> {
   const request = new Request(input, init);
   const body = await request.arrayBuffer();
   const headers: [string, string][] = [];
@@ -107,65 +115,90 @@ async function buildLoopbackRequest(
   };
 }
 
-async function abortLoopbackFetch(requestId: string): Promise<void> {
-  try {
-    await invoke('abort_loopback_fetch', { requestId });
-  } catch {
-    // Best-effort cancellation. A completed request may already be gone.
-  }
-}
-
-async function loopbackFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+/**
+ * Runs a fetch in the Rust host over IPC, wiring the caller's `AbortSignal` to the matching
+ * host-side abort command.
+ */
+async function hostFetch<T>(
+  command: string,
+  abortCommand: string,
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<T> {
   const signal = getAbortSignal(input, init);
   throwIfAborted(signal);
 
   const requestId = createRequestId();
-  const request = await buildLoopbackRequest(input, requestId, init);
+  const request = await buildHostRequest(input, requestId, init);
   throwIfAborted(signal);
   const handleAbort = () => {
-    abortLoopbackFetch(requestId).catch(() => undefined);
+    // Best-effort cancellation. A completed request may already be gone.
+    invoke(abortCommand, { requestId }).catch(() => undefined);
   };
 
   signal?.addEventListener('abort', handleAbort, { once: true });
 
   try {
-    const response = await raceWithAbort(
-      invoke<LoopbackFetchResponse>('loopback_fetch', { request }),
-      signal
-    );
-
-    return new Response(new Uint8Array(response.body), {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-    });
+    return await raceWithAbort(invoke<T>(command, { request }), signal);
   } finally {
     signal?.removeEventListener('abort', handleAbort);
   }
 }
 
-// plugin-http delivers the body over the IPC channel after the headers already resolved, so
-// a failure there rejects outside the caller's promise chain. Reading it here brings it back
-// into the try below.
-async function drainBody(response: Response): Promise<Response> {
-  if (!response.body) return response;
+async function loopbackFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const response = await hostFetch<LoopbackFetchResponse>(
+    'loopback_fetch',
+    'abort_loopback_fetch',
+    input,
+    init
+  );
 
-  const drained = new Response(await response.arrayBuffer(), {
+  return new Response(new Uint8Array(response.body), {
     status: response.status,
     statusText: response.statusText,
     headers: response.headers,
   });
-  // `Response.url` is read by matrix-js-sdk and cannot be set via the constructor.
-  Object.defineProperty(drained, 'url', { value: response.url, writable: false });
-  return drained;
 }
 
-async function getTauriFetch(): Promise<AppFetch> {
-  if (!tauriFetchPromise) {
-    tauriFetchPromise = import('@tauri-apps/plugin-http').then(({ fetch }) => fetch as AppFetch);
-  }
+const toBytes = (raw: ArrayBuffer | number[]): Uint8Array<ArrayBuffer> =>
+  raw instanceof ArrayBuffer ? new Uint8Array(raw) : new Uint8Array(raw);
 
-  return tauriFetchPromise;
+/**
+ * Decodes `[u32 LE metadata length][metadata JSON][body bytes]`. The host frames the whole
+ * response into one raw IPC payload so reading a body costs a single round trip, unlike
+ * plugin-http which invokes once per body chunk.
+ */
+function decodeNativeFetchResponse(raw: ArrayBuffer | number[]): Response {
+  const bytes = toBytes(raw);
+  const metaLength = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(
+    0,
+    true
+  );
+  const meta = JSON.parse(
+    new TextDecoder().decode(bytes.subarray(4, 4 + metaLength))
+  ) as NativeFetchMeta;
+  const body = bytes.subarray(4 + metaLength);
+  const hasBody = body.byteLength > 0 && !NULL_BODY_STATUSES.has(meta.status);
+
+  const response = new Response(hasBody ? body : null, {
+    status: meta.status,
+    statusText: meta.statusText,
+    headers: meta.headers,
+  });
+  // `Response.url` is read by matrix-js-sdk and cannot be set via the constructor.
+  Object.defineProperty(response, 'url', { value: meta.url, writable: false });
+  return response;
+}
+
+async function nativeHostFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const raw = await hostFetch<ArrayBuffer | number[]>(
+    'native_fetch',
+    'abort_native_fetch',
+    input,
+    init
+  );
+
+  return decodeNativeFetchResponse(raw);
 }
 
 export const fetch: AppFetch = async (input, init) => {
@@ -188,13 +221,5 @@ export const fetch: AppFetch = async (input, init) => {
     return loopbackFetch(request);
   }
 
-  const tauriFetch = await getTauriFetch();
-  try {
-    return await drainBody(await tauriFetch(request, init));
-  } catch (e) {
-    if (e instanceof SyntaxError) {
-      return new Response(null, { status: 502, statusText: 'Bad Gateway' });
-    }
-    throw e;
-  }
+  return nativeHostFetch(request);
 };

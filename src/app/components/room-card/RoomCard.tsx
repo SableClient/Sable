@@ -2,30 +2,14 @@ import type { ReactNode } from 'react';
 import { useCallback, useRef, useState } from 'react';
 import type { MatrixError, Room } from '$types/matrix-sdk';
 import { JoinRule, EventType, RoomType } from '$types/matrix-sdk';
-import {
-  Avatar,
-  Badge,
-  Box,
-  Button,
-  Dialog,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Spinner,
-  Text,
-  as,
-  color,
-  config,
-  toRem,
-} from 'folds';
+import { Avatar, Badge, Box, Button, Dialog, Spinner, Text, as, color, config, toRem } from 'folds';
 import classNames from 'classnames';
-import FocusTrap from 'focus-trap-react';
 import { userFallbackIcon } from '$components/icons/phosphor';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { nameInitials } from '$utils/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
+import { onEnterOrSpace } from '$utils/keyboard';
 
 import { useJoinedRoomId } from '$hooks/useJoinedRoomId';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
@@ -40,6 +24,7 @@ import type { RoomBannerContent } from '$types/matrix-sdk-events';
 import { CustomStateEvent } from '$types/matrix/room';
 import colorMXID from '$utils/colorMXID';
 import { reportMediaLoadFailure } from '$utils/mediaLoadDiagnostics';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type GridColumnCount = '1' | '2' | '3';
 const getGridColumnCount = (gridWidth: number): GridColumnCount => {
@@ -111,32 +96,21 @@ function ErrorDialog({
   return (
     <>
       {children(openError)}
-      <Overlay open={viewError} backdrop={<OverlayBackdrop />}>
-        <OverlayCenter>
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              clickOutsideDeactivates: true,
-              onDeactivate: closeError,
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Dialog variant="Surface">
-              <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-                <Box direction="Column" gap="100">
-                  <Text>{title}</Text>
-                  <Text style={{ color: color.Critical.Main }} size="T300" priority="400">
-                    {message}
-                  </Text>
-                </Box>
-                <Button size="400" variant="Secondary" fill="Soft" onClick={closeError}>
-                  <Text size="B400">Cancel</Text>
-                </Button>
-              </Box>
-            </Dialog>
-          </FocusTrap>
-        </OverlayCenter>
-      </Overlay>
+      <ModalOverlay open={viewError} requestClose={closeError}>
+        <Dialog variant="Surface">
+          <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+            <Box direction="Column" gap="100">
+              <Text>{title}</Text>
+              <Text style={{ color: color.Critical.Main }} size="T300" priority="400">
+                {message}
+              </Text>
+            </Box>
+            <Button size="400" variant="Secondary" fill="Soft" onClick={closeError}>
+              <Text size="B400">Cancel</Text>
+            </Button>
+          </Box>
+        </Dialog>
+      </ModalOverlay>
     </>
   );
 }
@@ -263,20 +237,9 @@ export const RoomCard = as<'div', RoomCardProps>(
                 {roomTopic}
               </RoomCardTopic>
             </Box>
-            <Overlay open={viewTopic} backdrop={<OverlayBackdrop />}>
-              <OverlayCenter>
-                <FocusTrap
-                  focusTrapOptions={{
-                    initialFocus: false,
-                    clickOutsideDeactivates: true,
-                    onDeactivate: closeTopic,
-                    escapeDeactivates: stopPropagation,
-                  }}
-                >
-                  {renderTopicViewer(roomName, roomTopic, closeTopic)}
-                </FocusTrap>
-              </OverlayCenter>
-            </Overlay>
+            <ModalOverlay open={viewTopic} requestClose={closeTopic}>
+              {renderTopicViewer(roomName, roomTopic, closeTopic)}
+            </ModalOverlay>
             {(roomType === RoomType.Space || joinedRoom?.isSpaceRoom()) && (
               <Badge variant="Secondary" fill="Soft" outlined>
                 <Text size="L400">Space</Text>

@@ -4,13 +4,14 @@ import { Overlay, OverlayBackdrop, OverlayCenter } from 'folds';
 import { stopPropagation } from '$utils/keyboard';
 
 type ModalOverlayProps = {
+  open?: boolean;
   requestClose: () => void;
   children: ReactNode;
 };
 
-export function ModalOverlay({ requestClose, children }: ModalOverlayProps) {
+export function ModalOverlay({ open = true, requestClose, children }: ModalOverlayProps) {
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
+    <Overlay open={open} backdrop={<OverlayBackdrop />}>
       <OverlayCenter>
         <FocusTrap
           focusTrapOptions={{

@@ -6,9 +6,6 @@ import {
   Box,
   Chip,
   Line,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   Spinner,
   Text,
   Tooltip,
@@ -17,7 +14,6 @@ import {
   color,
   toRem,
 } from 'folds';
-import FocusTrap from 'focus-trap-react';
 import type { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import { JoinRule, KnownMembership } from '$types/matrix-sdk';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
@@ -28,7 +24,7 @@ import { KnockRoomPrompt } from '$components/knock-room-prompt';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
-import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
+import { onEnterOrSpace } from '$utils/keyboard';
 
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
@@ -47,6 +43,7 @@ import {
 } from '$components/icons/phosphor';
 import * as styleCss from './style.css';
 import * as css from './RoomItem.css';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type RoomJoinButtonProps = {
   roomId: string;
@@ -296,24 +293,13 @@ function RoomProfile({
                   >
                     {topic}
                   </Text>
-                  <Overlay open={view} backdrop={<OverlayBackdrop />}>
-                    <OverlayCenter>
-                      <FocusTrap
-                        focusTrapOptions={{
-                          initialFocus: false,
-                          clickOutsideDeactivates: true,
-                          onDeactivate: () => setView(false),
-                          escapeDeactivates: stopPropagation,
-                        }}
-                      >
-                        <RoomTopicViewer
-                          name={name}
-                          topic={topic}
-                          requestClose={() => setView(false)}
-                        />
-                      </FocusTrap>
-                    </OverlayCenter>
-                  </Overlay>
+                  <ModalOverlay open={view} requestClose={() => setView(false)}>
+                    <RoomTopicViewer
+                      name={name}
+                      topic={topic}
+                      requestClose={() => setView(false)}
+                    />
+                  </ModalOverlay>
                 </>
               )}
             </UseStateProvider>

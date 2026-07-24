@@ -11,9 +11,6 @@ import {
   config,
   Button,
   Spinner,
-  OverlayBackdrop,
-  Overlay,
-  OverlayCenter,
   Modal,
   Dialog,
   Header,
@@ -46,15 +43,14 @@ import type { UploadSuccess } from '$state/upload';
 import { createUploadAtom } from '$state/upload';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { CompactUploadCardRenderer } from '$components/upload-card';
-import FocusTrap from 'focus-trap-react';
 import { ImageEditor } from '$components/image-editor';
-import { stopPropagation } from '$utils/keyboard';
 import { ModalWide } from '$styles/Modal.css';
 import { NameColorEditor } from '$features/settings/account/NameColorEditor';
 import { PronounEditor } from '$features/settings/account/PronounEditor';
 import type { PronounSet } from '$utils/pronouns';
 import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 const log = createLogger('Cosmetics');
 
@@ -171,66 +167,44 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
       )}
 
       {imageFileURL && (
-        <Overlay open={false} backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: handleRemoveUpload,
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Modal className={ModalWide} variant="Surface" size="500">
-                <ImageEditor
-                  name={imageFile?.name ?? 'Unnamed'}
-                  url={imageFileURL}
-                  requestClose={handleRemoveUpload}
-                />
-              </Modal>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay open={false} requestClose={handleRemoveUpload}>
+          <Modal className={ModalWide} variant="Surface" size="500">
+            <ImageEditor
+              name={imageFile?.name ?? 'Unnamed'}
+              url={imageFileURL}
+              requestClose={handleRemoveUpload}
+            />
+          </Modal>
+        </ModalOverlay>
       )}
 
-      <Overlay open={alertRemove} backdrop={<OverlayBackdrop />}>
-        <OverlayCenter>
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setAlertRemove(false),
-              clickOutsideDeactivates: true,
-              escapeDeactivates: stopPropagation,
+      <ModalOverlay open={alertRemove} requestClose={() => setAlertRemove(false)}>
+        <Dialog variant="Surface">
+          <Header
+            style={{
+              padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+              borderBottomWidth: config.borderWidth.B300,
             }}
+            variant="Surface"
+            size="500"
           >
-            <Dialog variant="Surface">
-              <Header
-                style={{
-                  padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                  borderBottomWidth: config.borderWidth.B300,
-                }}
-                variant="Surface"
-                size="500"
-              >
-                <Box grow="Yes">
-                  <Text size="H4">Remove Room Avatar</Text>
-                </Box>
-                <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-                  {composerIcon(X)}
-                </IconButton>
-              </Header>
-              <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-                <Box direction="Column" gap="200">
-                  <Text priority="400">Are you sure you want to remove room avatar?</Text>
-                </Box>
-                <Button variant="Critical" onClick={handleRemoveAvatar}>
-                  <Text size="B400">Remove</Text>
-                </Button>
-              </Box>
-            </Dialog>
-          </FocusTrap>
-        </OverlayCenter>
-      </Overlay>
+            <Box grow="Yes">
+              <Text size="H4">Remove Room Avatar</Text>
+            </Box>
+            <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
+              {composerIcon(X)}
+            </IconButton>
+          </Header>
+          <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+            <Box direction="Column" gap="200">
+              <Text priority="400">Are you sure you want to remove room avatar?</Text>
+            </Box>
+            <Button variant="Critical" onClick={handleRemoveAvatar}>
+              <Text size="B400">Remove</Text>
+            </Button>
+          </Box>
+        </Dialog>
+      </ModalOverlay>
     </SettingTile>
   );
 }

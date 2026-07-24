@@ -7,9 +7,6 @@ import {
   Box,
   Avatar,
   Text,
-  Overlay,
-  OverlayCenter,
-  OverlayBackdrop,
   IconButton,
   Tooltip,
   TooltipProvider,
@@ -117,6 +114,7 @@ import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 const log = createLogger('RoomViewHeader');
 
@@ -664,24 +662,13 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
               <UseStateProvider initial={false}>
                 {(viewTopic, setViewTopic) => (
                   <>
-                    <Overlay open={viewTopic} backdrop={<OverlayBackdrop />}>
-                      <OverlayCenter>
-                        <FocusTrap
-                          focusTrapOptions={{
-                            initialFocus: false,
-                            clickOutsideDeactivates: true,
-                            onDeactivate: () => setViewTopic(false),
-                            escapeDeactivates: stopPropagation,
-                          }}
-                        >
-                          <RoomTopicViewer
-                            name={name}
-                            topic={topic}
-                            requestClose={() => setViewTopic(false)}
-                          />
-                        </FocusTrap>
-                      </OverlayCenter>
-                    </Overlay>
+                    <ModalOverlay open={viewTopic} requestClose={() => setViewTopic(false)}>
+                      <RoomTopicViewer
+                        name={name}
+                        topic={topic}
+                        requestClose={() => setViewTopic(false)}
+                      />
+                    </ModalOverlay>
                     <Text
                       as="button"
                       type="button"

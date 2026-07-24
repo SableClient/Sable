@@ -85,20 +85,29 @@ export const usePowerLevelsContext = (): IPowerLevels => {
   return pl;
 };
 
+const buildRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> => {
+  const rToPl = new Map<string, IPowerLevels>();
+
+  rooms.forEach((room) => {
+    const mEvent = getStateEvent(room, EventType.RoomPowerLevels, '');
+    rToPl.set(room.roomId, getPowersLevelFromMatrixEvent(mEvent));
+  });
+
+  return rToPl;
+};
+
 export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> => {
   const mx = useMatrixClient();
-  const getRoomsPowerLevels = useCallback(() => {
-    const rToPl = new Map<string, IPowerLevels>();
+  const [roomToPowerLevels, setRoomToPowerLevels] = useState(() => buildRoomsPowerLevels(rooms));
+  const [derivedFrom, setDerivedFrom] = useState(rooms);
 
-    rooms.forEach((room) => {
-      const mEvent = getStateEvent(room, EventType.RoomPowerLevels, '');
-      rToPl.set(room.roomId, getPowersLevelFromMatrixEvent(mEvent));
-    });
-
-    return rToPl;
-  }, [rooms]);
-
-  const [roomToPowerLevels, setRoomToPowerLevels] = useState(() => getRoomsPowerLevels());
+  // Rooms arriving after mount — a space hierarchy resolving, or state loading
+  // lazily under sliding sync — must re-derive, or their permissions are stuck
+  // at the defaults until a reload.
+  if (derivedFrom !== rooms) {
+    setDerivedFrom(rooms);
+    setRoomToPowerLevels(buildRoomsPowerLevels(rooms));
+  }
 
   useStateEventCallback(
     mx,
@@ -109,12 +118,12 @@ export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> =>
           roomId &&
           event.getType() === (EventType.RoomPowerLevels as string) &&
           event.getStateKey() === '' &&
-          rooms.find((r) => r.roomId === roomId)
+          rooms.some((r) => r.roomId === roomId)
         ) {
-          setRoomToPowerLevels(getRoomsPowerLevels());
+          setRoomToPowerLevels(buildRoomsPowerLevels(rooms));
         }
       },
-      [rooms, getRoomsPowerLevels]
+      [rooms]
     )
   );
 

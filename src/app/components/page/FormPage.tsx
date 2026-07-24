@@ -1,14 +1,7 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
-import { useSetAtom } from 'jotai';
-import { Box, IconButton, Scroll, Text, color, config, toRem } from 'folds';
+import { Box, IconButton, Scroll, Text, color } from 'folds';
 import { SquaresFour, composerIcon, sizedIcon, X } from '$components/icons/phosphor';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
-import { isResizingSidebarAtom } from '$state/isResizingSidebar';
-import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { UserQuickTools } from '$pages/client/sidebar/UserQuickTools';
 import {
   Page,
   PageContent,
@@ -18,6 +11,7 @@ import {
   PageNav,
   PageNavHeader,
 } from './Page';
+import { SidebarPanel } from './SidebarPanel';
 
 type FormPageProps = {
   title: string;
@@ -28,60 +22,12 @@ type FormPageProps = {
 };
 
 export function FormPage({ title, subTitle, closeLabel, onClose, children }: FormPageProps) {
-  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
-  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
-  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
-
-  useEffect(() => {
-    setCurWidth(roomSidebarWidth);
-  }, [roomSidebarWidth]);
-
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
-  const hideText = curWidth <= 80 && !isMobile;
-  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
 
   return (
     <>
-      {!isMobile && (
-        <Box
-          shrink="No"
-          style={{
-            position: 'relative',
-            width: toRem(curWidth),
-            borderRight: 'solid',
-            borderColor: color.SurfaceVariant.ContainerLine,
-            borderWidth: `0 ${config.borderWidth.B300} 0 0`,
-          }}
-        >
-          <PageNav>
-            <PageNavHeader size="600">
-              <Box grow="Yes" gap="300" justifyContent="Center">
-                {hideText ? (
-                  sizedIcon(SquaresFour, '200', { filled: true })
-                ) : (
-                  <Box grow="Yes">
-                    <Text size="H4" truncate align="Center">
-                      {title}
-                    </Text>
-                  </Box>
-                )}
-              </Box>
-            </PageNavHeader>
-            <SidebarResizer
-              setCurWidth={setCurWidth}
-              sidebarWidth={roomSidebarWidth}
-              setSidebarWidth={setRoomSidebarWidth}
-              instep={50}
-              outstep={190}
-              minValue={50}
-              maxValue={500}
-              setAnnouncement={setIsResizingSidebar}
-            />
-          </PageNav>
-          {!oldSidebar && <UserQuickTools width={curWidth + 66} compact={false} />}
-        </Box>
-      )}
+      {!isMobile && <SidebarPanel title={title} />}
       <Page>
         <Box grow="Yes" direction="Column" style={{ background: color.Background.Container }}>
           {isMobile && (

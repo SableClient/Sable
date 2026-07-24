@@ -1,18 +1,11 @@
-import { Box, Scroll, toRem, Text, color, config } from 'folds';
-import { SquaresFour, sizedIcon } from '$components/icons/phosphor';
-import { Page, PageContent, PageContentCenter, PageNav, PageNavHeader } from '$components/page';
-import { useEffect, useState } from 'react';
+import { Box, Scroll, Text, color } from 'folds';
+import { Page, PageContent, PageContentCenter, PageNavHeader } from '$components/page';
+import { SidebarPanel } from '$components/page/SidebarPanel';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
-import { SidebarResizer } from '../sidebar/SidebarResizer';
-import { useSetAtom } from 'jotai';
-import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import { useLocation } from 'react-router-dom';
 import { RoomSearchModal, SearchWrapper } from '$features/navigate';
 import { getBackgroundLocation } from '../shallowRoute';
 import { useCloseShallowRoute } from '../useShallowRoute';
-import { UserQuickTools } from '../sidebar/UserQuickTools';
 
 export function Navigate() {
   const location = useLocation();
@@ -27,61 +20,11 @@ export function Navigate() {
 }
 
 function NavigatePage() {
-  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
-  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
-  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
-  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
-
-  useEffect(() => {
-    setCurWidth(roomSidebarWidth);
-  }, [roomSidebarWidth]);
-  const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
-  const hideText = curWidth <= 80 && !isMobile;
+  const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
 
   return (
     <>
-      {!isMobile && (
-        <Box
-          shrink="No"
-          style={{
-            position: 'relative',
-            width: toRem(curWidth),
-            borderRight: 'solid',
-            borderColor: color.Background.ContainerLine,
-            borderWidth: `0 ${config.borderWidth.B300} 0 0`,
-            background: color.Background.Container,
-          }}
-        >
-          <PageNav>
-            <PageNavHeader size="600">
-              <Box grow="Yes" gap="300" justifyContent="Center">
-                {!hideText ? (
-                  <Box grow="Yes">
-                    <Text size="H4" truncate>
-                      Inbox
-                    </Text>
-                  </Box>
-                ) : (
-                  sizedIcon(SquaresFour, '200', { filled: true })
-                )}
-              </Box>
-            </PageNavHeader>
-
-            <SidebarResizer
-              setCurWidth={setCurWidth}
-              sidebarWidth={roomSidebarWidth}
-              setSidebarWidth={setRoomSidebarWidth}
-              instep={50}
-              outstep={190}
-              minValue={50}
-              maxValue={500}
-              setAnnouncement={setIsResizingSidebar}
-            />
-          </PageNav>
-          {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
-        </Box>
-      )}
+      {!isMobile && <SidebarPanel title="Navigate" />}
       <Page>
         <Box grow="Yes" direction="Column" style={{ background: color.Background.Container }}>
           <PageNavHeader size="600">

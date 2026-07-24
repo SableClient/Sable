@@ -1,8 +1,7 @@
-import { Box, IconButton, Scroll, Text } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Scroll, Text } from 'folds';
+import { PageContent, SettingsSectionPage } from '$components/page';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
-import { composerIcon, X } from '$components/icons/phosphor';
 import {
   RoomProfile,
   RoomJoinRules,
@@ -15,30 +14,17 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 
 type GeneralProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function General({ requestClose }: GeneralProps) {
+export function General({ requestBack, requestClose }: GeneralProps) {
   const room = useRoom();
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
   const permissions = useRoomPermissions(creators, powerLevels);
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              General
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              {composerIcon(X)}
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="General" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -62,6 +48,6 @@ export function General({ requestClose }: GeneralProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

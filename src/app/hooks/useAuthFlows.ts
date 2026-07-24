@@ -1,5 +1,10 @@
 import { createContext, useContext } from 'react';
-import type { IAuthData, MatrixError, ILoginFlowsResponse } from '$types/matrix-sdk';
+import type {
+  IAuthData,
+  MatrixError,
+  ILoginFlowsResponse,
+  ValidatedAuthMetadata,
+} from '$types/matrix-sdk';
 
 export enum RegisterFlowStatus {
   FlowRequired = 401,
@@ -43,6 +48,7 @@ export const parseRegisterErrResp = (matrixError: MatrixError): RegisterFlowsRes
 export type AuthFlows = {
   loginFlows: ILoginFlowsResponse;
   registerFlows: RegisterFlowsResponse;
+  authMetadata?: ValidatedAuthMetadata;
 };
 
 const AuthFlowsContext = createContext<AuthFlows | null>(null);

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Alias so sendNotification({ icon: 'notification_icon' }) resolves correctly.
+     Points to a monochrome (white-on-transparent) silhouette of the Sable bird so
+     the status-bar icon renders the bird shape instead of just a filled circle. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@mipmap/ic_notification" />
+

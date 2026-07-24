@@ -1,27 +1,30 @@
-import { isKeyHotkey } from 'is-hotkey';
 import type { KeyboardEvent } from 'react';
 import { Editor, Range, Transforms } from 'slate';
+import { HistoryEditor } from 'slate-history';
+import type { ShortcutId, ShortcutOverrides } from '../../keyboard/shortcuts';
+import { matchesShortcut } from '../../keyboard/shortcuts';
 
-export const INLINE_HOTKEYS: Record<string, string> = {
-  'mod+b': '**',
-  'mod+i': '*',
-  'mod+u': '__',
-  'mod+s': '~~',
-  'mod+[': '`',
-  'mod+h': '||',
-};
-const INLINE_KEYS = Object.keys(INLINE_HOTKEYS);
+export const INLINE_MARKERS = {
+  'composer.bold': '**',
+  'composer.italic': '*',
+  'composer.underline': '__',
+  'composer.strikethrough': '~~',
+  'composer.inlineCode': '`',
+  'composer.spoiler': '||',
+} satisfies Partial<Record<ShortcutId, string>>;
 
-export const BLOCK_HOTKEYS: Record<string, string> = {
-  'mod+7': '1. ',
-  'mod+8': '- ',
-  "mod+'": '> ',
-  'mod+;': '```\n',
-};
-const BLOCK_KEYS = Object.keys(BLOCK_HOTKEYS);
-const isHeading1 = isKeyHotkey('mod+1');
-const isHeading2 = isKeyHotkey('mod+2');
-const isHeading3 = isKeyHotkey('mod+3');
+export const BLOCK_PREFIXES = {
+  'composer.heading1': '# ',
+  'composer.heading2': '## ',
+  'composer.heading3': '### ',
+  'composer.blockquote': '> ',
+  'composer.codeBlock': '```\n',
+  'composer.orderedList': '1. ',
+  'composer.unorderedList': '- ',
+} satisfies Partial<Record<ShortcutId, string>>;
+
+const INLINE_ACTIONS = Object.entries(INLINE_MARKERS) as [ShortcutId, string][];
+const BLOCK_ACTIONS = Object.entries(BLOCK_PREFIXES) as [ShortcutId, string][];
 
 export const applyMarkdownInline = (editor: Editor, marker: string) => {
   if (editor.selection && Range.isExpanded(editor.selection)) {
@@ -44,41 +47,36 @@ export const applyMarkdownBlockPrefix = (editor: Editor, prefix: string) => {
 /**
  * @return boolean true if shortcut is toggled.
  */
-export const toggleKeyboardShortcut = (editor: Editor, event: KeyboardEvent): boolean => {
-  if (isKeyHotkey('escape', event)) {
-    return false;
+export const toggleKeyboardShortcut = (
+  editor: Editor,
+  event: KeyboardEvent,
+  overrides: ShortcutOverrides
+): boolean => {
+  if (matchesShortcut('composer.undo', event, overrides)) {
+    event.preventDefault();
+    HistoryEditor.undo(editor as HistoryEditor);
+    return true;
+  }
+  if (matchesShortcut('composer.redo', event, overrides)) {
+    event.preventDefault();
+    HistoryEditor.redo(editor as HistoryEditor);
+    return true;
   }
 
-  const blockToggled = BLOCK_KEYS.find((hotkey) => {
-    if (isKeyHotkey(hotkey, event)) {
+  const blockToggled = BLOCK_ACTIONS.find(([id, prefix]) => {
+    if (matchesShortcut(id, event, overrides)) {
       event.preventDefault();
-      applyMarkdownBlockPrefix(editor, BLOCK_HOTKEYS[hotkey]!);
+      applyMarkdownBlockPrefix(editor, prefix);
       return true;
     }
     return false;
   });
   if (blockToggled) return true;
 
-  if (isHeading1(event)) {
-    event.preventDefault();
-    applyMarkdownBlockPrefix(editor, '# ');
-    return true;
-  }
-  if (isHeading2(event)) {
-    event.preventDefault();
-    applyMarkdownBlockPrefix(editor, '## ');
-    return true;
-  }
-  if (isHeading3(event)) {
-    event.preventDefault();
-    applyMarkdownBlockPrefix(editor, '### ');
-    return true;
-  }
-
-  const inlineToggled = INLINE_KEYS.find((hotkey) => {
-    if (isKeyHotkey(hotkey, event)) {
+  const inlineToggled = INLINE_ACTIONS.find(([id, marker]) => {
+    if (matchesShortcut(id, event, overrides)) {
       event.preventDefault();
-      applyMarkdownInline(editor, INLINE_HOTKEYS[hotkey]!);
+      applyMarkdownInline(editor, marker);
       return true;
     }
     return false;

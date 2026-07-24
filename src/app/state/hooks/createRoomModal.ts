@@ -1,8 +1,11 @@
 import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { CreateRoomType } from '$components/create-room/types';
 import type { CreateRoomModalState } from '$state/createRoomModal';
 import { createRoomModalAtom } from '$state/createRoomModal';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { getCreateRoomPath } from '$pages/pathUtils';
 
 export const useCreateRoomModalState = (): CreateRoomModalState | undefined => {
   const data = useAtomValue(createRoomModalAtom);
@@ -24,12 +27,18 @@ export const useCloseCreateRoomModal = (): CloseCallback => {
 type OpenCallback = (space?: string, type?: CreateRoomType) => void;
 export const useOpenCreateRoomModal = (): OpenCallback => {
   const setSettings = useSetAtom(createRoomModalAtom);
+  const navigate = useNavigate();
+  const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
 
   const open: OpenCallback = useCallback(
     (spaceId, type) => {
+      if (isMobile) {
+        navigate(getCreateRoomPath(spaceId, type));
+        return;
+      }
       setSettings({ spaceId, type });
     },
-    [setSettings]
+    [setSettings, isMobile, navigate]
   );
 
   return open;

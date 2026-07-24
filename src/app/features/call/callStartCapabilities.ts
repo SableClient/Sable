@@ -18,6 +18,16 @@ export type CallStartCapabilities = {
   inAnotherCall: boolean;
 };
 
+export const canJoinCall = (
+  capabilities: CallStartCapabilities,
+  hasParticipant: boolean
+): boolean =>
+  capabilities.canStart ||
+  (hasParticipant &&
+    capabilities.webRTCSupported &&
+    capabilities.hasCallMemberPermission &&
+    !capabilities.inAnotherCall);
+
 type EvaluateCallStartCapabilitiesInput = {
   room: Room;
   myUserId: string;

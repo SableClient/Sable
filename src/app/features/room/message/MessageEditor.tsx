@@ -1,8 +1,19 @@
 import type { KeyboardEventHandler, MouseEventHandler } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import type { RectCords } from 'folds';
-import { Box, Chip, IconButton, PopOut, Spinner, Text, as, config } from 'folds';
+import {
+  Box,
+  Chip,
+  IconButton,
+  Overlay,
+  OverlayBackdrop,
+  PopOut,
+  Spinner,
+  Text,
+  as,
+  config,
+} from 'folds';
 import { composerIcon, Smiley } from '$components/icons/phosphor';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
@@ -329,6 +340,14 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       }
     }, [saveState, save]);
 
+    const suppressBlurRefocusRef = useRef(false);
+    const suppressEditorRefocus = useCallback(() => {
+      suppressBlurRefocusRef.current = true;
+      requestAnimationFrame(() => {
+        suppressBlurRefocusRef.current = false;
+      });
+    }, []);
+
     const handleKeyDown: KeyboardEventHandler = useCallback(
       (evt) => {
         if (
@@ -531,6 +550,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             <CustomEditor
               editor={editor}
               placeholder={t('Editor.edit_message')}
+              suppressBlurRefocusRef={suppressBlurRefocusRef}
               onKeyDown={handleKeyDown}
               onKeyUp={handleKeyUp}
               bottom={
@@ -545,6 +565,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                     <Box gap="Inherit">
                       <Chip
                         onClick={handleSave}
+                        onPointerDown={suppressEditorRefocus}
                         variant="Primary"
                         radii="Pill"
                         disabled={saveState.status === AsyncStatus.Loading}
@@ -557,37 +578,38 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                       >
                         <Text size="B300">{t('save', { ns: 'general' })}</Text>
                       </Chip>
-                      <Chip onClick={onCancel} variant="SurfaceVariant" radii="Pill">
+                      <Chip
+                        onClick={onCancel}
+                        onPointerDown={suppressEditorRefocus}
+                        variant="SurfaceVariant"
+                        radii="Pill"
+                      >
                         <Text size="B300">{t('cancel', { ns: 'general' })}</Text>
                       </Chip>
                     </Box>
                     <Box gap="Inherit">
                       <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
                       <UseStateProvider initial={undefined}>
-                        {(anchor: RectCords | undefined, setAnchor) => (
-                          <PopOut
-                            anchor={anchor}
-                            alignOffset={-8}
-                            position="Top"
-                            align="End"
-                            content={
-                              <EmojiBoard
-                                imagePackRooms={imagePackRooms ?? []}
-                                returnFocusOnDeactivate={false}
-                                onEmojiSelect={handleEmoticonSelect}
-                                onCustomEmojiSelect={handleEmoticonSelect}
-                                requestClose={() => {
-                                  setAnchor((v) => {
-                                    if (v) {
-                                      if (!mobileOrTablet()) ReactEditor.focus(editor);
-                                      return undefined;
-                                    }
-                                    return v;
-                                  });
-                                }}
-                              />
-                            }
-                          >
+                        {(anchor: RectCords | undefined, setAnchor) => {
+                          const emojiBoard = (
+                            <EmojiBoard
+                              imagePackRooms={imagePackRooms ?? []}
+                              returnFocusOnDeactivate={false}
+                              isFullWidth={mobileOrTablet()}
+                              onEmojiSelect={handleEmoticonSelect}
+                              onCustomEmojiSelect={handleEmoticonSelect}
+                              requestClose={() => {
+                                setAnchor((v) => {
+                                  if (v) {
+                                    if (!mobileOrTablet()) ReactEditor.focus(editor);
+                                    return undefined;
+                                  }
+                                  return v;
+                                });
+                              }}
+                            />
+                          );
+                          const trigger = (
                             <IconButton
                               aria-pressed={anchor !== undefined}
                               onClick={
@@ -596,6 +618,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                                     evt.currentTarget.getBoundingClientRect()
                                   )) as MouseEventHandler<HTMLButtonElement>
                               }
+                              onPointerDown={suppressEditorRefocus}
                               variant="SurfaceVariant"
                               size="300"
                               radii="300"
@@ -604,8 +627,40 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                                 weight: anchor !== undefined ? 'fill' : 'regular',
                               })}
                             </IconButton>
-                          </PopOut>
-                        )}
+                          );
+                          if (mobileOrTablet()) {
+                            return (
+                              <>
+                                {trigger}
+                                <Overlay open={anchor !== undefined} backdrop={<OverlayBackdrop />}>
+                                  <div
+                                    style={{
+                                      position: 'fixed',
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      display: 'flex',
+                                      justifyContent: 'center',
+                                    }}
+                                  >
+                                    {emojiBoard}
+                                  </div>
+                                </Overlay>
+                              </>
+                            );
+                          }
+                          return (
+                            <PopOut
+                              anchor={anchor}
+                              alignOffset={-8}
+                              position="Top"
+                              align="End"
+                              content={emojiBoard}
+                            >
+                              {trigger}
+                            </PopOut>
+                          );
+                        }}
                       </UseStateProvider>
                     </Box>
                   </Box>

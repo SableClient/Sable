@@ -9,10 +9,13 @@ export default defineConfig({
   plugins: [react(), vanillaExtractPlugin()],
   resolve: {
     alias: {
+      'matrix-js-sdk/lib': path.resolve(__dirname, 'node_modules/matrix-js-sdk/lib'),
+      'matrix-js-sdk': path.resolve(__dirname, 'node_modules/matrix-js-sdk/lib/matrix.js'),
       $hooks: path.resolve(__dirname, 'src/app/hooks'),
       $plugins: path.resolve(__dirname, 'src/app/plugins'),
       $components: path.resolve(__dirname, 'src/app/components'),
       $features: path.resolve(__dirname, 'src/app/features'),
+      $generated: path.resolve(__dirname, 'src/app/generated'),
       $state: path.resolve(__dirname, 'src/app/state'),
       $styles: path.resolve(__dirname, 'src/app/styles'),
       $utils: path.resolve(__dirname, 'src/app/utils'),
@@ -21,6 +24,10 @@ export default defineConfig({
       $public: path.resolve(__dirname, 'public'),
       $client: path.resolve(__dirname, 'src/client'),
       $unstable: path.resolve(__dirname, 'src/unstable'),
+      '@choochmeque/tauri-plugin-notifications-api': path.resolve(
+        __dirname,
+        'src/test/choochmeque-notifications-stub.ts'
+      ),
     },
   },
   define: {
@@ -33,6 +40,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    server: {
+      deps: {
+        inline: [/matrix-js-sdk\/lib\//],
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

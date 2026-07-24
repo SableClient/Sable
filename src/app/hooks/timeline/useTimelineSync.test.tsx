@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Room } from '$types/matrix-sdk';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useTimelineSync } from './useTimelineSync';
+import { getRoomUnreadInfo } from '$utils/timeline';
+import type * as TimelineUtils from '$utils/timeline';
 
 vi.mock('@sentry/react', () => ({
   default: {},
@@ -13,6 +15,18 @@ vi.mock('@sentry/react', () => ({
   metrics: {
     distribution: vi.fn<() => void>(),
   },
+}));
+
+vi.mock('$utils/timeline', async (importOriginal) => {
+  const actual = await importOriginal<typeof TimelineUtils>();
+  return {
+    ...actual,
+    getRoomUnreadInfo: vi.fn<typeof TimelineUtils.getRoomUnreadInfo>(),
+  };
+});
+
+vi.mock('$utils/notifications', () => ({
+  markAsRead: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 type FakeTimeline = {
@@ -48,6 +62,7 @@ function createRoom(
   room: FakeRoom;
   timelineSet: FakeTimelineSet;
   events: unknown[];
+  timeline: FakeTimeline;
 } {
   const timeline = {
     ...createTimeline(events),
@@ -66,12 +81,40 @@ function createRoom(
     getUnfilteredTimelineSet: () => timelineSet as never,
     getEventReadUpTo: () => null,
     getThread: () => null,
+    getLiveTimeline: () => timeline,
+    getUnreadNotificationCount: () => 0,
+    getMyMembership: () => 'join',
+    getMember: () => null,
+    hasEncryptionStateEvent: () => false,
     client: {
       getUserId: () => '@alice:test',
     },
   } as unknown as FakeRoom;
 
-  return { room, timelineSet, events };
+  return { room, timelineSet, events, timeline };
+}
+
+function makeEvent(sender: string, roomId: string) {
+  return {
+    threadRootId: undefined,
+    getSender: () => sender,
+    getRoomId: () => roomId,
+    getTs: () => Date.now(),
+    getRelation: () => undefined,
+  };
+}
+
+function emitLiveTimelineEvent(
+  room: FakeRoom,
+  timeline: FakeTimeline,
+  events: unknown[],
+  sender: string
+) {
+  events.push({});
+  room.emit(RoomEvent.Timeline, makeEvent(sender, room.roomId), room, false, false, {
+    liveEvent: true,
+    timeline,
+  });
 }
 
 describe('useTimelineSync', () => {
@@ -237,5 +280,184 @@ describe('useTimelineSync', () => {
     });
 
     expect(result.current.timeline.linkedTimelines[0]).toBe(roomOne.timelineSet.getLiveTimeline());
+  });
+
+  describe('auto-follow on live message', () => {
+    it('scrolls to bottom with smooth behavior for an incoming message from another user', async () => {
+      const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+      const { room, timeline, events } = createRoom();
+      const scrollToBottom = vi.fn<(behavior?: 'instant' | 'smooth') => void>();
+
+      renderHook(() =>
+        useTimelineSync({
+          room: room as Room,
+          mx: { getUserId: () => '@alice:test' } as never,
+          isAtBottom: true,
+          isAtBottomRef: { current: true },
+          scrollToBottom,
+          unreadInfo: undefined,
+          setUnreadInfo: vi.fn<() => void>(),
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        })
+      );
+
+      await act(async () => {
+        emitLiveTimelineEvent(room, timeline, events, '@bob:test');
+        await Promise.resolve();
+      });
+
+      expect(scrollToBottom).toHaveBeenCalledWith('smooth');
+      hasFocus.mockRestore();
+    });
+
+    it('scrolls to bottom with instant behavior for an own message', async () => {
+      const { room, timeline, events } = createRoom();
+      const scrollToBottom = vi.fn<(behavior?: 'instant' | 'smooth') => void>();
+
+      renderHook(() =>
+        useTimelineSync({
+          room: room as Room,
+          mx: { getUserId: () => '@alice:test' } as never,
+          isAtBottom: true,
+          isAtBottomRef: { current: true },
+          scrollToBottom,
+          unreadInfo: undefined,
+          setUnreadInfo: vi.fn<() => void>(),
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        })
+      );
+
+      await act(async () => {
+        emitLiveTimelineEvent(room, timeline, events, '@alice:test');
+        await Promise.resolve();
+      });
+
+      expect(scrollToBottom).toHaveBeenCalledWith('instant');
+    });
+
+    it('keeps following instantly and re-anchors the unread divider while unfocused', async () => {
+      const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+      const unread = { readUptoEventId: '$read:test', inLiveTimeline: true, scrollTo: false };
+      vi.mocked(getRoomUnreadInfo).mockReturnValueOnce(unread);
+      const { room, timeline, events } = createRoom();
+      const scrollToBottom = vi.fn<(behavior?: 'instant' | 'smooth') => void>();
+      const setUnreadInfo = vi.fn<() => void>();
+
+      renderHook(() =>
+        useTimelineSync({
+          room: room as Room,
+          mx: { getUserId: () => '@alice:test' } as never,
+          isAtBottom: true,
+          isAtBottomRef: { current: true },
+          scrollToBottom,
+          unreadInfo: undefined,
+          setUnreadInfo,
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        })
+      );
+
+      await act(async () => {
+        emitLiveTimelineEvent(room, timeline, events, '@bob:test');
+        await Promise.resolve();
+      });
+
+      expect(setUnreadInfo).toHaveBeenCalledWith(unread);
+      expect(scrollToBottom).toHaveBeenCalledWith('instant');
+      hasFocus.mockRestore();
+    });
+
+    it('does not scroll when the user is not at the bottom', async () => {
+      const { room, timeline, events } = createRoom();
+      const scrollToBottom = vi.fn<() => void>();
+
+      renderHook(() =>
+        useTimelineSync({
+          room: room as Room,
+          mx: { getUserId: () => '@alice:test' } as never,
+          isAtBottom: false,
+          isAtBottomRef: { current: false },
+          scrollToBottom,
+          unreadInfo: undefined,
+          setUnreadInfo: vi.fn<() => void>(),
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        })
+      );
+
+      await act(async () => {
+        emitLiveTimelineEvent(room, timeline, events, '@bob:test');
+        await Promise.resolve();
+      });
+
+      expect(scrollToBottom).not.toHaveBeenCalled();
+    });
+
+    it('ignores non-live (historical) timeline events', async () => {
+      const { room, timeline } = createRoom();
+      const scrollToBottom = vi.fn<() => void>();
+
+      renderHook(() =>
+        useTimelineSync({
+          room: room as Room,
+          mx: { getUserId: () => '@alice:test' } as never,
+          isAtBottom: true,
+          isAtBottomRef: { current: true },
+          scrollToBottom,
+          unreadInfo: undefined,
+          setUnreadInfo: vi.fn<() => void>(),
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        })
+      );
+
+      const mEvent = makeEvent('@bob:test', room.roomId);
+      await act(async () => {
+        room.emit(RoomEvent.Timeline, mEvent, room, true, false, {
+          liveEvent: false,
+          timeline,
+        });
+        await Promise.resolve();
+      });
+
+      expect(scrollToBottom).not.toHaveBeenCalled();
+    });
+
+    it('ignores thread reply events', async () => {
+      const { room, timeline } = createRoom();
+      const scrollToBottom = vi.fn<() => void>();
+
+      renderHook(() =>
+        useTimelineSync({
+          room: room as Room,
+          mx: { getUserId: () => '@alice:test' } as never,
+          isAtBottom: true,
+          isAtBottomRef: { current: true },
+          scrollToBottom,
+          unreadInfo: undefined,
+          setUnreadInfo: vi.fn<() => void>(),
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        })
+      );
+
+      const mEvent = {
+        threadRootId: '$thread-root:test',
+        getSender: () => '@bob:test',
+        getRoomId: () => room.roomId,
+        getTs: () => Date.now(),
+      };
+      await act(async () => {
+        room.emit(RoomEvent.Timeline, mEvent, room, false, false, {
+          liveEvent: true,
+          timeline,
+        });
+        await Promise.resolve();
+      });
+
+      expect(scrollToBottom).not.toHaveBeenCalled();
+    });
   });
 });

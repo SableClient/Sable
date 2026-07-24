@@ -9,7 +9,7 @@ import type {
   ReceiptType,
 } from '$types/matrix-sdk';
 import { RoomEvent, SyncState, EventType, ClientEvent, KnownMembership } from '$types/matrix-sdk';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { RoomToUnread, UnreadInfo, Unread } from '$types/matrix/room';
 import { NotificationType } from '$types/matrix/room';
 import {
@@ -19,10 +19,9 @@ import {
   getUnreadInfos,
   isNotificationEvent,
 } from '$utils/room';
-import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useSyncState } from '$hooks/useSyncState';
 import { useRoomsNotificationPreferencesContext } from '$hooks/useRoomsNotificationPreferences';
-import { getClientSyncDiagnostics } from '$client/initMatrix';
+import { getClientSyncDiagnostics, getSlidingSyncManager } from '$client/initMatrix';
 import { mDirectAtom } from '$state/mDirectList';
 import { roomToParentsAtom } from './roomToParents';
 
@@ -180,21 +179,45 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
   const setUnreadAtom = useSetAtom(unreadAtom);
   const roomsNotificationPreferences = useRoomsNotificationPreferencesContext();
   const mDirects = useAtomValue(mDirectAtom);
-  const spaceChildResetTimerRef = useRef<number | null>(null);
+  const roomToParents = useAtomValue(roomToParentsAtom);
   const shouldApplyUnreadFixup = useCallback(
     () => getClientSyncDiagnostics(mx).transport === 'sliding',
     [mx]
   );
+  const publishUnreadAction = useCallback(
+    (action: RoomToUnreadAction) => {
+      if (getClientSyncDiagnostics(mx).transport === 'sliding') {
+        const manager = getSlidingSyncManager(mx);
+        if (manager?.isResponseProcessing()) return;
+      }
+      setUnreadAtom(action);
+    },
+    [mx, setUnreadAtom]
+  );
 
   useEffect(() => {
-    setUnreadAtom({
+    const manager = getSlidingSyncManager(mx);
+    if (!manager) return undefined;
+    return manager.subscribeToResponseSettled(() => {
+      setUnreadAtom({
+        type: 'RESET',
+        unreadInfos: getUnreadInfos(mx, {
+          applyFixup: true,
+          mDirects,
+        }),
+      });
+    });
+  }, [mx, setUnreadAtom, mDirects]);
+
+  useEffect(() => {
+    publishUnreadAction({
       type: 'RESET',
       unreadInfos: getUnreadInfos(mx, {
         applyFixup: shouldApplyUnreadFixup(),
         mDirects,
       }),
     });
-  }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
+  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects, roomToParents]);
 
   useSyncState(
     mx,
@@ -204,7 +227,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
           (state === SyncState.Prepared && prevState === null) ||
           (state === SyncState.Syncing && prevState !== SyncState.Syncing)
         ) {
-          setUnreadAtom({
+          publishUnreadAction({
             type: 'RESET',
             unreadInfos: getUnreadInfos(mx, {
               applyFixup: shouldApplyUnreadFixup(),
@@ -213,7 +236,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
           });
         }
       },
-      [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]
+      [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]
     )
   );
 
@@ -227,7 +250,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     ) => {
       if (!room || room.isSpaceRoom()) return;
       if (getNotificationType(mx, room.roomId) === NotificationType.Mute) {
-        setUnreadAtom({
+        publishUnreadAction({
           type: 'DELETE',
           roomId: room.roomId,
         });
@@ -241,7 +264,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
           applyFixup: shouldApplyUnreadFixup(),
           mDirects,
         });
-        setUnreadAtom({
+        publishUnreadAction({
           type: 'PUT',
           unreadInfo,
         });
@@ -258,7 +281,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
           mDirects,
         });
         if (unreadInfo.total > 0 || unreadInfo.highlight > 0) {
-          setUnreadAtom({
+          publishUnreadAction({
             type: 'PUT',
             unreadInfo,
           });
@@ -269,7 +292,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     return () => {
       mx.removeListener(RoomEvent.Timeline, handleTimelineEvent);
     };
-  }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
+  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
 
   useEffect(() => {
     const handleReceipt = (mEvent: MatrixEvent, room: Room) => {
@@ -289,17 +312,17 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
           mDirects,
         });
         if (unreadInfo.total === 0 && unreadInfo.highlight === 0) {
-          setUnreadAtom({ type: 'DELETE', roomId: room.roomId });
+          publishUnreadAction({ type: 'DELETE', roomId: room.roomId });
           return;
         }
-        setUnreadAtom({ type: 'PUT', unreadInfo });
+        publishUnreadAction({ type: 'PUT', unreadInfo });
       }
     };
     mx.on(RoomEvent.Receipt, handleReceipt);
     return () => {
       mx.removeListener(RoomEvent.Receipt, handleReceipt);
     };
-  }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
+  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
 
   useEffect(() => {
     const roomListeners = new Map<Room, RoomEventHandlerMap[RoomEvent.UnreadNotifications]>();
@@ -317,10 +340,10 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
           mDirects,
         });
         if (unreadInfo.total === 0 && unreadInfo.highlight === 0) {
-          setUnreadAtom({ type: 'DELETE', roomId: room.roomId });
+          publishUnreadAction({ type: 'DELETE', roomId: room.roomId });
           return;
         }
-        setUnreadAtom({ type: 'PUT', unreadInfo });
+        publishUnreadAction({ type: 'PUT', unreadInfo });
       };
 
       room.on(RoomEvent.UnreadNotifications, handleUnreadNotifications);
@@ -336,7 +359,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
         room.removeListener(RoomEvent.UnreadNotifications, listener);
       });
     };
-  }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
+  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
 
   useEffect(() => {
     const handleRoomAccountData = (mEvent: MatrixEvent, room: Room) => {
@@ -348,31 +371,31 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
         mDirects,
       });
       if (unreadInfo.total === 0 && unreadInfo.highlight === 0) {
-        setUnreadAtom({ type: 'DELETE', roomId: room.roomId });
+        publishUnreadAction({ type: 'DELETE', roomId: room.roomId });
         return;
       }
-      setUnreadAtom({ type: 'PUT', unreadInfo });
+      publishUnreadAction({ type: 'PUT', unreadInfo });
     };
     mx.on(RoomEvent.AccountData, handleRoomAccountData);
     return () => {
       mx.removeListener(RoomEvent.AccountData, handleRoomAccountData);
     };
-  }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
+  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
 
   useEffect(() => {
-    setUnreadAtom({
+    publishUnreadAction({
       type: 'RESET',
       unreadInfos: getUnreadInfos(mx, {
         applyFixup: shouldApplyUnreadFixup(),
         mDirects,
       }),
     });
-  }, [mx, setUnreadAtom, roomsNotificationPreferences, shouldApplyUnreadFixup, mDirects]);
+  }, [mx, publishUnreadAction, roomsNotificationPreferences, shouldApplyUnreadFixup, mDirects]);
 
   useEffect(() => {
     const handleMembershipChange = (room: Room, membership: string) => {
       if (membership !== (KnownMembership.Join as string)) {
-        setUnreadAtom({
+        publishUnreadAction({
           type: 'DELETE',
           roomId: room.roomId,
         });
@@ -382,7 +405,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     return () => {
       mx.removeListener(RoomEvent.MyMembership, handleMembershipChange);
     };
-  }, [mx, setUnreadAtom]);
+  }, [mx, publishUnreadAction]);
 
   // Seed badge state immediately when a room is first registered with the client
   // (e.g. after joining or receiving an invite that gets auto-accepted).
@@ -397,52 +420,12 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
         mDirects,
       });
       if (unreadInfo.total > 0 || unreadInfo.highlight > 0) {
-        setUnreadAtom({ type: 'PUT', unreadInfo });
+        publishUnreadAction({ type: 'PUT', unreadInfo });
       }
     };
     mx.on(ClientEvent.Room, handleRoomAdded as (room: Room) => void);
     return () => {
       mx.removeListener(ClientEvent.Room, handleRoomAdded as (room: Room) => void);
     };
-  }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
-
-  useEffect(
-    () => () => {
-      if (spaceChildResetTimerRef.current !== null) {
-        window.clearTimeout(spaceChildResetTimerRef.current);
-        spaceChildResetTimerRef.current = null;
-      }
-    },
-    []
-  );
-
-  useStateEventCallback(
-    mx,
-    useCallback(
-      (mEvent) => {
-        if (mEvent.getType() === (EventType.SpaceChild as string)) {
-          const roomId = mEvent.getRoomId();
-          if (!roomId) return;
-          const parentRoom = mx.getRoom(roomId);
-          if (!parentRoom || parentRoom.getMyMembership() !== (KnownMembership.Join as string))
-            return;
-
-          if (spaceChildResetTimerRef.current !== null) {
-            window.clearTimeout(spaceChildResetTimerRef.current);
-          }
-          spaceChildResetTimerRef.current = window.setTimeout(() => {
-            setUnreadAtom({
-              type: 'RESET',
-              unreadInfos: getUnreadInfos(mx, {
-                applyFixup: shouldApplyUnreadFixup(),
-                mDirects,
-              }),
-            });
-            spaceChildResetTimerRef.current = null;
-          }, 150);
-        }
-      },
-      [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]
-    )
-  );
+  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
 };

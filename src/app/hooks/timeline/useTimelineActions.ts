@@ -16,7 +16,7 @@ export interface UseTimelineActionsOptions {
   mx: MatrixClient;
   editor: Editor;
   nicknames: Record<string, string>;
-  globalProfiles: Record<string, UserProfile>;
+  getGlobalProfile: (userId: string) => UserProfile | undefined;
   spaceId?: string;
   openUserRoomProfile: (
     roomId: string,
@@ -39,7 +39,7 @@ export function useTimelineActions({
   mx,
   editor,
   nicknames,
-  globalProfiles,
+  getGlobalProfile,
   spaceId,
   openUserRoomProfile,
   activeReplyId,
@@ -65,7 +65,7 @@ export function useTimelineActions({
       const userId = evt.currentTarget.getAttribute('data-user-id');
       if (!userId) return;
 
-      const cachedData = globalProfiles[userId];
+      const cachedData = getGlobalProfile(userId);
       const cleanExtended = cachedData?.extended ? { ...cachedData.extended } : undefined;
 
       if (cleanExtended) {
@@ -99,7 +99,7 @@ export function useTimelineActions({
         }
       );
     },
-    [room.roomId, spaceId, openUserRoomProfile, globalProfiles]
+    [room.roomId, spaceId, openUserRoomProfile, getGlobalProfile]
   );
 
   const handleUsernameClick: MouseEventHandler<HTMLButtonElement> = useCallback(

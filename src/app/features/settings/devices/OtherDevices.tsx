@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
 import { Box, Button, config, Menu, Spinner, Text } from 'folds';
 import type { AuthDict, IAuthData, IMyDevice, MatrixError, UIAFlow } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
@@ -10,8 +11,7 @@ import { useUIAMatrixError } from '$hooks/useUIAFlows';
 import { DeviceVerificationStatus } from '$components/DeviceVerificationStatus';
 import { VerificationStatus } from '$hooks/useDeviceVerificationStatus';
 import { useAuthMetadata } from '$hooks/useAuthMetadata';
-import { withSearchParam } from '$pages/pathUtils';
-import { useAccountManagementActions } from '$hooks/useAccountManagement';
+import { getAccountManagementUrl, useAccountManagementActions } from '$hooks/useAccountManagement';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { VerifyOtherDeviceTile } from './Verification';
@@ -62,29 +62,32 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
   const [deleted, setDeleted] = useState(new Set());
 
   const handleDashboardOIDC = useCallback(() => {
-    const authUrl = authMetadata?.account_management_uri ?? authMetadata?.issuer;
-    if (!authUrl) return;
-
-    window.open(
-      withSearchParam(authUrl, {
-        action: accountManagementActions.sessionsList,
-      }),
-      '_blank'
-    );
+    const url = getAccountManagementUrl(authMetadata, accountManagementActions.sessionsList);
+    if (!url) return;
+    if (isTauri()) {
+      import('@tauri-apps/plugin-opener')
+        .then(({ openUrl }) => openUrl(url))
+        .catch(() => window.open(url, '_blank'));
+      return;
+    }
+    window.open(url, '_blank');
   }, [authMetadata, accountManagementActions]);
 
   const handleDeleteOIDC = useCallback(
     (deviceId: string) => {
-      const authUrl = authMetadata?.account_management_uri ?? authMetadata?.issuer;
-      if (!authUrl) return;
-
-      window.open(
-        withSearchParam(authUrl, {
-          action: accountManagementActions.sessionEnd,
-          device_id: deviceId,
-        }),
-        '_blank'
+      const url = getAccountManagementUrl(
+        authMetadata,
+        accountManagementActions.sessionEnd,
+        deviceId
       );
+      if (!url) return;
+      if (isTauri()) {
+        import('@tauri-apps/plugin-opener')
+          .then(({ openUrl }) => openUrl(url))
+          .catch(() => window.open(url, '_blank'));
+        return;
+      }
+      window.open(url, '_blank');
     },
     [authMetadata, accountManagementActions]
   );
@@ -150,7 +153,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
     <>
       <Box direction="Column" gap="100">
         <Text size="L400">Others</Text>
-        {authMetadata && (
+        {authMetadata?.account_management_uri && (
           <SequenceCard
             className={SequenceCardStyle}
             variant="SurfaceVariant"
@@ -195,13 +198,13 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
                 refreshDeviceList={refreshDeviceList}
                 disabled={deleting}
                 options={
-                  authMetadata ? (
+                  authMetadata?.account_management_uri ? (
                     <DeviceDeleteBtn
                       deviceId={device.device_id}
                       deleted={false}
                       onDeleteToggle={handleDeleteOIDC}
                     />
-                  ) : (
+                  ) : authMetadata ? undefined : (
                     <DeviceDeleteBtn
                       deviceId={device.device_id}
                       deleted={deleted.has(device.device_id)}

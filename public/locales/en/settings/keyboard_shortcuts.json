@@ -1,18 +1,4 @@
 {
-  "search_for_messages": "Search for messages",
-  "jump_to_the_highest_priority_unread_room": "Jump to the highest-priority unread room",
-  "go_to_next_unread_room_cycle": "Go to next unread room (cycle)",
-  "go_to_previous_unread_room_cycle": "Go to previous unread room (cycle)",
-  "undo_in_message_editor": "Undo in message editor",
-  "redo_in_message_editor": "Redo in message editor",
-  "seach_and_go_to_room": "Search and go to Room",
-  "open_sticker_picker": "Open Sticker Picker",
-  "bold": "Bold",
-  "italic": "Italic",
-  "underline": "Underline",
   "keyboard_shortcuts": "Keyboard Shortcuts",
-  "close_keyboard_shortcuts": "Close keyboard shortcuts",
-  "general": "General",
-  "navigation": "Navigation",
-  "messages": "Messages"
+  "close_keyboard_shortcuts": "Close keyboard shortcuts"
 }

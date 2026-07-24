@@ -1,5 +1,44 @@
 # Sable Client Changelog
 
+## 1.20.0 (2026-07-17)
+
+### Security
+
+* This release includes an important security fix. Please update as soon as possible. Sensitive Matrix account data is not exposed by this issue. ([#1107](<https://github.com/SableClient/Sable/pull/1107>) by @7w1)
+
+### Features
+
+* Add Native OIDC (OAuth 2.0) login so you can sign in to and register on homeservers that use delegated authentication, such as continuwuity and Synapse with the Matrix Authentication Service. Sessions stay signed in through automatic token refresh, and signing out revokes the tokens on the server. ([#1071](<https://github.com/SableClient/Sable/pull/1071>) by @eleboucher)
+* Show the unread mention count in the page title. ([#1093](<https://github.com/SableClient/Sable/pull/1093>) by @eleboucher)
+
+#### Improve sliding sync. ([#1069](<https://github.com/SableClient/Sable/pull/1069>) by @7w1, @eleboucher)
+
+- Make sliding sync easier to enable during login or loading and from settings.
+- Move the sliding sync toggle from Experimental to the bottom of General settings.
+- Start faster and restore rooms and spaces sooner.
+- Reduce unnecessary background room data.
+- Improve room details, memberships, presence, and unread indicators.
+- Make startup loading smoother for both sliding and classic sync.
+- It's fast now :3
+
+### Fixes
+
+* Use attachment filenames instead of captions when downloading files and harden unsafe download names. ([#1086](<https://github.com/SableClient/Sable/pull/1086>) by @7w1)
+* Allow users to send messages in encrypted rooms when they have permission to send `m.room.encrypted` events. ([#1098](<https://github.com/SableClient/Sable/pull/1098>) by @7w1)
+* Allow users without a locally configured LiveKit focus to join calls started by others. ([#1099](<https://github.com/SableClient/Sable/pull/1099>) by @7w1)
+* Fix the new messages divider not appearing when the read receipt points at an event hidden from the timeline (reaction, edit, thread reply). ([#1101](<https://github.com/SableClient/Sable/pull/1101>) by @eleboucher)
+* Fix the new messages divider staying at the room-open position instead of re-anchoring at the last read when the window loses focus. ([#1095](<https://github.com/SableClient/Sable/pull/1095>) by @eleboucher)
+* Fix redacted messages rendering as "Unsupported message (no body)" instead of "Message deleted" with sliding sync. ([#1089](<https://github.com/SableClient/Sable/pull/1089>) by @eleboucher)
+* Display redacted state events (membership, room name/topic/avatar, pins and other state events) as a "deleted" tombstone in the timeline instead of rendering them with empty/redacted content or hiding them, so the reply-to of a redaction highlights the redacted event. ([#1090](<https://github.com/SableClient/Sable/pull/1090>) by @eleboucher)
+* Fix joining spaces with sliding sync enabled. ([#1085](<https://github.com/SableClient/Sable/pull/1085>) by @eleboucher)
+* Display the explicit room name for non-direct channels with two members. ([#1098](<https://github.com/SableClient/Sable/pull/1098>) by @7w1)
+* Fix resetting animal identity ([#1070](<https://github.com/SableClient/Sable/pull/1070>) by @nushea)
+* Fix the sliding-sync presence fallback consuming one-time-key updates and to-device messages without processing them. ([#1078](<https://github.com/SableClient/Sable/pull/1078>) by @7w1)
+* Fix clickable handles ([#1068](<https://github.com/SableClient/Sable/pull/1068>) by @nushea)
+* Hide the "Register" link on the login page when the homeserver has registration disabled and offers no SSO to register through, so you are no longer sent to a dead-end registration page. ([#1073](<https://github.com/SableClient/Sable/pull/1073>) by @eleboucher)
+* Add uploaded Sable CSS theme loading, automatic catalog updates, and a cleaner theme browser with full CSS viewing. ([#1087](<https://github.com/SableClient/Sable/pull/1087>) by @7w1)
+* Show room members in developer tools. ([#1088](<https://github.com/SableClient/Sable/pull/1088>) by @7w1)
+
 ## 1.19.4 (2026-07-12)
 
 ### Fixes

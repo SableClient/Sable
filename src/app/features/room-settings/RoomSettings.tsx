@@ -5,6 +5,7 @@ import { useAtomValue } from 'jotai';
 import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
+import { SettingsSectionHeader } from '$components/page/style.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
@@ -124,18 +125,22 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
   };
 
   const handleSwipeBack = () => {
-    if (screenSize === ScreenSize.Mobile) {
-      requestClose();
+    if (screenSize !== ScreenSize.Mobile) return;
+    if (activePage !== undefined) {
+      setActivePage(undefined);
+      return;
     }
+    requestClose();
   };
 
   return (
     <SwipeableOverlayWrapper direction="right" onClose={handleSwipeBack}>
       <PageRoot
+        mobileDrawer={false}
         nav={
           screenSize === ScreenSize.Mobile && activePage !== undefined ? undefined : (
             <PageNav size="300">
-              <PageNavHeader outlined={false}>
+              <PageNavHeader className={SettingsSectionHeader} size="600">
                 <Box grow="Yes" gap="200">
                   <Avatar size="200" radii="300">
                     <RoomAvatar
@@ -200,25 +205,25 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
         }
       >
         {activePage === RoomSettingsPage.GeneralPage && (
-          <General requestClose={handlePageRequestClose} />
+          <General requestBack={handlePageRequestClose} requestClose={requestClose} />
         )}
         {activePage === RoomSettingsPage.MembersPage && (
-          <Members requestClose={handlePageRequestClose} />
+          <Members requestBack={handlePageRequestClose} requestClose={requestClose} />
         )}
         {activePage === RoomSettingsPage.PermissionsPage && (
-          <Permissions requestClose={handlePageRequestClose} />
+          <Permissions requestBack={handlePageRequestClose} requestClose={requestClose} />
         )}
         {activePage === RoomSettingsPage.CosmeticsPage && (
-          <Cosmetics requestClose={handlePageRequestClose} />
+          <Cosmetics requestBack={handlePageRequestClose} requestClose={requestClose} />
         )}
         {activePage === RoomSettingsPage.EmojisStickersPage && (
-          <EmojisStickers requestClose={handlePageRequestClose} />
+          <EmojisStickers requestBack={handlePageRequestClose} requestClose={requestClose} />
         )}
         {activePage === RoomSettingsPage.DeveloperToolsPage && (
-          <DeveloperTools requestClose={handlePageRequestClose} />
+          <DeveloperTools requestBack={handlePageRequestClose} requestClose={requestClose} />
         )}
         {activePage === RoomSettingsPage.AbbreviationsPage && (
-          <RoomAbbreviations requestClose={handlePageRequestClose} />
+          <RoomAbbreviations requestBack={handlePageRequestClose} requestClose={requestClose} />
         )}
       </PageRoot>
     </SwipeableOverlayWrapper>

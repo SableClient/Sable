@@ -1,5 +1,6 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
 import type { RectCords } from 'folds';
 import {
   Badge,
@@ -34,8 +35,7 @@ import {
 } from '$components/DeviceVerificationSetup';
 import { stopPropagation } from '$utils/keyboard';
 import { useAuthMetadata } from '$hooks/useAuthMetadata';
-import { withSearchParam } from '$pages/pathUtils';
-import { useAccountManagementActions } from '$hooks/useAccountManagement';
+import { getAccountManagementUrl, useAccountManagementActions } from '$hooks/useAccountManagement';
 
 type VerificationStatusBadgeProps = {
   verificationStatus: VerificationStatus;
@@ -272,14 +272,15 @@ export function DeviceVerificationOptions() {
   const handleReset = () => {
     setMenuCords(undefined);
 
-    if (authMetadata) {
-      const authUrl = authMetadata.account_management_uri ?? authMetadata.issuer;
-      window.open(
-        withSearchParam(authUrl, {
-          action: accountManagementActions.crossSigningReset,
-        }),
-        '_blank'
-      );
+    const url = getAccountManagementUrl(authMetadata, accountManagementActions.crossSigningReset);
+    if (url) {
+      if (isTauri()) {
+        import('@tauri-apps/plugin-opener')
+          .then(({ openUrl }) => openUrl(url))
+          .catch(() => window.open(url, '_blank'));
+        return;
+      }
+      window.open(url, '_blank');
       return;
     }
 

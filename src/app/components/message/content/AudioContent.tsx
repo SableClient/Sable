@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Chip, IconButton, ProgressBar, Spinner, Text, toRem } from 'folds';
 import { sizedIcon, Pause, Play, SpeakerHigh, SpeakerSlash } from '$components/icons/phosphor';
+import { isTauri } from '@tauri-apps/api/core';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -20,7 +21,9 @@ import { useThrottle } from '$hooks/useThrottle';
 import { secondsToMinutesAndSeconds } from '$utils/common';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRevokeObjectURL } from '$hooks/useObjectURL';
 import { MEDIA_VOLUME_KEY } from '$components/media';
+import { hasControllingServiceWorker } from '$utils/platform';
 
 const PLAY_TIME_THROTTLE_OPS = {
   wait: 500,
@@ -54,12 +57,16 @@ export function AudioContent({
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
+      // Native media and service-worker-authenticated browser media can stream with Range requests.
+      if (!encInfo && (isTauri() || hasControllingServiceWorker())) return mediaUrl;
       const fileContent = encInfo
         ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
         : await downloadMedia(mediaUrl);
       return URL.createObjectURL(fileContent);
     }, [mx, url, useAuthentication, mimeType, encInfo])
   );
+
+  useRevokeObjectURL(srcState.status === AsyncStatus.Success ? srcState.data : undefined);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 

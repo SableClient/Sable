@@ -1,11 +1,17 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/sw.ts", "scripts/normalize-imports.js"],
-  "ignore": ["oxlint.config.ts", "oxfmt.config.ts", "i18next.config.ts"],
+  "entry": ["src/sw.ts", "scripts/**/*.js"],
+  "ignore": [
+    "src/test/choochmeque-notifications-stub.ts",
+    "oxlint.config.ts",
+    "oxfmt.config.ts",
+    "i18next.config.ts"
+  ],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true
   },
+  "ignoreFiles": ["src/app/generated/**/*"],
   "ignoreDependencies": [
     "buffer",
     "@sableclient/sable-call-embedded",

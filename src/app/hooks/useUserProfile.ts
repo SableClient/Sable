@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
-import type { Room } from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { EventTimeline, EventType } from '$types/matrix-sdk';
 
 import colorMXID from '$utils/colorMXID';
-import { profilesCacheAtom } from '$state/userRoomProfile';
+import { persistentProfileIdsAtom, profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, shouldApplyUserHeroCards } from '$state/settings';
 import type { MSC1767Text } from '$types/matrix/common';
@@ -13,10 +13,43 @@ import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import type { PronounSet } from '$utils/pronouns';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useActiveTheme } from './useTheme';
+import { useTimelineScrolling } from './useTimelineScrollActivity';
+import { useIsInactivePanel } from './useRoom';
 import { CustomStateEvent } from '$types/matrix/room';
 import * as prefix from '$unstable/prefixes';
+import { PROFILE_CACHE_FRESH_MS } from '$client/userProfileCache';
 
-const inFlightProfiles = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_CONCURRENT_PROFILE_REQUESTS = 4;
+const PROFILE_REQUEST_DWELL_MS = 150;
+const inFlightProfiles = new WeakMap<MatrixClient, Map<string, Promise<Record<string, unknown>>>>();
+const activeProfileRequests = new WeakMap<MatrixClient, number>();
+const profileRequestQueues = new WeakMap<MatrixClient, Array<() => void>>();
+
+const scheduleProfileRequest = (
+  mx: MatrixClient,
+  task: () => Promise<Record<string, unknown>>
+): Promise<Record<string, unknown>> =>
+  new Promise((resolve, reject) => {
+    const run = () => {
+      activeProfileRequests.set(mx, (activeProfileRequests.get(mx) ?? 0) + 1);
+      void task()
+        .then(resolve, reject)
+        .finally(() => {
+          const active = Math.max(0, (activeProfileRequests.get(mx) ?? 1) - 1);
+          activeProfileRequests.set(mx, active);
+          if (active < MAX_CONCURRENT_PROFILE_REQUESTS) profileRequestQueues.get(mx)?.shift()?.();
+        });
+    };
+
+    if ((activeProfileRequests.get(mx) ?? 0) < MAX_CONCURRENT_PROFILE_REQUESTS) {
+      run();
+      return;
+    }
+
+    const queue = profileRequestQueues.get(mx) ?? [];
+    profileRequestQueues.set(mx, queue);
+    queue.push(run);
+  });
 
 export type MSC4440Bio = {
   'm.text': Array<MSC1767Text>;
@@ -41,6 +74,7 @@ export type UserProfile = {
   animalNeed?: string;
   extended?: Record<string, unknown>;
   _fetched?: boolean;
+  _fetchedAt?: number;
 };
 
 const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
@@ -115,6 +149,7 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
     ] as string,
     extended,
     _fetched: true,
+    _fetchedAt: Date.now(),
   };
 };
 
@@ -130,7 +165,9 @@ const sanitizeFont = (f: string) => f.replaceAll(/[;{}<>]/g, '').slice(0, 32);
 export const useUserProfile = (
   userId: string,
   room?: Room,
-  initialProfile?: Partial<UserProfile>
+  initialProfile?: Partial<UserProfile>,
+  persistAcrossSessions = false,
+  fetchEnabled = true
 ): UserProfile & {
   resolvedColor?: string;
   resolvedFont?: string;
@@ -146,51 +183,75 @@ export const useUserProfile = (
   const [renderRoomFonts] = useSetting(settingsAtom, 'renderRoomFonts');
   const [renderUserCardsMode] = useSetting(settingsAtom, 'renderUserCards');
   const themeKind = useActiveTheme().kind;
+  const timelineScrolling = useTimelineScrolling();
+  const isInactivePanel = useIsInactivePanel();
 
   const userSelector = useMemo(() => selectAtom(profilesCacheAtom, (db) => db[userId]), [userId]);
 
   const cached = useAtomValue(userSelector);
   const setGlobalProfiles = useSetAtom(profilesCacheAtom);
+  const setPersistentProfileIds = useSetAtom(persistentProfileIdsAtom);
 
-  const hasOnlyFetchedMarker =
-    cached?._fetched === true && Object.keys(cached ?? {}).every((key) => key === '_fetched');
+  useEffect(() => {
+    if (!persistAcrossSessions || !userId || userId === 'undefined') return;
+    setPersistentProfileIds((prev) => {
+      if (prev.has(userId)) return prev;
+      const next = new Set(prev);
+      next.add(userId);
+      return next;
+    });
+  }, [persistAcrossSessions, setPersistentProfileIds, userId]);
+
+  const fetchedAt = cached?._fetchedAt;
+  const isFresh =
+    cached?._fetched === true &&
+    typeof fetchedAt === 'number' &&
+    Date.now() - fetchedAt < PROFILE_CACHE_FRESH_MS;
   const needsFetch =
-    !!userId && userId !== 'undefined' && (!cached?._fetched || hasOnlyFetchedMarker);
+    fetchEnabled &&
+    !timelineScrolling &&
+    !isInactivePanel &&
+    !!userId &&
+    userId !== 'undefined' &&
+    !isFresh;
 
   useEffect(() => {
     if (!needsFetch) return undefined;
 
-    let fetchPromise = inFlightProfiles.get(userId);
+    const timeoutId = window.setTimeout(() => {
+      const clientInFlight = inFlightProfiles.get(mx) ?? new Map();
+      inFlightProfiles.set(mx, clientInFlight);
+      if (clientInFlight.has(userId)) return;
 
-    if (!fetchPromise) {
-      fetchPromise = mx.getProfileInfo(userId).finally(() => {
-        inFlightProfiles.delete(userId);
-      });
-      inFlightProfiles.set(userId, fetchPromise);
-    }
+      const fetchPromise = scheduleProfileRequest(mx, () => mx.getProfileInfo(userId)).finally(
+        () => {
+          clientInFlight.delete(userId);
+        }
+      );
+      clientInFlight.set(userId, fetchPromise);
 
-    let isMounted = true;
+      // Attach the cache update only when creating the shared request. It deliberately outlives
+      // the initiating row: a completed request remains useful after a fast virtualized scroll.
+      fetchPromise
+        .then((info: Record<string, unknown>) => {
+          const normalized = normalizeInfo(info);
+          setGlobalProfiles((prev) => {
+            const { [userId]: previousProfile, ...otherProfiles } = prev;
+            return {
+              ...otherProfiles,
+              [userId]: { ...previousProfile, ...normalized },
+            };
+          });
+        })
+        .catch(() => {
+          setGlobalProfiles((prev) => ({
+            ...prev,
+            [userId]: { ...prev[userId], _fetched: true, _fetchedAt: Date.now() },
+          }));
+        });
+    }, PROFILE_REQUEST_DWELL_MS);
 
-    fetchPromise
-      .then((info: Record<string, unknown>) => {
-        if (!isMounted) return;
-        const normalized = normalizeInfo(info);
-        setGlobalProfiles((prev) => ({
-          ...prev,
-          [userId]: { ...prev[userId], ...normalized },
-        }));
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setGlobalProfiles((prev) => ({
-          ...prev,
-          [userId]: { ...prev[userId], _fetched: true },
-        }));
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    return () => window.clearTimeout(timeoutId);
   }, [userId, needsFetch, mx, setGlobalProfiles]);
 
   return useMemo(() => {

@@ -3,6 +3,7 @@ import type { ReactEventHandler, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import classNames from 'classnames';
 import colorMXID from '$utils/colorMXID';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import * as css from './UserAvatar.css';
 
 type UserAvatarProps = {
@@ -19,6 +20,7 @@ const handleImageLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
 
 export function UserAvatar({ className, userId, src, alt, renderFallback }: UserAvatarProps) {
   const [error, setError] = useState(false);
+  const resolvedSrc = useRenderableMediaUrl(src);
 
   useEffect(() => {
     setError(false);
@@ -38,8 +40,10 @@ export function UserAvatar({ className, userId, src, alt, renderFallback }: User
   return (
     <AvatarImage
       className={classNames(css.UserAvatar, className)}
-      src={src}
+      src={resolvedSrc ?? src}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       onError={() => setError(true)}
       onLoad={handleImageLoad}
       draggable={false}

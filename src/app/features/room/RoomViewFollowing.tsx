@@ -12,6 +12,7 @@ import { useRoomLatestRenderedEvent } from '$hooks/useRoomLatestRenderedEvent';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { modalAtom, ModalType } from '$state/modal';
 import { nicknamesAtom } from '$state/nicknames';
+import { profilesCacheAtom } from '$state/userRoomProfile';
 import * as css from './RoomViewFollowing.css';
 
 export function RoomViewFollowingPlaceholder() {
@@ -31,12 +32,16 @@ export const RoomViewFollowing = as<'div', RoomViewFollowingProps>(
     const resolvedEventId = threadEventId ?? latestEvent?.getId();
     const latestEventReaders = useRoomEventReaders(room, resolvedEventId);
     const nicknames = useAtomValue(nicknamesAtom);
+    const cachedProfiles = useAtomValue(profilesCacheAtom);
     const names = latestEventReaders
       .filter((readerId) => readerId !== mx.getUserId())
       .filter((readerId) => !participantIds || participantIds.has(readerId))
       .map(
         (readerId) =>
-          getMemberDisplayName(room, readerId, nicknames) ?? getMxIdLocalPart(readerId) ?? readerId
+          getMemberDisplayName(room, readerId, nicknames) ??
+          cachedProfiles[readerId]?.displayName ??
+          getMxIdLocalPart(readerId) ??
+          readerId
       );
 
     const eventId = resolvedEventId;
@@ -44,6 +49,7 @@ export const RoomViewFollowing = as<'div', RoomViewFollowingProps>(
     return (
       <Box
         as={names.length > 0 ? 'button' : 'div'}
+        data-no-button-motion={names.length > 0 || undefined}
         onClick={
           names.length > 0
             ? () => {

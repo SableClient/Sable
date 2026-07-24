@@ -4,6 +4,12 @@ import type { HttpBackendOptions } from 'i18next-http-backend';
 import Backend from 'i18next-http-backend';
 import { initReactI18next } from 'react-i18next';
 import { trimTrailingSlash } from './utils/common';
+import { takePreloadedLocale } from './utils/preload';
+
+const langFromUrl = (url: string): string | undefined => {
+  const match = url.match(/\/public\/locales\/([^/]+)\.json/);
+  return match?.[1];
+};
 
 i18n
   // i18next-http-backend
@@ -31,6 +37,11 @@ i18n
     },
     backend: {
       loadPath: `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/locales/{{lng}}/{{ns}}.json`,
+      alternateFetch: (url: string) => {
+        const lng = langFromUrl(url);
+        if (!lng) return undefined;
+        return takePreloadedLocale(lng) ?? undefined;
+      },
     },
     react: {
       useSuspense: false,

@@ -1,4 +1,4 @@
-import type { FormEventHandler, MouseEventHandler } from 'react';
+import type { FormEventHandler, MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import type { RectCords } from 'folds';
 import {
@@ -106,8 +106,15 @@ function UsernameHint({ server }: { server: string }) {
 type PasswordLoginFormProps = {
   defaultUsername?: string;
   defaultEmail?: string;
+  slidingSyncOptIn: boolean;
+  slidingSyncOption?: ReactNode;
 };
-export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLoginFormProps) {
+export function PasswordLoginForm({
+  defaultUsername,
+  defaultEmail,
+  slidingSyncOptIn,
+  slidingSyncOption,
+}: PasswordLoginFormProps) {
   const server = useAuthServer();
   const clientConfig = useClientConfig();
 
@@ -120,7 +127,10 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
     Parameters<typeof login>
   >(useCallback(login, []));
 
-  useLoginComplete(loginState.status === AsyncStatus.Success ? loginState.data : undefined);
+  useLoginComplete(
+    loginState.status === AsyncStatus.Success ? loginState.data : undefined,
+    slidingSyncOptIn
+  );
 
   const handleUsernameLogin = (username: string, password: string) => {
     startLogin(baseUrl, {
@@ -265,6 +275,7 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
           </Box>
         </Box>
       </Box>
+      {slidingSyncOption}
       <Button type="submit" variant="Primary" size="500">
         <Text as="span" size="B500">
           Login

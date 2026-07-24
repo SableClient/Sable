@@ -26,7 +26,7 @@ export const UploadCard = forwardRef<
   >
     <Box alignItems="Center" gap="200">
       {before}
-      <Box alignItems="Center" grow="Yes" gap="200">
+      <Box alignItems="Center" grow="Yes" gap="200" style={{ minWidth: 0 }}>
         {children}
       </Box>
       {after}

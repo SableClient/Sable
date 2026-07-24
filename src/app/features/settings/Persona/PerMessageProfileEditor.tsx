@@ -3,6 +3,7 @@ import { Box, Button, Text, Avatar, config, IconButton, Input } from 'folds';
 import { menuIcon, X } from '$components/icons/phosphor';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo, useState } from 'react';
+import { nameInitials } from '$utils/common';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -19,6 +20,7 @@ import type { PronounSet } from '$utils/pronouns';
 import { parsePronounsStringToPronounsSetArray } from '$utils/pronouns';
 import { SequenceCardStyle } from '../styles.css';
 import { useTranslation } from 'react-i18next';
+import { SettingTile } from '$components/setting-tile';
 
 /**
  * the props we use for the per-message profile editor, which is used to edit a per-message profile. This is used in the settings page when the user wants to edit a profile.
@@ -29,7 +31,6 @@ type PerMessageProfileEditorProps = {
   avatarMxcUrl?: string;
   displayName?: string;
   pronouns?: PronounSet[];
-  onChange?: (profile: { id: string; name: string; avatarUrl?: string }) => void;
   onDelete?: (profileId: string) => void;
 };
 
@@ -39,7 +40,6 @@ export function PerMessageProfileEditor({
   avatarMxcUrl,
   displayName,
   pronouns = Array<PronounSet>(),
-  onChange,
   onDelete,
 }: Readonly<PerMessageProfileEditorProps>) {
   const useAuthentication = useMediaAuthentication();
@@ -47,8 +47,6 @@ export function PerMessageProfileEditor({
   const [currentId, setCurrentId] = useState(profileId);
   const [newId, setNewId] = useState(profileId);
   const { t } = useTranslation(['settings/persona', 'settings/profile', 'general']);
-
-  console.warn(pronouns);
 
   // Pronouns
   const [currentPronouns, setCurrentPronouns] = useState(pronouns);
@@ -88,22 +86,13 @@ export function PerMessageProfileEditor({
     setImageFile(undefined);
     setImageHasChanges(true);
   }, []);
-  const handleUploaded = useCallback(
-    (upload: { status: string; mxc: string }) => {
-      if (upload?.status === 'success') {
-        setAvatarMxc(upload.mxc);
-        if (onChange)
-          onChange({
-            id: profileId,
-            name: newDisplayName,
-            avatarUrl: upload.mxc,
-          });
-        setImageHasChanges(true);
-      }
-      setImageFile(undefined);
-    },
-    [onChange, profileId, newDisplayName]
-  );
+  const handleUploaded = useCallback((upload: { status: string; mxc: string }) => {
+    if (upload?.status === 'success') {
+      setAvatarMxc(upload.mxc);
+      setImageHasChanges(true);
+    }
+    setImageFile(undefined);
+  }, []);
   const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setNewDisplayName(e.target.value);
   }, []);
@@ -189,109 +178,62 @@ export function PerMessageProfileEditor({
   return (
     <Box
       direction="Column"
-      gap="200"
-      grow="Yes"
-      style={{
-        width: '100%',
-        minWidth: 500,
-        paddingTop: config.space.S400,
-        paddingBottom: config.space.S400,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      gap="100"
       role="form"
       aria-labelledby={`profile-editor-title-${profileId}`}
     >
+      <Text size="L400">Profile</Text>
+
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
         direction="Column"
-        gap="300"
-        style={{
-          width: '100%',
-          minWidth: 500,
-          minHeight: 100,
-          maxHeight: 240,
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'stretch',
-          justifyContent: 'flex-start',
-          position: 'relative',
-          overflow: 'visible',
-        }}
+        gap="400"
       >
-        {/* Profile ID heading and input */}
-        <Box
-          direction="Row"
-          gap="200"
-          alignItems="Center"
-          style={{ width: '100%', marginBottom: config.space.S200 }}
-        >
-          <Text size="H6" id={`profile-editor-title-${profileId}`} style={{ minWidth: 90 }}>
-            {t('profile_id')}
-          </Text>
-          <Input
-            required
-            name="idInput"
-            id={`idInput-${profileId}`}
-            value={newId}
-            onChange={handleIdChange}
-            variant="Secondary"
-            radii="300"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              maxWidth: 'clamp(200px, 60vw, 480px)',
-              paddingRight: config.space.S200,
-              fontSize: 16,
-              height: 50,
-            }}
-            placeholder={t('profile_id')}
-            aria-label={t('profile_id')}
-            title={t('profile_id')}
-          />
-        </Box>
-        <Box direction="Row">
-          <Box
-            direction="Column"
-            alignItems="Center"
-            justifyContent="Center"
-            gap="100"
-            style={{
-              minWidth: 80,
-              maxWidth: 100,
-              maxHeight: 100,
-              flexShrink: 0,
-              overflow: 'visible',
-              marginTop: 20,
-            }}
-            aria-label={t('settings/profile:avatar_and_upload')}
-          >
-            <Avatar
-              size="300"
+        <SettingTile title={t('profile_id')} focusId={`idInput-${profileId}`}>
+          <Box grow="Yes" direction="Column">
+            <Input
+              required
+              name="idInput"
+              id={`idInput-${profileId}`}
+              value={newId}
+              onChange={handleIdChange}
+              variant="Secondary"
               radii="300"
-              style={{
-                width: 'clamp(25px, 8vw, 50px)',
-                height: 'clamp(25px, 8vw, 50px)',
-                minWidth: 48,
-                minHeight: 48,
-                maxWidth: 72,
-                maxHeight: 72,
-              }}
-              aria-label={t('settings/profile:profile_avatar')}
-            >
+              placeholder={t('profile_id')}
+              style={{ paddingRight: config.space.S200 }}
+              aria-label={t('profile_id')}
+              title={t('profile_id')}
+            />
+          </Box>
+        </SettingTile>
+      </SequenceCard>
+
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Avatar"
+          focusId={`avatar-${profileId}`}
+          after={
+            <Avatar size="500" radii="300" aria-label={t('profile_avatar')}>
               <UserAvatar
                 userId={profileId}
                 src={avatarUrl}
                 renderFallback={() => (
-                  <Text size="H4" aria-label={t('settings/profile:avatar_fallback')}>
-                    p
+                  <Text size="H4" aria-label={t('avatar_fallback')}>
+                    {nameInitials(displayName)}
                   </Text>
                 )}
                 alt={t('avatar_for', { profileId })}
               />
             </Avatar>
+          }
+        >
+          <Box>
             <Button
               onClick={() => pickFile('image/*')}
               size="300"
@@ -299,53 +241,41 @@ export function PerMessageProfileEditor({
               fill="Soft"
               outlined
               radii="300"
-              style={{
-                width: 'clamp(30px, 6vw, 60px)',
-                marginTop: config.space.S100,
-                overflow: 'visible',
-                fontSize: 14,
-                padding: '0 8px',
-              }}
-              aria-label={t('settings/profile:upload_avatar_image')}
+              aria-label={t('upload_avatar_image')}
             >
               <Text size="T200">{t('general:upload')}</Text>
             </Button>
-            {uploadAtom && (
-              <Box
-                gap="100"
-                direction="Column"
-                style={{
-                  width: '100%',
-                  maxWidth: 100,
-                  maxHeight: 100,
-                  overflow: 'visible',
-                }}
-                aria-label={t('general:upload_area')}
-              >
-                <CompactUploadCardRenderer
-                  uploadAtom={uploadAtom}
-                  onRemove={handleRemoveUpload}
-                  onComplete={handleUploaded}
-                />
-              </Box>
-            )}
           </Box>
-          <Box
-            direction="Column"
-            alignItems="Center"
-            justifyContent="Center"
-            style={{ flex: 1, minWidth: 0, height: '100%' }}
-            aria-label={t('settings/profile:display_name_input')}
-          >
-            <Text
-              size="T300"
+          {uploadAtom && (
+            <Box
+              gap="100"
+              direction="Column"
               style={{
-                marginBottom: config.space.S200,
-                alignSelf: 'flex-start',
+                width: '100%',
+                maxWidth: 100,
+                maxHeight: 100,
+                overflow: 'visible',
               }}
+              aria-label={t('upload_area')}
             >
-              {t('display_name')}
-            </Text>
+              <CompactUploadCardRenderer
+                uploadAtom={uploadAtom}
+                onRemove={handleRemoveUpload}
+                onComplete={handleUploaded}
+              />
+            </Box>
+          )}
+        </SettingTile>
+      </SequenceCard>
+
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile title={t('display_name')} focusId={`displayNameInput-${profileId}`}>
+          <Box grow="Yes" direction="Column">
             <Input
               required
               name="displayNameInput"
@@ -355,13 +285,7 @@ export function PerMessageProfileEditor({
               variant="Secondary"
               radii="300"
               style={{
-                flex: 1,
-                minWidth: 0,
-                width: '100%',
-                maxWidth: 'clamp(200px, 60vw, 480px)',
                 paddingRight: config.space.S200,
-                fontSize: 16,
-                height: 50,
               }}
               placeholder={t('general:display_name')}
               readOnly={changingDisplayName || disableSetDisplayname}
@@ -384,16 +308,21 @@ export function PerMessageProfileEditor({
                 )
               }
             />
-            <Text
-              size="T300"
-              style={{
-                marginTop: config.space.S100,
-                marginBottom: config.space.S200,
-                alignSelf: 'flex-start',
-              }}
-            >
-              {t('pronouns')}
-            </Text>
+          </Box>
+        </SettingTile>
+      </SequenceCard>
+
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title={t('pronouns')}
+          description={t('pronouns_description')}
+          focusId={`pronounsInput-${profileId}`}
+          after={
             <Input
               required
               name="pronounsInput"
@@ -403,15 +332,10 @@ export function PerMessageProfileEditor({
               variant="Secondary"
               radii="300"
               style={{
-                flex: 1,
-                minWidth: 0,
-                width: '100%',
-                maxWidth: 'clamp(200px, 60vw, 480px)',
                 paddingRight: config.space.S200,
-                fontSize: 16,
-                height: 50,
+                width: '232px',
               }}
-              placeholder={t('general:pronouns')}
+              placeholder={t('add_pronouns')}
               readOnly={changingDisplayName || disableSetDisplayname}
               aria-label={t('pronouns_for', { profileId })}
               title={t('pronouns_for', { profileId })}
@@ -431,60 +355,40 @@ export function PerMessageProfileEditor({
                 )
               }
             />
-          </Box>
-          {/* Rechte Spalte: Save Button */}
-          <Box
-            direction="Column"
-            alignItems="Center"
-            justifyContent="Center"
-            style={{
-              minWidth: 120,
-              maxWidth: 140,
-              flexShrink: 0,
-              height: '100%',
-            }}
-            aria-label={t('save_profile_button_area', { profileId })}
-          >
-            <Button
-              onClick={handleSave}
-              size="300"
-              radii="300"
-              variant="Primary"
-              disabled={!hasChanges}
-              style={{
-                minWidth: 120,
-                height: 'clamp(30px, 6vw, 50px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              aria-label={t('save_profile', { profileId })}
-              title={t('save_profile', { profileId })}
-            >
-              <Text size="B300">{t('general:save')}</Text>
-            </Button>
-            <Button
-              onClick={handleDelete}
-              size="300"
-              radii="300"
-              variant="Critical"
-              fill="None"
-              style={{
-                minWidth: 120,
-                height: 'clamp(30px, 6vw, 50px)',
-                marginTop: config.space.S100,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              aria-label={t('delete_profile', { profileId })}
-              title={t('delete_profile', { profileId })}
-            >
-              <Text size="B300">{t('general:delete')}</Text>
-            </Button>
-          </Box>
-        </Box>
+          }
+        ></SettingTile>
       </SequenceCard>
+      <Box
+        direction="Row"
+        alignItems="Center"
+        justifyContent="End"
+        gap="200"
+        aria-label={t('save_profile_area', {profileId: profileId})}
+      >
+        <Button
+          onClick={handleDelete}
+          size="400"
+          radii="300"
+          variant="Critical"
+          fill="None"
+          aria-label={t('delete_profile_area', {profileId: profileId})}
+          title={t('delete_profile_area', {profileId: profileId})}
+        >
+          <Text size="B300">{t('delete', {ns: 'general'})}</Text>
+        </Button>
+
+        <Button
+          onClick={handleSave}
+          size="400"
+          radii="300"
+          variant="Primary"
+          disabled={!hasChanges}
+          aria-label={t('save_profile_button', {profileId: profileId})}
+          title={t('save_profile_button', {profileId: profileId})}
+        >
+          <Text size="B300">{t('save', {ns: 'general'})}</Text>
+        </Button>
+      </Box>
     </Box>
   );
 }

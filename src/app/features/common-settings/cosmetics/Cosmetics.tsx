@@ -19,7 +19,7 @@ import {
   Header,
 } from 'folds';
 import { composerIcon, menuIcon, X } from '$components/icons/phosphor';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { PageContent, SettingsSectionPage } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
@@ -367,9 +367,10 @@ export function CosmeticsFont({
 }
 
 type CosmeticsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Cosmetics({ requestClose }: CosmeticsProps) {
+export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
   const mx = useMatrixClient();
   const userId = mx.getUserId()!;
   const profile = useUserProfile(userId);
@@ -417,21 +418,7 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
   );
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Cosmetics
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              {composerIcon(X)}
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Cosmetics" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -588,6 +575,6 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

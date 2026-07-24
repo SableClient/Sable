@@ -15,11 +15,9 @@
   "four_digit_year": "Four-digit year",
   "two_digit_year": "Two-digit year",
   "two_digit_day_of_the_month": "Two-digit day of the month",
-
   "date_format": "Date Format",
   "twenty_four_hour_time_format": "24-Hour Time Format",
   "current_language": "Current Language",
-
   "Editor": {
     "editor": "Editor",
     "enter_for_newline_title": "ENTER for Newline",
@@ -90,7 +88,6 @@
     "messages": "Messages",
     "message_spacing_title": "Message Spacing",
     "file_description_placement_title": "File description placement",
-
     "disable_to_hide_redacted_messages_entirely": "Disable to hide redacted messages entirely instead of showing a tombstone.",
     "enable_to_show_tombstone_events_for_redacted": "Enable to show tombstone events for redacted messages instead of hiding them entirely.",
     "emoji_selector_threshold_title": "Emoji Selector Character Threshold",
@@ -154,15 +151,11 @@
     "show_interactive_map_enc_enable": "Enable Interactive Map"
   },
   "Sync": {
-    "sync": "Sync",
     "use_sliding_sync_title": "Use Sliding Sync",
-    "use_sliding_sync_enable": "Enable Sliding Sync for this current login/session. Requires server support and admin configuration.",
-    "use_sliding_sync_disable": "Unavailable: the server has disabled Sliding Sync in its config.",
-    "use_sliding_sync_documentation": " More info/Documentation.",
-    "use_sliding_sync_issues": " Known issues (Sable GitHub)."
+    "use_sliding_sync_description": "Enable Sliding Sync for this current login/session. Requires server support and admin configuration."
   },
   "SettingsSync": {
-    "settings_sync": "Settings Sync & Backup",
+    "settings_sync": "Data syncing",
     "sync_across_devices_title": "Sync across devices",
     "sync_across_devices_description": "Store your settings in your Matrix account so they follow you to any Sable instance. Notification and zoom preferences are kept per-device.",
     "sync_status_title": "Sync status",

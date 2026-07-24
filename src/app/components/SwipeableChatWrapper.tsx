@@ -1,62 +1,63 @@
 import type { ReactNode } from 'react';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { animate, motion, useMotionValue } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
-import { useAtomValue } from 'jotai';
+import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, RightSwipeAction } from '$state/settings';
+import { haptic } from '$utils/haptics';
 import { mobileOrTablet } from '$utils/user-agent';
 
 interface SwipeableChatWrapperProps {
   children: ReactNode;
-  onOpenSidebar?: () => void;
   onOpenMembers?: () => void;
   onReply?: () => void;
 }
 
 export function SwipeableChatWrapper({
   children,
-  onOpenSidebar,
   onOpenMembers,
   onReply,
 }: SwipeableChatWrapperProps) {
-  const settings = useAtomValue(settingsAtom);
+  const [mobileGestures] = useSetting(settingsAtom, 'mobileGestures');
+  const [rightSwipeAction] = useSetting(settingsAtom, 'rightSwipeAction');
   const x = useMotionValue(0);
-  const springX = useSpring(x, { stiffness: 400, damping: 40 });
 
   const bind = useDrag(
-    ({ active, movement: [mx], velocity: [vx], direction: [dx], event: e }) => {
-      if (e && 'target' in e && e.target instanceof HTMLElement) {
+    ({ first, active, offset: [ox], velocity: [vx], direction: [dx], event: e, cancel }) => {
+      if (first && e && 'target' in e && e.target instanceof HTMLElement) {
         if (e.target.closest('[data-gestures="ignore"]')) {
+          cancel();
           return;
         }
       }
 
-      if (!settings.mobileGestures || !mobileOrTablet()) return;
+      if (!mobileGestures || !mobileOrTablet()) return;
 
-      let val = mx;
+      let val = ox;
 
-      const canSwipeRight = !!onOpenSidebar;
       const canSwipeLeft =
-        settings.rightSwipeAction === RightSwipeAction.Members ? !!onOpenMembers : !!onReply;
+        rightSwipeAction === RightSwipeAction.Members ? !!onOpenMembers : !!onReply;
 
-      if (!canSwipeRight && val > 0) val = 0;
+      // The drawer owns the rightward reveal; this wrapper only handles leftward actions.
+      if (val > 0) val = 0;
       if (!canSwipeLeft && val < 0) val = 0;
 
       if (active) {
+        // Take over any settling spring; offset is seeded from the live position.
+        if (first) x.stop();
         x.set(val);
       } else {
         const swipeThreshold = 120;
         const velocityThreshold = 0.5;
 
-        if (val > swipeThreshold || (vx > velocityThreshold && dx > 0 && val > 0)) {
-          onOpenSidebar?.();
-        } else if (val < -swipeThreshold || (vx > velocityThreshold && dx < 0 && val < 0)) {
-          if (settings.rightSwipeAction === RightSwipeAction.Members) {
+        if (val < -swipeThreshold || (vx > velocityThreshold && dx < 0 && val < 0)) {
+          haptic('light');
+          if (rightSwipeAction === RightSwipeAction.Members) {
             onOpenMembers?.();
           } else {
             onReply?.();
           }
         }
-        x.set(0);
+        animate(x, 0, { type: 'spring', stiffness: 400, damping: 40 });
       }
     },
     {
@@ -64,10 +65,13 @@ export function SwipeableChatWrapper({
       bounds: { left: -200, right: 200 },
       rubberband: true,
       filterTaps: true,
+      pointer: { capture: false },
+      eventOptions: { passive: true },
+      from: () => [x.get(), 0],
     }
   );
 
-  if (!settings.mobileGestures || !mobileOrTablet()) {
+  if (!mobileGestures || !mobileOrTablet()) {
     return (
       <div
         style={{
@@ -98,11 +102,12 @@ export function SwipeableChatWrapper({
     >
       <motion.div
         style={{
-          x: springX,
+          x,
           display: 'flex',
           flexDirection: 'column',
           flexGrow: 1,
           height: '100%',
+          willChange: 'transform',
         }}
       >
         {children}

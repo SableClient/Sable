@@ -49,8 +49,6 @@ import { useMessageSpacingItems } from '$hooks/useMessageSpacing';
 import { useDateFormatItems } from '$hooks/useDateFormat';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { sessionsAtom, activeSessionIdAtom } from '$state/sessions';
-import { useClientConfig } from '$hooks/useClientConfig';
-import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
@@ -483,7 +481,7 @@ function LanguageChange() {
   );
 }
 
-function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
+function Editor() {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [editorToolbar, setEditorToolbar] = useSetting(settingsAtom, 'editorToolbar');
   const [editorOldAddFile, setEditorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
@@ -500,20 +498,16 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">{t('Editor.editor')}</Text>
-      {!isMobile && (
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
             title={t('Editor.enter_for_newline_title')}
-            focusId="enter-for-newline"
+          focusId="enter-for-newline"
             description={t('Editor.enter_for_newline_description', {
               keycombo: isMacOS() ? KeySymbol.Command : 'Ctrl',
             })}
-            after={
-              <Switch variant="Primary" value={enterForNewline} onChange={setEnterForNewline} />
-            }
-          />
-        </SequenceCard>
-      )}
+          after={<Switch variant="Primary" value={enterForNewline} onChange={setEnterForNewline} />}
+        />
+      </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title={t('Editor.composer_formatting_toolbar_title')}
@@ -1462,96 +1456,29 @@ function Embeds() {
   );
 }
 
-export function Sync() {
-  const { t } = useTranslation(['settings/general']);
-  const clientConfig = useClientConfig();
-  const sessions = useAtomValue(sessionsAtom);
-  const activeSessionId = useAtomValue(activeSessionIdAtom);
-  const setSessions = useSetAtom(sessionsAtom);
-  const activeSession = sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
-
-  const serverSlidingEnabled = resolveSlidingEnabled(clientConfig.slidingSync?.enabled);
-  const useSlidingSync = activeSession?.slidingSyncOptIn === true;
-
-  const handleSetSlidingSync = (value: boolean) => {
-    if (!activeSession) return;
-    setSessions({
-      type: 'PUT',
-      session: {
-        ...activeSession,
-        slidingSyncOptIn: value,
-      },
-    });
-    window.location.reload();
-  };
-
-  return (
-    <Box direction="Column" gap="100">
-      <Text size="L400" style={{ opacity: serverSlidingEnabled ? 1 : 0.5 }}>
-        {t('Sync.sync')}
-      </Text>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        style={{ opacity: serverSlidingEnabled ? 1 : 0.5 }}
-      >
-        <SettingTile
-          title={t('Sync.use_sliding_sync_title')}
-          focusId="use-sliding-sync"
-          description={
-            serverSlidingEnabled ? (
-              <>
-                {t('Sync.use_sliding_sync_enable')}
-                <a
-                  href="https://github.com/matrix-org/matrix-spec-proposals/blob/erikj/sss/proposals/4186-simplified-sliding-sync.md"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {t('Sync.use_sliding_sync_documentation')}
-                </a>
-                <a
-                  href="https://github.com/SableClient/Sable/issues/39"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {t('Sync.use_sliding_sync_issues')}
-                </a>
-              </>
-            ) : (
-              <>
-                {t('Sync.use_sliding_sync_disable')}
-
-                <a
-                  href="https://github.com/matrix-org/matrix-spec-proposals/blob/erikj/sss/proposals/4186-simplified-sliding-sync.md"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {t('Sync.use_sliding_sync_documentation')}
-                </a>
-              </>
-            )
-          }
-          after={
-            <Switch
-              variant="Primary"
-              value={useSlidingSync}
-              onChange={handleSetSlidingSync}
-              disabled={!serverSlidingEnabled}
-            />
-          }
-        />
-      </SequenceCard>
-    </Box>
-  );
-}
-
 type GeneralProps = {
   requestBack?: () => void;
   requestClose: () => void;
 };
 
-function SettingsSyncSection() {
+function Sync() {
+  const sessions = useAtomValue(sessionsAtom);
+  const activeSessionId = useAtomValue(activeSessionIdAtom);
+  const setSessions = useSetAtom(sessionsAtom);
+  const activeSession = sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
+
+  const useSlidingSync = activeSession?.slidingSyncOptIn === true;
+
+  const handleSetSlidingSync = (value: boolean) => {
+    if (!activeSession) return;
+    setSessions({
+      type: 'UPDATE',
+      userId: activeSession.userId,
+      patch: { slidingSyncOptIn: value },
+    });
+    window.location.reload();
+  };
+
   const [syncEnabled, setSyncEnabled] = useSetting(settingsAtom, 'settingsSyncEnabled');
   const lastSynced = useAtomValue(settingsSyncLastSyncedAtom);
   const syncStatus = useAtomValue(settingsSyncStatusAtom);
@@ -1584,6 +1511,24 @@ function SettingsSyncSection() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">{t('SettingsSync.settings_sync')}</Text>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title={t('Sync.use_sliding_sync_title')}
+          focusId="use-sliding-sync"
+          description={
+                t('Sync.use_sliding_sync_description')
+          }
+          
+          after={
+            <Switch variant="Primary" value={useSlidingSync} onChange={handleSetSlidingSync} />
+          }
+        />
+      </SequenceCard>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -1750,11 +1695,11 @@ export function General({ requestBack, requestClose }: Readonly<GeneralProps>) {
               <DateAndTime />
               <LanguageChange />
               <Gestures isMobile={mobileOrTablet()} />
-              <Editor isMobile={mobileOrTablet()} />
+              <Editor />
               <Messages />
               <Embeds />
               <Calls />
-              <SettingsSyncSection />
+              <Sync />
               <DiagnosticsAndPrivacy />
             </Box>
           </PageContent>

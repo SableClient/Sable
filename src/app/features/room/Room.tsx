@@ -7,7 +7,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { PowerLevelsContextProvider, usePowerLevels } from '$hooks/usePowerLevels';
-import { useRoom } from '$hooks/useRoom';
+import { useRoom, useDisplayedEventId } from '$hooks/useRoom';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { markAsRead } from '$utils/notifications';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -30,7 +30,9 @@ import { ThreadBrowser } from './ThreadBrowser';
 const debugLog = createDebugLogger('Room');
 
 export function Room() {
-  const { eventId } = useParams();
+  const displayedEventId = useDisplayedEventId();
+  const { eventId: paramEventId } = useParams();
+  const eventId = displayedEventId ?? paramEventId;
   const room = useRoom();
   const mx = useMatrixClient();
 
@@ -62,7 +64,7 @@ export function Room() {
     });
   }, [isWidgetDrawerOpen, room.roomId]);
   const powerLevels = usePowerLevels(room);
-  const members = useRoomMembers(mx, room.roomId);
+  const members = useRoomMembers(mx, room.roomId, screenSize === ScreenSize.Desktop && isDrawer);
   const chat = useAtomValue(callChatAtom);
   const [openThreadId, setOpenThread] = useAtom(roomIdToOpenThreadAtomFamily(room.roomId));
   const [threadBrowserOpen, setThreadBrowserOpen] = useAtom(

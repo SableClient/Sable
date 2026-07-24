@@ -2,8 +2,8 @@ import type { FormEventHandler } from 'react';
 import { useCallback, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
 import { Box, Button, Chip, IconButton, Input, Scroll, Spinner, Text, config } from 'folds';
-import { composerIcon, menuIcon, Trash, X } from '$components/icons/phosphor';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { menuIcon, Trash } from '$components/icons/phosphor';
+import { PageContent, SettingsSectionPage } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
@@ -24,11 +24,12 @@ import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { CustomStateEvent } from '$types/matrix/room';
 
 type AbbreviationsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
   isSpace?: boolean;
 };
 
-export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps) {
+export function RoomAbbreviations({ requestBack, requestClose, isSpace }: AbbreviationsProps) {
   const room = useRoom();
   const mx = useMatrixClient();
   const powerLevels = usePowerLevels(room);
@@ -133,21 +134,11 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
   };
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Abbreviations
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              {composerIcon(X)}
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage
+      title="Abbreviations"
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -324,6 +315,6 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

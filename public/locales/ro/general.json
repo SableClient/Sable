@@ -17,14 +17,14 @@
   "save": "Salvează",
   "cancel": "Anulează",
   "upload": "Încarcă",
-  "upload_area": "Zonă încărcare",
   "display_name": "Nume Afișat",
-  "pronouns": "Pronume",
   "edit": "Editează",
   "result_one": " rezultat",
   "result_other": " rezultate",
   "jump": "Sari",
   "import": "Importă",
+  "search": "Caută",
+  "add": "Adaugă",
   "Organisms": {
     "RoomCommon": {
       "changed_room_name": " a schimbat numele camerei"

@@ -1,4 +1,5 @@
 import classNames from 'classnames';
+import { useEffect, useState } from 'react';
 import { Avatar, Box, Header, IconButton, MenuItem, Scroll, Text, as, config } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
@@ -11,6 +12,8 @@ import { useSpaceOptionally } from '$hooks/useSpace';
 import { getMouseEventCords } from '$utils/dom';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
+import { profilesCacheAtom } from '$state/userRoomProfile';
+import { hydrateRoomMembers } from '$client/roomMemberHydration';
 import { UserAvatar } from '$components/user-avatar';
 import { composerIcon, userFallbackIcon, X } from '$components/icons/phosphor';
 import * as css from './EventReaders.css';
@@ -28,8 +31,29 @@ export const EventReaders = as<'div', EventReadersProps>(
     const openProfile = useOpenUserRoomProfile();
     const space = useSpaceOptionally();
     const nicknames = useAtomValue(nicknamesAtom);
+    const cachedProfiles = useAtomValue(profilesCacheAtom);
+    const [, forceUpdate] = useState(0);
+
+    useEffect(() => {
+      let disposed = false;
+      const unknownUserIds = latestEventReaders.filter(
+        (readerId) => readerId && !room.getMember(readerId)
+      );
+      if (unknownUserIds.length > 0) {
+        hydrateRoomMembers(mx, room.roomId, unknownUserIds).then(() => {
+          if (!disposed) forceUpdate((n) => n + 1);
+        });
+      }
+      return () => {
+        disposed = true;
+      };
+    }, [mx, room, latestEventReaders]);
+
     const getName = (userId: string) =>
-      getMemberDisplayName(room, userId, nicknames) ?? getMxIdLocalPart(userId) ?? userId;
+      getMemberDisplayName(room, userId, nicknames) ??
+      cachedProfiles[userId]?.displayName ??
+      getMxIdLocalPart(userId) ??
+      userId;
 
     return (
       <Box

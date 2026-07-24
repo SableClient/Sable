@@ -1,8 +1,18 @@
+import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
 import { UAParser } from 'ua-parser-js';
 
 const result = new UAParser(window.navigator.userAgent).getResult();
 
 const isMobileOrTablet = (() => {
+  if (isTauri()) {
+    try {
+      const tauriOs = osType();
+      if (tauriOs === 'android' || tauriOs === 'ios') return true;
+    } catch {
+      // Fallback to UA parsing if plugin-os is not ready/available
+    }
+  }
   const { os, device } = result;
   if (device.type === 'mobile' || device.type === 'tablet') return true;
   if (os.name === 'Android' || os.name === 'iOS') return true;

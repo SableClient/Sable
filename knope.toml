@@ -1,7 +1,19 @@
 [package]
-versioned_files = ["package.json"]
+versioned_files = ["package.json", "src-tauri/tauri.conf.json"]
 changelog = "CHANGELOG.md"
 extra_changelog_sections = [
+  { name = "Security", types = [
+    "security",
+  ] },
+  { name = "Breaking Changes", types = [
+    "major",
+  ] },
+  { name = "Features", types = [
+    "minor",
+  ] },
+  { name = "Fixes", types = [
+    "patch",
+  ] },
   { name = "Documentation", types = [
     "docs",
   ] },

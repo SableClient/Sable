@@ -3,22 +3,38 @@ import { Box, Header, Line, Scroll, Text, as } from 'folds';
 import classNames from 'classnames';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { MobileNavDrawer } from './MobileNavDrawer';
 import * as css from './style.css';
 
 type PageRootProps = {
   nav: ReactNode;
+  rail?: ReactNode;
+  bottomNav?: ReactNode;
   children: ReactNode;
+  mobileDrawer?: boolean;
 };
 
-export function PageRoot({ nav, children }: PageRootProps) {
+export function PageRoot({ nav, rail, bottomNav, children, mobileDrawer = true }: PageRootProps) {
   const screenSize = useScreenSizeContext();
+  const [mobileGestures] = useSetting(settingsAtom, 'mobileGestures');
+  const isMobile = screenSize === ScreenSize.Mobile;
+
+  if (isMobile && mobileGestures && mobileDrawer) {
+    return (
+      <Box grow="Yes" className={ContainerColor({ variant: 'Background' })}>
+        <MobileNavDrawer nav={nav} rail={rail} bottomNav={bottomNav}>
+          {children}
+        </MobileNavDrawer>
+      </Box>
+    );
+  }
 
   return (
     <Box grow="Yes" className={ContainerColor({ variant: 'Background' })}>
       {nav}
-      {screenSize !== ScreenSize.Mobile && (
-        <Line variant="Background" size="300" direction="Vertical" />
-      )}
+      {!isMobile && <Line variant="Background" size="300" direction="Vertical" />}
       {children}
     </Box>
   );
@@ -73,6 +89,7 @@ export function PageNavContent({
         size="300"
         hideTrack
         visibility="Hover"
+        style={{ touchAction: 'pan-y' }}
       >
         <div className={css.PageNavContent}>{children}</div>
       </Scroll>

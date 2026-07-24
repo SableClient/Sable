@@ -390,7 +390,7 @@ export function UploadCardRenderer({
 
   const [isDescribed, setIsDescribed] = useState(false);
 
-  if (upload.status === UploadStatus.Idle && !fileSizeExceeded) {
+  if (upload.status === UploadStatus.Idle && !fileSizeExceeded && !fileItem.encrypting) {
     startUpload();
   }
 
@@ -560,7 +560,7 @@ export function UploadCardRenderer({
         </>
       }
     >
-      <Text size="H6" truncate>
+      <Text size="H6" truncate style={{ minWidth: 0, flexGrow: 1 }}>
         {file.name}
       </Text>
       {upload.status === UploadStatus.Success &&

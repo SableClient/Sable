@@ -2,7 +2,7 @@ import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Box, Button, color, Spinner, Text, toRem } from 'folds';
 import { ArrowRight, CaretDown, CaretUp, File, menuIcon, X } from '$components/icons/phosphor';
-import FileSaver from 'file-saver';
+import { saveFileToDevice } from '$utils/download';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { PasswordInput } from '$components/password-input';
@@ -44,7 +44,7 @@ function ExportKeys() {
         const blob = new Blob([encKeys], {
           type: 'text/plain;charset=us-ascii',
         });
-        FileSaver.saveAs(blob, 'cinny-keys.txt');
+        await saveFileToDevice(blob, 'cinny-keys.txt');
       },
       [mx]
     )

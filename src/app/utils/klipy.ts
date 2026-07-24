@@ -23,3 +23,10 @@ export function getKlipyMxcUrl(url: string, proxyUrl?: string): string {
   }
   return url;
 }
+
+export function getSendableKlipyMxcUrl(url: string, proxyUrl?: string): string | undefined {
+  if (url.startsWith('mxc://')) return url;
+  if (!proxyUrl?.trim()) return undefined;
+  const mxcUrl = getKlipyMxcUrl(url, proxyUrl);
+  return mxcUrl.startsWith('mxc://') ? mxcUrl : undefined;
+}

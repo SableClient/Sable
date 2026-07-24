@@ -25,6 +25,7 @@ export const RoomViewFollowing = recipe({
     clickable: {
       true: {
         cursor: 'pointer',
+        transition: 'opacity 0.1s ease-in-out',
         selectors: {
           '&:hover, &:focus-visible': {
             color: color.Primary.Main,
@@ -32,6 +33,7 @@ export const RoomViewFollowing = recipe({
           },
           '&:active': {
             color: color.Primary.Main,
+            opacity: 0.6,
           },
         },
       },

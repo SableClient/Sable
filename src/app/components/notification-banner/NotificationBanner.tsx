@@ -1,11 +1,13 @@
 import { useAtom } from 'jotai';
-import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, IconButton, Text } from 'folds';
 import { sizedIcon, X } from '$components/icons/phosphor';
 import { createLogger } from '$utils/debug';
 import type { InAppBannerNotification } from '$state/sessions';
 import { inAppBannerAtom } from '$state/sessions';
+import { MessagePreview, useRoomMessagePreviewRenderer } from '$components/message-preview';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import * as css from './NotificationBanner.css';
 
 const log = createLogger('NotificationBanner');
@@ -31,30 +33,35 @@ function BodyText({ text, hovered }: { text: string; hovered: boolean }) {
   );
 }
 
-// Same as BodyText but renders a pre-built ReactNode (rich HTML with mxc/mention transforms).
-function BodyNode({ node, hovered }: { node: ReactNode; hovered: boolean }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [overflow, setOverflow] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    setOverflow(el.scrollHeight > el.clientHeight);
-  }, [node]);
-
-  return (
-    <div ref={ref} className={css.BannerBody} data-overflow={overflow} data-hovered={hovered}>
-      <Text size="T200" priority="300">
-        {node}
-      </Text>
-    </div>
-  );
-}
-
 type BannerItemProps = {
   notification: InAppBannerNotification;
   onDismiss: (id: string) => void;
 };
+
+function BannerMessage({ notification }: { notification: InAppBannerNotification }) {
+  const room = notification.room!;
+  const event = notification.event!;
+  const renderContent = useRoomMessagePreviewRenderer(room);
+  const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
+  const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
+
+  return (
+    <MessagePreview
+      room={room}
+      event={event}
+      renderContent={renderContent}
+      actions={
+        notification.roomName && (
+          <Text size="T200" priority="300" truncate>
+            #{notification.roomName}
+          </Text>
+        )
+      }
+      hour24Clock={hour24Clock}
+      dateFormatString={dateFormatString}
+    />
+  );
+}
 
 function BannerItem({ notification, onDismiss }: BannerItemProps) {
   const [dismissing, setDismissing] = useState(false);
@@ -118,7 +125,7 @@ function BannerItem({ notification, onDismiss }: BannerItemProps) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {notification.icon && (
+      {!notification.event && notification.icon && (
         <img
           src={notification.icon}
           alt=""
@@ -129,21 +136,23 @@ function BannerItem({ notification, onDismiss }: BannerItemProps) {
         />
       )}
       <div className={css.BannerContent}>
-        <Text size="T300" truncate className={css.BannerTitle}>
-          {notification.senderName ?? notification.title}
-          {(notification.roomName || notification.serverName) && (
-            <span className={css.BannerSubtitle}>
-              {' ('}
-              {notification.roomName && `#${notification.roomName}`}
-              {notification.roomName && notification.serverName && ', '}
-              {notification.serverName})
-            </span>
-          )}
-        </Text>
-        {notification.bodyNode ? (
-          <BodyNode node={notification.bodyNode} hovered={paused} />
+        {notification.room && notification.event ? (
+          <BannerMessage notification={notification} />
         ) : (
-          notification.body && <BodyText text={notification.body} hovered={paused} />
+          <>
+            <Text size="T300" truncate className={css.BannerTitle}>
+              {notification.senderName ?? notification.title}
+              {(notification.roomName || notification.serverName) && (
+                <span className={css.BannerSubtitle}>
+                  {' ('}
+                  {notification.roomName && `#${notification.roomName}`}
+                  {notification.roomName && notification.serverName && ', '}
+                  {notification.serverName})
+                </span>
+              )}
+            </Text>
+            {notification.body && <BodyText text={notification.body} hovered={paused} />}
+          </>
         )}
       </div>
       <Box shrink="No">

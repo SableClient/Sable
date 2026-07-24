@@ -7,6 +7,7 @@ import { Text, Box, color } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import { getNavigatePath } from '$pages/pathUtils';
 import { useNavigateSelected } from '$hooks/router/useNavigateSelected';
+import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 
 export function NavigateTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
   const [opened, setOpen] = useAtom(searchModalAtom);
@@ -17,6 +18,7 @@ export function NavigateTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
     if (isMobile) navigate(getNavigatePath());
     else setOpen(true);
   };
+  const mobileTapActivation = useMobileTapActivation(isMobile ?? false, open);
 
   return (
     <SidebarItem active={opened && !isMobile} isBottom={isBottom}>
@@ -28,6 +30,7 @@ export function NavigateTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
               ref={triggerRef}
               outlined={!isMobile}
               onClick={open}
+              {...mobileTapActivation}
               size={'400'}
             >
               <ListMagnifyingGlassIcon

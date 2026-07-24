@@ -32,6 +32,7 @@ import {
   removeRoomIdFromMDirect,
 } from '$utils/matrix';
 import { getStateEvent } from '$utils/room';
+import { setOwnRoomMemberProfile } from '$utils/roomMemberProfile';
 import { splitWithSpace } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -265,6 +266,7 @@ export enum Command {
   Pronoun = 'pronoun',
   SPronoun = 'spronoun',
   Rainbow = 'rainbow',
+  RainbowMe = 'rainbowme',
   RawMsg = 'rawmsg',
   Raw = 'raw',
   RawAcc = 'rawacc',
@@ -507,12 +509,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           } else {
             withDisplay.displayname = nick;
           }
-          await mx.sendStateEvent(
-            room.roomId,
-            EventType.RoomMember,
-            updatedContent,
-            mx.getSafeUserId()
-          );
+          await setOwnRoomMemberProfile(mx, room, updatedContent);
         },
       },
       [Command.AddPerMessageProfileToAccount]: {
@@ -676,12 +673,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             (updatedContent as RoomMemberEventContent & { avatar_url?: string }).avatar_url =
               trimmed;
           }
-          await mx.sendStateEvent(
-            room.roomId,
-            EventType.RoomMember,
-            updatedContent,
-            mx.getSafeUserId()
-          );
+          await setOwnRoomMemberProfile(mx, room, updatedContent);
         },
       },
       [Command.ConvertToDm]: {
@@ -1156,6 +1148,21 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const rainbowHtml = rainbowify(inputHtml);
           await mx.sendMessage(room.roomId, {
             msgtype: MsgType.Text,
+            body: payload,
+            format: 'org.matrix.custom.html',
+            formatted_body: rainbowHtml,
+          });
+        },
+      },
+      [Command.RainbowMe]: {
+        name: Command.RainbowMe,
+        description: 'Send a rainbow action message.',
+        exe: async (payload, html) => {
+          if (!payload || payload.trim().length === 0) return;
+          const inputHtml = html || payload;
+          const rainbowHtml = rainbowify(inputHtml);
+          await mx.sendMessage(room.roomId, {
+            msgtype: MsgType.Emote,
             body: payload,
             format: 'org.matrix.custom.html',
             formatted_body: rainbowHtml,

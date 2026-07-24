@@ -1,18 +1,7 @@
 import { useState, type MouseEventHandler } from 'react';
-import {
-  Box,
-  Text,
-  IconButton,
-  Scroll,
-  Button,
-  config,
-  Menu,
-  MenuItem,
-  PopOut,
-  type RectCords,
-} from 'folds';
-import { CaretDown, composerIcon, X } from '$components/icons/phosphor';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Text, Scroll, Button, config, Menu, MenuItem, PopOut, type RectCords } from 'folds';
+import { CaretDown, composerIcon } from '$components/icons/phosphor';
+import { PageContent, SettingsSectionPage } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
@@ -98,27 +87,14 @@ export function SelectShowPerRoomRoomIcon({ roomId }: { roomId: string }) {
 }
 
 type AppearanceProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Appearance({ requestClose }: AppearanceProps) {
+export function Appearance({ requestBack, requestClose }: AppearanceProps) {
   const room = useRoom();
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Appearance
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              {composerIcon(X)}
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Appearance" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -141,6 +117,6 @@ export function Appearance({ requestClose }: AppearanceProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

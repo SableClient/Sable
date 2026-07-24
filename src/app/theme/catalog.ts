@@ -1,4 +1,5 @@
 import { parseGithubRawBaseUrl, rawFileUrl, type GithubRawParts } from './githubRaw';
+import { fetch } from '$utils/fetch';
 
 export type GithubContentItem = {
   name: string;

@@ -14,7 +14,6 @@ import {
   as,
 } from 'folds';
 import { ArrowRight, Download, sizedIcon, Warning } from '$components/icons/phosphor';
-import FileSaver from 'file-saver';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FocusTrap from 'focus-trap-react';
 import type { IFileInfo } from '$types/matrix/common';
@@ -30,7 +29,9 @@ import {
 import { stopPropagation } from '$utils/keyboard';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRevokeObjectURL } from '$hooks/useObjectURL';
 import { ModalWide } from '$styles/Modal.css';
+import { getDownloadFilename, saveFileToDevice } from '$utils/download';
 
 const renderErrorButton = (retry: () => void, text: string) => (
   <TooltipProvider
@@ -182,6 +183,8 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
     }, [mx, url, useAuthentication, mimeType, encInfo])
   );
 
+  useRevokeObjectURL(pdfState.status === AsyncStatus.Success ? pdfState.data : undefined);
+
   return (
     <>
       {pdfState.status === AsyncStatus.Success && (
@@ -257,10 +260,12 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
         : await downloadMedia(mediaUrl);
 
       const fileURL = URL.createObjectURL(fileContent);
-      FileSaver.saveAs(fileURL, body);
+      await saveFileToDevice(fileContent, getDownloadFilename(body), mimeType);
       return fileURL;
     }, [mx, url, useAuthentication, mimeType, encInfo, body])
   );
+
+  useRevokeObjectURL(downloadState.status === AsyncStatus.Success ? downloadState.data : undefined);
 
   return downloadState.status === AsyncStatus.Error ? (
     renderErrorButton(download, `Retry Download (${bytesToSize(info.size ?? 0)})`)
@@ -272,7 +277,7 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
       size="400"
       onClick={() =>
         downloadState.status === AsyncStatus.Success
-          ? FileSaver.saveAs(downloadState.data, body)
+          ? void saveFileToDevice(downloadState.data, getDownloadFilename(body), mimeType)
           : download()
       }
       disabled={downloadState.status === AsyncStatus.Loading}

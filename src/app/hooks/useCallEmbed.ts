@@ -175,8 +175,26 @@ export const useCallEmbedPlacementSync = (containerViewRef: RefObject<HTMLDivEle
   );
 
   useEffect(() => {
-    syncCallEmbedPlacement();
-    window.addEventListener('scroll', syncCallEmbedPlacement, true);
-    return () => window.removeEventListener('scroll', syncCallEmbedPlacement, true);
-  }, [syncCallEmbedPlacement]);
+    let raf = 0;
+    let last = '';
+    const tick = () => {
+      const embedEl = callEmbedRef.current;
+      const container = containerViewRef.current;
+      if (embedEl && container) {
+        const rect = container.getBoundingClientRect();
+        const key = `${rect.top}|${rect.left}|${rect.width}|${rect.height}`;
+        if (key !== last) {
+          last = key;
+          embedEl.style.position = 'fixed';
+          embedEl.style.top = `${rect.top}px`;
+          embedEl.style.left = `${rect.left}px`;
+          embedEl.style.width = `${rect.width}px`;
+          embedEl.style.height = `${rect.height}px`;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [callEmbedRef, containerViewRef]);
 };

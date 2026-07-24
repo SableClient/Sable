@@ -4,6 +4,7 @@ import { Input } from 'folds';
 import { SettingTile } from '$components/setting-tile';
 import type { PronounSet } from '$utils/pronouns';
 import { parsePronounsInput } from '$utils/pronouns';
+import { useTranslation } from 'react-i18next';
 
 type PronounEditorProps = {
   title: string;
@@ -13,6 +14,7 @@ type PronounEditorProps = {
 };
 
 export function PronounEditor({ title, current, onSave, disabled }: PronounEditorProps) {
+      const { t } = useTranslation(['settings/persona']);
   const initialString = Array.isArray(current)
     ? current.map((p) => `${p.language ? `${p.language}:` : ''}${p.summary}`).join(', ')
     : '';
@@ -37,7 +39,7 @@ export function PronounEditor({ title, current, onSave, disabled }: PronounEdito
       focusId="pronouns"
       // let people specify multiple sets of pronouns for different languages
       // the input is a comma separated list of pronoun sets, each set can have an optional language tag (e.g. "en:they/them, de:sie/ihr")
-      description="Separate sets with commas (e.g. 'en:they/them, en:it/its, de:sie/ihr')."
+      description={t('pronouns_placeholder')}
       after={
         <Input
           value={val}
@@ -45,7 +47,7 @@ export function PronounEditor({ title, current, onSave, disabled }: PronounEdito
           radii="300"
           disabled={disabled ?? false}
           variant="Secondary"
-          placeholder="Add pronouns..."
+          placeholder={t('pronouns_input')}
           onChange={handleChange}
           onBlur={handleSave}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}

@@ -253,7 +253,7 @@ export function GifItem({
               >
                 {menuIcon(Star, {
                   weight: favorited ? 'fill' : 'regular',
-                  color: favorited ? color.Warning.MainHover : color.Surface.OnContainer,
+                  color: favorited ? color.Warning.MainHover : color.Secondary.OnContainer,
                 })}
               </MenuItem>
               <MenuItem

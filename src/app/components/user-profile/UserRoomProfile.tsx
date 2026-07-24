@@ -59,6 +59,7 @@ import { PowerChip } from './PowerChip';
 import { IgnoredUserAlert, MutualRoomsChip, OptionsChip, ServerChip, ShareChip } from './UserChips';
 import { UserHero, UserHeroName } from './UserHero';
 import { KnownMembership } from '$types/matrix-sdk';
+import { useRoomMemberHydration } from '$hooks/useRoomMemberHydration';
 import * as css from './styles.css';
 import * as prefix from '$unstable/prefixes';
 
@@ -113,9 +114,10 @@ function UserExtendedSection({
 
   const catStatusText = useMemo(() => {
     if (!renderAnimals) return null;
-    if (isAnimal && hasAnimal) return `${isAnimal} with ${hasAnimal}, give ${animalNeed}!`;
-    if (isAnimal) return `Is ${isAnimal}, give ${animalNeed}!`;
-    if (hasAnimal) return `Has ${hasAnimal}, give ${animalNeed}!`;
+    const animalGive = animalNeed ? `, give ${animalNeed}!` : '!';
+    if (isAnimal && hasAnimal) return `${isAnimal} with ${hasAnimal}${animalGive}`;
+    if (isAnimal) return `Is ${isAnimal}${animalGive}`;
+    if (hasAnimal) return `Has ${hasAnimal}${animalGive}`;
     return null;
   }, [renderAnimals, isAnimal, hasAnimal, animalNeed]);
 
@@ -436,9 +438,6 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const server = getMxIdServer(userId);
   const nicknames = useAtomValue(nicknamesAtom);
   const displayName = getMemberDisplayName(room, userId, nicknames);
-  const avatarMxc = getMemberAvatarMxc(room, userId);
-  const avatarUrl = (avatarMxc && mxcUrlToHttp(mx, avatarMxc, useAuthentication)) ?? undefined;
-
   const presence = useUserPresence(userId);
 
   const fetchedProfile = useUserProfile(userId, room);
@@ -446,6 +445,11 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     fetchedProfile && Object.keys(fetchedProfile).length > 0
       ? fetchedProfile
       : (initialProfile as UserProfile) || fetchedProfile;
+
+  useRoomMemberHydration(room, userId);
+
+  const avatarMxc = getMemberAvatarMxc(room, userId) ?? extendedProfile.avatarUrl;
+  const avatarUrl = (avatarMxc && mxcUrlToHttp(mx, avatarMxc, useAuthentication)) ?? undefined;
 
   const parsedBanner =
     typeof extendedProfile.bannerUrl === 'string'

@@ -1,7 +1,13 @@
 import { atom, type WritableAtom } from 'jotai';
 import type { Store } from 'jotai/vanilla/store';
 import { mobileOrTablet } from '$utils/user-agent';
+import type {
+  NotificationTransportMode,
+  NotificationTransportProvider,
+  PushTransportOverrides,
+} from '$features/settings/notifications/NotificationTransport';
 import type { IImageInfo } from '$types/matrix/common';
+import { sanitizeShortcutOverrides, type ShortcutOverrides } from '../keyboard/shortcuts';
 
 const STORAGE_KEY = 'settings';
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
@@ -67,6 +73,7 @@ export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
 
 /** Where to use crisp nearest-neighbor (pixelated) image scaling. */
 export type PixelatedImageRenderingMode = 'always' | 'smart' | 'never';
+export type ProfileChangePropagation = 'all' | 'unchanged' | 'none';
 
 export function isPixelatedRendering(
   mode: PixelatedImageRenderingMode,
@@ -88,6 +95,7 @@ export function shouldApplyUserHeroCards(
 }
 
 export interface Settings {
+  shortcutOverrides: ShortcutOverrides;
   themeId?: string;
   useSystemTheme: boolean;
   lightThemeId?: string;
@@ -136,6 +144,7 @@ export interface Settings {
   showEncInteractiveMap: boolean;
 
   usePushNotifications: boolean;
+  useUnifiedPush: boolean;
   useInAppNotifications: boolean;
   useSystemNotifications: boolean;
   isNotificationSounds: boolean;
@@ -143,6 +152,10 @@ export interface Settings {
   showMessageContentInNotifications: boolean;
   showMessageContentInEncryptedNotifications: boolean;
   clearNotificationsOnRead: boolean;
+  backgroundPushEnabled: boolean;
+  backgroundPushProvider: NotificationTransportProvider | null;
+  pushTransportMode: NotificationTransportMode;
+  pushTransportOverride: PushTransportOverrides;
 
   hour24Clock: boolean;
   dateFormatString: string;
@@ -211,7 +224,9 @@ export interface Settings {
   highlightMentions: boolean;
   pkCompat: boolean;
   pmpProxying: boolean;
+  pmpPicker: boolean;
   mentionInReplies: boolean;
+  profileChangePropagation: ProfileChangePropagation;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
   perRoomShowRoomIcon: PerRoomShowRoomIcon[];
@@ -251,6 +266,7 @@ export interface Settings {
 }
 
 export const defaultSettings: Settings = {
+  shortcutOverrides: {},
   themeId: undefined,
   useSystemTheme: true,
   lightThemeId: undefined,
@@ -268,7 +284,7 @@ export const defaultSettings: Settings = {
   isPeopleDrawer: true,
   isWidgetDrawer: false,
   memberSortFilterIndex: 0,
-  enterForNewline: false,
+  enterForNewline: mobileOrTablet(),
   editorToolbar: false,
   editorOldAddFile: false,
   composerToolbarOpen: false,
@@ -304,6 +320,7 @@ export const defaultSettings: Settings = {
   // In-app pill banner: default on for mobile (primary foreground alert), opt-in on desktop.
   // System (OS) notifications: desktop-only; hidden and disabled on mobile.
   usePushNotifications: mobileOrTablet(),
+  useUnifiedPush: false,
   useInAppNotifications: mobileOrTablet(),
   useSystemNotifications: !mobileOrTablet(),
   isNotificationSounds: true,
@@ -311,6 +328,10 @@ export const defaultSettings: Settings = {
   showMessageContentInNotifications: false,
   showMessageContentInEncryptedNotifications: false,
   clearNotificationsOnRead: false,
+  backgroundPushEnabled: mobileOrTablet(),
+  backgroundPushProvider: null,
+  pushTransportMode: 'auto',
+  pushTransportOverride: {},
 
   hour24Clock: false,
   dateFormatString: 'D MMM YYYY',
@@ -329,7 +350,7 @@ export const defaultSettings: Settings = {
   privacyBlurEmotes: false,
   showPronouns: true,
   parsePronouns: true,
-  pronounPillMaxCount: 3,
+  pronounPillMaxCount: mobileOrTablet() ? 1 : 3,
   pronounPillMaxLength: 16,
   renderGlobalNameColors: true,
   renderUserCards: 'both',
@@ -375,7 +396,9 @@ export const defaultSettings: Settings = {
   highlightMentions: true,
   pkCompat: false,
   pmpProxying: false,
+  pmpPicker: false,
   mentionInReplies: true,
+  profileChangePropagation: 'unchanged',
   showPersonaSetting: false,
   closeFoldersByDefault: false,
   perRoomShowRoomIcon: [],
@@ -416,6 +439,7 @@ export const defaultSettings: Settings = {
 function cloneDefaultSettings(): Settings {
   return {
     ...defaultSettings,
+    shortcutOverrides: { ...defaultSettings.shortcutOverrides },
     themeRemoteFavorites: defaultSettings.themeRemoteFavorites.map((x) => ({
       ...x,
     })),
@@ -431,6 +455,10 @@ const isCallToneId = (value: unknown): value is CallRingtoneId => CALL_TONE_ID_S
 const clampPercent = (value: number): number => Math.max(0, Math.min(100, Math.round(value)));
 
 function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
+  const shortcutOverrides = sanitizeShortcutOverrides(parsed.shortcutOverrides);
+  if (shortcutOverrides) parsed.shortcutOverrides = shortcutOverrides;
+  else delete parsed.shortcutOverrides;
+
   if (parsed.monochromeMode === true && parsed.saturationLevel === undefined) {
     parsed.saturationLevel = 0;
   } else if (parsed.monochromeMode === false && parsed.saturationLevel === undefined) {
@@ -592,6 +620,8 @@ function isSanitizableSettingsKey(k: string): k is keyof Settings {
 
 function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
   switch (key) {
+    case 'shortcutOverrides':
+      return sanitizeShortcutOverrides(val);
     case 'filterPronounsBasedOnLanguage':
       return typeof val === 'boolean' ? val : undefined;
     case 'filterPronounsLanguages':
@@ -625,6 +655,8 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         : undefined;
     case 'pixelatedImageRendering':
       return val === 'always' || val === 'smart' || val === 'never' ? val : undefined;
+    case 'profileChangePropagation':
+      return val === 'all' || val === 'unchanged' || val === 'none' ? val : undefined;
     case 'iconCompactSizePx':
     case 'iconInlineSizePx':
     case 'iconToolbarSizePx':

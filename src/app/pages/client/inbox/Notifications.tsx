@@ -1,4 +1,4 @@
-import type { MouseEventHandler, ComponentProps } from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, Box, Chip, Header, IconButton, Scroll, Text, config, toRem } from 'folds';
 import {
@@ -11,94 +11,33 @@ import {
   sizedIcon,
 } from '$components/icons/phosphor';
 import { useSearchParams } from 'react-router-dom';
-import type {
-  INotification,
-  INotificationsResponse,
-  IRoomEvent,
-  MatrixEvent,
-  Room,
-} from '$types/matrix-sdk';
-import type { IImageContent } from '$types/matrix/common';
-import { JoinRule, Method, RelationType, EventType } from '$types/matrix-sdk';
+import type { INotification, INotificationsResponse, Room } from '$types/matrix-sdk';
+import { EventType, JoinRule, MatrixEvent, Method } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { HTMLReactParserOptions } from 'html-react-parser';
-import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useAtomValue } from 'jotai';
-import { nicknamesAtom } from '$state/nicknames';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import type { InboxNotificationsPathSearchParams } from '$pages/paths';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCard } from '$components/sequence-card';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
-import {
-  getEditedEvent,
-  getMemberAvatarMxc,
-  getMemberDisplayName,
-  getRoomAvatarUrl,
-} from '$utils/room';
+import { getRoomAvatarUrl } from '$utils/room';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { useInterval } from '$hooks/useInterval';
-import {
-  AvatarBase,
-  ImageContent,
-  MSticker,
-  MessageNotDecryptedContent,
-  MessageUnsupportedContent,
-  ModernLayout,
-  RedactedContent,
-  Reply,
-  Time,
-  Username,
-  UsernameBold,
-  type RenderImageContentProps,
-} from '$components/message';
-import {
-  factoryRenderLinkifyWithMention,
-  getReactCustomHtmlParser,
-  LINKIFY_OPTS,
-  makeMentionCustomProps,
-  renderMatrixMention,
-} from '$plugins/react-custom-html-parser';
-import { RenderMessageContent } from '$components/RenderMessageContent';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { Image } from '$components/media';
-import { ImageViewer } from '$components/image-viewer';
-import type { GetContentCallback } from '$types/matrix/room';
-
-import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
-import * as customHtmlCss from '$styles/CustomHtml.css';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useRoomUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { markAsRead } from '$utils/notifications';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { VirtualTile } from '$components/virtualizer';
-import { UserAvatar } from '$components/user-avatar';
-import { userFallbackIcon } from '$components/icons/phosphor';
-import { EncryptedContent } from '$features/room/message';
-import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
-import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
+import { MessagePreview, useRoomMessagePreviewRenderer } from '$components/message-preview';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { allRoomsAtom } from '$state/room-list/roomList';
-import { usePowerLevels } from '$hooks/usePowerLevels';
-import { usePowerLevelTags } from '$hooks/usePowerLevelTags';
-import { useTheme } from '$hooks/useTheme';
-import { PowerIcon } from '$components/power';
-import colorMXID from '$utils/colorMXID';
-import { mDirectAtom } from '$state/mDirectList';
-import {
-  getPowerTagIconSrc,
-  useAccessiblePowerTagColors,
-  useGetMemberPowerTag,
-} from '$hooks/useMemberPowerTag';
-import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
-import { useRoomCreators } from '$hooks/useRoomCreators';
 
 type RoomNotificationsGroup = {
   roomId: string;
@@ -203,297 +142,75 @@ const useNotificationTimeline = (
   return [notificationTimeline, loadTimeline, silentReloadTimeline];
 };
 
-type NotificationRendererContext = {
-  mx: ReturnType<typeof useMatrixClient>;
-  room: Room;
-  mediaAutoLoad?: boolean;
-  urlPreview?: boolean;
-  htmlReactParserOptions: HTMLReactParserOptions;
-  linkifyOpts: LinkifyOpts;
-};
-
-function NotificationLazyImage(props: ComponentProps<typeof Image>) {
-  return <Image {...props} loading="lazy" />;
-}
-
-function renderNotificationStickerImageContent(
-  mediaAutoLoad: boolean | undefined,
-  props: RenderImageContentProps
-) {
-  return (
-    <ImageContent
-      {...props}
-      autoPlay={mediaAutoLoad}
-      renderImage={NotificationLazyImage}
-      renderViewer={(p) => <ImageViewer {...p} />}
-    />
-  );
-}
-
-function renderNotificationRoomMessage(
-  ctx: NotificationRendererContext,
-  event: IRoomEvent,
-  displayName: string,
-  getContent: GetContentCallback
-) {
-  if (event.unsigned?.redacted_because) {
-    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-  }
-  const evtTimeline = ctx.room.getTimelineForEvent(event.event_id);
-  const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === event.event_id);
-  return (
-    <RenderMessageContent
-      displayName={displayName}
-      msgType={event.content.msgtype ?? ''}
-      ts={event.origin_server_ts}
-      getContent={getContent}
-      mediaAutoLoad={ctx.mediaAutoLoad}
-      urlPreview={ctx.urlPreview}
-      htmlReactParserOptions={ctx.htmlReactParserOptions}
-      linkifyOpts={ctx.linkifyOpts}
-      outlineAttachment
-      mx={ctx.mx}
-      room={ctx.room}
-      mEvent={mEvent}
-    />
-  );
-}
-
-function renderNotificationEncryptedDecrypted(
-  ctx: NotificationRendererContext,
-  evt: IRoomEvent,
-  displayName: string,
-  mEvent: MatrixEvent,
-  evtTimeline: NonNullable<ReturnType<Room['getTimelineForEvent']>>
-) {
-  if (mEvent.isRedacted()) return <RedactedContent />;
-  if (mEvent.getType() === (EventType.Sticker as string)) {
-    return (
-      <MSticker
-        content={mEvent.getContent()}
-        renderImageContent={renderNotificationStickerImageContent.bind(null, ctx.mediaAutoLoad)}
-      />
-    );
-  }
-  if (mEvent.getType() === (EventType.RoomMessage as string)) {
-    const editedEvent = getEditedEvent(evt.event_id, mEvent, evtTimeline.getTimelineSet());
-    const getContent = (() =>
-      editedEvent?.getContent()['m.new_content'] ?? mEvent.getContent()) as GetContentCallback;
-
-    return (
-      <RenderMessageContent
-        displayName={displayName}
-        msgType={mEvent.getContent().msgtype ?? ''}
-        ts={mEvent.getTs()}
-        edited={!!editedEvent}
-        getContent={getContent}
-        mediaAutoLoad={ctx.mediaAutoLoad}
-        urlPreview={ctx.urlPreview}
-        htmlReactParserOptions={ctx.htmlReactParserOptions}
-        linkifyOpts={ctx.linkifyOpts}
-        mx={ctx.mx}
-        room={ctx.room}
-        mEvent={mEvent}
-      />
-    );
-  }
-  if (mEvent.getType() === (EventType.RoomMessageEncrypted as string)) {
-    return (
-      <Text>
-        <MessageNotDecryptedContent />
-      </Text>
-    );
-  }
-  return (
-    <Text>
-      <MessageUnsupportedContent />
-    </Text>
-  );
-}
-
-function renderNotificationEncrypted(
-  ctx: NotificationRendererContext,
-  evt: IRoomEvent,
-  displayName: string
-) {
-  const evtTimeline = ctx.room.getTimelineForEvent(evt.event_id);
-  const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === evt.event_id);
-
-  if (!mEvent || !evtTimeline) {
-    return (
-      <Box grow="Yes" direction="Column">
-        <Text size="T400" priority="300">
-          <code className={customHtmlCss.Code}>{evt.type}</code>
-          {' event'}
-        </Text>
-      </Box>
-    );
-  }
-
-  return (
-    <EncryptedContent mEvent={mEvent}>
-      {renderNotificationEncryptedDecrypted.bind(null, ctx, evt, displayName, mEvent, evtTimeline)}
-    </EncryptedContent>
-  );
-}
-
-function renderNotificationSticker(
-  ctx: NotificationRendererContext,
-  event: IRoomEvent,
-  _displayName: string,
-  getContent: GetContentCallback
-) {
-  if (event.unsigned?.redacted_because) {
-    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-  }
-  return (
-    <MSticker
-      content={getContent() as IImageContent}
-      renderImageContent={renderNotificationStickerImageContent.bind(null, ctx.mediaAutoLoad)}
-    />
-  );
-}
-
-function renderNotificationTombstone(_ctx: NotificationRendererContext, event: IRoomEvent) {
-  const { content } = event;
-  return (
-    <Box grow="Yes" direction="Column">
-      <Text size="T400" priority="300">
-        Room Tombstone. {content.body}
-      </Text>
-    </Box>
-  );
-}
-
-function renderNotificationFallback(_ctx: NotificationRendererContext, event: IRoomEvent) {
-  if (event.unsigned?.redacted_because) {
-    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-  }
-  return (
-    <Box grow="Yes" direction="Column">
-      <Text size="T400" priority="300">
-        <code className={customHtmlCss.Code}>{event.type}</code>
-        {' event'}
-      </Text>
-    </Box>
-  );
-}
-
 type RoomNotificationsGroupProps = {
   room: Room;
   appBaseUrl: string;
   notifications: INotification[];
-  mediaAutoLoad?: boolean;
-  urlPreview?: boolean;
   hideReads: boolean;
   onOpen: (roomId: string, eventId: string) => void;
-  legacyUsernameColor?: boolean;
   hour24Clock: boolean;
   dateFormatString: string;
 };
+
+type NotificationItemProps = {
+  room: Room;
+  notification: INotification;
+  renderContent: ReturnType<typeof useRoomMessagePreviewRenderer>;
+  onOpen: (roomId: string, eventId: string) => void;
+  hour24Clock: boolean;
+  dateFormatString: string;
+};
+
+function NotificationItem({
+  room,
+  notification,
+  renderContent,
+  onOpen,
+  hour24Clock,
+  dateFormatString,
+}: NotificationItemProps) {
+  const event = useMemo(() => new MatrixEvent(notification.event), [notification.event]);
+  const handleOpen: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    evt.stopPropagation();
+    onOpen(room.roomId, notification.event.event_id);
+  };
+
+  return (
+    <SequenceCard
+      style={{ padding: config.space.S400 }}
+      variant="SurfaceVariant"
+      direction="Column"
+    >
+      <MessagePreview
+        room={room}
+        event={event}
+        renderContent={renderContent}
+        actions={
+          <Chip onClick={handleOpen} variant="Secondary" radii="400">
+            <Text size="T200">Open</Text>
+          </Chip>
+        }
+        onOpen={handleOpen}
+        hour24Clock={hour24Clock}
+        dateFormatString={dateFormatString}
+      />
+    </SequenceCard>
+  );
+}
+
 function RoomNotificationsGroupComp({
   room,
   appBaseUrl,
   notifications,
-  mediaAutoLoad,
-  urlPreview,
   hideReads,
   onOpen,
-  legacyUsernameColor,
   hour24Clock,
   dateFormatString,
 }: Readonly<RoomNotificationsGroupProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
-  const nicknames = useAtomValue(nicknamesAtom);
-
-  const powerLevels = usePowerLevels(room);
-  const creators = useRoomCreators(room);
-
-  const creatorsTag = useRoomCreatorsTag();
-  const powerLevelTags = usePowerLevelTags(room, powerLevels);
-  const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
-
-  const theme = useTheme();
-  const accessibleTagColors = useAccessiblePowerTagColors(theme.kind, creatorsTag, powerLevelTags);
-
-  const mentionClickHandler = useMentionClickHandler(room.roomId);
-  const spoilerClickHandler = useSpoilerClickHandler();
-
-  const linkifyOpts = useMemo<LinkifyOpts>(
-    () => ({
-      ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention(
-        appBaseUrl,
-        (href) =>
-          renderMatrixMention(
-            mx,
-            room.roomId,
-            href,
-            makeMentionCustomProps(mentionClickHandler),
-            nicknames
-          ),
-        mentionClickHandler
-      ),
-    }),
-    [appBaseUrl, mx, room, mentionClickHandler, nicknames]
-  );
-  const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
-    () =>
-      getReactCustomHtmlParser(mx, room.roomId, {
-        settingsLinkBaseUrl: appBaseUrl,
-        linkifyOpts,
-        useAuthentication,
-        handleSpoilerClick: spoilerClickHandler,
-        handleMentionClick: mentionClickHandler,
-        nicknames,
-      }),
-    [
-      appBaseUrl,
-      mx,
-      room,
-      linkifyOpts,
-      mentionClickHandler,
-      spoilerClickHandler,
-      useAuthentication,
-      nicknames,
-    ]
-  );
-
-  const rendererContext = useMemo<NotificationRendererContext>(
-    () => ({
-      mx,
-      room,
-      mediaAutoLoad,
-      urlPreview,
-      htmlReactParserOptions,
-      linkifyOpts,
-    }),
-    [mx, room, mediaAutoLoad, urlPreview, htmlReactParserOptions, linkifyOpts]
-  );
-
-  const matrixEventHandlers = useMemo(
-    () => ({
-      [EventType.RoomMessage]: renderNotificationRoomMessage.bind(null, rendererContext),
-      [EventType.RoomMessageEncrypted]: renderNotificationEncrypted.bind(null, rendererContext),
-      [EventType.Sticker]: renderNotificationSticker.bind(null, rendererContext),
-      [EventType.RoomTombstone]: renderNotificationTombstone.bind(null, rendererContext),
-    }),
-    [rendererContext]
-  );
-
-  const renderMatrixEvent = useMatrixEventRenderer<[IRoomEvent, string, GetContentCallback]>(
-    matrixEventHandlers,
-    undefined,
-    renderNotificationFallback.bind(null, rendererContext)
-  );
-
-  const handleOpenClick: MouseEventHandler = (evt) => {
-    const eventId = evt.currentTarget.getAttribute('data-event-id');
-    if (!eventId) return;
-    onOpen(room.roomId, eventId);
-  };
+  const renderContent = useRoomMessagePreviewRenderer(room, { settingsLinkBaseUrl: appBaseUrl });
   const handleMarkAsRead = () => {
     markAsRead(mx, room.roomId, hideReads);
   };
@@ -535,107 +252,17 @@ function RoomNotificationsGroupComp({
         </Box>
       </Header>
       <Box direction="Column" gap="100">
-        {notifications.map((notification) => {
-          const { event } = notification;
-
-          const displayName =
-            getMemberDisplayName(room, event.sender, nicknames) ??
-            getMxIdLocalPart(event.sender) ??
-            event.sender;
-          const senderAvatarMxc = getMemberAvatarMxc(room, event.sender);
-          const getContent = (() => event.content) as GetContentCallback;
-
-          const relation = event.content['m.relates_to'];
-          const replyEventId = relation?.['m.in_reply_to']?.event_id;
-          const threadRootId =
-            relation?.rel_type === RelationType.Thread ? relation.event_id : undefined;
-          // doesn't work for encrypted rooms
-          // not a big deal really, don't want to bother with finding the event by id and decrypting
-          const mentions = event.content['m.mentions'];
-
-          const memberPowerTag = getMemberPowerTag(event.sender);
-          const tagColor = memberPowerTag?.color
-            ? accessibleTagColors?.get(memberPowerTag.color)
-            : undefined;
-          const tagIconSrc = memberPowerTag?.icon
-            ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
-            : undefined;
-
-          const usernameColor = legacyUsernameColor ? colorMXID(event.sender) : tagColor;
-
-          return (
-            <SequenceCard
-              key={notification.event.event_id}
-              style={{ padding: config.space.S400 }}
-              variant="SurfaceVariant"
-              direction="Column"
-            >
-              <ModernLayout
-                before={
-                  <AvatarBase>
-                    <Avatar size="300">
-                      <UserAvatar
-                        userId={event.sender}
-                        src={
-                          senderAvatarMxc
-                            ? (mxcUrlToHttp(
-                                mx,
-                                senderAvatarMxc,
-                                useAuthentication,
-                                48,
-                                48,
-                                'crop'
-                              ) ?? undefined)
-                            : undefined
-                        }
-                        alt={displayName}
-                        renderFallback={() => userFallbackIcon('lg')}
-                      />
-                    </Avatar>
-                  </AvatarBase>
-                }
-              >
-                <Box gap="300" justifyContent="SpaceBetween" alignItems="Center" grow="Yes">
-                  <Box gap="200" alignItems="Baseline">
-                    <Box alignItems="Center" gap="200">
-                      <Username style={{ color: usernameColor }}>
-                        <Text as="span" truncate>
-                          <UsernameBold>{displayName}</UsernameBold>
-                        </Text>
-                      </Username>
-                      {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
-                    </Box>
-                    <Time
-                      ts={event.origin_server_ts}
-                      hour24Clock={hour24Clock}
-                      dateFormatString={dateFormatString}
-                    />
-                  </Box>
-                  <Box shrink="No" gap="200" alignItems="Center">
-                    <Chip
-                      data-event-id={event.event_id}
-                      onClick={handleOpenClick}
-                      variant="Secondary"
-                      radii="400"
-                    >
-                      <Text size="T200">Open</Text>
-                    </Chip>
-                  </Box>
-                </Box>
-                {replyEventId && (
-                  <Reply
-                    room={room}
-                    replyEventId={replyEventId}
-                    threadRootId={threadRootId}
-                    mentions={mentions}
-                    onClick={handleOpenClick}
-                  />
-                )}
-                {renderMatrixEvent(event.type, false, event, displayName, getContent)}
-              </ModernLayout>
-            </SequenceCard>
-          );
-        })}
+        {notifications.map((notification) => (
+          <NotificationItem
+            key={notification.event.event_id}
+            room={room}
+            notification={notification}
+            renderContent={renderContent}
+            onOpen={onOpen}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          />
+        ))}
       </Box>
     </Box>
   );
@@ -656,13 +283,9 @@ const FAST_REFRESH_MS = 2500;
 export function Notifications() {
   const mx = useMatrixClient();
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const screenSize = useScreenSizeContext();
-  const mDirects = useAtomValue(mDirectAtom);
   const appBaseUrl = useSettingsLinkBaseUrl();
 
   const { navigateRoom } = useRoomNavigate();
@@ -806,13 +429,8 @@ export function Notifications() {
                           room={groupRoom}
                           appBaseUrl={appBaseUrl}
                           notifications={group.notifications}
-                          mediaAutoLoad={mediaAutoLoad}
-                          urlPreview={urlPreview}
                           hideReads={hideReads}
                           onOpen={navigateRoom}
-                          legacyUsernameColor={
-                            legacyUsernameColor || mDirects.has(groupRoom.roomId)
-                          }
                           hour24Clock={hour24Clock}
                           dateFormatString={dateFormatString}
                         />

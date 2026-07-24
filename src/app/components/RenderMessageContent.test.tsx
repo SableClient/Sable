@@ -2,7 +2,18 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MsgType } from '$types/matrix-sdk';
 import { ClientConfigProvider } from '$hooks/useClientConfig';
+import { MatrixClientProvider } from '$hooks/useMatrixClient';
 import { RenderMessageContent } from './RenderMessageContent';
+
+vi.mock('./message/content/UploadedSableCssContent', () => ({
+  UploadedSableCssContent: ({ body }: { body: string }) => (
+    <div data-testid="uploaded-sable-css">{body}</div>
+  ),
+}));
+
+vi.mock('$hooks/useMediaAuthentication', () => ({
+  useMediaAuthentication: () => false,
+}));
 
 vi.mock('./url-preview', () => ({
   UrlPreviewHolder: ({ children }: { children: React.ReactNode }) => (
@@ -26,6 +37,23 @@ function renderMessage(body: string) {
         htmlReactParserOptions={{}}
         linkifyOpts={{}}
       />
+    </ClientConfigProvider>
+  );
+}
+
+function renderFileMessage(content: Record<string, unknown>) {
+  return render(
+    <ClientConfigProvider value={{}}>
+      <MatrixClientProvider value={{} as never}>
+        <RenderMessageContent
+          displayName="Alice"
+          msgType={MsgType.File}
+          ts={0}
+          getContent={() => content as never}
+          htmlReactParserOptions={{}}
+          linkifyOpts={{}}
+        />
+      </MatrixClientProvider>
     </ClientConfigProvider>
   );
 }
@@ -91,5 +119,17 @@ describe('RenderMessageContent', () => {
 
     expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
     expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com)');
+  });
+
+  it('detects an uploaded Sable theme by filename when the body is a caption', () => {
+    renderFileMessage({
+      msgtype: MsgType.File,
+      body: 'A theme you might like',
+      filename: 'amethyst.sable.css',
+      url: 'mxc://example/amethyst',
+      info: { mimetype: 'text/css', size: 1024 },
+    });
+
+    expect(screen.getByTestId('uploaded-sable-css')).toHaveTextContent('amethyst.sable.css');
   });
 });

@@ -26,11 +26,12 @@ const slideOut = keyframes({
 // Positions at the top of the viewport, spanning full width.
 // Uses fixed positioning with safe-area-inset to handle iOS keyboard correctly.
 // On iOS, the banner stays at the top of the visual viewport even when keyboard is open.
+// On Android (Tauri) the insets are injected via JS from Kotlin; the
+// env() fallback handles the window between page load and injection.
 export const BannerContainer = style({
   position: 'fixed',
-  // Use env(safe-area-inset-top) to respect device-specific safe areas (notches, etc)
-  // This also helps position correctly on iOS when the keyboard is open
-  top: 'env(safe-area-inset-top, 0)',
+  // Use safe-area-inset-top to position right below device-specific safe areas (notches, etc)
+  top: 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))',
   left: 0,
   right: 0,
   zIndex: 9999,
@@ -47,7 +48,7 @@ export const BannerContainer = style({
       // iOS-specific: Position relative to the visible viewport when keyboard is open
       position: 'fixed',
       // Support both old and new safe area syntax
-      top: 'max(env(safe-area-inset-top, 0px), constant(safe-area-inset-top, 0px))',
+      top: 'max(var(--safe-area-inset-top, 0px), env(safe-area-inset-top, 0px), constant(safe-area-inset-top, 0px))',
     },
   },
 });
@@ -67,7 +68,7 @@ export const Banner = style({
   boxShadow: `0 ${toRem(8)} ${toRem(32)} rgba(0, 0, 0, 0.45), 0 ${toRem(2)} ${toRem(8)} rgba(0, 0, 0, 0.3)`,
   cursor: 'pointer',
   width: '100%',
-  maxWidth: '50em',
+  maxWidth: toRem(420),
   animationName: slideIn,
   animationDuration: '260ms',
   animationTimingFunction: 'cubic-bezier(0.22, 0.8, 0.6, 1)',

@@ -16,7 +16,6 @@ import {
 import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useLivekitSupport } from '$hooks/useLivekitSupport';
 import { useRoomName } from '$hooks/useRoomMeta';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -63,7 +62,6 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
   const screenSize = useScreenSizeContext();
   const compact = screenSize === ScreenSize.Mobile;
   const roomName = useRoomName(room);
-  const livekitSupported = useLivekitSupport();
   const callEmbed = useCallEmbed();
   const { navigateRoom } = useRoomNavigate();
   const roomAvatarUrl = getRoomAvatarUrl(mx, room, 96);
@@ -93,11 +91,10 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
     () =>
       getIncomingCallBlockers({
         canUseWebRTC,
-        livekitSupported,
         hasCallMemberPermission,
         inAnotherCall,
       }),
-    [canUseWebRTC, livekitSupported, hasCallMemberPermission, inAnotherCall]
+    [canUseWebRTC, hasCallMemberPermission, inAnotherCall]
   );
 
   const canAnswer = capabilityIssues.length === 0;

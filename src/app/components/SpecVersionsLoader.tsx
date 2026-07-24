@@ -1,23 +1,26 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { fetch } from '$utils/fetch';
 import type { SpecVersions } from '../cs-api';
 import { specVersions } from '../cs-api';
 
 type SpecVersionsLoaderProps = {
   baseUrl: string;
+  loadVersions?: () => Promise<SpecVersions>;
   fallback?: () => ReactNode;
   error?: (err: unknown, retry: () => void, ignore: () => void) => ReactNode;
   children: (versions: SpecVersions) => ReactNode;
 };
 export function SpecVersionsLoader({
   baseUrl,
+  loadVersions,
   fallback,
   error,
   children,
 }: SpecVersionsLoaderProps) {
   const [state, load] = useAsyncCallback(
-    useCallback(() => specVersions(fetch, baseUrl), [baseUrl])
+    useCallback(() => loadVersions?.() ?? specVersions(fetch, baseUrl), [baseUrl, loadVersions])
   );
   const [ignoreError, setIgnoreError] = useState(false);
 
@@ -32,7 +35,7 @@ export function SpecVersionsLoader({
   }
 
   if (!ignoreError && state.status === AsyncStatus.Error) {
-    return error?.(state.error, load, ignoreCallback);
+    if (error) return error(state.error, load, ignoreCallback);
   }
 
   return children(

@@ -66,6 +66,7 @@ import {
 } from '@phosphor-icons/react';
 import * as css from './UserMenuTab.css';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 
 const log = createLogger('AccountSwitcherTab');
 
@@ -197,7 +198,7 @@ export function AccountMenuOption({ isMobile, isRight }: { isMobile: boolean; is
     : undefined;
   const activeDisplayName = activeProfile.displayName;
 
-  const sessionProfiles = useSessionProfiles(sessions);
+  const sessionProfiles = useSessionProfiles(sessions, isOpen);
 
   const { disableAccountSwitcher } = useClientConfig();
 
@@ -274,11 +275,11 @@ export function AccountMenuOption({ isMobile, isRight }: { isMobile: boolean; is
           after={isOpen && isMobile ? menuIcon(CaretDownIcon) : menuIcon(CaretRightIcon)}
           style={{
             position: 'relative',
-            background: isMobile
-              ? color.Background.Container
-              : isOpen
-                ? color.Secondary.Container
-                : color.Surface.Container,
+            background: isOpen
+              ? isMobile
+                ? color.Surface.Container
+                : color.Surface.ContainerHover
+              : color.Background.Container,
           }}
           onClick={() => isMobile && setIsOpen(!isOpen)}
           {...hoverProps}
@@ -498,11 +499,11 @@ export function PresenceMenuOption({
         after={isOpen && isMobile ? menuIcon(CaretDownIcon) : menuIcon(CaretRightIcon)}
         style={{
           position: 'relative',
-          background: isMobile
-            ? color.Background.Container
-            : isOpen
-              ? color.Secondary.Container
-              : color.Surface.Container,
+          background: isOpen
+            ? isMobile
+              ? color.Surface.Container
+              : color.Surface.ContainerHover
+            : color.Background.Container,
         }}
         onClick={() => isMobile && setIsOpen(!isOpen)}
         {...hoverProps}
@@ -681,6 +682,9 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
   };
 
   const handleCloseMenu = () => setMenuAnchor(undefined);
+  const mobileTapActivation = useMobileTapActivation(isMobile ?? false, () => {
+    navigate(getProfilePath());
+  });
 
   const isActive = (!!menuAnchor || profileSelected) && !isMobile;
 
@@ -690,6 +694,7 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
         direction="Column"
         alignItems="Center"
         onClick={handleToggle}
+        {...mobileTapActivation}
         style={
           isMobile
             ? {
@@ -702,7 +707,7 @@ export function UserMenuTab({ isBottom, isMobile }: { isBottom?: boolean; isMobi
         }
       >
         <AvatarPresence badge={<PresenceBadge presence={currentPresence} size="200" />}>
-          <SidebarAvatar size={isMobile ? '300' : '400'} as="button" onClick={handleToggle}>
+          <SidebarAvatar size={isMobile ? '300' : '400'} as="button">
             <UserAvatar
               userId={userId}
               src={avatarUrl}

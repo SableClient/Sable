@@ -19,7 +19,7 @@ import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nameInitials } from '$utils/common';
 import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
-import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
+import { useSelectedOrLastRoom } from '$hooks/router/useSelectedRoom';
 import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
 import * as css from './DirectDMsList.css';
@@ -44,8 +44,7 @@ function DMItem({ room, selected }: DMItemProps) {
   // Check if this is a group DM (more than 2 members)
   const isGroupDM = room.getJoinedMemberCount() > 2;
 
-  // Get member info for group DMs using m.direct and profile API (doesn't require full room state)
-  // Members are sorted by who last sent messages (most recent first)
+  // Use already-synced room state only; sidebar rendering must not trigger member/profile requests.
   const groupMembers = useGroupDMMembers(mx, room, MAX_GROUP_MEMBERS);
 
   // Get unread info for badge
@@ -153,7 +152,7 @@ function DMItem({ room, selected }: DMItemProps) {
 
 export function DirectDMsList() {
   const mx = useMatrixClient();
-  const selectedRoomId = useSelectedRoom();
+  const selectedRoomId = useSelectedOrLastRoom();
   const sidebarRoomIds = useSidebarDirectRoomIds();
 
   const mountTimeRef = useRef(performance.now());

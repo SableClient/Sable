@@ -16,6 +16,7 @@ import {
 } from 'folds';
 import { Eye, EyeSlash, menuIcon, sizedIcon, Play, Warning } from '$components/icons/phosphor';
 import classNames from 'classnames';
+import { isTauri } from '@tauri-apps/api/core';
 import { BlurhashCanvas } from 'react-blurhash';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IThumbnailContent, IVideoInfo } from '$types/matrix/common';
@@ -24,9 +25,11 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRevokeObjectURL } from '$hooks/useObjectURL';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../../unstable/prefixes';
+import { hasControllingServiceWorker } from '$utils/platform';
 
 type RenderVideoProps = {
   title: string;
@@ -81,6 +84,8 @@ export const VideoContent = as<'div', VideoContentProps>(
 
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
+        // Native media and service-worker-authenticated browser media can stream with Range requests.
+        if (!encInfo && (isTauri() || hasControllingServiceWorker())) return mediaUrl;
         const fileContent = encInfo
           ? await downloadEncryptedMedia(mediaUrl, (encBuf) =>
               decryptFile(encBuf, mimeType, encInfo)
@@ -90,12 +95,26 @@ export const VideoContent = as<'div', VideoContentProps>(
       }, [mx, url, useAuthentication, mimeType, encInfo])
     );
 
+    // When the source download succeeds, reset video-element error state so the
+    // Retry button doesn't flash before the <video> has had a chance to load.
+    useEffect(() => {
+      if (srcState.status === AsyncStatus.Success) {
+        setError(false);
+      }
+    }, [srcState.status]);
+
     const handleLoad = () => {
       setLoad(true);
+      setError(false);
     };
     const handleError = () => {
-      setLoad(false);
-      setError(true);
+      // Only show the error if the source download already succeeded — if
+      // it's still loading the video element may fire a transient error
+      // before the blob URL is ready.
+      if (srcState.status === AsyncStatus.Success) {
+        setLoad(false);
+        setError(true);
+      }
     };
 
     const handleRetry = () => {
@@ -106,6 +125,8 @@ export const VideoContent = as<'div', VideoContentProps>(
     useEffect(() => {
       if (autoPlay) loadSrc();
     }, [autoPlay, loadSrc]);
+
+    useRevokeObjectURL(srcState.status === AsyncStatus.Success ? srcState.data : undefined);
 
     return (
       <Box
@@ -198,12 +219,13 @@ export const VideoContent = as<'div', VideoContentProps>(
         )}
         {(srcState.status === AsyncStatus.Loading || srcState.status === AsyncStatus.Success) &&
           !load &&
+          !error &&
           !blurred && (
             <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
               <Spinner variant="Secondary" />
             </Box>
           )}
-        {(error || srcState.status === AsyncStatus.Error) && (
+        {!load && (error || srcState.status === AsyncStatus.Error) && (
           <Box
             className={css.AbsoluteContainer}
             alignItems="Center"

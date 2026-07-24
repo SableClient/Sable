@@ -10,7 +10,6 @@
 import { useCallback, useRef } from 'react';
 import { useNavigate, useLocation, matchPath } from 'react-router-dom';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { isKeyHotkey } from 'is-hotkey';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { mDirectAtom } from '$state/mDirectList';
@@ -32,8 +31,12 @@ import { announce } from '$utils/announce';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import type { Room } from '$types/matrix-sdk';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { matchesShortcut } from '../keyboard/shortcuts';
 
 export function GlobalKeyboardShortcuts() {
+  const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
   const navigate = useNavigate();
   const location = useLocation();
   const mx = useMatrixClient();
@@ -95,7 +98,7 @@ export function GlobalKeyboardShortcuts() {
   /** Alt+N: jump to the top-priority unread room and reset the cycle index. */
   const handleNextUnreadKeyDown = useCallback(
     (evt: KeyboardEvent) => {
-      if (!isKeyHotkey('alt+n', evt)) return;
+      if (!matchesShortcut('navigation.nextUnread', evt, shortcutOverrides)) return;
       const unreadEntries = Array.from(roomToUnread.entries())
         .filter(([id, u]) => u.total > 0 && id !== currentRoom?.roomId)
         .toSorted((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
@@ -105,14 +108,14 @@ export function GlobalKeyboardShortcuts() {
       const [roomId] = unreadEntries[0]!;
       navigateToRoom(roomId, unreadEntries.length - 1);
     },
-    [roomToUnread, currentRoom?.roomId, navigateToRoom]
+    [roomToUnread, currentRoom?.roomId, navigateToRoom, shortcutOverrides]
   );
 
   /** Alt+Shift+Down / Alt+Shift+Up: cycle through unread rooms. */
   const handleUnreadNavKeyDown = useCallback(
     (evt: KeyboardEvent) => {
-      const isDown = isKeyHotkey('alt+shift+down', evt);
-      const isUp = isKeyHotkey('alt+shift+up', evt);
+      const isDown = matchesShortcut('navigation.cycleNextUnread', evt, shortcutOverrides);
+      const isUp = matchesShortcut('navigation.cyclePreviousUnread', evt, shortcutOverrides);
       if (!isDown && !isUp) return;
       const unreadEntries = Array.from(roomToUnread.entries())
         .filter(([, u]) => u.total > 0)
@@ -130,14 +133,14 @@ export function GlobalKeyboardShortcuts() {
       const [roomId] = currentEntry;
       navigateToRoom(roomId, unreadEntries.length - 1);
     },
-    [roomToUnread, navigateToRoom]
+    [roomToUnread, navigateToRoom, shortcutOverrides]
   );
 
   /** Ctrl+Down / Ctrl+Up: cycle through messages to reply to. */
   const handleReplyKeyDown = useCallback(
     (evt: KeyboardEvent) => {
-      const isDown = isKeyHotkey('mod+down', evt);
-      const isUp = isKeyHotkey('mod+up', evt);
+      const isDown = matchesShortcut('navigation.nextReply', evt, shortcutOverrides);
+      const isUp = matchesShortcut('navigation.previousReply', evt, shortcutOverrides);
       if (currentRoom === null) return;
       if (!isDown && !isUp) return;
 
@@ -160,24 +163,24 @@ export function GlobalKeyboardShortcuts() {
       if (eventId === undefined) return;
       setReplyDraft({ userId: currentRoom.myUserId, eventId, body: '' });
     },
-    [currentRoom, replyDraft, setReplyDraft]
+    [currentRoom, replyDraft, setReplyDraft, shortcutOverrides]
   );
 
   const handleBookmarkKeyDown = useCallback(
     (evt: KeyboardEvent) => {
-      if (!isKeyHotkey('mod+b', evt)) return;
+      if (!matchesShortcut('app.openBookmarks', evt, shortcutOverrides)) return;
       evt.preventDefault();
 
       navigate(getInboxBookmarksPath());
       announce(`Navigated to bookmarks`);
     },
-    [navigate]
+    [navigate, shortcutOverrides]
   );
 
   /** Ctrl+F: Search for messages */
   const handleSearchMessageInRoom = useCallback(
     (evt: KeyboardEvent) => {
-      if (!isKeyHotkey('mod+f', evt)) return;
+      if (!matchesShortcut('app.searchMessages', evt, shortcutOverrides)) return;
       evt.preventDefault();
 
       const searchParams: SearchPathSearchParams = {
@@ -190,7 +193,7 @@ export function GlobalKeyboardShortcuts() {
       navigate(withSearchParam(path, searchParams));
       announce(`Start Searching messages ${roomName ? `in ${roomName}` : ''}`);
     },
-    [mx, currentRoom, currentSpace, navigate]
+    [mx, currentRoom, currentSpace, navigate, shortcutOverrides]
   );
 
   useKeyDown(window, handleNextUnreadKeyDown);

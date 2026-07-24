@@ -114,12 +114,21 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   const [updateCounter, setUpdateCounter] = useState(0);
 
   useEffect(() => {
-    const handleUpdate = () => setUpdateCounter((c) => c + 1);
+    const handleUpdate = (event: MatrixEvent) => {
+      const relation = event.getRelation();
+      if (
+        relation?.event_id === eventId ||
+        event.getAssociatedId() === eventId ||
+        event.getId() === eventId
+      ) {
+        setUpdateCounter((c) => c + 1);
+      }
+    };
     room.on(RoomEvent.Timeline, handleUpdate);
     return () => {
       room.off(RoomEvent.Timeline, handleUpdate);
     };
-  }, [room]);
+  }, [room, eventId]);
 
   // ensure a new sorted array is only generated when a new list is made
   useEffect(() => {

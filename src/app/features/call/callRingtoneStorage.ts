@@ -41,36 +41,48 @@ async function putCustomCallAudio(
     blob: file,
   };
 
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put(entry);
-    tx.addEventListener('complete', () => resolve());
-    tx.addEventListener('error', () => reject(tx.error));
-  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(entry);
+      tx.addEventListener('complete', () => resolve());
+      tx.addEventListener('error', () => reject(tx.error));
+    });
+  } finally {
+    db.close();
+  }
 
   return entry;
 }
 
 async function getCustomCallAudio(key: string): Promise<StoredCallRingtone | undefined> {
   const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).get(key);
-    req.addEventListener('error', () => reject(req.error));
-    req.addEventListener('success', () => {
-      resolve(req.result as StoredCallRingtone | undefined);
+  try {
+    return await new Promise<StoredCallRingtone | undefined>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(key);
+      req.addEventListener('error', () => reject(req.error));
+      req.addEventListener('success', () => {
+        resolve(req.result as StoredCallRingtone | undefined);
+      });
     });
-  });
+  } finally {
+    db.close();
+  }
 }
 
 async function clearCustomCallAudio(key: string): Promise<void> {
   const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).delete(key);
-    tx.addEventListener('complete', () => resolve());
-    tx.addEventListener('error', () => reject(tx.error));
-  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.addEventListener('complete', () => resolve());
+      tx.addEventListener('error', () => reject(tx.error));
+    });
+  } finally {
+    db.close();
+  }
 }
 
 export const putCustomCallRingtone = (

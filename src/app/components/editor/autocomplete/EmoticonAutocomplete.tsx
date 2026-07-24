@@ -1,4 +1,4 @@
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
 import { Box, MenuItem, Text, toRem } from 'folds';
@@ -123,6 +123,7 @@ export function EmoticonAutocomplete({
             onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
               onTabPress(evt, () => handleAutocomplete(key, emoticon.shortcode))
             }
+            onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
             onClick={() => handleAutocomplete(key, emoticon.shortcode)}
             before={
               isCustomEmoji && customEmojiUrl ? (

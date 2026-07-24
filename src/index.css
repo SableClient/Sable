@@ -58,6 +58,16 @@ body {
   flex-direction: column;
 }
 
+@media (display-mode: standalone) {
+  @supports (-webkit-touch-callout: none) {
+    html,
+    body,
+    #root {
+      height: var(--sable-ios-pwa-viewport-height, 100dvh);
+    }
+  }
+}
+
 *,
 *::before,
 *::after {

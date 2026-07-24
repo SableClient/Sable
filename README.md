@@ -9,9 +9,23 @@ Join our matrix space [here](https://matrix.to/#/#sable:sable.moe) to discuss fe
 Forked from [Cinny](https://github.com/cinnyapp/cinny/).
 
 ## Getting started
-The web app is available at [app.sable.moe](https://app.sable.moe/) and gets updated on frequently, as soon as a feature is deemed stable.
+The stable web app is available at [app.sable.moe](https://app.sable.moe/) and tracks the [latest GitHub release](https://github.com/SableClient/Sable/releases/latest). Nightly builds are available at [dev.sable.moe](https://dev.sable.moe/) and from the [`nightly` GitHub release](https://github.com/SableClient/Sable/releases/tag/nightly).
 
-You can also download our desktop app for windows and linux from [releases](https://github.com/SableClient/Sable/releases/latest).
+You can also download our desktop app for Windows and Linux from [releases](https://github.com/SableClient/Sable/releases/latest). Release artifacts include build attestations, and desktop installations update automatically.
+
+## iOS (AltStore / SideStore)
+
+Sable iOS builds are distributed as unsigned IPAs through [AltStore](https://altstore.io) and [SideStore](https://sidestore.io). The nightly build publishes both the IPA and an `altstore-source.json` manifest to the [`nightly` GitHub release](https://github.com/SableClient/Sable/releases/tag/nightly).
+
+To install:
+
+1. Set up [AltStore Classic](https://faq.altstore.io/altstore-classic/altserver) or [SideStore](https://docs.sidestore.io) on your device.
+2. Add the Sable source:
+   - AltStore: `altstore://source?url=https://github.com/SableClient/Sable/releases/download/nightly/altstore-source.json`
+   - SideStore: `sidestore://source?url=https://github.com/SableClient/Sable/releases/download/nightly/altstore-source.json`
+3. Install Sable from the source. The IPA is unsigned; AltStore/SideStore re-sign it with your personal development certificate at install time, so apps refresh every 7 days (the standard free-account limitation).
+
+iOS builds are produced by the `ios` job in [`tauri-build.yml`](.github/workflows/tauri-build.yml) and track the same `dev`/`v*` triggers as desktop builds.
 
 ## Self-hosting
 You have a few options for self hosting, you can:

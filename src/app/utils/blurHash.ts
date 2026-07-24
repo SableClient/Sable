@@ -1,4 +1,5 @@
 import { encode, isBlurhashValid } from 'blurhash';
+import { blurHashWorkerSupported, encodeBlurHashInWorker } from '$utils/mediaWorker';
 
 export const encodeBlurHash = (
   img: HTMLImageElement | HTMLVideoElement,
@@ -21,6 +22,27 @@ export const encodeBlurHash = (
     console.warn('Failed to encode blurhash, possibly due to cross-origin tainted canvas:', err);
     return undefined;
   }
+};
+
+export const encodeBlurHashAsync = async (
+  img: HTMLImageElement | HTMLVideoElement,
+  width: number,
+  height: number
+): Promise<string | undefined> => {
+  if (blurHashWorkerSupported()) {
+    let bitmap: ImageBitmap | undefined;
+    try {
+      bitmap = await createImageBitmap(img, {
+        resizeWidth: width,
+        resizeHeight: height,
+        resizeQuality: 'low',
+      });
+      return await encodeBlurHashInWorker(bitmap, width, height);
+    } catch {
+      bitmap?.close();
+    }
+  }
+  return encodeBlurHash(img, width, height);
 };
 
 export const validBlurHash = (hash?: string): string | undefined => {

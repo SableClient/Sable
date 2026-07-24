@@ -24,7 +24,7 @@ import {
   type TimelineEvents,
 } from '$types/matrix-sdk';
 import { getCallCapabilities } from './utils';
-import { downloadMedia, mxcUrlToHttp } from '../../utils/matrix';
+import { downloadMedia, mxcUrlToHttp, uploadContentToServer } from '../../utils/matrix';
 import { createDebugLogger } from '../../utils/debugLogger';
 
 const debugLog = createDebugLogger('CallWidgetDriver');
@@ -357,7 +357,7 @@ export class CallWidgetDriver extends WidgetDriver {
   public async uploadFile(file: XMLHttpRequestBodyInit): Promise<{ contentUri: string }> {
     const client = this.mx;
 
-    const uploadResult = await client.uploadContent(file);
+    const uploadResult = await uploadContentToServer(client, file);
 
     return { contentUri: uploadResult.content_uri };
   }
@@ -367,7 +367,10 @@ export class CallWidgetDriver extends WidgetDriver {
     if (!httpUrl) {
       throw new Error('Call widget failed to download file! No http url!');
     }
-    const blob = await downloadMedia(httpUrl);
+    const blob = await downloadMedia(httpUrl, {
+      getAccessToken: () => this.mx.getAccessToken(),
+      sessionScope: this.mx.getUserId() ?? undefined,
+    });
     return { file: blob };
   }
 

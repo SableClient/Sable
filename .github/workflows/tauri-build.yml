@@ -1,0 +1,611 @@
+name: Build desktop apps
+
+on:
+  push:
+    branches: [dev]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build and attach desktop bundles to (e.g. v1.20.0)'
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: tauri-build-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/dev' }}
+
+jobs:
+  setup-release:
+    name: Resolve release target
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    if: "${{ !(github.event_name == 'push' && github.ref == 'refs/heads/dev' && contains(github.event.head_commit.message, 'chore: prepare release')) }}"
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      ref: ${{ steps.meta.outputs.ref }}
+      nightly: ${{ steps.meta.outputs.nightly }}
+      started_at: ${{ steps.meta.outputs.started_at }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Resolve target
+        id: meta
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          GIT_REF: ${{ github.ref }}
+          GIT_REF_NAME: ${{ github.ref_name }}
+          GIT_SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"; REF="$INPUT_TAG"; NIGHTLY=false
+            VERSION="${TAG#v}"
+          elif [ "$GIT_REF" = "refs/heads/dev" ]; then
+            TAG="nightly"; REF="$GIT_SHA"; NIGHTLY=true
+            VERSION="$(node .github/scripts/nightly-version.mjs)"
+          else
+            TAG="$GIT_REF_NAME"; REF="$GIT_REF"; NIGHTLY=false
+            VERSION="${TAG#v}"
+          fi
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "ref=$REF"
+            echo "nightly=$NIGHTLY"
+            echo "started_at=$STARTED_AT"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Wait for release to exist
+        if: ${{ steps.meta.outputs.nightly != 'true' }}
+        shell: bash
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          for i in $(seq 1 12); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "Release $TAG found."
+              exit 0
+            fi
+            echo "Waiting for release $TAG to be published ($i/12)…"
+            sleep 15
+          done
+          echo "Release $TAG was not found." >&2
+          exit 1
+
+      - name: Ensure nightly prerelease exists
+        if: ${{ steps.meta.outputs.nightly == 'true' }}
+        shell: bash
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          if gh release view nightly >/dev/null 2>&1; then
+            echo "Reusing the existing nightly release while the new build is prepared."
+          else
+            gh release create nightly \
+              --prerelease \
+              --target "$GIT_SHA" \
+              --title "Nightly (dev)" \
+              --notes "Rolling nightly build from dev — $GIT_SHA"
+          fi
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: setup-release
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            platform: macos-latest
+            asset-platform: macos-universal
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            args: --target universal-apple-darwin
+            bundle_path: src-tauri/target/universal-apple-darwin/release/bundle
+          - name: Windows
+            platform: windows-latest
+            asset-platform: windows-x86_64
+            rust-targets: ''
+            args: ''
+            bundle_path: src-tauri/target/release/bundle
+          - name: Linux (CEF)
+            platform: ubuntu-22.04
+            asset-platform: linux-x86_64
+            rust-targets: ''
+            cef: true
+            bundle_path: src-tauri/target/release/bundle
+    env:
+      TAG: ${{ needs.setup-release.outputs.tag }}
+      VERSION: ${{ needs.setup-release.outputs.version }}
+      VITE_APP_VERSION: ${{ needs.setup-release.outputs.version }}
+      VITE_IS_RELEASE_TAG: ${{ needs.setup-release.outputs.nightly == 'true' && 'true' || '' }}
+      NODE_OPTIONS: --max-old-space-size=8192
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.setup-release.outputs.ref }}
+          persist-credentials: false
+
+      - name: Install Linux build dependencies
+        if: matrix.cef
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libssl-dev \
+            libxdo-dev \
+            build-essential \
+            file \
+            rpm \
+            ruby \
+            ruby-dev
+          sudo gem install --no-document fpm
+
+      - name: Setup app
+        uses: ./.github/actions/setup
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # 2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: stable
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: src-tauri
+
+      - name: Stamp release version into tauri.conf.json
+        shell: bash
+        env:
+          UPDATER_ENDPOINT: ${{ needs.setup-release.outputs.nightly == 'true' && format('https://github.com/{0}/releases/download/nightly/latest.json', github.repository) || '' }}
+        run: node .github/scripts/set-tauri-version.mjs "$VERSION" "$UPDATER_ENDPOINT"
+
+      # --- macOS / Windows: standard wry build via tauri-action ---
+      - name: Configure desktop build
+        shell: bash
+        env:
+          IS_NIGHTLY: ${{ needs.setup-release.outputs.nightly }}
+          MATRIX_NAME: ${{ matrix.name }}
+        run: |
+          ARGS=""
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            ARGS='--config {"bundle":{"createUpdaterArtifacts":false}}'
+          fi
+          if [ "$IS_NIGHTLY" = "true" ] && [ "$MATRIX_NAME" = "Windows" ]; then
+            ARGS="$ARGS --bundles nsis"
+          fi
+          if [ "$IS_NIGHTLY" = "true" ]; then
+            ARGS="$ARGS --config src-tauri/tauri.nightly.conf.json"
+          fi
+          echo "TAURI_BUILD_ARGS=${ARGS# }" >> "$GITHUB_ENV"
+
+      - name: Build desktop bundles
+        id: tauri
+        if: ${{ !matrix.cef }}
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
+        with:
+          args: ${{ matrix.args }} ${{ env.TAURI_BUILD_ARGS }}
+
+      - name: Normalize desktop artifact names
+        if: ${{ !matrix.cef }}
+        shell: bash
+        env:
+          ASSET_PLATFORM: ${{ matrix.asset-platform }}
+          BUNDLE_PATH: ${{ matrix.bundle_path }}
+        run: |
+          test -d "$BUNDLE_PATH" || { echo "Bundle directory not found: $BUNDLE_PATH" >&2; exit 1; }
+          find "$BUNDLE_PATH" -type f -print0 \
+            | while IFS= read -r -d '' path; do
+                case "$path" in
+                  *.app.tar.gz.sig) suffix='.app.tar.gz.sig' ;;
+                  *.app.tar.gz) suffix='.app.tar.gz' ;;
+                  *.nsis.zip.sig) suffix='.nsis.zip.sig' ;;
+                  *.nsis.zip) suffix='.nsis.zip' ;;
+                  *-setup.exe.sig) suffix='-setup.exe.sig' ;;
+                  *-setup.exe) suffix='-setup.exe' ;;
+                  *.msi.sig) suffix='.msi.sig' ;;
+                  *.msi) suffix='.msi' ;;
+                  *.dmg) suffix='.dmg' ;;
+                  *) continue ;;
+                esac
+                target="$(dirname "$path")/Sable-${VERSION}-${ASSET_PLATFORM}${suffix}"
+                [ "$path" = "$target" ] || mv "$path" "$target"
+              done
+
+      - name: Attest Windows bundles
+        if: ${{ matrix.name == 'Windows' }}
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/msi/*.sig
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/nsis/*.sig
+
+      - name: Attach bundles to release
+        if: ${{ !matrix.cef }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_PATH: ${{ matrix.bundle_path }}
+        run: |
+          test -d "$BUNDLE_PATH" || { echo "Bundle directory not found: $BUNDLE_PATH" >&2; exit 1; }
+          find "$BUNDLE_PATH" -type f -name 'Sable-*' -print0 \
+            | while IFS= read -r -d '' path; do
+                echo "Uploading $path"
+                gh release upload "$TAG" "$path" --clobber
+          done
+
+      # --- Linux: CEF runtime, packaged as deb / rpm / AppImage ---
+      - name: Build CEF binary
+        if: matrix.cef
+        shell: bash
+        run: pnpm tauri:cef build $TAURI_BUILD_ARGS
+
+      - name: Build native packages
+        if: matrix.cef
+        shell: bash
+        run: bash scripts/cef-package.sh "$VERSION"
+
+      - name: Sign the AppImage for the updater
+        if: ${{ matrix.cef && env.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        shell: bash
+        run: |
+          for f in src-tauri/target/release/bundle/appimage/Sable-*-linux-x86_64.AppImage; do
+            [ -e "$f" ] || continue
+            pnpm tauri signer sign "$f"
+          done
+
+      - name: Attest Linux bundles
+        if: matrix.cef
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.sig
+
+      - name: Attach native packages to release
+        if: matrix.cef
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_PATH: ${{ matrix.bundle_path }}
+        run: |
+          BUNDLE="$BUNDLE_PATH"
+          test -d "$BUNDLE" || { echo "Bundle directory not found: $BUNDLE" >&2; exit 1; }
+          for f in "$BUNDLE"/deb/Sable-*-linux-x86_64.deb \
+                   "$BUNDLE"/rpm/Sable-*-linux-x86_64.rpm \
+                   "$BUNDLE"/appimage/Sable-*-linux-x86_64.AppImage \
+                   "$BUNDLE"/appimage/Sable-*-linux-x86_64.AppImage.sig; do
+            [ -e "$f" ] || continue
+            echo "Uploading $f"
+            gh release upload "$TAG" "$f" --clobber
+          done
+
+  android:
+    name: Build Android
+    needs: setup-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      TAG: ${{ needs.setup-release.outputs.tag }}
+      VERSION: ${{ needs.setup-release.outputs.version }}
+      VITE_APP_VERSION: ${{ needs.setup-release.outputs.version }}
+      VITE_IS_RELEASE_TAG: ${{ needs.setup-release.outputs.nightly == 'true' && 'true' || '' }}
+      NODE_OPTIONS: --max-old-space-size=8192
+      ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.setup-release.outputs.ref }}
+          persist-credentials: false
+
+      - name: Setup app
+        uses: ./.github/actions/setup
+
+      - name: Setup Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # 2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: src-tauri
+
+      - name: Resolve NDK
+        shell: bash
+        run: |
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$(ls -1 "$ANDROID_HOME/ndk" | sort -V | tail -n1)" >> "$GITHUB_ENV"
+
+      - name: Stamp release version into tauri.conf.json
+        shell: bash
+        run: node .github/scripts/set-tauri-version.mjs "$VERSION"
+
+      - name: Setup Android signing
+        if: ${{ env.ANDROID_KEY_BASE64 != '' }}
+        shell: bash
+        run: |
+          cd src-tauri/gen/android
+          echo "keyAlias=$ANDROID_KEY_ALIAS" > keystore.properties
+          echo "password=$ANDROID_KEY_PASSWORD" >> keystore.properties
+          base64 -d <<< "$ANDROID_KEY_BASE64" > "$RUNNER_TEMP/keystore.jks"
+          echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
+
+      - name: Build Android bundles
+        shell: bash
+        env:
+          IS_NIGHTLY: ${{ needs.setup-release.outputs.nightly }}
+        run: |
+          ARGS=()
+          if [ "$IS_NIGHTLY" = "true" ]; then
+            ARGS+=(--config src-tauri/tauri.nightly.conf.json)
+          fi
+          pnpm tauri android build --apk --aab "${ARGS[@]}"
+          OUT='src-tauri/gen/android/app/build/outputs'
+          APK=$(find "$OUT/apk/universal/release" -name '*.apk' -type f | head -1)
+          AAB=$(find "$OUT/bundle/universalRelease" -name '*.aab' -type f | head -1)
+          [ -n "$APK" ] || { echo 'APK not found' >&2; exit 1; }
+          [ -n "$AAB" ] || { echo 'AAB not found' >&2; exit 1; }
+          mv "$APK" "$OUT/apk/universal/release/Sable-${VERSION}-android-universal.apk"
+          mv "$AAB" "$OUT/bundle/universalRelease/Sable-${VERSION}-android-universal.aab"
+
+      - name: Attest Android bundles
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk
+            src-tauri/gen/android/app/build/outputs/bundle/universalRelease/*.aab
+
+      - name: Attach Android bundles to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OUT="src-tauri/gen/android/app/build/outputs"
+          for f in "$OUT"/apk/universal/release/*.apk \
+                   "$OUT"/bundle/universalRelease/*.aab; do
+            [ -e "$f" ] || continue
+            echo "Uploading $f"
+            gh release upload "$TAG" "$f" --clobber
+          done
+
+  ios:
+    name: Build iOS (AltStore/SideStore)
+    needs: setup-release
+    runs-on: macos-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      TAG: ${{ needs.setup-release.outputs.tag }}
+      VERSION: ${{ needs.setup-release.outputs.version }}
+      VITE_APP_VERSION: ${{ needs.setup-release.outputs.version }}
+      VITE_IS_RELEASE_TAG: ${{ needs.setup-release.outputs.nightly == 'true' && 'true' || '' }}
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ needs.setup-release.outputs.ref }}
+          persist-credentials: false
+
+      - name: Setup app
+        uses: ./.github/actions/setup
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # 2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: stable
+          targets: aarch64-apple-ios
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: src-tauri
+
+      - name: Stamp release version into tauri.conf.json
+        shell: bash
+        run: node .github/scripts/set-tauri-version.mjs "$VERSION"
+
+      - name: Setup Xcode
+        shell: bash
+        run: pnpm tauri ios init
+
+      - name: Symlink icons to the ios folder
+        shell: bash
+        run: pnpm run setup:tauri-icons --write --force
+
+      - name: Build unsigned IPA
+        id: ipa
+        shell: bash
+        env:
+          IS_NIGHTLY: ${{ needs.setup-release.outputs.nightly }}
+        run: |
+          ARGS=()
+          if [ "$IS_NIGHTLY" = "true" ]; then
+            ARGS+=(--config src-tauri/tauri.nightly.conf.json)
+          fi
+          pnpm tauri ios build --no-sign --ci "${ARGS[@]}"
+          IPA=$(find src-tauri/gen/apple/build -name '*.ipa' -type f | head -1)
+          [ -n "$IPA" ] || { echo "IPA not found"; ls -R src-tauri/gen/apple/build 2>/dev/null || true; exit 1; }
+          NORMALIZED_IPA="$(dirname "$IPA")/Sable-${VERSION}-ios-arm64.ipa"
+          [ "$IPA" = "$NORMALIZED_IPA" ] || mv "$IPA" "$NORMALIZED_IPA"
+          IPA="$NORMALIZED_IPA"
+          unzip -p "$IPA" 'Payload/*.app/Info.plist' >Info.plist
+          # version - CFBundleShortVersionString, buildVersion - CFBundleVersion : https://faq.altstore.io/developers/make-a-source#app-versions
+          IPA_VERSION="$(plutil -extract CFBundleShortVersionString raw -o - Info.plist 2>/dev/null || true)"
+          IPA_BUILD="$(plutil -extract CFBundleVersion raw -o - Info.plist 2>/dev/null || true)"
+          echo "size=$(stat -f%z "$IPA")" >> "$GITHUB_OUTPUT"
+          echo "path=$IPA" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$IPA")" >> "$GITHUB_OUTPUT"
+          echo "ipa_version=${IPA_VERSION:-$VERSION}" >> "$GITHUB_OUTPUT"
+          echo "ipa_build=${IPA_BUILD:-$VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest iOS bundle
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: ${{ steps.ipa.outputs.path }}
+
+      - name: Attach IPA to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "${{ steps.ipa.outputs.path }}" --clobber
+
+      - name: Update AltStore/SideStore source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ALTSTORE_VERSION: ${{ steps.ipa.outputs.ipa_version }}
+          ALTSTORE_VERSION_BUILD: ${{ steps.ipa.outputs.ipa_build }}
+        run: |
+          DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/${{ steps.ipa.outputs.name }}"
+          DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          if gh release download "$TAG" --pattern 'altstore-source.json' --dir . --clobber 2>/dev/null; then
+            echo "Using existing altstore-source.json from release $TAG"
+          else
+            echo "Using repo altstore-source.json"
+          fi
+          node .github/scripts/update-altstore-source.mjs \
+            altstore-source.json "${ALTSTORE_VERSION:-$VERSION}" "${ALTSTORE_VERSION_BUILD:-$VERSION}" "${{ steps.ipa.outputs.size }}" "$DOWNLOAD_URL" "$DATE" "Sable $VERSION"
+          gh release upload "$TAG" altstore-source.json --clobber
+
+  updater-manifest:
+    name: Publish updater manifest
+    needs: [setup-release, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      TAG: ${{ needs.setup-release.outputs.tag }}
+      VERSION: ${{ needs.setup-release.outputs.version }}
+      VITE_APP_VERSION: ${{ needs.setup-release.outputs.version }}
+      VITE_IS_RELEASE_TAG: ${{ needs.setup-release.outputs.nightly == 'true' && 'true' || '' }}
+      REPO: ${{ github.repository }}
+      STARTED_AT: ${{ needs.setup-release.outputs.started_at }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.setup-release.outputs.ref }}
+          persist-credentials: false
+
+      - name: Build updater manifest
+        id: manifest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ needs.setup-release.outputs.nightly }}" = "true" ]; then
+            gh release view "$TAG" --json assets \
+              | jq -r --arg cutoff "$STARTED_AT" \
+                  '.assets[] | select(.updatedAt <= $cutoff and (.name | endswith(".sig"))) | .name' \
+              | while read -r name; do
+                  [ -n "$name" ] || continue
+                  echo "Removing superseded nightly signature: $name"
+                  gh release delete-asset "$TAG" "$name" --yes
+                done
+          fi
+          node .github/scripts/build-updater-manifest.mjs
+          if [ -f latest.json ]; then
+            echo "produced=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "produced=false" >> "$GITHUB_OUTPUT"
+            echo "No updater manifest produced (no signed artifacts); skipping attestation and upload."
+          fi
+
+      - name: Attest updater manifest
+        if: steps.manifest.outputs.produced == 'true'
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: latest.json
+
+      - name: Upload updater manifest
+        if: steps.manifest.outputs.produced == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" latest.json --clobber
+
+      - name: Finalize nightly release
+        if: ${{ needs.setup-release.outputs.nightly == 'true' && steps.manifest.outputs.produced == 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_SHA: ${{ needs.setup-release.outputs.ref }}
+        run: |
+          gh api --method PATCH "repos/$REPO/git/refs/tags/nightly" \
+            -f sha="$GIT_SHA" -F force=true
+          gh release edit nightly \
+            --prerelease \
+            --target "$GIT_SHA" \
+            --title "Nightly (dev)" \
+            --notes "Rolling nightly build $VERSION from dev — $GIT_SHA"
+
+          gh release view nightly --json assets \
+            | jq -r --arg cutoff "$STARTED_AT" \
+                '.assets[] | select(.updatedAt <= $cutoff) | .name' \
+            | while read -r name; do
+                [ -n "$name" ] || continue
+                echo "Removing superseded nightly asset: $name"
+                gh release delete-asset nightly "$name" --yes
+              done

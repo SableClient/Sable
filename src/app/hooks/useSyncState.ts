@@ -7,7 +7,13 @@ export const useSyncState = (
   onChange: ClientEventHandlerMap[ClientEvent.Sync]
 ): void => {
   useEffect(() => {
-    mx?.on(ClientEvent.Sync, onChange);
+    if (!mx) return undefined;
+
+    mx.on(ClientEvent.Sync, onChange);
+
+    const currentState = mx.getSyncState();
+    if (currentState) onChange(currentState, null);
+
     return () => {
       mx?.removeListener(ClientEvent.Sync, onChange);
     };

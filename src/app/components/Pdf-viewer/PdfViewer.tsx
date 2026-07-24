@@ -28,7 +28,7 @@ import {
   sizedIcon,
 } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
-import FileSaver from 'file-saver';
+import { getDownloadFilename, saveFileToDevice } from '$utils/download';
 import { AsyncStatus } from '$hooks/useAsyncCallback';
 import { useImageGestures } from '$hooks/useImageGestures';
 import { createPage, usePdfDocumentLoader, usePdfJSLoader } from '$plugins/pdfjs-dist';
@@ -61,8 +61,11 @@ export const PdfViewer = as<'div', PdfViewerProps>(
     );
     const isLoading =
       pdfJSState.status === AsyncStatus.Loading || docState.status === AsyncStatus.Loading;
+    const [renderError, setRenderError] = useState(false);
     const isError =
-      pdfJSState.status === AsyncStatus.Error || docState.status === AsyncStatus.Error;
+      pdfJSState.status === AsyncStatus.Error ||
+      docState.status === AsyncStatus.Error ||
+      renderError;
     const [pageNo, setPageNo] = useState(1);
     const [jumpAnchor, setJumpAnchor] = useState<RectCords>();
 
@@ -76,21 +79,30 @@ export const PdfViewer = as<'div', PdfViewerProps>(
     }, [pdfJSState, loadPdfDocument]);
 
     useEffect(() => {
-      if (docState.status === AsyncStatus.Success) {
-        const doc = docState.data;
-        if (pageNo < 0 || pageNo > doc.numPages) return;
-        createPage(doc, pageNo, { scale: zoom }).then((canvas) => {
+      if (docState.status !== AsyncStatus.Success) return undefined;
+      const doc = docState.data;
+      if (pageNo < 0 || pageNo > doc.numPages) return undefined;
+      let cancelled = false;
+      setRenderError(false);
+      createPage(doc, pageNo, { scale: zoom })
+        .then((canvas) => {
+          if (cancelled) return;
           const container = containerRef.current;
           if (!container) return;
           container.textContent = '';
           container.append(canvas);
           canvas.style.touchAction = 'pan-x pan-y';
+        })
+        .catch(() => {
+          if (!cancelled) setRenderError(true);
         });
-      }
+      return () => {
+        cancelled = true;
+      };
     }, [docState, pageNo, zoom]);
 
     const handleDownload = () => {
-      FileSaver.saveAs(src, name);
+      void saveFileToDevice(src, getDownloadFilename(name, undefined, 'document.pdf'));
     };
 
     const handleJumpSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
@@ -185,7 +197,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
               </Button>
             </>
           )}
-          {docState.status === AsyncStatus.Success && (
+          {docState.status === AsyncStatus.Success && !renderError && (
             <Scroll
               ref={scrollRef}
               size="300"

@@ -1,12 +1,12 @@
 import { createContext, useContext } from 'react';
 import type { SpecVersions } from '../cs-api';
 
-const SpecVersionsContext = createContext<SpecVersions | null>(null);
+const EMPTY_VERSIONS: SpecVersions = { versions: [] };
+
+const SpecVersionsContext = createContext<SpecVersions>(EMPTY_VERSIONS);
 
 export const SpecVersionsProvider = SpecVersionsContext.Provider;
 
 export function useSpecVersions(): SpecVersions {
-  const versions = useContext(SpecVersionsContext);
-  if (!versions) throw new Error('Server versions are not provided!');
-  return versions;
+  return useContext(SpecVersionsContext);
 }

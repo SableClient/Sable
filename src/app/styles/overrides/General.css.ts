@@ -2,10 +2,10 @@ import { globalStyle } from '@vanilla-extract/css';
 
 globalStyle(
   `
-    button, 
-    [role="button"], 
-    [class*="Button"], 
-    [class*="Chip"], 
+    button,
+    [role="button"],
+    [class*="Button"],
+    [class*="Chip"],
     [class*="MenuItem"]
 `,
   {
@@ -15,9 +15,9 @@ globalStyle(
 
 globalStyle(
   `
-    button:active, 
-    [role="button"]:active, 
-    [class*="Button"]:active, 
+    button:active,
+    [role="button"]:active,
+    [class*="Button"]:active,
     [class*="Chip"]:active
 `,
   {
@@ -27,7 +27,7 @@ globalStyle(
 
 globalStyle(
   `
-    button:hover, 
+    button:hover,
     [role="button"]:hover
 `,
   {

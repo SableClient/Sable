@@ -10,6 +10,7 @@ import {
 } from 'matrix-widget-api';
 import { CallWidgetDriver } from './CallWidgetDriver';
 import { trimTrailingSlash } from '../../utils/common';
+import { getAppOrigin } from '../../utils/platform';
 import type { ElementCallThemeKind, ElementMediaStateDetail } from './types';
 import { color, config } from 'folds';
 import { ElementCallIntent, ElementWidgetActions } from './types';
@@ -96,7 +97,7 @@ export class CallEmbed {
   ): Widget {
     const userId = mx.getSafeUserId();
     const deviceId = mx.getDeviceId() ?? '';
-    const clientOrigin = window.location.origin;
+    const clientOrigin = getAppOrigin();
     const widgetId = 'call-embed';
 
     const params = new URLSearchParams({
@@ -125,7 +126,7 @@ export class CallEmbed {
     let widgetUrl: URL;
     if (elementCallUrl && elementCallUrl.trim()) {
       try {
-        widgetUrl = new URL(elementCallUrl, window.location.origin);
+        widgetUrl = new URL(elementCallUrl, clientOrigin);
       } catch (error) {
         debugLog.warn(
           'call',
@@ -137,13 +138,13 @@ export class CallEmbed {
         );
         widgetUrl = new URL(
           `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
-          window.location.origin
+          clientOrigin
         );
       }
     } else {
       widgetUrl = new URL(
         `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
-        window.location.origin
+        clientOrigin
       );
     }
     widgetUrl.search = params.toString();

@@ -7,7 +7,6 @@ import { useSetting } from '$state/hooks/settings';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
-import { Sync } from '../general';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
@@ -67,7 +66,6 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
             />
             <br />
             <Box direction="Column" gap="700">
-              <Sync />
               <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
               <PersonaToggle />

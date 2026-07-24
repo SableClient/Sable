@@ -40,6 +40,9 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { nameInitials } from '$utils/common';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useListFocusIndex } from '$hooks/useListFocusIndex';
+import { useNavigate } from 'react-router-dom';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { getNavigatePath } from '$pages/pathUtils';
 import { getMxIdLocalPart, guessDmRoomUserId } from '$utils/matrix';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
@@ -47,10 +50,11 @@ import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { searchModalAtom } from '$state/searchModal';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { KeySymbol } from '$utils/key-symbol';
-import { isMacOS } from '$utils/user-agent';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { formatShortcut, getShortcutBinding, matchesShortcut } from '../../keyboard/shortcuts';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -138,6 +142,7 @@ export type RoomSearchModalProps = {
 };
 
 export function RoomSearchModal({ requestClose, pickRoom, isMobile }: RoomSearchModalProps) {
+  const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -495,7 +500,9 @@ export function RoomSearchModal({ requestClose, pickRoom, isMobile }: RoomSearch
           ) : (
             <>
               Type <b>#</b> for rooms, <b>@</b> for DMs and <b>*</b> for spaces. Hotkey:{' '}
-              <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
+              <b>
+                {formatShortcut(getShortcutBinding('navigation.openRoomSearch', shortcutOverrides))}
+              </b>
             </>
           )}
         </Text>
@@ -506,18 +513,26 @@ export function RoomSearchModal({ requestClose, pickRoom, isMobile }: RoomSearch
 
 export function SearchModalRenderer() {
   const [opened, setOpen] = useAtom(searchModalAtom);
+  const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
+  const navigate = useNavigate();
+  const screenSize = useScreenSizeContext();
+  const isMobile = screenSize === ScreenSize.Mobile;
 
   useKeyDown(
     window,
     useCallback(
       (event) => {
-        if (isKeyHotkey('mod+k', event)) {
+        if (matchesShortcut('navigation.openRoomSearch', event, shortcutOverrides)) {
           event.preventDefault();
+          if (isMobile) {
+            navigate(getNavigatePath());
+            return;
+          }
           setOpen(!opened);
           return;
         }
       },
-      [opened, setOpen]
+      [opened, setOpen, shortcutOverrides, isMobile, navigate]
     )
   );
 

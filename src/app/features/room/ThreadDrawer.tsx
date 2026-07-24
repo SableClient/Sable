@@ -14,7 +14,7 @@ import {
   ThreadEvent,
   EventType,
 } from '$types/matrix-sdk';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import { ReactEditor } from 'slate-react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -37,9 +37,11 @@ import {
 } from '$utils/room';
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useIsInactivePanel } from '$hooks/useRoom';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { nicknamesAtom } from '$state/nicknames';
+import { profilesCacheAtom } from '$state/userRoomProfile';
 import { settingsAtom } from '$state/settings';
 import { useHiddenEventSettings, useSetting } from '$state/hooks/settings';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
@@ -131,11 +133,17 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const autoFillInProgressRef = useRef(false);
   const { editId, handleEdit } = useMessageEdit(editor);
   const nicknames = useAtomValue(nicknamesAtom);
+  const jotaiStore = useStore();
+  const getGlobalProfile = useCallback(
+    (userId: string) => jotaiStore.get(profilesCacheAtom)[userId],
+    [jotaiStore]
+  );
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);
   const useAuthentication = useMediaAuthentication();
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const spoilerClickHandler = useSpoilerClickHandler();
+  const isInactivePanel = useIsInactivePanel();
 
   // Settings
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
@@ -219,11 +227,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const canDeleteOwn = permissions.event(EventType.RoomRedaction, mx.getSafeUserId());
   const canSendReaction = permissions.event(EventType.Reaction, mx.getSafeUserId());
   const canPinEvent = permissions.stateEvent(EventType.RoomPinnedEvents, mx.getSafeUserId());
-  const isReadOnly = useMemo(() => {
-    const myPowerLevel = powerLevels?.users?.[mx.getUserId()!] ?? powerLevels?.users_default ?? 0;
-    const sendLevel = powerLevels?.events?.['m.room.message'] ?? powerLevels?.events_default ?? 0;
-    return myPowerLevel < sendLevel;
-  }, [powerLevels, mx]);
+  const isReadOnly = !permissions.message(room.hasEncryptionStateEvent(), mx.getSafeUserId());
   const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
   const parseMemberEvent = useMemberEventParser();
 
@@ -464,6 +468,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
   // Mark thread as read when viewing it
   useEffect(() => {
+    if (isInactivePanel) return; // Don't send read receipt while room is behind the list
     const markThreadAsRead = async () => {
       const currentThread = room.getThread(threadRootId);
       if (!currentThread) return;
@@ -492,7 +497,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
     // Mark as read when opened and when new messages arrive
     markThreadAsRead();
-  }, [mx, room, threadRootId, forceUpdateCounter]);
+  }, [mx, room, threadRootId, forceUpdateCounter, isInactivePanel]);
 
   const replyEvents = getThreadReplyEvents(room, threadRootId);
   const isThreadLoading = !!thread && !thread.initialEventsFetched && replyEvents.length === 0;
@@ -751,6 +756,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     mx,
     pushProcessor,
     nicknames,
+    getProfile: getGlobalProfile,
     imagePackRooms,
     settings: {
       messageLayout,

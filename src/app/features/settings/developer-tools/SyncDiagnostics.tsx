@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAtomValue } from 'jotai';
 import { Box, Button, Text } from 'folds';
 import { CaretDown, CaretUp, menuIcon } from '$components/icons/phosphor';
 import { SequenceCard } from '$components/sequence-card';
@@ -9,6 +10,9 @@ import { Direction, EventType, NotificationCountType, KnownMembership } from '$t
 
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { getUnreadInfo, isNotificationEvent } from '$utils/room';
+import { allRoomsAtom } from '$state/room-list/roomList';
+import { allInvitesAtom } from '$state/room-list/inviteList';
+import { getMediaLoadFailureCounts } from '$utils/mediaLoadDiagnostics';
 
 type RoomRenderingDiagnostics = {
   totalRooms: number;
@@ -116,6 +120,8 @@ const formatListCoverage = (knownCount: number, rangeEnd: number): string => {
 
 export function SyncDiagnostics() {
   const mx = useMatrixClient();
+  const listedJoinedRoomIds = useAtomValue(allRoomsAtom);
+  const listedInviteRoomIds = useAtomValue(allInvitesAtom);
   const [, setTick] = useState(0);
   const [expandSliding, setExpandSliding] = useState(false);
 
@@ -127,6 +133,15 @@ export function SyncDiagnostics() {
   const diagnostics = getClientSyncDiagnostics(mx);
   const roomDiagnostics = getRoomRenderingDiagnostics(mx.getRooms());
   const unreadDriftRooms = getUnreadDriftRooms(mx);
+  const listedJoinedRoomIdSet = new Set(listedJoinedRoomIds);
+  const sdkRoomsMissingFromList = mx
+    .getRooms()
+    .filter(
+      (room) =>
+        room.getMyMembership() === (KnownMembership.Join as string) &&
+        !listedJoinedRoomIdSet.has(room.roomId)
+    );
+  const mediaLoadFailures = [...getMediaLoadFailureCounts()];
 
   return (
     <Box direction="Column" gap="100">
@@ -143,6 +158,24 @@ export function SyncDiagnostics() {
           <Text size="T300">
             Room counts: {roomDiagnostics.totalRooms} total, {roomDiagnostics.joinedRooms} joined,{' '}
             {roomDiagnostics.inviteRooms} invites
+          </Text>
+          <Text size="T300">
+            Room-list atoms: {listedJoinedRoomIds.length} joined, {listedInviteRoomIds.length}{' '}
+            invites
+          </Text>
+          <Text size="T300">
+            SDK joined rooms missing from room list: {sdkRoomsMissingFromList.length}
+          </Text>
+          {sdkRoomsMissingFromList.slice(0, 10).map((room) => (
+            <Text key={room.roomId} size="T200" priority="300">
+              {room.name || room.roomId} ({room.roomId})
+            </Text>
+          ))}
+          <Text size="T300">
+            Media load failures this session:{' '}
+            {mediaLoadFailures.length === 0
+              ? 'none'
+              : mediaLoadFailures.map(([kind, count]) => `${kind}: ${count}`).join(', ')}
           </Text>
           <Text size="T300">Rooms missing name: {roomDiagnostics.roomsMissingName}</Text>
           <Text size="T300">Rooms missing avatar: {roomDiagnostics.roomsMissingAvatar}</Text>
@@ -179,15 +212,15 @@ export function SyncDiagnostics() {
               </Box>
               {expandSliding && (
                 <Box direction="Column" gap="100">
-                  <Text size="T300">Sliding proxy: {diagnostics.sliding.proxyBaseUrl}</Text>
-                  <Text size="T300">
-                    Room timeline limit: {diagnostics.sliding.timelineLimit} | page size:{' '}
-                    {diagnostics.sliding.listPageSize}
-                  </Text>
+                  <Text size="T300">Sliding sync base URL: {diagnostics.sliding.baseUrl}</Text>
+                  <Text size="T300">Room timeline limit: {diagnostics.sliding.timelineLimit}</Text>
                   {diagnostics.sliding.lists.map((list) => (
                     <Text size="T300" key={list.key}>
                       List `{list.key}` coverage:{' '}
                       {formatListCoverage(list.knownCount, list.rangeEnd)}
+                      {list.requestedRangeEnd > list.rangeEnd
+                        ? ` (requested through ${list.requestedRangeEnd + 1})`
+                        : ''}
                     </Text>
                   ))}
                 </Box>

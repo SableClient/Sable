@@ -1,5 +1,5 @@
 import type { MatrixEvent, Room, RoomStateEventHandlerMap } from '$types/matrix-sdk';
-import { Direction, RoomStateEvent, EventType } from '$types/matrix-sdk';
+import { Direction, RoomStateEvent } from '$types/matrix-sdk';
 import { useCallback, useEffect, useState } from 'react';
 
 export type StateKeyToEvents = Map<string, MatrixEvent>;
@@ -13,10 +13,6 @@ export const useRoomState = (room: Room): StateTypeToState => {
     if (!roomState) return state;
 
     roomState.events.forEach((stateKeyToEvents, eventType) => {
-      if (eventType === (EventType.RoomMember as string)) {
-        // Ignore room members from state on purpose;
-        return;
-      }
       const kToE: StateKeyToEvents = new Map();
       stateKeyToEvents.forEach((mEvent, stateKey) => kToE.set(stateKey, mEvent));
 

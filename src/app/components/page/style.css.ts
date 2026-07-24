@@ -1,4 +1,4 @@
-import { style } from '@vanilla-extract/css';
+import { globalStyle, style } from '@vanilla-extract/css';
 import type { RecipeVariants } from '@vanilla-extract/recipes';
 import { recipe } from '@vanilla-extract/recipes';
 import { DefaultReset, color, config, toRem } from 'folds';
@@ -25,7 +25,8 @@ export type PageNavVariants = RecipeVariants<typeof PageNav>;
 
 export const PageNavHeader = recipe({
   base: {
-    padding: `0 ${config.space.S200} 0 ${config.space.S300}`,
+    paddingRight: config.space.S200,
+    paddingLeft: config.space.S300,
     flexShrink: 0,
     selectors: {
       'button&': {
@@ -58,8 +59,8 @@ export type PageNavHeaderVariants = RecipeVariants<typeof PageNavHeader>;
 
 export const PageNavContent = style({
   minHeight: '100%',
-  padding: config.space.S200,
-  paddingRight: 0,
+  paddingTop: config.space.S200,
+  paddingLeft: config.space.S200,
   paddingBottom: config.space.S700,
 });
 
@@ -91,7 +92,6 @@ export const PageContent = style([
   {
     paddingTop: config.space.S400,
     paddingLeft: config.space.S400,
-    paddingRight: 0,
     paddingBottom: toRem(100),
   },
 ]);
@@ -123,3 +123,21 @@ export const PageContentCenter = style([
     margin: 'auto',
   },
 ]);
+
+export const SettingsSectionBody = style({
+  width: '100%',
+  maxWidth: toRem(800),
+  marginInline: 'auto',
+});
+
+globalStyle(`${SettingsSectionBody} *`, {
+  scrollbarWidth: 'none',
+});
+globalStyle(`${SettingsSectionBody} *::-webkit-scrollbar`, {
+  display: 'none',
+});
+
+export const SettingsSectionHeader = style({
+  paddingLeft: config.space.S300,
+  paddingRight: config.space.S200,
+});

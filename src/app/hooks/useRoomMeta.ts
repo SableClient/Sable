@@ -7,6 +7,17 @@ import { mDirectAtom } from '$state/mDirectList';
 import { useStateEvent } from './useStateEvent';
 import { useNickname } from './useNickname';
 
+export const getRoomDisplayName = (
+  roomName: string,
+  stateName: unknown,
+  isDmTagged: boolean,
+  dmNickname?: string
+): string => {
+  if (isDmTagged && dmNickname) return dmNickname;
+  if (typeof stateName === 'string' && stateName) return stateName;
+  return roomName;
+};
+
 export const useRoomAvatar = (room: Room, dm?: boolean): string | undefined => {
   const avatarEvent = useStateEvent(room, EventType.RoomAvatar);
 
@@ -24,6 +35,8 @@ export const useRoomName = (room: Room): string => {
   const dmNickname = useNickname(dmUserId || '');
   const mDirects = useAtomValue(mDirectAtom);
   const isDmTagged = mDirects.has(room.roomId);
+  const nameEvent = useStateEvent(room, EventType.RoomName);
+  const stateName = nameEvent?.getContent().name;
   const [name, setName] = useState(room.name);
 
   useEffect(() => {
@@ -32,7 +45,7 @@ export const useRoomName = (room: Room): string => {
         room.recalculate();
       }
 
-      const nextName = isDmTagged && dmNickname ? dmNickname : room.name;
+      const nextName = getRoomDisplayName(room.name, stateName, isDmTagged, dmNickname);
       setName((prev) => (prev !== nextName ? nextName : prev));
     };
 
@@ -45,7 +58,7 @@ export const useRoomName = (room: Room): string => {
       room.removeListener(RoomEvent.Name, updateName);
       room.removeListener(RoomStateEvent.Members, updateName);
     };
-  }, [room, dmNickname, isDmTagged]);
+  }, [room, stateName, dmNickname, isDmTagged]);
 
   return name;
 };

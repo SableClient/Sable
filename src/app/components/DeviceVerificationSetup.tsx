@@ -2,7 +2,7 @@ import type { FormEventHandler } from 'react';
 import { forwardRef, useCallback, useState } from 'react';
 import { Dialog, Header, Box, Text, IconButton, config, Button, Chip, color, Spinner } from 'folds';
 import { composerIcon, X } from '$components/icons/phosphor';
-import FileSaver from 'file-saver';
+import { saveFileToDevice } from '$utils/download';
 import to from 'await-to-js';
 import type { AuthDict, IAuthData, UIAuthCallback, UIAFlow } from '$types/matrix-sdk';
 import { MatrixError } from '$types/matrix-sdk';
@@ -260,7 +260,7 @@ function RecoveryKeyDisplay({ recoveryKey }: Readonly<RecoveryKeyDisplayProps>) 
     const blob = new Blob([recoveryKey], {
       type: 'text/plain;charset=us-ascii',
     });
-    FileSaver.saveAs(blob, 'recovery-key.txt');
+    void saveFileToDevice(blob, 'recovery-key.txt');
   };
 
   const safeToDisplayKey = show ? recoveryKey : recoveryKey.replaceAll(/[^\s]/g, '*');

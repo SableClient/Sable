@@ -1,4 +1,4 @@
-import { atom, useAtom, useAtomValue } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MatrixEvent, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import { MatrixError, EventType } from '$types/matrix-sdk';
@@ -37,13 +37,20 @@ export type HierarchyItem = HierarchyItemSpace | HierarchyItemRoom;
 
 type GetRoomCallback = (roomId: string) => Room | undefined;
 
-const hierarchyItemTs: SortFunc<HierarchyItem> = (a, b) => byTsOldToNew(a.ts, b.ts);
-const hierarchyItemByOrder: SortFunc<HierarchyItem> = (a, b) =>
-  byOrderKey(a.content.order, b.content.order);
+const hierarchyItemSort: SortFunc<HierarchyItem> = (a, b) => {
+  const orderCmp = byOrderKey(a.content.order, b.content.order);
+  if (orderCmp !== 0) return orderCmp;
+  return byTsOldToNew(a.ts, b.ts);
+};
 
-const childEventTs: SortFunc<MatrixEvent> = (a, b) => byTsOldToNew(a.getTs(), b.getTs());
-const childEventByOrder: SortFunc<MatrixEvent> = (a, b) =>
-  byOrderKey(a.getContent<MSpaceChildContent>().order, b.getContent<MSpaceChildContent>().order);
+const childEventSort: SortFunc<MatrixEvent> = (a, b) => {
+  const orderCmp = byOrderKey(
+    a.getContent<MSpaceChildContent>().order,
+    b.getContent<MSpaceChildContent>().order
+  );
+  if (orderCmp !== 0) return orderCmp;
+  return byTsOldToNew(a.getTs(), b.getTs());
+};
 
 const getHierarchySpaces = (
   rootSpaceId: string,
@@ -87,8 +94,7 @@ const getHierarchySpaces = (
         // cache which we maintain as we load summary in UI.
         return getRoom(childId)?.isSpaceRoom() || spaceRooms.has(childId);
       })
-      .toSorted(childEventTs)
-      .toSorted(childEventByOrder);
+      .toSorted(childEventSort);
 
     childEvents.forEach((childEvent) => {
       const childId = childEvent.getStateKey();
@@ -155,7 +161,7 @@ const getSpaceHierarchy = (
 
     return {
       space: spaceItem,
-      rooms: childItems.toSorted(hierarchyItemTs).toSorted(hierarchyItemByOrder),
+      rooms: childItems.toSorted(hierarchyItemSort),
     };
   });
 
@@ -172,14 +178,12 @@ export const useSpaceHierarchy = (
   const mx = useMatrixClient();
   const roomToParents = useAtomValue(roomToParentsAtom);
 
-  const [hierarchyAtom] = useState(() =>
-    atom(getSpaceHierarchy(spaceId, spaceRooms, getRoom, excludeRoom, closedCategory))
-  );
-  const [hierarchy, setHierarchy] = useAtom(hierarchyAtom);
+  const [hierarchyKey, setHierarchyKey] = useState(0);
 
-  useEffect(() => {
-    setHierarchy(getSpaceHierarchy(spaceId, spaceRooms, getRoom, excludeRoom, closedCategory));
-  }, [mx, spaceId, spaceRooms, setHierarchy, getRoom, closedCategory, excludeRoom]);
+  const hierarchy = useMemo(() => {
+    void hierarchyKey;
+    return getSpaceHierarchy(spaceId, spaceRooms, getRoom, excludeRoom, closedCategory);
+  }, [spaceId, spaceRooms, getRoom, closedCategory, excludeRoom, hierarchyKey]);
 
   useStateEventCallback(
     mx,
@@ -190,12 +194,10 @@ export const useSpaceHierarchy = (
         if (!eventRoomId) return;
 
         if (spaceId === eventRoomId || getAllParents(roomToParents, eventRoomId).has(spaceId)) {
-          setHierarchy(
-            getSpaceHierarchy(spaceId, spaceRooms, getRoom, excludeRoom, closedCategory)
-          );
+          setHierarchyKey((k) => k + 1);
         }
       },
-      [spaceId, roomToParents, setHierarchy, spaceRooms, getRoom, closedCategory, excludeRoom]
+      [spaceId, roomToParents, setHierarchyKey]
     )
   );
 
@@ -295,22 +297,19 @@ export const useSpaceJoinedHierarchy = (
   const sortRoomItems = useCallback(
     (sId: string, items: HierarchyItem[]) => {
       if (sortByActivity(sId)) {
-        items.sort((a, b) => factoryRoomIdByActivity(mx)(a.roomId, b.roomId));
-        return items;
+        return items.toSorted((a, b) => factoryRoomIdByActivity(mx)(a.roomId, b.roomId));
       }
-      return items.toSorted(hierarchyItemTs).toSorted(hierarchyItemByOrder);
+      return items.toSorted(hierarchyItemSort);
     },
     [mx, sortByActivity]
   );
 
-  const [hierarchyAtom] = useState(() =>
-    atom(getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, sortRoomItems))
-  );
-  const [hierarchy, setHierarchy] = useAtom(hierarchyAtom);
+  const [hierarchyKey, setHierarchyKey] = useState(0);
 
-  useEffect(() => {
-    setHierarchy(getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, sortRoomItems));
-  }, [mx, spaceId, setHierarchy, getRoom, excludeRoom, sortRoomItems]);
+  const hierarchy = useMemo(() => {
+    void hierarchyKey;
+    return getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, sortRoomItems);
+  }, [spaceId, getRoom, excludeRoom, sortRoomItems, hierarchyKey]);
 
   useStateEventCallback(
     mx,
@@ -321,10 +320,10 @@ export const useSpaceJoinedHierarchy = (
         if (!eventRoomId) return;
 
         if (spaceId === eventRoomId || getAllParents(roomToParents, eventRoomId).has(spaceId)) {
-          setHierarchy(getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, sortRoomItems));
+          setHierarchyKey((k) => k + 1);
         }
       },
-      [spaceId, roomToParents, setHierarchy, getRoom, excludeRoom, sortRoomItems]
+      [spaceId, roomToParents, setHierarchyKey]
     )
   );
 

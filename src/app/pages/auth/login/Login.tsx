@@ -1,27 +1,35 @@
-import { useMemo } from 'react';
-import { Box, Text, color } from 'folds';
+import { useMemo, useState } from 'react';
+import { Box, Switch, Text, Tooltip, TooltipProvider, color, config } from 'folds';
 import { Link, useSearchParams } from 'react-router-dom';
 import { SSOAction } from '$types/matrix-sdk';
 import { RegisterFlowStatus, useAuthFlows } from '$hooks/useAuthFlows';
 import { useAuthServer } from '$hooks/useAuthServer';
-import { useParsedLoginFlows } from '$hooks/useParsedLoginFlows';
+import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
+import { isOauthAwarePreferred, useParsedLoginFlows } from '$hooks/useParsedLoginFlows';
 import { getLoginPath, getRegisterPath, withSearchParam } from '$pages/pathUtils';
 import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
 import type { LoginPathSearchParams } from '$pages/paths';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { SSOLogin } from '$pages/auth/SSOLogin';
+import { isTauri } from '@tauri-apps/api/core';
+import { buildTauriSsoRedirectUrl } from '$pages/auth/SSOTauri';
 import { OrDivider } from '$pages/auth/OrDivider';
 import { PasswordLoginForm } from './PasswordLoginForm';
 import { TokenLogin } from './TokenLogin';
+import { OidcLoginButton, OidcCallback } from './OidcLogin';
+import { sizedIcon, Info } from '$components/icons/phosphor';
+import { getPendingSlidingSyncLogin, setPendingSlidingSyncLogin } from './slidingSyncLogin';
 
-const getLoginTokenSearchParam = () => {
-  // when using hasRouter query params in existing route
-  // gets ignored by react-router, so we need to read it ourself
-  // we only need to read loginToken as it's the only param that
-  // is provided by external entity. example: SSO login
-  const parmas = new URLSearchParams(window.location.search);
-  const loginToken = parmas.get('loginToken');
-  return loginToken ?? undefined;
+// react-router ignores the real query string in hashRouter mode, so read callback params direct.
+const getExternalSearchParams = () => {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    loginToken: params.get('loginToken') ?? undefined,
+    code: params.get('code') ?? undefined,
+    state: params.get('state') ?? undefined,
+    error: params.get('error') ?? undefined,
+    errorDescription: params.get('error_description') ?? undefined,
+  };
 };
 
 const useLoginSearchParams = (searchParams: URLSearchParams): LoginPathSearchParams =>
@@ -34,21 +42,72 @@ const useLoginSearchParams = (searchParams: URLSearchParams): LoginPathSearchPar
     [searchParams]
   );
 
+type SlidingSyncLoginOptionProps = {
+  value: boolean;
+  onChange: (value: boolean) => void;
+};
+
+function SlidingSyncLoginOption({ value, onChange }: SlidingSyncLoginOptionProps) {
+  return (
+    <Box alignItems="Center" justifyContent="SpaceBetween" gap="300">
+      <Box alignItems="Center" gap="100">
+        <Text as="label" htmlFor="login-sliding-sync" priority="400">
+          Use sliding sync
+        </Text>
+        <TooltipProvider
+          delay={300}
+          tooltip={
+            <Tooltip style={{ maxWidth: '240px', padding: config.space.S200 }}>
+              <Text size="T200">
+                Sliding sync is faster and uses less bandwidth, but it can be buggier. You can
+                toggle it later in Settings at any time.
+              </Text>
+            </Tooltip>
+          }
+        >
+          {(triggerRef) => (
+            <span
+              ref={triggerRef}
+              role="img"
+              aria-label="About sliding sync"
+              style={{ display: 'inline-flex', color: color.Surface.OnContainer }}
+            >
+              {sizedIcon(Info, '100')}
+            </span>
+          )}
+        </TooltipProvider>
+      </Box>
+      <Switch variant="Primary" value={value} onChange={onChange} id="login-sliding-sync" />
+    </Box>
+  );
+}
+
 export function Login() {
   const server = useAuthServer();
   const { hashRouter } = useClientConfig();
   const { hideUsernamePasswordFields } = useClientConfig();
-  const { loginFlows, registerFlows } = useAuthFlows();
+  const { loginFlows, registerFlows, authMetadata } = useAuthFlows();
+  const discovery = useAutoDiscoveryInfo();
+  const baseUrl = discovery['m.homeserver'].base_url;
   const [searchParams] = useSearchParams();
   const loginSearchParams = useLoginSearchParams(searchParams);
-  const ssoRedirectUrl = usePathWithOrigin(getLoginPath(server));
-  const loginTokenForHashRouter = getLoginTokenSearchParam();
+  const webSsoRedirectUrl = usePathWithOrigin(getLoginPath(server));
+  const ssoRedirectUrl = isTauri() ? buildTauriSsoRedirectUrl(server) : webSsoRedirectUrl;
+  const oidcRedirectUri = usePathWithOrigin(getLoginPath(server), { ignoreHashRouter: true });
+  const external = getExternalSearchParams();
   const absoluteLoginPath = usePathWithOrigin(getLoginPath(server));
+  const [useSlidingSync, setUseSlidingSync] = useState(getPendingSlidingSyncLogin);
 
-  if (hashRouter?.enabled && loginTokenForHashRouter) {
+  const handleSlidingSyncChange = (enabled: boolean) => {
+    setUseSlidingSync(enabled);
+    setPendingSlidingSyncLogin(enabled);
+  };
+
+  if (hashRouter?.enabled && (external.loginToken || (external.code && external.state))) {
     window.location.replace(
       withSearchParam(absoluteLoginPath, {
-        loginToken: loginTokenForHashRouter,
+        ...(external.loginToken ? { loginToken: external.loginToken } : {}),
+        ...(external.code && external.state ? { code: external.code, state: external.state } : {}),
       })
     );
   }
@@ -64,36 +123,74 @@ export function Login() {
   const registrationUnavailable =
     registerFlows.status === RegisterFlowStatus.RegistrationDisabled && !parsedFlows.sso;
 
+  const oidcCode = searchParams.get('code') ?? undefined;
+  const oidcState = searchParams.get('state') ?? undefined;
+  const oidcError = searchParams.get('error') ?? external.error;
+  const oidcErrorDescription = searchParams.get('error_description') ?? external.errorDescription;
+  const oidcNotice = oidcError
+    ? (oidcErrorDescription ?? `Sign-in was not completed (${oidcError}).`)
+    : undefined;
+
+  const showOidc = authMetadata !== undefined;
+  const hidePassword =
+    hideUsernamePasswordFields || (showOidc && isOauthAwarePreferred(parsedFlows.sso));
+  const showPassword = !hidePassword && parsedFlows.password !== undefined;
+  const showLegacySso = !showOidc && parsedFlows.sso !== undefined;
+
+  if (showOidc && oidcCode && oidcState) {
+    return <OidcCallback code={oidcCode} state={oidcState} slidingSyncOptIn={useSlidingSync} />;
+  }
+
   return (
     <Box direction="Column" gap="500">
       <Text size="H2" priority="400">
         Login
       </Text>
-      {parsedFlows.token && loginSearchParams.loginToken && (
-        <TokenLogin token={loginSearchParams.loginToken} />
+      {!showPassword && (
+        <SlidingSyncLoginOption value={useSlidingSync} onChange={handleSlidingSyncChange} />
       )}
-      {!hideUsernamePasswordFields && parsedFlows.password && (
+      {parsedFlows.token && loginSearchParams.loginToken && (
+        <TokenLogin token={loginSearchParams.loginToken} slidingSyncOptIn={useSlidingSync} />
+      )}
+      {showPassword && (
         <>
           <PasswordLoginForm
             defaultUsername={loginSearchParams.username}
             defaultEmail={loginSearchParams.email}
+            slidingSyncOptIn={useSlidingSync}
+            slidingSyncOption={
+              <SlidingSyncLoginOption value={useSlidingSync} onChange={handleSlidingSyncChange} />
+            }
           />
           <span data-spacing-node />
-          {parsedFlows.sso && <OrDivider />}
+          {(showLegacySso || showOidc) && <OrDivider />}
         </>
       )}
-      {parsedFlows.sso && (
+      {showOidc && (
+        <>
+          <OidcLoginButton
+            authMetadata={authMetadata}
+            homeserverUrl={baseUrl}
+            redirectUri={oidcRedirectUri}
+            label={`Continue with ${server}`}
+            notice={oidcNotice}
+            server={server}
+          />
+          <span data-spacing-node />
+        </>
+      )}
+      {showLegacySso && (
         <>
           <SSOLogin
-            providers={parsedFlows.sso.identity_providers}
+            providers={parsedFlows.sso!.identity_providers}
             redirectUrl={ssoRedirectUrl}
             action={SSOAction.LOGIN}
-            saveScreenSpace={parsedFlows.password !== undefined}
+            saveScreenSpace={showPassword}
           />
           <span data-spacing-node />
         </>
       )}
-      {!parsedFlows.password && !parsedFlows.sso && (
+      {!showPassword && !showLegacySso && !showOidc && (
         <>
           <Text style={{ color: color.Critical.Main }}>
             {`This client does not support login on "${server}" homeserver. Password and SSO based login method not found.`}

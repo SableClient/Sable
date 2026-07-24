@@ -1,18 +1,4 @@
 {
-  "search_for_messages": "Caută mesaje",
-  "jump_to_the_highest_priority_unread_room": "Du-te la camera cu cea mai ridicata prioritate de necitire",
-  "go_to_next_unread_room_cycle": "Du-te la următoarea camera necitită (urmează un ciclu)",
-  "go_to_previous_unread_room_cycle": "Go to previous unread room (urmează un ciclu)",
-  "undo_in_message_editor": "Șterge în editorul de mesaje",
-  "redo_in_message_editor": "Reface în editorul de mesaje",
-  "seach_and_go_to_room": "Caută și du-te la cameră",
-  "open_sticker_picker": "Deschide pachet de stickere",
-  "bold": "Îngroșat",
-  "italic": "Italic",
-  "underline": "Subliniat",
   "keyboard_shortcuts": "Scurtături tastatură",
-  "close_keyboard_shortcuts": "Închide scurtăturile tastaturii",
-  "general": "General",
-  "navigation": "Navigație",
-  "messages": "Mesaje"
+  "close_keyboard_shortcuts": "Închide scurtăturile tastaturii"
 }

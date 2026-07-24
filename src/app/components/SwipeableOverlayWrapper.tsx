@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { animate, motion, useMotionValue } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
-import { useAtomValue } from 'jotai';
+import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { mobileOrTablet } from '$utils/user-agent';
 
@@ -16,28 +16,30 @@ export function SwipeableOverlayWrapper({
   onClose,
   direction,
 }: SwipeableOverlayWrapperProps) {
-  const settings = useAtomValue(settingsAtom);
+  const [mobileGestures] = useSetting(settingsAtom, 'mobileGestures');
   const x = useMotionValue(0);
-  const springX = useSpring(x, { stiffness: 400, damping: 40 });
 
   const bind = useDrag(
-    ({ active, movement: [mx], velocity: [vx], direction: [dx], event, event: e }) => {
-      if (e && 'target' in e && e.target instanceof HTMLElement) {
-        if (e.target.closest('[data-gestures="ignore"]')) {
+    ({ first, active, offset: [ox], velocity: [vx], direction: [dx], event, cancel }) => {
+      if (first && event && 'target' in event && event.target instanceof HTMLElement) {
+        if (event.target.closest('[data-gestures="ignore"]')) {
+          cancel();
           return;
         }
       }
 
-      if (!settings.mobileGestures || !mobileOrTablet()) return;
+      if (!mobileGestures || !mobileOrTablet()) return;
 
       event.stopPropagation();
 
-      let val = mx;
+      let val = ox;
 
       if (direction === 'left' && val > 0) val = 0;
       if (direction === 'right' && val < 0) val = 0;
 
       if (active) {
+        // Take over any settling spring; offset is seeded from the live position.
+        if (first) x.stop();
         x.set(val);
       } else {
         const swipeThreshold = 100;
@@ -52,7 +54,7 @@ export function SwipeableOverlayWrapper({
           onClose();
         }
 
-        x.set(0);
+        animate(x, 0, { type: 'spring', stiffness: 400, damping: 40 });
       }
     },
     {
@@ -61,10 +63,12 @@ export function SwipeableOverlayWrapper({
       rubberband: true,
       filterTaps: true,
       pointer: { capture: true },
+      eventOptions: { passive: true },
+      from: () => [x.get(), 0],
     }
   );
 
-  if (!settings.mobileGestures || !mobileOrTablet()) {
+  if (!mobileGestures || !mobileOrTablet()) {
     return (
       <div
         style={{
@@ -95,11 +99,12 @@ export function SwipeableOverlayWrapper({
     >
       <motion.div
         style={{
-          x: springX,
+          x,
           display: 'flex',
           flexDirection: 'column',
           flexGrow: 1,
           height: '100%',
+          willChange: 'transform',
         }}
       >
         {children}

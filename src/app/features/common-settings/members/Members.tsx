@@ -14,7 +14,7 @@ import {
 } from '$components/icons/phosphor';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { RoomMember } from '$types/matrix-sdk';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { PageContent, SettingsSectionPage } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -58,9 +58,10 @@ const SEARCH_OPTIONS: UseAsyncSearchOptions = {
 const mxIdToName = (mxId: string) => getMxIdLocalPart(mxId) ?? mxId;
 
 type MembersProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Members({ requestClose }: MembersProps) {
+export function Members({ requestBack, requestClose }: MembersProps) {
   const mx = useMatrixClient();
   const nicknames = useAtomValue(nicknamesAtom);
   const useAuthentication = useMediaAuthentication();
@@ -144,21 +145,11 @@ export function Members({ requestClose }: MembersProps) {
   };
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              {room.getJoinedMemberCount()} Members
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              {composerIcon(X)}
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage
+      title={`${room.getJoinedMemberCount()} Members`}
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes" style={{ position: 'relative' }}>
         <Scroll ref={scrollRef} hideTrack visibility="Hover">
           <PageContent>
@@ -359,6 +350,6 @@ export function Members({ requestClose }: MembersProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

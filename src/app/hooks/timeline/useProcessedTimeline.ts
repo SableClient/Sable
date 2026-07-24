@@ -2,11 +2,6 @@ import { useMemo } from 'react';
 import type { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
 import { EventType } from '$types/matrix-sdk';
 import {
-  getTimelineAndBaseIndex,
-  getTimelineRelativeIndex,
-  getTimelineEvent,
-} from '$utils/timeline';
-import {
   isMembershipChanged,
   isThreadRelationEvent,
   isEditEvent,
@@ -61,11 +56,16 @@ export function getProcessedRowIndexForRawTimelineIndex(
   startRawIndex: number
 ): { rowIndex: number; focusRawIndex: number } | undefined {
   if (startRawIndex < 0) return undefined;
-  for (let i = startRawIndex; i >= 0; i -= 1) {
-    const rowIndex = processedEvents.findIndex((e) => e.itemIndex === i);
-    if (rowIndex >= 0) return { rowIndex, focusRawIndex: i };
+  let bestRowIndex = -1;
+  let bestRawIndex = -1;
+  for (let rowIndex = 0; rowIndex < processedEvents.length; rowIndex += 1) {
+    const rawIndex = processedEvents[rowIndex]?.itemIndex ?? -1;
+    if (rawIndex >= 0 && rawIndex <= startRawIndex && rawIndex > bestRawIndex) {
+      bestRowIndex = rowIndex;
+      bestRawIndex = rawIndex;
+    }
   }
-  return undefined;
+  return bestRowIndex >= 0 ? { rowIndex: bestRowIndex, focusRawIndex: bestRawIndex } : undefined;
 }
 
 const MESSAGE_EVENT_TYPES = new Set([
@@ -73,6 +73,17 @@ const MESSAGE_EVENT_TYPES = new Set([
   'm.room.message.encrypted',
   'm.sticker',
   'm.room.encrypted',
+]);
+
+const STANDARD_RENDERED_EVENT_TYPES = new Set([
+  'm.room.message',
+  'm.room.message.encrypted',
+  'm.sticker',
+  'm.room.member',
+  'm.room.name',
+  'm.room.topic',
+  'm.room.avatar',
+  'org.matrix.msc3401.call.member',
 ]);
 
 const normalizeMessageType = (t: string): string =>
@@ -93,6 +104,20 @@ type ProcessedEventDraft = Omit<
   | 'reactionsKey'
   | 'content'
 >;
+
+type TimelineEventEntry = {
+  mEvent: MatrixEvent;
+  timelineSet: EventTimelineSet;
+};
+
+const flattenTimelineEvents = (linkedTimelines: EventTimeline[]): TimelineEventEntry[] => {
+  const entries: TimelineEventEntry[] = [];
+  linkedTimelines.forEach((timeline) => {
+    const timelineSet = timeline.getTimelineSet();
+    timeline.getEvents().forEach((mEvent) => entries.push({ mEvent, timelineSet }));
+  });
+  return entries;
+};
 
 const computeCollapseAndDividers = (
   drafts: ProcessedEventDraft[],
@@ -195,25 +220,19 @@ const mergeDraftsAndExtras = (
     { length: resultDrafts.length + 1 },
     () => []
   );
+  const indexById = new Map(resultDrafts.map((draft, index) => [draft.id, index]));
 
   for (const extra of extraDrafts) {
     const extraTs = extra.effectiveTs;
-    let parentIdx = -1;
-    for (let i = 0; i < resultDrafts.length; i += 1) {
-      if (resultDrafts[i]!.id === extra.parentId) {
-        parentIdx = i;
-        break;
-      }
+    const parentIdx = indexById.get(extra.parentId) ?? -1;
+    let low = parentIdx + 1;
+    let high = resultDrafts.length;
+    while (low < high) {
+      const mid = low + Math.floor((high - low) / 2);
+      if (resultDrafts[mid]!.mEvent.getTs() <= extraTs) low = mid + 1;
+      else high = mid;
     }
-
-    let insertIdx = parentIdx + 1;
-    for (let i = parentIdx + 1; i < resultDrafts.length; i += 1) {
-      if (resultDrafts[i]!.mEvent.getTs() > extraTs) {
-        break;
-      }
-      insertIdx = i + 1;
-    }
-    buckets[insertIdx]!.push(extra.draft);
+    buckets[low]!.push(extra.draft);
   }
 
   const mergedDrafts: ProcessedEventDraft[] = [...buckets[0]!];
@@ -355,23 +374,29 @@ export function useProcessedTimeline({
 
   return useMemo(() => {
     let prevEvent: MatrixEvent | undefined;
+    let prevIteratedEventId: string | undefined;
     let isPrevRendered = false;
     let newDivider = false;
     let dayDivider = false;
 
+    const timelineEvents = flattenTimelineEvents(linkedTimelines);
+
     const result = items.reduce<ProcessedEvent[]>((acc, item) => {
-      const [eventTimeline, baseIndex] = getTimelineAndBaseIndex(linkedTimelines, item);
-      if (!eventTimeline) return acc;
-
-      const timelineSet = eventTimeline.getTimelineSet();
-      const mEvent = getTimelineEvent(eventTimeline, getTimelineRelativeIndex(item, baseIndex));
-
-      if (!mEvent) return acc;
+      const entry = timelineEvents[item];
+      if (!entry) return acc;
+      const { mEvent, timelineSet } = entry;
 
       const { threadRootId } = mEvent;
 
       const mEventId = mEvent.getId();
       if (!mEventId) return acc;
+
+      // Track every iterated event, not just rendered ones: the read receipt
+      // may point at an event that never renders (reaction, edit, thread reply).
+      if (!newDivider && readUptoEventId) {
+        newDivider = prevIteratedEventId === readUptoEventId;
+      }
+      prevIteratedEventId = mEventId;
 
       const eventSender = mEvent.getSender() ?? null;
 
@@ -418,16 +443,7 @@ export function useProcessedTimeline({
           ));
 
       if (!(showHiddenEvents && hiddenEventOther)) {
-        const isStandardRendered = [
-          'm.room.message',
-          'm.room.message.encrypted',
-          'm.sticker',
-          'm.room.member',
-          'm.room.name',
-          'm.room.topic',
-          'm.room.avatar',
-          'org.matrix.msc3401.call.member',
-        ].includes(type);
+        const isStandardRendered = STANDARD_RENDERED_EVENT_TYPES.has(type);
 
         if (!isStandardRendered) {
           if (Object.keys(mEvent.getContent()).length === 0 && !allowSpecificHiddenEvent)
@@ -465,11 +481,6 @@ export function useProcessedTimeline({
         )
       )
         return acc;
-
-      if (!newDivider && readUptoEventId) {
-        const prevId = prevEvent ? prevEvent.getId() : undefined;
-        newDivider = prevId === readUptoEventId;
-      }
 
       if (!dayDivider) {
         dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;

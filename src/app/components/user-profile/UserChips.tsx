@@ -35,6 +35,7 @@ import { getMxIdServer } from '$utils/mxIdHelper';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { stopPropagation } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
+import { shareText } from '$utils/share';
 import { getExploreServerPath } from '$pages/pathUtils';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
@@ -299,6 +300,26 @@ export function ShareChip({
                   }}
                 >
                   <Text size="B300">Copy User Link</Text>
+                </MenuItem>
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                  onClick={async () => {
+                    const shared = await shareText(getMatrixToUser(userId));
+                    if (shared) setCopied();
+                    close();
+                  }}
+                >
+                  <Text size="B300">Share User Link</Text>
                 </MenuItem>
               </Box>
             </div>

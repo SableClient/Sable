@@ -41,14 +41,22 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Compute nightly version
+        id: version
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          VERSION="$(node .github/scripts/nightly-version.mjs)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Prepare OpenTofu deployment
         uses: ./.github/actions/prepare-tofu
         with:
-          is_release_tag: 'false'
+          is_release_tag: 'true'
         env:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_SENTRY_ENVIRONMENT: development
-          VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_APP_VERSION: ${{ steps.version.outputs.version }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}

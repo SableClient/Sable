@@ -14,3 +14,5 @@ export type UserRoomProfileState = {
 export const userRoomProfileAtom = atom<UserRoomProfileState | undefined>(undefined);
 
 export const profilesCacheAtom = atom<Record<string, UserProfile>>({});
+
+export const persistentProfileIdsAtom = atom<Set<string>>(new Set<string>());

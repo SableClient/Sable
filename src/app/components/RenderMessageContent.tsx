@@ -31,6 +31,7 @@ import {
   RenderBody,
   ThumbnailContent,
   UnsupportedContent,
+  UploadedSableCssContent,
   VideoContent,
 } from './message';
 import {
@@ -42,6 +43,7 @@ import {
   youtubeUrl,
 } from './url-preview';
 import { isHttpsFullSableCssUrl } from '../theme/previewUrls';
+import { isSableCssAttachmentFileName } from '../theme/processThemeImport';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
@@ -278,13 +280,13 @@ function RenderMessageContentInternal({
     renderCaptionedAttachment(
       <MFile
         content={content as Record<string, never> & { msgtype: MsgType.File }}
-        renderFileContent={({ body, mimeType, info, encInfo, url }) => (
+        renderFileContent={({ fileName, mimeType, info, encInfo, url }) => (
           <FileContent
-            body={body}
+            body={fileName}
             mimeType={mimeType}
             renderAsPdfFile={() => (
               <ReadPdfFile
-                body={body}
+                body={fileName}
                 mimeType={mimeType}
                 url={url}
                 encInfo={encInfo}
@@ -293,7 +295,7 @@ function RenderMessageContentInternal({
             )}
             renderAsTextFile={() => (
               <ReadTextFile
-                body={body}
+                body={fileName}
                 mimeType={mimeType}
                 url={url}
                 encInfo={encInfo}
@@ -301,7 +303,22 @@ function RenderMessageContentInternal({
               />
             )}
           >
-            <DownloadFile body={body} mimeType={mimeType} url={url} encInfo={encInfo} info={info} />
+            {themeChatSableWidgets && isSableCssAttachmentFileName(fileName) && (
+              <UploadedSableCssContent
+                body={fileName}
+                mimeType={mimeType}
+                url={url}
+                encInfo={encInfo}
+                size={info.size}
+              />
+            )}
+            <DownloadFile
+              body={fileName}
+              mimeType={mimeType}
+              url={url}
+              encInfo={encInfo}
+              info={info}
+            />
           </FileContent>
         )}
         outlined={outlineAttachment}

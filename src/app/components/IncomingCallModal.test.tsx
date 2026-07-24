@@ -3,13 +3,11 @@ import type { Room } from '$types/matrix-sdk';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IncomingCallInternal } from './IncomingCallModal';
 
-const { navigateRoomMock, sendRtcDeclineMock, webRtcSupportedMock, livekitSupportedMock } =
-  vi.hoisted(() => ({
-    navigateRoomMock: vi.fn<(roomId: string) => void>(),
-    sendRtcDeclineMock: vi.fn<(roomId: string, eventId: string) => Promise<void>>(),
-    webRtcSupportedMock: vi.fn<() => boolean>(),
-    livekitSupportedMock: vi.fn<() => boolean>(),
-  }));
+const { navigateRoomMock, sendRtcDeclineMock, webRtcSupportedMock } = vi.hoisted(() => ({
+  navigateRoomMock: vi.fn<(roomId: string) => void>(),
+  sendRtcDeclineMock: vi.fn<(roomId: string, eventId: string) => Promise<void>>(),
+  webRtcSupportedMock: vi.fn<() => boolean>(),
+}));
 
 vi.mock('$hooks/useMatrixClient', () => ({
   useMatrixClient: () => ({
@@ -17,10 +15,6 @@ vi.mock('$hooks/useMatrixClient', () => ({
     getSafeUserId: () => '@me:example.org',
     mxcUrlToHttp: () => undefined,
   }),
-}));
-
-vi.mock('$hooks/useLivekitSupport', () => ({
-  useLivekitSupport: () => livekitSupportedMock(),
 }));
 
 vi.mock('$hooks/useCallEmbed', () => ({
@@ -101,7 +95,6 @@ describe('IncomingCallInternal', () => {
     navigateRoomMock.mockReset();
     sendRtcDeclineMock.mockReset().mockResolvedValue(undefined);
     webRtcSupportedMock.mockReset().mockReturnValue(true);
-    livekitSupportedMock.mockReset().mockReturnValue(true);
   });
 
   it('closes the modal when decline is pressed', async () => {
@@ -151,17 +144,5 @@ describe('IncomingCallInternal', () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
     expect(sendRtcDeclineMock).not.toHaveBeenCalled();
-  });
-
-  it('shows homeserver capability issues and blocks answer when LiveKit is unavailable', () => {
-    livekitSupportedMock.mockReturnValue(false);
-    const onClose = vi.fn<() => void>();
-    render(<IncomingCallInternal room={room} incomingCall={incomingCall} onClose={onClose} />);
-
-    expect(
-      screen.getByText(/homeserver does not expose a livekit call focus/i)
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /answer voice call/i })).toBeDisabled();
-    expect(screen.getByText(/homeserver call focus is unavailable/i)).toBeInTheDocument();
   });
 });

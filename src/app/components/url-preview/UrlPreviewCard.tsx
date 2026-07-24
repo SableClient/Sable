@@ -86,6 +86,7 @@ export const UrlPreviewCard = as<
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
+  const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
 
   const [previewStatus, loadPreview] = useAsyncCallback(
     useCallback(() => {
@@ -281,7 +282,7 @@ export const UrlPreviewCard = as<
               }}
               mediaLayout="contained"
               fillsPreviewSlot
-              autoPlay
+              autoPlay={mediaAutoLoad}
               onAuxClick={handleAuxClick}
               body={prev['og:title']}
               url={prev['og:image']}

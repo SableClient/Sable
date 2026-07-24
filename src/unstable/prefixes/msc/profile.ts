@@ -14,3 +14,9 @@ export const MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME = 'gay.fomx.biograp
 
 export const MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME = 'us.cloke.msc4175.tz';
 export const MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME = 'm.tz';
+
+/**
+ * Unstable feature and query parameter names for MSC4466 profile change propagation.
+ */
+export const MATRIX_UNSTABLE_MSC4466_FEATURE = 'computer.gingershaped.msc4466';
+export const MATRIX_UNSTABLE_MSC4466_PROPAGATE_TO = 'computer.gingershaped.msc4466.propagate_to';

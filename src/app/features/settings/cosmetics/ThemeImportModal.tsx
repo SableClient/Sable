@@ -31,6 +31,7 @@ import {
   processPastedOrUploadedCss,
   type ProcessedThemeImport,
 } from '../../../theme/processThemeImport';
+import { pruneThemeFavorites, pruneThemeTweakFavorites } from '../../../theme/themeLibrary';
 
 import { usePatchSettings } from './themeSettingsPatch';
 
@@ -62,22 +63,6 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
         Boolean(u && u.trim().length > 0)
       ),
     [darkRemoteFullUrl, lightRemoteFullUrl, manualRemoteFullUrl]
-  );
-
-  const pruneFavorites = useCallback(
-    (nextFavorites: ThemeRemoteFavorite[], nextActiveUrls: string[]) => {
-      const active = new Set(nextActiveUrls);
-      return nextFavorites.filter((f) => f.pinned === true || active.has(f.fullUrl));
-    },
-    []
-  );
-
-  const pruneTweakFavorites = useCallback(
-    (nextFavorites: ThemeRemoteTweakFavorite[], nextEnabledUrls: string[]) => {
-      const enabled = new Set(nextEnabledUrls);
-      return nextFavorites.filter((f) => f.pinned === true || enabled.has(f.fullUrl));
-    },
-    []
   );
 
   useEffect(() => {
@@ -116,7 +101,10 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
           ? [...enabledTweakFullUrls]
           : [...enabledTweakFullUrls, r.fullUrl];
         patchSettings({
-          themeRemoteTweakFavorites: pruneTweakFavorites([...tweakFavorites, next], nextEnabled),
+          themeRemoteTweakFavorites: pruneThemeTweakFavorites(
+            [...tweakFavorites, next],
+            nextEnabled
+          ),
           themeRemoteEnabledTweakFullUrls: nextEnabled,
         });
         onClose();
@@ -142,20 +130,11 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
         )
       );
       patchSettings({
-        themeRemoteFavorites: pruneFavorites([...favorites, next], nextActive),
+        themeRemoteFavorites: pruneThemeFavorites([...favorites, next], nextActive),
       });
       onClose();
     },
-    [
-      activeUrls,
-      enabledTweakFullUrls,
-      favorites,
-      onClose,
-      patchSettings,
-      pruneFavorites,
-      pruneTweakFavorites,
-      tweakFavorites,
-    ]
+    [activeUrls, enabledTweakFullUrls, favorites, onClose, patchSettings, tweakFavorites]
   );
 
   const onImportFileChange: ChangeEventHandler<HTMLInputElement> = (e) => {

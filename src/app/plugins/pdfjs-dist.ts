@@ -41,11 +41,11 @@ export const createPage = async (
   canvas.width = pageViewport.width;
   canvas.height = pageViewport.height;
 
-  page.render({
+  await page.render({
     canvas,
     canvasContext: context,
     viewport: pageViewport,
-  });
+  }).promise;
 
   return canvas;
 };

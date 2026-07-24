@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { scheduleDecrypt } from '$utils/decryptScheduler';
 import * as Sentry from '@sentry/react';
 
 type EncryptedContentProps = {
@@ -19,17 +20,19 @@ export function EncryptedContent({ mEvent, children }: EncryptedContentProps) {
 
   useEffect(() => {
     if (mEvent.getType() !== (EventType.RoomMessageEncrypted as string)) return;
-    // Sample 5% of events for per-event decryption latency profiling
-    if (Math.random() < 0.05) {
-      const start = performance.now();
-      Sentry.startSpan({ name: 'decrypt.event', op: 'matrix.crypto' }, () =>
-        mx.decryptEventIfNeeded(mEvent).then(() => {
-          Sentry.metrics.distribution('sable.decryption.event_ms', performance.now() - start);
-        })
-      ).catch(() => undefined);
-    } else {
-      mx.decryptEventIfNeeded(mEvent).catch(() => undefined);
-    }
+    scheduleDecrypt(() => {
+      // Sample 5% of events for per-event decryption latency profiling
+      if (Math.random() < 0.05) {
+        const start = performance.now();
+        Sentry.startSpan({ name: 'decrypt.event', op: 'matrix.crypto' }, () =>
+          mx.decryptEventIfNeeded(mEvent).then(() => {
+            Sentry.metrics.distribution('sable.decryption.event_ms', performance.now() - start);
+          })
+        ).catch(() => undefined);
+      } else {
+        mx.decryptEventIfNeeded(mEvent).catch(() => undefined);
+      }
+    });
   }, [mx, mEvent]);
 
   useEffect(() => {

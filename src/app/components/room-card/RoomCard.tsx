@@ -39,6 +39,7 @@ import * as css from './style.css';
 import type { RoomBannerContent } from '$types/matrix-sdk-events';
 import { CustomStateEvent } from '$types/matrix/room';
 import colorMXID from '$utils/colorMXID';
+import { reportMediaLoadFailure } from '$utils/mediaLoadDiagnostics';
 
 type GridColumnCount = '1' | '2' | '3';
 const getGridColumnCount = (gridWidth: number): GridColumnCount => {
@@ -191,7 +192,7 @@ export const RoomCard = as<'div', RoomCardProps>(
       ? getStateEvent(joinedRoom, CustomStateEvent.RoomBanner)
       : undefined;
     const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
-    const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
+    const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', useAuthentication);
     const roomName = joinedRoom?.name || name || fallbackName;
     const roomTopic =
       (topicEvent?.getContent().topic as string) || undefined || topic || fallbackTopic;
@@ -238,6 +239,7 @@ export const RoomCard = as<'div', RoomCardProps>(
               src={bannerURI || avatar || undefined}
               alt={`${name} cover`}
               draggable="false"
+              onError={() => reportMediaLoadFailure('room_card_banner')}
             />
           )}
           <Avatar className={css.RoomCardAvatar} size="500">

@@ -1,4 +1,20 @@
 import { useMemo } from 'react';
+import type { ValidatedAuthMetadata } from '$types/matrix-sdk';
+
+export const getAccountManagementUrl = (
+  metadata: ValidatedAuthMetadata | undefined,
+  action: string,
+  deviceId?: string
+): string | undefined => {
+  if (!metadata?.account_management_uri) return undefined;
+
+  const url = new URL(metadata.account_management_uri);
+  if (metadata.account_management_actions_supported?.includes(action)) {
+    url.searchParams.set('action', action);
+    if (deviceId) url.searchParams.set('device_id', deviceId);
+  }
+  return url.toString();
+};
 
 export const useAccountManagementActions = () => {
   const actions = useMemo(

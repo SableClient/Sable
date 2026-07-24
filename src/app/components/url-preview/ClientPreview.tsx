@@ -6,6 +6,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { encodeBlurHash } from '$utils/blurHash';
+import { fetch } from '$utils/fetch';
 import { Attachment, AttachmentBox, AttachmentHeader } from '../message/attachment';
 import { Image } from '../media';
 import { UrlPreview } from './UrlPreview';

@@ -9,9 +9,14 @@ import { usePowerLevelTags } from './usePowerLevelTags';
 import { useTheme } from './useTheme';
 import { useUserProfile } from './useUserProfile';
 
-export function useSableCosmetics(userId: string, room: Room, isUserHero?: boolean) {
+export function useSableCosmetics(
+  userId: string,
+  room: Room,
+  isUserHero?: boolean,
+  fetchProfile = true
+) {
   const theme = useTheme();
-  const profile = useUserProfile(userId, room);
+  const profile = useUserProfile(userId, room, undefined, false, fetchProfile);
 
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);

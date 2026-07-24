@@ -17,14 +17,14 @@
   "save": "Save",
   "cancel": "Cancel",
   "upload": "Upload",
-  "upload_area": "Upload area",
   "display_name": "Display name",
-  "pronouns": "Pronouns",
   "edit": "Edit",
   "result_one": " result",
   "result_other": " results",
   "jump": "Jump",
   "import": "Import",
+  "search": "Search",
+  "add": "Add",
   "Organisms": {
     "RoomCommon": {
       "changed_room_name": " changed room name"

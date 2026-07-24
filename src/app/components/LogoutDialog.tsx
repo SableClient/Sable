@@ -1,6 +1,8 @@
 import { forwardRef, useCallback } from 'react';
 import { Dialog, Header, config, Box, Text, Button, Spinner, color } from 'folds';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { logoutClient } from '$client/initMatrix';
+import { activeSessionIdAtom, sessionsAtom } from '$state/sessions';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
@@ -16,6 +18,11 @@ type LogoutDialogProps = {
 export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
   ({ handleClose }, ref) => {
     const mx = useMatrixClient();
+    const sessions = useAtomValue(sessionsAtom);
+    const activeSessionId = useAtomValue(activeSessionIdAtom);
+    const setSessions = useSetAtom(sessionsAtom);
+    const setActiveSessionId = useSetAtom(activeSessionIdAtom);
+    const activeSession = sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
     const hasEncryptedRoom = !!mx.getRooms().find((room) => room.hasEncryptionStateEvent());
     const crossSigningActive = useCrossSigningActive();
     const verificationStatus = useDeviceVerificationStatus(
@@ -26,8 +33,15 @@ export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
 
     const [logoutState, logout] = useAsyncCallback<void, Error, []>(
       useCallback(async () => {
-        await logoutClient(mx);
-      }, [mx])
+        await logoutClient(mx, activeSession);
+        if (activeSession) {
+          setSessions({ type: 'DELETE', session: activeSession });
+          setActiveSessionId(
+            sessions.find((s) => s.userId !== activeSession.userId)?.userId ?? undefined
+          );
+        }
+        window.location.reload();
+      }, [mx, activeSession, sessions, setSessions, setActiveSessionId])
     );
 
     const ongoingLogout = logoutState.status === AsyncStatus.Loading;

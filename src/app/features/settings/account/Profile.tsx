@@ -20,6 +20,8 @@ import { composerIcon, menuIcon, Star, Sun, X } from '$components/icons/phosphor
 import FocusTrap from 'focus-trap-react';
 import { useSetAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
+import type { SettingMenuOption } from '$components/setting-menu-selector';
+import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { UserProfile, MSC4440Bio } from '$hooks/useUserProfile';
@@ -42,7 +44,12 @@ import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
+import { useSpecVersions } from '$hooks/useSpecVersions';
+import { useSetting } from '$state/hooks/settings';
+import type { ProfileChangePropagation } from '$state/settings';
+import { settingsAtom } from '$state/settings';
 import type { MSC1767Text } from '$types/matrix/common';
+import { setAvatarUrlWithPropagation, setDisplayNameWithPropagation } from '$utils/msc4466';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';
@@ -59,9 +66,11 @@ type PronounSet = {
 type ProfileProps = {
   profile: UserProfile;
   userId: string;
+  propagateTo?: ProfileChangePropagation;
 };
-function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
+function ProfileAvatar({ profile, userId, propagateTo }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
+  const setGlobalProfiles = useSetAtom(profilesCacheAtom);
   const useAuthentication = useMediaAuthentication();
   const capabilities = useCapabilities();
   const [alertRemove, setAlertRemove] = useState(false);
@@ -86,16 +95,24 @@ function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
   }, []);
 
   const handleUploaded = useCallback(
-    (upload: UploadSuccess) => {
+    async (upload: UploadSuccess) => {
       const { mxc } = upload;
-      mx.setAvatarUrl(mxc);
+      await setAvatarUrlWithPropagation(mx, mxc, propagateTo);
+      setGlobalProfiles((prev) => ({
+        ...prev,
+        [userId]: { ...prev[userId], avatarUrl: mxc },
+      }));
       handleRemoveUpload();
     },
-    [mx, handleRemoveUpload]
+    [mx, userId, propagateTo, setGlobalProfiles, handleRemoveUpload]
   );
 
-  const handleRemoveAvatar = () => {
-    mx.setAvatarUrl('');
+  const handleRemoveAvatar = async () => {
+    await setAvatarUrlWithPropagation(mx, '', propagateTo);
+    setGlobalProfiles((prev) => ({
+      ...prev,
+      [userId]: { ...prev[userId], avatarUrl: undefined },
+    }));
     setAlertRemove(false);
   };
 
@@ -386,8 +403,9 @@ function ProfileBanner({ profile }: Readonly<Pick<ProfileProps, 'profile'>>) {
   );
 }
 
-function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
+function ProfileDisplayName({ profile, userId, propagateTo }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
+  const setGlobalProfiles = useSetAtom(profilesCacheAtom);
   const capabilities = useCapabilities();
   const disableSetDisplayname = capabilities['m.set_displayname']?.enabled === false;
 
@@ -395,7 +413,16 @@ function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
   const [displayName, setDisplayName] = useState(defaultDisplayName);
 
   const [changeState, changeDisplayName] = useAsyncCallback(
-    useCallback((name: string) => mx.setDisplayName(name), [mx])
+    useCallback(
+      async (name: string) => {
+        await setDisplayNameWithPropagation(mx, name, propagateTo);
+        setGlobalProfiles((prev) => ({
+          ...prev,
+          [userId]: { ...prev[userId], displayName: name },
+        }));
+      },
+      [mx, userId, propagateTo, setGlobalProfiles]
+    )
   );
   const changingDisplayName = changeState.status === AsyncStatus.Loading;
 
@@ -475,6 +502,42 @@ function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
         </Box>
       </Box>
     </SettingTile>
+  );
+}
+
+function ProfileChangePropagationSetting({ disabled }: { disabled: boolean }) {
+  const [profileChangePropagation, setProfileChangePropagation] = useSetting(
+    settingsAtom,
+    'profileChangePropagation'
+  );
+  const options: SettingMenuOption<ProfileChangePropagation>[] = [
+    { value: 'all', label: 'All rooms' },
+    { value: 'unchanged', label: 'Unchanged rooms' },
+    { value: 'none', label: 'Global only' },
+  ];
+
+  return (
+    <SequenceCard
+      className={SequenceCardStyle}
+      variant="SurfaceVariant"
+      direction="Column"
+      gap="400"
+      style={{ opacity: disabled ? 0.5 : 1 }}
+    >
+      <SettingTile
+        title="Profile change propagation"
+        focusId="profile-change-propagation"
+        description="Choose where global name and avatar changes are applied."
+        after={
+          <SettingMenuSelector
+            value={profileChangePropagation}
+            options={options}
+            onSelect={setProfileChangePropagation}
+            disabled={disabled}
+          />
+        }
+      />
+    </SequenceCard>
   );
 }
 
@@ -742,6 +805,13 @@ export function Profile() {
   const mx = useMatrixClient();
   const userId = mx.getUserId()!;
   const profile = useUserProfile(userId);
+  const { unstable_features: unstableFeatures } = useSpecVersions();
+  const supportsProfileChangePropagation =
+    unstableFeatures?.[prefix.MATRIX_UNSTABLE_MSC4466_FEATURE] === true;
+  const [profileChangePropagation] = useSetting(settingsAtom, 'profileChangePropagation');
+  const propagateTo: ProfileChangePropagation | undefined = supportsProfileChangePropagation
+    ? profileChangePropagation
+    : undefined;
   return (
     <Box direction="Column" gap="700">
       <Box direction="Column" gap="100">
@@ -760,7 +830,7 @@ export function Profile() {
           direction="Column"
           gap="400"
         >
-          <ProfileAvatar userId={userId} profile={profile} />
+          <ProfileAvatar userId={userId} profile={profile} propagateTo={propagateTo} />
         </SequenceCard>
         <SequenceCard
           className={SequenceCardStyle}
@@ -768,8 +838,9 @@ export function Profile() {
           direction="Column"
           gap="400"
         >
-          <ProfileDisplayName userId={userId} profile={profile} />
+          <ProfileDisplayName userId={userId} profile={profile} propagateTo={propagateTo} />
         </SequenceCard>
+        <ProfileChangePropagationSetting disabled={!supportsProfileChangePropagation} />
       </Box>
       <ProfileExtended userId={userId} profile={profile} />
       <AnimalCosmetics userId={userId} profile={profile} />

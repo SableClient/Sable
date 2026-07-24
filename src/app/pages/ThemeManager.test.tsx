@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 
 import { ThemeKind, type Theme } from '$hooks/useTheme';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
@@ -18,6 +18,8 @@ let activeTheme: Theme = {
   kind: ThemeKind.Light,
   classNames: ['test-light-theme'],
 };
+let cachedCss = '';
+let cacheUpdateListener: ((update: { url: string; contentHash: string }) => void) | undefined;
 
 type ThemeContextProviderProps = {
   value: Theme;
@@ -59,6 +61,21 @@ vi.mock('$plugins/arborium', () => ({
     kind === ThemeKind.Dark ? <>{children}</> : <>{children}</>,
 }));
 
+vi.mock('../theme/cache', () => ({
+  getCachedThemeCss: vi.fn<(url: string) => Promise<string | undefined>>(async () =>
+    cachedCss ? cachedCss : undefined
+  ),
+  putCachedThemeCss: vi.fn<(url: string, cssText: string) => Promise<void>>(async () => undefined),
+  subscribeThemeCacheUpdates: vi.fn<
+    (listener: (update: { url: string; contentHash: string }) => void) => () => void
+  >((listener: (update: { url: string; contentHash: string }) => void) => {
+    cacheUpdateListener = listener;
+    return () => {
+      cacheUpdateListener = undefined;
+    };
+  }),
+}));
+
 beforeEach(() => {
   systemThemeKind = ThemeKind.Light;
   activeTheme = {
@@ -70,6 +87,8 @@ beforeEach(() => {
   settings.underlineLinks = false;
   settings.reducedMotion = false;
   settings.themeRemoteEnabledTweakFullUrls = [];
+  cachedCss = '';
+  cacheUpdateListener = undefined;
   document.body.className = '';
   document.body.style.filter = '';
 });
@@ -104,5 +123,31 @@ describe('ThemeManager', () => {
 
     expect(document.body).toHaveClass('test-dark-theme');
     expect(document.body).not.toHaveClass('test-light-theme');
+  });
+
+  it('reloads active CSS when the cached content changes without a URL change', async () => {
+    const themeUrl = 'https://catalog.example/theme.sable.css';
+    cachedCss = 'body { --sable-primary-main: red; }';
+    activeTheme = {
+      id: 'test-remote',
+      kind: ThemeKind.Dark,
+      classNames: ['test-dark-theme'],
+      remoteFullUrl: themeUrl,
+    };
+
+    render(
+      <AuthRouteThemeManager>
+        <div>child</div>
+      </AuthRouteThemeManager>
+    );
+
+    await waitFor(() =>
+      expect(document.getElementById('sable-remote-theme-style')).toHaveTextContent('red')
+    );
+    cachedCss = 'body { --sable-primary-main: blue; }';
+    cacheUpdateListener?.({ url: themeUrl, contentHash: 'new-hash' });
+    await waitFor(() =>
+      expect(document.getElementById('sable-remote-theme-style')).toHaveTextContent('blue')
+    );
   });
 });

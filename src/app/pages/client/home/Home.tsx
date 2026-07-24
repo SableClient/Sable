@@ -1,5 +1,5 @@
 import type { MouseEventHandler } from 'react';
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
 import {
@@ -39,7 +39,7 @@ import {
   withSearchParam,
 } from '$pages/pathUtils';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
-import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
+import { useSelectedOrLastRoom } from '$hooks/router/useSelectedRoom';
 import { useHomeCreateSelected, useHomeSearchSelected } from '$hooks/router/useHomeSelected';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { VirtualTile } from '$components/virtualizer';
@@ -265,7 +265,7 @@ export function Home() {
 
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
-  const selectedRoomId = useSelectedRoom();
+  const selectedRoomId = useSelectedOrLastRoom();
   const createRoomSelected = useHomeCreateSelected();
   const searchSelected = useHomeSearchSelected();
   const noRoomToDisplay = rooms.length === 0;
@@ -287,11 +287,14 @@ export function Home() {
     return items;
   }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId, isShowingAllRoomsInHome]);
 
+  const getItemKey = useCallback((index: number) => sortedRooms[index] ?? index, [sortedRooms]);
+
   const virtualizer = useVirtualizer({
     count: sortedRooms.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 38,
     overscan: 10,
+    getItemKey,
   });
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
@@ -505,7 +508,7 @@ export function Home() {
                     return (
                       <VirtualTile
                         virtualItem={vItem}
-                        key={vItem.index}
+                        key={vItem.key}
                         ref={virtualizer.measureElement}
                       >
                         <div

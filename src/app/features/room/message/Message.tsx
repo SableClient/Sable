@@ -13,7 +13,15 @@ import {
   toRem,
 } from 'folds';
 import type { KeyboardEventHandler, MouseEventHandler, MouseEvent, ReactNode } from 'react';
-import { memo, useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import {
+  memo,
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+  useImperativeHandle,
+} from 'react';
 import { useHover, useFocusWithin } from 'react-aria';
 import type { MatrixEvent, Room, Relations } from '$types/matrix-sdk';
 import { EventStatus, MatrixEventEvent, RoomEvent } from '$types/matrix-sdk';
@@ -22,6 +30,7 @@ import { useSetAtom } from 'jotai';
 import {
   AvatarBase,
   BubbleLayout,
+  checkIfGif,
   CompactLayout,
   MessageBase,
   ModernLayout,
@@ -31,7 +40,7 @@ import {
   UsernameBold,
 } from '$components/message';
 import { getEditedEvent, getMemberAvatarMxc } from '$utils/room';
-import { mxcUrlToHttp } from '$utils/matrix';
+import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -47,8 +56,8 @@ import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { SwipeableMessageWrapper } from '$components/SwipeableMessageWrapper';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useUserProfile } from '$hooks/useUserProfile';
+import { useRoomMemberHydration } from '$hooks/useRoomMemberHydration';
 import { useSetting } from '$state/hooks/settings';
-import { useBlobCache } from '$hooks/useBlobCache';
 import { filterPronounsByLanguage, getParsedPronouns } from '$utils/pronouns';
 import type { PronounSet } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
@@ -59,6 +68,7 @@ import * as css from './styles.css';
 import { modalAtom, ModalType } from '$state/modal';
 import { OptionQuickMenu } from '$components/message/modals/Options';
 import { useTranslation } from 'react-i18next';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -120,36 +130,7 @@ export type MessageProps = {
   msc2723ForwardedMessageProps?: MSC2723ForwardedMessageProps;
 };
 
-function useMobileLongPress(callback: () => void, delay = 500) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const firedRef = useRef(false);
-
-  const clear = useCallback(() => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  const onTouchStart = useCallback(() => {
-    if (!mobileOrTablet()) return;
-    firedRef.current = false;
-    timerRef.current = setTimeout(() => {
-      firedRef.current = true;
-      callback();
-    }, delay);
-  }, [callback, delay]);
-
-  const onTouchEnd = useCallback(() => {
-    clear();
-  }, [clear]);
-
-  const onTouchMove = useCallback(() => {
-    clear();
-  }, [clear]);
-
-  return { onTouchStart, onTouchEnd, onTouchMove, firedRef };
-}
+import { useMobileLongPress } from '$hooks/useMobileLongPress';
 
 const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
 
@@ -224,7 +205,7 @@ function MorePronounsPill({ pronouns, tagColor, maxPillLength }: MorePronounsPil
  * Component to render pronouns in the chat timeline.
  * It also filters them.
  */
-const Pronouns = as<
+export const Pronouns = as<
   'span',
   {
     pronouns?: PronounSet[];
@@ -252,7 +233,7 @@ const Pronouns = as<
     selectedLanguages
   );
 
-  const limit = getSettings().pronounPillMaxCount ?? 3;
+  const limit = getSettings().pronounPillMaxCount ?? (mobileOrTablet() ? 1 : 3);
   const maxPillLength = getSettings().pronounPillMaxLength ?? 16;
 
   // if language specific pronouns can't be found matching the filter return unfiltered
@@ -377,11 +358,34 @@ function MessageInternal(
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const { t } = useTranslation(['events', 'general']);
+  const messageRef = useRef<HTMLDivElement>(null);
+  useImperativeHandle(ref, () => messageRef.current as HTMLDivElement);
+  const [isVisible, setIsVisible] = useState(() => typeof IntersectionObserver === 'undefined');
+
+  useEffect(() => {
+    const element = messageRef.current;
+    if (!element || typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsVisible(entry?.isIntersecting === true);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const [isEmoji, setIsEmoji] = useState(false);
 
   const setModal = useSetAtom(modalAtom);
   const [contentVersion, setContentVersion] = useState(0);
+
+  const isGif = useMemo(() => {
+    const content = mEvent.getContent();
+    if (content.msgtype !== 'm.image') return false;
+    return checkIfGif(content?.info?.url ?? '', content?.info?.mimetype, content?.body);
+  }, [mEvent]);
 
   useEffect(() => {
     const triggerTimelineRegroup = () => {
@@ -446,8 +450,18 @@ function MessageInternal(
    */
   const showPmPInfo = parsedPMPContent?.name && parsedPMPContent.name?.trim() !== '';
   // Profiles and Colors
-  const profile = useUserProfile(senderId, room);
-  const { color: usernameColor, font: usernameFont } = useSableCosmetics(senderId, room);
+  const profile = useUserProfile(senderId, room, undefined, true, isVisible);
+  const { color: usernameColor, font: usernameFont } = useSableCosmetics(
+    senderId,
+    room,
+    false,
+    isVisible
+  );
+  const senderFallbackName = getMxIdLocalPart(senderId) ?? senderId;
+  const resolvedSenderDisplayName =
+    senderDisplayName === senderFallbackName || senderDisplayName === senderId
+      ? (profile.displayName ?? senderDisplayName)
+      : senderDisplayName;
 
   /**
    * If there is a per-message profile, we want to use the per message pronouns,
@@ -461,13 +475,14 @@ function MessageInternal(
   // Avatars
   // Prefer the room-scoped member avatar (m.room.member) over the global profile
   // avatar so per-room avatar overrides are respected in the timeline.
-  const memberAvatarMxc = getMemberAvatarMxc(room, senderId);
+  useRoomMemberHydration(room, senderId, mEvent.sender !== null);
+  const memberAvatarMxc = mEvent.sender?.getMxcAvatarUrl() ?? getMemberAvatarMxc(room, senderId);
   const avatarUrl = useMemo(() => {
     const mxc = pmp?.avatar_url || memberAvatarMxc || profile.avatarUrl;
     return mxc ? mxcUrlToHttp(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
   }, [pmp, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication]);
 
-  const cachedAvatar = useBlobCache(avatarUrl ?? undefined);
+  const cachedAvatar = useRenderableMediaUrl(avatarUrl ?? undefined);
 
   // UI State
   const [isDesktopHover, setIsDesktopHover] = useState(false);
@@ -495,9 +510,9 @@ function MessageInternal(
 
   const [useRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
   const { cleanedDisplayName, inlinePronoun } = useMemo(() => {
-    const rawName = pmp?.displayname || senderDisplayName || '';
+    const rawName = pmp?.displayname || resolvedSenderDisplayName || '';
     return getParsedPronouns(rawName, parsePronouns);
-  }, [pmp, senderDisplayName, parsePronouns]);
+  }, [pmp, resolvedSenderDisplayName, parsePronouns]);
 
   const mergedPronouns = useMemo(() => {
     const existing = pronouns ? [...pronouns] : [];
@@ -585,7 +600,7 @@ function MessageInternal(
                     style={{ fontSize: 11 }}
                     truncate
                   >
-                    <UsernameBold>{senderDisplayName}</UsernameBold>
+                    <UsernameBold>{resolvedSenderDisplayName}</UsernameBold>
                   </Text>
                 </Text>
               </Box>
@@ -850,6 +865,7 @@ function MessageInternal(
           </div>
         ),
         canSendReaction: canSendReaction,
+        isGif: isGif,
       },
     });
   };
@@ -858,7 +874,9 @@ function MessageInternal(
     onTouchStart,
     onTouchEnd,
     onTouchMove,
+    onTouchCancel,
     firedRef: longPressFiredRef,
+    isPressing,
   } = useMobileLongPress(() => {
     if (!edit) openMobileOptions();
   });
@@ -913,19 +931,21 @@ function MessageInternal(
     <MessageBase
       className={classNames(css.MessageBase, className, {
         [css.MessageBaseBubbleCollapsed]: messageLayout === MessageLayout.Bubble && collapse,
+        [css.MessageForceHover]: isPressing || isEmoji || !!menuAnchor,
       })}
       tabIndex={0}
       space={messageSpacing}
       collapse={collapse}
       highlight={highlight}
       notifyHighlight={highlightMentions ? notifyHighlight : undefined}
-      selected={!!menuAnchor || isEmoji}
+      selected={!!menuAnchor || isEmoji || isPressing}
+      data-hover={!!menuAnchor || isEmoji || isPressing || undefined}
       isMarked={isMarked}
       mobile={mobileOrTablet()}
       {...props}
       {...hoverProps}
       {...focusWithinProps}
-      ref={ref}
+      ref={messageRef}
     >
       {!edit && (isDesktopHover || !!menuAnchor || isEmoji) && (
         <div className={css.MessageOptionsBase} ref={optionsRef}>
@@ -946,16 +966,22 @@ function MessageInternal(
             imagePackRooms={imagePackRooms}
             setIsEmoji={setIsEmoji}
             canSendReaction={canSendReaction}
+            isGif={isGif}
           />
         </div>
       )}
 
       <div
-        style={{ width: '100%' }}
+        style={{
+          width: '100%',
+          WebkitTouchCallout: 'none',
+          WebkitTapHighlightColor: 'transparent',
+        }}
         onContextMenu={handleContextMenu}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onTouchMove={onTouchMove}
+        onTouchCancel={onTouchCancel}
       >
         <WrappedMessage
           headerJSX={headerJSX(collapse)}

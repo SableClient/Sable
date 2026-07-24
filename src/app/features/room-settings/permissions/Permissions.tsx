@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Box, IconButton, Scroll, Text } from 'folds';
-import { composerIcon, X } from '$components/icons/phosphor';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Scroll } from 'folds';
+import { PageContent, SettingsSectionPage } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -14,9 +13,10 @@ import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
 
 type PermissionsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Permissions({ requestClose }: PermissionsProps) {
+export function Permissions({ requestBack, requestClose }: PermissionsProps) {
   const mx = useMatrixClient();
   const room = useRoom();
   const powerLevels = usePowerLevels(room);
@@ -39,21 +39,7 @@ export function Permissions({ requestClose }: PermissionsProps) {
   }
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Permissions
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              {composerIcon(X)}
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Permissions" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -72,6 +58,6 @@ export function Permissions({ requestClose }: PermissionsProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

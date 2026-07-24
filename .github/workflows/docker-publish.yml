@@ -49,13 +49,17 @@ jobs:
         id: release_tag
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.git_tag }}" ]]; then
             TAG="${{ inputs.git_tag }}"
           else
             TAG="${GITHUB_REF#refs/tags/}"
           fi
           if [[ "${TAG}" == v* ]]; then
-            echo "value=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "value=${TAG#v}" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == "refs/heads/dev" ]]; then
+            NIGHTLY_VERSION="$(node .github/scripts/nightly-version.mjs)"
+            echo "value=${NIGHTLY_VERSION}" >> "$GITHUB_OUTPUT"
             echo "is_release=true" >> "$GITHUB_OUTPUT"
           else
             echo "value=" >> "$GITHUB_OUTPUT"
@@ -90,6 +94,7 @@ jobs:
       - name: Build site
         env:
           VITE_BUILD_HASH: ${{ steps.vars.outputs.short_sha }}
+          VITE_APP_VERSION: ${{ steps.release_tag.outputs.value }}
           VITE_IS_RELEASE_TAG: ${{ steps.release_tag.outputs.is_release }}
         run: |
           NODE_OPTIONS=--max_old_space_size=4096 pnpm run build
@@ -120,4 +125,4 @@ jobs:
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: false
+          push-to-registry: true

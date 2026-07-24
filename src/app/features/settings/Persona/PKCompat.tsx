@@ -35,6 +35,13 @@ export function PKCompatSettings() {
             />
           }
         />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="100"
+      >
         <SettingTile
           focusId="enable-pk-shorthands"
           title={t('enable_shorthands')}

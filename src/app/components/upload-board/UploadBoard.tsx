@@ -1,11 +1,11 @@
 import type { MutableRefObject, ReactNode } from 'react';
-import { useImperativeHandle, useRef } from 'react';
+import { useEffect, useImperativeHandle, useRef } from 'react';
 import { Badge, Box, Chip, Header, Spinner, Text, as, percent } from 'folds';
 import { CaretRight, CaretUp, X, sizedIcon } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
 
-import type { TUploadFamilyObserverAtom, Upload, UploadSuccess } from '$state/upload';
+import type { TUploadFamilyObserverAtom, Upload } from '$state/upload';
 import { UploadStatus } from '$state/upload';
 import * as css from './UploadBoard.css';
 
@@ -34,7 +34,8 @@ type UploadBoardHeaderProps = {
   onToggle: () => void;
   uploadFamilyObserverAtom: TUploadFamilyObserverAtom;
   onCancel: (uploads: Upload[]) => void;
-  onSend: (uploads: UploadSuccess[]) => Promise<void>;
+  onSend: (uploads: Upload[]) => Promise<void>;
+  onBusyChange?: (busy: boolean) => void;
   imperativeHandlerRef: MutableRefObject<UploadBoardImperativeHandlers | undefined>;
 };
 
@@ -44,6 +45,7 @@ export function UploadBoardHeader({
   uploadFamilyObserverAtom,
   onCancel,
   onSend,
+  onBusyChange,
   imperativeHandlerRef,
 }: UploadBoardHeaderProps) {
   const sendingRef = useRef(false);
@@ -51,6 +53,11 @@ export function UploadBoardHeader({
 
   const isSuccess = uploads.every((upload) => upload.status === UploadStatus.Success);
   const isError = uploads.some((upload) => upload.status === UploadStatus.Error);
+  const busy = uploads.length > 0 && !isSuccess && !isError;
+  useEffect(() => {
+    onBusyChange?.(busy);
+    return () => onBusyChange?.(false);
+  }, [busy, onBusyChange]);
   const progress = uploads.reduce(
     (acc, upload) => {
       acc.total += upload.file.size;
@@ -68,8 +75,16 @@ export function UploadBoardHeader({
   const handleSend = async () => {
     if (sendingRef.current) return;
     sendingRef.current = true;
-    await onSend(uploads.filter((upload) => upload.status === UploadStatus.Success));
-    sendingRef.current = false;
+    try {
+      await onSend(
+        uploads.filter(
+          (upload) =>
+            upload.status === UploadStatus.Success || upload.status === UploadStatus.Loading
+        )
+      );
+    } finally {
+      sendingRef.current = false;
+    }
   };
 
   useImperativeHandle(imperativeHandlerRef, () => ({

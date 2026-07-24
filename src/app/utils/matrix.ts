@@ -1,5 +1,6 @@
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
-import { decryptAttachment, encryptAttachment } from 'browser-encrypt-attachment';
+import { decryptAttachment } from 'browser-encrypt-attachment';
+import { Channel, convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import type {
   AccountDataEvents,
   EventTimelineSet,
@@ -11,16 +12,37 @@ import type {
   UploadProgress,
   UploadResponse,
 } from '$types/matrix-sdk';
-import { EventTimeline, MatrixError, EventType, KnownMembership } from '$types/matrix-sdk';
+import {
+  EventTimeline,
+  MatrixError,
+  EventType,
+  KnownMembership,
+  MediaPrefix,
+} from '$types/matrix-sdk';
 import to from 'await-to-js';
 import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 
 import * as Sentry from '@sentry/react';
+import { encryptBlobInWorker } from '$utils/mediaWorker';
+import { encryptAttachmentStreaming } from '$utils/attachmentCrypto';
 import { getEventReactions, getStateEvent } from './room';
 import { getReactionContent } from './messageReaction';
 import { matchMxId, validMxId } from './mxIdHelper';
+import {
+  fetchMediaBlob,
+  getCurrentMediaSessionScope,
+  type MediaTransportOptions,
+} from './mediaTransport';
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
+const TAURI_MEDIA_CACHE_VERSION = '__sable_media_cache=2';
+const TAURI_MEDIA_PATH_PREFIXES = [
+  '/_matrix/client/v1/media/',
+  '/_matrix/media/v3/download/',
+  '/_matrix/media/v3/thumbnail/',
+  '/_matrix/media/r0/download/',
+  '/_matrix/media/r0/thumbnail/',
+];
 
 export const isServerName = (serverName: string): boolean => DOMAIN_REGEX.test(serverName);
 
@@ -115,14 +137,19 @@ export const encryptFile = async <T extends File | Blob>(
   file: File;
   originalFile: T;
 }> => {
-  const dataBuffer = await file.arrayBuffer();
-  const encryptedAttachment = await encryptAttachment(dataBuffer);
+  let blob: Blob;
+  let info: EncryptedAttachmentInfo;
+  try {
+    ({ blob, info } = await encryptBlobInWorker(file));
+  } catch {
+    ({ blob, info } = await encryptAttachmentStreaming(file));
+  }
   const fileName = getUploadFileName(file);
-  const encFile = new File([encryptedAttachment.data], fileName, {
+  const encFile = new File([blob], fileName, {
     type: file.type,
   });
   return {
-    encInfo: encryptedAttachment.info,
+    encInfo: info,
     file: encFile,
     originalFile: file,
   };
@@ -139,6 +166,148 @@ export const decryptFile = async (
 };
 
 export type TUploadContent = File;
+
+export type UploadContentOpts = {
+  name?: string;
+  type?: string;
+  includeFilename?: boolean;
+  progressHandler?: (progress: UploadProgress) => void;
+  abortController?: AbortController;
+};
+
+/**
+ * matrix-js-sdk's `MatrixClient.uploadContent` uploads via `XMLHttpRequest` (to
+ * expose progress events), which bypasses the client's configured `fetchFn`. In
+ * the Tauri webview that XHR is subject to CORS / Private Network Access checks
+ * and gets blocked, so uploads to the homeserver fail. Route the upload through
+ * our Tauri-aware `fetch` instead, keeping the SDK path (with progress) on web.
+ */
+const UPLOAD_CHUNK_SIZE = 2 * 1024 * 1024;
+
+const blobToBase64 = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      const result = reader.result as string;
+      resolve(result.slice(result.indexOf(',') + 1));
+    });
+    reader.addEventListener('error', () => reject(reader.error));
+    reader.readAsDataURL(blob);
+  });
+
+const tauriUploadAbortControllers = new WeakMap<Promise<UploadResponse>, AbortController>();
+
+type UploadFileType = TUploadContent | Blob | XMLHttpRequestBodyInit;
+
+export const uploadContentToServer = (
+  mx: MatrixClient,
+  file: UploadFileType,
+  opts: UploadContentOpts = {}
+): Promise<UploadResponse> => {
+  if (!isTauri()) {
+    return mx.uploadContent(file, opts);
+  }
+
+  const abortController = opts.abortController ?? new AbortController();
+  const includeFilename = opts.includeFilename ?? true;
+  const isFile = file instanceof File;
+  const contentType =
+    opts.type || (file instanceof Blob ? file.type : '') || 'application/octet-stream';
+  const fileName = opts.name ?? (isFile ? file.name : undefined);
+
+  const url = new URL(`${mx.baseUrl}${MediaPrefix.V3}/upload`);
+  if (includeFilename && fileName) {
+    url.searchParams.set('filename', fileName);
+  }
+
+  const accessToken = mx.getAccessToken();
+  const requestId =
+    globalThis.crypto?.randomUUID?.() ??
+    `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  const promise = (async (): Promise<UploadResponse> => {
+    const blob = file instanceof Blob ? file : new Blob([file as BlobPart]);
+    const total = blob.size;
+
+    const throwIfAborted = () => {
+      if (abortController.signal.aborted) {
+        throw new DOMException('The operation was aborted', 'AbortError');
+      }
+    };
+    const onAbort = () => {
+      void invoke('abort_native_upload', { requestId });
+    };
+    abortController.signal.addEventListener('abort', onAbort, { once: true });
+
+    const half = Math.floor(total / 2);
+    const onProgress = new Channel<{ loaded: number; total: number }>();
+    if (opts.progressHandler) {
+      // eslint-disable-next-line unicorn/prefer-add-event-listener -- Channel only exposes onmessage
+      onProgress.onmessage = (payload) => {
+        const sent = payload.total ? payload.loaded / payload.total : 0;
+        opts.progressHandler?.({ loaded: half + Math.floor(sent * (total - half)), total });
+      };
+    }
+
+    const writeChunk = async (start: number) => {
+      const chunk = await blobToBase64(blob.slice(start, start + UPLOAD_CHUNK_SIZE));
+      await invoke('upload_write_chunk', { requestId, chunk });
+    };
+
+    try {
+      for (let offset = 0; offset < total; offset += UPLOAD_CHUNK_SIZE) {
+        throwIfAborted();
+        const end = Math.min(offset + UPLOAD_CHUNK_SIZE, total);
+        // eslint-disable-next-line no-await-in-loop -- sequential chunks bound webview memory
+        await writeChunk(offset);
+        opts.progressHandler?.({ loaded: Math.floor(end / 2), total });
+      }
+      throwIfAborted();
+
+      const result = await invoke<{ status: number; body: string }>('native_upload', {
+        requestId,
+        url: url.toString(),
+        contentType,
+        authorization: accessToken ? `Bearer ${accessToken}` : null,
+        onProgress,
+      });
+      if (result.status < 200 || result.status >= 300) {
+        let parsed: { errcode?: string; error?: string } = {};
+        try {
+          parsed = JSON.parse(result.body);
+        } catch {
+          // Non-JSON error body; fall back to the status code.
+        }
+        throw new MatrixError({
+          errcode: parsed.errcode,
+          error: parsed.error ?? `Upload failed with status ${result.status}`,
+        });
+      }
+      return JSON.parse(result.body) as UploadResponse;
+    } catch (err) {
+      void invoke('abort_native_upload', { requestId });
+      throw err;
+    } finally {
+      abortController.signal.removeEventListener('abort', onAbort);
+    }
+  })();
+
+  tauriUploadAbortControllers.set(promise, abortController);
+  void promise.finally(() => tauriUploadAbortControllers.delete(promise));
+  return promise;
+};
+
+export const cancelUploadContent = (
+  mx: MatrixClient,
+  promise: Promise<UploadResponse>
+): boolean => {
+  const abortController = tauriUploadAbortControllers.get(promise);
+  if (abortController) {
+    abortController.abort();
+    return true;
+  }
+  return mx.cancelUpload(promise);
+};
 
 export type ContentUploadOptions = {
   name?: string;
@@ -158,7 +327,7 @@ export const uploadContent = async (
   const { name, fileType, hideFilename, onProgress, onPromise, onSuccess, onError } = options;
 
   const uploadStart = performance.now();
-  const uploadPromise = mx.uploadContent(file, {
+  const uploadPromise = uploadContentToServer(mx, file, {
     name,
     type: fileType,
     includeFilename: !hideFilename,
@@ -313,6 +482,35 @@ export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string):
   );
 };
 
+export const rewriteAuthenticatedMediaUrl = (httpUrl: string | null): string | null => {
+  if (!httpUrl) return null;
+  if (!isTauri()) return httpUrl;
+  const sourceUrl = httpUrl.startsWith('sable-media://')
+    ? httpUrl.slice('sable-media://'.length)
+    : httpUrl;
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(sourceUrl);
+  } catch {
+    return httpUrl;
+  }
+  if (
+    (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') ||
+    parsedUrl.origin === 'null' ||
+    !TAURI_MEDIA_PATH_PREFIXES.some((path) => parsedUrl.pathname.startsWith(path))
+  ) {
+    return httpUrl;
+  }
+  if (httpUrl.includes(TAURI_MEDIA_CACHE_VERSION)) return httpUrl;
+  const mediaUrl = httpUrl.startsWith('sable-media://')
+    ? httpUrl
+    : convertFileSrc(httpUrl, 'sable-media');
+  // Session-scoped so the cacheable response is never shared across accounts.
+  const sessionScope = encodeURIComponent(getCurrentMediaSessionScope());
+  const separator = mediaUrl.includes('?') ? '&' : '?';
+  return `${mediaUrl}${separator}${TAURI_MEDIA_CACHE_VERSION}&__sable_media_session=${sessionScope}`;
+};
+
 export const mxcUrlToHttp = (
   mx: MatrixClient,
   mxcUrl: string,
@@ -321,8 +519,8 @@ export const mxcUrlToHttp = (
   height?: number,
   resizeMethod?: string,
   allowDirectLinks?: boolean
-): string | null =>
-  mx.mxcUrlToHttp(
+): string | null => {
+  const httpUrl = mx.mxcUrlToHttp(
     mxcUrl.replace(/^["']|["']$/g, ''),
     width,
     height,
@@ -332,21 +530,21 @@ export const mxcUrlToHttp = (
     useAuthentication
   );
 
-export const downloadMedia = async (src: string): Promise<Blob> => {
-  // this request is authenticated by service worker
-  const res = await fetch(src, { method: 'GET' });
-  const blob = await res.blob();
-  return blob;
+  if (httpUrl && isTauri()) {
+    return rewriteAuthenticatedMediaUrl(httpUrl);
+  }
+  return httpUrl;
 };
+
+export const downloadMedia = async (src: string, options?: MediaTransportOptions): Promise<Blob> =>
+  fetchMediaBlob(src, options);
 
 export const downloadEncryptedMedia = async (
   src: string,
   decryptContent: (buf: ArrayBuffer) => Promise<Blob>
 ): Promise<Blob> => {
   const encryptedContent = await downloadMedia(src);
-  const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
-
-  return decryptedContent;
+  return decryptContent(await encryptedContent.arrayBuffer());
 };
 
 const sleepForMs = (ms: number) =>

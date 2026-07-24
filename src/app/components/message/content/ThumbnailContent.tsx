@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { IThumbnailContent } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
+import { useRevokeObjectURL } from '$hooks/useObjectURL';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 
 export type ThumbnailContentProps = {
@@ -15,31 +17,40 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
+  const encInfo = info.thumbnail_file;
+  const thumbMxcUrl = encInfo?.url ?? info.thumbnail_url;
+
+  const rawMediaUrl = useMemo(() => {
+    if (typeof thumbMxcUrl !== 'string') return undefined;
+    return mxcUrlToHttp(mx, thumbMxcUrl, useAuthentication) ?? undefined;
+  }, [mx, thumbMxcUrl, useAuthentication]);
+
+  const resolvedMediaUrl = useRenderableMediaUrl(encInfo ? undefined : rawMediaUrl);
+
   const [thumbSrcState, loadThumbSrc] = useAsyncCallback(
     useCallback(async () => {
       const thumbInfo = info.thumbnail_info;
-      const thumbMxcUrl = info.thumbnail_file?.url ?? info.thumbnail_url;
-      const encInfo = info.thumbnail_file;
       if (typeof thumbMxcUrl !== 'string' || typeof thumbInfo?.mimetype !== 'string') {
         throw new Error('Failed to load thumbnail');
       }
-
-      const mediaUrl = mxcUrlToHttp(mx, thumbMxcUrl, useAuthentication);
-      if (!mediaUrl) throw new Error('Invalid media URL');
       if (encInfo) {
-        const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
+        if (!rawMediaUrl) throw new Error('Invalid media URL');
+        const fileContent = await downloadEncryptedMedia(rawMediaUrl, (encBuf) =>
           decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo)
         );
         return URL.createObjectURL(fileContent);
       }
-
-      return mediaUrl;
-    }, [mx, info, useAuthentication])
+      return resolvedMediaUrl ?? rawMediaUrl ?? thumbMxcUrl;
+    }, [info, thumbMxcUrl, rawMediaUrl, resolvedMediaUrl, encInfo])
   );
 
   useEffect(() => {
     loadThumbSrc();
   }, [loadThumbSrc]);
+
+  useRevokeObjectURL(
+    encInfo && thumbSrcState.status === AsyncStatus.Success ? thumbSrcState.data : undefined
+  );
 
   return thumbSrcState.status === AsyncStatus.Success ? renderImage(thumbSrcState.data) : null;
 }

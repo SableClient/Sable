@@ -22,6 +22,7 @@ import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { resolveUnreadBadgeMode } from '$components/unread-badge';
+import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 
 export function MessageTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
   const rooms = useAtomValue(allRoomsAtom);
@@ -48,6 +49,7 @@ export function MessageTab({ isBottom, isMobile }: { isBottom?: boolean; isMobil
 
     navigate(getSpacePath(lastSpaceId));
   };
+  const mobileTapActivation = useMobileTapActivation(isMobile ?? false, onBack);
 
   const [showUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
@@ -72,6 +74,7 @@ export function MessageTab({ isBottom, isMobile }: { isBottom?: boolean; isMobil
               ref={triggerRef}
               outlined={!isMobile}
               onClick={onBack}
+              {...mobileTapActivation}
               size={'400'}
             >
               <ChatTextIcon

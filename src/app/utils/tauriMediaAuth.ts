@@ -1,0 +1,43 @@
+import { isTauri } from '@tauri-apps/api/core';
+import { clearMediaSession, setMediaSession } from '$generated/tauri/commands';
+import { createLogger } from './debug';
+import { getActiveMediaSession } from './mediaTransport';
+
+const log = createLogger('tauri-media-auth');
+
+let pendingNativeWrite: Promise<void> = Promise.resolve();
+
+export const updateTauriMediaSession = (baseUrl?: string, accessToken?: string): Promise<void> => {
+  if (!isTauri()) return Promise.resolve();
+
+  const write = pendingNativeWrite.then(async () => {
+    try {
+      if (baseUrl && accessToken) {
+        await setMediaSession({ baseUrl, token: accessToken });
+      } else {
+        await clearMediaSession();
+      }
+    } catch {
+      // Do not log command arguments: they contain the homeserver URL and access token.
+      log.warn('Failed to update Tauri media session');
+    }
+  });
+
+  pendingNativeWrite = write;
+  return write;
+};
+
+export const syncTauriMediaSession = (): Promise<void> => {
+  const session = getActiveMediaSession();
+  return updateTauriMediaSession(session?.baseUrl, session?.accessToken);
+};
+
+export const initTauriMediaSession = (): Promise<void> => {
+  if (!isTauri()) return Promise.resolve();
+
+  const initialSync = syncTauriMediaSession();
+  window.addEventListener('storage', () => {
+    void syncTauriMediaSession();
+  });
+  return initialSync;
+};

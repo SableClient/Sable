@@ -36,7 +36,7 @@ export const MemberTile = as<'button', MemberTileProps>(
       : undefined;
 
     // Sable username color and fonts
-    const { color, font } = useSableCosmetics(member.userId, room);
+    const { color, font } = useSableCosmetics(member.userId, room, false, false);
 
     return (
       <AsMemberTile className={css.MemberTile} {...props} ref={ref}>

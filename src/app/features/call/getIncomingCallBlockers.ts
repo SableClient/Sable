@@ -6,14 +6,12 @@ export type IncomingCallBlocker = {
 
 export type IncomingCallBlockerInput = {
   canUseWebRTC: boolean;
-  livekitSupported: boolean;
   hasCallMemberPermission: boolean;
   inAnotherCall: boolean;
 };
 
 export const getIncomingCallBlockers = ({
   canUseWebRTC,
-  livekitSupported,
   hasCallMemberPermission,
   inAnotherCall,
 }: IncomingCallBlockerInput): IncomingCallBlocker[] => {
@@ -24,13 +22,6 @@ export const getIncomingCallBlockers = ({
       id: 'webrtc',
       message: 'Your browser does not support WebRTC calling.',
       shortReason: 'WebRTC is unavailable in this browser.',
-    });
-  }
-  if (!livekitSupported) {
-    issues.push({
-      id: 'livekit',
-      message: 'Your homeserver does not expose a LiveKit call focus.',
-      shortReason: 'Homeserver call focus is unavailable.',
     });
   }
   if (!hasCallMemberPermission) {

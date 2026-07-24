@@ -4,14 +4,19 @@ import { Check, Download, Link, Star, Warning, sizedIcon } from '$components/ico
 
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { copyToClipboard } from '$utils/dom';
+import { getCspNonce } from '$utils/cspNonce';
 import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../../theme/previewCss';
+import { CssViewerButton } from './CssViewerButton';
 
 export type ThemePreviewCardProps = {
   title: string;
   subtitle?: ReactNode;
   beforePreview?: ReactNode;
   previewCssText: string;
+  fullCssText?: string;
+  loadFullCssText?: () => Promise<string>;
   scopeSlug: string;
+  sourceLabel?: string;
   copyText?: string;
   isFavorited?: boolean;
   onToggleFavorite?: () => void | Promise<void>;
@@ -40,7 +45,10 @@ export function ThemePreviewCard({
   subtitle,
   beforePreview,
   previewCssText,
+  fullCssText,
+  loadFullCssText,
   scopeSlug,
+  sourceLabel,
   copyText,
   isFavorited,
   onToggleFavorite,
@@ -119,9 +127,20 @@ export function ThemePreviewCard({
               {subtitle}
             </Text>
           )}
+          {sourceLabel && (
+            <Text size="T200" priority="300">
+              Source: {sourceLabel}
+            </Text>
+          )}
         </Box>
 
         <Box direction="Row" gap="100" alignItems="Center" shrink="No">
+          <CssViewerButton
+            title={`${title} — CSS`}
+            cssText={fullCssText}
+            loadCssText={loadFullCssText}
+            ariaLabel="View theme CSS"
+          />
           {copyText && (
             <IconButton
               size="300"
@@ -176,7 +195,7 @@ export function ThemePreviewCard({
 
       {styleBlock ? (
         <>
-          <style>{styleBlock}</style>
+          <style nonce={getCspNonce()}>{styleBlock}</style>
           <Box
             className={scopeClass}
             direction="Column"

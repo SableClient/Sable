@@ -17,11 +17,12 @@ import {
   getThumbnailContent,
   getVideoInfo,
   mxcUrlToHttp,
+  uploadContentToServer,
 } from '$utils/matrix';
 import { mimeTypeToExt } from '$utils/mimeTypes';
 import type { TUploadItem } from '$state/room/roomInputDrafts';
 import type { GifData } from '$components/emoji-board/types';
-import { encodeBlurHash } from '$utils/blurHash';
+import { encodeBlurHashAsync } from '$utils/blurHash';
 import { scaleYDimension } from '$utils/common';
 import { createLogger } from '$utils/debug';
 import {
@@ -43,7 +44,7 @@ const generateThumbnailContent = async (
   const thumbnailFile = encThumbData?.file ?? thumbnail;
   if (!thumbnailFile) throw new Error('Can not create thumbnail!');
 
-  const data = await mx.uploadContent(thumbnailFile);
+  const data = await uploadContentToServer(mx, thumbnailFile);
   const thumbMxc = data?.content_uri;
   if (!thumbMxc) throw new Error('Failed when uploading thumbnail!');
   const thumbnailContent = getThumbnailContent({
@@ -72,7 +73,11 @@ export const getImageMsgContent = async (
     [MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
   };
   if (imgEl) {
-    const blurHash = encodeBlurHash(imgEl, 512, scaleYDimension(imgEl.width, 512, imgEl.height));
+    const blurHash = await encodeBlurHashAsync(
+      imgEl,
+      512,
+      scaleYDimension(imgEl.width, 512, imgEl.height)
+    );
 
     content.info = {
       ...getImageInfo(imgEl, file),
@@ -121,11 +126,12 @@ export const getVideoMsgContent = async (
       )
     );
     if (thumbContent && thumbContent.thumbnail_info) {
-      thumbContent.thumbnail_info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME] = encodeBlurHash(
-        videoEl,
-        512,
-        scaleYDimension(videoEl.videoWidth, 512, videoEl.videoHeight)
-      );
+      thumbContent.thumbnail_info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME] =
+        await encodeBlurHashAsync(
+          videoEl,
+          512,
+          scaleYDimension(videoEl.videoWidth, 512, videoEl.videoHeight)
+        );
     }
     if (thumbError) log.warn('Failed to generate video thumbnail:', thumbError);
     content.info = {
@@ -252,7 +258,9 @@ export const getGifMsgContent = async (
   gif: GifData,
   mxcUrl: string,
   spoiler?: boolean
-): Promise<IContent> => {
+): Promise<IContent | undefined> => {
+  if (!mxcUrl.startsWith('mxc://')) return undefined;
+
   const proxyUrl = mxcUrlToHttp(mx, mxcUrl, true);
   const [imgError, imgEl] = await to(loadImageElement(proxyUrl ?? gif.url, 'anonymous'));
   if (imgError) {
@@ -285,7 +293,11 @@ export const getGifMsgContent = async (
   }
 
   if (imgEl) {
-    const blurHash = encodeBlurHash(imgEl, 512, scaleYDimension(imgEl.width, 512, imgEl.height));
+    const blurHash = await encodeBlurHashAsync(
+      imgEl,
+      512,
+      scaleYDimension(imgEl.width, 512, imgEl.height)
+    );
     if (blurHash) {
       content.info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME] = blurHash;
     }

@@ -6,9 +6,4 @@ export const SequenceCardStyle = style({
   padding: config.space.S300,
 });
 
-export const settingsHeader = style({
-  paddingLeft: config.space.S300,
-  paddingRight: config.space.S200,
-});
-
 export const focusedSettingTile = messageJumpHighlight;

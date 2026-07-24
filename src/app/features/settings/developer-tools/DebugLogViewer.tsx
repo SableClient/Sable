@@ -8,6 +8,7 @@ import { SequenceCard } from '$components/sequence-card';
 import { debugLoggerEnabledAtom, debugLogsAtom, clearDebugLogsAtom } from '$state/debugLogger';
 import type { LogEntry, LogLevel, LogCategory } from '$utils/debugLogger';
 import { getDebugLogger } from '$utils/debugLogger';
+import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 
 const formatTimestamp = (timestamp: number): string => {
@@ -267,7 +268,7 @@ export function DebugLogViewer() {
         jsonData = debugLogger.exportLogs();
       }
 
-      navigator.clipboard.writeText(jsonData);
+      void copyToClipboard(jsonData);
     },
     [filterLevel, filterCategory]
   );

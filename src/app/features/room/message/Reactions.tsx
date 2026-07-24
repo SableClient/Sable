@@ -22,6 +22,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryEventSentBy } from '$utils/matrix';
 import { Reaction, ReactionTooltipMsg } from '$components/message';
 import { EmojiBoard } from '$components/emoji-board';
+import { mobileOrTablet } from '$utils/user-agent';
 import { sizedIcon, Smiley } from '$components/icons/phosphor';
 import { useRelations } from '$hooks/useRelations';
 import { stopPropagation } from '$utils/keyboard';
@@ -122,17 +123,15 @@ export const Reactions = as<'div', ReactionsProps>(
             </TooltipProvider>
           );
         })}
-        {canSendReaction && reactions.length > 0 && (
-          <PopOut
-            position="Top"
-            align="Start"
-            offset={4}
-            anchor={emojiBoardAnchor}
-            content={
+        {canSendReaction &&
+          reactions.length > 0 &&
+          (() => {
+            const emojiBoard = (
               <EmojiBoard
                 imagePackRooms={imagePackRooms ?? []}
                 returnFocusOnDeactivate={false}
                 allowTextCustomEmoji
+                isFullWidth={mobileOrTablet()}
                 onEmojiSelect={(key) => {
                   onReactionToggle(mEventId, key);
                   setEmojiBoardAnchor(undefined);
@@ -143,32 +142,64 @@ export const Reactions = as<'div', ReactionsProps>(
                 }}
                 requestClose={() => setEmojiBoardAnchor(undefined)}
               />
+            );
+            const trigger = (
+              <TooltipProvider
+                position="Top"
+                tooltip={
+                  <Tooltip>
+                    <Text size="T300">Add Reaction</Text>
+                  </Tooltip>
+                }
+              >
+                {(targetRef) => (
+                  <Box
+                    as="button"
+                    ref={targetRef}
+                    type="button"
+                    className={css.ReactionAdd}
+                    aria-label="Add Reaction"
+                    aria-pressed={!!emojiBoardAnchor}
+                    onClick={handleOpenEmojiBoard}
+                  >
+                    {sizedIcon(Smiley, '100', { filled: !!emojiBoardAnchor })}
+                  </Box>
+                )}
+              </TooltipProvider>
+            );
+            if (mobileOrTablet()) {
+              return (
+                <>
+                  {trigger}
+                  <Overlay open={emojiBoardAnchor !== undefined} backdrop={<OverlayBackdrop />}>
+                    <div
+                      style={{
+                        position: 'fixed',
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {emojiBoard}
+                    </div>
+                  </Overlay>
+                </>
+              );
             }
-          >
-            <TooltipProvider
-              position="Top"
-              tooltip={
-                <Tooltip>
-                  <Text size="T300">Add Reaction</Text>
-                </Tooltip>
-              }
-            >
-              {(targetRef) => (
-                <Box
-                  as="button"
-                  ref={targetRef}
-                  type="button"
-                  className={css.ReactionAdd}
-                  aria-label="Add Reaction"
-                  aria-pressed={!!emojiBoardAnchor}
-                  onClick={handleOpenEmojiBoard}
-                >
-                  {sizedIcon(Smiley, '100', { filled: !!emojiBoardAnchor })}
-                </Box>
-              )}
-            </TooltipProvider>
-          </PopOut>
-        )}
+            return (
+              <PopOut
+                position="Top"
+                align="Start"
+                offset={4}
+                anchor={emojiBoardAnchor}
+                content={emojiBoard}
+              >
+                {trigger}
+              </PopOut>
+            );
+          })()}
         {reactions.length > 0 && (
           <Overlay
             onContextMenu={(evt: React.MouseEvent) => {

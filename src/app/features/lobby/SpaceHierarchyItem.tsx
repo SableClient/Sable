@@ -156,77 +156,78 @@ export const SpaceHierarchyItem = forwardRef<HTMLDivElement, SpaceHierarchyItemP
           onDragging={onDragging}
           data-dragging={draggingSpace}
         />
-        {childItems && childItems.length > 0 ? (
-          <Box direction="Column" gap="0">
-            {childItems.map((roomItem, index) => {
-              const roomSummary = rooms.get(roomItem.roomId);
+        {!closed &&
+          (childItems && childItems.length > 0 ? (
+            <Box direction="Column" gap="0">
+              {childItems.map((roomItem, index) => {
+                const roomSummary = rooms.get(roomItem.roomId);
 
-              const roomPowerLevels = roomsPowerLevels.get(roomItem.roomId) ?? {};
+                const roomPowerLevels = roomsPowerLevels.get(roomItem.roomId) ?? {};
 
-              const lastItem = index === childItems.length;
-              const nextRoomId = lastItem ? nextSpaceId : childItems[index + 1]?.roomId;
+                const lastItem = index === childItems.length;
+                const nextRoomId = lastItem ? nextSpaceId : childItems[index + 1]?.roomId;
 
-              const roomDragging =
-                draggingItem?.roomId === roomItem.roomId &&
-                draggingItem.parentId === roomItem.parentId;
+                const roomDragging =
+                  draggingItem?.roomId === roomItem.roomId &&
+                  draggingItem.parentId === roomItem.parentId;
 
-              return (
-                <RoomItemCard
-                  key={roomItem.roomId}
-                  item={roomItem}
-                  loading={fetching}
-                  error={error}
-                  summary={roomSummary}
-                  dm={mDirects.has(roomItem.roomId)}
-                  onOpen={onOpenRoom}
-                  getRoom={getRoom}
-                  canReorder={
-                    !!spacePermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId()) &&
-                    !disabledReorder
-                  }
-                  options={
-                    <HierarchyItemMenu
-                      item={roomItem}
-                      powerLevels={roomPowerLevels}
-                      joined={allJoinedRooms.has(roomItem.roomId)}
-                      canEditChild={
-                        !!spacePermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
-                      }
-                    />
-                  }
-                  after={
-                    <AfterItemDropTarget
-                      item={roomItem}
-                      nextRoomId={nextRoomId}
-                      canDrop={canDrop}
-                    />
-                  }
-                  data-dragging={roomDragging}
-                  onDragging={onDragging}
-                />
-              );
-            })}
-          </Box>
-        ) : (
-          childItems && (
-            <SequenceCard variant="SurfaceVariant" gap="300" alignItems="Center" radii="300">
-              <Box
-                grow="Yes"
-                style={{
-                  padding: config.space.S100,
-                }}
-                direction="Column"
-                alignItems="Center"
-                justifyContent="Center"
-                gap="100"
-              >
-                <Text align="Center" size="T300" priority="300">
-                  This space does not contain any rooms.
-                </Text>
-              </Box>
-            </SequenceCard>
-          )
-        )}
+                return (
+                  <RoomItemCard
+                    key={roomItem.roomId}
+                    item={roomItem}
+                    loading={fetching}
+                    error={error}
+                    summary={roomSummary}
+                    dm={mDirects.has(roomItem.roomId)}
+                    onOpen={onOpenRoom}
+                    getRoom={getRoom}
+                    canReorder={
+                      !!spacePermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId()) &&
+                      !disabledReorder
+                    }
+                    options={
+                      <HierarchyItemMenu
+                        item={roomItem}
+                        powerLevels={roomPowerLevels}
+                        joined={allJoinedRooms.has(roomItem.roomId)}
+                        canEditChild={
+                          !!spacePermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
+                        }
+                      />
+                    }
+                    after={
+                      <AfterItemDropTarget
+                        item={roomItem}
+                        nextRoomId={nextRoomId}
+                        canDrop={canDrop}
+                      />
+                    }
+                    data-dragging={roomDragging}
+                    onDragging={onDragging}
+                  />
+                );
+              })}
+            </Box>
+          ) : (
+            childItems && (
+              <SequenceCard variant="SurfaceVariant" gap="300" alignItems="Center" radii="300">
+                <Box
+                  grow="Yes"
+                  style={{
+                    padding: config.space.S100,
+                  }}
+                  direction="Column"
+                  alignItems="Center"
+                  justifyContent="Center"
+                  gap="100"
+                >
+                  <Text align="Center" size="T300" priority="300">
+                    This space does not contain any rooms.
+                  </Text>
+                </Box>
+              </SequenceCard>
+            )
+          ))}
       </Box>
     );
   }

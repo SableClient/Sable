@@ -15,3 +15,12 @@ export const useObjectURL = (object?: Blob): string | undefined => {
 
   return url;
 };
+
+export const useRevokeObjectURL = (url?: string): void => {
+  useEffect(
+    () => () => {
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
+    },
+    [url]
+  );
+};

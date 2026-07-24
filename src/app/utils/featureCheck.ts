@@ -11,6 +11,7 @@ export const checkIndexedDBSupport = async (): Promise<boolean> => {
     }
     db.addEventListener('success', () => {
       resolve(true);
+      db.result.close();
       indexedDB.deleteDatabase(dbName);
     });
     db.addEventListener('error', () => {

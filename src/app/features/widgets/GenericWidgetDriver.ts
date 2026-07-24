@@ -14,6 +14,7 @@ import {
   OpenIDRequestState,
 } from 'matrix-widget-api';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
+import { uploadContentToServer } from '$utils/matrix';
 import {
   EventType,
   type IContent,
@@ -332,7 +333,7 @@ export class GenericWidgetDriver extends WidgetDriver {
   }
 
   public async uploadFile(file: XMLHttpRequestBodyInit): Promise<{ contentUri: string }> {
-    const uploadResult = await this.mxClient.uploadContent(file);
+    const uploadResult = await uploadContentToServer(this.mxClient, file);
     return { contentUri: uploadResult.content_uri };
   }
 

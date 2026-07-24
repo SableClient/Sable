@@ -39,11 +39,13 @@ export const atomWithLocalStorage = <T>(
     };
   };
 
-  const localStorageAtom = atom<T, [T], undefined>(
+  const localStorageAtom = atom<T, [T | ((prev: T) => T)], undefined>(
     (get) => get(baseAtom),
     (get, set, newValue) => {
-      set(baseAtom, newValue);
-      setItem(key, newValue);
+      const resolved =
+        typeof newValue === 'function' ? (newValue as (prev: T) => T)(get(baseAtom)) : newValue;
+      set(baseAtom, resolved);
+      setItem(key, resolved);
     }
   );
 

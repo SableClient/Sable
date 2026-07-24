@@ -5,6 +5,7 @@ import { useAtomValue } from 'jotai';
 import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
+import { SettingsSectionHeader } from '$components/page/style.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
@@ -20,6 +21,7 @@ import { DeveloperTools } from '$features/common-settings/developer-tools';
 import { Cosmetics } from '$features/common-settings/cosmetics/Cosmetics';
 import { Appearance } from '$features/common-settings/appearance/Appearance';
 import { RoomAbbreviations } from '$features/room-settings/abbreviations/RoomAbbreviations';
+import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import {
   composerIcon,
   GearSix,
@@ -125,99 +127,115 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
     requestClose();
   };
 
-  return (
-    <PageRoot
-      nav={
-        screenSize === ScreenSize.Mobile && activePage !== undefined ? undefined : (
-          <PageNav size="300">
-            <PageNavHeader outlined={false}>
-              <Box grow="Yes" gap="200">
-                <Avatar size="200" radii="300">
-                  <RoomAvatar
-                    roomId={room.roomId}
-                    src={avatarUrl}
-                    alt={roomName}
-                    renderFallback={() => (
-                      <RoomIcon
-                        roomType={room.getType()}
-                        size="50"
-                        joinRule={joinRuleContent?.join_rule ?? JoinRule.Invite}
-                        filled
-                      />
-                    )}
-                  />
-                </Avatar>
-                <Text size="H4" truncate>
-                  {roomName}
-                </Text>
-              </Box>
-              <Box shrink="No">
-                {screenSize === ScreenSize.Mobile && (
-                  <IconButton onClick={requestClose} variant="Background">
-                    {composerIcon(X)}
-                  </IconButton>
-                )}
-              </Box>
-            </PageNavHeader>
-            <Box grow="Yes" direction="Column">
-              <PageNavContent>
-                <div style={{ flexGrow: 1 }}>
-                  {menuItems.map((item) => {
-                    const active = activePage === item.page;
-                    const IconComponent = active && item.activeIcon ? item.activeIcon : item.icon;
+  const handleSwipeBack = () => {
+    if (screenSize !== ScreenSize.Mobile) return;
+    if (activePage !== undefined) {
+      setActivePage(undefined);
+      return;
+    }
+    requestClose();
+  };
 
-                    return (
-                      <MenuItem
-                        key={item.name}
-                        variant="Background"
-                        radii="400"
-                        aria-pressed={active}
-                        before={settingsNavIcon(IconComponent, active)}
-                        onClick={() => setActivePage(item.page)}
-                      >
-                        <Text
-                          style={{
-                            fontWeight: active ? config.fontWeight.W600 : undefined,
-                          }}
-                          size="T300"
-                          truncate
+  return (
+    <SwipeableOverlayWrapper direction="right" onClose={handleSwipeBack}>
+      <PageRoot
+        mobileDrawer={false}
+        nav={
+          screenSize === ScreenSize.Mobile && activePage !== undefined ? undefined : (
+            <PageNav size="300">
+              <PageNavHeader className={SettingsSectionHeader} size="600">
+                <Box grow="Yes" gap="200">
+                  <Avatar size="200" radii="300">
+                    <RoomAvatar
+                      roomId={room.roomId}
+                      src={avatarUrl}
+                      alt={roomName}
+                      renderFallback={() => (
+                        <RoomIcon
+                          roomType={room.getType()}
+                          size="50"
+                          joinRule={joinRuleContent?.join_rule ?? JoinRule.Invite}
+                          filled
+                        />
+                      )}
+                    />
+                  </Avatar>
+                  <Text size="H4" truncate>
+                    {roomName}
+                  </Text>
+                </Box>
+                <Box shrink="No">
+                  {screenSize === ScreenSize.Mobile && (
+                    <IconButton onClick={requestClose} variant="Background">
+                      {composerIcon(X)}
+                    </IconButton>
+                  )}
+                </Box>
+              </PageNavHeader>
+              <Box grow="Yes" direction="Column">
+                <PageNavContent>
+                  <div style={{ flexGrow: 1 }}>
+                    {menuItems.map((item) => {
+                      const active = activePage === item.page;
+                      const IconComponent = active && item.activeIcon ? item.activeIcon : item.icon;
+
+                      return (
+                        <MenuItem
+                          key={item.name}
+                          variant="Background"
+                          radii="400"
+                          aria-pressed={active}
+                          before={settingsNavIcon(IconComponent, active)}
+                          onClick={() => setActivePage(item.page)}
                         >
-                          {item.name}
-                        </Text>
-                      </MenuItem>
-                    );
-                  })}
-                </div>
-              </PageNavContent>
-            </Box>
-          </PageNav>
-        )
-      }
-    >
-      {activePage === SpaceSettingsPage.GeneralPage && (
-        <General requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SpaceSettingsPage.MembersPage && (
-        <Members requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SpaceSettingsPage.PermissionsPage && (
-        <Permissions requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SpaceSettingsPage.CosmeticsPage && (
-        <Cosmetics requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SpaceSettingsPage.EmojisStickersPage && (
-        <EmojisStickers requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SpaceSettingsPage.DeveloperToolsPage && (
-        <DeveloperTools requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SpaceSettingsPage.AbbreviationsPage && (
-        <RoomAbbreviations isSpace requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SpaceSettingsPage.AppearancePage && (
-        <Appearance requestClose={handlePageRequestClose} />
-      )}
-    </PageRoot>
+                          <Text
+                            style={{
+                              fontWeight: active ? config.fontWeight.W600 : undefined,
+                            }}
+                            size="T300"
+                            truncate
+                          >
+                            {item.name}
+                          </Text>
+                        </MenuItem>
+                      );
+                    })}
+                  </div>
+                </PageNavContent>
+              </Box>
+            </PageNav>
+          )
+        }
+      >
+        {activePage === SpaceSettingsPage.GeneralPage && (
+          <General requestBack={handlePageRequestClose} requestClose={requestClose} />
+        )}
+        {activePage === SpaceSettingsPage.MembersPage && (
+          <Members requestBack={handlePageRequestClose} requestClose={requestClose} />
+        )}
+        {activePage === SpaceSettingsPage.PermissionsPage && (
+          <Permissions requestBack={handlePageRequestClose} requestClose={requestClose} />
+        )}
+        {activePage === SpaceSettingsPage.CosmeticsPage && (
+          <Cosmetics requestBack={handlePageRequestClose} requestClose={requestClose} />
+        )}
+        {activePage === SpaceSettingsPage.EmojisStickersPage && (
+          <EmojisStickers requestBack={handlePageRequestClose} requestClose={requestClose} />
+        )}
+        {activePage === SpaceSettingsPage.DeveloperToolsPage && (
+          <DeveloperTools requestBack={handlePageRequestClose} requestClose={requestClose} />
+        )}
+        {activePage === SpaceSettingsPage.AbbreviationsPage && (
+          <RoomAbbreviations
+            isSpace
+            requestBack={handlePageRequestClose}
+            requestClose={requestClose}
+          />
+        )}
+        {activePage === SpaceSettingsPage.AppearancePage && (
+          <Appearance requestBack={handlePageRequestClose} requestClose={requestClose} />
+        )}
+      </PageRoot>
+    </SwipeableOverlayWrapper>
   );
 }

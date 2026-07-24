@@ -1,17 +1,19 @@
 import { useCallback } from 'react';
 import type { NavigateOptions } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-import { useAtomValue } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import {
   getDirectRoomPath,
   getHomeRoomPath,
   getSpacePath,
   getSpaceRoomPath,
+  resolveSection,
 } from '$pages/pathUtils';
 import { getOrphanParents, guessPerfectParent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { mDirectAtom } from '$state/mDirectList';
+import { lastVisitedRoomAtom } from '$state/room/lastRoom';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useSelectedSpace } from './router/useSelectedSpace';
@@ -24,6 +26,7 @@ export const useRoomNavigate = () => {
   const mDirects = useAtomValue(mDirectAtom);
   const spaceSelectedId = useSelectedSpace();
   const [developerTools] = useSetting(settingsAtom, 'developerTools');
+  const setLastRoom = useSetAtom(lastVisitedRoomAtom);
 
   const navigateSpace = useCallback(
     (roomId: string) => {
@@ -39,6 +42,8 @@ export const useRoomNavigate = () => {
       const openSpaceTimeline = developerTools && spaceSelectedId === roomId;
 
       const orphanParents = openSpaceTimeline ? [roomId] : getOrphanParents(roomToParents, roomId);
+      let destPath: string;
+      let roomPart: string;
       if (orphanParents.length > 0) {
         let parentSpace: string;
         if (spaceSelectedId && orphanParents.includes(spaceSelectedId)) {
@@ -48,22 +53,24 @@ export const useRoomNavigate = () => {
         }
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);
-
-        navigate(
-          getSpaceRoomPath(pSpaceIdOrAlias, openSpaceTimeline ? roomId : roomIdOrAlias, eventId),
-          opts
-        );
-        return;
+        roomPart = openSpaceTimeline ? roomId : roomIdOrAlias;
+        destPath = getSpaceRoomPath(pSpaceIdOrAlias, roomPart, eventId);
+      } else if (mDirects.has(roomId)) {
+        roomPart = roomIdOrAlias;
+        destPath = getDirectRoomPath(roomPart, eventId);
+      } else {
+        roomPart = roomIdOrAlias;
+        destPath = getHomeRoomPath(roomPart, eventId);
       }
 
-      if (mDirects.has(roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
-        return;
+      const section = resolveSection(destPath);
+      if (section?.getRoomPath) {
+        setLastRoom((prev) => ({ ...prev, [section.key]: roomPart }));
       }
 
-      navigate(getHomeRoomPath(roomIdOrAlias, eventId), opts);
+      navigate(destPath, opts);
     },
-    [mx, navigate, spaceSelectedId, roomToParents, mDirects, developerTools]
+    [mx, navigate, spaceSelectedId, roomToParents, mDirects, developerTools, setLastRoom]
   );
 
   return {

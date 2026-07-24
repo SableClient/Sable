@@ -59,6 +59,7 @@ import { CustomStateEvent } from '$types/matrix/room';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import FocusTrap from 'focus-trap-react';
+import { reportMediaLoadFailure } from '$utils/mediaLoadDiagnostics';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;
@@ -404,6 +405,7 @@ function RoomBannerEdit({ bannerURI, permissions }: Readonly<ProfileProps>) {
               key={previewUrl}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               alt="Banner Preview"
+              onError={() => reportMediaLoadFailure('room_banner_preview')}
             />
           ) : (
             <Box justifyContent="Center" alignItems="Center">
@@ -522,7 +524,7 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
 
   const bannerState = useStateEvent(room, CustomStateEvent.RoomBanner);
   const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
-  const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
+  const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', useAuthentication);
 
   return (
     <Box direction="Column" gap="100">

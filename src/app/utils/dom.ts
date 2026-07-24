@@ -1,3 +1,7 @@
+import { isTauri } from '@tauri-apps/api/core';
+import { fetchMediaBlob, type MediaTransportOptions } from './mediaTransport';
+import { fetch } from './fetch';
+
 export const targetFromEvent = (evt: Event, selector: string): Element | undefined => {
   const targets = evt.composedPath() as Element[];
   return targets.find((target) => target.matches?.(selector));
@@ -216,13 +220,27 @@ export const copyImageToClipboard = async (blob: Blob): Promise<boolean> => {
   const ctx = canvas.getContext('2d');
   ctx?.drawImage(bitmap, 0, 0);
 
-  try {
-    const finalBlob = await new Promise<Blob>((resolve) => {
-      canvas.toBlob((result) => {
-        if (result) resolve(result);
-      }, 'image/png');
-    });
+  const finalBlob = await new Promise<Blob>((resolve) => {
+    canvas.toBlob((result) => {
+      if (result) resolve(result);
+    }, 'image/png');
+  });
 
+  if (isTauri()) {
+    try {
+      const [{ writeImage }, { Image }] = await Promise.all([
+        import('@tauri-apps/plugin-clipboard-manager'),
+        import('@tauri-apps/api/image'),
+      ]);
+      const image = await Image.fromBytes(await finalBlob.arrayBuffer());
+      await writeImage(image);
+      return true;
+    } catch {
+      // fall back to the web clipboard API
+    }
+  }
+
+  try {
     await navigator.clipboard.write([
       new ClipboardItem({
         'image/png': finalBlob,
@@ -235,22 +253,12 @@ export const copyImageToClipboard = async (blob: Blob): Promise<boolean> => {
   }
 };
 
-export const copyToClipboard = async (text: string): Promise<boolean> => {
-  if (navigator.clipboard) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  const host = document.body;
+const legacyCopyToClipboard = (text: string): boolean => {
   const copyInput = document.createElement('input');
   copyInput.style.position = 'fixed';
   copyInput.style.opacity = '0';
   copyInput.value = text;
-  host.append(copyInput);
+  document.body.append(copyInput);
 
   copyInput.select();
   copyInput.setSelectionRange(0, 99999);
@@ -264,6 +272,43 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
 
   copyInput.remove();
   return copied;
+};
+
+// navigator.clipboard rejects on WebKitGTK (Tauri/Linux); prefer the native plugin.
+export const copyToClipboard = async (text: string): Promise<boolean> => {
+  if (isTauri()) {
+    try {
+      const { writeText } = await import('@tauri-apps/plugin-clipboard-manager');
+      await writeText(text);
+      return true;
+    } catch {
+      // fall back to the web clipboard API
+    }
+  }
+
+  if (navigator.clipboard) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fall back to execCommand
+    }
+  }
+
+  return legacyCopyToClipboard(text);
+};
+
+export const readClipboardText = async (): Promise<string> => {
+  if (isTauri()) {
+    try {
+      const { readText } = await import('@tauri-apps/plugin-clipboard-manager');
+      return await readText();
+    } catch {
+      // fall back to the web clipboard API
+    }
+  }
+
+  return navigator.clipboard.readText();
 };
 
 export const setFavicon = (url: string): void => {
@@ -310,4 +355,19 @@ export const downloadTextFile = (
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+export const loadImageElementFromMediaUrl = async (
+  url: string,
+  options?: MediaTransportOptions
+): Promise<{ blob: Blob; image: HTMLImageElement }> => {
+  const blob = await fetchMediaBlob(url, options);
+  const objectUrl = URL.createObjectURL(blob);
+
+  try {
+    const image = await loadImageElement(objectUrl);
+    return { blob, image };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 };

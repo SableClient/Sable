@@ -1,0 +1,158 @@
+[package]
+name = "sable"
+version = "0.1.0"
+description = "Yet another matrix client but better"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.88.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+tauri-typegen = "0.5"
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tokio = { version = "1", features = ["time", "sync", "fs", "io-util"] }
+ts-rs = "12.0.0"
+sha2 = "0.10"
+percent-encoding = "2"
+reqwest = { version = "0.12", default-features = false, features = ["stream"] }
+async-stream = "0.3"
+base64 = "0.22"
+tokio-util = { version = "0.7", features = ["codec"] }
+futures-util = "0.3"
+
+tauri = { version = "2.11.5", default-features = false, features = [
+  "tray-icon",
+  "dynamic-acl",
+  "compression",
+  "x11",
+  "common-controls-v6",
+  "dbus",
+  "image-png",
+] }
+
+tauri-plugin-log = "2.9.0"
+tauri-plugin-opener = "2.5.4"
+tauri-plugin-os = "2"
+tauri-plugin-deep-link = "2.4.9"
+tauri-plugin-http = "2.5.9"
+tauri-plugin-store = "2.4.3"
+tauri-plugin-clipboard-manager = "2.3.2"
+
+# Debug-only in practice: only initialized under #[cfg(debug_assertions)] in
+# lib.rs, so the release build never calls into it.
+# default-features = false drops the plugin's `wry` feature (which enables
+# `tauri/wry`); Sable's own `wry` feature already enables `tauri/wry` for wry
+# builds, and CEF builds (--no-default-features --features cef) must not pull
+# wry/tauri-runtime-wry/webkit2gtk.
+# Pinned to =2.0.0 because 2.1.0+ introduced an unconditional call to
+# tauri::webview_version() which is gated behind tauri's `wry` feature.
+tauri-plugin-devtools = { version = "=2.0.0", default-features = false }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+enigo = "0.5.0"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_System_Threading",
+  "Win32_System_ProcessStatus",
+] }
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = { version = "2.4.3", features = ["deep-link"] }
+
+[target.'cfg(any(windows, target_os = "linux"))'.dependencies]
+tauri-plugin-notifications = { git = "https://github.com/SableClient/tauri-plugin-notifications.git", rev = "0ca647a8d762cbba2ecfbefed7ff13565ec46229" }
+
+# default-features = false drops notify-rust so macOS uses the native
+# UNUserNotificationCenter backend (needs a signed .app to deliver).
+[target.'cfg(target_os = "macos")'.dependencies]
+tauri-plugin-notifications = { git = "https://github.com/SableClient/tauri-plugin-notifications.git", rev = "0ca647a8d762cbba2ecfbefed7ff13565ec46229", default-features = false }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = { version = "2", optional = true }
+tauri-plugin-process = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2.4.1"
+tauri-plugin-global-shortcut = "2"
+
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
+gtk = "0.18"
+# Used directly in lib.rs for WebKitGTK permission handling (wry only).
+# Optional + gated via the `wry` feature so CEF builds don't pull it.
+webkit2gtk = { version = "2.0", optional = true }
+
+# CEF (Chromium) runtime — Linux only; other platforms use wry.
+# Repackage of tauri's unreleased feat/cef branch. Switch to the official
+# tauri-runtime-cef once it lands on crates.io.
+[target.'cfg(target_os = "linux")'.dependencies]
+tauri-runtime-cef = { git = "https://github.com/byeongsu-hong/tauri-runtime-cef", rev = "c215d6e52dd507956d9b8cc868906d690dc477c2", optional = true }
+cef = { version = "=148.0.0", optional = true }
+libloading = "0.8"
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-notifications = { git = "https://github.com/SableClient/tauri-plugin-notifications.git", rev = "0ca647a8d762cbba2ecfbefed7ff13565ec46229", features = [
+  "push-notifications",
+] }
+tauri-plugin-edge-to-edge = { git = "https://github.com/SableClient/tauri-plugin-edge-to-edge.git", rev = "33c6116c27be28c06df5a9d02231ecc5fdeb93c5" }
+tauri-plugin-sharekit = { git = "https://github.com/Choochmeque/tauri-plugin-sharekit", rev = "9f2b4c5d8a4f0ab910d900ba234ed8bae0ab854b" }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSFileManager", "NSString", "NSURL"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+tauri-plugin-android-fs = { version = "=28.4.0", features = ["legacy-storage-permission"] }
+jni = "0.21"
+
+[features]
+default = ["wry", "updater"]
+custom-protocol = ["tauri/custom-protocol"]
+wry = ["tauri/wry", "dep:webkit2gtk"]
+# Tauri auto-updater. Disable with --no-default-features --features wry,cef.
+updater = ["dep:tauri-plugin-updater"]
+# CEF (Chromium) runtime. Build with --no-default-features --features cef.
+cef = ["dep:tauri-runtime-cef", "dep:cef"]
+[patch.crates-io]
+tauri-typegen = { git = "https://github.com/SableClient/tauri-typegen", branch = "fix/nondeterministic-generation-cache" }
+
+# To test unreleased tauri features
+# tauri = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+# tauri-build = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+# tauri-plugin = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+# tauri-utils = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+# tauri-macros = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+# tauri-runtime = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+# tauri-runtime-wry = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+
+# To test the CEF runtime path, switch this back to `cef = ["tauri/cef"]`
+# and uncomment the patch scaffold below.
+# cef = ["tauri/cef"]
+#
+# [patch.crates-io]
+# tauri = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-build = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-plugin = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-utils = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-macros = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-runtime = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-runtime-wry = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-opener = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-os = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-deep-link = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-http = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }

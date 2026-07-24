@@ -6,7 +6,6 @@ describe('getIncomingCallBlockers', () => {
     expect(
       getIncomingCallBlockers({
         canUseWebRTC: true,
-        livekitSupported: true,
         hasCallMemberPermission: true,
         inAnotherCall: false,
       })
@@ -16,16 +15,10 @@ describe('getIncomingCallBlockers', () => {
   it('returns blockers in priority order', () => {
     const issues = getIncomingCallBlockers({
       canUseWebRTC: false,
-      livekitSupported: false,
       hasCallMemberPermission: false,
       inAnotherCall: true,
     });
 
-    expect(issues.map((issue) => issue.id)).toEqual([
-      'webrtc',
-      'livekit',
-      'permission',
-      'another_call',
-    ]);
+    expect(issues.map((issue) => issue.id)).toEqual(['webrtc', 'permission', 'another_call']);
   });
 });

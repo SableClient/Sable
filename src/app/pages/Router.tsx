@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import {
   Outlet,
   Route,
@@ -10,16 +11,12 @@ import * as Sentry from '@sentry/react';
 
 import type { ClientConfig } from '$hooks/useClientConfig';
 import { ErrorPage } from '$components/DefaultErrorPage';
-import { SettingsRoute } from '$features/settings';
-import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
 import { Room } from '$features/room';
 import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';
 import { ScreenSize } from '$hooks/useScreenSize';
 import { ReceiveSelfDeviceVerification } from '$components/DeviceVerification';
 import { AutoRestoreBackupOnVerification } from '$components/BackupRestore';
-import { RoomSettingsRenderer } from '$features/room-settings';
-import { SpaceSettingsRenderer } from '$features/space-settings';
 import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
 import { CreateRoomModalRenderer } from '$features/create-room';
 import { CreateSpaceModalRenderer } from '$features/create-space';
@@ -30,8 +27,9 @@ import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
 import { SearchModalRenderer } from '$features/navigate';
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
+import { DesktopShortcuts } from '$components/tauri/DesktopShortcuts';
 import { CallEmbedProvider } from '$components/CallEmbedProvider';
-import { AuthLayout, Login, Register, ResetPassword } from './auth';
+import { SplashScreen } from '$components/splash-screen';
 import {
   DIRECT_PATH,
   EXPLORE_PATH,
@@ -55,6 +53,8 @@ import {
   SETTINGS_PATH,
   NAVIGATE_PATH,
   PROFILE_PATH,
+  CREATE_ROOM_PATH,
+  BUG_REPORT_PATH,
   BOOKMARKS_PATH_SEGMENT,
 } from './paths';
 import {
@@ -71,8 +71,41 @@ import { HandleNotificationClick, ClientNonUIFeatures } from './client/ClientNon
 import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
 import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
 import { RouteSpaceProvider, Space, SpaceRouteRoomProvider, SpaceSearch } from './client/space';
-import { Explore, FeaturedRooms, PublicRooms } from './client/explore';
-import { Notifications, Inbox, Invites, Bookmarks } from './client/inbox';
+// Lazy-loaded: auth subtree, settings, inbox/bookmarks, explore
+const AuthLayout = lazy(() => import('./auth').then((m) => ({ default: m.AuthLayout })));
+const Login = lazy(() => import('./auth').then((m) => ({ default: m.Login })));
+const Register = lazy(() => import('./auth').then((m) => ({ default: m.Register })));
+const ResetPassword = lazy(() => import('./auth').then((m) => ({ default: m.ResetPassword })));
+
+const SettingsRoute = lazy(() =>
+  import('$features/settings').then((m) => ({ default: m.SettingsRoute }))
+);
+const SettingsShallowRouteRenderer = lazy(() =>
+  import('$features/settings/SettingsShallowRouteRenderer').then((m) => ({
+    default: m.SettingsShallowRouteRenderer,
+  }))
+);
+const RoomSettingsRenderer = lazy(() =>
+  import('$features/room-settings').then((m) => ({ default: m.RoomSettingsRenderer }))
+);
+const SpaceSettingsRenderer = lazy(() =>
+  import('$features/space-settings').then((m) => ({ default: m.SpaceSettingsRenderer }))
+);
+
+const Notifications = lazy(() =>
+  import('./client/inbox').then((m) => ({ default: m.Notifications }))
+);
+const Inbox = lazy(() => import('./client/inbox').then((m) => ({ default: m.Inbox })));
+const Invites = lazy(() => import('./client/inbox').then((m) => ({ default: m.Invites })));
+const Bookmarks = lazy(() => import('./client/inbox').then((m) => ({ default: m.Bookmarks })));
+
+const Explore = lazy(() => import('./client/explore').then((m) => ({ default: m.Explore })));
+const FeaturedRooms = lazy(() =>
+  import('./client/explore').then((m) => ({ default: m.FeaturedRooms }))
+);
+const PublicRooms = lazy(() =>
+  import('./client/explore').then((m) => ({ default: m.PublicRooms }))
+);
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
@@ -83,6 +116,7 @@ import {
 } from './MobileFriendly';
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
+import { TauriDeepLinkBridge } from './TauriDeepLinkBridge';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
 import { HomeCreateRoom } from './client/home/CreateRoom';
 import { Create } from './client/create';
@@ -91,6 +125,14 @@ import { CallStatusRenderer } from './CallStatusRenderer';
 import { UserQuickToolsProvider } from '$components/UserQuickToolsProvider';
 import { Navigate } from './client/navigate';
 import { ProfileMobile } from './client/profile';
+
+// Lazy-loaded: mobile full-screen pages for flows that are modals on desktop.
+const CreateRoomPage = lazy(() =>
+  import('./client/create-room').then((m) => ({ default: m.CreateRoomPage }))
+);
+const BugReportPage = lazy(() =>
+  import('./client/bug-report').then((m) => ({ default: m.BugReportPage }))
+);
 
 /**
  * Returns true if there is at least one stored session.
@@ -114,7 +156,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
   const mobile = screenSize === ScreenSize.Mobile;
 
   const routes = createRoutesFromElements(
-    <Route>
+    <Route
+      element={
+        <>
+          <TauriDeepLinkBridge />
+          <Outlet />
+        </>
+      }
+    >
       <Route
         index
         loader={() => {
@@ -126,10 +175,15 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
       />
       <Route
         loader={({ request }) => {
-          // Allow reaching the login page with ?addAccount=1 even when already logged in
+          // Allow reaching the login page even when already logged in:
+          // - ?addAccount=1 to add another account (multi-account)
+          // - ?loginToken=... (delegated / SSO login token)
+          // - ?code=...&state=... (OIDC authorization-code callback, e.g. adding a second account)
           const url = new URL(request.url);
           if (url.searchParams.get('addAccount') === '1') return null;
           if (url.searchParams.has('loginToken')) return null;
+          if (url.searchParams.has('code') && url.searchParams.has('state')) return null;
+          if (url.searchParams.has('error') && url.searchParams.has('state')) return null;
           if (hasStoredSession()) return redirect(getHomePath());
           return null;
         }}
@@ -143,10 +197,12 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             )}
             beforeCapture={(scope) => scope.setTag('section', 'auth')}
           >
-            <>
-              <AuthLayout />
-              <UnAuthRouteThemeManager />
-            </>
+            <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+              <>
+                <AuthLayout />
+                <UnAuthRouteThemeManager />
+              </>
+            </Suspense>
           </Sentry.ErrorBoundary>
         }
       >
@@ -209,10 +265,17 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                         <CreateRoomModalRenderer />
                         <CreateSpaceModalRenderer />
                         <BugReportModalRenderer />
-                        <SettingsShallowRouteRenderer />
-                        <RoomSettingsRenderer />
-                        <SpaceSettingsRenderer />
+                        <Suspense fallback={null}>
+                          <SettingsShallowRouteRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <RoomSettingsRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <SpaceSettingsRenderer />
+                        </Suspense>
                         <GlobalKeyboardShortcuts />
+                        <DesktopShortcuts />
                         {/* Screen reader live region — populated by announce() in utils/announce.ts */}
                         <div
                           id="sable-announcements"
@@ -243,6 +306,8 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           path={HOME_PATH}
           element={
             <PageRoot
+              rail={<SidebarNav />}
+              bottomNav={<UserQuickToolsProvider />}
               nav={
                 <MobileFriendlyPageNav path={HOME_PATH}>
                   <Home />
@@ -270,6 +335,8 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           path={DIRECT_PATH}
           element={
             <PageRoot
+              rail={<SidebarNav />}
+              bottomNav={<UserQuickToolsProvider />}
               nav={
                 <MobileFriendlyPageNav path={DIRECT_PATH}>
                   <Direct />
@@ -296,6 +363,8 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           element={
             <RouteSpaceProvider>
               <PageRoot
+                rail={<SidebarNav />}
+                bottomNav={<UserQuickToolsProvider />}
                 nav={
                   <MobileFriendlyPageNav path={SPACE_PATH}>
                     <Space />
@@ -338,9 +407,12 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           path={EXPLORE_PATH}
           element={
             <PageRoot
+              rail={<SidebarNav />}
               nav={
                 <MobileFriendlyPageNav path={EXPLORE_PATH}>
-                  <Explore />
+                  <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+                    <Explore />
+                  </Suspense>
                 </MobileFriendlyPageNav>
               }
             >
@@ -355,20 +427,59 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-          <Route path={FEATURED_PATH_SEGMENT} element={<FeaturedRooms />} />
-          <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
+          <Route
+            path={FEATURED_PATH_SEGMENT}
+            element={
+              <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+                <FeaturedRooms />
+              </Suspense>
+            }
+          />
+          <Route
+            path={SERVER_PATH_SEGMENT}
+            element={
+              <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+                <PublicRooms />
+              </Suspense>
+            }
+          />
         </Route>
         <Route path={CREATE_PATH} element={<Create />} />
+        <Route
+          path={CREATE_ROOM_PATH}
+          element={
+            <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+              <CreateRoomPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path={BUG_REPORT_PATH}
+          element={
+            <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+              <BugReportPage />
+            </Suspense>
+          }
+        />
         <Route path={NAVIGATE_PATH} element={<Navigate />} />
         <Route path={PROFILE_PATH} element={<ProfileMobile />} />
-        <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+        <Route
+          path={SETTINGS_PATH}
+          element={
+            <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+              <SettingsRoute />
+            </Suspense>
+          }
+        />
         <Route
           path={INBOX_PATH}
           element={
             <PageRoot
               nav={
                 <MobileFriendlyPageNav path={INBOX_PATH}>
-                  <Inbox />
+                  <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+                    <Inbox />
+                  </Suspense>
                 </MobileFriendlyPageNav>
               }
             >
@@ -383,9 +494,30 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-          <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
-          <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
-          <Route path={BOOKMARKS_PATH_SEGMENT} element={<Bookmarks />} />
+          <Route
+            path={NOTIFICATIONS_PATH_SEGMENT}
+            element={
+              <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+                <Notifications />
+              </Suspense>
+            }
+          />
+          <Route
+            path={INVITES_PATH_SEGMENT}
+            element={
+              <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+                <Invites />
+              </Suspense>
+            }
+          />
+          <Route
+            path={BOOKMARKS_PATH_SEGMENT}
+            element={
+              <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+                <Bookmarks />
+              </Suspense>
+            }
+          />
         </Route>
         <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
       </Route>

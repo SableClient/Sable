@@ -1,28 +1,37 @@
-import { useMotionValue, useSpring, useTransform, motion } from 'framer-motion';
+import { useMotionValue, useTransform, motion, animate } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import type { ReactNode } from 'react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { config } from 'folds';
 import { ArrowBendUpLeftIcon, getPhosphorIconSize } from '$components/icons/phosphor';
+import { haptic } from '$utils/haptics';
 import { mobileOrTablet } from '$utils/user-agent';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
 
 function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onReply: () => void }) {
   const x = useMotionValue(0);
-  const springX = useSpring(x, { stiffness: 300, damping: 35 });
   const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(false);
   const iconOpacity = useTransform(x, [0, -8], [0, 1]);
 
   const bind = useDrag(
-    ({ active, movement: [mx] }) => {
+    ({ first, active, movement: [mx] }) => {
+      if (first) x.stop();
+
       if (active) {
         const val = mx < 0 ? mx : 0;
         x.set(Math.max(-80, val));
-        if (mx < -50 !== isReady) setIsReady(mx < -50);
+        const nextReady = mx < -50;
+        if (nextReady !== isReadyRef.current) {
+          isReadyRef.current = nextReady;
+          setIsReady(nextReady);
+          if (nextReady) haptic('selection');
+        }
       } else {
         if (mx < -50) onReply();
-        x.set(0);
+        animate(x, 0, { type: 'spring', stiffness: 300, damping: 35 });
+        isReadyRef.current = false;
         setIsReady(false);
       }
     },
@@ -61,7 +70,9 @@ function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onRepl
           />
         </motion.div>
       </div>
-      <motion.div style={{ x: springX, position: 'relative', zIndex: 1 }}>{children}</motion.div>
+      <motion.div style={{ x, position: 'relative', zIndex: 1, willChange: 'transform' }}>
+        {children}
+      </motion.div>
     </div>
   );
 }

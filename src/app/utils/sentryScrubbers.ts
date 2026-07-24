@@ -144,5 +144,8 @@ export function scrubMatrixUrl(url: string): string {
       // The ?url= query parameter on preview_url contains the full external URL being
       // previewed — strip the entire query string so browsing habits cannot be inferred.
       .replace(/(\/preview_url)\?[^#\s]*/gi, '$1')
+      // ── Auth callback credentials ────────────────────────────────────────────────────
+      // OAuth code/state and the legacy SSO loginToken are single-use login credentials.
+      .replace(/([?&#](?:code|state|loginToken)=)[^&#\s]+/gi, '$1[REDACTED]')
   );
 }

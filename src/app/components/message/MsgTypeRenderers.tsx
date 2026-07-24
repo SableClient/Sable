@@ -37,12 +37,14 @@ import { unwrapForwardedContent } from './modals/MessageForward';
 import { LINKINPUTREGEX } from '$components/editor';
 import { MATRIX_TO_BASE } from '$plugins/matrix-to';
 import { copyToClipboard } from '$utils/dom';
+import { getAttachmentFilename } from '$utils/download';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import * as css from './MsgTypeRenderers.css';
 import { markerIcon } from '$features/room/location-modal/LocationDialog';
+import { isNumber } from 'matrix-js-sdk/lib/utils';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -113,6 +115,10 @@ export function BrokenContent({ body }: BrokenContentProps) {
       <MessageBrokenContent body={body} />
     </Text>
   );
+}
+
+export function getIncomingMediaMxcUrl(url: unknown): string | undefined {
+  return typeof url === 'string' && url.startsWith('mxc://') ? url : undefined;
 }
 
 type RenderBodyProps = {
@@ -436,8 +442,8 @@ type MImageProps = {
 };
 export function MImage({ content, renderImageContent, outlined, fitParent }: MImageProps) {
   const imgInfo = content?.info;
-  const mxcUrl = content.file?.url ?? content.url;
-  if (typeof mxcUrl !== 'string') {
+  const mxcUrl = getIncomingMediaMxcUrl(content.file?.url ?? content.url);
+  if (!mxcUrl) {
     return <BrokenContent body={content.body ?? content.filename} />;
   }
   const MAX_SIZE = 400;
@@ -447,6 +453,7 @@ export function MImage({ content, renderImageContent, outlined, fitParent }: MIm
   // this garbage is for portrait images, we cap the width so the card doesn't exceed the bounds of the image
   const displayWidth = imgH > imgW ? Math.round(MAX_SIZE * (imgW / imgH)) : MAX_SIZE;
   const height = scaleYDimension(imgInfo?.w || 400, displayWidth, imgInfo?.h || 400);
+  const filename = getAttachmentFilename(content.filename, content.body, 'Image');
 
   return (
     <Attachment
@@ -468,6 +475,7 @@ export function MImage({ content, renderImageContent, outlined, fitParent }: MIm
       >
         {renderImageContent({
           body: content.body || content.filename || 'Image',
+          filename,
           info: imgInfo,
           mimeType: imgInfo?.mimetype,
           url: mxcUrl,
@@ -498,20 +506,18 @@ type MVideoProps = {
 };
 export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: MVideoProps) {
   const videoInfo = content?.info;
-  const mxcUrl = content.file?.url ?? content.url;
+  const mxcUrl = getIncomingMediaMxcUrl(content.file?.url ?? content.url);
   const safeMimeType = getBlobSafeMimeType(videoInfo?.mimetype ?? '');
 
-  if (!videoInfo || !safeMimeType.startsWith('video') || typeof mxcUrl !== 'string') {
-    if (mxcUrl) {
-      return renderAsFile();
-    }
+  if (!mxcUrl) {
     return <BrokenContent body={content.body ?? content.filename} />;
   }
+  if (!videoInfo || !safeMimeType.startsWith('video')) return renderAsFile();
 
   const displayWidth = Math.min(videoInfo.w || 400, 400);
   const height = Math.min(scaleYDimension(videoInfo.w || 400, 400, videoInfo.h || 400), 400);
 
-  const filename = content.filename ?? content.body ?? 'Video';
+  const filename = getAttachmentFilename(content.filename, content.body, 'Video');
 
   return (
     <Attachment
@@ -601,17 +607,15 @@ export function MAudio({
   fitParent,
 }: MAudioProps) {
   const audioInfo = content?.info;
-  const mxcUrl = content.file?.url ?? content.url;
+  const mxcUrl = getIncomingMediaMxcUrl(content.file?.url ?? content.url);
   const safeMimeType = getBlobSafeMimeType(audioInfo?.mimetype ?? '');
 
-  if (!audioInfo || !safeMimeType.startsWith('audio') || typeof mxcUrl !== 'string') {
-    if (mxcUrl) {
-      return renderAsFile();
-    }
+  if (!mxcUrl) {
     return <BrokenContent body={content.body ?? content.filename} />;
   }
+  if (!audioInfo || !safeMimeType.startsWith('audio')) return renderAsFile();
 
-  const filename = content.filename ?? content.body ?? 'Audio';
+  const filename = getAttachmentFilename(content.filename, content.body, 'Audio');
   const durationMs = getAudioDurationMs(content, audioInfo);
   const resolvedInfo =
     durationMs !== undefined ? { ...audioInfo, duration: durationMs } : audioInfo;
@@ -649,7 +653,7 @@ export function MAudio({
 }
 
 type RenderFileContentProps = {
-  body: string;
+  fileName: string;
   info: IFileInfo & IThumbnailContent;
   mimeType: string;
   url: string;
@@ -663,24 +667,23 @@ type MFileProps = {
 };
 export function MFile({ content, renderFileContent, outlined }: MFileProps) {
   const fileInfo = content?.info;
-  const mxcUrl = content.file?.url ?? content.url;
+  const mxcUrl = getIncomingMediaMxcUrl(content.file?.url ?? content.url);
 
-  if (typeof mxcUrl !== 'string') {
+  if (!mxcUrl) {
     return <BrokenContent body={content.body ?? content.filename} />;
   }
+
+  const filename = getAttachmentFilename(content.filename, content.body, 'File');
 
   return (
     <Attachment outlined={outlined} style={{ width: toRem(400), height: 'auto' }}>
       <AttachmentHeader>
-        <FileHeader
-          body={content.filename ?? content.body ?? 'Unnamed File'}
-          mimeType={fileInfo?.mimetype ?? FALLBACK_MIMETYPE}
-        />
+        <FileHeader body={filename} mimeType={fileInfo?.mimetype ?? FALLBACK_MIMETYPE} />
       </AttachmentHeader>
       <AttachmentBox>
         <AttachmentContent>
           {renderFileContent({
-            body: content.body ?? content.filename ?? 'File',
+            fileName: filename,
             info: fileInfo ?? {},
             mimeType: fileInfo?.mimetype ?? FALLBACK_MIMETYPE,
             url: mxcUrl,
@@ -703,6 +706,7 @@ export function MLocation({ content, showMaps }: MLocationProps) {
   }
   const location = parseGeoUri(geoUri);
   if (!location) return <BrokenContent />;
+  const isValid = isNumber(Number(location.latitude)) && isNumber(Number(location.longitude));
   const coords: LatLngExpression = [Number(location.latitude), Number(location.longitude)];
 
   return (
@@ -731,18 +735,23 @@ export function MLocation({ content, showMaps }: MLocationProps) {
         <Chip
           as="a"
           size="400"
-          href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
+          href={
+            isValid
+              ? `https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`
+              : undefined
+          }
           target="_blank"
           rel="noreferrer noopener"
           variant="Primary"
           radii="Pill"
           className={css.LocationExternalChip}
           before={sizedIcon(ArrowSquareOut, '50')}
+          aria-disabled={!isValid}
         >
           <Text size="B300">Open Location</Text>
         </Chip>
       </Box>
-      {showMaps && (
+      {showMaps && isValid && (
         <MapContainer
           center={coords}
           zoom={16}
@@ -776,8 +785,8 @@ type MStickerProps = {
 };
 export function MSticker({ content, renderImageContent }: MStickerProps) {
   const imgInfo = content?.info;
-  const mxcUrl = content.file?.url ?? content.url;
-  if (typeof mxcUrl !== 'string') {
+  const mxcUrl = getIncomingMediaMxcUrl(content.file?.url ?? content.url);
+  if (!mxcUrl) {
     return <MessageBrokenContent body={content.body} />;
   }
   const height = scaleYDimension(imgInfo?.w || 152, 152, imgInfo?.h || 152);

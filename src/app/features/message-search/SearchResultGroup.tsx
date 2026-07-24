@@ -1,162 +1,79 @@
-import type { MouseEventHandler, ComponentProps } from 'react';
+import type { MouseEventHandler } from 'react';
 import { useMemo } from 'react';
-import type { IEventWithRoomId, Room } from '$types/matrix-sdk';
-import { JoinRule, RelationType, EventType } from '$types/matrix-sdk';
-import type { IImageContent } from '$types/matrix/common';
-import type { HTMLReactParserOptions } from 'html-react-parser';
+import type { Room } from '$types/matrix-sdk';
+import { JoinRule, MatrixEvent, RelationType } from '$types/matrix-sdk';
 import { Avatar, Box, Chip, Header, Text, config } from 'folds';
-import type { Opts as LinkifyOpts } from 'linkifyjs';
-import { useMatrixClient } from '$hooks/useMatrixClient';
-import {
-  factoryRenderLinkifyWithMention,
-  getReactCustomHtmlParser,
-  LINKIFY_OPTS,
-  makeHighlightRegex,
-  makeMentionCustomProps,
-  renderMatrixMention,
-} from '$plugins/react-custom-html-parser';
-import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
-import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
-import type { GetContentCallback } from '$types/matrix/room';
-
-import {
-  AvatarBase,
-  ImageContent,
-  MSticker,
-  ModernLayout,
-  RedactedContent,
-  Reply,
-  Time,
-  Username,
-  UsernameBold,
-  type RenderImageContentProps,
-} from '$components/message';
-import { RenderMessageContent } from '$components/RenderMessageContent';
-import { Image } from '$components/media';
-import { ImageViewer } from '$components/image-viewer';
-import * as customHtmlCss from '$styles/CustomHtml.css';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
-import { getMemberAvatarMxc, getMemberDisplayName, getRoomAvatarUrl } from '$utils/room';
-import { useAtomValue } from 'jotai';
-import { nicknamesAtom } from '$state/nicknames';
+import { MessagePreview, useRoomMessagePreviewRenderer } from '$components/message-preview';
 import { SequenceCard } from '$components/sequence-card';
-import { UserAvatar } from '$components/user-avatar';
-import { userFallbackIcon } from '$components/icons/phosphor';
-import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
-import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
+import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { usePowerLevels } from '$hooks/usePowerLevels';
-import { usePowerLevelTags } from '$hooks/usePowerLevelTags';
-import { useTheme } from '$hooks/useTheme';
-import { PowerIcon } from '$components/power';
-import colorMXID from '$utils/colorMXID';
-import {
-  getPowerTagIconSrc,
-  useAccessiblePowerTagColors,
-  useGetMemberPowerTag,
-} from '$hooks/useMemberPowerTag';
-import { useRoomCreators } from '$hooks/useRoomCreators';
-import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
-import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { useRoomAvatar, useRoomName } from '$hooks/useRoomMeta';
+import { makeHighlightRegex } from '$plugins/react-custom-html-parser';
+import { mxcUrlToHttp } from '$utils/matrix';
+import type { UserProfile } from '$hooks/useUserProfile';
 import type { ResultItem } from './useMessageSearch';
 
-type SearchResultRendererContext = {
-  mx: ReturnType<typeof useMatrixClient>;
+type SearchResultItemProps = {
   room: Room;
-  mediaAutoLoad?: boolean;
-  urlPreview?: boolean;
-  htmlReactParserOptions: HTMLReactParserOptions;
-  linkifyOpts: LinkifyOpts;
-  highlightRegex: RegExp | undefined;
+  item: ResultItem;
+  renderContent: ReturnType<typeof useRoomMessagePreviewRenderer>;
+  hour24Clock: boolean;
+  dateFormatString: string;
+  onOpen: (roomId: string, eventId: string) => void;
 };
 
-function LazyImage(props: ComponentProps<typeof Image>) {
-  return <Image {...props} loading="lazy" />;
-}
-
-function renderSearchStickerImageContent(
-  mediaAutoLoad: boolean | undefined,
-  props: RenderImageContentProps
-) {
-  return (
-    <ImageContent
-      {...props}
-      autoPlay={mediaAutoLoad}
-      renderImage={LazyImage}
-      renderViewer={(p) => <ImageViewer {...p} />}
-    />
+function SearchResultItem({
+  room,
+  item,
+  renderContent,
+  hour24Clock,
+  dateFormatString,
+  onOpen,
+}: SearchResultItemProps) {
+  const event = useMemo(() => new MatrixEvent(item.event), [item.event]);
+  const sender = event.getSender() ?? '';
+  const contextProfile = item.context?.profile_info?.[sender];
+  const profile = useMemo<Partial<UserProfile> | undefined>(
+    () =>
+      contextProfile
+        ? {
+            displayName: contextProfile.displayname,
+            avatarUrl: contextProfile.avatar_url,
+          }
+        : undefined,
+    [contextProfile]
   );
-}
+  const relation = item.event.content['m.relates_to'];
+  const openEventId =
+    relation?.rel_type === RelationType.Replace ? relation.event_id : item.event.event_id;
 
-function renderSearchResultRoomMessage(
-  ctx: SearchResultRendererContext,
-  event: IEventWithRoomId,
-  displayName: string,
-  getContent: GetContentCallback
-) {
-  if (event.unsigned?.redacted_because) {
-    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-  }
+  const handleOpen: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    evt.stopPropagation();
+    if (openEventId) onOpen(room.roomId, openEventId);
+  };
 
   return (
-    <RenderMessageContent
-      displayName={displayName}
-      msgType={event.content.msgtype ?? ''}
-      ts={event.origin_server_ts}
-      getContent={getContent}
-      mediaAutoLoad={ctx.mediaAutoLoad}
-      urlPreview={ctx.urlPreview}
-      htmlReactParserOptions={ctx.htmlReactParserOptions}
-      linkifyOpts={ctx.linkifyOpts}
-      highlightRegex={ctx.highlightRegex}
-      outlineAttachment
-      mx={ctx.mx}
-      room={ctx.room}
-    />
-  );
-}
-
-function renderSearchResultReaction(
-  ctx: SearchResultRendererContext,
-  event: IEventWithRoomId,
-  _displayName: string,
-  getContent: GetContentCallback
-) {
-  if (event.unsigned?.redacted_because) {
-    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-  }
-  return (
-    <MSticker
-      content={getContent() as IImageContent}
-      renderImageContent={renderSearchStickerImageContent.bind(null, ctx.mediaAutoLoad)}
-    />
-  );
-}
-
-function renderSearchResultTombstone(_ctx: SearchResultRendererContext, event: IEventWithRoomId) {
-  const { content } = event;
-  return (
-    <Box grow="Yes" direction="Column">
-      <Text size="T400" priority="300">
-        Room Tombstone. {content.body}
-      </Text>
-    </Box>
-  );
-}
-
-function renderSearchResultFallback(_ctx: SearchResultRendererContext, event: IEventWithRoomId) {
-  if (event.unsigned?.redacted_because) {
-    return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-  }
-  return (
-    <Box grow="Yes" direction="Column">
-      <Text size="T400" priority="300">
-        <code className={customHtmlCss.Code}>{event.type}</code>
-        {' event'}
-      </Text>
-    </Box>
+    <SequenceCard
+      style={{ padding: config.space.S400 }}
+      variant="SurfaceVariant"
+      direction="Column"
+    >
+      <MessagePreview
+        room={room}
+        event={event}
+        profile={profile}
+        renderContent={renderContent}
+        actions={
+          <Chip onClick={handleOpen} variant="Secondary" radii="400">
+            <Text size="T200">Open</Text>
+          </Chip>
+        }
+        onOpen={handleOpen}
+        hour24Clock={hour24Clock}
+        dateFormatString={dateFormatString}
+      />
+    </SequenceCard>
   );
 }
 
@@ -164,127 +81,25 @@ type SearchResultGroupProps = {
   room: Room;
   highlights: string[];
   items: ResultItem[];
-  mediaAutoLoad?: boolean;
-  urlPreview?: boolean;
   onOpen: (roomId: string, eventId: string) => void;
-  legacyUsernameColor?: boolean;
   hour24Clock: boolean;
   dateFormatString: string;
 };
+
 export function SearchResultGroup({
   room,
   highlights,
   items,
-  mediaAutoLoad,
-  urlPreview,
   onOpen,
-  legacyUsernameColor,
   hour24Clock,
   dateFormatString,
 }: SearchResultGroupProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const roomName = useRoomName(room);
+  const roomAvatarMxc = useRoomAvatar(room);
   const highlightRegex = useMemo(() => makeHighlightRegex(highlights), [highlights]);
-
-  const powerLevels = usePowerLevels(room);
-  const creators = useRoomCreators(room);
-
-  const creatorsTag = useRoomCreatorsTag();
-  const powerLevelTags = usePowerLevelTags(room, powerLevels);
-  const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
-
-  const theme = useTheme();
-  const accessibleTagColors = useAccessiblePowerTagColors(theme.kind, creatorsTag, powerLevelTags);
-  const nicknames = useAtomValue(nicknamesAtom);
-  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
-  const [incomingInlineImagesDefaultHeight] = useSetting(
-    settingsAtom,
-    'incomingInlineImagesDefaultHeight'
-  );
-  const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
-
-  const mentionClickHandler = useMentionClickHandler(room.roomId);
-  const spoilerClickHandler = useSpoilerClickHandler();
-
-  const linkifyOpts = useMemo<LinkifyOpts>(
-    () => ({
-      ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention(
-        settingsLinkBaseUrl,
-        (href) =>
-          renderMatrixMention(
-            mx,
-            room.roomId,
-            href,
-            makeMentionCustomProps(mentionClickHandler),
-            nicknames
-          ),
-        mentionClickHandler
-      ),
-    }),
-    [mx, room, mentionClickHandler, nicknames, settingsLinkBaseUrl]
-  );
-  const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
-    () =>
-      getReactCustomHtmlParser(mx, room.roomId, {
-        settingsLinkBaseUrl,
-        linkifyOpts,
-        highlightRegex,
-        useAuthentication,
-        handleSpoilerClick: spoilerClickHandler,
-        handleMentionClick: mentionClickHandler,
-        nicknames,
-        incomingInlineImagesDefaultHeight,
-        incomingInlineImagesMaxHeight,
-      }),
-    [
-      mx,
-      room,
-      linkifyOpts,
-      highlightRegex,
-      mentionClickHandler,
-      spoilerClickHandler,
-      useAuthentication,
-      nicknames,
-      settingsLinkBaseUrl,
-      incomingInlineImagesDefaultHeight,
-      incomingInlineImagesMaxHeight,
-    ]
-  );
-
-  const rendererContext = useMemo<SearchResultRendererContext>(
-    () => ({
-      mx,
-      room,
-      mediaAutoLoad,
-      urlPreview,
-      htmlReactParserOptions,
-      linkifyOpts,
-      highlightRegex,
-    }),
-    [mx, room, mediaAutoLoad, urlPreview, htmlReactParserOptions, linkifyOpts, highlightRegex]
-  );
-
-  const matrixEventHandlers = useMemo(
-    () => ({
-      [EventType.RoomMessage]: renderSearchResultRoomMessage.bind(null, rendererContext),
-      [EventType.Reaction]: renderSearchResultReaction.bind(null, rendererContext),
-      [EventType.RoomTombstone]: renderSearchResultTombstone.bind(null, rendererContext),
-    }),
-    [rendererContext]
-  );
-
-  const renderMatrixEvent = useMatrixEventRenderer<[IEventWithRoomId, string, GetContentCallback]>(
-    matrixEventHandlers,
-    undefined,
-    renderSearchResultFallback.bind(null, rendererContext)
-  );
-
-  const handleOpenClick: MouseEventHandler = (evt) => {
-    const eventId = evt.currentTarget.getAttribute('data-event-id');
-    if (!eventId) return;
-    onOpen(room.roomId, eventId);
-  };
+  const renderContent = useRoomMessagePreviewRenderer(room, { highlightRegex });
 
   return (
     <Box direction="Column" gap="200">
@@ -293,8 +108,13 @@ export function SearchResultGroup({
           <Avatar size="200" radii="300">
             <RoomAvatar
               roomId={room.roomId}
-              src={getRoomAvatarUrl(mx, room, 96, useAuthentication)}
-              alt={room.name}
+              src={
+                roomAvatarMxc
+                  ? (mxcUrlToHttp(mx, roomAvatarMxc, useAuthentication, 96, 96, 'crop') ??
+                    undefined)
+                  : undefined
+              }
+              alt={roomName}
               renderFallback={() => (
                 <RoomIcon
                   size="50"
@@ -306,114 +126,22 @@ export function SearchResultGroup({
             />
           </Avatar>
           <Text size="H4" truncate>
-            {room.name}
+            {roomName}
           </Text>
         </Box>
       </Header>
       <Box direction="Column" gap="100">
-        {items.map((item) => {
-          const { event } = item;
-
-          const displayName =
-            getMemberDisplayName(room, event.sender, nicknames) ??
-            getMxIdLocalPart(event.sender) ??
-            event.sender;
-          const senderAvatarMxc = getMemberAvatarMxc(room, event.sender);
-
-          const relation = event.content['m.relates_to'];
-          const mainEventId =
-            relation?.rel_type === RelationType.Replace ? relation.event_id : event.event_id;
-
-          const getContent = (() =>
-            event.content['m.new_content'] ?? event.content) as GetContentCallback;
-
-          const replyEventId = relation?.['m.in_reply_to']?.event_id;
-          const threadRootId =
-            relation?.rel_type === RelationType.Thread ? relation.event_id : undefined;
-
-          const memberPowerTag = getMemberPowerTag(event.sender);
-          const tagColor = memberPowerTag?.color
-            ? accessibleTagColors?.get(memberPowerTag.color)
-            : undefined;
-          const tagIconSrc = memberPowerTag?.icon
-            ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
-            : undefined;
-
-          const usernameColor = legacyUsernameColor ? colorMXID(event.sender) : tagColor;
-
-          return (
-            <SequenceCard
-              key={event.event_id}
-              style={{ padding: config.space.S400 }}
-              variant="SurfaceVariant"
-              direction="Column"
-            >
-              <ModernLayout
-                before={
-                  <AvatarBase>
-                    <Avatar size="300">
-                      <UserAvatar
-                        userId={event.sender}
-                        src={
-                          senderAvatarMxc
-                            ? (mxcUrlToHttp(
-                                mx,
-                                senderAvatarMxc,
-                                useAuthentication,
-                                48,
-                                48,
-                                'crop'
-                              ) ?? undefined)
-                            : undefined
-                        }
-                        alt={displayName}
-                        renderFallback={() => userFallbackIcon('lg')}
-                      />
-                    </Avatar>
-                  </AvatarBase>
-                }
-              >
-                <Box gap="300" justifyContent="SpaceBetween" alignItems="Center" grow="Yes">
-                  <Box gap="200" alignItems="Baseline">
-                    <Box alignItems="Center" gap="200">
-                      <Username style={{ color: usernameColor }}>
-                        <Text as="span" truncate>
-                          <UsernameBold>{displayName}</UsernameBold>
-                        </Text>
-                      </Username>
-                      {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
-                    </Box>
-                    <Time
-                      ts={event.origin_server_ts}
-                      hour24Clock={hour24Clock}
-                      dateFormatString={dateFormatString}
-                    />
-                  </Box>
-                  <Box shrink="No" gap="200" alignItems="Center">
-                    <Chip
-                      data-event-id={mainEventId}
-                      onClick={handleOpenClick}
-                      variant="Secondary"
-                      radii="400"
-                    >
-                      <Text size="T200">Open</Text>
-                    </Chip>
-                  </Box>
-                </Box>
-                {replyEventId && (
-                  <Reply
-                    room={room}
-                    replyEventId={replyEventId}
-                    threadRootId={threadRootId}
-                    mentions={event.content['m.mentions']}
-                    onClick={handleOpenClick}
-                  />
-                )}
-                {renderMatrixEvent(event.type, false, event, displayName, getContent)}
-              </ModernLayout>
-            </SequenceCard>
-          );
-        })}
+        {items.map((item) => (
+          <SearchResultItem
+            key={item.event.event_id}
+            room={room}
+            item={item}
+            renderContent={renderContent}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+            onOpen={onOpen}
+          />
+        ))}
       </Box>
     </Box>
   );

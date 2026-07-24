@@ -38,6 +38,7 @@ import { UIAFlowOverlay } from '$components/UIAFlowOverlay';
 import type { RequestEmailTokenCallback, RequestEmailTokenResponse } from '$hooks/types';
 import { FieldError } from '$pages/auth/FiledError';
 import { deviceDisplayName } from '$utils/user-agent';
+import { fetch } from '$utils/fetch';
 import type { RegisterResult } from './registerUtil';
 import { RegisterError, register, useRegisterComplete } from './registerUtil';
 
@@ -183,7 +184,7 @@ export function PasswordRegisterForm({
 }: PasswordRegisterFormProps) {
   const serverDiscovery = useAutoDiscoveryInfo();
   const baseUrl = serverDiscovery['m.homeserver'].base_url;
-  const mx = useMemo(() => createClient({ baseUrl }), [baseUrl]);
+  const mx = useMemo(() => createClient({ baseUrl, fetchFn: fetch }), [baseUrl]);
   const params = useUIAParams(authData);
   const termUrl = getLoginTermUrl(params);
   const [formData, setFormData] = useState<FormData>();

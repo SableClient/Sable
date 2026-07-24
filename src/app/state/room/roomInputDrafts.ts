@@ -18,6 +18,7 @@ export type TUploadItem = {
   originalFile: TUploadContent;
   metadata: TUploadMetadata;
   encInfo: EncryptedAttachmentInfo | undefined;
+  encrypting?: boolean;
   body?: string;
   format?: string;
   formatted_body?: string;

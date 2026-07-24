@@ -30,6 +30,7 @@ import {
   menuIcon,
   PencilSimple,
   PushPinSlash,
+  ShareNetwork,
   UserPlus,
   X,
 } from '$components/icons/phosphor';
@@ -68,7 +69,7 @@ import {
 } from '$components/sidebar';
 import { RoomUnreadProvider, RoomsUnreadProvider } from '$components/RoomUnreadProvider';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
-import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
+import { getCanonicalAliasOrRoomId, isRoomAlias, mxcUrlToHttp } from '$utils/matrix';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials, randomStr } from '$utils/common';
 import type { ISidebarFolder, SidebarItems, TSidebarItem } from '$hooks/useSidebarItems';
@@ -88,11 +89,12 @@ import { useRoomsUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { markAsRead } from '$utils/notifications';
 import { copyToClipboard } from '$utils/dom';
+import { shareText } from '$utils/share';
 import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
-import { getRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRoomAvatar } from '$hooks/useRoomMeta';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
@@ -101,6 +103,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { lastVisitedSpaceIdAtom } from '$state/room/lastSpace';
+import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 
 type SpaceMenuProps = {
   room: Room;
@@ -142,6 +145,13 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
       const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
       copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
+      requestClose();
+    };
+
+    const handleShareLink = () => {
+      const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
+      const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
+      shareText(getMatrixToRoom(roomIdOrAlias, viaServers)).catch(() => {});
       requestClose();
     };
 
@@ -204,6 +214,11 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
           <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Copy Link
+            </Text>
+          </MenuItem>
+          <MenuItem onClick={handleShareLink} size="300" after={menuIcon(ShareNetwork)} radii="300">
+            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+              Share Link
             </Text>
           </MenuItem>
           <MenuItem onClick={handleRoomSettings} size="300" after={menuIcon(GearSix)} radii="300">
@@ -344,11 +359,13 @@ const useDraggableItem = (
   item: SidebarDraggable,
   targetRef: RefObject<HTMLElement | null>,
   onDragging: (item?: SidebarDraggable) => void,
-  dragHandleRef?: RefObject<HTMLElement | null>
+  dragHandleRef?: RefObject<HTMLElement | null>,
+  enabled: boolean = true
 ): boolean => {
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
+    if (!enabled) return undefined;
     const target = targetRef.current;
     const dragHandle = dragHandleRef?.current ?? undefined;
 
@@ -367,18 +384,20 @@ const useDraggableItem = (
           },
         })
       : undefined;
-  }, [targetRef, dragHandleRef, item, onDragging]);
+  }, [targetRef, dragHandleRef, item, onDragging, enabled]);
 
   return dragging;
 };
 
 const useDropTarget = (
   item: SidebarDraggable,
-  targetRef: RefObject<HTMLElement | null>
+  targetRef: RefObject<HTMLElement | null>,
+  enabled: boolean = true
 ): Instruction | undefined => {
   const [dropState, setDropState] = useState<Instruction>();
 
   useEffect(() => {
+    if (!enabled) return undefined;
     const target = targetRef.current;
     if (!target) return undefined;
 
@@ -415,7 +434,7 @@ const useDropTarget = (
       onDragLeave: () => setDropState(undefined),
       onDrop: () => setDropState(undefined),
     });
-  }, [item, targetRef]);
+  }, [item, targetRef, enabled]);
 
   return dropState;
 };
@@ -423,11 +442,13 @@ const useDropTarget = (
 function useDropTargetInstruction<T extends InstructionType>(
   item: SidebarDraggable,
   targetRef: RefObject<HTMLElement | null>,
-  instructionType: T
+  instructionType: T,
+  enabled: boolean = true
 ): T | undefined {
   const [dropState, setDropState] = useState<T>();
 
   useEffect(() => {
+    if (!enabled) return undefined;
     const target = targetRef.current;
     if (!target) return undefined;
 
@@ -448,7 +469,7 @@ function useDropTargetInstruction<T extends InstructionType>(
       onDragLeave: () => setDropState(undefined),
       onDrop: () => setDropState(undefined),
     });
-  }, [item, targetRef, instructionType]);
+  }, [item, targetRef, instructionType, enabled]);
 
   return dropState;
 }
@@ -491,10 +512,33 @@ const useDnDMonitor = (
   }, [scrollRef, onDragging, onReorder]);
 };
 
+type SpaceAvatarProps = {
+  space: Room;
+  renderFallback: () => ReactNode;
+};
+function SpaceAvatar({ space, renderFallback }: Readonly<SpaceAvatarProps>) {
+  const mx = useMatrixClient();
+  const useAuthentication = useMediaAuthentication();
+  const avatarMxc = useRoomAvatar(space);
+  const avatarUrl = avatarMxc
+    ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
+    : undefined;
+
+  return (
+    <RoomAvatar
+      roomId={space.roomId}
+      uniformIcons
+      src={avatarUrl}
+      alt={space.name}
+      renderFallback={renderFallback}
+    />
+  );
+}
+
 type SpaceTabProps = {
   space: Room;
   selected: boolean;
-  onClick: MouseEventHandler<HTMLButtonElement>;
+  onSelect: (spaceId: string) => void;
   folder?: ISidebarFolder;
   onDragging: (dragItem?: SidebarDraggable) => void;
   disabled?: boolean;
@@ -503,15 +547,15 @@ type SpaceTabProps = {
 function SpaceTab({
   space,
   selected,
-  onClick,
+  onSelect,
   folder,
   onDragging,
   disabled,
   onUnpin,
 }: Readonly<SpaceTabProps>) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
+  const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
   const targetRef = useRef<HTMLDivElement>(null);
+  const mobileTapActivation = useMobileTapActivation(isMobile, () => onSelect(space.roomId));
 
   const spaceDraggable: SidebarDraggable = useMemo(
     () =>
@@ -524,8 +568,8 @@ function SpaceTab({
     [folder, space]
   );
 
-  useDraggableItem(spaceDraggable, targetRef, onDragging);
-  const dropState = useDropTarget(spaceDraggable, targetRef);
+  useDraggableItem(spaceDraggable, targetRef, onDragging, undefined, !isMobile);
+  const dropState = useDropTarget(spaceDraggable, targetRef, !isMobile);
   const dropType = dropState?.type;
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
@@ -558,14 +602,12 @@ function SpaceTab({
                 data-id={space.roomId}
                 ref={triggerRef}
                 size={folder ? '300' : '400'}
-                onClick={onClick}
+                onClick={() => onSelect(space.roomId)}
                 onContextMenu={handleContextMenu}
+                {...mobileTapActivation}
               >
-                <RoomAvatar
-                  roomId={space.roomId}
-                  uniformIcons
-                  src={getRoomAvatarUrl(mx, space, 96, useAuthentication) ?? undefined}
-                  alt={space.name}
+                <SpaceAvatar
+                  space={space}
                   renderFallback={() => (
                     <Text size={folder ? 'H6' : 'H4'}>{nameInitials(space.name, 2)}</Text>
                   )}
@@ -623,13 +665,24 @@ function OpenedSpaceFolder({
   onFolderContextMenu,
   children,
 }: Readonly<OpenedSpaceFolderProps>) {
+  const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
   const aboveTargetRef = useRef<HTMLDivElement>(null);
   const belowTargetRef = useRef<HTMLDivElement>(null);
 
   const spaceDraggable: SidebarDraggable = useMemo(() => ({ folder, open: true }), [folder]);
 
-  const orderAbove = useDropTargetInstruction(spaceDraggable, aboveTargetRef, 'reorder-above');
-  const orderBelow = useDropTargetInstruction(spaceDraggable, belowTargetRef, 'reorder-below');
+  const orderAbove = useDropTargetInstruction(
+    spaceDraggable,
+    aboveTargetRef,
+    'reorder-above',
+    !isMobile
+  );
+  const orderBelow = useDropTargetInstruction(
+    spaceDraggable,
+    belowTargetRef,
+    'reorder-below',
+    !isMobile
+  );
 
   return (
     <SidebarFolder
@@ -666,12 +719,12 @@ function ClosedSpaceFolder({
   onFolderContextMenu,
 }: Readonly<ClosedSpaceFolderProps>) {
   const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
+  const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
   const handlerRef = useRef<HTMLDivElement>(null);
 
   const spaceDraggable: FolderDraggable = useMemo(() => ({ folder }), [folder]);
-  useDraggableItem(spaceDraggable, handlerRef, onDragging);
-  const dropState = useDropTarget(spaceDraggable, handlerRef);
+  useDraggableItem(spaceDraggable, handlerRef, onDragging, undefined, !isMobile);
+  const dropState = useDropTarget(spaceDraggable, handlerRef, !isMobile);
   const dropType = dropState?.type;
 
   const tooltipName = folderDefaultDisplayName(mx, folder);
@@ -702,11 +755,8 @@ function ClosedSpaceFolder({
 
                   return (
                     <SidebarAvatar key={sId} size="200" radii="300">
-                      <RoomAvatar
-                        roomId={space.roomId}
-                        uniformIcons
-                        src={getRoomAvatarUrl(mx, space, 96, useAuthentication) ?? undefined}
-                        alt={space.name}
+                      <SpaceAvatar
+                        space={space}
                         renderFallback={() => (
                           <Text size="Inherit">
                             <b>{nameInitials(space.name, 2)}</b>
@@ -911,25 +961,21 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
 
   const selectedSpaceId = useSelectedSpace();
 
-  const handleSpaceClick: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    const target = evt.currentTarget;
-    const targetSpaceId = target.getAttribute('data-id');
-    if (!targetSpaceId) return;
-
-    setLastSpaceId(targetSpaceId);
-    const spacePath = getSpacePath(getCanonicalAliasOrRoomId(mx, targetSpaceId));
+  const handleSpaceClick = (spaceId: string) => {
+    setLastSpaceId(spaceId);
+    const spacePath = getSpacePath(getCanonicalAliasOrRoomId(mx, spaceId));
     if (screenSize === ScreenSize.Mobile) {
       navigate(spacePath);
       return;
     }
 
-    const activePath = navToActivePath.get(targetSpaceId);
+    const activePath = navToActivePath.get(spaceId);
     if (activePath?.pathname.startsWith(spacePath)) {
       navigate(joinPathComponent(activePath));
       return;
     }
 
-    navigate(getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, targetSpaceId)));
+    navigate(getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, spaceId)));
   };
 
   const handleFolderToggle: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -1014,7 +1060,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
                         key={space.roomId}
                         space={space}
                         selected={space.roomId === selectedSpaceId}
-                        onClick={handleSpaceClick}
+                        onSelect={handleSpaceClick}
                         folder={item}
                         onDragging={setDraggingItem}
                         disabled={
@@ -1053,7 +1099,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
               key={space.roomId}
               space={space}
               selected={space.roomId === selectedSpaceId}
-              onClick={handleSpaceClick}
+              onSelect={handleSpaceClick}
               onDragging={setDraggingItem}
               disabled={typeof draggingItem === 'string' ? draggingItem === space.roomId : false}
               onUnpin={orphanSpaces.includes(space.roomId) ? undefined : handleUnpin}

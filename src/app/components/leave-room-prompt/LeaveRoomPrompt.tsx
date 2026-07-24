@@ -34,7 +34,7 @@ export function LeaveRoomPrompt({ roomId, onDone, onCancel }: LeaveRoomPromptPro
   const [leaveState, leaveRoom] = useAsyncCallback<undefined, MatrixError, []>(
     useCallback(async () => {
       debugLog.info('ui', 'Leave room button clicked', { roomId });
-      mx.leave(roomId);
+      await mx.leave(roomId);
     }, [mx, roomId])
   );
 

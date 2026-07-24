@@ -34,8 +34,9 @@ function LoginTokenError({ message }: { message: string }) {
 
 type TokenLoginProps = {
   token: string;
+  slidingSyncOptIn: boolean;
 };
-export function TokenLogin({ token }: TokenLoginProps) {
+export function TokenLogin({ token, slidingSyncOptIn }: TokenLoginProps) {
   const discovery = useAutoDiscoveryInfo();
   const baseUrl = discovery['m.homeserver'].base_url;
 
@@ -53,7 +54,10 @@ export function TokenLogin({ token }: TokenLoginProps) {
     });
   }, [baseUrl, token, startLogin]);
 
-  useLoginComplete(loginState.status === AsyncStatus.Success ? loginState.data : undefined);
+  useLoginComplete(
+    loginState.status === AsyncStatus.Success ? loginState.data : undefined,
+    slidingSyncOptIn
+  );
 
   return (
     <>

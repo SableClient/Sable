@@ -1,7 +1,7 @@
-import type { ChangeEventHandler, ComponentProps, MouseEventHandler, ReactNode } from 'react';
+import type { ChangeEventHandler, MouseEventHandler, ReactNode } from 'react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MatrixEvent, Room } from 'matrix-js-sdk';
-import { ClientEvent, EventType, JoinRule, M_POLL_START } from 'matrix-js-sdk';
+import { ClientEvent, JoinRule } from 'matrix-js-sdk';
 import {
   Avatar,
   Box,
@@ -44,72 +44,35 @@ import type { BookmarkItemContent } from '$types/matrix-sdk-events';
 import { SequenceCard } from '../../../components/sequence-card';
 import { useRoomNavigate } from '../../../hooks/useRoomNavigate';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
-import { getMxIdLocalPart, mxcUrlToHttp } from '../../../utils/matrix';
-import type { RenderImageContentProps } from '../../../components/message';
-import {
-  AvatarBase,
-  ImageContent,
-  MessageNotDecryptedContent,
-  MessageUnsupportedContent,
-  ModernLayout,
-  MSticker,
-  RedactedContent,
-  Time,
-  Username,
-  UsernameBold,
-} from '../../../components/message';
-import { UserAvatar } from '../../../components/user-avatar';
+import { getMxIdLocalPart } from '../../../utils/matrix';
+import { Time } from '../../../components/message';
 import { RoomAvatar, RoomIcon } from '../../../components/room-avatar';
-import {
-  getEditedEvent,
-  getMemberAvatarMxc,
-  getMemberDisplayName,
-  getRoomAvatarUrl,
-} from '../../../utils/room';
+import { getRoomAvatarUrl } from '../../../utils/room';
 import { useSetting } from '../../../state/hooks/settings';
 import { settingsAtom } from '../../../state/settings';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { BackRouteHandler } from '../../../components/BackRouteHandler';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
-import { mDirectAtom } from '../../../state/mDirectList';
+import { profilesCacheAtom } from '../../../state/userRoomProfile';
 import { stopPropagation } from '../../../utils/keyboard';
 import { highlightText, makeHighlightRegex } from '../../../plugins/react-custom-html-parser';
-import colorMXID from '$utils/colorMXID';
-import { RenderMessageContent } from '$components/RenderMessageContent';
-import type { GetContentCallback } from '$types/matrix/room';
 import { useRoomEvent } from '$hooks/useRoomEvent';
-import type { HTMLReactParserOptions } from 'html-react-parser';
-import type { Opts } from 'linkifyjs';
-import { ImageViewer } from '$components/image-viewer';
-import { Image } from '$components/media';
-import { EncryptedContent } from '$features/room/message';
-import * as customHtmlCss from '$styles/CustomHtml.css';
-import type { IImageContent } from '$types/matrix/common';
-import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
+import { MessagePreview, useRoomMessagePreviewRenderer } from '$components/message-preview';
 import { MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT } from '$unstable/prefixes';
 import { useDebounce } from '$hooks/useDebounce';
 
 type RemoveBookmarkDialogProps = {
   open: boolean;
-  sender?: string;
-  displayName?: string;
-  senderAvatarMxc?: string;
   renderMatrixEvent: () => ReactNode;
   onConfirm: () => void;
   onClose: () => void;
 };
 function RemoveBookmarkDialog({
   open,
-  sender,
-  displayName,
-  senderAvatarMxc,
   renderMatrixEvent,
   onConfirm,
   onClose,
 }: RemoveBookmarkDialogProps) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
-
   return (
     <Overlay open={open} backdrop={<OverlayBackdrop />}>
       <OverlayCenter>
@@ -139,44 +102,16 @@ function RemoveBookmarkDialog({
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
               <Text priority="400">Are you sure you want to remove this bookmark?</Text>
-              {sender && (
-                <Box
-                  style={{
-                    padding: config.space.S200,
-                    borderRadius: config.radii.R300,
-                  }}
-                  direction="Column"
-                  gap="200"
-                >
-                  {sender && (
-                    <Box gap="200" alignItems="Center">
-                      <Avatar size="200">
-                        <UserAvatar
-                          userId={sender}
-                          src={
-                            senderAvatarMxc
-                              ? (mxcUrlToHttp(
-                                  mx,
-                                  senderAvatarMxc,
-                                  useAuthentication,
-                                  32,
-                                  32,
-                                  'crop'
-                                ) ?? undefined)
-                              : undefined
-                          }
-                          alt={displayName ?? sender}
-                          renderFallback={() => <Icon size="50" src={Icons.User} filled />}
-                        />
-                      </Avatar>
-                      <Text size="T300" truncate>
-                        <b>{displayName ?? sender}</b>
-                      </Text>
-                    </Box>
-                  )}
-                  {renderMatrixEvent()}
-                </Box>
-              )}
+              <Box
+                style={{
+                  padding: config.space.S200,
+                  borderRadius: config.radii.R300,
+                }}
+                direction="Column"
+                gap="200"
+              >
+                {renderMatrixEvent()}
+              </Box>
               <Button variant="Critical" onClick={onConfirm}>
                 <Text size="B400">Remove</Text>
               </Button>
@@ -188,216 +123,10 @@ function RemoveBookmarkDialog({
   );
 }
 
-type BookmarkItemRowProps = {
-  item: BookmarkItemContent;
-  room?: Room;
-  displayName: string;
-  senderAvatarMxc?: string;
-  usernameColor?: string;
-  hour24Clock: boolean;
-  dateFormatString: string;
-  onOpen: MouseEventHandler;
-  onRemove: (bookmarkId: string) => void;
-  highlightRegex?: RegExp;
-};
-
-type BookmarkItemRowBodyProps = {
-  item: BookmarkItemContent;
-  room: Room;
-  highlightRegex?: RegExp;
-  displayName: string;
-};
-
 type BookmarkItemRowBodyFallbackProps = {
   item: BookmarkItemContent;
   highlightRegex?: RegExp;
 };
-
-type bookmarkRendererContext = {
-  mx: ReturnType<typeof useMatrixClient>;
-  room?: Room;
-  mediaAutoLoad: boolean;
-  urlPreview: boolean;
-  htmlReactParserOptions: HTMLReactParserOptions;
-  linkifyOpts: Opts;
-};
-
-function BookmarkLazyImage(props: ComponentProps<typeof Image>) {
-  return <Image {...props} loading="lazy" />;
-}
-
-function renderBookmarkStickerImageContent(
-  mediaAutoLoad: boolean | undefined,
-  props: RenderImageContentProps
-) {
-  return (
-    <ImageContent
-      {...props}
-      autoPlay={mediaAutoLoad}
-      renderImage={BookmarkLazyImage}
-      renderViewer={(p) => <ImageViewer {...p} />}
-    />
-  );
-}
-
-function renderBookmarkEncryptedDecrypted(
-  ctx: bookmarkRendererContext,
-  event: MatrixEvent,
-  displayName: string,
-  mEvent: MatrixEvent,
-  evtTimeline: NonNullable<ReturnType<Room['getTimelineForEvent']>>
-) {
-  const eventId = event.getId()!;
-  const eventType = mEvent.getType();
-  const stickerEventType: string = EventType.Sticker;
-  const roomMessageEventType: string = EventType.RoomMessage;
-  const encryptedMessageEventType: string = EventType.RoomMessageEncrypted;
-
-  if (mEvent.isRedacted()) return <RedactedContent />;
-  if (eventType === stickerEventType) {
-    return (
-      <MSticker
-        content={mEvent.getContent()}
-        renderImageContent={renderBookmarkStickerImageContent.bind(null, ctx.mediaAutoLoad)}
-      />
-    );
-  }
-  if (eventType === roomMessageEventType) {
-    const editedEvent = getEditedEvent(eventId, mEvent, evtTimeline.getTimelineSet());
-    const getContent = (() => {
-      const eventContent = mEvent.getContent();
-      const editContent = editedEvent?.getContent();
-      return (editContent?.['m.new_content'] ?? eventContent) as Record<string, unknown>;
-    }) as GetContentCallback;
-
-    return (
-      <RenderMessageContent
-        displayName={displayName}
-        msgType={mEvent.getContent().msgtype ?? ''}
-        ts={mEvent.getTs()}
-        edited={!!editedEvent || !!mEvent.replacingEvent()}
-        getContent={getContent}
-        mediaAutoLoad={ctx.mediaAutoLoad}
-        urlPreview={ctx.urlPreview}
-        htmlReactParserOptions={ctx.htmlReactParserOptions}
-        linkifyOpts={ctx.linkifyOpts}
-        mx={ctx.mx}
-        room={ctx.room}
-        mEvent={event}
-      />
-    );
-  }
-  if (eventType === encryptedMessageEventType) {
-    return (
-      <Text>
-        <MessageNotDecryptedContent />
-      </Text>
-    );
-  }
-  return (
-    <Text>
-      <MessageUnsupportedContent />
-    </Text>
-  );
-}
-
-function renderBookmarkEncrypted(
-  ctx: bookmarkRendererContext,
-  event: MatrixEvent,
-  displayName: string
-) {
-  const eventId = event.getId()!;
-  const evtTimeline = ctx.room?.getTimelineForEvent(eventId);
-  const mEvent = evtTimeline?.getEvents().find((e: MatrixEvent) => e.getId() === eventId);
-
-  if (!mEvent || !evtTimeline) {
-    return (
-      <Box grow="Yes" direction="Column">
-        <Text size="T400" priority="300">
-          <code className={customHtmlCss.Code}>{event.getType()}</code>
-          {' event'}
-        </Text>
-      </Box>
-    );
-  }
-
-  return (
-    <EncryptedContent mEvent={mEvent}>
-      {renderBookmarkEncryptedDecrypted.bind(null, ctx, event, displayName, mEvent, evtTimeline)}
-    </EncryptedContent>
-  );
-}
-
-function renderBookmarkRoomMessage(
-  ctx: bookmarkRendererContext,
-  event: MatrixEvent,
-  displayName: string,
-  getContent: GetContentCallback
-) {
-  if (event.isRedacted()) {
-    const unsigned = event.getUnsigned();
-    const redactionContent = unsigned.redacted_because?.content as { reason?: string } | undefined;
-    return <RedactedContent reason={redactionContent?.reason} />;
-  }
-
-  return (
-    <RenderMessageContent
-      displayName={displayName}
-      msgType={event.getContent().msgtype ?? ''}
-      ts={event.getTs()}
-      getContent={getContent}
-      edited={!!event.replacingEvent()}
-      mediaAutoLoad={ctx.mediaAutoLoad}
-      urlPreview={ctx.urlPreview}
-      htmlReactParserOptions={ctx.htmlReactParserOptions}
-      linkifyOpts={ctx.linkifyOpts}
-      outlineAttachment
-      mEvent={event}
-      mx={ctx.mx}
-      room={ctx.room}
-    />
-  );
-}
-
-function renderBookmarkSticker(
-  ctx: bookmarkRendererContext,
-  event: MatrixEvent,
-  _displayName: string,
-  getContent: GetContentCallback
-) {
-  if (event.isRedacted()) {
-    const unsigned = event.getUnsigned();
-    const redactionContent = unsigned.redacted_because?.content as
-      | Record<string, unknown>
-      | undefined;
-
-    return <RedactedContent reason={redactionContent?.reason as string | undefined} />;
-  }
-  return (
-    <MSticker
-      content={getContent() as IImageContent}
-      renderImageContent={renderBookmarkStickerImageContent.bind(null, ctx.mediaAutoLoad)}
-    />
-  );
-}
-
-function renderBookmarkFallback(_ctx: bookmarkRendererContext, event: MatrixEvent) {
-  if (event.isRedacted()) {
-    const unsigned = event.getUnsigned();
-    const redactionContent = unsigned.redacted_because?.content as
-      | Record<string, unknown>
-      | undefined;
-    return <RedactedContent reason={redactionContent?.reason as string | undefined} />;
-  }
-  return (
-    <Box grow="Yes" direction="Column">
-      <Text size="T400" priority="300">
-        <code className={customHtmlCss.Code}>{event.getType()}</code>
-        {' event'}
-      </Text>
-    </Box>
-  );
-}
 
 function BookmarkItemRowBodyFallback({ item, highlightRegex }: BookmarkItemRowBodyFallbackProps) {
   return (
@@ -411,69 +140,27 @@ function BookmarkItemRowBodyFallback({ item, highlightRegex }: BookmarkItemRowBo
   );
 }
 
-function BookmarkItemRowBody({
-  room,
-  item,
-  highlightRegex,
-  displayName,
-}: BookmarkItemRowBodyProps) {
-  const mx = useMatrixClient();
-  const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const event = useRoomEvent(room, item.event_id); // TODO: only fetch when in view (virtualizer?)
-
-  const getContent = (() => event?.getContent()) as GetContentCallback;
-
-  const rendererContext = useMemo<bookmarkRendererContext>(
-    () => ({
-      mx,
-      room,
-      mediaAutoLoad,
-      urlPreview,
-      htmlReactParserOptions: {},
-      linkifyOpts: {},
-    }),
-    [mx, room, mediaAutoLoad, urlPreview]
-  );
-
-  // TODO: abstract this (code from pin menu) and reuse in a lot of places
-  const matrixEventHandlers = useMemo(
-    () => ({
-      [EventType.RoomMessage]: renderBookmarkRoomMessage.bind(null, rendererContext),
-      [EventType.RoomMessageEncrypted]: renderBookmarkEncrypted.bind(null, rendererContext),
-      [EventType.Sticker]: renderBookmarkSticker.bind(null, rendererContext),
-      [M_POLL_START.name]: renderBookmarkRoomMessage.bind(null, rendererContext),
-    }),
-    [rendererContext]
-  );
-
-  const renderMatrixEvent = useMatrixEventRenderer<[MatrixEvent, string, GetContentCallback]>(
-    matrixEventHandlers,
-    undefined,
-    renderBookmarkFallback.bind(null, rendererContext)
-  );
-
-  if (!event) {
-    return <BookmarkItemRowBodyFallback item={item} highlightRegex={highlightRegex} />;
-  }
-
-  return renderMatrixEvent(event.getType(), false, event, displayName, getContent);
-}
+type BookmarkItemRowProps = {
+  item: BookmarkItemContent;
+  room: Room;
+  hour24Clock: boolean;
+  dateFormatString: string;
+  onOpen: (eventId: string) => void;
+  onRemove: (bookmarkId: string) => void;
+  highlightRegex?: RegExp;
+};
 
 function BookmarkItemRow({
   item,
   room,
-  displayName,
-  senderAvatarMxc,
-  usernameColor,
   hour24Clock,
   dateFormatString,
   onOpen,
   onRemove,
   highlightRegex,
 }: BookmarkItemRowProps) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
+  const event = useRoomEvent(room, item.event_id);
+  const renderContent = useRoomMessagePreviewRenderer(room, { highlightRegex });
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleConfirmRemove = () => {
@@ -481,26 +168,60 @@ function BookmarkItemRow({
     onRemove(item.bookmark_id);
   };
 
+  const handleOpen: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    evt.stopPropagation();
+    onOpen(item.event_id);
+  };
+
+  const actions = (
+    <Box gap="200" alignItems="Center" shrink="Yes" wrap="WrapReverse" justifyContent="End">
+      <Box gap="100" alignItems="Center">
+        <Icon size="50" src={Icons.Bookmark} />
+        <Time
+          ts={item.bookmarked_ts}
+          hour24Clock={hour24Clock}
+          dateFormatString={dateFormatString}
+        />
+      </Box>
+      <Box gap="200" alignItems="Center">
+        <Chip onClick={handleOpen} variant="Secondary" radii="400">
+          <Text size="T200">Jump</Text>
+        </Chip>
+        <IconButton
+          onClick={(evt: React.MouseEvent) => {
+            evt.stopPropagation();
+            setConfirmOpen(true);
+          }}
+          size="300"
+          radii="300"
+          aria-label="Remove bookmark"
+          style={{ color: color.Critical.Main }}
+        >
+          <Icon src={Icons.Delete} size="100" />
+        </IconButton>
+      </Box>
+    </Box>
+  );
+
   return (
     <>
       <RemoveBookmarkDialog
         open={confirmOpen}
-        sender={item.sender}
-        displayName={displayName}
-        senderAvatarMxc={senderAvatarMxc}
         onConfirm={handleConfirmRemove}
-        renderMatrixEvent={() => {
-          return room ? (
-            <BookmarkItemRowBody
-              highlightRegex={highlightRegex}
-              displayName={displayName}
+        renderMatrixEvent={() =>
+          event ? (
+            <MessagePreview
               room={room}
-              item={item}
+              event={event}
+              renderContent={renderContent}
+              onOpen={handleOpen}
+              hour24Clock={hour24Clock}
+              dateFormatString={dateFormatString}
             />
           ) : (
             <BookmarkItemRowBodyFallback item={item} />
-          );
-        }}
+          )
+        }
         onClose={() => setConfirmOpen(false)}
       />
       <SequenceCard
@@ -508,85 +229,86 @@ function BookmarkItemRow({
         variant="SurfaceVariant"
         direction="Column"
       >
-        <ModernLayout
-          before={
-            <AvatarBase>
-              <Avatar size="300">
-                <UserAvatar
-                  userId={item.sender ?? ''}
-                  src={
-                    senderAvatarMxc
-                      ? (mxcUrlToHttp(mx, senderAvatarMxc, useAuthentication, 48, 48, 'crop') ??
-                        undefined)
-                      : undefined
-                  }
-                  alt={displayName}
-                  renderFallback={() => <Icon size="200" src={Icons.User} filled />}
-                />
-              </Avatar>
-            </AvatarBase>
-          }
-        >
-          <Box gap="300" justifyContent="SpaceBetween" alignItems="Center" grow="Yes">
-            <Box gap="200" alignItems="Baseline" wrap="Wrap">
-              <Username style={{ color: usernameColor }}>
-                <Text as="span" truncate>
-                  <UsernameBold>{displayName}</UsernameBold>
-                </Text>
-              </Username>
-              <Time
-                ts={item.event_ts}
-                hour24Clock={hour24Clock}
-                dateFormatString={dateFormatString}
-              />
-            </Box>
-            <Box gap="200" alignItems="Center" shrink="Yes" wrap="WrapReverse" justifyContent="End">
-              <Box gap="100" alignItems="Center">
-                <Icon size="50" src={Icons.Bookmark} />
-                <Time
-                  ts={item.bookmarked_ts}
-                  hour24Clock={hour24Clock}
-                  dateFormatString={dateFormatString}
-                />
-              </Box>
-              <Box gap="200" alignItems="Center">
-                <Chip
-                  data-event-id={item.event_id}
-                  onClick={onOpen}
-                  variant="Secondary"
-                  radii="400"
-                >
-                  <Text size="T200">Jump</Text>
-                </Chip>
-                <IconButton
-                  onClick={(evt: React.MouseEvent) => {
-                    evt.stopPropagation();
-                    setConfirmOpen(true);
-                  }}
-                  size="300"
-                  radii="300"
-                  aria-label="Remove bookmark"
-                  style={{ color: color.Critical.Main }}
-                >
-                  <Icon src={Icons.Delete} size="100" />
-                </IconButton>
-              </Box>
-            </Box>
+        {event ? (
+          <MessagePreview
+            room={room}
+            event={event}
+            renderContent={renderContent}
+            actions={actions}
+            onOpen={handleOpen}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          />
+        ) : (
+          <Box direction="Column" gap="200">
+            {actions}
+            <BookmarkItemRowBodyFallback item={item} highlightRegex={highlightRegex} />
           </Box>
+        )}
+      </SequenceCard>
+    </>
+  );
+}
 
-          <Box grow="Yes" direction="Column">
-            {room ? (
-              <BookmarkItemRowBody
-                highlightRegex={highlightRegex}
-                displayName={displayName}
-                room={room}
-                item={item}
-              />
-            ) : (
-              <BookmarkItemRowBodyFallback item={item} />
-            )}
+function UnavailableBookmarkItemRow({
+  item,
+  displayName,
+  hour24Clock,
+  dateFormatString,
+  onOpen,
+  onRemove,
+  highlightRegex,
+}: Omit<BookmarkItemRowProps, 'room' | 'onOpen'> & {
+  displayName: string;
+  onOpen: (eventId: string) => void;
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const handleOpen: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    evt.stopPropagation();
+    onOpen(item.event_id);
+  };
+  return (
+    <>
+      <RemoveBookmarkDialog
+        open={confirmOpen}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          onRemove(item.bookmark_id);
+        }}
+        renderMatrixEvent={() => <BookmarkItemRowBodyFallback item={item} />}
+        onClose={() => setConfirmOpen(false)}
+      />
+      <SequenceCard
+        style={{ padding: config.space.S400 }}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="200"
+      >
+        <Box justifyContent="SpaceBetween" alignItems="Center" gap="200">
+          <Text size="T300" truncate>
+            <b>{displayName}</b>
+          </Text>
+          <Box gap="200" alignItems="Center">
+            <Time
+              ts={item.bookmarked_ts}
+              hour24Clock={hour24Clock}
+              dateFormatString={dateFormatString}
+            />
+            <Chip onClick={handleOpen} variant="Secondary" radii="400">
+              <Text size="T200">Jump</Text>
+            </Chip>
+            <IconButton
+              onClick={() => setConfirmOpen(true)}
+              size="300"
+              radii="300"
+              aria-label="Remove bookmark"
+              style={{ color: color.Critical.Main }}
+            >
+              <Icon src={Icons.Delete} size="100" />
+            </IconButton>
           </Box>
-        </ModernLayout>
+        </Box>
+        <BookmarkItemRowBodyFallback item={item} highlightRegex={highlightRegex} />
       </SequenceCard>
     </>
   );
@@ -600,7 +322,6 @@ type BookmarkResultGroupProps = {
   onRemove: (bookmarkId: string) => void;
   hour24Clock: boolean;
   dateFormatString: string;
-  legacyUsernameColor?: boolean;
   highlightRegex?: RegExp;
 };
 function BookmarkResultGroup({
@@ -611,19 +332,13 @@ function BookmarkResultGroup({
   onRemove,
   hour24Clock,
   dateFormatString,
-  legacyUsernameColor,
   highlightRegex,
 }: BookmarkResultGroupProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const room = mx.getRoom(roomId);
 
-  const handleOpenClick: MouseEventHandler = (evt) => {
-    const eventId = evt.currentTarget.getAttribute('data-event-id');
-    if (!eventId) return;
-    onOpen(roomId, eventId);
-  };
-
+  const cachedProfiles = useAtomValue(profilesCacheAtom);
   return (
     <Box direction="Column" gap="200">
       <Header size="300">
@@ -654,29 +369,31 @@ function BookmarkResultGroup({
       </Header>
       <Box direction="Column" gap="100">
         {items.map((item) => {
-          const displayName = room
-            ? (getMemberDisplayName(room, item.sender ?? '') ??
-              getMxIdLocalPart(item.sender ?? '') ??
-              item.sender ??
-              'Unknown')
-            : (getMxIdLocalPart(item.sender ?? '') ?? item.sender ?? 'Unknown');
-          const senderAvatarMxc =
-            room && item.sender ? getMemberAvatarMxc(room, item.sender) : undefined;
-
-          const usernameColor =
-            legacyUsernameColor && item.sender ? colorMXID(item.sender) : undefined;
-
+          if (room) {
+            return (
+              <BookmarkItemRow
+                key={item.bookmark_id}
+                item={item}
+                room={room}
+                hour24Clock={hour24Clock}
+                dateFormatString={dateFormatString}
+                onOpen={(eventId) => onOpen(roomId, eventId)}
+                onRemove={onRemove}
+                highlightRegex={highlightRegex}
+              />
+            );
+          }
+          const sender = item.sender ?? '';
+          const displayName =
+            cachedProfiles[sender]?.displayName ?? getMxIdLocalPart(sender) ?? sender ?? 'Unknown';
           return (
-            <BookmarkItemRow
+            <UnavailableBookmarkItemRow
               key={item.bookmark_id}
               item={item}
-              room={room ?? undefined}
               displayName={displayName}
-              senderAvatarMxc={senderAvatarMxc}
-              usernameColor={usernameColor}
               hour24Clock={hour24Clock}
               dateFormatString={dateFormatString}
-              onOpen={handleOpenClick}
+              onOpen={(eventId) => onOpen(roomId, eventId)}
               onRemove={onRemove}
               highlightRegex={highlightRegex}
             />
@@ -732,9 +449,7 @@ export function Bookmarks() {
   const { refresh, remove } = useBookmarkActions();
   const { navigateRoom } = useRoomNavigate();
   const screenSize = useScreenSizeContext();
-  const mDirects = useAtomValue(mDirectAtom);
 
-  const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
 
@@ -894,7 +609,6 @@ export function Bookmarks() {
                           onRemove={remove}
                           hour24Clock={hour24Clock}
                           dateFormatString={dateFormatString}
-                          legacyUsernameColor={legacyUsernameColor || mDirects.has(roomId)}
                           highlightRegex={highlightRegex}
                         />
                       </Box>

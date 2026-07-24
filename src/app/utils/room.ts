@@ -10,7 +10,6 @@ import type {
   MatrixEvent,
   Room,
   RoomMember,
-  CryptoBackend,
   StateEvents,
 } from '$types/matrix-sdk';
 import {
@@ -27,7 +26,7 @@ import {
 
 import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
 import { NotificationType } from '$types/matrix/room';
-import * as Sentry from '@sentry/react';
+import { getMxIdLocalPart } from '$utils/matrix';
 
 export const getStateEvent = (
   room: Room,
@@ -457,10 +456,18 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     // If we have no read receipt, SDK counts may be unreliable. Always check timeline.
     if (!readUpToId) {
       const liveEvents = room.getLiveTimeline().getEvents();
-
-      const hasActivity = liveEvents.some(
-        (event) => event.getSender() !== userId && isNotificationEvent(event, room, userId)
-      );
+      const fullyReadEventId = room
+        .getAccountData(EventType.FullyRead)
+        ?.getContent<{ event_id?: string }>()?.event_id;
+      let hasActivity = false;
+      for (let i = liveEvents.length - 1; i >= 0; i -= 1) {
+        const event = liveEvents[i];
+        if (!event || event.getId() === fullyReadEventId) break;
+        if (event.getSender() !== userId && isNotificationEvent(event, room, userId)) {
+          hasActivity = true;
+          break;
+        }
+      }
 
       if (hasActivity) {
         // If SDK already has counts, use those. Otherwise show dot badge (count=1).
@@ -592,6 +599,17 @@ export const getMemberDisplayName = (
   return name;
 };
 
+export const getTimelineSenderDisplayName = (
+  room: Room,
+  userId: string,
+  nicknames?: Record<string, string>,
+  profileDisplayName?: string
+): string =>
+  getMemberDisplayName(room, userId, nicknames) ??
+  profileDisplayName ??
+  getMxIdLocalPart(userId) ??
+  userId;
+
 export const getMemberSearchStr = (
   member: RoomMember,
   query: string,
@@ -618,32 +636,6 @@ export const getMemberAvatarMxc = (room: Room, userId: string): string | undefin
 export const isMembershipChanged = (mEvent: MatrixEvent): boolean =>
   mEvent.getContent().membership !== mEvent.getPrevContent().membership ||
   mEvent.getContent().reason !== mEvent.getPrevContent().reason;
-
-export const decryptAllTimelineEvent = async (mx: MatrixClient, timeline: EventTimeline) => {
-  const crypto = mx.getCrypto();
-  if (!crypto) return;
-  const decryptionPromises = timeline
-    .getEvents()
-    .filter((event) => event.isEncrypted())
-    .toReversed()
-    .map((event) => event.attemptDecryption(crypto as CryptoBackend, { isRetry: true }));
-  const decryptStart = performance.now();
-  await Sentry.startSpan(
-    {
-      name: 'decrypt.bulk',
-      op: 'matrix.crypto',
-      attributes: { event_count: decryptionPromises.length },
-    },
-    () => Promise.allSettled(decryptionPromises)
-  );
-  if (decryptionPromises.length > 0) {
-    Sentry.metrics.distribution(
-      'sable.decryption.bulk_latency_ms',
-      performance.now() - decryptStart,
-      { attributes: { event_count: String(decryptionPromises.length) } }
-    );
-  }
-};
 
 export const getEventReactions = (timelineSet: EventTimelineSet, eventId: string) =>
   timelineSet.relations.getChildEventsForEvent(

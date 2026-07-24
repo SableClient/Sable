@@ -47,6 +47,8 @@ import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { nicknamesAtom } from '$state/nicknames';
+import { profilesCacheAtom } from '$state/userRoomProfile';
+import { useRoomMemberHydration } from '$hooks/useRoomMemberHydration';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { useSetting } from '$state/hooks/settings';
@@ -283,6 +285,8 @@ export const Reply = as<'div', ReplyProps>(
 
     const { color: usernameColor, font: usernameFont } = useSableCosmetics(sender ?? '', room);
     const nicknames = useAtomValue(nicknamesAtom);
+    const cachedProfiles = useAtomValue(profilesCacheAtom);
+    useRoomMemberHydration(room, sender ?? '');
     const useAuthentication = useMediaAuthentication();
     const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const [incomingInlineImagesDefaultHeight] = useSetting(
@@ -518,7 +522,11 @@ export const Reply = as<'div', ReplyProps>(
             sender &&
             eventType !== EventType.RoomMember && (
               <Text size="T300" truncate style={{ fontFamily: usernameFont }}>
-                <b>{getMemberDisplayName(room, sender, nicknames) ?? getMxIdLocalPart(sender)}</b>
+                <b>
+                  {getMemberDisplayName(room, sender, nicknames) ??
+                    cachedProfiles[sender]?.displayName ??
+                    getMxIdLocalPart(sender)}
+                </b>
               </Text>
             )
           }

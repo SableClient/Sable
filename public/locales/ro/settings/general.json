@@ -15,11 +15,9 @@
   "four_digit_year": "Anul cu 4 cifre",
   "two_digit_year": "Anul cu 2 cifre",
   "two_digit_day_of_the_month": "Ziua din lună cu 2 cifre month",
-
   "date_format": "Formatul zilei",
   "twenty_four_hour_time_format": "Format in 24 de ore",
   "current_language": "Limba folosită",
-
   "Editor": {
     "editor": "Editor",
     "enter_for_newline_title": "ENTER adaugă linie nouă",
@@ -153,15 +151,11 @@
     "show_interactive_map_enc_enable": "Activează hărți interactive"
   },
   "Sync": {
-    "sync": "Sincronizare",
     "use_sliding_sync_title": "Folosește sincronizare 'Sliding'",
-    "use_sliding_sync_enable": "Activează sincronizarea 'sliding' pentru sesiunea aceasta. Necesită suport de la server.",
-    "use_sliding_sync_disable": "Neaccesibil: Server-ul a dezactivat sincronizarea 'sliding' in configurare.",
-    "use_sliding_sync_documentation": " Mai multă informație/documentație.",
-    "use_sliding_sync_issues": " Probleme Cunsocute (GitHub Sable)."
+    "use_sliding_sync_description": "Activează sincronizarea 'sliding' pentru sesiunea aceasta. Necesită suport de la server."
   },
   "SettingsSync": {
-    "settings_sync": "Sincronizare setări si backup",
+    "settings_sync": "Sincronizare Date",
     "sync_across_devices_title": "Sincronizează între dispozitive",
     "sync_across_devices_description": "Salvează setările in contul tău matrix pentru ca ele să fie folosite pentru fiecare dispozitiv. Notificările si zoom-ul sunt pastrate individualizate dispozitivului respectiv.",
     "sync_status_title": "Situația sincronizării",

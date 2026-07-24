@@ -8,6 +8,8 @@ export default {
   ignorePatterns: [
     'dist',
     'node_modules',
+    'src/app/generated',
+    'src-tauri/ios-project.yml',
     'package.json',
     'pnpm-lock.yaml',
     'LICENSE',

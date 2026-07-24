@@ -12,6 +12,7 @@ import * as css from './styles.css';
 import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
 import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
+import { canJoinCall } from './callStartCapabilities';
 
 function LivekitServerMissingMessage() {
   return (
@@ -42,11 +43,11 @@ function JoinMessage({
     return <WebRTCMissingError />;
   }
 
+  if (hasParticipant) return null;
+
   if (livekitSupported === false) {
     return <LivekitServerMissingMessage />;
   }
-
-  if (hasParticipant) return null;
 
   return (
     <Text style={{ margin: 'auto' }} size="L400" align="Center">
@@ -96,7 +97,7 @@ function CallPrescreen() {
       ? 'Call setup failed because required call capabilities were rejected.'
       : 'Call setup failed while preparing the embedded call app.';
 
-  const canJoin = callStartCapabilities.canStart;
+  const canJoin = canJoinCall(callStartCapabilities, hasParticipant);
 
   return (
     <Scroll variant="Surface" hideTrack>

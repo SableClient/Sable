@@ -9,6 +9,10 @@ export const MessageBaseBubbleCollapsed = style({
   paddingTop: 0,
 });
 
+export const MessageForceHover = style({
+  backgroundColor: `${color.Surface.ContainerHover} !important`,
+});
+
 export const MessageOptionsBase = style([
   DefaultReset,
   {
@@ -35,10 +39,27 @@ export const MessageOptionsWrappedMessage = style({
 export const MessageOptionsMenu = style({
   width: '100%',
   maxHeight: '100%',
-  position: 'absolute',
-  bottom: '0',
+  position: 'relative',
   display: 'flex',
   flexDirection: 'column',
+  borderBottomLeftRadius: '0 !important',
+  borderBottomRightRadius: '0 !important',
+  borderBottom: 'none !important',
+  borderTopLeftRadius: `${toRem(20)} !important`,
+  borderTopRightRadius: `${toRem(20)} !important`,
+  paddingBottom: `calc(${config.space.S400} + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))) !important`,
+  selectors: {
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      height: '300px',
+      backgroundColor: 'inherit',
+      border: 'none',
+    },
+  },
 });
 
 export const PreventSelect = style({
@@ -62,22 +83,29 @@ export const MessageNickEditor = style({
 });
 
 export const MessageMobileOptionsWrapped = style({
-  position: 'absolute',
-  bottom: '0',
-  zIndex: '104',
-  width: '100%',
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 1004,
+  width: '100vw',
   height: '100%',
   backgroundColor: color.Other.Overlay,
 });
 
 export const MessageMobileOptionsContainer = style({
-  position: 'absolute',
-  bottom: '0',
-  zIndex: '105',
+  position: 'fixed',
+  bottom: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1005,
   width: '100%',
-  height: '85%',
+  maxHeight: '85vh',
   display: 'flex',
   flexDirection: 'column',
+  justifyContent: 'flex-end',
+  overflow: 'visible',
   animation: `${keyframes({
     from: { transform: 'translateY(100%)' },
     to: { transform: 'translateY(0)' },

@@ -1,4 +1,9 @@
-import type { ClipboardEventHandler, KeyboardEventHandler, ReactNode } from 'react';
+import type {
+  ClipboardEventHandler,
+  KeyboardEventHandler,
+  MutableRefObject,
+  ReactNode,
+} from 'react';
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Box, Scroll, Text } from 'folds';
 import type { Descendant, Editor } from 'slate';
@@ -12,6 +17,8 @@ import { RenderElement, RenderLeaf } from './Elements';
 import type { CustomElement } from './slate';
 import * as css from './Editor.css';
 import { toggleKeyboardShortcut } from './keyboard';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 
 const withInline = (editor: Editor): Editor => {
   const { isInline } = editor;
@@ -71,6 +78,8 @@ type CustomEditorProps = {
   onPaste?: ClipboardEventHandler;
   className?: string;
   variant?: 'Surface' | 'SurfaceVariant' | 'Background';
+  enterKeyHint?: 'enter' | 'send';
+  suppressBlurRefocusRef?: MutableRefObject<boolean>;
 };
 export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
   (
@@ -91,9 +100,12 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       onPaste,
       className,
       variant = 'SurfaceVariant',
+      enterKeyHint,
+      suppressBlurRefocusRef,
     },
     ref
   ) => {
+    const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
     // Each <Slate> instance must receive its own fresh node objects.
     // Sharing a module-level constant causes Slate's global NODE_TO_ELEMENT
     // WeakMap to be overwritten when multiple editors are mounted at the same
@@ -104,6 +116,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     ]);
     const rootRef = useRef<HTMLDivElement | null>(null);
     const editableRef = useRef<HTMLDivElement>(null);
+    const focusScrollTimerRef = useRef<number>();
     const rowRef = useRef<HTMLDivElement>(null);
     const beforeRef = useRef<HTMLDivElement>(null);
     const afterRef = useRef<HTMLDivElement>(null);
@@ -305,6 +318,12 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       []
     );
 
+    const cancelFocusScroll = useCallback(() => {
+      window.clearTimeout(focusScrollTimerRef.current);
+    }, []);
+
+    useEffect(() => cancelFocusScroll, [cancelFocusScroll]);
+
     const queueMultilineMeasurement = useCallback(
       (resetRetry = true) => {
         if (multilineMeasureFrameRef.current !== null) {
@@ -371,17 +390,12 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
 
     const handleKeydown: KeyboardEventHandler = useCallback(
       (evt) => {
-        // mobile ignores config option
-        if (mobileOrTablet() && evt.key === 'Enter' && !evt.shiftKey) {
-          return;
-        }
-
         onKeyDown?.(evt);
 
-        const shortcutToggled = toggleKeyboardShortcut(editor, evt);
+        const shortcutToggled = toggleKeyboardShortcut(editor, evt, shortcutOverrides);
         if (shortcutToggled) evt.preventDefault();
       },
-      [editor, onKeyDown]
+      [editor, onKeyDown, shortcutOverrides]
     );
 
     const renderPlaceholder = useCallback(
@@ -440,9 +454,29 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 onPaste={onPaste}
                 // Defer to OS capitalization setting (respects iOS sentence-case toggle).
                 autoCapitalize="sentences"
-                // keeps focus after pressing send.
-                onBlur={() => {
-                  if (mobileOrTablet()) ReactEditor.focus(editor);
+                autoCorrect="on"
+                enterKeyHint={enterKeyHint}
+                // keeps focus after pressing send, but yields to another editor.
+                onBlur={(evt) => {
+                  cancelFocusScroll();
+                  if (!mobileOrTablet()) return;
+                  if (suppressBlurRefocusRef?.current) return;
+                  const next = evt.relatedTarget as HTMLElement | null;
+                  if (next && next !== editableRef.current && next.isContentEditable) return;
+                  ReactEditor.focus(editor);
+                }}
+                // Once the virtual keyboard has settled, make sure the composer is
+                // not left hidden behind it.
+                onFocus={() => {
+                  if (!mobileOrTablet()) return;
+                  cancelFocusScroll();
+                  const scrollIn = () => {
+                    if (editableRef.current?.contains(document.activeElement)) {
+                      rootRef.current?.scrollIntoView({ block: 'nearest' });
+                    }
+                  };
+                  window.visualViewport?.addEventListener('resize', scrollIn, { once: true });
+                  focusScrollTimerRef.current = window.setTimeout(scrollIn, 500);
                 }}
                 style={{ boxShadow: 'none' }}
               />

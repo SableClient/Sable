@@ -26,11 +26,12 @@ import {
 import { MessageEditHistoryItem } from './MessageEditHistory';
 import { MessageSourceCodeItem } from './MessageSource';
 import { MessageForwardItem } from './MessageForward';
+import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
 
 import * as css from '$features/room/message/styles.css';
 import { useAtom, useSetAtom, useStore } from 'jotai';
 import type { Dispatch, MouseEventHandler, ReactNode, SetStateAction } from 'react';
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { MessageDeleteItem } from './MessageDelete';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
@@ -51,6 +52,10 @@ import {
 } from '$features/bookmarks';
 import { CopyIcon } from '@phosphor-icons/react';
 import * as OptionsCss from './Options.css';
+import { MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS } from '$unstable/prefixes';
+import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
+import type { IImageInfo } from '$types/matrix/common';
+import { getIncomingMediaMxcUrl } from '../MsgTypeRenderers';
 
 function WrappedMessage({
   isModal,
@@ -239,7 +244,9 @@ export const MessageBookmarkItem = as<
   return (
     <MenuItem
       size="300"
-      after={menuIcon(BookmarkIcon)}
+      after={menuIcon(BookmarkIcon, {
+        weight: bookmarked ? 'fill' : 'regular',
+      })}
       radii="300"
       onClick={handleClick}
       {...props}
@@ -247,6 +254,70 @@ export const MessageBookmarkItem = as<
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
         {bookmarked ? 'Remove Bookmark' : 'Bookmark Message'}
+      </Text>
+    </MenuItem>
+  );
+});
+
+export const MessageFavoriteGifItem = as<
+  'button',
+  {
+    room: Room;
+    mEvent: MatrixEvent;
+    onClose?: () => void;
+  }
+>(({ room, mEvent, onClose, ...props }, ref) => {
+  const mx = useMatrixClient();
+  const content = mEvent.getContent();
+  const url = getIncomingMediaMxcUrl(content.file?.url ?? content.url) ?? '';
+  const favoritedContent = useFavoriteGifs();
+  const [favorited, setFavorited] = useState(
+    favoritedContent.gifs.find((v) => v.url == url) != undefined
+  );
+  const handleClick = async () => {
+    if (!favorited) {
+      const info: IImageInfo | undefined = content?.info;
+      const body = content?.body;
+      setFavorited(true);
+      await mx
+        .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
+          gifs: [
+            ...favoritedContent.gifs,
+            {
+              title: body ?? '',
+              url: url,
+              width: info?.w,
+              height: info?.h,
+              size: info?.size,
+              mimetype: info?.mimetype,
+            },
+          ],
+        })
+        .catch(() => setFavorited(false));
+    } else {
+      setFavorited(false);
+      await mx
+        .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
+          gifs: favoritedContent.gifs.filter((v) => v.url != url),
+        })
+        .catch(() => setFavorited(true));
+    }
+
+    onClose?.();
+  };
+  return (
+    <MenuItem
+      size="300"
+      after={menuIcon(Star, {
+        weight: favorited ? 'fill' : 'regular',
+      })}
+      radii="300"
+      onClick={handleClick}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        {favorited ? 'Unfavorite Gif' : 'Favorite Gif'}
       </Text>
     </MenuItem>
   );
@@ -288,7 +359,7 @@ export function OptionsEmojiBoard({
       anchor={emojiBoardAnchor}
       style={isModal ? { width: '100%' } : {}}
       content={
-        <Menu>
+        <Menu className={isModal ? css.MessageOptionsMenu : undefined}>
           {dragOpts?.dragHandle}
           {ActualMessage}
           <EmojiBoard
@@ -334,6 +405,7 @@ export function OptionQuickMenu({
   menuAnchor,
   imagePackRooms,
   setIsEmoji,
+  isGif,
 }: OptionMenuProps) {
   const mx = useMatrixClient();
   const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
@@ -438,6 +510,7 @@ export function OptionQuickMenu({
               setIsEmoji={setIsEmoji}
               emojiBoardAnchor={menuAnchor}
               canSendReaction={canSendReaction}
+              isGif={isGif}
             />
           }
         >
@@ -484,6 +557,7 @@ export type OptionMenuProps = {
   canDelete?: boolean;
   handleOpenMenu?: MouseEventHandler<HTMLButtonElement>;
   menuAnchor?: RectCords | undefined;
+  isGif?: boolean;
 
   emojiBoardAnchor?: RectCords;
   imagePackRooms?: Room[];
@@ -511,6 +585,7 @@ export function OptionMenu({
   ActualMessage,
   isModal,
   dragOpts,
+  isGif,
 }: OptionMenuProps) {
   const setModal = useSetAtom(modalAtom);
   const store = useStore();
@@ -665,6 +740,9 @@ export function OptionMenu({
               {relations && (
                 <MessageAllReactionItem room={room} relations={relations} closeMenu={closeMenu} />
               )}
+              {isGif && isModal && (
+                <MessageFavoriteGifItem room={room} mEvent={mEvent} onClose={closeMenu} />
+              )}
               <MenuItem
                 size="300"
                 after={menuIcon(ArrowBendUpLeftIcon)}
@@ -756,89 +834,25 @@ export function OptionMenu({
 export function MobileOptionsInternal({ options }: { options: OptionMenuProps }) {
   const [isActive, setIsActive] = useState(true);
   const [modal, setModal] = useAtom(modalAtom);
-  const touchStartY = useRef<number | null>(null);
-  const [touchYDiff, setTouchYDiff] = useState(0);
-  const date = new Date();
-  const startTime = useRef(0);
 
   useEffect(() => {
     if (modal?.type === ModalType.MobileOptions) setIsActive(true);
     if (!isActive) setModal(null);
   }, [modal, setIsActive, isActive, setModal]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0]?.clientY ?? null;
-    startTime.current = date.getTime();
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartY.current === null || !e.touches[0]) return;
-    const touchY = e.touches[0].clientY;
-    const diff = touchY - touchStartY.current;
-
-    // Only allow pulling down
-    if (diff > 0) {
-      setTouchYDiff(diff);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    const endTime = date.getTime();
-    if (touchYDiff > 100 || (endTime - startTime.current < 600 && touchYDiff > 20)) {
-      options.closeMenu();
-      setIsActive(false);
-    } else {
-      setTouchYDiff(0);
-    }
-    touchStartY.current = null;
-  };
-
-  const dragHandleJSX = (
-    <div
-      className={css.MessageMobileDragHandle}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      <div className={css.MessageMobileDragIndicator} />
-    </div>
-  );
-
-  const dragOpts: DragOptsProps = {
-    dragHandle: dragHandleJSX,
-    onTouchStart: handleTouchStart,
-    onTouchMove: handleTouchMove,
-    onTouchEnd: handleTouchEnd,
+  const requestClose = () => {
+    options.closeMenu();
+    setIsActive(false);
   };
 
   if (isActive)
     return (
-      <Box
-        className={css.MessageMobileOptionsWrapped}
-        data-gestures="ignore"
-        onClick={() => {
-          options.closeMenu();
-          setIsActive(false);
-        }}
-        onTouchStart={(e: React.TouchEvent) => e.stopPropagation()}
-        onTouchMove={(e: React.TouchEvent) => e.stopPropagation()}
-        onTouchEnd={(e: React.TouchEvent) => e.stopPropagation()}
-      >
-        <Box
-          className={css.MessageMobileOptionsContainer}
-          style={{
-            transform: touchYDiff > 0 ? `translateY(${touchYDiff}px)` : undefined,
-            transition: touchStartY.current === null ? 'transform 0.2s ease-out' : 'none',
-          }}
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        >
+      <MobileSwipeDownModal requestClose={requestClose}>
+        {(dragHandleJSX, dragHandlers) => (
           <OptionMenu
             mEvent={options.mEvent}
             room={options.room}
-            closeMenu={() => {
-              options.closeMenu();
-              setIsActive(false);
-            }}
+            closeMenu={requestClose}
             onReactionToggle={options.onReactionToggle}
             relations={options.relations}
             onReplyClick={options.onReplyClick}
@@ -851,10 +865,14 @@ export function MobileOptionsInternal({ options }: { options: OptionMenuProps })
             ActualMessage={options.ActualMessage}
             canSendReaction={options.canSendReaction}
             isModal
-            dragOpts={dragOpts}
+            dragOpts={{
+              dragHandle: dragHandleJSX,
+              ...dragHandlers,
+            }}
+            isGif={options.isGif}
           />
-        </Box>
-      </Box>
+        )}
+      </MobileSwipeDownModal>
     );
   return <></>;
 }

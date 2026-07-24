@@ -13,6 +13,7 @@ import {
 } from 'folds';
 import { GearSix, SquaresFour, menuIcon, sizedIcon } from '$components/icons/phosphor';
 import { PageNav, PageNavHeader } from '$components/page';
+import { NavButton, NavItem, NavItemContent } from '$components/nav';
 import { useEffect, useMemo, useState } from 'react';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useSetting } from '$state/hooks/settings';
@@ -33,6 +34,7 @@ import { useUserPresence } from '$hooks/useUserPresence';
 import { useUserProfile } from '$hooks/useUserProfile';
 import type { SettingsMenuItem } from '$features/settings';
 import { settingsMenuIcons, settingsSections, useOpenSettings } from '$features/settings';
+import { isDesktopTauri } from '$utils/platform';
 import { UserQuickTools } from '../sidebar/UserQuickTools';
 import {
   CaretDownIcon,
@@ -81,15 +83,19 @@ export function ProfileMobile() {
   const hideText = curWidth <= 80 && !isMobile;
 
   const [showPersona] = useSetting(settingsAtom, 'showPersonaSetting');
+  const isDesktop = isDesktopTauri();
   const menuItems = useMemo<SettingsMenuItem[]>(
     () =>
       settingsSections
-        .filter((section) => showPersona || section.id !== 'persona')
+        .filter(
+          (section) =>
+            (showPersona || section.id !== 'persona') && (isDesktop || section.id !== 'desktop')
+        )
         .map((section) => {
           const icon = settingsMenuIcons[section.id];
           return { id: section.id, name: section.label, ...icon };
         }),
-    [showPersona]
+    [showPersona, isDesktop]
   );
 
   return (
@@ -138,7 +144,7 @@ export function ProfileMobile() {
         gap="0"
         alignItems="Center"
         justifyContent="SpaceBetween"
-        style={{ width: '100%', minWidth: '100%', height: '100vh' }}
+        style={{ width: '100%', minWidth: '100%', background: color.Background.Container }}
       >
         <PageNavHeader size="600">
           <Box grow="Yes" gap="300" justifyContent="Center">
@@ -198,12 +204,13 @@ export function ProfileMobile() {
 
           <Line variant="Surface" size="300" />
 
-          <Box direction="Column" style={{ padding: config.space.S100 }}>
+          <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
             <MenuItem
               size="300"
               radii="300"
               before={menuIcon(GearSix)}
               style={{
+                position: 'relative',
                 background: isSettingsOpen ? color.Surface.Container : color.Background.Container,
               }}
               after={menuIcon(isSettingsOpen && isMobile ? CaretDownIcon : CaretRightIcon)}
@@ -214,23 +221,27 @@ export function ProfileMobile() {
               </Text>
             </MenuItem>
             {isSettingsOpen && (
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+              <Box
+                direction="Column"
+                gap="100"
+                style={{ padding: config.space.S100, paddingTop: 0 }}
+              >
                 {menuItems.map((item) => {
                   const IconComponent = item.icon;
 
                   return (
-                    <MenuItem
-                      key={item.id}
-                      radii="300"
-                      size="300"
-                      variant="Background"
-                      before={menuIcon(IconComponent)}
-                      onClick={() => openSettings(item.id)}
-                    >
-                      <Text size="T300" truncate>
-                        {item.name}
-                      </Text>
-                    </MenuItem>
+                    <NavItem key={item.id} variant="Background" radii="400">
+                      <NavButton onClick={() => openSettings(item.id)} aria-label={item.name}>
+                        <NavItemContent>
+                          <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                            {menuIcon(IconComponent)}
+                            <Text as="span" size="Inherit" truncate>
+                              {item.name}
+                            </Text>
+                          </Box>
+                        </NavItemContent>
+                      </NavButton>
+                    </NavItem>
                   );
                 })}
               </Box>
@@ -242,8 +253,8 @@ export function ProfileMobile() {
                   <Line variant="Surface" size="300" />
                   <MenuItem
                     size="300"
-                    variant="Background"
-                    style={{ color: color.Critical.OnContainer }}
+                    variant="Critical"
+                    fill="None"
                     before={menuIcon(SignOutIcon)}
                     onClick={() => setLogout(true)}
                   >
@@ -267,7 +278,7 @@ export function ProfileMobile() {
                 </>
               )}
             </UseStateProvider>
-            <div style={{ height: toRem(132) }} />
+            <div style={{ height: '20vh' }} />
           </Box>
         </Menu>
       </Box>

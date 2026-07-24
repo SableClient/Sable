@@ -105,6 +105,18 @@ export function getGlobalImagePacks(mx: MatrixClient): ImagePack[] {
   return packs;
 }
 
+export function getGlobalImagePackRoomIds(mx: MatrixClient): string[] {
+  const emoteRoomsContent =
+    getAccountData(mx, CustomAccountDataEvent.ImagePackRooms)?.getContent() ||
+    getAccountData(mx, CustomAccountDataEvent.PoniesEmoteRooms)?.getContent();
+
+  if (typeof emoteRoomsContent !== 'object' || !emoteRoomsContent) return [];
+  const { rooms: roomIdToPackInfo } = emoteRoomsContent as { rooms?: unknown };
+  if (typeof roomIdToPackInfo !== 'object' || !roomIdToPackInfo) return [];
+
+  return Object.keys(roomIdToPackInfo);
+}
+
 export function getUserImagePack(mx: MatrixClient): ImagePack | undefined {
   const packEvent = getAccountData(mx, CustomAccountDataEvent.PoniesUserEmotes);
   const userId = mx.getUserId();

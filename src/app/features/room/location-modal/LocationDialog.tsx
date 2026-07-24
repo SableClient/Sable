@@ -15,6 +15,7 @@ import {
 import { ClipboardIcon, MapPinAreaIcon, MapPinLineIcon } from '@phosphor-icons/react';
 import { chipIcon, composerIcon, Warning, X } from '$components/icons/phosphor';
 import { stopPropagation } from '$utils/keyboard';
+import { readClipboardText } from '$utils/dom';
 import type { IContent, MatrixClient, Room } from 'matrix-js-sdk';
 import * as css from './LocationDialog.css';
 import type { IReplyDraft } from '$state/room/roomInputDrafts';
@@ -195,8 +196,7 @@ export function LocationDialog({
   }
 
   function getClipboard() {
-    navigator.clipboard
-      .readText()
+    readClipboardText()
       .then((result: string) => {
         const coords = filterLocationString(result);
         storeLocation(coords);

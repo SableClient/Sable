@@ -11,9 +11,6 @@ import {
   Menu,
   MenuItem,
   Modal,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   PopOut,
   Spinner,
   Text,
@@ -110,6 +107,7 @@ import * as css from './styles.css';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import { UserQuickTools } from '../sidebar/UserQuickTools';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 const debugLog = createDebugLogger('Space');
 
@@ -424,30 +422,19 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
         </>
       )}
       {hasBanner && bannerViewerOpen && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: () => setBannerViewerOpen(false),
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Modal
-                className={ModalWide}
-                size="500"
-                onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
-              >
-                <ImageViewer
-                  src={bannerURI}
-                  alt={`${spaceName} banner`}
-                  requestClose={() => setBannerViewerOpen(false)}
-                />
-              </Modal>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay requestClose={() => setBannerViewerOpen(false)}>
+          <Modal
+            className={ModalWide}
+            size="500"
+            onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+          >
+            <ImageViewer
+              src={bannerURI}
+              alt={`${spaceName} banner`}
+              requestClose={() => setBannerViewerOpen(false)}
+            />
+          </Modal>
+        </ModalOverlay>
       )}
     </>
   );

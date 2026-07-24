@@ -1,16 +1,4 @@
-import {
-  Box,
-  Button,
-  Checkbox,
-  Line,
-  Modal,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  ProgressBar,
-  RadioButton,
-  Text,
-} from 'folds';
+import { Box, Button, Checkbox, Line, Modal, ProgressBar, RadioButton, Text } from 'folds';
 import type { MatrixClient, PollStartSubtype, Room, TimelineEvents } from 'matrix-js-sdk';
 import { M_TEXT } from 'matrix-js-sdk';
 import {
@@ -26,8 +14,7 @@ import {
 import * as css from './PollEvent.css';
 import { useCallback, useEffect, useState } from 'react';
 import { PollResponsesViewer } from '$features/room/poll-modals';
-import { stopPropagation } from '$utils/keyboard';
-import FocusTrap from 'focus-trap-react';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type PollEventProps = {
   content: Record<string, unknown>;
@@ -346,28 +333,17 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
         </Box>
       </Box>
       {ViewVotersAnswer && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: () => setViewVotersAnswer(undefined),
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Modal variant="Surface">
-                <PollResponsesViewer
-                  room={room}
-                  answers={answers}
-                  events={filteredChildEvents}
-                  initialSelection={ViewVotersAnswer}
-                  onClose={() => setViewVotersAnswer(undefined)}
-                />
-              </Modal>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay requestClose={() => setViewVotersAnswer(undefined)}>
+          <Modal variant="Surface">
+            <PollResponsesViewer
+              room={room}
+              answers={answers}
+              events={filteredChildEvents}
+              initialSelection={ViewVotersAnswer}
+              onClose={() => setViewVotersAnswer(undefined)}
+            />
+          </Modal>
+        </ModalOverlay>
       )}
     </>
   );

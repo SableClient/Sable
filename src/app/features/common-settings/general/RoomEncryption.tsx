@@ -7,16 +7,12 @@ import {
   Dialog,
   Header,
   IconButton,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   Spinner,
   Text,
 } from 'folds';
 import { composerIcon, X } from '$components/icons/phosphor';
 import { useCallback, useState } from 'react';
 import type { MatrixError, StateEvents } from '$types/matrix-sdk';
-import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
@@ -25,9 +21,9 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useRoom } from '$hooks/useRoom';
 import { useStateEvent } from '$hooks/useStateEvent';
-import { stopPropagation } from '$utils/keyboard';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { EventType } from '$types/matrix-sdk';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 const ROOM_ENC_ALGO = 'm.megolm.v1.aes-sha2';
 
@@ -101,44 +97,33 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
           </Text>
         )}
         {prompt && (
-          <Overlay open backdrop={<OverlayBackdrop />}>
-            <OverlayCenter>
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  onDeactivate: () => setPrompt(false),
-                  clickOutsideDeactivates: true,
-                  escapeDeactivates: stopPropagation,
+          <ModalOverlay requestClose={() => setPrompt(false)}>
+            <Dialog variant="Surface">
+              <Header
+                style={{
+                  padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                  borderBottomWidth: config.borderWidth.B300,
                 }}
+                variant="Surface"
+                size="500"
               >
-                <Dialog variant="Surface">
-                  <Header
-                    style={{
-                      padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                      borderBottomWidth: config.borderWidth.B300,
-                    }}
-                    variant="Surface"
-                    size="500"
-                  >
-                    <Box grow="Yes">
-                      <Text size="H4">Enable Encryption</Text>
-                    </Box>
-                    <IconButton size="300" onClick={() => setPrompt(false)} radii="300">
-                      {composerIcon(X)}
-                    </IconButton>
-                  </Header>
-                  <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-                    <Text priority="400">
-                      Are you sure? Once enabled, encryption cannot be disabled!
-                    </Text>
-                    <Button type="submit" variant="Primary" onClick={handleEnable}>
-                      <Text size="B400">Enable E2E Encryption</Text>
-                    </Button>
-                  </Box>
-                </Dialog>
-              </FocusTrap>
-            </OverlayCenter>
-          </Overlay>
+                <Box grow="Yes">
+                  <Text size="H4">Enable Encryption</Text>
+                </Box>
+                <IconButton size="300" onClick={() => setPrompt(false)} radii="300">
+                  {composerIcon(X)}
+                </IconButton>
+              </Header>
+              <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+                <Text priority="400">
+                  Are you sure? Once enabled, encryption cannot be disabled!
+                </Text>
+                <Button type="submit" variant="Primary" onClick={handleEnable}>
+                  <Text size="B400">Enable E2E Encryption</Text>
+                </Button>
+              </Box>
+            </Dialog>
+          </ModalOverlay>
         )}
       </SettingTile>
     </SequenceCard>

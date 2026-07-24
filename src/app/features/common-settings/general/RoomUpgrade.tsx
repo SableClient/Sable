@@ -1,20 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Button,
-  color,
-  Spinner,
-  Text,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Dialog,
-  Header,
-  config,
-  Box,
-  IconButton,
-} from 'folds';
+import { Button, color, Spinner, Text, Dialog, Header, config, Box, IconButton } from 'folds';
 import { composerIcon, X } from '$components/icons/phosphor';
-import FocusTrap from 'focus-trap-react';
 import type { MatrixError, RoomTombstoneEventContent } from '$types/matrix-sdk';
 import { Method, EventType } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
@@ -28,7 +14,6 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useCapabilities } from '$hooks/useCapabilities';
-import { stopPropagation } from '$utils/keyboard';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import {
   AdditionalCreatorInput,
@@ -39,6 +24,7 @@ import { useAlive } from '$hooks/useAlive';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { BreakWord } from '$styles/Text.css';
 import { creatorsSupported } from '$utils/roomSupport';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
   const mx = useMatrixClient();
@@ -83,78 +69,67 @@ function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
   };
 
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: requestClose,
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
+    <ModalOverlay requestClose={requestClose}>
+      <Dialog variant="Surface">
+        <Header
+          style={{
+            padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+            borderBottomWidth: config.borderWidth.B300,
           }}
+          variant="Surface"
+          size="500"
         >
-          <Dialog variant="Surface">
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
-              }}
-              variant="Surface"
-              size="500"
-            >
-              <Box grow="Yes">
-                <Text size="H4">{room.isSpaceRoom() ? 'Space Upgrade' : 'Room Upgrade'}</Text>
-              </Box>
-              <IconButton size="300" onClick={requestClose} radii="300">
-                {composerIcon(X)}
-              </IconButton>
-            </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              <Text priority="400" style={{ color: color.Critical.Main }}>
-                <b>This action is irreversible!</b>
-              </Text>
-              <Box direction="Column" gap="100">
-                <Text size="L400">Options</Text>
-                <RoomVersionSelector
-                  versions={roomVersions?.available ? Object.keys(roomVersions.available) : ['1']}
-                  value={selectedRoomVersion}
-                  onChange={selectRoomVersion}
+          <Box grow="Yes">
+            <Text size="H4">{room.isSpaceRoom() ? 'Space Upgrade' : 'Room Upgrade'}</Text>
+          </Box>
+          <IconButton size="300" onClick={requestClose} radii="300">
+            {composerIcon(X)}
+          </IconButton>
+        </Header>
+        <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+          <Text priority="400" style={{ color: color.Critical.Main }}>
+            <b>This action is irreversible!</b>
+          </Text>
+          <Box direction="Column" gap="100">
+            <Text size="L400">Options</Text>
+            <RoomVersionSelector
+              versions={roomVersions?.available ? Object.keys(roomVersions.available) : ['1']}
+              value={selectedRoomVersion}
+              onChange={selectRoomVersion}
+              disabled={upgrading}
+            />
+            {allowAdditionalCreators && (
+              <SequenceCard
+                style={{ padding: config.space.S300 }}
+                variant="SurfaceVariant"
+                direction="Column"
+                gap="500"
+              >
+                <AdditionalCreatorInput
+                  additionalCreators={additionalCreators}
+                  onSelect={addAdditionalCreator}
+                  onRemove={removeAdditionalCreator}
                   disabled={upgrading}
                 />
-                {allowAdditionalCreators && (
-                  <SequenceCard
-                    style={{ padding: config.space.S300 }}
-                    variant="SurfaceVariant"
-                    direction="Column"
-                    gap="500"
-                  >
-                    <AdditionalCreatorInput
-                      additionalCreators={additionalCreators}
-                      onSelect={addAdditionalCreator}
-                      onRemove={removeAdditionalCreator}
-                      disabled={upgrading}
-                    />
-                  </SequenceCard>
-                )}
-              </Box>
-              {upgradeState.status === AsyncStatus.Error && (
-                <Text className={BreakWord} style={{ color: color.Critical.Main }} size="T200">
-                  {(upgradeState.error as MatrixError).message}
-                </Text>
-              )}
-              <Button
-                onClick={handleUpgradeRoom}
-                variant="Secondary"
-                disabled={upgrading}
-                before={upgrading && <Spinner size="200" variant="Secondary" fill="Solid" />}
-              >
-                <Text size="B400">{room.isSpaceRoom() ? 'Upgrade Space' : 'Upgrade Room'}</Text>
-              </Button>
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+              </SequenceCard>
+            )}
+          </Box>
+          {upgradeState.status === AsyncStatus.Error && (
+            <Text className={BreakWord} style={{ color: color.Critical.Main }} size="T200">
+              {(upgradeState.error as MatrixError).message}
+            </Text>
+          )}
+          <Button
+            onClick={handleUpgradeRoom}
+            variant="Secondary"
+            disabled={upgrading}
+            before={upgrading && <Spinner size="200" variant="Secondary" fill="Solid" />}
+          >
+            <Text size="B400">{room.isSpaceRoom() ? 'Upgrade Space' : 'Upgrade Room'}</Text>
+          </Button>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }
 

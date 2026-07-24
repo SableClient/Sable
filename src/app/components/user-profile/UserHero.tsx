@@ -5,9 +5,6 @@ import {
   Box,
   color as standardColors,
   Modal,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   Scroll,
   Text,
   Tooltip,
@@ -16,12 +13,10 @@ import {
   config,
 } from 'folds';
 import classNames from 'classnames';
-import FocusTrap from 'focus-trap-react';
 import colorMXID from '$utils/colorMXID';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { BreakWord, LineClamp3 } from '$styles/Text.css';
 import type { UserPresence } from '$hooks/useUserPresence';
-import { stopPropagation } from '$utils/keyboard';
 import { useRoom } from '$hooks/useRoom';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { useNickname } from '$hooks/useNickname';
@@ -44,6 +39,7 @@ import { copyToClipboard } from '$utils/dom';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { CopyIcon, CrossIcon } from '@phosphor-icons/react';
 import { useOpenSettings } from '$features/settings';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type UserHeroProps = {
   userId: string;
@@ -156,29 +152,15 @@ export function UserHero({
             </Avatar>
           </AvatarPresence>
           {viewAvatar && (
-            <Overlay open backdrop={<OverlayBackdrop />}>
-              <OverlayCenter>
-                <FocusTrap
-                  focusTrapOptions={{
-                    initialFocus: false,
-                    onDeactivate: () => setViewAvatar(undefined),
-                    clickOutsideDeactivates: true,
-                    escapeDeactivates: stopPropagation,
-                  }}
-                >
-                  <Modal
-                    size="500"
-                    onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
-                  >
-                    <ImageViewer
-                      src={viewAvatar}
-                      alt={userId}
-                      requestClose={() => setViewAvatar(undefined)}
-                    />
-                  </Modal>
-                </FocusTrap>
-              </OverlayCenter>
-            </Overlay>
+            <ModalOverlay requestClose={() => setViewAvatar(undefined)}>
+              <Modal size="500" onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}>
+                <ImageViewer
+                  src={viewAvatar}
+                  alt={userId}
+                  requestClose={() => setViewAvatar(undefined)}
+                />
+              </Modal>
+            </ModalOverlay>
           )}
         </div>
         {((status && status.length > 0) || allowEditing) && (

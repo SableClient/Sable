@@ -1,20 +1,6 @@
-import FocusTrap from 'focus-trap-react';
-import {
-  Dialog,
-  Overlay,
-  OverlayCenter,
-  OverlayBackdrop,
-  Header,
-  Box,
-  Text,
-  IconButton,
-  Button,
-  Input,
-  Chip,
-} from 'folds';
+import { Dialog, Header, Box, Text, IconButton, Button, Input, Chip } from 'folds';
 import { ClipboardIcon, MapPinAreaIcon, MapPinLineIcon } from '@phosphor-icons/react';
 import { chipIcon, composerIcon, Warning, X } from '$components/icons/phosphor';
-import { stopPropagation } from '$utils/keyboard';
 import { readClipboardText } from '$utils/dom';
 import type { IContent, MatrixClient, Room } from 'matrix-js-sdk';
 import * as css from './LocationDialog.css';
@@ -31,6 +17,7 @@ import { useSetting } from '$state/hooks/settings';
 import classNames from 'classnames';
 import markerIconPng from 'leaflet/dist/images/marker-icon.png';
 import { Icon } from 'leaflet';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 export const markerIcon = new Icon({
   iconUrl: markerIconPng,
@@ -265,141 +252,130 @@ export function LocationDialog({
   };
 
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: onCancel,
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
-          }}
-        >
-          <Dialog variant="Surface" className={css.LocationDialogBody}>
-            <Header className={css.LocationDialogHeader} variant="Surface" size="500">
-              <Box grow="Yes" gap="200">
-                <MapPinLineIcon size="20" />
-                <Text size="H4">{`Share Location ${replyDraft ? '(reply / thread)' : ''}`} </Text>
-              </Box>
-              <IconButton
-                size="300"
-                onClick={onCancel}
-                radii="300"
-                title="Cancel Sharing Location"
-                aria-label="Cancel Sharing Location"
-              >
-                {composerIcon(X)}
-              </IconButton>
-            </Header>
-            <Box direction="Column" gap="200" className={css.LocationDialogItems}>
-              <Box direction="Row" className={css.LocationDialogButtons}>
-                <Chip
-                  variant={
-                    locationError === LocationErrors.none ||
-                    locationError === LocationErrors.clipboard ||
-                    locationError === LocationErrors.missingClipboard
-                      ? 'Primary'
-                      : 'Critical'
-                  }
-                  className={classNames(css.LocationInputItem, css.LocationInputCurLocation)}
-                  onClick={getLocation}
-                  before={<MapPinAreaIcon size="18" />}
-                >
-                  <Text className={css.LocationInputField}>Share Current Location</Text>
-                </Chip>
-                <Chip
-                  variant={
-                    locationError !== LocationErrors.clipboard &&
-                    locationError !== LocationErrors.missingClipboard
-                      ? 'Secondary'
-                      : 'Critical'
-                  }
-                  className={classNames(css.LocationInputItem, css.LocationInputClipboard)}
-                  onClick={getClipboard}
-                  before={<ClipboardIcon size="18" />}
-                >
-                  <Text className={css.LocationInputField}>Paste Clipboard</Text>
-                </Chip>
-              </Box>
-              {locationError !== LocationErrors.none && (
-                <Box className={css.LocationDialogErrorText}>
-                  {chipIcon(Warning)}
-                  <Text size="L400">{locationError}</Text>
-                </Box>
-              )}
-              <Box direction="Row" gap="100" className={css.LocationInputs}>
-                <Box direction="Column" className={css.LocationInputItem}>
-                  <Text size="T200">Latitude</Text>
-                  <Input
-                    className={css.LocationInputField}
-                    variant={'SurfaceVariant'}
-                    size="300"
-                    radii="300"
-                    type="number"
-                    min={-180}
-                    max={180}
-                    value={inputPosition.lat}
-                    onChange={handleLat}
-                    outlined
-                  />
-                </Box>
-                <Box direction="Column" className={css.LocationInputItem}>
-                  <Text size="T200">Longitude</Text>
-                  <Input
-                    className={css.LocationInputField}
-                    variant={'SurfaceVariant'}
-                    size="300"
-                    radii="300"
-                    type="number"
-                    min={-180}
-                    max={180}
-                    value={inputPosition.lng}
-                    onChange={handleLng}
-                    outlined
-                  />
-                </Box>
-              </Box>
-              {showMaps && (
-                <Box className={css.LocationMapBody}>
-                  <MapContainer
-                    center={initCoords}
-                    zoom={zoom.current}
-                    scrollWheelZoom={true}
-                    className={css.LocationMapContainer}
-                    ref={setMap}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    <Marker
-                      position={initCoords}
-                      eventHandlers={{
-                        mousedown: (e) => {
-                          e.originalEvent.preventDefault();
-                          e.originalEvent.stopPropagation();
-                        },
-                      }}
-                      icon={markerIcon}
-                    />
-
-                    <MapEvents />
-                  </MapContainer>
-                </Box>
-              )}
-              <Button
-                type="submit"
-                variant="Primary"
-                title="Share Location"
-                aria-label="Share Location"
-                onClick={handleSubmit}
-              >
-                <Text size="B400">Share Location</Text>
-              </Button>
+    <ModalOverlay requestClose={onCancel}>
+      <Dialog variant="Surface" className={css.LocationDialogBody}>
+        <Header className={css.LocationDialogHeader} variant="Surface" size="500">
+          <Box grow="Yes" gap="200">
+            <MapPinLineIcon size="20" />
+            <Text size="H4">{`Share Location ${replyDraft ? '(reply / thread)' : ''}`} </Text>
+          </Box>
+          <IconButton
+            size="300"
+            onClick={onCancel}
+            radii="300"
+            title="Cancel Sharing Location"
+            aria-label="Cancel Sharing Location"
+          >
+            {composerIcon(X)}
+          </IconButton>
+        </Header>
+        <Box direction="Column" gap="200" className={css.LocationDialogItems}>
+          <Box direction="Row" className={css.LocationDialogButtons}>
+            <Chip
+              variant={
+                locationError === LocationErrors.none ||
+                locationError === LocationErrors.clipboard ||
+                locationError === LocationErrors.missingClipboard
+                  ? 'Primary'
+                  : 'Critical'
+              }
+              className={classNames(css.LocationInputItem, css.LocationInputCurLocation)}
+              onClick={getLocation}
+              before={<MapPinAreaIcon size="18" />}
+            >
+              <Text className={css.LocationInputField}>Share Current Location</Text>
+            </Chip>
+            <Chip
+              variant={
+                locationError !== LocationErrors.clipboard &&
+                locationError !== LocationErrors.missingClipboard
+                  ? 'Secondary'
+                  : 'Critical'
+              }
+              className={classNames(css.LocationInputItem, css.LocationInputClipboard)}
+              onClick={getClipboard}
+              before={<ClipboardIcon size="18" />}
+            >
+              <Text className={css.LocationInputField}>Paste Clipboard</Text>
+            </Chip>
+          </Box>
+          {locationError !== LocationErrors.none && (
+            <Box className={css.LocationDialogErrorText}>
+              {chipIcon(Warning)}
+              <Text size="L400">{locationError}</Text>
             </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+          )}
+          <Box direction="Row" gap="100" className={css.LocationInputs}>
+            <Box direction="Column" className={css.LocationInputItem}>
+              <Text size="T200">Latitude</Text>
+              <Input
+                className={css.LocationInputField}
+                variant={'SurfaceVariant'}
+                size="300"
+                radii="300"
+                type="number"
+                min={-180}
+                max={180}
+                value={inputPosition.lat}
+                onChange={handleLat}
+                outlined
+              />
+            </Box>
+            <Box direction="Column" className={css.LocationInputItem}>
+              <Text size="T200">Longitude</Text>
+              <Input
+                className={css.LocationInputField}
+                variant={'SurfaceVariant'}
+                size="300"
+                radii="300"
+                type="number"
+                min={-180}
+                max={180}
+                value={inputPosition.lng}
+                onChange={handleLng}
+                outlined
+              />
+            </Box>
+          </Box>
+          {showMaps && (
+            <Box className={css.LocationMapBody}>
+              <MapContainer
+                center={initCoords}
+                zoom={zoom.current}
+                scrollWheelZoom={true}
+                className={css.LocationMapContainer}
+                ref={setMap}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <Marker
+                  position={initCoords}
+                  eventHandlers={{
+                    mousedown: (e) => {
+                      e.originalEvent.preventDefault();
+                      e.originalEvent.stopPropagation();
+                    },
+                  }}
+                  icon={markerIcon}
+                />
+
+                <MapEvents />
+              </MapContainer>
+            </Box>
+          )}
+          <Button
+            type="submit"
+            variant="Primary"
+            title="Share Location"
+            aria-label="Share Location"
+            onClick={handleSubmit}
+          >
+            <Text size="B400">Share Location</Text>
+          </Button>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }

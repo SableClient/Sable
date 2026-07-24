@@ -19,7 +19,7 @@ import {
   SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
-import { useHomeSelected } from '$hooks/router/useHomeSelected';
+import { useHomeSelected } from '$hooks/router/useRouteSelected';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { markAsRead } from '$utils/notifications';

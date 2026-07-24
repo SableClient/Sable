@@ -35,7 +35,7 @@ import {
 } from '$components/nav';
 import { getExploreFeaturedPath, getExploreServerPath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
-import { useExploreFeaturedSelected, useExploreServer } from '$hooks/router/useExploreSelected';
+import { useExploreFeaturedSelected, useExploreServer } from '$hooks/router/useRouteSelected';
 import { useExploreServers } from '$hooks/useExploreServers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';

@@ -17,7 +17,7 @@ import {
   useInboxInvitesSelected,
   useInboxNotificationsSelected,
   useInboxSelected,
-} from '$hooks/router/useInbox';
+} from '$hooks/router/useRouteSelected';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useInviteCount } from '$hooks/useInviteCount';

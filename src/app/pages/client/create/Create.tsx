@@ -1,28 +1,9 @@
-import { Box, IconButton, Scroll, toRem, Text, color, config } from 'folds';
-import { SquaresFour, composerIcon, sizedIcon, X } from '$components/icons/phosphor';
-import {
-  Page,
-  PageContent,
-  PageContentCenter,
-  PageHero,
-  PageHeroSection,
-  PageNav,
-  PageNavHeader,
-} from '$components/page';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { FormPage } from '$components/page/FormPage';
 import { CreateSpaceForm } from '$features/create-space';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { SpaceProvider } from '$hooks/useSpace';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
-import { SidebarResizer } from '../sidebar/SidebarResizer';
-import { useSetAtom } from 'jotai';
-import { isResizingSidebarAtom } from '$state/isResizingSidebar';
-import { UserQuickTools } from '../sidebar/UserQuickTools';
 
 export function Create() {
   const { navigateSpace } = useRoomNavigate();
@@ -34,104 +15,16 @@ export function Create() {
   const getRoom = useGetRoom(allJoinedRooms);
   const space = spaceId ? getRoom(spaceId) : undefined;
 
-  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
-  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
-  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
-
-  useEffect(() => {
-    setCurWidth(roomSidebarWidth);
-  }, [roomSidebarWidth]);
-  const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
-  const hideText = curWidth <= 80 && !isMobile;
-  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
-
   return (
-    <>
-      {!isMobile && (
-        <Box
-          shrink="No"
-          style={{
-            position: 'relative',
-            width: toRem(curWidth),
-            borderRight: 'solid',
-            borderColor: color.SurfaceVariant.ContainerLine,
-            borderWidth: `0 ${config.borderWidth.B300} 0 0`,
-          }}
-        >
-          <PageNav>
-            <PageNavHeader size="600">
-              <Box grow="Yes" gap="300" justifyContent="Center">
-                {!hideText ? (
-                  <Box grow="Yes">
-                    <Text size="H4" truncate align="Center">
-                      Create Space
-                    </Text>
-                  </Box>
-                ) : (
-                  sizedIcon(SquaresFour, '200', { filled: true })
-                )}
-              </Box>
-            </PageNavHeader>
-            <SidebarResizer
-              setCurWidth={setCurWidth}
-              sidebarWidth={roomSidebarWidth}
-              setSidebarWidth={setRoomSidebarWidth}
-              instep={50}
-              outstep={190}
-              minValue={50}
-              maxValue={500}
-              setAnnouncement={setIsResizingSidebar}
-            />
-          </PageNav>
-          {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
-        </Box>
-      )}
-      <Page>
-        <Box grow="Yes" direction="Column" style={{ background: color.Background.Container }}>
-          {isMobile && (
-            <PageNav>
-              <PageNavHeader size="600">
-                <Box grow="Yes" gap="300" justifyContent="Center">
-                  <Box grow="Yes">
-                    <Text size="H4" align="Center" truncate style={{ width: '100%' }}>
-                      Create Space
-                    </Text>
-                  </Box>
-                  <Box shrink="No">
-                    <IconButton
-                      size="300"
-                      radii="300"
-                      aria-label="Close create space"
-                      onClick={() => navigate(-1)}
-                    >
-                      {composerIcon(X)}
-                    </IconButton>
-                  </Box>
-                </Box>
-              </PageNavHeader>
-            </PageNav>
-          )}
-          <Scroll hideTrack visibility="Hover">
-            <PageContent>
-              <PageContentCenter>
-                <PageHeroSection>
-                  <Box direction="Column" gap="700">
-                    <PageHero
-                      icon={sizedIcon(SquaresFour, '600')}
-                      title="Create Space"
-                      subTitle="Build a space for your community."
-                    />
-                    <SpaceProvider value={space ?? null}>
-                      <CreateSpaceForm space={space} onCreate={navigateSpace} />
-                    </SpaceProvider>
-                  </Box>
-                </PageHeroSection>
-              </PageContentCenter>
-            </PageContent>
-          </Scroll>
-        </Box>
-      </Page>
-    </>
+    <FormPage
+      title="Create Space"
+      subTitle="Build a space for your community."
+      closeLabel="Close create space"
+      onClose={() => navigate(-1)}
+    >
+      <SpaceProvider value={space ?? null}>
+        <CreateSpaceForm space={space} onCreate={navigateSpace} />
+      </SpaceProvider>
+    </FormPage>
   );
 }

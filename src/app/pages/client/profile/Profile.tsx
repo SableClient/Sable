@@ -67,13 +67,14 @@ export function ProfileMobile() {
         justifyContent="SpaceBetween"
         style={{ width: '100%', minWidth: '100%', background: color.Background.Container }}
       >
-        <PageNavHeader size="600">
-          <Box grow="Yes" gap="300" alignItems="Center">
-            <Box grow="Yes" style={{ flexBasis: 0 }} />
-            <Text size="H4" align="Center" truncate>
-              Account
-            </Text>
-            <Box grow="Yes" style={{ flexBasis: 0 }} justifyContent="End">
+        <PageNavHeader size="600" style={{ width: '100%' }}>
+          <Box grow="Yes" gap="200" alignItems="Center">
+            <Box grow="Yes">
+              <Text size="H4" align="Center" truncate>
+                Account
+              </Text>
+            </Box>
+            <Box shrink="No">
               <IconButton
                 size="400"
                 radii="300"
@@ -81,7 +82,7 @@ export function ProfileMobile() {
                 aria-label="Settings"
                 onClick={() => openSettings()}
               >
-                {sizedIcon(GearSix, '400')}
+                {sizedIcon(GearSix, '500')}
               </IconButton>
             </Box>
           </Box>
@@ -130,7 +131,6 @@ export function ProfileMobile() {
           </Box>
           <AccountMenuOption isMobile />
 
-          <Line variant="Surface" size="300" />
 
           <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
             <UseStateProvider initial={false}>

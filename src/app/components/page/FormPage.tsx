@@ -34,11 +34,11 @@ export function FormPage({ title, subTitle, closeLabel, onClose, children }: For
             <PageNav>
               <PageNavHeader size="600">
                 <Box grow="Yes" gap="300" alignItems="Center">
-                  <Box grow="Yes" style={{ flexBasis: 0 }} />
+                  <Box grow="Yes" basis="No" />
                   <Text size="H4" align="Center" truncate>
                     {title}
                   </Text>
-                  <Box grow="Yes" style={{ flexBasis: 0 }} justifyContent="End">
+                  <Box grow="Yes" basis="No" shrink="No" justifyContent="End">
                     <IconButton size="300" radii="300" aria-label={closeLabel} onClick={onClose}>
                       {composerIcon(X)}
                     </IconButton>

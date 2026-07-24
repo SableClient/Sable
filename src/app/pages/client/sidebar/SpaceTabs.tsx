@@ -94,7 +94,6 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomAvatar } from '$hooks/useRoomMeta';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
@@ -102,6 +101,7 @@ import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { lastVisitedSpaceIdAtom } from '$state/room/lastSpace';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 
 type SpaceMenuProps = {
   room: Room;
@@ -118,7 +118,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
 
     const permissions = useRoomPermissions(creators, powerLevels);
     const canInvite = permissions.action('invite', mx.getSafeUserId());
-    const openSpaceSettings = useOpenSpaceSettings();
+    const openRoomSettings = useOpenRoomSettings();
 
     const [invitePrompt, setInvitePrompt] = useState(false);
 
@@ -158,7 +158,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
     };
 
     const handleRoomSettings = () => {
-      openSpaceSettings(room.roomId);
+      openRoomSettings(room.roomId);
       requestClose();
     };
 

@@ -15,7 +15,6 @@ import { LeaveRoomPrompt } from '$components/leave-room-prompt';
 import { stopPropagation } from '$utils/keyboard';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { useSpaceOptionally } from '$hooks/useSpace';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
@@ -177,12 +176,11 @@ function SettingsMenuItem({
   disabled?: boolean;
 }) {
   const openRoomSettings = useOpenRoomSettings();
-  const openSpaceSettings = useOpenSpaceSettings();
   const space = useSpaceOptionally();
 
   const handleSettings = () => {
     if ('space' in item) {
-      openSpaceSettings(item.roomId, item.parentId);
+      openRoomSettings(item.roomId, item.parentId);
     } else {
       openRoomSettings(item.roomId, space?.roomId);
     }

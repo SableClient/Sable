@@ -82,7 +82,6 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
@@ -108,6 +107,7 @@ import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import { UserQuickTools } from '../sidebar/UserQuickTools';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 
 const debugLog = createDebugLogger('Space');
 
@@ -126,7 +126,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
 
   const permissions = useRoomPermissions(creators, powerLevels);
   const canInvite = permissions.action('invite', mx.getSafeUserId());
-  const openSpaceSettings = useOpenSpaceSettings();
+  const openRoomSettings = useOpenRoomSettings();
   const { navigateRoom } = useRoomNavigate();
 
   const [invitePrompt, setInvitePrompt] = useState(false);
@@ -162,7 +162,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
   };
 
   const handleRoomSettings = () => {
-    openSpaceSettings(room.roomId);
+    openRoomSettings(room.roomId);
     requestClose();
   };
 

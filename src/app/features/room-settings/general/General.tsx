@@ -21,6 +21,7 @@ type GeneralProps = {
 };
 export function General({ requestBack, requestClose }: GeneralProps) {
   const room = useRoom();
+  const isSpace = room.isSpaceRoom();
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
   const permissions = useRoomPermissions(creators, powerLevels);
@@ -35,8 +36,12 @@ export function General({ requestBack, requestClose }: GeneralProps) {
               <Box direction="Column" gap="100">
                 <Text size="L400">Options</Text>
                 <RoomJoinRules permissions={permissions} />
-                <RoomHistoryVisibility permissions={permissions} />
-                <RoomEncryption permissions={permissions} />
+                {!isSpace && (
+                  <>
+                    <RoomHistoryVisibility permissions={permissions} />
+                    <RoomEncryption permissions={permissions} />
+                  </>
+                )}
                 <RoomPublish permissions={permissions} />
               </Box>
               <Box direction="Column" gap="100">

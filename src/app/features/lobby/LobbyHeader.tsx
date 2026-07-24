@@ -42,11 +42,11 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import * as css from './LobbyHeader.css';
+import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 
 type LobbyMenuProps = {
   powerLevels: IPowerLevels;
@@ -60,7 +60,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
 
     const permissions = useRoomPermissions(creators, powerLevels);
     const canInvite = permissions.action('invite', mx.getSafeUserId());
-    const openSpaceSettings = useOpenSpaceSettings();
+    const openRoomSettings = useOpenRoomSettings();
 
     const [invitePrompt, setInvitePrompt] = useState(false);
 
@@ -69,7 +69,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
     };
 
     const handleRoomSettings = () => {
-      openSpaceSettings(space.roomId);
+      openRoomSettings(space.roomId);
       requestClose();
     };
 

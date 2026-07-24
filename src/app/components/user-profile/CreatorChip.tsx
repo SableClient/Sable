@@ -14,8 +14,6 @@ import { stopPropagation } from '$utils/keyboard';
 import { useRoom } from '$hooks/useRoom';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
-import { SpaceSettingsPage } from '$state/spaceSettings';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { PowerColorBadge, PowerIcon } from '$components/power';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
@@ -42,7 +40,6 @@ export function CreatorChip({
   const room = useRoom();
   const space = useSpaceOptionally();
   const openRoomSettings = useOpenRoomSettings();
-  const openSpaceSettings = useOpenSpaceSettings();
 
   const [cords, setCords] = useState<RectCords>();
   const tag = useRoomCreatorsTag();
@@ -84,15 +81,7 @@ export function CreatorChip({
                 size="300"
                 radii="300"
                 onClick={() => {
-                  if (room.isSpaceRoom()) {
-                    openSpaceSettings(
-                      room.roomId,
-                      space?.roomId,
-                      SpaceSettingsPage.PermissionsPage
-                    );
-                  } else {
-                    openRoomSettings(room.roomId, space?.roomId, RoomSettingsPage.PermissionsPage);
-                  }
+                  openRoomSettings(room.roomId, space?.roomId, RoomSettingsPage.PermissionsPage);
                   close();
                 }}
               >

@@ -9,6 +9,8 @@ export enum RoomSettingsPage {
   // Sable pages
   CosmeticsPage,
   AbbreviationsPage,
+  /** Spaces only. */
+  AppearancePage,
 }
 
 export type RoomSettingsState = {

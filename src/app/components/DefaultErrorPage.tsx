@@ -2,7 +2,7 @@ import { Box, Button, Dialog, Text, color, config } from 'folds';
 import { Warning, sizedIcon } from '$components/icons/phosphor';
 import * as Sentry from '@sentry/react';
 import { SplashScreen } from '$components/splash-screen';
-import { buildGitHubUrl } from '$features/bug-report/BugReportModal';
+import { buildGitHubUrl } from '$features/bug-report';
 
 type ErrorPageProps = {
   error: Error;

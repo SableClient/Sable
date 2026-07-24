@@ -1,25 +1,9 @@
 import { useState, useEffect } from 'react';
-import {
-  Box,
-  Button,
-  Chip,
-  config,
-  Header,
-  IconButton,
-  Input,
-  Modal,
-  Scroll,
-  Spinner,
-  Text,
-  TextArea,
-  Checkbox,
-} from 'folds';
-import { ArrowRight, X, chipIcon, composerIcon } from '$components/icons/phosphor';
+import { Box, Button, Chip, config, Input, Spinner, Text, TextArea, Checkbox } from 'folds';
+import { ArrowRight, chipIcon } from '$components/icons/phosphor';
 import * as Sentry from '@sentry/react';
-import { useCloseBugReportModal, useBugReportModalOpen } from '$state/hooks/bugReportModal';
 import { getDebugLogger } from '$utils/debugLogger';
 import { fetch } from '$utils/fetch';
-import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type ReportType = 'bug' | 'feature';
 
@@ -462,40 +446,4 @@ export function BugReportForm({ onDone }: { onDone: () => void }) {
       </Box>
     </Box>
   );
-}
-
-function BugReportModal() {
-  const close = useCloseBugReportModal();
-
-  return (
-    <ModalOverlay requestClose={close}>
-      <Modal size="500" flexHeight variant="Surface" style={{ maxHeight: '90vh' }}>
-        <Box direction="Column" style={{ maxHeight: '90vh', overflow: 'hidden' }}>
-          <Header size="500" style={{ padding: config.space.S200, paddingLeft: config.space.S400 }}>
-            <Box grow="Yes">
-              <Text size="H4">Report an Issue</Text>
-            </Box>
-            <IconButton size="300" radii="300" onClick={close}>
-              {composerIcon(X)}
-            </IconButton>
-          </Header>
-          <Scroll size="300" hideTrack>
-            <Box
-              style={{ padding: config.space.S400, paddingRight: config.space.S200 }}
-              direction="Column"
-            >
-              <BugReportForm onDone={close} />
-            </Box>
-          </Scroll>
-        </Box>
-      </Modal>
-    </ModalOverlay>
-  );
-}
-
-export function BugReportModalRenderer() {
-  const open = useBugReportModalOpen();
-
-  if (!open) return null;
-  return <BugReportModal />;
 }

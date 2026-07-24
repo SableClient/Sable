@@ -1,27 +1,21 @@
-import { useAtom } from 'jotai';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
-import { searchModalAtom } from '$state/searchModal';
 import { ListMagnifyingGlassIcon } from '@phosphor-icons/react';
 import { getPhosphorIconSize } from '$components/icons/phosphor';
 import { Text, Box, color } from 'folds';
-import { useNavigate } from 'react-router-dom';
 import { getNavigatePath } from '$pages/pathUtils';
+import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
 import { useNavigateSelected } from '$hooks/router/useNavigateSelected';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 
 export function NavigateTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
-  const [opened, setOpen] = useAtom(searchModalAtom);
-  const navigateRouteActive = useNavigateSelected();
-  const isNavigate = opened || navigateRouteActive;
-  const navigate = useNavigate();
-  const open = () => {
-    if (isMobile) navigate(getNavigatePath());
-    else setOpen(true);
-  };
-  const mobileTapActivation = useMobileTapActivation(isMobile ?? false, open, open);
+
+  const isNavigate = useNavigateSelected();
+  const openShallowRoute = useOpenShallowRoute();
+  const open = () => openShallowRoute(getNavigatePath());
+  const mobileTapActivation = useMobileTapActivation(isMobile ?? false, open);
 
   return (
-    <SidebarItem active={opened && !isMobile} isBottom={isBottom}>
+    <SidebarItem active={isNavigate && !isMobile} isBottom={isBottom}>
       <SidebarItemTooltip tooltip="Search" position={isBottom ? 'Top' : 'Right'}>
         {(triggerRef) => (
           <Box direction="Column" alignItems="Center">

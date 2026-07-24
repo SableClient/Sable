@@ -33,11 +33,12 @@ import {
   getExploreFeaturedPath,
   getExplorePath,
   getExploreServerPath,
-  getHomeCreatePath,
+  getCreateRoomPath,
   getHomeRoomPath,
   getHomeSearchPath,
   withSearchParam,
 } from '$pages/pathUtils';
+import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedOrLastRoom } from '$hooks/router/useSelectedRoom';
 import { useHomeCreateSelected, useHomeSearchSelected } from '$hooks/router/useHomeSelected';
@@ -195,6 +196,7 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
 
 function HomeEmpty() {
   const navigate = useNavigate();
+  const openShallowRoute = useOpenShallowRoute();
 
   return (
     <NavEmptyCenter>
@@ -212,7 +214,11 @@ function HomeEmpty() {
         }
         options={
           <>
-            <Button onClick={() => navigate(getHomeCreatePath())} variant="Secondary" size="300">
+            <Button
+              onClick={() => openShallowRoute(getCreateRoomPath())}
+              variant="Secondary"
+              size="300"
+            >
               <Text size="B300" truncate>
                 Create Room
               </Text>
@@ -267,6 +273,7 @@ export function Home() {
 
   const selectedRoomId = useSelectedOrLastRoom();
   const createRoomSelected = useHomeCreateSelected();
+  const openShallowRoute = useOpenShallowRoute();
   const searchSelected = useHomeSearchSelected();
   const noRoomToDisplay = rooms.length === 0;
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
@@ -346,7 +353,7 @@ export function Home() {
             <Box direction="Column" gap="300">
               <NavCategory>
                 <NavItem variant="Background" radii="400" aria-selected={createRoomSelected}>
-                  <NavButton onClick={() => navigate(getHomeCreatePath())}>
+                  <NavButton onClick={() => openShallowRoute(getCreateRoomPath())}>
                     <NavItemContent>
                       <Box
                         as="span"

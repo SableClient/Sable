@@ -22,7 +22,6 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useInviteCount } from '$hooks/useInviteCount';
 import { Text, Box, color } from 'folds';
-import { searchModalAtom } from '$state/searchModal';
 import { EnvelopeSimple, getPhosphorIconSize, Tray } from '$components/icons/phosphor';
 import { BookmarkIcon, ChatCircleDotsIcon } from '@phosphor-icons/react';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
@@ -33,8 +32,7 @@ export function InboxTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const inboxSelected = useInboxSelected();
   const inviteCount = useInviteCount();
-  const isSearch = useAtomValue(searchModalAtom);
-  const opened = inboxSelected && !isSearch;
+  const opened = inboxSelected;
   const InboxIconSize = getPhosphorIconSize(isBottom ? 'inline' : 'toolbar');
 
   const notificationsSelected = useInboxNotificationsSelected();

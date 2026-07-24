@@ -8,8 +8,7 @@ import { getPhosphorIconSize } from '$components/icons/phosphor';
 import { matchPath, useNavigate } from 'react-router-dom';
 import { HOME_PATH, SETTINGS_PATH } from '$pages/paths';
 import { ChatTextIcon } from '@phosphor-icons/react';
-import { useAtom, useAtomValue } from 'jotai';
-import { searchModalAtom } from '$state/searchModal';
+import { useAtomValue } from 'jotai';
 import { useInboxSelected } from '$hooks/router/useInbox';
 import { Box, color, Text, toRem } from 'folds';
 import { useNavigateSelected } from '$hooks/router/useNavigateSelected';
@@ -30,13 +29,11 @@ export function MessageTab({ isBottom, isMobile }: { isBottom?: boolean; isMobil
 
   const navigate = useNavigate();
   const lastSpaceId = useAtomValue(lastVisitedSpaceIdAtom);
-  const [searchSelected] = useAtom(searchModalAtom);
   const navigateRouteActive = useNavigateSelected();
   const profileRouteActive = useProfileSelected();
   const inboxSelected = useInboxSelected();
   const opened = !(
     matchPath(SETTINGS_PATH, location.pathname) ||
-    searchSelected ||
     navigateRouteActive ||
     profileRouteActive ||
     inboxSelected

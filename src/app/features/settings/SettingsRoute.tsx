@@ -6,7 +6,8 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { isDesktopTauri } from '$utils/platform';
 import { trimTrailingSlash } from '$utils/common';
-import { getSettingsCloseTarget, type SettingsRouteState } from './navigation';
+import { getShallowCloseTarget } from '$pages/client/shallowRoute';
+import type { SettingsRouteState } from './navigation';
 import { Settings } from './Settings';
 import { isSettingsSectionId, type SettingsSectionId } from './routes';
 
@@ -110,7 +111,7 @@ export function SettingsRoute({ routeSection }: SettingsRouteProps) {
 
     if (screenSize === ScreenSize.Mobile) {
       if (routeState?.backgroundLocation) {
-        const backTarget = getSettingsCloseTarget(routeState);
+        const backTarget = getShallowCloseTarget(routeState);
         navigate(backTarget.to, { replace: true, state: backTarget.state });
         return;
       }
@@ -138,7 +139,7 @@ export function SettingsRoute({ routeSection }: SettingsRouteProps) {
   };
 
   const requestClose = () => {
-    const closeTarget = getSettingsCloseTarget(routeState);
+    const closeTarget = getShallowCloseTarget(routeState);
     navigate(closeTarget.to, { replace: true, state: closeTarget.state });
   };
 

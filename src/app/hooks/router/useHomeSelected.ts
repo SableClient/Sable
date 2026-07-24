@@ -1,10 +1,6 @@
 import { useMatch } from 'react-router-dom';
-import {
-  getHomeCreatePath,
-  getHomeJoinPath,
-  getHomePath,
-  getHomeSearchPath,
-} from '$pages/pathUtils';
+import { getHomeJoinPath, getHomePath, getHomeSearchPath } from '$pages/pathUtils';
+import { CREATE_ROOM_PATH } from '$pages/paths';
 
 export const useHomeSelected = (): boolean => {
   const homeMatch = useMatch({
@@ -18,7 +14,7 @@ export const useHomeSelected = (): boolean => {
 
 export const useHomeCreateSelected = (): boolean => {
   const match = useMatch({
-    path: getHomeCreatePath(),
+    path: CREATE_ROOM_PATH,
     caseSensitive: true,
     end: false,
   });

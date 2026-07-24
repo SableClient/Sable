@@ -98,17 +98,16 @@ export function CreateRoomPage() {
         </Box>
       )}
       <Page>
-        <Box grow="Yes">
+        <Box grow="Yes" direction="Column">
           {isMobile && (
             <PageNav>
               <PageNavHeader size="600">
-                <Box grow="Yes" gap="300" justifyContent="Center">
-                  <Box grow="Yes">
-                    <Text size="H4" align="Center" truncate style={{ width: '100%' }}>
-                      {title}
-                    </Text>
-                  </Box>
-                  <Box shrink="No">
+                <Box grow="Yes" gap="300" alignItems="Center">
+                  <Box grow="Yes" style={{ flexBasis: 0 }} />
+                  <Text size="H4" align="Center" truncate>
+                    {title}
+                  </Text>
+                  <Box grow="Yes" style={{ flexBasis: 0 }} justifyContent="End">
                     <IconButton
                       aria-label="Close create room"
                       onClick={() => backNavigate(-1)}

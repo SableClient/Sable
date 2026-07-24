@@ -4,6 +4,7 @@ import {
   Text,
   color,
   config,
+  IconButton,
   Menu,
   Line,
   MenuItem,
@@ -11,10 +12,15 @@ import {
   Overlay,
   OverlayCenter,
 } from 'folds';
-import { GearSix, SquaresFour, menuIcon, sizedIcon } from '$components/icons/phosphor';
+import {
+  composerIcon,
+  GearSix,
+  SquaresFour,
+  menuIcon,
+  sizedIcon,
+} from '$components/icons/phosphor';
 import { PageNav, PageNavHeader } from '$components/page';
-import { NavButton, NavItem, NavItemContent } from '$components/nav';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -32,16 +38,9 @@ import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useUserPresence } from '$hooks/useUserPresence';
 import { useUserProfile } from '$hooks/useUserProfile';
-import type { SettingsMenuItem } from '$features/settings';
-import { settingsMenuIcons, settingsSections, useOpenSettings } from '$features/settings';
-import { isDesktopTauri } from '$utils/platform';
+import { useOpenSettings } from '$features/settings';
 import { UserQuickTools } from '../sidebar/UserQuickTools';
-import {
-  CaretDownIcon,
-  CaretRightIcon,
-  PencilSimpleIcon,
-  SignOutIcon,
-} from '@phosphor-icons/react';
+import { PencilSimpleIcon, SignOutIcon } from '@phosphor-icons/react';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { FocusTrap } from 'focus-trap-react';
 import { LogoutDialog } from '$components/LogoutDialog';
@@ -58,7 +57,6 @@ export function ProfileMobile() {
   const server = getMxIdServer(userId);
   const profile = useUserProfile(userId);
   const presence = useUserPresence(userId);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const displayName = profile.displayName ?? getMxIdLocalPart(userId) ?? userId;
   const heroAvatarUrl = profile.avatarUrl
@@ -81,22 +79,6 @@ export function ProfileMobile() {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
-
-  const [showPersona] = useSetting(settingsAtom, 'showPersonaSetting');
-  const isDesktop = isDesktopTauri();
-  const menuItems = useMemo<SettingsMenuItem[]>(
-    () =>
-      settingsSections
-        .filter(
-          (section) =>
-            (showPersona || section.id !== 'persona') && (isDesktop || section.id !== 'desktop')
-        )
-        .map((section) => {
-          const icon = settingsMenuIcons[section.id];
-          return { id: section.id, name: section.label, ...icon };
-        }),
-    [showPersona, isDesktop]
-  );
 
   return (
     <>
@@ -147,11 +129,21 @@ export function ProfileMobile() {
         style={{ width: '100%', minWidth: '100%', background: color.Background.Container }}
       >
         <PageNavHeader size="600">
-          <Box grow="Yes" gap="300" justifyContent="Center">
-            <Box grow="Yes">
-              <Text size="H4" align="Center" truncate style={{ width: '100%' }}>
-                Account
-              </Text>
+          <Box grow="Yes" gap="300" alignItems="Center">
+            <Box grow="Yes" style={{ flexBasis: 0 }} />
+            <Text size="H4" align="Center" truncate>
+              Account
+            </Text>
+            <Box grow="Yes" style={{ flexBasis: 0 }} justifyContent="End">
+              <IconButton
+                size="300"
+                radii="300"
+                variant="Background"
+                aria-label="Settings"
+                onClick={() => openSettings()}
+              >
+                {composerIcon(GearSix)}
+              </IconButton>
             </Box>
           </Box>
         </PageNavHeader>
@@ -185,9 +177,6 @@ export function ProfileMobile() {
               size="300"
               radii="300"
               before={menuIcon(PencilSimpleIcon)}
-              style={{
-                background: isSettingsOpen ? color.Surface.Container : color.Background.Container,
-              }}
               onClick={() => openSettings('account')}
             >
               <Text style={{ flexGrow: 1 }} size="T300">
@@ -205,48 +194,6 @@ export function ProfileMobile() {
           <Line variant="Surface" size="300" />
 
           <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-            <MenuItem
-              size="300"
-              radii="300"
-              before={menuIcon(GearSix)}
-              style={{
-                position: 'relative',
-                background: isSettingsOpen ? color.Surface.Container : color.Background.Container,
-              }}
-              after={menuIcon(isSettingsOpen && isMobile ? CaretDownIcon : CaretRightIcon)}
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            >
-              <Text style={{ flexGrow: 1 }} size="T300">
-                Settings
-              </Text>
-            </MenuItem>
-            {isSettingsOpen && (
-              <Box
-                direction="Column"
-                gap="100"
-                style={{ padding: config.space.S100, paddingTop: 0 }}
-              >
-                {menuItems.map((item) => {
-                  const IconComponent = item.icon;
-
-                  return (
-                    <NavItem key={item.id} variant="Background" radii="400">
-                      <NavButton onClick={() => openSettings(item.id)} aria-label={item.name}>
-                        <NavItemContent>
-                          <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                            {menuIcon(IconComponent)}
-                            <Text as="span" size="Inherit" truncate>
-                              {item.name}
-                            </Text>
-                          </Box>
-                        </NavItemContent>
-                      </NavButton>
-                    </NavItem>
-                  );
-                })}
-              </Box>
-            )}
-
             <UseStateProvider initial={false}>
               {(logout, setLogout) => (
                 <>

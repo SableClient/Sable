@@ -630,7 +630,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
                 after={
                   <Text
                     size="T300"
-                    style={{ maxWidth: '40vw', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    style={{ maxWidth: '40vw', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   >
                     {strVal}
                   </Text>

@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
-import { RoomStateEvent, MatrixEvent, EventType } from '$types/matrix-sdk';
+import { RoomStateEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useDeviceListChange } from '$hooks/useDeviceList';
-import { getStateEvents } from '$utils/room';
 
 /**
  * Determines the encryption status of a room.
@@ -20,11 +18,6 @@ export enum RoomEncryptionStatus {
   Unencrypted = 'unencrypted',
 }
 
-/**
- * Hook to check if a room is encrypted.
- * Uses the MatrixClient's deprecated isRoomEncrypted() for sync check,
- * and falls back to CryptoApi.isEncryptionEnabledInRoom() for async verification.
- */
 export function useRoomEncryptionStatus(room: Room | undefined): RoomEncryptionStatus {
   const mx = useMatrixClient();
   const [status, setStatus] = useState<RoomEncryptionStatus>(() => {
@@ -74,31 +67,3 @@ export function useRoomEncryptionStatus(room: Room | undefined): RoomEncryptionS
 
   return status;
 }
-
-/*
-export async function isRoomEncrypted(room: Room, cryptoApi: CryptoApi): Promise<boolean> {
-    return await cryptoApi.isEncryptionEnabledInRoom(room.roomId) && room.hasEncryptionStateEvent();
-}
-
-// Hook to simplify watching whether a Matrix room is encrypted, returns null if room is undefined or the state is loading
-export function useIsEncrypted(room: Room): boolean | null {
-    const mx = useMatrixClient();
-    const [status, setStatus] = useState<RoomEncryptionStatus>(() => {
-      if (!room) return RoomEncryptionStatus.Unknown;
-      // Quick sync check
-      return room.hasEncryptionStateEvent()
-        ? RoomEncryptionStatus.Encrypted
-        : RoomEncryptionStatus.Unencrypted;
-    });
-    const events: MatrixEvent[] = getStateEvents(room, EventType.RoomEncryption);
-
-    return useMemo(
-        async () => {
-            const crypto = mx.getCrypto();
-            if (!room || !crypto) return null;
-
-            return await isRoomEncrypted(room, crypto);
-        },
-        [room, events],
-    );
-}*/

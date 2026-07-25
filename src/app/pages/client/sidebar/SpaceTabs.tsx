@@ -2,7 +2,6 @@ import type { FormEventHandler, MouseEventHandler, ReactNode, RefObject, ChangeE
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -100,6 +99,7 @@ import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 
 type SpaceMenuProps = {
   room: Room;
@@ -561,16 +561,7 @@ function SpaceTab({
   const dropState = useDropTarget(spaceDraggable, targetRef, !isMobile);
   const dropType = dropState?.type;
 
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-
-  const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    evt.preventDefault();
-    const cords = evt.currentTarget.getBoundingClientRect();
-    setMenuAnchor((currentState) => {
-      if (currentState) return undefined;
-      return cords;
-    });
-  };
+  const menu = useMenuAnchor<HTMLButtonElement>();
 
   return (
     <RoomUnreadProvider roomId={space.roomId}>
@@ -591,7 +582,11 @@ function SpaceTab({
                 data-id={space.roomId}
                 ref={triggerRef}
                 size={folder ? '300' : '400'}
-                onContextMenu={handleContextMenu}
+                onContextMenu={menu.triggerProps.onContextMenu}
+                onTouchStart={menu.triggerProps.onTouchStart}
+                onTouchEnd={menu.triggerProps.onTouchEnd}
+                onTouchMove={menu.triggerProps.onTouchMove}
+                onTouchCancel={menu.triggerProps.onTouchCancel}
                 {...mobileTapActivation}
               >
                 <SpaceAvatar
@@ -610,17 +605,11 @@ function SpaceTab({
             />
           )}
           <ResponsiveMenu
-            anchor={menuAnchor}
+            anchor={menu.anchor}
             position="Right"
             align="Start"
-            requestClose={() => setMenuAnchor(undefined)}
-            menu={
-              <SpaceMenu
-                room={space}
-                requestClose={() => setMenuAnchor(undefined)}
-                onUnpin={onUnpin}
-              />
-            }
+            requestClose={menu.close}
+            menu={<SpaceMenu room={space} requestClose={menu.close} onUnpin={onUnpin} />}
           />
         </SidebarItemLeft>
       )}
@@ -770,22 +759,18 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
   const [openedFolder, setOpenedFolder] = useAtom(useOpenedSidebarFolderAtom());
   const setLastSpaceId = useSetAtom(lastVisitedSpaceIdAtom);
   const [draggingItem, setDraggingItem] = useState<SidebarDraggable>();
-  const [folderMenuState, setFolderMenuState] = useState<{
-    folder: ISidebarFolder;
-    anchor: RectCords;
-  }>();
+  const folderMenu = useMenuAnchor<HTMLDivElement>();
+  const [folderMenuTarget, setFolderMenuTarget] = useState<ISidebarFolder>();
   const [renameTargetFolder, setRenameTargetFolder] = useState<ISidebarFolder>();
 
   const handleFolderContextMenu = useCallback(
     (folder: ISidebarFolder): MouseEventHandler =>
       (evt) => {
         evt.preventDefault();
-        setFolderMenuState({
-          folder,
-          anchor: evt.currentTarget.getBoundingClientRect(),
-        });
+        setFolderMenuTarget(folder);
+        folderMenu.openAt(evt.currentTarget as HTMLElement);
       },
-    []
+    [folderMenu]
   );
 
   const handleRenameFolderApply = useCallback(
@@ -980,15 +965,21 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
   return (
     <>
       <ResponsiveMenu
-        anchor={folderMenuState?.anchor}
+        anchor={folderMenu.anchor}
         position="Right"
         align="Start"
-        requestClose={() => setFolderMenuState(undefined)}
+        requestClose={() => {
+          folderMenu.close();
+          setFolderMenuTarget(undefined);
+        }}
         menu={
-          folderMenuState && (
+          folderMenuTarget && (
             <FolderMenu
-              requestClose={() => setFolderMenuState(undefined)}
-              onRename={() => setRenameTargetFolder(folderMenuState.folder)}
+              requestClose={() => {
+                folderMenu.close();
+                setFolderMenuTarget(undefined);
+              }}
+              onRename={() => setRenameTargetFolder(folderMenuTarget)}
             />
           )
         }

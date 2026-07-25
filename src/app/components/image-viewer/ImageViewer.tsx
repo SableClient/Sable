@@ -1,19 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
-import {
-  Box,
-  Chip,
-  Header,
-  IconButton,
-  Menu,
-  MenuItem,
-  type RectCords,
-  Text,
-  as,
-  config,
-  toRem,
-} from 'folds';
+import { Box, Chip, Header, IconButton, Menu, MenuItem, Text, as, config, toRem } from 'folds';
 import {
   ArrowLeft,
   ArrowsClockwise,
@@ -26,7 +14,7 @@ import {
   sizedIcon,
 } from '$components/icons/phosphor';
 import { useImageGestures } from '$hooks/useImageGestures';
-import { useMobileLongPress } from '$hooks/useMobileLongPress';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { useDismissOnBack } from '$utils/androidBack';
 import { useSetting } from '$state/hooks/settings';
 import { isPixelatedRendering, settingsAtom } from '$state/settings';
@@ -105,45 +93,21 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       await saveFileToDevice(fileContent, getDownloadFilename(filename, alt, 'image'));
     };
 
-    const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-
-    const {
-      onTouchStart,
-      onTouchEnd,
-      onTouchMove,
-      onTouchCancel,
-      firedRef: longPressFiredRef,
-    } = useMobileLongPress(() => {
-      setMenuAnchor({ x: 0, y: 0, width: 0, height: 0 });
-    });
+    const menu = useMenuAnchor<HTMLDivElement>();
 
     const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
       if (evt.altKey || !window.getSelection()?.isCollapsed) return;
       const tag = (evt.target as HTMLElement).tagName;
       if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
-
-      if (longPressFiredRef.current) {
-        evt.preventDefault();
-        longPressFiredRef.current = false;
-        return;
-      }
-
-      evt.preventDefault();
-      setMenuAnchor({
-        x: evt.clientX,
-        y: evt.clientY,
-        width: 0,
-        height: 0,
-      });
+      menu.triggerProps.onContextMenu(evt);
     };
 
     return (
       <>
         <ResponsiveMenu
-          anchor={menuAnchor}
-          requestClose={() => setMenuAnchor(undefined)}
-          align={menuAnchor?.width === 0 ? 'Start' : 'End'}
-          offset={menuAnchor?.width === 0 ? 0 : undefined}
+          anchor={menu.anchor}
+          requestClose={menu.close}
+          align="Start"
           menu={
             <Menu variant="Surface" style={{ maxWidth: toRem(160), width: '100vw' }}>
               <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
@@ -153,7 +117,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
                   size="300"
                   after={menuIcon(CopyIcon)}
                   onClick={async () => {
-                    setMenuAnchor(undefined);
+                    menu.close();
                     const fileContent = await downloadMedia(src);
                     await copyImageToClipboard(fileContent);
                   }}
@@ -168,7 +132,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
                   size="300"
                   after={menuIcon(DownloadIcon)}
                   onClick={() => {
-                    setMenuAnchor(undefined);
+                    menu.close();
                     handleDownload();
                   }}
                 >
@@ -349,10 +313,10 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             style={{ overflow: 'hidden', touchAction: 'none', cursor }}
             onPointerDown={onPointerDown}
             onContextMenu={handleContextMenu}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-            onTouchMove={onTouchMove}
-            onTouchCancel={onTouchCancel}
+            onTouchStart={menu.triggerProps.onTouchStart}
+            onTouchEnd={menu.triggerProps.onTouchEnd}
+            onTouchMove={menu.triggerProps.onTouchMove}
+            onTouchCancel={menu.triggerProps.onTouchCancel}
           >
             <img
               className={classNames(css.ImageViewerImg, isPixelated && css.ImageViewerImgPixelated)}

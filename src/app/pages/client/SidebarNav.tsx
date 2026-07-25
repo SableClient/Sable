@@ -1,7 +1,8 @@
 import type { MouseEventHandler } from 'react';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Box, Checkbox, config, Line, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Sidebar, SidebarContent, SidebarStack } from '$components/sidebar';
@@ -14,7 +15,7 @@ import { UserMenuTab } from './sidebar/UserMenuTab';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [menuAnchor, setMenuAnchor] = useState<DOMRect>();
+  const sidebarMenu = useMenuAnchor<HTMLDivElement>();
 
   const [uniformIcons, setUniformIcons] = useSetting(settingsAtom, 'uniformIcons');
   const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
@@ -29,22 +30,20 @@ export function SidebarNav() {
   const width = roomSidebarWidth + 66;
   const isCollapsed = compact ? false : width < 190 + 66;
 
-  const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
+  const handleSidebarContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     const target = evt.target as HTMLElement;
     if (target.closest('button, a, [role="button"]')) return;
-    evt.preventDefault();
-    const cords = new DOMRect(evt.clientX, evt.clientY, 0, 0);
-    setMenuAnchor((current) => (current ? undefined : cords));
+    sidebarMenu.triggerProps.onContextMenu(evt);
   };
 
   return (
     <>
-      <Sidebar onContextMenu={handleContextMenu}>
+      <Sidebar onContextMenu={handleSidebarContextMenu}>
         <ResponsiveMenu
-          anchor={menuAnchor}
+          anchor={sidebarMenu.anchor}
           position="Right"
           align="Start"
-          requestClose={() => setMenuAnchor(undefined)}
+          requestClose={sidebarMenu.close}
           menu={
             <Menu style={{ maxWidth: toRem(208), width: '100vw' }}>
               <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>

@@ -66,6 +66,8 @@ import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './MembersDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { useUserVerificationStatus } from '$hooks/useUserVerificationStatus';
+import { VerificationBadge } from '$components/verification/VerificationBadge';
 
 type MemberDrawerHeaderProps = {
   room: Room;
@@ -145,6 +147,8 @@ function MemberItem({
 
   const presence = useUserPresence(member.userId);
   const { color, font } = useSableCosmetics(member.userId, room);
+  const verificationStatus = useUserVerificationStatus(member.userId, room);
+
   const MemberAvatar = (
     <div
       style={{
@@ -205,7 +209,7 @@ function MemberItem({
     >
       <Box direction="Column" grow="Yes" gap="0">
         <Text size="T300" truncate style={{ color, fontFamily: font, lineHeight: '1.2' }}>
-          {name}
+          {name} <VerificationBadge status={verificationStatus} size={16} />
         </Text>
         {presence?.status && (
           <Text

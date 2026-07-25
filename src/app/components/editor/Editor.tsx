@@ -5,7 +5,7 @@ import type {
   ReactNode,
 } from 'react';
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Box, Scroll, Text } from 'folds';
+import { Box, config, Scroll, Text } from 'folds';
 import type { Descendant, Editor } from 'slate';
 import { Node, createEditor } from 'slate';
 import type { RenderLeafProps, RenderElementProps, RenderPlaceholderProps } from 'slate-react';
@@ -51,6 +51,11 @@ const MAX_MULTILINE_MEASURE_RETRIES = 2;
 const MULTILINE_HEIGHT_EPSILON = 1;
 const TRAILING_SPACE_SENTINEL = '\u200B';
 
+export type EditorGlowProps = {
+  enabled?: boolean;
+  animationName?: string;
+};
+
 const normalizeMeasurementText = (text: string): string =>
   /[ \t]+$/.test(text) ? `${text}${TRAILING_SPACE_SENTINEL}` : text;
 
@@ -80,6 +85,7 @@ type CustomEditorProps = {
   variant?: 'Surface' | 'SurfaceVariant' | 'Background';
   enterKeyHint?: 'enter' | 'send';
   suppressBlurRefocusRef?: MutableRefObject<boolean>;
+  glow?: EditorGlowProps;
 };
 export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
   (
@@ -102,6 +108,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       variant = 'SurfaceVariant',
       enterKeyHint,
       suppressBlurRefocusRef,
+      glow,
     },
     ref
   ) => {
@@ -411,7 +418,24 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     );
 
     return (
-      <div className={`${css.Editor} ${className || ''}`} ref={setRootRef}>
+      <div
+        className={`${css.Editor} ${className || ''}`}
+        ref={setRootRef}
+        style={{ position: 'relative' }}
+      >
+        {glow?.enabled && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 1,
+              animation: `${glow.animationName || 'unverifiedGlowPulse'} 2s ease-in-out infinite`,
+              borderRadius: config.radii.R400,
+              boxShadow: 'inset 0 0 16px 4px rgba(255, 193, 7, 0.2)',
+            }}
+          />
+        )}
         <Slate editor={editor} initialValue={slateInitialValue} onChange={handleChange}>
           {top}
           <Box

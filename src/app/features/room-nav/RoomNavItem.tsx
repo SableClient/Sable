@@ -80,6 +80,8 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { warmupRoomDecryption } from '$utils/decryptScheduler';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 import { useOpenMobileDrawerContent } from '$components/page/MobileNavDrawerContext';
+import { useRoomEncryptionStatus } from '$hooks/useRoomEncryptionStatus';
+import { useRoomUnverifiedMembers } from '$hooks/useRoomUnverifiedMembers';
 
 // Call Hooks & Plugins
 import { useCallMembers, useCallSession } from '$hooks/useCall';

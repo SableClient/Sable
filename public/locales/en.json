@@ -3,5 +3,43 @@
     "RoomCommon": {
       "changed_room_name": " changed room name"
     }
+  },
+  "verification": {
+    "user_verified": "Verified",
+    "user_previously_verified": "Previously verified",
+    "user_not_verified": "Not verified",
+    "Verify": "Verify",
+    "verify_explainer": "Verify this user by comparing emoji. Both users will see the same emoji if they are verifying each other.",
+    "verification_unavailable": "Verification unavailable",
+    "verify_user_title": "Verify User",
+    "verify_start_button": "Start Verification",
+    "verify_accept_button": "Accept",
+    "verify_wait_accept": "Please accept the request from the other user.",
+    "verify_wait_accept_title": "Waiting for request to be accepted...",
+    "verify_wait_start": "Verification request has been accepted.",
+    "verify_wait_start_title": "Waiting for the response from the other user...",
+    "verify_starting": "Starting verification using emoji comparison...",
+    "verify_confirm_emoji": "Confirm the emoji below are displayed on both screens, in the same order:",
+    "verify_match_button": "They Match",
+    "verify_mismatch_button": "Do Not Match",
+    "verify_close_button": "Close",
+    "verify_done_title": "User Verified!",
+    "verify_done_message": "This user has been verified.",
+    "verify_done_button": "Okay",
+    "verify_cancelled_title": "Verification Cancelled",
+    "verify_cancelled_message": "Verification has been cancelled.",
+    "verify_cancel_button": "Cancel",
+    "verify_error_title": "Error",
+    "verify_error_message": "An error occurred during verification.",
+    "verify_no_support": "Both users need to support emoji verification.",
+    "verify_you_started": "You started a verification request",
+    "verify_user_wants_to_verify": "{{name}} wants to verify your key",
+    "verify_request_from": "{{user}} wants to mutually verify your identities. Only accept if you have a reliable and secure way of exchanging informations with them. (Outside of matrix, for example in person)",
+    "DiscardVerification": "Discard Verification",
+    "unverified_sessions_warning": "Some users in {{roomName}} have unverified sessions. Your message may not reach them."
+  },
+  "placeholder": {
+    "send_encrypted": "Send an encrypted message...",
+    "send_unencrypted": "Send an unencrypted message..."
   }
 }

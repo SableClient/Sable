@@ -85,14 +85,12 @@ import * as customHtmlCss from '$styles/CustomHtml.css';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import type { ForwardedMessageProps } from '$features/room/message';
 import { EncryptedContent, Message, Reactions } from '$features/room/message';
-
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { useRoomMemberHydration } from '$hooks/useRoomMemberHydration';
 import { M_POLL_START } from 'matrix-js-sdk';
 
 function DecoratedUser({ room, userId, userName }: DecoratedUserProps) {
   const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));
-
   const openUserRoomProfile = useOpenUserRoomProfile();
   const handleUserClick: MouseEventHandler = useCallback(
     (evt) => {
@@ -696,6 +694,7 @@ export function useTimelineEventRenderer({
                 htmlReactParserOptions={htmlReactParserOptions}
                 linkifyOpts={linkifyOpts}
                 outlineAttachment={messageLayout === MessageLayout.Bubble}
+                mEvent={mEvent}
                 mx={mx}
                 room={room}
               />
@@ -871,6 +870,7 @@ export function useTimelineEventRenderer({
                       htmlReactParserOptions={htmlReactParserOptions}
                       linkifyOpts={linkifyOpts}
                       outlineAttachment={messageLayout === MessageLayout.Bubble}
+                      mEvent={mEvent}
                       mx={mx}
                       room={room}
                     />

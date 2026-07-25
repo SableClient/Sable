@@ -1,7 +1,45 @@
 {
   "Organisms": {
     "RoomCommon": {
-      "changed_room_name": " hat den Raum Name geändert"
+      "changed_room_name": " hat den Raum-Namen geändert"
     }
+  },
+  "verification": {
+    "user_verified": "Verifiziert",
+    "user_previously_verified": "Zuvor verifiziert",
+    "user_not_verified": "Nicht verifiziert",
+    "Verify": "Verifizieren",
+    "verify_explainer": "Verifiziere diesen Benutzer durch Emoji-Vergleich. Beide Benutzer sehen die gleichen Emojis, wenn sie sich gegenseitig verifizieren.",
+    "verification_unavailable": "Verifizierung nicht verfügbar",
+    "verify_user_title": "Benutzer verifizieren",
+    "verify_start_button": "Verifizierung starten",
+    "verify_accept_button": "Akzeptieren",
+    "verify_wait_accept": "Bitte akzeptiere die Anfrage des anderen Benutzers.",
+    "verify_wait_accept_title": "Warte darauf, dass die Anfrage akzeptiert wird...",
+    "verify_wait_start": "Verifizierungsanfrage wurde akzeptiert.",
+    "verify_wait_start_title": "Warte auf die Antwort des anderen Benutzers...",
+    "verify_starting": "Verifizierung beginnt mit Emoji-Vergleich...",
+    "verify_confirm_emoji": "Bestätige, dass die folgenden Emojis auf beiden Bildschirmen in der gleichen Reihenfolge angezeigt werden:",
+    "verify_match_button": "Sie stimmen überein",
+    "verify_mismatch_button": "Stimmen nicht überein",
+    "verify_close_button": "Schließen",
+    "verify_done_title": "Benutzer verifiziert!",
+    "verify_done_message": "Dieser Benutzer wurde verifiziert.",
+    "verify_done_button": "Okay",
+    "verify_cancelled_title": "Verifizierung abgebrochen",
+    "verify_cancelled_message": "Die Verifizierung wurde abgebrochen.",
+    "verify_cancel_button": "Abbrechen",
+    "verify_error_title": "Fehler",
+    "verify_error_message": "Bei der Verifizierung ist ein Fehler aufgetreten.",
+    "verify_no_support": "Beide Benutzer müssen Emoji-Verifizierung unterstützen.",
+    "verify_you_started": "Du hast eine Verifizierungsanfrage gestartet",
+    "verify_user_wants_to_verify": "{{name}} möchte deinen Schlüssel verifizieren",
+    "verify_request_from": "{{user}} möchte eure Identitäten gegenseitig verifizieren. Akzeptiere nur, wenn ihr eine zuverlässige und sichere Möglichkeit habt, eure Identitäten auszutauschen. (Außerhalb von Matrix, z.B. persönlich)",
+    "DiscardVerification": "Verifizierung verwerfen",
+    "unverified_sessions_warning": "Einige Benutzer in {{roomName}} haben nicht verifizierte Sitzungen. Deine Nachricht erreicht sie möglicherweise nicht."
+  },
+  "placeholder": {
+    "send_encrypted": "Nachricht verschlüsselt senden...",
+    "send_unencrypted": "Unverschlüsselte Nachricht senden..."
   }
 }

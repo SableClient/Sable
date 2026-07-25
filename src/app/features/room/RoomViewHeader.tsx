@@ -52,6 +52,11 @@ import {
   SignOut,
   UserCircle,
   UserPlus,
+  LockSimple,
+  Lock,
+  ShieldCheck,
+  ShieldWarning,
+  getPhosphorSize,
 } from '$components/icons/phosphor';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -117,6 +122,9 @@ import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+
+import { useRoomEncryptionStatus } from '$hooks/useRoomEncryptionStatus';
+import { useRoomUnverifiedMembers } from '$hooks/useRoomUnverifiedMembers';
 
 const log = createLogger('RoomViewHeader');
 
@@ -613,6 +621,10 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
   const openSettings = useOpenRoomSettings();
   const parentSpace = useSpaceOptionally();
+
+  const encryptionStatus = useRoomEncryptionStatus(room);
+  const unverifiedCount = useRoomUnverifiedMembers(room);
+
   const handleMemberToggle = () => {
     if (callView) {
       openSettings(room.roomId, parentSpace?.roomId, RoomSettingsPage.MembersPage);
@@ -659,6 +671,20 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
           <Box direction="Column">
             <Text size={topic ? 'H5' : 'H3'} truncate>
               {name}
+              {encryptionStatus === 'encrypted' && unverifiedCount > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '6px' }}>
+                  <ShieldWarning
+                    size={14}
+                    weight="fill"
+                    style={{ color: 'var(--mx-danger)', opacity: config.opacity.P300 }}
+                  />
+                </span>
+              )}
+              {encryptionStatus === 'encrypted' && unverifiedCount === 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '6px' }}>
+                  <LockSimple size={14} weight="fill" style={{ opacity: config.opacity.P300 }} />
+                </span>
+              )}
             </Text>
             {topic && (
               <UseStateProvider initial={false}>

@@ -54,6 +54,7 @@ import { pushSessionToSW } from '../../../sw-session';
 import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
 import { AutoDiscovery } from './AutoDiscovery';
+import { IncomingVerificationProvider } from '$components/user-verification/IncomingVerificationDialog';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 
@@ -477,6 +478,7 @@ export function ClientRoot({ children }: ClientRootProps) {
           {!syncReadyClient ? (
             <ClientRootLoading />
           ) : (
+            <IncomingVerificationProvider>
             <SpecVersions baseUrl={baseUrl ?? ''}>
               <ServerConfigsLoader>
                 {(serverConfigs) => (
@@ -492,6 +494,7 @@ export function ClientRoot({ children }: ClientRootProps) {
                 )}
               </ServerConfigsLoader>
             </SpecVersions>
+            </IncomingVerificationProvider>
           )}
         </MatrixClientProvider>
       )}

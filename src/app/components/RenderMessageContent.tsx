@@ -49,6 +49,7 @@ import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
+import { MKeyVerificationRequest } from './message/MKeyVerificationRequest';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
 import { PollEvent } from './message/PollEvent';
 import { M_TEXT } from 'matrix-js-sdk';
@@ -515,6 +516,21 @@ function RenderMessageContentInternal({
     if (mEvent && mx && room)
       return <PollEvent content={content} mEvent={mEvent} mx={mx} room={room} />;
     else return <UnsupportedContent />;
+  }
+  if (msgType === 'm.key.verification.request') {
+    const reqContent = content as {
+      body?: string;
+      to?: string;
+      from_device?: string;
+    };
+    const senderId = mEvent?.getSender();
+    const myUserId = mx?.getSafeUserId();
+    const isSelf = senderId === myUserId;
+    const sender = senderId ?? '';
+    const senderLocalpart = displayName;
+    return (
+      <MKeyVerificationRequest sender={sender} senderLocalpart={senderLocalpart} isSelf={isSelf} />
+    );
   }
   return (
     <UnsupportedContent

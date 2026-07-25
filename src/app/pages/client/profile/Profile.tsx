@@ -68,13 +68,14 @@ export function ProfileMobile() {
         style={{ width: '100%', minWidth: '100%', background: color.Background.Container }}
       >
         <PageNavHeader size="600" style={{ width: '100%' }}>
-          <Box grow="Yes" gap="200" alignItems="Center">
-            <Box grow="Yes">
-              <Text size="H4" align="Center" truncate>
-                Account
-              </Text>
-            </Box>
-            <Box shrink="No">
+          <Box grow="Yes" alignItems="Center" style={{ position: 'relative' }}>
+            <Text size="H4" align="Center" truncate style={{ width: '100%' }}>
+              Account
+            </Text>
+            <Box
+              shrink="No"
+              style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}
+            >
               <IconButton
                 size="400"
                 radii="300"
@@ -130,7 +131,6 @@ export function ProfileMobile() {
             <PresenceMenuOption isMobile />
           </Box>
           <AccountMenuOption isMobile />
-
 
           <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
             <UseStateProvider initial={false}>

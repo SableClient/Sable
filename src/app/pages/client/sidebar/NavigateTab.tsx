@@ -8,7 +8,6 @@ import { useNavigateSelected } from '$hooks/router/useRouteSelected';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 
 export function NavigateTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
-
   const isNavigate = useNavigateSelected();
   const openShallowRoute = useOpenShallowRoute();
   const open = () => openShallowRoute(getNavigatePath());

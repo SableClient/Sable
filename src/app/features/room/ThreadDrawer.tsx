@@ -1,69 +1,39 @@
-import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Header, IconButton, Scroll, Spinner, Text, config, toRem } from 'folds';
 import { Chats, composerIcon, X } from '$components/icons/phosphor';
 import type { IEvent, Room, CryptoBackend } from '$types/matrix-sdk';
 import {
   Direction,
-  EventStatus,
   MatrixEvent,
   MatrixEventEvent,
   ReceiptType,
-  RelationType,
   RoomEvent,
   ThreadEvent,
-  EventType,
 } from '$types/matrix-sdk';
 import { useSpaceOptionally } from '$hooks/useSpace';
-import { buildCachedProfilePayload } from '$hooks/timeline/useTimelineActions';
+import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
+import { useTimelineRendererContext } from '$hooks/timeline/useTimelineRendererContext';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
-import { ReactEditor } from 'slate-react';
-import type { HTMLReactParserOptions } from 'html-react-parser';
-import type { Opts as LinkifyOpts } from 'linkifyjs';
 import {
-  factoryRenderLinkifyWithMention,
-  getReactCustomHtmlParser,
-  LINKIFY_OPTS,
-  makeMentionCustomProps,
-  renderMatrixMention,
-} from '$plugins/react-custom-html-parser';
-import { getMemberDisplayName } from '$utils/room/display';
-import {
-  extractReplyDraftBody,
   getThreadReplyEvents,
   isThreadRelationEvent,
   reactionOrEditEvent,
-  resolveReplyDraftTarget,
   unwrapRelationJumpTarget,
   getEditedEvent,
   getEventReactions,
 } from '$utils/room/relations';
-import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useIsInactivePanel } from '$hooks/useRoom';
-import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { nicknamesAtom } from '$state/nicknames';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { settingsAtom } from '$state/settings';
-import { useHiddenEventSettings, useSetting } from '$state/hooks/settings';
-import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
-import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
-import { createMentionElement, moveCursor, useEditor } from '$components/editor';
-import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
-import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
-
-import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { useRoomCreators } from '$hooks/useRoomCreators';
+import { useSetting } from '$state/hooks/settings';
+import { useEditor } from '$components/editor';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
-import type { IReplyDraft } from '$state/room/roomInputDrafts';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
-import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
-import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { useMessageEdit } from '$hooks/useMessageEdit';
 import {
   useProcessedTimeline,
@@ -106,105 +76,45 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     [jotaiStore]
   );
   const pushProcessor = mx.pushProcessor;
-  const useAuthentication = useMediaAuthentication();
-  const mentionClickHandler = useMentionClickHandler(room.roomId);
-  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
-  const spoilerClickHandler = useSpoilerClickHandler();
   const isInactivePanel = useIsInactivePanel();
 
-  // Settings
-  const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
-  const [messageSpacing] = useSetting(settingsAtom, 'messageSpacing');
-  const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
-  const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
-  const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const [showDeveloperTools] = useSetting(settingsAtom, 'developerTools');
-  const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
-  const [clientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
-  const [encClientUrlPreview] = useSetting(settingsAtom, 'encClientUrlPreview');
-  const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
-  const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
-  const hiddenEvents = useHiddenEventSettings(settingsAtom);
-  const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
-  const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
-  const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
-  const showClientUrlPreview = room.hasEncryptionStateEvent()
-    ? clientUrlPreview && encClientUrlPreview
-    : clientUrlPreview;
-  const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
-  const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
-  const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
-  const [incomingInlineImagesDefaultHeight] = useSetting(
-    settingsAtom,
-    'incomingInlineImagesDefaultHeight'
-  );
-  const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
+  // Shared renderer context — replaces 17+ inline useSetting calls,
+  // linkifyOpts useMemo, htmlReactParserOptions useMemo, and the
+  // permissions block that were duplicated with RoomTimeline.
+  const rendererCtx = useTimelineRendererContext(room);
 
-  // Memoized parsing options
-  const linkifyOpts = useMemo<LinkifyOpts>(
+  const {
+    settings,
+    linkifyOpts,
+    htmlReactParserOptions,
+    permissions: {
+      canRedact,
+      canDeleteOwn,
+      canSendReaction,
+      canPinEvent,
+      isReadOnly,
+      getMemberPowerTag,
+      parseMemberEvent,
+    },
+  } = rendererCtx;
+
+  // ThreadDrawer overrides on top of the shared settings:
+  //   - hideThreadChip: true (thread replies don't show a nested thread chip)
+  //   - hideMembershipEvents: true (thread view never shows membership)
+  //   - hideNickAvatarEvents: true (thread view never shows nick changes)
+  const threadSettings = useMemo(
     () => ({
-      ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention(
-        settingsLinkBaseUrl,
-        (href) =>
-          renderMatrixMention(
-            mx,
-            room.roomId,
-            href,
-            makeMentionCustomProps(mentionClickHandler),
-            nicknames
-          ),
-        mentionClickHandler
-      ),
+      ...settings,
+      hideThreadChip: true as const,
+      hideMembershipEvents: true,
+      hideNickAvatarEvents: true,
     }),
-    [mx, room, mentionClickHandler, nicknames, settingsLinkBaseUrl]
+    [settings]
   );
 
-  const abbrMap = useRoomAbbreviationsContext();
-
-  const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
-    () =>
-      getReactCustomHtmlParser(mx, room.roomId, {
-        settingsLinkBaseUrl,
-        linkifyOpts,
-        useAuthentication,
-        handleSpoilerClick: spoilerClickHandler,
-        handleMentionClick: mentionClickHandler,
-        nicknames,
-        autoplayEmojis,
-        incomingInlineImagesDefaultHeight,
-        incomingInlineImagesMaxHeight,
-        replaceTextNode: buildAbbrReplaceTextNode(abbrMap, linkifyOpts),
-      }),
-    [
-      mx,
-      room,
-      linkifyOpts,
-      spoilerClickHandler,
-      mentionClickHandler,
-      useAuthentication,
-      nicknames,
-      settingsLinkBaseUrl,
-      autoplayEmojis,
-      incomingInlineImagesDefaultHeight,
-      incomingInlineImagesMaxHeight,
-      abbrMap,
-    ]
-  );
-
-  // Power levels & permissions
-  const powerLevels = usePowerLevelsContext();
-  const creators = useRoomCreators(room);
-  const permissions = useRoomPermissions(creators, powerLevels);
-  const canRedact = permissions.action('redact', mx.getSafeUserId());
-  const canDeleteOwn = permissions.event(EventType.RoomRedaction, mx.getSafeUserId());
-  const canSendReaction = permissions.event(EventType.Reaction, mx.getSafeUserId());
-  const canPinEvent = permissions.stateEvent(EventType.RoomPinnedEvents, mx.getSafeUserId());
-  const isReadOnly = !permissions.message(room.hasEncryptionStateEvent(), mx.getSafeUserId());
-  const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
-  const parseMemberEvent = useMemberEventParser();
+  const hiddenEvents = settings.hiddenEvents;
+  const hideMemberInReadOnly = settings.hideMemberInReadOnly;
+  const hideReads = settings.hideReads;
 
   // Ignored users
   const ignoredUsersList = useIgnoredUsers();
@@ -223,6 +133,59 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   // User profile popup
   const openUserRoomProfile = useOpenUserRoomProfile();
   const optionalSpace = useSpaceOptionally();
+
+  // Shared timeline actions — replaces inline handleUserClick,
+  // handleUsernameClick, handleReplyClick, handleReactionToggle,
+  // handleResend, handleDeleteFailedSend (~65 lines).
+  // handleOpenEvent is caller-specific (ThreadDrawer's scroll architecture).
+  // setOpenThread is a no-op (thread drawer can't open sub-threads).
+  const actions = useTimelineActions({
+    room,
+    mx,
+    editor,
+    nicknames,
+    getGlobalProfile,
+    spaceId: optionalSpace?.roomId,
+    openUserRoomProfile: openUserRoomProfile as unknown as (
+      roomId: string,
+      spaceId: string | undefined,
+      userId: string,
+      rect: DOMRect,
+      undefinedArg?: undefined,
+      options?: unknown
+    ) => void,
+    activeReplyId,
+    setReplyDraft: setReplyDraft as unknown as (draft: unknown) => void,
+    openThreadId: threadRootId,
+    setOpenThread: () => {},
+    handleEdit,
+    handleOpenEvent: (id) => {
+      let anchorId = unwrapRelationJumpTarget(room, id);
+      const threadLive = thread?.timelineSet.getLiveTimeline();
+      const threadEvents = threadLive?.getEvents();
+      const rawIndex = threadEvents?.findIndex((e) => e.getId() === anchorId) ?? -1;
+      if (rawIndex >= 0) {
+        const nearest = getProcessedRowIndexForRawTimelineIndex(
+          processedEventsRef.current,
+          rawIndex
+        );
+        if (nearest) {
+          const rowEv = processedEventsRef.current[nearest.rowIndex];
+          if (rowEv) anchorId = rowEv.id;
+        }
+      }
+      const isRoot = anchorId === threadRootId;
+      const isInReplies = processedEventsRef.current.some((e) => e.id === anchorId);
+      if (!isRoot && !isInReplies) return;
+      setJumpToEventId(anchorId);
+      setTimeout(() => setJumpToEventId(undefined), 2500);
+      const el = drawerRef.current;
+      if (el) {
+        const target = el.querySelector(`[data-message-id="${anchorId}"]`);
+        target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    },
+  });
 
   // Thread timeline data for useProcessedTimeline
   const thread = room.getThread(threadRootId);
@@ -544,100 +507,6 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     }
   }, [processedReplies.length, hasOlderReplies]);
 
-  const handleUserClick: MouseEventHandler<HTMLButtonElement> = useCallback(
-    (evt) => {
-      if (!evt.currentTarget) return;
-      evt.preventDefault();
-      evt.stopPropagation();
-      const userId = evt.currentTarget.getAttribute('data-user-id');
-      if (!userId) return;
-      openUserRoomProfile(
-        room.roomId,
-        optionalSpace?.roomId,
-        userId,
-        evt.currentTarget.getBoundingClientRect(),
-        undefined,
-        buildCachedProfilePayload(getGlobalProfile(userId))
-      );
-    },
-    [room, optionalSpace, openUserRoomProfile, getGlobalProfile]
-  );
-
-  const handleUsernameClick: MouseEventHandler<HTMLButtonElement> = useCallback(
-    (evt) => {
-      evt.preventDefault();
-      const userId = evt.currentTarget.getAttribute('data-user-id');
-      if (!userId) return;
-      const name =
-        getMemberDisplayName(room, userId, nicknames) ?? getMxIdLocalPart(userId) ?? userId;
-      editor.insertNode(
-        createMentionElement(
-          userId,
-          name.startsWith('@') ? name : `@${name}`,
-          userId === mx.getUserId()
-        )
-      );
-      ReactEditor.focus(editor);
-      moveCursor(editor);
-    },
-    [mx, room, editor, nicknames]
-  );
-
-  const handleReplyClick: MouseEventHandler<HTMLButtonElement> = useCallback(
-    (evt) => {
-      const replyId = evt.currentTarget.getAttribute('data-event-id');
-      if (!replyId) {
-        // In thread mode, resetting means going back to base thread draft
-        setReplyDraft({
-          userId: mx.getUserId() ?? '',
-          eventId: threadRootId,
-          body: '',
-          relation: { rel_type: RelationType.Thread, event_id: threadRootId },
-        });
-        return;
-      }
-      const resolved = resolveReplyDraftTarget(room, replyId);
-      if (!resolved) return;
-      const { eventId: draftEventId, replyEvt } = resolved;
-      const { body, formattedBody } = extractReplyDraftBody(
-        replyEvt,
-        room.getUnfilteredTimelineSet()
-      );
-      const senderId = replyEvt.getSender();
-      if (senderId) {
-        const draft: IReplyDraft = {
-          userId: senderId,
-          eventId: draftEventId,
-          body,
-          formattedBody,
-          relation: { rel_type: RelationType.Thread, event_id: threadRootId },
-        };
-        // Only toggle off if we're actively replying to this event (non-empty body distinguishes
-        // a real reply draft from the seeded base-thread draft, which has body: '').
-        if (activeReplyId === draftEventId && replyDraft?.body) {
-          // Toggle off — reset to base thread draft
-          setReplyDraft({
-            userId: mx.getUserId() ?? '',
-            eventId: threadRootId,
-            body: '',
-            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
-          });
-        } else {
-          setReplyDraft(draft);
-        }
-      }
-    },
-    [mx, room, setReplyDraft, activeReplyId, threadRootId, replyDraft]
-  );
-
-  const handleReactionToggle = useCallback(
-    (targetEventId: string, key: string, shortcode?: string) => {
-      const threadTimelineSet = room.getThread(threadRootId)?.timelineSet;
-      toggleReaction(mx, room, targetEventId, key, shortcode, threadTimelineSet);
-    },
-    [mx, room, threadRootId]
-  );
-
   const handleEditLastMessage = useCallback(() => {
     const userId = mx.getUserId();
     const ownReply = [...processedEventsRef.current]
@@ -662,54 +531,6 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     }
   }, [mx, threadRootId, handleEdit]);
 
-  const handleResend = useCallback(
-    (event: MatrixEvent) => {
-      if (event.getAssociatedStatus() !== EventStatus.NOT_SENT) return;
-      mx.resendEvent(event, room).catch(() => undefined);
-    },
-    [mx, room]
-  );
-
-  const handleDeleteFailedSend = useCallback(
-    (event: MatrixEvent) => {
-      if (event.getAssociatedStatus() !== EventStatus.NOT_SENT) return;
-      mx.cancelPendingEvent(event);
-    },
-    [mx]
-  );
-
-  const handleOpenReply: MouseEventHandler<HTMLButtonElement> = useCallback(
-    (evt) => {
-      const targetId = evt.currentTarget.getAttribute('data-event-id');
-      if (!targetId) return;
-      let anchorId = unwrapRelationJumpTarget(room, targetId);
-      const threadLive = thread?.timelineSet.getLiveTimeline();
-      const threadEvents = threadLive?.getEvents();
-      const rawIndex = threadEvents?.findIndex((e) => e.getId() === anchorId) ?? -1;
-      if (rawIndex >= 0) {
-        const nearest = getProcessedRowIndexForRawTimelineIndex(
-          processedEventsRef.current,
-          rawIndex
-        );
-        if (nearest) {
-          const rowEv = processedEventsRef.current[nearest.rowIndex];
-          if (rowEv) anchorId = rowEv.id;
-        }
-      }
-      const isRoot = anchorId === threadRootId;
-      const isInReplies = processedEventsRef.current.some((e) => e.id === anchorId);
-      if (!isRoot && !isInReplies) return;
-      setJumpToEventId(anchorId);
-      setTimeout(() => setJumpToEventId(undefined), 2500);
-      const el = drawerRef.current;
-      if (el) {
-        const target = el.querySelector(`[data-message-id="${anchorId}"]`);
-        target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    },
-    [threadRootId, room, thread]
-  );
-
   // Map jumpToEventId to a focusItem index for useTimelineEventRenderer highlighting
   const jumpIndex = jumpToEventId ? processedEvents.findIndex((e) => e.id === jumpToEventId) : -1;
   const focusItem =
@@ -728,26 +549,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     nicknames,
     getProfile: getGlobalProfile,
     imagePackRooms,
-    settings: {
-      messageLayout,
-      messageSpacing,
-      hideReads,
-      showDeveloperTools,
-      hour24Clock,
-      dateFormatString,
-      mediaAutoLoad,
-      showUrlPreview,
-      showClientUrlPreview,
-      showBundledPreview,
-      showMaps,
-      autoplayStickers,
-      hideMemberInReadOnly,
-      isReadOnly,
-      hideMembershipEvents: true,
-      hideNickAvatarEvents: true,
-      hiddenEvents,
-      hideThreadChip: true,
-    },
+    settings: threadSettings,
     state: { focusItem, editId, activeReplyId, openThreadId: threadRootId, suppressMark },
     permissions: {
       canRedact,
@@ -756,15 +558,15 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       canPinEvent,
     },
     callbacks: {
-      onUserClick: handleUserClick,
-      onUsernameClick: handleUsernameClick,
-      onReplyClick: handleReplyClick,
-      onReactionToggle: handleReactionToggle,
-      onEditId: handleEdit,
-      onResend: handleResend,
-      onDeleteFailedSend: handleDeleteFailedSend,
+      onUserClick: actions.handleUserClick,
+      onUsernameClick: actions.handleUsernameClick,
+      onReplyClick: actions.handleReplyClick,
+      onReactionToggle: actions.handleReactionToggle,
+      onEditId: actions.handleEdit,
+      onResend: actions.handleResend,
+      onDeleteFailedSend: actions.handleDeleteFailedSend,
       setOpenThread: () => {},
-      handleOpenReply,
+      handleOpenReply: actions.handleOpenReply,
     },
     utils: { htmlReactParserOptions, linkifyOpts, getMemberPowerTag, parseMemberEvent },
   });

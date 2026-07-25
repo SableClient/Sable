@@ -34,6 +34,11 @@ vi.mock('file-saver', () => ({
   },
 }));
 
+vi.mock('$hooks/useScreenSize', () => ({
+  ScreenSize: { Desktop: 'Desktop', Tablet: 'Tablet', Mobile: 'Mobile' },
+  useScreenSizeContext: () => 'Desktop',
+}));
+
 describe('ImageViewer', () => {
   it('downloads media without passing a media token argument', async () => {
     downloadMedia.mockResolvedValue(new Blob(['image']));

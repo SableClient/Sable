@@ -1,7 +1,5 @@
 import type { MouseEventHandler } from 'react';
-import { useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
-import type { RectCords } from 'folds';
 import { Box, Text, config, Avatar } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import { NavButton, NavItem, NavItemContent } from '$components/nav';
@@ -16,22 +14,10 @@ type SpaceNavItemProps = {
 };
 
 export function SpaceNavItem({ room, selected, linkPath, hideText }: SpaceNavItemProps) {
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-
   const matrixRoomName = useRoomName(room);
   const roomName = matrixRoomName;
 
   const navigate = useNavigate();
-
-  const handleContextMenu: MouseEventHandler<HTMLElement> = (evt) => {
-    evt.preventDefault();
-    setMenuAnchor({
-      x: evt.clientX,
-      y: evt.clientY,
-      width: 0,
-      height: 0,
-    });
-  };
 
   const handleNavItemClick: MouseEventHandler<HTMLElement> = () => {
     navigate(linkPath);
@@ -41,14 +27,7 @@ export function SpaceNavItem({ room, selected, linkPath, hideText }: SpaceNavIte
 
   return (
     <Box direction="Column" grow="Yes">
-      <NavItem
-        variant="Background"
-        radii="400"
-        highlight={false}
-        aria-selected={selected}
-        data-hover={!!menuAnchor}
-        onContextMenu={handleContextMenu}
-      >
+      <NavItem variant="Background" radii="400" highlight={false} aria-selected={selected}>
         <NavButton onClick={handleNavItemClick} aria-label={ariaLabel}>
           <NavItemContent>
             <Box

@@ -13,7 +13,6 @@ import {
   Line,
   Menu,
   MenuItem,
-  PopOut,
   Text,
   config,
   toRem,
@@ -44,7 +43,6 @@ import {
 } from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
-import FocusTrap from 'focus-trap-react';
 import {
   useOrphanSpaces,
   useRecursiveChildScopeFactory,
@@ -87,7 +85,6 @@ import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { markAsRead } from '$utils/notifications';
 import { copyToClipboard } from '$utils/dom';
 import { shareText } from '$utils/share';
-import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -102,6 +99,7 @@ import { lastVisitedSpaceIdAtom } from '$state/room/lastSpace';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
 
 type SpaceMenuProps = {
   room: Room;
@@ -611,32 +609,19 @@ function SpaceTab({
               count={unread.highlight > 0 ? unread.highlight : unread.total}
             />
           )}
-          {menuAnchor && (
-            <PopOut
-              anchor={menuAnchor}
-              position="Right"
-              align="Start"
-              content={
-                <FocusTrap
-                  focusTrapOptions={{
-                    initialFocus: false,
-                    returnFocusOnDeactivate: false,
-                    onDeactivate: () => setMenuAnchor(undefined),
-                    clickOutsideDeactivates: true,
-                    isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                    isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                    escapeDeactivates: stopPropagation,
-                  }}
-                >
-                  <SpaceMenu
-                    room={space}
-                    requestClose={() => setMenuAnchor(undefined)}
-                    onUnpin={onUnpin}
-                  />
-                </FocusTrap>
-              }
-            />
-          )}
+          <ResponsiveMenu
+            anchor={menuAnchor}
+            position="Right"
+            align="Start"
+            requestClose={() => setMenuAnchor(undefined)}
+            menu={
+              <SpaceMenu
+                room={space}
+                requestClose={() => setMenuAnchor(undefined)}
+                onUnpin={onUnpin}
+              />
+            }
+          />
         </SidebarItemLeft>
       )}
     </RoomUnreadProvider>
@@ -994,31 +979,20 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
   if (sidebarItems.length === 0) return null;
   return (
     <>
-      {folderMenuState && (
-        <PopOut
-          anchor={folderMenuState.anchor}
-          position="Right"
-          align="Start"
-          content={
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                returnFocusOnDeactivate: false,
-                onDeactivate: () => setFolderMenuState(undefined),
-                clickOutsideDeactivates: true,
-                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <FolderMenu
-                requestClose={() => setFolderMenuState(undefined)}
-                onRename={() => setRenameTargetFolder(folderMenuState.folder)}
-              />
-            </FocusTrap>
-          }
-        />
-      )}
+      <ResponsiveMenu
+        anchor={folderMenuState?.anchor}
+        position="Right"
+        align="Start"
+        requestClose={() => setFolderMenuState(undefined)}
+        menu={
+          folderMenuState && (
+            <FolderMenu
+              requestClose={() => setFolderMenuState(undefined)}
+              onRename={() => setRenameTargetFolder(folderMenuState.folder)}
+            />
+          )
+        }
+      />
       {renameTargetFolder && (
         <RenameFolderDialog
           mx={mx}

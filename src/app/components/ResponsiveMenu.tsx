@@ -66,13 +66,15 @@ export function ResponsiveMenu({
         {children}
         {anchor && (
           <MobileSwipeDownModal requestClose={requestClose}>
-            {(dragHandle) => (
+            {(dragHandle, dragHandlers) => (
               <FocusTrap focusTrapOptions={focusTrapOptions}>
                 <Box
                   direction="Column"
                   role="dialog"
                   aria-modal="true"
                   className={css.SheetContent}
+                  // Swiping anywhere on the sheet dismisses it, not just the handle.
+                  {...dragHandlers}
                 >
                   {dragHandle}
                   {menu}

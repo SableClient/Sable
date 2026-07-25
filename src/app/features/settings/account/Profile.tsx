@@ -628,7 +628,10 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
                 title={key.split('.').pop() || key}
                 description={key}
                 after={
-                  <Text size="T300" style={{ maxWidth: '40vw', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <Text
+                    size="T300"
+                    style={{ maxWidth: '40vw', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  >
                     {strVal}
                   </Text>
                 }

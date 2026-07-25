@@ -2,8 +2,6 @@ import to from 'await-to-js';
 import { trimTrailingSlash } from './utils/common';
 
 export enum AutoDiscoveryAction {
-  PROMPT = 'PROMPT',
-  IGNORE = 'IGNORE',
   FAIL_PROMPT = 'FAIL_PROMPT',
   FAIL_ERROR = 'FAIL_ERROR',
 }

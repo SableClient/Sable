@@ -114,12 +114,6 @@ describe('settings tile focus coverage', () => {
       expect(offenders, '<SettingTile> or <SettingToggle> tags missing focusId prop').toEqual([]);
     });
 
-    it('every focusId in the link map is unique within its section', () => {
-      // Covered by the settingsLinkFocusIdsBySection uniqueness test above.
-      // Cross-referencing link map IDs to component literals is brittle.
-      expect(true).toBe(true);
-    });
-
     it('literal focusIds in a component directory belong to the correct section', () => {
       const mismatches: {
         file: string;

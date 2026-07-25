@@ -512,7 +512,13 @@ function MessageInternal(
     },
   });
 
-  const menu = useMenuAnchor<HTMLDivElement>();
+  // Touch opens the mobile sheet, not the desktop popout; the hook still owns
+  // the press-feedback timer so `isPressing` keeps working.
+  const menu = useMenuAnchor<HTMLDivElement>({
+    onLongPress: () => {
+      if (!edit) openMobileOptions();
+    },
+  });
 
   const tagIconSrc = memberPowerTag?.icon
     ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
@@ -891,6 +897,8 @@ function MessageInternal(
     if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
     if (mobileOrTablet()) {
       evt.preventDefault();
+      // The long-press timer already opened the sheet; this is its synthetic follow-up.
+      if (menu.consumeLongPressFired()) return;
       openMobileOptions();
       return;
     }

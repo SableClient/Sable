@@ -31,8 +31,6 @@ const debugLog = createDebugLogger('slidingSync');
 const LIST_JOINED = 'joined';
 const LIST_INVITES = 'invites';
 const LIST_UPDATES = 'updates';
-const LIST_ROOM_SEARCH = 'room_search';
-const LIST_SPACE = 'space';
 const LIST_TIMELINE_LIMIT = 1;
 const LIST_PAGE_SIZE = 30;
 const STEADY_STATE_DETAILED_ROOMS = 3;
@@ -960,29 +958,6 @@ export class SlidingSyncManager {
       });
     }
     return this.slidingSync.getListParams(listKey) ?? list;
-  }
-
-  public setRoomNameSearch(query: string | null): void {
-    if (this.disposed) return;
-    const trimmed = query?.trim() ?? '';
-    const filters: MSC3575List['filters'] = trimmed ? { room_name_like: trimmed } : {};
-    this.ensureListRegistered(LIST_ROOM_SEARCH, {
-      filters,
-      ranges: [[0, 19]],
-      sort: LIST_SORT_ORDER,
-    });
-  }
-
-  public setSpaceScope(spaceId: string | null): void {
-    if (this.disposed) return;
-    const filters: MSC3575List['filters'] = spaceId
-      ? { is_invite: false, spaces: [spaceId] }
-      : { is_invite: false };
-    this.ensureListRegistered(LIST_SPACE, {
-      filters,
-      ranges: spaceId ? [[0, LIST_PAGE_SIZE - 1]] : [[0, 0]],
-      sort: LIST_SORT_ORDER,
-    });
   }
 
   public isRoomActive(roomId: string): boolean {

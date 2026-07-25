@@ -57,7 +57,7 @@ test.describe('touch interactions', () => {
 
     // The context menu should now be open — on mobile this is a bottom sheet
     // rendered inside the MessageMobileOptionsContainer (z-index 1005, fixed at bottom)
-    const sheet = page.locator('[class*="MessageMobileOptions"]').first();
+    const sheet = page.locator('[data-gestures="ignore"]').first();
     await expect(sheet).toBeVisible({ timeout: 5_000 });
   });
 
@@ -103,17 +103,15 @@ test.describe('touch interactions', () => {
     );
 
     // Verify the sheet is open
-    const sheetContainer = page.locator('[class*="MessageMobileOptions"]').first();
+    const sheetContainer = page.locator('[data-gestures="ignore"]').first();
     await expect(sheetContainer).toBeVisible({ timeout: 5_000 });
 
-    // The drag handle is at the top of the sheet (position: absolute, top: 0, height: 32px).
-    // The sheet container is at the very bottom (position: fixed, bottom: 0).
-    // Touch coordinates are relative to the viewport (clientX/clientY).
-    // At max-height 85vh, the visible sheet top is at 15vh from viewport top, so drag
-    // handle is roughly there. In a 915px viewport, ~137px from top. Use a reasonable
-    // estimate: halfway up the sheet's likely visible area.
-    const dragHandleY = 400; // upper portion of the sheet visible area
-    const dragHandleX = page.viewportSize()?.width ? page.viewportSize()!.width / 2 : 206;
+    // Derive the touch point from the sheet's real box: it is fixed to the bottom,
+    // so a hardcoded y lands on the backdrop instead.
+    const sheetBox = await page.locator('[data-gestures="ignore"] > *').first().boundingBox();
+    if (!sheetBox) throw new Error('Sheet has no box');
+    const dragHandleY = Math.round(sheetBox.y + 8);
+    const dragHandleX = Math.round(sheetBox.x + sheetBox.width / 2);
 
     // Touch the drag handle area
     await page.evaluate(

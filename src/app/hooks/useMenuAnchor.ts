@@ -22,15 +22,25 @@ export type MenuAnchor<T extends HTMLElement> = {
   openAt: (element: HTMLElement) => void;
   /** Click, right-click and long-press wiring for the trigger element. */
   triggerProps: TriggerProps<T>;
+  /** True once if a long press just fired, for callers that own their contextmenu handler. */
+  consumeLongPressFired: () => boolean;
+};
+
+type MenuAnchorOptions = {
+  /** Replaces the default "open at the trigger", for triggers that show their own surface. */
+  onLongPress?: () => void;
 };
 
 /**
  * Owns the anchor state behind a menu and gives its trigger a touch path, so a
  * menu is never reachable by right-click alone.
  */
-export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor<T> {
+export function useMenuAnchor<T extends HTMLElement = HTMLElement>(
+  options?: MenuAnchorOptions
+): MenuAnchor<T> {
   const [anchor, setAnchor] = useState<RectCords>();
   const triggerRef = useRef<T | null>(null);
+  const onLongPress = options?.onLongPress;
 
   const close = useCallback(() => setAnchor(undefined), []);
 
@@ -40,8 +50,18 @@ export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor
   }, []);
 
   const longPress = useMobileLongPress(() => {
+    if (onLongPress) {
+      onLongPress();
+      return;
+    }
     if (triggerRef.current) openAt(triggerRef.current);
   });
+
+  const consumeLongPressFired = useCallback(() => {
+    if (!longPress.firedRef.current) return false;
+    longPress.firedRef.current = false;
+    return true;
+  }, [longPress]);
 
   const onClick: MouseEventHandler<T> = useCallback(
     (evt) => {
@@ -82,6 +102,7 @@ export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor
   return {
     anchor,
     isPressing: longPress.isPressing,
+    consumeLongPressFired,
     close,
     openAt,
     triggerProps: {

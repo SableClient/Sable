@@ -275,6 +275,12 @@ export function AudioContent({
         controls={false}
         autoPlay
         ref={audioRef}
+        // See VideoContent: CORS opts this Range-streamed media out of Firefox's ORB.
+        crossOrigin={
+          srcState.status === AsyncStatus.Success && !srcState.data.startsWith('blob:')
+            ? 'anonymous'
+            : undefined
+        }
         onVolumeChange={(e) => {
           localStorage.setItem(MEDIA_VOLUME_KEY, String((e.target as HTMLAudioElement).volume));
         }}

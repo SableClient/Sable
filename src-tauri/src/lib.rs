@@ -415,13 +415,22 @@ pub fn run() {
 
             #[cfg(debug_assertions)]
             {
-                let (log_plugin, _level, logger) = tauri_plugin_log::Builder::default()
-                    .level(log::LevelFilter::Info)
-                    .split(app.handle())?;
-                let mut devtools = tauri_plugin_devtools::Builder::default();
-                devtools.attach_logger(logger);
-                app.handle().plugin(devtools.init())?;
-                app.handle().plugin(log_plugin)?;
+                #[cfg(feature = "devtools")]
+                {
+                    let (log_plugin, _level, logger) = tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .split(app.handle())?;
+                    let mut devtools = tauri_plugin_devtools::Builder::default();
+                    devtools.attach_logger(logger);
+                    app.handle().plugin(devtools.init())?;
+                    app.handle().plugin(log_plugin)?;
+                }
+                #[cfg(not(feature = "devtools"))]
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
             }
 
             Ok(())

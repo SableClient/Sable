@@ -191,6 +191,7 @@ import {
   getImagePackReferencesForMxcWrappedInMap,
 } from '$utils/msc4459helper';
 import { ImageUsage } from '$plugins/custom-emoji';
+import { getPackImageInfo } from '$plugins/custom-emoji/utils';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { AttachmentSheet } from '$components/attachment-sheet/AttachmentSheet';
@@ -1746,16 +1747,26 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     const handleStickerSelect = async (mxc: string, shortcode: string, label: string) => {
-      const stickerUrl = mxcUrlToHttp(mx, mxc, useAuthentication);
-      if (!stickerUrl) return;
+      // Packs declare their own info, so sending does not need the file. Measuring it instead made
+      // the send fail outright whenever the media fetch did.
+      let info = getPackImageInfo(mx, room, ImageUsage.Sticker, mxc);
 
-      const { blob, image } = await loadImageElementFromMediaUrl(stickerUrl);
-      const info = getImageInfo(image, blob);
+      if (!info) {
+        const stickerUrl = mxcUrlToHttp(mx, mxc, useAuthentication);
+        if (stickerUrl) {
+          try {
+            const { blob, image } = await loadImageElementFromMediaUrl(stickerUrl);
+            info = getImageInfo(image, blob);
+          } catch (error) {
+            log.error('failed to measure sticker, sending without info', { mxc }, error);
+          }
+        }
+      }
 
       const content: StickerEventContent & ReplyEventContent & IContent & IGenericMSC4459 = {
         body: label,
         url: mxc,
-        info,
+        info: info ?? {},
       };
 
       // add the image pack reference
@@ -1784,7 +1795,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           content['m.mentions'] = { ['user_ids']: [replyDraft.userId] };
         setReplyDraft(replyDraftBase);
       }
-      mx.sendEvent(roomId, EventType.Sticker, content);
+      try {
+        await mx.sendEvent(roomId, EventType.Sticker, content);
+      } catch (error) {
+        log.error('failed to send sticker', { roomId }, error);
+      }
     };
 
     const handleGifSelect = async (gif: GifData, spoiler?: boolean) => {

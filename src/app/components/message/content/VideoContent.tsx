@@ -45,6 +45,7 @@ type RenderVideoProps = {
   onError: () => void;
   autoPlay: boolean;
   controls: boolean;
+  crossOrigin?: 'anonymous';
 };
 type VideoContentProps = {
   body: string;
@@ -115,6 +116,11 @@ export const VideoContent = as<'div', VideoContentProps>(
         setError(false);
       }
     }, [srcState.status]);
+
+    const streamsAuthenticatedMedia =
+      srcState.status === AsyncStatus.Success &&
+      !url.startsWith('http') &&
+      !srcState.data.startsWith('blob:');
 
     const handleLoad = () => {
       setLoad(true);
@@ -195,6 +201,10 @@ export const VideoContent = as<'div', VideoContentProps>(
               onError: handleError,
               autoPlay: false,
               controls: true,
+              // Firefox blocks media Range responses it cannot sniff as audio/video (mozilla bug
+              // 1880289); requesting with CORS opts out. External URLs are left alone since we
+              // cannot assume they send Access-Control-Allow-Origin.
+              crossOrigin: streamsAuthenticatedMedia ? 'anonymous' : undefined,
             })}
           </Box>
         )}

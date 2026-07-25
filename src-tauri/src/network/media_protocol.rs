@@ -3,7 +3,10 @@ use std::{
     fs,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock, RwLock, Weak},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, OnceLock, RwLock, Weak,
+    },
     time::Duration,
 };
 
@@ -20,7 +23,10 @@ use tauri_plugin_http::reqwest::{
     header::{AUTHORIZATION, CONTENT_TYPE},
     Client, Url,
 };
-use tokio::sync::{Mutex as AsyncMutex, Semaphore};
+use tokio::{
+    sync::{Mutex as AsyncMutex, Notify, Semaphore},
+    time::{timeout_at, Instant},
+};
 
 pub const MEDIA_URI_SCHEME: &str = "sable-media";
 
@@ -37,7 +43,10 @@ const CACHE_SUBDIR: &str = "sable-media";
 const READ_TIMEOUT: Duration = Duration::from_secs(30);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_CONCURRENT_THUMBNAIL_REQUESTS: usize = 4;
-const MAX_CONCURRENT_DOWNLOAD_REQUESTS: usize = 2;
+const MAX_CONCURRENT_DOWNLOAD_REQUESTS: usize = 6;
+// The frontend mounts (and starts requesting media) before it hands us the session, so a request
+// may arrive first. `<img>` never retries, so waiting beats answering 503.
+const SESSION_WAIT: Duration = Duration::from_secs(5);
 const MAX_CACHE_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_RANGE_CHUNK: u64 = 2 * 1024 * 1024;
 
@@ -48,6 +57,8 @@ type FetchResult = Result<(String, Option<Arc<Vec<u8>>>, PathBuf), StatusCode>;
 
 pub struct MediaSessionState {
     inner: RwLock<Option<MediaSession>>,
+    session_ready: Notify,
+    session_ever_set: AtomicBool,
     encryption: RwLock<HashMap<String, EncryptionParams>>,
     client: OnceLock<Client>,
     thumbnail_semaphore: Semaphore,
@@ -59,6 +70,8 @@ impl Default for MediaSessionState {
     fn default() -> Self {
         Self {
             inner: RwLock::new(None),
+            session_ready: Notify::new(),
+            session_ever_set: AtomicBool::new(false),
             encryption: RwLock::new(HashMap::new()),
             client: OnceLock::new(),
             thumbnail_semaphore: Semaphore::new(MAX_CONCURRENT_THUMBNAIL_REQUESTS),
@@ -69,6 +82,34 @@ impl Default for MediaSessionState {
 }
 
 impl MediaSessionState {
+    fn session(&self) -> Option<MediaSession> {
+        self.inner.read().ok().and_then(|guard| guard.clone())
+    }
+
+    /// Waits out the startup window where media is requested before the session arrives. Fails
+    /// fast once a session has existed, so requests still in flight after a logout do not hang.
+    async fn wait_for_session(&self) -> Option<MediaSession> {
+        if let Some(session) = self.session() {
+            return Some(session);
+        }
+        if self.session_ever_set.load(Ordering::Acquire) {
+            return None;
+        }
+
+        let deadline = Instant::now() + SESSION_WAIT;
+        loop {
+            let mut notified = std::pin::pin!(self.session_ready.notified());
+            // Register before re-checking, otherwise a session arriving in between is missed.
+            notified.as_mut().enable();
+            if let Some(session) = self.session() {
+                return Some(session);
+            }
+            if timeout_at(deadline, notified).await.is_err() {
+                return None;
+            }
+        }
+    }
+
     // Shared across requests so the connection pool and TLS sessions stay warm.
     fn client(&self) -> Client {
         self.client
@@ -137,15 +178,20 @@ pub fn set_media_session(
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| origin.clone());
 
-    let mut guard = state
-        .inner
-        .write()
-        .map_err(|_| "media session lock poisoned".to_string())?;
-    *guard = Some(MediaSession {
-        origin,
-        token,
-        scope,
-    });
+    {
+        let mut guard = state
+            .inner
+            .write()
+            .map_err(|_| "media session lock poisoned".to_string())?;
+        *guard = Some(MediaSession {
+            origin,
+            token,
+            scope,
+        });
+    }
+
+    state.session_ever_set.store(true, Ordering::Release);
+    state.session_ready.notify_waiters();
     Ok(())
 }
 
@@ -280,23 +326,9 @@ async fn handle_request<R: Runtime>(
         .map_err(|_| StatusCode::BAD_REQUEST)?
         .into_owned();
 
-    let session = {
-        let state = app.state::<MediaSessionState>();
-        let guard = state
-            .inner
-            .read()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        match guard.clone() {
-            Some(s) => s,
-            None => {
-                return Ok(Response::builder()
-                    .status(StatusCode::SERVICE_UNAVAILABLE)
-                    .header(header::RETRY_AFTER, "1")
-                    .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                    .body(Vec::new())
-                    .expect("failed to build 503 media response"));
-            }
-        }
+    let state = app.state::<MediaSessionState>();
+    let Some(session) = state.wait_for_session().await else {
+        return Ok(session_unavailable_response());
     };
 
     let media_url = Url::parse(&target).map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -316,8 +348,6 @@ async fn handle_request<R: Runtime>(
     let key = cache_key(&session.scope, &target);
     let dir = cache_dir(app).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let temp_dir = temp_cache_dir(app).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let state = app.state::<MediaSessionState>();
 
     let (content_type, in_memory_body, disk_path) =
         ensure_cached(&state, &session, &key, media_url, dir, temp_dir).await?;
@@ -1036,6 +1066,15 @@ fn range_not_satisfiable(total: u64) -> Response<Vec<u8>> {
         .expect("failed to build range error response")
 }
 
+fn session_unavailable_response() -> Response<Vec<u8>> {
+    Response::builder()
+        .status(StatusCode::SERVICE_UNAVAILABLE)
+        .header(header::RETRY_AFTER, "1")
+        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .body(Vec::new())
+        .expect("failed to build 503 media response")
+}
+
 fn error_response(status: StatusCode) -> Response<Vec<u8>> {
     Response::builder()
         .status(status)
@@ -1095,6 +1134,51 @@ mod tests {
         assert!(!gates.contains_key("first"));
         assert!(gates.contains_key("different"));
         assert!(gates.contains_key("third"));
+    }
+
+    #[tokio::test]
+    async fn waits_for_a_session_that_arrives_late() {
+        // Mirrors startup: media is requested before the frontend hands over the session.
+        let state = Arc::new(MediaSessionState::default());
+        let writer = Arc::clone(&state);
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            {
+                let mut guard = writer.inner.write().unwrap();
+                *guard = Some(super::MediaSession {
+                    origin: "https://matrix.example.org".into(),
+                    token: "token".into(),
+                    scope: "@a:example.org".into(),
+                });
+            }
+            writer
+                .session_ever_set
+                .store(true, std::sync::atomic::Ordering::Release);
+            writer.session_ready.notify_waiters();
+        });
+
+        let session =
+            tokio::time::timeout(std::time::Duration::from_secs(2), state.wait_for_session())
+                .await
+                .expect("wait_for_session hung");
+        assert_eq!(session.map(|s| s.scope), Some("@a:example.org".to_string()));
+    }
+
+    #[tokio::test]
+    async fn does_not_wait_once_a_session_has_been_cleared() {
+        // After logout there is nothing to wait for, so in-flight requests must not hang.
+        let state = MediaSessionState::default();
+        state
+            .session_ever_set
+            .store(true, std::sync::atomic::Ordering::Release);
+
+        let waited = tokio::time::timeout(
+            std::time::Duration::from_millis(200),
+            state.wait_for_session(),
+        )
+        .await
+        .expect("wait_for_session should fail fast after a clear");
+        assert!(waited.is_none());
     }
 
     #[test]

@@ -21,8 +21,9 @@ test.describe('app shell', () => {
   });
 
   // `app` is requested so the fixture loads the shell before the snapshot.
-  test('matches the shell layout baseline', async ({ app, page }) => {
+  test('matches the shell layout baseline', async ({ app, page }, testInfo) => {
     test.skip(!containerised, 'run via pnpm test:e2e:docker');
+    test.skip(testInfo.project.name === 'touch', 'desktop and mobile cover layout');
     await expect(app.room('General')).toBeVisible();
 
     await page.evaluate(async () => {

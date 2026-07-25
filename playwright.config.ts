@@ -23,14 +23,19 @@ export default defineConfig({
     baseURL: 'http://localhost:8081',
     storageState: 'tests/e2e/.auth/state.json',
     trace: 'on-first-retry',
+    // Sheets skip their entrance animation here, so a click cannot land mid-slide.
+    reducedMotion: 'reduce',
   },
   projects: [
+    // touch.spec.ts drives page.touchscreen, which throws unless hasTouch is set.
     {
       name: 'desktop',
+      testIgnore: /touch\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
     {
       name: 'mobile',
+      testIgnore: /touch\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } },
     },
     // hasTouch + isMobile: covers long-press, swipe-to-dismiss and tap targets,

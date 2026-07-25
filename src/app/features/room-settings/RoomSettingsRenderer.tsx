@@ -1,4 +1,6 @@
-import { Modal500 } from '$components/Modal500';
+import { useRef } from 'react';
+import { Modal } from 'folds';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { useCloseRoomSettings, useRoomSettingsState } from '$state/hooks/roomSettings';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import type { RoomSettingsState } from '$state/roomSettings';
@@ -16,17 +18,20 @@ function RenderSettings({ state }: RenderSettingsProps) {
   const getRoom = useGetRoom(allJoinedRooms);
   const room = getRoom(roomId);
   const space = spaceId && spaceId !== roomId ? getRoom(spaceId) : undefined;
+  const modalRef = useRef<HTMLDivElement | null>(null);
 
   if (!room) return null;
 
   return (
-    <Modal500 requestClose={closeSettings}>
-      <SpaceProvider value={space ?? null}>
-        <RoomProvider value={room}>
-          <RoomSettings initialPage={page} requestClose={closeSettings} />
-        </RoomProvider>
-      </SpaceProvider>
-    </Modal500>
+    <ModalOverlay requestClose={closeSettings} mobile="fullscreen" contentRef={modalRef}>
+      <Modal ref={modalRef} tabIndex={-1} size="500" variant="Background">
+        <SpaceProvider value={space ?? null}>
+          <RoomProvider value={room}>
+            <RoomSettings initialPage={page} requestClose={closeSettings} />
+          </RoomProvider>
+        </SpaceProvider>
+      </Modal>
+    </ModalOverlay>
   );
 }
 

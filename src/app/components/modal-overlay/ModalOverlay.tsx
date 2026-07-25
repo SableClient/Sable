@@ -1,9 +1,11 @@
 import type { ComponentProps, MutableRefObject, ReactNode } from 'react';
 import FocusTrap from 'focus-trap-react';
-import { Overlay, OverlayBackdrop, OverlayCenter } from 'folds';
+import { Box, Overlay, OverlayBackdrop, OverlayCenter } from 'folds';
 import { ScreenSize, useScreenSizeOptionally } from '$hooks/useScreenSize';
 import { stopPropagation } from '$utils/keyboard';
 import { useDismissOnBack } from '$utils/androidBack';
+import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
+import * as messageCss from '$features/room/message/styles.css';
 
 type FocusTrapOptions = ComponentProps<typeof FocusTrap>['focusTrapOptions'];
 
@@ -12,8 +14,10 @@ type ModalOverlayProps = {
   requestClose: () => void;
   /** Set false for overlays that must be dismissed deliberately, not by a stray click. */
   dismissOnClickOutside?: boolean;
-  /** `fullscreen` drops the centred modal on phones and fills the viewport instead. */
-  mobile?: 'centred' | 'fullscreen';
+  /** `centred` keeps the desktop-style dialog on phones.
+   *  `fullscreen` drops the centred modal and fills the viewport.
+   *  `sheet` rises as a bottom sheet with a swipe-down-to-dismiss handle. */
+  mobile?: 'centred' | 'fullscreen' | 'sheet';
   /** The modal element, used as the focus fallback and as the fullscreen wrapper. */
   contentRef?: MutableRefObject<HTMLDivElement | null>;
   /** Set false for flows that Escape must not abort, such as device verification. */
@@ -55,6 +59,30 @@ export function ModalOverlay({
           </div>
         </FocusTrap>
       </Overlay>
+    );
+  }
+
+  if (open && isMobile && mobile === 'sheet') {
+    const focusTrapOptions = {
+      initialFocus: false,
+      fallbackFocus: () => document.body,
+      onDeactivate: requestClose,
+      clickOutsideDeactivates: dismissOnClickOutside,
+      escapeDeactivates,
+    };
+    return (
+      <MobileSwipeDownModal requestClose={requestClose}>
+        {(dragHandle) => (
+          <FocusTrap focusTrapOptions={focusTrapOptions}>
+            <div role="dialog" aria-modal="true" className={messageCss.MessageOptionsMenu}>
+              <Box direction="Column">
+                {dragHandle}
+                {children}
+              </Box>
+            </div>
+          </FocusTrap>
+        )}
+      </MobileSwipeDownModal>
     );
   }
 

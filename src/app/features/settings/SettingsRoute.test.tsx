@@ -90,8 +90,8 @@ vi.mock('$state/hooks/settings', () => ({
   useSetting: mockUseSetting,
 }));
 
-vi.mock('$components/Modal500', () => ({
-  Modal500: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+vi.mock('$components/modal-overlay/ModalOverlay', () => ({
+  ModalOverlay: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('./general', () => ({

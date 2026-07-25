@@ -11,9 +11,6 @@ import {
   Line,
   Menu,
   MenuItem,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   PopOut,
   Spinner,
   Text,
@@ -22,6 +19,7 @@ import {
   toRem,
 } from 'folds';
 import { FocusTrap } from 'focus-trap-react';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { SidebarAvatar, SidebarItem, SidebarItemBadge } from '../../../components/sidebar';
 import { UserAvatar } from '../../../components/user-avatar';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
@@ -363,51 +361,41 @@ export function AccountMenuOption({ isMobile, isRight }: { isMobile: boolean; is
         </div>
       )}
       {confirmSignOutSession && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: () => setConfirmSignOutSession(undefined),
-                clickOutsideDeactivates: true,
+        <ModalOverlay requestClose={() => setConfirmSignOutSession(undefined)}>
+          <Dialog variant="Surface">
+            <Header
+              style={{
+                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                borderBottomWidth: config.borderWidth.B300,
               }}
+              variant="Surface"
+              size="500"
             >
-              <Dialog variant="Surface">
-                <Header
-                  style={{
-                    padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                    borderBottomWidth: config.borderWidth.B300,
+              <Box grow="Yes">
+                <Text size="H4">Sign out</Text>
+              </Box>
+            </Header>
+            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+              <Text priority="400">
+                Are you sure you want to sign out of <b>{confirmSignOutSession.userId}</b>?
+              </Text>
+              <Box direction="Column" gap="200">
+                <Button
+                  variant="Critical"
+                  onClick={() => {
+                    handleSignOut(confirmSignOutSession);
+                    setConfirmSignOutSession(undefined);
                   }}
-                  variant="Surface"
-                  size="500"
                 >
-                  <Box grow="Yes">
-                    <Text size="H4">Sign out</Text>
-                  </Box>
-                </Header>
-                <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-                  <Text priority="400">
-                    Are you sure you want to sign out of <b>{confirmSignOutSession.userId}</b>?
-                  </Text>
-                  <Box direction="Column" gap="200">
-                    <Button
-                      variant="Critical"
-                      onClick={() => {
-                        handleSignOut(confirmSignOutSession);
-                        setConfirmSignOutSession(undefined);
-                      }}
-                    >
-                      <Text size="B400">Sign out</Text>
-                    </Button>
-                    <Button variant="Secondary" onClick={() => setConfirmSignOutSession(undefined)}>
-                      <Text size="B400">Cancel</Text>
-                    </Button>
-                  </Box>
-                </Box>
-              </Dialog>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+                  <Text size="B400">Sign out</Text>
+                </Button>
+                <Button variant="Secondary" onClick={() => setConfirmSignOutSession(undefined)}>
+                  <Text size="B400">Cancel</Text>
+                </Button>
+              </Box>
+            </Box>
+          </Dialog>
+        </ModalOverlay>
       )}
     </>
   );

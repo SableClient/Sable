@@ -1,30 +1,15 @@
 import type { FormEventHandler, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Box,
-  Text,
-  IconButton,
-  Chip,
-  Input,
-  Button,
-  color,
-  Spinner,
-  toRem,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-} from 'folds';
+import { Box, Text, IconButton, Chip, Input, Button, color, Spinner, toRem } from 'folds';
 import { CaretDown, CaretRight, chipIcon, Trash } from '$components/icons/phosphor';
 import type { CryptoApi, IMyDevice, MatrixError } from '$types/matrix-sdk';
-import FocusTrap from 'focus-trap-react';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { timeDayMonYear, timeHourMinute, today, yesterday } from '$utils/time';
 import { BreakWord } from '$styles/Text.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCard } from '$components/sequence-card';
-import { LogoutDialog } from '$components/LogoutDialog';
-import { stopPropagation } from '$utils/keyboard';
+import { LogoutDialogOverlay } from '$components/LogoutDialogOverlay';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
@@ -205,21 +190,7 @@ export function DeviceLogoutBtn() {
       <Chip variant="Secondary" fill="Soft" radii="Pill" onClick={() => setPrompt(true)}>
         <Text size="B300">Logout</Text>
       </Chip>
-      {prompt && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                onDeactivate: handleClose,
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <LogoutDialog handleClose={handleClose} />
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
-      )}
+      {prompt && <LogoutDialogOverlay requestClose={handleClose} />}
     </>
   );
 }

@@ -1,19 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
 import { DesktopIcon, type IconProps } from '@phosphor-icons/react';
-import {
-  Avatar,
-  Box,
-  Button,
-  config,
-  IconButton,
-  MenuItem,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Text,
-} from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { Avatar, Box, Button, config, IconButton, MenuItem, Text } from 'folds';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { SettingsSectionHeader } from '$components/page/style.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -24,8 +12,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
 import { UseStateProvider } from '$components/UseStateProvider';
-import { stopPropagation } from '$utils/keyboard';
-import { LogoutDialog } from '$components/LogoutDialog';
+import { LogoutDialogOverlay } from '$components/LogoutDialogOverlay';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import {
@@ -356,21 +343,7 @@ export function Settings({
                       >
                         <Text size="B400">Logout</Text>
                       </Button>
-                      {logout && (
-                        <Overlay open backdrop={<OverlayBackdrop />}>
-                          <OverlayCenter>
-                            <FocusTrap
-                              focusTrapOptions={{
-                                onDeactivate: () => setLogout(false),
-                                clickOutsideDeactivates: true,
-                                escapeDeactivates: stopPropagation,
-                              }}
-                            >
-                              <LogoutDialog handleClose={() => setLogout(false)} />
-                            </FocusTrap>
-                          </OverlayCenter>
-                        </Overlay>
-                      )}
+                      {logout && <LogoutDialogOverlay requestClose={() => setLogout(false)} />}
                     </>
                   )}
                 </UseStateProvider>

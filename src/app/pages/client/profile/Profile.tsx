@@ -1,16 +1,4 @@
-import {
-  Box,
-  Text,
-  color,
-  config,
-  IconButton,
-  Menu,
-  Line,
-  MenuItem,
-  OverlayBackdrop,
-  Overlay,
-  OverlayCenter,
-} from 'folds';
+import { Box, Text, color, config, IconButton, Menu, Line, MenuItem } from 'folds';
 import { GearSix, menuIcon, sizedIcon } from '$components/icons/phosphor';
 import { PageNavHeader } from '$components/page';
 import { SidebarPanel } from '$components/page/SidebarPanel';
@@ -29,9 +17,7 @@ import { useUserProfile } from '$hooks/useUserProfile';
 import { useOpenSettings } from '$features/settings';
 import { PencilSimpleIcon, SignOutIcon } from '@phosphor-icons/react';
 import { UseStateProvider } from '$components/UseStateProvider';
-import { FocusTrap } from 'focus-trap-react';
-import { LogoutDialog } from '$components/LogoutDialog';
-import { stopPropagation } from '$utils/keyboard';
+import { LogoutDialogOverlay } from '$components/LogoutDialogOverlay';
 import { getMxIdServer } from '$utils/mxIdHelper';
 
 export function ProfileMobile() {
@@ -146,21 +132,7 @@ export function ProfileMobile() {
                   >
                     <Text size="T300">Logout</Text>
                   </MenuItem>
-                  {logout && (
-                    <Overlay open backdrop={<OverlayBackdrop />}>
-                      <OverlayCenter>
-                        <FocusTrap
-                          focusTrapOptions={{
-                            onDeactivate: () => setLogout(false),
-                            clickOutsideDeactivates: true,
-                            escapeDeactivates: stopPropagation,
-                          }}
-                        >
-                          <LogoutDialog handleClose={() => setLogout(false)} />
-                        </FocusTrap>
-                      </OverlayCenter>
-                    </Overlay>
-                  )}
+                  {logout && <LogoutDialogOverlay requestClose={() => setLogout(false)} />}
                 </>
               )}
             </UseStateProvider>

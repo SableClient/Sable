@@ -43,7 +43,7 @@ export function useRoomEncryptionStatus(room: Room | undefined): RoomEncryptionS
     } catch {
       // Fallback to sync check
       setStatus(
-         room.hasEncryptionStateEvent()
+        room.hasEncryptionStateEvent()
           ? RoomEncryptionStatus.Encrypted
           : RoomEncryptionStatus.Unencrypted
       );

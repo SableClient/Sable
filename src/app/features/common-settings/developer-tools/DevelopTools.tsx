@@ -47,7 +47,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [fullApiState, setFullApiState] = useState<StateTypeToState>();
   const [fetchingApiState, setFetchingApiState] = useState(false);
   const roomState = fullApiState ?? roomStateMemory;
-  
+
   const handleFetchFullState = useCallback(async () => {
     setFetchingApiState(true);
     try {

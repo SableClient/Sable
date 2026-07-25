@@ -1206,7 +1206,7 @@ export class SlidingSyncManager {
   private addActiveRoomSubscription(roomId: string): boolean {
     if (this.activeRoomSubscriptions.has(roomId)) return false;
     const room = this.mx.getRoom(roomId);
-    const isEncrypted = room?.hasEncryptionStateEvent() //this.mx.isRoomEncrypted(roomId);
+    const isEncrypted = room?.hasEncryptionStateEvent(); //this.mx.isRoomEncrypted(roomId);
     this.activeRoomSubscriptions.add(roomId);
     this.pauseUnconfirmedListExpansion();
     log.log(`Sliding Sync active room subscription added: ${roomId}`);

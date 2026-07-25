@@ -98,9 +98,13 @@ export function ResponsiveMenu({
       align={align}
       offset={offset}
       content={
-        <FocusTrap focusTrapOptions={focusTrapOptions}>
-          {typeof menu === 'function' ? menu(null, undefined) : menu}
-        </FocusTrap>
+        // Gated so a call site that builds its menu inline does that work on open,
+        // not on every render of the trigger.
+        anchor ? (
+          <FocusTrap focusTrapOptions={focusTrapOptions}>
+            {typeof menu === 'function' ? menu(null, undefined) : menu}
+          </FocusTrap>
+        ) : null
       }
     >
       {children}

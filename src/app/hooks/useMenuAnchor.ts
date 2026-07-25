@@ -14,6 +14,8 @@ type TriggerProps<T extends HTMLElement> = {
 
 export type MenuAnchor<T extends HTMLElement> = {
   anchor: RectCords | undefined;
+  /** Drives the press-feedback highlight while a long press is in progress. */
+  isPressing: boolean;
   close: () => void;
   /** Anchors the menu to an element's box. */
   openAt: (element: HTMLElement) => void;
@@ -69,6 +71,7 @@ export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor
 
   return {
     anchor,
+    isPressing: longPress.isPressing,
     close,
     openAt,
     triggerProps: {

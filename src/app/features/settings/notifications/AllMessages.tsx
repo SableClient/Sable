@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Badge, Box, Text } from 'folds';
 import type { IPushRules, PushRuleCondition } from '$types/matrix-sdk';
 import { ConditionKind, PushRuleKind, RuleId, EventType } from '$types/matrix-sdk';
@@ -6,19 +6,10 @@ import { useAccountData } from '$hooks/useAccountData';
 
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import { SettingMenuSelector } from '$components/setting-menu-selector';
 import type { PushRuleData } from '$hooks/usePushRule';
-import { usePushRule } from '$hooks/usePushRule';
-import {
-  getNotificationModeActions,
-  NotificationMode,
-  useNotificationActionsMode,
-  useNotificationModeActions,
-} from '$hooks/useNotificationMode';
-import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { useMatrixClient } from '$hooks/useMatrixClient';
+import { getNotificationModeActions, NotificationMode } from '$hooks/useNotificationMode';
 import { NotificationLevelsHint } from './NotificationLevelsHint';
-import { notificationModeSelectorOptions } from './notificationModeOptions';
+import { NotificationModeSwitcher } from './NotificationModeSwitcher';
 
 const getAllMessageDefaultRule = (
   ruleId: RuleId,
@@ -49,7 +40,7 @@ const getAllMessageDefaultRule = (
   };
 };
 
-type PushRulesProps = {
+type AllMessagesSwitcherProps = {
   ruleId: RuleId.DM | RuleId.EncryptedDM | RuleId.Message | RuleId.EncryptedMessage;
   pushRules: IPushRules;
   encrypted?: boolean;
@@ -60,28 +51,13 @@ function AllMessagesModeSwitcher({
   pushRules,
   encrypted = false,
   oneToOne = false,
-}: PushRulesProps) {
-  const mx = useMatrixClient();
+}: AllMessagesSwitcherProps) {
   const defaultPushRuleData = getAllMessageDefaultRule(ruleId, encrypted, oneToOne);
-  const { kind, pushRule } = usePushRule(pushRules, ruleId) ?? defaultPushRuleData;
-  const getModeActions = useNotificationModeActions();
-  const selectedMode = useNotificationActionsMode(pushRule.actions);
-  const [changeState, change] = useAsyncCallback(
-    useCallback(
-      async (mode: NotificationMode) => {
-        const actions = getModeActions(mode);
-        await mx.setPushRuleActions('global', kind, ruleId, actions);
-      },
-      [mx, getModeActions, kind, ruleId]
-    )
-  );
-
   return (
-    <SettingMenuSelector
-      value={selectedMode}
-      options={notificationModeSelectorOptions}
-      onSelect={change}
-      loading={changeState.status === AsyncStatus.Loading}
+    <NotificationModeSwitcher
+      ruleId={ruleId}
+      pushRules={pushRules}
+      defaultPushRuleData={defaultPushRuleData}
     />
   );
 }

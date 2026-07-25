@@ -1,6 +1,7 @@
 import { sanitizeThemeRemoteTweakFavorites, type Settings } from '$state/settings';
 import { isLocalImportTweakUrl } from '../theme/localImportUrls';
 import { sanitizeShortcutOverrides } from '../keyboard/shortcuts';
+import { downloadJsonFile } from './common';
 
 /**
  * Keys excluded from cross-device sync.
@@ -152,14 +153,10 @@ export const deserializeFromSync = (data: unknown, currentSettings: Settings): S
 
 /** Trigger a browser download of the current settings as a JSON file. */
 export const exportSettingsAsJson = (settings: Settings): void => {
-  const payload = JSON.stringify({ v: SETTINGS_SYNC_VERSION, settings }, null, 2);
-  const blob = new Blob([payload], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `sable-settings-${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadJsonFile(
+    JSON.stringify({ v: SETTINGS_SYNC_VERSION, settings }, null, 2),
+    'sable-settings'
+  );
 };
 
 /**

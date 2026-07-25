@@ -4,12 +4,11 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { modalAtom, ModalType } from '$state/modal';
 import { MenuItem, Text, as } from 'folds';
 import { ArrowRight, menuIcon } from '$components/icons/phosphor';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { allRoomsAtom } from '$state/room-list/roomList';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
-import { factoryRoomIdByActivity } from '$utils/sort';
+import { useMessageTargetRooms } from '$hooks/useMessageTargetRooms';
 import * as css from '$features/room/message/styles.css';
 import { sanitizeCustomHtml, sanitizeText } from '$utils/sanitize';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -100,7 +99,6 @@ export function MessageForwardInternal({
   const forwardable = canForwardEvent(mEvent);
   const [isForwarding, setIsForwarding] = useState(false);
   const [forwardError, setForwardError] = useState<string | null>(null);
-  const allRooms = useAtomValue(allRoomsAtom);
   const allJoinedRooms = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allJoinedRooms);
 
@@ -112,16 +110,7 @@ export function MessageForwardInternal({
   useDismissOnBack(onClose);
 
   // possible targets to forward the message to
-  const forwardTargets = useMemo(
-    () =>
-      allRooms
-        .filter((id) => {
-          const target = getRoom(id);
-          return !!target && !target.isSpaceRoom() && target.maySendMessage();
-        })
-        .sort(factoryRoomIdByActivity(mx)),
-    [allRooms, getRoom, mx]
-  );
+  const forwardTargets = useMessageTargetRooms();
 
   const forwardToRoom = useCallback(
     (targetRoomId: string) => {

@@ -141,6 +141,17 @@ export const suffixRename = (name: string, validator: (newName: string) => boole
 
 export const replaceSpaceWithDash = (str: string): string => str.replace(/ /g, '-');
 
+/** Trigger a browser download of a JSON file. */
+export const downloadJsonFile = (content: string, fileNamePrefix: string): void => {
+  const blob = new Blob([content], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${fileNamePrefix}-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 export const splitWithSpace = (content: string): string[] => {
   const trimmedContent = content.trim();
   if (trimmedContent === '') return [];

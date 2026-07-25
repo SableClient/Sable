@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom } from 'jotai';
 import { useStore } from 'jotai/react';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 import { SyncState } from '$types/matrix-sdk';
 import { shareInboxClear, shareInboxDrain, shareInboxRead } from '$generated/tauri/commands';
 import { pendingShareAtom } from '$state/shareTarget';
-import { allRoomsAtom } from '$state/room-list/roomList';
-import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useSyncState } from '$hooks/useSyncState';
-import { factoryRoomIdByActivity } from '$utils/sort';
+import { useMessageTargetRooms } from '$hooks/useMessageTargetRooms';
 import { encryptFile } from '$utils/matrix';
 import { safeFile } from '$utils/mimeTypes';
 import { createLogger } from '$utils/debug';
@@ -48,10 +46,6 @@ export function ShareTargetFeature() {
   const [syncing, setSyncing] = useState(() => mx.getSyncState() === SyncState.Syncing);
   // Guards against an in-flight drain resurrecting already-consumed batches.
   const consumedRef = useRef(new Set<string>());
-
-  const allRooms = useAtomValue(allRoomsAtom);
-  const allJoinedRooms = useAllJoinedRoomsSet();
-  const getRoom = useGetRoom(allJoinedRooms);
 
   useSyncState(
     mx,
@@ -112,16 +106,7 @@ export function ShareTargetFeature() {
     };
   }, [setPending]);
 
-  const shareTargets = useMemo(
-    () =>
-      allRooms
-        .filter((id) => {
-          const target = getRoom(id);
-          return !!target && !target.isSpaceRoom() && target.maySendMessage();
-        })
-        .sort(factoryRoomIdByActivity(mx)),
-    [allRooms, getRoom, mx]
-  );
+  const shareTargets = useMessageTargetRooms();
 
   const handleClose = useCallback(async () => {
     if (busy || !pending) return;

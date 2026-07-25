@@ -18,15 +18,10 @@ const ALL_CATEGORIES: LogCategory[] = [
   'general',
 ];
 
+import { downloadJsonFile } from '$utils/common';
+
 const handleExportLogs = () => {
-  const data = getDebugLogger().exportLogs();
-  const blob = new Blob([data], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `sable-debug-logs-${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadJsonFile(getDebugLogger().exportLogs(), 'sable-debug-logs');
 };
 
 export function SentrySettings() {

@@ -1,6 +1,6 @@
 import type { ChangeEventHandler, FormEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Box, Text, IconButton, Input, Avatar, Button, Modal, config, Spinner } from 'folds';
+import { Box, Text, IconButton, Input, Avatar, Button, config, Spinner } from 'folds';
 import { menuIcon, Star, Sun, X } from '$components/icons/phosphor';
 import { useSetAtom } from 'jotai';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
@@ -18,8 +18,6 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useObjectURL } from '$hooks/useObjectURL';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
-import { ImageEditor } from '$components/image-editor';
-import { ModalWide } from '$styles/Modal.css';
 import type { UploadSuccess } from '$state/upload';
 import { createUploadAtom } from '$state/upload';
 import { CompactUploadCardRenderer } from '$components/upload-card';
@@ -39,8 +37,8 @@ import { NameColorEditor } from './NameColorEditor';
 import { StatusEditor } from './StatusEditor';
 import { AnimalCosmetics } from './AnimalCosmetics';
 import * as prefix from '$unstable/prefixes';
-import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { confirm } from '$components/confirm/confirm';
+import { AvatarUploadTile } from '$components/avatar-upload-tile/AvatarUploadTile';
 
 type PronounSet = {
   summary: string;
@@ -64,52 +62,35 @@ function ProfileAvatar({ profile, userId, propagateTo }: Readonly<ProfileProps>)
     ? (mxcUrlToHttp(mx, profile.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
 
-  const [imageFile, setImageFile] = useState<File>();
-  const imageFileURL = useObjectURL(imageFile);
-  const uploadAtom = useMemo(() => {
-    if (imageFile) return createUploadAtom(imageFile);
-    return undefined;
-  }, [imageFile]);
-
-  const pickFile = useFilePicker(setImageFile, false);
-
-  const handleRemoveUpload = useCallback(() => {
-    setImageFile(undefined);
-  }, []);
-
   const handleUploaded = useCallback(
-    async (upload: UploadSuccess) => {
-      const { mxc } = upload;
+    async (mxc: string) => {
       await setAvatarUrlWithPropagation(mx, mxc, propagateTo);
       setGlobalProfiles((prev) => ({
         ...prev,
         [userId]: { ...prev[userId], avatarUrl: mxc },
       }));
-      handleRemoveUpload();
     },
-    [mx, userId, propagateTo, setGlobalProfiles, handleRemoveUpload]
+    [mx, userId, propagateTo, setGlobalProfiles]
   );
 
-  const handleRemoveAvatar = async () => {
-    const ok = await confirm({
-      title: 'Remove Avatar',
-      description: 'Are you sure you want to remove profile avatar?',
-      action: 'Remove',
-      variant: 'Critical',
-    });
-    if (ok) {
-      await setAvatarUrlWithPropagation(mx, '', propagateTo);
-      setGlobalProfiles((prev) => ({
-        ...prev,
-        [userId]: { ...prev[userId], avatarUrl: undefined },
-      }));
-    }
-  };
+  const handleRemoveAvatar = useCallback(async () => {
+    await setAvatarUrlWithPropagation(mx, '', propagateTo);
+    setGlobalProfiles((prev) => ({
+      ...prev,
+      [userId]: { ...prev[userId], avatarUrl: undefined },
+    }));
+  }, [mx, userId, propagateTo, setGlobalProfiles]);
 
   return (
-    <SettingTile
+    <AvatarUploadTile
       title="Avatar"
       focusId="avatar"
+      disableSetAvatar={disableSetAvatar}
+      removeDisabled={!avatarUrl}
+      onUpload={handleUploaded}
+      onRemove={handleRemoveAvatar}
+      confirmTitle="Remove Avatar"
+      confirmDescription="Are you sure you want to remove profile avatar?"
       after={
         <Avatar size="500" radii="300">
           <UserAvatar
@@ -119,55 +100,7 @@ function ProfileAvatar({ profile, userId, propagateTo }: Readonly<ProfileProps>)
           />
         </Avatar>
       }
-    >
-      {uploadAtom ? (
-        <Box gap="200" direction="Column">
-          <CompactUploadCardRenderer
-            uploadAtom={uploadAtom}
-            onRemove={handleRemoveUpload}
-            onComplete={handleUploaded}
-          />
-        </Box>
-      ) : (
-        <Box gap="200">
-          <Button
-            onClick={() => pickFile('image/*')}
-            size="300"
-            variant="Secondary"
-            fill="Soft"
-            outlined
-            radii="300"
-            disabled={disableSetAvatar}
-          >
-            <Text size="B300">Upload</Text>
-          </Button>
-          {avatarUrl && (
-            <Button
-              size="300"
-              variant="Critical"
-              fill="None"
-              radii="300"
-              disabled={disableSetAvatar}
-              onClick={handleRemoveAvatar}
-            >
-              <Text size="B300">Remove</Text>
-            </Button>
-          )}
-        </Box>
-      )}
-
-      {imageFileURL && (
-        <ModalOverlay open={false} requestClose={handleRemoveUpload}>
-          <Modal className={ModalWide} variant="Surface" size="500">
-            <ImageEditor
-              name={imageFile?.name ?? 'Unnamed'}
-              url={imageFileURL}
-              requestClose={handleRemoveUpload}
-            />
-          </Modal>
-        </ModalOverlay>
-      )}
-    </SettingTile>
+    />
   );
 }
 

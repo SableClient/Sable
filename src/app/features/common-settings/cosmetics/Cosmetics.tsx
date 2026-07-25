@@ -1,5 +1,5 @@
 import type { ChangeEvent, ChangeEventHandler, FormEventHandler } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Text,
@@ -11,7 +11,6 @@ import {
   config,
   Button,
   Spinner,
-  Modal,
 } from 'folds';
 import { menuIcon, X } from '$components/icons/phosphor';
 import { PageContent, SettingsSectionPage } from '$components/page';
@@ -35,20 +34,12 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { Room, RoomMember, StateEvents } from '$types/matrix-sdk';
 import { Command, useCommands } from '$hooks/useCommands';
 import { useCapabilities } from '$hooks/useCapabilities';
-import { useObjectURL } from '$hooks/useObjectURL';
-import type { UploadSuccess } from '$state/upload';
-import { createUploadAtom } from '$state/upload';
-import { useFilePicker } from '$hooks/useFilePicker';
-import { CompactUploadCardRenderer } from '$components/upload-card';
-import { ImageEditor } from '$components/image-editor';
-import { ModalWide } from '$styles/Modal.css';
 import { NameColorEditor } from '$features/settings/account/NameColorEditor';
 import { PronounEditor } from '$features/settings/account/PronounEditor';
 import type { PronounSet } from '$utils/pronouns';
 import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
-import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
-import { confirm } from '$components/confirm/confirm';
+import { AvatarUploadTile } from '$components/avatar-upload-tile/AvatarUploadTile';
 
 const log = createLogger('Cosmetics');
 
@@ -80,45 +71,17 @@ function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSettingProp
   const avatarUrl =
     avatarMxc && (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined);
 
-  const [imageFile, setImageFile] = useState<File>();
-  const imageFileURL = useObjectURL(imageFile);
-  const uploadAtom = useMemo(() => {
-    if (imageFile) return createUploadAtom(imageFile);
-    return undefined;
-  }, [imageFile]);
-
-  const pickFile = useFilePicker(setImageFile, false);
-
-  const handleRemoveUpload = useCallback(() => {
-    setImageFile(undefined);
-  }, []);
-
   const myRoomAvatar = useCommands(mx, room)[Command.MyRoomAvatar];
-  const handleUploaded = useCallback(
-    (upload: UploadSuccess) => {
-      const { mxc } = upload;
-      myRoomAvatar.exe(mxc).finally(() => {
-        handleRemoveUpload();
-      });
-    },
-    [myRoomAvatar, handleRemoveUpload]
-  );
-
-  const handleRemoveAvatar = async () => {
-    const ok = await confirm({
-      title: 'Remove Room Avatar',
-      description: 'Are you sure you want to remove room avatar?',
-      action: 'Remove',
-      variant: 'Critical',
-    });
-    if (ok) {
-      myRoomAvatar.exe('');
-    }
-  };
 
   return (
-    <SettingTile
+    <AvatarUploadTile
       title="Room Avatar"
+      disableSetAvatar={disableSetAvatar}
+      removeDisabled={!hasRoomAvatarOverride}
+      onUpload={(mxc) => myRoomAvatar.exe(mxc)}
+      onRemove={() => myRoomAvatar.exe('')}
+      confirmTitle="Remove Room Avatar"
+      confirmDescription="Are you sure you want to remove room avatar?"
       after={
         <Avatar size="500" radii="300">
           <UserAvatar
@@ -132,55 +95,7 @@ function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSettingProp
           />
         </Avatar>
       }
-    >
-      {uploadAtom ? (
-        <Box gap="200" direction="Column">
-          <CompactUploadCardRenderer
-            uploadAtom={uploadAtom}
-            onRemove={handleRemoveUpload}
-            onComplete={handleUploaded}
-          />
-        </Box>
-      ) : (
-        <Box gap="200">
-          <Button
-            onClick={() => pickFile('image/*')}
-            size="300"
-            variant="Secondary"
-            fill="Soft"
-            outlined
-            radii="300"
-            disabled={disableSetAvatar}
-          >
-            <Text size="B300">Upload</Text>
-          </Button>
-          {hasRoomAvatarOverride && (
-            <Button
-              size="300"
-              variant="Critical"
-              fill="None"
-              radii="300"
-              disabled={disableSetAvatar}
-              onClick={handleRemoveAvatar}
-            >
-              <Text size="B300">Remove</Text>
-            </Button>
-          )}
-        </Box>
-      )}
-
-      {imageFileURL && (
-        <ModalOverlay open={false} requestClose={handleRemoveUpload}>
-          <Modal className={ModalWide} variant="Surface" size="500">
-            <ImageEditor
-              name={imageFile?.name ?? 'Unnamed'}
-              url={imageFileURL}
-              requestClose={handleRemoveUpload}
-            />
-          </Modal>
-        </ModalOverlay>
-      )}
-    </SettingTile>
+    />
   );
 }
 

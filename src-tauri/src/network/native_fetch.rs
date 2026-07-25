@@ -12,14 +12,20 @@ use tauri_plugin_http::reqwest::{
 };
 use tokio::sync::watch;
 
+/// Generous on purpose: it must never fire on a healthy but slow transfer.
+const BODY_IDLE_TIMEOUT: Duration = Duration::from_secs(120);
+
 static FETCH_ABORT_SENDERS: LazyLock<Mutex<HashMap<String, watch::Sender<bool>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// No overall request timeout: sliding sync long-polls for up to the server's timeout, so the
-/// caller's abort signal is the only correct deadline.
+/// caller's abort signal is the only correct deadline. `read_timeout` is an inactivity deadline on
+/// the body only (it starts after the response headers arrive), so it bounds a transfer that dies
+/// mid-body without capping how long a long-poll may wait for its first byte.
 static FETCH_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     ClientBuilder::new()
         .connect_timeout(Duration::from_secs(15))
+        .read_timeout(BODY_IDLE_TIMEOUT)
         .gzip(true)
         .brotli(true)
         .build()
@@ -99,16 +105,41 @@ async fn wait_for_abort_signal(receiver: &mut watch::Receiver<bool>) {
 
 /// `[u32 LE metadata length][metadata JSON][body bytes]`, so status, headers and body arrive in a
 /// single raw IPC response instead of one round trip per body chunk.
-fn frame_response(meta: &NativeFetchMeta, body: &[u8]) -> Result<Vec<u8>, String> {
+fn frame_header(meta: &NativeFetchMeta) -> Result<Vec<u8>, String> {
     let meta_json = serde_json::to_vec(meta).map_err(|err| err.to_string())?;
     let meta_len = u32::try_from(meta_json.len()).map_err(|err| err.to_string())?;
 
-    let mut framed = Vec::with_capacity(4 + meta_json.len() + body.len());
+    let mut framed = Vec::with_capacity(4 + meta_json.len());
     framed.extend_from_slice(&meta_len.to_le_bytes());
     framed.extend_from_slice(&meta_json);
-    framed.extend_from_slice(body);
 
     Ok(framed)
+}
+
+/// Streams the body straight into the framed buffer. Buffering the whole body first and then
+/// copying it in would hold two full copies at once, which on a phone is the difference between
+/// a large attachment costing its own size and costing twice that.
+async fn frame_streamed_response(
+    mut response: tauri_plugin_http::reqwest::Response,
+    meta: &NativeFetchMeta,
+    abort_receiver: &mut watch::Receiver<bool>,
+) -> Result<Vec<u8>, String> {
+    let mut framed = frame_header(meta)?;
+    if let Some(len) = response.content_length() {
+        framed.reserve(usize::try_from(len).unwrap_or(0));
+    }
+
+    loop {
+        let chunk = tokio::select! {
+            chunk = response.chunk() => chunk.map_err(|err| err.to_string())?,
+            _ = wait_for_abort_signal(abort_receiver) => return Err("Request aborted".into()),
+        };
+
+        match chunk {
+            Some(bytes) => framed.extend_from_slice(&bytes),
+            None => return Ok(framed),
+        }
+    }
 }
 
 #[tauri::command]
@@ -163,12 +194,9 @@ pub async fn native_fetch(request: NativeFetchRequest) -> Result<Response, Strin
                 .collect(),
         };
 
-        let body = tokio::select! {
-            body = response.bytes() => body.map_err(|err| err.to_string())?,
-            _ = wait_for_abort_signal(&mut abort_receiver) => return Err("Request aborted".into()),
-        };
+        let framed = frame_streamed_response(response, &meta, &mut abort_receiver).await?;
 
-        Ok(Response::new(frame_response(&meta, &body)?))
+        Ok(Response::new(framed))
     }
     .await;
 
@@ -179,7 +207,7 @@ pub async fn native_fetch(request: NativeFetchRequest) -> Result<Response, Strin
 #[cfg(test)]
 mod tests {
     use super::{
-        abort_native_fetch, frame_response, register_abort_sender, validate_url, NativeFetchMeta,
+        abort_native_fetch, frame_header, register_abort_sender, validate_url, NativeFetchMeta,
     };
     use tokio::time::{timeout, Duration};
 
@@ -204,7 +232,8 @@ mod tests {
             url: "https://matrix.example.org/".into(),
             headers: vec![("content-type".into(), "application/json".into())],
         };
-        let framed = frame_response(&meta, b"{\"a\":1}").expect("framing failed");
+        let mut framed = frame_header(&meta).expect("framing failed");
+        framed.extend_from_slice(b"{\"a\":1}");
 
         let meta_len = u32::from_le_bytes(framed[0..4].try_into().unwrap()) as usize;
         let meta_json: serde_json::Value =
@@ -223,7 +252,7 @@ mod tests {
             url: "https://matrix.example.org/".into(),
             headers: vec![],
         };
-        let framed = frame_response(&meta, b"").expect("framing failed");
+        let framed = frame_header(&meta).expect("framing failed");
 
         let meta_len = u32::from_le_bytes(framed[0..4].try_into().unwrap()) as usize;
         assert_eq!(framed.len(), 4 + meta_len);

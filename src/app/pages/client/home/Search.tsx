@@ -1,37 +1,16 @@
 import { useRef } from 'react';
-import { Box, IconButton, Scroll, Text } from 'folds';
-import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
+import { Box, Scroll } from 'folds';
+import { MessageSearchHeader, Page, PageContent, PageContentCenter } from '$components/page';
 import { MessageSearch } from '$features/message-search';
-import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { BackRouteHandler } from '$components/BackRouteHandler';
-import { ArrowLeft, composerIcon, dropzoneIcon, MagnifyingGlass } from '$components/icons/phosphor';
 import { useHomeRooms } from './useHomeRooms';
 
 export function HomeSearch() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const rooms = useHomeRooms();
-  const screenSize = useScreenSizeContext();
 
   return (
     <Page>
-      <PageHeader balance>
-        <Box grow="Yes" alignItems="Center" gap="200">
-          <Box grow="Yes" basis="No">
-            {screenSize === ScreenSize.Mobile && (
-              <BackRouteHandler>
-                {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
-              </BackRouteHandler>
-            )}
-          </Box>
-          <Box justifyContent="Center" alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && dropzoneIcon(MagnifyingGlass)}
-            <Text size="H3" truncate>
-              Message Search
-            </Text>
-          </Box>
-          <Box grow="Yes" basis="No" />
-        </Box>
-      </PageHeader>
+      <MessageSearchHeader />
       <Box style={{ position: 'relative' }} grow="Yes">
         <Scroll ref={scrollRef} hideTrack visibility="Hover">
           <PageContent>

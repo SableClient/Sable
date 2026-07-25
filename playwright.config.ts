@@ -33,6 +33,12 @@ export default defineConfig({
       name: 'mobile',
       use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } },
     },
+    // hasTouch + isMobile: covers long-press, swipe-to-dismiss and tap targets,
+    // which the `mobile` project (a viewport-narrowed desktop) cannot reach.
+    {
+      name: 'touch',
+      use: { ...devices['Pixel 7'] },
+    },
   ],
   webServer: {
     // A real build, not the dev server: no HMR and no dependency optimiser, both

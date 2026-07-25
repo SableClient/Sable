@@ -1,4 +1,5 @@
-import { Box, Button, Spinner, Text, toRem } from 'folds';
+import { Box, Button, Spinner, Text } from 'folds';
+import classNames from 'classnames';
 import { sizedIcon, Phone } from '$components/icons/phosphor';
 import { SequenceCard } from '../../components/sequence-card';
 import * as css from './styles.css';
@@ -34,16 +35,15 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
     <Box
       justifyContent="Center"
       alignItems="Center"
+      className={css.PrescreenBox}
       style={{
         maxWidth: '100%',
-        padding: compact ? `0 ${toRem(8)}` : undefined,
         overflowX: 'auto',
       }}
     >
       <SequenceCard
-        className={css.ControlCard}
+        className={classNames(css.ControlCard, css.PrescreenGroup)}
         variant="SurfaceVariant"
-        gap={compact ? '100' : '200'}
         radii="500"
         alignItems="Center"
         justifyContent="Center"
@@ -53,7 +53,7 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
           shrink="No"
           alignItems="Center"
           justifyContent="Center"
-          gap={compact ? '100' : '200'}
+          className={css.PrescreenGroup}
           direction="Row"
         >
           <MicrophoneButton enabled={microphone} onToggle={toggleMicrophone} />
@@ -66,7 +66,7 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
           shrink="No"
           alignItems="Center"
           justifyContent="Center"
-          gap={compact ? '100' : '200'}
+          className={css.PrescreenGroup}
           direction="Row"
         >
           <VideoButton enabled={video} onToggle={toggleVideo} />
@@ -75,10 +75,7 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
 
         <Box shrink="No" alignItems="Center" justifyContent="Center" direction="Row">
           <Button
-            style={{
-              minWidth: compact ? toRem(48) : toRem(88),
-              padding: compact ? 0 : undefined,
-            }}
+            className={css.PrescreenJoinButton}
             variant={disabled ? 'Secondary' : 'Success'}
             fill={disabled ? 'Soft' : 'Solid'}
             onClick={() => startCall(room, { microphone, video, sound })}

@@ -1,6 +1,7 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
+import classNames from 'classnames';
 import {
   Box,
   Avatar,
@@ -618,10 +619,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   );
 
   return (
-    <PageHeader
-      className={ContainerColor({ variant: 'Surface' })}
-      balance={screenSize === ScreenSize.Mobile}
-    >
+    <PageHeader className={classNames(ContainerColor({ variant: 'Surface' }), css.HeaderBalance)}>
       <Box grow="Yes" gap="300">
         {screenSize === ScreenSize.Mobile && (
           <BackRouteHandler>

@@ -199,12 +199,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
             </Box>
           </>
         )}
-        <Box
-          shrink="No"
-          grow={screenSize === ScreenSize.Mobile ? 'No' : 'Yes'}
-          basis={screenSize === ScreenSize.Mobile ? 'Yes' : 'No'}
-          justifyContent="End"
-        >
+        <Box shrink="No" className={css.ActionsBox} justifyContent="End">
           {screenSize !== ScreenSize.Mobile && (
             <TooltipProvider
               position="Bottom"

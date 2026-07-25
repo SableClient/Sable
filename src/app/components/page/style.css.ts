@@ -2,6 +2,7 @@ import { globalStyle, style } from '@vanilla-extract/css';
 import type { RecipeVariants } from '@vanilla-extract/recipes';
 import { recipe } from '@vanilla-extract/recipes';
 import { DefaultReset, color, config, toRem } from 'folds';
+import { MOBILE_BREAKPOINT } from '$hooks/useScreenSize';
 
 export const PageNav = recipe({
   variants: {
@@ -22,6 +23,17 @@ export const PageNav = recipe({
   },
 });
 export type PageNavVariants = RecipeVariants<typeof PageNav>;
+
+export const PageNavBox = style({
+  flexGrow: 0,
+  flexShrink: 0,
+  '@media': {
+    [`(max-width: ${MOBILE_BREAKPOINT}px)`]: {
+      flexGrow: 1,
+      flexShrink: 1,
+    },
+  },
+});
 
 export const PageNavHeader = recipe({
   base: {

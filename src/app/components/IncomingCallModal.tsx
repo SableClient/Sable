@@ -5,7 +5,6 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomName } from '$hooks/useRoomMeta';
 import { useCallEmbed } from '$hooks/useCallEmbed';
-import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { getAvatarUrl, getMemberDisplayName, getRoomAvatarUrl } from '$utils/room';
 import { webRTCSupported } from '$utils/rtc';
@@ -35,6 +34,7 @@ import {
   sizedIcon,
 } from '$components/icons/phosphor';
 import { ModalOverlay } from './modal-overlay/ModalOverlay';
+import * as css from './IncomingCallModal.css';
 
 const debugLog = createDebugLogger('IncomingCall');
 
@@ -47,8 +47,6 @@ type IncomingCallInternalProps = {
 export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCallInternalProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
-  const screenSize = useScreenSizeContext();
-  const compact = screenSize === ScreenSize.Mobile;
   const roomName = useRoomName(room);
   const callEmbed = useCallEmbed();
   const { navigateRoom } = useRoomNavigate();
@@ -218,15 +216,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
         </IconButton>
       </Header>
 
-      <Box
-        style={{
-          padding: compact ? config.space.S400 : config.space.S600,
-          paddingBottom: `max(${compact ? config.space.S500 : config.space.S600}, env(safe-area-inset-bottom))`,
-        }}
-        direction="Column"
-        alignItems="Center"
-        gap={compact ? '400' : '500'}
-      >
+      <Box className={css.Content} direction="Column" alignItems="Center">
         <Avatar size="500">
           {showCallerAvatar ? (
             <UserAvatar

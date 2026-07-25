@@ -1,4 +1,4 @@
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { UserProfile } from '$hooks/useUserProfile';
@@ -8,7 +8,6 @@ import { profilesCacheAtom } from '$state/userRoomProfile';
 import { Box, IconButton, Input, Switch, Text } from 'folds';
 import { useSetAtom } from 'jotai';
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
-import { SequenceCardStyle } from '../styles.css';
 import * as prefix from '$unstable/prefixes';
 import { menuIcon, X } from '$components/icons/phosphor';
 

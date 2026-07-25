@@ -4,7 +4,7 @@ import { useAtomValue } from 'jotai';
 import { Box, Button, Chip, IconButton, Input, Scroll, Spinner, Text, config } from 'folds';
 import { menuIcon, Trash } from '$components/icons/phosphor';
 import { PageContent, SettingsSectionPage } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -20,7 +20,6 @@ import type { MatrixError } from '$types/matrix-sdk';
 import type { AbbreviationEntry, RoomAbbreviationsContent } from '$utils/abbreviations';
 import { getAllParents, getStateEvent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { CustomStateEvent } from '$types/matrix/room';
 
 type AbbreviationsProps = {

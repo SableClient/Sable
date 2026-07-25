@@ -8,11 +8,10 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { timeDayMonYear, timeHourMinute, today, yesterday } from '$utils/time';
 import { BreakWord } from '$styles/Text.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { LogoutDialogOverlay } from '$components/LogoutDialogOverlay';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 
 export function DeviceTilePlaceholder() {

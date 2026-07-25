@@ -1,10 +1,9 @@
 import { Box, Text, Scroll } from 'folds';
 import { PageContent, SettingsSectionPage } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import {

@@ -1,8 +1,7 @@
 import { Box, color, Spinner, Switch, Text } from 'folds';
 import type { MatrixError, RoomJoinRulesEventContent } from '$types/matrix-sdk';
 import { JoinRule, EventType } from '$types/matrix-sdk';
-import { SequenceCard } from '$components/sequence-card';
-import { SequenceCardStyle } from '$features/room-settings/styles.css';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomDirectoryVisibility } from '$hooks/useRoomDirectoryVisibility';

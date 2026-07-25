@@ -8,8 +8,7 @@ import {
 import { useEffect, useState } from 'react';
 import { Box, Button, Text } from 'folds';
 import { generateShortId } from '$utils/shortIdGen';
-import { SequenceCard } from '$components/sequence-card';
-import { SequenceCardStyle } from '../styles.css';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { PerMessageProfileListItem } from './PerMessageProfileListItem';
 import { SettingTile } from '$components/setting-tile';
 

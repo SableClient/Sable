@@ -1,14 +1,13 @@
 import { Avatar, AvatarFallback, AvatarImage, Box, Button, Text } from 'folds';
 import { composerIcon, Sticker } from '$components/icons/phosphor';
 import { useUserImagePack } from '$hooks/useImagePacks';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { ImagePack, ImageUsage } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 
 type UserPackProps = {
   onViewPack: (imagePack: ImagePack) => void;

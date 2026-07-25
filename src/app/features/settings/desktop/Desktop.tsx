@@ -2,8 +2,8 @@ import { isTauri } from '@tauri-apps/api/core';
 import { useAtom } from 'jotai';
 import { Box, Text, Scroll, Switch, color } from 'folds';
 import { autoUpdateCheckAtom } from '$state/autoUpdateCheck';
-import { PageContent } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { PageContent, SettingsSectionPage } from '$components/page';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import {
   useDesktopRuntimeState,
@@ -11,8 +11,6 @@ import {
   useDesktopSettingsReady,
   useDesktopSettingsSyncing,
 } from '$state/hooks/desktopSettings';
-import { SequenceCardStyle } from '$features/settings/styles.css';
-import { SettingsSectionPage } from '../SettingsSectionPage';
 import { type as osType } from '@tauri-apps/plugin-os';
 
 type DesktopProps = {

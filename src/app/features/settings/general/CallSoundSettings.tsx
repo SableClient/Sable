@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, Icons, Input, Switch, Text, toRem } from 'folds';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useSetting } from '$state/hooks/settings';
@@ -22,7 +22,6 @@ import {
   putCustomCallRingtone,
   type StoredCallRingtone,
 } from '$features/call/callRingtoneStorage';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import {
   CustomToneSettingsCard,
   customToneValidationError,

@@ -17,8 +17,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { PollAnswerItem } from '$components/message/PollEvent';
 import { randomStr } from '$utils/common';
 import { SettingTile } from '$components/setting-tile';
-import { SequenceCard } from '$components/sequence-card';
-import { SequenceCardStyle } from '$features/settings/styles.css';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import type { IContent, MatrixClient, Room, TimelineEvents } from 'matrix-js-sdk';
 import {
   M_POLL_KIND_DISCLOSED,

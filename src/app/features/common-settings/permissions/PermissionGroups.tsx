@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Button, Chip, config, Menu, Spinner, Text } from 'folds';
 import { CaretDown, CaretUp, chipIcon } from '$components/icons/phosphor';
 import { produce } from 'immer';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import type { IPowerLevels, PermissionLocation } from '$hooks/usePowerLevels';
 import { applyPermissionPower, getPermissionPower } from '$hooks/usePowerLevels';
@@ -14,7 +14,6 @@ import type { StateEvents } from '$types/matrix-sdk';
 import { PowerSwitcher } from '$components/power';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import type { PermissionGroup } from './types';
 import { EventType } from '$types/matrix-sdk';
 

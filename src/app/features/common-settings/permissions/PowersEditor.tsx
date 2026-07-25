@@ -30,7 +30,7 @@ import { HexColorPicker } from 'react-colorful';
 import { useAtomValue } from 'jotai';
 import { Page, PageContent, PageHeader } from '$components/page';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import type { PowerLevelTags } from '$hooks/usePowerLevelTags';
 import { getPowers, getUsedPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
@@ -53,7 +53,6 @@ import { CustomStateEvent, type MemberPowerTag, type MemberPowerTagIcon } from '
 import { useAlive } from '$hooks/useAlive';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { creatorsSupported } from '$utils/roomSupport';
 
 type EditPowerProps = {

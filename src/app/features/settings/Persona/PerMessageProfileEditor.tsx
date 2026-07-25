@@ -1,4 +1,4 @@
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { Box, Button, Text, Avatar, config, IconButton, Input } from 'folds';
 import { menuIcon, X } from '$components/icons/phosphor';
 import type { MatrixClient } from '$types/matrix-sdk';
@@ -18,7 +18,6 @@ import {
 } from '$hooks/usePerMessageProfile';
 import type { PronounSet } from '$utils/pronouns';
 import { parsePronounsStringToPronounsSetArray } from '$utils/pronouns';
-import { SequenceCardStyle } from '../styles.css';
 import { SettingTile } from '$components/setting-tile';
 
 /**

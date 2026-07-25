@@ -2,14 +2,13 @@ import type { ChangeEventHandler, FormEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import { Box, Button, Chip, IconButton, Input, Spinner, Text, config } from 'folds';
 import { menuIcon, X } from '$components/icons/phosphor';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { isUserId } from '$utils/matrix';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useAlive } from '$hooks/useAlive';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 
 function IgnoreUserInput({ userList }: { userList: string[] }) {
   const mx = useMatrixClient();

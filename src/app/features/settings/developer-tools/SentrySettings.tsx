@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Text, Switch, Button } from 'folds';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import type { LogCategory } from '$utils/debugLogger';
 import { getDebugLogger } from '$utils/debugLogger';

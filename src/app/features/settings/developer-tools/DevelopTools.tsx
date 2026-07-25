@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Box, Text, Scroll, Switch, Button } from 'folds';
-import { PageContent } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { PageContent, SettingsSectionPage } from '$components/page';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -9,8 +9,6 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { AccountDataEditor } from '$components/AccountDataEditor';
 import { copyToClipboard } from '$utils/dom';
-import { SequenceCardStyle } from '$features/settings/styles.css';
-import { SettingsSectionPage } from '../SettingsSectionPage';
 import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
 import { DebugLogViewer } from './DebugLogViewer';

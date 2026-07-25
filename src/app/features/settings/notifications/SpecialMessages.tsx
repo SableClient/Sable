@@ -4,7 +4,7 @@ import { ConditionKind, PushRuleKind, RuleId, EventType } from '$types/matrix-sd
 import { Box, Text, Badge } from 'folds';
 import { useAccountData } from '$hooks/useAccountData';
 
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -20,7 +20,6 @@ import {
   useNotificationModeActions,
 } from '$hooks/useNotificationMode';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { NotificationLevelsHint } from './NotificationLevelsHint';
 import { notificationModeSelectorOptions } from './notificationModeOptions';
 

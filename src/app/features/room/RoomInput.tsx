@@ -111,12 +111,7 @@ import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { matchesShortcut } from '../../keyboard/shortcuts';
-import {
-  getEditedEvent,
-  getMentionContent,
-  isThreadRelationEvent,
-  reactionOrEditEvent,
-} from '$utils/room';
+import { getEditedEvent, getMentionContent, getThreadReplyEvents } from '$utils/room';
 import { htmlToMarkdown } from '$plugins/markdown';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
@@ -224,32 +219,8 @@ const LocationDialog = lazy(() =>
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
 export const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
-  const thread = room.getThread(threadRootId);
-  const threadEvents: MatrixEvent[] = thread?.events ?? [];
-  const filtered = threadEvents.filter(
-    (ev) =>
-      ev.getId() !== threadRootId &&
-      !reactionOrEditEvent(ev) &&
-      isThreadRelationEvent(ev, threadRootId)
-  );
-  if (filtered.length > 0) {
-    return filtered[filtered.length - 1]!.getId() ?? threadRootId;
-  }
-  // Fall back to the live timeline if the Thread object hasn't been registered yet
-  const liveEvents = room
-    .getUnfilteredTimelineSet()
-    .getLiveTimeline()
-    .getEvents()
-    .filter(
-      (ev) =>
-        ev.getId() !== threadRootId &&
-        !reactionOrEditEvent(ev) &&
-        isThreadRelationEvent(ev, threadRootId)
-    );
-  if (liveEvents.length > 0) {
-    return liveEvents.at(-1)!.getId() ?? threadRootId;
-  }
-  return threadRootId;
+  const replies = getThreadReplyEvents(room, threadRootId);
+  return replies.at(-1)?.getId() ?? threadRootId;
 };
 
 export const getReplyContent = (

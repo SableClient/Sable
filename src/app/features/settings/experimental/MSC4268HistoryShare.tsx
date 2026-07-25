@@ -1,9 +1,8 @@
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Box, Switch, Text } from 'folds';
-import { SequenceCardStyle } from '../styles.css';
 
 export function MSC4268HistoryShare() {
   const [enabledMSC4268Command, setEnabledMSC4268Command] = useSetting(

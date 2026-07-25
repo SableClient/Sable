@@ -9,8 +9,7 @@ import {
   useJoinRuleIcons,
   useRoomJoinRuleLabel,
 } from '$components/JoinRulesSwitcher';
-import { SequenceCard } from '$components/sequence-card';
-import { SequenceCardStyle } from '$features/room-settings/styles.css';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';

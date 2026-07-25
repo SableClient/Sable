@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Box, Button, Scroll, Text, config } from 'folds';
-import { PageContent } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { PageContent, SettingsSectionPage } from '$components/page';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import {
@@ -15,7 +14,6 @@ import {
   getShortcutBinding,
 } from '../../../keyboard/shortcuts';
 import type { ShortcutDefinition, ShortcutId } from '../../../keyboard/shortcuts';
-import { SettingsSectionPage } from '../SettingsSectionPage';
 
 const CATEGORIES = ['General', 'Navigation', 'Messages'] as const;
 

@@ -11,7 +11,7 @@ import {
   type PanelSizeKey,
   type SettingMenuOption,
 } from '$components/setting-menu-selector';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import {
   DEFAULT_ARBORIUM_DARK_THEME,
@@ -24,7 +24,6 @@ import { useSetting } from '$state/hooks/settings';
 import type { PixelatedImageRenderingMode } from '$state/settings';
 import { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ThemeAppearanceSection } from './ThemeAppearanceSection';
 import { SelectShowPerRoomRoomIcon } from '$features/common-settings/appearance/Appearance';
 

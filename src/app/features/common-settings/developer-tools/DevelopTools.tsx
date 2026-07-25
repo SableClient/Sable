@@ -11,7 +11,7 @@ import {
 } from '$components/icons/phosphor';
 import { EventType, NotificationCountType, type MatrixEvent } from '$types/matrix-sdk';
 import { PageContent, SettingsSectionPage } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -29,7 +29,6 @@ import { CutoutCard } from '$components/cutout-card';
 import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { AccountDataEditor } from '$components/AccountDataEditor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SendRoomEvent } from './SendRoomEvent';
 import type { StateEventInfo } from './StateEventEditor';
 import { StateEventEditor } from './StateEventEditor';

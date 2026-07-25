@@ -13,8 +13,7 @@ import {
 import { composerIcon, X } from '$components/icons/phosphor';
 import { useCallback, useState } from 'react';
 import type { MatrixError, StateEvents } from '$types/matrix-sdk';
-import { SequenceCard } from '$components/sequence-card';
-import { SequenceCardStyle } from '$features/room-settings/styles.css';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 

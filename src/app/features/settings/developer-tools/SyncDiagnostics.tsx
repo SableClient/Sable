@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { Box, Button, Text } from 'folds';
 import { CaretDown, CaretUp, menuIcon } from '$components/icons/phosphor';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getClientSyncDiagnostics } from '$client/initMatrix';
 import type { Room } from '$types/matrix-sdk';
 import { Direction, EventType, NotificationCountType, KnownMembership } from '$types/matrix-sdk';
 
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { getUnreadInfo, isNotificationEvent } from '$utils/room';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { allInvitesAtom } from '$state/room-list/inviteList';

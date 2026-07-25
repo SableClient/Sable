@@ -30,6 +30,7 @@ import {
 import {
   extractReplyDraftBody,
   getMemberDisplayName,
+  getThreadReplyEvents,
   isThreadRelationEvent,
   reactionOrEditEvent,
   resolveReplyDraftTarget,
@@ -75,41 +76,6 @@ import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollo
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
-
-/**
- * Resolve the list of reply events to show in the thread drawer.
- *
- * Prefers events from the SDK Thread object (authoritative, full history) but
- * falls back to scanning the main room timeline when the Thread object was
- * created without `initialEvents` (as happens with classic sync).  In that
- * case `thread.events` contains only the root event, so filtering it yields an
- * empty array — we must fall back rather than showing nothing.
- *
- * Exported for unit testing.
- */
-export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEvent[] {
-  const thread = room.getThread(threadRootId);
-  const fromThread = thread?.events ?? [];
-  const filteredFromThread = fromThread.filter(
-    (ev) =>
-      ev.getId() !== threadRootId &&
-      !reactionOrEditEvent(ev) &&
-      isThreadRelationEvent(ev, threadRootId)
-  );
-  if (filteredFromThread.length > 0) {
-    return filteredFromThread;
-  }
-  return room
-    .getUnfilteredTimelineSet()
-    .getLiveTimeline()
-    .getEvents()
-    .filter(
-      (ev) =>
-        ev.getId() !== threadRootId &&
-        !reactionOrEditEvent(ev) &&
-        isThreadRelationEvent(ev, threadRootId)
-    );
-}
 
 type ThreadDrawerProps = {
   room: Room;
@@ -354,16 +320,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     );
     if (hasRepliesInThread) return;
 
-    const liveEvents = room
-      .getUnfilteredTimelineSet()
-      .getLiveTimeline()
-      .getEvents()
-      .filter(
-        (ev) =>
-          ev.getId() !== threadRootId &&
-          !reactionOrEditEvent(ev) &&
-          isThreadRelationEvent(ev, threadRootId)
-      );
+    const liveEvents = getThreadReplyEvents(room, threadRootId);
     if (liveEvents.length > 0) {
       // thread.addEvents() is typed as void but is internally async; schedule
       // forceUpdate in a microtask so the timeline has been updated first.

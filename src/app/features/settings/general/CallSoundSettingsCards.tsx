@@ -1,7 +1,6 @@
 import { Box, Button, Icon, Icons, Spinner, Text } from 'folds';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import {
   CUSTOM_CALL_RINGTONE_MAX_BYTES,
   CUSTOM_CALL_RINGTONE_MAX_DURATION_MS,

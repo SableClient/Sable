@@ -1,13 +1,11 @@
 import { Box, Text, Scroll, Switch } from 'folds';
 import { menuIcon, Warning } from '$components/icons/phosphor';
-import { PageContent } from '$components/page';
+import { PageContent, SettingsSectionPage } from '$components/page';
 import { InfoCard } from '$components/info-card';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
-import { SequenceCard } from '$components/sequence-card';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
 import { MSC4274MediaGalleries } from './MSC4274MediaGalleries';

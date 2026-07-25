@@ -3,7 +3,7 @@ import { useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
 import { Box, Button, Chip, Text, PopOut, Menu, Scroll, toRem, config, color } from 'folds';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { SettingTile } from '$components/setting-tile';
 import type { IPowerLevels, PermissionLocation } from '$hooks/usePowerLevels';
@@ -16,7 +16,6 @@ import { stopPropagation } from '$utils/keyboard';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import type { PermissionGroup } from './types';
 
 const getPermissionLocationKey = (location: PermissionLocation | PermissionLocation[]): string =>

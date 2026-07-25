@@ -27,8 +27,7 @@ import {
   type ThemeRemoteFavorite,
   type ThemeRemoteTweakFavorite,
 } from '$state/settings';
-import { SequenceCardStyle } from '$features/settings/styles.css';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { ThemePreviewCard } from '$components/theme/ThemePreviewCard';
 import { usePatchSettings } from './themeSettingsPatch';

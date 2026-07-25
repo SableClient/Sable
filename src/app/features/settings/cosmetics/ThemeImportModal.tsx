@@ -10,8 +10,7 @@ import {
 } from '$state/settings';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
-import { SequenceCardStyle } from '$features/settings/styles.css';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import {
   processImportedHttpsUrl,
   processPastedOrUploadedCss,

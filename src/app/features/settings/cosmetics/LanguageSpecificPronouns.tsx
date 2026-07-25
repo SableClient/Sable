@@ -1,9 +1,8 @@
 import { Box, Input, Switch, Text } from 'folds';
 import { SettingTile } from '$components/setting-tile';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { useEffect, useState } from 'react';
 import { getSettings, setSettings } from '$state/settings';
-import { SequenceCardStyle } from '../styles.css';
 
 export type LanguageSpecificPronounsConfig = {
   enabled?: boolean | string;

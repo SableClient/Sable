@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { SequenceCardStyle } from '$components/sequence-card';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type * as Folds from 'folds';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
 import { Desktop } from './Desktop';
 

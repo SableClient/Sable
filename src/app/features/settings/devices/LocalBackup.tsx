@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Box, Button, color, Spinner, Text, toRem } from 'folds';
 import { ArrowRight, CaretDown, CaretUp, File, menuIcon, X } from '$components/icons/phosphor';
 import { saveFileToDevice } from '$utils/download';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { PasswordInput } from '$components/password-input';
 import { ConfirmPasswordMatch } from '$components/ConfirmPasswordMatch';
@@ -16,7 +16,6 @@ import {
 } from '$utils/MegolmExportEncryption';
 import { useAlive } from '$hooks/useAlive';
 import { useFilePicker } from '$hooks/useFilePicker';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 
 type LocalBackupError = Error | FriendlyError;
 

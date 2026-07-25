@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { Box, Text, Scroll, Button, config, toRem, Spinner } from 'folds';
 import { Code, Heart, menuIcon } from '$components/icons/phosphor';
-import { PageContent } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { PageContent, SettingsSectionPage } from '$components/page';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import LogoSVG from '$public/res/svg/logo.svg';
 import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
 import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
 import { getBugReportPath } from '$pages/pathUtils';
-import { SettingsSectionPage } from '../SettingsSectionPage';
 
 type VersionResult =
   | { error: { message: string } }

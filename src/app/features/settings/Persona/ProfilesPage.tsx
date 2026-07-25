@@ -1,6 +1,5 @@
-import { PageContent } from '$components/page';
+import { PageContent, SettingsSectionPage } from '$components/page';
 import { Box, Scroll } from 'folds';
-import { SettingsSectionPage } from '../SettingsSectionPage';
 import { PerMessageProfileOverview } from './PerMessageProfileOverview';
 import { PKCompatSettings } from './PKCompat';
 import { PickerPageSettings } from './PickerPage';

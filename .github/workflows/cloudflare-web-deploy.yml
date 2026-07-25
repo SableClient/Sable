@@ -48,7 +48,7 @@ jobs:
         working-directory: infra/web
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -80,7 +80,7 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
       - name: Comment PR plan
-        uses: dflook/tofu-plan@3f5dc358343fb58cd60f83b019e810315aa8258f # v2.2.3
+        uses: dflook/tofu-plan@cdb4f4d604c9fa695e457744dd1f802853397ce7 # v3.0.0
         with:
           path: infra/web
           label: production
@@ -95,7 +95,7 @@ jobs:
         working-directory: infra/web
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.git_tag || '' }}

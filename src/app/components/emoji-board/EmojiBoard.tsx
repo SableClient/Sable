@@ -62,9 +62,6 @@ import { EmojiBoardTab, EmojiType } from './types';
 import { useGifSearch } from './useGifSearch';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 
-/* oxlint-disable typescript/no-explicit-any */
-// TODO: type klipy api properly
-
 const RECENT_GROUP_ID = 'recent_group';
 const SEARCH_GROUP_ID = 'search_group';
 

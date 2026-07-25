@@ -4,39 +4,45 @@ import { fetch } from '$utils/fetch';
 import { useClientConfig } from '$hooks/useClientConfig';
 import type { GifData } from './types';
 
-/* oxlint-disable typescript/no-explicit-any */
-// TODO: type klipy api properly
-
 const SIZE_LIMIT = 3 * 1024 * 1024;
 
-const parseKlipyResult = (klipyResult: any): GifData => {
-  const formats = klipyResult.file || {};
-  const preview = formats.xs.gif || formats.sm.gif || formats.md.gif;
+type KlipyFile = {
+  url?: string;
+  width?: number;
+  height?: number;
+  size?: number;
+};
 
-  // Start with full resolution GIF
-  let fullRes = formats.hd.gif;
-  // If full res is too large and medium exists, use medium instead
-  if (fullRes && fullRes.size > SIZE_LIMIT && formats.md) {
+/** Klipy serves each size as a bag of encodings; we only ever want the gif. */
+type KlipyFormat = { gif?: KlipyFile };
+
+type KlipyResult = {
+  id?: string;
+  title?: string;
+  file?: Partial<Record<'xs' | 'sm' | 'md' | 'hd', KlipyFormat>>;
+};
+
+type KlipySearchResponse = { data?: { data?: KlipyResult[] } };
+
+const parseKlipyResult = (klipyResult: KlipyResult): GifData => {
+  const formats = klipyResult.file ?? {};
+  const preview = formats.xs?.gif ?? formats.sm?.gif ?? formats.md?.gif;
+
+  // Full resolution, dropped to medium when it would be too large to send.
+  let fullRes = formats.hd?.gif;
+  if (fullRes?.size && fullRes.size > SIZE_LIMIT && formats.md?.gif) {
     fullRes = formats.md.gif;
   }
-
-  // Fallback if no suitable format found
-  if (!fullRes) {
-    fullRes = formats.md || preview;
-  }
-
-  // Get dimensions from the selected full resolution format
-  const width = fullRes?.width || preview?.width || 0;
-  const height = fullRes?.height || preview?.height || 0;
+  fullRes ??= formats.md?.gif ?? preview;
 
   return {
-    id: klipyResult.id,
+    id: klipyResult.id ?? '',
     title: klipyResult.title || 'GIF',
-    url: fullRes?.url || '',
-    preview_url: preview?.url || fullRes?.url || '',
-    width,
-    height,
-    size: fullRes?.size || preview?.size || 0,
+    url: fullRes?.url ?? '',
+    preview_url: preview?.url ?? fullRes?.url ?? '',
+    width: fullRes?.width ?? preview?.width ?? 0,
+    height: fullRes?.height ?? preview?.height ?? 0,
+    size: fullRes?.size ?? preview?.size ?? 0,
     mimetype: 'image/gif',
   };
 };
@@ -77,8 +83,8 @@ export function useGifSearch(
         const response = await fetch(url.toString());
 
         if (response.status === 200) {
-          const data = await response.json();
-          const results = data.data.data as any[] | undefined;
+          const data = (await response.json()) as KlipySearchResponse;
+          const results = data.data?.data;
 
           setGifs((old) => ({
             ...old,

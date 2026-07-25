@@ -370,7 +370,7 @@ function createRoom(): Room {
     findEventById: () => null,
     getUnfilteredTimelineSet: () => createTimelineSet() as any,
     getEventReadUpTo: () => null,
-    getLiveTimeline: () => ({ getEvents: () => [] }),
+    getLiveTimeline: () => ({ getEvents: () => [], getNeighbouringTimeline: () => null }),
     getUnreadNotificationCount: () => 0,
     getMyMembership: () => 'join',
     hasEncryptionStateEvent: () => false,
@@ -470,6 +470,54 @@ function renderEvent(event: MatrixEvent, isStateEvent: boolean) {
     event,
     0,
     timelineSet,
+    false
+  );
+  if (node === null) return { container: null as unknown as HTMLElement };
+  const { container } = render(node as any);
+  return { container };
+}
+
+function createCustomRoom(overrides: Record<string, unknown>) {
+  const base = createRoom();
+  return Object.assign(base, overrides) as unknown as Room;
+}
+
+function createCustomTimelineSet(overrides: Record<string, unknown>) {
+  const base = createTimelineSet();
+  return Object.assign(base, overrides) as unknown as EventTimelineSet;
+}
+
+// ── Helper: render with custom opts ─────────────────────────────────────────
+
+function renderEventWithOverrides(
+  event: MatrixEvent,
+  isStateEvent: boolean,
+  overrides: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    state?: any;
+    roomOverrides?: Record<string, unknown>;
+    timelineSetOverrides?: Record<string, unknown>;
+  }
+) {
+  const customRoom = createCustomRoom(overrides.roomOverrides ?? {});
+  const customTimelineSet =
+    overrides.timelineSetOverrides != null
+      ? createCustomTimelineSet(overrides.timelineSetOverrides)
+      : timelineSet;
+  const opts = {
+    ...rendererOpts,
+    state: { ...rendererOpts.state, ...overrides.state },
+    room: customRoom,
+  };
+  const { result } = renderHook(() => useTimelineEventRenderer(opts));
+  const renderFn = result.current;
+  const node = renderFn(
+    event.getType() ?? 'UNKNOWN',
+    isStateEvent,
+    event.getId() ?? 'null',
+    event,
+    0,
+    customTimelineSet,
     false
   );
   if (node === null) return { container: null as unknown as HTMLElement };
@@ -607,7 +655,7 @@ const branches: BranchEntry[] = [
     createEvent: () =>
       createEvent({
         id: '$call:example.com',
-        type: 'm.call.member',
+        type: EventType.GroupCallMemberPrefix,
         content: {
           'm.calls': [{ call_id: '!call:example.com', 'm.foci': [] }],
         },
@@ -688,6 +736,156 @@ describe('useTimelineEventRenderer', () => {
       // The renderer uses `timelineSet` for reactions; our mock returns null,
       // so no reaction data. That's fine for snapshot consistency.
       const { container } = renderEvent(evt, isStateEvent);
+      expect(container).not.toBeNull();
+      expect(container.innerHTML).toMatchSnapshot();
+    });
+  });
+
+  // ── Additional coverage ───────────────────────────────────────────────────
+
+  describe('activeReplyId === mEventId (marked logic)', () => {
+    const msgEvent = () =>
+      createEvent({
+        id: '$msg:example.com',
+        type: EventType.RoomMessage,
+        content: { msgtype: 'm.text', body: 'Hello world!' },
+        replyEventId: undefined,
+      });
+
+    it('sets data-is-marked="true" when activeReplyId matches', () => {
+      const evt = msgEvent();
+      const { container } = renderEventWithOverrides(evt, false, {
+        state: { activeReplyId: '$msg:example.com' },
+      });
+      expect(container).not.toBeNull();
+      expect(container.innerHTML).toMatchSnapshot();
+    });
+
+    it('suppresses mark when suppressMark is true', () => {
+      const evt = msgEvent();
+      const { container } = renderEventWithOverrides(evt, false, {
+        state: { activeReplyId: '$msg:example.com', suppressMark: true },
+      });
+      expect(container).not.toBeNull();
+      expect(container.innerHTML).toMatchSnapshot();
+    });
+  });
+
+  describe('reactions bar (useReactionsGuard)', () => {
+    const msgEvent = () =>
+      createEvent({
+        id: '$msg:example.com',
+        type: EventType.RoomMessage,
+        content: { msgtype: 'm.text', body: 'Hello world!' },
+        replyEventId: undefined,
+      });
+
+    function createRelationsWithReactions() {
+      return {
+        getSortedAnnotationsByKey: () =>
+          [
+            [
+              '👍',
+              new Set([
+                createEvent({
+                  id: '$react:example.com',
+                  type: EventType.Reaction,
+                  sender: ALICE,
+                  content: {
+                    'm.relates_to': {
+                      rel_type: 'm.annotation',
+                      event_id: '$msg:example.com',
+                      key: '👍',
+                    },
+                  },
+                }),
+              ]),
+            ],
+          ] as [string, Set<MatrixEvent>][],
+        getRelations: () => [],
+        on: () => {},
+        off: () => {},
+      };
+    }
+
+    it('renders reactions bar when reactions exist', () => {
+      const evt = msgEvent();
+      const { container } = renderEventWithOverrides(evt, false, {
+        timelineSetOverrides: {
+          relations: {
+            getChildEventsForEvent: () => createRelationsWithReactions(),
+          } as unknown as EventTimelineSet['relations'],
+        },
+      });
+      expect(container).not.toBeNull();
+      expect(container.innerHTML).toMatchSnapshot();
+    });
+  });
+
+  describe('thread chip', () => {
+    const msgEvent = () =>
+      createEvent({
+        id: '$msg:example.com',
+        type: EventType.RoomMessage,
+        content: { msgtype: 'm.text', body: 'Hello world!' },
+        replyEventId: undefined,
+      });
+
+    it('renders thread chip when room.getThread returns non-null', () => {
+      const evt = msgEvent();
+      const mockThread = {
+        length: 1,
+        events: [
+          createEvent({
+            id: '$reply:example.com',
+            type: EventType.RoomMessage,
+            sender: ALICE,
+            content: {
+              msgtype: 'm.text',
+              body: 'reply text',
+              'm.relates_to': {
+                rel_type: 'm.thread',
+                event_id: '$msg:example.com',
+              },
+            },
+          }),
+        ],
+        rootEvent: null,
+        on: () => {},
+        off: () => {},
+      };
+      const { container } = renderEventWithOverrides(evt, false, {
+        roomOverrides: { getThread: () => mockThread },
+      });
+      expect(container).not.toBeNull();
+      expect(container.innerHTML).toMatchSnapshot();
+    });
+  });
+
+  describe('edit event (renderEditTimelineEvent path)', () => {
+    it('renders an edit event with m.replace relation', () => {
+      const editEvent = createEvent({
+        id: '$edit:example.com',
+        type: EventType.RoomMessage,
+        content: {
+          msgtype: 'm.text',
+          body: ' * corrected message',
+          'm.new_content': { msgtype: 'm.text', body: 'corrected message' },
+          'm.relates_to': {
+            rel_type: 'm.replace',
+            event_id: '$msg:example.com',
+          },
+        },
+        replyEventId: undefined,
+      });
+      // The edit event's getRelation() must return the m.relates_to info
+      // for isEditEvent() and getEditTargetId() to work.
+      editEvent.getRelation = () =>
+        ({
+          rel_type: 'm.replace',
+          event_id: '$msg:example.com',
+        }) as any;
+      const { container } = renderEventWithOverrides(editEvent, false, {});
       expect(container).not.toBeNull();
       expect(container.innerHTML).toMatchSnapshot();
     });

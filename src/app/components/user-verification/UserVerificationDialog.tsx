@@ -153,6 +153,7 @@ export function UserVerificationDialog({
 
   // Listen for phase changes on the request
   useEffect(() => {
+    if(!request) return;
     const onChange = () => {
       setPhase(request.phase);
     };

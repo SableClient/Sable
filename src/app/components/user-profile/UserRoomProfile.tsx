@@ -485,7 +485,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     // Store the request in the atom so the dialog can track it
     setUserVerification({
       userId,
-      dmRoomId: request.roomId,
+      dmRoomId: request!.roomId,
       request,
     });
   };

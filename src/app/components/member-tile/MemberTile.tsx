@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { as, Avatar, Box, Text } from 'folds';
 import { userFallbackIcon } from '$components/icons/phosphor';
 import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
-import { getMemberDisplayName } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { useAtomValue } from 'jotai';
@@ -31,9 +31,7 @@ export const MemberTile = as<'button', MemberTileProps>(
     const presence = useUserPresence(member.userId ?? '');
 
     const avatarMxcUrl = member.getMxcAvatarUrl() ?? mx.getUser(member.userId)?.avatarUrl;
-    const avatarUrl = avatarMxcUrl
-      ? mx.mxcUrlToHttp(avatarMxcUrl, 100, 100, 'crop', undefined, false, useAuthentication)
-      : undefined;
+    const avatarUrl = getAvatarUrl(mx, avatarMxcUrl, 100, useAuthentication);
 
     // Sable username color and fonts
     const { color, font } = useSableCosmetics(member.userId, room, false, false);

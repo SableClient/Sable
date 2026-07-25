@@ -559,17 +559,26 @@ export const getUnreadInfosForRooms = (
   return { unread, deleted };
 };
 
+/**
+ * The square-cropped avatar conversion every avatar call site repeats. Goes
+ * through `mxcUrlToHttp` so the Tauri media rewrite is never bypassed.
+ */
+export const getAvatarUrl = (
+  mx: MatrixClient,
+  mxcUrl: string | null | undefined,
+  size: number,
+  useAuthentication = false
+): string | undefined =>
+  mxcUrl
+    ? (mxcUrlToHttp(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined)
+    : undefined;
+
 export const getRoomAvatarUrl = (
   mx: MatrixClient,
   room: Room,
   size: 32 | 96 = 32,
   useAuthentication = false
-): string | undefined => {
-  const mxcUrl = room.getMxcAvatarUrl();
-  return mxcUrl
-    ? (mxcUrlToHttp(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined)
-    : undefined;
-};
+): string | undefined => getAvatarUrl(mx, room.getMxcAvatarUrl(), size, useAuthentication);
 
 export const getDirectRoomAvatarUrl = (
   mx: MatrixClient,
@@ -583,7 +592,7 @@ export const getDirectRoomAvatarUrl = (
     return getRoomAvatarUrl(mx, room, size, useAuthentication);
   }
 
-  return mxcUrlToHttp(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined;
+  return getAvatarUrl(mx, mxcUrl, size, useAuthentication);
 };
 
 export const trimReplyFromBody = (body: string): string => {

@@ -28,7 +28,7 @@ import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsync
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useDebounce } from '$hooks/useDebounce';
 import { TypingIndicator } from '$components/typing-indicator';
-import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName, getMemberSearchStr } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useSetSetting, useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -137,9 +137,7 @@ function MemberItem({
 
   // Increased the request size to 128x128 to maintain quality for the larger avatar
   const avatarMxcUrl = member.getMxcAvatarUrl();
-  const avatarUrl = avatarMxcUrl
-    ? mx.mxcUrlToHttp(avatarMxcUrl, 128, 128, 'crop', undefined, false, useAuthentication)
-    : undefined;
+  const avatarUrl = getAvatarUrl(mx, avatarMxcUrl, 128, useAuthentication);
 
   const presence = useUserPresence(member.userId);
   const { color, font } = useSableCosmetics(member.userId, room);

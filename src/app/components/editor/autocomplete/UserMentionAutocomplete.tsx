@@ -12,7 +12,7 @@ import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { getMxIdLocalPart, isUserId } from '$utils/matrix';
-import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName, getMemberSearchStr } from '$utils/room';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 
@@ -175,9 +175,7 @@ export function UserMentionAutocomplete({
       ) : (
         autoCompleteMembers.map((roomMember) => {
           const avatarMxcUrl = roomMember.getMxcAvatarUrl();
-          const avatarUrl = avatarMxcUrl
-            ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)
-            : undefined;
+          const avatarUrl = getAvatarUrl(mx, avatarMxcUrl, 32, useAuthentication);
           return (
             <MenuItem
               key={roomMember.userId}

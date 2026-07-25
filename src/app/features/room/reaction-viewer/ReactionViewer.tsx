@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import classNames from 'classnames';
 import { Avatar, Box, Header, IconButton, Line, MenuItem, Scroll, Text, as, config } from 'folds';
 import type { MatrixEvent, Room, RoomMember, Relations } from '$types/matrix-sdk';
-import { getMemberDisplayName } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName } from '$utils/room';
 import { eventWithShortcode, getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRelations } from '$hooks/useRelations';
@@ -104,17 +104,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
                   const name = (member ? getName(member) : getMxIdLocalPart(senderId)) ?? senderId;
 
                   const avatarMxcUrl = member?.getMxcAvatarUrl();
-                  const avatarUrl = avatarMxcUrl
-                    ? mx.mxcUrlToHttp(
-                        avatarMxcUrl,
-                        100,
-                        100,
-                        'crop',
-                        undefined,
-                        false,
-                        useAuthentication
-                      )
-                    : undefined;
+                  const avatarUrl = getAvatarUrl(mx, avatarMxcUrl, 100, useAuthentication);
 
                   return (
                     <MenuItem

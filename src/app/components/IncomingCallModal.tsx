@@ -7,7 +7,7 @@ import { useRoomName } from '$hooks/useRoomMeta';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { getMxIdLocalPart } from '$utils/matrix';
-import { getMemberDisplayName, getRoomAvatarUrl } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName, getRoomAvatarUrl } from '$utils/room';
 import { webRTCSupported } from '$utils/rtc';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import * as Sentry from '@sentry/react';
@@ -62,10 +62,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
     getMxIdLocalPart(incomingCall.senderId) ??
     incomingCall.senderId;
   const callerAvatarMxc = room.getMember(incomingCall.senderId)?.getMxcAvatarUrl();
-  const callerAvatarUrl = callerAvatarMxc
-    ? (mx.mxcUrlToHttp(callerAvatarMxc, 96, 96, 'crop', undefined, undefined, useAuthentication) ??
-      undefined)
-    : undefined;
+  const callerAvatarUrl = getAvatarUrl(mx, callerAvatarMxc, 96, useAuthentication);
 
   const isRingNotification = incomingCall.notificationType === 'ring';
   const isDirectRing = incomingCall.isDirect && incomingCall.notificationType === 'ring';

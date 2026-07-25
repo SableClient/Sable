@@ -1,4 +1,4 @@
-import type { MessageSpacing } from '$state/settings';
+import type { DateFormat, MessageSpacing } from '$state/settings';
 import { CaptionPosition, MessageLayout, ShowRoomIcon } from '$state/settings';
 import type { SettingMenuOption } from './SettingMenuSelector';
 
@@ -38,6 +38,15 @@ export type ShowRoomIconValue = ShowRoomIcon | typeof SHOW_ROOM_ICON_DEFAULT;
 export const PER_ROOM_SHOW_ROOM_ICON_OPTIONS: SettingMenuOption<ShowRoomIconValue>[] = [
   { value: SHOW_ROOM_ICON_DEFAULT, label: 'Default' },
   ...SHOW_ROOM_ICON_OPTIONS,
+];
+
+/** Labels are the current date rendered in each pattern, so they are built at render. */
+export const DATE_FORMATS: DateFormat[] = [
+  'D MMM YYYY',
+  'DD/MM/YYYY',
+  'MM/DD/YYYY',
+  'YYYY/MM/DD',
+  '',
 ];
 
 export type PanelSizeKey =

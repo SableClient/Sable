@@ -4,7 +4,7 @@ import type {
   KeyboardEventHandler,
   MouseEventHandler,
 } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { RectCords } from 'folds';
@@ -17,7 +17,6 @@ import {
   IconButton,
   Input,
   Menu,
-  MenuItem,
   PopOut,
   Scroll,
   Switch,
@@ -26,7 +25,6 @@ import {
 } from 'folds';
 import {
   ArrowUp,
-  CaretDown,
   composerIcon,
   DotsSixVerticalIcon,
   Download,
@@ -48,17 +46,17 @@ import { SequenceCard } from '$components/sequence-card';
 import {
   CAPTION_POSITION_OPTIONS,
   MESSAGE_LAYOUT_OPTIONS,
+  DATE_FORMATS,
   MESSAGE_SPACING_OPTIONS,
   SettingMenuSelector,
 } from '$components/setting-menu-selector';
 import { useSetting } from '$state/hooks/settings';
-import type { DateFormat, EditorButtonId } from '$state/settings';
+import type { EditorButtonId } from '$state/settings';
 import { MessageLayout, RightSwipeAction, settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS, mobileOrTablet } from '$utils/user-agent';
 import { stopPropagation } from '$utils/keyboard';
-import { useDateFormatItems } from '$hooks/useDateFormat';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { sessionsAtom, activeSessionIdAtom } from '$state/sessions';
 import { isKeyHotkey } from 'is-hotkey';
@@ -308,71 +306,16 @@ const getDisplayDate = (format: string): string =>
   format === '' ? 'Custom' : dayjs().format(format);
 
 function PresetDateFormat({ value, onChange }: Readonly<PresetDateFormatProps>) {
-  const [menuCords, setMenuCords] = useState<RectCords>();
-  const dateFormatItems = useDateFormatItems();
+  // A format typed into the custom field is not a preset, but it still has to
+  // label the trigger rather than fall back to the first preset.
+  const options = useMemo(() => {
+    const formats: string[] = DATE_FORMATS.some((preset) => preset === value)
+      ? DATE_FORMATS
+      : [value, ...DATE_FORMATS];
+    return formats.map((format) => ({ value: format, label: getDisplayDate(format) }));
+  }, [value]);
 
-  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleSelect = (format: DateFormat) => {
-    onChange(format);
-    setMenuCords(undefined);
-  };
-
-  return (
-    <>
-      <Button
-        size="300"
-        variant="Secondary"
-        outlined
-        fill="Soft"
-        radii="300"
-        after={composerIcon(CaretDown)}
-        onClick={handleMenu}
-      >
-        <Text size="T300">
-          {getDisplayDate(dateFormatItems.find((i) => i.format === value)?.format ?? value)}
-        </Text>
-      </Button>
-      <PopOut
-        anchor={menuCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setMenuCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                {dateFormatItems.map((item) => (
-                  <MenuItem
-                    key={item.format}
-                    size="300"
-                    variant={value === item.format ? 'Primary' : 'Surface'}
-                    radii="300"
-                    onClick={() => handleSelect(item.format)}
-                  >
-                    <Text size="T300">{getDisplayDate(item.format)}</Text>
-                  </MenuItem>
-                ))}
-              </Box>
-            </Menu>
-          </FocusTrap>
-        }
-      />
-    </>
-  );
+  return <SettingMenuSelector value={value} options={options} onSelect={onChange} />;
 }
 
 function SelectDateFormat() {

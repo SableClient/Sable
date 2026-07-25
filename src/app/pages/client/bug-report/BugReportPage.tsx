@@ -1,19 +1,17 @@
-import { useNavigate } from 'react-router-dom';
-import { FormPage } from '$components/page/FormPage';
+import { RouteSurface } from '$components/page/RouteSurface';
 import { BugReportForm } from '$features/bug-report';
+import { useCloseShallowRoute } from '$pages/client/useShallowRoute';
 
 export function BugReportPage() {
-  const navigate = useNavigate();
-  const navigateBack = () => navigate(-1);
+  const close = useCloseShallowRoute();
 
   return (
-    <FormPage
+    <RouteSurface
       title="Report an Issue"
       subTitle="Report a bug or request a feature."
       closeLabel="Close bug report"
-      onClose={navigateBack}
     >
-      <BugReportForm onDone={navigateBack} />
-    </FormPage>
+      <BugReportForm onDone={close} />
+    </RouteSurface>
   );
 }

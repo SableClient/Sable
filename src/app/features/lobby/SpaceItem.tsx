@@ -26,11 +26,9 @@ import { getRoomAvatarUrl } from '$utils/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
-import { CreateRoomType } from '$components/create-room';
 import { AddExistingModal } from '$features/add-existing';
-import { useOpenCreateRoomModal } from '$state/hooks/createRoomModal';
-import { useOpenCreateSpaceModal } from '$state/hooks/createSpaceModal';
+import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
+import { getCreateRoomPath, getCreateSpacePath } from '$pages/pathUtils';
 import { stopPropagation } from '$utils/keyboard';
 import FocusTrap from 'focus-trap-react';
 import * as css from './SpaceItem.css';
@@ -241,15 +239,15 @@ function RootSpaceProfile({ closed, categoryId, handleClose }: RootSpaceProfileP
 
 function AddRoomButton({ item }: { item: HierarchyItem }) {
   const [cords, setCords] = useState<RectCords>();
-  const openCreateRoomModal = useOpenCreateRoomModal();
+  const openShallowRoute = useOpenShallowRoute();
   const [addExisting, setAddExisting] = useState(false);
 
   const handleAddRoom: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setCords(evt.currentTarget.getBoundingClientRect());
   };
 
-  const handleCreateRoom = (type?: CreateRoomType) => {
-    openCreateRoomModal(item.roomId, type);
+  const handleCreateRoom = () => {
+    openShallowRoute(getCreateRoomPath(item.roomId));
     setCords(undefined);
   };
 
@@ -280,19 +278,9 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
               radii="300"
               variant="Primary"
               fill="None"
-              onClick={() => handleCreateRoom(CreateRoomType.TextRoom)}
+              onClick={handleCreateRoom}
             >
-              <Text size="T300">Chat Room</Text>
-            </MenuItem>
-            <MenuItem
-              size="300"
-              radii="300"
-              variant="Primary"
-              fill="None"
-              onClick={() => handleCreateRoom(CreateRoomType.VoiceRoom)}
-              after={<BetaNoticeBadge />}
-            >
-              <Text size="T300">Voice Room</Text>
+              <Text size="T300">New Room</Text>
             </MenuItem>
             <MenuItem size="300" radii="300" fill="None" onClick={handleAddExisting}>
               <Text size="T300">Existing Room</Text>
@@ -321,7 +309,7 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
 
 function AddSpaceButton({ item }: { item: HierarchyItem }) {
   const [cords, setCords] = useState<RectCords>();
-  const openCreateSpaceModal = useOpenCreateSpaceModal();
+  const openShallowRoute = useOpenShallowRoute();
   const [addExisting, setAddExisting] = useState(false);
 
   const handleAddSpace: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -329,7 +317,7 @@ function AddSpaceButton({ item }: { item: HierarchyItem }) {
   };
 
   const handleCreateSpace = () => {
-    openCreateSpaceModal(item.roomId);
+    openShallowRoute(getCreateSpacePath(item.roomId));
     setCords(undefined);
   };
 

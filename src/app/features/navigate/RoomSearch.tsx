@@ -19,7 +19,7 @@ import { MagnifyingGlass, X, composerIcon, menuIcon } from '$components/icons/ph
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isKeyHotkey } from 'is-hotkey';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtomValue } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { useDirects, useOrphanSpaces, useRooms, useSpaces } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -40,21 +40,16 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { nameInitials } from '$utils/common';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useListFocusIndex } from '$hooks/useListFocusIndex';
-import { useNavigate } from 'react-router-dom';
-import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { getNavigatePath } from '$pages/pathUtils';
 import { getMxIdLocalPart, guessDmRoomUserId } from '$utils/matrix';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
-import { searchModalAtom } from '$state/searchModal';
-import { useKeyDown } from '$hooks/useKeyDown';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { formatShortcut, getShortcutBinding, matchesShortcut } from '../../keyboard/shortcuts';
+import { formatShortcut, getShortcutBinding } from '../../keyboard/shortcuts';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -511,34 +506,6 @@ export function RoomSearchModal({ requestClose, pickRoom, isMobile }: RoomSearch
   );
 }
 
-export function SearchModalRenderer() {
-  const [opened, setOpen] = useAtom(searchModalAtom);
-  const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
-  const navigate = useNavigate();
-  const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
-
-  useKeyDown(
-    window,
-    useCallback(
-      (event) => {
-        if (matchesShortcut('navigation.openRoomSearch', event, shortcutOverrides)) {
-          event.preventDefault();
-          if (isMobile) {
-            navigate(getNavigatePath());
-            return;
-          }
-          setOpen(!opened);
-          return;
-        }
-      },
-      [opened, setOpen, shortcutOverrides, isMobile, navigate]
-    )
-  );
-
-  return opened && <SearchWrapper requestClose={() => setOpen(false)} />;
-}
-
 export function SearchWrapper({ requestClose, pickRoom }: RoomSearchModalProps) {
   return (
     <Overlay open>
@@ -569,8 +536,4 @@ export function SearchWrapper({ requestClose, pickRoom }: RoomSearchModalProps) 
       </OverlayCenter>
     </Overlay>
   );
-}
-
-export function Search(props: { requestClose: () => void }) {
-  return <SearchWrapper requestClose={props.requestClose} />;
 }

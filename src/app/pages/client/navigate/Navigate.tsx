@@ -8,10 +8,25 @@ import { settingsAtom } from '$state/settings';
 import { SidebarResizer } from '../sidebar/SidebarResizer';
 import { useSetAtom } from 'jotai';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
-import { RoomSearchModal } from '$features/navigate';
+import { useLocation } from 'react-router-dom';
+import { RoomSearchModal, SearchWrapper } from '$features/navigate';
+import { getBackgroundLocation } from '../shallowRoute';
+import { useCloseShallowRoute } from '../useShallowRoute';
 import { UserQuickTools } from '../sidebar/UserQuickTools';
 
 export function Navigate() {
+  const location = useLocation();
+  const overlayScreenSize = useScreenSizeContext();
+  const requestClose = useCloseShallowRoute();
+
+  if (overlayScreenSize !== ScreenSize.Mobile && getBackgroundLocation(location.state)) {
+    return <SearchWrapper requestClose={requestClose} />;
+  }
+
+  return <NavigatePage />;
+}
+
+function NavigatePage() {
   const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);

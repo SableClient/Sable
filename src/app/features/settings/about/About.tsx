@@ -9,7 +9,8 @@ import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
-import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
+import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
+import { getBugReportPath } from '$pages/pathUtils';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 
 type VersionResult =
@@ -179,7 +180,8 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
   const mx = useMatrixClient();
   const devLabel = IS_RELEASE_TAG ? '' : '-dev';
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
-  const openBugReport = useOpenBugReportModal();
+  const openShallowRoute = useOpenShallowRoute();
+  const openBugReport = () => openShallowRoute(getBugReportPath());
 
   return (
     <SettingsSectionPage title="About" requestBack={requestBack} requestClose={requestClose}>

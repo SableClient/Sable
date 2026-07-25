@@ -18,7 +18,7 @@ import {
   MsgType,
   KnownMembership,
 } from '$types/matrix-sdk';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import {
   addRoomIdToMDirect,
@@ -36,7 +36,8 @@ import { setOwnRoomMemberProfile } from '$utils/roomMemberProfile';
 import { splitWithSpace } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
+import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
+import { getBugReportPath } from '$pages/pathUtils';
 import { createRoomEncryptionState } from '$components/create-room';
 import { parsePronounsInput } from '$utils/pronouns';
 import { sendFeedback } from '$utils/sendFeedbackToUser';
@@ -307,7 +308,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
   // helper for pkit commands
   const pkitcmdHandler = useMemo(() => new PKitCommandMessageHandler(mx, room), [mx, room]);
   const profile = useUserProfile(mx.getSafeUserId());
-  const openBugReport = useOpenBugReportModal();
+  const openShallowRoute = useOpenShallowRoute();
+  const openBugReport = useCallback(() => openShallowRoute(getBugReportPath()), [openShallowRoute]);
 
   const commands: CommandRecord = useMemo(
     () => ({

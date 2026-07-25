@@ -31,7 +31,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { usePowerLevels } from '$hooks/usePowerLevels';
-import { copyToClipboard } from '$utils/dom';
+import { copyToClipboard, getMouseEventCords } from '$utils/dom';
 import { markAsRead } from '$utils/notifications';
 import { confirm } from '$components/confirm/confirm';
 import { showToast } from '$state/toast';
@@ -406,12 +406,7 @@ export function RoomNavItem({
     }
 
     evt.preventDefault();
-    setMenuAnchor({
-      x: evt.clientX,
-      y: evt.clientY,
-      width: 0,
-      height: 0,
-    });
+    setMenuAnchor(getMouseEventCords(evt.nativeEvent));
   };
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {

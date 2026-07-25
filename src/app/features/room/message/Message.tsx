@@ -41,6 +41,7 @@ import {
 } from '$components/message';
 import { canEditEvent, getEditedEvent, getMemberAvatarMxc } from '$utils/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
+import { getMouseEventCords } from '$utils/dom';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -912,12 +913,7 @@ function MessageInternal(
     }
 
     evt.preventDefault();
-    setMenuAnchor({
-      x: evt.clientX,
-      y: evt.clientY,
-      width: 0,
-      height: 0,
-    });
+    setMenuAnchor(getMouseEventCords(evt.nativeEvent));
   };
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {

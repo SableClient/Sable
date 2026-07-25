@@ -1,6 +1,7 @@
 import type { MouseEventHandler, TouchEvent as ReactTouchEvent } from 'react';
 import { useCallback, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
+import { getMouseEventCords } from '$utils/dom';
 import { useMobileLongPress } from './useMobileLongPress';
 
 type TriggerProps<T extends HTMLElement> = {
@@ -63,9 +64,11 @@ export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor
         longPress.firedRef.current = false;
         return;
       }
-      openAt(evt.currentTarget);
+      // Call sites key align/offset on `width === 0` to lay out from the cursor.
+      // Assigning, not toggling: nested handlers fire this twice as the event bubbles.
+      setAnchor(getMouseEventCords(evt.nativeEvent));
     },
-    [longPress, openAt]
+    [longPress]
   );
 
   const onTouchStart = useCallback(

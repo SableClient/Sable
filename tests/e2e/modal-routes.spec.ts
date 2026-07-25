@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures/test';
+import { test, expect } from './fixtures/createRoom';
 
 test.describe('create room surface', () => {
   test('desktop opens it over the page it was launched from', async ({

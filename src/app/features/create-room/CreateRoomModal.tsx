@@ -1,10 +1,8 @@
-import { Box, config, Header, IconButton, Modal, Scroll, Text } from 'folds';
-import { X, composerIcon } from '$components/icons/phosphor';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { SpaceProvider } from '$hooks/useSpace';
 import { useCloseCreateRoomModal, useCreateRoomModalState } from '$state/hooks/createRoomModal';
 import type { CreateRoomModalState } from '$state/createRoomModal';
-import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { FormModal } from '$components/modal-overlay/FormModal';
 import { CreateRoomType } from '$components/create-room/types';
 import { CreateRoomForm } from './CreateRoom';
 
@@ -21,42 +19,12 @@ function CreateRoomModal({ state }: CreateRoomModalProps) {
 
   return (
     <SpaceProvider value={space ?? null}>
-      <ModalOverlay requestClose={closeDialog}>
-        <Modal size="300" flexHeight>
-          <Box direction="Column">
-            <Header
-              size="500"
-              style={{
-                padding: config.space.S200,
-                paddingLeft: config.space.S400,
-              }}
-            >
-              <Box grow="Yes">
-                <Text size="H4">
-                  {type === CreateRoomType.VoiceRoom ? 'New Voice Room' : 'New Chat Room'}
-                </Text>
-              </Box>
-              <Box shrink="No">
-                <IconButton size="300" radii="300" onClick={closeDialog}>
-                  {composerIcon(X)}
-                </IconButton>
-              </Box>
-            </Header>
-            <Scroll size="300" hideTrack>
-              <Box
-                style={{
-                  padding: config.space.S400,
-                  paddingRight: config.space.S200,
-                }}
-                direction="Column"
-                gap="500"
-              >
-                <CreateRoomForm space={space} onCreate={closeDialog} defaultType={type} />
-              </Box>
-            </Scroll>
-          </Box>
-        </Modal>
-      </ModalOverlay>
+      <FormModal
+        title={type === CreateRoomType.VoiceRoom ? 'New Voice Room' : 'New Chat Room'}
+        requestClose={closeDialog}
+      >
+        <CreateRoomForm space={space} onCreate={closeDialog} defaultType={type} />
+      </FormModal>
     </SpaceProvider>
   );
 }

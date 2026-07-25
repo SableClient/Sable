@@ -28,22 +28,15 @@ import { nameInitials } from '$utils/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
-import { usePowerLevels } from '$hooks/usePowerLevels';
 import { copyToClipboard } from '$utils/dom';
-import { markAsRead } from '$utils/notifications';
-import { confirm } from '$components/confirm/confirm';
-import { showToast } from '$state/toast';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { TypingIndicator } from '$components/typing-indicator';
-import { getMatrixToRoom } from '$plugins/matrix-to';
-import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
-import { getViaServers } from '$plugins/via-servers';
+
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { useOpenRoomSettings } from '$state/hooks/roomSettings';
-import { useSpaceOptionally } from '$hooks/useSpace';
+
 import {
   ChatCircleDots,
   Checks,
@@ -64,8 +57,7 @@ import {
   roomNotificationModeIcon,
 } from '$hooks/useRoomsNotificationPreferences';
 import { RoomNotificationModeSwitcher } from '$components/RoomNotificationSwitcher';
-import { useRoomCreators } from '$hooks/useRoomCreators';
-import { useRoomPermissions } from '$hooks/useRoomPermissions';
+
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
@@ -75,6 +67,7 @@ import { warmupRoomDecryption } from '$utils/decryptScheduler';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 import { useOpenMobileDrawerContent } from '$components/page/MobileNavDrawerContext';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useRoomMenuActions } from '$hooks/useRoomMenuActions';
 
 // Call Hooks & Plugins
 import { useCallMembers, useCallSession } from '$hooks/useCall';
@@ -118,28 +111,27 @@ type RoomNavItemMenuProps = {
 
 const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
   ({ room, requestClose, notificationMode }, ref) => {
+    const {
+      handleMarkAsRead: hookMarkAsRead,
+      handleInvite: hookInvite,
+      handleCopyLink: hookCopyLink,
+      handleOpenSettings: hookOpenSettings,
+      handleLeaveRoom: hookLeaveRoom,
+      canInvite,
+      unread,
+      invitePrompt,
+      setInvitePrompt,
+    } = useRoomMenuActions(room);
+
     const mx = useMatrixClient();
     const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
-    const [hideReads] = useSetting(settingsAtom, 'hideReads');
-    const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
-    const powerLevels = usePowerLevels(room);
-    const creators = useRoomCreators(room);
-
-    const permissions = useRoomPermissions(creators, powerLevels);
-    const canInvite = permissions.action('invite', mx.getSafeUserId());
-    const openRoomSettings = useOpenRoomSettings();
-    const space = useSpaceOptionally();
-
-    const [invitePrompt, setInvitePrompt] = useState(false);
 
     const handleMarkAsRead = () => {
-      markAsRead(mx, room.roomId, hideReads);
+      hookMarkAsRead();
       requestClose();
     };
 
-    const handleInvite = () => {
-      setInvitePrompt(true);
-    };
+    const handleInvite = hookInvite;
 
     const handleCopyName = () => {
       const roomName = mx.getRoom(room.roomId)?.name || 'Room';
@@ -148,32 +140,18 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
     };
 
     const handleCopyLink = () => {
-      const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
-      const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
-      copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
+      hookCopyLink();
       requestClose();
     };
 
     const handleRoomSettings = () => {
-      openRoomSettings(room.roomId, space?.roomId);
+      hookOpenSettings();
       requestClose();
     };
 
     const handleLeaveRoom = async () => {
-      const ok = await confirm({
-        title: 'Leave Room',
-        description: 'Are you sure you want to leave this room?',
-        action: 'Leave',
-        variant: 'Critical',
-      });
-      if (ok) {
-        try {
-          await mx.leave(room.roomId);
-          requestClose();
-        } catch (e) {
-          showToast(`Failed to leave room: ${e instanceof Error ? e.message : 'unknown error'}`);
-        }
-      }
+      await hookLeaveRoom();
+      requestClose();
     };
 
     return (

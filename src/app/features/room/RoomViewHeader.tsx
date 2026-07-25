@@ -1,24 +1,10 @@
 import type { MouseEventHandler } from 'react';
-import { forwardRef, useCallback, useEffect, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useEffect, useState } from 'react';
+import { useAtom } from 'jotai';
 import classNames from 'classnames';
-import {
-  Box,
-  Avatar,
-  Text,
-  IconButton,
-  Tooltip,
-  TooltipProvider,
-  Menu,
-  MenuItem,
-  toRem,
-  config,
-  Line,
-  Badge,
-  Spinner,
-} from 'folds';
+import { Box, Avatar, Text, IconButton, Tooltip, TooltipProvider, toRem, Badge } from 'folds';
 import { useNavigate } from 'react-router-dom';
-import type { Room, MatrixEvent } from '$types/matrix-sdk';
+import type { MatrixEvent } from '$types/matrix-sdk';
 import {
   Direction,
   type EventTimeline,
@@ -33,20 +19,13 @@ import { PageHeader } from '$components/page';
 import {
   ArrowLeft,
   ChatCircleDots,
-  Checks,
   Chats,
-  ClockCounterClockwise,
   composerIcon,
   DotsThreeOutlineVerticalIcon,
-  GearSix,
   GridFour,
-  Link,
   MagnifyingGlass,
-  menuIcon,
   PushPin,
-  SignOut,
   UserCircle,
-  UserPlus,
 } from '$components/icons/phosphor';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -59,54 +38,25 @@ import { settingsAtom } from '$state/settings';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { getHomeSearchPath, getSpaceSearchPath, withSearchParam } from '$pages/pathUtils';
 import { createLogger } from '$utils/debug';
-import {
-  getCanonicalAliasOrRoomId,
-  isRoomAlias,
-  mxcUrlToHttp,
-  removeRoomIdFromMDirect,
-} from '$utils/matrix';
+import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
 import { type SearchPathSearchParams } from '$pages/paths';
-import { useRoomUnread } from '$state/hooks/unread';
-import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { markAsRead } from '$utils/notifications';
-import { roomToUnreadAtom } from '$state/room/roomToUnread';
-import { copyToClipboard } from '$utils/dom';
-import { confirm } from '$components/confirm/confirm';
-import { showToast } from '$state/toast';
 import { useRoomAvatar, useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
-import { getMatrixToRoom } from '$plugins/matrix-to';
-import { getViaServers } from '$plugins/via-servers';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
-import { RoomNotificationModeSwitcher } from '$components/RoomNotificationSwitcher';
-import {
-  getRoomNotificationMode,
-  roomNotificationModeIcon,
-  useRoomsNotificationPreferencesContext,
-} from '$hooks/useRoomsNotificationPreferences';
-import { useRoomNavigate } from '$hooks/useRoomNavigate';
-import { useRoomCreators } from '$hooks/useRoomCreators';
-import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoomWidgets } from '$hooks/useRoomWidgets';
 import { hasThreadRootAggregation, isThreadRelationEvent } from '$utils/room/relations';
-
-import { DirectInvitePrompt } from '$components/direct-invite-prompt';
-import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { mDirectAtom } from '$state/mDirectList';
 import { callChatAtom } from '$state/callEmbed';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import { useCallPreferences } from '$state/hooks/callPreferences';
 import { useCallStartCapabilities } from '$hooks/useCallStartCapabilities';
-import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
@@ -131,228 +81,7 @@ export interface PinReadMarker {
   last_seen_id: string;
 }
 
-type RoomMenuProps = {
-  room: Room;
-  requestClose: () => void;
-};
-
-const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose }, ref) => {
-  const mx = useMatrixClient();
-  const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
-  const powerLevels = usePowerLevelsContext();
-  const creators = useRoomCreators(room);
-
-  const permissions = useRoomPermissions(creators, powerLevels);
-  const canInvite = permissions.action('invite', mx.getSafeUserId());
-  const mDirects = useAtomValue(mDirectAtom);
-  const isDirectConversation = mDirects.has(room.roomId);
-  const notificationPreferences = useRoomsNotificationPreferencesContext();
-  const notificationMode = getRoomNotificationMode(notificationPreferences, room.roomId);
-  const { navigateRoom } = useRoomNavigate();
-
-  const [invitePrompt, setInvitePrompt] = useState(false);
-  const [directInvitePrompt, setDirectInvitePrompt] = useState(false);
-
-  const handleMarkAsRead = () => {
-    markAsRead(mx, room.roomId, hideReads);
-    requestClose();
-  };
-
-  const handleInvite = () => {
-    if (isDirectConversation) {
-      setDirectInvitePrompt(true);
-      return;
-    }
-    setInvitePrompt(true);
-  };
-
-  const handleInviteDirect = () => {
-    setDirectInvitePrompt(false);
-    setInvitePrompt(true);
-  };
-
-  const [convertState, convertToRoom] = useAsyncCallback<void, Error, []>(
-    useCallback(async () => {
-      await removeRoomIdFromMDirect(mx, room.roomId);
-    }, [mx, room.roomId])
-  );
-
-  const handleConvertAndInvite = () => {
-    if (convertState.status === AsyncStatus.Loading) return;
-    convertToRoom().catch(() => {});
-  };
-
-  useEffect(() => {
-    if (convertState.status === AsyncStatus.Success) {
-      setDirectInvitePrompt(false);
-      setInvitePrompt(true);
-    }
-  }, [convertState.status]);
-
-  const handleCopyLink = () => {
-    const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
-    const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
-    copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
-    requestClose();
-  };
-
-  const openSettings = useOpenRoomSettings();
-  const parentSpace = useSpaceOptionally();
-  const handleOpenSettings = () => {
-    openSettings(room.roomId, parentSpace?.roomId);
-    requestClose();
-  };
-
-  const handleLeaveRoom = async () => {
-    const ok = await confirm({
-      title: 'Leave Room',
-      description: 'Are you sure you want to leave this room?',
-      action: 'Leave',
-      variant: 'Critical',
-    });
-    if (ok) {
-      try {
-        await mx.leave(room.roomId);
-        requestClose();
-      } catch (e) {
-        showToast(`Failed to leave room: ${e instanceof Error ? e.message : 'unknown error'}`);
-      }
-    }
-  };
-
-  return (
-    <Menu ref={ref} style={{ maxWidth: toRem(200) }}>
-      {invitePrompt && (
-        <InviteUserPrompt
-          room={room}
-          requestClose={() => {
-            setInvitePrompt(false);
-            requestClose();
-          }}
-        />
-      )}
-      {directInvitePrompt && (
-        <DirectInvitePrompt
-          onCancel={() => {
-            setDirectInvitePrompt(false);
-            requestClose();
-          }}
-          onInviteDirect={handleInviteDirect}
-          onConvertAndInvite={handleConvertAndInvite}
-          converting={convertState.status === AsyncStatus.Loading}
-          convertError={
-            convertState.status === AsyncStatus.Error ? convertState.error.message : undefined
-          }
-        />
-      )}
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleMarkAsRead}
-          size="300"
-          after={menuIcon(Checks)}
-          radii="300"
-          disabled={!unread}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Mark as Read
-          </Text>
-        </MenuItem>
-        <RoomNotificationModeSwitcher roomId={room.roomId} value={notificationMode}>
-          {(handleOpen, opened, changing) => (
-            <MenuItem
-              size="300"
-              after={
-                changing ? (
-                  <Spinner size="100" variant="Secondary" />
-                ) : (
-                  roomNotificationModeIcon(notificationMode)
-                )
-              }
-              radii="300"
-              aria-pressed={opened}
-              onClick={handleOpen}
-            >
-              <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                Notifications
-              </Text>
-            </MenuItem>
-          )}
-        </RoomNotificationModeSwitcher>
-      </Box>
-      <Line variant="Surface" size="300" />
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleInvite}
-          variant="Primary"
-          fill="None"
-          size="300"
-          after={menuIcon(UserPlus)}
-          radii="300"
-          aria-pressed={invitePrompt}
-          disabled={!canInvite}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Invite
-          </Text>
-        </MenuItem>
-        <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Copy Link
-          </Text>
-        </MenuItem>
-        <MenuItem onClick={handleOpenSettings} size="300" after={menuIcon(GearSix)} radii="300">
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Room Settings
-          </Text>
-        </MenuItem>
-        <UseStateProvider initial={false}>
-          {(promptJump, setPromptJump) => (
-            <>
-              <MenuItem
-                onClick={() => setPromptJump(true)}
-                size="300"
-                after={menuIcon(ClockCounterClockwise)}
-                radii="300"
-                aria-pressed={promptJump}
-              >
-                <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                  Jump to Time
-                </Text>
-              </MenuItem>
-              {promptJump && (
-                <JumpToTime
-                  onSubmit={(eventId) => {
-                    setPromptJump(false);
-                    navigateRoom(room.roomId, eventId);
-                    requestClose();
-                  }}
-                  onCancel={() => setPromptJump(false)}
-                />
-              )}
-            </>
-          )}
-        </UseStateProvider>
-      </Box>
-      <Line variant="Surface" size="300" />
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleLeaveRoom}
-          variant="Critical"
-          fill="None"
-          size="300"
-          after={menuIcon(SignOut)}
-          radii="300"
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Leave Room
-          </Text>
-        </MenuItem>
-      </Box>
-    </Menu>
-  );
-});
-RoomMenu.displayName = 'RoomMenu';
+import { RoomMenu } from './RoomMenu';
 
 export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const navigate = useNavigate();

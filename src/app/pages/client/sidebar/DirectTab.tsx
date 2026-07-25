@@ -1,6 +1,5 @@
 import { forwardRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Menu, MenuItem, Text, config, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { useDirects } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -18,48 +17,22 @@ import {
 import { useDirectSelected } from '$hooks/router/useRouteSelected';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
-import { markAsRead } from '$utils/notifications';
-import { Checks, menuIcon, getPhosphorIconSize, User } from '$components/icons/phosphor';
-import { settingsAtom } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
+import { getPhosphorIconSize, User } from '$components/icons/phosphor';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
+import { NavMenu } from '$components/nav/NavMenu';
 
 type DirectMenuProps = {
   requestClose: () => void;
 };
 const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }, ref) => {
   const orphanRooms = useDirectRooms();
-  const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
-  const mx = useMatrixClient();
 
-  const handleMarkAsRead = () => {
-    if (!unread) return;
-    orphanRooms.forEach((rId) => markAsRead(mx, rId, hideReads));
-    requestClose();
-  };
-
-  return (
-    <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleMarkAsRead}
-          size="300"
-          after={menuIcon(Checks)}
-          radii="300"
-          aria-disabled={!unread}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Mark as Read
-          </Text>
-        </MenuItem>
-      </Box>
-    </Menu>
-  );
+  return <NavMenu ref={ref} rooms={orphanRooms} requestClose={requestClose} />;
 });
+DirectMenu.displayName = 'DirectMenu';
 
 export function DirectTab() {
   const navigate = useNavigate();

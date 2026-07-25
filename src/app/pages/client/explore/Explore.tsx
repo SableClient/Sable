@@ -1,19 +1,7 @@
 import type { FormEventHandler, MouseEventHandler } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Avatar,
-  Box,
-  Button,
-  Dialog,
-  Header,
-  IconButton,
-  Input,
-  Text,
-  color,
-  config,
-  toRem,
-} from 'folds';
+import { Avatar, Box, Button, Dialog, Header, IconButton, Input, Text, color, config } from 'folds';
 import {
   Compass,
   HardDrives,
@@ -41,16 +29,11 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAsyncCallback } from '$hooks/useAsyncCallback';
 import { AsyncError } from '$components/AsyncError';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
-import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
-import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { settingsAtom } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
+import { PageNavContent, PageNavHeader } from '$components/page';
+import { PageNavShell } from '$components/page/PageNavShell';
+import { useSidebarWidth } from '$hooks/useSidebarWidth';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { isServerName } from '$utils/matrix';
-import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
-import { isResizingSidebarAtom } from '$state/isResizingSidebar';
-import { useSetAtom } from 'jotai';
-import { UserQuickTools } from '../sidebar/UserQuickTools';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type AddServerProps = {
@@ -244,27 +227,20 @@ export function Explore() {
       handleRemoveServer(server);
     };
 
-  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
-  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
-  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
-
-  useEffect(() => {
-    setCurWidth(roomSidebarWidth);
-  }, [roomSidebarWidth]);
-  const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
-  const hideText = curWidth <= 80 && !isMobile;
-  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
+  const {
+    curWidth,
+    setCurWidth,
+    roomSidebarWidth,
+    setRoomSidebarWidth,
+    setIsResizingSidebar,
+    isMobile,
+    hideText,
+    oldSidebar,
+  } = useSidebarWidth();
 
   return (
-    <Box
-      shrink="No"
-      style={{
-        position: 'relative',
-        width: isMobile ? '100%' : toRem(curWidth),
-      }}
-    >
-      <PageNav>
+    <PageNavShell
+      header={
         <PageNavHeader size="600">
           <Box grow="Yes" gap="300" justifyContent="Center">
             {!hideText ? (
@@ -278,12 +254,47 @@ export function Explore() {
             )}
           </Box>
         </PageNavHeader>
-
-        <PageNavContent>
-          <Box direction="Column" gap="300">
-            <NavCategory>
-              <NavItem variant="Background" radii="400" aria-selected={featuredSelected}>
-                <NavLink to={getExploreFeaturedPath()}>
+      }
+      curWidth={curWidth}
+      setCurWidth={setCurWidth}
+      roomSidebarWidth={roomSidebarWidth}
+      setRoomSidebarWidth={setRoomSidebarWidth}
+      setIsResizingSidebar={setIsResizingSidebar}
+      isMobile={isMobile}
+      oldSidebar={oldSidebar}
+    >
+      <PageNavContent>
+        <Box direction="Column" gap="300">
+          <NavCategory>
+            <NavItem variant="Background" radii="400" aria-selected={featuredSelected}>
+              <NavLink to={getExploreFeaturedPath()}>
+                <NavItemContent>
+                  <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                    <Avatar
+                      size="200"
+                      radii="400"
+                      style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+                    >
+                      {sizedIcon(Lightbulb, '100', { filled: featuredSelected })}
+                    </Avatar>
+                    {!hideText && (
+                      <Box as="span" grow="Yes">
+                        <Text as="span" size="Inherit" truncate>
+                          Featured
+                        </Text>
+                      </Box>
+                    )}
+                  </Box>
+                </NavItemContent>
+              </NavLink>
+            </NavItem>
+            {userServer && (
+              <NavItem
+                variant="Background"
+                radii="400"
+                aria-selected={selectedServer === userServer}
+              >
+                <NavLink to={getExploreServerPath(userServer)}>
                   <NavItemContent>
                     <Box as="span" grow="Yes" alignItems="Center" gap="200">
                       <Avatar
@@ -291,12 +302,12 @@ export function Explore() {
                         radii="400"
                         style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                       >
-                        {sizedIcon(Lightbulb, '100', { filled: featuredSelected })}
+                        {sizedIcon(HardDrives, '100', { filled: selectedServer === userServer })}
                       </Avatar>
                       {!hideText && (
                         <Box as="span" grow="Yes">
                           <Text as="span" size="Inherit" truncate>
-                            Featured
+                            {userServer}
                           </Text>
                         </Box>
                       )}
@@ -304,13 +315,25 @@ export function Explore() {
                   </NavItemContent>
                 </NavLink>
               </NavItem>
-              {userServer && (
+            )}
+          </NavCategory>
+          {servers.length > 0 && (
+            <NavCategory>
+              <NavCategoryHeader>
+                {!hideText && (
+                  <Text size="O400" style={{ paddingLeft: config.space.S200 }}>
+                    Servers
+                  </Text>
+                )}
+              </NavCategoryHeader>
+              {servers.map((server) => (
                 <NavItem
+                  key={server}
                   variant="Background"
                   radii="400"
-                  aria-selected={selectedServer === userServer}
+                  aria-selected={server === selectedServer}
                 >
-                  <NavLink to={getExploreServerPath(userServer)}>
+                  <NavLink to={getExploreServerPath(server)}>
                     <NavItemContent>
                       <Box as="span" grow="Yes" alignItems="Center" gap="200">
                         <Avatar
@@ -318,94 +341,41 @@ export function Explore() {
                           radii="400"
                           style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                         >
-                          {sizedIcon(HardDrives, '100', { filled: selectedServer === userServer })}
+                          {sizedIcon(HardDrives, '100', { filled: server === selectedServer })}
                         </Avatar>
                         {!hideText && (
                           <Box as="span" grow="Yes">
                             <Text as="span" size="Inherit" truncate>
-                              {userServer}
+                              {server}
                             </Text>
                           </Box>
                         )}
                       </Box>
                     </NavItemContent>
                   </NavLink>
-                </NavItem>
-              )}
-            </NavCategory>
-            {servers.length > 0 && (
-              <NavCategory>
-                <NavCategoryHeader>
-                  {!hideText && (
-                    <Text size="O400" style={{ paddingLeft: config.space.S200 }}>
-                      Servers
-                    </Text>
+                  {!hideText && isUserAddedServer(server) && (
+                    <NavItemOptions>
+                      <IconButton
+                        size="300"
+                        variant="Critical"
+                        fill="None"
+                        radii="300"
+                        aria-label={`Remove ${server}`}
+                        onClick={handleRemoveServerClick(server)}
+                      >
+                        {menuIcon(Trash)}
+                      </IconButton>
+                    </NavItemOptions>
                   )}
-                </NavCategoryHeader>
-                {servers.map((server) => (
-                  <NavItem
-                    key={server}
-                    variant="Background"
-                    radii="400"
-                    aria-selected={server === selectedServer}
-                  >
-                    <NavLink to={getExploreServerPath(server)}>
-                      <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                          <Avatar
-                            size="200"
-                            radii="400"
-                            style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
-                          >
-                            {sizedIcon(HardDrives, '100', { filled: server === selectedServer })}
-                          </Avatar>
-                          {!hideText && (
-                            <Box as="span" grow="Yes">
-                              <Text as="span" size="Inherit" truncate>
-                                {server}
-                              </Text>
-                            </Box>
-                          )}
-                        </Box>
-                      </NavItemContent>
-                    </NavLink>
-                    {!hideText && isUserAddedServer(server) && (
-                      <NavItemOptions>
-                        <IconButton
-                          size="300"
-                          variant="Critical"
-                          fill="None"
-                          radii="300"
-                          aria-label={`Remove ${server}`}
-                          onClick={handleRemoveServerClick(server)}
-                        >
-                          {menuIcon(Trash)}
-                        </IconButton>
-                      </NavItemOptions>
-                    )}
-                  </NavItem>
-                ))}
-              </NavCategory>
-            )}
-            <Box direction="Column">
-              <AddServer hideText={hideText} onAddServer={addServer} />
-            </Box>
+                </NavItem>
+              ))}
+            </NavCategory>
+          )}
+          <Box direction="Column">
+            <AddServer hideText={hideText} onAddServer={addServer} />
           </Box>
-        </PageNavContent>
-      </PageNav>
-      {!isMobile && (
-        <SidebarResizer
-          setCurWidth={setCurWidth}
-          sidebarWidth={roomSidebarWidth}
-          setSidebarWidth={setRoomSidebarWidth}
-          instep={50}
-          outstep={190}
-          minValue={50}
-          maxValue={500}
-          setAnnouncement={setIsResizingSidebar}
-        />
-      )}
-      {!oldSidebar && !isMobile && <UserQuickTools width={curWidth + 66} compact={false} />}
-    </Box>
+        </Box>
+      </PageNavContent>
+    </PageNavShell>
   );
 }

@@ -113,9 +113,7 @@ test.describe('touch interactions', () => {
     // handle is roughly there. In a 915px viewport, ~137px from top. Use a reasonable
     // estimate: halfway up the sheet's likely visible area.
     const dragHandleY = 400; // upper portion of the sheet visible area
-    const dragHandleX = page.viewportSize()?.width
-      ? page.viewportSize()!.width / 2
-      : 206;
+    const dragHandleX = page.viewportSize()?.width ? page.viewportSize()!.width / 2 : 206;
 
     // Touch the drag handle area
     await page.evaluate(
@@ -148,7 +146,9 @@ test.describe('touch interactions', () => {
           const touchMove = new TouchEvent('touchmove', {
             bubbles: true,
             cancelable: true,
-            touches: [new Touch({ identifier: 1, target: realTarget, clientX: x, clientY: y + dy })],
+            touches: [
+              new Touch({ identifier: 1, target: realTarget, clientX: x, clientY: y + dy }),
+            ],
           });
           realTarget.dispatchEvent(touchMove);
         },
@@ -194,7 +194,10 @@ test.describe('touch interactions', () => {
     await expect(statusInput).toBeVisible({ timeout: 10_000 });
 
     // Fill a very long status to test horizontal overflow (issue #1349)
-    const longStatus = 'This is a very long status message designed to test horizontal overflow behavior on mobile viewports. '.repeat(10);
+    const longStatus =
+      'This is a very long status message designed to test horizontal overflow behavior on mobile viewports. '.repeat(
+        10
+      );
     await statusInput.fill(longStatus);
 
     // Save the status

@@ -1,10 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useSetAtom } from 'jotai';
 import { Box, Text, color, config, toRem } from 'folds';
 import { SquaresFour, sizedIcon } from '$components/icons/phosphor';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
-import { isResizingSidebarAtom } from '$state/isResizingSidebar';
+import { useSidebarWidth } from '$hooks/useSidebarWidth';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { UserQuickTools } from '$pages/client/sidebar/UserQuickTools';
 import { PageNav, PageNavHeader } from './Page';
@@ -14,14 +10,15 @@ import { PageNav, PageNavHeader } from './Page';
  * an icon once dragged narrow enough for the title to stop fitting.
  */
 export function SidebarPanel({ title }: { title: string }) {
-  const setIsResizingSidebar = useSetAtom(isResizingSidebarAtom);
-  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
-  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
-  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
-
-  useEffect(() => {
-    setCurWidth(roomSidebarWidth);
-  }, [roomSidebarWidth]);
+  const {
+    curWidth,
+    setCurWidth,
+    roomSidebarWidth,
+    setRoomSidebarWidth,
+    setIsResizingSidebar,
+    hideText,
+    oldSidebar,
+  } = useSidebarWidth();
 
   return (
     <Box
@@ -37,7 +34,7 @@ export function SidebarPanel({ title }: { title: string }) {
       <PageNav>
         <PageNavHeader size="600">
           <Box grow="Yes" gap="300" justifyContent="Center">
-            {curWidth <= 80 ? (
+            {hideText ? (
               sizedIcon(SquaresFour, '200', { filled: true })
             ) : (
               <Box grow="Yes">

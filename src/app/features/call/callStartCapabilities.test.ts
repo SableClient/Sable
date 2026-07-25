@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Room } from '$types/matrix-sdk';
-import { evaluateCallStartCapabilities } from '$features/call/callStartCapabilities';
+import { evaluateCallStartCapabilities } from './callStartCapabilities';
 
 const createRoom = (roomId: string, canSend = true): Room =>
   ({

@@ -3,7 +3,7 @@ import { Badge, Box, color, Header, Scroll, Text, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoom } from '$hooks/useRoom';
-import { useCallStartCapabilities } from '$features/call/useCallStartCapabilities';
+import { useCallStartCapabilities } from './useCallStartCapabilities';
 
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useCallEmbed, useCallEmbedPlacementSync, useCallJoined } from '$hooks/useCallEmbed';

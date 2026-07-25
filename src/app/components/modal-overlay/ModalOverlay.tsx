@@ -12,7 +12,6 @@ type ModalOverlayProps = {
   requestClose: () => void;
   /** Set false for overlays that must be dismissed deliberately, not by a stray click. */
   dismissOnClickOutside?: boolean;
-  initialFocus?: FocusTrapOptions['initialFocus'];
   /** `fullscreen` drops the centred modal on phones and fills the viewport instead. */
   mobile?: 'centred' | 'fullscreen';
   /** The modal element, used as the focus fallback and as the fullscreen wrapper. */
@@ -26,7 +25,6 @@ export function ModalOverlay({
   open = true,
   requestClose,
   dismissOnClickOutside = true,
-  initialFocus = false,
   mobile = 'centred',
   contentRef,
   escapeDeactivates = stopPropagation,
@@ -43,7 +41,7 @@ export function ModalOverlay({
       <Overlay open>
         <FocusTrap
           focusTrapOptions={{
-            initialFocus,
+            initialFocus: false,
             escapeDeactivates,
             onDeactivate: requestClose,
           }}
@@ -65,7 +63,7 @@ export function ModalOverlay({
       <OverlayCenter>
         <FocusTrap
           focusTrapOptions={{
-            initialFocus,
+            initialFocus: false,
             fallbackFocus: () => contentRef?.current ?? document.body,
             clickOutsideDeactivates: dismissOnClickOutside,
             onDeactivate: requestClose,

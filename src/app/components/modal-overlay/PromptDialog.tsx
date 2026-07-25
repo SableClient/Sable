@@ -6,20 +6,13 @@ import { ModalOverlay } from './ModalOverlay';
 type PromptDialogProps = {
   title: string;
   requestClose: () => void;
-  /** Prompts that must be answered deliberately opt out of click-outside dismiss. */
-  dismissOnClickOutside?: boolean;
   children: ReactNode;
 };
 
 /** A titled dialog with a close button, over a dimmed backdrop. */
-export function PromptDialog({
-  title,
-  requestClose,
-  dismissOnClickOutside,
-  children,
-}: PromptDialogProps) {
+export function PromptDialog({ title, requestClose, children }: PromptDialogProps) {
   return (
-    <ModalOverlay requestClose={requestClose} dismissOnClickOutside={dismissOnClickOutside}>
+    <ModalOverlay requestClose={requestClose}>
       <Dialog variant="Surface">
         <Header
           style={{

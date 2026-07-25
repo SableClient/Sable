@@ -10,9 +10,6 @@ import {
   config,
   Spinner,
   Text,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   IconButton,
   PopOut,
   Menu,
@@ -36,6 +33,7 @@ import {
 import { stopPropagation } from '$utils/keyboard';
 import { useAuthMetadata } from '$hooks/useAuthMetadata';
 import { getAccountManagementUrl, useAccountManagementActions } from '$hooks/useAccountManagement';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type VerificationStatusBadgeProps = {
   verificationStatus: VerificationStatus;
@@ -236,19 +234,13 @@ export function EnableVerification({ visible }: EnableVerificationProps) {
         </Button>
       )}
       {open && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                clickOutsideDeactivates: false,
-                escapeDeactivates: false,
-              }}
-            >
-              <DeviceVerificationSetup onCancel={handleCancel} />
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay
+          requestClose={handleCancel}
+          dismissOnClickOutside={false}
+          escapeDeactivates={false}
+        >
+          <DeviceVerificationSetup onCancel={handleCancel} />
+        </ModalOverlay>
       )}
     </>
   );
@@ -334,19 +326,13 @@ export function DeviceVerificationOptions() {
         }
       />
       {reset && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                clickOutsideDeactivates: false,
-                escapeDeactivates: false,
-              }}
-            >
-              <DeviceVerificationReset onCancel={handleCancelReset} />
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay
+          requestClose={handleCancelReset}
+          dismissOnClickOutside={false}
+          escapeDeactivates={false}
+        >
+          <DeviceVerificationReset onCancel={handleCancelReset} />
+        </ModalOverlay>
       )}
     </>
   );

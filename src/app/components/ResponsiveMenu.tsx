@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { RectCords } from 'folds';
 import { PopOut } from 'folds';
 import FocusTrap from 'focus-trap-react';
@@ -6,15 +6,16 @@ import { ScreenSize, useScreenSizeOptionally } from '$hooks/useScreenSize';
 import { stopPropagation } from '$utils/keyboard';
 import { MobileSwipeDownModal } from './MobileSwipeDownModal';
 
-type FocusTrapOptions = ComponentProps<typeof FocusTrap>['focusTrapOptions'];
-
 type DragHandlers = {
   onTouchStart: (e: React.TouchEvent) => void;
   onTouchMove: (e: React.TouchEvent) => void;
   onTouchEnd: () => void;
 };
 
-/** Given the sheet's drag handle on mobile, and nothing on desktop. */
+/**
+ * Given the sheet's drag handle on mobile, and nothing on desktop. Only
+ * `RoomViewHeader` needs this; every other menu passes a plain node.
+ */
 type MenuRenderer = (dragHandle: ReactNode, dragHandlers: DragHandlers | undefined) => ReactNode;
 
 type ComponentPosition = 'Top' | 'Right' | 'Bottom' | 'Left';
@@ -26,15 +27,11 @@ type ResponsiveMenuProps = {
   menu: ReactNode | MenuRenderer;
   /** The element the menu hangs off on desktop. */
   children?: ReactNode;
-  id?: string;
   position?: ComponentPosition;
   align?: ComponentAlign;
   offset?: number;
-  alignOffset?: number;
   /** Set true for menus whose trigger should regain focus when they close. */
   returnFocusOnDeactivate?: boolean;
-  /** Menus containing a search field want their input focused on open. */
-  initialFocus?: FocusTrapOptions['initialFocus'];
   /** `both` also maps Left/Right, for menus laid out horizontally. */
   arrowNavigation?: 'vertical' | 'both';
 };
@@ -49,13 +46,10 @@ export function ResponsiveMenu({
   requestClose,
   menu,
   children,
-  id,
   position = 'Bottom',
   align = 'End',
   offset,
-  alignOffset,
   returnFocusOnDeactivate = false,
-  initialFocus = false,
   arrowNavigation = 'vertical',
 }: ResponsiveMenuProps) {
   // Null outside a provider, where desktop is the safe assumption.
@@ -67,7 +61,7 @@ export function ResponsiveMenu({
     evt.key === 'ArrowUp' || (arrowNavigation === 'both' && evt.key === 'ArrowLeft');
 
   const focusTrapOptions = {
-    initialFocus,
+    initialFocus: false,
     fallbackFocus: () => document.body,
     returnFocusOnDeactivate,
     onDeactivate: requestClose,
@@ -98,13 +92,11 @@ export function ResponsiveMenu({
 
   return (
     <PopOut
-      id={id}
       aria-expanded={!!anchor}
       anchor={anchor}
       position={position}
       align={align}
       offset={offset}
-      alignOffset={alignOffset}
       content={
         <FocusTrap focusTrapOptions={focusTrapOptions}>
           {typeof menu === 'function' ? menu(null, undefined) : menu}

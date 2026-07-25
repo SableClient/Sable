@@ -1,7 +1,6 @@
 import type { MouseEventHandler, TouchEvent as ReactTouchEvent } from 'react';
 import { useCallback, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
-import { getMouseEventCords } from '$utils/dom';
 import { useMobileLongPress } from './useMobileLongPress';
 
 type TriggerProps<T extends HTMLElement> = {
@@ -18,8 +17,6 @@ export type MenuAnchor<T extends HTMLElement> = {
   close: () => void;
   /** Anchors the menu to an element's box. */
   openAt: (element: HTMLElement) => void;
-  /** Anchors the menu to the pointer, for right-click on a large surface. */
-  openAtPointer: (event: MouseEvent) => void;
   /** Click, right-click and long-press wiring for the trigger element. */
   triggerProps: TriggerProps<T>;
 };
@@ -37,10 +34,6 @@ export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor
   const openAt = useCallback((element: HTMLElement) => {
     const cords = element.getBoundingClientRect();
     setAnchor((current) => (current ? undefined : cords));
-  }, []);
-
-  const openAtPointer = useCallback((event: MouseEvent) => {
-    setAnchor((current) => (current ? undefined : getMouseEventCords(event)));
   }, []);
 
   const longPress = useMobileLongPress(() => {
@@ -78,7 +71,6 @@ export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor
     anchor,
     close,
     openAt,
-    openAtPointer,
     triggerProps: {
       onClick,
       onContextMenu,

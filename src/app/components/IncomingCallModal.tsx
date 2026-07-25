@@ -1,18 +1,4 @@
-import {
-  Avatar,
-  Box,
-  Button,
-  color,
-  Dialog,
-  Header,
-  IconButton,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Text,
-  config,
-  toRem,
-} from 'folds';
+import { Avatar, Box, Button, color, Dialog, Header, IconButton, Text, config, toRem } from 'folds';
 import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -24,7 +10,6 @@ import { getMxIdLocalPart } from '$utils/matrix';
 import { getMemberDisplayName, getRoomAvatarUrl } from '$utils/room';
 import { webRTCSupported } from '$utils/rtc';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
-import FocusTrap from 'focus-trap-react';
 import * as Sentry from '@sentry/react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
@@ -35,7 +20,6 @@ import {
   type IncomingCall,
 } from '$state/callEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
-import { useDismissOnBack } from '$utils/androidBack';
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
 import { getIncomingCallBlockers } from '$features/call/getIncomingCallBlockers';
 import { RoomAvatar } from './room-avatar';
@@ -50,6 +34,7 @@ import {
   User,
   sizedIcon,
 } from '$components/icons/phosphor';
+import { ModalOverlay } from './modal-overlay/ModalOverlay';
 
 const debugLog = createDebugLogger('IncomingCall');
 
@@ -340,26 +325,13 @@ export function IncomingCallModal() {
 
   const close = () => setIncomingCall(null);
 
-  // Android back dismisses the incoming call modal instead of navigating away.
-  useDismissOnBack(close, !!incomingCall && !!room);
-
   if (!incomingCall || !room) return null;
 
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            clickOutsideDeactivates: false,
-            escapeDeactivates: false,
-          }}
-        >
-          <div>
-            <IncomingCallInternal room={room} incomingCall={incomingCall} onClose={close} />
-          </div>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+    <ModalOverlay requestClose={close} dismissOnClickOutside={false} escapeDeactivates={false}>
+      <div>
+        <IncomingCallInternal room={room} incomingCall={incomingCall} onClose={close} />
+      </div>
+    </ModalOverlay>
   );
 }

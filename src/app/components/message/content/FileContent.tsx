@@ -1,21 +1,8 @@
 import type { ReactNode } from 'react';
 import { useCallback, useState } from 'react';
-import {
-  Box,
-  Button,
-  Modal,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Spinner,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  as,
-} from 'folds';
+import { Box, Button, Modal, Spinner, Text, Tooltip, TooltipProvider, as } from 'folds';
 import { ArrowRight, Download, sizedIcon, Warning } from '$components/icons/phosphor';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
-import FocusTrap from 'focus-trap-react';
 import type { IFileInfo } from '$types/matrix/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -26,13 +13,13 @@ import {
   getFileNameExt,
   mimeTypeToExt,
 } from '$utils/mimeTypes';
-import { stopPropagation } from '$utils/keyboard';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRevokeObjectURL } from '$hooks/useObjectURL';
 import { useDismissOnBack } from '$utils/androidBack';
 import { ModalWide } from '$styles/Modal.css';
 import { getDownloadFilename, saveFileToDevice } from '$utils/download';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 const renderErrorButton = (retry: () => void, text: string) => (
   <TooltipProvider
@@ -101,33 +88,22 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
   return (
     <>
       {textState.status === AsyncStatus.Success && (
-        <Overlay open={textViewer} backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: () => setTextViewer(false),
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Modal
-                className={ModalWide}
-                size="500"
-                onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
-              >
-                {renderViewer({
-                  name: body,
-                  text: textState.data,
-                  langName: READABLE_TEXT_MIME_TYPES.includes(mimeType)
-                    ? mimeTypeToExt(mimeType)
-                    : mimeTypeToExt(READABLE_EXT_TO_MIME_TYPE[getFileNameExt(body)] ?? mimeType),
-                  requestClose: () => setTextViewer(false),
-                })}
-              </Modal>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay open={textViewer} requestClose={() => setTextViewer(false)}>
+          <Modal
+            className={ModalWide}
+            size="500"
+            onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+          >
+            {renderViewer({
+              name: body,
+              text: textState.data,
+              langName: READABLE_TEXT_MIME_TYPES.includes(mimeType)
+                ? mimeTypeToExt(mimeType)
+                : mimeTypeToExt(READABLE_EXT_TO_MIME_TYPE[getFileNameExt(body)] ?? mimeType),
+              requestClose: () => setTextViewer(false),
+            })}
+          </Modal>
+        </ModalOverlay>
       )}
       {textState.status === AsyncStatus.Error ? (
         renderErrorButton(loadText, 'Open File')
@@ -195,30 +171,19 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
   return (
     <>
       {pdfState.status === AsyncStatus.Success && (
-        <Overlay open={pdfViewer} backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: () => setPdfViewer(false),
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Modal
-                className={ModalWide}
-                size="500"
-                onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
-              >
-                {renderViewer({
-                  name: body,
-                  src: pdfState.data,
-                  requestClose: () => setPdfViewer(false),
-                })}
-              </Modal>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay open={pdfViewer} requestClose={() => setPdfViewer(false)}>
+          <Modal
+            className={ModalWide}
+            size="500"
+            onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+          >
+            {renderViewer({
+              name: body,
+              src: pdfState.data,
+              requestClose: () => setPdfViewer(false),
+            })}
+          </Modal>
+        </ModalOverlay>
       )}
       {pdfState.status === AsyncStatus.Error ? (
         renderErrorButton(loadPdf, 'Open PDF')

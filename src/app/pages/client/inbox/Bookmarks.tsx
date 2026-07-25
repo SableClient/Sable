@@ -14,9 +14,6 @@ import {
   Icons,
   Input,
   Line,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   Scroll,
   Spinner,
   Text,
@@ -24,7 +21,6 @@ import {
   config,
   toRem,
 } from 'folds';
-import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import {
   Page,
@@ -54,12 +50,12 @@ import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';
 import { BackRouteHandler } from '../../../components/BackRouteHandler';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { profilesCacheAtom } from '../../../state/userRoomProfile';
-import { stopPropagation } from '../../../utils/keyboard';
 import { highlightText, makeHighlightRegex } from '../../../plugins/react-custom-html-parser';
 import { useRoomEvent } from '$hooks/useRoomEvent';
 import { MessagePreview, useRoomMessagePreviewRenderer } from '$components/message-preview';
 import { MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT } from '$unstable/prefixes';
 import { useDebounce } from '$hooks/useDebounce';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type RemoveBookmarkDialogProps = {
   open: boolean;
@@ -74,52 +70,41 @@ function RemoveBookmarkDialog({
   onClose,
 }: RemoveBookmarkDialogProps) {
   return (
-    <Overlay open={open} backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: onClose,
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
+    <ModalOverlay open={open} requestClose={onClose}>
+      <Dialog variant="Surface">
+        <Header
+          style={{
+            padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+            borderBottomWidth: config.borderWidth.B300,
           }}
+          variant="Surface"
+          size="500"
         >
-          <Dialog variant="Surface">
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
-              }}
-              variant="Surface"
-              size="500"
-            >
-              <Box grow="Yes">
-                <Text size="H4">Remove Bookmark</Text>
-              </Box>
-              <IconButton size="300" onClick={onClose} radii="300">
-                <Icon src={Icons.Cross} />
-              </IconButton>
-            </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              <Text priority="400">Are you sure you want to remove this bookmark?</Text>
-              <Box
-                style={{
-                  padding: config.space.S200,
-                  borderRadius: config.radii.R300,
-                }}
-                direction="Column"
-                gap="200"
-              >
-                {renderMatrixEvent()}
-              </Box>
-              <Button variant="Critical" onClick={onConfirm}>
-                <Text size="B400">Remove</Text>
-              </Button>
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+          <Box grow="Yes">
+            <Text size="H4">Remove Bookmark</Text>
+          </Box>
+          <IconButton size="300" onClick={onClose} radii="300">
+            <Icon src={Icons.Cross} />
+          </IconButton>
+        </Header>
+        <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+          <Text priority="400">Are you sure you want to remove this bookmark?</Text>
+          <Box
+            style={{
+              padding: config.space.S200,
+              borderRadius: config.radii.R300,
+            }}
+            direction="Column"
+            gap="200"
+          >
+            {renderMatrixEvent()}
+          </Box>
+          <Button variant="Critical" onClick={onConfirm}>
+            <Text size="B400">Remove</Text>
+          </Button>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }
 

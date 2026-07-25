@@ -1,22 +1,10 @@
-import {
-  Box,
-  config,
-  Header,
-  IconButton,
-  Modal,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Scroll,
-  Text,
-} from 'folds';
+import { Box, config, Header, IconButton, Modal, Scroll, Text } from 'folds';
 import { X, composerIcon } from '$components/icons/phosphor';
-import FocusTrap from 'focus-trap-react';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { SpaceProvider } from '$hooks/useSpace';
 import { useCloseCreateRoomModal, useCreateRoomModalState } from '$state/hooks/createRoomModal';
 import type { CreateRoomModalState } from '$state/createRoomModal';
-import { stopPropagation } from '$utils/keyboard';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { CreateRoomType } from '$components/create-room/types';
 import { CreateRoomForm } from './CreateRoom';
 
@@ -33,53 +21,42 @@ function CreateRoomModal({ state }: CreateRoomModalProps) {
 
   return (
     <SpaceProvider value={space ?? null}>
-      <Overlay open backdrop={<OverlayBackdrop />}>
-        <OverlayCenter>
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              clickOutsideDeactivates: true,
-              onDeactivate: closeDialog,
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Modal size="300" flexHeight>
-              <Box direction="Column">
-                <Header
-                  size="500"
-                  style={{
-                    padding: config.space.S200,
-                    paddingLeft: config.space.S400,
-                  }}
-                >
-                  <Box grow="Yes">
-                    <Text size="H4">
-                      {type === CreateRoomType.VoiceRoom ? 'New Voice Room' : 'New Chat Room'}
-                    </Text>
-                  </Box>
-                  <Box shrink="No">
-                    <IconButton size="300" radii="300" onClick={closeDialog}>
-                      {composerIcon(X)}
-                    </IconButton>
-                  </Box>
-                </Header>
-                <Scroll size="300" hideTrack>
-                  <Box
-                    style={{
-                      padding: config.space.S400,
-                      paddingRight: config.space.S200,
-                    }}
-                    direction="Column"
-                    gap="500"
-                  >
-                    <CreateRoomForm space={space} onCreate={closeDialog} defaultType={type} />
-                  </Box>
-                </Scroll>
+      <ModalOverlay requestClose={closeDialog}>
+        <Modal size="300" flexHeight>
+          <Box direction="Column">
+            <Header
+              size="500"
+              style={{
+                padding: config.space.S200,
+                paddingLeft: config.space.S400,
+              }}
+            >
+              <Box grow="Yes">
+                <Text size="H4">
+                  {type === CreateRoomType.VoiceRoom ? 'New Voice Room' : 'New Chat Room'}
+                </Text>
               </Box>
-            </Modal>
-          </FocusTrap>
-        </OverlayCenter>
-      </Overlay>
+              <Box shrink="No">
+                <IconButton size="300" radii="300" onClick={closeDialog}>
+                  {composerIcon(X)}
+                </IconButton>
+              </Box>
+            </Header>
+            <Scroll size="300" hideTrack>
+              <Box
+                style={{
+                  padding: config.space.S400,
+                  paddingRight: config.space.S200,
+                }}
+                direction="Column"
+                gap="500"
+              >
+                <CreateRoomForm space={space} onCreate={closeDialog} defaultType={type} />
+              </Box>
+            </Scroll>
+          </Box>
+        </Modal>
+      </ModalOverlay>
     </SpaceProvider>
   );
 }

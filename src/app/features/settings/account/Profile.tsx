@@ -7,9 +7,6 @@ import {
   Input,
   Avatar,
   Button,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   Modal,
   Dialog,
   Header,
@@ -17,7 +14,6 @@ import {
   Spinner,
 } from 'folds';
 import { composerIcon, menuIcon, Star, Sun, X } from '$components/icons/phosphor';
-import FocusTrap from 'focus-trap-react';
 import { useSetAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import type { SettingMenuOption } from '$components/setting-menu-selector';
@@ -33,7 +29,6 @@ import { nameInitials } from '$utils/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useObjectURL } from '$hooks/useObjectURL';
-import { stopPropagation } from '$utils/keyboard';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import { ImageEditor } from '$components/image-editor';
 import { ModalWide } from '$styles/Modal.css';
@@ -57,6 +52,7 @@ import { NameColorEditor } from './NameColorEditor';
 import { StatusEditor } from './StatusEditor';
 import { AnimalCosmetics } from './AnimalCosmetics';
 import * as prefix from '$unstable/prefixes';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type PronounSet = {
   summary: string;
@@ -167,66 +163,44 @@ function ProfileAvatar({ profile, userId, propagateTo }: Readonly<ProfileProps>)
       )}
 
       {imageFileURL && (
-        <Overlay open={false} backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: handleRemoveUpload,
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Modal className={ModalWide} variant="Surface" size="500">
-                <ImageEditor
-                  name={imageFile?.name ?? 'Unnamed'}
-                  url={imageFileURL}
-                  requestClose={handleRemoveUpload}
-                />
-              </Modal>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay open={false} requestClose={handleRemoveUpload}>
+          <Modal className={ModalWide} variant="Surface" size="500">
+            <ImageEditor
+              name={imageFile?.name ?? 'Unnamed'}
+              url={imageFileURL}
+              requestClose={handleRemoveUpload}
+            />
+          </Modal>
+        </ModalOverlay>
       )}
 
-      <Overlay open={alertRemove} backdrop={<OverlayBackdrop />}>
-        <OverlayCenter>
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setAlertRemove(false),
-              clickOutsideDeactivates: true,
-              escapeDeactivates: stopPropagation,
+      <ModalOverlay open={alertRemove} requestClose={() => setAlertRemove(false)}>
+        <Dialog variant="Surface">
+          <Header
+            style={{
+              padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+              borderBottomWidth: config.borderWidth.B300,
             }}
+            variant="Surface"
+            size="500"
           >
-            <Dialog variant="Surface">
-              <Header
-                style={{
-                  padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                  borderBottomWidth: config.borderWidth.B300,
-                }}
-                variant="Surface"
-                size="500"
-              >
-                <Box grow="Yes">
-                  <Text size="H4">Remove Avatar</Text>
-                </Box>
-                <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-                  {composerIcon(X)}
-                </IconButton>
-              </Header>
-              <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-                <Box direction="Column" gap="200">
-                  <Text priority="400">Are you sure you want to remove profile avatar?</Text>
-                </Box>
-                <Button variant="Critical" onClick={handleRemoveAvatar}>
-                  <Text size="B400">Remove</Text>
-                </Button>
-              </Box>
-            </Dialog>
-          </FocusTrap>
-        </OverlayCenter>
-      </Overlay>
+            <Box grow="Yes">
+              <Text size="H4">Remove Avatar</Text>
+            </Box>
+            <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
+              {composerIcon(X)}
+            </IconButton>
+          </Header>
+          <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+            <Box direction="Column" gap="200">
+              <Text priority="400">Are you sure you want to remove profile avatar?</Text>
+            </Box>
+            <Button variant="Critical" onClick={handleRemoveAvatar}>
+              <Text size="B400">Remove</Text>
+            </Button>
+          </Box>
+        </Dialog>
+      </ModalOverlay>
     </SettingTile>
   );
 }
@@ -363,42 +337,31 @@ function ProfileBanner({ profile }: Readonly<Pick<ProfileProps, 'profile'>>) {
         )}
       </Box>
 
-      <Overlay open={alertRemove} backdrop={<OverlayBackdrop />}>
-        <OverlayCenter>
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setAlertRemove(false),
-              clickOutsideDeactivates: true,
-              escapeDeactivates: stopPropagation,
+      <ModalOverlay open={alertRemove} requestClose={() => setAlertRemove(false)}>
+        <Dialog variant="Surface">
+          <Header
+            style={{
+              padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+              borderBottomWidth: config.borderWidth.B300,
             }}
+            variant="Surface"
+            size="500"
           >
-            <Dialog variant="Surface">
-              <Header
-                style={{
-                  padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                  borderBottomWidth: config.borderWidth.B300,
-                }}
-                variant="Surface"
-                size="500"
-              >
-                <Box grow="Yes">
-                  <Text size="H4">Remove Banner</Text>
-                </Box>
-                <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-                  {composerIcon(X)}
-                </IconButton>
-              </Header>
-              <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-                <Text priority="400">Are you sure you want to remove profile banner?</Text>
-                <Button variant="Critical" onClick={handleRemoveBanner}>
-                  <Text size="B400">Remove</Text>
-                </Button>
-              </Box>
-            </Dialog>
-          </FocusTrap>
-        </OverlayCenter>
-      </Overlay>
+            <Box grow="Yes">
+              <Text size="H4">Remove Banner</Text>
+            </Box>
+            <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
+              {composerIcon(X)}
+            </IconButton>
+          </Header>
+          <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+            <Text priority="400">Are you sure you want to remove profile banner?</Text>
+            <Button variant="Critical" onClick={handleRemoveBanner}>
+              <Text size="B400">Remove</Text>
+            </Button>
+          </Box>
+        </Dialog>
+      </ModalOverlay>
     </SettingTile>
   );
 }

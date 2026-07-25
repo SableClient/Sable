@@ -13,9 +13,6 @@ import {
   Line,
   Menu,
   MenuItem,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   PopOut,
   Text,
   config,
@@ -104,6 +101,7 @@ import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { lastVisitedSpaceIdAtom } from '$state/room/lastSpace';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type SpaceMenuProps = {
   room: Room;
@@ -284,66 +282,55 @@ function RenameFolderDialog({ mx, folder, onClose, onSave }: Readonly<RenameFold
   };
 
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            clickOutsideDeactivates: true,
-            onDeactivate: onClose,
-            escapeDeactivates: stopPropagation,
+    <ModalOverlay requestClose={onClose}>
+      <Dialog variant="Surface">
+        <Header
+          style={{
+            padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+            borderBottomWidth: config.borderWidth.B300,
           }}
+          variant="Surface"
+          size="500"
         >
-          <Dialog variant="Surface">
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
-              }}
-              variant="Surface"
-              size="500"
-            >
-              <Box grow="Yes">
-                <Text size="H4">Rename Folder</Text>
-              </Box>
-              <IconButton size="300" onClick={onClose} radii="300">
-                {composerIcon(X)}
-              </IconButton>
-            </Header>
-            <Box
-              as="form"
-              onSubmit={handleSubmit}
-              style={{ padding: config.space.S400 }}
-              direction="Column"
-              gap="400"
-            >
-              <Text priority="400" size="T300">
-                Choose a short label for this folder. Leave empty to show space names again.
-              </Text>
-              <Box direction="Column" gap="100">
-                <Text size="L400">Folder name</Text>
-                <Input
-                  name="folderName"
-                  variant="Background"
-                  value={draft}
-                  maxLength={FOLDER_NAME_MAX_LENGTH}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)}
-                  autoFocus
-                />
-              </Box>
-              <Box direction="Row" gap="200" justifyContent="End">
-                <Button type="button" variant="Secondary" fill="Soft" onClick={onClose}>
-                  <Text size="B400">Cancel</Text>
-                </Button>
-                <Button type="submit" variant="Primary">
-                  <Text size="B400">Save</Text>
-                </Button>
-              </Box>
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+          <Box grow="Yes">
+            <Text size="H4">Rename Folder</Text>
+          </Box>
+          <IconButton size="300" onClick={onClose} radii="300">
+            {composerIcon(X)}
+          </IconButton>
+        </Header>
+        <Box
+          as="form"
+          onSubmit={handleSubmit}
+          style={{ padding: config.space.S400 }}
+          direction="Column"
+          gap="400"
+        >
+          <Text priority="400" size="T300">
+            Choose a short label for this folder. Leave empty to show space names again.
+          </Text>
+          <Box direction="Column" gap="100">
+            <Text size="L400">Folder name</Text>
+            <Input
+              name="folderName"
+              variant="Background"
+              value={draft}
+              maxLength={FOLDER_NAME_MAX_LENGTH}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)}
+              autoFocus
+            />
+          </Box>
+          <Box direction="Row" gap="200" justifyContent="End">
+            <Button type="button" variant="Secondary" fill="Soft" onClick={onClose}>
+              <Text size="B400">Cancel</Text>
+            </Button>
+            <Button type="submit" variant="Primary">
+              <Text size="B400">Save</Text>
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }
 

@@ -8,9 +8,6 @@ import {
   Menu,
   MenuItem,
   Modal,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   Spinner,
   Text,
   Tooltip,
@@ -31,14 +28,12 @@ import {
 } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
-import FocusTrap from 'focus-trap-react';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IImageInfo } from '$types/matrix/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { bytesToSize } from '$utils/common';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
-import { stopPropagation } from '$utils/keyboard';
 import {
   decryptFile,
   downloadEncryptedMedia,
@@ -58,6 +53,7 @@ import {
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { useRevokeObjectURL } from '$hooks/useObjectURL';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 export function checkIfGif(url: string, mimetype?: string, body?: string) {
   return (
@@ -262,32 +258,21 @@ export const ImageContent = as<'div', ImageContentProps>(
         onPointerLeave={() => setIsHovered(false)}
       >
         {srcState.status === AsyncStatus.Success && (
-          <Overlay open={viewer} backdrop={<OverlayBackdrop />}>
-            <OverlayCenter>
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  onDeactivate: () => setViewer(false),
-                  clickOutsideDeactivates: true,
-                  escapeDeactivates: stopPropagation,
-                }}
-              >
-                <Modal
-                  className={ModalWide}
-                  size="500"
-                  onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
-                >
-                  {renderViewer({
-                    src: viewerFullSrc ?? srcState.data,
-                    alt: body ?? '',
-                    filename,
-                    requestClose: () => setViewer(false),
-                    info: info,
-                  })}
-                </Modal>
-              </FocusTrap>
-            </OverlayCenter>
-          </Overlay>
+          <ModalOverlay open={viewer} requestClose={() => setViewer(false)}>
+            <Modal
+              className={ModalWide}
+              size="500"
+              onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+            >
+              {renderViewer({
+                src: viewerFullSrc ?? srcState.data,
+                alt: body ?? '',
+                filename,
+                requestClose: () => setViewer(false),
+                info: info,
+              })}
+            </Modal>
+          </ModalOverlay>
         )}
         {typeof blurHash === 'string' && !load && (
           <BlurhashCanvas

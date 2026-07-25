@@ -1,9 +1,5 @@
-import FocusTrap from 'focus-trap-react';
 import {
   Dialog,
-  Overlay,
-  OverlayCenter,
-  OverlayBackdrop,
   Header,
   Box,
   Text,
@@ -16,7 +12,6 @@ import {
   Scroll,
 } from 'folds';
 import { chipIcon, composerIcon, ListBullets, Minus, X } from '$components/icons/phosphor';
-import { stopPropagation } from '$utils/keyboard';
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
 import { useCallback, useRef, useState } from 'react';
 import type { PollAnswerItem } from '$components/message/PollEvent';
@@ -35,6 +30,7 @@ import { isKeyHotkey } from 'is-hotkey';
 import * as css from './PollDialog.css';
 import type { IReplyDraft } from '$state/room/roomInputDrafts';
 import { getReplyContent } from '../RoomInput';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type PollDialogProps = {
   onCancel: () => void;
@@ -154,179 +150,157 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
     }
   };
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: onCancel,
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
-          }}
-        >
-          <Dialog variant="Surface" className={css.PollDialogBody}>
-            <Header className={css.PollDialogHeader} variant="Surface" size="500">
-              <Box grow="Yes" gap="200">
-                {composerIcon(ListBullets)}
-                <Text size="H4">{`New Poll ${replyDraft ? '(reply / thread)' : ''}`} </Text>
-              </Box>
-              <IconButton
-                size="300"
-                onClick={onCancel}
-                radii="300"
-                title="Cancel Creating Poll"
-                aria-label="Cancel Creating Poll"
+    <ModalOverlay requestClose={onCancel}>
+      <Dialog variant="Surface" className={css.PollDialogBody}>
+        <Header className={css.PollDialogHeader} variant="Surface" size="500">
+          <Box grow="Yes" gap="200">
+            {composerIcon(ListBullets)}
+            <Text size="H4">{`New Poll ${replyDraft ? '(reply / thread)' : ''}`} </Text>
+          </Box>
+          <IconButton
+            size="300"
+            onClick={onCancel}
+            radii="300"
+            title="Cancel Creating Poll"
+            aria-label="Cancel Creating Poll"
+          >
+            {composerIcon(X)}
+          </IconButton>
+        </Header>
+        <Box direction="Column" gap="500" className={css.PollDialogTitle}>
+          <Box direction="Column">
+            <Text> Title </Text>
+            <Input
+              variant={error?.errorcode === 'title' ? 'Critical' : 'SurfaceVariant'}
+              size="400"
+              aria-label="Insert Title"
+              onChange={(evt) => (title.current = evt.currentTarget.value.trim())}
+              placeholder={'What should we have for dinner?'}
+            />
+          </Box>
+          <Box direction="Column" gap="100">
+            <Box direction="Row" justifyContent="SpaceBetween">
+              <Text>Options ({answers.length})</Text>
+              <Chip
+                type="submit"
+                variant="Secondary"
+                onClick={addOption}
+                aria-label="Add Option"
+                radii="Pill"
               >
-                {composerIcon(X)}
-              </IconButton>
-            </Header>
-            <Box direction="Column" gap="500" className={css.PollDialogTitle}>
-              <Box direction="Column">
-                <Text> Title </Text>
-                <Input
-                  variant={error?.errorcode === 'title' ? 'Critical' : 'SurfaceVariant'}
-                  size="400"
-                  aria-label="Insert Title"
-                  onChange={(evt) => (title.current = evt.currentTarget.value.trim())}
-                  placeholder={'What should we have for dinner?'}
-                />
-              </Box>
-              <Box direction="Column" gap="100">
-                <Box direction="Row" justifyContent="SpaceBetween">
-                  <Text>Options ({answers.length})</Text>
-                  <Chip
-                    type="submit"
-                    variant="Secondary"
-                    onClick={addOption}
-                    aria-label="Add Option"
-                    radii="Pill"
-                  >
-                    <Text size="B400">Add Option</Text>
-                  </Chip>
-                </Box>
-                <Scroll
-                  hideTrack
-                  direction="Vertical"
-                  size="300"
-                  className={css.PollDialogAnswerBody}
+                <Text size="B400">Add Option</Text>
+              </Chip>
+            </Box>
+            <Scroll hideTrack direction="Vertical" size="300" className={css.PollDialogAnswerBody}>
+              {answers.map((item, index) => (
+                <Box
+                  className={css.PollDialogAnswerContainer}
+                  direction="Row"
+                  grow="Yes"
+                  shrink="No"
+                  alignItems="Center"
+                  key={item.id}
                 >
-                  {answers.map((item, index) => (
-                    <Box
-                      className={css.PollDialogAnswerContainer}
-                      direction="Row"
-                      grow="Yes"
-                      shrink="No"
-                      alignItems="Center"
-                      key={item.id}
-                    >
-                      <Input
-                        variant={
-                          error?.errorcode === 'option' && item[M_TEXT.name].length === 0
-                            ? 'Critical'
-                            : 'SurfaceVariant'
-                        }
+                  <Input
+                    variant={
+                      error?.errorcode === 'option' && item[M_TEXT.name].length === 0
+                        ? 'Critical'
+                        : 'SurfaceVariant'
+                    }
+                    size="400"
+                    className={css.PollDialogAnswerInput}
+                    aria-label={`Type Option ${index + 1}`}
+                    onChange={(evt) => {
+                      let newAnswers = answers;
+                      newAnswers[index] = {
+                        id: answers[index]?.id ?? randomStr(),
+                        [M_TEXT.name]: evt.currentTarget.value.trim() ?? '',
+                      };
+                      setAnswers(newAnswers);
+                    }}
+                    placeholder={`Type Option ${index + 1}`}
+                    after={
+                      <IconButton
+                        fill="None"
                         size="400"
-                        className={css.PollDialogAnswerInput}
-                        aria-label={`Type Option ${index + 1}`}
-                        onChange={(evt) => {
-                          let newAnswers = answers;
-                          newAnswers[index] = {
-                            id: answers[index]?.id ?? randomStr(),
-                            [M_TEXT.name]: evt.currentTarget.value.trim() ?? '',
-                          };
-                          setAnswers(newAnswers);
-                        }}
-                        placeholder={`Type Option ${index + 1}`}
-                        after={
-                          <IconButton
-                            fill="None"
-                            size="400"
-                            disabled={answers.length <= 2}
-                            aria-disabled={answers.length <= 2}
-                            aria-label="Remove Option"
-                            onClick={() => delOption(item.id)}
-                          >
-                            {chipIcon(Minus)}
-                          </IconButton>
-                        }
-                      />
-                    </Box>
-                  ))}
-                </Scroll>
-              </Box>
-              <Box direction="Column" gap="100">
-                <SequenceCard
-                  className={SequenceCardStyle}
-                  variant="SurfaceVariant"
-                  direction="Column"
-                >
-                  <SettingTile
-                    title="Show results as the poll is ongoing"
-                    after={
-                      <Switch variant="Primary" value={isDisclosed} onChange={setIsDisclosed} />
+                        disabled={answers.length <= 2}
+                        aria-disabled={answers.length <= 2}
+                        aria-label="Remove Option"
+                        onClick={() => delOption(item.id)}
+                      >
+                        {chipIcon(Minus)}
+                      </IconButton>
                     }
                   />
-                </SequenceCard>
-                <SequenceCard
-                  className={SequenceCardStyle}
-                  variant="SurfaceVariant"
-                  direction="Column"
-                  gap="300"
-                >
-                  <SettingTile
-                    title="Maximum amount of selections"
-                    after={
-                      <Input
-                        className={css.PollDialogMaxSelectionNumber}
-                        variant={error?.errorcode === 'maxOptions' ? 'Critical' : 'SurfaceVariant'}
-                        size="300"
-                        radii="300"
-                        type="number"
-                        min="1"
-                        max={answers.length}
-                        value={inputValue}
-                        onChange={handleMaxOptions}
-                        onKeyDown={handleMaxKeyDown}
-                        outlined
-                      />
-                    }
-                  />
-                  <input
-                    type="range"
+                </Box>
+              ))}
+            </Scroll>
+          </Box>
+          <Box direction="Column" gap="100">
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Show results as the poll is ongoing"
+                after={<Switch variant="Primary" value={isDisclosed} onChange={setIsDisclosed} />}
+              />
+            </SequenceCard>
+            <SequenceCard
+              className={SequenceCardStyle}
+              variant="SurfaceVariant"
+              direction="Column"
+              gap="300"
+            >
+              <SettingTile
+                title="Maximum amount of selections"
+                after={
+                  <Input
+                    className={css.PollDialogMaxSelectionNumber}
+                    variant={error?.errorcode === 'maxOptions' ? 'Critical' : 'SurfaceVariant'}
+                    size="300"
+                    radii="300"
+                    type="number"
                     min="1"
                     max={answers.length}
-                    step="1"
-                    value={maxSelections}
-                    onChange={(e) => {
-                      const val = Number.parseInt(e.target.value);
-                      if (val) {
-                        setInputValue(val);
-                        setMaxSelections(val);
-                      }
-                    }}
-                    className={css.PollDialogMaxSelectionSlider}
+                    value={inputValue}
+                    onChange={handleMaxOptions}
+                    onKeyDown={handleMaxKeyDown}
+                    outlined
                   />
-                </SequenceCard>
-              </Box>
-              <Button
-                type="submit"
-                variant="Primary"
-                onClick={handleSubmit}
-                fill="Soft"
-                title="Create Poll"
-                aria-label="Create Poll"
-              >
-                <Text size="B400">Create Poll</Text>
-              </Button>
-              {!!error && (
-                <Text align="Center" size="B500" style={{ color: color.Critical.OnContainer }}>
-                  {error.errorString}
-                </Text>
-              )}
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+                }
+              />
+              <input
+                type="range"
+                min="1"
+                max={answers.length}
+                step="1"
+                value={maxSelections}
+                onChange={(e) => {
+                  const val = Number.parseInt(e.target.value);
+                  if (val) {
+                    setInputValue(val);
+                    setMaxSelections(val);
+                  }
+                }}
+                className={css.PollDialogMaxSelectionSlider}
+              />
+            </SequenceCard>
+          </Box>
+          <Button
+            type="submit"
+            variant="Primary"
+            onClick={handleSubmit}
+            fill="Soft"
+            title="Create Poll"
+            aria-label="Create Poll"
+          >
+            <Text size="B400">Create Poll</Text>
+          </Button>
+          {!!error && (
+            <Text align="Center" size="B500" style={{ color: color.Critical.OnContainer }}>
+              {error.errorString}
+            </Text>
+          )}
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }

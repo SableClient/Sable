@@ -6,9 +6,6 @@ import {
   Button,
   Chip,
   IconButton,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   Scroll,
   Spinner,
   Text,
@@ -36,7 +33,6 @@ import type {
   Room,
   AccountDataEvents,
 } from '$types/matrix-sdk';
-import FocusTrap from 'focus-trap-react';
 import {
   Page,
   PageContent,
@@ -70,7 +66,7 @@ import {
 } from '$utils/matrix';
 import { Time } from '$components/message';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
-import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
+import { onEnterOrSpace } from '$utils/keyboard';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -88,6 +84,7 @@ import { EventType } from '$types/matrix-sdk';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { updateInviteList } from '$state/updateInvites';
 import { useDismissedInviteList } from '$hooks/useDismissedInvites';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 const COMPACT_CARD_WIDTH = 548;
 
@@ -310,24 +307,13 @@ function InviteCard({
                   {invite.roomTopic}
                 </Text>
               )}
-              <Overlay open={viewTopic} backdrop={<OverlayBackdrop />}>
-                <OverlayCenter>
-                  <FocusTrap
-                    focusTrapOptions={{
-                      initialFocus: false,
-                      clickOutsideDeactivates: true,
-                      onDeactivate: closeTopic,
-                      escapeDeactivates: stopPropagation,
-                    }}
-                  >
-                    <RoomTopicViewer
-                      name={invite.roomName}
-                      topic={invite.roomTopic ?? ''}
-                      requestClose={closeTopic}
-                    />
-                  </FocusTrap>
-                </OverlayCenter>
-              </Overlay>
+              <ModalOverlay open={viewTopic} requestClose={closeTopic}>
+                <RoomTopicViewer
+                  name={invite.roomName}
+                  topic={invite.roomTopic ?? ''}
+                  requestClose={closeTopic}
+                />
+              </ModalOverlay>
             </Box>
             {joinState.status === AsyncStatus.Error && (
               <Text size="T200" style={{ color: color.Critical.Main }}>

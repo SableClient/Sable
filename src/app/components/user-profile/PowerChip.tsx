@@ -10,9 +10,6 @@ import {
   Line,
   Menu,
   MenuItem,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   PopOut,
   Spinner,
   Text,
@@ -47,6 +44,7 @@ import { PowerColorBadge, PowerIcon } from '$components/power';
 import { EventType } from '$types/matrix-sdk';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type SelfDemoteAlertProps = {
   power: number;
@@ -55,46 +53,35 @@ type SelfDemoteAlertProps = {
 };
 function SelfDemoteAlert({ power, onCancel, onChange }: SelfDemoteAlertProps) {
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: onCancel,
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
-          }}
+    <ModalOverlay requestClose={onCancel}>
+      <Dialog variant="Surface">
+        <Header
+          style={{ padding: `0 ${config.space.S200} 0 ${config.space.S400}` }}
+          variant="Surface"
+          size="500"
         >
-          <Dialog variant="Surface">
-            <Header
-              style={{ padding: `0 ${config.space.S200} 0 ${config.space.S400}` }}
-              variant="Surface"
-              size="500"
-            >
-              <Box grow="Yes">
-                <Text size="H4">Self Demotion</Text>
-              </Box>
-              <IconButton size="300" onClick={onCancel} radii="300">
-                {menuIcon(X)}
-              </IconButton>
-            </Header>
-            <Box style={{ padding: config.space.S400, paddingTop: 0 }} direction="Column" gap="500">
-              <Box direction="Column" gap="200">
-                <Text priority="400">
-                  You are about to demote yourself! You will not be able to regain this power
-                  yourself. Are you sure?
-                </Text>
-              </Box>
-              <Box direction="Column" gap="200">
-                <Button type="submit" variant="Warning" onClick={() => onChange(power)}>
-                  <Text size="B400">Demote</Text>
-                </Button>
-              </Box>
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+          <Box grow="Yes">
+            <Text size="H4">Self Demotion</Text>
+          </Box>
+          <IconButton size="300" onClick={onCancel} radii="300">
+            {menuIcon(X)}
+          </IconButton>
+        </Header>
+        <Box style={{ padding: config.space.S400, paddingTop: 0 }} direction="Column" gap="500">
+          <Box direction="Column" gap="200">
+            <Text priority="400">
+              You are about to demote yourself! You will not be able to regain this power yourself.
+              Are you sure?
+            </Text>
+          </Box>
+          <Box direction="Column" gap="200">
+            <Button type="submit" variant="Warning" onClick={() => onChange(power)}>
+              <Text size="B400">Demote</Text>
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }
 
@@ -105,46 +92,35 @@ type SharedPowerAlertProps = {
 };
 function SharedPowerAlert({ power, onCancel, onChange }: SharedPowerAlertProps) {
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: onCancel,
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
-          }}
+    <ModalOverlay requestClose={onCancel}>
+      <Dialog variant="Surface">
+        <Header
+          style={{ padding: `0 ${config.space.S200} 0 ${config.space.S400}` }}
+          variant="Surface"
+          size="500"
         >
-          <Dialog variant="Surface">
-            <Header
-              style={{ padding: `0 ${config.space.S200} 0 ${config.space.S400}` }}
-              variant="Surface"
-              size="500"
-            >
-              <Box grow="Yes">
-                <Text size="H4">Shared Power</Text>
-              </Box>
-              <IconButton size="300" onClick={onCancel} radii="300">
-                {menuIcon(X)}
-              </IconButton>
-            </Header>
-            <Box style={{ padding: config.space.S400, paddingTop: 0 }} direction="Column" gap="500">
-              <Box direction="Column" gap="200">
-                <Text priority="400">
-                  You are promoting the user to have the same power as yourself! You will not be
-                  able to change their power afterward. Are you sure?
-                </Text>
-              </Box>
-              <Box direction="Column" gap="200">
-                <Button type="submit" variant="Warning" onClick={() => onChange(power)}>
-                  <Text size="B400">Promote</Text>
-                </Button>
-              </Box>
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+          <Box grow="Yes">
+            <Text size="H4">Shared Power</Text>
+          </Box>
+          <IconButton size="300" onClick={onCancel} radii="300">
+            {menuIcon(X)}
+          </IconButton>
+        </Header>
+        <Box style={{ padding: config.space.S400, paddingTop: 0 }} direction="Column" gap="500">
+          <Box direction="Column" gap="200">
+            <Text priority="400">
+              You are promoting the user to have the same power as yourself! You will not be able to
+              change their power afterward. Are you sure?
+            </Text>
+          </Box>
+          <Box direction="Column" gap="200">
+            <Button type="submit" variant="Warning" onClick={() => onChange(power)}>
+              <Text size="B400">Promote</Text>
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }
 

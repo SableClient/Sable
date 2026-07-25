@@ -211,7 +211,6 @@ export function CreateRoomForm({
           required
           before={getCreateRoomAccessToIcon(access, type, '100')}
           name="nameInput"
-          autoFocus
           size="500"
           variant="SurfaceVariant"
           radii="400"

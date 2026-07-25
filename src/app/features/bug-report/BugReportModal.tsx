@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import FocusTrap from 'focus-trap-react';
 import {
   Box,
   Button,
@@ -9,9 +8,6 @@ import {
   IconButton,
   Input,
   Modal,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   Scroll,
   Spinner,
   Text,
@@ -21,9 +17,9 @@ import {
 import { ArrowRight, X, chipIcon, composerIcon } from '$components/icons/phosphor';
 import * as Sentry from '@sentry/react';
 import { useCloseBugReportModal, useBugReportModalOpen } from '$state/hooks/bugReportModal';
-import { stopPropagation } from '$utils/keyboard';
 import { getDebugLogger } from '$utils/debugLogger';
 import { fetch } from '$utils/fetch';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type ReportType = 'bug' | 'feature';
 
@@ -499,22 +495,11 @@ function BugReportModal() {
   const close = useCloseBugReportModal();
 
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            clickOutsideDeactivates: true,
-            onDeactivate: close,
-            escapeDeactivates: stopPropagation,
-          }}
-        >
-          <Modal size="500" flexHeight variant="Surface" style={{ maxHeight: '90vh' }}>
-            <BugReportForm onDone={close} />
-          </Modal>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+    <ModalOverlay requestClose={close}>
+      <Modal size="500" flexHeight variant="Surface" style={{ maxHeight: '90vh' }}>
+        <BugReportForm onDone={close} />
+      </Modal>
+    </ModalOverlay>
   );
 }
 

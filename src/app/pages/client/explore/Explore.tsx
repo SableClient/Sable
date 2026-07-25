@@ -1,7 +1,6 @@
 import type { FormEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import FocusTrap from 'focus-trap-react';
 import {
   Avatar,
   Box,
@@ -10,9 +9,6 @@ import {
   Header,
   IconButton,
   Input,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
   Text,
   color,
   config,
@@ -45,7 +41,6 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
-import { stopPropagation } from '$utils/keyboard';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
@@ -55,6 +50,7 @@ import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import { useSetAtom } from 'jotai';
 import { UserQuickTools } from '../sidebar/UserQuickTools';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type AddServerProps = {
   hideText?: boolean;
@@ -110,56 +106,47 @@ export function AddServer({ hideText, onAddServer }: AddServerProps) {
 
   return (
     <>
-      <Overlay open={dialog} backdrop={<OverlayBackdrop />}>
-        <OverlayCenter>
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              clickOutsideDeactivates: true,
-              onDeactivate: () => setDialog(false),
-              escapeDeactivates: stopPropagation,
+      <ModalOverlay open={dialog} requestClose={() => setDialog(false)}>
+        <Dialog variant="Surface">
+          <Header
+            style={{
+              padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+              borderBottomWidth: config.borderWidth.B300,
             }}
+            variant="Surface"
+            size="500"
           >
-            <Dialog variant="Surface">
-              <Header
-                style={{
-                  padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                  borderBottomWidth: config.borderWidth.B300,
-                }}
-                variant="Surface"
-                size="500"
-              >
-                <Box grow="Yes">
-                  <Text size="H4">Add Server</Text>
-                </Box>
-                <IconButton size="300" onClick={() => setDialog(false)} radii="300">
-                  {composerIcon(X)}
-                </IconButton>
-              </Header>
-              <Box
-                as="form"
-                onSubmit={handleSubmit}
-                style={{ padding: config.space.S400 }}
-                direction="Column"
-                gap="400"
-              >
-                <Text priority="400">Add server name to explore public communities.</Text>
-                <Box direction="Column" gap="100">
-                  <Text size="L400">Server Name</Text>
-                  <Input ref={serverInputRef} name="serverInput" variant="Background" required />
-                  {serverError && (
-                    <Text style={{ color: color.Critical.Main }} size="T300">
-                      {serverError}
-                    </Text>
-                  )}
-                  {exploreState.status === AsyncStatus.Error && (
-                    <Text style={{ color: color.Critical.Main }} size="T300">
-                      Failed to load public rooms. Please try again.
-                    </Text>
-                  )}
-                </Box>
-                <Box direction="Column" gap="200">
-                  {/* <Button
+            <Box grow="Yes">
+              <Text size="H4">Add Server</Text>
+            </Box>
+            <IconButton size="300" onClick={() => setDialog(false)} radii="300">
+              {composerIcon(X)}
+            </IconButton>
+          </Header>
+          <Box
+            as="form"
+            onSubmit={handleSubmit}
+            style={{ padding: config.space.S400 }}
+            direction="Column"
+            gap="400"
+          >
+            <Text priority="400">Add server name to explore public communities.</Text>
+            <Box direction="Column" gap="100">
+              <Text size="L400">Server Name</Text>
+              <Input ref={serverInputRef} name="serverInput" variant="Background" required />
+              {serverError && (
+                <Text style={{ color: color.Critical.Main }} size="T300">
+                  {serverError}
+                </Text>
+              )}
+              {exploreState.status === AsyncStatus.Error && (
+                <Text style={{ color: color.Critical.Main }} size="T300">
+                  Failed to load public rooms. Please try again.
+                </Text>
+              )}
+            </Box>
+            <Box direction="Column" gap="200">
+              {/* <Button
                     type="submit"
                     variant="Secondary"
                     before={
@@ -172,15 +159,13 @@ export function AddServer({ hideText, onAddServer }: AddServerProps) {
                     <Text size="B400">Save</Text>
                   </Button> */}
 
-                  <Button type="submit" variant="Secondary" fill="Soft">
-                    <Text size="B400">Add</Text>
-                  </Button>
-                </Box>
-              </Box>
-            </Dialog>
-          </FocusTrap>
-        </OverlayCenter>
-      </Overlay>
+              <Button type="submit" variant="Secondary" fill="Soft">
+                <Text size="B400">Add</Text>
+              </Button>
+            </Box>
+          </Box>
+        </Dialog>
+      </ModalOverlay>
       {!hideText ? (
         <Button
           variant="Secondary"

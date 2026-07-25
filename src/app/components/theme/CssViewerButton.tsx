@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import FocusTrap from 'focus-trap-react';
-import { IconButton, Modal, Overlay, OverlayBackdrop, OverlayCenter } from 'folds';
+import { IconButton, Modal } from 'folds';
 
 import { Code, sizedIcon } from '$components/icons/phosphor';
 import { TextViewer } from '$components/text-viewer';
 import { ModalWide } from '$styles/Modal.css';
-import { stopPropagation } from '$utils/keyboard';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type CssViewerButtonProps = {
   title: string;
@@ -56,27 +55,16 @@ export function CssViewerButton({ title, cssText, loadCssText, ariaLabel }: CssV
         {sizedIcon(Code, '200')}
       </IconButton>
       {open && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: () => setOpen(false),
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Modal className={ModalWide} size="500">
-                <TextViewer
-                  name={title}
-                  text={viewerText}
-                  langName="css"
-                  requestClose={() => setOpen(false)}
-                />
-              </Modal>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay requestClose={() => setOpen(false)}>
+          <Modal className={ModalWide} size="500">
+            <TextViewer
+              name={title}
+              text={viewerText}
+              langName="css"
+              requestClose={() => setOpen(false)}
+            />
+          </Modal>
+        </ModalOverlay>
       )}
     </>
   );

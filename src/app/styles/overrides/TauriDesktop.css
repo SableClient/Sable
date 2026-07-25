@@ -76,6 +76,8 @@
   color: var(--sable-bg-on-container);
   background: color-mix(in srgb, var(--sable-bg-on-container) 10%, transparent);
   white-space: nowrap;
+  max-width: 50vw;
+  text-overflow: ellipsis;
 }
 
 .tauri-titlebar-status__label--success {

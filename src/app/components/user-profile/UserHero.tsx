@@ -220,13 +220,13 @@ export function UserHero({
                     size="T200"
                     style={{
                       flex: 1,
-                      wordBreak: 'break-word',
+                      display: '-webkit-box',
+                      overflowWrap: 'anywhere',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden',
                       opacity: allowEditing && !status ? config.opacity.Placeholder : 1,
                     }}
-                    truncate={allowEditing}
                   >
                     {status || (allowEditing && "What's on your mind?")}
                   </Text>

@@ -43,7 +43,14 @@ export function StatusEditor({ current = '', onSave }: StatusEditorProps) {
   return (
     <SettingTile title="Status" focusId="status">
       <Box direction="Column" grow="Yes" gap="100">
-        <Box as="form" onSubmit={handleSubmit} gap="200" aria-disabled={saving} grow="Yes">
+        <Box
+          as="form"
+          onSubmit={handleSubmit}
+          gap="200"
+          aria-disabled={saving}
+          grow="Yes"
+          style={{ minWidth: 0 }}
+        >
           <Box grow="Yes" direction="Column">
             <Input
               name="statusInput"

@@ -1,7 +1,7 @@
 import { style } from '@vanilla-extract/css';
 
 export const BreakWord = style({
-  wordBreak: 'break-word',
+  overflowWrap: 'anywhere',
 });
 
 export const LineClamp2 = style({

@@ -3,16 +3,21 @@ import { color, config, toRem } from 'folds';
 
 export const UserHero = style({
   position: 'relative',
+  minWidth: 0,
+  maxWidth: '100%',
 });
 
 export const UserHeroCoverContainer = style({
   height: toRem(96),
   overflow: 'hidden',
+  maxWidth: '100%',
+  minWidth: 0,
 });
 
 export const UserHeroCover = style({
   height: '100%',
   width: '100%',
+  maxWidth: '100%',
   objectFit: 'cover',
   objectPosition: 'center',
 });
@@ -26,6 +31,7 @@ export const UserHeroAvatarStatusContainer = style({
   position: 'relative',
   height: toRem(29),
   width: '100%',
+  minWidth: 0,
 });
 export const UserHeroAvatarContainer = style({
   position: 'relative',

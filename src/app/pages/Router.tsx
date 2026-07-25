@@ -104,11 +104,7 @@ const PublicRooms = lazy(() =>
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
-import {
-  MobileFriendlyPageNav,
-  MobileFriendlySidebarNav,
-  MobileFriendlyBottomNav,
-} from './MobileFriendly';
+import { MobileFriendlySidebarNav, MobileFriendlyBottomNav } from './MobileFriendly';
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { TauriDeepLinkBridge } from './TauriDeepLinkBridge';
@@ -293,15 +289,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
         <Route
           path={HOME_PATH}
           element={
-            <PageRoot
-              rail={<SidebarNav />}
-              bottomNav={<UserQuickToolsProvider />}
-              nav={
-                <MobileFriendlyPageNav path={HOME_PATH}>
-                  <Home />
-                </MobileFriendlyPageNav>
-              }
-            >
+            <PageRoot rail={<SidebarNav />} bottomNav={<UserQuickToolsProvider />} nav={<Home />}>
               <Outlet />
             </PageRoot>
           }
@@ -323,15 +311,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
         <Route
           path={DIRECT_PATH}
           element={
-            <PageRoot
-              rail={<SidebarNav />}
-              bottomNav={<UserQuickToolsProvider />}
-              nav={
-                <MobileFriendlyPageNav path={DIRECT_PATH}>
-                  <Direct />
-                </MobileFriendlyPageNav>
-              }
-            >
+            <PageRoot rail={<SidebarNav />} bottomNav={<UserQuickToolsProvider />} nav={<Direct />}>
               <Outlet />
             </PageRoot>
           }
@@ -354,11 +334,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               <PageRoot
                 rail={<SidebarNav />}
                 bottomNav={<UserQuickToolsProvider />}
-                nav={
-                  <MobileFriendlyPageNav path={SPACE_PATH}>
-                    <Space />
-                  </MobileFriendlyPageNav>
-                }
+                nav={<Space />}
               >
                 <Outlet />
               </PageRoot>
@@ -398,11 +374,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             <PageRoot
               rail={<SidebarNav />}
               nav={
-                <MobileFriendlyPageNav path={EXPLORE_PATH}>
-                  <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
-                    <Explore />
-                  </Suspense>
-                </MobileFriendlyPageNav>
+                <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+                  <Explore />
+                </Suspense>
               }
             >
               <Outlet />
@@ -465,11 +439,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           element={
             <PageRoot
               nav={
-                <MobileFriendlyPageNav path={INBOX_PATH}>
-                  <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
-                    <Inbox />
-                  </Suspense>
-                </MobileFriendlyPageNav>
+                <Suspense fallback={<SplashScreen>{null}</SplashScreen>}>
+                  <Inbox />
+                </Suspense>
               }
             >
               <Outlet />

@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
 import { animate, motion, useMotionValue } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
 import { mobileOrTablet } from '$utils/user-agent';
 
 interface SwipeableOverlayWrapperProps {
@@ -16,7 +14,6 @@ export function SwipeableOverlayWrapper({
   onClose,
   direction,
 }: SwipeableOverlayWrapperProps) {
-  const [mobileGestures] = useSetting(settingsAtom, 'mobileGestures');
   const x = useMotionValue(0);
 
   const bind = useDrag(
@@ -28,7 +25,7 @@ export function SwipeableOverlayWrapper({
         }
       }
 
-      if (!mobileGestures || !mobileOrTablet()) return;
+      if (!mobileOrTablet()) return;
 
       event.stopPropagation();
 
@@ -68,7 +65,7 @@ export function SwipeableOverlayWrapper({
     }
   );
 
-  if (!mobileGestures || !mobileOrTablet()) {
+  if (!mobileOrTablet()) {
     return (
       <div
         style={{

@@ -3,8 +3,6 @@ import { Box, Header, Line, Scroll, Text, as } from 'folds';
 import classNames from 'classnames';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
 import { MobileNavDrawer } from './MobileNavDrawer';
 import * as css from './style.css';
 
@@ -18,10 +16,9 @@ type PageRootProps = {
 
 export function PageRoot({ nav, rail, bottomNav, children, mobileDrawer = true }: PageRootProps) {
   const screenSize = useScreenSizeContext();
-  const [mobileGestures] = useSetting(settingsAtom, 'mobileGestures');
   const isMobile = screenSize === ScreenSize.Mobile;
 
-  if (isMobile && mobileGestures && mobileDrawer) {
+  if (isMobile && mobileDrawer) {
     return (
       <Box grow="Yes" className={ContainerColor({ variant: 'Background' })}>
         <MobileNavDrawer nav={nav} rail={rail} bottomNav={bottomNav}>

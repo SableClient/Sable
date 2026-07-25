@@ -171,11 +171,8 @@ export function SwipeableMessageWrapper({
   const settings = useAtomValue(settingsAtom);
 
   const isSwipeToReplyEnabled = useMemo(
-    () =>
-      settings.mobileGestures &&
-      mobileOrTablet() &&
-      settings.rightSwipeAction !== RightSwipeAction.Members,
-    [settings.mobileGestures, settings.rightSwipeAction]
+    () => mobileOrTablet() && settings.rightSwipeAction !== RightSwipeAction.Members,
+    [settings.rightSwipeAction]
   );
 
   if (!isSwipeToReplyEnabled || !onReply) {

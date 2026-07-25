@@ -20,7 +20,7 @@ export default defineConfig({
     toHaveScreenshot: { maxDiffPixelRatio: 0.01 },
   },
   use: {
-    baseURL: 'http://localhost:8080',
+    baseURL: 'http://localhost:8081',
     storageState: 'tests/e2e/.auth/state.json',
     trace: 'on-first-retry',
   },
@@ -37,8 +37,9 @@ export default defineConfig({
   webServer: {
     // A real build, not the dev server: no HMR and no dependency optimiser, both
     // of which invalidate the module graph mid-run and make the suite lie.
-    command: 'pnpm run build && pnpm exec vite preview --port 8080 --strictPort',
-    url: 'http://localhost:8080',
+    // Port 8081, not the dev server's 8080, so a running `pnpm dev` is untouched.
+    command: 'pnpm run build && pnpm exec vite preview --port 8081 --strictPort',
+    url: 'http://localhost:8081',
     // Never reuse: a leftover server would silently serve a stale build. The
     // build is ~30s, which is worth paying to know what is under test.
     reuseExistingServer: false,

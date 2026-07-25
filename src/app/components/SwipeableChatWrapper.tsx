@@ -17,7 +17,6 @@ export function SwipeableChatWrapper({
   onOpenMembers,
   onReply,
 }: SwipeableChatWrapperProps) {
-  const [mobileGestures] = useSetting(settingsAtom, 'mobileGestures');
   const [rightSwipeAction] = useSetting(settingsAtom, 'rightSwipeAction');
   const x = useMotionValue(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,16 +56,16 @@ export function SwipeableChatWrapper({
 
   useLayoutEffect(() => {
     const element = containerRef.current;
-    if (!drawer || !element || !mobileGestures || !mobileOrTablet()) return undefined;
+    if (!drawer || !element || !mobileOrTablet()) return undefined;
 
     return drawer.registerChatSwipe(element, {
       move,
       end: ({ distanceX, velocityX }) => finish(true, distanceX, velocityX),
       cancel: () => finish(false),
     });
-  }, [drawer, finish, mobileGestures, move]);
+  }, [drawer, finish, move]);
 
-  if (!mobileGestures || !mobileOrTablet()) {
+  if (!mobileOrTablet()) {
     return (
       <div
         style={{

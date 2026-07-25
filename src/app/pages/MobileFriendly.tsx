@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
 import { useMatch } from 'react-router-dom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
 import {
   DIRECT_PATH,
   EXPLORE_PATH,
@@ -40,7 +38,6 @@ export function MobileFriendlySidebarNav({ children }: MobileFriendlyClientNavPr
 
 export function MobileFriendlyBottomNav({ children }: MobileFriendlyClientNavProps) {
   const screenSize = useScreenSizeContext();
-  const [mobileGestures] = useSetting(settingsAtom, 'mobileGestures');
   const homeMatch = useMatch({ path: HOME_PATH, caseSensitive: true, end: true });
   const directMatch = useMatch({ path: DIRECT_PATH, caseSensitive: true, end: true });
   const spaceMatch = useMatch({ path: SPACE_PATH, caseSensitive: true, end: true });
@@ -52,31 +49,10 @@ export function MobileFriendlyBottomNav({ children }: MobileFriendlyClientNavPro
     homeMatch || directMatch || spaceMatch || inboxMatch || navigateMatch || profileMatch;
   if (
     screenSize !== ScreenSize.Mobile ||
-    (mobileGestures && !inboxMatch && !navigateMatch && !profileMatch) ||
+    (!inboxMatch && !navigateMatch && !profileMatch) ||
     !onBarDestination ||
     settingsMatch
   ) {
-    return null;
-  }
-
-  return children;
-}
-type MobileFriendlyPageNavProps = {
-  path: string;
-  children: ReactNode;
-};
-export function MobileFriendlyPageNav({ path, children }: MobileFriendlyPageNavProps) {
-  const screenSize = useScreenSizeContext();
-  const [mobileGestures] = useSetting(settingsAtom, 'mobileGestures');
-  const exactPath = useMatch({
-    path,
-    caseSensitive: true,
-    end: true,
-  });
-
-  // With mobile gestures on, the list stays mounted so MobileNavDrawer can reveal it as a
-  // co-present panel. Without gestures, fall back to the route-based single-view behavior.
-  if (screenSize === ScreenSize.Mobile && !mobileGestures && !exactPath) {
     return null;
   }
 

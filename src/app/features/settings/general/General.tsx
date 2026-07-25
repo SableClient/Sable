@@ -963,32 +963,15 @@ function SelectRightSwipeAction({ disabled }: Readonly<{ disabled?: boolean }>) 
 }
 
 function Gestures({ isMobile }: Readonly<{ isMobile: boolean }>) {
-  const [mobileGestures, setMobileGestures] = useSetting(settingsAtom, 'mobileGestures');
-
   return (
     <Box direction="Column" gap="100" style={{ opacity: isMobile ? 1 : 0.5 }}>
       <Text size="L400">Gestures {!isMobile && '(Mobile Only)'}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Enable Swiping"
-          focusId="enable-swiping"
-          description="Swipe left for rooms, swipe right for actions."
-          after={
-            <Switch
-              variant="Primary"
-              value={mobileGestures}
-              onChange={setMobileGestures}
-              disabled={!isMobile}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
           title="Right Swipe Action"
           focusId="right-swipe-action"
           description="What happens when you swipe right on a message."
-          after={<SelectRightSwipeAction disabled={!isMobile || !mobileGestures} />}
+          after={<SelectRightSwipeAction disabled={!isMobile} />}
         />
       </SequenceCard>
     </Box>

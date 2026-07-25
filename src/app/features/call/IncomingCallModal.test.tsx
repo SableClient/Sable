@@ -46,11 +46,11 @@ vi.mock('$utils/rtc', () => ({
   webRTCSupported: () => webRtcSupportedMock(),
 }));
 
-vi.mock('./room-avatar', () => ({
+vi.mock('$components/room-avatar', () => ({
   RoomAvatar: ({ alt }: { alt: string }) => <div>{alt}</div>,
 }));
 
-vi.mock('./user-avatar', () => ({
+vi.mock('$components/user-avatar', () => ({
   UserAvatar: ({ alt }: { alt?: string }) => <div>{alt}</div>,
 }));
 

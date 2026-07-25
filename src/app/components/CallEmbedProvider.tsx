@@ -15,7 +15,7 @@ import { useClientWidgetApiEvent, ElementWidgetActions } from '$plugins/call';
 import { callChatAtom, callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { IncomingCallModal } from './IncomingCallModal';
+import { IncomingCallModal } from '$features/call/IncomingCallModal';
 import { toCallEmbedStartError } from '$plugins/call/callEmbedError';
 
 function CallUtils({ embed }: { embed: CallEmbed }) {

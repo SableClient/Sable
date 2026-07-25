@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { IconSizesProvider } from '$components/icons/phosphor';
 import { ShareTargetFeature } from '$features/share-target/ShareTargetFeature';
-import { useIncomingCallSignaling } from '$hooks/useCallSignaling';
+import { useIncomingCallSignaling } from '$features/call/useCallSignaling';
 import { MatrixRTCSessionProvider } from '$hooks/useMatrixRTCSession';
 import { BackgroundNotifications } from './BackgroundNotifications';
 import { DesktopUpdater } from './DesktopUpdater';

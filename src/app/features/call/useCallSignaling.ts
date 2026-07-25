@@ -40,8 +40,8 @@ import {
 } from '$features/call/callMembershipState';
 import { ringtoneManager } from '$features/call/CallRingtoneManager';
 import { OUTGOING_RING_TIMEOUT_MS } from '$features/call/callSignalingPolicy';
-import { useMatrixClient } from './useMatrixClient';
-import { createDebugLogger } from '../utils/debugLogger';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('CallSignaling');
 

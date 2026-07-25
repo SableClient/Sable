@@ -56,7 +56,7 @@ import { RoomSettingsPage } from '$state/roomSettings';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import { useCallPreferences } from '$state/hooks/callPreferences';
-import { useCallStartCapabilities } from '$hooks/useCallStartCapabilities';
+import { useCallStartCapabilities } from '$features/call/useCallStartCapabilities';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';

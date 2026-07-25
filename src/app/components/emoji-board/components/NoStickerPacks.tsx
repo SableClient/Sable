@@ -1,12 +1,10 @@
 import { Box, config, Text, toRem } from 'folds';
 import { dropzoneIcon, Sticker } from '$components/icons/phosphor';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings.ts';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings.ts';
 import { useRoomOptionally } from '$hooks/useRoom.ts';
 import { useSpaceOptionally } from '$hooks/useSpace.ts';
 import * as css from './styles.css';
 import { RoomSettingsPage } from '$state/roomSettings.ts';
-import { SpaceSettingsPage } from '$state/spaceSettings.ts';
 
 function OptionallyLinkedText(props: { text: string; isLink: boolean; onClick: () => void }) {
   return props.isLink ? (
@@ -20,7 +18,6 @@ function OptionallyLinkedText(props: { text: string; isLink: boolean; onClick: (
 
 export function NoStickerPacks() {
   const openRoomSettings = useOpenRoomSettings();
-  const openSpaceSettings = useOpenSpaceSettings();
 
   const room = useRoomOptionally();
   const space = useSpaceOptionally();
@@ -54,10 +51,10 @@ export function NoStickerPacks() {
             text="space"
             isLink={room !== null && space !== null}
             onClick={() =>
-              openSpaceSettings(
-                room?.roomId as string,
+              openRoomSettings(
+                space?.roomId as string,
                 space?.roomId,
-                SpaceSettingsPage.EmojisStickersPage
+                RoomSettingsPage.EmojisStickersPage
               )
             }
           />{' '}

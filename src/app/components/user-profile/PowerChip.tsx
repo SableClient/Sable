@@ -31,8 +31,6 @@ import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { useRoom } from '$hooks/useRoom';
 import { useSpaceOptionally } from '$hooks/useSpace';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
-import { SpaceSettingsPage } from '$state/spaceSettings';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { BreakWord } from '$styles/Text.css';
 import { getPowerTagIconSrc, useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
@@ -147,7 +145,6 @@ export function PowerChip({
   const space = useSpaceOptionally();
   const useAuthentication = useMediaAuthentication();
   const openRoomSettings = useOpenRoomSettings();
-  const openSpaceSettings = useOpenSpaceSettings();
 
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
@@ -304,19 +301,7 @@ export function PowerChip({
                     chipHoverBrightness
                   )}
                   onClick={() => {
-                    if (room.isSpaceRoom()) {
-                      openSpaceSettings(
-                        room.roomId,
-                        space?.roomId,
-                        SpaceSettingsPage.PermissionsPage
-                      );
-                    } else {
-                      openRoomSettings(
-                        room.roomId,
-                        space?.roomId,
-                        RoomSettingsPage.PermissionsPage
-                      );
-                    }
+                    openRoomSettings(room.roomId, space?.roomId, RoomSettingsPage.PermissionsPage);
                     close();
                   }}
                 >

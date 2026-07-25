@@ -8,7 +8,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { PermissionGroups, Powers, PowersEditor } from '$features/common-settings/permissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { usePermissionGroups } from './usePermissionItems';
+import { ROOM_PERMISSION_GROUPS, SPACE_PERMISSION_GROUPS } from './permissionGroups';
 import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
 
@@ -26,7 +26,7 @@ export function Permissions({ requestBack, requestClose }: PermissionsProps) {
 
   const canEditPowers = permissions.stateEvent(CustomStateEvent.PowerLevelTags, mx.getSafeUserId());
   const canEditPermissions = permissions.stateEvent(EventType.RoomPowerLevels, mx.getSafeUserId());
-  const permissionGroups = usePermissionGroups();
+  const permissionGroups = room.isSpaceRoom() ? SPACE_PERMISSION_GROUPS : ROOM_PERMISSION_GROUPS;
 
   const [powerEditor, setPowerEditor] = useState(false);
 

@@ -20,6 +20,7 @@ import { Members } from '$features/common-settings/members';
 import { EmojisStickers } from '$features/common-settings/emojis-stickers';
 import { DeveloperTools } from '$features/common-settings/developer-tools';
 import { Cosmetics } from '$features/common-settings/cosmetics/Cosmetics';
+import { Appearance } from '$features/common-settings/appearance/Appearance';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import {
@@ -28,6 +29,7 @@ import {
   Info,
   Lock,
   PaintBrush,
+  Palette,
   settingsNavIcon,
   Smiley,
   Terminal,
@@ -47,7 +49,7 @@ type RoomSettingsMenuItem = {
   activeIcon?: PhosphorIcon;
 };
 
-const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
+const useRoomSettingsMenuItems = (isSpace: boolean): RoomSettingsMenuItem[] =>
   useMemo(
     () => [
       {
@@ -85,8 +87,17 @@ const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
         name: 'Developer Tools',
         icon: Terminal,
       },
+      ...(isSpace
+        ? [
+            {
+              page: RoomSettingsPage.AppearancePage,
+              name: 'Appearance',
+              icon: Palette,
+            },
+          ]
+        : []),
     ],
-    []
+    [isSpace]
   );
 
 type RoomSettingsProps = {
@@ -96,6 +107,7 @@ type RoomSettingsProps = {
 
 export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
   const room = useRoom();
+  const isSpace = room.isSpaceRoom();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const mDirects = useAtomValue(mDirectAtom);
@@ -114,7 +126,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
     if (initialPage) return initialPage;
     return screenSize === ScreenSize.Mobile ? undefined : RoomSettingsPage.GeneralPage;
   });
-  const menuItems = useRoomSettingsMenuItems();
+  const menuItems = useRoomSettingsMenuItems(isSpace);
 
   const handlePageRequestClose = () => {
     if (screenSize === ScreenSize.Mobile) {
@@ -223,7 +235,14 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
           <DeveloperTools requestBack={handlePageRequestClose} requestClose={requestClose} />
         )}
         {activePage === RoomSettingsPage.AbbreviationsPage && (
-          <RoomAbbreviations requestBack={handlePageRequestClose} requestClose={requestClose} />
+          <RoomAbbreviations
+            isSpace={isSpace}
+            requestBack={handlePageRequestClose}
+            requestClose={requestClose}
+          />
+        )}
+        {activePage === RoomSettingsPage.AppearancePage && isSpace && (
+          <Appearance requestBack={handlePageRequestClose} requestClose={requestClose} />
         )}
       </PageRoot>
     </SwipeableOverlayWrapper>

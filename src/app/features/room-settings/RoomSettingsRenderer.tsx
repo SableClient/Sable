@@ -15,7 +15,7 @@ function RenderSettings({ state }: RenderSettingsProps) {
   const allJoinedRooms = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allJoinedRooms);
   const room = getRoom(roomId);
-  const space = spaceId ? getRoom(spaceId) : undefined;
+  const space = spaceId && spaceId !== roomId ? getRoom(spaceId) : undefined;
 
   if (!room) return null;
 

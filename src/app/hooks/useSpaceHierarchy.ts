@@ -168,13 +168,19 @@ const getSpaceHierarchy = (
   return hierarchy;
 };
 
-export const useSpaceHierarchy = (
+/**
+ * Shared reactive wrapper: compute a hierarchy value and re-compute when a
+ * SpaceChild event fires on the space or any of its descendants.
+ *
+ * The {@link useMemo} factory receives the spaceId as its single argument so
+ * callers can pass their own parameterized closure (e.g.
+ * {@link getSpaceHierarchy} or {@link getSpaceJoinedHierarchy}).
+ */
+const useReactiveHierarchy = <T>(
   spaceId: string,
-  spaceRooms: Set<string>,
-  getRoom: (roomId: string) => Room | undefined,
-  excludeRoom: (parentId: string, roomId: string, depth: number) => boolean,
-  closedCategory: (spaceId: string) => boolean
-): SpaceHierarchy[] => {
+  factory: (spaceId: string) => T,
+  deps: unknown[]
+): T => {
   const mx = useMatrixClient();
   const roomToParents = useAtomValue(roomToParentsAtom);
 
@@ -182,8 +188,9 @@ export const useSpaceHierarchy = (
 
   const hierarchy = useMemo(() => {
     void hierarchyKey;
-    return getSpaceHierarchy(spaceId, spaceRooms, getRoom, excludeRoom, closedCategory);
-  }, [spaceId, spaceRooms, getRoom, closedCategory, excludeRoom, hierarchyKey]);
+    return factory(spaceId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spaceId, ...deps, hierarchyKey]);
 
   useStateEventCallback(
     mx,
@@ -203,6 +210,19 @@ export const useSpaceHierarchy = (
 
   return hierarchy;
 };
+
+export const useSpaceHierarchy = (
+  spaceId: string,
+  spaceRooms: Set<string>,
+  getRoom: (roomId: string) => Room | undefined,
+  excludeRoom: (parentId: string, roomId: string, depth: number) => boolean,
+  closedCategory: (spaceId: string) => boolean
+): SpaceHierarchy[] =>
+  useReactiveHierarchy(
+    spaceId,
+    (sid) => getSpaceHierarchy(sid, spaceRooms, getRoom, excludeRoom, closedCategory),
+    [spaceRooms, getRoom, closedCategory, excludeRoom]
+  );
 
 const getSpaceJoinedHierarchy = (
   rootSpaceId: string,
@@ -292,7 +312,6 @@ export const useSpaceJoinedHierarchy = (
   sortByActivity: (spaceId: string) => boolean
 ): HierarchyItem[] => {
   const mx = useMatrixClient();
-  const roomToParents = useAtomValue(roomToParentsAtom);
 
   const sortRoomItems = useCallback(
     (sId: string, items: HierarchyItem[]) => {
@@ -304,30 +323,11 @@ export const useSpaceJoinedHierarchy = (
     [mx, sortByActivity]
   );
 
-  const [hierarchyKey, setHierarchyKey] = useState(0);
-
-  const hierarchy = useMemo(() => {
-    void hierarchyKey;
-    return getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, sortRoomItems);
-  }, [spaceId, getRoom, excludeRoom, sortRoomItems, hierarchyKey]);
-
-  useStateEventCallback(
-    mx,
-    useCallback(
-      (mEvent) => {
-        if (mEvent.getType() !== (EventType.SpaceChild as string)) return;
-        const eventRoomId = mEvent.getRoomId();
-        if (!eventRoomId) return;
-
-        if (spaceId === eventRoomId || getAllParents(roomToParents, eventRoomId).has(spaceId)) {
-          setHierarchyKey((k) => k + 1);
-        }
-      },
-      [spaceId, roomToParents, setHierarchyKey]
-    )
+  return useReactiveHierarchy(
+    spaceId,
+    (sid) => getSpaceJoinedHierarchy(sid, getRoom, excludeRoom, sortRoomItems),
+    [getRoom, excludeRoom, sortRoomItems]
   );
-
-  return hierarchy;
 };
 
 // we will paginate until 5000 items

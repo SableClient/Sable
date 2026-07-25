@@ -1,6 +1,6 @@
-import { Badge, Button, color, Spinner, Text } from 'folds';
+import { Badge, Text } from 'folds';
 import { useCallback } from 'react';
-import type { MatrixError, StateEvents } from '$types/matrix-sdk';
+import type { StateEvents } from '$types/matrix-sdk';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -11,6 +11,8 @@ import { useStateEvent } from '$hooks/useStateEvent';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { EventType } from '$types/matrix-sdk';
 import { confirm } from '$components/confirm/confirm';
+import { AsyncError } from '$components/AsyncError';
+import { AsyncButton } from '$components/AsyncButton';
 
 const ROOM_ENC_ALGO = 'm.megolm.v1.aes-sha2';
 
@@ -69,25 +71,23 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
               <Text size="L400">Enabled</Text>
             </Badge>
           ) : (
-            <Button
+            <AsyncButton
               size="300"
               variant="Primary"
               fill="Solid"
               radii="300"
               disabled={!canEnable}
               onClick={handleEnable}
-              before={enabling && <Spinner size="100" variant="Primary" fill="Solid" />}
+              loading={enabling}
+              spinnerVariant="Primary"
+              spinnerSize="100"
             >
               <Text size="B300">Enable</Text>
-            </Button>
+            </AsyncButton>
           )
         }
       >
-        {enableState.status === AsyncStatus.Error && (
-          <Text style={{ color: color.Critical.Main }} size="T200">
-            {(enableState.error as MatrixError).message}
-          </Text>
-        )}
+        <AsyncError state={enableState} />
       </SettingTile>
     </SequenceCard>
   );

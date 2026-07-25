@@ -1,4 +1,5 @@
-import { Box, Button, color, config, Input, Spinner, Switch, Text } from 'folds';
+import { Box, color, config, Input, Switch, Text } from 'folds';
+import { AsyncButton } from '$components/AsyncButton';
 import { sizedIcon, Warning } from '$components/icons/phosphor';
 import type { FormEventHandler } from 'react';
 import { useCallback, useState } from 'react';
@@ -140,16 +141,18 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
         </Box>
       )}
       <Box shrink="No" direction="Column" gap="200">
-        <Button
+        <AsyncButton
           type="submit"
           size="500"
           variant="Primary"
           radii="400"
           disabled={disabled}
-          before={loading && <Spinner variant="Primary" fill="Solid" size="200" />}
+          loading={loading}
+          spinnerVariant="Primary"
+          spinnerSize="200"
         >
-          <Text size="B500">Create</Text>
-        </Button>
+          <Text size="B400">Create Chat</Text>
+        </AsyncButton>
       </Box>
     </Box>
   );

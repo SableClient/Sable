@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { config, Box, Text, color, Button, Spinner } from 'folds';
+import { config, Box, Text } from 'folds';
 import type { MatrixError } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getJoinedSpaceChildrenSummary, getRecursiveSpaceLeaveOrder } from '$utils/room/hierarchy';
 import { rateLimitedActions } from '$utils/matrix';
 import { PromptDialog } from '$components/modal-overlay/PromptDialog';
+import { AsyncError } from '$components/AsyncError';
+import { AsyncButton } from '$components/AsyncButton';
 
 type LeaveSpacePromptProps = {
   roomId: string;
@@ -85,41 +87,39 @@ export function LeaveSpacePrompt({ roomId, onDone, onCancel }: LeaveSpacePromptP
               {formatJoinedContentsMessage(roomCount, subspaceCount)}
             </Text>
           )}
-          {leaveState.status === AsyncStatus.Error && (
-            <Text style={{ color: color.Critical.Main }} size="T300">
-              Failed to leave space! {leaveState.error.message}
-            </Text>
-          )}
-          {leaveAllState.status === AsyncStatus.Error && (
-            <Text style={{ color: color.Critical.Main }} size="T300">
-              Failed to leave space, rooms, and subspaces! {leaveAllState.error.message}
-            </Text>
-          )}
+          <AsyncError state={leaveState} prefix="Failed to leave space" size="T300" />
+          <AsyncError
+            state={leaveAllState}
+            prefix="Failed to leave space, rooms, and subspaces"
+            size="T300"
+          />
         </Box>
         <Box direction="Column" gap="200">
-          <Button
+          <AsyncButton
             type="submit"
             variant="Critical"
             onClick={() => leaveSpace()}
-            before={leaving ? <Spinner fill="Solid" variant="Critical" size="200" /> : undefined}
+            loading={leaving}
+            spinnerVariant="Critical"
+            spinnerSize="200"
             aria-disabled={isBusy || leaveState.status === AsyncStatus.Success}
           >
             <Text size="B400">{leaving ? 'Leaving...' : 'Leave Space Only'}</Text>
-          </Button>
+          </AsyncButton>
           {joinedChildrenCount > 0 && (
-            <Button
+            <AsyncButton
               variant="Critical"
               fill="Soft"
               onClick={() => leaveAll()}
-              before={
-                leavingAll ? <Spinner fill="Solid" variant="Critical" size="200" /> : undefined
-              }
+              loading={leavingAll}
+              spinnerVariant="Critical"
+              spinnerSize="200"
               aria-disabled={isBusy || leaveAllState.status === AsyncStatus.Success}
             >
               <Text size="B400">
                 {formatRecursiveLeaveLabel(leavingAll, roomCount, subspaceCount)}
               </Text>
-            </Button>
+            </AsyncButton>
           )}
         </Box>
       </Box>

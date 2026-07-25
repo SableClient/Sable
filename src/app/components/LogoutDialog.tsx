@@ -1,5 +1,5 @@
 import { forwardRef, useCallback } from 'react';
-import { Dialog, Header, config, Box, Text, Button, Spinner, color } from 'folds';
+import { Dialog, Header, config, Box, Text, Button } from 'folds';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { logoutClient } from '$client/initMatrix';
 import { activeSessionIdAtom, sessionsAtom } from '$state/sessions';
@@ -11,6 +11,8 @@ import {
   VerificationStatus,
 } from '$hooks/useDeviceVerificationStatus';
 import { InfoCard } from './info-card';
+import { AsyncError } from '$components/AsyncError';
+import { AsyncButton } from '$components/AsyncButton';
 
 type LogoutDialogProps = {
   handleClose: () => void;
@@ -78,20 +80,17 @@ export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
               />
             ))}
           <Text priority="400">You’re about to log out. Are you sure?</Text>
-          {logoutState.status === AsyncStatus.Error && (
-            <Text style={{ color: color.Critical.Main }} size="T300">
-              Failed to logout! {logoutState.error.message}
-            </Text>
-          )}
+          <AsyncError state={logoutState} prefix="Failed to logout" size="T300" />
           <Box direction="Column" gap="200">
-            <Button
+            <AsyncButton
               variant="Critical"
               onClick={logout}
-              disabled={ongoingLogout}
-              before={ongoingLogout && <Spinner variant="Critical" fill="Solid" size="200" />}
+              loading={ongoingLogout}
+              spinnerVariant="Critical"
+              spinnerSize="200"
             >
               <Text size="B400">Logout</Text>
-            </Button>
+            </AsyncButton>
             <Button variant="Secondary" fill="Soft" onClick={handleClose} disabled={ongoingLogout}>
               <Text size="B400">Cancel</Text>
             </Button>

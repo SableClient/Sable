@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Box, Button, color, config, Dialog, Header, IconButton, Spinner, Text } from 'folds';
+import { Box, Button, color, config, Dialog, Header, IconButton, Text } from 'folds';
 import { menuIcon, X } from '$components/icons/phosphor';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { useAtom } from 'jotai';
@@ -14,6 +14,7 @@ import { disableNativePush } from './NotificationTransport';
 import { disableUnifiedPush } from './UnifiedPushNotifications';
 import { SettingTile } from '../../../components/setting-tile';
 import { isTauri } from '@tauri-apps/api/core';
+import { AsyncButton } from '../../../components/AsyncButton';
 
 type ConfirmDeregisterDialogProps = {
   onClose: () => void;
@@ -39,15 +40,16 @@ function ConfirmDeregisterDialog({ onClose, onConfirm, isLoading }: ConfirmDereg
             cannot be undone. Are you sure you want to continue?
           </Text>
           <Box direction="Column" gap="200" style={{ paddingTop: config.space.S200 }}>
-            <Button
+            <AsyncButton
               variant="Critical"
               fill="Solid"
               onClick={onConfirm}
-              disabled={isLoading}
-              before={isLoading && <Spinner size="100" variant="Critical" />}
+              loading={isLoading}
+              spinnerVariant="Critical"
+              spinnerSize="100"
             >
               <Text size="B400">Reset All</Text>
-            </Button>
+            </AsyncButton>
             <Button variant="Secondary" fill="Soft" onClick={onClose} disabled={isLoading}>
               <Text size="B400">Cancel</Text>
             </Button>

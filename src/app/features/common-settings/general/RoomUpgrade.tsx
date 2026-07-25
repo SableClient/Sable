@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, color, Spinner, Text, Dialog, Header, config, Box, IconButton } from 'folds';
+import { Button, color, Text, Dialog, Header, config, Box, IconButton } from 'folds';
+import { AsyncButton } from '$components/AsyncButton';
 import { composerIcon, X } from '$components/icons/phosphor';
 import type { MatrixError, RoomTombstoneEventContent } from '$types/matrix-sdk';
 import { Method, EventType } from '$types/matrix-sdk';
@@ -118,14 +119,15 @@ function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
               {(upgradeState.error as MatrixError).message}
             </Text>
           )}
-          <Button
+          <AsyncButton
             onClick={handleUpgradeRoom}
             variant="Secondary"
-            disabled={upgrading}
-            before={upgrading && <Spinner size="200" variant="Secondary" fill="Solid" />}
+            loading={upgrading}
+            spinnerVariant="Secondary"
+            spinnerSize="200"
           >
             <Text size="B400">{room.isSpaceRoom() ? 'Upgrade Space' : 'Upgrade Room'}</Text>
-          </Button>
+          </AsyncButton>
         </Box>
       </Dialog>
     </ModalOverlay>

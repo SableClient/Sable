@@ -3,6 +3,7 @@ import { VerificationPhase, VerificationMethod } from '$types/matrix-sdk';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, Button, config, Dialog, Header, IconButton, Spinner, Text } from 'folds';
+import { AsyncButton } from '$components/AsyncButton';
 import { composerIcon, X } from '$components/icons/phosphor';
 import * as Sentry from '@sentry/react';
 import {
@@ -63,15 +64,16 @@ function VerificationAccept({ onAccept }: VerificationAcceptProps) {
   return (
     <Box direction="Column" gap="400">
       <Text>Click accept to start the verification process.</Text>
-      <Button
+      <AsyncButton
         variant="Primary"
         fill="Solid"
         onClick={accept}
-        before={accepting && <Spinner size="100" variant="Primary" fill="Solid" />}
-        disabled={accepting}
+        loading={accepting}
+        spinnerSize="100"
+        spinnerVariant="Primary"
       >
         <Text size="B400">Accept</Text>
-      </Button>
+      </AsyncButton>
     </Box>
   );
 }
@@ -136,15 +138,16 @@ function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
         ))}
       </Box>
       <Box direction="Column" gap="200">
-        <Button
+        <AsyncButton
           variant="Primary"
           fill="Soft"
           onClick={confirm}
-          disabled={confirming}
-          before={confirming && <Spinner size="100" variant="Primary" />}
+          loading={confirming}
+          spinnerSize="100"
+          spinnerVariant="Primary"
         >
           <Text size="B400">They Match</Text>
-        </Button>
+        </AsyncButton>
         <Button
           variant="Primary"
           fill="Soft"

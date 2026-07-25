@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Box, Button, Chip, config, Menu, Spinner, Text } from 'folds';
+import { Badge, Box, Button, Chip, config, Menu, Text } from 'folds';
+import { AsyncButton } from '$components/AsyncButton';
 import { CaretDown, CaretUp, chipIcon } from '$components/icons/phosphor';
 import { produce } from 'immer';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
@@ -265,16 +266,18 @@ export function PermissionGroups({
               >
                 <Text size="B300">Reset</Text>
               </Button>
-              <Button
+              <AsyncButton
                 size="300"
                 variant="Success"
                 radii="300"
                 disabled={applyingChanges}
-                before={applyingChanges && <Spinner variant="Success" fill="Solid" size="100" />}
+                loading={applyingChanges}
+                spinnerVariant="Success"
+                spinnerSize="100"
                 onClick={handleApplyChanges}
               >
                 <Text size="B300">Apply Changes</Text>
-              </Button>
+              </AsyncButton>
             </Box>
           </Box>
         </Menu>

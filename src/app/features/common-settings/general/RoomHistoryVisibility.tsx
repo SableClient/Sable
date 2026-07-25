@@ -1,11 +1,7 @@
 import { useCallback, useMemo } from 'react';
-import { Button, color, Spinner, Text } from 'folds';
+import { Button, Spinner, Text } from 'folds';
 import { CaretDown, menuIcon } from '$components/icons/phosphor';
-import type {
-  MatrixError,
-  RoomHistoryVisibilityEventContent,
-  StateEvents,
-} from '$types/matrix-sdk';
+import type { RoomHistoryVisibilityEventContent, StateEvents } from '$types/matrix-sdk';
 import { HistoryVisibility, EventType } from '$types/matrix-sdk';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -14,6 +10,7 @@ import { useRoom } from '$hooks/useRoom';
 
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useStateEvent } from '$hooks/useStateEvent';
+import { AsyncError } from '$components/AsyncError';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import {
   SettingMenuSelector,
@@ -114,11 +111,7 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
           />
         }
       >
-        {submitState.status === AsyncStatus.Error && (
-          <Text style={{ color: color.Critical.Main }} size="T200">
-            {(submitState.error as MatrixError).message}
-          </Text>
-        )}
+        <AsyncError state={submitState} />
       </SettingTile>
     </SequenceCard>
   );

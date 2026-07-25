@@ -1,11 +1,11 @@
-import { Avatar, Box, Button, Chip, color, config, Input, Spinner, Text, TextArea } from 'folds';
+import { Avatar, Box, Button, Chip, config, Input, Text, TextArea } from 'folds';
 import { ArrowsClockwise, chipIcon, menuIcon, PencilSimple } from '$components/icons/phosphor';
 import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import Linkify from 'linkify-react';
 import classNames from 'classnames';
-import type { MatrixError, StateEvents } from '$types/matrix-sdk';
+import type { StateEvents } from '$types/matrix-sdk';
 import { JoinRule, EventType } from '$types/matrix-sdk';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { useRoom } from '$hooks/useRoom';
@@ -34,6 +34,8 @@ import { CustomStateEvent } from '$types/matrix/room';
 import { SettingTile } from '$components/setting-tile';
 import { confirm } from '$components/confirm/confirm';
 import { reportMediaLoadFailure } from '$utils/mediaLoadDiagnostics';
+import { AsyncError } from '$components/AsyncError';
+import { AsyncButton } from '$components/AsyncButton';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;
@@ -259,22 +261,20 @@ function RoomProfileEdit({
           readOnly={!canEditTopic || submitting}
         />
       </Box>
-      {submitState.status === AsyncStatus.Error && (
-        <Text size="T200" style={{ color: color.Critical.Main }}>
-          {(submitState.error as MatrixError).message}
-        </Text>
-      )}
+      <AsyncError state={submitState} />
       <Box gap="300">
-        <Button
+        <AsyncButton
           type="submit"
           variant="Success"
           size="300"
           radii="300"
-          disabled={uploadingAvatar || submitting}
-          before={submitting && <Spinner size="100" variant="Success" fill="Solid" />}
+          disabled={uploadingAvatar}
+          loading={submitting}
+          spinnerVariant="Success"
+          spinnerSize="100"
         >
           <Text size="B300">Save</Text>
-        </Button>
+        </AsyncButton>
         <Button
           type="reset"
           onClick={onClose}

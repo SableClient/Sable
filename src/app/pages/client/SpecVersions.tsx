@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useCallback, useState } from 'react';
-import { Box, Button, Dialog, config, Spinner, Text, color } from 'folds';
+import { Box, Button, Dialog, config, Text } from 'folds';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { SpecVersionsLoader } from '$components/SpecVersionsLoader';
 import { SpecVersionsProvider } from '$hooks/useSpecVersions';
@@ -11,6 +11,8 @@ import { activeSessionIdAtom, sessionsAtom, type Session } from '$state/sessions
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useClientConfig } from '$hooks/useClientConfig';
 import type { SpecVersions } from '../../cs-api';
+import { AsyncError } from '$components/AsyncError';
+import { AsyncButton } from '$components/AsyncButton';
 
 const EMPTY_VERSIONS: SpecVersions = { versions: [] };
 
@@ -100,22 +102,19 @@ function HomeserverOfflineError({ baseUrl, onRetry }: HomeserverOfflineErrorProp
                   )}
                 </>
               )}
-              <Button
+              <AsyncButton
                 variant="Critical"
                 fill="None"
                 onClick={logout}
-                disabled={loggingOut}
-                before={loggingOut && <Spinner variant="Critical" size="200" />}
+                loading={loggingOut}
+                spinnerVariant="Critical"
+                spinnerSize="200"
               >
                 <Text as="span" size="B400">
                   Logout
                 </Text>
-              </Button>
-              {logoutState.status === AsyncStatus.Error && (
-                <Text size="T200" style={{ color: color.Critical.Main }}>
-                  Failed to logout. {logoutState.error.message}
-                </Text>
-              )}
+              </AsyncButton>
+              <AsyncError state={logoutState} prefix="Failed to logout" />
             </Box>
           </Box>
         </Dialog>

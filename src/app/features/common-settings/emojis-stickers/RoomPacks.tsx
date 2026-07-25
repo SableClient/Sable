@@ -10,11 +10,11 @@ import {
   toRem,
   config,
   Input,
-  Spinner,
   color,
   IconButton,
   Menu,
 } from 'folds';
+import { AsyncButton } from '$components/AsyncButton';
 import { composerIcon, menuIcon, Plus, Sticker, X } from '$components/icons/phosphor';
 import type { MatrixError } from '$types/matrix-sdk';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
@@ -124,15 +124,16 @@ function CreatePackTile({ packs, roomId }: Readonly<CreatePackTileProps>) {
               </Text>
             )}
           </Box>
-          <Button
+          <AsyncButton
             variant="Success"
             radii="300"
             type="submit"
-            disabled={creating}
-            before={creating && <Spinner size="200" variant="Success" fill="Solid" />}
+            loading={creating}
+            spinnerSize="200"
+            spinnerVariant="Success"
           >
             <Text size="B400">Create</Text>
-          </Button>
+          </AsyncButton>
         </Box>
       </SettingTile>
     </SequenceCard>
@@ -334,16 +335,18 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
               >
                 <Text size="B300">Cancel</Text>
               </Button>
-              <Button
+              <AsyncButton
                 size="300"
                 variant="Critical"
                 radii="300"
                 disabled={applyingChanges}
-                before={applyingChanges && <Spinner variant="Critical" fill="Solid" size="100" />}
+                loading={applyingChanges}
+                spinnerVariant="Critical"
+                spinnerSize="100"
                 onClick={handleApplyChanges}
               >
                 <Text size="B300">Delete</Text>
-              </Button>
+              </AsyncButton>
             </Box>
           </Box>
         </Menu>

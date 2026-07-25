@@ -2,7 +2,8 @@ import type { ReactNode, FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { MatrixError, RoomType } from '$types/matrix-sdk';
-import { Box, Button, Chip, color, config, Input, Spinner, Switch, Text, TextArea } from 'folds';
+import { Box, Chip, color, config, Input, Switch, Text, TextArea } from 'folds';
+import { AsyncButton } from '$components/AsyncButton';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -266,16 +267,18 @@ export function CreateSpaceForm({ defaultAccess, space, onCreate }: CreateSpaceF
         </Box>
       )}
       <Box shrink="No" direction="Column" gap="200">
-        <Button
+        <AsyncButton
           type="submit"
           size="500"
           variant="Primary"
           radii="400"
           disabled={disabled}
-          before={loading && <Spinner variant="Primary" fill="Solid" size="200" />}
+          loading={loading}
+          spinnerVariant="Primary"
+          spinnerSize="200"
         >
-          <Text size="B500">Create</Text>
-        </Button>
+          <Text size="B400">Create Space</Text>
+        </AsyncButton>
       </Box>
     </Box>
   );

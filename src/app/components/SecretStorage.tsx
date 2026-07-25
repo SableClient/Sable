@@ -1,6 +1,6 @@
 import type { FormEventHandler } from 'react';
 import { useCallback } from 'react';
-import { Box, Text, Button, Spinner, color } from 'folds';
+import { Box, Text } from 'folds';
 import { decodeRecoveryKey, deriveRecoveryKeyFromPassphrase } from '$types/matrix-sdk';
 import type {
   SecretStorageKeyContent,
@@ -8,6 +8,8 @@ import type {
 } from '$types/matrix/accountData';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { AsyncError } from '$components/AsyncError';
+import { AsyncButton } from '$components/AsyncButton';
 import { useAlive } from '$hooks/useAlive';
 import { PasswordInput } from './password-input';
 
@@ -91,25 +93,22 @@ export function SecretStorageRecoveryPassphrase({
           />
         </Box>
         <Box shrink="No" gap="200">
-          <Button
+          <AsyncButton
             type="submit"
             variant="Success"
             size="400"
             radii="300"
-            disabled={loading}
-            before={loading && <Spinner size="200" variant="Success" fill="Solid" />}
+            loading={loading}
+            spinnerSize="200"
+            spinnerVariant="Success"
           >
             <Text as="span" size="B400">
               Verify
             </Text>
-          </Button>
+          </AsyncButton>
         </Box>
       </Box>
-      {driveKeyState.status === AsyncStatus.Error && (
-        <Text size="T200" style={{ color: color.Critical.Main }}>
-          <b>{driveKeyState.error.message}</b>
-        </Text>
-      )}
+      <AsyncError state={driveKeyState} bold />
     </Box>
   );
 }
@@ -181,25 +180,22 @@ export function SecretStorageRecoveryKey({
           />
         </Box>
         <Box shrink="No" gap="200">
-          <Button
+          <AsyncButton
             type="submit"
             variant="Success"
             size="400"
             radii="300"
-            disabled={loading}
-            before={loading && <Spinner size="200" variant="Success" fill="Solid" />}
+            loading={loading}
+            spinnerSize="200"
+            spinnerVariant="Success"
           >
             <Text as="span" size="B400">
               Verify
             </Text>
-          </Button>
+          </AsyncButton>
         </Box>
       </Box>
-      {driveKeyState.status === AsyncStatus.Error && (
-        <Text size="T200" style={{ color: color.Critical.Main }}>
-          <b>{driveKeyState.error.message}</b>
-        </Text>
-      )}
+      <AsyncError state={driveKeyState} bold />
     </Box>
   );
 }

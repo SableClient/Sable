@@ -1,5 +1,4 @@
 import {
-  MAX_CALL_NOTIFICATION_LIFETIME_MS,
   normalizeCallIntent,
   toCallNotificationType,
   type CallIntentKind,
@@ -12,8 +11,6 @@ export const REFERENCE_REL_TYPE = 'm.reference';
 
 export type NotificationType = CallNotificationType;
 export type NotificationIntentKind = CallIntentKind;
-
-export { MAX_CALL_NOTIFICATION_LIFETIME_MS };
 
 export type RtcNotificationEventLike = {
   type: string;

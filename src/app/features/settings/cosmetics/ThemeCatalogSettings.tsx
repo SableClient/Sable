@@ -101,8 +101,6 @@ export type LocalTweakRow = ThemeRemoteTweakFavorite & {
 
 export type ThemeCatalogSettingsMode = 'local' | 'appearance';
 
-export { usePatchSettings } from './themeSettingsPatch';
-
 type ThemeCatalogSettingsProps = {
   mode: ThemeCatalogSettingsMode;
   onBrowseOpenChange?: (open: boolean) => void;

@@ -13,10 +13,7 @@ import { getMxIdLocalPart } from '$utils/matrix';
 import { getStateEvent, getMemberAvatarMxc } from '$utils/room';
 import { createDebugLogger } from '$utils/debugLogger';
 import {
-  getUnifiedPushDistributor,
-  getUnifiedPushDistributors,
   registerUnifiedPushTransport,
-  saveUnifiedPushDistributor,
   type UnifiedPushRegistrationResult,
   unregisterUnifiedPushTransport,
 } from './UnifiedPushTransport';
@@ -36,8 +33,6 @@ import {
   withPushPayloadFormat,
   type PushPusherSettings,
 } from './PushPusherConfig';
-
-export { getUnifiedPushDistributors, getUnifiedPushDistributor, saveUnifiedPushDistributor };
 
 const UP_PUBLIC_GATEWAY = 'https://matrix.gateway.unifiedpush.org/_matrix/push/v1/notify';
 export const DEFAULT_UNIFIED_PUSH_APP_ID = 'moe.sable.up';

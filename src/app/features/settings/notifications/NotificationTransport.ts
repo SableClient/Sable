@@ -44,14 +44,7 @@ export type {
   NativePushRegistrationResult,
 } from './NativePushNotifications';
 
-export {
-  disableNativePush,
-  enableNativePush,
-  ensureNativePushRegistered,
-  ensureNativePushUnregistered,
-  isNativePushPermissionGranted,
-  requestNativePushPermission,
-} from './NativePushNotifications';
+export { disableNativePush, enableNativePush } from './NativePushNotifications';
 
 export function getSupportedNotificationTransportModes(
   platform: NotificationTransportPlatform

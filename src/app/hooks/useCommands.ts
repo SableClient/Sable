@@ -22,14 +22,6 @@ import { createMiscCommands } from './commands/misc';
 export type { CommandExe, CommandContent, CommandRecord } from './commands/types';
 export { Command } from './commands/types';
 export { SHRUG, TABLEFLIP, UNFLIP } from './commands/fun';
-export { rainbowify } from './commands/rainbow';
-export {
-  parseFlags,
-  parseServers,
-  parseTimestampFlag,
-  parseUsers,
-  splitPayloadContentAndFlags,
-} from './commands/parsing';
 
 export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
   const { navigateRoom } = useRoomNavigate();

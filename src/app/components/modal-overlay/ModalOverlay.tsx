@@ -1,7 +1,7 @@
 import type { ComponentProps, MutableRefObject, ReactNode } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { Overlay, OverlayBackdrop, OverlayCenter } from 'folds';
-import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { ScreenSize, useScreenSizeOptionally } from '$hooks/useScreenSize';
 import { stopPropagation } from '$utils/keyboard';
 import { useDismissOnBack } from '$utils/androidBack';
 
@@ -17,6 +17,8 @@ type ModalOverlayProps = {
   mobile?: 'centred' | 'fullscreen';
   /** The modal element, used as the focus fallback and as the fullscreen wrapper. */
   contentRef?: MutableRefObject<HTMLDivElement | null>;
+  /** Set false for flows that Escape must not abort, such as device verification. */
+  escapeDeactivates?: FocusTrapOptions['escapeDeactivates'];
   children: ReactNode;
 };
 
@@ -27,9 +29,11 @@ export function ModalOverlay({
   initialFocus = false,
   mobile = 'centred',
   contentRef,
+  escapeDeactivates = stopPropagation,
   children,
 }: ModalOverlayProps) {
-  const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
+  // Null outside a provider, where desktop is the safe assumption.
+  const isMobile = useScreenSizeOptionally() === ScreenSize.Mobile;
 
   // Android back closes the overlay instead of navigating away.
   useDismissOnBack(requestClose, open);
@@ -40,7 +44,7 @@ export function ModalOverlay({
         <FocusTrap
           focusTrapOptions={{
             initialFocus,
-            escapeDeactivates: stopPropagation,
+            escapeDeactivates,
             onDeactivate: requestClose,
           }}
         >
@@ -65,7 +69,7 @@ export function ModalOverlay({
             fallbackFocus: () => contentRef?.current ?? document.body,
             clickOutsideDeactivates: dismissOnClickOutside,
             onDeactivate: requestClose,
-            escapeDeactivates: stopPropagation,
+            escapeDeactivates,
           }}
         >
           {children}

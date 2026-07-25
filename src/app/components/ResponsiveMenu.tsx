@@ -61,25 +61,40 @@ export function ResponsiveMenu({
   // Null outside a provider, where desktop is the safe assumption.
   const isMobile = useScreenSizeOptionally() === ScreenSize.Mobile;
 
+  const isKeyForward = (evt: KeyboardEvent) =>
+    evt.key === 'ArrowDown' || (arrowNavigation === 'both' && evt.key === 'ArrowRight');
+  const isKeyBackward = (evt: KeyboardEvent) =>
+    evt.key === 'ArrowUp' || (arrowNavigation === 'both' && evt.key === 'ArrowLeft');
+
+  const focusTrapOptions = {
+    initialFocus,
+    fallbackFocus: () => document.body,
+    returnFocusOnDeactivate,
+    onDeactivate: requestClose,
+    clickOutsideDeactivates: true,
+    isKeyForward,
+    isKeyBackward,
+    escapeDeactivates: stopPropagation,
+  };
+
   if (isMobile) {
     return (
       <>
         {children}
         {anchor && (
           <MobileSwipeDownModal requestClose={requestClose}>
-            {(dragHandle, dragHandlers) =>
-              typeof menu === 'function' ? menu(dragHandle, dragHandlers) : menu
-            }
+            {(dragHandle, dragHandlers) => (
+              <FocusTrap focusTrapOptions={focusTrapOptions}>
+                <div role="dialog" aria-modal="true">
+                  {typeof menu === 'function' ? menu(dragHandle, dragHandlers) : menu}
+                </div>
+              </FocusTrap>
+            )}
           </MobileSwipeDownModal>
         )}
       </>
     );
   }
-
-  const isKeyForward = (evt: KeyboardEvent) =>
-    evt.key === 'ArrowDown' || (arrowNavigation === 'both' && evt.key === 'ArrowRight');
-  const isKeyBackward = (evt: KeyboardEvent) =>
-    evt.key === 'ArrowUp' || (arrowNavigation === 'both' && evt.key === 'ArrowLeft');
 
   return (
     <PopOut
@@ -91,18 +106,7 @@ export function ResponsiveMenu({
       offset={offset}
       alignOffset={alignOffset}
       content={
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus,
-            fallbackFocus: () => document.body,
-            returnFocusOnDeactivate,
-            onDeactivate: requestClose,
-            clickOutsideDeactivates: true,
-            isKeyForward,
-            isKeyBackward,
-            escapeDeactivates: stopPropagation,
-          }}
-        >
+        <FocusTrap focusTrapOptions={focusTrapOptions}>
           {typeof menu === 'function' ? menu(null, undefined) : menu}
         </FocusTrap>
       }

@@ -47,7 +47,14 @@ export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor
     if (triggerRef.current) openAt(triggerRef.current);
   });
 
-  const onClick: MouseEventHandler<T> = useCallback((evt) => openAt(evt.currentTarget), [openAt]);
+  const onClick: MouseEventHandler<T> = useCallback(
+    (evt) => {
+      // The long-press timer already opened it; the synthetic click would toggle it shut.
+      if (longPress.firedRef.current) return;
+      openAt(evt.currentTarget);
+    },
+    [longPress, openAt]
+  );
 
   const onContextMenu: MouseEventHandler<T> = useCallback(
     (evt) => {

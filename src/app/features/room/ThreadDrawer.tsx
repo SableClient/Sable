@@ -5,6 +5,7 @@ import { Chats, composerIcon, X } from '$components/icons/phosphor';
 import type { IEvent, Room, CryptoBackend } from '$types/matrix-sdk';
 import {
   Direction,
+  EventStatus,
   MatrixEvent,
   MatrixEventEvent,
   ReceiptType,
@@ -13,6 +14,8 @@ import {
   ThreadEvent,
   EventType,
 } from '$types/matrix-sdk';
+import { useSpaceOptionally } from '$hooks/useSpace';
+import { buildCachedProfilePayload } from '$hooks/timeline/useTimelineActions';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import { ReactEditor } from 'slate-react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
@@ -253,6 +256,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
   // User profile popup
   const openUserRoomProfile = useOpenUserRoomProfile();
+  const optionalSpace = useSpaceOptionally();
 
   // Thread timeline data for useProcessedTimeline
   const thread = room.getThread(threadRootId);
@@ -592,12 +596,14 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       if (!userId) return;
       openUserRoomProfile(
         room.roomId,
-        undefined,
+        optionalSpace?.roomId,
         userId,
-        evt.currentTarget.getBoundingClientRect()
+        evt.currentTarget.getBoundingClientRect(),
+        undefined,
+        buildCachedProfilePayload(getGlobalProfile(userId))
       );
     },
-    [room, openUserRoomProfile]
+    [room, optionalSpace, openUserRoomProfile, getGlobalProfile]
   );
 
   const handleUsernameClick: MouseEventHandler<HTMLButtonElement> = useCallback(
@@ -701,13 +707,15 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
   const handleResend = useCallback(
     (event: MatrixEvent) => {
-      mx.resendEvent(event, room);
+      if (event.getAssociatedStatus() !== EventStatus.NOT_SENT) return;
+      mx.resendEvent(event, room).catch(() => undefined);
     },
     [mx, room]
   );
 
   const handleDeleteFailedSend = useCallback(
     (event: MatrixEvent) => {
+      if (event.getAssociatedStatus() !== EventStatus.NOT_SENT) return;
       mx.cancelPendingEvent(event);
     },
     [mx]

@@ -11,6 +11,38 @@ import { extractReplyDraftBody, getMemberDisplayName, resolveReplyDraftTarget } 
 import { createMentionElement, moveCursor } from '$components/editor';
 import * as prefix from '$unstable/prefixes';
 
+/**
+ * The profile popup reads name, avatar and the identity fields off the room
+ * member, so the cached copies would shadow fresher state event data.
+ */
+export const buildCachedProfilePayload = (cachedData: UserProfile | undefined) => {
+  const cleanExtended = cachedData?.extended ? { ...cachedData.extended } : undefined;
+
+  if (cleanExtended) {
+    delete cleanExtended[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME];
+    delete cleanExtended.avatar_url;
+    delete cleanExtended.displayname;
+    delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME];
+    delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME];
+  }
+
+  return {
+    pronouns: cachedData?.pronouns,
+    bio: cachedData?.bio,
+    timezone: cachedData?.timezone,
+    extended: cleanExtended,
+  };
+};
+
 export interface UseTimelineActionsOptions {
   room: Room;
   mx: MatrixClient;
@@ -65,38 +97,13 @@ export function useTimelineActions({
       const userId = evt.currentTarget.getAttribute('data-user-id');
       if (!userId) return;
 
-      const cachedData = getGlobalProfile(userId);
-      const cleanExtended = cachedData?.extended ? { ...cachedData.extended } : undefined;
-
-      if (cleanExtended) {
-        delete cleanExtended[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME];
-        delete cleanExtended.avatar_url;
-        delete cleanExtended.displayname;
-        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME];
-        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME];
-      }
-
       openUserRoomProfile(
         room.roomId,
         spaceId,
         userId,
         evt.currentTarget.getBoundingClientRect(),
         undefined,
-        {
-          pronouns: cachedData?.pronouns,
-          bio: cachedData?.bio,
-          timezone: cachedData?.timezone,
-          extended: cleanExtended,
-        }
+        buildCachedProfilePayload(getGlobalProfile(userId))
       );
     },
     [room.roomId, spaceId, openUserRoomProfile, getGlobalProfile]

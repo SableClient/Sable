@@ -10,7 +10,6 @@ import {
   Menu,
   MenuItem,
   Modal,
-  Spinner,
   Text,
   color,
   config,
@@ -83,7 +82,8 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { BreakWord } from '$styles/Text.css';
+import { AsyncButton } from '$components/AsyncButton';
+import { AsyncError } from '$components/AsyncError';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -455,11 +455,7 @@ function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProps) {
       <Box direction="Column" grow="Yes" gap="100">
         <Text size="L400">Space Upgraded</Text>
         <Text size="T200">This space has been replaced and is no longer active.</Text>
-        {joinState.status === AsyncStatus.Error && (
-          <Text className={BreakWord} style={{ color: color.Critical.Main }} size="T200">
-            {(joinState.error as Error)?.message ?? 'Failed to join replacement space!'}
-          </Text>
-        )}
+        <AsyncError state={joinState} />
       </Box>
       <Box direction="Column" shrink="No">
         {replacementRoom?.getMyMembership() === KnownMembership.Join ||
@@ -468,21 +464,19 @@ function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProps) {
             <Text size="B300">Open New Space</Text>
           </Button>
         ) : (
-          <Button
-            onClick={handleJoin}
+          <AsyncButton
+            loading={joinState.status === AsyncStatus.Loading}
+            spinnerSize="100"
+            spinnerVariant="Primary"
+            spinnerFill="Solid"
             size="300"
             variant="Primary"
             fill="Solid"
             radii="300"
-            before={
-              joinState.status === AsyncStatus.Loading && (
-                <Spinner size="100" variant="Primary" fill="Solid" />
-              )
-            }
-            disabled={joinState.status === AsyncStatus.Loading}
+            onClick={handleJoin}
           >
             <Text size="B300">Join New Space</Text>
-          </Button>
+          </AsyncButton>
         )}
       </Box>
     </Box>

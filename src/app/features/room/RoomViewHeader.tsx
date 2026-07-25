@@ -133,7 +133,7 @@ export interface PinReadMarker {
   last_seen_id: string;
 }
 
-export type RoomMenuProps = {
+type RoomMenuProps = {
   room: Room;
   requestClose: () => void;
   dragOpts?: DragOptsProps;

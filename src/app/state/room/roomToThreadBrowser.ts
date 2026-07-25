@@ -2,7 +2,7 @@ import { atom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
 
 const createThreadBrowserAtom = () => atom(false);
-export type TThreadBrowserAtom = ReturnType<typeof createThreadBrowserAtom>;
+type TThreadBrowserAtom = ReturnType<typeof createThreadBrowserAtom>;
 
 /**
  * Tracks whether the thread browser panel is open per room.

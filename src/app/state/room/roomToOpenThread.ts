@@ -2,7 +2,7 @@ import { atom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
 
 const createOpenThreadAtom = () => atom<string | undefined>(undefined);
-export type TOpenThreadAtom = ReturnType<typeof createOpenThreadAtom>;
+type TOpenThreadAtom = ReturnType<typeof createOpenThreadAtom>;
 
 /**
  * Tracks the currently-open thread root event ID per room.

@@ -3,6 +3,7 @@ import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ValidatedAuthMetadata } from '$types/matrix-sdk';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncButton } from '$components/AsyncButton';
 import { useAuthServer } from '$hooks/useAuthServer';
 import { InfoCard } from '$components/info-card';
 import { getLoginPath } from '$pages/pathUtils';
@@ -66,20 +67,21 @@ export function OidcLoginButton({
       {errorMessage && (
         <InfoCard variant="Critical" title={ERROR_TITLE} description={errorMessage} />
       )}
-      <Button
+      <AsyncButton
         style={{ width: '100%' }}
         size="500"
         variant="Secondary"
         fill="Soft"
         outlined
-        disabled={loading}
-        before={loading ? <Spinner size="200" variant="Secondary" /> : undefined}
+        loading={loading}
+        spinnerSize="200"
+        spinnerVariant="Secondary"
         onClick={() => start()}
       >
         <Text align="Center" size="B500" truncate>
           {label}
         </Text>
-      </Button>
+      </AsyncButton>
     </Box>
   );
 }

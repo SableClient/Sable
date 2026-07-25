@@ -50,7 +50,7 @@ import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUr
 import * as css from './EventHistory.css';
 import { EventType } from '$types/matrix-sdk';
 
-export type EventHistoryProps = {
+type EventHistoryProps = {
   room: Room;
   mEvents: MatrixEvent[];
   requestClose: () => void;

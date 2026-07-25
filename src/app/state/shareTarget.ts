@@ -1,7 +1,7 @@
 import { atom } from 'jotai';
 import type { ShareBatch } from '$generated/tauri/types';
 
-export type PendingShare = {
+type PendingShare = {
   batches: ShareBatch[];
 };
 

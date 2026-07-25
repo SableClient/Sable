@@ -6,7 +6,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { LocalRoomSummary } from '$hooks/useLocalRoomSummary';
 import { useLocalRoomSummary } from '$hooks/useLocalRoomSummary';
 
-export type IRoomSummary = Awaited<ReturnType<MatrixClient['getRoomSummary']>>;
+type IRoomSummary = Awaited<ReturnType<MatrixClient['getRoomSummary']>>;
 
 type RoomSummaryLoaderProps = {
   roomIdOrAlias: string;

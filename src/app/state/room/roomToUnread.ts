@@ -27,7 +27,7 @@ import { getClientSyncDiagnostics, getSlidingSyncManager } from '$client/initMat
 import { mDirectAtom } from '$state/mDirectList';
 import { roomToParentsAtom } from './roomToParents';
 
-export type RoomToUnreadAction =
+type RoomToUnreadAction =
   | {
       type: 'RESET';
       unreadInfos: UnreadInfo[];

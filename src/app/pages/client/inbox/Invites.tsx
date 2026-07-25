@@ -1,17 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  Avatar,
-  Badge,
-  Box,
-  Button,
-  Chip,
-  IconButton,
-  Scroll,
-  Spinner,
-  Text,
-  color,
-  config,
-} from 'folds';
+import { Avatar, Badge, Box, Button, Chip, IconButton, Scroll, Spinner, Text, config } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
 import {
   ArrowLeft,
@@ -66,6 +54,8 @@ import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
 import { onEnterOrSpace } from '$utils/keyboard';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncButton } from '$components/AsyncButton';
+import { AsyncError } from '$components/AsyncError';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
@@ -85,7 +75,7 @@ import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 const COMPACT_CARD_WIDTH = 548;
 
-export type InviteData = {
+type InviteData = {
   room: Room;
   roomId: string;
   roomName: string;
@@ -312,16 +302,8 @@ function InviteCard({
                 />
               </ModalOverlay>
             </Box>
-            {joinState.status === AsyncStatus.Error && (
-              <Text size="T200" style={{ color: color.Critical.Main }}>
-                {joinState.error.message}
-              </Text>
-            )}
-            {leaveState.status === AsyncStatus.Error && (
-              <Text size="T200" style={{ color: color.Critical.Main }}>
-                {leaveState.error.message}
-              </Text>
-            )}
+            <AsyncError state={joinState} />
+            <AsyncError state={leaveState} />
           </Box>
           <Box gap="200" shrink="No" alignItems="Center">
             <Button
@@ -336,29 +318,34 @@ function InviteCard({
             >
               <Text size="B300">{isDismissed ? 'Undismiss' : 'Dismiss'}</Text>
             </Button>
-            <Button
-              onClick={leave}
+            <AsyncButton
+              loading={leaving}
+              spinnerSize="100"
+              spinnerVariant="Secondary"
               size="300"
               variant="Secondary"
               radii="300"
               fill="Soft"
-              disabled={joining || leaving}
-              before={leaving ? <Spinner variant="Secondary" size="100" /> : undefined}
+              disabled={joining}
+              onClick={leave}
             >
               <Text size="B300">Decline</Text>
-            </Button>
-            <Button
-              onClick={join}
+            </AsyncButton>
+            <AsyncButton
+              loading={joining}
+              spinnerSize="100"
+              spinnerVariant="Success"
+              spinnerFill="Soft"
               size="300"
               variant="Success"
               fill="Soft"
               radii="300"
               outlined
-              disabled={joining || leaving}
-              before={joining ? <Spinner variant="Success" fill="Soft" size="100" /> : undefined}
+              disabled={leaving}
+              onClick={join}
             >
               <Text size="B300">Accept</Text>
-            </Button>
+            </AsyncButton>
           </Box>
         </Box>
       </Box>
@@ -639,7 +626,6 @@ function SpamInvites({
   const declining = declineAllStatus.status === AsyncStatus.Loading;
   const reporting = reportAllStatus.status === AsyncStatus.Loading;
   const blocking = blockAllStatus.status === AsyncStatus.Loading;
-  const loading = blocking || reporting || declining;
 
   return (
     <Box direction="Column" gap="200">
@@ -659,48 +645,57 @@ function SpamInvites({
                 subTitle="Some of the following invites may contain harmful content or have been sent by banned users."
               >
                 <Box direction="Row" gap="200" justifyContent="Center" wrap="Wrap">
-                  <Button
+                  <AsyncButton
                     size="300"
                     variant="Critical"
                     fill="Solid"
                     radii="300"
                     onClick={declineAll}
-                    before={declining && <Spinner size="100" variant="Critical" fill="Solid" />}
-                    disabled={loading}
+                    loading={declining}
+                    spinnerSize="100"
+                    spinnerVariant="Critical"
+                    spinnerFill="Solid"
+                    disabled={reporting || blocking}
                   >
                     <Text size="B300" truncate>
                       Decline All
                     </Text>
-                  </Button>
+                  </AsyncButton>
                   {reportRoomSupported && reportAllStatus.status !== AsyncStatus.Success && (
-                    <Button
+                    <AsyncButton
                       size="300"
                       variant="Secondary"
                       fill="Solid"
                       radii="300"
                       onClick={reportAll}
-                      before={reporting && <Spinner size="100" variant="Secondary" fill="Solid" />}
-                      disabled={loading}
+                      loading={reporting}
+                      spinnerSize="100"
+                      spinnerVariant="Secondary"
+                      spinnerFill="Solid"
+                      disabled={declining || blocking}
                     >
                       <Text size="B300" truncate>
                         Report All
                       </Text>
-                    </Button>
+                    </AsyncButton>
                   )}
                   {unignoredUsers.length > 0 && (
-                    <Button
+                    <AsyncButton
                       size="300"
                       variant="Secondary"
                       fill="Solid"
                       radii="300"
-                      disabled={loading}
+                      disabled={declining || reporting}
+                      loading={blocking}
+                      spinnerSize="100"
+                      spinnerVariant="Secondary"
+                      spinnerFill="Solid"
                       onClick={blockAll}
-                      before={blocking && <Spinner size="100" variant="Secondary" fill="Solid" />}
                     >
                       <Text size="B300" truncate>
                         Block All
                       </Text>
-                    </Button>
+                    </AsyncButton>
                   )}
                 </Box>
 

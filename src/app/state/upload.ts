@@ -39,7 +39,7 @@ export type UploadError = {
 
 export type Upload = UploadIdle | UploadLoading | UploadSuccess | UploadError;
 
-export type UploadAtomAction =
+type UploadAtomAction =
   | {
       promise: Promise<UploadResponse>;
     }

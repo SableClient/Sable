@@ -62,11 +62,6 @@ export type UnreadInfo = {
   highlight: number;
 };
 
-export type MuteChanges = {
-  added: string[];
-  removed: string[];
-};
-
 export type MemberPowerTagIcon = {
   key?: string;
   info?: IImageInfo;

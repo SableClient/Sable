@@ -4,7 +4,7 @@ const DB_VERSION = 1;
 const STORE = 'themes';
 const UPDATE_CHANNEL = 'sable-theme-cache-updates';
 
-export type CachedThemeEntry = {
+type CachedThemeEntry = {
   url: string;
   cssText: string;
   cachedAt: number;
@@ -23,16 +23,6 @@ export type ThemeCacheRevalidationResult =
 export type ThemeCacheUpdate = {
   url: string;
   contentHash: string;
-};
-
-export type ThemeCacheStats = {
-  entries: number;
-  localEntries: number;
-  remoteEntries: number;
-  totalBytes: number;
-  localBytes: number;
-  remoteBytes: number;
-  lastCheckedAt?: number;
 };
 
 const updateListeners = new Set<(update: ThemeCacheUpdate) => void>();

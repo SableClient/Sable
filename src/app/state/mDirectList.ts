@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 import { getAccountData } from '$utils/room/hierarchy';
 import { getMDirects } from '$utils/room/unread';
 
-export type MDirectAction = {
+type MDirectAction = {
   type: 'INITIALIZE' | 'UPDATE';
   rooms: Set<string>;
 };

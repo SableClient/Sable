@@ -10,9 +10,6 @@ import {
   Text,
   IconButton,
   Input,
-  Button,
-  Spinner,
-  color,
   TextArea,
   Dialog,
   Menu,
@@ -30,9 +27,10 @@ import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncButton } from '$components/AsyncButton';
+import { AsyncError } from '$components/AsyncError';
 import { composerIcon, X } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { BreakWord } from '$styles/Text.css';
 import { useAlive } from '$hooks/useAlive';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { KnownMembership } from '$types/matrix-sdk';
@@ -275,18 +273,17 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
                     resize="None"
                   />
                 </Box>
-                {inviteState.status === AsyncStatus.Error && (
-                  <Text size="T200" style={{ color: color.Critical.Main }} className={BreakWord}>
-                    <b>{inviteState.error.message}</b>
-                  </Text>
-                )}
-                <Button
+                <AsyncError state={inviteState} bold />
+                <AsyncButton
                   type="submit"
-                  disabled={!validUserId || inviting}
-                  before={inviting && <Spinner size="200" variant="Primary" fill="Solid" />}
+                  loading={inviting}
+                  spinnerSize="200"
+                  spinnerVariant="Primary"
+                  spinnerFill="Solid"
+                  disabled={!validUserId}
                 >
                   <Text size="B400">Invite</Text>
-                </Button>
+                </AsyncButton>
               </Box>
             </Box>
           </Dialog>

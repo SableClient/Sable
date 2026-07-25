@@ -8,7 +8,6 @@ import {
   Button,
   TextArea as TextAreaComponent,
   color,
-  Spinner,
   Chip,
   Scroll,
   config,
@@ -18,6 +17,8 @@ import type { MatrixError } from '$types/matrix-sdk';
 import { Cursor } from '$plugins/text-area';
 import { syntaxErrorPosition } from '$utils/dom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncButton } from '$components/AsyncButton';
+import { AsyncError } from '$components/AsyncError';
 import { useAlive } from '$hooks/useAlive';
 import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { Page, PageHeader } from './page';
@@ -134,16 +135,18 @@ function AccountDataEdit({
               required
             />
           </Box>
-          <Button
+          <AsyncButton
             variant="Success"
             size="400"
             radii="300"
             type="submit"
-            disabled={submitting}
-            before={submitting && <Spinner variant="Primary" fill="Solid" size="300" />}
+            loading={submitting}
+            spinnerSize="300"
+            spinnerVariant="Primary"
+            spinnerFill="Solid"
           >
             <Text size="B400">Save</Text>
-          </Button>
+          </AsyncButton>
           <Button
             variant="Secondary"
             fill="Soft"
@@ -157,11 +160,7 @@ function AccountDataEdit({
           </Button>
         </Box>
 
-        {submitState.status === AsyncStatus.Error && (
-          <Text size="T200" style={{ color: color.Critical.Main }}>
-            <b>{submitState.error.message}</b>
-          </Text>
-        )}
+        <AsyncError state={submitState} bold />
       </Box>
       <Box grow="Yes" direction="Column" gap="100">
         <Box shrink="No">

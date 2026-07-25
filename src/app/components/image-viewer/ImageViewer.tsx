@@ -26,7 +26,7 @@ import { copyImageToClipboard } from '$utils/dom';
 import { getDownloadFilename, saveFileToDevice } from '$utils/download';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
 
-export type ImageViewerProps = {
+type ImageViewerProps = {
   alt: string;
   filename?: string;
   src: string;

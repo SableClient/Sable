@@ -328,7 +328,7 @@ const MessageFavoriteGifItem = as<
   );
 });
 
-export type OptionEmojiMenuProps = {
+type OptionEmojiMenuProps = {
   mEvent: MatrixEvent;
   closeMenu: () => void;
   onReactionToggle?: (targetEventId: string, key: string, shortcode?: string) => void;

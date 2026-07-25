@@ -10,7 +10,7 @@ export type NativeNotificationReply = {
   text: string;
   createdAt: number;
 };
-export type NativeActionPayload = {
+type NativeActionPayload = {
   actionId: string;
   inputValue?: string | null;
   notification: {

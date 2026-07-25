@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 
-export type ListAction<T> =
+type ListAction<T> =
   | {
       type: 'PUT';
       item: T | T[];
@@ -42,4 +42,3 @@ export const createListAtom = <T>() => {
     }
   );
 };
-export type TListAtom<T> = ReturnType<typeof createListAtom<T>>;

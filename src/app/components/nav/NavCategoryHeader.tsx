@@ -3,7 +3,7 @@ import classNames from 'classnames';
 import { Header, as } from 'folds';
 import * as css from './styles.css';
 
-export type NavCategoryHeaderProps = {
+type NavCategoryHeaderProps = {
   children: ReactNode;
 };
 export const NavCategoryHeader = as<'div', NavCategoryHeaderProps>(

@@ -53,7 +53,7 @@ export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDow
   );
 }
 
-export type FileHeaderProps = {
+type FileHeaderProps = {
   body: string;
   mimeType: string;
   after?: ReactNode;

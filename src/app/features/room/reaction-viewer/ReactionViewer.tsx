@@ -18,7 +18,7 @@ import { useSpaceOptionally } from '$hooks/useSpace';
 import { getMouseEventCords } from '$utils/dom';
 import * as css from './ReactionViewer.css';
 
-export type ReactionViewerProps = {
+type ReactionViewerProps = {
   room: Room;
   initialKey?: string;
   relations: Relations;

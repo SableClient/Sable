@@ -8,13 +8,13 @@ export enum BackupProgressStatus {
   Loading,
   Done,
 }
-export type ProgressData = {
+type ProgressData = {
   downloaded: number;
   successes: number;
   failures: number;
   total: number;
 };
-export type IBackupProgress =
+type IBackupProgress =
   | {
       status: BackupProgressStatus.Idle;
     }

@@ -4,7 +4,7 @@ import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { useEffect, useState } from 'react';
 import { getSettings, setSettings } from '$state/settings';
 
-export type LanguageSpecificPronounsConfig = {
+type LanguageSpecificPronounsConfig = {
   enabled?: boolean | string;
   languages?: string[];
 };

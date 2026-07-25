@@ -38,7 +38,8 @@ import { useClientConfig } from '$hooks/useClientConfig';
 import { useExploreFeaturedSelected, useExploreServer } from '$hooks/router/useRouteSelected';
 import { useExploreServers } from '$hooks/useExploreServers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncError } from '$components/AsyncError';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
@@ -139,11 +140,11 @@ function AddServer({ hideText, onAddServer }: AddServerProps) {
                   {serverError}
                 </Text>
               )}
-              {exploreState.status === AsyncStatus.Error && (
-                <Text style={{ color: color.Critical.Main }} size="T300">
-                  Failed to load public rooms. Please try again.
-                </Text>
-              )}
+              <AsyncError
+                state={exploreState}
+                prefix="Failed to load public rooms. Please try again"
+                size="T300"
+              />
             </Box>
             <Box direction="Column" gap="200">
               {/* <Button

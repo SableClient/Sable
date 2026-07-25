@@ -9,6 +9,7 @@ import { storePrivateKey } from '$client/secretStorageKeys';
 import { stopPropagation } from '$utils/keyboard';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncError } from '$components/AsyncError';
 import { SettingTile } from './setting-tile';
 import { SecretStorageRecoveryKey, SecretStorageRecoveryPassphrase } from './SecretStorage';
 
@@ -178,11 +179,7 @@ export function ManualVerificationTile({
                 onDecodedRecoveryKey={handleDecodedRecoveryKey}
               />
             )}
-          {verifyState.status === AsyncStatus.Error && (
-            <Text size="T200" style={{ color: color.Critical.Main }}>
-              <b>{verifyState.error.message}</b>
-            </Text>
-          )}
+          <AsyncError state={verifyState} bold />
         </Box>
       )}
     </Box>

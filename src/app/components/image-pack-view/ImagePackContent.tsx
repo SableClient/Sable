@@ -19,7 +19,7 @@ import { UsageSwitcher } from './UsageSwitcher';
 import { ImagePackProfile, ImagePackProfileEdit } from './PackMeta';
 import * as css from './style.css';
 
-export type ImagePackContentProps = {
+type ImagePackContentProps = {
   imagePack: ImagePack;
   canEdit?: boolean;
   onUpdate?: (packContent: PackContent) => Promise<void>;

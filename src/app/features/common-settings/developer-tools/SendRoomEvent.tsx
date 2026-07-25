@@ -7,8 +7,6 @@ import {
   IconButton,
   Text,
   config,
-  Button,
-  Spinner,
   color,
   TextArea as TextAreaComponent,
   Input,
@@ -20,6 +18,8 @@ import { useRoom } from '$hooks/useRoom';
 import { useAlive } from '$hooks/useAlive';
 import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncButton } from '$components/AsyncButton';
+import { AsyncError } from '$components/AsyncError';
 import { syntaxErrorPosition } from '$utils/dom';
 import { Cursor } from '$plugins/text-area';
 
@@ -152,23 +152,21 @@ export function SendRoomEvent({ type, stateKey, requestClose }: SendRoomEventPro
                   required
                 />
               </Box>
-              <Button
+              <AsyncButton
                 variant="Success"
                 size="400"
                 radii="300"
                 type="submit"
-                disabled={submitting}
-                before={submitting && <Spinner variant="Primary" fill="Solid" size="300" />}
+                loading={submitting}
+                spinnerSize="300"
+                spinnerVariant="Primary"
+                spinnerFill="Solid"
               >
                 <Text size="B400">Send</Text>
-              </Button>
+              </AsyncButton>
             </Box>
 
-            {submitState.status === AsyncStatus.Error && (
-              <Text size="T200" style={{ color: color.Critical.Main }}>
-                <b>{submitState.error.message}</b>
-              </Text>
-            )}
+            <AsyncError state={submitState} bold />
           </Box>
           {composeStateEvent && (
             <Box shrink="No" direction="Column" gap="100">

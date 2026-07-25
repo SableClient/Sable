@@ -136,13 +136,6 @@ export type IFileContent = {
   file?: IEncryptedFile;
 };
 
-export type ILocationContent = {
-  msgtype: MsgType.Location;
-  body?: string;
-  geo_uri?: string;
-  info?: IThumbnailContent;
-};
-
 export type IGalleryImageItem = Omit<IImageContent, 'msgtype'> & { itemtype: MsgType.Image };
 export type IGalleryVideoItem = Omit<IVideoContent, 'msgtype'> & { itemtype: MsgType.Video };
 export type IGalleryAudioItem = Omit<IAudioContent, 'msgtype'> & { itemtype: MsgType.Audio };

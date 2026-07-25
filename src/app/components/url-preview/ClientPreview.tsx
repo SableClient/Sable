@@ -42,7 +42,7 @@ async function oEmbedData(url: string): Promise<OEmbed> {
   return response.json();
 }
 
-export type EmbedHeaderProps = {
+type EmbedHeaderProps = {
   title: string;
   source: string;
   after?: ReactNode;

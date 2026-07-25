@@ -11,7 +11,7 @@ import { resolveSection, type SectionNav } from '$pages/pathUtils';
 import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
 import { isRoomAlias, isRoomId } from '$utils/matrix';
 
-export type DisplayedRoom = {
+type DisplayedRoom = {
   roomIdOrAlias: string;
   eventId?: string;
 };

@@ -219,7 +219,7 @@ export const activeSessionIdAtom = atom<string | undefined, [string | undefined]
   }
 );
 
-export type PendingNotification = {
+type PendingNotification = {
   roomId: string;
   eventId?: string;
   targetSessionId?: string;

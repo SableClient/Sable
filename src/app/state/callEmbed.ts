@@ -68,7 +68,7 @@ export type IncomingCall = {
   isDirect: boolean;
 };
 
-export type AutoJoinCallIntent = {
+type AutoJoinCallIntent = {
   roomId: string;
   video: boolean;
 };

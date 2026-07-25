@@ -29,9 +29,9 @@ import {
 
 const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 12000;
 
-export type PaginationStatus = 'idle' | 'loading' | 'error';
+type PaginationStatus = 'idle' | 'loading' | 'error';
 
-export type TimelineState = {
+type TimelineState = {
   linkedTimelines: EventTimeline[];
 };
 

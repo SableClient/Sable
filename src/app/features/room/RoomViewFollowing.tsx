@@ -19,7 +19,7 @@ export function RoomViewFollowingPlaceholder() {
   return <div className={css.RoomViewFollowingPlaceholder} />;
 }
 
-export type RoomViewFollowingProps = {
+type RoomViewFollowingProps = {
   room: Room;
   threadEventId?: string;
   participantIds?: Set<string>;

@@ -19,8 +19,6 @@ export const CustomAccountDataEvent = {
 export type CustomAccountDataEvent =
   (typeof CustomAccountDataEvent)[keyof typeof CustomAccountDataEvent];
 
-export type MDirectContent = Record<string, string[]>;
-
 export type AddedServersContent = {
   servers: string[];
 };

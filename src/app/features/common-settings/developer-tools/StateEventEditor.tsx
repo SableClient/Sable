@@ -9,7 +9,6 @@ import {
   config,
   TextArea as TextAreaComponent,
   color,
-  Spinner,
   Button,
 } from 'folds';
 import { ArrowLeft, composerIcon, menuIcon, X } from '$components/icons/phosphor';
@@ -24,6 +23,8 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAlive } from '$hooks/useAlive';
 import { Cursor } from '$plugins/text-area';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncButton } from '$components/AsyncButton';
+import { AsyncError } from '$components/AsyncError';
 import { syntaxErrorPosition } from '$utils/dom';
 import { SettingTile } from '$components/setting-tile';
 import { usePowerLevels } from '$hooks/usePowerLevels';
@@ -129,16 +130,18 @@ function StateEventEdit({ type, stateKey, content, requestClose }: StateEventEdi
             description={stateKey}
             after={
               <Box gap="200">
-                <Button
+                <AsyncButton
                   variant="Success"
                   size="300"
                   radii="300"
                   type="submit"
-                  disabled={submitting}
-                  before={submitting && <Spinner variant="Primary" fill="Solid" size="300" />}
+                  loading={submitting}
+                  spinnerSize="300"
+                  spinnerVariant="Primary"
+                  spinnerFill="Solid"
                 >
                   <Text size="B300">Save</Text>
-                </Button>
+                </AsyncButton>
                 <Button
                   variant="Secondary"
                   fill="Soft"
@@ -154,11 +157,7 @@ function StateEventEdit({ type, stateKey, content, requestClose }: StateEventEdi
           />
         </SequenceCard>
 
-        {submitState.status === AsyncStatus.Error && (
-          <Text size="T200" style={{ color: color.Critical.Main }}>
-            <b>{submitState.error.message}</b>
-          </Text>
-        )}
+        <AsyncError state={submitState} bold />
       </Box>
       <Box grow="Yes" direction="Column" gap="100">
         <Box shrink="No">

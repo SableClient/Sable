@@ -1,6 +1,6 @@
 import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Box, Button, color, Spinner, Text, toRem } from 'folds';
+import { Box, Button, color, Text, toRem } from 'folds';
 import { ArrowRight, CaretDown, CaretUp, File, menuIcon, X } from '$components/icons/phosphor';
 import { saveFileToDevice } from '$utils/download';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
@@ -9,6 +9,7 @@ import { PasswordInput } from '$components/password-input';
 import { ConfirmPasswordMatch } from '$components/ConfirmPasswordMatch';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncButton } from '$components/AsyncButton';
 import {
   decryptMegolmKeyFile,
   encryptMegolmKeyFile,
@@ -111,20 +112,22 @@ function ExportKeys() {
               </>
             )}
           </ConfirmPasswordMatch>
-          <Button
+          <AsyncButton
             type="submit"
             size="400"
             variant="Secondary"
             fill="Soft"
             outlined
             radii="300"
-            disabled={exporting}
-            before={exporting ? <Spinner size="200" variant="Secondary" fill="Soft" /> : undefined}
+            loading={exporting}
+            spinnerSize="200"
+            spinnerVariant="Secondary"
+            spinnerFill="Soft"
           >
             <Text as="span" size="B400">
               Export
             </Text>
-          </Button>
+          </AsyncButton>
         </Box>
         {exportState.status === AsyncStatus.Error && (
           <Text size="T200" style={{ color: color.Critical.Main }}>
@@ -234,20 +237,22 @@ function ImportKeys({ file, onDone }: ImportKeysProps) {
               readOnly={decrypting}
             />
           </Box>
-          <Button
+          <AsyncButton
             type="submit"
             size="400"
             variant="Secondary"
             fill="Soft"
             outlined
             radii="300"
-            disabled={decrypting}
-            before={decrypting ? <Spinner size="200" variant="Secondary" fill="Soft" /> : undefined}
+            loading={decrypting}
+            spinnerSize="200"
+            spinnerVariant="Secondary"
+            spinnerFill="Soft"
           >
             <Text as="span" size="B400">
               Decrypt
             </Text>
-          </Button>
+          </AsyncButton>
         </Box>
         {decryptState.status === AsyncStatus.Error && (
           <Text size="T200" style={{ color: color.Critical.Main }}>

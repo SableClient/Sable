@@ -18,7 +18,7 @@ import { UserAvatar } from '$components/user-avatar';
 import { composerIcon, userFallbackIcon, X } from '$components/icons/phosphor';
 import * as css from './EventReaders.css';
 
-export type EventReadersProps = {
+type EventReadersProps = {
   room: Room;
   eventId: string;
   requestClose: () => void;

@@ -25,7 +25,7 @@ import { userFallbackIcon } from '$components/icons/phosphor';
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { EventType, KnownMembership } from '$types/matrix-sdk';
 
-export type RoomIntroProps = {
+type RoomIntroProps = {
   room: Room;
 };
 

@@ -3,7 +3,7 @@ import { Box, Chip, Header, IconButton, Text, as } from 'folds';
 import { ArrowLeft, sizedIcon } from '$components/icons/phosphor';
 import * as css from './ImageEditor.css';
 
-export type ImageEditorProps = {
+type ImageEditorProps = {
   name: string;
   url: string;
   requestClose: () => void;

@@ -24,25 +24,14 @@ export type TUploadItem = {
   formatted_body?: string;
 };
 
-export type TUploadListAtom = ReturnType<typeof createListAtom<TUploadItem>>;
+type TUploadListAtom = ReturnType<typeof createListAtom<TUploadItem>>;
 
 export const roomIdToUploadItemsAtomFamily = atomFamily<string, TUploadListAtom>(createListAtom);
 
 export const roomUploadAtomFamily = createUploadAtomFamily();
 
-export type RoomIdToMsgAction =
-  | {
-      type: 'PUT';
-      roomId: string;
-      msg: Descendant[];
-    }
-  | {
-      type: 'DELETE';
-      roomId: string;
-    };
-
 const createMsgDraftAtom = () => atom<Descendant[]>([]);
-export type TMsgDraftAtom = ReturnType<typeof createMsgDraftAtom>;
+type TMsgDraftAtom = ReturnType<typeof createMsgDraftAtom>;
 export const roomIdToMsgDraftAtomFamily = atomFamily<string, TMsgDraftAtom>(() =>
   createMsgDraftAtom()
 );
@@ -55,7 +44,7 @@ export type IReplyDraft = {
   relation?: IEventRelation | undefined;
 };
 const createReplyDraftAtom = () => atom<IReplyDraft | undefined>(undefined);
-export type TReplyDraftAtom = ReturnType<typeof createReplyDraftAtom>;
+type TReplyDraftAtom = ReturnType<typeof createReplyDraftAtom>;
 export const roomIdToReplyDraftAtomFamily = atomFamily<string, TReplyDraftAtom>(() =>
   createReplyDraftAtom()
 );

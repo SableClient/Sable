@@ -14,7 +14,7 @@ export enum ModalType {
   ReadReceipts = 'read_receipts',
 }
 
-export type ModalState =
+type ModalState =
   | { type: ModalType.MobileOptions; options: OptionMenuProps }
   | { type: ModalType.Delete; room: Room; mEvent: MatrixEvent }
   | { type: ModalType.Forward; room: Room; mEvent: MatrixEvent }

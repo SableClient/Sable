@@ -46,7 +46,7 @@ export const useEditor = (): Editor => {
   return editor;
 };
 
-export type EditorChangeHandler = (value: Descendant[]) => void;
+type EditorChangeHandler = (value: Descendant[]) => void;
 const MAX_MULTILINE_MEASURE_RETRIES = 2;
 const MULTILINE_HEIGHT_EPSILON = 1;
 const TRAILING_SPACE_SENTINEL = '\u200B';

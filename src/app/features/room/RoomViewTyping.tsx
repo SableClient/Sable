@@ -12,7 +12,7 @@ import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { nicknamesAtom } from '$state/nicknames';
 import * as css from './RoomViewTyping.css';
 
-export type RoomViewTypingProps = {
+type RoomViewTypingProps = {
   room: Room;
 };
 export const RoomViewTyping = as<'div', RoomViewTypingProps>(

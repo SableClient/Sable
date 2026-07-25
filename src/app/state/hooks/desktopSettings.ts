@@ -11,7 +11,7 @@ import {
   desktopSettingsSyncingAtom,
 } from '$state/desktopSettings';
 
-export type DesktopSettingSetter<K extends DesktopSettingKey> =
+type DesktopSettingSetter<K extends DesktopSettingKey> =
   | DesktopSettings[K]
   | ((value: DesktopSettings[K]) => DesktopSettings[K]);
 

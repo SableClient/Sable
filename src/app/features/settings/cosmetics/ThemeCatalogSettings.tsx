@@ -63,7 +63,7 @@ import {
 import { CssViewerButton } from '$components/theme/CssViewerButton';
 import * as css from './ThemeCatalogSettings.css';
 
-export type CatalogPreviewRow = ThemePair & {
+type CatalogPreviewRow = ThemePair & {
   previewText: string;
   displayName: string;
   author?: string;
@@ -73,7 +73,7 @@ export type CatalogPreviewRow = ThemePair & {
   fullInstallUrl: string;
 };
 
-export type LocalPreviewRow = ThemeRemoteFavorite & {
+type LocalPreviewRow = ThemeRemoteFavorite & {
   previewUrl: string;
   previewText: string;
   fullCssText: string;
@@ -84,7 +84,7 @@ export type LocalPreviewRow = ThemeRemoteFavorite & {
   importedLocal?: boolean;
 };
 
-export type CatalogTweakRow = TweakCatalogEntry & {
+type CatalogTweakRow = TweakCatalogEntry & {
   fullCssText: string;
   displayName: string;
   description?: string;
@@ -92,14 +92,14 @@ export type CatalogTweakRow = TweakCatalogEntry & {
   tags: string[];
 };
 
-export type LocalTweakRow = ThemeRemoteTweakFavorite & {
+type LocalTweakRow = ThemeRemoteTweakFavorite & {
   fullCssText: string;
   description?: string;
   author?: string;
   tags: string[];
 };
 
-export type ThemeCatalogSettingsMode = 'local' | 'appearance';
+type ThemeCatalogSettingsMode = 'local' | 'appearance';
 
 type ThemeCatalogSettingsProps = {
   mode: ThemeCatalogSettingsMode;

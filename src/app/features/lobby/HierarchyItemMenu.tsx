@@ -6,9 +6,9 @@ import type { MSpaceChildContent } from '$types/matrix/room';
 import type { StateEvents } from '$types/matrix-sdk';
 
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { UseStateProvider } from '$components/UseStateProvider';
 import { LeaveSpacePrompt } from '$components/leave-space-prompt';
-import { LeaveRoomPrompt } from '$components/leave-room-prompt';
+import { confirm } from '$components/confirm/confirm';
+import { showToast } from '$state/toast';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
@@ -225,6 +225,25 @@ export function HierarchyItemMenu({
 
   const navigate = useNavigate();
 
+  const [promptLeaveSpace, setPromptLeaveSpace] = useState(false);
+
+  const handleLeaveRoom = async () => {
+    const ok = await confirm({
+      title: 'Leave Room',
+      description: 'Are you sure you want to leave this room?',
+      action: 'Leave',
+      variant: 'Critical',
+    });
+    if (ok) {
+      try {
+        await mx.leave(item.roomId);
+        menu.close();
+      } catch (e) {
+        showToast(`Failed to leave room: ${e instanceof Error ? e.message : 'unknown error'}`);
+      }
+    }
+  };
+
   if (!joined && !canEditChild) {
     return null;
   }
@@ -267,39 +286,32 @@ export function HierarchyItemMenu({
                 </MenuItem>
                 <InviteMenuItem item={item} requestClose={menu.close} disabled={!canInvite()} />
                 <SettingsMenuItem item={item} requestClose={menu.close} />
-                <UseStateProvider initial={false}>
-                  {(promptLeave, setPromptLeave) => (
-                    <>
-                      <MenuItem
-                        onClick={() => setPromptLeave(true)}
-                        variant="Critical"
-                        fill="None"
-                        size="300"
-                        after={menuIcon(SignOut)}
-                        radii="300"
-                        aria-pressed={promptLeave}
-                      >
-                        <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                          Leave
-                        </Text>
-                      </MenuItem>
-                      {promptLeave &&
-                        ('space' in item ? (
-                          <LeaveSpacePrompt
-                            roomId={item.roomId}
-                            onDone={menu.close}
-                            onCancel={() => setPromptLeave(false)}
-                          />
-                        ) : (
-                          <LeaveRoomPrompt
-                            roomId={item.roomId}
-                            onDone={menu.close}
-                            onCancel={() => setPromptLeave(false)}
-                          />
-                        ))}
-                    </>
-                  )}
-                </UseStateProvider>
+                <MenuItem
+                  onClick={() => {
+                    if ('space' in item) {
+                      setPromptLeaveSpace(true);
+                    } else {
+                      handleLeaveRoom();
+                    }
+                  }}
+                  variant="Critical"
+                  fill="None"
+                  size="300"
+                  after={menuIcon(SignOut)}
+                  radii="300"
+                  aria-pressed={promptLeaveSpace}
+                >
+                  <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                    Leave
+                  </Text>
+                </MenuItem>
+                {promptLeaveSpace && 'space' in item && (
+                  <LeaveSpacePrompt
+                    roomId={item.roomId}
+                    onDone={menu.close}
+                    onCancel={() => setPromptLeaveSpace(false)}
+                  />
+                )}
               </Box>
             )}
             {(joined || canEditChild) && (

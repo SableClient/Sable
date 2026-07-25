@@ -12,10 +12,8 @@ import {
   Button,
   Spinner,
   Modal,
-  Dialog,
-  Header,
 } from 'folds';
-import { composerIcon, menuIcon, X } from '$components/icons/phosphor';
+import { menuIcon, X } from '$components/icons/phosphor';
 import { PageContent, SettingsSectionPage } from '$components/page';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -50,6 +48,7 @@ import type { PronounSet } from '$utils/pronouns';
 import { EventType } from '$types/matrix-sdk';
 import { CustomStateEvent } from '$types/matrix/room';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { confirm } from '$components/confirm/confirm';
 
 const log = createLogger('Cosmetics');
 
@@ -66,7 +65,6 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const capabilities = useCapabilities();
-  const [alertRemove, setAlertRemove] = useState(false);
   const disableSetAvatar = capabilities['m.set_avatar_url']?.enabled === false;
   const memberStateEvent = useStateEvent(room, EventType.RoomMember, userId);
   const memberStateContent = memberStateEvent?.getContent<{ avatar_url?: string }>();
@@ -106,10 +104,16 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
     [myRoomAvatar, handleRemoveUpload]
   );
 
-  const handleRemoveAvatar = () => {
-    myRoomAvatar.exe('').finally(() => {
-      setAlertRemove(false);
+  const handleRemoveAvatar = async () => {
+    const ok = await confirm({
+      title: 'Remove Room Avatar',
+      description: 'Are you sure you want to remove room avatar?',
+      action: 'Remove',
+      variant: 'Critical',
     });
+    if (ok) {
+      myRoomAvatar.exe('');
+    }
   };
 
   return (
@@ -157,7 +161,7 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
               fill="None"
               radii="300"
               disabled={disableSetAvatar}
-              onClick={() => setAlertRemove(true)}
+              onClick={handleRemoveAvatar}
             >
               <Text size="B300">Remove</Text>
             </Button>
@@ -176,34 +180,6 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
           </Modal>
         </ModalOverlay>
       )}
-
-      <ModalOverlay open={alertRemove} requestClose={() => setAlertRemove(false)}>
-        <Dialog variant="Surface">
-          <Header
-            style={{
-              padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-              borderBottomWidth: config.borderWidth.B300,
-            }}
-            variant="Surface"
-            size="500"
-          >
-            <Box grow="Yes">
-              <Text size="H4">Remove Room Avatar</Text>
-            </Box>
-            <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-              {composerIcon(X)}
-            </IconButton>
-          </Header>
-          <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-            <Box direction="Column" gap="200">
-              <Text priority="400">Are you sure you want to remove room avatar?</Text>
-            </Box>
-            <Button variant="Critical" onClick={handleRemoveAvatar}>
-              <Text size="B400">Remove</Text>
-            </Button>
-          </Box>
-        </Dialog>
-      </ModalOverlay>
     </SettingTile>
   );
 }

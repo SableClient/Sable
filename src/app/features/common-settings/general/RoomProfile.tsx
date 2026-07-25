@@ -1,26 +1,5 @@
-import {
-  Avatar,
-  Box,
-  Button,
-  Chip,
-  color,
-  config,
-  Dialog,
-  Header,
-  IconButton,
-  Input,
-  Spinner,
-  Text,
-  TextArea,
-} from 'folds';
-import {
-  ArrowsClockwise,
-  chipIcon,
-  composerIcon,
-  menuIcon,
-  PencilSimple,
-  X,
-} from '$components/icons/phosphor';
+import { Avatar, Box, Button, Chip, color, config, Input, Spinner, Text, TextArea } from 'folds';
+import { ArrowsClockwise, chipIcon, menuIcon, PencilSimple } from '$components/icons/phosphor';
 import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
@@ -53,8 +32,8 @@ import { useStateEvent } from '$hooks/useStateEvent';
 import type { RoomBannerContent } from '$types/matrix-sdk-events';
 import { CustomStateEvent } from '$types/matrix/room';
 import { SettingTile } from '$components/setting-tile';
+import { confirm } from '$components/confirm/confirm';
 import { reportMediaLoadFailure } from '$utils/mediaLoadDiagnostics';
-import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;
@@ -317,8 +296,6 @@ export type ProfileProps = {
 };
 function RoomBannerEdit({ bannerURI, permissions }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
-  const [alertRemove, setAlertRemove] = useState(false);
-
   const space = useRoom();
 
   const userId = mx.getUserId() ?? '';
@@ -367,13 +344,18 @@ function RoomBannerEdit({ bannerURI, permissions }: Readonly<ProfileProps>) {
   );
 
   const handleRemoveBanner = async () => {
-    setIsRemoving(true);
-    setStagedUrl(undefined);
-    setImageFile(undefined);
-
-    mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, { url: '' }, '');
-
-    setAlertRemove(false);
+    const ok = await confirm({
+      title: 'Remove Banner',
+      description: 'Are you sure you want to remove profile banner?',
+      action: 'Remove',
+      variant: 'Critical',
+    });
+    if (ok) {
+      setIsRemoving(true);
+      setStagedUrl(undefined);
+      setImageFile(undefined);
+      mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, { url: '' }, '');
+    }
   };
 
   const previewUrl = isRemoving ? undefined : imageFileURL || stagedUrl || bannerUrl;
@@ -438,7 +420,7 @@ function RoomBannerEdit({ bannerURI, permissions }: Readonly<ProfileProps>) {
                 variant="Critical"
                 fill="None"
                 radii="300"
-                onClick={() => setAlertRemove(true)}
+                onClick={handleRemoveBanner}
                 disabled={!canEdit}
               >
                 <Text size="B300">Remove</Text>
@@ -447,32 +429,6 @@ function RoomBannerEdit({ bannerURI, permissions }: Readonly<ProfileProps>) {
           </Box>
         )}
       </Box>
-
-      <ModalOverlay open={alertRemove} requestClose={() => setAlertRemove(false)}>
-        <Dialog variant="Surface">
-          <Header
-            style={{
-              padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-              borderBottomWidth: config.borderWidth.B300,
-            }}
-            variant="Surface"
-            size="500"
-          >
-            <Box grow="Yes">
-              <Text size="H4">Remove Banner</Text>
-            </Box>
-            <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-              {composerIcon(X)}
-            </IconButton>
-          </Header>
-          <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-            <Text priority="400">Are you sure you want to remove profile banner?</Text>
-            <Button variant="Critical" onClick={handleRemoveBanner} disabled={!canEdit}>
-              <Text size="B400">Remove</Text>
-            </Button>
-          </Box>
-        </Dialog>
-      </ModalOverlay>
     </SettingTile>
   );
 }

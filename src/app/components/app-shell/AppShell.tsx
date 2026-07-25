@@ -10,6 +10,7 @@ import { TauriFrontendReady } from '$components/tauri/TauriFrontendReady';
 import { DesktopTitleBar } from '$components/tauri/DesktopTitleBar';
 import { MacTitleBar } from '$components/tauri/MacTitleBar';
 import { Toast } from '$components/toast/Toast';
+import { ConfirmHost } from '$components/confirm/ConfirmHost';
 import type { ScreenSize } from '$hooks/useScreenSize';
 import { ScreenSizeProvider } from '$hooks/useScreenSize';
 import { isReactQueryDevtoolsEnabled } from '$pages/reactQueryDevtoolsGate';
@@ -101,6 +102,7 @@ function AppShellFrame({ children, portalContainer, onPortalContainerChange }: A
             {children}
           </SystemBarShell>
           <Toast container={portalContainer} />
+          <ConfirmHost container={portalContainer} />
         </div>
       </div>
     </>

@@ -1,17 +1,5 @@
-import {
-  Badge,
-  Box,
-  Button,
-  color,
-  config,
-  Dialog,
-  Header,
-  IconButton,
-  Spinner,
-  Text,
-} from 'folds';
-import { composerIcon, X } from '$components/icons/phosphor';
-import { useCallback, useState } from 'react';
+import { Badge, Button, color, Spinner, Text } from 'folds';
+import { useCallback } from 'react';
 import type { MatrixError, StateEvents } from '$types/matrix-sdk';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -22,7 +10,7 @@ import { useRoom } from '$hooks/useRoom';
 import { useStateEvent } from '$hooks/useStateEvent';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { EventType } from '$types/matrix-sdk';
-import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { confirm } from '$components/confirm/confirm';
 
 const ROOM_ENC_ALGO = 'm.megolm.v1.aes-sha2';
 
@@ -49,11 +37,16 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
 
   const enabling = enableState.status === AsyncStatus.Loading;
 
-  const [prompt, setPrompt] = useState(false);
-
-  const handleEnable = () => {
-    enable();
-    setPrompt(false);
+  const handleEnable = async () => {
+    const ok = await confirm({
+      title: 'Enable Encryption',
+      description: 'Are you sure? Once enabled, encryption cannot be disabled!',
+      action: 'Enable E2E Encryption',
+      variant: 'Primary',
+    });
+    if (ok) {
+      enable();
+    }
   };
 
   return (
@@ -82,7 +75,7 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
               fill="Solid"
               radii="300"
               disabled={!canEnable}
-              onClick={() => setPrompt(true)}
+              onClick={handleEnable}
               before={enabling && <Spinner size="100" variant="Primary" fill="Solid" />}
             >
               <Text size="B300">Enable</Text>
@@ -94,35 +87,6 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
           <Text style={{ color: color.Critical.Main }} size="T200">
             {(enableState.error as MatrixError).message}
           </Text>
-        )}
-        {prompt && (
-          <ModalOverlay requestClose={() => setPrompt(false)}>
-            <Dialog variant="Surface">
-              <Header
-                style={{
-                  padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                  borderBottomWidth: config.borderWidth.B300,
-                }}
-                variant="Surface"
-                size="500"
-              >
-                <Box grow="Yes">
-                  <Text size="H4">Enable Encryption</Text>
-                </Box>
-                <IconButton size="300" onClick={() => setPrompt(false)} radii="300">
-                  {composerIcon(X)}
-                </IconButton>
-              </Header>
-              <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-                <Text priority="400">
-                  Are you sure? Once enabled, encryption cannot be disabled!
-                </Text>
-                <Button type="submit" variant="Primary" onClick={handleEnable}>
-                  <Text size="B400">Enable E2E Encryption</Text>
-                </Button>
-              </Box>
-            </Dialog>
-          </ModalOverlay>
         )}
       </SettingTile>
     </SequenceCard>

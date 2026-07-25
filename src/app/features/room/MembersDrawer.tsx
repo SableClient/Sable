@@ -54,8 +54,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMembershipFilter, useMembershipFilterMenu } from '$hooks/useMemberFilter';
 import { useMemberPowerSort, useMemberSort, useMemberSortMenu } from '$hooks/useMemberSort';
 import { useGetMemberPowerLevel, usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { MembershipFilterMenu } from '$components/MembershipFilterMenu';
-import { MemberSortMenu } from '$components/MemberSortMenu';
+import { MemberMenuList } from '$components/MemberSortMenu';
 import { useOpenUserRoomProfile, useUserRoomProfileState } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { ContainerColor } from '$styles/ContainerColor.css';
@@ -373,7 +372,8 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                           align="Start"
                           offset={4}
                           content={
-                            <MembershipFilterMenu
+                            <MemberMenuList
+                              items={membershipFilterMenu}
                               selected={membershipFilterIndex}
                               onSelect={setMembershipFilterIndex}
                               requestClose={() => setAnchor(undefined)}
@@ -405,7 +405,8 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                           align="End"
                           offset={4}
                           content={
-                            <MemberSortMenu
+                            <MemberMenuList
+                              items={sortFilterMenu}
                               selected={sortFilterIndex}
                               onSelect={setSortFilterIndex}
                               requestClose={() => setAnchor(undefined)}

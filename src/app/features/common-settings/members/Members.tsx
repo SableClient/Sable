@@ -33,8 +33,7 @@ import { useMemberPowerSort, useMemberSort, useMemberSortMenu } from '$hooks/use
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
-import { MembershipFilterMenu } from '$components/MembershipFilterMenu';
-import { MemberSortMenu } from '$components/MemberSortMenu';
+import { MemberMenuList } from '$components/MemberSortMenu';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { useOpenUserRoomProfile, useUserRoomProfileState } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
@@ -79,8 +78,10 @@ export function Members({ requestBack, requestClose }: MembersProps) {
 
   const [membershipFilterIndex, setMembershipFilterIndex] = useState(0);
   const [sortFilterIndex, setSortFilterIndex] = useSetting(settingsAtom, 'memberSortFilterIndex');
-  const membershipFilter = useMembershipFilter(membershipFilterIndex, useMembershipFilterMenu());
-  const memberSort = useMemberSort(sortFilterIndex, useMemberSortMenu());
+  const membershipFilterMenu = useMembershipFilterMenu();
+  const sortFilterMenu = useMemberSortMenu();
+  const membershipFilter = useMembershipFilter(membershipFilterIndex, membershipFilterMenu);
+  const memberSort = useMemberSort(sortFilterIndex, sortFilterMenu);
   const memberPowerSort = useMemberPowerSort(creators, getPowerLevel);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -197,7 +198,8 @@ export function Members({ requestBack, requestClose }: MembersProps) {
                       align="Start"
                       offset={4}
                       content={
-                        <MembershipFilterMenu
+                        <MemberMenuList
+                          items={membershipFilterMenu}
                           selected={membershipFilterIndex}
                           onSelect={setMembershipFilterIndex}
                           requestClose={() => setAnchor(undefined)}
@@ -229,7 +231,8 @@ export function Members({ requestBack, requestClose }: MembersProps) {
                       align="End"
                       offset={4}
                       content={
-                        <MemberSortMenu
+                        <MemberMenuList
+                          items={sortFilterMenu}
                           selected={sortFilterIndex}
                           onSelect={setSortFilterIndex}
                           requestClose={() => setAnchor(undefined)}

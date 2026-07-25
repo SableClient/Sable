@@ -1,7 +1,4 @@
-import type { MouseEventHandler } from 'react';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import FocusTrap from 'focus-trap-react';
-import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -11,9 +8,6 @@ import {
   IconButton,
   Icons,
   Input,
-  Menu,
-  MenuItem,
-  PopOut,
   Spinner,
   Switch,
   Text,
@@ -22,6 +16,7 @@ import type { IPusherRequest } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
+import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { getNotificationState, usePermissionState } from '$hooks/usePermission';
@@ -34,7 +29,6 @@ import { pushSubscriptionAtom } from '$state/pushSubscription';
 import { unifiedPushEndpointAtom, type UnifiedPushState } from '$state/unifiedPushEndpoint';
 import { mobileOrTablet } from '$utils/user-agent';
 import { isIosTauri } from '$features/settings/notifications/TauriNotificationsApiClient';
-import { stopPropagation } from '$utils/keyboard';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 import {
@@ -243,99 +237,6 @@ function cleanPushTransportOverrides(overrides: PushTransportOverrides): PushTra
     next.unifiedPushDistributor = overrides.unifiedPushDistributor.trim();
   }
   return next;
-}
-
-type SettingMenuOption<T extends string> = {
-  value: T;
-  label: string;
-};
-
-function SettingMenuSelector<T extends string>({
-  value,
-  options,
-  onSelect,
-  disabled,
-  loading,
-}: {
-  value: T;
-  options: SettingMenuOption<T>[];
-  onSelect: (value: T) => void;
-  disabled?: boolean;
-  loading?: boolean;
-}) {
-  const [menuCords, setMenuCords] = useState<RectCords>();
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? value;
-
-  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleSelect = (nextValue: T) => {
-    setMenuCords(undefined);
-    onSelect(nextValue);
-  };
-
-  return (
-    <>
-      <Button
-        size="300"
-        variant="Secondary"
-        outlined
-        fill="Soft"
-        radii="300"
-        after={
-          loading ? (
-            <Spinner variant="Secondary" size="300" />
-          ) : (
-            <Icon size="300" src={Icons.ChevronBottom} />
-          )
-        }
-        onClick={handleMenu}
-        disabled={disabled || loading}
-      >
-        <Text size="T300">{selectedLabel}</Text>
-      </Button>
-      <PopOut
-        anchor={menuCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setMenuCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                {options.map((option) => (
-                  <MenuItem
-                    key={option.value}
-                    size="300"
-                    variant="Surface"
-                    aria-selected={option.value === value}
-                    radii="300"
-                    onClick={() => handleSelect(option.value)}
-                  >
-                    <Box grow="Yes">
-                      <Text size="T300">{option.label}</Text>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Box>
-            </Menu>
-          </FocusTrap>
-        }
-      />
-    </>
-  );
 }
 
 function NotificationTransportOverrideInput({

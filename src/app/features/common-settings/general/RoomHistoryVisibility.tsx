@@ -1,7 +1,5 @@
-import type { MouseEventHandler } from 'react';
-import { useCallback, useMemo, useState } from 'react';
-import type { RectCords } from 'folds';
-import { Button, color, config, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
+import { useCallback, useMemo } from 'react';
+import { Button, color, Spinner, Text } from 'folds';
 import { CaretDown, menuIcon } from '$components/icons/phosphor';
 import type {
   MatrixError,
@@ -9,7 +7,6 @@ import type {
   StateEvents,
 } from '$types/matrix-sdk';
 import { HistoryVisibility, EventType } from '$types/matrix-sdk';
-import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
@@ -18,8 +15,11 @@ import { useRoom } from '$hooks/useRoom';
 
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useStateEvent } from '$hooks/useStateEvent';
-import { stopPropagation } from '$utils/keyboard';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import {
+  SettingMenuSelector,
+  type SettingMenuOption,
+} from '$components/setting-menu-selector/SettingMenuSelector';
 
 const useVisibilityStr = () =>
   useMemo(
@@ -59,12 +59,6 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
   const visibilityMenu = useVisibilityMenu();
   const visibilityStr = useVisibilityStr();
 
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuAnchor(evt.currentTarget.getBoundingClientRect());
-  };
-
   const [submitState, submit] = useAsyncCallback(
     useCallback(
       async (visibility: HistoryVisibility) => {
@@ -82,10 +76,10 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
   );
   const submitting = submitState.status === AsyncStatus.Loading;
 
-  const handleChange = (visibility: HistoryVisibility) => {
-    submit(visibility);
-    setMenuAnchor(undefined);
-  };
+  const options: SettingMenuOption<HistoryVisibility>[] = visibilityMenu.map((visibility) => ({
+    value: visibility,
+    label: visibilityStr[visibility],
+  }));
 
   return (
     <SequenceCard
@@ -98,53 +92,27 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
         title="Message History Visibility"
         description="Changes to history visibility will only apply to future messages. The visibility of existing history will have no effect."
         after={
-          <PopOut
-            anchor={menuAnchor}
-            position="Bottom"
-            align="End"
-            content={
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  returnFocusOnDeactivate: false,
-                  onDeactivate: () => setMenuAnchor(undefined),
-                  clickOutsideDeactivates: true,
-                  isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                  isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                  escapeDeactivates: stopPropagation,
-                }}
+          <SettingMenuSelector
+            value={historyVisibility}
+            options={options}
+            onSelect={submit}
+            disabled={!canEdit}
+            loading={submitting}
+            renderTrigger={({ openMenu, disabled, loading }) => (
+              <Button
+                variant="Secondary"
+                fill="Soft"
+                size="300"
+                radii="300"
+                outlined
+                disabled={disabled}
+                onClick={openMenu}
+                after={loading ? <Spinner size="100" variant="Secondary" /> : menuIcon(CaretDown)}
               >
-                <Menu style={{ padding: config.space.S100 }}>
-                  {visibilityMenu.map((visibility) => (
-                    <MenuItem
-                      key={visibility}
-                      size="300"
-                      radii="300"
-                      onClick={() => handleChange(visibility)}
-                      aria-pressed={visibility === historyVisibility}
-                    >
-                      <Text as="span" size="T300" truncate>
-                        {visibilityStr[visibility]}
-                      </Text>
-                    </MenuItem>
-                  ))}
-                </Menu>
-              </FocusTrap>
-            }
-          >
-            <Button
-              variant="Secondary"
-              fill="Soft"
-              size="300"
-              radii="300"
-              outlined
-              disabled={!canEdit || submitting}
-              onClick={handleOpenMenu}
-              after={submitting ? <Spinner size="100" variant="Secondary" /> : menuIcon(CaretDown)}
-            >
-              <Text size="B300">{visibilityStr[historyVisibility]}</Text>
-            </Button>
-          </PopOut>
+                <Text size="B300">{visibilityStr[historyVisibility]}</Text>
+              </Button>
+            )}
+          />
         }
       >
         {submitState.status === AsyncStatus.Error && (

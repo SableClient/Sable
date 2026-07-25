@@ -1,6 +1,6 @@
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import { Box, Button, config, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
+import { Box, Button, config, Menu, MenuItem, PopOut, Scroll, Spinner, Text, toRem } from 'folds';
 import { CaretDown, sizedIcon } from '$components/icons/phosphor';
 import {
   type ComponentPropsWithoutRef,
@@ -11,7 +11,7 @@ import {
 
 import { stopPropagation } from '$utils/keyboard';
 
-export type SettingMenuOption<T extends string> = {
+export type SettingMenuOption<T extends string | number> = {
   value: T;
   label: string;
   description?: string;
@@ -22,7 +22,7 @@ export type SettingMenuOption<T extends string> = {
 type MenuPosition = ComponentPropsWithoutRef<typeof PopOut>['position'];
 type MenuAlign = ComponentPropsWithoutRef<typeof PopOut>['align'];
 
-export type SettingMenuRenderTriggerArgs<T extends string> = {
+export type SettingMenuRenderTriggerArgs<T extends string | number> = {
   value: T;
   selectedOption: SettingMenuOption<T>;
   opened: boolean;
@@ -31,13 +31,13 @@ export type SettingMenuRenderTriggerArgs<T extends string> = {
   openMenu: MouseEventHandler<HTMLButtonElement>;
 };
 
-export type SettingMenuRenderOptionArgs<T extends string> = {
+export type SettingMenuRenderOptionArgs<T extends string | number> = {
   option: SettingMenuOption<T>;
   selected: boolean;
   select: () => void;
 };
 
-export type SettingMenuSelectorProps<T extends string> = {
+export type SettingMenuSelectorProps<T extends string | number> = {
   value: T;
   options: SettingMenuOption<T>[];
   onSelect: (value: T) => void;
@@ -46,11 +46,12 @@ export type SettingMenuSelectorProps<T extends string> = {
   position?: MenuPosition;
   align?: MenuAlign;
   offset?: number;
+  scrollable?: boolean;
   renderTrigger?: (args: SettingMenuRenderTriggerArgs<T>) => ReactNode;
   renderOption?: (args: SettingMenuRenderOptionArgs<T>) => ReactNode;
 };
 
-export function SettingMenuSelector<T extends string>({
+export function SettingMenuSelector<T extends string | number>({
   value,
   options,
   onSelect,
@@ -59,12 +60,13 @@ export function SettingMenuSelector<T extends string>({
   position = 'Bottom',
   align = 'End',
   offset = 5,
+  scrollable = false,
   renderTrigger,
   renderOption,
 }: SettingMenuSelectorProps<T>) {
   const [menuCords, setMenuCords] = useState<RectCords>();
   const selectedOption = options.find((option) => option.value === value) ?? options[0];
-  const selectedLabel = selectedOption?.label ?? value;
+  const selectedLabel = selectedOption?.label ?? String(value);
   const isDisabled = disabled || loading;
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -80,6 +82,68 @@ export function SettingMenuSelector<T extends string>({
     handleCloseMenu();
     onSelect(nextValue);
   };
+
+  const optionItems = options.map((option) => {
+    const selected = option.value === value;
+    const select = () => {
+      if (option.disabled) return;
+      handleSelect(option.value);
+    };
+
+    if (renderOption) {
+      return (
+        <MenuItem
+          key={option.value}
+          size="300"
+          variant="Surface"
+          radii="300"
+          aria-selected={selected}
+          disabled={option.disabled || isDisabled}
+          onClick={select}
+        >
+          {renderOption({ option, selected, select })}
+        </MenuItem>
+      );
+    }
+
+    return (
+      <MenuItem
+        key={option.value}
+        size="300"
+        variant="Surface"
+        aria-selected={selected}
+        radii="300"
+        disabled={option.disabled || isDisabled}
+        onClick={select}
+        before={option.icon}
+      >
+        <Box grow="Yes">
+          <Box direction="Column" gap="100">
+            <Text size="T300">{option.label}</Text>
+            {option.description && (
+              <Text size="T200" priority="300">
+                {option.description}
+              </Text>
+            )}
+          </Box>
+        </Box>
+      </MenuItem>
+    );
+  });
+
+  const optionsContent = scrollable ? (
+    <Box grow="Yes">
+      <Scroll size="0" hideTrack visibility="Hover">
+        <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+          {optionItems}
+        </Box>
+      </Scroll>
+    </Box>
+  ) : (
+    <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+      {optionItems}
+    </Box>
+  );
 
   const trigger = renderTrigger ? (
     renderTrigger({
@@ -127,56 +191,14 @@ export function SettingMenuSelector<T extends string>({
               escapeDeactivates: stopPropagation,
             }}
           >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                {options.map((option) => {
-                  const selected = option.value === value;
-                  const select = () => {
-                    if (option.disabled) return;
-                    handleSelect(option.value);
-                  };
-
-                  if (renderOption) {
-                    return (
-                      <MenuItem
-                        key={option.value}
-                        size="300"
-                        variant="Surface"
-                        radii="300"
-                        aria-selected={selected}
-                        disabled={option.disabled || isDisabled}
-                        onClick={select}
-                      >
-                        {renderOption({ option, selected, select })}
-                      </MenuItem>
-                    );
-                  }
-
-                  return (
-                    <MenuItem
-                      key={option.value}
-                      size="300"
-                      variant="Surface"
-                      aria-selected={selected}
-                      radii="300"
-                      disabled={option.disabled || isDisabled}
-                      onClick={select}
-                      before={option.icon}
-                    >
-                      <Box grow="Yes">
-                        <Box direction="Column" gap="100">
-                          <Text size="T300">{option.label}</Text>
-                          {option.description && (
-                            <Text size="T200" priority="300">
-                              {option.description}
-                            </Text>
-                          )}
-                        </Box>
-                      </Box>
-                    </MenuItem>
-                  );
-                })}
-              </Box>
+            <Menu
+              style={
+                scrollable
+                  ? { maxHeight: '75vh', maxWidth: toRem(300), display: 'flex' }
+                  : undefined
+              }
+            >
+              {optionsContent}
             </Menu>
           </FocusTrap>
         }

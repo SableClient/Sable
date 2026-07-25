@@ -68,4 +68,33 @@ describe('SettingMenuSelector', () => {
 
     expect(onSelect).toHaveBeenCalledWith('two');
   });
+
+  it('supports numeric option values', () => {
+    const onSelect = vi.fn<(value: number) => void>();
+    const options: SettingMenuOption<number>[] = [
+      { value: 50, label: 'Moderator' },
+      { value: 100, label: 'Admin' },
+    ];
+
+    render(<SettingMenuSelector value={50} options={options} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Moderator' }));
+    fireEvent.click(screen.getByText('Admin'));
+
+    expect(onSelect).toHaveBeenCalledWith(100);
+  });
+
+  it('wraps options in a scrollable container when scrollable is set', () => {
+    const onSelect = vi.fn<(value: 'one' | 'two') => void>();
+    const options: SettingMenuOption<'one' | 'two'>[] = [
+      { value: 'one', label: 'One' },
+      { value: 'two', label: 'Two' },
+    ];
+
+    render(<SettingMenuSelector value="one" options={options} onSelect={onSelect} scrollable />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'One' }));
+
+    expect(screen.getByText('Two')).toBeInTheDocument();
+  });
 });

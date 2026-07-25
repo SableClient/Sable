@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Box, Icons, Input, Switch, Text, toRem } from 'folds';
+import { Box, Icons, Input, Text, toRem } from 'folds';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
-import { SettingTile } from '$components/setting-tile';
+import { SettingTile, SettingToggle } from '$components/setting-tile';
 import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, type CallRingtoneId } from '$state/settings';
@@ -256,48 +256,27 @@ export function CallSoundSettings() {
 
   return (
     <Box direction="Column" gap="100">
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Incoming Call Sound"
-          focusId="incoming-call-sound"
-          description="Play ringtone audio for incoming calls."
-          after={
-            <Switch
-              variant="Primary"
-              value={incomingCallSoundEnabled}
-              onChange={setIncomingCallSoundEnabled}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Notify For Voice Rooms"
-          focusId="notify-voice-rooms"
-          description="Play ringtone audio when someone starts or joins a voice room."
-          after={
-            <Switch
-              variant="Primary"
-              value={incomingVoiceRoomCallSoundEnabled}
-              onChange={setIncomingVoiceRoomCallSoundEnabled}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Outgoing Ringback Sound"
-          focusId="outgoing-ringback-sound"
-          description="Play ringback while waiting for someone to join."
-          after={
-            <Switch
-              variant="Primary"
-              value={outgoingRingbackEnabled}
-              onChange={setOutgoingRingbackEnabled}
-            />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Incoming Call Sound"
+        focusId="incoming-call-sound"
+        description="Play ringtone audio for incoming calls."
+        value={incomingCallSoundEnabled}
+        onChange={setIncomingCallSoundEnabled}
+      />
+      <SettingToggle
+        title="Notify For Voice Rooms"
+        focusId="notify-voice-rooms"
+        description="Play ringtone audio when someone starts or joins a voice room."
+        value={incomingVoiceRoomCallSoundEnabled}
+        onChange={setIncomingVoiceRoomCallSoundEnabled}
+      />
+      <SettingToggle
+        title="Outgoing Ringback Sound"
+        focusId="outgoing-ringback-sound"
+        description="Play ringback while waiting for someone to join."
+        value={outgoingRingbackEnabled}
+        onChange={setOutgoingRingbackEnabled}
+      />
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Ringtone"
@@ -348,20 +327,13 @@ export function CallSoundSettings() {
           }
         />
       </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Always Play Call Sound"
-          focusId="always-play-call-sound"
-          description="Play call sounds even when message notification sounds are turned off."
-          after={
-            <Switch
-              variant="Primary"
-              value={callSoundOverrideGlobalNotifications}
-              onChange={setCallSoundOverrideGlobalNotifications}
-            />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Always Play Call Sound"
+        focusId="always-play-call-sound"
+        description="Play call sounds even when message notification sounds are turned off."
+        value={callSoundOverrideGlobalNotifications}
+        onChange={setCallSoundOverrideGlobalNotifications}
+      />
       <CustomToneSettingsCard
         title="Custom Ringtone"
         focusId="custom-call-ringtone"

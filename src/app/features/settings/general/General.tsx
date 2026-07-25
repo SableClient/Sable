@@ -53,7 +53,7 @@ import {
 import { useSetting } from '$state/hooks/settings';
 import type { EditorButtonId } from '$state/settings';
 import { MessageLayout, RightSwipeAction, settingsAtom } from '$state/settings';
-import { SettingTile } from '$components/setting-tile';
+import { SettingTile, SettingToggle } from '$components/setting-tile';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS, mobileOrTablet } from '$utils/user-agent';
 import { stopPropagation } from '$utils/keyboard';
@@ -356,13 +356,12 @@ function DateAndTime() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Date & Time</Text>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="24-Hour Time Format"
-          focusId="twenty-four-hour-time-format"
-          after={<Switch variant="Primary" value={hour24Clock} onChange={setHour24Clock} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="24-Hour Time Format"
+        focusId="twenty-four-hour-time-format"
+        value={hour24Clock}
+        onChange={setHour24Clock}
+      />
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SelectDateFormat />
@@ -482,72 +481,55 @@ function Editor() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Editor</Text>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="ENTER for Newline"
-          focusId="enter-for-newline"
-          description={`Use ${isMacOS() ? KeySymbol.Command : 'Ctrl'} + ENTER to send message.`}
-          after={<Switch variant="Primary" value={enterForNewline} onChange={setEnterForNewline} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Message Formatting Toolbar"
-          focusId="composer-formatting-toolbar"
-          description="Enable the formatting toolbar in the message composer."
-          after={<Switch variant="Primary" value={editorToolbar} onChange={setEditorToolbar} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Hide Add Menu in the Editor"
-          focusId="hide-add-menu"
-          description="Make the Plus button in the editor only add files. You may still send the special items using commands such as /poll and /location"
-          after={
-            <Switch variant="Primary" value={editorOldAddFile} onChange={setEditorOldAddFile} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Voice Recording Button"
-          focusId="show-voice-recording-button"
-          description="Show the microphone button in the message composer. When off, the send button shows even when the editor is empty."
-          after={<Switch variant="Primary" value={editorMicButton} onChange={setEditorMicButton} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Emoji Button"
-          focusId="show-emoji-button"
-          description="Show the emoji button inline with the message composer."
-          after={
-            <Switch variant="Primary" value={editorEmojiButton} onChange={setEditorEmojiButton} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Gif Button"
-          focusId="show-gif-button"
-          description="Show the gif button inline with the message composer. This makes requests to klipy.com whenever you search for a gif."
-          after={<Switch variant="Primary" value={editorGifButton} onChange={setEditorGifButton} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Sticker Button"
-          focusId="show-sticker-button"
-          description="Show the sticker button inline with the message composer."
-          after={
-            <Switch
-              variant="Primary"
-              value={editorStickerButton}
-              onChange={setEditorStickerButton}
-            />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="ENTER for Newline"
+        focusId="enter-for-newline"
+        description={`Use ${isMacOS() ? KeySymbol.Command : 'Ctrl'} + ENTER to send message.`}
+        value={enterForNewline}
+        onChange={setEnterForNewline}
+      />
+      <SettingToggle
+        title="Message Formatting Toolbar"
+        focusId="composer-formatting-toolbar"
+        description="Enable the formatting toolbar in the message composer."
+        value={editorToolbar}
+        onChange={setEditorToolbar}
+      />
+      <SettingToggle
+        title="Hide Add Menu in the Editor"
+        focusId="hide-add-menu"
+        description="Make the Plus button in the editor only add files. You may still send the special items using commands such as /poll and /location"
+        value={editorOldAddFile}
+        onChange={setEditorOldAddFile}
+      />
+      <SettingToggle
+        title="Show Voice Recording Button"
+        focusId="show-voice-recording-button"
+        description="Show the microphone button in the message composer. When off, the send button shows even when the editor is empty."
+        value={editorMicButton}
+        onChange={setEditorMicButton}
+      />
+      <SettingToggle
+        title="Show Emoji Button"
+        focusId="show-emoji-button"
+        description="Show the emoji button inline with the message composer."
+        value={editorEmojiButton}
+        onChange={setEditorEmojiButton}
+      />
+      <SettingToggle
+        title="Show Gif Button"
+        focusId="show-gif-button"
+        description="Show the gif button inline with the message composer. This makes requests to klipy.com whenever you search for a gif."
+        value={editorGifButton}
+        onChange={setEditorGifButton}
+      />
+      <SettingToggle
+        title="Show Sticker Button"
+        focusId="show-sticker-button"
+        description="Show the sticker button inline with the message composer."
+        value={editorStickerButton}
+        onChange={setEditorStickerButton}
+      />
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Composer Button Order"
@@ -580,54 +562,41 @@ function Editor() {
           </Box>
         )}
       </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Hide Typing Indicators"
-          focusId="hide-typing-indicators"
-          description="Turn off typing status."
-          after={<Switch variant="Primary" value={hideActivity} onChange={setHideActivity} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Hide Read Receipts"
-          focusId="hide-read-receipts"
-          description="Turn off read receipts."
-          after={<Switch variant="Primary" value={hideReads} onChange={setHideReads} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Presence Status"
-          focusId="presence-status"
-          description="Show and receive online status from other users."
-          after={<Switch variant="Primary" value={sendPresence} onChange={setSendPresence} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Send notifications for replies"
-          focusId="reply-notifications"
-          description="Disable to use silent replies by default. You can still toggle reply notifications for each reply."
-          after={
-            <Switch variant="Primary" value={mentionInReplies} onChange={setMentionInReplies} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Send text with individual attachment as caption"
-          focusId="reply-notifications"
-          description="Send the contents of the message field as the attachment caption if present."
-          after={
-            <Switch
-              variant="Primary"
-              value={sendIndividualAttachmentAsCaption}
-              onChange={setSendIndividualAttachmentAsCaption}
-            />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Hide Typing Indicators"
+        focusId="hide-typing-indicators"
+        description="Turn off typing status."
+        value={hideActivity}
+        onChange={setHideActivity}
+      />
+      <SettingToggle
+        title="Hide Read Receipts"
+        focusId="hide-read-receipts"
+        description="Turn off read receipts."
+        value={hideReads}
+        onChange={setHideReads}
+      />
+      <SettingToggle
+        title="Presence Status"
+        focusId="presence-status"
+        description="Show and receive online status from other users."
+        value={sendPresence}
+        onChange={setSendPresence}
+      />
+      <SettingToggle
+        title="Send notifications for replies"
+        focusId="reply-notifications"
+        description="Disable to use silent replies by default. You can still toggle reply notifications for each reply."
+        value={mentionInReplies}
+        onChange={setMentionInReplies}
+      />
+      <SettingToggle
+        title="Send text with individual attachment as caption"
+        focusId="reply-notifications"
+        description="Send the contents of the message field as the attachment caption if present."
+        value={sendIndividualAttachmentAsCaption}
+        onChange={setSendIndividualAttachmentAsCaption}
+      />
     </Box>
   );
 }
@@ -756,32 +725,18 @@ function Calls() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Calls</Text>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Call Button for Large Rooms"
-          focusId="large-room-call-button"
-          after={
-            <Switch
-              variant="Primary"
-              value={alwaysShowCallButton}
-              onChange={setAlwaysShowCallButton}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Join voice calls by just clicking the room's icon"
-          focusId="join-on-click-voicecalls"
-          after={
-            <Switch
-              variant="Primary"
-              value={joinCallOnSingleClick}
-              onChange={setjoinCallOnSingleClick}
-            />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Show Call Button for Large Rooms"
+        focusId="large-room-call-button"
+        value={alwaysShowCallButton}
+        onChange={setAlwaysShowCallButton}
+      />
+      <SettingToggle
+        title="Join voice calls by just clicking the room's icon"
+        focusId="join-on-click-voicecalls"
+        value={joinCallOnSingleClick}
+        onChange={setjoinCallOnSingleClick}
+      />
       <CallSoundSettings />
     </Box>
   );
@@ -866,78 +821,43 @@ function Messages() {
           />
         </SequenceCard>
       )}
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Disable Media Auto Load"
-          focusId="disable-media-auto-load"
-          after={
-            <Switch
-              variant="Primary"
-              value={!mediaAutoLoad}
-              onChange={(v) => setMediaAutoLoad(!v)}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Hide Membership Change"
-          focusId="hide-membership-change"
-          after={
-            <Switch
-              variant="Primary"
-              value={hideMembershipEvents}
-              onChange={setHideMembershipEvents}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Hide Profile Change"
-          focusId="hide-profile-change"
-          after={
-            <Switch
-              variant="Primary"
-              value={hideNickAvatarEvents}
-              onChange={setHideNickAvatarEvents}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Hide Member Events in Read-Only Rooms"
-          focusId="hide-member-events-read-only-rooms"
-          description="Hide membership changes, reactions, and reaction redactions in read-only rooms such as announcement channels."
-          after={
-            <Switch
-              variant="Primary"
-              value={hideMembershipInReadOnly}
-              onChange={setHideMembershipInReadOnly}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Hidden Events"
-          focusId="show-hidden-events"
-          description="Reveal additional timeline events that are normally filtered out."
-          after={
-            <Switch
-              variant="Primary"
-              value={showHiddenEvents}
-              onChange={setShowHiddenEvents}
-              title={
-                showHiddenEvents
-                  ? 'Disable to hide hidden events'
-                  : 'Enable to show hidden events, this will cause visual clutter in busy rooms.'
-              }
-            />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Disable Media Auto Load"
+        focusId="disable-media-auto-load"
+        value={!mediaAutoLoad}
+        onChange={(v) => setMediaAutoLoad(!v)}
+      />
+      <SettingToggle
+        title="Hide Membership Change"
+        focusId="hide-membership-change"
+        value={hideMembershipEvents}
+        onChange={setHideMembershipEvents}
+      />
+      <SettingToggle
+        title="Hide Profile Change"
+        focusId="hide-profile-change"
+        value={hideNickAvatarEvents}
+        onChange={setHideNickAvatarEvents}
+      />
+      <SettingToggle
+        title="Hide Member Events in Read-Only Rooms"
+        focusId="hide-member-events-read-only-rooms"
+        description="Hide membership changes, reactions, and reaction redactions in read-only rooms such as announcement channels."
+        value={hideMembershipInReadOnly}
+        onChange={setHideMembershipInReadOnly}
+      />
+      <SettingToggle
+        title="Show Hidden Events"
+        focusId="show-hidden-events"
+        description="Reveal additional timeline events that are normally filtered out."
+        value={showHiddenEvents}
+        onChange={setShowHiddenEvents}
+        switchTitle={
+          showHiddenEvents
+            ? 'Disable to hide hidden events'
+            : 'Enable to show hidden events, this will cause visual clutter in busy rooms.'
+        }
+      />
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -1109,55 +1029,42 @@ function Embeds() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Embeds</Text>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Display Multiple Embeds"
-          focusId="display-multiple-embeds"
-          description="Display the embeds of all the links. Turning it off makes it only show the embed of the 1st item"
-          after={
-            <Switch variant="Primary" value={multiplePreviews} onChange={setMultiplePreviews} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Display Bundled Embeds"
-          focusId="display-bundled-embeds"
-          description="Show embeds when provided by the message itself. The embeds may be fabricated or incorrect."
-          after={<Switch variant="Primary" value={bundledPreview} onChange={setBundledPreview} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Server-side Embeds"
-          focusId="url-preview"
-          description="Send the links from inside the messages to your homeserver to generate previews of the linked pages."
-          after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Server-side Embeds in Encrypted Room"
-          focusId="encrypted-room-url-preview"
-          description="Request server-side embeds in E2EE chats. This partially decreases secrecy by revealing sent links to your homeserver"
-          after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Client-side Embeds"
-          focusId="client-side-embeds"
-          description="Attempt to preview supported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
-          after={
-            <Switch
-              variant="Primary"
-              value={clientUrlPreview}
-              onChange={setClientUrlPreview}
-              title={clientUrlPreview ? 'Disable client-side embeds' : 'Enable client-side embeds'}
-            />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Display Multiple Embeds"
+        focusId="display-multiple-embeds"
+        description="Display the embeds of all the links. Turning it off makes it only show the embed of the 1st item"
+        value={multiplePreviews}
+        onChange={setMultiplePreviews}
+      />
+      <SettingToggle
+        title="Display Bundled Embeds"
+        focusId="display-bundled-embeds"
+        description="Show embeds when provided by the message itself. The embeds may be fabricated or incorrect."
+        value={bundledPreview}
+        onChange={setBundledPreview}
+      />
+      <SettingToggle
+        title="Server-side Embeds"
+        focusId="url-preview"
+        description="Send the links from inside the messages to your homeserver to generate previews of the linked pages."
+        value={urlPreview}
+        onChange={setUrlPreview}
+      />
+      <SettingToggle
+        title="Server-side Embeds in Encrypted Room"
+        focusId="encrypted-room-url-preview"
+        description="Request server-side embeds in E2EE chats. This partially decreases secrecy by revealing sent links to your homeserver"
+        value={encUrlPreview}
+        onChange={setEncUrlPreview}
+      />
+      <SettingToggle
+        title="Client-side Embeds"
+        focusId="client-side-embeds"
+        description="Attempt to preview supported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
+        value={clientUrlPreview}
+        onChange={setClientUrlPreview}
+        switchTitle={clientUrlPreview ? 'Disable client-side embeds' : 'Enable client-side embeds'}
+      />
       {clientUrlPreview && (
         <>
           <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
@@ -1198,51 +1105,30 @@ function Embeds() {
           </SequenceCard>
         </>
       )}
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Enable Gif Picker"
-          focusId="enable-gif-picker"
-          description="Enables the gif picker in the emoji board. This reduces Privacy because it makes requests to klipy.com whenever you search for a gif."
-          after={
-            <Switch
-              variant="Primary"
-              value={enableGifPicker}
-              onChange={setEnableGifPicker}
-              title={enableGifPicker ? 'Disable Gif Picker' : 'Enable Gif Picker'}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Interactive maps"
-          focusId="show-interactive-map"
-          description="Show an interactive map in messages. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
-          after={
-            <Switch
-              variant="Primary"
-              value={showInteractiveMap}
-              onChange={setShowInteractiveMap}
-              title={showInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Interactive maps in Encrypted Rooms"
-          focusId="show-interactive-map-enc"
-          description="Show an interactive map in Encrypted rooms. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
-          after={
-            <Switch
-              variant="Primary"
-              value={showEncInteractiveMap}
-              onChange={setEncShowInteractiveMap}
-              title={showEncInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
-            />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Enable Gif Picker"
+        focusId="enable-gif-picker"
+        description="Enables the gif picker in the emoji board. This reduces Privacy because it makes requests to klipy.com whenever you search for a gif."
+        value={enableGifPicker}
+        onChange={setEnableGifPicker}
+        switchTitle={enableGifPicker ? 'Disable Gif Picker' : 'Enable Gif Picker'}
+      />
+      <SettingToggle
+        title="Show Interactive maps"
+        focusId="show-interactive-map"
+        description="Show an interactive map in messages. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
+        value={showInteractiveMap}
+        onChange={setShowInteractiveMap}
+        switchTitle={showInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
+      />
+      <SettingToggle
+        title="Show Interactive maps in Encrypted Rooms"
+        focusId="show-interactive-map-enc"
+        description="Show an interactive map in Encrypted rooms. This reduces Privacy because it requests map data from OpenStreetMap.org whenever you need to load a uncached part of the maps."
+        value={showEncInteractiveMap}
+        onChange={setEncShowInteractiveMap}
+        switchTitle={showEncInteractiveMap ? 'Disable Interactive Map' : 'Enable Interactive Map'}
+      />
     </Box>
   );
 }

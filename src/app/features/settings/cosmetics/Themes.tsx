@@ -12,7 +12,7 @@ import {
   type SettingMenuOption,
 } from '$components/setting-menu-selector';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
-import { SettingTile } from '$components/setting-tile';
+import { SettingTile, SettingToggle } from '$components/setting-tile';
 import {
   DEFAULT_ARBORIUM_DARK_THEME,
   DEFAULT_ARBORIUM_LIGHT_THEME,
@@ -301,38 +301,34 @@ function ThemeVisualPreferences() {
           }
         />
       </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Underline Links"
-          focusId="underline-links"
-          description="Always show underlines on links in chat, bios and room descriptions."
-          after={<Switch variant="Primary" value={underlineLinks} onChange={setUnderlineLinks} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Reduced Motion"
-          focusId="reduced-motion"
-          description="Stops animations and sliding UI elements."
-          after={<Switch variant="Primary" value={reducedMotion} onChange={setReducedMotion} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Autoplay GIFs"
-          focusId="autoplay-gifs"
-          description="Automatically play animated image uploads and links."
-          after={<Switch variant="Primary" value={autoplayGifs} onChange={setAutoplayGifs} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Go back to old sidebar"
-          focusId="old-sidebar"
-          description="Reset the sidebar to its old style"
-          after={<Switch variant="Primary" value={oldSidebar} onChange={setOldSidebar} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Underline Links"
+        focusId="underline-links"
+        description="Always show underlines on links in chat, bios and room descriptions."
+        value={underlineLinks}
+        onChange={setUnderlineLinks}
+      />
+      <SettingToggle
+        title="Reduced Motion"
+        focusId="reduced-motion"
+        description="Stops animations and sliding UI elements."
+        value={reducedMotion}
+        onChange={setReducedMotion}
+      />
+      <SettingToggle
+        title="Autoplay GIFs"
+        focusId="autoplay-gifs"
+        description="Automatically play animated image uploads and links."
+        value={autoplayGifs}
+        onChange={setAutoplayGifs}
+      />
+      <SettingToggle
+        title="Go back to old sidebar"
+        focusId="old-sidebar"
+        description="Reset the sidebar to its old style"
+        value={oldSidebar}
+        onChange={setOldSidebar}
+      />
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Pixelated image scaling"
@@ -347,32 +343,27 @@ function ThemeVisualPreferences() {
           }
         />
       </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Autoplay Stickers"
-          focusId="autoplay-stickers"
-          description="Automatically play animated stickers."
-          after={
-            <Switch variant="Primary" value={autoplayStickers} onChange={setAutoplayStickers} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Autoplay Emojis"
-          focusId="autoplay-emojis"
-          description="Automatically play animated custom emojis."
-          after={<Switch variant="Primary" value={autoplayEmojis} onChange={setAutoplayEmojis} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Autoplay Stickers"
+        focusId="autoplay-stickers"
+        description="Automatically play animated stickers."
+        value={autoplayStickers}
+        onChange={setAutoplayStickers}
+      />
+      <SettingToggle
+        title="Autoplay Emojis"
+        focusId="autoplay-emojis"
+        description="Automatically play animated custom emojis."
+        value={autoplayEmojis}
+        onChange={setAutoplayEmojis}
+      />
 
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Display Room banners"
-          focusId="display-room-banners"
-          after={<Switch variant="Primary" value={showRoomBanners} onChange={setShowRoomBanners} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Display Room banners"
+        focusId="display-room-banners"
+        value={showRoomBanners}
+        onChange={setShowRoomBanners}
+      />
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
@@ -714,51 +705,37 @@ export function Appearance({
           <Box direction="Column" gap="100">
             <Text size="L400">Visual Tweaks</Text>
 
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
-                title="Twitter Emoji"
-                focusId="twitter-emoji"
-                description="Use Twitter-style emojis instead of system native ones."
-                after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
-              />
-            </SequenceCard>
+            <SettingToggle
+              title="Twitter Emoji"
+              focusId="twitter-emoji"
+              description="Use Twitter-style emojis instead of system native ones."
+              value={twitterEmoji}
+              onChange={setTwitterEmoji}
+            />
 
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
-                title="Close Space Folders by Default"
-                focusId="collapse-folders-by-default"
-                description="Collapse sidebar folders upon loading."
-                after={
-                  <Switch
-                    variant="Primary"
-                    value={closeFoldersByDefault}
-                    onChange={setCloseFoldersByDefault}
-                  />
-                }
-              />
-            </SequenceCard>
+            <SettingToggle
+              title="Close Space Folders by Default"
+              focusId="collapse-folders-by-default"
+              description="Collapse sidebar folders upon loading."
+              value={closeFoldersByDefault}
+              onChange={setCloseFoldersByDefault}
+            />
 
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
-                title="Customize DM cards"
-                focusId="customize-dm-cards"
-                description="Show a custom DM card instead of the DM-ed's details"
-                after={
-                  <Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />
-                }
-              />
-            </SequenceCard>
+            <SettingToggle
+              title="Customize DM cards"
+              focusId="customize-dm-cards"
+              description="Show a custom DM card instead of the DM-ed's details"
+              value={customDMCards}
+              onChange={setCustomDMCards}
+            />
 
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
-                title="Allow Whimsy"
-                focusId="show-easter-eggs"
-                description="Lets the interface keep a little mischief turned on."
-                after={
-                  <Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />
-                }
-              />
-            </SequenceCard>
+            <SettingToggle
+              title="Allow Whimsy"
+              focusId="show-easter-eggs"
+              description="Lets the interface keep a little mischief turned on."
+              value={showEasterEggs}
+              onChange={setShowEasterEggs}
+            />
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile title="Page Zoom" focusId="page-zoom" after={<PageZoomInput />} />
@@ -773,16 +750,13 @@ export function Appearance({
               />
             </SequenceCard>
 
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
-                title="Overlay Room Privacy Icons"
-                focusId="room-icon-overlay"
-                description="When enabled, public and private rooms show a globe or lock badge over the room hash icon in the sidebar. When disabled, show the globe or lock icon alone."
-                after={
-                  <Switch variant="Primary" value={roomIconOverlay} onChange={setRoomIconOverlay} />
-                }
-              />
-            </SequenceCard>
+            <SettingToggle
+              title="Overlay Room Privacy Icons"
+              focusId="room-icon-overlay"
+              description="When enabled, public and private rooms show a globe or lock badge over the room hash icon in the sidebar. When disabled, show the globe or lock icon alone."
+              value={roomIconOverlay}
+              onChange={setRoomIconOverlay}
+            />
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile

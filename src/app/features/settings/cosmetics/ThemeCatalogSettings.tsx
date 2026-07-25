@@ -28,7 +28,7 @@ import {
   type ThemeRemoteTweakFavorite,
 } from '$state/settings';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
-import { SettingTile } from '$components/setting-tile';
+import { SettingTile, SettingToggle } from '$components/setting-tile';
 import { ThemePreviewCard } from '$components/theme/ThemePreviewCard';
 import { usePatchSettings } from './themeSettingsPatch';
 import { ThemeImportModal } from './ThemeImportModal';
@@ -1750,46 +1750,29 @@ export function ThemeCatalogSettings({ mode, onBrowseOpenChange }: ThemeCatalogS
 
       {isChatMode && (
         <>
-          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-            <SettingTile
-              title="Theme & tweak cards"
-              focusId="theme-chat-sable-widgets"
-              description="Show interactive Sable CSS cards instead of plain links."
-              after={
-                <Switch variant="Primary" value={sableChatWidgets} onChange={setSableChatWidgets} />
-              }
-            />
-          </SequenceCard>
-          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-            <SettingTile
-              title="Auto-load approved URLs"
-              focusId="theme-chat-auto-approved"
-              description="Automatically fetch previews from approved catalog hosts."
-              after={
-                <Switch
-                  variant="Primary"
-                  value={autoPreviewApprovedUrls}
-                  onChange={setAutoPreviewApprovedUrls}
-                  disabled={!sableChatWidgets}
-                />
-              }
-            />
-          </SequenceCard>
-          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-            <SettingTile
-              title="Auto-load any URL"
-              focusId="theme-chat-auto-any"
-              description="Not recommended. Automatically fetch potentially unsafe third-party links."
-              after={
-                <Switch
-                  variant="Primary"
-                  value={autoPreviewAnyUrl}
-                  onChange={setAutoPreviewAnyUrl}
-                  disabled={!sableChatWidgets}
-                />
-              }
-            />
-          </SequenceCard>
+          <SettingToggle
+            title="Theme & tweak cards"
+            focusId="theme-chat-sable-widgets"
+            description="Show interactive Sable CSS cards instead of plain links."
+            value={sableChatWidgets}
+            onChange={setSableChatWidgets}
+          />
+          <SettingToggle
+            title="Auto-load approved URLs"
+            focusId="theme-chat-auto-approved"
+            description="Automatically fetch previews from approved catalog hosts."
+            value={autoPreviewApprovedUrls}
+            onChange={setAutoPreviewApprovedUrls}
+            disabled={!sableChatWidgets}
+          />
+          <SettingToggle
+            title="Auto-load any URL"
+            focusId="theme-chat-auto-any"
+            description="Not recommended. Automatically fetch potentially unsafe third-party links."
+            value={autoPreviewAnyUrl}
+            onChange={setAutoPreviewAnyUrl}
+            disabled={!sableChatWidgets}
+          />
         </>
       )}
     </Box>

@@ -1,10 +1,8 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import { Avatar, Box, Button, IconButton, Text, toRem } from 'folds';
+import { Avatar, Box, Button, Text, toRem } from 'folds';
 import {
   At,
-  composerIcon,
-  DotsThreeOutlineVerticalIcon,
   dropzoneIcon,
   menuIcon,
   getPhosphorSize,
@@ -34,7 +32,7 @@ import { makeNavCategoryId } from '$state/closedNavCategories';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
-import { PageNavContent, PageNavHeader } from '$components/page';
+import { PageNavContent, PageNavHeaderWithMenu } from '$components/page';
 import { PageNavShell } from '$components/page/PageNavShell';
 import { useClosedNavCategoriesAtom } from '$state/hooks/closedNavCategories';
 import { useSetting } from '$state/hooks/settings';
@@ -46,7 +44,6 @@ import {
 import { useDirectCreateSelected } from '$hooks/router/useRouteSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { useSidebarWidth } from '$hooks/useSidebarWidth';
-import { ResponsiveMenu } from '$components/ResponsiveMenu';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { NavMenu } from '$components/nav/NavMenu';
 
@@ -64,48 +61,17 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
   const menu = useMenuAnchor<HTMLButtonElement>();
 
   return (
-    <>
-      <PageNavHeader size="600">
-        {hideText ? (
-          <Box alignItems="Center" grow="Yes" justifyContent="Center">
-            <IconButton
-              aria-pressed={!!menu.anchor}
-              variant="Background"
-              onClick={menu.triggerProps.onClick}
-            >
-              <User size={getPhosphorSize().toolbar} weight={menu.anchor ? 'fill' : 'regular'} />
-            </IconButton>
-          </Box>
-        ) : (
-          <Box grow="Yes" gap="300">
-            <Box grow="Yes" alignItems="Center">
-              <Text size="H4" truncate>
-                Direct Messages
-              </Text>
-            </Box>
-            <Box shrink="No">
-              <IconButton
-                aria-pressed={!!menu.anchor}
-                variant="Background"
-                onClick={menu.triggerProps.onClick}
-              >
-                {composerIcon(DotsThreeOutlineVerticalIcon, {
-                  weight: menu.anchor ? 'fill' : 'regular',
-                })}
-              </IconButton>
-            </Box>
-          </Box>
-        )}
-      </PageNavHeader>
-      <ResponsiveMenu
-        anchor={menu.anchor}
-        requestClose={menu.close}
-        position="Bottom"
-        align="End"
-        offset={6}
-        menu={<DirectMenu requestClose={menu.close} />}
-      />
-    </>
+    <PageNavHeaderWithMenu
+      hideText={hideText}
+      title="Direct Messages"
+      collapsedIcon={
+        <User size={getPhosphorSize().toolbar} weight={menu.anchor ? 'fill' : 'regular'} />
+      }
+      menu={<DirectMenu requestClose={menu.close} />}
+      anchor={menu.anchor}
+      requestClose={menu.close}
+      triggerProps={menu.triggerProps}
+    />
   );
 }
 

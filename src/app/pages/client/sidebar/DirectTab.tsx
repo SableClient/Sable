@@ -8,19 +8,13 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { getDirectPath, joinPathComponent } from '$pages/pathUtils';
 import { useRoomsUnread } from '$state/hooks/unread';
-import {
-  SidebarAvatar,
-  SidebarItemLeft,
-  SidebarUnreadBadge,
-  SidebarItemTooltip,
-} from '$components/sidebar';
+import { SidebarTab } from '$components/sidebar';
 import { useDirectSelected } from '$hooks/router/useRouteSelected';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { getPhosphorIconSize, User } from '$components/icons/phosphor';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
-import { ResponsiveMenu } from '$components/ResponsiveMenu';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { NavMenu } from '$components/nav/NavMenu';
 
@@ -50,7 +44,7 @@ export function DirectTab() {
     return directs.filter((id) => !sidebarSet.has(id));
   }, [directs, sidebarRoomIds]);
   const directUnread = useRoomsUnread(overflowDirects, roomToUnreadAtom);
-  const menu = useMenuAnchor<HTMLButtonElement>();
+  const menuAnchor = useMenuAnchor<HTMLButtonElement>();
 
   const directSelected = useDirectSelected();
 
@@ -68,42 +62,24 @@ export function DirectTab() {
   };
 
   return (
-    <SidebarItemLeft active={directSelected}>
-      <SidebarItemTooltip tooltip="Direct Messages">
-        {(triggerRef) => (
-          <ResponsiveMenu
-            anchor={menu.anchor}
-            requestClose={menu.close}
-            position="Right"
-            align="Start"
-            menu={<DirectMenu requestClose={menu.close} />}
-          >
-            <SidebarAvatar
-              as="button"
-              ref={triggerRef}
-              outlined
-              onClick={handleDirectClick}
-              onContextMenu={menu.triggerProps.onContextMenu}
-              onTouchStart={menu.triggerProps.onTouchStart}
-              onTouchEnd={menu.triggerProps.onTouchEnd}
-              onTouchMove={menu.triggerProps.onTouchMove}
-              onTouchCancel={menu.triggerProps.onTouchCancel}
-            >
-              <User
-                size={getPhosphorIconSize('toolbar')}
-                weight={directSelected ? 'fill' : 'regular'}
-              />
-            </SidebarAvatar>
-          </ResponsiveMenu>
-        )}
-      </SidebarItemTooltip>
-      {directUnread && (
-        <SidebarUnreadBadge
-          highlight={directUnread.highlight > 0}
-          count={directUnread.highlight > 0 ? directUnread.highlight : directUnread.total}
-          dm
-        />
-      )}
-    </SidebarItemLeft>
+    <SidebarTab
+      icon={
+        <User size={getPhosphorIconSize('toolbar')} weight={directSelected ? 'fill' : 'regular'} />
+      }
+      selected={directSelected}
+      tooltip="Direct Messages"
+      onClick={handleDirectClick}
+      menu={<DirectMenu requestClose={menuAnchor.close} />}
+      menuAnchor={menuAnchor}
+      unreadHighlight={directUnread ? directUnread.highlight > 0 : false}
+      unreadCount={
+        directUnread
+          ? directUnread.highlight > 0
+            ? directUnread.highlight
+            : directUnread.total
+          : 0
+      }
+      dm
+    />
   );
 }

@@ -59,6 +59,8 @@ import {
 import { RoomNotificationModeSwitcher } from '$components/RoomNotificationSwitcher';
 
 import { InviteUserPrompt } from '$components/invite-user-prompt';
+import { DirectInvitePrompt } from '$components/direct-invite-prompt';
+import { AsyncStatus } from '$hooks/useAsyncCallback';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
 import { nicknamesAtom } from '$state/nicknames';
@@ -121,6 +123,11 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
       unread,
       invitePrompt,
       setInvitePrompt,
+      directInvitePrompt,
+      setDirectInvitePrompt,
+      handleInviteDirect,
+      handleConvertAndInvite,
+      convertState,
     } = useRoomMenuActions(room);
 
     const mx = useMatrixClient();
@@ -150,8 +157,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
     };
 
     const handleLeaveRoom = async () => {
-      await hookLeaveRoom();
-      requestClose();
+      if (await hookLeaveRoom()) requestClose();
     };
 
     return (
@@ -163,6 +169,20 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
               setInvitePrompt(false);
               requestClose();
             }}
+          />
+        )}
+        {directInvitePrompt && (
+          <DirectInvitePrompt
+            onCancel={() => {
+              setDirectInvitePrompt(false);
+              requestClose();
+            }}
+            onInviteDirect={handleInviteDirect}
+            onConvertAndInvite={handleConvertAndInvite}
+            converting={convertState.status === AsyncStatus.Loading}
+            convertError={
+              convertState.status === AsyncStatus.Error ? convertState.error.message : undefined
+            }
           />
         )}
         <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>

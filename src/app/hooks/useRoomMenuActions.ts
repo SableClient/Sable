@@ -87,19 +87,21 @@ export function useRoomMenuActions(room: Room) {
     openSettingsFn(room.roomId, space?.roomId);
   }, [openSettingsFn, room.roomId, space?.roomId]);
 
-  const handleLeaveRoom = useCallback(async () => {
+  /** Resolves true only when the room was actually left, so callers can keep the menu open otherwise. */
+  const handleLeaveRoom = useCallback(async (): Promise<boolean> => {
     const ok = await confirm({
       title: 'Leave Room',
       description: 'Are you sure you want to leave this room?',
       action: 'Leave',
       variant: 'Critical',
     });
-    if (ok) {
-      try {
-        await mx.leave(room.roomId);
-      } catch (e) {
-        showToast(`Failed to leave room: ${e instanceof Error ? e.message : 'unknown error'}`);
-      }
+    if (!ok) return false;
+    try {
+      await mx.leave(room.roomId);
+      return true;
+    } catch (e) {
+      showToast(`Failed to leave room: ${e instanceof Error ? e.message : 'unknown error'}`);
+      return false;
     }
   }, [mx, room.roomId]);
 

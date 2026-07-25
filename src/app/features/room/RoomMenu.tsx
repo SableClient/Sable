@@ -184,8 +184,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
       <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
         <MenuItem
           onClick={async () => {
-            await handleLeaveRoom();
-            requestClose();
+            if (await handleLeaveRoom()) requestClose();
           }}
           variant="Critical"
           fill="None"

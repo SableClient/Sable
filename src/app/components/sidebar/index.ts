@@ -4,3 +4,4 @@ export * from './SidebarUnreadBadge';
 export * from './SidebarContent';
 export * from './SidebarStack';
 export * from './SidebarStackSeparator';
+export * from './SidebarTab';

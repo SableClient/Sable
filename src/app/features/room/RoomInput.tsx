@@ -112,6 +112,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { matchesShortcut } from '../../keyboard/shortcuts';
 import { getEditedEvent, getMentionContent, getThreadReplyEvents } from '$utils/room';
+import { buildReplacementContent } from './buildReplacementContent';
 import { htmlToMarkdown } from '$plugins/markdown';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
@@ -1042,33 +1043,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         const eventId = editingEvent.getId();
         if (!eventId) return;
 
-        const msgtype = oldContent.msgtype ?? MsgType.Text;
-        const newContent: IContent = {
-          msgtype,
-          body: plainText,
-        };
-
         const rawPmp =
           currentContent['com.beeper.per_message_profile'] ??
           oldContent['com.beeper.per_message_profile'];
-        const pmpDisplayname =
-          rawPmp !== null &&
-          typeof rawPmp === 'object' &&
-          'displayname' in rawPmp &&
-          typeof rawPmp.displayname === 'string' &&
-          rawPmp.displayname.length > 0
-            ? rawPmp.displayname
-            : undefined;
-
-        if (pmpDisplayname) {
-          const bodyPrefix = `${pmpDisplayname}: `;
-          if (!plainText.startsWith(bodyPrefix)) plainText = bodyPrefix + plainText;
-
-          const htmlPrefix = `<strong data-mx-profile-fallback>${sanitizeText(pmpDisplayname)}: </strong>`;
-          if (!customHtml.startsWith(htmlPrefix)) customHtml = htmlPrefix + customHtml;
-          newContent.body = plainText;
-          newContent['com.beeper.per_message_profile'] = rawPmp;
-        }
 
         const mentionData = getMentions(mx, roomId, editor);
         const previousMentions = currentContent['m.mentions'];
@@ -1083,50 +1060,21 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           });
         }
         const mMentions = getMentionContent(Array.from(mentionData.users), mentionData.room);
-        newContent['m.mentions'] = mMentions;
 
-        const content: IContent = {
-          ...oldContent,
-          'm.relates_to': {
-            event_id: eventId,
-            rel_type: RelationType.Replace,
-          },
-          body: `* ${plainText}`,
-          'm.mentions': mMentions,
-          'm.new_content': newContent,
-        };
+        const linkPreviews =
+          getLinks(editor.children)?.map((matchedUrl) => ({
+            matched_url: matchedUrl,
+          })) ?? [];
 
-        if (pmpDisplayname || !customHtmlEqualsPlainText(customHtml, plainText)) {
-          newContent.format = 'org.matrix.custom.html';
-          newContent.formatted_body = customHtml;
-          content.format = 'org.matrix.custom.html';
-          content.formatted_body = `* ${customHtml}`;
-        } else {
-          delete content.format;
-          delete content.formatted_body;
-        }
-
-        if (oldContent.info !== undefined && oldContent.msgtype !== MsgType.Text) {
-          const filename = 'filename' in oldContent ? oldContent.filename : oldContent.body;
-          content.filename = filename;
-          newContent.filename = filename;
-          content.info = oldContent.info;
-          newContent.info = oldContent.info;
-          if (oldContent.file !== undefined) newContent.file = oldContent.file;
-          if (oldContent.url !== undefined) newContent.url = oldContent.url;
-
-          const spoilerKey = 'page.codeberg.everypizza.msc4193.spoiler';
-          if (oldContent[spoilerKey] !== undefined) {
-            content[spoilerKey] = oldContent[spoilerKey];
-            newContent[spoilerKey] = oldContent[spoilerKey];
-          }
-        }
-
-        const linkPreviews = getLinks(editor.children)?.map((matchedUrl) => ({
-          matched_url: matchedUrl,
-        }));
-        content['com.beeper.linkpreviews'] = linkPreviews ?? [];
-        newContent['com.beeper.linkpreviews'] = linkPreviews ?? [];
+        const content = buildReplacementContent(
+          oldContent,
+          plainText,
+          customHtml,
+          eventId,
+          mMentions,
+          linkPreviews,
+          rawPmp
+        );
 
         await mx.sendMessage(roomId, content as RoomMessageEventContent);
         onCancelEdit?.();

@@ -1,4 +1,3 @@
-import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -10,22 +9,17 @@ import {
   Line,
   Menu,
   MenuItem,
-  PopOut,
   Spinner,
   Text,
   toRem,
 } from 'folds';
 import { CaretDown, menuIcon, profileIcon, X } from '$components/icons/phosphor';
 import type { CSSProperties } from 'react';
-import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
-import FocusTrap from 'focus-trap-react';
-import { isKeyHotkey } from 'is-hotkey';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useGetMemberPowerLevel, usePowerLevels } from '$hooks/usePowerLevels';
 import { getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
-import { stopPropagation } from '$utils/keyboard';
 
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { RoomSettingsPage } from '$state/roomSettings';
@@ -43,6 +37,8 @@ import { EventType } from '$types/matrix-sdk';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 
 type SelfDemoteAlertProps = {
   power: number;
@@ -164,13 +160,7 @@ export function PowerChip({
   const tag = getMemberPowerTag(userId);
   const tagIconSrc = tag.icon && getPowerTagIconSrc(mx, useAuthentication, tag.icon);
 
-  const [cords, setCords] = useState<RectCords>();
-
-  const open: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const close = () => setCords(undefined);
+  const powerMenu = useMenuAnchor<HTMLButtonElement>();
 
   const [powerState, changePower] = useAsyncCallback<undefined, Error, [number]>(
     useCallback(
@@ -186,7 +176,7 @@ export function PowerChip({
   const [sharedPower, setSharedPower] = useState<number>();
 
   const handlePowerSelect = (power: number): void => {
-    close();
+    powerMenu.close();
     if (!canChangePowers) return;
     if (power === getMemberPowerLevel(userId)) return;
 
@@ -213,103 +203,92 @@ export function PowerChip({
 
   return (
     <>
-      <PopOut
-        anchor={cords}
+      <ResponsiveMenu
+        anchor={powerMenu.anchor}
+        requestClose={powerMenu.close}
         position="Bottom"
         align="Start"
         offset={4}
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: close,
-              clickOutsideDeactivates: true,
-              escapeDeactivates: stopPropagation,
-              isKeyForward: (evt: KeyboardEvent) => isKeyHotkey('arrowdown', evt),
-              isKeyBackward: (evt: KeyboardEvent) => isKeyHotkey('arrowup', evt),
-            }}
-          >
-            <Menu>
-              <Box
-                direction="Column"
-                gap="100"
-                style={{
-                  padding: config.space.S100,
-                  maxWidth: toRem(200),
-                  backgroundColor: innerColor,
+        returnFocusOnDeactivate
+        menu={
+          <Menu>
+            <Box
+              direction="Column"
+              gap="100"
+              style={{
+                padding: config.space.S100,
+                maxWidth: toRem(200),
+                backgroundColor: innerColor,
+              }}
+            >
+              {error && (
+                <CutoutCard style={{ padding: config.space.S200 }} variant="Critical">
+                  <Text size="L400">Error: {powerState.error.name}</Text>
+                  <Text className={BreakWord} size="T200">
+                    {powerState.error.message}
+                  </Text>
+                </CutoutCard>
+              )}
+              {getPowers(powerLevelTags).map((power) => {
+                const powerTag = powerLevelTags[power]!;
+                const powerTagIconSrc =
+                  powerTag.icon && getPowerTagIconSrc(mx, useAuthentication, powerTag.icon);
+
+                const selected = getMemberPowerLevel(userId) === power;
+                const canAssignPower = creators.has(myUserId)
+                  ? true
+                  : power <= getMemberPowerLevel(myUserId);
+
+                return (
+                  <MenuItem
+                    key={power}
+                    variant={selected ? 'Primary' : 'Surface'}
+                    fill="None"
+                    size="300"
+                    radii="300"
+                    aria-disabled={changing || !canChangePowers || !canAssignPower}
+                    aria-pressed={selected}
+                    className={css.UserHeroMenuItem}
+                    style={heroMenuItemStyle(
+                      { backgroundColor: menuItemBg, color: textColor },
+                      chipHoverBrightness
+                    )}
+                    before={<PowerColorBadge color={powerTag.color} />}
+                    after={
+                      powerTagIconSrc ? (
+                        <PowerIcon size="50" iconSrc={powerTagIconSrc} />
+                      ) : undefined
+                    }
+                    onClick={
+                      canChangePowers && canAssignPower ? () => handlePowerSelect(power) : undefined
+                    }
+                  >
+                    <Text size="B300">{powerTag.name}</Text>
+                  </MenuItem>
+                );
+              })}
+            </Box>
+            <Line size="300" color={textColor} />
+            <div style={{ padding: config.space.S100, backgroundColor: innerColor }}>
+              <MenuItem
+                variant="Surface"
+                fill="None"
+                size="300"
+                radii="300"
+                className={css.UserHeroMenuItem}
+                style={heroMenuItemStyle(
+                  { backgroundColor: menuItemBg, color: textColor },
+                  chipHoverBrightness
+                )}
+                onClick={() => {
+                  openRoomSettings(room.roomId, space?.roomId, RoomSettingsPage.PermissionsPage);
+                  powerMenu.close();
                 }}
               >
-                {error && (
-                  <CutoutCard style={{ padding: config.space.S200 }} variant="Critical">
-                    <Text size="L400">Error: {powerState.error.name}</Text>
-                    <Text className={BreakWord} size="T200">
-                      {powerState.error.message}
-                    </Text>
-                  </CutoutCard>
-                )}
-                {getPowers(powerLevelTags).map((power) => {
-                  const powerTag = powerLevelTags[power]!;
-                  const powerTagIconSrc =
-                    powerTag.icon && getPowerTagIconSrc(mx, useAuthentication, powerTag.icon);
-
-                  const selected = getMemberPowerLevel(userId) === power;
-                  const canAssignPower = creators.has(myUserId)
-                    ? true
-                    : power <= getMemberPowerLevel(myUserId);
-
-                  return (
-                    <MenuItem
-                      key={power}
-                      variant={selected ? 'Primary' : 'Surface'}
-                      fill="None"
-                      size="300"
-                      radii="300"
-                      aria-disabled={changing || !canChangePowers || !canAssignPower}
-                      aria-pressed={selected}
-                      className={css.UserHeroMenuItem}
-                      style={heroMenuItemStyle(
-                        { backgroundColor: menuItemBg, color: textColor },
-                        chipHoverBrightness
-                      )}
-                      before={<PowerColorBadge color={powerTag.color} />}
-                      after={
-                        powerTagIconSrc ? (
-                          <PowerIcon size="50" iconSrc={powerTagIconSrc} />
-                        ) : undefined
-                      }
-                      onClick={
-                        canChangePowers && canAssignPower
-                          ? () => handlePowerSelect(power)
-                          : undefined
-                      }
-                    >
-                      <Text size="B300">{powerTag.name}</Text>
-                    </MenuItem>
-                  );
-                })}
-              </Box>
-              <Line size="300" color={textColor} />
-              <div style={{ padding: config.space.S100, backgroundColor: innerColor }}>
-                <MenuItem
-                  variant="Surface"
-                  fill="None"
-                  size="300"
-                  radii="300"
-                  className={css.UserHeroMenuItem}
-                  style={heroMenuItemStyle(
-                    { backgroundColor: menuItemBg, color: textColor },
-                    chipHoverBrightness
-                  )}
-                  onClick={() => {
-                    openRoomSettings(room.roomId, space?.roomId, RoomSettingsPage.PermissionsPage);
-                    close();
-                  }}
-                >
-                  <Text size="B300">Manage Powers</Text>
-                </MenuItem>
-              </div>
-            </Menu>
-          </FocusTrap>
+                <Text size="B300">Manage Powers</Text>
+              </MenuItem>
+            </div>
+          </Menu>
         }
       >
         <Chip
@@ -327,7 +306,7 @@ export function PowerChip({
                 )
           }
           before={
-            cords ? (
+            powerMenu.anchor ? (
               profileIcon(CaretDown)
             ) : (
               <>
@@ -337,14 +316,14 @@ export function PowerChip({
             )
           }
           after={tagIconSrc ? <PowerIcon size="50" iconSrc={tagIconSrc} /> : undefined}
-          onClick={open}
-          aria-pressed={!!cords}
+          onClick={powerMenu.triggerProps.onClick}
+          aria-pressed={!!powerMenu.anchor}
         >
           <Text size="B300" truncate>
             {tag.name}
           </Text>
         </Chip>
-      </PopOut>
+      </ResponsiveMenu>
       {typeof selfDemote === 'number' ? (
         <SelfDemoteAlert
           power={selfDemote}

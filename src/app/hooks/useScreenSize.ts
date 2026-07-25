@@ -28,6 +28,9 @@ export const useScreenSize = (): ScreenSize => {
 };
 
 const ScreenSizeContext = createContext<ScreenSize | null>(null);
+
+/** Null outside a provider, for shared components that must not throw there. */
+export const useScreenSizeOptionally = (): ScreenSize | null => useContext(ScreenSizeContext);
 export const ScreenSizeProvider = ScreenSizeContext.Provider;
 
 export const useScreenSizeContext = (): ScreenSize => {

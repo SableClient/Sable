@@ -1,9 +1,6 @@
-import type { MouseEventHandler, TouchEvent as ReactTouchEvent } from 'react';
-import { forwardRef, useMemo, useRef, useState } from 'react';
+import { forwardRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { RectCords } from 'folds';
-import { Box, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { Box, Menu, MenuItem, Text, config, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { useDirects } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -22,13 +19,13 @@ import { useDirectSelected } from '$hooks/router/useRouteSelected';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { markAsRead } from '$utils/notifications';
-import { stopPropagation } from '$utils/keyboard';
 import { Checks, menuIcon, getPhosphorIconSize, User } from '$components/icons/phosphor';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
-import { useMobileLongPress } from '$hooks/useMobileLongPress';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -80,7 +77,7 @@ export function DirectTab() {
     return directs.filter((id) => !sidebarSet.has(id));
   }, [directs, sidebarRoomIds]);
   const directUnread = useRoomsUnread(overflowDirects, roomToUnreadAtom);
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const menu = useMenuAnchor<HTMLButtonElement>();
 
   const directSelected = useDirectSelected();
 
@@ -97,46 +94,34 @@ export function DirectTab() {
     navigate(getDirectPath());
   };
 
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-
-  const openMenuAt = (element: HTMLElement) => {
-    const cords = element.getBoundingClientRect();
-    setMenuAnchor((currentState) => (currentState ? undefined : cords));
-  };
-
-  const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    evt.preventDefault();
-    openMenuAt(evt.currentTarget);
-  };
-
-  const longPress = useMobileLongPress(() => {
-    if (buttonRef.current) openMenuAt(buttonRef.current);
-  });
-
-  const handleTouchStart = (evt: ReactTouchEvent<HTMLButtonElement>) => {
-    buttonRef.current = evt.currentTarget;
-    longPress.onTouchStart(evt);
-  };
   return (
     <SidebarItemLeft active={directSelected}>
       <SidebarItemTooltip tooltip="Direct Messages">
         {(triggerRef) => (
-          <SidebarAvatar
-            as="button"
-            ref={triggerRef}
-            outlined
-            onClick={handleDirectClick}
-            onContextMenu={handleContextMenu}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={longPress.onTouchEnd}
-            onTouchMove={longPress.onTouchMove}
-            onTouchCancel={longPress.onTouchCancel}
+          <ResponsiveMenu
+            anchor={menu.anchor}
+            requestClose={menu.close}
+            position="Right"
+            align="Start"
+            menu={<DirectMenu requestClose={menu.close} />}
           >
-            <User
-              size={getPhosphorIconSize('toolbar')}
-              weight={directSelected ? 'fill' : 'regular'}
-            />
-          </SidebarAvatar>
+            <SidebarAvatar
+              as="button"
+              ref={triggerRef}
+              outlined
+              onClick={handleDirectClick}
+              onContextMenu={menu.triggerProps.onContextMenu}
+              onTouchStart={menu.triggerProps.onTouchStart}
+              onTouchEnd={menu.triggerProps.onTouchEnd}
+              onTouchMove={menu.triggerProps.onTouchMove}
+              onTouchCancel={menu.triggerProps.onTouchCancel}
+            >
+              <User
+                size={getPhosphorIconSize('toolbar')}
+                weight={directSelected ? 'fill' : 'regular'}
+              />
+            </SidebarAvatar>
+          </ResponsiveMenu>
         )}
       </SidebarItemTooltip>
       {directUnread && (
@@ -144,28 +129,6 @@ export function DirectTab() {
           highlight={directUnread.highlight > 0}
           count={directUnread.highlight > 0 ? directUnread.highlight : directUnread.total}
           dm
-        />
-      )}
-      {menuAnchor && (
-        <PopOut
-          anchor={menuAnchor}
-          position="Right"
-          align="Start"
-          content={
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                returnFocusOnDeactivate: false,
-                onDeactivate: () => setMenuAnchor(undefined),
-                clickOutsideDeactivates: true,
-                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <DirectMenu requestClose={() => setMenuAnchor(undefined)} />
-            </FocusTrap>
-          }
         />
       )}
     </SidebarItemLeft>

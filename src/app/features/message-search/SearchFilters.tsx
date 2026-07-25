@@ -18,6 +18,8 @@ import {
   Badge,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { getRoomIconComponent } from '$components/icons/roomIcons';
 import { Check, sizedIcon, PlusCircle, SortAscending, X } from '$components/icons/phosphor';
 import { SearchOrderBy } from '$types/matrix-sdk';
@@ -36,58 +38,50 @@ type OrderButtonProps = {
   onChange: (order?: string) => void;
 };
 function OrderButton({ order, onChange }: OrderButtonProps) {
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const menuAnchor = useMenuAnchor<HTMLButtonElement>();
   const rankOrder = order === SearchOrderBy.Rank;
 
   const setOrder = (o?: string) => {
-    setMenuAnchor(undefined);
+    menuAnchor.close();
     onChange(o);
   };
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuAnchor(evt.currentTarget.getBoundingClientRect());
+    menuAnchor.openAt(evt.currentTarget);
   };
 
   return (
-    <PopOut
-      anchor={menuAnchor}
+    <ResponsiveMenu
+      anchor={menuAnchor.anchor}
+      requestClose={menuAnchor.close}
       align="End"
       position="Bottom"
-      content={
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: () => setMenuAnchor(undefined),
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
-          }}
-        >
-          <Menu variant="Surface">
-            <Header size="300" variant="Surface" style={{ padding: `0 ${config.space.S300}` }}>
-              <Text size="L400">Sort by</Text>
-            </Header>
-            <Line variant="Surface" size="300" />
-            <div style={{ padding: config.space.S100 }}>
-              <MenuItem
-                onClick={() => setOrder()}
-                variant="Surface"
-                size="300"
-                radii="300"
-                aria-pressed={!rankOrder}
-              >
-                <Text size="T300">Recent</Text>
-              </MenuItem>
-              <MenuItem
-                onClick={() => setOrder(SearchOrderBy.Rank)}
-                variant="Surface"
-                size="300"
-                radii="300"
-                aria-pressed={rankOrder}
-              >
-                <Text size="T300">Relevance</Text>
-              </MenuItem>
-            </div>
-          </Menu>
-        </FocusTrap>
+      menu={
+        <Menu variant="Surface">
+          <Header size="300" variant="Surface" style={{ padding: `0 ${config.space.S300}` }}>
+            <Text size="L400">Sort by</Text>
+          </Header>
+          <Line variant="Surface" size="300" />
+          <div style={{ padding: config.space.S100 }}>
+            <MenuItem
+              onClick={() => setOrder()}
+              variant="Surface"
+              size="300"
+              radii="300"
+              aria-pressed={!rankOrder}
+            >
+              <Text size="T300">Recent</Text>
+            </MenuItem>
+            <MenuItem
+              onClick={() => setOrder(SearchOrderBy.Rank)}
+              variant="Surface"
+              size="300"
+              radii="300"
+              aria-pressed={rankOrder}
+            >
+              <Text size="T300">Relevance</Text>
+            </MenuItem>
+          </div>
+        </Menu>
       }
     >
       <Chip
@@ -98,7 +92,7 @@ function OrderButton({ order, onChange }: OrderButtonProps) {
       >
         {rankOrder ? <Text size="T200">Relevance</Text> : <Text size="T200">Recent</Text>}
       </Chip>
-    </PopOut>
+    </ResponsiveMenu>
   );
 }
 

@@ -1,14 +1,10 @@
-import type { KeyboardEventHandler, MouseEventHandler } from 'react';
+import type { KeyboardEventHandler } from 'react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isTauri } from '@tauri-apps/api/core';
-import FocusTrap from 'focus-trap-react';
-import { isKeyHotkey } from 'is-hotkey';
 import type { Room } from '$types/matrix-sdk';
-import type { RectCords } from 'folds';
 import {
-  PopOut,
   Menu,
   MenuItem,
   config,
@@ -34,7 +30,6 @@ import {
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
-import { stopPropagation } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { shareText } from '$utils/share';
 import { getExploreServerPath } from '$pages/pathUtils';
@@ -60,6 +55,8 @@ import { SettingTile } from '$components/setting-tile';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 
 export function ServerChip({
   server,
@@ -85,128 +82,115 @@ export function ServerChip({
   const closeProfile = useCloseUserRoomProfile();
   const [copied, setCopied] = useTimeoutToggle();
 
-  const [cords, setCords] = useState<RectCords>();
-
-  const open: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const close = () => setCords(undefined);
+  const serverMenu = useMenuAnchor<HTMLButtonElement>();
 
   return (
-    <PopOut
-      anchor={cords}
+    <ResponsiveMenu
+      anchor={serverMenu.anchor}
+      requestClose={serverMenu.close}
       position="Bottom"
       align="Start"
       offset={4}
-      content={
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: close,
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
-            isKeyForward: (evt: KeyboardEvent) => isKeyHotkey('arrowdown', evt),
-            isKeyBackward: (evt: KeyboardEvent) => isKeyHotkey('arrowup', evt),
-          }}
-        >
-          <Menu>
-            <div
-              style={{
-                padding: config.space.S200,
-                maxWidth: toRem(200),
-                backgroundColor: innerColor,
-              }}
-            >
-              <Box direction="Column" gap="100">
-                <MenuItem
-                  fill="None"
-                  size="300"
-                  radii="300"
-                  onClick={() => {
-                    copyToClipboard(server);
-                    setCopied();
-                    close();
-                  }}
-                  className={css.UserHeroMenuItem}
-                  style={heroMenuItemStyle(
-                    {
-                      backgroundColor: menuItemBg,
-                      color: textColor,
-                    },
-                    chipHoverBrightness
-                  )}
-                >
-                  <Text size="B300">Copy Server</Text>
-                </MenuItem>
-                <MenuItem
-                  fill="None"
-                  size="300"
-                  radii="300"
-                  onClick={() => {
-                    navigate(getExploreServerPath(server));
-                    closeProfile();
-                  }}
-                  className={css.UserHeroMenuItem}
-                  style={heroMenuItemStyle(
-                    {
-                      backgroundColor: menuItemBg,
-                      color: textColor,
-                    },
-                    chipHoverBrightness
-                  )}
-                >
-                  <Text size="B300">Explore Community</Text>
-                </MenuItem>
-              </Box>
-            </div>
-            <Line size="300" />
-            <div
-              style={{
-                padding: config.space.S200,
-                backgroundColor: innerColor,
-                color: textColor,
-              }}
-            >
-              <Box direction="Column" gap="100">
-                <MenuItem
-                  fill="None"
-                  size="300"
-                  radii="300"
-                  onClick={() => {
-                    const url = `https://${server}`;
-                    close();
-                    if (isTauri()) {
-                      import('@tauri-apps/plugin-opener')
-                        .then(({ openUrl }) => openUrl(url))
-                        .catch(() => window.open(url, '_blank'));
-                      return;
-                    }
-                    window.open(url, '_blank');
-                  }}
-                  className={css.UserHeroMenuItem}
-                  style={heroMenuItemStyle(
-                    {
-                      backgroundColor: menuItemBg,
-                      color: textColor,
-                    },
-                    chipHoverBrightness
-                  )}
-                >
-                  <Text size="B300">Open in Browser</Text>
-                </MenuItem>
-              </Box>
-            </div>
-          </Menu>
-        </FocusTrap>
+      returnFocusOnDeactivate
+      menu={
+        <Menu>
+          <div
+            style={{
+              padding: config.space.S200,
+              maxWidth: toRem(200),
+              backgroundColor: innerColor,
+            }}
+          >
+            <Box direction="Column" gap="100">
+              <MenuItem
+                fill="None"
+                size="300"
+                radii="300"
+                onClick={() => {
+                  copyToClipboard(server);
+                  setCopied();
+                  serverMenu.close();
+                }}
+                className={css.UserHeroMenuItem}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
+              >
+                <Text size="B300">Copy Server</Text>
+              </MenuItem>
+              <MenuItem
+                fill="None"
+                size="300"
+                radii="300"
+                onClick={() => {
+                  navigate(getExploreServerPath(server));
+                  closeProfile();
+                }}
+                className={css.UserHeroMenuItem}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
+              >
+                <Text size="B300">Explore Community</Text>
+              </MenuItem>
+            </Box>
+          </div>
+          <Line size="300" />
+          <div
+            style={{
+              padding: config.space.S200,
+              backgroundColor: innerColor,
+              color: textColor,
+            }}
+          >
+            <Box direction="Column" gap="100">
+              <MenuItem
+                fill="None"
+                size="300"
+                radii="300"
+                onClick={() => {
+                  const url = `https://${server}`;
+                  serverMenu.close();
+                  if (isTauri()) {
+                    import('@tauri-apps/plugin-opener')
+                      .then(({ openUrl }) => openUrl(url))
+                      .catch(() => window.open(url, '_blank'));
+                    return;
+                  }
+                  window.open(url, '_blank');
+                }}
+                className={css.UserHeroMenuItem}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
+              >
+                <Text size="B300">Open in Browser</Text>
+              </MenuItem>
+            </Box>
+          </div>
+        </Menu>
       }
     >
       <Chip
         variant={cardColor ? undefined : myServer === server ? 'SurfaceVariant' : 'Warning'}
         radii="Pill"
-        before={cords ? profileIcon(CaretDown) : profileIcon(copied ? Check : HardDrives)}
-        onClick={open}
-        aria-pressed={!!cords}
+        before={
+          serverMenu.anchor ? profileIcon(CaretDown) : profileIcon(copied ? Check : HardDrives)
+        }
+        onClick={serverMenu.triggerProps.onClick}
+        aria-pressed={!!serverMenu.anchor}
         className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
         style={heroMenuItemStyle(
           cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
@@ -217,7 +201,7 @@ export function ServerChip({
           {server}
         </Text>
       </Chip>
-    </PopOut>
+    </ResponsiveMenu>
   );
 }
 
@@ -239,108 +223,93 @@ export function ShareChip({
   chipHoverBrightness?: number;
 }) {
   const menuItemBg = chipFillColor ?? cardColor;
-  const [cords, setCords] = useState<RectCords>();
+  const shareMenu = useMenuAnchor<HTMLButtonElement>();
 
   const [copied, setCopied] = useTimeoutToggle();
 
-  const open: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const close = () => setCords(undefined);
-
   return (
-    <PopOut
-      anchor={cords}
+    <ResponsiveMenu
+      anchor={shareMenu.anchor}
+      requestClose={shareMenu.close}
       position="Bottom"
       align="Start"
       offset={4}
-      content={
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: close,
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
-            isKeyForward: (evt: KeyboardEvent) => isKeyHotkey('arrowdown', evt),
-            isKeyBackward: (evt: KeyboardEvent) => isKeyHotkey('arrowup', evt),
-          }}
-        >
-          <Menu>
-            <div style={{ padding: config.space.S200, backgroundColor: innerColor }}>
-              <Box direction="Column" gap="100">
-                <MenuItem
-                  fill="None"
-                  size="300"
-                  radii="300"
-                  className={css.UserHeroMenuItem}
-                  style={heroMenuItemStyle(
-                    {
-                      backgroundColor: menuItemBg,
-                      color: textColor,
-                    },
-                    chipHoverBrightness
-                  )}
-                  onClick={() => {
-                    copyToClipboard(userId);
-                    setCopied();
-                    close();
-                  }}
-                >
-                  <Text size="B300">Copy User ID</Text>
-                </MenuItem>
-                <MenuItem
-                  fill="None"
-                  size="300"
-                  radii="300"
-                  className={css.UserHeroMenuItem}
-                  style={heroMenuItemStyle(
-                    {
-                      backgroundColor: menuItemBg,
-                      color: textColor,
-                    },
-                    chipHoverBrightness
-                  )}
-                  onClick={() => {
-                    copyToClipboard(getMatrixToUser(userId));
-                    setCopied();
-                    close();
-                  }}
-                >
-                  <Text size="B300">Copy User Link</Text>
-                </MenuItem>
-                <MenuItem
-                  fill="None"
-                  size="300"
-                  radii="300"
-                  className={css.UserHeroMenuItem}
-                  style={heroMenuItemStyle(
-                    {
-                      backgroundColor: menuItemBg,
-                      color: textColor,
-                    },
-                    chipHoverBrightness
-                  )}
-                  onClick={async () => {
-                    const shared = await shareText(getMatrixToUser(userId));
-                    if (shared) setCopied();
-                    close();
-                  }}
-                >
-                  <Text size="B300">Share User Link</Text>
-                </MenuItem>
-              </Box>
-            </div>
-          </Menu>
-        </FocusTrap>
+      returnFocusOnDeactivate
+      menu={
+        <Menu>
+          <div style={{ padding: config.space.S200, backgroundColor: innerColor }}>
+            <Box direction="Column" gap="100">
+              <MenuItem
+                fill="None"
+                size="300"
+                radii="300"
+                className={css.UserHeroMenuItem}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
+                onClick={() => {
+                  copyToClipboard(userId);
+                  setCopied();
+                  shareMenu.close();
+                }}
+              >
+                <Text size="B300">Copy User ID</Text>
+              </MenuItem>
+              <MenuItem
+                fill="None"
+                size="300"
+                radii="300"
+                className={css.UserHeroMenuItem}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
+                onClick={() => {
+                  copyToClipboard(getMatrixToUser(userId));
+                  setCopied();
+                  shareMenu.close();
+                }}
+              >
+                <Text size="B300">Copy User Link</Text>
+              </MenuItem>
+              <MenuItem
+                fill="None"
+                size="300"
+                radii="300"
+                className={css.UserHeroMenuItem}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
+                onClick={async () => {
+                  const shared = await shareText(getMatrixToUser(userId));
+                  if (shared) setCopied();
+                  shareMenu.close();
+                }}
+              >
+                <Text size="B300">Share User Link</Text>
+              </MenuItem>
+            </Box>
+          </div>
+        </Menu>
       }
     >
       <Chip
         variant={copied ? 'Success' : cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
-        before={cords ? profileIcon(CaretDown) : profileIcon(copied ? Check : Link)}
-        onClick={open}
-        aria-pressed={!!cords}
+        before={shareMenu.anchor ? profileIcon(CaretDown) : profileIcon(copied ? Check : Link)}
+        onClick={shareMenu.triggerProps.onClick}
+        aria-pressed={!!shareMenu.anchor}
         className={!copied && cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
         style={heroMenuItemStyle(
           cardColor && !copied && chipSurfaceStyle ? chipSurfaceStyle : {},
@@ -351,7 +320,7 @@ export function ShareChip({
           Share
         </Text>
       </Chip>
-    </PopOut>
+    </ResponsiveMenu>
   );
 }
 
@@ -391,13 +360,7 @@ export function MutualRoomsChip({
   const allJoinedRooms = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allJoinedRooms);
 
-  const [cords, setCords] = useState<RectCords>();
-
-  const open: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const close = () => setCords(undefined);
+  const mutualMenu = useMenuAnchor<HTMLButtonElement>();
 
   const mutual: MutualRoomsData = useMemo(() => {
     const data: MutualRoomsData = {
@@ -498,67 +461,58 @@ export function MutualRoomsChip({
   };
 
   return (
-    <PopOut
-      anchor={cords}
+    <ResponsiveMenu
+      anchor={mutualMenu.anchor}
+      requestClose={mutualMenu.close}
       position="Bottom"
       align="Start"
       offset={4}
-      content={
+      returnFocusOnDeactivate
+      menu={
         mutualRoomsState.status === AsyncStatus.Success ? (
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: close,
-              clickOutsideDeactivates: true,
-              escapeDeactivates: stopPropagation,
-              isKeyForward: (evt: KeyboardEvent) => isKeyHotkey('arrowdown', evt),
-              isKeyBackward: (evt: KeyboardEvent) => isKeyHotkey('arrowup', evt),
+          <Menu
+            style={{
+              display: 'flex',
+              maxWidth: toRem(200),
+              maxHeight: '80vh',
+              backgroundColor: innerColor,
             }}
           >
-            <Menu
-              style={{
-                display: 'flex',
-                maxWidth: toRem(200),
-                maxHeight: '80vh',
-                backgroundColor: innerColor,
-              }}
-            >
-              <Box grow="Yes">
-                <Scroll size="300" hideTrack>
-                  <Box
-                    direction="Column"
-                    gap="400"
-                    style={{ padding: config.space.S200, paddingRight: 0, color: textColor }}
-                  >
-                    {mutual.spaces.length > 0 && (
-                      <Box direction="Column" gap="100">
-                        <Text style={{ paddingLeft: config.space.S100 }} size="L400">
-                          Spaces
-                        </Text>
-                        {mutual.spaces.map(renderItem)}
-                      </Box>
-                    )}
-                    {mutual.rooms.length > 0 && (
-                      <Box direction="Column" gap="100">
-                        <Text style={{ paddingLeft: config.space.S100 }} size="L400">
-                          Rooms
-                        </Text>
-                        {mutual.rooms.map(renderItem)}
-                      </Box>
-                    )}
-                    {mutual.directs.length > 0 && (
-                      <Box direction="Column" gap="100">
-                        <Text style={{ paddingLeft: config.space.S100 }} size="L400">
-                          Direct Messages
-                        </Text>
-                        {mutual.directs.map(renderItem)}
-                      </Box>
-                    )}
-                  </Box>
-                </Scroll>
-              </Box>
-            </Menu>
-          </FocusTrap>
+            <Box grow="Yes">
+              <Scroll size="300" hideTrack>
+                <Box
+                  direction="Column"
+                  gap="400"
+                  style={{ padding: config.space.S200, paddingRight: 0, color: textColor }}
+                >
+                  {mutual.spaces.length > 0 && (
+                    <Box direction="Column" gap="100">
+                      <Text style={{ paddingLeft: config.space.S100 }} size="L400">
+                        Spaces
+                      </Text>
+                      {mutual.spaces.map(renderItem)}
+                    </Box>
+                  )}
+                  {mutual.rooms.length > 0 && (
+                    <Box direction="Column" gap="100">
+                      <Text style={{ paddingLeft: config.space.S100 }} size="L400">
+                        Rooms
+                      </Text>
+                      {mutual.rooms.map(renderItem)}
+                    </Box>
+                  )}
+                  {mutual.directs.length > 0 && (
+                    <Box direction="Column" gap="100">
+                      <Text style={{ paddingLeft: config.space.S100 }} size="L400">
+                        Direct Messages
+                      </Text>
+                      {mutual.directs.map(renderItem)}
+                    </Box>
+                  )}
+                </Box>
+              </Scroll>
+            </Box>
+          </Menu>
         ) : null
       }
     >
@@ -569,8 +523,8 @@ export function MutualRoomsChip({
         disabled={
           mutualRoomsState.status !== AsyncStatus.Success || mutualRoomsState.data.length === 0
         }
-        onClick={open}
-        aria-pressed={!!cords}
+        onClick={mutualMenu.triggerProps.onClick}
+        aria-pressed={!!mutualMenu.anchor}
         className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
         style={heroMenuItemStyle(
           cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
@@ -583,7 +537,7 @@ export function MutualRoomsChip({
           {mutualRoomsState.status === AsyncStatus.Loading && 'Mutual Rooms'}
         </Text>
       </Chip>
-    </PopOut>
+    </ResponsiveMenu>
   );
 }
 
@@ -623,16 +577,12 @@ export function OptionsChip({
 }) {
   const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
-  const [cords, setCords] = useState<RectCords>();
+  const optionsMenu = useMenuAnchor<HTMLButtonElement>();
   const [editingNick, setEditingNick] = useState(false);
   const nickInputRef = useRef<HTMLInputElement>(null);
 
-  const open: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setCords(evt.currentTarget.getBoundingClientRect());
-  };
-
   const close = () => {
-    setCords(undefined);
+    optionsMenu.close();
     setEditingNick(false);
   };
 
@@ -669,52 +619,65 @@ export function OptionsChip({
   };
 
   return (
-    <PopOut
-      anchor={cords}
+    <ResponsiveMenu
+      anchor={optionsMenu.anchor}
+      requestClose={close}
       position="Bottom"
       align="Start"
       offset={4}
-      content={
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: close,
-            clickOutsideDeactivates: true,
-            escapeDeactivates: stopPropagation,
-            isKeyForward: (evt: KeyboardEvent) => isKeyHotkey('arrowdown', evt),
-            isKeyBackward: (evt: KeyboardEvent) => isKeyHotkey('arrowup', evt),
-          }}
-        >
-          <Menu>
-            <div style={{ padding: config.space.S200, backgroundColor: innerColor }}>
-              <Box direction="Column" gap="100">
-                {editingNick ? (
-                  <Box direction="Column" gap="100" style={{ color: textColor }}>
-                    <Text size="L400">Nickname</Text>
-                    <input
-                      ref={nickInputRef}
-                      defaultValue={currentNick ?? ''}
-                      placeholder="Enter a nickname…"
-                      onKeyDown={handleNickKeyDown}
-                      style={{
-                        background: 'var(--mx-c-surface)',
-                        color: 'var(--mx-c-on-surface)',
-                        border: '1px solid var(--mx-c-outline)',
-                        borderRadius: '6px',
-                        padding: '4px 8px',
-                        fontSize: '14px',
-                        width: '100%',
-                        outline: 'none',
-                      }}
-                    />
-                    <Box gap="200">
+      returnFocusOnDeactivate
+      menu={
+        <Menu>
+          <div style={{ padding: config.space.S200, backgroundColor: innerColor }}>
+            <Box direction="Column" gap="100">
+              {editingNick ? (
+                <Box direction="Column" gap="100" style={{ color: textColor }}>
+                  <Text size="L400">Nickname</Text>
+                  <input
+                    ref={nickInputRef}
+                    defaultValue={currentNick ?? ''}
+                    placeholder="Enter a nickname…"
+                    onKeyDown={handleNickKeyDown}
+                    style={{
+                      background: 'var(--mx-c-surface)',
+                      color: 'var(--mx-c-on-surface)',
+                      border: '1px solid var(--mx-c-outline)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontSize: '14px',
+                      width: '100%',
+                      outline: 'none',
+                    }}
+                  />
+                  <Box gap="200">
+                    <MenuItem
+                      size="300"
+                      radii="300"
+                      variant="Success"
+                      fill="None"
+                      onClick={handleSaveNick}
+                      className={css.UserHeroMenuItem}
+                      style={heroMenuItemStyle(
+                        {
+                          backgroundColor: menuItemBg,
+                          color: textColor,
+                        },
+                        chipHoverBrightness
+                      )}
+                    >
+                      <Text size="B300">Save</Text>
+                    </MenuItem>
+                    {currentNick && (
                       <MenuItem
                         size="300"
                         radii="300"
-                        variant="Success"
+                        variant="Critical"
                         fill="None"
-                        onClick={handleSaveNick}
                         className={css.UserHeroMenuItem}
+                        onClick={() => {
+                          setNickname(userId, undefined);
+                          close();
+                        }}
                         style={heroMenuItemStyle(
                           {
                             backgroundColor: menuItemBg,
@@ -723,83 +686,59 @@ export function OptionsChip({
                           chipHoverBrightness
                         )}
                       >
-                        <Text size="B300">Save</Text>
+                        <Text size="B300">Clear</Text>
                       </MenuItem>
-                      {currentNick && (
-                        <MenuItem
-                          size="300"
-                          radii="300"
-                          variant="Critical"
-                          fill="None"
-                          className={css.UserHeroMenuItem}
-                          onClick={() => {
-                            setNickname(userId, undefined);
-                            close();
-                          }}
-                          style={heroMenuItemStyle(
-                            {
-                              backgroundColor: menuItemBg,
-                              color: textColor,
-                            },
-                            chipHoverBrightness
-                          )}
-                        >
-                          <Text size="B300">Clear</Text>
-                        </MenuItem>
-                      )}
-                    </Box>
-                  </Box>
-                ) : (
-                  <MenuItem
-                    variant="Surface"
-                    fill="None"
-                    size="300"
-                    radii="300"
-                    before={profileIcon(PencilSimple)}
-                    onClick={() => setEditingNick(true)}
-                    className={css.UserHeroMenuItem}
-                    style={heroMenuItemStyle(
-                      {
-                        backgroundColor: menuItemBg,
-                        color: textColor,
-                      },
-                      chipHoverBrightness
                     )}
-                  >
-                    <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
-                  </MenuItem>
-                )}
+                  </Box>
+                </Box>
+              ) : (
                 <MenuItem
-                  variant="Critical"
+                  variant="Surface"
                   fill="None"
                   size="300"
                   radii="300"
-                  onClick={() => {
-                    toggleIgnore();
-                    close();
-                  }}
+                  before={profileIcon(PencilSimple)}
+                  onClick={() => setEditingNick(true)}
                   className={css.UserHeroMenuItem}
-                  style={heroMenuItemStyle({ backgroundColor: menuItemBg }, chipHoverBrightness)}
-                  before={
-                    ignoring ? <Spinner variant="Critical" size="50" /> : profileIcon(Prohibit)
-                  }
-                  disabled={ignoring}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
                 >
-                  <Text size="B300" style={{ color: textColor }}>
-                    {ignored ? 'Unblock User' : 'Block User'}
-                  </Text>
+                  <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
                 </MenuItem>
-              </Box>
-            </div>
-          </Menu>
-        </FocusTrap>
+              )}
+              <MenuItem
+                variant="Critical"
+                fill="None"
+                size="300"
+                radii="300"
+                onClick={() => {
+                  toggleIgnore();
+                  close();
+                }}
+                className={css.UserHeroMenuItem}
+                style={heroMenuItemStyle({ backgroundColor: menuItemBg }, chipHoverBrightness)}
+                before={ignoring ? <Spinner variant="Critical" size="50" /> : profileIcon(Prohibit)}
+                disabled={ignoring}
+              >
+                <Text size="B300" style={{ color: textColor }}>
+                  {ignored ? 'Unblock User' : 'Block User'}
+                </Text>
+              </MenuItem>
+            </Box>
+          </div>
+        </Menu>
       }
     >
       <Chip
         variant={cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
-        onClick={open}
-        aria-pressed={!!cords}
+        onClick={optionsMenu.triggerProps.onClick}
+        aria-pressed={!!optionsMenu.anchor}
         className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
         style={heroMenuItemStyle(
           cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
@@ -808,6 +747,6 @@ export function OptionsChip({
       >
         {ignoring ? <Spinner variant="Secondary" size="50" /> : profileIcon(DotsThree)}
       </Chip>
-    </PopOut>
+    </ResponsiveMenu>
   );
 }

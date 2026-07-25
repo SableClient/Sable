@@ -1,7 +1,6 @@
-import type { MouseEventHandler, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
@@ -11,7 +10,6 @@ import {
   Menu,
   MenuItem,
   Modal,
-  PopOut,
   Spinner,
   Text,
   color,
@@ -20,7 +18,6 @@ import {
 } from 'folds';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import FocusTrap from 'focus-trap-react';
 import type { MatrixClient, Room, RoomJoinRulesEventContent } from '$types/matrix-sdk';
 import { JoinRule, EventType, KnownMembership } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -73,7 +70,6 @@ import { shareText } from '$utils/share';
 import { useClosedNavCategoriesAtom } from '$state/hooks/closedNavCategories';
 import { useStateEvent } from '$hooks/useStateEvent';
 
-import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
 import { useSetting } from '$state/hooks/settings';
@@ -108,6 +104,8 @@ import { UserQuickTools } from '../sidebar/UserQuickTools';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 
 const debugLog = createDebugLogger('Space');
 
@@ -271,7 +269,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
 function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient }) {
   const space = useSpace();
   const spaceName = useRoomName(space);
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const menu = useMenuAnchor();
   const useAuthentication = useMediaAuthentication();
 
   const joinRules = useStateEvent(
@@ -279,13 +277,6 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
     EventType.RoomJoinRules
   )?.getContent<RoomJoinRulesEventContent>();
 
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    const cords = evt.currentTarget.getBoundingClientRect();
-    setMenuAnchor((currentState) => {
-      if (currentState) return undefined;
-      return cords;
-    });
-  };
   const [showBanners] = useSetting(settingsAtom, 'showRoomBanners');
   const [roomBannerHeight, setRoomBannerHeight] = useSetting(settingsAtom, 'roomBannerHeight');
   const [curHeight, setCurHeight] = useState(roomBannerHeight);
@@ -315,7 +306,11 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
           <PageNavHeader outlined={!hasBanner} size="600">
             {hideText ? (
               <Box alignItems="Center" grow="Yes" justifyContent="Center">
-                <Avatar size={hideText ? undefined : '200'} radii="400" onClick={handleOpenMenu}>
+                <Avatar
+                  size={hideText ? undefined : '200'}
+                  radii="400"
+                  onClick={menu.triggerProps.onClick}
+                >
                   <RoomAvatar
                     roomId={space.roomId}
                     src={getRoomAvatarUrl(mx, space, 96, useAuthentication)}
@@ -344,42 +339,27 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                 </Box>
                 <Box shrink="No">
                   <IconButton
-                    aria-pressed={!!menuAnchor}
+                    aria-pressed={!!menu.anchor}
                     variant="Background"
                     style={hasBanner ? { backgroundColor: 'transparent', color: '#fff' } : {}}
-                    onClick={handleOpenMenu}
+                    onClick={menu.triggerProps.onClick}
                   >
                     {composerIcon(DotsThreeOutlineVerticalIcon, {
-                      weight: menuAnchor ? 'fill' : 'regular',
+                      weight: menu.anchor ? 'fill' : 'regular',
                     })}
                   </IconButton>
                 </Box>
               </Box>
             )}
           </PageNavHeader>
-          {menuAnchor && (
-            <PopOut
-              anchor={menuAnchor}
-              position="Bottom"
-              align="End"
-              offset={6}
-              content={
-                <FocusTrap
-                  focusTrapOptions={{
-                    initialFocus: false,
-                    returnFocusOnDeactivate: false,
-                    onDeactivate: () => setMenuAnchor(undefined),
-                    clickOutsideDeactivates: true,
-                    isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                    isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                    escapeDeactivates: stopPropagation,
-                  }}
-                >
-                  <SpaceMenu room={space} requestClose={() => setMenuAnchor(undefined)} />
-                </FocusTrap>
-              }
-            />
-          )}
+          <ResponsiveMenu
+            anchor={menu.anchor}
+            requestClose={menu.close}
+            position="Bottom"
+            align="End"
+            offset={6}
+            menu={<SpaceMenu room={space} requestClose={menu.close} />}
+          />
         </div>
       </div>
       {hasBanner && (

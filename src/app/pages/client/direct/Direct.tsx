@@ -1,19 +1,6 @@
-import type { MouseEventHandler } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import type { RectCords } from 'folds';
-import {
-  Avatar,
-  Box,
-  Button,
-  IconButton,
-  Menu,
-  MenuItem,
-  PopOut,
-  Text,
-  config,
-  toRem,
-} from 'folds';
+import { Avatar, Box, Button, IconButton, Menu, MenuItem, Text, config, toRem } from 'folds';
 import {
   At,
   Checks,
@@ -26,7 +13,6 @@ import {
   User,
 } from '$components/icons/phosphor';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -53,7 +39,6 @@ import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { useClosedNavCategoriesAtom } from '$state/hooks/closedNavCategories';
 import { useRoomsUnread } from '$state/hooks/unread';
 import { markAsRead } from '$utils/notifications';
-import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import {
@@ -66,6 +51,8 @@ import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 import { isResizingSidebarAtom } from '$state/isResizingSidebar';
 import { UserQuickTools } from '../sidebar/UserQuickTools';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -102,22 +89,19 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }
 });
 
 function DirectHeader({ hideText }: { hideText?: boolean }) {
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const menu = useMenuAnchor<HTMLButtonElement>();
 
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    const cords = evt.currentTarget.getBoundingClientRect();
-    setMenuAnchor((currentState) => {
-      if (currentState) return undefined;
-      return cords;
-    });
-  };
   return (
     <>
       <PageNavHeader size="600">
         {hideText ? (
           <Box alignItems="Center" grow="Yes" justifyContent="Center">
-            <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <User size={getPhosphorSize().toolbar} weight={menuAnchor ? 'fill' : 'regular'} />
+            <IconButton
+              aria-pressed={!!menu.anchor}
+              variant="Background"
+              onClick={menu.triggerProps.onClick}
+            >
+              <User size={getPhosphorSize().toolbar} weight={menu.anchor ? 'fill' : 'regular'} />
             </IconButton>
           </Box>
         ) : (
@@ -128,35 +112,26 @@ function DirectHeader({ hideText }: { hideText?: boolean }) {
               </Text>
             </Box>
             <Box shrink="No">
-              <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
+              <IconButton
+                aria-pressed={!!menu.anchor}
+                variant="Background"
+                onClick={menu.triggerProps.onClick}
+              >
                 {composerIcon(DotsThreeOutlineVerticalIcon, {
-                  weight: menuAnchor ? 'fill' : 'regular',
+                  weight: menu.anchor ? 'fill' : 'regular',
                 })}
               </IconButton>
             </Box>
           </Box>
         )}
       </PageNavHeader>
-      <PopOut
-        anchor={menuAnchor}
+      <ResponsiveMenu
+        anchor={menu.anchor}
+        requestClose={menu.close}
         position="Bottom"
         align="End"
         offset={6}
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              returnFocusOnDeactivate: false,
-              onDeactivate: () => setMenuAnchor(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-              isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <DirectMenu requestClose={() => setMenuAnchor(undefined)} />
-          </FocusTrap>
-        }
+        menu={<DirectMenu requestClose={menu.close} />}
       />
     </>
   );

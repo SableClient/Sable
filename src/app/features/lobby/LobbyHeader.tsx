@@ -1,6 +1,4 @@
-import type { MouseEventHandler } from 'react';
 import { forwardRef, useState } from 'react';
-import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
@@ -8,14 +6,14 @@ import {
   Line,
   Menu,
   MenuItem,
-  PopOut,
   Text,
   Tooltip,
   TooltipProvider,
   config,
   toRem,
 } from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { PageHeader } from '$components/page';
 import { useSetSetting, useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -37,7 +35,6 @@ import { nameInitials } from '$utils/common';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { LeaveSpacePrompt } from '$components/leave-space-prompt';
-import { stopPropagation } from '$utils/keyboard';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { mxcUrlToHttp } from '$utils/matrix';
@@ -149,7 +146,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
   const space = useSpace();
   const setPeopleDrawer = useSetSetting(settingsAtom, 'isPeopleDrawer');
   const [peopleDrawer] = useSetting(settingsAtom, 'isPeopleDrawer');
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const menu = useMenuAnchor<HTMLButtonElement>();
   const screenSize = useScreenSizeContext();
 
   const name = useRoomName(space);
@@ -157,10 +154,6 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
   const avatarUrl = avatarMxc
     ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
-
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuAnchor(evt.currentTarget.getBoundingClientRect());
-  };
 
   return (
     <PageHeader className={showProfile ? undefined : css.Header} balance>
@@ -233,52 +226,37 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
               )}
             </TooltipProvider>
           )}
-          <TooltipProvider
+          <ResponsiveMenu
+            anchor={menu.anchor}
+            requestClose={menu.close}
             position="Bottom"
             align="End"
-            offset={4}
-            tooltip={
-              <Tooltip>
-                <Text>More Options</Text>
-              </Tooltip>
-            }
+            menu={<LobbyMenu powerLevels={powerLevels} requestClose={menu.close} />}
           >
-            {(triggerRef) => (
-              <IconButton
-                fill="None"
-                onClick={handleOpenMenu}
-                ref={triggerRef}
-                aria-pressed={!!menuAnchor}
-              >
-                {composerIcon(DotsThreeOutlineVerticalIcon, {
-                  weight: menuAnchor ? 'fill' : 'regular',
-                })}
-              </IconButton>
-            )}
-          </TooltipProvider>
-          <PopOut
-            anchor={menuAnchor}
-            position="Bottom"
-            align="End"
-            content={
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  returnFocusOnDeactivate: false,
-                  onDeactivate: () => setMenuAnchor(undefined),
-                  clickOutsideDeactivates: true,
-                  isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                  isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                  escapeDeactivates: stopPropagation,
-                }}
-              >
-                <LobbyMenu
-                  powerLevels={powerLevels}
-                  requestClose={() => setMenuAnchor(undefined)}
-                />
-              </FocusTrap>
-            }
-          />
+            <TooltipProvider
+              position="Bottom"
+              align="End"
+              offset={4}
+              tooltip={
+                <Tooltip>
+                  <Text>More Options</Text>
+                </Tooltip>
+              }
+            >
+              {(triggerRef) => (
+                <IconButton
+                  fill="None"
+                  onClick={menu.triggerProps.onClick}
+                  ref={triggerRef}
+                  aria-pressed={!!menu.anchor}
+                >
+                  {composerIcon(DotsThreeOutlineVerticalIcon, {
+                    weight: menu.anchor ? 'fill' : 'regular',
+                  })}
+                </IconButton>
+              )}
+            </TooltipProvider>
+          </ResponsiveMenu>
         </Box>
       </Box>
     </PageHeader>

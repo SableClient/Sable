@@ -1,8 +1,6 @@
-import type { MouseEventHandler } from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
-import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
-import type { RectCords } from 'folds';
 import {
   Box,
   Avatar,
@@ -15,7 +13,6 @@ import {
   toRem,
   config,
   Line,
-  PopOut,
   Badge,
   Spinner,
 } from 'folds';
@@ -76,8 +73,8 @@ import { copyToClipboard } from '$utils/dom';
 import { LeaveRoomPrompt } from '$components/leave-room-prompt';
 import { useRoomAvatar, useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
-import { stopPropagation } from '$utils/keyboard';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { type DragOptsProps } from '$components/message/modals/Options';
 import * as messageCss from '$features/room/message/styles.css';
 import { getMatrixToRoom } from '$plugins/matrix-to';
@@ -372,8 +369,8 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const screenSize = useScreenSizeContext();
   const room = useRoom();
   const space = useSpaceOptionally();
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-  const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();
+  const optionsMenu = useMenuAnchor<HTMLButtonElement>();
+  const pinMenu = useMenuAnchor<HTMLButtonElement>();
   const direct = useIsDirectRoom();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
   const { microphone, video, sound } = useCallPreferences();
@@ -382,8 +379,6 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const [threadBrowserOpen, setThreadBrowserOpen] = useAtom(
     roomIdToThreadBrowserAtomFamily(room.roomId)
   );
-  const isMobile = screenSize === ScreenSize.Mobile;
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openThreadId, setOpenThread] = useAtom(roomIdToOpenThreadAtomFamily(room.roomId));
 
   const callStartCapabilities = useCallStartCapabilities(room);
@@ -581,16 +576,8 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     navigate(withSearchParam(path, searchParams));
   };
 
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    if (isMobile) {
-      setIsMobileMenuOpen(true);
-    } else {
-      setMenuAnchor(evt.currentTarget.getBoundingClientRect());
-    }
-  };
-
   const handleOpenPinMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setPinMenuAnchor(evt.currentTarget.getBoundingClientRect());
+    pinMenu.openAt(evt.currentTarget);
 
     const updateMarker = async () => {
       if (pinnedIds.length === 0) return;
@@ -618,6 +605,17 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     }
     setPeopleDrawer(!peopleDrawer);
   };
+
+  const renderOptionsMenu = (
+    dragHandle: ReactNode,
+    dragHandlers: Required<Omit<DragOptsProps, 'dragHandle'>> | undefined
+  ) => (
+    <RoomMenu
+      room={room}
+      requestClose={optionsMenu.close}
+      dragOpts={dragHandlers ? { dragHandle, ...dragHandlers } : undefined}
+    />
+  );
 
   return (
     <PageHeader
@@ -707,44 +705,54 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                   )}
                 </TooltipProvider>
               )}
-              <TooltipProvider
+              <ResponsiveMenu
+                anchor={pinMenu.anchor}
+                requestClose={pinMenu.close}
                 position="Bottom"
-                offset={4}
-                tooltip={
-                  <Tooltip>
-                    <Text>Pinned Messages</Text>
-                  </Tooltip>
+                align="Center"
+                menu={
+                  <RoomPinMenu room={room} requestClose={pinMenu.close} currentHash={currentHash} />
                 }
               >
-                {(triggerRef) => (
-                  <IconButton
-                    fill="None"
-                    style={{ position: 'relative' }}
-                    onClick={handleOpenPinMenu}
-                    ref={triggerRef}
-                    aria-pressed={!!pinMenuAnchor}
-                  >
-                    {unreadPinsCount > 0 && (
-                      <Badge
-                        style={{
-                          position: 'absolute',
-                          left: toRem(3),
-                          top: toRem(3),
-                        }}
-                        variant="Secondary"
-                        size="400"
-                        fill="Solid"
-                        radii="Pill"
-                      >
-                        <Text as="span" size="L400">
-                          {unreadPinsCount}
-                        </Text>
-                      </Badge>
-                    )}
-                    {composerIcon(PushPin, { weight: pinMenuAnchor ? 'fill' : 'regular' })}
-                  </IconButton>
-                )}
-              </TooltipProvider>
+                <TooltipProvider
+                  position="Bottom"
+                  offset={4}
+                  tooltip={
+                    <Tooltip>
+                      <Text>Pinned Messages</Text>
+                    </Tooltip>
+                  }
+                >
+                  {(triggerRef) => (
+                    <IconButton
+                      fill="None"
+                      style={{ position: 'relative' }}
+                      onClick={handleOpenPinMenu}
+                      ref={triggerRef}
+                      aria-pressed={!!pinMenu.anchor}
+                    >
+                      {unreadPinsCount > 0 && (
+                        <Badge
+                          style={{
+                            position: 'absolute',
+                            left: toRem(3),
+                            top: toRem(3),
+                          }}
+                          variant="Secondary"
+                          size="400"
+                          fill="Solid"
+                          radii="Pill"
+                        >
+                          <Text as="span" size="L400">
+                            {unreadPinsCount}
+                          </Text>
+                        </Badge>
+                      )}
+                      {composerIcon(PushPin, { weight: pinMenu.anchor ? 'fill' : 'regular' })}
+                    </IconButton>
+                  )}
+                </TooltipProvider>
+              </ResponsiveMenu>
               {!room.isCallRoom() &&
                 callStartCapabilities.canRenderCallButton &&
                 shouldShowCallButton && (
@@ -764,29 +772,6 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                     />
                   </>
                 )}
-              <PopOut
-                anchor={pinMenuAnchor}
-                position="Bottom"
-                content={
-                  <FocusTrap
-                    focusTrapOptions={{
-                      initialFocus: false,
-                      returnFocusOnDeactivate: false,
-                      onDeactivate: () => setPinMenuAnchor(undefined),
-                      clickOutsideDeactivates: true,
-                      isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                      isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                      escapeDeactivates: stopPropagation,
-                    }}
-                  >
-                    <RoomPinMenu
-                      room={room}
-                      requestClose={() => setPinMenuAnchor(undefined)}
-                      currentHash={currentHash}
-                    />
-                  </FocusTrap>
-                }
-              />
               <TooltipProvider
                 position="Bottom"
                 offset={4}
@@ -922,63 +907,37 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
             </TooltipProvider>
           )}
 
-          <TooltipProvider
+          <ResponsiveMenu
+            anchor={optionsMenu.anchor}
+            requestClose={optionsMenu.close}
             position="Bottom"
             align="End"
-            offset={4}
-            tooltip={
-              <Tooltip>
-                <Text>More Options</Text>
-              </Tooltip>
-            }
+            menu={renderOptionsMenu}
           >
-            {(triggerRef) => (
-              <IconButton
-                fill="None"
-                onClick={handleOpenMenu}
-                ref={triggerRef}
-                aria-pressed={!!menuAnchor}
-              >
-                {composerIcon(DotsThreeOutlineVerticalIcon, {
-                  weight: menuAnchor ? 'fill' : 'regular',
-                })}
-              </IconButton>
-            )}
-          </TooltipProvider>
-          {isMobileMenuOpen && (
-            <MobileSwipeDownModal requestClose={() => setIsMobileMenuOpen(false)}>
-              {(dragHandleJSX, dragHandlers) => (
-                <RoomMenu
-                  room={room}
-                  requestClose={() => setIsMobileMenuOpen(false)}
-                  dragOpts={{
-                    dragHandle: dragHandleJSX,
-                    ...dragHandlers,
-                  }}
-                />
+            <TooltipProvider
+              position="Bottom"
+              align="End"
+              offset={4}
+              tooltip={
+                <Tooltip>
+                  <Text>More Options</Text>
+                </Tooltip>
+              }
+            >
+              {(triggerRef) => (
+                <IconButton
+                  fill="None"
+                  onClick={optionsMenu.triggerProps.onClick}
+                  ref={triggerRef}
+                  aria-pressed={!!optionsMenu.anchor}
+                >
+                  {composerIcon(DotsThreeOutlineVerticalIcon, {
+                    weight: optionsMenu.anchor ? 'fill' : 'regular',
+                  })}
+                </IconButton>
               )}
-            </MobileSwipeDownModal>
-          )}
-          <PopOut
-            anchor={menuAnchor}
-            position="Bottom"
-            align="End"
-            content={
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  returnFocusOnDeactivate: false,
-                  onDeactivate: () => setMenuAnchor(undefined),
-                  clickOutsideDeactivates: true,
-                  isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                  isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                  escapeDeactivates: stopPropagation,
-                }}
-              >
-                <RoomMenu room={room} requestClose={() => setMenuAnchor(undefined)} />
-              </FocusTrap>
-            }
-          />
+            </TooltipProvider>
+          </ResponsiveMenu>
         </Box>
       </Box>
     </PageHeader>

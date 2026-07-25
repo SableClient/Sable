@@ -1,6 +1,6 @@
-import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import { Box, Button, config, Menu, MenuItem, PopOut, Scroll, Spinner, Text, toRem } from 'folds';
+import type { PopOut } from 'folds';
+import { Box, Button, config, Menu, MenuItem, Scroll, Spinner, Text, toRem } from 'folds';
 import { CaretDown, sizedIcon } from '$components/icons/phosphor';
 import {
   type ComponentPropsWithoutRef,
@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 
-import { stopPropagation } from '$utils/keyboard';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
 
 export type SettingMenuOption<T extends string | number> = {
   value: T;
@@ -172,35 +172,22 @@ export function SettingMenuSelector<T extends string | number>({
   return (
     <>
       {trigger}
-      <PopOut
+      <ResponsiveMenu
         anchor={menuCords}
+        requestClose={handleCloseMenu}
         offset={offset}
         position={position}
         align={align}
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              fallbackFocus: () => document.body,
-              onDeactivate: handleCloseMenu,
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
+        returnFocusOnDeactivate
+        arrowNavigation="both"
+        menu={
+          <Menu
+            style={
+              scrollable ? { maxHeight: '75vh', maxWidth: toRem(300), display: 'flex' } : undefined
+            }
           >
-            <Menu
-              style={
-                scrollable
-                  ? { maxHeight: '75vh', maxWidth: toRem(300), display: 'flex' }
-                  : undefined
-              }
-            >
-              {optionsContent}
-            </Menu>
-          </FocusTrap>
+            {optionsContent}
+          </Menu>
         }
       />
     </>

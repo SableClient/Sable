@@ -37,6 +37,7 @@ vi.mock('file-saver', () => ({
 vi.mock('$hooks/useScreenSize', () => ({
   ScreenSize: { Desktop: 'Desktop', Tablet: 'Tablet', Mobile: 'Mobile' },
   useScreenSizeContext: () => 'Desktop',
+  useScreenSizeOptionally: () => 'Desktop',
 }));
 
 describe('ImageViewer', () => {

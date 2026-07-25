@@ -1,4 +1,4 @@
-import type { MouseEventHandler, ReactNode } from 'react';
+import type { MouseEventHandler } from 'react';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import classNames from 'classnames';
@@ -77,8 +77,6 @@ import { useRoomAvatar, useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
-import { type DragOptsProps } from '$components/message/modals/Options';
-import * as messageCss from '$features/room/message/styles.css';
 import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
 import { BackRouteHandler } from '$components/BackRouteHandler';
@@ -136,235 +134,224 @@ export interface PinReadMarker {
 type RoomMenuProps = {
   room: Room;
   requestClose: () => void;
-  dragOpts?: DragOptsProps;
 };
 
-const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(
-  ({ room, requestClose, dragOpts }, ref) => {
-    const mx = useMatrixClient();
-    const [hideReads] = useSetting(settingsAtom, 'hideReads');
-    const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
-    const powerLevels = usePowerLevelsContext();
-    const creators = useRoomCreators(room);
+const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose }, ref) => {
+  const mx = useMatrixClient();
+  const [hideReads] = useSetting(settingsAtom, 'hideReads');
+  const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
+  const powerLevels = usePowerLevelsContext();
+  const creators = useRoomCreators(room);
 
-    const permissions = useRoomPermissions(creators, powerLevels);
-    const canInvite = permissions.action('invite', mx.getSafeUserId());
-    const mDirects = useAtomValue(mDirectAtom);
-    const isDirectConversation = mDirects.has(room.roomId);
-    const notificationPreferences = useRoomsNotificationPreferencesContext();
-    const notificationMode = getRoomNotificationMode(notificationPreferences, room.roomId);
-    const { navigateRoom } = useRoomNavigate();
+  const permissions = useRoomPermissions(creators, powerLevels);
+  const canInvite = permissions.action('invite', mx.getSafeUserId());
+  const mDirects = useAtomValue(mDirectAtom);
+  const isDirectConversation = mDirects.has(room.roomId);
+  const notificationPreferences = useRoomsNotificationPreferencesContext();
+  const notificationMode = getRoomNotificationMode(notificationPreferences, room.roomId);
+  const { navigateRoom } = useRoomNavigate();
 
-    const [invitePrompt, setInvitePrompt] = useState(false);
-    const [directInvitePrompt, setDirectInvitePrompt] = useState(false);
+  const [invitePrompt, setInvitePrompt] = useState(false);
+  const [directInvitePrompt, setDirectInvitePrompt] = useState(false);
 
-    const handleMarkAsRead = () => {
-      markAsRead(mx, room.roomId, hideReads);
-      requestClose();
-    };
+  const handleMarkAsRead = () => {
+    markAsRead(mx, room.roomId, hideReads);
+    requestClose();
+  };
 
-    const handleInvite = () => {
-      if (isDirectConversation) {
-        setDirectInvitePrompt(true);
-        return;
-      }
-      setInvitePrompt(true);
-    };
+  const handleInvite = () => {
+    if (isDirectConversation) {
+      setDirectInvitePrompt(true);
+      return;
+    }
+    setInvitePrompt(true);
+  };
 
-    const handleInviteDirect = () => {
+  const handleInviteDirect = () => {
+    setDirectInvitePrompt(false);
+    setInvitePrompt(true);
+  };
+
+  const [convertState, convertToRoom] = useAsyncCallback<void, Error, []>(
+    useCallback(async () => {
+      await removeRoomIdFromMDirect(mx, room.roomId);
+    }, [mx, room.roomId])
+  );
+
+  const handleConvertAndInvite = () => {
+    if (convertState.status === AsyncStatus.Loading) return;
+    convertToRoom().catch(() => {});
+  };
+
+  useEffect(() => {
+    if (convertState.status === AsyncStatus.Success) {
       setDirectInvitePrompt(false);
       setInvitePrompt(true);
-    };
+    }
+  }, [convertState.status]);
 
-    const [convertState, convertToRoom] = useAsyncCallback<void, Error, []>(
-      useCallback(async () => {
-        await removeRoomIdFromMDirect(mx, room.roomId);
-      }, [mx, room.roomId])
-    );
+  const handleCopyLink = () => {
+    const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
+    const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
+    copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
+    requestClose();
+  };
 
-    const handleConvertAndInvite = () => {
-      if (convertState.status === AsyncStatus.Loading) return;
-      convertToRoom().catch(() => {});
-    };
+  const openSettings = useOpenRoomSettings();
+  const parentSpace = useSpaceOptionally();
+  const handleOpenSettings = () => {
+    openSettings(room.roomId, parentSpace?.roomId);
+    requestClose();
+  };
 
-    useEffect(() => {
-      if (convertState.status === AsyncStatus.Success) {
-        setDirectInvitePrompt(false);
-        setInvitePrompt(true);
+  const handleLeaveRoom = async () => {
+    const ok = await confirm({
+      title: 'Leave Room',
+      description: 'Are you sure you want to leave this room?',
+      action: 'Leave',
+      variant: 'Critical',
+    });
+    if (ok) {
+      try {
+        await mx.leave(room.roomId);
+        requestClose();
+      } catch (e) {
+        showToast(`Failed to leave room: ${e instanceof Error ? e.message : 'unknown error'}`);
       }
-    }, [convertState.status]);
+    }
+  };
 
-    const handleCopyLink = () => {
-      const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
-      const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
-      copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
-      requestClose();
-    };
-
-    const openSettings = useOpenRoomSettings();
-    const parentSpace = useSpaceOptionally();
-    const handleOpenSettings = () => {
-      openSettings(room.roomId, parentSpace?.roomId);
-      requestClose();
-    };
-
-    const handleLeaveRoom = async () => {
-      const ok = await confirm({
-        title: 'Leave Room',
-        description: 'Are you sure you want to leave this room?',
-        action: 'Leave',
-        variant: 'Critical',
-      });
-      if (ok) {
-        try {
-          await mx.leave(room.roomId);
-          requestClose();
-        } catch (e) {
-          showToast(`Failed to leave room: ${e instanceof Error ? e.message : 'unknown error'}`);
-        }
-      }
-    };
-
-    return (
-      <Menu
-        ref={ref}
-        className={dragOpts ? messageCss.MessageOptionsMenu : undefined}
-        style={dragOpts ? undefined : { maxWidth: toRem(200) }}
-        onTouchStart={dragOpts?.onTouchStart}
-        onTouchMove={dragOpts?.onTouchMove}
-        onTouchEnd={dragOpts?.onTouchEnd}
-      >
-        {dragOpts?.dragHandle}
-        {invitePrompt && (
-          <InviteUserPrompt
-            room={room}
-            requestClose={() => {
-              setInvitePrompt(false);
-              requestClose();
-            }}
-          />
-        )}
-        {directInvitePrompt && (
-          <DirectInvitePrompt
-            onCancel={() => {
-              setDirectInvitePrompt(false);
-              requestClose();
-            }}
-            onInviteDirect={handleInviteDirect}
-            onConvertAndInvite={handleConvertAndInvite}
-            converting={convertState.status === AsyncStatus.Loading}
-            convertError={
-              convertState.status === AsyncStatus.Error ? convertState.error.message : undefined
-            }
-          />
-        )}
-        <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-          <MenuItem
-            onClick={handleMarkAsRead}
-            size="300"
-            after={menuIcon(Checks)}
-            radii="300"
-            disabled={!unread}
-          >
-            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-              Mark as Read
-            </Text>
-          </MenuItem>
-          <RoomNotificationModeSwitcher roomId={room.roomId} value={notificationMode}>
-            {(handleOpen, opened, changing) => (
+  return (
+    <Menu ref={ref} style={{ maxWidth: toRem(200) }}>
+      {invitePrompt && (
+        <InviteUserPrompt
+          room={room}
+          requestClose={() => {
+            setInvitePrompt(false);
+            requestClose();
+          }}
+        />
+      )}
+      {directInvitePrompt && (
+        <DirectInvitePrompt
+          onCancel={() => {
+            setDirectInvitePrompt(false);
+            requestClose();
+          }}
+          onInviteDirect={handleInviteDirect}
+          onConvertAndInvite={handleConvertAndInvite}
+          converting={convertState.status === AsyncStatus.Loading}
+          convertError={
+            convertState.status === AsyncStatus.Error ? convertState.error.message : undefined
+          }
+        />
+      )}
+      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+        <MenuItem
+          onClick={handleMarkAsRead}
+          size="300"
+          after={menuIcon(Checks)}
+          radii="300"
+          disabled={!unread}
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Mark as Read
+          </Text>
+        </MenuItem>
+        <RoomNotificationModeSwitcher roomId={room.roomId} value={notificationMode}>
+          {(handleOpen, opened, changing) => (
+            <MenuItem
+              size="300"
+              after={
+                changing ? (
+                  <Spinner size="100" variant="Secondary" />
+                ) : (
+                  roomNotificationModeIcon(notificationMode)
+                )
+              }
+              radii="300"
+              aria-pressed={opened}
+              onClick={handleOpen}
+            >
+              <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                Notifications
+              </Text>
+            </MenuItem>
+          )}
+        </RoomNotificationModeSwitcher>
+      </Box>
+      <Line variant="Surface" size="300" />
+      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+        <MenuItem
+          onClick={handleInvite}
+          variant="Primary"
+          fill="None"
+          size="300"
+          after={menuIcon(UserPlus)}
+          radii="300"
+          aria-pressed={invitePrompt}
+          disabled={!canInvite}
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Invite
+          </Text>
+        </MenuItem>
+        <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Copy Link
+          </Text>
+        </MenuItem>
+        <MenuItem onClick={handleOpenSettings} size="300" after={menuIcon(GearSix)} radii="300">
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Room Settings
+          </Text>
+        </MenuItem>
+        <UseStateProvider initial={false}>
+          {(promptJump, setPromptJump) => (
+            <>
               <MenuItem
+                onClick={() => setPromptJump(true)}
                 size="300"
-                after={
-                  changing ? (
-                    <Spinner size="100" variant="Secondary" />
-                  ) : (
-                    roomNotificationModeIcon(notificationMode)
-                  )
-                }
+                after={menuIcon(ClockCounterClockwise)}
                 radii="300"
-                aria-pressed={opened}
-                onClick={handleOpen}
+                aria-pressed={promptJump}
               >
                 <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                  Notifications
+                  Jump to Time
                 </Text>
               </MenuItem>
-            )}
-          </RoomNotificationModeSwitcher>
-        </Box>
-        <Line variant="Surface" size="300" />
-        <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-          <MenuItem
-            onClick={handleInvite}
-            variant="Primary"
-            fill="None"
-            size="300"
-            after={menuIcon(UserPlus)}
-            radii="300"
-            aria-pressed={invitePrompt}
-            disabled={!canInvite}
-          >
-            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-              Invite
-            </Text>
-          </MenuItem>
-          <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
-            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-              Copy Link
-            </Text>
-          </MenuItem>
-          <MenuItem onClick={handleOpenSettings} size="300" after={menuIcon(GearSix)} radii="300">
-            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-              Room Settings
-            </Text>
-          </MenuItem>
-          <UseStateProvider initial={false}>
-            {(promptJump, setPromptJump) => (
-              <>
-                <MenuItem
-                  onClick={() => setPromptJump(true)}
-                  size="300"
-                  after={menuIcon(ClockCounterClockwise)}
-                  radii="300"
-                  aria-pressed={promptJump}
-                >
-                  <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                    Jump to Time
-                  </Text>
-                </MenuItem>
-                {promptJump && (
-                  <JumpToTime
-                    onSubmit={(eventId) => {
-                      setPromptJump(false);
-                      navigateRoom(room.roomId, eventId);
-                      requestClose();
-                    }}
-                    onCancel={() => setPromptJump(false)}
-                  />
-                )}
-              </>
-            )}
-          </UseStateProvider>
-        </Box>
-        <Line variant="Surface" size="300" />
-        <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-          <MenuItem
-            onClick={handleLeaveRoom}
-            variant="Critical"
-            fill="None"
-            size="300"
-            after={menuIcon(SignOut)}
-            radii="300"
-          >
-            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-              Leave Room
-            </Text>
-          </MenuItem>
-        </Box>
-      </Menu>
-    );
-  }
-);
+              {promptJump && (
+                <JumpToTime
+                  onSubmit={(eventId) => {
+                    setPromptJump(false);
+                    navigateRoom(room.roomId, eventId);
+                    requestClose();
+                  }}
+                  onCancel={() => setPromptJump(false)}
+                />
+              )}
+            </>
+          )}
+        </UseStateProvider>
+      </Box>
+      <Line variant="Surface" size="300" />
+      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+        <MenuItem
+          onClick={handleLeaveRoom}
+          variant="Critical"
+          fill="None"
+          size="300"
+          after={menuIcon(SignOut)}
+          radii="300"
+        >
+          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+            Leave Room
+          </Text>
+        </MenuItem>
+      </Box>
+    </Menu>
+  );
+});
 RoomMenu.displayName = 'RoomMenu';
 
 export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
@@ -610,17 +597,6 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     }
     setPeopleDrawer(!peopleDrawer);
   };
-
-  const renderOptionsMenu = (
-    dragHandle: ReactNode,
-    dragHandlers: Required<Omit<DragOptsProps, 'dragHandle'>> | undefined
-  ) => (
-    <RoomMenu
-      room={room}
-      requestClose={optionsMenu.close}
-      dragOpts={dragHandlers ? { dragHandle, ...dragHandlers } : undefined}
-    />
-  );
 
   return (
     <PageHeader className={classNames(ContainerColor({ variant: 'Surface' }), css.HeaderBalance)}>
@@ -914,7 +890,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
             requestClose={optionsMenu.close}
             position="Bottom"
             align="End"
-            menu={renderOptionsMenu}
+            menu={<RoomMenu room={room} requestClose={optionsMenu.close} />}
           >
             <TooltipProvider
               position="Bottom"

@@ -42,7 +42,6 @@ import {
 import { canEditEvent, getEditedEvent } from '$utils/room/relations';
 import { getMemberAvatarMxc } from '$utils/room/display';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
-import { getMouseEventCords } from '$utils/dom';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -131,7 +130,7 @@ export type MessageProps = {
   msc2723ForwardedMessageProps?: MSC2723ForwardedMessageProps;
 };
 
-import { useMobileLongPress } from '$hooks/useMobileLongPress';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 
 const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
 
@@ -513,7 +512,7 @@ function MessageInternal(
     },
   });
 
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const menu = useMenuAnchor<HTMLDivElement>();
 
   const tagIconSrc = memberPowerTag?.icon
     ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
@@ -847,7 +846,7 @@ function MessageInternal(
   );
 
   const closeMenu = () => {
-    setMenuAnchor(undefined);
+    menu.close();
     setIsDesktopHover(false);
     setIsEmoji(false);
   };
@@ -886,43 +885,22 @@ function MessageInternal(
     });
   };
 
-  const {
-    onTouchStart,
-    onTouchEnd,
-    onTouchMove,
-    onTouchCancel,
-    firedRef: longPressFiredRef,
-    isPressing,
-  } = useMobileLongPress(() => {
-    if (!edit) openMobileOptions();
-  });
-
-  const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
+  const contextMenuHandler: MouseEventHandler<HTMLDivElement> = (evt) => {
     if (evt.altKey || !window.getSelection()?.isCollapsed || edit) return;
     const tag = (evt.target as HTMLElement).tagName;
     if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
     if (mobileOrTablet()) {
-      // If our long-press handler already fired (iOS), suppress the native contextmenu
-      if (longPressFiredRef.current) {
-        evt.preventDefault();
-        longPressFiredRef.current = false;
-        return;
-      }
       evt.preventDefault();
       openMobileOptions();
       return;
     }
-
-    evt.preventDefault();
-    setMenuAnchor(getMouseEventCords(evt.nativeEvent));
+    menu.triggerProps.onContextMenu(evt);
   };
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     const target = evt.currentTarget.parentElement?.parentElement ?? evt.currentTarget;
-    const rect = target.getBoundingClientRect();
-
     window.requestAnimationFrame(() => {
-      setMenuAnchor(rect);
+      menu.openAt(target);
     });
   };
 
@@ -961,7 +939,7 @@ function MessageInternal(
     <MessageBase
       className={classNames(css.MessageBase, className, {
         [css.MessageBaseBubbleCollapsed]: messageLayout === MessageLayout.Bubble && collapse,
-        [css.MessageForceHover]: isPressing || isEmoji || !!menuAnchor,
+        [css.MessageForceHover]: menu.isPressing || isEmoji || !!menu.anchor,
         [css.MessageSwipeReply]: swipeActionMode === 'reply',
         [css.MessageSwipeEdit]: swipeActionMode === 'edit',
       })}
@@ -970,8 +948,8 @@ function MessageInternal(
       collapse={collapse}
       highlight={highlight}
       notifyHighlight={highlightMentions ? notifyHighlight : undefined}
-      selected={!!menuAnchor || isEmoji || isPressing}
-      data-hover={!!menuAnchor || isEmoji || isPressing || undefined}
+      selected={!!menu.anchor || isEmoji || menu.isPressing}
+      data-hover={!!menu.anchor || isEmoji || menu.isPressing || undefined}
       isMarked={isMarked}
       mobile={mobileOrTablet()}
       {...props}
@@ -979,7 +957,7 @@ function MessageInternal(
       {...focusWithinProps}
       ref={messageRef}
     >
-      {!edit && (isDesktopHover || !!menuAnchor || isEmoji) && (
+      {!edit && (isDesktopHover || !!menu.anchor || isEmoji) && (
         <div className={css.MessageOptionsBase} ref={optionsRef}>
           <OptionQuickMenu
             mEvent={mEvent}
@@ -994,7 +972,7 @@ function MessageInternal(
             canPinEvent={canPinEvent}
             canDelete={canDelete}
             handleOpenMenu={handleOpenMenu}
-            menuAnchor={menuAnchor}
+            menuAnchor={menu.anchor}
             imagePackRooms={imagePackRooms}
             setIsEmoji={setIsEmoji}
             canSendReaction={canSendReaction}
@@ -1009,11 +987,11 @@ function MessageInternal(
           WebkitTouchCallout: 'none',
           WebkitTapHighlightColor: 'transparent',
         }}
-        onContextMenu={handleContextMenu}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onTouchMove={onTouchMove}
-        onTouchCancel={onTouchCancel}
+        onContextMenu={contextMenuHandler}
+        onTouchStart={menu.triggerProps.onTouchStart}
+        onTouchEnd={menu.triggerProps.onTouchEnd}
+        onTouchMove={menu.triggerProps.onTouchMove}
+        onTouchCancel={menu.triggerProps.onTouchCancel}
       >
         <WrappedMessage
           headerJSX={headerJSX(collapse)}
@@ -1023,7 +1001,7 @@ function MessageInternal(
           handleSwipeReply={handleSwipeReply}
           handleSwipeEdit={handleSwipeEdit}
           handleSwipeActionChange={setSwipeActionMode}
-          handleContextMenu={handleContextMenu}
+          handleContextMenu={contextMenuHandler}
           align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
         />
       </div>

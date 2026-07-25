@@ -1,22 +1,11 @@
 import type { ReactNode } from 'react';
 import type { RectCords } from 'folds';
-import { PopOut } from 'folds';
+import { Box, PopOut } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { ScreenSize, useScreenSizeOptionally } from '$hooks/useScreenSize';
 import { stopPropagation } from '$utils/keyboard';
 import { MobileSwipeDownModal } from './MobileSwipeDownModal';
-
-type DragHandlers = {
-  onTouchStart: (e: React.TouchEvent) => void;
-  onTouchMove: (e: React.TouchEvent) => void;
-  onTouchEnd: () => void;
-};
-
-/**
- * Given the sheet's drag handle on mobile, and nothing on desktop. Only
- * `RoomViewHeader` needs this; every other menu passes a plain node.
- */
-type MenuRenderer = (dragHandle: ReactNode, dragHandlers: DragHandlers | undefined) => ReactNode;
+import * as css from './ResponsiveMenu.css';
 
 type ComponentPosition = 'Top' | 'Right' | 'Bottom' | 'Left';
 type ComponentAlign = 'Start' | 'Center' | 'End';
@@ -24,7 +13,7 @@ type ComponentAlign = 'Start' | 'Center' | 'End';
 type ResponsiveMenuProps = {
   anchor: RectCords | undefined;
   requestClose: () => void;
-  menu: ReactNode | MenuRenderer;
+  menu: ReactNode;
   /** The element the menu hangs off on desktop. */
   children?: ReactNode;
   position?: ComponentPosition;
@@ -77,11 +66,17 @@ export function ResponsiveMenu({
         {children}
         {anchor && (
           <MobileSwipeDownModal requestClose={requestClose}>
-            {(dragHandle, dragHandlers) => (
+            {(dragHandle) => (
               <FocusTrap focusTrapOptions={focusTrapOptions}>
-                <div role="dialog" aria-modal="true">
-                  {typeof menu === 'function' ? menu(dragHandle, dragHandlers) : menu}
-                </div>
+                <Box
+                  direction="Column"
+                  role="dialog"
+                  aria-modal="true"
+                  className={css.SheetContent}
+                >
+                  {dragHandle}
+                  {menu}
+                </Box>
               </FocusTrap>
             )}
           </MobileSwipeDownModal>
@@ -100,11 +95,7 @@ export function ResponsiveMenu({
       content={
         // Gated so a call site that builds its menu inline does that work on open,
         // not on every render of the trigger.
-        anchor ? (
-          <FocusTrap focusTrapOptions={focusTrapOptions}>
-            {typeof menu === 'function' ? menu(null, undefined) : menu}
-          </FocusTrap>
-        ) : null
+        anchor ? <FocusTrap focusTrapOptions={focusTrapOptions}>{menu}</FocusTrap> : null
       }
     >
       {children}

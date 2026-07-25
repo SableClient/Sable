@@ -2,7 +2,6 @@ import type { MouseEventHandler, MouseEvent } from 'react';
 import { forwardRef, startTransition, useState, useEffect } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { RoomEvent as RoomEventEnum } from '$types/matrix-sdk';
-import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
@@ -10,7 +9,6 @@ import {
   Text,
   Menu,
   config,
-  PopOut,
   toRem,
   Line,
   Badge,
@@ -19,7 +17,6 @@ import {
   TooltipProvider,
 } from 'folds';
 import { useFocusWithin, useHover } from 'react-aria';
-import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { NavButton, NavItem, NavItemContent, NavItemOptions } from '$components/nav';
@@ -32,14 +29,13 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { usePowerLevels } from '$hooks/usePowerLevels';
-import { copyToClipboard, getMouseEventCords } from '$utils/dom';
+import { copyToClipboard } from '$utils/dom';
 import { markAsRead } from '$utils/notifications';
 import { confirm } from '$components/confirm/confirm';
 import { showToast } from '$state/toast';
-import { useMobileLongPress } from '$hooks/useMobileLongPress';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { TypingIndicator } from '$components/typing-indicator';
-import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { getViaServers } from '$plugins/via-servers';
@@ -61,10 +57,7 @@ import {
   UserPlus,
 } from '$components/icons/phosphor';
 import { Copy as CopyIcon } from '@phosphor-icons/react';
-import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
 import { MobileMenuItem } from '$components/MobileMenuItem';
-import { type DragOptsProps } from '$components/message/modals/Options';
-import * as messageCss from '$features/room/message/styles.css';
 import {
   RoomNotificationMode,
   roomNotificationModeChipIcon,
@@ -81,6 +74,7 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { warmupRoomDecryption } from '$utils/decryptScheduler';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 import { useOpenMobileDrawerContent } from '$components/page/MobileNavDrawerContext';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
 
 // Call Hooks & Plugins
 import { useCallMembers, useCallSession } from '$hooks/useCall';
@@ -120,11 +114,10 @@ type RoomNavItemMenuProps = {
   room: Room;
   requestClose: () => void;
   notificationMode?: RoomNotificationMode;
-  dragOpts?: DragOptsProps;
 };
 
 const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
-  ({ room, requestClose, notificationMode, dragOpts }, ref) => {
+  ({ room, requestClose, notificationMode }, ref) => {
     const mx = useMatrixClient();
     const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
     const [hideReads] = useSetting(settingsAtom, 'hideReads');
@@ -184,15 +177,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
     };
 
     return (
-      <Menu
-        ref={ref}
-        className={dragOpts ? messageCss.MessageOptionsMenu : undefined}
-        style={dragOpts ? undefined : { maxWidth: toRem(160), width: '100vw' }}
-        onTouchStart={dragOpts?.onTouchStart}
-        onTouchMove={dragOpts?.onTouchMove}
-        onTouchEnd={dragOpts?.onTouchEnd}
-      >
-        {dragOpts?.dragHandle}
+      <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
         {invitePrompt && room && (
           <InviteUserPrompt
             room={room}
@@ -343,7 +328,6 @@ export function RoomNavItem({
   const [hover, setHover] = useState(false);
   const { hoverProps } = useHover({ onHoverChange: setHover });
   const { focusWithinProps } = useFocusWithin({ onFocusWithinChange: setHover });
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
   const hasRoomUnread = useRoomHasUnread(room);
@@ -381,41 +365,19 @@ export function RoomNavItem({
 
   const isActiveCall = callEmbed?.roomId === room.roomId;
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const menu = useMenuAnchor<HTMLElement>();
 
-  const {
-    onTouchStart,
-    onTouchEnd,
-    onTouchMove,
-    onTouchCancel,
-    firedRef: longPressFiredRef,
-    isPressing,
-  } = useMobileLongPress(() => {
-    setIsMobileMenuOpen(true);
-  });
-
-  const handleContextMenu: MouseEventHandler<HTMLElement> = (evt) => {
+  const contextMenuHandler: MouseEventHandler<HTMLElement> = (evt) => {
     if (isMobile) {
-      if (longPressFiredRef.current) {
-        evt.preventDefault();
-        longPressFiredRef.current = false;
-        return;
-      }
       evt.preventDefault();
-      setIsMobileMenuOpen(true);
+      menu.triggerProps.onContextMenu(evt);
       return;
     }
-
-    evt.preventDefault();
-    setMenuAnchor(getMouseEventCords(evt.nativeEvent));
+    menu.triggerProps.onContextMenu(evt);
   };
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    if (isMobile) {
-      setIsMobileMenuOpen(true);
-    } else {
-      setMenuAnchor(evt.currentTarget.getBoundingClientRect());
-    }
+    menu.triggerProps.onClick(evt);
   };
 
   const handleNavItemClick: MouseEventHandler<HTMLElement> = (evt) => {
@@ -465,7 +427,7 @@ export function RoomNavItem({
     navigate(linkPath);
   };
 
-  const optionsVisible = hover || !!menuAnchor;
+  const optionsVisible = hover || !!menu.anchor;
   const isMutedRoom = notificationMode === RoomNotificationMode.Mute;
   const shouldShowUnreadIndicator = !isMutedRoom && (!!unread || hasRoomUnread);
 
@@ -505,8 +467,8 @@ export function RoomNavItem({
           radii="400"
           highlight={shouldShowUnreadIndicator}
           aria-selected={selected}
-          data-hover={!!menuAnchor || isPressing}
-          onContextMenu={handleContextMenu}
+          data-hover={!!menu.anchor || menu.isPressing}
+          onContextMenu={contextMenuHandler}
           {...hoverProps}
           {...focusWithinProps}
           style={hideTextStyling(hideText)}
@@ -532,10 +494,10 @@ export function RoomNavItem({
                 onPointerMove={mobileTapActivation.onPointerMove}
                 onPointerUp={mobileTapActivation.onPointerUp}
                 onPointerCancel={mobileTapActivation.onPointerCancel}
-                onTouchStart={onTouchStart}
-                onTouchEnd={onTouchEnd}
-                onTouchMove={onTouchMove}
-                onTouchCancel={onTouchCancel}
+                onTouchStart={menu.triggerProps.onTouchStart}
+                onTouchEnd={menu.triggerProps.onTouchEnd}
+                onTouchMove={menu.triggerProps.onTouchMove}
+                onTouchCancel={menu.triggerProps.onTouchCancel}
                 aria-label={ariaLabel}
                 ref={triggerRef}
                 style={{
@@ -697,53 +659,24 @@ export function RoomNavItem({
                   )}
                 </TooltipProvider>
               )}
-              {isMobileMenuOpen && (
-                <MobileSwipeDownModal requestClose={() => setIsMobileMenuOpen(false)}>
-                  {(dragHandleJSX, dragHandlers) => (
-                    <RoomNavItemMenu
-                      room={room}
-                      requestClose={() => setIsMobileMenuOpen(false)}
-                      notificationMode={notificationMode}
-                      dragOpts={{
-                        dragHandle: dragHandleJSX,
-                        ...dragHandlers,
-                      }}
-                    />
-                  )}
-                </MobileSwipeDownModal>
-              )}
-              <PopOut
-                id={`menu-${room.roomId}`}
-                aria-expanded={!!menuAnchor}
-                anchor={menuAnchor}
-                offset={menuAnchor?.width === 0 ? 0 : undefined}
-                alignOffset={menuAnchor?.width === 0 ? 0 : -5}
+              <ResponsiveMenu
+                anchor={menu.anchor}
+                requestClose={menu.close}
                 position="Bottom"
-                align={menuAnchor?.width === 0 ? 'Start' : 'End'}
-                content={
-                  <FocusTrap
-                    focusTrapOptions={{
-                      initialFocus: false,
-                      returnFocusOnDeactivate: false,
-                      onDeactivate: () => setMenuAnchor(undefined),
-                      clickOutsideDeactivates: true,
-                      isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                      isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                      escapeDeactivates: stopPropagation,
-                    }}
-                  >
-                    <RoomNavItemMenu
-                      room={room}
-                      requestClose={() => setMenuAnchor(undefined)}
-                      notificationMode={notificationMode}
-                    />
-                  </FocusTrap>
+                align={menu.anchor?.width === 0 ? 'Start' : 'End'}
+                offset={menu.anchor?.width === 0 ? 0 : undefined}
+                menu={
+                  <RoomNavItemMenu
+                    room={room}
+                    requestClose={menu.close}
+                    notificationMode={notificationMode}
+                  />
                 }
               >
                 {!hideText && (
                   <IconButton
                     onClick={handleOpenMenu}
-                    aria-pressed={!!menuAnchor}
+                    aria-pressed={!!menu.anchor}
                     aria-controls={`menu-${room.roomId}`}
                     aria-label="More Options"
                     variant="Background"
@@ -752,11 +685,11 @@ export function RoomNavItem({
                     radii="300"
                   >
                     {chipIcon(DotsThreeOutlineVerticalIcon, {
-                      weight: menuAnchor ? 'fill' : 'regular',
+                      weight: menu.anchor ? 'fill' : 'regular',
                     })}
                   </IconButton>
                 )}
-              </PopOut>
+              </ResponsiveMenu>
             </NavItemOptions>
           )}
         </NavItem>

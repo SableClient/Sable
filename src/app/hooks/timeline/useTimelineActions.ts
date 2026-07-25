@@ -60,7 +60,11 @@ export interface UseTimelineActionsOptions {
     options?: unknown
   ) => void;
   activeReplyId?: string;
+  /** Distinguishes a real reply draft from the seeded base-thread draft, which has body ''. */
+  activeReplyBody?: string;
   setReplyDraft: (draft: unknown) => void;
+  /** Set when these actions drive a thread drawer rather than the room timeline. */
+  threadRootId?: string;
   openThreadId?: string;
   setOpenThread: (threadId: string | undefined) => void;
   handleEdit: (editId?: string) => void;
@@ -76,7 +80,9 @@ export function useTimelineActions({
   spaceId,
   openUserRoomProfile,
   activeReplyId,
+  activeReplyBody,
   setReplyDraft,
+  threadRootId,
   openThreadId,
   setOpenThread,
   handleEdit,
@@ -139,8 +145,19 @@ export function useTimelineActions({
 
       const { eventId: draftEventId, replyEvt } = resolved;
 
-      if (activeReplyId === draftEventId) {
-        setReplyDraft(undefined);
+      // In a thread the seeded base draft already targets the root with an empty
+      // body, so matching on the id alone would make the root unrepliable.
+      if (activeReplyId === draftEventId && activeReplyBody !== '') {
+        setReplyDraft(
+          threadRootId
+            ? {
+                userId: mx.getUserId() ?? '',
+                eventId: threadRootId,
+                body: '',
+                relation: { rel_type: 'm.thread', event_id: threadRootId },
+              }
+            : undefined
+        );
         return;
       }
 
@@ -163,7 +180,7 @@ export function useTimelineActions({
         });
       }
     },
-    [room, setReplyDraft, activeReplyId]
+    [room, setReplyDraft, activeReplyId, activeReplyBody, threadRootId, mx]
   );
 
   const handleReplyClick = useCallback(
@@ -188,9 +205,14 @@ export function useTimelineActions({
 
   const handleReactionToggle = useCallback(
     (targetEventId: string, key: string, shortcode?: string) => {
-      toggleReaction(mx, room, targetEventId, key, shortcode);
+      // Thread reactions live in the thread's own timeline set; without it the
+      // existing reaction is never found and un-reacting sends a second one.
+      const threadTimelineSet = threadRootId
+        ? room.getThread(threadRootId)?.timelineSet
+        : undefined;
+      toggleReaction(mx, room, targetEventId, key, shortcode, threadTimelineSet);
     },
-    [mx, room]
+    [mx, room, threadRootId]
   );
 
   const handleResend = useCallback(

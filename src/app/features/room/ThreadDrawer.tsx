@@ -155,7 +155,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       options?: unknown
     ) => void,
     activeReplyId,
+    activeReplyBody: replyDraft?.body,
     setReplyDraft: setReplyDraft as unknown as (draft: unknown) => void,
+    threadRootId,
     openThreadId: threadRootId,
     setOpenThread: () => {},
     handleEdit,

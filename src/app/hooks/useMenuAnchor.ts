@@ -45,7 +45,11 @@ export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor
   const onClick: MouseEventHandler<T> = useCallback(
     (evt) => {
       // The long-press timer already opened it; the synthetic click would toggle it shut.
-      if (longPress.firedRef.current) return;
+      // Clearing here matters on mouse input, where no further touchstart resets it.
+      if (longPress.firedRef.current) {
+        longPress.firedRef.current = false;
+        return;
+      }
       openAt(evt.currentTarget);
     },
     [longPress, openAt]
@@ -55,7 +59,10 @@ export function useMenuAnchor<T extends HTMLElement = HTMLElement>(): MenuAnchor
     (evt) => {
       evt.preventDefault();
       // The long-press timer already opened it; a synthetic contextmenu would toggle it shut.
-      if (longPress.firedRef.current) return;
+      if (longPress.firedRef.current) {
+        longPress.firedRef.current = false;
+        return;
+      }
       openAt(evt.currentTarget);
     },
     [longPress, openAt]

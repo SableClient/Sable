@@ -836,7 +836,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
               const folderContent = item.folder.content.filter((s) => s !== item.spaceId);
               if (folderContent.length === 0) {
                 // remove open state from local storage
-                setOpenedFolder({ type: 'DELETE', id: item.folder.id });
+                setOpenedFolder({ type: 'DELETE', value: item.folder.id });
                 return;
               }
               newItems.push({
@@ -960,7 +960,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
 
     setOpenedFolder({
       type: openedFolder.has(targetFolderId) ? 'DELETE' : 'PUT',
-      id: targetFolderId,
+      value: targetFolderId,
     });
   };
 

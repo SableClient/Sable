@@ -167,6 +167,11 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
   const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
   const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
+  const [incomingInlineImagesDefaultHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesDefaultHeight'
+  );
+  const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
 
   // Memoized parsing options
   const linkifyOpts = useMemo<LinkifyOpts>(
@@ -200,6 +205,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         handleMentionClick: mentionClickHandler,
         nicknames,
         autoplayEmojis,
+        incomingInlineImagesDefaultHeight,
+        incomingInlineImagesMaxHeight,
         replaceTextNode: buildAbbrReplaceTextNode(abbrMap, linkifyOpts),
       }),
     [
@@ -212,6 +219,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       nicknames,
       settingsLinkBaseUrl,
       autoplayEmojis,
+      incomingInlineImagesDefaultHeight,
+      incomingInlineImagesMaxHeight,
       abbrMap,
     ]
   );

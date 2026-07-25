@@ -1,23 +1,16 @@
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
 import { type MouseEventHandler, useEffect, useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Chip,
-  config,
-  Input,
-  Menu,
-  MenuItem,
-  PopOut,
-  Switch,
-  Text,
-  toRem,
-  type RectCords,
-} from 'folds';
-import { CaretDown, composerIcon, menuIcon } from '$components/icons/phosphor';
+import { Box, Chip, config, Input, Switch, Text, toRem } from 'folds';
+import { CaretDown, menuIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 
-import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
+import {
+  PANEL_SIZE_OPTIONS,
+  SHOW_ROOM_ICON_OPTIONS,
+  SettingMenuSelector,
+  type PanelSizeKey,
+  type SettingMenuOption,
+} from '$components/setting-menu-selector';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import {
@@ -33,11 +26,6 @@ import { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ThemeAppearanceSection } from './ThemeAppearanceSection';
-import { stopPropagation } from '$utils/keyboard';
-import FocusTrap from 'focus-trap-react';
-import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
-import type { PanelSizetItem } from '$hooks/usePanelSizes';
-import { usePanelSizeItems } from '$hooks/usePanelSizes';
 import { SelectShowPerRoomRoomIcon } from '$features/common-settings/appearance/Appearance';
 
 const clampIncomingInlineImageHeight = (n: number) => Math.max(1, Math.min(4096, n));
@@ -575,76 +563,18 @@ function PanelSelector({
   sidebarSelector,
   setSidebarSelector,
 }: {
-  sidebarSelector: string;
-  setSidebarSelector: (arg0: string) => void;
+  sidebarSelector: PanelSizeKey;
+  setSidebarSelector: (key: PanelSizeKey) => void;
 }) {
-  const [menuCords, setMenuCords] = useState<RectCords>();
-  const panelSizeItems = usePanelSizeItems();
-
-  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleSelect = (position: PanelSizetItem) => {
-    setSidebarSelector(position.layout);
-    setMenuCords(undefined);
-  };
-
   return (
-    <>
-      <Button
-        size="300"
-        variant="Secondary"
-        outlined
-        fill="Soft"
-        radii="300"
-        after={composerIcon(CaretDown)}
-        onClick={handleMenu}
-      >
-        <Text size="T300">
-          {panelSizeItems.find((i) => i.layout === sidebarSelector)?.name ?? sidebarSelector}
-        </Text>
-      </Button>
-      <PopOut
-        anchor={menuCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setMenuCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                {panelSizeItems.map((item) => (
-                  <MenuItem
-                    key={item.layout}
-                    size="300"
-                    variant={sidebarSelector === item.layout ? 'Primary' : 'Surface'}
-                    radii="300"
-                    onClick={() => handleSelect(item)}
-                  >
-                    <Text size="T300">{item.name}</Text>
-                  </MenuItem>
-                ))}
-              </Box>
-            </Menu>
-          </FocusTrap>
-        }
-      />
-    </>
+    <SettingMenuSelector
+      value={sidebarSelector}
+      options={PANEL_SIZE_OPTIONS}
+      onSelect={setSidebarSelector}
+    />
   );
 }
-function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
+function SidebarWidth({ sidebarSelector }: { sidebarSelector: PanelSizeKey }) {
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [memberSidebarWidth, setMemberSidebarWidth] = useSetting(
     settingsAtom,
@@ -742,72 +672,14 @@ function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
 }
 
 function SelectShowRoomIcon() {
-  const [menuCords, setMenuCords] = useState<RectCords>();
   const [showRoomIcon, setShowRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
-  const showRoomIconItems = useShowRoomIcon();
-
-  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleSelect = (position?: ShowRoomIcon) => {
-    if (!position) return;
-    setShowRoomIcon(position);
-    setMenuCords(undefined);
-  };
 
   return (
-    <>
-      <Button
-        size="300"
-        variant="Secondary"
-        outlined
-        fill="Soft"
-        radii="300"
-        after={composerIcon(CaretDown)}
-        onClick={handleMenu}
-      >
-        <Text size="T300">
-          {showRoomIconItems.find((i) => i.layout === showRoomIcon)?.name ?? showRoomIcon}
-        </Text>
-      </Button>
-      <PopOut
-        anchor={menuCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setMenuCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                {showRoomIconItems.map((item) => (
-                  <MenuItem
-                    key={item.layout}
-                    size="300"
-                    variant={showRoomIcon === item.layout ? 'Primary' : 'Surface'}
-                    radii="300"
-                    onClick={() => handleSelect(item.layout)}
-                  >
-                    <Text size="T300">{item.name}</Text>
-                  </MenuItem>
-                ))}
-              </Box>
-            </Menu>
-          </FocusTrap>
-        }
-      />
-    </>
+    <SettingMenuSelector
+      value={showRoomIcon}
+      options={SHOW_ROOM_ICON_OPTIONS}
+      onSelect={setShowRoomIcon}
+    />
   );
 }
 export function Appearance({
@@ -815,7 +687,7 @@ export function Appearance({
 }: {
   onThemeBrowserOpenChange?: (open: boolean) => void;
 } = {}) {
-  const [sidebarSelector, setSidebarSelector] = useState('roomSidebarWidth');
+  const [sidebarSelector, setSidebarSelector] = useState<PanelSizeKey>('roomSidebarWidth');
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');

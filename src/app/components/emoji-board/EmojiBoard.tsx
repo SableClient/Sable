@@ -22,7 +22,6 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
 import { isUserId, mxcUrlToHttp } from '$utils/matrix';
 import { editableActiveElement, targetFromEvent } from '$utils/dom';
-import { fetch } from '$utils/fetch';
 import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useDebounce } from '$hooks/useDebounce';
@@ -60,7 +59,7 @@ import {
 } from './components';
 import type { GifData } from './types';
 import { EmojiBoardTab, EmojiType } from './types';
-import { useClientConfig } from '$hooks/useClientConfig';
+import { useGifSearch } from './useGifSearch';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 
 /* oxlint-disable typescript/no-explicit-any */
@@ -510,110 +509,12 @@ export function EmojiBoard({
   const searchedItems = emojiResult?.items.slice(0, 100);
   const searchedGifItems = gifResult?.items.slice(0, 100) ?? favoriteGifs.toReversed();
 
-  function useGifSearch() {
-    const [gifs, setGifs] = useState<{
-      gifs: GifData[];
-      favorites: GifData[];
-    }>({
-      gifs: [],
-      favorites: favoriteGifs,
-    });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const clientConfig = useClientConfig();
-    const klipyApiKey = clientConfig.gifs?.klipyApiKey ?? '';
-
-    const parseKlipyResult = useCallback((klipyResult: any): GifData => {
-      const SIZE_LIMIT = 3 * 1024 * 1024; // 3MB
-
-      const formats = klipyResult.file || {};
-      const preview = formats.xs.gif || formats.sm.gif || formats.md.gif;
-
-      // Start with full resolution GIF
-      let fullRes = formats.hd.gif;
-      // If full res is too large and medium exists, use medium instead
-      if (fullRes && fullRes.size > SIZE_LIMIT && formats.md) {
-        fullRes = formats.md.gif;
-      }
-
-      // Fallback if no suitable format found
-      if (!fullRes) {
-        fullRes = formats.md || preview;
-      }
-
-      // Get dimensions from the selected full resolution format
-      const width = fullRes?.width || preview?.width || 0;
-      const height = fullRes?.height || preview?.height || 0;
-
-      return {
-        id: klipyResult.id,
-        title: klipyResult.title || 'GIF',
-        url: fullRes?.url || '',
-        preview_url: preview?.url || fullRes?.url || '',
-        width,
-        height,
-        size: fullRes?.size || preview?.size || 0,
-        mimetype: 'image/gif',
-      };
-    }, []);
-
-    const searchGifs = useCallback(
-      async (query: string) => {
-        if (!showGifPicker) {
-          return;
-        }
-
-        const trimmedQuery = query.trim();
-
-        setLoading(true);
-        setError(null);
-
-        gifSearch(trimmedQuery);
-
-        try {
-          const url = new URL('https://api.klipy.com');
-          url.pathname = `/api/v1/${klipyApiKey}/gifs/search`;
-          url.searchParams.set('q', trimmedQuery);
-          url.searchParams.set('per_page', '50'); // TODO: infinite scroll?
-
-          const response = await fetch(url.toString());
-
-          if (response.status === 200) {
-            const data = await response.json();
-            const results = data.data.data as any[] | undefined;
-
-            if (results) {
-              const gifData: GifData[] = results.map(parseKlipyResult);
-              setGifs((old) => ({
-                ...old,
-                gifs: gifData,
-              }));
-            } else {
-              setGifs((old) => ({
-                ...old,
-                gifs: [],
-              }));
-            }
-          } else {
-            throw new Error(`HTTP ${response.status}`);
-          }
-        } catch {
-          setError('Failed to search GIFs');
-          setGifs((old) => ({
-            ...old,
-            gifs: [],
-          }));
-        } finally {
-          setLoading(false);
-        }
-      },
-      [parseKlipyResult, klipyApiKey]
-    );
-
-    return { gifs, loading, error, searchGifs };
-  }
-
-  const { gifs, loading: gifsLoading, error: gifsError, searchGifs } = useGifSearch();
+  const {
+    gifs,
+    loading: gifsLoading,
+    error: gifsError,
+    searchGifs,
+  } = useGifSearch(favoriteGifs, showGifPicker, gifSearch);
   const [emojiGroupItems, stickerGroupItems, gifGroupItems] = useGroups(tab, imagePacks, gifs);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(true);
   const groupsByTab = {

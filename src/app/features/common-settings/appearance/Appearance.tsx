@@ -5,39 +5,30 @@ import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
-import { useShowPerRoomRoomIcon } from '$hooks/useShowRoomIcon';
 import { useSetting } from '$state/hooks/settings';
-import type { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import {
+  PER_ROOM_SHOW_ROOM_ICON_OPTIONS,
+  SHOW_ROOM_ICON_DEFAULT,
   SettingMenuSelector,
-  type SettingMenuOption,
-} from '$components/setting-menu-selector/SettingMenuSelector';
-
-const DEFAULT_LAYOUT = 'default';
-type LayoutValue = ShowRoomIcon | typeof DEFAULT_LAYOUT;
+  type ShowRoomIconValue,
+} from '$components/setting-menu-selector';
 
 export function SelectShowPerRoomRoomIcon({ roomId }: { roomId: string }) {
-  const showRoomIconItems = useShowPerRoomRoomIcon();
   const [showRoomIconArray, setShowRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
   const showRoomIcon = showRoomIconArray?.find((item) => item.roomId === roomId)?.display;
 
-  const handleSelect = (position: LayoutValue) => {
+  const handleSelect = (position: ShowRoomIconValue) => {
     let newShowRoomIconArray = showRoomIconArray.filter((item) => item.roomId !== roomId);
-    if (position !== DEFAULT_LAYOUT)
+    if (position !== SHOW_ROOM_ICON_DEFAULT)
       newShowRoomIconArray = [...newShowRoomIconArray, { roomId, display: position }];
     setShowRoomIconArray(newShowRoomIconArray);
   };
 
-  const options: SettingMenuOption<LayoutValue>[] = showRoomIconItems.map((item) => ({
-    value: item.layout ?? DEFAULT_LAYOUT,
-    label: item.name,
-  }));
-
   return (
     <SettingMenuSelector
-      value={showRoomIcon ?? DEFAULT_LAYOUT}
-      options={options}
+      value={showRoomIcon ?? SHOW_ROOM_ICON_DEFAULT}
+      options={PER_ROOM_SHOW_ROOM_ICON_OPTIONS}
       onSelect={handleSelect}
       renderOption={({ option, selected }) => (
         <Box grow="Yes">

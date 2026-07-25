@@ -45,7 +45,12 @@ import {
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
-import { SettingMenuSelector } from '$components/setting-menu-selector';
+import {
+  CAPTION_POSITION_OPTIONS,
+  MESSAGE_LAYOUT_OPTIONS,
+  MESSAGE_SPACING_OPTIONS,
+  SettingMenuSelector,
+} from '$components/setting-menu-selector';
 import { useSetting } from '$state/hooks/settings';
 import type { DateFormat, EditorButtonId } from '$state/settings';
 import { MessageLayout, RightSwipeAction, settingsAtom } from '$state/settings';
@@ -53,9 +58,6 @@ import { SettingTile } from '$components/setting-tile';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS, mobileOrTablet } from '$utils/user-agent';
 import { stopPropagation } from '$utils/keyboard';
-import { useMessageLayoutItems } from '$hooks/useMessageLayout';
-import { useCaptionPositionItems } from '$hooks/useCaptionPosition';
-import { useMessageSpacingItems } from '$hooks/useMessageSpacing';
 import { useDateFormatItems } from '$hooks/useDateFormat';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { sessionsAtom, activeSessionIdAtom } from '$state/sessions';
@@ -691,41 +693,35 @@ function Editor() {
 
 function SelectMessageLayout() {
   const [messageLayout, setMessageLayout] = useSetting(settingsAtom, 'messageLayout');
-  const messageLayoutItems = useMessageLayoutItems();
 
   return (
     <SettingMenuSelector
       value={messageLayout}
-      options={messageLayoutItems.map((item) => ({ value: item.layout, label: item.name }))}
+      options={MESSAGE_LAYOUT_OPTIONS}
       onSelect={setMessageLayout}
-      offset={5}
     />
   );
 }
 function SelectCaptionPosition() {
   const [captionPosition, setCaptionPosition] = useSetting(settingsAtom, 'captionPosition');
-  const captionPositionItems = useCaptionPositionItems();
 
   return (
     <SettingMenuSelector
       value={captionPosition}
-      options={captionPositionItems.map((item) => ({ value: item.layout, label: item.name }))}
+      options={CAPTION_POSITION_OPTIONS}
       onSelect={setCaptionPosition}
-      offset={5}
     />
   );
 }
 
 function SelectMessageSpacing() {
   const [messageSpacing, setMessageSpacing] = useSetting(settingsAtom, 'messageSpacing');
-  const messageSpacingItems = useMessageSpacingItems();
 
   return (
     <SettingMenuSelector
       value={messageSpacing}
-      options={messageSpacingItems.map((item) => ({ value: item.spacing, label: item.name }))}
+      options={MESSAGE_SPACING_OPTIONS}
       onSelect={setMessageSpacing}
-      offset={5}
     />
   );
 }

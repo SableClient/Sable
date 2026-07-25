@@ -3,15 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSetting } from '$state/hooks/settings';
 import { CallSoundSettings } from './CallSoundSettings';
 
-vi.mock('$state/settings', () => ({
-  CALL_TONE_IDS: ['sable-default', 'classic-soft', 'minimal-ping', 'silent', 'custom'],
-  settingsAtom: {},
-  getSettings: () => ({
-    iconCompactSizePx: 16,
-    iconInlineSizePx: 20,
-    iconToolbarSizePx: 24,
-    iconEmptySizePx: 32,
-  }),
+vi.mock(import('$state/settings'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  settingsAtom: {} as never,
+  getSettings: () =>
+    ({
+      iconCompactSizePx: 16,
+      iconInlineSizePx: 20,
+      iconToolbarSizePx: 24,
+      iconEmptySizePx: 32,
+    }) as never,
 }));
 
 vi.mock('$state/hooks/settings', () => ({

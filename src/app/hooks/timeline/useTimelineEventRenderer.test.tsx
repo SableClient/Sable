@@ -54,7 +54,7 @@ vi.mock('$hooks/useRoomMemberHydration', () => ({
   useRoomMemberHydration: vi.fn<(room: unknown, userId: string) => void>(),
 }));
 
-vi.mock('$hooks/useOpenUserRoomProfile', () => ({
+vi.mock('$state/hooks/userRoomProfile', () => ({
   useOpenUserRoomProfile: () =>
     vi.fn<(roomId: string, spaceId: string | undefined, userId: string, rect?: DOMRect) => void>(),
 }));

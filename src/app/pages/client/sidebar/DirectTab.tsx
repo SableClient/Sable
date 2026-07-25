@@ -18,7 +18,7 @@ import {
   SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
-import { useDirectSelected } from '$hooks/router/useDirectSelected';
+import { useDirectSelected } from '$hooks/router/useRouteSelected';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { markAsRead } from '$utils/notifications';

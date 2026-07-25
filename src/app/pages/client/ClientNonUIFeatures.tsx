@@ -51,7 +51,7 @@ import {
 import { NotificationType, type RoomToUnread } from '$types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
-import { useInboxNotificationsSelected } from '$hooks/router/useInbox';
+import { useInboxNotificationsSelected } from '$hooks/router/useRouteSelected';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ShareTargetFeature } from '$features/share-target/ShareTargetFeature';
 import { registrationAtom } from '$state/serviceWorkerRegistration';

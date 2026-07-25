@@ -49,7 +49,7 @@ import { useFocusWithin, useHover } from 'react-aria';
 import { setUserPresence } from '$utils/presence';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { useProfileSelected } from '$hooks/router/useProfileSelected';
+import { useProfileSelected } from '$hooks/router/useRouteSelected';
 import { useDeviceIds, useDeviceList, useSplitCurrentDevice } from '$hooks/useDeviceList';
 import {
   useDeviceVerificationStatus,

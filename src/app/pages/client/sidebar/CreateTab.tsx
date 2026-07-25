@@ -19,7 +19,7 @@ import {
   joinPathComponent,
   withSearchParam,
 } from '$pages/pathUtils';
-import { useCreateSelected } from '$hooks/router/useCreateSelected';
+import { useCreateSelected } from '$hooks/router/useRouteSelected';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import {
   composerIcon,
@@ -35,7 +35,7 @@ import { useClientConfig } from '$hooks/useClientConfig';
 import { useAtomValue } from 'jotai';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { getMxIdServer } from '$utils/mxIdHelper';
-import { useExploreSelected } from '$hooks/router/useExploreSelected';
+import { useExploreSelected } from '$hooks/router/useRouteSelected';
 
 export function CreateTab() {
   const mx = useMatrixClient();

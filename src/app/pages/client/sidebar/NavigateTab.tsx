@@ -4,11 +4,10 @@ import { getPhosphorIconSize } from '$components/icons/phosphor';
 import { Text, Box, color } from 'folds';
 import { getNavigatePath } from '$pages/pathUtils';
 import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
-import { useNavigateSelected } from '$hooks/router/useNavigateSelected';
+import { useNavigateSelected } from '$hooks/router/useRouteSelected';
 import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
 
 export function NavigateTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?: boolean }) {
-
   const isNavigate = useNavigateSelected();
   const openShallowRoute = useOpenShallowRoute();
   const open = () => openShallowRoute(getNavigatePath());

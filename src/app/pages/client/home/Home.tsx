@@ -41,7 +41,7 @@ import {
 import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedOrLastRoom } from '$hooks/router/useSelectedRoom';
-import { useHomeCreateSelected, useHomeSearchSelected } from '$hooks/router/useHomeSelected';
+import { useHomeCreateSelected, useHomeSearchSelected } from '$hooks/router/useRouteSelected';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { VirtualTile } from '$components/virtualizer';
 import { RoomNavCategoryButton, RoomNavItem } from '$features/room-nav';

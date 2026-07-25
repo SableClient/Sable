@@ -10,7 +10,7 @@ import {
   useInboxBookmarksSelected,
   useInboxInvitesSelected,
   useInboxNotificationsSelected,
-} from '$hooks/router/useInbox';
+} from '$hooks/router/useRouteSelected';
 import { UnreadBadge } from '$components/unread-badge';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';

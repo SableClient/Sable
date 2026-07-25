@@ -1,24 +1,12 @@
 import type { FormEventHandler } from 'react';
 import { useCallback, useEffect } from 'react';
-import {
-  Dialog,
-  Header,
-  config,
-  Box,
-  Text,
-  IconButton,
-  Input,
-  color,
-  Button,
-  Spinner,
-} from 'folds';
+import { config, Box, Text, Input, color, Button, Spinner } from 'folds';
 import type { MatrixError } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { composerIcon, X } from '$components/icons/phosphor';
 import { createDebugLogger } from '$utils/debugLogger';
-import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { PromptDialog } from '$components/modal-overlay/PromptDialog';
 
 const debugLog = createDebugLogger('KnockRoomPrompt');
 
@@ -57,67 +45,50 @@ export function KnockRoomPrompt({ roomId, via, onDone, onCancel }: KnockRoomProp
   }, [knockState, onDone, roomId]);
 
   return (
-    <ModalOverlay requestClose={onCancel}>
-      <Dialog variant="Surface">
-        <Header
-          style={{
-            padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-            borderBottomWidth: config.borderWidth.B300,
-          }}
-          variant="Surface"
-          size="500"
-        >
-          <Box grow="Yes">
-            <Text size="H4">Knock On Room</Text>
-          </Box>
-          <IconButton size="300" onClick={onCancel} radii="300">
-            {composerIcon(X)}
-          </IconButton>
-        </Header>
-        <Box
-          as="form"
-          onSubmit={handleKnock}
-          style={{ padding: config.space.S400 }}
-          direction="Column"
-          gap="400"
-        >
-          <Box direction="Column" gap="200">
-            <Text priority="400">
-              Request to join this room. You can optionally leave a reason for the moderators.
-            </Text>
-            <Box direction="Column" gap="100">
-              <Text size="L400">
-                Reason{' '}
-                <Text as="span" size="T200">
-                  (Optional)
-                </Text>
+    <PromptDialog title="Knock On Room" requestClose={onCancel}>
+      <Box
+        as="form"
+        onSubmit={handleKnock}
+        style={{ padding: config.space.S400 }}
+        direction="Column"
+        gap="400"
+      >
+        <Box direction="Column" gap="200">
+          <Text priority="400">
+            Request to join this room. You can optionally leave a reason for the moderators.
+          </Text>
+          <Box direction="Column" gap="100">
+            <Text size="L400">
+              Reason{' '}
+              <Text as="span" size="T200">
+                (Optional)
               </Text>
-              <Input name="reasonInput" variant="Background" />
-              {knockState.status === AsyncStatus.Error && (
-                <Text style={{ color: color.Critical.Main }} size="T300">
-                  Failed to knock! {knockState.error.message}
-                </Text>
-              )}
-            </Box>
-          </Box>
-          <Button
-            type="submit"
-            variant="Primary"
-            before={
-              knockState.status === AsyncStatus.Loading ? (
-                <Spinner fill="Solid" variant="Primary" size="200" />
-              ) : undefined
-            }
-            aria-disabled={
-              knockState.status === AsyncStatus.Loading || knockState.status === AsyncStatus.Success
-            }
-          >
-            <Text size="B400">
-              {knockState.status === AsyncStatus.Loading ? 'Knocking...' : 'Knock'}
             </Text>
-          </Button>
+            <Input name="reasonInput" variant="Background" />
+            {knockState.status === AsyncStatus.Error && (
+              <Text style={{ color: color.Critical.Main }} size="T300">
+                Failed to knock! {knockState.error.message}
+              </Text>
+            )}
+          </Box>
         </Box>
-      </Dialog>
-    </ModalOverlay>
+        <Button
+          type="submit"
+          variant="Primary"
+          before={
+            knockState.status === AsyncStatus.Loading ? (
+              <Spinner fill="Solid" variant="Primary" size="200" />
+            ) : undefined
+          }
+          aria-disabled={
+            knockState.status === AsyncStatus.Loading || knockState.status === AsyncStatus.Success
+          }
+        >
+          <Text size="B400">
+            {knockState.status === AsyncStatus.Loading ? 'Knocking...' : 'Knock'}
+          </Text>
+        </Button>
+      </Box>
+    </PromptDialog>
   );
 }

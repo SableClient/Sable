@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { Dialog, Header, config, Box, Text, IconButton, color, Button, Spinner } from 'folds';
+import { config, Box, Text, color, Button, Spinner } from 'folds';
 import type { MatrixError } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { composerIcon, X } from '$components/icons/phosphor';
 import { getJoinedSpaceChildrenSummary, getRecursiveSpaceLeaveOrder } from '$utils/room';
 import { rateLimitedActions } from '$utils/matrix';
-import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { PromptDialog } from '$components/modal-overlay/PromptDialog';
 
 type LeaveSpacePromptProps = {
   roomId: string;
@@ -77,70 +76,53 @@ export function LeaveSpacePrompt({ roomId, onDone, onCancel }: LeaveSpacePromptP
   }, [leaveState, leaveAllState, onDone]);
 
   return (
-    <ModalOverlay requestClose={onCancel}>
-      <Dialog variant="Surface">
-        <Header
-          style={{
-            padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-            borderBottomWidth: config.borderWidth.B300,
-          }}
-          variant="Surface"
-          size="500"
-        >
-          <Box grow="Yes">
-            <Text size="H4">Leave Space</Text>
-          </Box>
-          <IconButton size="300" onClick={onCancel} radii="300">
-            {composerIcon(X)}
-          </IconButton>
-        </Header>
-        <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-          <Box direction="Column" gap="200">
-            <Text priority="400">Are you sure you want to leave this space?</Text>
-            {joinedChildrenCount > 0 && (
-              <Text priority="300" size="T300">
-                {formatJoinedContentsMessage(roomCount, subspaceCount)}
-              </Text>
-            )}
-            {leaveState.status === AsyncStatus.Error && (
-              <Text style={{ color: color.Critical.Main }} size="T300">
-                Failed to leave space! {leaveState.error.message}
-              </Text>
-            )}
-            {leaveAllState.status === AsyncStatus.Error && (
-              <Text style={{ color: color.Critical.Main }} size="T300">
-                Failed to leave space, rooms, and subspaces! {leaveAllState.error.message}
-              </Text>
-            )}
-          </Box>
-          <Box direction="Column" gap="200">
-            <Button
-              type="submit"
-              variant="Critical"
-              onClick={() => leaveSpace()}
-              before={leaving ? <Spinner fill="Solid" variant="Critical" size="200" /> : undefined}
-              aria-disabled={isBusy || leaveState.status === AsyncStatus.Success}
-            >
-              <Text size="B400">{leaving ? 'Leaving...' : 'Leave Space Only'}</Text>
-            </Button>
-            {joinedChildrenCount > 0 && (
-              <Button
-                variant="Critical"
-                fill="Soft"
-                onClick={() => leaveAll()}
-                before={
-                  leavingAll ? <Spinner fill="Solid" variant="Critical" size="200" /> : undefined
-                }
-                aria-disabled={isBusy || leaveAllState.status === AsyncStatus.Success}
-              >
-                <Text size="B400">
-                  {formatRecursiveLeaveLabel(leavingAll, roomCount, subspaceCount)}
-                </Text>
-              </Button>
-            )}
-          </Box>
+    <PromptDialog title="Leave Space" requestClose={onCancel}>
+      <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+        <Box direction="Column" gap="200">
+          <Text priority="400">Are you sure you want to leave this space?</Text>
+          {joinedChildrenCount > 0 && (
+            <Text priority="300" size="T300">
+              {formatJoinedContentsMessage(roomCount, subspaceCount)}
+            </Text>
+          )}
+          {leaveState.status === AsyncStatus.Error && (
+            <Text style={{ color: color.Critical.Main }} size="T300">
+              Failed to leave space! {leaveState.error.message}
+            </Text>
+          )}
+          {leaveAllState.status === AsyncStatus.Error && (
+            <Text style={{ color: color.Critical.Main }} size="T300">
+              Failed to leave space, rooms, and subspaces! {leaveAllState.error.message}
+            </Text>
+          )}
         </Box>
-      </Dialog>
-    </ModalOverlay>
+        <Box direction="Column" gap="200">
+          <Button
+            type="submit"
+            variant="Critical"
+            onClick={() => leaveSpace()}
+            before={leaving ? <Spinner fill="Solid" variant="Critical" size="200" /> : undefined}
+            aria-disabled={isBusy || leaveState.status === AsyncStatus.Success}
+          >
+            <Text size="B400">{leaving ? 'Leaving...' : 'Leave Space Only'}</Text>
+          </Button>
+          {joinedChildrenCount > 0 && (
+            <Button
+              variant="Critical"
+              fill="Soft"
+              onClick={() => leaveAll()}
+              before={
+                leavingAll ? <Spinner fill="Solid" variant="Critical" size="200" /> : undefined
+              }
+              aria-disabled={isBusy || leaveAllState.status === AsyncStatus.Success}
+            >
+              <Text size="B400">
+                {formatRecursiveLeaveLabel(leavingAll, roomCount, subspaceCount)}
+              </Text>
+            </Button>
+          )}
+        </Box>
+      </Box>
+    </PromptDialog>
   );
 }

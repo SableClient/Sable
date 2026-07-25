@@ -1,64 +1,61 @@
-import { test, expect, type Page } from '@playwright/test';
-
-async function openApp(page: Page): Promise<void> {
-  await page.goto('/');
-  await expect(page.getByText('General').first()).toBeVisible({ timeout: 180_000 });
-  await page
-    .getByRole('button', { name: 'Dismiss' })
-    .click({ timeout: 5_000 })
-    .catch(() => undefined);
-}
+import { test, expect } from './fixtures/test';
 
 test.describe('create room surface', () => {
-  test('desktop opens it over the page it was launched from', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop');
-    await openApp(page);
-
-    await page.getByRole('button', { name: 'Create Room' }).first().click();
-
-    await expect(page).toHaveURL(/\/create-room$/);
-    await expect(page.getByText('New Chat Room')).toBeVisible();
-    // The room list stays mounted behind the overlay.
-    await expect(page.getByText('General').first()).toBeVisible();
-
-    await page.keyboard.press('Escape');
-    await expect(page).toHaveURL(/\/home\/?$/);
-    await expect(page.getByText('New Chat Room')).toBeHidden();
-  });
-
-  test('mobile opens it as a full page', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'mobile');
-    await openApp(page);
-
-    await page.goto('/create-room');
-
-    await expect(page.getByText('New Chat Room').first()).toBeVisible({ timeout: 180_000 });
-    await expect(page.getByRole('button', { name: 'Close create room' })).toBeVisible();
-    await expect(page.getByText('General')).toBeHidden();
-  });
-
-  test('deep linking on desktop renders the full page, not an overlay', async ({
+  test('desktop opens it over the page it was launched from', async ({
+    app,
+    createRoom,
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop');
-    await openApp(page);
 
-    await page.goto('/create-room');
+    await app.createRoomButton.click();
 
-    await expect(page.getByText('New Chat Room').first()).toBeVisible({ timeout: 180_000 });
-    await expect(page.getByRole('button', { name: 'Close create room' })).toBeVisible();
+    await expect(page).toHaveURL(/\/create-room$/);
+    await expect(createRoom.title).toBeVisible();
+    // The room list stays mounted behind the overlay.
+    await expect(app.room('General')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/\/home\/?$/);
+    await expect(createRoom.title).toBeHidden();
   });
-});
 
-test('browser back closes a surface opened over a page', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop');
-  await openApp(page);
+  test('mobile opens it as a full page', async ({ app, createRoom }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile');
 
-  await page.getByRole('button', { name: 'Create Room' }).first().click();
-  await expect(page).toHaveURL(/\/create-room$/);
+    await createRoom.gotoDirectly();
 
-  await page.goBack();
+    await expect(createRoom.title).toBeVisible();
+    await expect(createRoom.closeButton).toBeVisible();
+    await expect(app.room('General')).toBeHidden();
+  });
 
-  await expect(page).toHaveURL(/\/home\/?$/);
-  await expect(page.getByText('New Chat Room')).toBeHidden();
+  test('deep linking on desktop renders the full page, not an overlay', async ({
+    app,
+    createRoom,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop');
+
+    await createRoom.gotoDirectly();
+
+    await expect(createRoom.title).toBeVisible();
+    // No background was recorded, so it replaces the page rather than sitting over it.
+    await expect(app.room('General')).toBeHidden();
+  });
+
+  test('browser back closes a surface opened over a page', async ({
+    app,
+    createRoom,
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop');
+
+    await app.createRoomButton.click();
+    await expect(page).toHaveURL(/\/create-room$/);
+
+    await page.goBack();
+
+    await expect(page).toHaveURL(/\/home\/?$/);
+    await expect(createRoom.title).toBeHidden();
+  });
 });

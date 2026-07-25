@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { AsyncSearchHandler } from '$utils/AsyncSearch';
 import { fetch } from '$utils/fetch';
 import { useClientConfig } from '$hooks/useClientConfig';
@@ -52,10 +52,7 @@ export function useGifSearch(
   showGifPicker: boolean,
   gifSearch: AsyncSearchHandler
 ) {
-  const [gifs, setGifs] = useState<{ gifs: GifData[]; favorites: GifData[] }>({
-    gifs: [],
-    favorites: favoriteGifs,
-  });
+  const [searchResults, setSearchResults] = useState<GifData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const clientConfig = useClientConfig();
@@ -86,24 +83,23 @@ export function useGifSearch(
           const data = (await response.json()) as KlipySearchResponse;
           const results = data.data?.data;
 
-          setGifs((old) => ({
-            ...old,
-            gifs: results ? results.map(parseKlipyResult) : [],
-          }));
+          setSearchResults(results ? results.map(parseKlipyResult) : []);
         } else {
           throw new Error(`HTTP ${response.status}`);
         }
       } catch {
         setError('Failed to search GIFs');
-        setGifs((old) => ({
-          ...old,
-          gifs: [],
-        }));
+        setSearchResults([]);
       } finally {
         setLoading(false);
       }
     },
     [klipyApiKey, showGifPicker, gifSearch]
+  );
+
+  const gifs = useMemo(
+    () => ({ gifs: searchResults, favorites: favoriteGifs }),
+    [searchResults, favoriteGifs]
   );
 
   return { gifs, loading, error, searchGifs };

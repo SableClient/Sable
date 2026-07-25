@@ -1186,23 +1186,15 @@ function Sync() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Data Syncing</Text>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Use Sliding Sync"
-          focusId="use-sliding-sync"
-          description={
-            <>Enable Sliding Sync for this current login/session. Requires server support.</>
-          }
-          after={
-            <Switch variant="Primary" value={useSlidingSync} onChange={handleSetSlidingSync} />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Use Sliding Sync"
+        focusId="use-sliding-sync"
+        description={
+          <>Enable Sliding Sync for this current login/session. Requires server support.</>
+        }
+        value={useSlidingSync}
+        onChange={handleSetSlidingSync}
+      />
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"

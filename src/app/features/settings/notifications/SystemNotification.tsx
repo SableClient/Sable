@@ -15,7 +15,7 @@ import {
 import type { IPusherRequest } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
-import { SettingTile } from '$components/setting-tile';
+import { SettingTile, SettingToggle } from '$components/setting-tile';
 import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -946,19 +946,13 @@ export function SystemNotification() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">System & Notifications</Text>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="In-App Notifications"
-          focusId="in-app-notifications"
-          description="Show a notification banner inside the app when a message arrives."
-          after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="In-App Notifications"
+        focusId="in-app-notifications"
+        description="Show a notification banner inside the app when a message arrives."
+        value={showInAppNotifs}
+        onChange={setShowInAppNotifs}
+      />
       {(!mobileOrTablet() || isIosTauri()) && (
         <SequenceCard
           className={SequenceCardStyle}
@@ -982,77 +976,42 @@ export function SystemNotification() {
       >
         <BackgroundPushNotificationSetting />
       </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="In-App Notification Sound"
-          focusId="in-app-notification-sound"
-          description="Play a sound inside the app when a new message arrives."
-          after={<Switch value={isNotificationSounds} onChange={setIsNotificationSounds} />}
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Show Message Content"
-          focusId="show-message-content"
-          description="Include message text in notification bodies."
-          after={<Switch value={showMessageContent} onChange={setShowMessageContent} />}
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Show Encrypted Message Content"
-          focusId="show-encrypted-message-content"
-          description="Allow message text from encrypted rooms in notification bodies. May not work on some platforms due to technical limitations."
-          after={
-            <Switch
-              value={showEncryptedMessageContent}
-              onChange={setShowEncryptedMessageContent}
-              disabled={!showMessageContent}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Rich Push Payloads"
-          focusId="rich-push-payloads"
-          description="Include message content in push payloads for faster notifications. Your push gateway can see unencrypted message text."
-          after={<Switch value={useRichPushPayloads} onChange={setUseRichPushPayloads} />}
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Clear Notifications When Read Elsewhere"
-          focusId="clear-notifications-when-read-elsewhere"
-          description="Automatically dismiss notifications on this device when you read messages on another device."
-          after={<Switch value={clearNotificationsOnRead} onChange={setClearNotificationsOnRead} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="In-App Notification Sound"
+        focusId="in-app-notification-sound"
+        description="Play a sound inside the app when a new message arrives."
+        value={isNotificationSounds}
+        onChange={setIsNotificationSounds}
+      />
+      <SettingToggle
+        title="Show Message Content"
+        focusId="show-message-content"
+        description="Include message text in notification bodies."
+        value={showMessageContent}
+        onChange={setShowMessageContent}
+      />
+      <SettingToggle
+        title="Show Encrypted Message Content"
+        focusId="show-encrypted-message-content"
+        description="Allow message text from encrypted rooms in notification bodies. May not work on some platforms due to technical limitations."
+        value={showEncryptedMessageContent}
+        onChange={setShowEncryptedMessageContent}
+        disabled={!showMessageContent}
+      />
+      <SettingToggle
+        title="Rich Push Payloads"
+        focusId="rich-push-payloads"
+        description="Include message content in push payloads for faster notifications. Your push gateway can see unencrypted message text."
+        value={useRichPushPayloads}
+        onChange={setUseRichPushPayloads}
+      />
+      <SettingToggle
+        title="Clear Notifications When Read Elsewhere"
+        focusId="clear-notifications-when-read-elsewhere"
+        description="Automatically dismiss notifications on this device when you read messages on another device."
+        value={clearNotificationsOnRead}
+        onChange={setClearNotificationsOnRead}
+      />
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -1077,83 +1036,41 @@ export function SystemNotification() {
       <Text size="T300" style={{ opacity: 0.7 }}>
         {badgeBehaviourSummary()}
       </Text>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Favicon Dot: Mentions Only"
-          focusId="favicon-dot-mentions-only"
-          description="Only change the browser tab favicon when you have mentions or keywords. Unreads without mentions won't affect the favicon."
-          after={
-            <Switch
-              variant="Primary"
-              value={faviconForMentionsOnly}
-              onChange={setFaviconForMentionsOnly}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Show Room Counts"
-          focusId="show-room-counts"
-          description="Displays a number for unread activity in Rooms and Spaces."
-          after={
-            <Switch variant="Primary" value={showUnreadCounts} onChange={setShowUnreadCounts} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Show DM Counts"
-          focusId="show-dm-counts"
-          description="Displays a number for unread Direct Messages."
-          after={
-            <Switch variant="Primary" value={badgeCountDMsOnly} onChange={setBadgeCountDMsOnly} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Show Mention Counts"
-          focusId="show-mention-counts"
-          description="Displays a number for mentions and keyword alerts."
-          after={<Switch variant="Primary" value={showPingCounts} onChange={setShowPingCounts} />}
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Highlight Mentions"
-          focusId="highlight-mentions"
-          description="Highlight the full background message when it contains a mention/keyword."
-          after={
-            <Switch variant="Primary" value={highlightMentions} onChange={setHighlightMentions} />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Favicon Dot: Mentions Only"
+        focusId="favicon-dot-mentions-only"
+        description="Only change the browser tab favicon when you have mentions or keywords. Unreads without mentions won't affect the favicon."
+        value={faviconForMentionsOnly}
+        onChange={setFaviconForMentionsOnly}
+      />
+      <SettingToggle
+        title="Show Room Counts"
+        focusId="show-room-counts"
+        description="Displays a number for unread activity in Rooms and Spaces."
+        value={showUnreadCounts}
+        onChange={setShowUnreadCounts}
+      />
+      <SettingToggle
+        title="Show DM Counts"
+        focusId="show-dm-counts"
+        description="Displays a number for unread Direct Messages."
+        value={badgeCountDMsOnly}
+        onChange={setBadgeCountDMsOnly}
+      />
+      <SettingToggle
+        title="Show Mention Counts"
+        focusId="show-mention-counts"
+        description="Displays a number for mentions and keyword alerts."
+        value={showPingCounts}
+        onChange={setShowPingCounts}
+      />
+      <SettingToggle
+        title="Highlight Mentions"
+        focusId="highlight-mentions"
+        description="Highlight the full background message when it contains a mention/keyword."
+        value={highlightMentions}
+        onChange={setHighlightMentions}
+      />
     </Box>
   );
 }

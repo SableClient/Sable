@@ -17,6 +17,7 @@ export default defineConfig({
     builtin: true,
   },
   rules: {
+    'import/no-cycle': ['error', { maxDepth: 3 }],
     'import/no-unassigned-import': 'off',
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',

@@ -5,7 +5,7 @@ import classNames from 'classnames';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { roomIdToTypingMembersAtom } from '$state/typingMembers';
 import { TypingIndicator } from '$components/typing-indicator';
-import { getMemberDisplayName } from '$utils/room';
+import { getMemberDisplayName } from '$utils/room/display';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';

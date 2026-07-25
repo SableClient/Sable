@@ -4,7 +4,7 @@ import { useSetAtom } from 'jotai';
 import { MenuItem, Text } from 'folds';
 import { CodeBlock, menuIcon } from '$components/icons/phosphor';
 import { TextViewer } from '$components/text-viewer';
-import { getEventEdits } from '$utils/room';
+import { getEventEdits } from '$utils/room/relations';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 

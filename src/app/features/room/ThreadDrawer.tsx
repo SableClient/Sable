@@ -27,9 +27,9 @@ import {
   makeMentionCustomProps,
   renderMatrixMention,
 } from '$plugins/react-custom-html-parser';
+import { getMemberDisplayName } from '$utils/room/display';
 import {
   extractReplyDraftBody,
-  getMemberDisplayName,
   getThreadReplyEvents,
   isThreadRelationEvent,
   reactionOrEditEvent,
@@ -37,7 +37,7 @@ import {
   unwrapRelationJumpTarget,
   getEditedEvent,
   getEventReactions,
-} from '$utils/room';
+} from '$utils/room/relations';
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useIsInactivePanel } from '$hooks/useRoom';

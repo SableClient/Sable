@@ -45,17 +45,14 @@ import {
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { SequenceCard } from '$components/sequence-card';
+import { getAccountData, getStateEvent, isSpace } from '$utils/room/hierarchy';
+import { isDirectInvite } from '$utils/room/unread';
+import { bannedInRooms, getCommonRooms } from '$utils/room/relations';
 import {
-  bannedInRooms,
-  getAccountData,
-  getCommonRooms,
   getDirectRoomAvatarUrl,
   getMemberDisplayName,
   getRoomAvatarUrl,
-  getStateEvent,
-  isDirectInvite,
-  isSpace,
-} from '$utils/room';
+} from '$utils/room/display';
 import { nameInitials } from '$utils/common';
 import { RoomAvatar } from '$components/room-avatar';
 import {

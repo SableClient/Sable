@@ -3,7 +3,7 @@ import { CaretDown, CaretUp, sizedIcon, userFallbackIcon } from '$components/ico
 import type { CallMembership } from '$types/matrix-sdk';
 import type { Room } from '$types/matrix-sdk';
 import * as css from './styles.css';
-import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
+import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room/display';
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';

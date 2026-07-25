@@ -4,7 +4,7 @@ import { ReactEditor } from 'slate-react';
 import type { Room } from '$types/matrix-sdk';
 import type { Nicknames } from '$state/nicknames';
 import { getMxIdLocalPart, isUserId } from '$utils/matrix';
-import { getMemberDisplayName } from '$utils/room';
+import { getMemberDisplayName } from '$utils/room/display';
 import { BlockType } from './types';
 import type {
   CommandElement,

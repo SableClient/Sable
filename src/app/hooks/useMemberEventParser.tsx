@@ -15,7 +15,7 @@ import {
 } from '$components/icons/phosphor';
 
 import { getMxIdLocalPart } from '$utils/matrix';
-import { isMembershipChanged } from '$utils/room';
+import { isMembershipChanged } from '$utils/room/relations';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSableCosmetics } from './useSableCosmetics';
 import { useMatrixClient } from './useMatrixClient';

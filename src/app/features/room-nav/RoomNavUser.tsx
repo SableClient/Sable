@@ -7,7 +7,7 @@ import { NavButton, NavItem, NavItemContent } from '$components/nav';
 import { UserAvatar } from '$components/user-avatar';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getMxIdLocalPart } from '$utils/matrix';
-import { getAvatarUrl, getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
+import { getAvatarUrl, getMemberAvatarMxc, getMemberDisplayName } from '$utils/room/display';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';

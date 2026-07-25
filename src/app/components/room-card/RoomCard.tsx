@@ -13,7 +13,8 @@ import { onEnterOrSpace } from '$utils/keyboard';
 
 import { useJoinedRoomId } from '$hooks/useJoinedRoomId';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
-import { getRoomAvatarUrl, getStateEvent } from '$utils/room';
+import { getRoomAvatarUrl } from '$utils/room/display';
+import { getStateEvent } from '$utils/room/hierarchy';
 import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KnockRoomPrompt } from '$components/knock-room-prompt';

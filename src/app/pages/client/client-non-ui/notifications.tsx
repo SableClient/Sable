@@ -31,13 +31,9 @@ import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { usePreviousValue } from '$hooks/usePreviousValue';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import {
-  getMemberDisplayName,
-  getNotificationType,
-  getStateEvent,
-  isDMRoom,
-  isNotificationEvent,
-} from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
+import { getNotificationType, isDMRoom, isNotificationEvent } from '$utils/room/unread';
+import { getMemberDisplayName } from '$utils/room/display';
 import { NotificationType } from '$types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';

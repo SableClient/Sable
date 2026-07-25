@@ -1,6 +1,6 @@
 import { EventType, JoinRule } from 'matrix-js-sdk';
 import type { MatrixClient, Room } from 'matrix-js-sdk';
-import { getStateEvents } from './room';
+import { getStateEvents } from './room/hierarchy';
 
 /**
  * simple check to see if a room can be considered private

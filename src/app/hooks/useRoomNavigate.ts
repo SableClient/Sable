@@ -10,7 +10,7 @@ import {
   getSpaceRoomPath,
   resolveSection,
 } from '$pages/pathUtils';
-import { getOrphanParents, guessPerfectParent } from '$utils/room';
+import { getOrphanParents, guessPerfectParent } from '$utils/room/hierarchy';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { mDirectAtom } from '$state/mDirectList';
 import { lastVisitedRoomAtom } from '$state/room/lastRoom';

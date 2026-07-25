@@ -23,15 +23,14 @@ import {
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
+import { getAccountData, getStateEvent } from '$utils/room/hierarchy';
 import {
-  getAccountData,
-  getMemberDisplayName,
   getNotificationType,
-  getStateEvent,
   isNotificationEvent,
   getMDirects,
   isDMRoom,
-} from '$utils/room';
+} from '$utils/room/unread';
+import { getMemberDisplayName } from '$utils/room/display';
 import { NotificationType } from '$types/matrix/room';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';

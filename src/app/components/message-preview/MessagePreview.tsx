@@ -55,7 +55,8 @@ import { nicknamesAtom } from '$state/nicknames';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import type { GetContentCallback } from '$types/matrix/room';
-import { getEditedEvent, getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
+import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room/display';
+import { getEditedEvent } from '$utils/room/relations';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 

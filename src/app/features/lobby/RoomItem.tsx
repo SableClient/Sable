@@ -27,7 +27,7 @@ import { RoomTopicViewer } from '$components/room-topic-viewer';
 import { onEnterOrSpace } from '$utils/keyboard';
 
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
+import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room/display';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { formatCompactNumber } from '$utils/formatCompactNumber';

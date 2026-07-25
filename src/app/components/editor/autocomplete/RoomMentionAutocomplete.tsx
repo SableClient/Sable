@@ -7,7 +7,7 @@ import type { MatrixClient } from '$types/matrix-sdk';
 import { JoinRule } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 
-import { getDirectRoomAvatarUrl } from '$utils/room';
+import { getDirectRoomAvatarUrl } from '$utils/room/display';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { isRoomAlias } from '$utils/matrix';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';

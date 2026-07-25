@@ -15,7 +15,7 @@ import { sanitizeCustomHtml, sanitizeText } from '$utils/sanitize';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 import { isRoomPrivate } from '$utils/roomVisibility';
-import { canForwardEvent } from '$utils/room';
+import { canForwardEvent } from '$utils/room/relations';
 import * as prefix from '$unstable/prefixes';
 import { SearchWrapper } from '$features/navigate';
 import { useDismissOnBack } from '$utils/androidBack';

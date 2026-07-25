@@ -33,7 +33,7 @@ import { mDirectAtom } from '$state/mDirectList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { VirtualTile } from '$components/virtualizer';
-import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
+import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room/display';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';

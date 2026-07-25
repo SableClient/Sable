@@ -6,7 +6,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomName } from '$hooks/useRoomMeta';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { getMxIdLocalPart } from '$utils/matrix';
-import { getAvatarUrl, getMemberDisplayName, getRoomAvatarUrl } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName, getRoomAvatarUrl } from '$utils/room/display';
 import { webRTCSupported } from '$utils/rtc';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import * as Sentry from '@sentry/react';

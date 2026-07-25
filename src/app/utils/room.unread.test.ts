@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { KnownMembership, NotificationCountType } from '$types/matrix-sdk';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { getUnreadInfosForRooms } from './room';
+import { getUnreadInfosForRooms } from './room/unread';
 
 const SPACE = '!space:example.com';
 const ROOM_UNREAD = '!unread:example.com';

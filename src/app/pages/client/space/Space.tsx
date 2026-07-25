@@ -90,7 +90,7 @@ import { createDebugLogger } from '$utils/debugLogger';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { RoomAvatar } from '$components/room-avatar';
-import { getRoomAvatarUrl } from '$utils/room';
+import { getRoomAvatarUrl } from '$utils/room/display';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { CustomStateEvent } from '$types/matrix/room';

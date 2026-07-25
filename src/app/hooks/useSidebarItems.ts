@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 
-import { getAccountData, isSpace } from '$utils/room';
+import { getAccountData, isSpace } from '$utils/room/hierarchy';
 import { useMatrixClient } from './useMatrixClient';
 import { useAccountDataCallback } from './useAccountDataCallback';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';

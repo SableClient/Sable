@@ -12,14 +12,14 @@ import { RoomEvent, SyncState, EventType, ClientEvent, KnownMembership } from '$
 import { useCallback, useEffect } from 'react';
 import type { RoomToUnread, UnreadInfo, Unread } from '$types/matrix/room';
 import { NotificationType } from '$types/matrix/room';
+import { getAllParents } from '$utils/room/hierarchy';
 import {
-  getAllParents,
   getNotificationType,
   getUnreadInfo,
   getUnreadInfos,
   getUnreadInfosForRooms,
   isNotificationEvent,
-} from '$utils/room';
+} from '$utils/room/unread';
 import { useSyncState } from '$hooks/useSyncState';
 import { useRoomsNotificationPreferencesContext } from '$hooks/useRoomsNotificationPreferences';
 import { useMatrixEvent } from '$hooks/useMatrixEvent';

@@ -3,7 +3,7 @@ import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import { MenuItem, Text } from 'folds';
 import { Clock, menuIcon } from '$components/icons/phosphor';
-import { getEventEdits } from '$utils/room';
+import { getEventEdits } from '$utils/room/relations';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 import { EventHistory } from '$components/event-history';

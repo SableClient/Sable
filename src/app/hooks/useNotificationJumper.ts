@@ -8,7 +8,7 @@ import { useSyncState } from './useSyncState';
 import { useMatrixClient } from './useMatrixClient';
 import { getCanonicalAliasOrRoomId } from '../utils/matrix';
 import { getDirectRoomPath, getHomeRoomPath, getSpaceRoomPath } from '../pages/pathUtils';
-import { getOrphanParents, guessPerfectParent } from '../utils/room';
+import { getOrphanParents, guessPerfectParent } from '../utils/room/hierarchy';
 import { roomToParentsAtom } from '../state/room/roomToParents';
 import { createLogger } from '../utils/debug';
 

@@ -3,7 +3,7 @@ import { config, Box, Text, color, Button, Spinner } from 'folds';
 import type { MatrixError } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { getJoinedSpaceChildrenSummary, getRecursiveSpaceLeaveOrder } from '$utils/room';
+import { getJoinedSpaceChildrenSummary, getRecursiveSpaceLeaveOrder } from '$utils/room/hierarchy';
 import { rateLimitedActions } from '$utils/matrix';
 import { PromptDialog } from '$components/modal-overlay/PromptDialog';
 

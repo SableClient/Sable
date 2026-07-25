@@ -1,7 +1,7 @@
 import type { JoinRule, Room } from '$types/matrix-sdk';
 import { GuestAccess, HistoryVisibility, EventType } from '$types/matrix-sdk';
 
-import { getStateEvent } from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
 
 export type LocalRoomSummary = {
   roomId: string;

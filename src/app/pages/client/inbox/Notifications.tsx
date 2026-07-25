@@ -21,7 +21,7 @@ import type { InboxNotificationsPathSearchParams } from '$pages/paths';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCard } from '$components/sequence-card';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
-import { getRoomAvatarUrl } from '$utils/room';
+import { getRoomAvatarUrl } from '$utils/room/display';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { useInterval } from '$hooks/useInterval';
 import { useSetting } from '$state/hooks/settings';

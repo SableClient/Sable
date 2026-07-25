@@ -39,7 +39,8 @@ import {
   Username,
   UsernameBold,
 } from '$components/message';
-import { canEditEvent, getEditedEvent, getMemberAvatarMxc } from '$utils/room';
+import { canEditEvent, getEditedEvent } from '$utils/room/relations';
+import { getMemberAvatarMxc } from '$utils/room/display';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { getMouseEventCords } from '$utils/dom';
 import type { MessageSpacing } from '$state/settings';

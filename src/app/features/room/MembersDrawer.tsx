@@ -28,7 +28,7 @@ import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsync
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useDebounce } from '$hooks/useDebounce';
 import { TypingIndicator } from '$components/typing-indicator';
-import { getAvatarUrl, getMemberDisplayName, getMemberSearchStr } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName, getMemberSearchStr } from '$utils/room/display';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useSetSetting, useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';

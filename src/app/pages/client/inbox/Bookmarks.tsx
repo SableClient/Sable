@@ -43,7 +43,7 @@ import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { getMxIdLocalPart } from '../../../utils/matrix';
 import { Time } from '../../../components/message';
 import { RoomAvatar, RoomIcon } from '../../../components/room-avatar';
-import { getRoomAvatarUrl } from '../../../utils/room';
+import { getRoomAvatarUrl } from '../../../utils/room/display';
 import { useSetting } from '../../../state/hooks/settings';
 import { settingsAtom } from '../../../state/settings';
 import { ScreenSize, useScreenSizeContext } from '../../../hooks/useScreenSize';

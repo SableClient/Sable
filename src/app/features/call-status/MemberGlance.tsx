@@ -3,7 +3,7 @@ import type { CallMembership } from '$types/matrix-sdk';
 import type { Room } from '$types/matrix-sdk';
 import { UserAvatar } from '../../components/user-avatar';
 import { userFallbackIcon } from '$components/icons/phosphor';
-import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
+import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room/display';
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';

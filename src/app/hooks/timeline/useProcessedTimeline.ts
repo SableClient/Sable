@@ -13,7 +13,7 @@ import {
   collectRelationEditEvents,
   getEditedEvent,
   getEventReactions,
-} from '$utils/room';
+} from '$utils/room/relations';
 import { inSameDay, minuteDifference } from '$utils/time';
 import type { ResolvedHiddenEventSettings } from '$state/hooks/settings';
 

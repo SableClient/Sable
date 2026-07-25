@@ -1,7 +1,7 @@
 import type { IContextResponse, RoomServerAclEventContent } from '$types/matrix-sdk';
 import { Direction, EventType, KnownMembership, Method } from '$types/matrix-sdk';
 import { isUserId, rateLimitedActions } from '$utils/matrix';
-import { getStateEvent } from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
 import { splitWithSpace } from '$utils/common';
 import type { CommandContext, CommandRecord } from './types';
 import { Command } from './types';

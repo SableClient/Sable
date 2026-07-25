@@ -10,7 +10,8 @@ import {
   ENCRYPTED_MESSAGE_PREVIEW,
 } from '$utils/notificationStyle';
 import { getMxIdLocalPart } from '$utils/matrix';
-import { getStateEvent, getMemberAvatarMxc } from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
+import { getMemberAvatarMxc } from '$utils/room/display';
 import { createDebugLogger } from '$utils/debugLogger';
 import {
   registerUnifiedPushTransport,

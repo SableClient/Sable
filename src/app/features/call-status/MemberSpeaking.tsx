@@ -1,7 +1,7 @@
 import type { Room } from '$types/matrix-sdk';
 import { Box, Text } from 'folds';
 import { sizedIcon, Microphone } from '$components/icons/phosphor';
-import { getMemberDisplayName } from '../../utils/room';
+import { getMemberDisplayName } from '../../utils/room/display';
 import { getMxIdLocalPart } from '../../utils/matrix';
 
 type MemberSpeakingProps = {

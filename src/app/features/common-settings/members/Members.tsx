@@ -27,7 +27,7 @@ import { ServerBadge } from '$components/server-badge';
 import { useDebounce } from '$hooks/useDebounce';
 import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
-import { getMemberSearchStr } from '$utils/room';
+import { getMemberSearchStr } from '$utils/room/display';
 import { useMembershipFilter, useMembershipFilterMenu } from '$hooks/useMemberFilter';
 import { useMemberPowerSort, useMemberSort, useMemberSortMenu } from '$hooks/useMemberSort';
 import { settingsAtom } from '$state/settings';

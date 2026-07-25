@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Avatar, Box, Header, IconButton, MenuItem, Scroll, Text, as, config } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
-import { getAvatarUrl, getMemberDisplayName } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName } from '$utils/room/display';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';

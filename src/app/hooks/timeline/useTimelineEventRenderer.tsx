@@ -60,13 +60,16 @@ import type { GetContentCallback } from '$types/matrix/room';
 
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import {
+  getMemberDisplayName,
+  getTimelineSenderDisplayName,
+  getMemberAvatarMxc,
+} from '$utils/room/display';
+import {
   getEditedEvent,
   getEditChain,
   getEditDiffBodies,
   getEditTargetId,
   getEventReactions,
-  getMemberDisplayName,
-  getTimelineSenderDisplayName,
   getPreviousEditId,
   getRedactionTargetEvent,
   getRedactionTargetId,
@@ -78,8 +81,7 @@ import {
   isMembershipChanged,
   isThreadRelationEvent,
   reactionOrEditEvent,
-  getMemberAvatarMxc,
-} from '$utils/room';
+} from '$utils/room/relations';
 import { getLinkedTimelines, getLiveTimeline } from '$utils/timeline';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';

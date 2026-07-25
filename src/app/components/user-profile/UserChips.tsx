@@ -44,7 +44,7 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
-import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
+import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room/display';
 import { nameInitials } from '$utils/common';
 import { getMatrixToUser } from '$plugins/matrix-to';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';

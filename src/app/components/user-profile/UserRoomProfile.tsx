@@ -17,7 +17,7 @@ import {
   User,
 } from '$components/icons/phosphor';
 import { mxcUrlToHttp } from '$utils/matrix';
-import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
+import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room/display';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { usePowerLevels } from '$hooks/usePowerLevels';

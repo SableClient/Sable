@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EventType, KnownMembership, RoomType } from '$types/matrix-sdk';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { getJoinedSpaceChildrenLeaveOrder, getJoinedSpaceChildrenSummary } from './room';
+import { getJoinedSpaceChildrenLeaveOrder, getJoinedSpaceChildrenSummary } from './room/hierarchy';
 
 /* oxlint-disable typescript/no-explicit-any */
 

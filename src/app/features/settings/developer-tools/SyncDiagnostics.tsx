@@ -8,7 +8,7 @@ import { getClientSyncDiagnostics } from '$client/initMatrix';
 import type { Room } from '$types/matrix-sdk';
 import { Direction, EventType, NotificationCountType, KnownMembership } from '$types/matrix-sdk';
 
-import { getUnreadInfo, isNotificationEvent } from '$utils/room';
+import { getUnreadInfo, isNotificationEvent } from '$utils/room/unread';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { getMediaLoadFailureCounts } from '$utils/mediaLoadDiagnostics';

@@ -29,12 +29,8 @@ import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsync
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
-import {
-  getAllParents,
-  getDirectRoomAvatarUrl,
-  getRoomAvatarUrl,
-  guessPerfectParent,
-} from '$utils/room';
+import { getAllParents, guessPerfectParent } from '$utils/room/hierarchy';
+import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room/display';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { factoryRoomIdByActivity } from '$utils/sort';
 import { nameInitials } from '$utils/common';

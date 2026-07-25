@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EventType, RelationType } from '$types/matrix-sdk';
 import type { EventTimelineSet, MatrixEvent, Room } from '$types/matrix-sdk';
-import { extractReplyDraftBody, findRoomEventById, resolveReplyDraftTarget } from './room';
+import {
+  extractReplyDraftBody,
+  findRoomEventById,
+  resolveReplyDraftTarget,
+} from './room/relations';
 
 /* oxlint-disable typescript/no-explicit-any */
 

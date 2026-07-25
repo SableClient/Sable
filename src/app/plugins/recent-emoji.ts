@@ -1,6 +1,6 @@
 import type { MatrixClient } from '$types/matrix-sdk';
 
-import { getAccountData } from '$utils/room';
+import { getAccountData } from '$utils/room/hierarchy';
 import type { IEmoji } from './emoji';
 import { emojis } from './emoji';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';

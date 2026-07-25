@@ -3,7 +3,7 @@ import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
-import { getAllParents, isRoom, isSpace } from '$utils/room';
+import { getAllParents, isRoom, isSpace } from '$utils/room/hierarchy';
 import type { RoomToParents } from '$types/matrix/room';
 import { compareRoomsEqual } from '$state/room-list/utils';
 

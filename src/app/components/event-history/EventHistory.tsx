@@ -13,7 +13,7 @@ import {
   config,
 } from 'folds';
 import type { IContent, MatrixEvent, Room } from '$types/matrix-sdk';
-import { getAvatarUrl, getMemberDisplayName } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName } from '$utils/room/display';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';

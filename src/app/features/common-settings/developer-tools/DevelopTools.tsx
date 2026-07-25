@@ -24,7 +24,7 @@ import { useRoomAccountData } from '$hooks/useRoomAccountData';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
-import { isNotificationEvent } from '$utils/room';
+import { isNotificationEvent } from '$utils/room/unread';
 import { CutoutCard } from '$components/cutout-card';
 import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { AccountDataEditor } from '$components/AccountDataEditor';

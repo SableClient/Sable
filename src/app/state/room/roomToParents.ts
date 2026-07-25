@@ -18,7 +18,7 @@ import {
   isSpace,
   isValidChild,
   mapParentWithChildren,
-} from '$utils/room';
+} from '$utils/room/hierarchy';
 import { useSyncState } from '$hooks/useSyncState';
 
 export type RoomToParentsAction =

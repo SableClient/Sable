@@ -5,7 +5,7 @@ import { sanitizeText } from '$utils/sanitize';
 import { markdownToHtml, injectDataMd } from '$plugins/markdown';
 import { sanitizeForRegex } from '$utils/regex';
 import { getMxIdLocalPart, isUserId } from '$utils/matrix';
-import { getMemberDisplayName } from '$utils/room';
+import { getMemberDisplayName } from '$utils/room/display';
 import type { CustomElement } from './slate';
 import { BlockType } from './types';
 import { getMarkdownCodeSpanRanges, isInsideMarkdownCodeSpan } from './utils';

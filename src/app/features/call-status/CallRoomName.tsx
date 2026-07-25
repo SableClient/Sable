@@ -4,7 +4,7 @@ import { useAtomValue } from 'jotai';
 import { useRoomName } from '../../hooks/useRoomMeta';
 import { RoomIcon } from '../../components/room-avatar';
 import { roomToParentsAtom } from '../../state/room/roomToParents';
-import { getAllParents, guessPerfectParent } from '../../utils/room';
+import { getAllParents, guessPerfectParent } from '../../utils/room/hierarchy';
 import { useOrphanSpaces } from '../../state/hooks/roomList';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { allRoomsAtom } from '../../state/room-list/roomList';

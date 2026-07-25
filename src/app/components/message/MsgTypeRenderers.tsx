@@ -3,7 +3,7 @@ import { ArrowSquareOut, sizedIcon, Link } from '$components/icons/phosphor';
 import { Box, Chip, Text, toRem } from 'folds';
 import { type IContent, type IPreviewUrlResponse, type MatrixClient } from '$types/matrix-sdk';
 import { isJumboEmojiText } from '$utils/emojiDetection';
-import { trimReplyFromBody } from '$utils/room';
+import { trimReplyFromBody } from '$utils/room/display';
 import type {
   IAudioContent,
   IAudioInfo,

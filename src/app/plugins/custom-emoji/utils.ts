@@ -1,6 +1,6 @@
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 
-import { getAccountData, getStateEvent, getStateEvents } from '$utils/room';
+import { getAccountData, getStateEvent, getStateEvents } from '$utils/room/hierarchy';
 
 import type { ImageUsage } from './types';
 import { ImagePack } from './ImagePack';

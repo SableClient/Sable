@@ -97,7 +97,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoomWidgets } from '$hooks/useRoomWidgets';
-import { hasThreadRootAggregation, isThreadRelationEvent } from '$utils/room';
+import { hasThreadRootAggregation, isThreadRelationEvent } from '$utils/room/relations';
 
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';

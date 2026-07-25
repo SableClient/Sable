@@ -18,7 +18,7 @@ import { useForceUpdate } from '$hooks/useForceUpdate';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { MatrixError } from '$types/matrix-sdk';
 import type { AbbreviationEntry, RoomAbbreviationsContent } from '$utils/abbreviations';
-import { getAllParents, getStateEvent } from '$utils/room';
+import { getAllParents, getStateEvent } from '$utils/room/hierarchy';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { CustomStateEvent } from '$types/matrix/room';
 

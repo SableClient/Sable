@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import classNames from 'classnames';
 import { Avatar, Box, Header, IconButton, Line, MenuItem, Scroll, Text, as, config } from 'folds';
 import type { MatrixEvent, Room, RoomMember, Relations } from '$types/matrix-sdk';
-import { getAvatarUrl, getMemberDisplayName } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName } from '$utils/room/display';
 import { eventWithShortcode, getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRelations } from '$hooks/useRelations';

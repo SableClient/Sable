@@ -8,7 +8,7 @@ import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
-import { getRoomAvatarUrl } from '$utils/room';
+import { getRoomAvatarUrl } from '$utils/room/display';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
 import { useNavigate } from 'react-router-dom';

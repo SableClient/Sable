@@ -40,7 +40,7 @@ import { getCanonicalAliasOrRoomId, rateLimitedActions } from '$utils/matrix';
 import { getSpaceRoomPath } from '$pages/pathUtils';
 
 import { ASCIILexicalTable, orderKeys } from '$utils/ASCIILexicalTable';
-import { getStateEvent } from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
 import { useClosedLobbyCategoriesAtom } from '$state/hooks/closedLobbyCategories';
 import {
   makeCinnySpacesContent,

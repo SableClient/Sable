@@ -7,7 +7,8 @@ import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
-import { extractReplyDraftBody, getMemberDisplayName, resolveReplyDraftTarget } from '$utils/room';
+import { getMemberDisplayName } from '$utils/room/display';
+import { extractReplyDraftBody, resolveReplyDraftTarget } from '$utils/room/relations';
 import { createMentionElement, moveCursor } from '$components/editor';
 import * as prefix from '$unstable/prefixes';
 

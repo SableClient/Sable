@@ -22,7 +22,7 @@ import { useRoomEvent } from '$hooks/useRoomEvent';
 import { DefaultPlaceholder } from '$components/message';
 import { dropzoneIcon, menuIcon, composerIcon, PushPin, X } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getStateEvent } from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
 import type { StateEvents } from '$types/matrix-sdk';
 
 import { useSetting } from '$state/hooks/settings';

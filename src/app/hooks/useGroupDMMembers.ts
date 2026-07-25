@@ -1,5 +1,5 @@
 import type { MatrixClient, Room } from '$types/matrix-sdk';
-import { getMemberDisplayName } from '$utils/room';
+import { getMemberDisplayName } from '$utils/room/display';
 
 export type GroupMemberInfo = {
   userId: string;

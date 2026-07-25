@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { isMembershipChanged, reactionOrEditEvent } from '$utils/room';
+import { isMembershipChanged, reactionOrEditEvent } from '$utils/room/relations';
 
 export const useRoomLatestRenderedEvent = (room: Room) => {
   const [hideMembershipEvents] = useSetting(settingsAtom, 'hideMembershipEvents');

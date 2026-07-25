@@ -17,7 +17,7 @@ import { useRoom } from '$hooks/useRoom';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { getStateEvents } from '$utils/room';
+import { getStateEvents } from '$utils/room/hierarchy';
 import { useRecursiveChildSpaceScopeFactory, useSpaceChildren } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToParentsAtom } from '$state/room/roomToParents';

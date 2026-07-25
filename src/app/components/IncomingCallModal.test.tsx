@@ -30,7 +30,7 @@ vi.mock('$hooks/useRoomMeta', () => ({
   useRoomName: () => 'Direct Message',
 }));
 
-vi.mock(import('$utils/room'), async (importOriginal) => ({
+vi.mock(import('$utils/room/display'), async (importOriginal) => ({
   ...(await importOriginal()),
   getRoomAvatarUrl: () => undefined,
   getMemberDisplayName: () => 'Alice',

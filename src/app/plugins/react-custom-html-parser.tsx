@@ -24,7 +24,7 @@ import {
   isRoomAlias,
   mxcUrlToHttp,
 } from '$utils/matrix';
-import { getMemberDisplayName } from '$utils/room';
+import { getMemberDisplayName } from '$utils/room/display';
 import { type Nicknames } from '$state/nicknames';
 import { sanitizeForRegex, URL_REG } from '$utils/regex';
 import { splitEmojiText } from '$utils/emojiDetection';

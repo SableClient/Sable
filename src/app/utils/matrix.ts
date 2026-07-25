@@ -25,7 +25,8 @@ import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/co
 import * as Sentry from '@sentry/react';
 import { encryptBlobInWorker } from '$utils/mediaWorker';
 import { encryptAttachmentStreaming } from '$utils/attachmentCrypto';
-import { getEventReactions, getStateEvent } from './room';
+import { getEventReactions } from './room/relations';
+import { getStateEvent } from './room/hierarchy';
 import { getReactionContent } from './messageReaction';
 import { matchMxId, validMxId } from './mxIdHelper';
 

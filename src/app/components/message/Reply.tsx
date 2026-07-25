@@ -25,12 +25,10 @@ import {
 } from '$components/icons/phosphor';
 import {
   getMemberDisplayName,
-  getReactionKey,
-  getReactionShortcode,
-  getRedactionTargetId,
   trimReplyFromBody,
   trimReplyFromFormattedBody,
-} from '$utils/room';
+} from '$utils/room/display';
+import { getReactionKey, getReactionShortcode, getRedactionTargetId } from '$utils/room/relations';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { randomNumberBetween } from '$utils/common';
 import { sanitizeCustomHtml } from '$utils/sanitize';

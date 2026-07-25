@@ -7,7 +7,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import type { MSpaceChildContent } from '$types/matrix/room';
 
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { getAllParents, getStateEvents, isValidChild } from '$utils/room';
+import { getAllParents, getStateEvents, isValidChild } from '$utils/room/hierarchy';
 import { isRoomId } from '$utils/matrix';
 import type { SortFunc } from '$utils/sort';
 import { byOrderKey, byTsOldToNew, factoryRoomIdByActivity } from '$utils/sort';

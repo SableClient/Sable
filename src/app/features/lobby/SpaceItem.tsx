@@ -22,7 +22,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
-import { getRoomAvatarUrl } from '$utils/room';
+import { getRoomAvatarUrl } from '$utils/room/display';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';

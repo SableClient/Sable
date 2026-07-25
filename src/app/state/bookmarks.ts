@@ -5,6 +5,7 @@ import { useCallback, useEffect } from 'react';
 import type { BookmarkItemContent } from '$types/matrix-sdk-events';
 import { listBookmarks } from '$features/bookmarks/bookmarkRepository';
 import { MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT } from '$unstable/prefixes';
+import { useMatrixEvent } from '$hooks/useMatrixEvent';
 
 export const bookmarkListAtom = atom<BookmarkItemContent[]>([]);
 export const bookmarkLoadingAtom = atom<boolean>(false);
@@ -43,16 +44,14 @@ export const useBindBookmarksAtom = (mx: MatrixClient, bookmarks: typeof bookmar
     refresh();
   }, [refresh]);
 
-  useEffect(() => {
-    const handleAccountData = (event: MatrixEvent) => {
+  const handleAccountData = useCallback(
+    (event: MatrixEvent) => {
       if (event.getType() === MATRIX_SABLE_UNSTABLE_BOOKMARKS_INDEX_EVENT) {
         refresh();
       }
-    };
+    },
+    [refresh]
+  );
 
-    mx.on(ClientEvent.AccountData, handleAccountData);
-    return () => {
-      mx.removeListener(ClientEvent.AccountData, handleAccountData);
-    };
-  }, [mx, refresh]);
+  useMatrixEvent(mx, ClientEvent.AccountData, handleAccountData);
 };

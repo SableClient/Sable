@@ -22,6 +22,7 @@ import {
 } from '$utils/room';
 import { useSyncState } from '$hooks/useSyncState';
 import { useRoomsNotificationPreferencesContext } from '$hooks/useRoomsNotificationPreferences';
+import { useMatrixEvent } from '$hooks/useMatrixEvent';
 import { getClientSyncDiagnostics, getSlidingSyncManager } from '$client/initMatrix';
 import { mDirectAtom } from '$state/mDirectList';
 import { roomToParentsAtom } from './roomToParents';
@@ -245,8 +246,8 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     )
   );
 
-  useEffect(() => {
-    const handleTimelineEvent = (
+  const handleTimelineEvent = useCallback(
+    (
       mEvent: MatrixEvent,
       room: Room | undefined,
       toStartOfTimeline: boolean | undefined,
@@ -292,15 +293,14 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
           });
         }
       }
-    };
-    mx.on(RoomEvent.Timeline, handleTimelineEvent);
-    return () => {
-      mx.removeListener(RoomEvent.Timeline, handleTimelineEvent);
-    };
-  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
+    },
+    [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]
+  );
 
-  useEffect(() => {
-    const handleReceipt = (mEvent: MatrixEvent, room: Room) => {
+  useMatrixEvent(mx, RoomEvent.Timeline, handleTimelineEvent);
+
+  const handleReceipt = useCallback(
+    (mEvent: MatrixEvent, room: Room) => {
       const myUserId = mx.getUserId();
       if (!myUserId) return;
       if (room.isSpaceRoom()) return;
@@ -322,12 +322,11 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
         }
         publishUnreadAction({ type: 'PUT', unreadInfo });
       }
-    };
-    mx.on(RoomEvent.Receipt, handleReceipt);
-    return () => {
-      mx.removeListener(RoomEvent.Receipt, handleReceipt);
-    };
-  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
+    },
+    [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]
+  );
+
+  useMatrixEvent(mx, RoomEvent.Receipt, handleReceipt);
 
   useEffect(() => {
     const roomListeners = new Map<Room, RoomEventHandlerMap[RoomEvent.UnreadNotifications]>();
@@ -366,8 +365,8 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     };
   }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
 
-  useEffect(() => {
-    const handleRoomAccountData = (mEvent: MatrixEvent, room: Room) => {
+  const handleRoomAccountData = useCallback(
+    (mEvent: MatrixEvent, room: Room) => {
       if (room.isSpaceRoom()) return;
       if (mEvent.getType() !== (EventType.FullyRead as string)) return;
 
@@ -380,12 +379,11 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
         return;
       }
       publishUnreadAction({ type: 'PUT', unreadInfo });
-    };
-    mx.on(RoomEvent.AccountData, handleRoomAccountData);
-    return () => {
-      mx.removeListener(RoomEvent.AccountData, handleRoomAccountData);
-    };
-  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
+    },
+    [publishUnreadAction, shouldApplyUnreadFixup, mDirects]
+  );
+
+  useMatrixEvent(mx, RoomEvent.AccountData, handleRoomAccountData);
 
   useEffect(() => {
     publishUnreadAction({
@@ -397,28 +395,27 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     });
   }, [mx, publishUnreadAction, roomsNotificationPreferences, shouldApplyUnreadFixup, mDirects]);
 
-  useEffect(() => {
-    const handleMembershipChange = (room: Room, membership: string) => {
+  const handleMembershipChange = useCallback(
+    (room: Room, membership: string) => {
       if (membership !== (KnownMembership.Join as string)) {
         publishUnreadAction({
           type: 'DELETE',
           roomId: room.roomId,
         });
       }
-    };
-    mx.on(RoomEvent.MyMembership, handleMembershipChange);
-    return () => {
-      mx.removeListener(RoomEvent.MyMembership, handleMembershipChange);
-    };
-  }, [mx, publishUnreadAction]);
+    },
+    [publishUnreadAction]
+  );
+
+  useMatrixEvent(mx, RoomEvent.MyMembership, handleMembershipChange);
 
   // Seed badge state immediately when a room is first registered with the client
   // (e.g. after joining or receiving an invite that gets auto-accepted).
   // This avoids the brief window after refresh where badges are invisible until
   // the next timeline event arrives. Notifications are NOT triggered here —
   // ClientNonUIFeatures handles live notification pop-ups via its own listener.
-  useEffect(() => {
-    const handleRoomAdded = (room: Room) => {
+  const handleRoomAdded = useCallback(
+    (room: Room) => {
       if (room.isSpaceRoom() || room.getMyMembership() !== (KnownMembership.Join as string)) return;
       const unreadInfo = getUnreadInfo(room, {
         applyFixup: shouldApplyUnreadFixup(),
@@ -427,10 +424,9 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
       if (unreadInfo.total > 0 || unreadInfo.highlight > 0) {
         publishUnreadAction({ type: 'PUT', unreadInfo });
       }
-    };
-    mx.on(ClientEvent.Room, handleRoomAdded as (room: Room) => void);
-    return () => {
-      mx.removeListener(ClientEvent.Room, handleRoomAdded as (room: Room) => void);
-    };
-  }, [mx, publishUnreadAction, shouldApplyUnreadFixup, mDirects]);
+    },
+    [publishUnreadAction, shouldApplyUnreadFixup, mDirects]
+  );
+
+  useMatrixEvent(mx, ClientEvent.Room, handleRoomAdded);
 };

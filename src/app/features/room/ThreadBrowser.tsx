@@ -19,6 +19,7 @@ import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { useMatrixEvent } from '$hooks/useMatrixEvent';
 
 type ThreadPreviewProps = {
   room: Room;
@@ -45,15 +46,13 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   );
 
   const [, forceUnread] = useState(0);
-  useEffect(() => {
-    const onUnread = (_count: unknown, threadId?: string) => {
+  const onUnread = useCallback(
+    (_count: unknown, threadId?: string) => {
       if (!threadId || threadId === thread.id) forceUnread((n) => n + 1);
-    };
-    room.on(RoomEvent.UnreadNotifications, onUnread);
-    return () => {
-      room.off(RoomEvent.UnreadNotifications, onUnread);
-    };
-  }, [room, thread.id]);
+    },
+    [thread.id]
+  );
+  useMatrixEvent(room, RoomEvent.UnreadNotifications, onUnread);
   const unreadTotal = room.getThreadUnreadNotificationCount(thread.id, NotificationCountType.Total);
   const unreadHighlight = room.getThreadUnreadNotificationCount(
     thread.id,

@@ -15,6 +15,7 @@ import * as css from './PollEvent.css';
 import { useCallback, useEffect, useState } from 'react';
 import { PollResponsesViewer } from '$features/room/poll-modals';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { useMatrixEvent } from '$hooks/useMatrixEvent';
 
 type PollEventProps = {
   content: Record<string, unknown>;
@@ -100,8 +101,8 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
   const [isEnded, setIsEnded] = useState(getEndIndex(sortedChildEvents) !== -1);
   const [updateCounter, setUpdateCounter] = useState(0);
 
-  useEffect(() => {
-    const handleUpdate = (event: MatrixEvent) => {
+  const handleUpdate = useCallback(
+    (event: MatrixEvent) => {
       const relation = event.getRelation();
       if (
         relation?.event_id === eventId ||
@@ -110,12 +111,11 @@ export function PollEvent({ content, mEvent, mx, room }: PollEventProps) {
       ) {
         setUpdateCounter((c) => c + 1);
       }
-    };
-    room.on(RoomEvent.Timeline, handleUpdate);
-    return () => {
-      room.off(RoomEvent.Timeline, handleUpdate);
-    };
-  }, [room, eventId]);
+    },
+    [eventId]
+  );
+
+  useMatrixEvent(room, RoomEvent.Timeline, handleUpdate);
 
   // ensure a new sorted array is only generated when a new list is made
   useEffect(() => {

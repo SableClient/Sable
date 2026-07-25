@@ -1,11 +1,8 @@
 import { useMemo, useState } from 'react';
-import type { ComponentType } from 'react';
-import type { IconProps } from '@phosphor-icons/react';
+import type { ReactNode } from 'react';
 import { useAtomValue } from 'jotai';
-import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
+import { Avatar, Box, Text } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
-import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
-import { SettingsSectionHeader } from '$components/page/style.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
@@ -16,6 +13,7 @@ import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { useRoom } from '$hooks/useRoom';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
+import { SettingsShell, type SectionDescriptor } from '$components/SettingsShell';
 import { Members } from '$features/common-settings/members';
 import { EmojisStickers } from '$features/common-settings/emojis-stickers';
 import { DeveloperTools } from '$features/common-settings/developer-tools';
@@ -24,81 +22,85 @@ import { Appearance } from '$features/common-settings/appearance/Appearance';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import {
-  composerIcon,
   GearSix,
   Info,
   Lock,
   PaintBrush,
   Palette,
-  settingsNavIcon,
   Smiley,
   Terminal,
   User,
-  X,
 } from '$components/icons/phosphor';
 import { Permissions } from './permissions';
 import { General } from './general';
 import { RoomAbbreviations } from './abbreviations/RoomAbbreviations';
 
-type PhosphorIcon = ComponentType<IconProps>;
+function makeAbbreviationsComponent(isSpace: boolean) {
+  function AbbreviationsWrapper(props: { requestBack?: () => void; requestClose: () => void }) {
+    return (
+      <RoomAbbreviations
+        isSpace={isSpace}
+        requestBack={props.requestBack}
+        requestClose={props.requestClose}
+      />
+    );
+  }
+  return AbbreviationsWrapper;
+}
 
-type RoomSettingsMenuItem = {
-  page: RoomSettingsPage;
-  name: string;
-  icon: PhosphorIcon;
-  activeIcon?: PhosphorIcon;
+function makeSwipeWrapper(onClose: () => void) {
+  function SwipeWrapper(children: ReactNode) {
+    return (
+      <SwipeableOverlayWrapper direction="right" onClose={onClose}>
+        {children}
+      </SwipeableOverlayWrapper>
+    );
+  }
+  return SwipeWrapper;
+}
+
+/** String keys for room settings sections. */
+type RoomSectionId =
+  | 'general'
+  | 'members'
+  | 'permissions'
+  | 'cosmetics'
+  | 'abbreviations'
+  | 'emojis-stickers'
+  | 'developer-tools'
+  | 'appearance';
+
+const roomSectionIds: readonly RoomSectionId[] = [
+  'general',
+  'members',
+  'permissions',
+  'cosmetics',
+  'abbreviations',
+  'emojis-stickers',
+  'developer-tools',
+];
+
+const pageToSectionId: Record<RoomSettingsPage, RoomSectionId> = {
+  [RoomSettingsPage.GeneralPage]: 'general',
+  [RoomSettingsPage.MembersPage]: 'members',
+  [RoomSettingsPage.PermissionsPage]: 'permissions',
+  [RoomSettingsPage.CosmeticsPage]: 'cosmetics',
+  [RoomSettingsPage.AbbreviationsPage]: 'abbreviations',
+  [RoomSettingsPage.EmojisStickersPage]: 'emojis-stickers',
+  [RoomSettingsPage.DeveloperToolsPage]: 'developer-tools',
+  [RoomSettingsPage.AppearancePage]: 'appearance',
 };
 
-const useRoomSettingsMenuItems = (isSpace: boolean): RoomSettingsMenuItem[] =>
-  useMemo(
-    () => [
-      {
-        page: RoomSettingsPage.GeneralPage,
-        name: 'General',
-        icon: GearSix,
-      },
-      {
-        page: RoomSettingsPage.MembersPage,
-        name: 'Members',
-        icon: User,
-      },
-      {
-        page: RoomSettingsPage.PermissionsPage,
-        name: 'Permissions',
-        icon: Lock,
-      },
-      {
-        page: RoomSettingsPage.CosmeticsPage,
-        name: 'Cosmetics',
-        icon: PaintBrush,
-      },
-      {
-        page: RoomSettingsPage.AbbreviationsPage,
-        name: 'Abbreviations',
-        icon: Info,
-      },
-      {
-        page: RoomSettingsPage.EmojisStickersPage,
-        name: 'Emojis & Stickers',
-        icon: Smiley,
-      },
-      {
-        page: RoomSettingsPage.DeveloperToolsPage,
-        name: 'Developer Tools',
-        icon: Terminal,
-      },
-      ...(isSpace
-        ? [
-            {
-              page: RoomSettingsPage.AppearancePage,
-              name: 'Appearance',
-              icon: Palette,
-            },
-          ]
-        : []),
-    ],
-    [isSpace]
-  );
+const sectionIdToPage: Record<RoomSectionId, RoomSettingsPage> = {
+  general: RoomSettingsPage.GeneralPage,
+  members: RoomSettingsPage.MembersPage,
+  permissions: RoomSettingsPage.PermissionsPage,
+  cosmetics: RoomSettingsPage.CosmeticsPage,
+  abbreviations: RoomSettingsPage.AbbreviationsPage,
+  'emojis-stickers': RoomSettingsPage.EmojisStickersPage,
+  'developer-tools': RoomSettingsPage.DeveloperToolsPage,
+  appearance: RoomSettingsPage.AppearancePage,
+};
 
 type RoomSettingsProps = {
   initialPage?: RoomSettingsPage;
@@ -126,7 +128,9 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
     if (initialPage) return initialPage;
     return screenSize === ScreenSize.Mobile ? undefined : RoomSettingsPage.GeneralPage;
   });
-  const menuItems = useRoomSettingsMenuItems(isSpace);
+
+  const activeSection: RoomSectionId | null =
+    activePage !== undefined ? pageToSectionId[activePage] : null;
 
   const handlePageRequestClose = () => {
     if (screenSize === ScreenSize.Mobile) {
@@ -145,106 +149,83 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
     requestClose();
   };
 
-  return (
-    <SwipeableOverlayWrapper direction="right" onClose={handleSwipeBack}>
-      <PageRoot
-        mobileDrawer={false}
-        nav={
-          screenSize === ScreenSize.Mobile && activePage !== undefined ? undefined : (
-            <PageNav size="300">
-              <PageNavHeader className={SettingsSectionHeader} size="600">
-                <Box grow="Yes" gap="200">
-                  <Avatar size="200" radii="300">
-                    <RoomAvatar
-                      roomId={room.roomId}
-                      src={avatarUrl}
-                      alt={roomName}
-                      renderFallback={() => (
-                        <RoomIcon
-                          size="50"
-                          roomType={room.getType()}
-                          joinRule={joinRuleContent?.join_rule ?? JoinRule.Invite}
-                          filled
-                        />
-                      )}
-                    />
-                  </Avatar>
-                  <Text size="H4" truncate>
-                    {roomName}
-                  </Text>
-                </Box>
-                <Box shrink="No">
-                  {screenSize === ScreenSize.Mobile && (
-                    <IconButton onClick={requestClose} variant="Background">
-                      {composerIcon(X)}
-                    </IconButton>
-                  )}
-                </Box>
-              </PageNavHeader>
-              <Box grow="Yes" direction="Column">
-                <PageNavContent>
-                  <div style={{ flexGrow: 1 }}>
-                    {menuItems.map((item) => {
-                      const active = activePage === item.page;
-                      const IconComponent = active && item.activeIcon ? item.activeIcon : item.icon;
+  const sections = useMemo<Record<RoomSectionId, SectionDescriptor>>(() => {
+    const result: Record<RoomSectionId, SectionDescriptor> = {
+      general: { label: 'General', icon: GearSix, Component: General },
+      members: { label: 'Members', icon: User, Component: Members },
+      permissions: { label: 'Permissions', icon: Lock, Component: Permissions },
+      cosmetics: { label: 'Cosmetics', icon: PaintBrush, Component: Cosmetics },
+      abbreviations: {
+        label: 'Abbreviations',
+        icon: Info,
+        Component: makeAbbreviationsComponent(isSpace),
+      },
+      'emojis-stickers': {
+        label: 'Emojis & Stickers',
+        icon: Smiley,
+        Component: EmojisStickers,
+      },
+      'developer-tools': {
+        label: 'Developer Tools',
+        icon: Terminal,
+        Component: DeveloperTools,
+      },
+      appearance: {
+        label: 'Appearance',
+        icon: Palette,
+        Component: Appearance,
+        visible: isSpace,
+      },
+    };
+    return result;
+  }, [isSpace]);
 
-                      return (
-                        <MenuItem
-                          key={item.name}
-                          variant="Background"
-                          radii="400"
-                          aria-pressed={active}
-                          before={settingsNavIcon(IconComponent, active)}
-                          onClick={() => setActivePage(item.page)}
-                        >
-                          <Text
-                            style={{
-                              fontWeight: active ? config.fontWeight.W600 : undefined,
-                            }}
-                            size="T300"
-                            truncate
-                          >
-                            {item.name}
-                          </Text>
-                        </MenuItem>
-                      );
-                    })}
-                  </div>
-                </PageNavContent>
-              </Box>
-            </PageNav>
-          )
-        }
-      >
-        {activePage === RoomSettingsPage.GeneralPage && (
-          <General requestBack={handlePageRequestClose} requestClose={requestClose} />
-        )}
-        {activePage === RoomSettingsPage.MembersPage && (
-          <Members requestBack={handlePageRequestClose} requestClose={requestClose} />
-        )}
-        {activePage === RoomSettingsPage.PermissionsPage && (
-          <Permissions requestBack={handlePageRequestClose} requestClose={requestClose} />
-        )}
-        {activePage === RoomSettingsPage.CosmeticsPage && (
-          <Cosmetics requestBack={handlePageRequestClose} requestClose={requestClose} />
-        )}
-        {activePage === RoomSettingsPage.EmojisStickersPage && (
-          <EmojisStickers requestBack={handlePageRequestClose} requestClose={requestClose} />
-        )}
-        {activePage === RoomSettingsPage.DeveloperToolsPage && (
-          <DeveloperTools requestBack={handlePageRequestClose} requestClose={requestClose} />
-        )}
-        {activePage === RoomSettingsPage.AbbreviationsPage && (
-          <RoomAbbreviations
-            isSpace={isSpace}
-            requestBack={handlePageRequestClose}
-            requestClose={requestClose}
+  const visibleSectionIds = useMemo<RoomSectionId[]>(() => {
+    const ids = [...roomSectionIds];
+    if (isSpace) ids.push('appearance');
+    return ids;
+  }, [isSpace]);
+
+  const renderHeader = (closeButton: ReactNode): ReactNode => (
+    <>
+      <Box grow="Yes" gap="200">
+        <Avatar size="200" radii="300">
+          <RoomAvatar
+            roomId={room.roomId}
+            src={avatarUrl}
+            alt={roomName}
+            renderFallback={() => (
+              <RoomIcon
+                size="50"
+                roomType={room.getType()}
+                joinRule={joinRuleContent?.join_rule ?? JoinRule.Invite}
+                filled
+              />
+            )}
           />
-        )}
-        {activePage === RoomSettingsPage.AppearancePage && isSpace && (
-          <Appearance requestBack={handlePageRequestClose} requestClose={requestClose} />
-        )}
-      </PageRoot>
-    </SwipeableOverlayWrapper>
+        </Avatar>
+        <Text size="H4" truncate>
+          {roomName}
+        </Text>
+      </Box>
+      <Box shrink="No">{closeButton}</Box>
+    </>
+  );
+
+  const swipeWrapper = makeSwipeWrapper(handleSwipeBack);
+
+  return (
+    <SettingsShell<RoomSectionId>
+      sections={sections}
+      sectionIds={visibleSectionIds}
+      active={activeSection}
+      onSelect={(id) => setActivePage(sectionIdToPage[id])}
+      onBack={handlePageRequestClose}
+      requestClose={requestClose}
+      renderHeader={renderHeader}
+      showCloseInHeader={screenSize === ScreenSize.Mobile}
+      mobileDrawer={false}
+      wrapper={swipeWrapper}
+    />
   );
 }

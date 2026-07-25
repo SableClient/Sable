@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { DesktopIcon, type IconProps } from '@phosphor-icons/react';
-import { Avatar, Box, Button, config, IconButton, MenuItem, Text } from 'folds';
-import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
-import { SettingsSectionHeader } from '$components/page/style.css';
+import { Avatar, Box, Button, config, Text } from 'folds';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -17,22 +15,20 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import {
   Bell,
-  composerIcon,
   Devices as DevicesIcon,
   Flask,
   GearSix,
   Info,
   Keyboard,
   menuIcon,
-  settingsNavIcon,
   SignOut,
   Palette,
   Smiley,
   Terminal,
   User,
   UsersThree,
-  X,
 } from '$components/icons/phosphor';
+import { SettingsShell, type SectionDescriptor } from '$components/SettingsShell';
 import { About } from './about';
 import { Account } from './account';
 import { Cosmetics } from './cosmetics/Cosmetics';
@@ -123,10 +119,7 @@ const settingsSectionIdToPage: Record<SettingsSectionId, SettingsPages> = {
   'keyboard-shortcuts': SettingsPages.KeyboardShortcutsPage,
 };
 
-const settingsSectionComponents: Record<
-  SettingsSectionId,
-  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element | null
-> = {
+const settingsSectionComponents = {
   general: General,
   account: Account,
   persona: PerMessageProfilePage,
@@ -139,7 +132,10 @@ const settingsSectionComponents: Record<
   experimental: Experimental,
   about: About,
   'keyboard-shortcuts': KeyboardShortcuts,
-};
+} as const satisfies Record<
+  SettingsSectionId,
+  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element | null
+>;
 
 type ControlledSettingsProps = {
   activeSection?: SettingsSectionId | null;
@@ -149,18 +145,15 @@ type ControlledSettingsProps = {
   initialPage?: SettingsPages;
 };
 
-function SettingsSectionViewport({
-  section,
-  requestBack,
-  requestClose,
-}: {
+type SectionWrapperProps = {
+  children: ReactNode;
   section: SettingsSectionId;
-  requestBack?: () => void;
-  requestClose: () => void;
-}) {
+  baseUrl: string;
+};
+
+function SettingsSectionProvider({ children, section, baseUrl }: SectionWrapperProps) {
   useSettingsFocus();
-  const Section = settingsSectionComponents[section];
-  return <Section requestBack={requestBack} requestClose={requestClose} />;
+  return <SettingsLinkProvider value={{ section, baseUrl }}>{children}</SettingsLinkProvider>;
 }
 
 export function Settings({
@@ -213,20 +206,6 @@ export function Settings({
     return section;
   }, [activeSection, isControlled, legacyActivePage, showPersona, isDesktop]);
 
-  const menuItems = useMemo<SettingsMenuItem[]>(
-    () =>
-      settingsSections
-        .filter(
-          (section) =>
-            (showPersona || section.id !== 'persona') && (isDesktop || section.id !== 'desktop')
-        )
-        .map((section) => {
-          const icon = settingsMenuIcons[section.id];
-          return { id: section.id, name: section.label, ...icon };
-        }),
-    [showPersona, isDesktop]
-  );
-
   const handleSelectSection = (section: SettingsSectionId) => {
     if (isControlled) {
       onSelectSection?.(section);
@@ -264,104 +243,92 @@ export function Settings({
     setLegacyActivePage(SettingsPages.GeneralPage);
   };
 
-  const shouldShowSectionBack = visibleSection !== null && screenSize === ScreenSize.Mobile;
-  const sectionRequestBack = shouldShowSectionBack ? handleRequestBack : undefined;
+  const sections = useMemo<Record<SettingsSectionId, SectionDescriptor>>(() => {
+    const result = {} as Record<SettingsSectionId, SectionDescriptor>;
+    for (const sec of settingsSections) {
+      const icons = settingsMenuIcons[sec.id];
+      result[sec.id] = {
+        label: sec.label,
+        icon: icons.icon,
+        activeIcon: icons.activeIcon,
+        Component: settingsSectionComponents[sec.id],
+      };
+    }
+    return result;
+  }, []);
+
+  const visibleSectionIds = useMemo<SettingsSectionId[]>(
+    () =>
+      settingsSections
+        .filter(
+          (sec) => (showPersona || sec.id !== 'persona') && (isDesktop || sec.id !== 'desktop')
+        )
+        .map((sec) => sec.id),
+    [showPersona, isDesktop]
+  );
+
+  const renderHeader = useMemo(
+    () =>
+      (closeButton: ReactNode): ReactNode => (
+        <Box grow="Yes" gap="200">
+          <Box grow="Yes" alignItems="Center" gap="200">
+            <Avatar size="200" radii="300">
+              <UserAvatar
+                userId={userId}
+                src={avatarUrl}
+                renderFallback={() => <Text size="H6">{nameInitials(displayName)}</Text>}
+              />
+            </Avatar>
+            <Text size="H4" truncate>
+              Settings
+            </Text>
+          </Box>
+          <Box shrink="No">{closeButton}</Box>
+        </Box>
+      ),
+    [userId, avatarUrl, displayName]
+  );
 
   return (
-    <PageRoot
-      nav={
-        screenSize === ScreenSize.Mobile && visibleSection !== null ? undefined : (
-          <PageNav size="300">
-            <PageNavHeader className={SettingsSectionHeader} size="600">
-              <Box grow="Yes" gap="200">
-                <Box grow="Yes" alignItems="Center" gap="200">
-                  <Avatar size="200" radii="300">
-                    <UserAvatar
-                      userId={userId}
-                      src={avatarUrl}
-                      renderFallback={() => <Text size="H6">{nameInitials(displayName)}</Text>}
-                    />
-                  </Avatar>
-                  <Text size="H4" truncate>
-                    Settings
-                  </Text>
-                </Box>
-                <Box shrink="No">
-                  {visibleSection === null && (
-                    <IconButton
-                      aria-label="Close settings"
-                      onClick={handleRequestClose}
-                      variant="Background"
-                    >
-                      {composerIcon(X)}
-                    </IconButton>
-                  )}
-                </Box>
-              </Box>
-            </PageNavHeader>
-            <Box grow="Yes" direction="Column">
-              <PageNavContent>
-                <div style={{ flexGrow: 1 }}>
-                  {menuItems.map((item) => {
-                    const active = visibleSection === item.id;
-                    const IconComponent = active && item.activeIcon ? item.activeIcon : item.icon;
-
-                    return (
-                      <MenuItem
-                        key={item.id}
-                        variant="Background"
-                        radii="400"
-                        aria-pressed={active}
-                        before={settingsNavIcon(IconComponent, active)}
-                        onClick={() => handleSelectSection(item.id)}
-                      >
-                        <Text
-                          style={{
-                            fontWeight: active ? config.fontWeight.W600 : undefined,
-                          }}
-                          size={screenSize === ScreenSize.Mobile ? 'T400' : 'T300'}
-                          truncate
-                        >
-                          {item.name}
-                        </Text>
-                      </MenuItem>
-                    );
-                  })}
-                </div>
-              </PageNavContent>
-              <Box style={{ padding: config.space.S200 }} shrink="No" direction="Column">
-                <UseStateProvider initial={false}>
-                  {(logout, setLogout) => (
-                    <>
-                      <Button
-                        size="300"
-                        variant="Critical"
-                        fill="None"
-                        radii="Pill"
-                        before={menuIcon(SignOut)}
-                        onClick={() => setLogout(true)}
-                      >
-                        <Text size="B400">Logout</Text>
-                      </Button>
-                      {logout && <LogoutDialogOverlay requestClose={() => setLogout(false)} />}
-                    </>
-                  )}
-                </UseStateProvider>
-              </Box>
-            </Box>
-          </PageNav>
-        )
+    <SettingsShell
+      sections={sections}
+      sectionIds={visibleSectionIds}
+      active={visibleSection}
+      onSelect={handleSelectSection}
+      onBack={handleRequestBack}
+      requestClose={handleRequestClose}
+      renderHeader={renderHeader}
+      showCloseInHeader={visibleSection === null}
+      menuItemTextSize={screenSize === ScreenSize.Mobile ? 'T400' : 'T300'}
+      closeButtonAriaLabel="Close settings"
+      renderSection={(viewport) =>
+        visibleSection ? (
+          <SettingsSectionProvider section={visibleSection} baseUrl={settingsLinkBaseUrl}>
+            {viewport}
+          </SettingsSectionProvider>
+        ) : null
       }
-    >
-      {visibleSection && (
-        <SettingsLinkProvider value={{ section: visibleSection, baseUrl: settingsLinkBaseUrl }}>
-          <SettingsSectionViewport
-            section={visibleSection}
-            requestBack={sectionRequestBack}
-            requestClose={handleRequestClose}
-          />
-        </SettingsLinkProvider>
-      )}
-    </PageRoot>
+      footer={
+        <Box style={{ padding: config.space.S200 }} shrink="No" direction="Column">
+          <UseStateProvider initial={false}>
+            {(logout, setLogout) => (
+              <>
+                <Button
+                  size="300"
+                  variant="Critical"
+                  fill="None"
+                  radii="Pill"
+                  before={menuIcon(SignOut)}
+                  onClick={() => setLogout(true)}
+                >
+                  <Text size="B400">Logout</Text>
+                </Button>
+                {logout && <LogoutDialogOverlay requestClose={() => setLogout(false)} />}
+              </>
+            )}
+          </UseStateProvider>
+        </Box>
+      }
+    />
   );
 }

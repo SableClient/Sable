@@ -1,19 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import type { RectCords } from 'folds';
-import {
-  Box,
-  Button,
-  config,
-  Input,
-  Menu,
-  MenuItem,
-  PopOut,
-  Scroll,
-  Switch,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Button, config, Input, Menu, MenuItem, PopOut, Scroll, Text, toRem } from 'folds';
 import { CaretDown, composerIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
@@ -22,7 +10,7 @@ import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
 import type { JumboEmojiSize, RenderUserCardsMode } from '$state/settings';
 import { settingsAtom } from '$state/settings';
-import { SettingTile } from '$components/setting-tile';
+import { SettingTile, SettingToggle } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
@@ -385,36 +373,29 @@ function Privacy() {
     <Box direction="Column" gap="100">
       <Text size="L400">Privacy & Security</Text>
 
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Blur Media"
-          focusId="blur-media"
-          description="Blurs images and videos in the timeline."
-          after={<Switch variant="Primary" value={privacyBlur} onChange={setPrivacyBlur} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Blur Media"
+        focusId="blur-media"
+        description="Blurs images and videos in the timeline."
+        value={privacyBlur}
+        onChange={setPrivacyBlur}
+      />
 
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Blur Avatars"
-          focusId="blur-avatars"
-          description="Blurs user profile pictures and room icons."
-          after={
-            <Switch variant="Primary" value={privacyBlurAvatars} onChange={setPrivacyBlurAvatars} />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Blur Avatars"
+        focusId="blur-avatars"
+        description="Blurs user profile pictures and room icons."
+        value={privacyBlurAvatars}
+        onChange={setPrivacyBlurAvatars}
+      />
 
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Blur Emotes"
-          focusId="blur-emotes"
-          description="Blurs emoticons within messages."
-          after={
-            <Switch variant="Primary" value={privacyBlurEmotes} onChange={setPrivacyBlurEmotes} />
-          }
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Blur Emotes"
+        focusId="blur-emotes"
+        description="Blurs emoticons within messages."
+        value={privacyBlurEmotes}
+        onChange={setPrivacyBlurEmotes}
+      />
     </Box>
   );
 }
@@ -437,28 +418,20 @@ function IdentityCosmetics() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Identity</Text>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Colorful Names"
-          focusId="colorful-names"
-          description="Assign unique colors to users based on their ID. Does not override room/space custom colors. Will override default role colors."
-          after={
-            <Switch
-              variant="Primary"
-              value={legacyUsernameColor}
-              onChange={setLegacyUsernameColor}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Pronoun Pills"
-          focusId="show-pronoun-pills"
-          description="Display user pronouns in the message timeline."
-          after={<Switch variant="Primary" value={showPronouns} onChange={setShowPronouns} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Colorful Names"
+        focusId="colorful-names"
+        description="Assign unique colors to users based on their ID. Does not override room/space custom colors. Will override default role colors."
+        value={legacyUsernameColor}
+        onChange={setLegacyUsernameColor}
+      />
+      <SettingToggle
+        title="Show Pronoun Pills"
+        focusId="show-pronoun-pills"
+        description="Display user pronouns in the message timeline."
+        value={showPronouns}
+        onChange={setShowPronouns}
+      />
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -485,14 +458,13 @@ function IdentityCosmetics() {
           after={<PronounPillMaxLengthInput disabled={!showPronouns} />}
         />
       </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Pronoun Pills for All"
-          focusId="pronoun-pills-for-all"
-          description="Attempts to convert pronouns in names into pills (e.g. [they/them] or (it/its) turns into a pill)."
-          after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Pronoun Pills for All"
+        focusId="pronoun-pills-for-all"
+        description="Attempts to convert pronouns in names into pills (e.g. [they/them] or (it/its) turns into a pill)."
+        value={parsePronouns}
+        onChange={setParsePronouns}
+      />
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Render Custom Profile Cards"
@@ -501,42 +473,34 @@ function IdentityCosmetics() {
           after={<SelectRenderCustomProfileCards />}
         />
       </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Render Global Username Colors"
-          focusId="render-global-username-colors"
-          description="Display the username colors anyone can set in their account settings."
-          after={
-            <Switch variant="Primary" value={renderGlobalColors} onChange={setRenderGlobalColors} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Render Space/Room Username Colors"
-          focusId="render-space-room-username-colors"
-          description="Display the username colors that can be set with /color."
-          after={
-            <Switch variant="Primary" value={renderRoomColors} onChange={setRenderRoomColors} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Render Space/Room Fonts"
-          focusId="render-space-room-fonts"
-          description="Display the username fonts that can be set with /font."
-          after={<Switch variant="Primary" value={renderRoomFonts} onChange={setRenderRoomFonts} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Consistent Icon Style"
-          focusId="consistent-icon-style"
-          description="Harmonize icon appearance with background fill"
-          after={<Switch variant="Primary" value={uniformIcons} onChange={setUniformIcons} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Render Global Username Colors"
+        focusId="render-global-username-colors"
+        description="Display the username colors anyone can set in their account settings."
+        value={renderGlobalColors}
+        onChange={setRenderGlobalColors}
+      />
+      <SettingToggle
+        title="Render Space/Room Username Colors"
+        focusId="render-space-room-username-colors"
+        description="Display the username colors that can be set with /color."
+        value={renderRoomColors}
+        onChange={setRenderRoomColors}
+      />
+      <SettingToggle
+        title="Render Space/Room Fonts"
+        focusId="render-space-room-fonts"
+        description="Display the username fonts that can be set with /font."
+        value={renderRoomFonts}
+        onChange={setRenderRoomFonts}
+      />
+      <SettingToggle
+        title="Consistent Icon Style"
+        focusId="consistent-icon-style"
+        description="Harmonize icon appearance with background fill"
+        value={uniformIcons}
+        onChange={setUniformIcons}
+      />
     </Box>
   );
 }

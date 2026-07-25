@@ -15,7 +15,7 @@ const settingsSectionLabel = Object.fromEntries(
   settingsSections.map((section) => [section.id, section.label])
 ) as Record<SettingsSectionId, string>;
 
-const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]> = {
+export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]> = {
   general: [
     'show-interactive-map',
     'show-interactive-map-enc',

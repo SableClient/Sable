@@ -95,23 +95,23 @@ describe('settings tile focus coverage', () => {
     // Build the full set of link-map focusIds for cross-reference
     const allLinkMapIds = new Set(Object.values(settingsLinkFocusIdsBySection).flat());
 
-    it('every <SettingTile> tag has a focusId prop', () => {
+    it('every <SettingTile> and <SettingToggle> tag has a focusId prop', () => {
       const offenders: { file: string; line: number; context: string }[] = [];
 
       for (const [file, source] of fileContents) {
-        // Find <SettingTile tags by opening tag; we need their full context
-        const tileRe = /<SettingTile\b[^>]*\/?>/g;
-        let tileMatch: RegExpExecArray | null;
-        while ((tileMatch = tileRe.exec(source)) !== null) {
-          const tag = tileMatch[0];
+        // Find <SettingTile and <SettingToggle tags by opening tag
+        const tagRe = /<(SettingTile|SettingToggle)\b[^>]*\/?>/g;
+        let tagMatch: RegExpExecArray | null;
+        while ((tagMatch = tagRe.exec(source)) !== null) {
+          const tag = tagMatch[0];
           if (!/\bfocusId=/.test(tag)) {
-            const line = source.slice(0, tileMatch.index).split('\n').length;
+            const line = source.slice(0, tagMatch.index).split('\n').length;
             offenders.push({ file, line, context: tag.slice(0, 120) });
           }
         }
       }
 
-      expect(offenders, '<SettingTile> tags missing focusId prop').toEqual([]);
+      expect(offenders, '<SettingTile> or <SettingToggle> tags missing focusId prop').toEqual([]);
     });
 
     it('every focusId in the link map is unique within its section', () => {

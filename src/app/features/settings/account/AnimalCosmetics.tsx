@@ -1,11 +1,11 @@
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
-import { SettingTile } from '$components/setting-tile';
+import { SettingTile, SettingToggle } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { UserProfile } from '$hooks/useUserProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { profilesCacheAtom } from '$state/userRoomProfile';
-import { Box, IconButton, Input, Switch, Text } from 'folds';
+import { Box, IconButton, Input, Text } from 'folds';
 import { useSetAtom } from 'jotai';
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
 import * as prefix from '$unstable/prefixes';
@@ -129,14 +129,13 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Animal Identity</Text>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Render Animals"
-          focusId="render-animals"
-          description="Render animals statuses."
-          after={<Switch variant="Primary" value={renderAnimals} onChange={setRenderAnimals} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Render Animals"
+        focusId="render-animals"
+        description="Render animals statuses."
+        value={renderAnimals}
+        onChange={setRenderAnimals}
+      />
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Is animal"

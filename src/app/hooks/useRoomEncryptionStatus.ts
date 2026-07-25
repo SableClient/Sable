@@ -22,7 +22,6 @@ export function useRoomEncryptionStatus(room: Room | undefined): RoomEncryptionS
   const mx = useMatrixClient();
   const [status, setStatus] = useState<RoomEncryptionStatus>(() => {
     if (!room) return RoomEncryptionStatus.Unknown;
-    // Quick sync check
     return room.hasEncryptionStateEvent()
       ? RoomEncryptionStatus.Encrypted
       : RoomEncryptionStatus.Unencrypted;

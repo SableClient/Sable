@@ -27,7 +27,6 @@ const normalizeMacName = (os?: string) => {
 
 const isMac = result.os.name === 'Mac OS' || result.os.name === 'macOS';
 
-export const ua = () => result;
 export const isMacOS = () => isMac;
 export const mobileOrTablet = () => isMobileOrTablet;
 

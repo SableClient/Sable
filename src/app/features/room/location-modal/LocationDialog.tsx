@@ -19,7 +19,7 @@ import markerIconPng from 'leaflet/dist/images/marker-icon.png';
 import { Icon } from 'leaflet';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
-export const markerIcon = new Icon({
+const markerIcon = new Icon({
   iconUrl: markerIconPng,
   iconSize: [25, 41],
   iconAnchor: [12, 41],

@@ -16,7 +16,7 @@ export type DisplayedRoom = {
   eventId?: string;
 };
 
-export function useDisplayedRoom(section: SectionNav | null): DisplayedRoom | undefined {
+function useDisplayedRoom(section: SectionNav | null): DisplayedRoom | undefined {
   const location = useLocation();
   const lastRoom = useAtomValue(lastVisitedRoomAtom);
 

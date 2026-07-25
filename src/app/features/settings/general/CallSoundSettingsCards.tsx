@@ -15,7 +15,7 @@ export type CustomToneMetadata = {
   durationMs: number;
 };
 
-export function CustomToneMeta({
+function CustomToneMeta({
   metadata,
   emptyLabel,
 }: {

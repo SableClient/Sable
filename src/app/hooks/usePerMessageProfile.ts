@@ -466,27 +466,6 @@ export async function associateProxyWithProfile(
 }
 
 /**
- * get a profile based on a proxy
- * @param mx the matrix client
- * @param proxy the proxy to look for
- * @returns the profile, if any, associated with the prefix
- */
-export async function getProfileAssociatedWithProxy(
-  mx: MatrixClient,
-  proxy: string
-): Promise<PerMessageProfile | undefined> {
-  const profileId = getProxyAssociationMap(
-    mx
-      .getAccountData(
-        `${ACCOUNT_DATA_PREFIX}.proxyassociation` as Parameters<typeof mx.getAccountData>[0]
-      )
-      ?.getContent()
-  ).get(proxy)?.profileId;
-  if (!profileId) return undefined;
-  return getPerMessageProfileById(mx, profileId);
-}
-
-/**
  *
  *
  * @export
@@ -582,13 +561,6 @@ export async function renamePerMessageProfile(mx: MatrixClient, oldId: string, n
   const newProfile = { ...profile, id: newId };
   await addOrUpdatePerMessageProfile(mx, newProfile);
   await deletePerMessageProfile(mx, oldId);
-}
-
-export async function getListOfRoomsUsingProfile(
-  mx: MatrixClient,
-  profileId: string
-): Promise<string[]> {
-  return getRoomsUsingProfile(mx, profileId);
 }
 
 /**

@@ -107,7 +107,7 @@ function getDb(): Promise<IDBDatabase> {
   return pending;
 }
 
-export async function hashThemeCss(cssText: string): Promise<string> {
+async function hashThemeCss(cssText: string): Promise<string> {
   try {
     const bytes = new TextEncoder().encode(cssText);
     const digest = await crypto.subtle.digest('SHA-256', bytes);
@@ -123,7 +123,7 @@ export async function hashThemeCss(cssText: string): Promise<string> {
   }
 }
 
-export async function getCachedThemeEntry(url: string): Promise<CachedThemeEntry | undefined> {
+async function getCachedThemeEntry(url: string): Promise<CachedThemeEntry | undefined> {
   const db = await getDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
@@ -218,71 +218,4 @@ export async function revalidateCachedThemeCss(
       error: error instanceof Error ? error.message : 'Theme update check failed.',
     };
   }
-}
-
-export async function clearThemeCache(): Promise<void> {
-  const db = await getDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).clear();
-    tx.addEventListener('complete', () => resolve());
-    tx.addEventListener('error', () => reject(tx.error));
-  });
-}
-
-export async function getThemeCacheStats(): Promise<ThemeCacheStats> {
-  const db = await getDb();
-  const entries = await new Promise<CachedThemeEntry[]>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).getAll();
-    req.addEventListener('error', () => reject(req.error));
-    req.addEventListener('success', () => resolve(req.result as CachedThemeEntry[]));
-  });
-  const stats: ThemeCacheStats = {
-    entries: entries.length,
-    localEntries: 0,
-    remoteEntries: 0,
-    totalBytes: 0,
-    localBytes: 0,
-    remoteBytes: 0,
-  };
-  entries.forEach((entry) => {
-    const bytes = new TextEncoder().encode(entry.cssText).byteLength;
-    const local = entry.url.startsWith('sable-import://');
-    stats.totalBytes += bytes;
-    if (local) {
-      stats.localEntries += 1;
-      stats.localBytes += bytes;
-    } else {
-      stats.remoteEntries += 1;
-      stats.remoteBytes += bytes;
-      const checkedAt = entry.checkedAt ?? entry.cachedAt;
-      if (!stats.lastCheckedAt || checkedAt > stats.lastCheckedAt) stats.lastCheckedAt = checkedAt;
-    }
-  });
-  return stats;
-}
-
-/** Clears only refetchable network CSS. Uploaded local theme packages are preserved. */
-export async function clearRemoteThemeCache(): Promise<number> {
-  const db = await getDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    const store = tx.objectStore(STORE);
-    const req = store.openCursor();
-    let removed = 0;
-    req.addEventListener('error', () => reject(req.error));
-    req.addEventListener('success', () => {
-      const cursor = req.result;
-      if (!cursor) return;
-      const entry = cursor.value as CachedThemeEntry;
-      if (!entry.url.startsWith('sable-import://')) {
-        cursor.delete();
-        removed += 1;
-      }
-      cursor.continue();
-    });
-    tx.addEventListener('complete', () => resolve(removed));
-    tx.addEventListener('error', () => reject(tx.error));
-  });
 }

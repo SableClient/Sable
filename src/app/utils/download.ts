@@ -22,7 +22,7 @@ export const getAttachmentFilename = (
   fallback = 'download'
 ): string => nonEmptyString(filename) ?? nonEmptyString(body) ?? fallback;
 
-export const sanitizeDownloadFilename = (filename: string, fallback = 'download'): string => {
+const sanitizeDownloadFilename = (filename: string, fallback = 'download'): string => {
   let safeName = filename
     .replace(INVALID_FILENAME_CHARS, '_')
     .replace(CONTROL_CHARS, '_')

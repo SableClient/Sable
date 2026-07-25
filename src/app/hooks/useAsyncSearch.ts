@@ -44,7 +44,7 @@ const performMatch = (
   return matches ? normalizedTargetStr : undefined;
 };
 
-export const orderSearchItems = <TSearchItem extends object | string | number>(
+const orderSearchItems = <TSearchItem extends object | string | number>(
   query: string,
   items: TSearchItem[],
   getItemStr: SearchItemStrGetter<TSearchItem>,

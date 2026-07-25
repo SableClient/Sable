@@ -21,7 +21,6 @@ import {
   INBOX_PATH,
   REGISTER_PATH,
   RESET_PASSWORD_PATH,
-  ROOT_PATH,
   SETTINGS_PATH,
   SPACE_LOBBY_PATH,
   SPACE_PATH,
@@ -81,8 +80,6 @@ export const getAppPathFromHref = (baseUrl: string, href: string): string => {
   const { pathname, search } = new URL(href);
   return pathname + search;
 };
-
-export const getRootPath = (): string => ROOT_PATH;
 
 export const getLoginPath = (server?: string): string => {
   const params = server ? { server: encodeURIComponent(server) } : undefined;

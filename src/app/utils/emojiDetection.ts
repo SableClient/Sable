@@ -22,7 +22,7 @@ export type EmojiTextPart =
       value: string;
     };
 
-export const getFirstGrapheme = (text: string): string => {
+const getFirstGrapheme = (text: string): string => {
   const first = graphemeSegmenter.segment(text)[Symbol.iterator]().next();
   return first.done ? '' : first.value.segment;
 };

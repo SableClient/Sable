@@ -23,7 +23,7 @@ import { autoDiscovery, specVersions } from '../../../cs-api';
 const log = createLogger('loginUtil');
 const debugLog = createDebugLogger('loginUtil');
 
-export enum GetBaseUrlError {
+enum GetBaseUrlError {
   NotAllow = 'NotAllow',
   NotFound = 'NotFound',
 }

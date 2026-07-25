@@ -1,4 +1,4 @@
-export function toBase64Url(value: string): string {
+function toBase64Url(value: string): string {
   const bytes = new TextEncoder().encode(value);
   let binary = '';
 
@@ -9,7 +9,7 @@ export function toBase64Url(value: string): string {
   return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll(/=+$/g, '');
 }
 
-export function toMatrixID(fname: string, urlPrefix: string): string {
+function toMatrixID(fname: string, urlPrefix: string): string {
   const base64 = toBase64Url(fname);
   return urlPrefix + base64;
 }

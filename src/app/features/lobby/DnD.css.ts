@@ -2,7 +2,7 @@ import { style } from '@vanilla-extract/css';
 import { color, config, toRem } from 'folds';
 import { ContainerColor } from '$styles/ContainerColor.css';
 
-export const DragHandleWidth = toRem(24);
+const DragHandleWidth = toRem(24);
 const ReorderableContentInset = toRem(8);
 
 export const ReorderableContent = style({

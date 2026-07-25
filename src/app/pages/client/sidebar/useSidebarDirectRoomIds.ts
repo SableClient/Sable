@@ -10,7 +10,7 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { useSyncState } from '$hooks/useSyncState';
 
 /** Maximum number of individual DM avatars shown in the sidebar. */
-export const MAX_SIDEBAR_DMS = 3;
+const MAX_SIDEBAR_DMS = 3;
 
 /**
  * Returns the room IDs of DMs currently displayed as individual avatars in the

@@ -17,11 +17,11 @@ export function bookmarkItemEventType(bookmarkId: string): string {
   return `${MATRIX_SABLE_UNSTABLE_BOOKMARK_ITEM_EVENT_PREFIX}${bookmarkId}`;
 }
 
-export function buildMatrixURI(roomId: string, eventId: string): string {
+function buildMatrixURI(roomId: string, eventId: string): string {
   return `matrix:roomid/${encodeURIComponent(roomId)}/e/${encodeURIComponent(eventId)}`;
 }
 
-export function extractBodyPreview(mEvent: MatrixEvent, maxLength = 120): string {
+function extractBodyPreview(mEvent: MatrixEvent, maxLength = 120): string {
   const content = mEvent.getContent();
   const body = content?.body;
   if (typeof body !== 'string' || body.length === 0) return '';

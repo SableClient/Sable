@@ -9,7 +9,7 @@ const PRESENCE_TO_SET_PRESENCE: Record<Presence, SetPresence> = {
   [Presence.Offline]: SetPresence.Offline,
 };
 
-export const presenceToSetPresence = (presence: Presence): SetPresence =>
+const presenceToSetPresence = (presence: Presence): SetPresence =>
   PRESENCE_TO_SET_PRESENCE[presence];
 
 export const setUserPresence = async (

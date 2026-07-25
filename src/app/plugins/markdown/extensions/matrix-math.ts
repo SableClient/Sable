@@ -1,14 +1,14 @@
 import type { TokenizerExtension, RendererExtension } from 'marked';
 
 /** Private-use char so math extensions do not match `$` / `$$` inside code spans. Not U+E000–U+E002 (emoticon placeholders). {@link shieldDollarRunsForMarked} uses U+E021–U+E022. */
-export const MATH_CODE_DOLLAR_MASK = '\uE020';
+const MATH_CODE_DOLLAR_MASK = '\uE020';
 
 /**
  * Replaces the `-` of line-start `-# …` inside markdown code so the Matrix subscript block
  * extension does not match before marked's `fences` rule (custom block extensions run first).
  * {@link unmaskSubscriptCodeLinePlaceholders} restores output HTML.
  */
-export const SUBSCRIPT_CODE_LINE_MASK = '\uE023';
+const SUBSCRIPT_CODE_LINE_MASK = '\uE023';
 
 function maskSubscriptLineStartsInCodeInner(inner: string): string {
   return inner.replace(/(^|\n)-#( +)/g, `$1${SUBSCRIPT_CODE_LINE_MASK}#$2`);

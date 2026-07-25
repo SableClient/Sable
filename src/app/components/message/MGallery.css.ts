@@ -1,10 +1,5 @@
 import { recipe } from '@vanilla-extract/recipes';
-import { style } from '@vanilla-extract/css';
 import { DefaultReset, config, toRem } from 'folds';
-
-export const GalleryHolder = style({
-  marginTop: config.space.S200,
-});
 
 export const GalleryImageGrid = recipe({
   base: [

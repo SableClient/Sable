@@ -5,7 +5,7 @@ import type { ComponentProps, ReactNode, RefCallback } from 'react';
 import { mobileOrTablet } from '$utils/user-agent';
 import * as css from './Sidebar.css';
 
-export const SidebarItemBottom = as<'div', css.SidebarItemVariants>(
+const SidebarItemBottom = as<'div', css.SidebarItemVariants>(
   ({ as: AsSidebarAvatarBox = 'div', className, active, ...props }, ref) => (
     <AsSidebarAvatarBox
       className={classNames(css.SidebarItemBottom({ active }), className)}

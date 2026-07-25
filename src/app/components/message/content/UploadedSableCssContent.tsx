@@ -34,7 +34,7 @@ import {
 } from '../../../theme/themeLibrary';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 
-export const MAX_SABLE_CSS_ATTACHMENT_BYTES = 1024 * 1024;
+const MAX_SABLE_CSS_ATTACHMENT_BYTES = 1024 * 1024;
 
 type UploadedSableCssContentProps = {
   body: string;

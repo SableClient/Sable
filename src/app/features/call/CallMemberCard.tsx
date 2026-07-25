@@ -28,7 +28,7 @@ interface MemberWithMembershipData {
 type CallMemberCardProps = {
   member: CallMembership;
 };
-export function CallMemberCard({ member }: CallMemberCardProps) {
+function CallMemberCard({ member }: CallMemberCardProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const room = useRoom();

@@ -2,7 +2,7 @@ import { REMOTE_THEME_ID } from '$hooks/useTheme';
 import type { Settings } from '$state/settings';
 import { trimTrailingSlash } from '$utils/common';
 
-export const BUILTIN_THEME_IDS = new Set(['light-theme', 'dark-theme']);
+const BUILTIN_THEME_IDS = new Set(['light-theme', 'dark-theme']);
 
 export function isLegacyThemeId(themeId: string | undefined): boolean {
   if (!themeId || themeId.trim() === '') return false;

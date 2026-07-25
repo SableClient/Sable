@@ -1,10 +1,6 @@
 import { style } from '@vanilla-extract/css';
 import { config, toRem } from 'folds';
 
-export const ReplyBend = style({
-  flexShrink: 0,
-});
-
 export const ThreadIndicator = style({
   opacity: config.opacity.P300,
 

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import classNames from 'classnames';
 import * as css from './styles.css';
 
-export const getDOMGroupId = (id: string): string => `EmojiBoardGroup-${id}`;
+const getDOMGroupId = (id: string): string => `EmojiBoardGroup-${id}`;
 
 export const EmojiGroup = as<
   'div',

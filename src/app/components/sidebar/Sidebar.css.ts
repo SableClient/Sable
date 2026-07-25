@@ -32,7 +32,7 @@ export const SidebarStack = style([
 ]);
 
 const DropLineDist = createVar();
-export const DropTarget = style({
+const DropTarget = style({
   vars: {
     [DropLineDist]: toRem(-8),
   },

@@ -80,7 +80,7 @@ type MessageQuickReactionsProps = {
   onReaction: ReactionHandler;
   count: number;
 };
-export const MessageQuickReactions = as<'div', MessageQuickReactionsProps>(
+const MessageQuickReactions = as<'div', MessageQuickReactionsProps>(
   ({ onReaction, count, ...props }, ref) => {
     const mx = useMatrixClient();
     const recentEmojis = useRecentEmoji(mx, count);
@@ -179,7 +179,7 @@ const MessageCopyTextItem = as<
   );
 });
 
-export const MessagePinItem = as<
+const MessagePinItem = as<
   'button',
   {
     room: Room;
@@ -219,7 +219,7 @@ export const MessagePinItem = as<
   );
 });
 
-export const MessageBookmarkItem = as<
+const MessageBookmarkItem = as<
   'button',
   {
     room: Room;
@@ -259,7 +259,7 @@ export const MessageBookmarkItem = as<
   );
 });
 
-export const MessageFavoriteGifItem = as<
+const MessageFavoriteGifItem = as<
   'button',
   {
     room: Room;
@@ -335,7 +335,7 @@ export type OptionEmojiMenuProps = {
   ActualMessage?: ReactNode;
   dragOpts?: DragOptsProps;
 };
-export function OptionsEmojiBoard({
+function OptionsEmojiBoard({
   mEvent,
   onReactionToggle,
   closeMenu,
@@ -567,7 +567,7 @@ export type OptionMenuProps = {
   dragOpts?: DragOptsProps;
 };
 
-export function OptionMenu({
+function OptionMenu({
   mEvent,
   room,
   closeMenu,

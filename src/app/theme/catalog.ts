@@ -189,11 +189,3 @@ export async function listThemePairsFromCatalog(
   const bundle = await fetchThemeCatalogBundle(baseUrl, options);
   return bundle.themes;
 }
-
-export async function listTweakEntriesFromCatalog(
-  baseUrl: string,
-  options?: ListThemeCatalogOptions
-): Promise<TweakCatalogEntry[]> {
-  const bundle = await fetchThemeCatalogBundle(baseUrl, options);
-  return bundle.tweaks;
-}

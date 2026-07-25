@@ -26,7 +26,7 @@ function resolveDesktopSettingValue<K extends DesktopSettingKey>(
   return value;
 }
 
-export const useSetDesktopSetting = <K extends DesktopSettingKey>(key: K) => {
+const useSetDesktopSetting = <K extends DesktopSettingKey>(key: K) => {
   const setterAtom = useMemo(
     () =>
       atom<null, [DesktopSettingSetter<K>], Promise<void>>(null, (get, set, value) => {

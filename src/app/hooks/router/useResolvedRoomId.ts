@@ -51,12 +51,6 @@ export const useResolvedRoomIdOrAlias = (roomIdOrAlias?: string): ResolvedRoomId
   return { resolving: true };
 };
 
-export const useResolvedSelectedRoom = (): ResolvedRoomId => {
-  const { roomIdOrAlias: encodedRoomIdOrAlias } = useParams();
-  const roomIdOrAlias = encodedRoomIdOrAlias && decodeURIComponent(encodedRoomIdOrAlias);
-  return useResolvedRoomIdOrAlias(roomIdOrAlias);
-};
-
 export const useResolvedSelectedSpace = (): ResolvedRoomId => {
   const { spaceIdOrAlias: encodedSpaceIdOrAlias } = useParams();
   const spaceIdOrAlias = encodedSpaceIdOrAlias && decodeURIComponent(encodedSpaceIdOrAlias);

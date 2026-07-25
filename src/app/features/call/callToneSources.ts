@@ -56,15 +56,3 @@ export const resolveCallToneSources = async (
     },
   };
 };
-
-export const revokeUnusedCustomToneUrls = (
-  resolved: ResolvedCallToneSources,
-  activeSource: string | null
-): void => {
-  if (resolved.customRingtoneObjectUrl && resolved.customRingtoneObjectUrl !== activeSource) {
-    URL.revokeObjectURL(resolved.customRingtoneObjectUrl);
-  }
-  if (resolved.customRingbackObjectUrl && resolved.customRingbackObjectUrl !== activeSource) {
-    URL.revokeObjectURL(resolved.customRingbackObjectUrl);
-  }
-};

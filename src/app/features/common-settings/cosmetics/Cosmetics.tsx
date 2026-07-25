@@ -61,7 +61,7 @@ type CosmeticsSettingProps = {
   userId: string;
   room: Room;
 };
-export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSettingProps) {
+function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSettingProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const capabilities = useCapabilities();
@@ -184,7 +184,7 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
   );
 }
 
-export function CosmeticsNickname({ profile, member, userId, room }: CosmeticsSettingProps) {
+function CosmeticsNickname({ profile, member, userId, room }: CosmeticsSettingProps) {
   const mx = useMatrixClient();
 
   const defaultDisplayName = member?.rawDisplayName ?? fallbackDisplayName(userId);
@@ -270,7 +270,7 @@ export function CosmeticsNickname({ profile, member, userId, room }: CosmeticsSe
   );
 }
 
-export function CosmeticsFont({
+function CosmeticsFont({
   room,
   isSpace,
   font,

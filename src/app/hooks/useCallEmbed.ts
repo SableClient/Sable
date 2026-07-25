@@ -30,7 +30,7 @@ export const useCallEmbed = (): CallEmbed | undefined => {
 
 const CallEmbedRefContext = createContext<RefObject<HTMLDivElement> | undefined>(undefined);
 export const CallEmbedRefContextProvider = CallEmbedRefContext.Provider;
-export const useCallEmbedRef = (): RefObject<HTMLDivElement> => {
+const useCallEmbedRef = (): RefObject<HTMLDivElement> => {
   const ref = useContext(CallEmbedRefContext);
   if (!ref) {
     throw new Error('CallEmbedRef is not provided!');
@@ -38,7 +38,7 @@ export const useCallEmbedRef = (): RefObject<HTMLDivElement> => {
   return ref;
 };
 
-export const createCallEmbed = (
+const createCallEmbed = (
   mx: MatrixClient,
   room: Room,
   dm: boolean,

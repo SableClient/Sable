@@ -1,7 +1,7 @@
 import { SmileySadIcon } from '@phosphor-icons/react';
 import { Box, toRem, config, Text } from 'folds';
 
-export function GifSearching() {
+function GifSearching() {
   return (
     <Box
       style={{ padding: `${toRem(60)} ${config.space.S500}` }}
@@ -15,7 +15,7 @@ export function GifSearching() {
   );
 }
 
-export function GifSearchError({ error }: { error: string }) {
+function GifSearchError({ error }: { error: string }) {
   return (
     <Box
       style={{ padding: `${toRem(60)} ${config.space.S500}` }}
@@ -29,7 +29,7 @@ export function GifSearchError({ error }: { error: string }) {
   );
 }
 
-export function NoGifResults() {
+function NoGifResults() {
   return (
     <Box
       style={{ padding: `${toRem(60)} ${config.space.S500}` }}

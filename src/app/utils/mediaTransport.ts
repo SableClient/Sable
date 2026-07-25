@@ -88,7 +88,7 @@ function isMatrixMediaPath(pathname: string): boolean {
   return MATRIX_MEDIA_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-export function isTrustedMatrixMediaUrl(url: string, baseUrl: string | undefined): boolean {
+function isTrustedMatrixMediaUrl(url: string, baseUrl: string | undefined): boolean {
   if (!baseUrl) return false;
 
   try {
@@ -141,7 +141,7 @@ export function getActiveMediaSession():
 
 let cachedSessionScope: string | undefined;
 
-export const invalidateMediaSessionScope = (): void => {
+const invalidateMediaSessionScope = (): void => {
   cachedSessionScope = undefined;
 };
 

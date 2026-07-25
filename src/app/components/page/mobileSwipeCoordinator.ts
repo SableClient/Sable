@@ -1,6 +1,6 @@
-export const GESTURE_LOCK_THRESHOLD = 8;
-export const DRAWER_COMMIT_FRACTION = 0.22;
-export const DRAWER_VELOCITY_THRESHOLD = 0.45;
+const GESTURE_LOCK_THRESHOLD = 8;
+const DRAWER_COMMIT_FRACTION = 0.22;
+const DRAWER_VELOCITY_THRESHOLD = 0.45;
 
 export type MobileGestureMode = 'pending' | 'vertical' | 'drawer' | 'message' | 'chat' | 'blocked';
 

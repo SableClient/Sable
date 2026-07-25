@@ -46,7 +46,7 @@ export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large
 
 /** Reorderable inline trigger buttons in the message composer. */
 export type EditorButtonId = 'gif' | 'sticker' | 'emoji';
-export const EDITOR_BUTTON_ORDER_DEFAULT: EditorButtonId[] = ['gif', 'sticker', 'emoji'];
+const EDITOR_BUTTON_ORDER_DEFAULT: EditorButtonId[] = ['gif', 'sticker', 'emoji'];
 const EDITOR_BUTTON_ORDER_VALUES = new Set<EditorButtonId>(EDITOR_BUTTON_ORDER_DEFAULT);
 export const CALL_TONE_IDS = [
   'sable-default',
@@ -788,7 +788,7 @@ export function resetRuntimeSettingsDefaults(): void {
   runtimeSettingsDefaults = {};
 }
 
-export const baseSettings = atom<Settings>(cloneDefaultSettings());
+const baseSettings = atom<Settings>(cloneDefaultSettings());
 
 export function bootstrapSettingsStore(store: Store, rawSettingsDefaults: unknown): void {
   const sanitized = sanitizeSettingsDefaults(rawSettingsDefaults);

@@ -218,7 +218,7 @@ const LocationDialog = lazy(() =>
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
-export const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
+const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   const replies = getThreadReplyEvents(room, threadRootId);
   return replies.at(-1)?.getId() ?? threadRootId;
 };

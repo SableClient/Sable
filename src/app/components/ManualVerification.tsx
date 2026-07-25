@@ -12,7 +12,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SettingTile } from './setting-tile';
 import { SecretStorageRecoveryKey, SecretStorageRecoveryPassphrase } from './SecretStorage';
 
-export enum ManualVerificationMethod {
+enum ManualVerificationMethod {
   RecoveryPassphrase = 'passphrase',
   RecoveryKey = 'key',
 }
@@ -20,7 +20,7 @@ type ManualVerificationMethodSwitcherProps = {
   value: ManualVerificationMethod;
   onChange: (value: ManualVerificationMethod) => void;
 };
-export function ManualVerificationMethodSwitcher({
+function ManualVerificationMethodSwitcher({
   value,
   onChange,
 }: ManualVerificationMethodSwitcherProps) {

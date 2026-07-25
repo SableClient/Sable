@@ -3,7 +3,7 @@ import type { RecipeVariants } from '@vanilla-extract/recipes';
 import { recipe } from '@vanilla-extract/recipes';
 import { DefaultReset, color, config, toRem } from 'folds';
 
-export const StickySection = style({
+const StickySection = style({
   position: 'sticky',
   top: config.space.S100,
 });

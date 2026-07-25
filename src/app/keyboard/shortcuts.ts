@@ -217,8 +217,8 @@ export const SHORTCUTS: readonly ShortcutDefinition[] = [
   },
 ] as const;
 
-export const SHORTCUT_IDS = new Set<ShortcutId>(SHORTCUTS.map(({ id }) => id));
-export const SHORTCUT_BY_ID = new Map(SHORTCUTS.map((shortcut) => [shortcut.id, shortcut]));
+const SHORTCUT_IDS = new Set<ShortcutId>(SHORTCUTS.map(({ id }) => id));
+const SHORTCUT_BY_ID = new Map(SHORTCUTS.map((shortcut) => [shortcut.id, shortcut]));
 
 export const getShortcutBinding = (id: ShortcutId, overrides: ShortcutOverrides): string | null => {
   const override = overrides[id];

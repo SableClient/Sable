@@ -39,7 +39,7 @@ export const AutocompleteNotice = style([
   { color: color.SurfaceVariant.OnContainer },
 ]);
 
-export const AutocompleteMenuItems = style({});
+const AutocompleteMenuItems = style({});
 
 globalStyle(`${AutocompleteMenuItems} button[data-selected='true']`, {
   backgroundColor: color.SurfaceVariant.ContainerHover,

@@ -40,11 +40,6 @@ export const RoomCover = style({
   overflow: 'hidden',
 });
 
-export const RoomCoverFallback = style({
-  filter: 'blur(16px) brightness(50%)',
-  transform: 'scale(2)',
-});
-
 export const RoomCoverImage = style({
   objectFit: 'cover',
   width: '100%',

@@ -28,7 +28,7 @@ export function packMetaEqual(a: PackMetaReader, b: PackMetaReader): boolean {
   );
 }
 
-export function makeImagePacks(packEvents: MatrixEvent[]): ImagePack[] {
+function makeImagePacks(packEvents: MatrixEvent[]): ImagePack[] {
   return packEvents.reduce<ImagePack[]>((imagePacks, packEvent) => {
     const packId = packEvent.getId();
     if (!packId) return imagePacks;

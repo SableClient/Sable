@@ -75,7 +75,7 @@ export function usePowerLevels(room: Room): IPowerLevels {
   return powerLevels;
 }
 
-export const PowerLevelsContext = createContext<IPowerLevels | null>(null);
+const PowerLevelsContext = createContext<IPowerLevels | null>(null);
 
 export const PowerLevelsContextProvider = PowerLevelsContext.Provider;
 

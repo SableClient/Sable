@@ -242,7 +242,7 @@ function renderTombstone(_ctx: MessagePreviewRendererContext, event: MatrixEvent
   return <Text>{event.getContent().body ?? 'This room has been replaced.'}</Text>;
 }
 
-export function useMessagePreviewRenderer(options: MessagePreviewRendererOptions) {
+function useMessagePreviewRenderer(options: MessagePreviewRendererOptions) {
   const mx = useMatrixClient();
   const context = useMemo<MessagePreviewRendererContext>(() => ({ ...options, mx }), [mx, options]);
   const handlers = useMemo(

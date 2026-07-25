@@ -248,7 +248,7 @@ function MarkdownHeadingButton() {
   );
 }
 
-export function MarkdownToolbar() {
+function MarkdownToolbar() {
   const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
 
   return (

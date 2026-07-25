@@ -25,19 +25,9 @@ export const debugLoggerEnabledAtom = atom(
 );
 
 /**
- * Atom for filtered logs
- */
-export const filteredDebugLogsAtom = atom((get) => get(debugLogsAtom));
-
-/**
  * Action to clear all debug logs
  */
 export const clearDebugLogsAtom = atom(null, (_, set) => {
   debugLogger.clear();
   set(debugLogsAtom);
 });
-
-/**
- * Action to export debug logs
- */
-export const exportDebugLogsAtom = atom(null, () => debugLogger.exportLogs());

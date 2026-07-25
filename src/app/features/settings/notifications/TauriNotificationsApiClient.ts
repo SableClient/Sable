@@ -65,7 +65,7 @@ const transitionActionListener = (invokeFn: typeof invoke, active: boolean): Pro
   return actionListenerTransition;
 };
 
-export async function subscribeToNativeNotificationActions(
+async function subscribeToNativeNotificationActions(
   listener: (event: NotificationActionEvent) => void,
   dependencies: ActionListenerDependencies = { addListener: addPluginListener, invoke }
 ): Promise<NotificationPluginListener> {
@@ -115,7 +115,7 @@ export async function getTauriNotificationsApi(): Promise<TauriNotificationsApi>
 
 let permissionPromise: Promise<boolean> | null = null;
 
-export async function ensureTauriNotificationPermission(): Promise<boolean> {
+async function ensureTauriNotificationPermission(): Promise<boolean> {
   if (!permissionPromise) {
     permissionPromise = (async () => {
       const api = await getTauriNotificationsApi();

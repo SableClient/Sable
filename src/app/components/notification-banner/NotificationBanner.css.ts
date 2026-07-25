@@ -112,11 +112,6 @@ export const BannerSubtitle = style({
   opacity: 0.7,
 });
 
-export const BannerRoomName = style({
-  color: color.Primary.Main,
-  fontWeight: 600,
-});
-
 // Caps tall previews and fades the bottom edge when content overflows.
 // Desktop: 25vh, mobile (≤768px): 35vh.
 export const BannerBody = style({

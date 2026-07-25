@@ -33,7 +33,7 @@ export function desktopSettingsDefaultsForPlatform(platform: DesktopPlatform): D
 }
 export type DesktopSettingKey = keyof DesktopSettings;
 
-export const DEFAULT_DESKTOP_RUNTIME_STATE: DesktopRuntimeState = {
+const DEFAULT_DESKTOP_RUNTIME_STATE: DesktopRuntimeState = {
   trayAvailable: true,
 };
 

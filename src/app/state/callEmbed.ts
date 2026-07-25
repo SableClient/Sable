@@ -74,7 +74,6 @@ export type AutoJoinCallIntent = {
 };
 
 export const incomingCallAtom = atom<IncomingCall | null>(null);
-export const incomingCallRoomIdAtom = atom((get) => get(incomingCallAtom)?.roomId ?? null);
 export const autoJoinCallIntentAtom = atom<AutoJoinCallIntent | null>(null);
 export const mutedCallRoomIdAtom = atom<string | null>(null);
 export const callSoundBlockedAtom = atom(false);

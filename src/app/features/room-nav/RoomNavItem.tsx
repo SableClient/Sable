@@ -309,7 +309,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
   }
 );
 
-export const hideTextStyling = (isHidden: boolean | undefined) =>
+const hideTextStyling = (isHidden: boolean | undefined) =>
   isHidden ? { width: '100%', height: '100%', padding: '0', paddingTop: '0px' } : {};
 
 type RoomNavItemProps = {

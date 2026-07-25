@@ -14,7 +14,7 @@ export const FALLBACK_CLIENT_CONFIG: ClientConfig = {
   hashRouter: { enabled: false, basename: '/' },
 };
 
-export const getClientConfig = async (): Promise<ClientConfig> => {
+const getClientConfig = async (): Promise<ClientConfig> => {
   const preloaded = takePreloadedConfig();
   if (preloaded !== undefined) {
     const data = await preloaded.catch(() => undefined);

@@ -9,5 +9,3 @@ export const makeClosedLobbyCategoriesAtom = (userId: string): ClosedLobbyCatego
   makeStringSetAtom(`${CLOSED_LOBBY_CATEGORY}${userId}`);
 
 export const makeLobbyCategoryId = (...args: string[]): string => args.join('|');
-
-export const getLobbyCategoryIdParts = (categoryId: string): string[] => categoryId.split('|');

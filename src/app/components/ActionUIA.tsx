@@ -7,9 +7,9 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { UIAFlowOverlay } from './UIAFlowOverlay';
 import { OAuthStage, PasswordStage, SSOStage } from './uia-stages';
 
-export const SUPPORTED_IN_APP_UIA_STAGES = [AuthType.Password, AuthType.Sso, AuthType.OAuth];
+const SUPPORTED_IN_APP_UIA_STAGES = [AuthType.Password, AuthType.Sso, AuthType.OAuth];
 
-export const pickUIAFlow = (uiaFlows: UIAFlow[]): UIAFlow | undefined => {
+const pickUIAFlow = (uiaFlows: UIAFlow[]): UIAFlow | undefined => {
   const passwordFlow = getUIAFlowForStages(uiaFlows, [AuthType.Password]);
   if (passwordFlow) return passwordFlow;
   const oauthFlow = getUIAFlowForStages(uiaFlows, [AuthType.OAuth]);

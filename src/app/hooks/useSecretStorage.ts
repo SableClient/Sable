@@ -5,7 +5,7 @@ import type {
 
 import { useAccountData } from './useAccountData';
 
-export const getSecretStorageKeyEventType = (key: string): string => `m.secret_storage.key.${key}`;
+const getSecretStorageKeyEventType = (key: string): string => `m.secret_storage.key.${key}`;
 
 export const useSecretStorageDefaultKeyId = (): string | undefined => {
   const defaultKeyEvent = useAccountData('m.secret_storage.default_key');

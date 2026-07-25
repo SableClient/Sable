@@ -119,7 +119,3 @@ export const EditorToolbarBase = style({
 export const EditorToolbar = style({
   padding: config.space.S100,
 });
-
-export const MarkdownBtnBox = style({
-  paddingRight: config.space.S100,
-});

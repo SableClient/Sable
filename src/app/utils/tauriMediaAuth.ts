@@ -33,7 +33,7 @@ export const updateTauriMediaSession = (
   return write;
 };
 
-export const syncTauriMediaSession = (): Promise<void> => {
+const syncTauriMediaSession = (): Promise<void> => {
   const session = getActiveMediaSession();
   return updateTauriMediaSession(session?.baseUrl, session?.accessToken, session?.userId);
 };

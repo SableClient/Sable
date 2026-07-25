@@ -108,7 +108,7 @@ export function UnsupportedContent({ body }: BrokenContentProps) {
   );
 }
 
-export function BrokenContent({ body }: BrokenContentProps) {
+function BrokenContent({ body }: BrokenContentProps) {
   return (
     <Text>
       <MessageBrokenContent body={body} />

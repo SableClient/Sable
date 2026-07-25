@@ -57,7 +57,7 @@ type AddServerProps = {
   onAddServer: (server: string) => Promise<boolean>;
 };
 
-export function AddServer({ hideText, onAddServer }: AddServerProps) {
+function AddServer({ hideText, onAddServer }: AddServerProps) {
   const mx = useMatrixClient();
   const navigate = useNavigate();
   const [dialog, setDialog] = useState(false);

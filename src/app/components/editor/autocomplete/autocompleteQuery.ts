@@ -24,7 +24,7 @@ export type AutocompleteQuery<TPrefix extends string> = {
   text: string;
 };
 
-export const getAutocompletePrefix = <TPrefix extends string>(
+const getAutocompletePrefix = <TPrefix extends string>(
   editor: Editor,
   queryRange: BaseRange,
   validPrefixes: readonly TPrefix[]
@@ -33,11 +33,8 @@ export const getAutocompletePrefix = <TPrefix extends string>(
   return validPrefixes.find((p) => world.startsWith(p));
 };
 
-export const getAutocompleteQueryText = (
-  editor: Editor,
-  queryRange: BaseRange,
-  prefix: string
-): string => Editor.string(editor, queryRange).slice(prefix.length);
+const getAutocompleteQueryText = (editor: Editor, queryRange: BaseRange, prefix: string): string =>
+  Editor.string(editor, queryRange).slice(prefix.length);
 
 export const getAutocompleteQuery = <TPrefix extends string = AutocompletePrefix>(
   editor: Editor,

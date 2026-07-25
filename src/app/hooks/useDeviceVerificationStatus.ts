@@ -6,9 +6,7 @@ import { useAlive } from './useAlive';
 import { useMatrixClient } from './useMatrixClient';
 import { useDeviceListChange } from './useDeviceList';
 
-export const useCrossSigningKeysChange = (
-  onChange: CryptoEventHandlerMap[CryptoEvent.KeysChanged]
-) => {
+const useCrossSigningKeysChange = (onChange: CryptoEventHandlerMap[CryptoEvent.KeysChanged]) => {
   const mx = useMatrixClient();
   useEffect(() => {
     mx.on(CryptoEvent.KeysChanged, onChange);
@@ -25,7 +23,7 @@ export enum VerificationStatus {
   Unsupported,
 }
 
-export const useDeviceVerificationDetect = (
+const useDeviceVerificationDetect = (
   crypto: CryptoApi | undefined,
   userId: string,
   deviceId: string | undefined,

@@ -61,7 +61,7 @@ export function scrubDataObject(data: unknown): unknown {
 }
 
 /** Structured fields that should never be sent to Sentry, even redacted. */
-export const SENTRY_IDENTIFIER_KEYS = new Set([
+const SENTRY_IDENTIFIER_KEYS = new Set([
   'roomId',
   'notificationEventId',
   'refEventId',

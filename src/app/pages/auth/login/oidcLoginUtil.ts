@@ -54,7 +54,7 @@ export const persistOauthContext = (state: string, ctx: OauthLoginContext): void
   sessionStorage.setItem(oauthContextKey(state), JSON.stringify(ctx));
 };
 
-export const consumeOauthContext = (state: string): OauthLoginContext | undefined => {
+const consumeOauthContext = (state: string): OauthLoginContext | undefined => {
   const key = oauthContextKey(state);
   const raw = sessionStorage.getItem(key);
   if (!raw) return undefined;
@@ -137,7 +137,7 @@ export const expiresInMsFromToken = (token: BearerTokenResponse): number | undef
   return undefined;
 };
 
-export const requireRefreshToken = (token: BearerTokenResponse): string => {
+const requireRefreshToken = (token: BearerTokenResponse): string => {
   if (!token.refresh_token) {
     throw new OidcLoginFailure(OidcLoginError.MissingRefreshToken);
   }

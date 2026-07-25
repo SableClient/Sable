@@ -115,17 +115,17 @@ export async function isUnifiedPushPermissionGranted(): Promise<boolean | null> 
   return api.isPermissionGranted();
 }
 
-export async function getUnifiedPushDistributors(): Promise<string[]> {
+async function getUnifiedPushDistributors(): Promise<string[]> {
   const api = await getUnifiedPushTransportApi();
   return api.listDistributors();
 }
 
-export async function getUnifiedPushDistributor(): Promise<{ distributor: string }> {
+async function getUnifiedPushDistributor(): Promise<{ distributor: string }> {
   const distributor = localStorage.getItem(DISTRIBUTUTOR_STORAGE_KEY) ?? '';
   return { distributor };
 }
 
-export async function saveUnifiedPushDistributor(distributor: string): Promise<void> {
+async function saveUnifiedPushDistributor(distributor: string): Promise<void> {
   localStorage.setItem(DISTRIBUTUTOR_STORAGE_KEY, distributor);
   const api = await getUnifiedPushTransportApi();
   await api.setDistributor(distributor);

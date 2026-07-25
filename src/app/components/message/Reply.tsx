@@ -174,7 +174,7 @@ type ReplyLayoutProps = {
   mentioned: boolean;
   replyIcon?: JSX.Element;
 };
-export const ReplyLayout = as<'div', ReplyLayoutProps>(
+const ReplyLayout = as<'div', ReplyLayoutProps>(
   ({ username, userColor, icon, className, mentioned, children, replyIcon, ...props }, ref) => (
     <Box
       className={classNames(css.Reply, className)}

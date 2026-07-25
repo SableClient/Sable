@@ -45,7 +45,7 @@ type RoomProfileEditProps = {
   isDm: boolean;
   onClose: () => void;
 };
-export function RoomProfileEdit({
+function RoomProfileEdit({
   canEditAvatar,
   canEditName,
   canEditTopic,

@@ -610,23 +610,6 @@ export const trimReplyFromFormattedBody = (formattedBody: string): string => {
   return formattedBody.slice(i + suffix.length);
 };
 
-export const parseReplyBody = (userId: string, body: string) =>
-  `> <${userId}> ${body.replace(/\n/g, '\n> ')}\n\n`;
-
-export const parseReplyFormattedBody = (
-  roomId: string,
-  userId: string,
-  eventId: string,
-  formattedBody: string
-): string => {
-  const replyToLink = `<a href="https://matrix.to/#/${encodeURIComponent(
-    roomId
-  )}/${encodeURIComponent(eventId)}">In reply to</a>`;
-  const userLink = `<a href="https://matrix.to/#/${encodeURIComponent(userId)}">${userId}</a>`;
-
-  return `<mx-reply><blockquote>${replyToLink}${userLink}<br />${formattedBody}</blockquote></mx-reply>`;
-};
-
 export const getMemberDisplayName = (
   room: Room,
   userId: string,
@@ -695,7 +678,7 @@ export const getEventReactions = (timelineSet: EventTimelineSet, eventId: string
 export const getEventEdits = (timelineSet: EventTimelineSet, eventId: string, eventType: string) =>
   timelineSet.relations.getChildEventsForEvent(eventId, RelationType.Replace, eventType);
 
-export const getLatestEdit = (
+const getLatestEdit = (
   targetEvent: MatrixEvent,
   editEvents: MatrixEvent[]
 ): MatrixEvent | undefined => {
@@ -789,11 +772,6 @@ export const getReactionAnnotationTargetId = (reactionEvent: MatrixEvent): strin
   }
 
   return undefined;
-};
-
-export const getRedactionActorId = (mEvent: MatrixEvent): string | undefined => {
-  const sender = mEvent.getUnsigned()?.redacted_because?.sender;
-  return typeof sender === 'string' && sender.length > 0 ? sender : undefined;
 };
 
 export const getRedactionReason = (mEvent: MatrixEvent): string | undefined => {
@@ -991,7 +969,7 @@ export const getPreviousEditId = (
   return allEvents[idx - 1]?.getId();
 };
 
-export const getPreviousEditEvent = (
+const getPreviousEditEvent = (
   currentEditEvent: MatrixEvent,
   chain: { original: MatrixEvent; edits: MatrixEvent[] }
 ): MatrixEvent | undefined => {
@@ -1006,7 +984,7 @@ export const getPreviousEditEvent = (
 
 const EDIT_DIFF_MSGTYPES = new Set<string>([MsgType.Text, MsgType.Emote, MsgType.Notice]);
 
-export const getMessageVersionBody = (mEvent: MatrixEvent): string | undefined => {
+const getMessageVersionBody = (mEvent: MatrixEvent): string | undefined => {
   const content = mEvent.getContent();
   const wireContent = mEvent.getWireContent?.() as Record<string, unknown> | undefined;
 
@@ -1081,19 +1059,6 @@ export const canEditEvent = (mx: MatrixClient, mEvent: MatrixEvent) => {
       content.msgtype === MsgType.Audio ||
       content.msgtype === MsgType.File)
   );
-};
-
-export const getLatestEditableEvt = (
-  timeline: EventTimeline,
-  canEdit: (mEvent: MatrixEvent) => boolean
-): MatrixEvent | undefined => {
-  const events = timeline.getEvents();
-
-  for (let i = events.length - 1; i >= 0; i -= 1) {
-    const evt = events[i];
-    if (evt && canEdit(evt)) return evt;
-  }
-  return undefined;
 };
 
 export const reactionOrEditEvent = (mEvent: MatrixEvent): boolean => {
@@ -1307,7 +1272,7 @@ export const bannedInRooms = (mx: MatrixClient, rooms: string[], otherUserId: st
     return room.hasMembershipState(otherUserId, KnownMembership.Ban);
   });
 
-export const getAllVersionsRoomCreator = (room: Room): Set<string> => {
+const getAllVersionsRoomCreator = (room: Room): Set<string> => {
   const creators = new Set<string>();
 
   const createEvent = getStateEvent(room, EventType.RoomCreate);

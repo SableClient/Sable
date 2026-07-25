@@ -1,15 +1,6 @@
 import { style } from '@vanilla-extract/css';
 import { color, config, toRem } from 'folds';
 
-export const UserHeader = style({
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  zIndex: 1,
-  padding: config.space.S200,
-});
-
 export const UserHero = style({
   position: 'relative',
 });

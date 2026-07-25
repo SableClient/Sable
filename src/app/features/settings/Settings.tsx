@@ -47,7 +47,7 @@ import { useSettingsLinkBaseUrl } from './useSettingsLinkBaseUrl';
 import { Desktop } from './desktop';
 import { isDesktopTauri } from '$utils/platform';
 
-export enum SettingsPages {
+enum SettingsPages {
   GeneralPage,
   AccountPage,
   PerMessageProfilesPage,
@@ -71,7 +71,7 @@ export type SettingsMenuItem = {
   activeIcon?: PhosphorIcon;
 };
 
-export const settingsMenuIcons: Record<
+const settingsMenuIcons: Record<
   SettingsSectionId,
   Pick<SettingsMenuItem, 'icon' | 'activeIcon'>
 > = {

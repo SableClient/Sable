@@ -16,7 +16,7 @@ type VersionResult =
   | { server: { name?: string; version?: string; compiler?: string } }
   | undefined;
 
-export function HomeserverInfo() {
+function HomeserverInfo() {
   const mx = useMatrixClient();
   const [federationUrl, setFederationUrl] = useState<string>(mx.baseUrl);
   const [version, setVersion] = useState<VersionResult>(undefined);

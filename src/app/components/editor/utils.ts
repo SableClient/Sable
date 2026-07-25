@@ -43,7 +43,7 @@ export const mentionNameForUserAutocomplete = (
 };
 
 /** Same #-prefix rule as {@link RoomMentionAutocomplete}. */
-export const formatRoomMentionDisplayName = (name: string): string => {
+const formatRoomMentionDisplayName = (name: string): string => {
   if (name === '@room') return '@room';
   return name.startsWith('#') ? name : `#${name}`;
 };
@@ -172,7 +172,7 @@ interface PointUntilCharOptions {
   match: (char: string) => boolean;
   reverse?: boolean;
 }
-export const getPointUntilChar = (
+const getPointUntilChar = (
   editor: Editor,
   cursorPoint: BasePoint,
   options: PointUntilCharOptions

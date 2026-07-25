@@ -421,7 +421,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
 }
 
 type SpaceTombstoneProps = { roomId: string; replacementRoomId: string };
-export function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProps) {
+function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProps) {
   const mx = useMatrixClient();
   const { navigateSpace } = useRoomNavigate();
 

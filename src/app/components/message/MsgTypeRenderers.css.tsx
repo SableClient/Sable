@@ -1,10 +1,6 @@
 import { style } from '@vanilla-extract/css';
 import { color, config, toRem } from 'folds';
 
-export const ReplyBend = style({
-  flexShrink: 0,
-});
-
 export const LocationRendererBody = style({
   maxWidth: toRem(500),
   backgroundColor: color.SurfaceVariant.Container,

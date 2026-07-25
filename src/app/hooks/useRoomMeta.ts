@@ -7,7 +7,7 @@ import { mDirectAtom } from '$state/mDirectList';
 import { useStateEvent } from './useStateEvent';
 import { useNickname } from './useNickname';
 
-export const getRoomDisplayName = (
+const getRoomDisplayName = (
   roomName: string,
   stateName: unknown,
   isDmTagged: boolean,

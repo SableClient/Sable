@@ -23,7 +23,7 @@ export const useVerificationRequestReceived = (
   }, [mx, onRequest]);
 };
 
-export const useVerificationRequestChange = (
+const useVerificationRequestChange = (
   request: VerificationRequest,
   onChange: VerificationRequestEventHandlerMap[VerificationRequestEvent.Change]
 ) => {
@@ -68,18 +68,6 @@ export const useVerifierShowSas = (
     verifier.on(VerifierEvent.ShowSas, onCallback);
     return () => {
       verifier.removeListener(VerifierEvent.ShowSas, onCallback);
-    };
-  }, [verifier, onCallback]);
-};
-
-export const useVerifierShowReciprocateQr = (
-  verifier: Verifier,
-  onCallback: VerifierEventHandlerMap[VerifierEvent.ShowReciprocateQr]
-) => {
-  useEffect(() => {
-    verifier.on(VerifierEvent.ShowReciprocateQr, onCallback);
-    return () => {
-      verifier.removeListener(VerifierEvent.ShowReciprocateQr, onCallback);
     };
   }, [verifier, onCallback]);
 };

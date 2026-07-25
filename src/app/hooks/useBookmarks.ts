@@ -24,10 +24,6 @@ export function useBookmarkLoading(): boolean {
   return useAtomValue(bookmarkLoadingAtom);
 }
 
-export function useBookmarkRefreshError(): Error | undefined {
-  return useAtomValue(bookmarkRefreshErrorAtom);
-}
-
 export function useIsBookmarked(roomId: string, eventId: string): boolean {
   const idSet = useAtomValue(bookmarkIdSetAtom);
   return idSet.has(computeBookmarkId(roomId, eventId));

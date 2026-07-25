@@ -7,7 +7,7 @@ export type AndroidBackHandler = () => boolean;
 
 const handlers: AndroidBackHandler[] = [];
 
-export function pushAndroidBackHandler(handler: AndroidBackHandler): () => void {
+function pushAndroidBackHandler(handler: AndroidBackHandler): () => void {
   handlers.push(handler);
   return () => {
     const index = handlers.lastIndexOf(handler);

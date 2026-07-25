@@ -141,7 +141,7 @@ const tryDecodeUriComponent = (s: string): string => {
 /**
  * Normalized Matrix permalink fragment (path after `#/`, lowercased), for comparing href vs anchor text.
  */
-export const matrixPermalinkFragmentKey = (url: string): string | undefined => {
+const matrixPermalinkFragmentKey = (url: string): string | undefined => {
   const trimmed = url.trim();
   const decoded = tryDecodeUriComponent(trimmed);
   const candidate = testMatrixTo(trimmed) ? trimmed : testMatrixTo(decoded) ? decoded : undefined;

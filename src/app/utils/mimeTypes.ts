@@ -1,4 +1,4 @@
-export const IMAGE_MIME_TYPES = [
+const IMAGE_MIME_TYPES = [
   'image/jpeg',
   'image/gif',
   'image/png',
@@ -8,9 +8,9 @@ export const IMAGE_MIME_TYPES = [
   'image/svg+xml',
 ];
 
-export const VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+const VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
 
-export const AUDIO_MIME_TYPES = [
+const AUDIO_MIME_TYPES = [
   'audio/mp4',
   'audio/x-m4a',
   'audio/webm',
@@ -25,7 +25,7 @@ export const AUDIO_MIME_TYPES = [
   'audio/x-flac',
 ];
 
-export const APPLICATION_MIME_TYPES = [
+const APPLICATION_MIME_TYPES = [
   'application/pdf',
   'application/json',
   'application/x-sh',
@@ -35,7 +35,7 @@ export const APPLICATION_MIME_TYPES = [
   'application/xml',
 ];
 
-export const TEXT_MIME_TYPE = [
+const TEXT_MIME_TYPE = [
   'text/plain',
   'text/html',
   'text/css',
@@ -97,7 +97,7 @@ export const READABLE_EXT_TO_MIME_TYPE: Record<string, string> = {
   sql: 'text/sql',
 };
 
-export const ALLOWED_BLOB_MIME_TYPES = [
+const ALLOWED_BLOB_MIME_TYPES = [
   ...IMAGE_MIME_TYPES,
   ...VIDEO_MIME_TYPES,
   ...AUDIO_MIME_TYPES,

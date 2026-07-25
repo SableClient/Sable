@@ -10,7 +10,7 @@ type ThemeCatalogOnboardingProps = {
   onDecline: () => void;
 };
 
-export function ThemeCatalogOnboarding({ open, onEnable, onDecline }: ThemeCatalogOnboardingProps) {
+function ThemeCatalogOnboarding({ open, onEnable, onDecline }: ThemeCatalogOnboardingProps) {
   const suppressDeactivateDecline = useRef(false);
 
   const handleEnableClick = useCallback(() => {

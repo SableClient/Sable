@@ -30,7 +30,7 @@ const decodeRoomRef = (value: string | undefined): string | undefined => {
   return isRoomId(decoded) || isRoomAlias(decoded) ? decoded : undefined;
 };
 
-export const getRouteRoomRefs = (pathname: string): RouteRoomRefs => {
+const getRouteRoomRefs = (pathname: string): RouteRoomRefs => {
   const homeRoomMatch = matchPath(HOME_ROOM_PATH, pathname);
   const directRoomMatch = matchPath(DIRECT_ROOM_PATH, pathname);
   const nonSpaceRoomMatch = homeRoomMatch ?? directRoomMatch;
@@ -76,7 +76,7 @@ const useAvailableSlidingSyncManager = () => {
   return manager;
 };
 
-export const useSlidingSyncRouteRooms = (): void => {
+const useSlidingSyncRouteRooms = (): void => {
   const manager = useAvailableSlidingSyncManager();
   const { pathname } = useLocation();
   const { roomIdOrAlias, spaceIdOrAlias } = getRouteRoomRefs(pathname);
@@ -98,7 +98,7 @@ export const useSlidingSyncRouteRooms = (): void => {
   }, [manager]);
 };
 
-export const useSlidingSyncSpaceSubscriptions = (): void => {
+const useSlidingSyncSpaceSubscriptions = (): void => {
   const manager = useAvailableSlidingSyncManager();
   const mx = useMatrixClient();
   const spaces = useSpaces(mx, allRoomsAtom);
@@ -112,7 +112,7 @@ export const useSlidingSyncSpaceSubscriptions = (): void => {
 
 // Subscribe pack rooms before the emoji board first opens so their
 // pack state is already available.
-export const useSlidingSyncImagePackSubscriptions = (): void => {
+const useSlidingSyncImagePackSubscriptions = (): void => {
   const manager = useAvailableSlidingSyncManager();
   const mx = useMatrixClient();
 

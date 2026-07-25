@@ -1,6 +1,5 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { fetchMediaBlob, type MediaTransportOptions } from './mediaTransport';
-import { fetch } from './fetch';
 
 export const targetFromEvent = (evt: Event, selector: string): Element | undefined => {
   const targets = evt.composedPath() as Element[];
@@ -15,39 +14,9 @@ export const editableActiveElement = (): boolean =>
     document.activeElement.getAttribute('role') === 'input' ||
     document.activeElement.getAttribute('role') === 'textarea');
 
-export const isIntersectingScrollView = (
-  scrollElement: HTMLElement,
-  childElement: HTMLElement
-): boolean => {
-  const scrollTop = scrollElement.offsetTop + scrollElement.scrollTop;
-  const scrollBottom = scrollTop + scrollElement.offsetHeight;
-
-  const childTop = childElement.offsetTop;
-  const childBottom = childTop + childElement.clientHeight;
-
-  if (childTop >= scrollTop && childTop < scrollBottom) return true;
-  if (childBottom > scrollTop && childBottom <= scrollBottom) return true;
-  if (childTop < scrollTop && childBottom > scrollBottom) return true;
-  return false;
-};
-
-export const isInScrollView = (scrollElement: HTMLElement, childElement: HTMLElement): boolean => {
-  const scrollTop = scrollElement.offsetTop + scrollElement.scrollTop;
-  const scrollBottom = scrollTop + scrollElement.offsetHeight;
-  return (
-    childElement.offsetTop >= scrollTop &&
-    childElement.offsetTop + childElement.offsetHeight <= scrollBottom
-  );
-};
-
-export const canFitInScrollView = (
-  scrollElement: HTMLElement,
-  childElement: HTMLElement
-): boolean => childElement.offsetHeight < scrollElement.offsetHeight;
-
 export type FilesOrFile<T extends boolean | undefined = undefined> = T extends true ? File[] : File;
 
-export const getFilesFromFileList = (fileList: FileList): File[] => {
+const getFilesFromFileList = (fileList: FileList): File[] => {
   const files: File[] = [];
 
   for (let i = 0; i < fileList.length; i += 1) {
@@ -92,12 +61,6 @@ export const getDataTransferFiles = (dataTransfer: DataTransfer): File[] | undef
 
 export const renameFile = (file: File, name: string): File =>
   new File([file], name, { type: file.type });
-
-export const getImageUrlBlob = async (url: string) => {
-  const res = await fetch(url);
-  const blob = await res.blob();
-  return blob;
-};
 
 export const getImageFileUrl = (fileOrBlob: File | Blob) => URL.createObjectURL(fileOrBlob);
 
@@ -169,21 +132,6 @@ export const getThumbnail = (
       resolve(thumbnail ?? undefined);
     }, thumbnailMimeType ?? 'image/jpeg');
   });
-
-export type ScrollInfo = {
-  offsetTop: number;
-  top: number;
-  height: number;
-  viewHeight: number;
-  scrollable: boolean;
-};
-export const getScrollInfo = (target: HTMLElement): ScrollInfo => ({
-  offsetTop: Math.round(target.offsetTop),
-  top: Math.round(target.scrollTop),
-  height: Math.round(target.scrollHeight),
-  viewHeight: Math.round(target.offsetHeight),
-  scrollable: target.scrollHeight > target.offsetHeight,
-});
 
 export const scrollToBottom = (scrollEl: HTMLElement, behavior?: 'auto' | 'instant' | 'smooth') => {
   scrollEl.scrollTo({

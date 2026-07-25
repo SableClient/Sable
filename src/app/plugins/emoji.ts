@@ -25,7 +25,7 @@ export type IEmojiGroup = {
   emojis: IEmoji[];
 };
 
-export const getShortcodesFor = (hexcode: string): string[] | string | undefined =>
+const getShortcodesFor = (hexcode: string): string[] | string | undefined =>
   joypixels[hexcode] || emojibase[hexcode];
 
 export const getShortcodeFor = (hexcode: string): string | undefined => {

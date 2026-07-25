@@ -47,10 +47,6 @@ export const CallMemberCard = style({
   padding: config.space.S300,
 });
 
-export const CallControlContainer = style({
-  padding: config.space.S400,
-});
-
 export const PrescreenMessage = style({
   padding: config.space.S200,
 });

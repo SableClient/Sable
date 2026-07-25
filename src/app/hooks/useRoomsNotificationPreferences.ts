@@ -95,13 +95,6 @@ export const getRoomNotificationMode = (
 
   return RoomNotificationMode.Unset;
 };
-
-export const useRoomNotificationPreference = (
-  preferences: RoomsNotificationPreferences,
-  roomId: string
-): RoomNotificationMode =>
-  useMemo(() => getRoomNotificationMode(preferences, roomId), [preferences, roomId]);
-
 export const roomNotificationModeIcon = (
   mode?: RoomNotificationMode,
   props?: IconProps
@@ -121,7 +114,7 @@ export const roomNotificationModeChipIcon = (mode?: RoomNotificationMode): React
   return chipIcon(Bell);
 };
 
-export const setRoomNotificationPreference = async (
+const setRoomNotificationPreference = async (
   mx: MatrixClient,
   roomId: string,
   mode: RoomNotificationMode,

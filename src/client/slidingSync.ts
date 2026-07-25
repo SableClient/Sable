@@ -28,12 +28,11 @@ import { SlidingSyncSidebarCache } from './slidingSyncSidebarCache';
 const log = createLogger('slidingSync');
 const debugLog = createDebugLogger('slidingSync');
 
-export const LIST_JOINED = 'joined';
-export const LIST_INVITES = 'invites';
-export const LIST_UPDATES = 'updates';
-export const LIST_SEARCH = 'search';
-export const LIST_ROOM_SEARCH = 'room_search';
-export const LIST_SPACE = 'space';
+const LIST_JOINED = 'joined';
+const LIST_INVITES = 'invites';
+const LIST_UPDATES = 'updates';
+const LIST_ROOM_SEARCH = 'room_search';
+const LIST_SPACE = 'space';
 const LIST_TIMELINE_LIMIT = 1;
 const LIST_PAGE_SIZE = 30;
 const STEADY_STATE_DETAILED_ROOMS = 3;

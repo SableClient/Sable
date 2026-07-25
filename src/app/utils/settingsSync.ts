@@ -32,7 +32,7 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
 ]);
 
 export const SETTINGS_SYNC_VERSION = 1;
-export const MAX_SYNCED_LOCAL_TWEAK_CSS_BYTES = 256 * 1024;
+const MAX_SYNCED_LOCAL_TWEAK_CSS_BYTES = 256 * 1024;
 const MAX_SYNCED_TWEAK_URL_LENGTH = 8192;
 
 export type SettingsSyncContent = {
@@ -45,7 +45,7 @@ export type PreparedSettingsSync = {
   excludedLocalTweakUrls: string[];
 };
 
-export function sanitizeThemeRemoteEnabledTweakFullUrls(val: unknown): string[] | undefined {
+function sanitizeThemeRemoteEnabledTweakFullUrls(val: unknown): string[] | undefined {
   if (!Array.isArray(val)) return undefined;
   return val.flatMap((url) => {
     if (typeof url !== 'string') return [];

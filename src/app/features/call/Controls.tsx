@@ -8,7 +8,6 @@ import {
   SpeakerSlash,
   VideoCamera,
   VideoCameraSlash,
-  ScreenShare,
 } from '$components/icons/phosphor';
 import { useAtom } from 'jotai';
 import * as css from './styles.css';
@@ -110,38 +109,6 @@ export function VideoButton({ enabled, onToggle }: VideoButtonProps) {
           outlined
         >
           {sizedIcon(enabled ? VideoCamera : VideoCameraSlash, '300', { filled: enabled })}
-        </IconButton>
-      )}
-    </TooltipProvider>
-  );
-}
-
-type ScreenShareButtonProps = {
-  enabled: boolean;
-  onToggle: () => void;
-};
-export function ScreenShareButton({ enabled, onToggle }: ScreenShareButtonProps) {
-  return (
-    <TooltipProvider
-      position="Top"
-      delay={500}
-      tooltip={
-        <Tooltip>
-          <Text size="T200">{enabled ? 'Stop Screenshare' : 'Start Screenshare'}</Text>
-        </Tooltip>
-      }
-    >
-      {(anchorRef) => (
-        <IconButton
-          ref={anchorRef}
-          variant={enabled ? 'Success' : 'Surface'}
-          fill="Soft"
-          radii="400"
-          size="400"
-          onClick={() => onToggle()}
-          outlined
-        >
-          {sizedIcon(ScreenShare, '300', { filled: enabled })}
         </IconButton>
       )}
     </TooltipProvider>

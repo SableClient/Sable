@@ -5,7 +5,6 @@ import {
   getDirectPath,
   getExploreFeaturedPath,
   getExplorePath,
-  getHomeJoinPath,
   getHomePath,
   getHomeSearchPath,
   getInboxBookmarksPath,
@@ -32,7 +31,6 @@ export const useExploreServer = (): string | undefined => useParams().server;
 
 export const useHomeSelected = (): boolean => useRouteSelected(getHomePath());
 export const useHomeCreateSelected = (): boolean => useRouteSelected(CREATE_ROOM_PATH);
-export const useHomeJoinSelected = (): boolean => useRouteSelected(getHomeJoinPath());
 export const useHomeSearchSelected = (): boolean => useRouteSelected(getHomeSearchPath());
 
 export const useInboxSelected = (): boolean => useRouteSelected(getInboxPath());

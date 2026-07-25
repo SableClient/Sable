@@ -9,7 +9,7 @@ export type LanguageSpecificPronounsConfig = {
   languages?: string[];
 };
 
-export const resolveLanguageSpecificPronounsEnabled = (
+const resolveLanguageSpecificPronounsEnabled = (
   enabled: LanguageSpecificPronounsConfig['enabled']
 ): boolean => {
   if (enabled === undefined) return false;

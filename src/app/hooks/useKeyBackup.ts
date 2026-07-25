@@ -10,9 +10,7 @@ import * as Sentry from '@sentry/react';
 import { useMatrixClient } from './useMatrixClient';
 import { useAlive } from './useAlive';
 
-export const useKeyBackupStatusChange = (
-  onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupStatus]
-) => {
+const useKeyBackupStatusChange = (onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupStatus]) => {
   const mx = useMatrixClient();
 
   useEffect(() => {
@@ -40,7 +38,7 @@ export const useKeyBackupStatus = (crypto: CryptoApi): boolean => {
   return status;
 };
 
-export const useKeyBackupSessionsRemainingChange = (
+const useKeyBackupSessionsRemainingChange = (
   onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupSessionsRemaining]
 ) => {
   const mx = useMatrixClient();
@@ -53,9 +51,7 @@ export const useKeyBackupSessionsRemainingChange = (
   }, [mx, onChange]);
 };
 
-export const useKeyBackupFailedChange = (
-  onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupFailed]
-) => {
+const useKeyBackupFailedChange = (onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupFailed]) => {
   const mx = useMatrixClient();
 
   useEffect(() => {

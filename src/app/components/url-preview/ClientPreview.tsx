@@ -47,7 +47,7 @@ export type EmbedHeaderProps = {
   source: string;
   after?: ReactNode;
 };
-export const EmbedHeader = as<'div', EmbedHeaderProps>(({ title, source, after }) => (
+const EmbedHeader = as<'div', EmbedHeaderProps>(({ title, source, after }) => (
   <AttachmentHeader>
     <Box alignItems="Center" gap="200" grow="Yes">
       <Box shrink="No">
@@ -70,7 +70,7 @@ export const EmbedHeader = as<'div', EmbedHeaderProps>(({ title, source, after }
 type EmbedOpenButtonProps = {
   url: string;
 };
-export function EmbedOpenButton({ url }: EmbedOpenButtonProps) {
+function EmbedOpenButton({ url }: EmbedOpenButtonProps) {
   return (
     <IconButton size="300" radii="300" onClick={() => window.open(url, '_blank')}>
       {sizedIcon(Link, '100')}
@@ -83,7 +83,7 @@ type YoutubeElementProps = {
   embedData: OEmbed;
 };
 
-export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoInfo, embedData }) => {
+const YoutubeElement = as<'div', YoutubeElementProps>(({ videoInfo, embedData }) => {
   const thumbnailUrl = `https://i.ytimg.com/vi/${videoInfo.videoId}/hqdefault.jpg`;
 
   const timestamp = videoInfo.timestamp ? `&start=${videoInfo.timestamp}` : '';

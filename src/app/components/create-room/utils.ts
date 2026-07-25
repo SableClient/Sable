@@ -13,7 +13,7 @@ import { getMxIdServer } from '$utils/mxIdHelper';
 import { CreateRoomAccess } from './types';
 import * as prefix from '$unstable/prefixes';
 
-export const createRoomCreationContent = (
+const createRoomCreationContent = (
   type: RoomType | undefined,
   allowFederation: boolean,
   additionalCreators: string[] | undefined
@@ -32,7 +32,7 @@ export const createRoomCreationContent = (
   return content;
 };
 
-export const createRoomJoinRulesState = (
+const createRoomJoinRulesState = (
   access: CreateRoomAccess,
   parent: Room | undefined,
   knock: boolean
@@ -66,7 +66,7 @@ export const createRoomJoinRulesState = (
   };
 };
 
-export const createRoomParentState = (parent: Room) => ({
+const createRoomParentState = (parent: Room) => ({
   type: EventType.SpaceParent,
   state_key: parent.roomId,
   content: {
@@ -87,13 +87,13 @@ export const createRoomEncryptionState = () => ({
   },
 });
 
-export const createRoomCallState = () => ({
+const createRoomCallState = () => ({
   type: prefix.MATRIX_UNSTABLE_ROOM_TYPE_CALL_PROPERTY_NAME,
   state_key: '',
   content: {},
 });
 
-export const createVoiceRoomPowerLevelsOverride = () => ({
+const createVoiceRoomPowerLevelsOverride = () => ({
   events: {
     [EventType.GroupCallMemberPrefix]: 0,
   },

@@ -106,7 +106,7 @@ export type InviteData = {
   isEncrypted: boolean;
 };
 
-export const makeInviteData = (
+const makeInviteData = (
   mx: MatrixClient,
   room: Room,
   useAuthentication: boolean,
@@ -394,7 +394,7 @@ function InviteCard({
   );
 }
 
-export enum InviteFilter {
+enum InviteFilter {
   Known,
   Unknown,
   Spam,

@@ -22,7 +22,7 @@ const getAllTextNodes = (root: Node): Node[] =>
         []
       );
 
-export const rainbowify = (htmlInput: string): string => {
+const rainbowify = (htmlInput: string): string => {
   const div = document.createElement('div');
   div.innerHTML = htmlInput;
   const textNodes = getAllTextNodes(div);

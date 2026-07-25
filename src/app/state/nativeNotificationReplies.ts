@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 
-export const NATIVE_REPLY_MAX = 8;
+const NATIVE_REPLY_MAX = 8;
 export const NATIVE_REPLY_EXPIRY_MS = 120_000;
 export type NativeNotificationReply = {
   key: string;

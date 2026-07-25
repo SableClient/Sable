@@ -198,7 +198,7 @@ export const toPlainText = (
  * Convert slate internal representation to a raw plain text string without any replacements.
  * This is used for link extraction to ensure we have the full context for markdown blocks.
  */
-export const toRawText = (node: Descendant | Descendant[]): string => {
+const toRawText = (node: Descendant | Descendant[]): string => {
   if (Array.isArray(node)) return node.map(toRawText).join('');
   if (Text.isText(node)) return node.text;
 

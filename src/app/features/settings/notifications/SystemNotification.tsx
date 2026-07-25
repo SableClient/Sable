@@ -76,10 +76,7 @@ function getBackgroundPushPlatform(isTauriRuntime: boolean): BackgroundPushPlatf
   return 'desktop';
 }
 
-export function deriveLegacyPushSync(input: {
-  enabled: boolean;
-  provider: BackgroundPushKind | null;
-}): {
+function deriveLegacyPushSync(input: { enabled: boolean; provider: BackgroundPushKind | null }): {
   usePushNotifications: boolean;
   useUnifiedPush: boolean;
 } {

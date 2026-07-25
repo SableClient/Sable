@@ -113,7 +113,7 @@ export async function ensureNativePushRegistered(
   };
 }
 
-export async function ensureNativePushUnregistered(): Promise<void> {
+async function ensureNativePushUnregistered(): Promise<void> {
   const api = await getNativePushNotificationsApi();
   await api.unregisterForPushNotifications();
 }

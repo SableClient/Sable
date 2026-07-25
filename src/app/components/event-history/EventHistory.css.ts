@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { DefaultReset, color, config, toRem } from 'folds';
+import { DefaultReset, color, config } from 'folds';
 
 export const EventHistory = style([
   DefaultReset,
@@ -32,21 +32,6 @@ export const EventItem = style({
     },
   },
 });
-export const MessageOptionsBase = style([
-  DefaultReset,
-  {
-    position: 'absolute',
-    top: toRem(-30),
-    right: 0,
-    zIndex: 1,
-  },
-]);
-export const MessageOptionsBar = style([
-  DefaultReset,
-  {
-    padding: config.space.S100,
-  },
-]);
 export const MenuOptions = style({
   position: 'absolute',
   right: '0',

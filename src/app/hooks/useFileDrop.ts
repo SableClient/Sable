@@ -1,15 +1,6 @@
-import type { DragEventHandler, RefObject } from 'react';
-import { useCallback, useState, useEffect, useRef } from 'react';
+import type { RefObject } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getDataTransferFiles } from '$utils/dom';
-
-export const useFileDropHandler = (onDrop: (file: File[]) => void): DragEventHandler =>
-  useCallback(
-    (evt) => {
-      const files = getDataTransferFiles(evt.dataTransfer);
-      if (files) onDrop(files);
-    },
-    [onDrop]
-  );
 
 export const useFileDropZone = (
   zoneRef: RefObject<HTMLElement>,

@@ -14,7 +14,7 @@ export type ResolvedHiddenEventSettings = {
   hiddenEventOther: boolean;
 };
 
-export const resolveHiddenEventSettings = (settings: Settings): ResolvedHiddenEventSettings => {
+const resolveHiddenEventSettings = (settings: Settings): ResolvedHiddenEventSettings => {
   const { showHiddenEvents } = settings;
   return {
     showHiddenEvents,
@@ -29,7 +29,7 @@ export const resolveHiddenEventSettings = (settings: Settings): ResolvedHiddenEv
   };
 };
 
-export const isResolvedHiddenEventSettingsEqual = (
+const isResolvedHiddenEventSettingsEqual = (
   a: ResolvedHiddenEventSettings,
   b: ResolvedHiddenEventSettings
 ): boolean =>

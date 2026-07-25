@@ -596,9 +596,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       evt.preventDefault();
       const userId = evt.currentTarget.getAttribute('data-user-id');
       if (!userId) return;
-      const localNicknames = undefined; // will be resolved via getMemberDisplayName in editor
       const name =
-        getMemberDisplayName(room, userId, localNicknames) ?? getMxIdLocalPart(userId) ?? userId;
+        getMemberDisplayName(room, userId, nicknames) ?? getMxIdLocalPart(userId) ?? userId;
       editor.insertNode(
         createMentionElement(
           userId,
@@ -609,7 +608,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       ReactEditor.focus(editor);
       moveCursor(editor);
     },
-    [mx, room, editor]
+    [mx, room, editor, nicknames]
   );
 
   const handleReplyClick: MouseEventHandler<HTMLButtonElement> = useCallback(

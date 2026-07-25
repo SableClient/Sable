@@ -26,6 +26,7 @@ import {
 import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
 import { NotificationType } from '$types/matrix/room';
 import { getMxIdLocalPart } from '$utils/matrix';
+import { mxcUrlToHttp } from './mediaUrl';
 
 export const getStateEvent = (
   room: Room,
@@ -566,8 +567,7 @@ export const getRoomAvatarUrl = (
 ): string | undefined => {
   const mxcUrl = room.getMxcAvatarUrl();
   return mxcUrl
-    ? (mx.mxcUrlToHttp(mxcUrl, size, size, 'crop', undefined, false, useAuthentication) ??
-        undefined)
+    ? (mxcUrlToHttp(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined)
     : undefined;
 };
 
@@ -583,9 +583,7 @@ export const getDirectRoomAvatarUrl = (
     return getRoomAvatarUrl(mx, room, size, useAuthentication);
   }
 
-  return (
-    mx.mxcUrlToHttp(mxcUrl, size, size, 'crop', undefined, false, useAuthentication) ?? undefined
-  );
+  return mxcUrlToHttp(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined;
 };
 
 export const trimReplyFromBody = (body: string): string => {

@@ -1,5 +1,5 @@
-import type { MouseEventHandler } from 'react';
-import { forwardRef, useMemo, useState } from 'react';
+import type { MouseEventHandler, TouchEvent as ReactTouchEvent } from 'react';
+import { forwardRef, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
 import { Box, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
@@ -28,6 +28,7 @@ import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
+import { useMobileLongPress } from '$hooks/useMobileLongPress';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -96,13 +97,25 @@ export function DirectTab() {
     navigate(getDirectPath());
   };
 
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  const openMenuAt = (element: HTMLElement) => {
+    const cords = element.getBoundingClientRect();
+    setMenuAnchor((currentState) => (currentState ? undefined : cords));
+  };
+
   const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     evt.preventDefault();
-    const cords = evt.currentTarget.getBoundingClientRect();
-    setMenuAnchor((currentState) => {
-      if (currentState) return undefined;
-      return cords;
-    });
+    openMenuAt(evt.currentTarget);
+  };
+
+  const longPress = useMobileLongPress(() => {
+    if (buttonRef.current) openMenuAt(buttonRef.current);
+  });
+
+  const handleTouchStart = (evt: ReactTouchEvent<HTMLButtonElement>) => {
+    buttonRef.current = evt.currentTarget;
+    longPress.onTouchStart(evt);
   };
   return (
     <SidebarItemLeft active={directSelected}>
@@ -114,6 +127,10 @@ export function DirectTab() {
             outlined
             onClick={handleDirectClick}
             onContextMenu={handleContextMenu}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={longPress.onTouchEnd}
+            onTouchMove={longPress.onTouchMove}
+            onTouchCancel={longPress.onTouchCancel}
           >
             <User
               size={getPhosphorIconSize('toolbar')}

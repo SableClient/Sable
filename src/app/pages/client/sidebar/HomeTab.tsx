@@ -1,5 +1,5 @@
-import type { MouseEventHandler } from 'react';
-import { forwardRef, useState } from 'react';
+import type { MouseEventHandler, TouchEvent as ReactTouchEvent } from 'react';
+import { forwardRef, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
 import { Box, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
@@ -23,6 +23,7 @@ import { useHomeSelected } from '$hooks/router/useHomeSelected';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { markAsRead } from '$utils/notifications';
+import { useMobileLongPress } from '$hooks/useMobileLongPress';
 import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -86,13 +87,25 @@ export function HomeTab() {
     navigate(getHomePath());
   };
 
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  const openMenuAt = (element: HTMLElement) => {
+    const cords = element.getBoundingClientRect();
+    setMenuAnchor((currentState) => (currentState ? undefined : cords));
+  };
+
   const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     evt.preventDefault();
-    const cords = evt.currentTarget.getBoundingClientRect();
-    setMenuAnchor((currentState) => {
-      if (currentState) return undefined;
-      return cords;
-    });
+    openMenuAt(evt.currentTarget);
+  };
+
+  const longPress = useMobileLongPress(() => {
+    if (buttonRef.current) openMenuAt(buttonRef.current);
+  });
+
+  const handleTouchStart = (evt: ReactTouchEvent<HTMLButtonElement>) => {
+    buttonRef.current = evt.currentTarget;
+    longPress.onTouchStart(evt);
   };
 
   return (
@@ -105,6 +118,10 @@ export function HomeTab() {
             outlined
             onClick={handleHomeClick}
             onContextMenu={handleContextMenu}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={longPress.onTouchEnd}
+            onTouchMove={longPress.onTouchMove}
+            onTouchCancel={longPress.onTouchCancel}
           >
             <House
               size={getPhosphorIconSize('toolbar')}

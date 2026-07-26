@@ -2,16 +2,24 @@
 # Orchestrate a Playwright-over-CDP run against the Tauri Android debug APK.
 #
 # Usage:
-#   ./scripts/e2e-android.sh            # build + install + launch + forward + test
-#   ./scripts/e2e-android.sh --skip-build  # reuse installed APK, just launch + forward + test
+#   ./scripts/e2e-android.sh              # build + install + launch + forward + test
+#   ./scripts/e2e-android.sh --skip-build # reuse installed APK, just launch + forward + test
 #
-# Requires: adb in PATH, ANDROID_HOME set, a connected device or running emulator,
-# and a debug APK (built via `pnpm tauri android build --debug`).
+# Environment:
+#   ANDROID_SERIAL  set by android-emulator-runner in CI; when present, adb
+#                   targets it automatically (no -s needed). Locally, the
+#                   script auto-selects the first connected device.
+#   APK_PATH         override the APK to install (defaults to the universal
+#                   debug build output).
+#   CDP_PORT         override the forwarded CDP port (default 9222).
+#
+# Requires: adb in PATH, ANDROID_HOME set, a connected device or running
+# emulator, and a debug APK (built via `pnpm tauri android build --debug`).
 
 set -euo pipefail
 
-APK="src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk"
 APP_ID="moe.sable.client"
+APK="${APK_PATH:-src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk}"
 CDP_PORT="${CDP_PORT:-9222}"
 PLAYWRIGHT_CONFIG="playwright.android.config.ts"
 
@@ -19,17 +27,24 @@ SKIP_BUILD=0
 for arg in "$@"; do
   case "$arg" in
     --skip-build) SKIP_BUILD=1 ;;
+    --*) ;; # pass through to playwright
     *) echo "unknown flag: $arg" >&2; exit 2 ;;
   esac
 done
 
-echo "==> selecting device"
-DEVICE=$(adb devices | awk 'NR>1 && $2=="device" {print $1; exit}')
-if [ -z "$DEVICE" ]; then
-  echo "no device/emulator found" >&2
-  exit 1
+# When ANDROID_SERIAL is set (CI emulator-runner), adb uses it by default.
+# Locally, auto-select the first connected device and pin it via -s.
+ADB_DEV=""
+if [ -z "${ANDROID_SERIAL:-}" ]; then
+  echo "==> selecting device"
+  DEVICE=$(adb devices | awk 'NR>1 && $2=="device" {print $1; exit}')
+  if [ -z "$DEVICE" ]; then
+    echo "no device/emulator found" >&2
+    exit 1
+  fi
+  echo "device: $DEVICE"
+  ADB_DEV="-s $DEVICE"
 fi
-echo "device: $DEVICE"
 
 if [ "$SKIP_BUILD" -eq 0 ]; then
   echo "==> building debug APK (this is slow on a cold Gradle cache)"
@@ -42,10 +57,12 @@ if [ ! -f "$APK" ]; then
 fi
 
 echo "==> installing APK"
-adb -s "$DEVICE" install -r "$APK"
+# shellcheck disable=SC2086
+adb $ADB_DEV install -r "$APK"
 
 echo "==> launching app"
-adb -s "$DEVICE" shell monkey -p "$APP_ID" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+# shellcheck disable=SC2086
+adb $ADB_DEV shell monkey -p "$APP_ID" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 
 # The WebView's devtools socket is named webview_devtools_remote_<pid>. It only
 # appears once the app has created its first WebView, which can take >30s after
@@ -55,10 +72,15 @@ echo "==> waiting for WebView devtools socket"
 sleep 3
 SOCKET=""
 for i in $(seq 1 60); do
-  PID=$(adb -s "$DEVICE" shell pidof "$APP_ID" | tr -d '\r' | awk '{print $1}')
+  # shellcheck disable=SC2086
+  PID=$(adb $ADB_DEV shell pidof "$APP_ID" | tr -d '\r' | awk '{print $1}')
   if [ -n "$PID" ]; then
-    SOCKET=$(adb -s "$DEVICE" shell cat /proc/net/unix 2>/dev/null | grep "webview_devtools_remote_${PID}" | awk '{print $NF}' | head -1)
+    # shellcheck disable=SC2086
+    SOCKET=$(adb $ADB_DEV shell cat /proc/net/unix 2>/dev/null | grep "webview_devtools_remote_${PID}" | awk '{print $NF}' | head -1)
     if [ -n "$SOCKET" ]; then
+      # /proc/net/unix prints abstract sockets with a leading @, but
+      # `adb forward localabstract:` already implies abstract and rejects the @.
+      SOCKET="${SOCKET#@}"
       break
     fi
   fi
@@ -74,10 +96,20 @@ fi
 echo "socket: $SOCKET (pid $PID)"
 
 echo "==> forwarding to localhost:$CDP_PORT"
-adb -s "$DEVICE" forward tcp:"$CDP_PORT" localabstract:"$SOCKET"
+# shellcheck disable=SC2086
+adb $ADB_DEV forward tcp:"$CDP_PORT" localabstract:"$SOCKET"
 
 echo "==> running tests"
-pnpm exec playwright test --config "$PLAYWRIGHT_CONFIG" "$@"
+# Strip our own flags; pass the rest to playwright.
+PW_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --skip-build) ;;
+    *) PW_ARGS+=("$arg") ;;
+  esac
+done
+pnpm exec playwright test --config "$PLAYWRIGHT_CONFIG" "${PW_ARGS[@]}"
 
 # tidy up the forward so it does not linger across runs
-adb -s "$DEVICE" forward --remove tcp:"$CDP_PORT" 2>/dev/null || true
+# shellcheck disable=SC2086
+adb $ADB_DEV forward --remove tcp:"$CDP_PORT" 2>/dev/null || true

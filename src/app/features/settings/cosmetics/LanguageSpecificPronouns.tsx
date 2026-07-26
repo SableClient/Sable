@@ -79,11 +79,9 @@ export function LanguageSpecificPronouns() {
         gap="100"
       >
         <SettingTile
-          title={t('show_pronouns_only_in_selected_language')}
+          title={t('show_pronouns_only_in_selected_language_title')}
           focusId="show-pronouns-only-in-selected-language"
-          description={t(
-            'if_enabled_pronouns_are_only_shown_when_they_match_your_selected_language_t'
-          )}
+          description={t('show_pronouns_only_in_selected_language_description')}
           after={
             <Switch
               variant="Primary"
@@ -94,9 +92,9 @@ export function LanguageSpecificPronouns() {
         />
         {useLanguageSpecificPronouns && (
           <SettingTile
-            title={t('selected_language_for_pronouns')}
+            title={t('selected_language_for_pronouns_title')}
             focusId="selected-language-for-pronouns"
-            description={t('the_language_to_show_pronouns_for_when_the_above_setting_is_enabled')}
+            description={t('selected_language_for_pronouns_description')}
             after={
               <Input
                 value={languageList}
@@ -104,7 +102,7 @@ export function LanguageSpecificPronouns() {
                 radii="300"
                 variant="Secondary"
                 // input should be a comma separated list of language codes, e.g. "en", "de", "en,de"
-                placeholder={t('language_code_e_g_en_de_en_de')}
+                placeholder={t('selected_language_for_pronouns_example')}
                 disabled={!useLanguageSpecificPronouns}
                 onChange={handleLanguageListChange}
                 style={{ width: '232px' }}

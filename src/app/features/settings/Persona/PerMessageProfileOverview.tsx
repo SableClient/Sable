@@ -26,7 +26,7 @@ export function PerMessageProfileOverview({
   onCreateProfile,
   onEditProfile,
 }: PerMessageProfileOverviewProps) {
-    const { t } = useTranslation(['settings/persona', 'general']);
+  const { t } = useTranslation(['settings/persona', 'general']);
   const mx = useMatrixClient();
   const [profiles, setProfiles] = useState<PerMessageProfile[]>([]);
 
@@ -71,7 +71,7 @@ export function PerMessageProfileOverview({
                 });
               }}
             >
-              <Text size="B300">{t('add', {ns: 'general'})}</Text>
+              <Text size="B300">{t('add', { ns: 'general' })}</Text>
             </Button>
           }
         />

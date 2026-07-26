@@ -500,11 +500,11 @@ function Editor() {
       <Text size="L400">{t('Editor.editor')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-            title={t('Editor.enter_for_newline_title')}
+          title={t('Editor.enter_for_newline_title')}
           focusId="enter-for-newline"
-            description={t('Editor.enter_for_newline_description', {
-              keycombo: isMacOS() ? KeySymbol.Command : 'Ctrl',
-            })}
+          description={t('Editor.enter_for_newline_description', {
+            keycombo: isMacOS() ? KeySymbol.Command : 'Ctrl',
+          })}
           after={<Switch variant="Primary" value={enterForNewline} onChange={setEnterForNewline} />}
         />
       </SequenceCard>
@@ -1520,10 +1520,7 @@ function Sync() {
         <SettingTile
           title={t('Sync.use_sliding_sync_title')}
           focusId="use-sliding-sync"
-          description={
-                t('Sync.use_sliding_sync_description')
-          }
-          
+          description={t('Sync.use_sliding_sync_description')}
           after={
             <Switch variant="Primary" value={useSlidingSync} onChange={handleSetSlidingSync} />
           }

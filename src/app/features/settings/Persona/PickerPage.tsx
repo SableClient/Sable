@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 
 export function PickerPageSettings() {
   const [usePmpPicker, setUsePmpPicker] = useSetting(settingsAtom, 'pmpPicker');
-      const { t } = useTranslation(['settings/persona']);
+  const { t } = useTranslation(['settings/persona']);
 
   return (
     <Box direction="Column" gap="100">
@@ -28,7 +28,7 @@ export function PickerPageSettings() {
               variant="Primary"
               value={usePmpPicker}
               onChange={setUsePmpPicker}
-              title={usePmpPicker ? t('enable_pmp_picker_disable') : t('enable_pmp_picker_enable') }
+              title={usePmpPicker ? t('enable_pmp_picker_disable') : t('enable_pmp_picker_enable')}
             />
           }
         />

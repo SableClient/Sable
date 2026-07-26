@@ -370,9 +370,9 @@ function JumboEmoji() {
       <Text size="L400">{t('jumbo_emoji')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('jumbo_emoji_size')}
+          title={t('jumbo_emoji_size_title')}
           focusId="jumbo-emoji-size"
-          description={t('adjust_the_size_of_emojis_sent_without_text')}
+          description={t('jumbo_emoji_size_description')}
           after={<SelectJumboEmojiSize />}
         />
       </SequenceCard>
@@ -395,18 +395,18 @@ function Privacy() {
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('blur_media')}
+          title={t('blur_media_title')}
           focusId="blur-media"
-          description={t('blurs_images_and_videos_in_the_timeline')}
+          description={t('blur_media_description')}
           after={<Switch variant="Primary" value={privacyBlur} onChange={setPrivacyBlur} />}
         />
       </SequenceCard>
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('blur_avatars')}
+          title={t('blur_avatars_title')}
           focusId="blur-avatars"
-          description={t('blurs_user_profile_pictures_and_room_icons')}
+          description={t('blur_avatars_description')}
           after={
             <Switch variant="Primary" value={privacyBlurAvatars} onChange={setPrivacyBlurAvatars} />
           }
@@ -415,9 +415,9 @@ function Privacy() {
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('blur_emotes')}
+          title={t('blur_emotes_title')}
           focusId="blur-emotes"
-          description={t('blurs_emoticons_within_messages')}
+          description={t('blur_emotes_description')}
           after={
             <Switch variant="Primary" value={privacyBlurEmotes} onChange={setPrivacyBlurEmotes} />
           }
@@ -448,11 +448,9 @@ function IdentityCosmetics() {
       <Text size="L400">{t('identity')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('colorful_names')}
+          title={t('colorful_names_title')}
           focusId="colorful-names"
-          description={t(
-            'assign_unique_colors_to_users_based_on_their_id_does_not_override_room_spac'
-          )}
+          description={t('colorful_names_description')}
           after={
             <Switch
               variant="Primary"
@@ -464,9 +462,9 @@ function IdentityCosmetics() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('show_pronoun_pills')}
+          title={t('show_pronoun_pills_title')}
           focusId="show-pronoun-pills"
-          description={t('display_user_pronouns_in_the_message_timeline')}
+          description={t('show_pronoun_pills_description')}
           after={<Switch variant="Primary" value={showPronouns} onChange={setShowPronouns} />}
         />
       </SequenceCard>
@@ -477,9 +475,9 @@ function IdentityCosmetics() {
         style={{ opacity: showPronouns ? 1 : 0.5 }}
       >
         <SettingTile
-          title={t('max_pronoun_pills')}
+          title={t('pronoun_pill_max_count_title')}
           focusId="pronoun-pill-max-count"
-          description={t('maximum_number_of_pronoun_pills')}
+          description={t('pronoun_pill_max_count_description')}
           after={<PronounPillMaxCountInput disabled={!showPronouns} />}
         />
       </SequenceCard>
@@ -490,37 +488,33 @@ function IdentityCosmetics() {
         style={{ opacity: showPronouns ? 1 : 0.5 }}
       >
         <SettingTile
-          title={t('max_pronoun_pill_length')}
+          title={t('pronoun_pill_max_length_title')}
           focusId="pronoun-pill-max-length"
-          description={t('maximum_pronoun_pill_length')}
+          description={t('pronoun_pill_max_length_description')}
           after={<PronounPillMaxLengthInput disabled={!showPronouns} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('pronoun_pills_for_all')}
+          title={t('pronoun_pills_for_all_title')}
           focusId="pronoun-pills-for-all"
-          description={t(
-            'attempts_to_convert_pronouns_in_names_into_pills_e_g_they_them_or_it_its_tu'
-          )}
+          description={t('pronoun_pills_for_all_description')}
           after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('render_custom_profile_cards')}
+          title={t('custom_profile_cards_title')}
           focusId="custom-profile-cards"
-          description={t(
-            'choose_whose_profile_card_colors_to_show_everyone_with_a_scheme_only_light'
-          )}
+          description={t('custom_profile_cards_description')}
           after={<SelectRenderCustomProfileCards />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('render_global_username_colors')}
+          title={t('render_global_username_colors_title')}
           focusId="render-global-username-colors"
-          description={t('display_the_username_colors_anyone_can_set_in_their_account_settings')}
+          description={t('render_global_username_colors_description')}
           after={
             <Switch variant="Primary" value={renderGlobalColors} onChange={setRenderGlobalColors} />
           }
@@ -528,9 +522,9 @@ function IdentityCosmetics() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('render_space_room_username_colors')}
+          title={t('render_space_room_username_colors_title')}
           focusId="render-space-room-username-colors"
-          description={t('display_the_username_colors_that_can_be_set_with_color')}
+          description={t('render_space_room_username_colors_description')}
           after={
             <Switch variant="Primary" value={renderRoomColors} onChange={setRenderRoomColors} />
           }
@@ -538,17 +532,17 @@ function IdentityCosmetics() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('render_space_room_fonts')}
+          title={t('render_space_room_fonts_title')}
           focusId="render-space-room-fonts"
-          description={t('display_the_username_fonts_that_can_be_set_with_font')}
+          description={t('render_space_room_fonts_description')}
           after={<Switch variant="Primary" value={renderRoomFonts} onChange={setRenderRoomFonts} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title={t('consistent_icon_style')}
+          title={t('consistent_icon_style_title')}
           focusId="consistent-icon-style"
-          description={t('harmonize_icon_appearance_with_background_fill')}
+          description={t('consistent_icon_style_description')}
           after={<Switch variant="Primary" value={uniformIcons} onChange={setUniformIcons} />}
         />
       </SequenceCard>

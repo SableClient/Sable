@@ -363,7 +363,7 @@ export function PerMessageProfileEditor({
         alignItems="Center"
         justifyContent="End"
         gap="200"
-        aria-label={t('save_profile_area', {profileId: profileId})}
+        aria-label={t('save_profile_area', { profileId: profileId })}
       >
         <Button
           onClick={handleDelete}
@@ -371,10 +371,10 @@ export function PerMessageProfileEditor({
           radii="300"
           variant="Critical"
           fill="None"
-          aria-label={t('delete_profile_area', {profileId: profileId})}
-          title={t('delete_profile_area', {profileId: profileId})}
+          aria-label={t('delete_profile_area', { profileId: profileId })}
+          title={t('delete_profile_area', { profileId: profileId })}
         >
-          <Text size="B300">{t('delete', {ns: 'general'})}</Text>
+          <Text size="B300">{t('delete', { ns: 'general' })}</Text>
         </Button>
 
         <Button
@@ -383,10 +383,10 @@ export function PerMessageProfileEditor({
           radii="300"
           variant="Primary"
           disabled={!hasChanges}
-          aria-label={t('save_profile_button', {profileId: profileId})}
-          title={t('save_profile_button', {profileId: profileId})}
+          aria-label={t('save_profile_button', { profileId: profileId })}
+          title={t('save_profile_button', { profileId: profileId })}
         >
-          <Text size="B300">{t('save', {ns: 'general'})}</Text>
+          <Text size="B300">{t('save', { ns: 'general' })}</Text>
         </Button>
       </Box>
     </Box>

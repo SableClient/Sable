@@ -14,7 +14,7 @@ type PronounEditorProps = {
 };
 
 export function PronounEditor({ title, current, onSave, disabled }: PronounEditorProps) {
-      const { t } = useTranslation(['settings/persona']);
+  const { t } = useTranslation(['settings/persona']);
   const initialString = Array.isArray(current)
     ? current.map((p) => `${p.language ? `${p.language}:` : ''}${p.summary}`).join(', ')
     : '';

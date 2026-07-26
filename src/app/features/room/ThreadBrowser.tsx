@@ -116,7 +116,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
       {replyCount > 0 && (
         <Box gap="100" alignItems="Center" style={{ marginTop: config.space.S200 }}>
           <Text size="T200" priority="300" style={{ flexShrink: 0 }}>
-            {replyCount} {t('reply', {count: replyCount})}
+            {replyCount} {t('reply', { count: replyCount })}
           </Text>
           {lastReply && lastBody && (
             <Text

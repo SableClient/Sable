@@ -42,7 +42,7 @@ export function PersonaPicker({ mx, roomId, suppressEditorRefocus }: PersonaPick
   const [AddPersonaMenuAnchor, setAddPersonaMenuAnchor] = useState<RectCords>();
   const [profiles, setProfiles] = useState<PerMessageProfile[] | undefined>(undefined);
   const [selectedPersona, setSelectedPersona] = useState<PerMessageProfile | null>(null);
-    const { t } = useTranslation(['settings/persona', 'general']);
+  const { t } = useTranslation(['settings/persona', 'general']);
   const isPickerMenuItemSelected = (persona: PerMessageProfile) =>
     persona.id === selectedPersona?.id ? true : undefined;
 
@@ -140,7 +140,7 @@ export function PersonaPicker({ mx, roomId, suppressEditorRefocus }: PersonaPick
                   ref={searchInputRef}
                   variant="SurfaceVariant"
                   size="400"
-                  placeholder={t('search', {ns: 'general'})}
+                  placeholder={t('search', { ns: 'general' })}
                   maxLength={50}
                   autoFocus={!mobileOrTablet()}
                   onChange={filter}
@@ -189,7 +189,7 @@ export function PersonaPicker({ mx, roomId, suppressEditorRefocus }: PersonaPick
                                 {nameInitials(profile.name)}
                               </Text>
                             )}
-                            alt={t('avatar_for', {profileId: profile.id})}
+                            alt={t('avatar_for', { profileId: profile.id })}
                           />
                         </Avatar>
                       }
@@ -239,7 +239,7 @@ export function PersonaPicker({ mx, roomId, suppressEditorRefocus }: PersonaPick
                     {nameInitials(selectedPersona.name)}
                   </Text>
                 )}
-                alt={t('avatar_for', {profileId: selectedPersona.id})}
+                alt={t('avatar_for', { profileId: selectedPersona.id })}
               />
             </Avatar>
           ) : (

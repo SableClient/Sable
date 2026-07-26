@@ -24,7 +24,7 @@ export function PerMessageProfileEditorView({
   pronouns = Array<PronounSet>(),
   requestClose,
 }: Readonly<PerMessageProfileEditorViewProps>) {
-    const { t } = useTranslation(['settings/persona']);
+  const { t } = useTranslation(['settings/persona']);
   return (
     <Page>
       <PageHeader outlined={false} balance>

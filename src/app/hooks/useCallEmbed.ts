@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
@@ -15,6 +15,12 @@ import type { CallPreferences } from '../state/callPreferences';
 import { createDebugLogger } from '../utils/debugLogger';
 import { useClientConfig } from './useClientConfig';
 import { callEmbedStartErrorAtom } from '$state/callEmbed';
+import { isNativeCallActive, nativeCallAtom } from '$state/nativeCall';
+import { createNativeCallController } from '$features/call/nativeCallController';
+import { isNativeCallProbeEnabled } from '$features/call/nativeCallProbe';
+import { useAutoDiscoveryInfo } from './useAutoDiscoveryInfo';
+import { isDesktopTauri } from '$utils/platform';
+import { useStore } from 'jotai';
 
 const debugLog = createDebugLogger('useCallEmbed');
 
@@ -65,10 +71,36 @@ export const useCallStart = (dm = false) => {
   const clientConfig = useClientConfig();
   const setCallEmbed = useSetAtom(callEmbedAtom);
   const setCallEmbedStartError = useSetAtom(callEmbedStartErrorAtom);
+  const setNativeCall = useSetAtom(nativeCallAtom);
   const callEmbedRef = useCallEmbedRef();
+  const store = useStore();
+  const discovery = useAutoDiscoveryInfo();
+  const nativeCallController = useMemo(
+    () =>
+      createNativeCallController({
+        setSession: setNativeCall,
+      }),
+    [setNativeCall]
+  );
 
   const startCall = useCallback(
     (room: Room, pref?: CallPreferences) => {
+      if (isDesktopTauri() && isNativeCallProbeEnabled()) {
+        if (store.get(callEmbedAtom) || isNativeCallActive(store.get(nativeCallAtom))) return;
+        const ongoing = mx.matrixRTC.getRoomSession(room).memberships.length > 0;
+        void nativeCallController
+          .start({
+            mx,
+            room,
+            discovery,
+            elementCallActive: Boolean(store.get(callEmbedAtom)),
+            dm,
+            video: pref?.video ?? false,
+            ongoing,
+          })
+          .catch(() => undefined);
+        return;
+      }
       const container = callEmbedRef.current;
       if (!container) {
         debugLog.error('call', 'Failed to start call — no embed container', {
@@ -106,7 +138,18 @@ export const useCallStart = (dm = false) => {
         throw err;
       }
     },
-    [mx, dm, theme, setCallEmbed, callEmbedRef, clientConfig.elementCallUrl, setCallEmbedStartError]
+    [
+      mx,
+      dm,
+      theme,
+      setCallEmbed,
+      callEmbedRef,
+      clientConfig.elementCallUrl,
+      setCallEmbedStartError,
+      store,
+      discovery,
+      nativeCallController,
+    ]
   );
 
   return startCall;

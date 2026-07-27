@@ -9,8 +9,8 @@ exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
 links = "tauri-plugin-call-lifecycle"
 
 [dependencies]
-tauri = { version = "2.11.3" }
-livekit = "0.7"
+tauri = { version = "2.11.3", default-features = false }
+livekit = { version = "0.7", features = ["rustls-tls-native-roots"] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = "1.0"
 thiserror = "2"

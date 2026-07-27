@@ -28,6 +28,7 @@ import { useDelayedEventsSupport } from '$hooks/useDelayedEventsSupport';
 import { delayedEventsSupportedAtom } from '$state/scheduledMessages';
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { callEmbedAtom } from '$state/callEmbed';
+import { nativeCallAtom } from '$state/nativeCall';
 import { useCallJoined } from '$hooks/useCallEmbed';
 import { CallView } from '$features/call/CallView';
 import { useRoom } from '$hooks/useRoom';
@@ -143,8 +144,11 @@ export function RoomView({ eventId }: { eventId?: string }) {
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(room, callSession);
   const callEmbed = useAtomValue(callEmbedAtom);
+  const nativeCall = useAtomValue(nativeCallAtom);
   const isJoinedInThisRoom = useCallJoined(callEmbed) && callEmbed?.roomId === room.roomId;
-  const showCallView = !room.isCallRoom() && (callMembers.length > 0 || isJoinedInThisRoom);
+  const isNativeCallInThisRoom = nativeCall?.roomId === room.roomId;
+  const showCallView =
+    !room.isCallRoom() && (callMembers.length > 0 || isJoinedInThisRoom || isNativeCallInThisRoom);
 
   return (
     <Page

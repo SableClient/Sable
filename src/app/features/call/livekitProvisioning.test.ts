@@ -69,6 +69,7 @@ describe('provisionLivekitToken', () => {
   const options = {
     mx: client(),
     roomId: '!room:example.org',
+    slotId: 'm.call#real-slot',
     deviceId: 'DEVICE',
     serviceUrl: 'https://sfu.example///',
     memberId: 'member-id',
@@ -90,7 +91,7 @@ describe('provisionLivekitToken', () => {
     expect(url).toBe('https://sfu.example/get_token');
     expect(JSON.parse(request.body as string)).toEqual({
       room_id: '!room:example.org',
-      slot_id: 'm.call#!room:example.org',
+      slot_id: 'm.call#real-slot',
       openid_token: openidToken,
       member: {
         id: 'member-id',

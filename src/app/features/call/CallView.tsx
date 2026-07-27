@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import { Badge, Box, color, Header, Scroll, Text, toRem } from 'folds';
+import { Badge, Box, Button, color, Header, Scroll, Text, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoom } from '$hooks/useRoom';
@@ -13,6 +13,8 @@ import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
 import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 import { canJoinCall } from './callStartCapabilities';
+import { nativeCallAtom } from '$state/nativeCall';
+import { isDesktopTauri } from '$utils/platform';
 
 function LivekitServerMissingMessage() {
   return (
@@ -77,6 +79,35 @@ function WidgetPreparationErrorMessage({ message }: { message: string }) {
     <Text style={{ margin: 'auto', color: color.Critical.Main }} size="L400" align="Center">
       {message}
     </Text>
+  );
+}
+
+function NativeCallProbe({
+  lifecycle,
+  error,
+  onHangup,
+}: {
+  lifecycle: string;
+  error?: string;
+  onHangup: () => void;
+}) {
+  return (
+    <Box alignItems="Center" justifyContent="Center" direction="Column" gap="200" grow="Yes">
+      <Text size="L400">Native call: {lifecycle}</Text>
+      <Text size="T300" align="Center">
+        Media is not implemented.
+      </Text>
+      {error && (
+        <Text style={{ color: color.Critical.Main }} size="T300" align="Center">
+          {error}
+        </Text>
+      )}
+      <Button size="300" variant="Critical" fill="Soft" radii="300" onClick={onHangup}>
+        <Text as="span" size="B300">
+          End
+        </Text>
+      </Button>
+    </Box>
   );
 }
 
@@ -168,8 +199,11 @@ export function CallView({ resizable }: CallViewProps) {
 
   const callEmbed = useCallEmbed();
   const callJoined = useCallJoined(callEmbed);
+  const nativeCall = useAtomValue(nativeCallAtom);
 
-  const currentJoined = callEmbed?.roomId === room.roomId && callJoined;
+  const nativeCallForRoom =
+    isDesktopTauri() && nativeCall?.roomId === room.roomId ? nativeCall : undefined;
+  const currentJoined = !nativeCallForRoom && callEmbed?.roomId === room.roomId && callJoined;
 
   const [heightRatio, setHeightRatio] = useState(isMobile ? 0.3 : 0.72);
   const [availableHeight, setAvailableHeight] = useState(0);
@@ -284,8 +318,16 @@ export function CallView({ resizable }: CallViewProps) {
         />
       )}
 
-      {!currentJoined && <CallPrescreen />}
-      <CallJoined containerRef={callContainerRef} />
+      {!currentJoined && !nativeCallForRoom && <CallPrescreen />}
+      {nativeCallForRoom ? (
+        <NativeCallProbe
+          lifecycle={nativeCallForRoom.lifecycle}
+          error={nativeCallForRoom.error}
+          onHangup={() => void nativeCallForRoom.hangup()}
+        />
+      ) : (
+        <CallJoined containerRef={callContainerRef} />
+      )}
 
       {resizable && (
         <button

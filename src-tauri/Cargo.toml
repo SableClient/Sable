@@ -103,6 +103,7 @@ tauri-plugin-updater = { version = "2", optional = true }
 tauri-plugin-process = "2"
 tauri-plugin-window-state = "2.4.1"
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-call-lifecycle = { path = "plugins/tauri-plugin-call-lifecycle" }
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
 gtk = "0.18"

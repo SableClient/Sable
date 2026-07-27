@@ -345,7 +345,8 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_dialog::init());
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_call_lifecycle::init());
 
     #[cfg(target_os = "ios")]
     let builder = builder

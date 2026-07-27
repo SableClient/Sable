@@ -3748,6 +3748,7 @@ dependencies = [
  "prost",
  "rand 0.9.5",
  "reqwest 0.12.28",
+ "rustls-native-certs",
  "scopeguard",
  "serde",
  "serde_json",
@@ -3755,6 +3756,7 @@ dependencies = [
  "signature",
  "thiserror 2.0.19",
  "tokio",
+ "tokio-rustls",
  "tokio-tungstenite",
  "url",
 ]
@@ -7903,7 +7905,11 @@ checksum = "8f72a05e828585856dacd553fba484c242c46e391fb0e58917c942ee9202915c"
 dependencies = [
  "futures-util",
  "log",
+ "rustls",
+ "rustls-native-certs",
+ "rustls-pki-types",
  "tokio",
+ "tokio-rustls",
  "tungstenite",
 ]
 
@@ -8325,6 +8331,8 @@ dependencies = [
  "httparse",
  "log",
  "rand 0.9.5",
+ "rustls",
+ "rustls-pki-types",
  "sha1",
  "thiserror 2.0.19",
  "url",

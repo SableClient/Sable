@@ -12,6 +12,7 @@ import type {
 export type LivekitProvisioningOptions = {
   mx: Pick<MatrixClient, 'getOpenIdToken'>;
   roomId: string;
+  slotId: string;
   deviceId: string;
   serviceUrl: string;
   memberId?: string;
@@ -90,6 +91,7 @@ const requestLivekitToken = async (
 export const provisionLivekitToken = async ({
   mx,
   roomId,
+  slotId,
   deviceId,
   serviceUrl,
   memberId,
@@ -105,7 +107,7 @@ export const provisionLivekitToken = async ({
   const endpoint = trimTrailingSlash(serviceUrl);
   const modernRequest: ModernProvisioningRequest = {
     room_id: roomId,
-    slot_id: `m.call#${roomId}`,
+    slot_id: slotId,
     openid_token: openidToken,
   };
 

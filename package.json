@@ -116,6 +116,7 @@
     "slate-history": "^0.113.1",
     "slate-react": "^0.125.1",
     "tauri-plugin-android-fs-api": "28.4.0",
+    "tauri-plugin-call-lifecycle-api": "file:src-tauri/plugins/tauri-plugin-call-lifecycle",
     "ua-parser-js": "^2.0.10",
     "virtua": "^0.49.2",
     "workbox-precaching": "^7.4.1"

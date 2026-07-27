@@ -9,6 +9,7 @@
     "store:default",
     "notifications:default",
     "process:default",
-    "dialog:default"
+    "dialog:default",
+    "call-lifecycle:default"
   ]
 }

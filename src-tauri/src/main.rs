@@ -1,6 +1,30 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(all(feature = "cef", target_os = "linux"))]
+fn prompt_cef_permission(message: String, tx: std::sync::mpsc::Sender<bool>) {
+    use gtk::glib;
+    use gtk::prelude::*;
+    use gtk::{ButtonsType, DialogFlags, MessageDialog, MessageType, ResponseType};
+
+    // GTK dialogs must run on the main thread's GLib context. Schedule the
+    // dialog as an idle source on the default context, which the winit event
+    // loop services every iteration.
+    glib::idle_add_once(move || {
+        let dialog = MessageDialog::new(
+            None::<&gtk::Window>,
+            DialogFlags::MODAL,
+            MessageType::Question,
+            ButtonsType::YesNo,
+            &message,
+        );
+        dialog.set_title("Permission request");
+        let response = dialog.run();
+        dialog.close();
+        let _ = tx.send(matches!(response, ResponseType::Yes));
+    });
+}
+
 fn main() {
     // CEF (Chromium) runtime, Linux only. Must run before anything else — CEF
     // re-execs this binary for its subprocesses.
@@ -55,23 +79,62 @@ fn main() {
 
         // Allow call media capture (mic, camera, screen-share) for our webview.
         tauri_runtime_cef::set_permission_policy(|request, responder| {
-            use tauri_runtime_cef::{DenyReason, PermissionKind, Verdict};
-            if request.webview_label == "main" {
-                let verdicts = request
-                    .kinds
-                    .iter()
-                    .map(|kind| match kind {
-                        PermissionKind::Microphone
-                        | PermissionKind::Camera
-                        | PermissionKind::CameraPanTiltZoom
-                        | PermissionKind::ScreenCapture
-                        | PermissionKind::CapturedSurfaceControl => Verdict::Allow,
-                        _ => Verdict::Deny,
-                    })
-                    .collect();
-                return responder.decide(verdicts);
+            use tauri_runtime_cef::{DenyReason, PermissionKind};
+
+            if request.webview_label != "main" {
+                return responder.deny(DenyReason::NoPolicy);
             }
-            responder.deny(DenyReason::NoPolicy)
+
+            let media_kinds: Vec<PermissionKind> = request
+                .kinds
+                .iter()
+                .filter(|kind| {
+                    matches!(
+                        kind,
+                        PermissionKind::Microphone
+                            | PermissionKind::Camera
+                            | PermissionKind::CameraPanTiltZoom
+                            | PermissionKind::ScreenCapture
+                            | PermissionKind::CapturedSurfaceControl
+                    )
+                })
+                .cloned()
+                .collect();
+
+            if media_kinds.is_empty() {
+                return responder.deny(DenyReason::NoPolicy);
+            }
+
+            let msg = match media_kinds.as_slice() {
+                [PermissionKind::Microphone] => "Sable wants to access your microphone.",
+                [PermissionKind::Camera] => "Sable wants to access your camera.",
+                [PermissionKind::ScreenCapture] | [PermissionKind::CapturedSurfaceControl] => {
+                    "Sable wants to share your screen."
+                }
+                _ if media_kinds.contains(&PermissionKind::Microphone)
+                    && media_kinds.contains(&PermissionKind::Camera) =>
+                {
+                    "Sable wants to access your microphone and camera."
+                }
+                _ => "Sable wants to access media devices.",
+            };
+
+            // Defer the CEF callback and ask the user via a native GTK dialog.
+            // The policy runs on a CEF thread and must not block; defer() hands
+            // the answer to a worker thread that waits on the dialog result.
+            let deferred = responder.defer(tauri_runtime_cef::DEFAULT_PROMPT_TIMEOUT);
+            let (tx, rx) = std::sync::mpsc::channel();
+            prompt_cef_permission(msg.to_string(), tx);
+            std::thread::spawn(move || {
+                let allowed = rx
+                    .recv_timeout(tauri_runtime_cef::DEFAULT_PROMPT_TIMEOUT)
+                    .unwrap_or(false);
+                if allowed {
+                    deferred.allow();
+                } else {
+                    deferred.deny(DenyReason::PolicyDenied);
+                }
+            });
         });
     }
 

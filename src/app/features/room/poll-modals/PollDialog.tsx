@@ -18,7 +18,7 @@ import type { PollAnswerItem } from '$components/message/PollEvent';
 import { randomStr } from '$utils/common';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
-import type { IContent, MatrixClient, Room, TimelineEvents } from 'matrix-js-sdk';
+import type { IContent } from 'matrix-js-sdk';
 import {
   M_POLL_KIND_DISCLOSED,
   M_POLL_KIND_UNDISCLOSED,
@@ -28,16 +28,11 @@ import {
 import { MsgType } from '$types/matrix-sdk';
 import { isKeyHotkey } from 'is-hotkey';
 import * as css from './PollDialog.css';
-import type { IReplyDraft } from '$state/room/roomInputDrafts';
-import { getReplyContent } from '../RoomInput';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type PollDialogProps = {
   onCancel: () => void;
-  mx: MatrixClient;
-  room: Room;
-  replyDraft?: IReplyDraft;
-  clearReplyDraft?: () => void;
+  onSubmit: (content: IContent) => Promise<void>;
 };
 
 type ErrorProps = {
@@ -45,13 +40,14 @@ type ErrorProps = {
   errorString: string;
 };
 
-export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: PollDialogProps) {
-  const roomId = room.roomId;
+export function PollDialog({ onCancel, onSubmit }: PollDialogProps) {
   const [isDisclosed, setIsDisclosed] = useState(true);
   const [maxSelections, setMaxSelections] = useState(1);
   const [inputValue, setInputValue] = useState(1);
   const title = useRef<string>('');
   const [error, setError] = useState<ErrorProps | undefined>(undefined);
+  const [submitError, setSubmitError] = useState<string | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [answers, setAnswers] = useState<PollAnswerItem[]>([
     {
       id: randomStr(),
@@ -88,7 +84,8 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
     [answers, setAnswers, maxSelections, setMaxSelections]
   );
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
     if (title.current.length === 0) {
       setError({ errorcode: 'title', errorString: 'Missing Title' });
       return;
@@ -122,18 +119,18 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
       },
       [M_TEXT.name]: `New poll\n Question: ${title.current}\nAnswers:\n ${answers.map((item) => item[M_TEXT.name]).join('\n')}`,
     };
-    if (replyDraft && clearReplyDraft) {
-      pollContent['m.relates_to'] = getReplyContent(replyDraft, room);
-      clearReplyDraft();
+    setSubmitError(undefined);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(pollContent);
+      onCancel();
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : 'Failed to create poll. Please try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    mx.sendEvent(
-      roomId,
-      M_POLL_START.name as keyof TimelineEvents,
-      pollContent as TimelineEvents[keyof TimelineEvents]
-    );
-
-    onCancel();
   };
 
   const handleMaxOptions: ChangeEventHandler<HTMLInputElement> = (evt) => {
@@ -155,7 +152,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
         <Header className={css.PollDialogHeader} variant="Surface" size="500">
           <Box grow="Yes" gap="200">
             {composerIcon(ListBullets)}
-            <Text size="H4">{`New Poll ${replyDraft ? '(reply / thread)' : ''}`} </Text>
+            <Text size="H4">New Poll</Text>
           </Box>
           <IconButton
             size="300"
@@ -288,6 +285,7 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
             type="submit"
             variant="Primary"
             onClick={handleSubmit}
+            disabled={isSubmitting}
             fill="Soft"
             title="Create Poll"
             aria-label="Create Poll"
@@ -297,6 +295,11 @@ export function PollDialog({ onCancel, mx, room, replyDraft, clearReplyDraft }: 
           {!!error && (
             <Text align="Center" size="B500" style={{ color: color.Critical.OnContainer }}>
               {error.errorString}
+            </Text>
+          )}
+          {!!submitError && (
+            <Text align="Center" size="B500" style={{ color: color.Critical.OnContainer }}>
+              {submitError}
             </Text>
           )}
         </Box>

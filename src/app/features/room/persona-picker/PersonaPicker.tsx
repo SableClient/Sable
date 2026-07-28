@@ -33,7 +33,14 @@ import {
   Badge,
 } from 'folds';
 import type { MatrixClient } from 'matrix-js-sdk';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MutableRefObject,
+} from 'react';
 import * as css from './PersonaPicker.css.ts';
 import { InfoCard } from '$components/info-card/InfoCard.tsx';
 import { InfoIcon } from '@phosphor-icons/react';
@@ -75,6 +82,12 @@ export function PersonaPicker({
   const [selectedRoomPersona, setSelectedRoomPersona] = useState<PerMessageProfile | null>(
     latchedPersona ?? null
   );
+  const mountedRef = useRef(false);
+  const profileFetchGenerationRef = useRef(0);
+  // Bumped on each click so an in-flight sync cannot undo a fresher choice. Global and
+  // per-room selections are independent, so one must not invalidate the other's rollback.
+  const globalSelectionRef = useRef(0);
+  const roomSelectionRef = useRef(0);
   const isPickerMenuItemSelected = (persona: PerMessageProfile) => {
     const selectedPersona =
       tab === PersonaPickerTab.Global ? selectedGlobalPersona : selectedRoomPersona;
@@ -96,6 +109,14 @@ export function PersonaPicker({
     undefined
   );
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      profileFetchGenerationRef.current += 1;
+    };
+  }, []);
+
   const clearFilterInput = () => {
     if (searchInputRef.current) {
       searchInputRef.current.value = '';
@@ -104,25 +125,61 @@ export function PersonaPicker({
   };
 
   useEffect(() => {
-    const syncProfile = async () => {
-      const syncedRoomProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
-      if (!selectedRoomPersona) setSelectedRoomPersona(syncedRoomProfile ?? null);
+    let cancelled = false;
 
-      const syncedGlobalProfile = await getCurrentlyUsedPerMessageProfileForAccount(mx);
-      setSelectedGlobalPersona(syncedGlobalProfile ?? null);
+    const syncProfile = async (
+      generationRef: MutableRefObject<number>,
+      load: () => Promise<PerMessageProfile | undefined>,
+      apply: (profile: PerMessageProfile | null) => void
+    ) => {
+      const generation = generationRef.current;
+      try {
+        const synced = await load();
+        if (!cancelled && generation === generationRef.current) apply(synced ?? null);
+      } catch {
+        // Profile synchronization is best effort; retain the current selection on failure.
+      }
     };
-    syncProfile();
-  }, [mx, roomId, profiles, latchedPersona, selectedRoomPersona]);
 
-  const fetchProfiles = async (mx_: MatrixClient) => {
-    const fetchedProfiles = await getAllPerMessageProfiles(mx_);
-    setProfiles(fetchedProfiles);
-    setFilteredProfiles(fetchedProfiles);
-  };
+    void syncProfile(
+      roomSelectionRef,
+      () => getCurrentlyUsedPerMessageProfileForRoom(mx, roomId),
+      // A latched persona already reflects the user's intent, so don't overwrite it.
+      (profile) => {
+        if (!selectedRoomPersona) setSelectedRoomPersona(profile);
+      }
+    );
+    void syncProfile(
+      globalSelectionRef,
+      () => getCurrentlyUsedPerMessageProfileForAccount(mx),
+      setSelectedGlobalPersona
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mx, roomId, latchedPersona, selectedRoomPersona]);
+
+  const fetchProfiles = useCallback(async (mx_: MatrixClient) => {
+    const fetchGeneration = ++profileFetchGenerationRef.current;
+    try {
+      const fetchedProfiles = await getAllPerMessageProfiles(mx_);
+      if (!mountedRef.current || fetchGeneration !== profileFetchGenerationRef.current) {
+        return;
+      }
+      setProfiles(fetchedProfiles);
+      setFilteredProfiles(fetchedProfiles);
+    } catch {
+      // Profile loading is best effort; keep the existing list when it fails.
+    }
+  }, []);
 
   useEffect(() => {
-    fetchProfiles(mx);
-  }, [mx]);
+    void fetchProfiles(mx);
+    return () => {
+      profileFetchGenerationRef.current += 1;
+    };
+  }, [fetchProfiles, mx]);
 
   const filter = useCallback(
     (e: FormEvent) => {
@@ -220,37 +277,38 @@ export function PersonaPicker({
                     aria-selected={isPickerMenuItemSelected(profile)}
                     onClick={async () => {
                       const isGlobal = tab === PersonaPickerTab.Global;
-                      const selectedPersona = isGlobal
+                      const previousPersona = isGlobal
                         ? selectedGlobalPersona
                         : selectedRoomPersona;
-                      const disabling = profile.id === selectedPersona?.id;
+                      const disabling = profile.id === previousPersona?.id;
+                      const setPersona = isGlobal
+                        ? setSelectedGlobalPersona
+                        : setSelectedRoomPersona;
+                      const generationRef = isGlobal ? globalSelectionRef : roomSelectionRef;
+                      const selectionGeneration = ++generationRef.current;
 
-                      if (!disabling) {
+                      setPersona(disabling ? null : profile);
+
+                      try {
                         if (isGlobal) {
-                          setSelectedGlobalPersona(profile);
-                          await setCurrentlyUsedPerMessageProfileIdForAccount(mx, profile.id);
-                        } else {
-                          setSelectedRoomPersona(profile);
-                          await setCurrentlyUsedPerMessageProfileIdForRoom(mx, roomId, profile.id);
-                        }
-                      } else {
-                        if (isGlobal) {
-                          setSelectedGlobalPersona(null);
                           await setCurrentlyUsedPerMessageProfileIdForAccount(
                             mx,
+                            disabling ? undefined : profile.id,
                             undefined,
-                            undefined,
-                            true
+                            disabling
                           );
                         } else {
-                          setSelectedRoomPersona(null);
                           await setCurrentlyUsedPerMessageProfileIdForRoom(
                             mx,
                             roomId,
+                            disabling ? undefined : profile.id,
                             undefined,
-                            undefined,
-                            true
+                            disabling
                           );
+                        }
+                      } catch {
+                        if (mountedRef.current && selectionGeneration === generationRef.current) {
+                          setPersona(previousPersona);
                         }
                       }
                     }}
@@ -315,7 +373,7 @@ export function PersonaPicker({
         onClick={(evt) => {
           // getAllPerMessageProfiles can return an empty list during initial startup.
           if (profiles?.length === 0) {
-            fetchProfiles(mx);
+            void fetchProfiles(mx);
           }
           setAddPersonaMenuAnchor(evt.currentTarget.getBoundingClientRect());
         }}

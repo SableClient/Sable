@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AsyncSearchHandler } from '$utils/AsyncSearch';
 import { fetch } from '$utils/fetch';
 import { useClientConfig } from '$hooks/useClientConfig';
@@ -57,14 +57,34 @@ export function useGifSearch(
   const [error, setError] = useState<string | null>(null);
   const clientConfig = useClientConfig();
   const klipyApiKey = clientConfig.gifs?.klipyApiKey ?? '';
+  const requestGenerationRef = useRef(0);
+  const abortControllerRef = useRef<AbortController>();
+  const mountedRef = useRef(true);
+  const showGifPickerRef = useRef(showGifPicker);
+  showGifPickerRef.current = showGifPicker;
+
+  const cancelRequest = useCallback(() => {
+    requestGenerationRef.current += 1;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = undefined;
+  }, []);
+
+  const cancelSearch = useCallback(() => {
+    cancelRequest();
+    if (mountedRef.current) setLoading(false);
+  }, [cancelRequest]);
 
   const searchGifs = useCallback(
     async (query: string) => {
-      if (!showGifPicker) {
+      if (!mountedRef.current || !showGifPickerRef.current) {
         return;
       }
 
       const trimmedQuery = query.trim();
+      cancelRequest();
+      const generation = requestGenerationRef.current;
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       setLoading(true);
       setError(null);
@@ -77,30 +97,50 @@ export function useGifSearch(
         url.searchParams.set('q', trimmedQuery);
         url.searchParams.set('per_page', '50'); // TODO: infinite scroll?
 
-        const response = await fetch(url.toString());
+        const response = await fetch(url.toString(), { signal: controller.signal });
 
         if (response.status === 200) {
           const data = (await response.json()) as KlipySearchResponse;
           const results = data.data?.data;
 
-          setSearchResults(results ? results.map(parseKlipyResult) : []);
+          if (generation === requestGenerationRef.current && mountedRef.current) {
+            setSearchResults(results ? results.map(parseKlipyResult) : []);
+          }
         } else {
           throw new Error(`HTTP ${response.status}`);
         }
       } catch {
-        setError('Failed to search GIFs');
-        setSearchResults([]);
+        if (generation === requestGenerationRef.current && mountedRef.current) {
+          setError('Failed to search GIFs');
+          setSearchResults([]);
+        }
       } finally {
-        setLoading(false);
+        if (generation === requestGenerationRef.current && mountedRef.current) {
+          abortControllerRef.current = undefined;
+          setLoading(false);
+        }
       }
     },
-    [klipyApiKey, showGifPicker, gifSearch]
+    [cancelRequest, klipyApiKey, gifSearch]
   );
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      cancelRequest();
+    };
+  }, [cancelRequest]);
+
+  useEffect(() => {
+    if (!showGifPicker) cancelSearch();
+  }, [cancelSearch, showGifPicker]);
 
   const gifs = useMemo(
     () => ({ gifs: searchResults, favorites: favoriteGifs }),
     [searchResults, favoriteGifs]
   );
 
-  return { gifs, loading, error, searchGifs };
+  return { gifs, loading, error, searchGifs, cancelSearch };
 }

@@ -36,13 +36,14 @@ export async function sendDelayedMessage(
   roomId: string,
   content: IContent,
   delayMs: number,
-  threadId?: string | null
+  threadId?: string | null,
+  eventType: keyof TimelineEvents = EventType.RoomMessage
 ): Promise<SendDelayedEventResponse> {
   return mx._unstable_sendDelayedEvent(
     roomId,
     { delay: delayMs },
     threadId ?? null,
-    EventType.RoomMessage as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
+    eventType as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
     content as RoomMessageEventContent
   );
 }
@@ -59,7 +60,8 @@ export async function sendDelayedMessageE2EE(
   room: Room,
   content: IContent,
   delayMs: number,
-  threadId?: string | null
+  threadId?: string | null,
+  eventType: keyof TimelineEvents = EventType.RoomMessage
 ): Promise<SendDelayedEventResponse> {
   const crypto = mx.getCrypto();
   if (!crypto || !('encryptEvent' in crypto)) {
@@ -68,7 +70,7 @@ export async function sendDelayedMessageE2EE(
 
   // Create a temporary MatrixEvent to encrypt in-place.
   const event = new MatrixEvent({
-    type: EventType.RoomMessage,
+    type: eventType,
     content,
     room_id: roomId,
     sender: mx.getUserId() ?? '',

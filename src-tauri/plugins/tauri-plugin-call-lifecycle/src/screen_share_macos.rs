@@ -132,7 +132,6 @@ async fn capture_loop(
     mut stop_rx: oneshot::Receiver<()>,
     failure_tx: mpsc::UnboundedSender<ScreenShareFailure>,
 ) {
-    let mut stream = stream;
     loop {
         tokio::select! {
             _ = &mut stop_rx => break,
@@ -220,8 +219,8 @@ impl ScreenShareSession {
         let content = AsyncSCShareableContent::get()
             .await
             .map_err(|error| format!("failed to get macOS shareable content: {error}"))?;
-        let display = content
-            .displays()
+        let displays = content.displays();
+        let display = displays
             .first()
             .ok_or_else(|| "no macOS display is available for screen sharing".to_owned())?;
         let width = display.width();

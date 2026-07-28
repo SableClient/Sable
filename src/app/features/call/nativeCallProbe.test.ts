@@ -4,7 +4,11 @@ const platform = vi.hoisted(() => vi.fn<() => string | undefined>());
 
 vi.mock('$utils/platform', () => ({ getDesktopTauriPlatform: platform }));
 
-import { isNativeCallProbeEnabled, NATIVE_CALL_PROBE_STORAGE_KEY } from './nativeCallProbe';
+import {
+  isNativeCallProbeEnabled,
+  isNativeCallProbePlatformSupported,
+  NATIVE_CALL_PROBE_STORAGE_KEY,
+} from './nativeCallProbe';
 
 describe('native call probe gate', () => {
   beforeEach(() => {
@@ -16,10 +20,12 @@ describe('native call probe gate', () => {
     vi.unstubAllEnvs();
   });
 
-  it('is disabled by default and enabled only by the documented desktop key', () => {
+  it('is disabled by default and enabled by the persisted setting', () => {
     platform.mockReturnValue('linux');
     vi.stubEnv('VITE_ENABLE_NATIVE_CALL_PROBE', 'false');
     expect(isNativeCallProbeEnabled()).toBe(false);
+
+    expect(isNativeCallProbeEnabled(true)).toBe(true);
 
     localStorage.setItem(NATIVE_CALL_PROBE_STORAGE_KEY, '1');
     expect(isNativeCallProbeEnabled()).toBe(true);
@@ -32,18 +38,24 @@ describe('native call probe gate', () => {
     expect(isNativeCallProbeEnabled()).toBe(true);
   });
 
-  it('is disabled outside Linux desktop Tauri', () => {
+  it('is disabled outside supported desktop Tauri platforms', () => {
     platform.mockReturnValue('windows');
     vi.stubEnv('VITE_ENABLE_NATIVE_CALL_PROBE', 'true');
     localStorage.setItem(NATIVE_CALL_PROBE_STORAGE_KEY, '1');
     expect(isNativeCallProbeEnabled()).toBe(false);
   });
 
-  it('is disabled on macOS desktop Tauri', () => {
+  it('supports macOS desktop Tauri', () => {
     platform.mockReturnValue('macos');
-    vi.stubEnv('VITE_ENABLE_NATIVE_CALL_PROBE', 'true');
-    localStorage.setItem(NATIVE_CALL_PROBE_STORAGE_KEY, '1');
 
-    expect(isNativeCallProbeEnabled()).toBe(false);
+    expect(isNativeCallProbePlatformSupported()).toBe(true);
+    expect(isNativeCallProbeEnabled(true)).toBe(true);
+  });
+
+  it('keeps developer overrides ahead of the persisted setting', () => {
+    platform.mockReturnValue('linux');
+    vi.stubEnv('VITE_ENABLE_NATIVE_CALL_PROBE', 'true');
+
+    expect(isNativeCallProbeEnabled()).toBe(true);
   });
 });

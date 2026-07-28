@@ -21,6 +21,8 @@ import { isNativeCallProbeEnabled } from '$features/call/nativeCallProbe';
 import { useAutoDiscoveryInfo } from './useAutoDiscoveryInfo';
 import { isDesktopTauri } from '$utils/platform';
 import { useStore } from 'jotai';
+import { settingsAtom } from '$state/settings';
+import { useSetting } from '$state/hooks/settings';
 
 const debugLog = createDebugLogger('useCallEmbed');
 
@@ -74,6 +76,7 @@ export const useCallStart = (dm = false) => {
   const setNativeCall = useSetAtom(nativeCallAtom);
   const callEmbedRef = useCallEmbedRef();
   const store = useStore();
+  const [nativeCallsEnabled] = useSetting(settingsAtom, 'nativeCallsEnabled');
   const discovery = useAutoDiscoveryInfo();
   const nativeCallController = useMemo(
     () =>
@@ -85,7 +88,7 @@ export const useCallStart = (dm = false) => {
 
   const startCall = useCallback(
     (room: Room, pref?: CallPreferences) => {
-      if (isDesktopTauri() && isNativeCallProbeEnabled()) {
+      if (isDesktopTauri() && isNativeCallProbeEnabled(nativeCallsEnabled)) {
         if (store.get(callEmbedAtom) || isNativeCallActive(store.get(nativeCallAtom))) return;
         const ongoing = mx.matrixRTC.getRoomSession(room).memberships.length > 0;
         void nativeCallController
@@ -149,6 +152,7 @@ export const useCallStart = (dm = false) => {
       store,
       discovery,
       nativeCallController,
+      nativeCallsEnabled,
     ]
   );
 

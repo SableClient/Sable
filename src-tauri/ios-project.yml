@@ -4,6 +4,10 @@ options:
   deploymentTarget:
     iOS: {{apple.ios-version}}
 fileGroups: [{{join file-groups}}]
+packages:
+  LiveKit:
+    url: https://github.com/livekit/client-sdk-swift.git
+    exactVersion: 2.15.2
 configs:
   debug: debug
   release: release
@@ -27,6 +31,38 @@ targetTemplates:
     settings:
       groups: [app]
 targets:
+  broadcast-extension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ../../broadcast-extension-ios
+    info:
+      path: broadcast-extension/Info.plist
+      properties:
+        CFBundleDisplayName: BroadcastExtension
+        CFBundleShortVersionString: {{apple.bundle-version-short}}
+        CFBundleVersion: "{{apple.bundle-version}}"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
+          NSExtensionAttributes:
+            RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+    entitlements:
+      path: broadcast-extension/broadcast-extension.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.{{app.identifier}}
+    dependencies:
+      - package: LiveKit
+        product: LiveKit
+    settings:
+      base:
+        PRODUCT_NAME: BroadcastExtension
+        PRODUCT_BUNDLE_IDENTIFIER: {{app.identifier}}.broadcast
+        SKIP_INSTALL: YES
+        {{#if apple.development-team}}
+        DEVELOPMENT_TEAM: {{apple.development-team}}
+        {{/if}}
   share-extension:
     type: app-extension
     platform: iOS
@@ -104,7 +140,11 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: {{apple.bundle-version-short}}
         CFBundleVersion: "{{apple.bundle-version}}"
+        NSMicrophoneUsageDescription: Sable needs microphone access for voice and video calls.
+        NSCameraUsageDescription: Sable needs camera access for video calls.
         UIBackgroundModes: [audio]
+        RTCScreenSharingExtension: {{app.identifier}}.broadcast
+        RTCAppGroupIdentifier: group.{{app.identifier}}
         # Mirrors plugins.deep-link in tauri.conf.json: the plugin only patches
         # these in when cargo reruns its build script, so a fresh `tauri ios
         # init` silently loses them unless they live here.
@@ -141,7 +181,10 @@ targets:
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
       groups: [app]
     dependencies:
+      - package: LiveKit
       - target: share-extension
+        embed: true
+      - target: broadcast-extension
         embed: true
       - framework: {{ lib-output-file-name }}
         embed: false

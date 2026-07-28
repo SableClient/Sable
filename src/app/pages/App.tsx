@@ -72,7 +72,7 @@ function renderSentryErrorFallback({ error, eventId }: { error: unknown; eventId
 function App() {
   const screenSize = useScreenSize();
   useCompositionEndTracking();
-  const jotaiStoreRef = useRef<ReturnType<typeof createStore>>();
+  const jotaiStoreRef = useRef<ReturnType<typeof createStore> | undefined>(undefined);
   if (!jotaiStoreRef.current) {
     jotaiStoreRef.current = createStore();
   }

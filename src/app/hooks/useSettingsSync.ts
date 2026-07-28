@@ -104,7 +104,7 @@ export function useSettingsSyncEffect(): void {
   useAccountDataCallback(mx, onAccountData);
 
   // Debounced upload whenever settings change
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     clearTimeout(timerRef.current);
     const generation = ++uploadGenerationRef.current;

@@ -30,7 +30,7 @@ export interface AttachmentSheetProps {
   onPickFile: () => void;
   onPickPoll: () => void;
   onPickLocation: () => void;
-  containerRef: RefObject<HTMLElement>;
+  containerRef: RefObject<HTMLElement | null>;
 }
 
 const SWIPE_THRESHOLD = 100;
@@ -49,7 +49,7 @@ export function AttachmentSheet({
   const sheetRef = useRef<HTMLDivElement>(null);
   const skipReturnFocusRef = useRef(false);
   const dragYRef = useRef(0);
-  const resetAnimationRef = useRef<Animation>();
+  const resetAnimationRef = useRef<Animation | undefined>(undefined);
   const { shouldReduceMotion } = useMobileSheetAnimation();
 
   useLayoutEffect(() => {

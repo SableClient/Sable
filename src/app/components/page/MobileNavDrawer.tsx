@@ -94,11 +94,11 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
   const positionRef = useRef(0);
 
   const [panelIntent, setPanelIntent] = useState(contentOpen ? 1 : 0);
-  const gestureRef = useRef<ActiveTouchGesture>();
+  const gestureRef = useRef<ActiveTouchGesture | undefined>(undefined);
   const messageTargetsRef = useRef(new WeakMap<HTMLElement, MobileSwipeTarget>());
   const chatTargetsRef = useRef(new WeakMap<HTMLElement, MobileSwipeTarget>());
-  const settleAnimationRef = useRef<number>();
-  const programmaticTargetRef = useRef<number>();
+  const settleAnimationRef = useRef<number | undefined>(undefined);
+  const programmaticTargetRef = useRef<number | undefined>(undefined);
 
   const setTrackPosition = useCallback((position: number) => {
     positionRef.current = position;

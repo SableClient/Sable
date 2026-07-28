@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, JSX, ReactNode } from 'react';
 import { DesktopIcon, type IconProps } from '@phosphor-icons/react';
 import { Avatar, Box, Button, config, Text } from 'folds';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';

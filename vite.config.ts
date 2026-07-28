@@ -82,8 +82,8 @@ const copyFiles = {
     },
     {
       src: 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
-      dest: '',
-      rename: 'pdf.worker.min.js',
+      dest: '.',
+      rename: { name: 'pdf.worker.min.js', stripBase: true as const },
     },
     {
       src: 'config.json',

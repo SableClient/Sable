@@ -130,7 +130,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     ]);
     const rootRef = useRef<HTMLDivElement | null>(null);
     const editableRef = useRef<HTMLDivElement>(null);
-    const focusScrollTimerRef = useRef<number>();
+    const focusScrollTimerRef = useRef<number | undefined>(undefined);
     const rowRef = useRef<HTMLDivElement>(null);
     const beforeRef = useRef<HTMLDivElement>(null);
     const afterRef = useRef<HTMLDivElement>(null);

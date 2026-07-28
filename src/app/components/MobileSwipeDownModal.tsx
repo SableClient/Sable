@@ -33,7 +33,7 @@ export function MobileSwipeDownModal({ children, requestClose }: MobileSwipeDown
   const [mounted, setMounted] = useState(false);
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
-  const resetAnimationRef = useRef<Animation>();
+  const resetAnimationRef = useRef<Animation | undefined>(undefined);
   const { shouldReduceMotion } = useMobileSheetAnimation();
 
   useEffect(() => {

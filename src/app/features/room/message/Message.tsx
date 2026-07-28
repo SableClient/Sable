@@ -12,7 +12,7 @@ import {
   config,
   toRem,
 } from 'folds';
-import type { KeyboardEventHandler, MouseEventHandler, MouseEvent, ReactNode } from 'react';
+import type { JSX, KeyboardEventHandler, MouseEventHandler, MouseEvent, ReactNode } from 'react';
 import {
   memo,
   useCallback,
@@ -356,11 +356,7 @@ function MessageInternal(
     msc2723ForwardedMessageProps,
     ...props
   }: MessageProps & { className?: string; children?: ReactNode },
-  ref:
-    | ((instance: HTMLDivElement | null) => void)
-    | React.RefObject<HTMLDivElement>
-    | null
-    | undefined
+  ref: React.Ref<HTMLDivElement> | undefined
 ) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();

@@ -1,4 +1,4 @@
-import type { KeyboardEventHandler, MouseEventHandler } from 'react';
+import type { JSX, KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useEffect, useState } from 'react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import parse from 'html-react-parser';

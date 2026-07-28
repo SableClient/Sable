@@ -392,7 +392,7 @@ function BookmarkResultGroup({
 type BookmarkFilterInputProps = {
   active?: boolean;
   loading?: boolean;
-  searchInputRef: React.RefObject<HTMLInputElement>;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   onChange: ChangeEventHandler<HTMLInputElement>;
 };
 function BookmarkFilterInput({

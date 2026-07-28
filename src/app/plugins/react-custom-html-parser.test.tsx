@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { render, screen } from '@testing-library/react';
 import parse from 'html-react-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -95,7 +96,7 @@ describe('getReactCustomHtmlParser code blocks', () => {
         language: 'rust',
         allowDetect: false,
       }),
-      expect.anything()
+      undefined
     );
   });
 

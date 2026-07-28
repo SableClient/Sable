@@ -1,5 +1,11 @@
 /* oxlint-disable jsx-a11y/alt-text */
-import type { CSSProperties, ComponentPropsWithoutRef, ReactEventHandler, ReactNode } from 'react';
+import type {
+  CSSProperties,
+  ComponentPropsWithoutRef,
+  JSX,
+  ReactEventHandler,
+  ReactNode,
+} from 'react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';

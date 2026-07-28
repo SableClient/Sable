@@ -370,7 +370,7 @@ function StickerSidebar({
 }
 
 type EmojiGroupHolderProps = {
-  contentScrollRef: RefObject<HTMLDivElement>;
+  contentScrollRef: RefObject<HTMLDivElement | null>;
   previewAtom: PrimitiveAtom<PreviewData | undefined>;
   children?: ReactNode;
   onGroupItemClick: MouseEventHandler;

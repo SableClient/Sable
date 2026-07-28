@@ -5,7 +5,7 @@ import { sizedIcon, MagnifyingGlass, X } from '$components/icons/phosphor';
 type SearchProps = {
   active?: boolean;
   loading?: boolean;
-  searchInputRef: RefObject<HTMLInputElement>;
+  searchInputRef: RefObject<HTMLInputElement | null>;
   onSearch: (term: string) => void;
   onReset: () => void;
 };

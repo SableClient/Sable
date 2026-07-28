@@ -34,13 +34,13 @@ function rgbToArgb(color: string): number | undefined {
 
 // Color of the surface adjacent to a strip; on Android also tints the native system bar.
 function useBarColor(
-  probeRef: RefObject<HTMLDivElement>,
+  probeRef: RefObject<HTMLDivElement | null>,
   edge: 'top' | 'bottom',
   android: boolean,
   enabled: boolean
 ): string | undefined {
   const [color, setColor] = useState<string>();
-  const lastRef = useRef<string>();
+  const lastRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -106,7 +106,7 @@ type SystemBarStripProps = {
   edge: 'top' | 'bottom';
   size: string;
   background: string;
-  stripRef?: RefObject<HTMLDivElement>;
+  stripRef?: RefObject<HTMLDivElement | null>;
   transition?: string;
 };
 

@@ -279,7 +279,7 @@ const createUploadItemKey = () =>
 
 interface RoomInputProps {
   editor: Editor;
-  fileDropContainerRef: RefObject<HTMLElement>;
+  fileDropContainerRef: RefObject<HTMLElement | null>;
   roomId: string;
   room: Room;
   threadRootId?: string;
@@ -370,7 +370,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       roomUploadAtomFamily,
       selectedFiles.map((f) => f.file)
     );
-    const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers>();
+    const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers | undefined>(undefined);
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isLongPress = useRef(false);
     const suppressBlurRefocusRef = useRef(false);
@@ -585,8 +585,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       [room]
     );
 
-    const prevEditingEventId = useRef<string>();
-    const preEditDraftRef = useRef<Editor['children']>();
+    const prevEditingEventId = useRef<string | undefined>(undefined);
+    const preEditDraftRef = useRef<Editor['children'] | undefined>(undefined);
     useEffect(() => {
       if (!isMobileOrTablet()) {
         prevEditingEventId.current = undefined;
@@ -2280,7 +2280,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       align="End"
                       anchor={(() => {
                         if (emojiBoardTab === undefined) return undefined;
-                        const buttonRefs: Record<EditorButtonId, RefObject<HTMLButtonElement>> = {
+                        const buttonRefs: Record<
+                          EditorButtonId,
+                          RefObject<HTMLButtonElement | null>
+                        > = {
                           gif: gifBtnRef,
                           sticker: stickerBtnRef,
                           emoji: emojiBtnRef,

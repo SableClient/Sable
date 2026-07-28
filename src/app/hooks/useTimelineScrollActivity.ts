@@ -11,7 +11,7 @@ export const useScrollActivity = (
 ): { isScrolling: boolean; notifyScroll: () => void } => {
   const [isScrolling, setIsScrolling] = useState(false);
   const isScrollingRef = useRef(false);
-  const idleTimerRef = useRef<ReturnType<typeof globalThis.setTimeout>>();
+  const idleTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | undefined>(undefined);
 
   const notifyScroll = useCallback(() => {
     if (!isScrollingRef.current) {

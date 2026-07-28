@@ -11,8 +11,8 @@ export function useThrottle<T extends unknown[]>(
   callback: ThrottleCallback<T>,
   options?: ThrottleOptions
 ): ThrottleCallback<T> {
-  const timeoutIdRef = useRef<number>();
-  const argsRef = useRef<T>();
+  const timeoutIdRef = useRef<number | undefined>(undefined);
+  const argsRef = useRef<T | undefined>(undefined);
   const { wait, immediate } = options ?? {};
 
   const debounceCallback = useCallback(

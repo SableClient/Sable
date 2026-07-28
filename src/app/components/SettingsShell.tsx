@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, JSX, ReactNode } from 'react';
 import type { IconProps } from '@phosphor-icons/react';
 import { Box, config, IconButton, MenuItem, Text } from 'folds';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';

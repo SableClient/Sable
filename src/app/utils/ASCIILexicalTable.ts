@@ -305,7 +305,7 @@ export const orderKeys = (
 ): Array<string> | undefined => {
   const newKeys: string[] = [];
 
-  for (let i = 0; i < keys.length; ) {
+  for (let i = 0; i < keys.length;) {
     const key = keys[i];
     const collectedKeys: string[] = [];
     const [nextKeyIndex, nextKey] = findNextFilledKey(i + 1, keys);

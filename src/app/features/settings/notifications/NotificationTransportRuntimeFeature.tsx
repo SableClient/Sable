@@ -61,7 +61,7 @@ export function NotificationTransportRuntimeFeature() {
   const [useRichPushPayloads] = useSetting(settingsAtom, 'useRichPushPayloads');
   const [pushNotifyUrlOverride] = useSetting(settingsAtom, 'pushNotifyUrlOverride');
 
-  const runtimeRef = useRef<NotificationTransportRuntime>();
+  const runtimeRef = useRef<NotificationTransportRuntime | undefined>(undefined);
   if (!runtimeRef.current) runtimeRef.current = new NotificationTransportRuntime();
 
   // Read fresh by the listener for each incoming push, so toggling display

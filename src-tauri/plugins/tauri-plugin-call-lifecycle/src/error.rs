@@ -14,6 +14,14 @@ pub enum Error {
     CloseFailed,
     #[error("call lifecycle actor unavailable")]
     ActorUnavailable,
+    #[error("native audio failed")]
+    AudioFailed,
+    #[error("native video failed")]
+    VideoFailed,
+    #[error("native camera failed")]
+    CameraFailed,
+    #[error("native screen share failed")]
+    ScreenShareFailed,
 }
 
 impl Serialize for Error {
@@ -36,6 +44,10 @@ impl Error {
             Self::StaleConnection => "stale_connection",
             Self::CloseFailed => "close_failed",
             Self::ActorUnavailable => "actor_unavailable",
+            Self::AudioFailed => "audio_failed",
+            Self::VideoFailed => "video_failed",
+            Self::CameraFailed => "camera_failed",
+            Self::ScreenShareFailed => "screen_share_failed",
         }
     }
 
@@ -46,6 +58,10 @@ impl Error {
             Self::StaleConnection => "connection ID does not match active call",
             Self::CloseFailed => "call shutdown failed",
             Self::ActorUnavailable => "call lifecycle unavailable",
+            Self::AudioFailed => "native audio failed",
+            Self::VideoFailed => "native video failed",
+            Self::CameraFailed => "native camera failed",
+            Self::ScreenShareFailed => "native screen share failed",
         }
     }
 }

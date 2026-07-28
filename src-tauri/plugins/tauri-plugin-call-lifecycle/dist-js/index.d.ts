@@ -2,6 +2,9 @@ export interface ConnectRequest {
     connectionId: string;
     serverUrl: string;
     participantToken: string;
+    audio?: boolean;
+    video?: boolean;
+    screenShare?: boolean;
 }
 export interface DisconnectRequest {
     connectionId: string;

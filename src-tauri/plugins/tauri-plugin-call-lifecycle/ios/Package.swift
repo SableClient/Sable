@@ -1,0 +1,30 @@
+// swift-tools-version:5.3
+
+import PackageDescription
+
+let package = Package(
+  name: "tauri-plugin-call-lifecycle",
+  platforms: [
+    .macOS(.v10_13),
+    .iOS(.v13),
+  ],
+  products: [
+    .library(
+      name: "tauri-plugin-call-lifecycle",
+      type: .static,
+      targets: ["tauri-plugin-call-lifecycle"])
+  ],
+  dependencies: [
+    .package(name: "Tauri", path: "../.tauri/tauri-api"),
+    .package(url: "https://github.com/livekit/client-sdk-swift.git", exact: "2.15.2")
+  ],
+  targets: [
+    .target(
+      name: "tauri-plugin-call-lifecycle",
+      dependencies: [
+        .byName(name: "Tauri"),
+        .product(name: "LiveKit", package: "client-sdk-swift")
+      ],
+      path: "Sources")
+  ]
+)

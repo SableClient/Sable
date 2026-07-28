@@ -8,6 +8,7 @@
     "deep-link:default",
     "edge-to-edge:default",
     "notifications:default",
-    "sharekit:default"
+    "sharekit:default",
+    "call-lifecycle:default"
   ]
 }

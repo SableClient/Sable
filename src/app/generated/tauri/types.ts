@@ -10,6 +10,15 @@
 
 import type { Channel } from '@tauri-apps/api/core';
 
+export interface ConnectRequest {
+  connectionId: string;
+  serverUrl: string;
+  participantToken: SecretString;
+  audio: boolean;
+  video: boolean;
+  screenShare: boolean;
+}
+
 export interface DesktopRuntimeState {
   trayAvailable: boolean;
 }
@@ -18,6 +27,10 @@ export interface DesktopSettings {
   closeToBackgroundOnClose: boolean;
   showSystemTrayIcon: boolean;
   useCustomTitleBar: boolean;
+}
+
+export interface DisconnectRequest {
+  connectionId: string;
 }
 
 export interface LoopbackFetchRequest {
@@ -70,6 +83,16 @@ export interface AbortLoopbackFetchParams {
 
 export interface AbortNativeUploadParams {
   requestId: string;
+  [key: string]: unknown;
+}
+
+export interface ConnectParams {
+  payload: ConnectRequest;
+  [key: string]: unknown;
+}
+
+export interface DisconnectParams {
+  payload: DisconnectRequest;
   [key: string]: unknown;
 }
 

@@ -6,9 +6,25 @@ use tauri::{
 pub use models::*;
 
 mod actor;
+#[cfg(target_os = "linux")]
+mod audio;
+#[cfg(target_os = "linux")]
+mod camera;
+#[cfg(target_os = "macos")]
+mod camera_macos;
+#[cfg(target_os = "windows")]
+mod camera_windows;
 mod commands;
 mod error;
+#[cfg(mobile)]
+mod mobile;
 mod models;
+#[cfg(target_os = "linux")]
+mod screen_share;
+#[cfg(target_os = "macos")]
+mod screen_share_macos;
+#[cfg(target_os = "windows")]
+mod screen_share_windows;
 
 pub use error::{Error, Result};
 
@@ -33,7 +49,15 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::disconnect,
             commands::get_state
         ])
-        .setup(|app, _api| {
+        .setup(|app, api| {
+            #[cfg(mobile)]
+            let mobile_backend = mobile::init(app, api)?;
+            #[cfg(not(mobile))]
+            let _ = api;
+
+            #[cfg(mobile)]
+            let call_lifecycle = CallLifecycle::new(app.clone(), mobile_backend);
+            #[cfg(not(mobile))]
             let call_lifecycle = CallLifecycle::new(app.clone());
             app.manage(call_lifecycle);
             Ok(())

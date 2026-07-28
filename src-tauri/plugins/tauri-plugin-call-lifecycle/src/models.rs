@@ -7,6 +7,12 @@ pub struct ConnectRequest {
     pub connection_id: String,
     pub server_url: String,
     pub participant_token: SecretString,
+    #[serde(default)]
+    pub audio: bool,
+    #[serde(default)]
+    pub video: bool,
+    #[serde(default)]
+    pub screen_share: bool,
 }
 
 #[derive(Debug, Deserialize)]

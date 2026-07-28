@@ -26,8 +26,17 @@ export async function clearMediaSession(): Promise<void> {
   return invoke('clear_media_session');
 }
 
+export async function connect(params: types.ConnectParams): Promise<types.CallState> {
+  return invoke('connect', params);
+}
+
 export async function deactivateCallAudioSession(): Promise<void> {
   return invoke('deactivate_call_audio_session');
+}
+
+export async function disconnect(params: types.DisconnectParams): Promise<types.CallState> {
+  return invoke('disconnect', params);
+}
 }
 
 export async function exportDiagnostics(params: types.ExportDiagnosticsParams): Promise<string | null> {
@@ -36,6 +45,10 @@ export async function exportDiagnostics(params: types.ExportDiagnosticsParams): 
 
 export async function getDesktopRuntimeState(): Promise<types.DesktopRuntimeState> {
   return invoke('get_desktop_runtime_state');
+}
+
+export async function getState(): Promise<types.CallState> {
+  return invoke('get_state');
 }
 
 export async function hapticFeedback(params: types.HapticFeedbackParams): Promise<void> {

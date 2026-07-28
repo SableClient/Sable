@@ -372,6 +372,9 @@ export const createNativeCallController = (
         connectionId,
         serverUrl: provisioned.url,
         participantToken: provisioned.jwt,
+        audio: true,
+        video,
+        screenShare: false,
       });
       handleState(record, state);
     } catch {

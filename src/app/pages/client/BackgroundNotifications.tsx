@@ -51,6 +51,30 @@ const debugLog = createDebugLogger('BackgroundNotifications');
 
 const BACKGROUND_SYNC_POLL_TIMEOUT_MS = 60_000;
 const BACKGROUND_STAGGER_DELAY_MS = 5_000;
+// Background clients don't initialize crypto, so an encrypted event may never
+// fire MatrixEventEvent.Decrypted; bound the listener's lifetime.
+const DECRYPTED_LISTENER_TIMEOUT_MS = 60_000;
+
+export const onceDecryptedWithTimeout = (
+  mEvent: MatrixEvent,
+  onDecrypted: () => void,
+  onTimeout: () => void,
+  timeoutMs = DECRYPTED_LISTENER_TIMEOUT_MS
+): (() => void) => {
+  const handleDecrypted = () => {
+    clearTimeout(timer);
+    onDecrypted();
+  };
+  const timer = setTimeout(() => {
+    mEvent.removeListener(MatrixEventEvent.Decrypted, handleDecrypted);
+    onTimeout();
+  }, timeoutMs);
+  mEvent.once(MatrixEventEvent.Decrypted, handleDecrypted);
+  return () => {
+    clearTimeout(timer);
+    mEvent.removeListener(MatrixEventEvent.Decrypted, handleDecrypted);
+  };
+};
 
 let desktopNotificationSeq = 1;
 const nextDesktopNotificationId = (): number => {
@@ -329,6 +353,8 @@ export function BackgroundNotifications() {
           // Track encrypted events that are being decrypted to avoid re-checking the
           // encryption guard when the Decrypted callback fires.
           const decryptingEvents = new Set<string>();
+          // Cancel callbacks so teardown can drop listeners/timers outliving the client.
+          const decryptTimeouts = new Set<() => void>();
 
           const handleTimeline = (
             mEvent: MatrixEvent,
@@ -359,16 +385,24 @@ export function BackgroundNotifications() {
               isEncryptedType
             ) {
               decryptingEvents.add(eventId);
-              const handleDecrypted = () => {
-                // After decryption, run the notification logic with the decrypted event.
-                // Force liveEvent=true since the SDK's re-emission sets it to false.
-                handleTimeline(mEvent, room, true, false, {
-                  liveEvent: true,
-                });
-                // Clean up the tracking flag
-                decryptingEvents.delete(eventId);
-              };
-              mEvent.once(MatrixEventEvent.Decrypted, handleDecrypted);
+              const cancel = onceDecryptedWithTimeout(
+                mEvent,
+                () => {
+                  decryptTimeouts.delete(cancel);
+                  // After decryption, run the notification logic with the decrypted event.
+                  // Force liveEvent=true since the SDK's re-emission sets it to false.
+                  handleTimeline(mEvent, room, true, false, {
+                    liveEvent: true,
+                  });
+                  // Clean up the tracking flag
+                  decryptingEvents.delete(eventId);
+                },
+                () => {
+                  decryptTimeouts.delete(cancel);
+                  decryptingEvents.delete(eventId);
+                }
+              );
+              decryptTimeouts.add(cancel);
               return;
             }
 
@@ -559,6 +593,9 @@ export function BackgroundNotifications() {
 
           // Register teardown so these listeners are removed when this client is stopped.
           clientCleanupRef.current.set(session.userId, () => {
+            decryptTimeouts.forEach((cancel) => cancel());
+            decryptTimeouts.clear();
+            decryptingEvents.clear();
             mx.off(ClientEvent.AccountData, handleAccountData);
             mx.off(RoomEvent.Timeline, handleTimeline as unknown as (...args: unknown[]) => void);
           });

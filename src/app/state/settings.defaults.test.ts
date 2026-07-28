@@ -12,6 +12,15 @@ beforeEach(() => {
 });
 
 describe('mergePersistedSettings', () => {
+  it('defaults native calls to Element Call and persists the opt-in', () => {
+    expect(defaultSettings.nativeCallsEnabled).toBe(false);
+
+    localStorage.setItem('settings', JSON.stringify({ nativeCallsEnabled: true }));
+    expect(mergePersistedSettings(localStorage.getItem('settings'), {}).nativeCallsEnabled).toBe(
+      true
+    );
+  });
+
   it('layers deployer defaults over code defaults when localStorage is empty', () => {
     const merged = mergePersistedSettings(null, { twitterEmoji: false });
     expect(merged.twitterEmoji).toBe(false);

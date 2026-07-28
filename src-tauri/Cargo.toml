@@ -141,6 +141,7 @@ custom-protocol = ["tauri/custom-protocol"]
 wry = ["tauri/wry", "dep:webkit2gtk"]
 # Tauri auto-updater. Disable with --no-default-features --features wry,cef.
 updater = ["dep:tauri-plugin-updater"]
+notifications-dev = ["tauri-plugin-notifications/notify-rust"]
 # CEF (Chromium) runtime. Build with --no-default-features --features cef.
 cef = ["dep:tauri-runtime-cef", "dep:cef"]
 # CrabNebula devtools. Off by default: its aggregator retains every metadata record for the

@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const platform = vi.hoisted(() => vi.fn<() => string | undefined>());
+const desktopTauri = vi.hoisted(() => vi.fn<() => boolean>());
+const mobileTauri = vi.hoisted(() => vi.fn<() => boolean>());
 
-vi.mock('$utils/platform', () => ({ getDesktopTauriPlatform: platform }));
+vi.mock('$utils/platform', () => ({
+  isDesktopTauri: desktopTauri,
+  isMobileTauri: mobileTauri,
+}));
 
 import {
   isNativeCallProbeEnabled,
@@ -12,7 +16,10 @@ import {
 
 describe('native call probe gate', () => {
   beforeEach(() => {
-    platform.mockReset();
+    desktopTauri.mockReset();
+    mobileTauri.mockReset();
+    desktopTauri.mockReturnValue(false);
+    mobileTauri.mockReturnValue(false);
     localStorage.clear();
   });
 
@@ -21,7 +28,7 @@ describe('native call probe gate', () => {
   });
 
   it('is disabled by default and enabled by the persisted setting', () => {
-    platform.mockReturnValue('linux');
+    desktopTauri.mockReturnValue(true);
     vi.stubEnv('VITE_ENABLE_NATIVE_CALL_PROBE', 'false');
     expect(isNativeCallProbeEnabled()).toBe(false);
 
@@ -32,28 +39,34 @@ describe('native call probe gate', () => {
   });
 
   it('is enabled by the environment flag on desktop Tauri', () => {
-    platform.mockReturnValue('linux');
+    desktopTauri.mockReturnValue(true);
     vi.stubEnv('VITE_ENABLE_NATIVE_CALL_PROBE', 'true');
 
     expect(isNativeCallProbeEnabled()).toBe(true);
   });
 
-  it('is disabled outside supported desktop Tauri platforms', () => {
-    platform.mockReturnValue('windows');
+  it('is disabled outside supported Tauri platforms, including web', () => {
+    desktopTauri.mockReturnValue(false);
+    mobileTauri.mockReturnValue(false);
     vi.stubEnv('VITE_ENABLE_NATIVE_CALL_PROBE', 'true');
     localStorage.setItem(NATIVE_CALL_PROBE_STORAGE_KEY, '1');
     expect(isNativeCallProbeEnabled()).toBe(false);
   });
 
-  it('supports macOS desktop Tauri', () => {
-    platform.mockReturnValue('macos');
+  it('supports every native Tauri form factor', () => {
+    desktopTauri.mockReturnValue(true);
 
+    expect(isNativeCallProbePlatformSupported()).toBe(true);
+    expect(isNativeCallProbeEnabled(true)).toBe(true);
+
+    desktopTauri.mockReturnValue(false);
+    mobileTauri.mockReturnValue(true);
     expect(isNativeCallProbePlatformSupported()).toBe(true);
     expect(isNativeCallProbeEnabled(true)).toBe(true);
   });
 
   it('keeps developer overrides ahead of the persisted setting', () => {
-    platform.mockReturnValue('linux');
+    desktopTauri.mockReturnValue(true);
     vi.stubEnv('VITE_ENABLE_NATIVE_CALL_PROBE', 'true');
 
     expect(isNativeCallProbeEnabled()).toBe(true);

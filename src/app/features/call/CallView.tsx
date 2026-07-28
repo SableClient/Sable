@@ -14,7 +14,6 @@ import { PrescreenControls } from './PrescreenControls';
 import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 import { canJoinCall } from './callStartCapabilities';
 import { nativeCallAtom } from '$state/nativeCall';
-import { isDesktopTauri } from '$utils/platform';
 
 function LivekitServerMissingMessage() {
   return (
@@ -201,8 +200,7 @@ export function CallView({ resizable }: CallViewProps) {
   const callJoined = useCallJoined(callEmbed);
   const nativeCall = useAtomValue(nativeCallAtom);
 
-  const nativeCallForRoom =
-    isDesktopTauri() && nativeCall?.roomId === room.roomId ? nativeCall : undefined;
+  const nativeCallForRoom = nativeCall?.roomId === room.roomId ? nativeCall : undefined;
   const currentJoined = !nativeCallForRoom && callEmbed?.roomId === room.roomId && callJoined;
 
   const [heightRatio, setHeightRatio] = useState(isMobile ? 0.3 : 0.72);

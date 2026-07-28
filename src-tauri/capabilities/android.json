@@ -4,6 +4,8 @@
   "platforms": ["android"],
   "windows": ["main"],
   "permissions": [
+    "dialog:allow-open",
+    "fs:allow-read-file",
     "android-fs:allow-check-public-files-permission",
     "android-fs:allow-create-new-public-file",
     "android-fs:allow-create-new-public-image-file",

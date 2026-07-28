@@ -3,5 +3,10 @@
   "identifier": "ios-capability",
   "platforms": ["iOS"],
   "windows": ["main"],
-  "permissions": ["dialog:allow-save", "fs:allow-write-file"]
+  "permissions": [
+    "dialog:allow-save",
+    "dialog:allow-open",
+    "fs:allow-write-file",
+    "fs:allow-read-file"
+  ]
 }

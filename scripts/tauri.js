@@ -117,6 +117,46 @@ function configureMacOSToolchain() {
     .join(delimiter);
 }
 
+function injectMacOSDevFeature(args) {
+  if (process.platform !== 'darwin' || args[0] !== 'dev') {
+    return args;
+  }
+
+  const feature = 'notifications-dev';
+  const separatorIndex = args.indexOf('--');
+  const featureArgsEnd = separatorIndex === -1 ? args.length : separatorIndex;
+  const appendFeature = (value) =>
+    value.split(',').includes(feature) ? value : value ? `${value},${feature}` : feature;
+
+  for (let index = 0; index < featureArgsEnd; index += 1) {
+    if (args[index] === '--features' && index + 1 < featureArgsEnd) {
+      const featureValue = args[index + 1];
+      if (featureValue.split(',').includes(feature)) {
+        return args;
+      }
+      return [...args.slice(0, index + 1), appendFeature(featureValue), ...args.slice(index + 2)];
+    }
+    if (args[index].startsWith('--features=')) {
+      const featureValue = args[index].slice('--features='.length);
+      if (featureValue.split(',').includes(feature)) {
+        return args;
+      }
+      return [
+        ...args.slice(0, index),
+        `--features=${appendFeature(featureValue)}`,
+        ...args.slice(index + 1),
+      ];
+    }
+  }
+
+  return [
+    ...args.slice(0, featureArgsEnd),
+    '--features',
+    feature,
+    ...args.slice(featureArgsEnd),
+  ];
+}
+
 async function runTauri(args) {
   logger.info(`${dim('Running:')} tauri ${args.join(' ')}`);
   try {
@@ -131,7 +171,7 @@ async function main() {
   configureMacOSToolchain();
 
   if (cmdlineArgs.length === 0 || !DESKTOP.has(cmdlineArgs[0])) {
-    return runTauri(cmdlineArgs);
+    return runTauri(injectMacOSDevFeature(cmdlineArgs));
   }
 
   const [platform, cmd, ...rawTauriArgs] = cmdlineArgs;
@@ -167,7 +207,7 @@ async function main() {
     args.splice(1, 0, '--no-bundle');
   }
 
-  return runTauri(args);
+  return runTauri(injectMacOSDevFeature(args));
 }
 
 main();

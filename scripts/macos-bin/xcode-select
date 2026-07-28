@@ -1,0 +1,10 @@
+#!/bin/sh
+
+case "${1:-}" in
+  -p|--print-path)
+    printf '%s\n' "${DEVELOPER_DIR:-}"
+    exit 0
+    ;;
+esac
+
+exec /usr/bin/xcode-select "$@"

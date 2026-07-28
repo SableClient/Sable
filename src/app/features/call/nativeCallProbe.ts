@@ -1,12 +1,11 @@
-import { getDesktopTauriPlatform } from '$utils/platform';
+import { isDesktopTauri, isMobileTauri } from '$utils/platform';
 
-// Enable the desktop transport probe with VITE_ENABLE_NATIVE_CALL_PROBE=true or manually:
+// Enable the native transport probe with VITE_ENABLE_NATIVE_CALL_PROBE=true or manually:
 // localStorage.setItem('sable.nativeCallProbe', '1').
 export const NATIVE_CALL_PROBE_STORAGE_KEY = 'sable.nativeCallProbe';
 
 export const isNativeCallProbePlatformSupported = (): boolean => {
-  const platform = getDesktopTauriPlatform();
-  return platform === 'linux' || platform === 'macos';
+  return isDesktopTauri() || isMobileTauri();
 };
 
 export const isNativeCallProbeEnabled = (nativeCallsEnabled = false): boolean => {

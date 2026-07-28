@@ -44,7 +44,7 @@ function NativeCallsToggle() {
       <SettingToggle
         title="Try Native Calls"
         focusId="native-calls"
-        description="Tries the experimental native desktop call transport instead of Element Call. Disable this to use the default Element Call experience."
+        description="Tries the experimental native call transport instead of Element Call. Disable this to use the default Element Call experience."
         value={nativeCallsEnabled}
         onChange={setNativeCallsEnabled}
       />

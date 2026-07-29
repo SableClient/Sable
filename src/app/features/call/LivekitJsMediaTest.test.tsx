@@ -42,6 +42,10 @@ vi.mock('$components/icons/phosphor', () => ({
   sizedIcon: () => null,
 }));
 
+vi.mock('$components/sequence-card', () => ({
+  SequenceCard: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
 vi.mock('folds', () => ({
   Box: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   Button: ({ children, onClick }: { children: ReactNode; onClick: () => void }) => (
@@ -49,7 +53,15 @@ vi.mock('folds', () => ({
       {children}
     </button>
   ),
-  color: { Critical: { Main: 'red' } },
+  color: {
+    Critical: { Main: 'red' },
+    Secondary: { Main: 'purple' },
+    Surface: { Container: 'white', ContainerLine: 'gray', OnContainer: 'black' },
+  },
+  config: {
+    radii: { R300: '3px', R400: '4px', R500: '5px' },
+    space: { S0: '0', S100: '4px', S200: '8px', S300: '12px', S400: '16px' },
+  },
   IconButton: ({
     children,
     onClick,
@@ -65,7 +77,13 @@ vi.mock('folds', () => ({
       {children}
     </button>
   ),
+  SequenceCard: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   Text: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+  Tooltip: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  TooltipProvider: ({ children }: { children: (anchorRef: () => void) => ReactNode }) => (
+    <>{children(() => {})}</>
+  ),
+  toRem: (value: number) => `${value}px`,
 }));
 
 const room = {
@@ -128,6 +146,10 @@ describe('LiveKit JS manual media test', () => {
     expect(session.media!.setCameraEnabled).not.toHaveBeenCalled();
     expect(session.media!.setScreenShareEnabled).not.toHaveBeenCalled();
     expect(screen.getByText(/manual local media test only/i)).toBeInTheDocument();
+    expect(screen.getByText('Browser media test')).toBeInTheDocument();
+    expect(screen.getByText(/experimental/i)).toBeInTheDocument();
+    expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(screen.getByText(/camera and screen share will appear here/i)).toBeInTheDocument();
     expect(screen.getByTestId('room-audio-renderer')).toBeInTheDocument();
   });
 
@@ -185,7 +207,8 @@ describe('LiveKit JS manual media test', () => {
       <LivekitJsMediaTestSurface room={session.room!} media={session.media!} onHangup={onHangup} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'End' }));
+    expect(screen.getByRole('button', { name: 'End call' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'End call' }));
 
     expect(onHangup).toHaveBeenCalledOnce();
     expect(room.disconnect).not.toHaveBeenCalled();

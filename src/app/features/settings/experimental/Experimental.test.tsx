@@ -4,18 +4,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Experimental } from './Experimental';
 
-const {
-  mockPlatformSupported,
-  mockSetLiveKitJsCallsEnabled,
-  mockSetLiveKitJsMediaTestEnabled,
-  mockUseSetting,
-} = vi.hoisted(() => ({
-  mockPlatformSupported: vi.fn<() => boolean>(),
-  mockSetLiveKitJsCallsEnabled: vi.fn<(value: boolean) => void>(),
-  mockSetLiveKitJsMediaTestEnabled: vi.fn<(value: boolean) => void>(),
-  mockUseSetting:
-    vi.fn<(_atom: unknown, key: string) => readonly [boolean, (value: boolean) => void]>(),
-}));
+const { mockSetLiveKitJsCallsEnabled, mockSetLiveKitJsMediaTestEnabled, mockUseSetting } =
+  vi.hoisted(() => ({
+    mockSetLiveKitJsCallsEnabled: vi.fn<(value: boolean) => void>(),
+    mockSetLiveKitJsMediaTestEnabled: vi.fn<(value: boolean) => void>(),
+    mockUseSetting:
+      vi.fn<(_atom: unknown, key: string) => readonly [boolean, (value: boolean) => void]>(),
+  }));
 
 vi.mock('$state/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof SettingsModule>();
@@ -24,11 +19,6 @@ vi.mock('$state/settings', async (importOriginal) => {
 
 vi.mock('$state/hooks/settings', () => ({
   useSetting: mockUseSetting,
-}));
-
-vi.mock('$features/call/livekitJsCallProbe', () => ({
-  isCallProbePlatformSupported: mockPlatformSupported,
-  isLivekitJsCallProbeEnabled: (enabled: boolean) => enabled,
 }));
 
 vi.mock('$components/page', () => ({
@@ -75,8 +65,6 @@ vi.mock('folds', () => ({
 }));
 
 beforeEach(() => {
-  mockPlatformSupported.mockReset();
-  mockPlatformSupported.mockReturnValue(true);
   mockSetLiveKitJsCallsEnabled.mockReset();
   mockSetLiveKitJsMediaTestEnabled.mockReset();
   mockUseSetting.mockImplementation((_atom: unknown, key: string) => {
@@ -87,7 +75,7 @@ beforeEach(() => {
 });
 
 describe('Experimental LiveKit JS calls setting', () => {
-  it('shows the connection probe toggle on supported Tauri platforms', () => {
+  it('shows the connection probe toggle on Tauri and plain browser builds', () => {
     render(<Experimental requestClose={() => {}} />);
 
     expect(screen.getByText('LiveKit JS Calls')).toBeInTheDocument();
@@ -97,15 +85,6 @@ describe('Experimental LiveKit JS calls setting', () => {
         'Runs an experimental LiveKit JS connection probe. It does not publish media. Element Call remains the normal fallback.'
       )
     ).toBeInTheDocument();
-  });
-
-  it('hides the connection probe toggle outside supported Tauri platforms', () => {
-    mockPlatformSupported.mockReturnValue(false);
-
-    render(<Experimental requestClose={() => {}} />);
-
-    expect(screen.queryByText('LiveKit JS Calls')).not.toBeInTheDocument();
-    expect(screen.queryByText('Try the LiveKit JS connection probe')).not.toBeInTheDocument();
   });
 
   it('persists the opt-in through the settings hook', () => {
@@ -134,19 +113,6 @@ describe('Experimental LiveKit JS calls setting', () => {
         'Manual local media test only. Encrypted media is required. There is no fallback or automatic call selection. This is not release-ready.'
       )
     ).toBeInTheDocument();
-  });
-
-  it('does not show the manual media test on unsupported platforms', () => {
-    mockPlatformSupported.mockReturnValue(false);
-    mockUseSetting.mockImplementation((_atom: unknown, key: string) => {
-      if (key === 'livekitJsCallsEnabled') return [true, mockSetLiveKitJsCallsEnabled];
-      if (key === 'livekitJsMediaTestEnabled') return [false, mockSetLiveKitJsMediaTestEnabled];
-      return [false, vi.fn<() => void>()];
-    });
-
-    render(<Experimental requestClose={() => {}} />);
-
-    expect(screen.queryByText('Enable the manual LiveKit JS media test')).not.toBeInTheDocument();
   });
 
   it('persists the manual media test opt-in through the settings hook', () => {

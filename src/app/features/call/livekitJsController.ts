@@ -1,3 +1,4 @@
+import { isTauri } from '@tauri-apps/api/core';
 import { Room as LivekitRoom, type RoomOptions } from 'livekit-client';
 import type { AutoDiscoveryInfo } from '../../cs-api';
 import type { MatrixClient, MatrixRTCSession, Room as MatrixRoom } from '$types/matrix-sdk';
@@ -172,12 +173,25 @@ const defaultCreateRoom = (options: RoomOptions): LivekitRoomLike => new Livekit
 const defaultCreateWorker = (): Worker =>
   new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), { type: 'module' });
 
-const defaultPlatformBridge: LivekitJsPlatformBridge = {
+const tauriPlatformBridge: LivekitJsPlatformBridge = {
   getCapabilities: getPluginPlatformCapabilities,
   start: startPlatformLifecycle,
   stop: stopPlatformLifecycle,
   onEvent: onPlatformCallEvent,
 };
+
+// Browser builds have no platform lifecycle plugin: manual media uses browser
+// getUserMedia directly and the bridge reports explicit unsupported without
+// touching Tauri invoke.
+const browserPlatformBridge: LivekitJsPlatformBridge = {
+  getCapabilities: async () => ({ supported: false, microphone: false, playback: false }),
+  start: async () => Promise.reject(new Error('platform lifecycle is unavailable in browser')),
+  stop: async () => Promise.reject(new Error('platform lifecycle is unavailable in browser')),
+  onEvent: async () => () => undefined,
+};
+
+const createDefaultPlatformBridge = (): LivekitJsPlatformBridge =>
+  isTauri() ? tauriPlatformBridge : browserPlatformBridge;
 
 let platformSessionCounter = 0;
 const defaultCreatePlatformSessionId = (): string => {
@@ -208,7 +222,7 @@ export function createLivekitJsController(
   const supportsE2EE = dependencies.isE2EESupported ?? isLivekitE2EESupported;
   const getPreferredTransport = dependencies.getPreferredTransport ?? getPreferredLivekitTransport;
   const provisionToken = dependencies.provisionToken ?? provisionLivekitToken;
-  const platformBridge = dependencies.platformBridge ?? defaultPlatformBridge;
+  const platformBridge = dependencies.platformBridge ?? createDefaultPlatformBridge();
   const createPlatformSessionId =
     dependencies.createPlatformSessionId ?? defaultCreatePlatformSessionId;
   const manualMediaTest = controllerOptions.manualMediaTest === true;

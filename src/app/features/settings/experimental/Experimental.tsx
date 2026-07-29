@@ -5,7 +5,6 @@ import { InfoCard } from '$components/info-card';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { SettingToggle } from '$components/setting-tile';
-import { isCallProbePlatformSupported } from '$features/call/livekitJsCallProbe';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
 import { MSC4274MediaGalleries } from './MSC4274MediaGalleries';
@@ -39,8 +38,6 @@ function LiveKitJsCallsToggle() {
     settingsAtom,
     'livekitJsMediaTestEnabled'
   );
-
-  if (!isCallProbePlatformSupported()) return null;
 
   return (
     <Box direction="Column" gap="100">

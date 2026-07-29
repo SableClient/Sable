@@ -1,4 +1,17 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+
+const tauriRuntime = vi.hoisted(() => vi.fn<() => boolean>());
+const pluginPlatform = vi.hoisted(() => ({
+  getPlatformCapabilities: vi.fn<() => Promise<unknown>>(),
+  getPlatformState: vi.fn<() => Promise<unknown>>(),
+  onPlatformCallEvent: vi.fn<() => Promise<unknown>>(),
+  startPlatformLifecycle: vi.fn<() => Promise<unknown>>(),
+  stopPlatformLifecycle: vi.fn<() => Promise<unknown>>(),
+}));
+
+vi.mock('@tauri-apps/api/core', () => ({ isTauri: tauriRuntime }));
+vi.mock('$plugins/call/platformCallLifecycle', () => pluginPlatform);
+
 import {
   MatrixRTCSessionEvent,
   type CallMembership,
@@ -250,7 +263,12 @@ const makePlatform = (supported: boolean, order: string[]): FakePlatform => {
 };
 
 describe('livekit JS controller', () => {
-  beforeEach(() => resetCallOwnerForTests());
+  beforeEach(() => {
+    resetCallOwnerForTests();
+    tauriRuntime.mockReset();
+    tauriRuntime.mockReturnValue(false);
+    Object.values(pluginPlatform).forEach((mock) => mock.mockReset());
+  });
 
   it('attaches E2EE before joining and provisions before connecting one no-media Room', async () => {
     const order: string[] = [];
@@ -495,8 +513,6 @@ describe('livekit JS controller', () => {
       keyIndex: 1,
     });
     const { dependencies, mediaParticipant, livekitRoom } = makeDependencies(session, [], provider);
-    // No platform bridge configured: use an explicit unsupported (desktop) bridge.
-    dependencies.platformBridge = makePlatform(false, []).bridge;
     const controller = createLivekitJsController(dependencies, { manualMediaTest: true });
 
     await connectToActive(controller, session);
@@ -879,6 +895,79 @@ describe('livekit JS controller', () => {
     expect(platform.stop).toHaveBeenCalledWith({ sessionId: 'opaque-session-1' });
     expect(order.lastIndexOf('platform-stop')).toBeLessThan(order.indexOf('leave'));
     expect(controller.getState().lifecycle).toBe('idle');
+  });
+
+  it('uses an explicit unsupported browser bridge without calling Tauri invoke', async () => {
+    // tauriRuntime is false: no platform bridge dependency is injected.
+    const order: string[] = [];
+    const session = makeSession(order);
+    const provider = makeProvider({
+      ready: true,
+      localOutboundIdentity: 'local-backend-identity',
+      keyIndex: 1,
+    });
+    const { dependencies, mediaParticipant } = makeDependencies(session, order, provider);
+    const controller = createLivekitJsController(dependencies, { manualMediaTest: true });
+
+    await connectToActive(controller, session);
+    await controller.setMicrophoneEnabled(true);
+    await controller.setCameraEnabled(true);
+
+    expect(mediaParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    expect(mediaParticipant.setCameraEnabled).toHaveBeenCalledWith(true);
+    expect(controller.getState().mediaFailure).toBeNull();
+    expect(pluginPlatform.getPlatformCapabilities).not.toHaveBeenCalled();
+    expect(pluginPlatform.startPlatformLifecycle).not.toHaveBeenCalled();
+    expect(pluginPlatform.stopPlatformLifecycle).not.toHaveBeenCalled();
+    expect(pluginPlatform.onPlatformCallEvent).not.toHaveBeenCalled();
+  });
+
+  it('keeps the Tauri default bridge: desktop capability response stays a no-op', async () => {
+    tauriRuntime.mockReturnValue(true);
+    pluginPlatform.getPlatformCapabilities.mockResolvedValue({
+      supported: false,
+      microphone: false,
+      playback: false,
+    });
+    const order: string[] = [];
+    const session = makeSession(order);
+    const provider = makeProvider({
+      ready: true,
+      localOutboundIdentity: 'local-backend-identity',
+      keyIndex: 1,
+    });
+    const { dependencies, mediaParticipant } = makeDependencies(session, order, provider);
+    const controller = createLivekitJsController(dependencies, { manualMediaTest: true });
+
+    await connectToActive(controller, session);
+    await controller.setMicrophoneEnabled(true);
+
+    expect(pluginPlatform.getPlatformCapabilities).toHaveBeenCalledOnce();
+    expect(pluginPlatform.startPlatformLifecycle).not.toHaveBeenCalled();
+    expect(mediaParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it('still fails closed on Tauri when the capability lookup rejects', async () => {
+    tauriRuntime.mockReturnValue(true);
+    pluginPlatform.getPlatformCapabilities.mockRejectedValue(new Error('invoke failed'));
+    const order: string[] = [];
+    const session = makeSession(order);
+    const provider = makeProvider({
+      ready: true,
+      localOutboundIdentity: 'local-backend-identity',
+      keyIndex: 1,
+    });
+    const { dependencies, mediaParticipant } = makeDependencies(session, order, provider);
+    const controller = createLivekitJsController(dependencies, { manualMediaTest: true });
+
+    await connectToActive(controller, session);
+    await expect(controller.setMicrophoneEnabled(true)).rejects.toMatchObject({
+      code: 'platform-lifecycle-failed',
+    });
+
+    expect(mediaParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
+    expect(pluginPlatform.startPlatformLifecycle).not.toHaveBeenCalled();
+    expect(controller.getState().mediaFailure).toBe('platform-lifecycle-failed');
   });
 
   it('stops manual media safely on a platform failure event', async () => {

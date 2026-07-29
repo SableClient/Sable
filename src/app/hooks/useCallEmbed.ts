@@ -1,13 +1,5 @@
 import type { RefObject } from 'react';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
@@ -23,15 +15,12 @@ import type { CallPreferences } from '../state/callPreferences';
 import { createDebugLogger } from '../utils/debugLogger';
 import { useClientConfig } from './useClientConfig';
 import { callEmbedStartErrorAtom } from '$state/callEmbed';
-import { useAutoDiscoveryInfo } from './useAutoDiscoveryInfo';
-import { useStore } from 'jotai';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { livekitJsCallAtom, isLivekitJsCallActive } from '$state/livekitJsCall';
 import { acquireCallOwner } from '$state/callOwner';
-import { createLivekitJsController } from '$features/call/livekitJsController';
 import { isLivekitJsCallProbeEnabled } from '$features/call/livekitJsCallProbe';
 import { selectCallStartOwner } from '$features/call/callStartSelection';
+import { useLivekitJsCallManager } from '$features/call/livekitJsCallManager';
 
 const debugLog = createDebugLogger('useCallEmbed');
 
@@ -83,41 +72,8 @@ export const useCallStart = (dm = false) => {
   const setCallEmbed = useSetAtom(callEmbedAtom);
   const setCallEmbedStartError = useSetAtom(callEmbedStartErrorAtom);
   const callEmbedRef = useCallEmbedRef();
-  const store = useStore();
   const [livekitJsCallsEnabled] = useSetting(settingsAtom, 'livekitJsCallsEnabled');
-  const [livekitJsMediaTestEnabled] = useSetting(settingsAtom, 'livekitJsMediaTestEnabled');
-  const discovery = useAutoDiscoveryInfo();
-  const livekitJsRoomIdRef = useRef<string | undefined>(undefined);
-  const livekitJsController = useMemo(
-    () => createLivekitJsController(undefined, { manualMediaTest: livekitJsMediaTestEnabled }),
-    [livekitJsMediaTestEnabled]
-  );
-
-  useEffect(() => {
-    const unsubscribe = livekitJsController.subscribe((controllerState) => {
-      const roomId = livekitJsRoomIdRef.current;
-      if (!roomId) return;
-      if (controllerState.lifecycle === 'idle') {
-        store.set(livekitJsCallAtom, undefined);
-        return;
-      }
-      store.set(livekitJsCallAtom, {
-        roomId,
-        lifecycle: controllerState.lifecycle,
-        failure: controllerState.failure,
-        room: controllerState.lifecycle === 'active' ? controllerState.room : undefined,
-        media: controllerState.lifecycle === 'active' ? controllerState.media : undefined,
-        hangup: () => livekitJsController.disconnect(),
-      });
-    });
-    return () => {
-      unsubscribe();
-      livekitJsRoomIdRef.current = undefined;
-      void livekitJsController.disconnect().finally(() => {
-        store.set(livekitJsCallAtom, undefined);
-      });
-    };
-  }, [livekitJsController, store]);
+  const livekitJsCallManager = useLivekitJsCallManager();
 
   const startCall = useCallback(
     (room: Room, pref?: CallPreferences) => {
@@ -125,18 +81,10 @@ export const useCallStart = (dm = false) => {
         livekitJsProbeEnabled: isLivekitJsCallProbeEnabled(livekitJsCallsEnabled),
       });
       if (startOwner === 'livekit-js') {
-        if (store.get(callEmbedAtom) || isLivekitJsCallActive(store.get(livekitJsCallAtom))) return;
-        livekitJsRoomIdRef.current = room.roomId;
-        void livekitJsController
-          .connect({
-            mx,
-            room,
-            discovery,
-            callIntent: pref?.video ? 'video' : 'audio',
-            dm,
-            ongoing: mx.matrixRTC.getRoomSession(room).memberships.length > 0,
-          })
-          .catch(() => undefined);
+        if (!livekitJsCallManager) {
+          throw new Error('LiveKit JS call manager is not provided!');
+        }
+        livekitJsCallManager.start({ room, dm, video: pref?.video });
         return;
       }
       const ownerLease = acquireCallOwner('element', room.roomId);
@@ -188,10 +136,8 @@ export const useCallStart = (dm = false) => {
       callEmbedRef,
       clientConfig.elementCallUrl,
       setCallEmbedStartError,
-      store,
-      discovery,
       livekitJsCallsEnabled,
-      livekitJsController,
+      livekitJsCallManager,
     ]
   );
 

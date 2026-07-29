@@ -1,5 +1,13 @@
 import type { RefObject } from 'react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
@@ -22,6 +30,11 @@ import { useAutoDiscoveryInfo } from './useAutoDiscoveryInfo';
 import { useStore } from 'jotai';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { livekitJsCallAtom, isLivekitJsCallActive } from '$state/livekitJsCall';
+import { acquireCallOwner, type CallOwnerLease } from '$state/callOwner';
+import { createLivekitJsController } from '$features/call/livekitJsController';
+import { isLivekitJsCallProbeEnabled } from '$features/call/livekitJsCallProbe';
+import { selectCallStartOwner } from '$features/call/callStartSelection';
 
 const debugLog = createDebugLogger('useCallEmbed');
 
@@ -76,19 +89,89 @@ export const useCallStart = (dm = false) => {
   const callEmbedRef = useCallEmbedRef();
   const store = useStore();
   const [nativeCallsEnabled] = useSetting(settingsAtom, 'nativeCallsEnabled');
+  const [livekitJsCallsEnabled] = useSetting(settingsAtom, 'livekitJsCallsEnabled');
+  const [livekitJsMediaTestEnabled] = useSetting(settingsAtom, 'livekitJsMediaTestEnabled');
   const discovery = useAutoDiscoveryInfo();
+  const nativeOwnerLeaseRef = useRef<CallOwnerLease | undefined>(undefined);
+  const livekitJsRoomIdRef = useRef<string | undefined>(undefined);
+  const livekitJsController = useMemo(
+    () => createLivekitJsController(undefined, { manualMediaTest: livekitJsMediaTestEnabled }),
+    [livekitJsMediaTestEnabled]
+  );
   const nativeCallController = useMemo(
     () =>
       createNativeCallController({
         setSession: setNativeCall,
+        onCleanup: () => {
+          nativeOwnerLeaseRef.current?.release();
+          nativeOwnerLeaseRef.current = undefined;
+        },
       }),
     [setNativeCall]
   );
 
+  useEffect(() => {
+    const unsubscribe = livekitJsController.subscribe((controllerState) => {
+      const roomId = livekitJsRoomIdRef.current;
+      if (!roomId) return;
+      if (controllerState.lifecycle === 'idle') {
+        store.set(livekitJsCallAtom, undefined);
+        return;
+      }
+      store.set(livekitJsCallAtom, {
+        roomId,
+        lifecycle: controllerState.lifecycle,
+        failure: controllerState.failure,
+        room: controllerState.lifecycle === 'active' ? controllerState.room : undefined,
+        media: controllerState.lifecycle === 'active' ? controllerState.media : undefined,
+        hangup: () => livekitJsController.disconnect(),
+      });
+    });
+    return () => {
+      unsubscribe();
+      livekitJsRoomIdRef.current = undefined;
+      void livekitJsController.disconnect().finally(() => {
+        store.set(livekitJsCallAtom, undefined);
+      });
+    };
+  }, [livekitJsController, store]);
+
   const startCall = useCallback(
     (room: Room, pref?: CallPreferences) => {
-      if (isNativeCallProbeEnabled(nativeCallsEnabled)) {
-        if (store.get(callEmbedAtom) || isNativeCallActive(store.get(nativeCallAtom))) return;
+      const startOwner = selectCallStartOwner({
+        livekitJsProbeEnabled: isLivekitJsCallProbeEnabled(livekitJsCallsEnabled),
+        nativeProbeEnabled: isNativeCallProbeEnabled(nativeCallsEnabled),
+      });
+      if (startOwner === 'livekit-js') {
+        if (
+          store.get(callEmbedAtom) ||
+          isNativeCallActive(store.get(nativeCallAtom)) ||
+          isLivekitJsCallActive(store.get(livekitJsCallAtom))
+        )
+          return;
+        livekitJsRoomIdRef.current = room.roomId;
+        void livekitJsController
+          .connect({
+            mx,
+            room,
+            discovery,
+            callIntent: pref?.video ? 'video' : 'audio',
+            dm,
+            ongoing: mx.matrixRTC.getRoomSession(room).memberships.length > 0,
+          })
+          .catch(() => undefined);
+        return;
+      }
+      if (startOwner === 'native') {
+        if (
+          store.get(callEmbedAtom) ||
+          isNativeCallActive(store.get(nativeCallAtom)) ||
+          isLivekitJsCallActive(store.get(livekitJsCallAtom))
+        )
+          return;
+        const ownerLease = acquireCallOwner('native', room.roomId);
+        if (!ownerLease) return;
+        nativeOwnerLeaseRef.current = ownerLease;
         const ongoing = mx.matrixRTC.getRoomSession(room).memberships.length > 0;
         void nativeCallController
           .start({
@@ -103,8 +186,11 @@ export const useCallStart = (dm = false) => {
           .catch(() => undefined);
         return;
       }
+      const ownerLease = acquireCallOwner('element', room.roomId);
+      if (!ownerLease) return;
       const container = callEmbedRef.current;
       if (!container) {
+        ownerLease.release();
         debugLog.error('call', 'Failed to start call — no embed container', {
           roomId: room.roomId,
         });
@@ -130,6 +216,7 @@ export const useCallStart = (dm = false) => {
         );
         setCallEmbed(callEmbed);
       } catch (err) {
+        ownerLease.release();
         debugLog.error('call', 'Call embed creation failed', {
           roomId: room.roomId,
           error: err instanceof Error ? err.message : String(err),
@@ -152,6 +239,8 @@ export const useCallStart = (dm = false) => {
       discovery,
       nativeCallController,
       nativeCallsEnabled,
+      livekitJsCallsEnabled,
+      livekitJsController,
     ]
   );
 

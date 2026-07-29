@@ -22,6 +22,18 @@ pub enum Error {
     CameraFailed,
     #[error("native screen share failed")]
     ScreenShareFailed,
+    #[error("media kind is not supported on this platform")]
+    MediaUnsupported,
+    #[error("platform call lifecycle is not supported on this platform")]
+    PlatformCallUnsupported,
+    #[error("platform call lifecycle is already active")]
+    PlatformCallBusy,
+    #[error("platform call session does not match the active session")]
+    PlatformCallStaleSession,
+    #[error("platform call lifecycle failed to start")]
+    PlatformCallStartFailed,
+    #[error("platform call lifecycle failed to stop")]
+    PlatformCallStopFailed,
 }
 
 impl Serialize for Error {
@@ -48,6 +60,12 @@ impl Error {
             Self::VideoFailed => "video_failed",
             Self::CameraFailed => "camera_failed",
             Self::ScreenShareFailed => "screen_share_failed",
+            Self::MediaUnsupported => "media_unsupported",
+            Self::PlatformCallUnsupported => "platform_call_unsupported",
+            Self::PlatformCallBusy => "platform_call_busy",
+            Self::PlatformCallStaleSession => "platform_call_stale_session",
+            Self::PlatformCallStartFailed => "platform_call_start_failed",
+            Self::PlatformCallStopFailed => "platform_call_stop_failed",
         }
     }
 
@@ -62,6 +80,16 @@ impl Error {
             Self::VideoFailed => "native video failed",
             Self::CameraFailed => "native camera failed",
             Self::ScreenShareFailed => "native screen share failed",
+            Self::MediaUnsupported => "media kind is not supported on this platform",
+            Self::PlatformCallUnsupported => {
+                "platform call lifecycle is not supported on this platform"
+            }
+            Self::PlatformCallBusy => "platform call lifecycle is already active",
+            Self::PlatformCallStaleSession => {
+                "platform call session does not match the active session"
+            }
+            Self::PlatformCallStartFailed => "platform call lifecycle failed to start",
+            Self::PlatformCallStopFailed => "platform call lifecycle failed to stop",
         }
     }
 }

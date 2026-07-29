@@ -2,6 +2,8 @@ import { useCallback, useMemo } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { EventType } from '$types/matrix-sdk';
 import { useCallEmbed } from '$hooks/useCallEmbed';
+import { useAtomValue } from 'jotai';
+import { livekitJsCallAtom } from '$state/livekitJsCall';
 import { useLivekitSupport } from '$hooks/useLivekitSupport';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useStateEventCallback } from '$hooks/useStateEventCallback';
@@ -15,6 +17,7 @@ import {
 export const useCallStartCapabilities = (room: Room): CallStartCapabilities => {
   const mx = useMatrixClient();
   const callEmbed = useCallEmbed();
+  const livekitJsCall = useAtomValue(livekitJsCallAtom);
   const livekitSupported = useLivekitSupport();
   const rtcSupported = webRTCSupported();
   const myUserId = mx.getSafeUserId();
@@ -42,9 +45,17 @@ export const useCallStartCapabilities = (room: Room): CallStartCapabilities => {
     return evaluateCallStartCapabilities({
       room,
       myUserId,
-      activeCallRoomId: callEmbed?.roomId,
+      activeCallRoomId: callEmbed?.roomId ?? livekitJsCall?.roomId,
       livekitSupported,
       rtcSupported,
     });
-  }, [room, myUserId, callEmbed?.roomId, livekitSupported, rtcSupported, updateCount]);
+  }, [
+    room,
+    myUserId,
+    callEmbed?.roomId,
+    livekitJsCall?.roomId,
+    livekitSupported,
+    rtcSupported,
+    updateCount,
+  ]);
 };

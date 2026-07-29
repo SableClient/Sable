@@ -20,6 +20,7 @@ tauri-plugin = { version = "2.6.3", features = ["build"] }
 
 [dev-dependencies]
 serde_json = "1.0"
+tauri = { version = "2.11.3", default-features = false, features = ["test"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.13", features = ["tokio", "screencast"] }

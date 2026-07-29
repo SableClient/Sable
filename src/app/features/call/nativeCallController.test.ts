@@ -1,9 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MatrixRTCSessionEvent, type CallMembership } from '$types/matrix-sdk';
 import type { MatrixClient, MatrixRTCSession, Room } from '$types/matrix-sdk';
 import { createNativeCallController } from './nativeCallController';
 import type { NativeCallSession } from '$state/nativeCall';
 import type { CallLifecycleError, CallState } from '$plugins/call/callLifecycle';
+
+const { debugError } = vi.hoisted(() => ({
+  debugError: vi.fn<(...args: unknown[]) => void>(),
+}));
+
+vi.mock('$utils/debugLogger', () => ({
+  createDebugLogger: () => ({ error: debugError }),
+}));
 
 const room = { roomId: '!room:example.org' } as Room;
 
@@ -66,6 +74,10 @@ const waitForMembershipErrorListener = async (session: MatrixRTCSession): Promis
 };
 
 describe('native call controller', () => {
+  beforeEach(() => {
+    debugError.mockClear();
+  });
+
   it('joins with one identity, provisions the session slot, then connects', async () => {
     const session = makeSession();
     const setSession = vi.fn<(session: NativeCallSession | undefined) => void>();
@@ -146,7 +158,9 @@ describe('native call controller', () => {
       },
       getPreferredTransport: async () => transport,
       provisionToken: async () => {
-        throw new Error('openid-secret jwt-secret');
+        throw Object.assign(new Error('openid-secret jwt-secret'), {
+          cause: { name: 'PluginError', message: 'request-body-secret' },
+        });
       },
     });
 
@@ -177,11 +191,67 @@ describe('native call controller', () => {
     expect(setSession).toHaveBeenLastCalledWith(
       expect.objectContaining({
         lifecycle: 'error',
-        error: 'Native call setup failed during token provisioning.',
+        error: 'Native call setup failed during authorizing.',
       })
     );
     expect(setSession.mock.calls.flat()).not.toContain('openid-secret');
     expect(setSession.mock.calls.flat()).not.toContain('jwt-secret');
+    expect(JSON.stringify(setSession.mock.calls)).not.toContain('openid-secret');
+    expect(JSON.stringify(setSession.mock.calls)).not.toContain('jwt-secret');
+    expect(debugError).toHaveBeenCalledWith(
+      'call',
+      'Native call setup failed',
+      expect.objectContaining({
+        stage: 'authorizing',
+        errorName: 'Error',
+        errorMessage: 'redacted',
+        cause: { errorName: 'UnknownError', errorMessage: 'redacted' },
+      })
+    );
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('openid-secret');
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('jwt-secret');
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('request-body-secret');
+  });
+
+  it('logs allowlisted transport failures with a stage-safe session error', async () => {
+    const session = makeSession();
+    const setSession = vi.fn<(session: NativeCallSession | undefined) => void>();
+    const disconnect = vi
+      .fn<(request: { connectionId: string }) => Promise<CallState>>()
+      .mockResolvedValue({ revision: 1, state: 'idle', connectionId: null });
+    const controller = createNativeCallController({
+      setSession,
+      connectionId: () => 'connection-id',
+      disconnect,
+      onState: async () => vi.fn<() => void>(),
+      onError: async () => vi.fn<() => void>(),
+      getPreferredTransport: async () => undefined,
+    });
+
+    await controller.start({
+      mx: makeClient(session),
+      room,
+      elementCallActive: false,
+      dm: false,
+      video: false,
+      ongoing: false,
+    });
+
+    expect(setSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        lifecycle: 'error',
+        error: 'Native call setup failed during no transport.',
+      })
+    );
+    expect(debugError).toHaveBeenCalledWith(
+      'call',
+      'Native call setup failed',
+      expect.objectContaining({
+        stage: 'no transport',
+        errorName: 'Error',
+        errorMessage: 'No LiveKit transport available',
+      })
+    );
   });
 
   it('cleans up when the membership manager fails before publication', async () => {
@@ -235,10 +305,21 @@ describe('native call controller', () => {
     expect(setSession).toHaveBeenLastCalledWith(
       expect.objectContaining({
         lifecycle: 'error',
-        error: 'Native call setup failed during MatrixRTC.',
+        error: 'Native call setup failed during joining the call.',
       })
     );
     expect(setSession.mock.calls.flat()).not.toContain('secret-membership-error');
+    expect(JSON.stringify(setSession.mock.calls)).not.toContain('secret-membership-error');
+    expect(debugError).toHaveBeenCalledWith(
+      'call',
+      'Native call setup failed',
+      expect.objectContaining({
+        stage: 'joining the call',
+        errorName: 'Error',
+        errorMessage: 'redacted',
+      })
+    );
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('secret-membership-error');
   });
 
   it('cleans up when local membership publication times out', async () => {
@@ -297,7 +378,7 @@ describe('native call controller', () => {
       expect(setSession).toHaveBeenLastCalledWith(
         expect.objectContaining({
           lifecycle: 'error',
-          error: 'Native call setup failed during MatrixRTC.',
+          error: 'Native call setup failed during joining the call.',
         })
       );
     } finally {
@@ -343,7 +424,7 @@ describe('native call controller', () => {
       expect(setSession).toHaveBeenLastCalledWith(
         expect.objectContaining({
           lifecycle: 'error',
-          error: 'Native call setup failed during MatrixRTC.',
+          error: 'Native call setup failed during joining the call.',
         })
       );
       expect(setSession.mock.calls.flat()).not.toContain('secret-device');
@@ -479,5 +560,277 @@ describe('native call controller', () => {
     expect(setSession).toHaveBeenLastCalledWith(
       expect.objectContaining({ lifecycle: 'error', error: 'Native call ended.' })
     );
+  });
+
+  it('redacts secret-bearing lifecycle errors and keeps the allowlisted code', async () => {
+    const session = makeSession();
+    const setSession = vi.fn<(session: NativeCallSession | undefined) => void>();
+    let errorHandler: ((error: CallLifecycleError) => void) | undefined;
+    const disconnect = vi.fn<(request: { connectionId: string }) => Promise<CallState>>();
+    disconnect.mockResolvedValue({ revision: 3, state: 'idle', connectionId: null });
+    const controller = createNativeCallController({
+      setSession,
+      connectionId: () => 'connection-id',
+      disconnect,
+      onState: async () => vi.fn<() => void>(),
+      onError: async (handler: (error: CallLifecycleError) => void) => {
+        errorHandler = handler;
+        return vi.fn<() => void>();
+      },
+      getPreferredTransport: async () => transport,
+      provisionToken: async () => ({ url: 'wss://livekit.example', jwt: 'jwt' }),
+      connect: async () => ({ revision: 2, state: 'connected', connectionId: 'connection-id' }),
+    });
+
+    const startPromise = controller.start({
+      mx: makeClient(session),
+      room,
+      elementCallActive: false,
+      dm: false,
+      video: false,
+      ongoing: false,
+    });
+    await waitForMembershipListener(session);
+    emitOwnMembership(session);
+    await startPromise;
+    errorHandler?.({
+      revision: 3,
+      code: 'connect_failed',
+      message: 'wss://sfu-secret.example jwt-secret-token',
+      connectionId: 'connection-id',
+    });
+
+    await vi.waitFor(() =>
+      expect(disconnect).toHaveBeenCalledWith({ connectionId: 'connection-id' })
+    );
+    expect(setSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lifecycle: 'error', error: 'Native call setup failed.' })
+    );
+    expect(debugError).toHaveBeenCalledWith(
+      'call',
+      'Native call connection failed',
+      expect.objectContaining({
+        stage: 'connecting',
+        errorName: 'UnknownError',
+        errorMessage: 'redacted',
+        code: 'connect_failed',
+      })
+    );
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('sfu-secret');
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('jwt-secret-token');
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('connection-id');
+    expect(JSON.stringify(setSession.mock.calls)).not.toContain('sfu-secret');
+    expect(JSON.stringify(setSession.mock.calls)).not.toContain('jwt-secret-token');
+  });
+
+  it('redacts unknown lifecycle error codes instead of logging them', async () => {
+    const session = makeSession();
+    const setSession = vi.fn<(session: NativeCallSession | undefined) => void>();
+    let errorHandler: ((error: CallLifecycleError) => void) | undefined;
+    const disconnect = vi.fn<(request: { connectionId: string }) => Promise<CallState>>();
+    disconnect.mockResolvedValue({ revision: 3, state: 'idle', connectionId: null });
+    const controller = createNativeCallController({
+      setSession,
+      connectionId: () => 'connection-id',
+      disconnect,
+      onState: async () => vi.fn<() => void>(),
+      onError: async (handler: (error: CallLifecycleError) => void) => {
+        errorHandler = handler;
+        return vi.fn<() => void>();
+      },
+      getPreferredTransport: async () => transport,
+      provisionToken: async () => ({ url: 'wss://livekit.example', jwt: 'jwt' }),
+      connect: async () => ({ revision: 2, state: 'connected', connectionId: 'connection-id' }),
+    });
+
+    const startPromise = controller.start({
+      mx: makeClient(session),
+      room,
+      elementCallActive: false,
+      dm: false,
+      video: false,
+      ongoing: false,
+    });
+    await waitForMembershipListener(session);
+    emitOwnMembership(session);
+    await startPromise;
+    errorHandler?.({
+      revision: 3,
+      code: 'secret-lifecycle-code',
+      message: 'payload-secret',
+      connectionId: 'connection-id',
+    });
+
+    await vi.waitFor(() =>
+      expect(disconnect).toHaveBeenCalledWith({ connectionId: 'connection-id' })
+    );
+    expect(debugError).toHaveBeenCalledWith(
+      'call',
+      'Native call connection failed',
+      expect.objectContaining({
+        stage: 'connecting',
+        errorName: 'UnknownError',
+        errorMessage: 'redacted',
+        code: 'unknown',
+      })
+    );
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('secret-lifecycle-code');
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('payload-secret');
+  });
+
+  it.each([
+    ['audio_failed', 'native audio failed'],
+    ['camera_failed', 'native camera failed'],
+    ['screen_share_failed', 'native screen share failed'],
+    ['video_failed', 'native video failed'],
+    ['media_unsupported', 'media kind is not supported on this platform'],
+  ])('keeps the call alive when a media control fails with %s', async (code, message) => {
+    const session = makeSession();
+    const setSession = vi.fn<(session: NativeCallSession | undefined) => void>();
+    let errorHandler: ((error: CallLifecycleError) => void) | undefined;
+    const disconnect = vi.fn<(request: { connectionId: string }) => Promise<CallState>>();
+    disconnect.mockResolvedValue({ revision: 3, state: 'idle', connectionId: null });
+    const controller = createNativeCallController({
+      setSession,
+      connectionId: () => 'connection-id',
+      disconnect,
+      onState: async () => vi.fn<() => void>(),
+      onError: async (handler: (error: CallLifecycleError) => void) => {
+        errorHandler = handler;
+        return vi.fn<() => void>();
+      },
+      getPreferredTransport: async () => transport,
+      provisionToken: async () => ({ url: 'wss://livekit.example', jwt: 'jwt' }),
+      connect: async () => ({ revision: 2, state: 'connected', connectionId: 'connection-id' }),
+    });
+
+    const startPromise = controller.start({
+      mx: makeClient(session),
+      room,
+      elementCallActive: false,
+      dm: false,
+      video: false,
+      ongoing: false,
+    });
+    await waitForMembershipListener(session);
+    emitOwnMembership(session);
+    await startPromise;
+    errorHandler?.({ revision: 3, code, message, connectionId: 'connection-id' });
+
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(session.leaveRoomSession).not.toHaveBeenCalled();
+    expect(setSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lifecycle: 'connected' })
+    );
+    expect(debugError).toHaveBeenCalledWith(
+      'call',
+      'Native call connection failed',
+      expect.objectContaining({ stage: 'media control', code, errorMessage: message })
+    );
+  });
+
+  it('redacts raw media failure details without hanging up the call', async () => {
+    const session = makeSession();
+    const setSession = vi.fn<(session: NativeCallSession | undefined) => void>();
+    let errorHandler: ((error: CallLifecycleError) => void) | undefined;
+    const disconnect = vi.fn<(request: { connectionId: string }) => Promise<CallState>>();
+    disconnect.mockResolvedValue({ revision: 3, state: 'idle', connectionId: null });
+    const controller = createNativeCallController({
+      setSession,
+      connectionId: () => 'connection-id',
+      disconnect,
+      onState: async () => vi.fn<() => void>(),
+      onError: async (handler: (error: CallLifecycleError) => void) => {
+        errorHandler = handler;
+        return vi.fn<() => void>();
+      },
+      getPreferredTransport: async () => transport,
+      provisionToken: async () => ({ url: 'wss://livekit.example', jwt: 'jwt' }),
+      connect: async () => ({ revision: 2, state: 'connected', connectionId: 'connection-id' }),
+    });
+
+    const startPromise = controller.start({
+      mx: makeClient(session),
+      room,
+      elementCallActive: false,
+      dm: false,
+      video: false,
+      ongoing: false,
+    });
+    await waitForMembershipListener(session);
+    emitOwnMembership(session);
+    await startPromise;
+    errorHandler?.({
+      revision: 3,
+      code: 'camera_failed',
+      message: 'https://sfu-secret.example/track?access_token=jwt-secret-token',
+      connectionId: 'connection-id',
+    });
+
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(session.leaveRoomSession).not.toHaveBeenCalled();
+    expect(debugError).toHaveBeenCalledWith(
+      'call',
+      'Native call connection failed',
+      expect.objectContaining({
+        stage: 'media control',
+        code: 'camera_failed',
+        errorMessage: 'redacted',
+      })
+    );
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('sfu-secret');
+    expect(JSON.stringify(debugError.mock.calls)).not.toContain('jwt-secret-token');
+  });
+
+  it('ignores lifecycle errors for stale or anonymous connections', async () => {
+    const session = makeSession();
+    const setSession = vi.fn<(session: NativeCallSession | undefined) => void>();
+    let errorHandler: ((error: CallLifecycleError) => void) | undefined;
+    const disconnect = vi.fn<(request: { connectionId: string }) => Promise<CallState>>();
+    disconnect.mockResolvedValue({ revision: 3, state: 'idle', connectionId: null });
+    const controller = createNativeCallController({
+      setSession,
+      connectionId: () => 'connection-id',
+      disconnect,
+      onState: async () => vi.fn<() => void>(),
+      onError: async (handler: (error: CallLifecycleError) => void) => {
+        errorHandler = handler;
+        return vi.fn<() => void>();
+      },
+      getPreferredTransport: async () => transport,
+      provisionToken: async () => ({ url: 'wss://livekit.example', jwt: 'jwt' }),
+      connect: async () => ({ revision: 2, state: 'connected', connectionId: 'connection-id' }),
+    });
+
+    const startPromise = controller.start({
+      mx: makeClient(session),
+      room,
+      elementCallActive: false,
+      dm: false,
+      video: false,
+      ongoing: false,
+    });
+    await waitForMembershipListener(session);
+    emitOwnMembership(session);
+    await startPromise;
+    debugError.mockClear();
+    setSession.mockClear();
+
+    errorHandler?.({
+      revision: 3,
+      code: 'stale_connection',
+      message: 'stale-secret',
+      connectionId: 'other-connection',
+    });
+    errorHandler?.({
+      revision: 4,
+      code: 'connect_failed',
+      message: 'null-secret',
+      connectionId: null,
+    });
+
+    expect(debugError).not.toHaveBeenCalled();
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(setSession).not.toHaveBeenCalled();
   });
 });

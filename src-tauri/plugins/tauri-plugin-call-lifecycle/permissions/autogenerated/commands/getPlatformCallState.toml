@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-getPlatformCallState"
+description = "Enables the getPlatformCallState command without any pre-configured scope."
+commands.allow = ["getPlatformCallState"]
+
+[[permission]]
+identifier = "deny-getPlatformCallState"
+description = "Denies the getPlatformCallState command without any pre-configured scope."
+commands.deny = ["getPlatformCallState"]

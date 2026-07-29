@@ -52,6 +52,41 @@ function NativeCallsToggle() {
   );
 }
 
+function LiveKitJsCallsToggle() {
+  const [livekitJsCallsEnabled, setLivekitJsCallsEnabled] = useSetting(
+    settingsAtom,
+    'livekitJsCallsEnabled'
+  );
+  const [livekitJsMediaTestEnabled, setLivekitJsMediaTestEnabled] = useSetting(
+    settingsAtom,
+    'livekitJsMediaTestEnabled'
+  );
+
+  if (!isNativeCallProbePlatformSupported()) return null;
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">LiveKit JS Calls</Text>
+      <SettingToggle
+        title="Try the LiveKit JS connection probe"
+        focusId="livekit-js-calls"
+        description="Runs an experimental LiveKit JS connection probe. It does not publish media. Element Call remains the normal fallback."
+        value={livekitJsCallsEnabled}
+        onChange={setLivekitJsCallsEnabled}
+      />
+      {livekitJsCallsEnabled && (
+        <SettingToggle
+          title="Enable the manual LiveKit JS media test"
+          focusId="livekit-js-media-test"
+          description="Manual local media test only. Encrypted media is required. There is no fallback or automatic call selection. This is not release-ready."
+          value={livekitJsMediaTestEnabled}
+          onChange={setLivekitJsMediaTestEnabled}
+        />
+      )}
+    </Box>
+  );
+}
+
 type ExperimentalProps = {
   requestBack?: () => void;
   requestClose: () => void;
@@ -80,6 +115,7 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               <BandwidthSavingEmojis />
               <PersonaToggle />
               <NativeCallsToggle />
+              <LiveKitJsCallsToggle />
               <MSC4274MediaGalleries />
             </Box>
           </PageContent>

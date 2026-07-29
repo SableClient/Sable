@@ -1,12 +1,5 @@
 import type { AutoDiscoveryInfo } from '../../cs-api';
-import {
-  MatrixRTCSessionEvent,
-  type CallMembership,
-  type JoinSessionConfig,
-  type MatrixClient,
-  type MatrixRTCSession,
-  type Room,
-} from '$types/matrix-sdk';
+import { type MatrixClient, type MatrixRTCSession, type Room } from '$types/matrix-sdk';
 import {
   connect,
   disconnect,
@@ -18,6 +11,11 @@ import {
 } from '$plugins/call/callLifecycle';
 import { getPreferredLivekitTransport, provisionLivekitToken } from './livekitProvisioning';
 import type { NativeCallLifecycle, NativeCallSession } from '$state/nativeCall';
+import { createDebugLogger } from '$utils/debugLogger';
+import {
+  joinAndProvisionMatrixRTC,
+  disconnectLivekitThenLeaveMatrixRTC,
+} from './matrixRtcCallLifecycle';
 
 type SetNativeCall = (session: NativeCallSession | undefined) => void;
 
@@ -30,6 +28,7 @@ type NativeCallControllerDependencies = {
   getPreferredTransport: typeof getPreferredLivekitTransport;
   provisionToken: typeof provisionLivekitToken;
   connectionId?: () => string;
+  onCleanup?: () => void;
 };
 
 type NativeCallStartOptions = {
@@ -54,95 +53,128 @@ type NativeCallRecord = {
   cleanupPromise?: Promise<void>;
 };
 
+const debugLog = createDebugLogger('nativeCallController');
+
 const errorMessage = 'Native call setup failed.';
 const endedMessage = 'Native call ended.';
 
-type SetupStage = 'MatrixRTC' | 'LiveKit transport' | 'token provisioning' | 'LiveKit connection';
+type SetupStage =
+  | 'joining the call'
+  | 'no transport'
+  | 'authorizing'
+  | 'connecting'
+  | 'media control';
 
-const membershipWaitTimeoutMs = 10_000;
+const safeErrorNames = new Set([
+  'AggregateError',
+  'AbortError',
+  'DataError',
+  'DOMException',
+  'Error',
+  'EvalError',
+  'InvalidStateError',
+  'NetworkError',
+  'NotAllowedError',
+  'NotSupportedError',
+  'OperationError',
+  'QuotaExceededError',
+  'RangeError',
+  'ReferenceError',
+  'SecurityError',
+  'SyntaxError',
+  'TimeoutError',
+  'TypeError',
+  'URIError',
+  'UnknownError',
+]);
 
-type MembershipWait = {
-  promise: Promise<void>;
-  cancel: () => void;
+const safeErrorMessages = new Set([
+  'MatrixRTC device unavailable',
+  'MatrixRTC membership listener setup failed',
+  'MatrixRTC membership publication failed',
+  'MatrixRTC membership wait cancelled',
+  'media kind is not supported on this platform',
+  'native audio failed',
+  'native camera failed',
+  'native screen share failed',
+  'native video failed',
+  'MatrixRTC slot was not assigned',
+  'No LiveKit transport available',
+]);
+
+const safeLifecycleErrorCodes = new Set([
+  'actor_unavailable',
+  'audio_failed',
+  'busy',
+  'camera_failed',
+  'close_failed',
+  'connect_failed',
+  'media_unsupported',
+  'screen_share_failed',
+  'stale_connection',
+  'video_failed',
+]);
+
+const mediaControlErrorCodes = new Set([
+  'audio_failed',
+  'camera_failed',
+  'media_unsupported',
+  'screen_share_failed',
+  'video_failed',
+]);
+
+const isMediaControlError = (error: CallLifecycleError): boolean =>
+  typeof error.code === 'string' && mediaControlErrorCodes.has(error.code);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const getErrorProperty = (error: unknown, property: 'name' | 'message' | 'cause'): unknown => {
+  if (error instanceof Error) return error[property];
+  return isRecord(error) ? error[property] : undefined;
 };
 
-const waitForOwnMembership = (
-  session: MatrixRTCSession,
-  userId: string,
-  deviceId: string
-): MembershipWait => {
-  let resolveWait!: () => void;
-  let rejectWait!: (reason?: unknown) => void;
-  let settled = false;
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  let membershipsListenerInstalled = false;
-  let membershipErrorListenerInstalled = false;
+const safeErrorName = (error: unknown): string => {
+  const name = getErrorProperty(error, 'name');
+  return typeof name === 'string' && safeErrorNames.has(name) ? name : 'UnknownError';
+};
 
-  const removeListeners = (): void => {
-    if (membershipsListenerInstalled) {
-      try {
-        session.removeListener(MatrixRTCSessionEvent.MembershipsChanged, handleMembershipsChanged);
-      } catch {}
-      membershipsListenerInstalled = false;
-    }
-    if (membershipErrorListenerInstalled) {
-      try {
-        session.removeListener(
-          MatrixRTCSessionEvent.MembershipManagerError,
-          handleMembershipManagerError
-        );
-      } catch {}
-      membershipErrorListenerInstalled = false;
-    }
-  };
+const safeErrorMessage = (error: unknown): string => {
+  const message = getErrorProperty(error, 'message');
+  return typeof message === 'string' && safeErrorMessages.has(message) ? message : 'redacted';
+};
 
-  const settle = (settlePromise: () => void): void => {
-    if (settled) return;
-    settled = true;
-    if (timeout !== undefined) clearTimeout(timeout);
-    removeListeners();
-    settlePromise();
-  };
-
-  const handleMembershipsChanged = (
-    _oldMemberships: CallMembership[],
-    memberships: CallMembership[]
-  ): void => {
-    if (
-      memberships.some(
-        (membership) => membership.userId === userId && membership.deviceId === deviceId
-      )
-    ) {
-      settle(resolveWait);
-    }
-  };
-
-  const handleMembershipManagerError = (): void => {
-    settle(() => rejectWait(new Error('MatrixRTC membership publication failed')));
-  };
-
-  const promise = new Promise<void>((resolve, reject) => {
-    resolveWait = resolve;
-    rejectWait = reject;
-  });
-
-  try {
-    session.on(MatrixRTCSessionEvent.MembershipsChanged, handleMembershipsChanged);
-    membershipsListenerInstalled = true;
-    session.on(MatrixRTCSessionEvent.MembershipManagerError, handleMembershipManagerError);
-    membershipErrorListenerInstalled = true;
-    timeout = setTimeout(
-      () => settle(() => rejectWait(new Error('MatrixRTC membership publication timed out'))),
-      membershipWaitTimeoutMs
-    );
-  } catch {
-    settle(() => rejectWait(new Error('MatrixRTC membership listener setup failed')));
-  }
-
+const setupFailureDiagnostics = (stage: SetupStage, error: unknown): Record<string, unknown> => {
+  const cause = getErrorProperty(error, 'cause');
   return {
-    promise,
-    cancel: () => settle(() => rejectWait(new Error('MatrixRTC membership wait cancelled'))),
+    stage,
+    errorName: safeErrorName(error),
+    errorMessage: safeErrorMessage(error),
+    ...(cause !== undefined
+      ? {
+          cause: {
+            errorName: safeErrorName(cause),
+            errorMessage: safeErrorMessage(cause),
+          },
+        }
+      : {}),
   };
+};
+
+const logSetupFailure = (stage: SetupStage, error: unknown): void => {
+  debugLog.error('call', 'Native call setup failed', setupFailureDiagnostics(stage, error));
+};
+
+const safeLifecycleErrorCode = (code: unknown): string =>
+  typeof code === 'string' && safeLifecycleErrorCodes.has(code) ? code : 'unknown';
+
+const lifecycleFailureDiagnostics = (error: CallLifecycleError): Record<string, unknown> => ({
+  ...setupFailureDiagnostics(isMediaControlError(error) ? 'media control' : 'connecting', error),
+  code: safeLifecycleErrorCode(error.code),
+});
+
+const logLifecycleFailure = (error: CallLifecycleError): void => {
+  debugLog.error('call', 'Native call connection failed', lifecycleFailureDiagnostics(error));
 };
 
 const setupErrorMessage = (stage: SetupStage): string =>
@@ -170,6 +202,7 @@ export const createNativeCallController = (
         | 'getPreferredTransport'
         | 'provisionToken'
         | 'connectionId'
+        | 'onCleanup'
       >
     >
 ) => {
@@ -182,6 +215,7 @@ export const createNativeCallController = (
     getPreferredTransport: dependencies.getPreferredTransport ?? getPreferredLivekitTransport,
     provisionToken: dependencies.provisionToken ?? provisionLivekitToken,
     connectionId: dependencies.connectionId ?? (() => crypto.randomUUID()),
+    onCleanup: dependencies.onCleanup,
   };
   let activeRecord: NativeCallRecord | undefined;
   let displayedRecord: NativeCallRecord | undefined;
@@ -254,12 +288,10 @@ export const createNativeCallController = (
     }
 
     record.cleanupPromise = (async () => {
-      try {
-        await deps.disconnect({ connectionId: record.connectionId });
-      } catch {}
-      try {
-        await record.session.leaveRoomSession(5000);
-      } catch {}
+      await disconnectLivekitThenLeaveMatrixRTC(
+        () => deps.disconnect({ connectionId: record.connectionId }).then(() => undefined),
+        record.session
+      );
       await Promise.allSettled([
         record.stateUnlistenPromise?.then((unlisten) => unlisten()) ?? Promise.resolve(),
         record.errorUnlistenPromise?.then((unlisten) => unlisten()) ?? Promise.resolve(),
@@ -273,6 +305,7 @@ export const createNativeCallController = (
           deps.setSession(undefined);
         } catch {}
       }
+      deps.onCleanup?.();
     })();
     await record.cleanupPromise;
   };
@@ -295,6 +328,10 @@ export const createNativeCallController = (
   const handleError = (record: NativeCallRecord, error: CallLifecycleError): void => {
     if (!isCurrent(record)) return;
     if (!isMatchingConnection(error.connectionId, record)) return;
+    logLifecycleFailure(error);
+    // Media toggle failures are recoverable: keep the call alive and only
+    // record a safe diagnostic.
+    if (isMediaControlError(error)) return;
     void cleanup(record, errorMessage, false);
   };
 
@@ -307,15 +344,17 @@ export const createNativeCallController = (
     video,
     ongoing,
   }: NativeCallStartOptions) => {
-    if (activeRecord || elementCallActive) return;
+    if (activeRecord || elementCallActive) {
+      deps.onCleanup?.();
+      return;
+    }
 
     let record: NativeCallRecord | undefined;
-    let stage: SetupStage = 'MatrixRTC';
+    let stage: SetupStage = 'joining the call';
     try {
       const deviceId = mx.getDeviceId();
       if (!deviceId) {
-        setSetupError(room.roomId, setupErrorMessage(stage));
-        return;
+        throw new Error('MatrixRTC device unavailable');
       }
 
       const connectionId = deps.connectionId!();
@@ -335,53 +374,44 @@ export const createNativeCallController = (
       record.errorUnlistenPromise = deps.onError((error) => handleError(currentRecord, error));
       await Promise.all([record.stateUnlistenPromise, record.errorUnlistenPromise]);
 
-      stage = 'LiveKit transport';
-      const transport = await deps.getPreferredTransport(mx, discovery);
-      if (!transport) throw new Error('No LiveKit transport available');
-
-      const userId = mx.getSafeUserId();
-      const identity = { userId, deviceId, memberId: `${userId}:${deviceId}` };
-      const joinConfig: JoinSessionConfig = {
+      stage = 'no transport';
+      const joined = await joinAndProvisionMatrixRTC({
+        mx,
+        room,
+        session,
+        discovery,
+        getPreferredTransport: deps.getPreferredTransport,
+        provisionToken: deps.provisionToken,
         callIntent: video ? 'video' : 'audio',
         ...(ongoing ? {} : { notificationType: dm ? 'ring' : 'notification' }),
-      };
-      stage = 'MatrixRTC';
-      const membershipWait = waitForOwnMembership(session, identity.userId, identity.deviceId);
-      record.cancelMembershipWait = membershipWait.cancel;
-      session.joinRTCSession(identity, [transport], undefined, joinConfig);
-      await membershipWait.promise;
-      record.cancelMembershipWait = undefined;
-      const slotId = session.slotId;
-      if (!slotId) throw new Error('MatrixRTC slot was not assigned');
-      if (!isCurrent(record)) return;
-
-      stage = 'token provisioning';
-      const provisioned = await deps.provisionToken({
-        mx,
-        roomId: room.roomId,
-        slotId,
-        deviceId,
-        serviceUrl: transport.livekit_service_url,
-        memberId: identity.memberId,
-        userId: identity.userId,
+        isCancelled: () => !isCurrent(currentRecord),
+        onStage: (joinStage) => {
+          stage = joinStage === 'joining-matrix' ? 'joining the call' : 'authorizing';
+        },
+        onMembershipWait: (cancel) => {
+          currentRecord.cancelMembershipWait = cancel;
+        },
+        onMembershipError: (error) => logSetupFailure('joining the call', error),
       });
-      if (!isCurrent(record)) return;
+      if (!isCurrent(currentRecord)) return;
 
-      stage = 'LiveKit connection';
+      stage = 'connecting';
       const state = await deps.connect({
         connectionId,
-        serverUrl: provisioned.url,
-        participantToken: provisioned.jwt,
+        serverUrl: joined.provisioned.url,
+        participantToken: joined.provisioned.jwt,
         audio: true,
         video,
         screenShare: false,
       });
-      handleState(record, state);
-    } catch {
+      handleState(currentRecord, state);
+    } catch (error) {
+      logSetupFailure(stage, error);
       if (record) {
         await cleanup(record, setupErrorMessage(stage), false);
       } else {
         setSetupError(room.roomId, setupErrorMessage(stage));
+        deps.onCleanup?.();
       }
     }
   };

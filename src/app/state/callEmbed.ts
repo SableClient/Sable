@@ -2,6 +2,7 @@ import { atom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { CallEmbed } from '../plugins/call';
 import type { CallEmbedStartError } from '$plugins/call/callEmbedError';
+import { releaseCallOwner } from './callOwner';
 
 const baseCallEmbedAtom = atom<CallEmbed | undefined>(undefined);
 const baseCallEmbedStartErrorAtom = atom<CallEmbedStartError | null>(null);
@@ -25,6 +26,7 @@ export const callEmbedAtom = atom<CallEmbed | undefined, [CallEmbed | undefined]
         embedCreatedAt = null;
       }
       prevCallEmbed.dispose();
+      releaseCallOwner('element', prevCallEmbed.roomId);
     }
 
     if (callEmbed !== undefined) {

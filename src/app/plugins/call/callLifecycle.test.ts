@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const pluginConnect = vi.hoisted(() => vi.fn<(request: unknown) => Promise<unknown>>());
 const pluginDisconnect = vi.hoisted(() => vi.fn<(request: unknown) => Promise<unknown>>());
 const pluginGetState = vi.hoisted(() => vi.fn<() => Promise<unknown>>());
+const invoke = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>());
 const listen = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>());
 
 vi.mock('tauri-plugin-call-lifecycle-api', () => ({
@@ -10,6 +11,7 @@ vi.mock('tauri-plugin-call-lifecycle-api', () => ({
   disconnect: pluginDisconnect,
   getState: pluginGetState,
 }));
+vi.mock('@tauri-apps/api/core', () => ({ invoke }));
 vi.mock('@tauri-apps/api/event', () => ({ listen }));
 
 import {
@@ -18,6 +20,7 @@ import {
   getState,
   onError,
   onState,
+  setMediaEnabled,
   type CallLifecycleError,
   type CallState,
 } from './callLifecycle';
@@ -27,8 +30,26 @@ describe('call lifecycle wrapper', () => {
     pluginConnect.mockReset();
     pluginDisconnect.mockReset();
     pluginGetState.mockReset();
+    invoke.mockReset();
     listen.mockReset();
     listen.mockResolvedValue(vi.fn());
+  });
+
+  it('uses the namespaced media command and native snake-case payload', async () => {
+    const state = {
+      revision: 1,
+      state: 'connected',
+      connectionId: 'connection-id',
+    } satisfies CallState;
+    invoke.mockResolvedValue(state);
+
+    await expect(
+      setMediaEnabled({ connectionId: 'connection-id', kind: 'screen_share', enabled: true })
+    ).resolves.toEqual(state);
+
+    expect(invoke).toHaveBeenCalledWith('plugin:call-lifecycle|set_media_enabled', {
+      payload: { connectionId: 'connection-id', kind: 'screen_share', enabled: true },
+    });
   });
 
   it('delegates lifecycle commands to the guest API', async () => {

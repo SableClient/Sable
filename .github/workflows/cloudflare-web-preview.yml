@@ -23,22 +23,105 @@ on:
       - 'tsconfig.json'
       - '.github/workflows/cloudflare-web-preview.yml'
       - '.github/actions/setup/**'
+  issue_comment:
+    types: [created]
 
 concurrency:
-  group: cloudflare-worker-preview-${{ github.event.pull_request.number || github.ref_name }}
+  group: cloudflare-worker-preview-${{ github.event.pull_request.number || github.event.issue.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    if: (github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'release') || github.event_name == 'push'
+    if: >-
+      (github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      github.event.comment.body == '/deploy' &&
+      (github.event.comment.author_association == 'MEMBER' ||
+      github.event.comment.author_association == 'OWNER')) ||
+      (github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref != 'release') ||
+      github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
     steps:
+      - name: Validate and resolve deployment metadata
+        id: resolve
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            let headSha = context.sha;
+            let number = '';
+            let alias = '';
+            let isPr = 'false';
+
+            if (context.eventName === 'pull_request') {
+              const pullRequest = context.payload.pull_request;
+              headSha = pullRequest.head.sha;
+              number = String(pullRequest.number);
+              alias = `pr-${pullRequest.number}`;
+              isPr = 'true';
+            } else if (context.eventName === 'issue_comment') {
+              if (!context.payload.issue?.pull_request) {
+                core.setFailed('The comment is not on a pull request.');
+                return;
+              }
+
+              const { owner, repo } = context.repo;
+              const { data: pullRequest } = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: context.payload.issue.number,
+              });
+
+              if (pullRequest.state !== 'open') {
+                core.setFailed('The pull request must be open.');
+                return;
+              }
+
+              const head = pullRequest.head;
+              if (!head?.sha || !head.ref || !head.repo?.full_name) {
+                core.setFailed('The pull request head is missing or deleted.');
+                return;
+              }
+              if (head.repo.full_name !== context.repo.owner + '/' + context.repo.repo) {
+                core.setFailed('Fork pull request heads cannot be deployed.');
+                return;
+              }
+              if (head.ref === 'release') {
+                core.setFailed('Release pull request heads cannot be deployed.');
+                return;
+              }
+
+              headSha = head.sha;
+              number = String(pullRequest.number);
+              alias = `pr-${pullRequest.number}`;
+              isPr = 'true';
+            } else {
+              const branch = context.ref.replace(/^refs\/heads\//, '');
+              alias = branch.toLowerCase()
+                .replace(/[^a-z0-9]/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '');
+            }
+
+            if (!headSha) {
+              core.setFailed('Unable to resolve an immutable deployment SHA.');
+              return;
+            }
+
+            core.setOutput('head_sha', headSha);
+            core.setOutput('number', number);
+            core.setOutput('alias', alias);
+            core.setOutput('is_pr', isPr);
+
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ steps.resolve.outputs.head_sha }}
           persist-credentials: false
 
       - name: Prepare preview metadata
@@ -55,7 +138,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Set Sentry build environment for PR preview
-        if: github.event_name == 'pull_request'
+        if: steps.resolve.outputs.is_pr == 'true'
         env:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -65,7 +148,7 @@ jobs:
         run: |
           echo "VITE_SENTRY_DSN=$VITE_SENTRY_DSN" >> "$GITHUB_ENV"
           echo "VITE_SENTRY_ENVIRONMENT=preview" >> "$GITHUB_ENV"
-          echo "VITE_SENTRY_PR=${{ github.event.pull_request.number }}" >> "$GITHUB_ENV"
+          echo "VITE_SENTRY_PR=${{ steps.resolve.outputs.number }}" >> "$GITHUB_ENV"
           echo "SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN" >> "$GITHUB_ENV"
           echo "SENTRY_ORG=$SENTRY_ORG" >> "$GITHUB_ENV"
           echo "SENTRY_PROJECT=$SENTRY_PROJECT" >> "$GITHUB_ENV"
@@ -74,18 +157,6 @@ jobs:
         uses: ./.github/actions/setup
         with:
           build: 'true'
-
-      - name: Set deploy alias
-        id: alias
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "alias=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-          else
-            branch="${GITHUB_REF_NAME}"
-            alias="$(echo "$branch" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-\|-$//g')"
-            echo "alias=${alias}" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Upload Worker preview
         id: deploy
@@ -98,7 +169,7 @@ jobs:
           command: >
             versions upload
             -c dist/wrangler.json
-            --preview-alias ${{ steps.alias.outputs.alias }}
+            --preview-alias ${{ steps.resolve.outputs.alias }}
             --message "$PREVIEW_MESSAGE"
 
       - name: Resolve preview URL
@@ -106,7 +177,7 @@ jobs:
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
           COMMAND_OUTPUT: ${{ steps.deploy.outputs.command-output }}
-          ALIAS: ${{ steps.alias.outputs.alias }}
+          ALIAS: ${{ steps.resolve.outputs.alias }}
         shell: bash
         run: |
           alias_url_pattern="^https?://${ALIAS}-[^[:space:]]+$"
@@ -130,8 +201,8 @@ jobs:
         env:
           MARKER: '<!-- cloudflare-worker-preview -->'
           PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
-          PREVIEW_ALIAS: ${{ steps.alias.outputs.alias }}
-          SHORT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PREVIEW_ALIAS: ${{ steps.resolve.outputs.alias }}
+          SHORT_SHA: ${{ steps.resolve.outputs.head_sha }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -158,7 +229,7 @@ jobs:
 
             await core.summary.addRaw(comment.replace(marker + "\n", "")).write();
 
-            if (context.eventName !== 'pull_request') return;
+            if (!['pull_request', 'issue_comment'].includes(context.eventName)) return;
 
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;

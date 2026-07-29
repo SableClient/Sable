@@ -67,7 +67,6 @@ tauri-plugin-http = "2.5.9"
 tauri-plugin-store = "2.4.4"
 tauri-plugin-clipboard-manager = "2.3.2"
 tauri-plugin-dialog = "2"
-tauri-plugin-call-lifecycle = { path = "plugins/tauri-plugin-call-lifecycle" }
 
 # Debug-only in practice: only initialized under #[cfg(debug_assertions)] in
 # lib.rs, so the release build never calls into it.
@@ -158,7 +157,6 @@ custom-protocol = ["tauri/custom-protocol"]
 wry = ["tauri/wry", "dep:webkit2gtk"]
 # Tauri auto-updater. Disable with --no-default-features --features wry,cef.
 updater = ["dep:tauri-plugin-updater"]
-notifications-dev = ["tauri-plugin-notifications/notify-rust"]
 # CEF (Chromium) runtime. Build with --no-default-features --features cef.
 cef = ["dep:tauri-runtime-cef", "dep:cef"]
 # CrabNebula devtools. Off by default: its aggregator retains every metadata record for the

@@ -106,16 +106,8 @@ export async function showSnapOverlay(): Promise<void> {
   return invoke('show_snap_overlay');
 }
 
-export async function startCallForegroundService(): Promise<void> {
-  return invoke('start_call_foreground_service');
-}
-
 export async function startWindowTrackingWithTarget(params: types.StartWindowTrackingWithTargetParams): Promise<void> {
   return invoke('start_window_tracking_with_target', params);
-}
-
-export async function stopCallForegroundService(): Promise<void> {
-  return invoke('stop_call_foreground_service');
 }
 
 export async function stopWindowTracking(): Promise<void> {

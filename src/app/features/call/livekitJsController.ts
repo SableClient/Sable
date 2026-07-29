@@ -1,4 +1,3 @@
-import { isTauri } from '@tauri-apps/api/core';
 import { Room as LivekitRoom, type RoomOptions } from 'livekit-client';
 import type { AutoDiscoveryInfo } from '../../cs-api';
 import type { MatrixClient, MatrixRTCSession, Room as MatrixRoom } from '$types/matrix-sdk';
@@ -13,16 +12,6 @@ import {
 } from './livekitMatrixKeyProvider';
 import { getPreferredLivekitTransport, provisionLivekitToken } from './livekitProvisioning';
 import { acquireCallOwner, type CallOwnerLease } from '$state/callOwner';
-import {
-  getPlatformCapabilities as getPluginPlatformCapabilities,
-  onPlatformCallEvent,
-  startPlatformLifecycle,
-  stopPlatformLifecycle,
-  type PlatformCallCapabilities,
-  type PlatformCallEvent,
-  type PlatformCallFailureCode,
-  type PlatformCallRoute,
-} from '$plugins/call/platformCallLifecycle';
 
 export type LivekitJsControllerLifecycle =
   | 'idle'
@@ -41,7 +30,6 @@ export type LivekitJsMediaFailure =
   | 'e2ee-key-not-ready'
   | 'e2ee-key-failed'
   | 'room-not-active'
-  | 'platform-lifecycle-failed'
   | 'media-operation-failed';
 
 export class LivekitJsMediaError extends Error {
@@ -57,35 +45,12 @@ export type LivekitJsMediaFacade = {
   setScreenShareEnabled: (enabled: boolean) => Promise<void>;
 };
 
-export type LivekitJsPlatformStartRequest = {
-  sessionId: string;
-  microphone: boolean;
-  playback: boolean;
-};
-
-export type LivekitJsPlatformBridge = {
-  getCapabilities: () => Promise<PlatformCallCapabilities>;
-  start: (request: LivekitJsPlatformStartRequest) => Promise<unknown>;
-  stop: (request: { sessionId: string }) => Promise<unknown>;
-  onEvent: (handler: (event: PlatformCallEvent) => void) => Promise<() => void>;
-};
-
-export type LivekitJsPlatformState = {
-  active: boolean;
-  focused: boolean;
-  route: PlatformCallRoute | null;
-  interrupted: boolean;
-  mediaReset: boolean;
-  failure: PlatformCallFailureCode | null;
-};
-
 export type LivekitJsControllerState = {
   lifecycle: LivekitJsControllerLifecycle;
   failure: LivekitJsControllerFailure | null;
   mediaFailure: LivekitJsMediaFailure | null;
   room?: LivekitRoom;
   media?: LivekitJsMediaFacade;
-  platform?: LivekitJsPlatformState;
   e2ee: Readonly<LivekitMatrixKeyProviderState>;
 };
 
@@ -131,8 +96,6 @@ export type LivekitJsControllerDependencies = {
   isE2EESupported?: () => boolean;
   getPreferredTransport?: typeof getPreferredLivekitTransport;
   provisionToken?: typeof provisionLivekitToken;
-  platformBridge?: LivekitJsPlatformBridge;
-  createPlatformSessionId?: () => string;
 };
 
 type ControllerRecord = {
@@ -147,14 +110,6 @@ type ControllerRecord = {
   e2eeFailure: boolean;
   cancelMembershipWait?: () => void;
   removeKeyStateListener?: () => void;
-  platformSessionId?: string;
-  platformCaps?: Promise<PlatformCallCapabilities>;
-  platformActive: boolean;
-  platformFlags: { microphone: boolean; playback: boolean };
-  platformDesired: { microphone: boolean; playback: boolean };
-  platformRevision: number;
-  platformUnlisten?: () => void;
-  platformEventOp?: Promise<void>;
   mediaPublished: boolean;
   cleanupPromise?: Promise<void>;
   resourcesReady: Promise<void>;
@@ -172,36 +127,6 @@ const defaultCreateRoom = (options: RoomOptions): LivekitRoomLike => new Livekit
 
 const defaultCreateWorker = (): Worker =>
   new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), { type: 'module' });
-
-const tauriPlatformBridge: LivekitJsPlatformBridge = {
-  getCapabilities: getPluginPlatformCapabilities,
-  start: startPlatformLifecycle,
-  stop: stopPlatformLifecycle,
-  onEvent: onPlatformCallEvent,
-};
-
-// Browser builds have no platform lifecycle plugin: manual media uses browser
-// getUserMedia directly and the bridge reports explicit unsupported without
-// touching Tauri invoke.
-const browserPlatformBridge: LivekitJsPlatformBridge = {
-  getCapabilities: async () => ({ supported: false, microphone: false, playback: false }),
-  start: async () => Promise.reject(new Error('platform lifecycle is unavailable in browser')),
-  stop: async () => Promise.reject(new Error('platform lifecycle is unavailable in browser')),
-  onEvent: async () => () => undefined,
-};
-
-const createDefaultPlatformBridge = (): LivekitJsPlatformBridge =>
-  isTauri() ? tauriPlatformBridge : browserPlatformBridge;
-
-let platformSessionCounter = 0;
-const defaultCreatePlatformSessionId = (): string => {
-  platformSessionCounter += 1;
-  const random =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now().toString(36)}-${platformSessionCounter.toString(36)}`;
-  return `livekit-js-platform-${random}`;
-};
 
 export function createLivekitJsController(
   dependencies: LivekitJsControllerDependencies | undefined,
@@ -222,9 +147,6 @@ export function createLivekitJsController(
   const supportsE2EE = dependencies.isE2EESupported ?? isLivekitE2EESupported;
   const getPreferredTransport = dependencies.getPreferredTransport ?? getPreferredLivekitTransport;
   const provisionToken = dependencies.provisionToken ?? provisionLivekitToken;
-  const platformBridge = dependencies.platformBridge ?? createDefaultPlatformBridge();
-  const createPlatformSessionId =
-    dependencies.createPlatformSessionId ?? defaultCreatePlatformSessionId;
   const manualMediaTest = controllerOptions.manualMediaTest === true;
 
   let state: LivekitJsControllerState = {
@@ -286,32 +208,11 @@ export function createLivekitJsController(
         }
         await current.room?.disconnect();
       };
-      const stopPlatform = async (): Promise<void> => {
-        if (current.platformEventOp) {
-          try {
-            await current.platformEventOp;
-          } catch {
-            // Event settling must not block platform stop.
-          }
-        }
-        if (current.platformActive && current.platformSessionId) {
-          try {
-            await platformBridge.stop({ sessionId: current.platformSessionId });
-          } catch {
-            // Platform stop failures never block room/provider cleanup.
-          }
-          current.platformActive = false;
-        }
-        current.platformUnlisten?.();
-        current.platformUnlisten = undefined;
-        publish({ platform: undefined });
-      };
       if (current.matrixJoinStarted) {
         await disconnectLivekitThenLeaveMatrixRTC(async () => {
           try {
             await stopRoom();
           } finally {
-            await stopPlatform();
             detachProvider();
           }
         }, current.session);
@@ -321,7 +222,6 @@ export function createLivekitJsController(
         } catch {
           // Cleanup continues even when a setup room rejects disconnect.
         } finally {
-          await stopPlatform();
           detachProvider();
         }
       }
@@ -436,142 +336,12 @@ export function createLivekitJsController(
     return record.room.localParticipant;
   };
 
-  const publishPlatform = (current: ControllerRecord, patch: Partial<LivekitJsPlatformState>) => {
-    if (record !== current) return;
-    const base: LivekitJsPlatformState = state.platform ?? {
-      active: current.platformActive,
-      focused: true,
-      route: null,
-      interrupted: false,
-      mediaReset: false,
-      failure: null,
-    };
-    publish({ platform: { ...base, ...patch } });
-  };
-
-  const getPlatformCapabilities = (
-    current: ControllerRecord
-  ): Promise<PlatformCallCapabilities> => {
-    if (!current.platformCaps) {
-      current.platformCaps = platformBridge.getCapabilities();
-    }
-    return current.platformCaps;
-  };
-
-  const applyPlatformEvent = async (
-    current: ControllerRecord,
-    event: PlatformCallEvent
-  ): Promise<void> => {
-    if (current.cancelled || event.sessionId !== current.platformSessionId) return;
-    if (event.revision <= current.platformRevision) return;
-    current.platformRevision = event.revision;
-    switch (event.type) {
-      case 'focus_changed':
-        publishPlatform(current, { focused: event.focused });
-        break;
-      case 'route_changed':
-        publishPlatform(current, { route: event.route });
-        break;
-      case 'interrupted':
-        publishPlatform(current, { interrupted: event.state === 'began' });
-        break;
-      case 'media_reset':
-        publishPlatform(current, { mediaReset: true });
-        break;
-      case 'failed': {
-        // Native code never controls tracks; JS fails the manual test safely.
-        current.platformActive = false;
-        publishPlatform(current, { active: false, failure: event.code });
-        publish({ mediaFailure: 'platform-lifecycle-failed' });
-        const participant = current.room?.localParticipant;
-        if (participant && current.mediaPublished) {
-          try {
-            await participant.setMicrophoneEnabled(false);
-            await participant.setCameraEnabled(false);
-            await participant.setScreenShareEnabled(false);
-          } catch {
-            // Disconnect cleanup unpublishes any remaining tracks.
-          }
-        }
-        break;
-      }
-      default:
-        break;
-    }
-  };
-
-  const ensurePlatformListener = async (current: ControllerRecord): Promise<void> => {
-    if (current.platformUnlisten) return;
-    const unlisten = await platformBridge.onEvent((event) => {
-      current.platformEventOp = applyPlatformEvent(current, event).finally(() => {
-        current.platformEventOp = undefined;
-      });
-    });
-    if (current.cancelled || !current.platformActive) {
-      unlisten();
-      return;
-    }
-    current.platformUnlisten = unlisten;
-  };
-
-  const ensurePlatformLifecycle = async (current: ControllerRecord): Promise<void> => {
-    let capabilities: PlatformCallCapabilities;
-    try {
-      capabilities = await getPlatformCapabilities(current);
-    } catch {
-      // A rejected capability request is not the desktop no-op case.
-      throw new LivekitJsMediaError('platform-lifecycle-failed');
-    }
-    if (
-      !capabilities ||
-      typeof capabilities.supported !== 'boolean' ||
-      typeof capabilities.microphone !== 'boolean' ||
-      typeof capabilities.playback !== 'boolean'
-    ) {
-      // A malformed capability result fails closed like a rejection.
-      throw new LivekitJsMediaError('platform-lifecycle-failed');
-    }
-    if (!capabilities.supported || current.cancelled) return;
-
-    const desired = { ...current.platformDesired };
-    if (
-      current.platformActive &&
-      current.platformFlags.microphone === desired.microphone &&
-      current.platformFlags.playback === desired.playback
-    ) {
-      return;
-    }
-
-    try {
-      if (current.platformActive && current.platformSessionId) {
-        await platformBridge.stop({ sessionId: current.platformSessionId });
-        current.platformActive = false;
-      }
-      if (!current.platformSessionId) current.platformSessionId = createPlatformSessionId();
-      await platformBridge.start({ sessionId: current.platformSessionId, ...desired });
-      current.platformFlags = desired;
-      current.platformActive = true;
-      publishPlatform(current, { active: true, failure: null });
-      await ensurePlatformListener(current);
-    } catch {
-      current.platformActive = false;
-      publishPlatform(current, { active: false });
-      throw new LivekitJsMediaError('platform-lifecycle-failed');
-    }
-  };
-
   const runMediaAction = async (
-    action: (participant: LivekitLocalParticipantLike) => Promise<unknown>,
-    platformOrder: 'platform-first' | 'platform-after' = 'platform-first'
+    action: (participant: LivekitLocalParticipantLike) => Promise<unknown>
   ): Promise<void> => {
-    let current: ControllerRecord;
     let participant: LivekitLocalParticipantLike;
     try {
       participant = requireMediaParticipant();
-      // requireMediaParticipant guarantees an active record; narrow for TS.
-      if (!record) throw new LivekitJsMediaError('room-not-active');
-      current = record;
-      if (platformOrder === 'platform-first') await ensurePlatformLifecycle(current);
     } catch (error) {
       if (error instanceof LivekitJsMediaError) publish({ mediaFailure: error.code });
       throw error;
@@ -584,14 +354,6 @@ export function createLivekitJsController(
       publish({ mediaFailure: error.code });
       throw error;
     }
-    if (platformOrder === 'platform-after') {
-      try {
-        await ensurePlatformLifecycle(current);
-      } catch (error) {
-        if (error instanceof LivekitJsMediaError) publish({ mediaFailure: error.code });
-        throw error;
-      }
-    }
     publish({ mediaFailure: null });
   };
 
@@ -600,31 +362,11 @@ export function createLivekitJsController(
       if (published && record) record.mediaPublished = true;
     });
 
-  const setMicrophoneEnabled = (enabled: boolean): Promise<void> => {
-    if (record) record.platformDesired.microphone = enabled;
-    const promise = markMediaPublished(
-      // A microphone disable must unpublish the JS track before the platform
-      // lifecycle is stopped or downgraded.
-      runMediaAction(
-        (participant) => participant.setMicrophoneEnabled(enabled),
-        enabled ? 'platform-first' : 'platform-after'
-      ),
+  const setMicrophoneEnabled = (enabled: boolean): Promise<void> =>
+    markMediaPublished(
+      runMediaAction((participant) => participant.setMicrophoneEnabled(enabled)),
       enabled
     );
-    if (enabled) return promise;
-    return promise.catch((error) => {
-      // The JS track failed to disable, so the microphone may still be
-      // live: retain the microphone platform lifecycle.
-      if (
-        record &&
-        error instanceof LivekitJsMediaError &&
-        error.code === 'media-operation-failed'
-      ) {
-        record.platformDesired.microphone = true;
-      }
-      throw error;
-    });
-  };
 
   const setCameraEnabled = (enabled: boolean): Promise<void> =>
     markMediaPublished(
@@ -695,10 +437,6 @@ export function createLivekitJsController(
       ownerLease,
       resourcesReady,
       resolveResources,
-      platformActive: false,
-      platformFlags: { microphone: false, playback: false },
-      platformDesired: { microphone: false, playback: true },
-      platformRevision: -1,
       mediaPublished: false,
     };
     record = current;

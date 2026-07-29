@@ -1,61 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
-export interface ConnectRequest {
-  connectionId: string;
-  serverUrl: string;
-  participantToken: string;
-  audio?: boolean;
-  video?: boolean;
-  screenShare?: boolean;
-}
-
-export interface DisconnectRequest {
-  connectionId: string;
-}
-
-export type ConnectionState =
-  | 'idle'
-  | 'connecting'
-  | 'connected'
-  | 'reconnecting'
-  | 'disconnecting';
-
-export type MediaKind = 'microphone' | 'camera' | 'screen_share';
-
-export interface SetMediaEnabledRequest {
-  connectionId: string;
-  kind: MediaKind;
-  enabled: boolean;
-}
-
-export interface MediaState {
-  microphone: boolean;
-  camera: boolean;
-  screenShare: boolean;
-}
-
-export interface MediaCapabilities {
-  microphone: boolean;
-  camera: boolean;
-  screenShare: boolean;
-}
-
-export interface CallState {
-  revision: number;
-  state: ConnectionState;
-  connectionId: string | null;
-  media: MediaState;
-  capabilities: MediaCapabilities;
-}
-
-export interface CallLifecycleError {
-  revision: number;
-  code: string;
-  message: string;
-  connectionId: string | null;
-}
-
 export type PlatformCallStateKind = 'idle' | 'starting' | 'active' | 'stopping';
 export type PlatformCallRoute = 'earpiece' | 'speaker' | 'wired' | 'bluetooth' | 'unknown';
 export type PlatformCallInterruption = 'began' | 'ended';
@@ -106,22 +51,6 @@ export type PlatformCallEvent = {
 } & PlatformCallEventKind;
 
 export const PLATFORM_CALL_EVENT = 'plugin:call-lifecycle://platform-event';
-
-export async function connect(request: ConnectRequest): Promise<CallState> {
-  return await invoke<CallState>('plugin:call-lifecycle|connect', { payload: request });
-}
-
-export async function disconnect(request: DisconnectRequest): Promise<CallState> {
-  return await invoke<CallState>('plugin:call-lifecycle|disconnect', { payload: request });
-}
-
-export async function setMediaEnabled(request: SetMediaEnabledRequest): Promise<CallState> {
-  return await invoke<CallState>('plugin:call-lifecycle|set_media_enabled', { payload: request });
-}
-
-export async function getState(): Promise<CallState> {
-  return await invoke<CallState>('plugin:call-lifecycle|get_state');
-}
 
 export async function getPlatformCallCapabilities(): Promise<PlatformCallCapabilities> {
   return await invoke<PlatformCallCapabilities>(

@@ -180,7 +180,6 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   enableMediaGalleries: boolean;
-  nativeCallsEnabled: boolean;
   livekitJsCallsEnabled: boolean;
   livekitJsMediaTestEnabled: boolean;
   settingsSyncEnabled: boolean;
@@ -340,7 +339,6 @@ export const defaultSettings: Settings = {
 
   enableMSC4268CMD: false,
   enableMediaGalleries: false,
-  nativeCallsEnabled: false,
   livekitJsCallsEnabled: false,
   livekitJsMediaTestEnabled: false,
 

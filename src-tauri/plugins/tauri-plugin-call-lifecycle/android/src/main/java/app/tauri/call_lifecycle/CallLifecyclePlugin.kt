@@ -13,10 +13,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import androidx.activity.result.ActivityResult
 import androidx.core.content.ContextCompat
 import app.tauri.annotation.TauriPlugin
-import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.Permission
@@ -25,44 +23,6 @@ import app.tauri.plugin.Channel
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
-import io.livekit.android.LiveKit
-import io.livekit.android.events.RoomEvent
-import io.livekit.android.room.Room
-import io.livekit.android.room.track.screencapture.ScreenCaptureParams
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
-
-@InvokeArg
-internal class ConnectArgs {
-    var operationId: String = ""
-    var connectionId: String = ""
-    var serverUrl: String = ""
-    var participantToken: String = ""
-    var audio: Boolean = false
-    var video: Boolean = false
-    var screenShare: Boolean = false
-    lateinit var channel: Channel
-}
-
-@InvokeArg
-internal class DisconnectArgs {
-    var operationId: String = ""
-    var connectionId: String = ""
-}
-
-@InvokeArg
-internal class SetMediaEnabledArgs {
-    var operationId: String = ""
-    var connectionId: String = ""
-    var kind: String = ""
-    var enabled: Boolean = false
-}
 
 @InvokeArg
 internal class PlatformLifecycleStartArgs {
@@ -77,49 +37,16 @@ internal class PlatformLifecycleStopArgs {
     var sessionId: String = ""
 }
 
-private data class PendingConnect(
-    val invoke: Invoke,
-    val args: ConnectArgs,
-    val generation: Long,
-    var settled: Boolean = false,
-)
-
-private data class PendingMedia(
-    val invoke: Invoke,
-    val args: SetMediaEnabledArgs,
-    val generation: Long,
-)
-
 @TauriPlugin(
     permissions = [
         Permission(
             strings = ["android.permission.RECORD_AUDIO"],
             alias = "microphone",
         ),
-        Permission(
-            strings = ["android.permission.CAMERA"],
-            alias = "camera",
-        ),
     ],
 )
 class CallLifecyclePlugin(private val activity: Activity) : Plugin(activity) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private var room: Room? = null
-    private var roomEvents: Job? = null
-    private var connectionJob: Job? = null
-    private var generation = 0L
-    private var activeOperationId: String? = null
-    private var activeConnectionId: String? = null
-    private var activeConnect: PendingConnect? = null
-    private var activeEvents: Channel? = null
-    private var pendingPermission: PendingConnect? = null
-    private var pendingProjection: PendingConnect? = null
-    private var pendingMediaPermission: PendingMedia? = null
-    private var pendingMediaProjection: PendingMedia? = null
-    private var projectionData: Intent? = null
     private var previousAudioMode: Int? = null
-    private var previousSpeakerphoneState: Boolean? = null
-    private val lastEventAt = mutableMapOf<String, Long>()
     private val lastPlatformEventAt = mutableMapOf<String, Long>()
     private var platformSessionId: String? = null
     private var platformRevision = 0L
@@ -138,41 +65,6 @@ class CallLifecyclePlugin(private val activity: Activity) : Plugin(activity) {
         val invoke: Invoke,
         val args: PlatformLifecycleStartArgs,
     )
-
-    @Command
-    fun connect(invoke: Invoke) {
-        val args = runCatching { invoke.parseArgs(ConnectArgs::class.java) }.getOrNull()
-        if (args == null || !args.isValid()) {
-            invoke.reject("call connection failed", "connect_failed")
-            return
-        }
-
-        if (isActive(args)) {
-            invoke.resolve(result(args))
-            return
-        }
-        if (isNativeRoomModeActive() || isPlatformLifecycleActive()) {
-            invoke.reject("call connection failed", "connect_failed")
-            return
-        }
-
-        val nextGeneration = generation + 1
-        val pending = PendingConnect(invoke, args, nextGeneration)
-        val missing = buildList {
-            if (args.audio && !hasPermission(android.Manifest.permission.RECORD_AUDIO)) {
-                add("microphone")
-            }
-            if (args.video && !hasPermission(android.Manifest.permission.CAMERA)) {
-                add("camera")
-            }
-        }
-        if (missing.isNotEmpty()) {
-            pendingPermission = pending
-            requestPermissionForAliases(missing.toTypedArray(), invoke, "permissionResult")
-            return
-        }
-        requestProjectionOrConnect(pending)
-    }
 
     @Command
     fun getPlatformLifecycleCapabilities(invoke: Invoke) {
@@ -198,10 +90,6 @@ class CallLifecyclePlugin(private val activity: Activity) : Plugin(activity) {
             return
         }
 
-        if (isNativeRoomModeActive()) {
-            invoke.reject("platform lifecycle is busy", "busy")
-            return
-        }
         if (platformSessionId != null && platformSessionId != args.sessionId) {
             invoke.reject("platform lifecycle is busy", "busy")
             return
@@ -259,315 +147,22 @@ class CallLifecyclePlugin(private val activity: Activity) : Plugin(activity) {
         invoke.resolve(platformLifecycleState())
     }
 
-    @Command
-    fun disconnect(invoke: Invoke) {
-        val args = runCatching { invoke.parseArgs(DisconnectArgs::class.java) }.getOrNull()
-        if (args == null || args.operationId.isBlank() || args.connectionId.isBlank()) {
-            invoke.reject("call shutdown failed", "close_failed")
-            return
-        }
-
-        val pending = pendingPermission ?: pendingProjection
-        if (pending != null) {
-            if (pending.args.operationId != args.operationId || pending.args.connectionId != args.connectionId) {
-                invoke.resolve()
-                return
-            }
-            pendingPermission = null
-            pendingProjection = null
-            projectionData = null
-            invoke.resolve()
-            fail(pending, "connect_failed")
-            return
-        }
-
-        if (activeOperationId != args.operationId || activeConnectionId != args.connectionId) {
-            invoke.resolve()
-            return
-        }
-
-        val closeGeneration = generation + 1
-        generation = closeGeneration
-        activeConnect?.let { fail(it, "connect_failed") }
-        connectionJob?.cancel()
-        scope.launch {
-            val closeError = closeRoom(closeGeneration, emitResult = true)
-            if (closeError) {
-                invoke.reject("call shutdown failed", "close_failed")
-            } else {
-                invoke.resolve()
-            }
-        }
-    }
-
-    @Command
-    fun setMediaEnabled(invoke: Invoke) {
-        val args = runCatching { invoke.parseArgs(SetMediaEnabledArgs::class.java) }.getOrNull()
-        val code = mediaCode(args?.kind)
-        if (args == null || args.operationId.isBlank() || args.connectionId.isBlank() || code == null) {
-            invoke.reject(errorMessage(code ?: "connect_failed"), code ?: "connect_failed")
-            return
-        }
-        if (activeOperationId != args.operationId || activeConnectionId != args.connectionId || room == null) {
-            invoke.reject(errorMessage(code), code)
-            return
-        }
-
-        val currentGeneration = generation
-        if (!args.enabled) {
-            applyMediaToggle(args, currentGeneration, null, invoke)
-            return
-        }
-
-        val missingAlias = when (args.kind) {
-            "microphone" -> if (hasPermission(android.Manifest.permission.RECORD_AUDIO)) null else "microphone"
-            "camera" -> if (hasPermission(android.Manifest.permission.CAMERA)) null else "camera"
-            else -> null
-        }
-        if (missingAlias != null) {
-            pendingMediaPermission = PendingMedia(invoke, args, currentGeneration)
-            requestPermissionForAliases(arrayOf(missingAlias), invoke, "permissionResult")
-            return
-        }
-        if (args.kind == "screen_share") {
-            pendingMediaProjection = PendingMedia(invoke, args, currentGeneration)
-            val manager = activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
-            startActivityForResult(invoke, manager.createScreenCaptureIntent(), "projectionResult")
-            return
-        }
-        applyMediaToggle(args, currentGeneration, null, invoke)
-    }
-
-    private fun applyMediaToggle(
-        args: SetMediaEnabledArgs,
-        expectedGeneration: Long,
-        projection: Intent?,
-        invoke: Invoke,
-    ) {
-        val code = mediaCode(args.kind) ?: "connect_failed"
-        scope.launch {
-            val current = room
-            if (current == null || expectedGeneration != generation) {
-                invoke.reject(errorMessage(code), code)
-                return@launch
-            }
-            val ok = try {
-                when (args.kind) {
-                    "microphone" -> current.localParticipant.setMicrophoneEnabled(args.enabled)
-                    "camera" -> current.localParticipant.setCameraEnabled(args.enabled)
-                    else -> {
-                        if (args.enabled) {
-                            val data = projection ?: throw NativeFailure("screen_share_failed")
-                            current.localParticipant.setScreenShareEnabled(true, ScreenCaptureParams(mediaProjectionPermissionResultData = data))
-                        } else {
-                            current.localParticipant.setScreenShareEnabled(false)
-                        }
-                    }
-                }
-            } catch (_: Exception) {
-                false
-            }
-            if (expectedGeneration != generation || room !== current) {
-                invoke.reject(errorMessage(code), code)
-                return@launch
-            }
-            if (ok == true) {
-                invoke.resolve(
-                    JSObject()
-                        .put("operationId", args.operationId)
-                        .put("connectionId", args.connectionId),
-                )
-            } else {
-                invoke.reject(errorMessage(code), code)
-            }
-        }
-    }
-
     @PermissionCallback
     private fun permissionResult(invoke: Invoke) {
-        run {
-            val pending = pendingPlatformStart ?: return@run
-            if (pending.invoke.id != invoke.id) return@run
-            pendingPlatformStart = null
-            if (hasPermission(android.Manifest.permission.RECORD_AUDIO)) {
-                beginPlatformLifecycle(pending.invoke, pending.args)
-            } else {
-                failPlatformStart(pending, "permission_denied")
-            }
-            return
-        }
-        run {
-            val pending = pendingMediaPermission ?: return@run
-            if (pending.invoke.id != invoke.id) return@run
-            pendingMediaPermission = null
-            val granted = when (pending.args.kind) {
-                "microphone" -> hasPermission(android.Manifest.permission.RECORD_AUDIO)
-                else -> hasPermission(android.Manifest.permission.CAMERA)
-            }
-            if (granted) {
-                applyMediaToggle(pending.args, pending.generation, null, pending.invoke)
-            } else {
-                val code = mediaCode(pending.args.kind) ?: "connect_failed"
-                pending.invoke.reject(errorMessage(code), code)
-            }
-            return
-        }
-        val pending = pendingPermission ?: return
+        val pending = pendingPlatformStart ?: return
         if (pending.invoke.id != invoke.id) return
-        pendingPermission = null
-
-        when {
-            pending.args.audio && !hasPermission(android.Manifest.permission.RECORD_AUDIO) ->
-                fail(pending, "audio_failed")
-            pending.args.video && !hasPermission(android.Manifest.permission.CAMERA) ->
-                fail(pending, "camera_failed")
-            else -> requestProjectionOrConnect(pending)
+        pendingPlatformStart = null
+        if (hasPermission(android.Manifest.permission.RECORD_AUDIO)) {
+            beginPlatformLifecycle(pending.invoke, pending.args)
+        } else {
+            failPlatformStart(pending, "permission_denied")
         }
-    }
-
-    @ActivityCallback
-    private fun projectionResult(invoke: Invoke, result: ActivityResult) {
-        run {
-            val pending = pendingMediaProjection ?: return@run
-            if (pending.invoke.id != invoke.id) return@run
-            pendingMediaProjection = null
-            if (result.resultCode != Activity.RESULT_OK || result.data == null) {
-                pending.invoke.reject(errorMessage("screen_share_failed"), "screen_share_failed")
-            } else {
-                applyMediaToggle(pending.args, pending.generation, result.data, pending.invoke)
-            }
-            return
-        }
-        val pending = pendingProjection ?: return
-        if (pending.invoke.id != invoke.id) return
-        pendingProjection = null
-        if (result.resultCode != Activity.RESULT_OK || result.data == null) {
-            fail(pending, "screen_share_failed")
-            return
-        }
-        projectionData = result.data
-        beginConnect(pending)
     }
 
     override fun onDestroy(activity: androidx.appcompat.app.AppCompatActivity) {
         pendingPlatformStart = null
         releasePlatformLifecycle()
-        roomEvents?.cancel()
-        connectionJob?.cancel()
-        val closeGeneration = generation + 1
-        generation = closeGeneration
-        scope.launch {
-            closeRoom(closeGeneration)
-            scope.cancel()
-        }
         super.onDestroy(activity)
-    }
-
-    private fun requestProjectionOrConnect(pending: PendingConnect) {
-        if (!pending.args.screenShare) {
-            beginConnect(pending)
-            return
-        }
-
-        pendingProjection = pending
-        val manager = activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
-        startActivityForResult(
-            pending.invoke,
-            manager.createScreenCaptureIntent(),
-            "projectionResult",
-        )
-    }
-
-    private fun beginConnect(pending: PendingConnect) {
-        if (pending.generation <= generation || room != null) {
-            fail(pending, "connect_failed")
-            return
-        }
-        generation = pending.generation
-        activeOperationId = pending.args.operationId
-        activeConnectionId = pending.args.connectionId
-        activeConnect = pending
-        activeEvents = pending.args.channel
-        lastEventAt.clear()
-
-        connectionJob = scope.launch {
-            try {
-                connectRoom(pending)
-                if (!isCurrent(pending.generation, room)) {
-                    fail(pending, "connect_failed")
-                    return@launch
-                }
-                resolve(pending)
-            } catch (_: StaleConnection) {
-                fail(pending, "connect_failed")
-                return@launch
-            } catch (_: CancellationException) {
-                fail(pending, "connect_failed")
-                return@launch
-            } catch (failure: NativeFailure) {
-                if (!isCurrent(pending.generation, room)) {
-                    fail(pending, "connect_failed")
-                    return@launch
-                }
-                fail(pending, failure.code)
-                closeRoom(pending.generation)
-            } catch (_: Exception) {
-                if (!isCurrent(pending.generation, room)) {
-                    fail(pending, "connect_failed")
-                    return@launch
-                }
-                fail(pending, "connect_failed")
-                closeRoom(pending.generation)
-            }
-        }
-    }
-
-    private suspend fun connectRoom(pending: PendingConnect) {
-        val args = pending.args
-        val newRoom = LiveKit.create(activity.applicationContext)
-        room = newRoom
-        roomEvents = scope.launch {
-            newRoom.events.collect { event -> handleRoomEvent(pending.generation, event) }
-        }
-
-        try {
-            newRoom.connect(args.serverUrl, args.participantToken)
-            ensureCurrent(pending.generation, newRoom)
-            if (args.audio) {
-                configureAudio()
-                if (newRoom.localParticipant.setMicrophoneEnabled(true) != true) {
-                    throw NativeFailure("audio_failed")
-                }
-                ensureCurrent(pending.generation, newRoom)
-            }
-            if (args.video) {
-                if (newRoom.localParticipant.setCameraEnabled(true) != true) {
-                    throw NativeFailure("video_failed")
-                }
-                ensureCurrent(pending.generation, newRoom)
-            }
-            if (args.screenShare) {
-                val data = projectionData ?: throw NativeFailure("screen_share_failed")
-                val options = ScreenCaptureParams(
-                    mediaProjectionPermissionResultData = data,
-                )
-                if (newRoom.localParticipant.setScreenShareEnabled(true, options) != true) {
-                    throw NativeFailure("screen_share_failed")
-                }
-                ensureCurrent(pending.generation, newRoom)
-                projectionData = null
-            }
-        } catch (failure: NativeFailure) {
-            throw failure
-        } catch (failure: StaleConnection) {
-            throw failure
-        } catch (failure: CancellationException) {
-            throw failure
-        } catch (_: SecurityException) {
-            throw NativeFailure(if (args.audio) "audio_failed" else "camera_failed")
-        } catch (_: Exception) {
-            throw NativeFailure("connect_failed")
-        }
     }
 
     private fun beginPlatformLifecycle(invoke: Invoke, args: PlatformLifecycleStartArgs) {
@@ -818,11 +413,6 @@ class CallLifecyclePlugin(private val activity: Activity) : Plugin(activity) {
     private fun hasChannel(args: PlatformLifecycleStartArgs): Boolean =
         runCatching { args.channel }.isSuccess
 
-    private fun isNativeRoomModeActive(): Boolean =
-        room != null || activeConnect != null || pendingPermission != null || pendingProjection != null
-
-    private fun isPlatformLifecycleActive(): Boolean = platformSessionId != null
-
     private fun isActivityVisible(): Boolean =
         !activity.isFinishing &&
             (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1 || !activity.isDestroyed) &&
@@ -842,138 +432,16 @@ class CallLifecyclePlugin(private val activity: Activity) : Plugin(activity) {
         if (Looper.myLooper() == Looper.getMainLooper()) update() else activity.runOnUiThread(update)
     }
 
-    private suspend fun closeRoom(closeGeneration: Long, emitResult: Boolean = false): Boolean {
-        if (closeGeneration != generation) return false
-        val current = room ?: return false
-        room = null
-        roomEvents?.cancel()
-        roomEvents = null
-        projectionData = null
-        val failed = try {
-            current.disconnect()
-            false
-        } catch (_: Exception) {
-            true
-        }
-        if (emitResult) {
-            emit(if (failed) "failed" else "disconnected", if (failed) "close_failed" else null, closeGeneration)
-        }
-        restoreAudio()
-        activeOperationId = null
-        activeConnectionId = null
-        activeConnect = null
-        activeEvents = null
-        return failed
-    }
-
-    private fun handleRoomEvent(eventGeneration: Long, event: RoomEvent) {
-        if (eventGeneration != generation) return
-        when (event) {
-            is RoomEvent.Reconnecting -> emit("reconnecting", null, eventGeneration)
-            is RoomEvent.Reconnected -> emit("reconnected", null, eventGeneration)
-            is RoomEvent.Disconnected -> {
-                emit("disconnected", null, eventGeneration)
-                scope.launch { closeRoom(eventGeneration) }
-            }
-            else -> Unit
-        }
-    }
-
-    private fun emit(type: String, code: String?, _eventGeneration: Long) {
-        val channel = activeEvents ?: return
-        val now = SystemClock.elapsedRealtime()
-        val previous = lastEventAt[type]
-        if (type != "failed" && previous != null && now - previous < EVENT_INTERVAL_MS) return
-        lastEventAt[type] = now
-        val payload = JSObject()
-            .put("operationId", activeOperationId)
-            .put("connectionId", activeConnectionId)
-            .put("event", type)
-        if (code != null) payload.put("code", code)
-        channel.send(payload)
-    }
-
-    private fun fail(pending: PendingConnect, code: String) {
-        if (pending.settled) return
-        pending.settled = true
-        val args = pending.args
-        val safeCode = if (code in ERROR_CODES) code else "connect_failed"
-        args.channel.sendObject(
-            mapOf(
-                "operationId" to args.operationId,
-                "connectionId" to args.connectionId,
-                "event" to "failed",
-                "code" to safeCode,
-            ),
-        )
-        pending.invoke.reject(errorMessage(safeCode), safeCode)
-    }
-
-    private fun resolve(pending: PendingConnect) {
-        if (pending.settled) return
-        pending.settled = true
-        pending.invoke.resolve(result(pending.args))
-    }
-
-    private fun isActive(args: ConnectArgs): Boolean =
-        room != null && activeOperationId == args.operationId && activeConnectionId == args.connectionId
-
-    private fun isCurrent(candidateGeneration: Long, candidateRoom: Room?): Boolean =
-        generation == candidateGeneration && room === candidateRoom
-
-    private fun ensureCurrent(candidateGeneration: Long, candidateRoom: Room) {
-        if (!isCurrent(candidateGeneration, candidateRoom)) throw StaleConnection()
-    }
-
-    private fun result(args: ConnectArgs): JSObject = JSObject()
-        .put("operationId", args.operationId)
-        .put("connectionId", args.connectionId)
-
     private fun hasPermission(permission: String): Boolean =
         ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
-
-    private fun configureAudio() {
-        val audioManager = activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (previousAudioMode == null) previousAudioMode = audioManager.mode
-        if (previousSpeakerphoneState == null) previousSpeakerphoneState = audioManager.isSpeakerphoneOn
-        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-        audioManager.isSpeakerphoneOn = true
-    }
 
     private fun restoreAudio() {
         val audioManager = activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         previousAudioMode?.let { audioManager.mode = it }
-        previousSpeakerphoneState?.let { audioManager.isSpeakerphoneOn = it }
         previousAudioMode = null
-        previousSpeakerphoneState = null
     }
-
-    private fun mediaCode(kind: String?): String? = when (kind) {
-        "microphone" -> "audio_failed"
-        "camera" -> "camera_failed"
-        "screen_share" -> "screen_share_failed"
-        else -> null
-    }
-
-    private fun errorMessage(code: String): String = when (code) {
-        "audio_failed" -> "native audio failed"
-        "camera_failed" -> "native camera failed"
-        "video_failed" -> "native video failed"
-        "screen_share_failed" -> "native screen share failed"
-        "close_failed" -> "call shutdown failed"
-        else -> "call connection failed"
-    }
-
-    private class NativeFailure(val code: String) : Exception()
-
-    private class StaleConnection : Exception()
-
-    private fun ConnectArgs.isValid(): Boolean =
-        operationId.isNotBlank() && connectionId.isNotBlank() && serverUrl.isNotBlank() &&
-            participantToken.isNotBlank() && runCatching { channel }.isSuccess
 
     companion object {
-        private const val EVENT_INTERVAL_MS = 1_000L
         private const val PLATFORM_EVENT_INTERVAL_MS = 1_000L
         private const val SERVICE_START_TIMEOUT_MS = 1_500L
         private const val PLATFORM_IDLE = "idle"
@@ -996,14 +464,6 @@ class CallLifecyclePlugin(private val activity: Activity) : Plugin(activity) {
             "permission_denied",
             "audio_focus_failed",
             "service_start_failed",
-        )
-        private val ERROR_CODES = setOf(
-            "connect_failed",
-            "audio_failed",
-            "camera_failed",
-            "video_failed",
-            "screen_share_failed",
-            "close_failed",
         )
     }
 }

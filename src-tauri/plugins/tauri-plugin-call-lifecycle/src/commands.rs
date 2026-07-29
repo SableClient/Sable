@@ -1,40 +1,15 @@
-use tauri::{command, AppHandle, Runtime};
+// The attribute is aliased to `tauri_command` on purpose: tauri-typegen scans
+// every .rs file under `src-tauri/` and treats a bare `#[command]` attribute as
+// a root command, which would emit unusable unprefixed root bindings for these
+// namespaced plugin commands that the guest-js API already exposes.
+use tauri::{command as tauri_command, AppHandle, Runtime};
 
 use crate::models::*;
 use crate::CallLifecycleExt;
 use crate::Result;
 
-#[command]
-pub(crate) async fn connect<R: Runtime>(
-    app: AppHandle<R>,
-    payload: ConnectRequest,
-) -> Result<CallState> {
-    app.call_lifecycle().connect(payload).await
-}
-
-#[command]
-pub(crate) async fn disconnect<R: Runtime>(
-    app: AppHandle<R>,
-    payload: DisconnectRequest,
-) -> Result<CallState> {
-    app.call_lifecycle().disconnect(payload).await
-}
-
-#[command]
-pub(crate) async fn set_media_enabled<R: Runtime>(
-    app: AppHandle<R>,
-    payload: SetMediaEnabledRequest,
-) -> Result<CallState> {
-    app.call_lifecycle().set_media_enabled(payload).await
-}
-
-#[command]
-pub(crate) async fn get_state<R: Runtime>(app: AppHandle<R>) -> Result<CallState> {
-    app.call_lifecycle().get_state().await
-}
-
 #[allow(non_snake_case)]
-#[command]
+#[tauri_command]
 pub(crate) async fn getPlatformCallCapabilities<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<PlatformCallCapabilities> {
@@ -42,7 +17,7 @@ pub(crate) async fn getPlatformCallCapabilities<R: Runtime>(
 }
 
 #[allow(non_snake_case)]
-#[command]
+#[tauri_command]
 pub(crate) async fn startPlatformCallLifecycle<R: Runtime>(
     app: AppHandle<R>,
     payload: StartPlatformCallLifecycleRequest,
@@ -53,7 +28,7 @@ pub(crate) async fn startPlatformCallLifecycle<R: Runtime>(
 }
 
 #[allow(non_snake_case)]
-#[command]
+#[tauri_command]
 pub(crate) async fn stopPlatformCallLifecycle<R: Runtime>(
     app: AppHandle<R>,
     payload: StopPlatformCallLifecycleRequest,
@@ -64,7 +39,7 @@ pub(crate) async fn stopPlatformCallLifecycle<R: Runtime>(
 }
 
 #[allow(non_snake_case)]
-#[command]
+#[tauri_command]
 pub(crate) async fn getPlatformCallState<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<PlatformCallState> {

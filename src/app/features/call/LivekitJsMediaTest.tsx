@@ -35,6 +35,7 @@ const mediaFailureMessages: Record<LivekitJsMediaFailure, string> = {
   'e2ee-key-not-ready': 'Waiting for encrypted media keys.',
   'e2ee-key-failed': 'Encrypted media setup failed.',
   'room-not-active': 'The LiveKit room is not active.',
+  'platform-lifecycle-failed': 'Mobile call media is unavailable on this device.',
   'media-operation-failed': 'The media operation failed.',
 };
 

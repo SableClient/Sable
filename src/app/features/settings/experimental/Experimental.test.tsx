@@ -26,8 +26,9 @@ vi.mock('$state/hooks/settings', () => ({
   useSetting: mockUseSetting,
 }));
 
-vi.mock('$features/call/nativeCallProbe', () => ({
-  isNativeCallProbePlatformSupported: mockPlatformSupported,
+vi.mock('$features/call/livekitJsCallProbe', () => ({
+  isCallProbePlatformSupported: mockPlatformSupported,
+  isLivekitJsCallProbeEnabled: (enabled: boolean) => enabled,
 }));
 
 vi.mock('$components/page', () => ({

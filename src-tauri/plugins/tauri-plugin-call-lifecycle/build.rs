@@ -1,8 +1,4 @@
 const COMMANDS: &[&str] = &[
-    "connect",
-    "disconnect",
-    "set_media_enabled",
-    "get_state",
     "getPlatformCallCapabilities",
     "startPlatformCallLifecycle",
     "stopPlatformCallLifecycle",

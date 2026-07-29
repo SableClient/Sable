@@ -161,6 +161,23 @@ describe('LiveKit JS manual media test', () => {
     expect(screen.queryByText(/do-not-show|secret/i)).not.toBeInTheDocument();
   });
 
+  it('maps the platform lifecycle failure to a safe bounded message', async () => {
+    const session = makeSession();
+    session.media!.setMicrophoneEnabled = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue({ code: 'platform-lifecycle-failed', message: 'raw native detail' });
+    render(
+      <LivekitJsMediaTestSurface room={session.room!} media={session.media!} onHangup={() => {}} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turn on microphone' }));
+
+    expect(
+      await screen.findByText('Mobile call media is unavailable on this device.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/raw native detail/i)).not.toBeInTheDocument();
+  });
+
   it('keeps End as the only teardown action', () => {
     const onHangup = vi.fn<() => void>();
     const session = makeSession();

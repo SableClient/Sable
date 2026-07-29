@@ -1,4 +1,4 @@
-export type CallOwnerKind = 'element' | 'native' | 'livekit-js';
+export type CallOwnerKind = 'element' | 'livekit-js';
 
 export type CallOwnerLease = {
   kind: CallOwnerKind;

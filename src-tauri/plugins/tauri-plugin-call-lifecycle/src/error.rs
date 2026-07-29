@@ -4,26 +4,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("call is already active")]
-    Busy,
-    #[error("call connection failed")]
-    ConnectFailed,
-    #[error("connection ID does not match active call")]
-    StaleConnection,
-    #[error("call shutdown failed")]
-    CloseFailed,
     #[error("call lifecycle actor unavailable")]
     ActorUnavailable,
-    #[error("native audio failed")]
-    AudioFailed,
-    #[error("native video failed")]
-    VideoFailed,
-    #[error("native camera failed")]
-    CameraFailed,
-    #[error("native screen share failed")]
-    ScreenShareFailed,
-    #[error("media kind is not supported on this platform")]
-    MediaUnsupported,
     #[error("platform call lifecycle is not supported on this platform")]
     PlatformCallUnsupported,
     #[error("platform call lifecycle is already active")]
@@ -51,16 +33,7 @@ impl Serialize for Error {
 impl Error {
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Busy => "busy",
-            Self::ConnectFailed => "connect_failed",
-            Self::StaleConnection => "stale_connection",
-            Self::CloseFailed => "close_failed",
             Self::ActorUnavailable => "actor_unavailable",
-            Self::AudioFailed => "audio_failed",
-            Self::VideoFailed => "video_failed",
-            Self::CameraFailed => "camera_failed",
-            Self::ScreenShareFailed => "screen_share_failed",
-            Self::MediaUnsupported => "media_unsupported",
             Self::PlatformCallUnsupported => "platform_call_unsupported",
             Self::PlatformCallBusy => "platform_call_busy",
             Self::PlatformCallStaleSession => "platform_call_stale_session",
@@ -71,16 +44,7 @@ impl Error {
 
     pub fn message(&self) -> &'static str {
         match self {
-            Self::Busy => "another call is active",
-            Self::ConnectFailed => "call connection failed",
-            Self::StaleConnection => "connection ID does not match active call",
-            Self::CloseFailed => "call shutdown failed",
             Self::ActorUnavailable => "call lifecycle unavailable",
-            Self::AudioFailed => "native audio failed",
-            Self::VideoFailed => "native video failed",
-            Self::CameraFailed => "native camera failed",
-            Self::ScreenShareFailed => "native screen share failed",
-            Self::MediaUnsupported => "media kind is not supported on this platform",
             Self::PlatformCallUnsupported => {
                 "platform call lifecycle is not supported on this platform"
             }
@@ -91,5 +55,35 @@ impl Error {
             Self::PlatformCallStartFailed => "platform call lifecycle failed to start",
             Self::PlatformCallStopFailed => "platform call lifecycle failed to stop",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn platform_errors_have_stable_sanitized_shapes() {
+        let error = serde_json::to_value(Error::PlatformCallStaleSession).unwrap();
+        assert_eq!(
+            error,
+            serde_json::json!({
+                "code": "platform_call_stale_session",
+                "message": "platform call session does not match the active session"
+            })
+        );
+        assert_eq!(
+            Error::PlatformCallUnsupported.code(),
+            "platform_call_unsupported"
+        );
+        assert_eq!(Error::PlatformCallBusy.code(), "platform_call_busy");
+        assert_eq!(
+            Error::PlatformCallStartFailed.message(),
+            "platform call lifecycle failed to start"
+        );
+        assert_eq!(
+            Error::PlatformCallStopFailed.code(),
+            "platform_call_stop_failed"
+        );
     }
 }

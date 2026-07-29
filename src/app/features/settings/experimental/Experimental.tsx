@@ -5,7 +5,7 @@ import { InfoCard } from '$components/info-card';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { SettingToggle } from '$components/setting-tile';
-import { isNativeCallProbePlatformSupported } from '$features/call/nativeCallProbe';
+import { isCallProbePlatformSupported } from '$features/call/livekitJsCallProbe';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
 import { MSC4274MediaGalleries } from './MSC4274MediaGalleries';
@@ -30,28 +30,6 @@ function PersonaToggle() {
   );
 }
 
-function NativeCallsToggle() {
-  const [nativeCallsEnabled, setNativeCallsEnabled] = useSetting(
-    settingsAtom,
-    'nativeCallsEnabled'
-  );
-
-  if (!isNativeCallProbePlatformSupported()) return null;
-
-  return (
-    <Box direction="Column" gap="100">
-      <Text size="L400">Native Calls</Text>
-      <SettingToggle
-        title="Try Native Calls"
-        focusId="native-calls"
-        description="Tries the experimental native call transport instead of Element Call. Disable this to use the default Element Call experience."
-        value={nativeCallsEnabled}
-        onChange={setNativeCallsEnabled}
-      />
-    </Box>
-  );
-}
-
 function LiveKitJsCallsToggle() {
   const [livekitJsCallsEnabled, setLivekitJsCallsEnabled] = useSetting(
     settingsAtom,
@@ -62,7 +40,7 @@ function LiveKitJsCallsToggle() {
     'livekitJsMediaTestEnabled'
   );
 
-  if (!isNativeCallProbePlatformSupported()) return null;
+  if (!isCallProbePlatformSupported()) return null;
 
   return (
     <Box direction="Column" gap="100">
@@ -114,7 +92,6 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
               <PersonaToggle />
-              <NativeCallsToggle />
               <LiveKitJsCallsToggle />
               <MSC4274MediaGalleries />
             </Box>

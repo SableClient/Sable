@@ -12,15 +12,6 @@ beforeEach(() => {
 });
 
 describe('mergePersistedSettings', () => {
-  it('defaults native calls to Element Call and persists the opt-in', () => {
-    expect(defaultSettings.nativeCallsEnabled).toBe(false);
-
-    localStorage.setItem('settings', JSON.stringify({ nativeCallsEnabled: true }));
-    expect(mergePersistedSettings(localStorage.getItem('settings'), {}).nativeCallsEnabled).toBe(
-      true
-    );
-  });
-
   it('defaults the LiveKit JS connection probe off and persists the opt-in', () => {
     expect(defaultSettings.livekitJsCallsEnabled).toBe(false);
 

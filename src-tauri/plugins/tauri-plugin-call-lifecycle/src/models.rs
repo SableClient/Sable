@@ -1,25 +1,4 @@
-use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConnectRequest {
-    pub connection_id: String,
-    pub server_url: String,
-    pub participant_token: SecretString,
-    #[serde(default)]
-    pub audio: bool,
-    #[serde(default)]
-    pub video: bool,
-    #[serde(default)]
-    pub screen_share: bool,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DisconnectRequest {
-    pub connection_id: String,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -146,6 +125,62 @@ impl NativePlatformCallEvent {
             _ => None,
         }
     }
+}
+
+/// The media flags forwarded to the native platform-lifecycle plugins.
+///
+/// Kept in `models.rs` (not `mobile.rs`, which only compiles on mobile
+/// targets) so the wire shape is regression-tested on the host.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NativePlatformStartFields<'a> {
+    pub session_id: &'a str,
+    pub microphone: bool,
+    pub playback: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartPlatformCallLifecycleRequest {
+    pub session_id: String,
+    pub microphone: bool,
+    pub playback: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StopPlatformCallLifecycleRequest {
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformCallCapabilities {
+    pub supported: bool,
+    pub microphone: bool,
+    pub playback: bool,
+}
+
+impl PlatformCallCapabilities {
+    pub fn current() -> Self {
+        let supported = cfg!(any(target_os = "android", target_os = "ios"));
+        Self {
+            supported,
+            microphone: supported,
+            playback: supported,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformCallState {
+    pub revision: u64,
+    pub state: PlatformCallStateKind,
+    pub session_id: Option<String>,
+    pub microphone: bool,
+    pub playback: bool,
+    pub capabilities: PlatformCallCapabilities,
 }
 
 #[cfg(test)]
@@ -318,166 +353,33 @@ mod tests {
             })
         );
     }
-}
 
-/// The media flags forwarded to the native platform-lifecycle plugins.
-///
-/// Kept in `models.rs` (not `mobile.rs`, which only compiles on mobile
-/// targets) so the wire shape is regression-tested on the host.
-#[derive(Debug, Clone, Copy, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NativePlatformStartFields<'a> {
-    pub session_id: &'a str,
-    pub microphone: bool,
-    pub playback: bool,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StartPlatformCallLifecycleRequest {
-    pub session_id: String,
-    pub microphone: bool,
-    pub playback: bool,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StopPlatformCallLifecycleRequest {
-    pub session_id: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformCallCapabilities {
-    pub supported: bool,
-    pub microphone: bool,
-    pub playback: bool,
-}
-
-impl PlatformCallCapabilities {
-    pub fn current() -> Self {
-        let supported = cfg!(any(target_os = "android", target_os = "ios"));
-        Self {
-            supported,
-            microphone: supported,
-            playback: supported,
-        }
+    #[test]
+    fn platform_contract_serializes_only_bounded_wire_values() {
+        let event = serde_json::to_value(PlatformCallEvent {
+            revision: 4,
+            session_id: "opaque-session".into(),
+            kind: PlatformCallEventKind::RouteChanged {
+                route: PlatformCallRoute::Bluetooth,
+            },
+        })
+        .unwrap();
+        assert_eq!(
+            event,
+            serde_json::json!({
+                "revision": 4,
+                "sessionId": "opaque-session",
+                "type": "route_changed",
+                "route": "bluetooth"
+            })
+        );
+        assert!(serde_json::from_value::<PlatformCallEventKind>(
+            serde_json::json!({ "type": "failed", "code": "start_failed" })
+        )
+        .is_ok());
+        assert!(serde_json::from_value::<PlatformCallEventKind>(
+            serde_json::json!({ "type": "failed", "message": "raw native error" })
+        )
+        .is_err());
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformCallState {
-    pub revision: u64,
-    pub state: PlatformCallStateKind,
-    pub session_id: Option<String>,
-    pub microphone: bool,
-    pub playback: bool,
-    pub capabilities: PlatformCallCapabilities,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MediaKind {
-    Microphone,
-    Camera,
-    ScreenShare,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SetMediaEnabledRequest {
-    pub connection_id: String,
-    pub kind: MediaKind,
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MediaState {
-    pub microphone: bool,
-    pub camera: bool,
-    pub screen_share: bool,
-}
-
-impl MediaState {
-    pub fn enabled(&self, kind: MediaKind) -> bool {
-        match kind {
-            MediaKind::Microphone => self.microphone,
-            MediaKind::Camera => self.camera,
-            MediaKind::ScreenShare => self.screen_share,
-        }
-    }
-
-    pub fn set(&mut self, kind: MediaKind, enabled: bool) {
-        match kind {
-            MediaKind::Microphone => self.microphone = enabled,
-            MediaKind::Camera => self.camera = enabled,
-            MediaKind::ScreenShare => self.screen_share = enabled,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MediaCapabilities {
-    pub microphone: bool,
-    pub camera: bool,
-    pub screen_share: bool,
-}
-
-impl MediaCapabilities {
-    pub fn current() -> Self {
-        let desktop = cfg!(any(
-            target_os = "linux",
-            target_os = "macos",
-            target_os = "windows"
-        ));
-        Self {
-            microphone: cfg!(any(
-                target_os = "linux",
-                target_os = "android",
-                target_os = "ios"
-            )),
-            camera: desktop || cfg!(any(target_os = "android", target_os = "ios")),
-            screen_share: desktop || cfg!(target_os = "android"),
-        }
-    }
-
-    pub fn supports(&self, kind: MediaKind) -> bool {
-        match kind {
-            MediaKind::Microphone => self.microphone,
-            MediaKind::Camera => self.camera,
-            MediaKind::ScreenShare => self.screen_share,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ConnectionState {
-    Idle,
-    Connecting,
-    Connected,
-    Reconnecting,
-    Disconnecting,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CallState {
-    pub revision: u64,
-    pub state: ConnectionState,
-    pub connection_id: Option<String>,
-    pub media: MediaState,
-    pub capabilities: MediaCapabilities,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CallLifecycleError {
-    pub revision: u64,
-    pub code: &'static str,
-    pub message: &'static str,
-    pub connection_id: Option<String>,
 }

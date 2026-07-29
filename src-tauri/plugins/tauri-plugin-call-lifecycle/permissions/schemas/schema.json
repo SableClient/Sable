@@ -295,30 +295,6 @@
       "type": "string",
       "oneOf": [
         {
-          "description": "Enables the connect command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-connect",
-          "markdownDescription": "Enables the connect command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the connect command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-connect",
-          "markdownDescription": "Denies the connect command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the disconnect command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-disconnect",
-          "markdownDescription": "Enables the disconnect command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the disconnect command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-disconnect",
-          "markdownDescription": "Denies the disconnect command without any pre-configured scope."
-        },
-        {
           "description": "Enables the getPlatformCallCapabilities command without any pre-configured scope.",
           "type": "string",
           "const": "allow-getPlatformCallCapabilities",
@@ -341,30 +317,6 @@
           "type": "string",
           "const": "deny-getPlatformCallState",
           "markdownDescription": "Denies the getPlatformCallState command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get_state command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-state",
-          "markdownDescription": "Enables the get_state command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get_state command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-state",
-          "markdownDescription": "Denies the get_state command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the set_media_enabled command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-set-media-enabled",
-          "markdownDescription": "Enables the set_media_enabled command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the set_media_enabled command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-set-media-enabled",
-          "markdownDescription": "Denies the set_media_enabled command without any pre-configured scope."
         },
         {
           "description": "Enables the startPlatformCallLifecycle command without any pre-configured scope.",
@@ -391,10 +343,10 @@
           "markdownDescription": "Denies the stopPlatformCallLifecycle command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-connect`\n- `allow-disconnect`\n- `allow-set-media-enabled`\n- `allow-get-state`\n- `allow-getPlatformCallCapabilities`\n- `allow-startPlatformCallLifecycle`\n- `allow-stopPlatformCallLifecycle`\n- `allow-getPlatformCallState`",
+          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-getPlatformCallCapabilities`\n- `allow-startPlatformCallLifecycle`\n- `allow-stopPlatformCallLifecycle`\n- `allow-getPlatformCallState`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-connect`\n- `allow-disconnect`\n- `allow-set-media-enabled`\n- `allow-get-state`\n- `allow-getPlatformCallCapabilities`\n- `allow-startPlatformCallLifecycle`\n- `allow-stopPlatformCallLifecycle`\n- `allow-getPlatformCallState`"
+          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-getPlatformCallCapabilities`\n- `allow-startPlatformCallLifecycle`\n- `allow-stopPlatformCallLifecycle`\n- `allow-getPlatformCallState`"
         }
       ]
     }

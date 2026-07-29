@@ -10,15 +10,6 @@
 
 import type { Channel } from '@tauri-apps/api/core';
 
-export interface ConnectRequest {
-  connectionId: string;
-  serverUrl: string;
-  participantToken: SecretString;
-  audio: boolean;
-  video: boolean;
-  screenShare: boolean;
-}
-
 export interface DesktopRuntimeState {
   trayAvailable: boolean;
 }
@@ -27,10 +18,6 @@ export interface DesktopSettings {
   closeToBackgroundOnClose: boolean;
   showSystemTrayIcon: boolean;
   useCustomTitleBar: boolean;
-}
-
-export interface DisconnectRequest {
-  connectionId: string;
 }
 
 export interface LoopbackFetchRequest {
@@ -49,9 +36,6 @@ export interface LoopbackFetchResponse {
   body: number[];
 }
 
-
-export type MediaKind = "Microphone" | "Camera" | "ScreenShare";
-
 export interface NativeUploadResponse {
   status: number;
   body: string;
@@ -60,12 +44,6 @@ export interface NativeUploadResponse {
 export interface ProgressPayload {
   loaded: number;
   total: number;
-}
-
-export interface SetMediaEnabledRequest {
-  connectionId: string;
-  kind: MediaKind;
-  enabled: boolean;
 }
 
 export interface ShareBatch {
@@ -80,16 +58,6 @@ export interface ShareItem {
   mime?: string | null;
 }
 
-export interface StartPlatformCallLifecycleRequest {
-  sessionId: string;
-  microphone: boolean;
-  playback: boolean;
-}
-
-export interface StopPlatformCallLifecycleRequest {
-  sessionId: string;
-}
-
 export interface WindowTarget {
   window_class?: string | null;
   exe_name?: string | null;
@@ -102,16 +70,6 @@ export interface AbortLoopbackFetchParams {
 
 export interface AbortNativeUploadParams {
   requestId: string;
-  [key: string]: unknown;
-}
-
-export interface ConnectParams {
-  payload: ConnectRequest;
-  [key: string]: unknown;
-}
-
-export interface DisconnectParams {
-  payload: DisconnectRequest;
   [key: string]: unknown;
 }
 
@@ -147,11 +105,6 @@ export interface PlayNotificationSoundParams {
 export interface SaveDownloadParams {
   filename: string;
   bytes: number[];
-  [key: string]: unknown;
-}
-
-export interface SetMediaEnabledParams {
-  payload: SetMediaEnabledRequest;
   [key: string]: unknown;
 }
 
@@ -203,18 +156,8 @@ export interface ShareInboxReadParams {
   [key: string]: unknown;
 }
 
-export interface StartPlatformCallLifecycleParams {
-  payload: StartPlatformCallLifecycleRequest;
-  [key: string]: unknown;
-}
-
 export interface StartWindowTrackingWithTargetParams {
   target: WindowTarget;
-  [key: string]: unknown;
-}
-
-export interface StopPlatformCallLifecycleParams {
-  payload: StopPlatformCallLifecycleRequest;
   [key: string]: unknown;
 }
 

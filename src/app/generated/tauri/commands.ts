@@ -26,37 +26,16 @@ export async function clearMediaSession(): Promise<void> {
   return invoke('clear_media_session');
 }
 
-export async function connect(params: types.ConnectParams): Promise<types.CallState> {
-  return invoke('connect', params);
-}
-
 export async function deactivateCallAudioSession(): Promise<void> {
   return invoke('deactivate_call_audio_session');
-}
-
-export async function disconnect(params: types.DisconnectParams): Promise<types.CallState> {
-  return invoke('disconnect', params);
-}
 }
 
 export async function exportDiagnostics(params: types.ExportDiagnosticsParams): Promise<string | null> {
   return invoke('export_diagnostics', params);
 }
 
-export async function getPlatformCallCapabilities(): Promise<types.PlatformCallCapabilities> {
-  return invoke('getPlatformCallCapabilities');
-}
-
-export async function getPlatformCallState(): Promise<types.PlatformCallState> {
-  return invoke('getPlatformCallState');
-}
-
 export async function getDesktopRuntimeState(): Promise<types.DesktopRuntimeState> {
   return invoke('get_desktop_runtime_state');
-}
-
-export async function getState(): Promise<types.CallState> {
-  return invoke('get_state');
 }
 
 export async function hapticFeedback(params: types.HapticFeedbackParams): Promise<void> {
@@ -85,10 +64,6 @@ export async function playNotificationSound(params: types.PlayNotificationSoundP
 
 export async function saveDownload(params: types.SaveDownloadParams): Promise<boolean> {
   return invoke('save_download', params);
-}
-
-export async function setMediaEnabled(params: types.SetMediaEnabledParams): Promise<types.CallState> {
-  return invoke('set_media_enabled', params);
 }
 
 export async function setMediaEncryption(params: types.SetMediaEncryptionParams): Promise<void> {
@@ -131,20 +106,12 @@ export async function showSnapOverlay(): Promise<void> {
   return invoke('show_snap_overlay');
 }
 
-export async function startPlatformCallLifecycle(params: types.StartPlatformCallLifecycleParams): Promise<types.PlatformCallState> {
-  return invoke('startPlatformCallLifecycle', params);
-}
-
 export async function startCallForegroundService(): Promise<void> {
   return invoke('start_call_foreground_service');
 }
 
 export async function startWindowTrackingWithTarget(params: types.StartWindowTrackingWithTargetParams): Promise<void> {
   return invoke('start_window_tracking_with_target', params);
-}
-
-export async function stopPlatformCallLifecycle(params: types.StopPlatformCallLifecycleParams): Promise<types.PlatformCallState> {
-  return invoke('stopPlatformCallLifecycle', params);
 }
 
 export async function stopCallForegroundService(): Promise<void> {

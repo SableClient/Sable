@@ -11,7 +11,6 @@ import {
   mutedCallRoomIdAtom,
   type IncomingCall,
 } from '$state/callEmbed';
-import { nativeCallAtom } from '$state/nativeCall';
 import { livekitJsCallAtom, selectActiveCallSession } from '$state/livekitJsCall';
 import { settingsAtom } from '$state/settings';
 import {
@@ -54,7 +53,6 @@ export function useIncomingCallSignaling() {
   const mx = useMatrixClient();
   const store = useStore();
   const callEmbed = useAtomValue(callEmbedAtom);
-  const nativeCall = useAtomValue(nativeCallAtom);
   const livekitJsCall = useAtomValue(livekitJsCallAtom);
   const mDirects = useAtomValue(mDirectAtom);
   const settings = useAtomValue(settingsAtom);
@@ -93,7 +91,6 @@ export function useIncomingCallSignaling() {
 
   type SignalingHandlerRefs = {
     callEmbed: typeof callEmbed;
-    nativeCall: typeof nativeCall;
     livekitJsCall: typeof livekitJsCall;
     mDirects: typeof mDirects;
     outgoingRingbackAllowed: boolean;
@@ -123,7 +120,7 @@ export function useIncomingCallSignaling() {
     hasCallBeenActiveRef.current = false;
     outgoingRingRoomIdRef.current = null;
     outgoingStartRef.current = null;
-  }, [callEmbed?.roomId, nativeCall?.connectionId, livekitJsCall?.roomId]);
+  }, [callEmbed?.roomId, livekitJsCall?.roomId]);
 
   useEffect(() => {
     ringtoneManager.syncSources(
@@ -153,7 +150,7 @@ export function useIncomingCallSignaling() {
 
   const handleOutgoingDecline = useCallback(
     (decline: OutgoingDeclineEvent) => {
-      const activeCall = selectActiveCallSession(callEmbed, nativeCall, livekitJsCall);
+      const activeCall = selectActiveCallSession(callEmbed, livekitJsCall);
       if (!activeCall || activeCall.roomId !== decline.roomId) {
         return;
       }
@@ -215,8 +212,7 @@ export function useIncomingCallSignaling() {
       stopOutgoingRing();
 
       const hangup =
-        selectActiveCallSession(callEmbed, nativeCall, livekitJsCall)?.hangup() ??
-        Promise.resolve();
+        selectActiveCallSession(callEmbed, livekitJsCall)?.hangup() ?? Promise.resolve();
       void hangup
         .catch((error) => {
           debugLog.warn('call', 'Failed to hang up after outgoing decline', {
@@ -232,7 +228,7 @@ export function useIncomingCallSignaling() {
           }, OUTGOING_DECLINE_EMBED_CLEAR_MS);
         });
     },
-    [callEmbed, livekitJsCall, mDirects, mx, nativeCall, setCallEmbed, stopOutgoingRing, store]
+    [callEmbed, livekitJsCall, mDirects, mx, setCallEmbed, stopOutgoingRing, store]
   );
 
   const callAudioAllowed = canPlayCallAudio({
@@ -291,7 +287,6 @@ export function useIncomingCallSignaling() {
 
   signalingHandlerRefs.current = {
     callEmbed,
-    nativeCall,
     livekitJsCall,
     mDirects,
     outgoingRingbackAllowed,
@@ -431,11 +426,7 @@ export function useIncomingCallSignaling() {
       if (!senderId || !eventId) return;
 
       if (senderId === myUserId) {
-        const activeCall = selectActiveCallSession(
-          handlers().callEmbed,
-          handlers().nativeCall,
-          handlers().livekitJsCall
-        );
+        const activeCall = selectActiveCallSession(handlers().callEmbed, handlers().livekitJsCall);
         if (type === RTC_NOTIFICATION_EVENT_TYPE && activeCall?.roomId === room.roomId) {
           activeOutgoingNotificationIdRef.current = eventId;
         }
@@ -451,11 +442,7 @@ export function useIncomingCallSignaling() {
 
       // Only inspect declines for the active outgoing call room. Cleartext declines are
       // cheap; encrypted events are decrypted only when they might be RTC declines.
-      const activeCall = selectActiveCallSession(
-        handlers().callEmbed,
-        handlers().nativeCall,
-        handlers().livekitJsCall
-      );
+      const activeCall = selectActiveCallSession(handlers().callEmbed, handlers().livekitJsCall);
       if (!activeCall || activeCall.roomId !== room.roomId) {
         return;
       }
@@ -517,7 +504,6 @@ export function useIncomingCallSignaling() {
     const evaluateOutgoingFallback = () => {
       const activeCallRoomId = selectActiveCallSession(
         handlers().callEmbed,
-        handlers().nativeCall,
         handlers().livekitJsCall
       )?.roomId;
 

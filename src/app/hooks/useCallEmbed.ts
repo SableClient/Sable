@@ -23,15 +23,12 @@ import type { CallPreferences } from '../state/callPreferences';
 import { createDebugLogger } from '../utils/debugLogger';
 import { useClientConfig } from './useClientConfig';
 import { callEmbedStartErrorAtom } from '$state/callEmbed';
-import { isNativeCallActive, nativeCallAtom } from '$state/nativeCall';
-import { createNativeCallController } from '$features/call/nativeCallController';
-import { isNativeCallProbeEnabled } from '$features/call/nativeCallProbe';
 import { useAutoDiscoveryInfo } from './useAutoDiscoveryInfo';
 import { useStore } from 'jotai';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { livekitJsCallAtom, isLivekitJsCallActive } from '$state/livekitJsCall';
-import { acquireCallOwner, type CallOwnerLease } from '$state/callOwner';
+import { acquireCallOwner } from '$state/callOwner';
 import { createLivekitJsController } from '$features/call/livekitJsController';
 import { isLivekitJsCallProbeEnabled } from '$features/call/livekitJsCallProbe';
 import { selectCallStartOwner } from '$features/call/callStartSelection';
@@ -85,29 +82,15 @@ export const useCallStart = (dm = false) => {
   const clientConfig = useClientConfig();
   const setCallEmbed = useSetAtom(callEmbedAtom);
   const setCallEmbedStartError = useSetAtom(callEmbedStartErrorAtom);
-  const setNativeCall = useSetAtom(nativeCallAtom);
   const callEmbedRef = useCallEmbedRef();
   const store = useStore();
-  const [nativeCallsEnabled] = useSetting(settingsAtom, 'nativeCallsEnabled');
   const [livekitJsCallsEnabled] = useSetting(settingsAtom, 'livekitJsCallsEnabled');
   const [livekitJsMediaTestEnabled] = useSetting(settingsAtom, 'livekitJsMediaTestEnabled');
   const discovery = useAutoDiscoveryInfo();
-  const nativeOwnerLeaseRef = useRef<CallOwnerLease | undefined>(undefined);
   const livekitJsRoomIdRef = useRef<string | undefined>(undefined);
   const livekitJsController = useMemo(
     () => createLivekitJsController(undefined, { manualMediaTest: livekitJsMediaTestEnabled }),
     [livekitJsMediaTestEnabled]
-  );
-  const nativeCallController = useMemo(
-    () =>
-      createNativeCallController({
-        setSession: setNativeCall,
-        onCleanup: () => {
-          nativeOwnerLeaseRef.current?.release();
-          nativeOwnerLeaseRef.current = undefined;
-        },
-      }),
-    [setNativeCall]
   );
 
   useEffect(() => {
@@ -140,15 +123,9 @@ export const useCallStart = (dm = false) => {
     (room: Room, pref?: CallPreferences) => {
       const startOwner = selectCallStartOwner({
         livekitJsProbeEnabled: isLivekitJsCallProbeEnabled(livekitJsCallsEnabled),
-        nativeProbeEnabled: isNativeCallProbeEnabled(nativeCallsEnabled),
       });
       if (startOwner === 'livekit-js') {
-        if (
-          store.get(callEmbedAtom) ||
-          isNativeCallActive(store.get(nativeCallAtom)) ||
-          isLivekitJsCallActive(store.get(livekitJsCallAtom))
-        )
-          return;
+        if (store.get(callEmbedAtom) || isLivekitJsCallActive(store.get(livekitJsCallAtom))) return;
         livekitJsRoomIdRef.current = room.roomId;
         void livekitJsController
           .connect({
@@ -158,30 +135,6 @@ export const useCallStart = (dm = false) => {
             callIntent: pref?.video ? 'video' : 'audio',
             dm,
             ongoing: mx.matrixRTC.getRoomSession(room).memberships.length > 0,
-          })
-          .catch(() => undefined);
-        return;
-      }
-      if (startOwner === 'native') {
-        if (
-          store.get(callEmbedAtom) ||
-          isNativeCallActive(store.get(nativeCallAtom)) ||
-          isLivekitJsCallActive(store.get(livekitJsCallAtom))
-        )
-          return;
-        const ownerLease = acquireCallOwner('native', room.roomId);
-        if (!ownerLease) return;
-        nativeOwnerLeaseRef.current = ownerLease;
-        const ongoing = mx.matrixRTC.getRoomSession(room).memberships.length > 0;
-        void nativeCallController
-          .start({
-            mx,
-            room,
-            discovery,
-            elementCallActive: Boolean(store.get(callEmbedAtom)),
-            dm,
-            video: pref?.video ?? false,
-            ongoing,
           })
           .catch(() => undefined);
         return;
@@ -237,8 +190,6 @@ export const useCallStart = (dm = false) => {
       setCallEmbedStartError,
       store,
       discovery,
-      nativeCallController,
-      nativeCallsEnabled,
       livekitJsCallsEnabled,
       livekitJsController,
     ]

@@ -5,14 +5,14 @@ beforeEach(() => resetCallOwnerForTests());
 
 describe('call owner guard', () => {
   it('allows one owner and rejects competing owners until release', () => {
-    const native = acquireCallOwner('native', '!room:example.org');
+    const element = acquireCallOwner('element', '!room:example.org');
 
-    expect(native).toBeDefined();
+    expect(element).toBeDefined();
     expect(acquireCallOwner('livekit-js', '!room:example.org')).toBeUndefined();
-    expect(getActiveCallOwner()).toMatchObject({ kind: 'native' });
+    expect(getActiveCallOwner()).toMatchObject({ kind: 'element' });
 
-    native?.release();
-    expect(acquireCallOwner('element', '!room:example.org')).toBeDefined();
+    element?.release();
+    expect(acquireCallOwner('livekit-js', '!room:example.org')).toBeDefined();
   });
 
   it('makes release idempotent and cannot release a replacement lease', () => {

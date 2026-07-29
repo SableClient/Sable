@@ -15,15 +15,13 @@ let package = Package(
       targets: ["tauri-plugin-call-lifecycle"])
   ],
   dependencies: [
-    .package(name: "Tauri", path: "../.tauri/tauri-api"),
-    .package(url: "https://github.com/livekit/client-sdk-swift.git", exact: "2.15.2")
+    .package(name: "Tauri", path: "../.tauri/tauri-api")
   ],
   targets: [
     .target(
       name: "tauri-plugin-call-lifecycle",
       dependencies: [
-        .byName(name: "Tauri"),
-        .product(name: "LiveKit", package: "client-sdk-swift")
+        .byName(name: "Tauri")
       ],
       path: "Sources")
   ]

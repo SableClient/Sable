@@ -6,25 +6,11 @@ use tauri::{
 pub use models::*;
 
 mod actor;
-#[cfg(target_os = "linux")]
-mod audio;
-#[cfg(target_os = "linux")]
-mod camera;
-#[cfg(target_os = "macos")]
-mod camera_macos;
-#[cfg(target_os = "windows")]
-mod camera_windows;
 mod commands;
 mod error;
 #[cfg(mobile)]
 mod mobile;
 mod models;
-#[cfg(target_os = "linux")]
-mod screen_share;
-#[cfg(target_os = "macos")]
-mod screen_share_macos;
-#[cfg(target_os = "windows")]
-mod screen_share_windows;
 
 pub use error::{Error, Result};
 
@@ -45,10 +31,6 @@ impl<R: Runtime, T: Manager<R>> crate::CallLifecycleExt<R> for T {
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("call-lifecycle")
         .invoke_handler(tauri::generate_handler![
-            commands::connect,
-            commands::disconnect,
-            commands::set_media_enabled,
-            commands::get_state,
             commands::getPlatformCallCapabilities,
             commands::startPlatformCallLifecycle,
             commands::stopPlatformCallLifecycle,

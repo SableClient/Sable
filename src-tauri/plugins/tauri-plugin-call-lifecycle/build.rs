@@ -1,4 +1,13 @@
-const COMMANDS: &[&str] = &["connect", "disconnect", "get_state"];
+const COMMANDS: &[&str] = &[
+    "connect",
+    "disconnect",
+    "set_media_enabled",
+    "get_state",
+    "getPlatformCallCapabilities",
+    "startPlatformCallLifecycle",
+    "stopPlatformCallLifecycle",
+    "getPlatformCallState",
+];
 
 fn main() {
     tauri_plugin::Builder::new(COMMANDS)

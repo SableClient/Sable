@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-startPlatformCallLifecycle"
+description = "Enables the startPlatformCallLifecycle command without any pre-configured scope."
+commands.allow = ["startPlatformCallLifecycle"]
+
+[[permission]]
+identifier = "deny-startPlatformCallLifecycle"
+description = "Denies the startPlatformCallLifecycle command without any pre-configured scope."
+commands.deny = ["startPlatformCallLifecycle"]

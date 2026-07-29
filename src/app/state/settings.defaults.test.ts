@@ -21,6 +21,24 @@ describe('mergePersistedSettings', () => {
     );
   });
 
+  it('defaults the LiveKit JS connection probe off and persists the opt-in', () => {
+    expect(defaultSettings.livekitJsCallsEnabled).toBe(false);
+
+    localStorage.setItem('settings', JSON.stringify({ livekitJsCallsEnabled: true }));
+    expect(mergePersistedSettings(localStorage.getItem('settings'), {}).livekitJsCallsEnabled).toBe(
+      true
+    );
+  });
+
+  it('defaults the LiveKit JS media test off and persists the opt-in', () => {
+    expect(defaultSettings.livekitJsMediaTestEnabled).toBe(false);
+
+    localStorage.setItem('settings', JSON.stringify({ livekitJsMediaTestEnabled: true }));
+    expect(
+      mergePersistedSettings(localStorage.getItem('settings'), {}).livekitJsMediaTestEnabled
+    ).toBe(true);
+  });
+
   it('layers deployer defaults over code defaults when localStorage is empty', () => {
     const merged = mergePersistedSettings(null, { twitterEmoji: false });
     expect(merged.twitterEmoji).toBe(false);
@@ -95,6 +113,20 @@ describe('sanitizeSettingsDefaults', () => {
     expect(sanitizeSettingsDefaults({ twitterEmoji: false })).toEqual({
       twitterEmoji: false,
     });
+  });
+
+  it('accepts the LiveKit JS connection probe setting', () => {
+    expect(sanitizeSettingsDefaults({ livekitJsCallsEnabled: true })).toEqual({
+      livekitJsCallsEnabled: true,
+    });
+    expect(sanitizeSettingsDefaults({ livekitJsCallsEnabled: 'yes' })).toEqual({});
+  });
+
+  it('accepts the LiveKit JS media test setting', () => {
+    expect(sanitizeSettingsDefaults({ livekitJsMediaTestEnabled: true })).toEqual({
+      livekitJsMediaTestEnabled: true,
+    });
+    expect(sanitizeSettingsDefaults({ livekitJsMediaTestEnabled: 'yes' })).toEqual({});
   });
 
   it('drops unknown keys', () => {

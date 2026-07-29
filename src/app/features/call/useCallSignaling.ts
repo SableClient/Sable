@@ -12,6 +12,7 @@ import {
   type IncomingCall,
 } from '$state/callEmbed';
 import { nativeCallAtom } from '$state/nativeCall';
+import { livekitJsCallAtom, selectActiveCallSession } from '$state/livekitJsCall';
 import { settingsAtom } from '$state/settings';
 import {
   parseIncomingRtcNotification,
@@ -54,6 +55,7 @@ export function useIncomingCallSignaling() {
   const store = useStore();
   const callEmbed = useAtomValue(callEmbedAtom);
   const nativeCall = useAtomValue(nativeCallAtom);
+  const livekitJsCall = useAtomValue(livekitJsCallAtom);
   const mDirects = useAtomValue(mDirectAtom);
   const settings = useAtomValue(settingsAtom);
   const incomingCall = useAtomValue(incomingCallAtom);
@@ -92,6 +94,7 @@ export function useIncomingCallSignaling() {
   type SignalingHandlerRefs = {
     callEmbed: typeof callEmbed;
     nativeCall: typeof nativeCall;
+    livekitJsCall: typeof livekitJsCall;
     mDirects: typeof mDirects;
     outgoingRingbackAllowed: boolean;
     handleIncomingCall: (incoming: IncomingCall) => void;
@@ -120,7 +123,7 @@ export function useIncomingCallSignaling() {
     hasCallBeenActiveRef.current = false;
     outgoingRingRoomIdRef.current = null;
     outgoingStartRef.current = null;
-  }, [callEmbed?.roomId, nativeCall?.connectionId]);
+  }, [callEmbed?.roomId, nativeCall?.connectionId, livekitJsCall?.roomId]);
 
   useEffect(() => {
     ringtoneManager.syncSources(
@@ -150,7 +153,7 @@ export function useIncomingCallSignaling() {
 
   const handleOutgoingDecline = useCallback(
     (decline: OutgoingDeclineEvent) => {
-      const activeCall = callEmbed ?? nativeCall;
+      const activeCall = selectActiveCallSession(callEmbed, nativeCall, livekitJsCall);
       if (!activeCall || activeCall.roomId !== decline.roomId) {
         return;
       }
@@ -211,7 +214,9 @@ export function useIncomingCallSignaling() {
       Sentry.metrics.count('sable.call.outgoing.declined', 1);
       stopOutgoingRing();
 
-      const hangup = callEmbed?.hangup() ?? nativeCall?.hangup() ?? Promise.resolve();
+      const hangup =
+        selectActiveCallSession(callEmbed, nativeCall, livekitJsCall)?.hangup() ??
+        Promise.resolve();
       void hangup
         .catch((error) => {
           debugLog.warn('call', 'Failed to hang up after outgoing decline', {
@@ -227,7 +232,7 @@ export function useIncomingCallSignaling() {
           }, OUTGOING_DECLINE_EMBED_CLEAR_MS);
         });
     },
-    [callEmbed, mDirects, mx, nativeCall, setCallEmbed, stopOutgoingRing, store]
+    [callEmbed, livekitJsCall, mDirects, mx, nativeCall, setCallEmbed, stopOutgoingRing, store]
   );
 
   const callAudioAllowed = canPlayCallAudio({
@@ -287,6 +292,7 @@ export function useIncomingCallSignaling() {
   signalingHandlerRefs.current = {
     callEmbed,
     nativeCall,
+    livekitJsCall,
     mDirects,
     outgoingRingbackAllowed,
     handleIncomingCall,
@@ -425,11 +431,12 @@ export function useIncomingCallSignaling() {
       if (!senderId || !eventId) return;
 
       if (senderId === myUserId) {
-        if (
-          type === RTC_NOTIFICATION_EVENT_TYPE &&
-          (handlers().callEmbed?.roomId === room.roomId ||
-            handlers().nativeCall?.roomId === room.roomId)
-        ) {
+        const activeCall = selectActiveCallSession(
+          handlers().callEmbed,
+          handlers().nativeCall,
+          handlers().livekitJsCall
+        );
+        if (type === RTC_NOTIFICATION_EVENT_TYPE && activeCall?.roomId === room.roomId) {
           activeOutgoingNotificationIdRef.current = eventId;
         }
         return;
@@ -444,7 +451,11 @@ export function useIncomingCallSignaling() {
 
       // Only inspect declines for the active outgoing call room. Cleartext declines are
       // cheap; encrypted events are decrypted only when they might be RTC declines.
-      const activeCall = handlers().callEmbed ?? handlers().nativeCall;
+      const activeCall = selectActiveCallSession(
+        handlers().callEmbed,
+        handlers().nativeCall,
+        handlers().livekitJsCall
+      );
       if (!activeCall || activeCall.roomId !== room.roomId) {
         return;
       }
@@ -504,8 +515,11 @@ export function useIncomingCallSignaling() {
     let outgoingRingTimeoutId: number | undefined;
 
     const evaluateOutgoingFallback = () => {
-      const activeCallRoomId =
-        handlers().callEmbed?.roomId ?? handlers().nativeCall?.roomId;
+      const activeCallRoomId = selectActiveCallSession(
+        handlers().callEmbed,
+        handlers().nativeCall,
+        handlers().livekitJsCall
+      )?.roomId;
 
       const stop = () => {
         handlers().stopOutgoingRing();

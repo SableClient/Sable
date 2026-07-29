@@ -49,6 +49,9 @@ export interface LoopbackFetchResponse {
   body: number[];
 }
 
+
+export type MediaKind = "Microphone" | "Camera" | "ScreenShare";
+
 export interface NativeUploadResponse {
   status: number;
   body: string;
@@ -57,6 +60,12 @@ export interface NativeUploadResponse {
 export interface ProgressPayload {
   loaded: number;
   total: number;
+}
+
+export interface SetMediaEnabledRequest {
+  connectionId: string;
+  kind: MediaKind;
+  enabled: boolean;
 }
 
 export interface ShareBatch {
@@ -69,6 +78,16 @@ export interface ShareItem {
   text?: string | null;
   fileName?: string | null;
   mime?: string | null;
+}
+
+export interface StartPlatformCallLifecycleRequest {
+  sessionId: string;
+  microphone: boolean;
+  playback: boolean;
+}
+
+export interface StopPlatformCallLifecycleRequest {
+  sessionId: string;
 }
 
 export interface WindowTarget {
@@ -131,6 +150,11 @@ export interface SaveDownloadParams {
   [key: string]: unknown;
 }
 
+export interface SetMediaEnabledParams {
+  payload: SetMediaEnabledRequest;
+  [key: string]: unknown;
+}
+
 export interface SetMediaEncryptionParams {
   url: string;
   key: string;
@@ -179,8 +203,18 @@ export interface ShareInboxReadParams {
   [key: string]: unknown;
 }
 
+export interface StartPlatformCallLifecycleParams {
+  payload: StartPlatformCallLifecycleRequest;
+  [key: string]: unknown;
+}
+
 export interface StartWindowTrackingWithTargetParams {
   target: WindowTarget;
+  [key: string]: unknown;
+}
+
+export interface StopPlatformCallLifecycleParams {
+  payload: StopPlatformCallLifecycleRequest;
   [key: string]: unknown;
 }
 

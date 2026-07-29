@@ -47,7 +47,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             commands::connect,
             commands::disconnect,
-            commands::get_state
+            commands::set_media_enabled,
+            commands::get_state,
+            commands::getPlatformCallCapabilities,
+            commands::startPlatformCallLifecycle,
+            commands::stopPlatformCallLifecycle,
+            commands::getPlatformCallState
         ])
         .setup(|app, api| {
             #[cfg(mobile)]

@@ -26,8 +26,8 @@ export const SidebarStack = style([
     justifyContent: 'center',
     alignItems: 'center',
     gap: config.space.S300,
-    padding: `${config.space.S300} 0`,
-    paddingBottom: config.space.S200,
+    padding: `${config.space.S300} 0 !important`,
+    paddingBottom: `${config.space.S200} !important`,
   },
 ]);
 
@@ -229,7 +229,7 @@ export const SidebarAvatar = recipe({
     },
     outlined: {
       true: {
-        border: `${config.borderWidth.B300} solid ${color.Background.ContainerLine}`,
+        border: `${config.borderWidth.B300} solid ${color.Background.ContainerLine} !important`,
       },
     },
   },

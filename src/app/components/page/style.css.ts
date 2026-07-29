@@ -37,8 +37,8 @@ export const PageNavBox = style({
 
 export const PageNavHeader = recipe({
   base: {
-    paddingRight: config.space.S200,
-    paddingLeft: config.space.S300,
+    paddingRight: `${config.space.S200} !important`,
+    paddingLeft: `${config.space.S300} !important`,
     flexShrink: 0,
     selectors: {
       'button&': {

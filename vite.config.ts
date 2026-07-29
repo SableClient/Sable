@@ -8,7 +8,6 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin';
 import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
 import inject from '@rollup/plugin-inject';
-import topLevelAwait from 'vite-plugin-top-level-await';
 import { VitePWA } from 'vite-plugin-pwa';
 import { compression, defineAlgorithm } from 'vite-plugin-compression2';
 import { constants as zlibConstants } from 'zlib';
@@ -192,12 +191,6 @@ export default defineConfig(({ command }) => {
     },
     plugins: [
       serverMatrixSdkCryptoWasm(),
-      topLevelAwait({
-        // The export name of top-level await promise for each chunk module
-        promiseExportName: '__tla',
-        // The function to generate import names of top-level await promise in each chunk module
-        promiseImportName: (i) => `__tla_${i}`,
-      }),
       viteStaticCopy(copyFiles),
       vanillaExtractPlugin({ identifiers: 'debug' }),
       wasm() as PluginOption,
@@ -301,8 +294,6 @@ export default defineConfig(({ command }) => {
       },
     },
     build: {
-      // es2022+ avoids esbuild 0.27.7 failing to downlevel destructuring when
-      // vite-plugin-top-level-await re-transpiles chunks (see vitejs/vite#22225).
       target: 'es2022',
       minify: isTauriBuild ? tauriBuildMinify : undefined,
       sourcemap: isTauriBuild ? isTauriDebug || sentryUploadEnabled : true,

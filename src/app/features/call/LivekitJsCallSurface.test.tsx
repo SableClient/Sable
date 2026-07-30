@@ -1,28 +1,12 @@
-import { type Context, type ReactNode, useContext } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { type CSSProperties, type Context, type ReactNode } from 'react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Room } from 'livekit-client';
 import { LivekitJsCallSurface } from './LivekitJsCallSurface';
 
-type LocalParticipantMock = {
-  identity: string;
-  setMicrophoneEnabled: (enabled: boolean) => Promise<void>;
-  setCameraEnabled: (enabled: boolean) => Promise<void>;
-  setScreenShareEnabled: (enabled: boolean) => Promise<void>;
-};
-
 const mocks = vi.hoisted(() => ({
   roomContext: undefined as unknown as Context<Room | undefined>,
   useConnectionState: vi.fn<() => string>(),
-  useLocalParticipant: vi.fn<
-    () => {
-      localParticipant: LocalParticipantMock;
-      isMicrophoneEnabled: boolean;
-      isCameraEnabled: boolean;
-      isScreenShareEnabled: boolean;
-    }
-  >(),
-  useParticipants: vi.fn<() => { identity: string }[]>(),
   useTracks: vi.fn<() => unknown[]>(),
 }));
 
@@ -30,61 +14,67 @@ vi.mock('@livekit/components-react', async () => {
   const { createContext } = await import('react');
   mocks.roomContext = createContext<Room | undefined>(undefined);
   return {
-    ParticipantTile: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    CarouselLayout: ({ children }: { children: ReactNode }) => (
+      <div data-testid="carousel-layout">{children}</div>
+    ),
+    ControlBar: () => <div data-testid="control-bar">LiveKit controls</div>,
+    FocusLayout: () => <div data-testid="focus-layout" />,
+    FocusLayoutContainer: ({ children }: { children: ReactNode }) => (
+      <div data-testid="focus-layout-container">{children}</div>
+    ),
+    GridLayout: ({ children }: { children: ReactNode }) => (
+      <div data-testid="grid-layout">{children}</div>
+    ),
+    ParticipantTile: () => <div data-testid="participant-tile" />,
     RoomAudioRenderer: () => <div data-testid="room-audio" />,
     RoomContext: mocks.roomContext,
-    Track: { Source: { Camera: 'camera', ScreenShare: 'screen_share' } },
     useConnectionState: mocks.useConnectionState,
-    useLocalParticipant: mocks.useLocalParticipant,
-    useParticipants: mocks.useParticipants,
     useTracks: mocks.useTracks,
-    VideoTrack: () => <div data-testid="video-track" />,
   };
 });
 
-vi.mock('$components/icons/phosphor', () => ({
-  Microphone: 'microphone',
-  MicrophoneSlash: 'microphone-slash',
-  ScreenShare: 'screen-share',
-  VideoCamera: 'video-camera',
-  VideoCameraSlash: 'video-camera-slash',
-  sizedIcon: () => null,
-}));
-
-vi.mock('$components/sequence-card', () => ({
-  SequenceCard: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
-
 vi.mock('folds', () => ({
-  Box: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  Button: ({ children, onClick }: { children: ReactNode; onClick: () => void }) => (
-    <button type="button" onClick={onClick}>
-      {children}
-    </button>
-  ),
-  color: {
-    Critical: { Main: 'red' },
-    Surface: { Container: 'white', OnContainer: 'black' },
-  },
-  config: {
-    radii: { R300: '3px', R400: '4px' },
-    space: { S100: '4px', S200: '8px', S300: '12px', S400: '16px' },
-  },
-  IconButton: ({
+  Box: ({
     children,
-    onClick,
-    disabled,
-    'aria-label': ariaLabel,
+    role,
+    style,
+    onPointerDown,
+    onPointerMove,
+    onFocusCapture,
+    'data-livekit-call-surface': callSurface,
+    'data-livekit-controls': controls,
   }: {
     children: ReactNode;
-    onClick: () => void;
-    disabled?: boolean;
-    'aria-label': string;
+    role?: string;
+    style?: CSSProperties;
+    onPointerDown?: () => void;
+    onPointerMove?: () => void;
+    onFocusCapture?: () => void;
+    'data-livekit-call-surface'?: boolean;
+    'data-livekit-controls'?: boolean;
   }) => (
-    <button type="button" aria-label={ariaLabel} onClick={onClick} disabled={disabled}>
+    <div
+      role={role}
+      style={style}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onFocusCapture={onFocusCapture}
+      data-livekit-call-surface={callSurface ? '' : undefined}
+      data-livekit-controls={controls ? '' : undefined}
+    >
       {children}
-    </button>
+    </div>
   ),
+  Button: ({ children }: { children: ReactNode }) => <button type="button">{children}</button>,
+  color: {
+    Critical: { Container: 'red', OnContainer: 'white' },
+    Surface: { OnContainer: 'white' },
+    Warning: { Container: 'yellow', OnContainer: 'black' },
+  },
+  config: {
+    radii: { R500: '5px' },
+    space: { S100: '4px', S200: '8px', S300: '12px' },
+  },
   Text: ({ children }: { children: ReactNode }) => <span>{children}</span>,
   toRem: (value: number) => `${value}px`,
 }));
@@ -94,62 +84,58 @@ const room = {} as Room;
 beforeEach(() => {
   mocks.useConnectionState.mockReset().mockReturnValue('connected');
   mocks.useTracks.mockReset().mockReturnValue([]);
-  mocks.useParticipants.mockReset().mockReturnValue([{ identity: 'local-user' }]);
-  mocks.useLocalParticipant.mockReset().mockImplementation(() => {
-    useContext(mocks.roomContext);
-    return {
-      localParticipant: {
-        identity: 'local-user',
-        setMicrophoneEnabled: vi.fn<() => Promise<void>>().mockResolvedValue(),
-        setCameraEnabled: vi.fn<() => Promise<void>>().mockResolvedValue(),
-        setScreenShareEnabled: vi.fn<() => Promise<void>>().mockResolvedValue(),
-      },
-      isMicrophoneEnabled: true,
-      isCameraEnabled: false,
-      isScreenShareEnabled: false,
-    };
-  });
 });
 
 describe('LiveKit JS call surface', () => {
-  it('renders a graceful audio-only state and persistent controls', () => {
+  it('keeps audio-only calls understandable with persistent controls', () => {
     render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
 
-    expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(screen.getByTestId('room-audio')).toBeInTheDocument();
+    expect(screen.getByTestId('grid-layout')).toBeInTheDocument();
     expect(screen.getByText('Audio call')).toBeInTheDocument();
-    expect(screen.getByText('Waiting for someone to join.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Turn off microphone' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start camera' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start screen sharing' })).toBeInTheDocument();
+    expect(screen.getByTestId('control-bar')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'End call' })).toBeInTheDocument();
   });
 
-  it('uses the LiveKit local participant for media controls', async () => {
-    const setCameraEnabled = vi.fn<() => Promise<void>>().mockResolvedValue();
-    mocks.useLocalParticipant.mockReturnValue({
-      localParticipant: {
-        identity: 'local-user',
-        setMicrophoneEnabled: vi.fn<() => Promise<void>>().mockResolvedValue(),
-        setCameraEnabled,
-        setScreenShareEnabled: vi.fn<() => Promise<void>>().mockResolvedValue(),
-      },
-      isMicrophoneEnabled: true,
-      isCameraEnabled: false,
-      isScreenShareEnabled: false,
-    });
+  it('focuses screen sharing and keeps other tracks in a carousel', () => {
+    mocks.useTracks.mockReturnValue([
+      { source: 'screen_share', publication: {} },
+      { source: 'camera', publication: {} },
+    ]);
 
     render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Start camera' }));
 
-    await waitFor(() => expect(setCameraEnabled).toHaveBeenCalledWith(true));
+    expect(screen.getByTestId('focus-layout-container')).toBeInTheDocument();
+    expect(screen.getByTestId('focus-layout')).toBeInTheDocument();
+    expect(screen.getByTestId('carousel-layout')).toBeInTheDocument();
+    expect(screen.queryByTestId('grid-layout')).not.toBeInTheDocument();
   });
 
-  it('makes a reconnecting connection obvious', () => {
+  it('shows connection loss feedback without replacing the media canvas', () => {
     mocks.useConnectionState.mockReturnValue('reconnecting');
 
     render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
 
-    expect(screen.getByText('Reconnecting')).toBeInTheDocument();
-    expect(screen.getByText('Trying to restore the call…')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Reconnecting…');
+    expect(screen.getByTestId('room-audio')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'End call' })).toBeInTheDocument();
+  });
+
+  it('removes hidden controls from hit testing and reveals them on a canvas tap', () => {
+    vi.useFakeTimers();
+    try {
+      render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+
+      const surface = screen.getByTestId('room-audio').parentElement!;
+      const controls = screen.getByTestId('control-bar').parentElement!;
+
+      act(() => vi.advanceTimersByTime(3500));
+      expect(controls).toHaveStyle({ pointerEvents: 'none' });
+
+      act(() => fireEvent.pointerDown(surface));
+      expect(controls).toHaveStyle({ pointerEvents: 'all' });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

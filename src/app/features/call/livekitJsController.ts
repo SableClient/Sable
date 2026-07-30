@@ -120,9 +120,7 @@ const defaultCreateRoom = (options: RoomOptions): LivekitRoomLike => new Livekit
 const defaultCreateWorker = (): Worker =>
   new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), { type: 'module' });
 
-export function createLivekitJsController(
-  dependencies: LivekitJsControllerDependencies = {}
-) {
+export function createLivekitJsController(dependencies: LivekitJsControllerDependencies = {}) {
   const createRoom = dependencies.createRoom ?? defaultCreateRoom;
   const createWorker = dependencies.createWorker ?? defaultCreateWorker;
   const createKeyProvider =

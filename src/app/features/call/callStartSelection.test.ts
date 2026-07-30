@@ -23,8 +23,8 @@ describe('selectCallStartOwner', () => {
   });
 
   it('keeps the Element fallback when new calls are disabled, even if native is available', () => {
-    expect(
-      selectCallStartOwner({ newCallsEnabled: false, nativeCallAvailable: true })
-    ).toBe('element');
+    expect(selectCallStartOwner({ newCallsEnabled: false, nativeCallAvailable: true })).toBe(
+      'element'
+    );
   });
 });

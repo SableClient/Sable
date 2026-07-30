@@ -319,6 +319,10 @@ export function CallView({ resizable }: CallViewProps) {
   const livekitJsCallForRoom = livekitJsCall?.roomId === room.roomId ? livekitJsCall : undefined;
   const nativeCallForRoom = nativeCall?.roomId === room.roomId ? nativeCall : undefined;
   const activeNativeCall = nativeCallForRoom?.lifecycle !== 'error' ? nativeCallForRoom : undefined;
+  const livekitJsMediaCall =
+    newCallsEnabled && livekitJsCallForRoom?.lifecycle === 'active' && livekitJsCallForRoom.room
+      ? livekitJsCallForRoom
+      : undefined;
   const currentJoined =
     !livekitJsCallForRoom && !activeNativeCall && callEmbed?.roomId === room.roomId && callJoined;
 
@@ -419,7 +423,8 @@ export function CallView({ resizable }: CallViewProps) {
           : undefined,
         borderBottom: `1px solid var(--sable-surface-container-line)`,
         zIndex: 20,
-        backgroundColor: currentJoined ? 'transparent' : undefined,
+        backgroundColor: livekitJsMediaCall ? '#090b10' : currentJoined ? 'transparent' : undefined,
+        overflow: livekitJsMediaCall ? 'hidden' : undefined,
         pointerEvents: currentJoined ? 'none' : 'all',
       }}
     >
@@ -439,12 +444,10 @@ export function CallView({ resizable }: CallViewProps) {
         !livekitJsCallForRoom &&
         !activeNativeCall &&
         nativeCallForRoom?.lifecycle !== 'error' && <CallPrescreen />}
-      {newCallsEnabled &&
-      livekitJsCallForRoom?.lifecycle === 'active' &&
-      livekitJsCallForRoom.room ? (
+      {livekitJsMediaCall ? (
         <LivekitJsCallSurface
-          room={livekitJsCallForRoom.room}
-          onHangup={() => void livekitJsCallForRoom.hangup()}
+          room={livekitJsMediaCall.room!}
+          onHangup={() => void livekitJsMediaCall.hangup()}
         />
       ) : newCallsEnabled && livekitJsCallForRoom ? (
         <LivekitJsCallProbe

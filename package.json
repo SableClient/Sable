@@ -18,7 +18,6 @@
     "tauri": "tauri",
     "tauri:cef": "node scripts/tauri.js cef",
     "tauri:wry": "node scripts/tauri.js wry",
-    "ios:frameworks": "node scripts/download-ios-frameworks.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",

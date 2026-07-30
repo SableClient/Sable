@@ -10,5 +10,9 @@
     <string>Sable needs camera access for video calls.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Sable needs microphone access for voice and video calls.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+    </array>
 </dict>
 </plist>

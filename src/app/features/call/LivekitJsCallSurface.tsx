@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Box, Button, color, config, Text, toRem } from 'folds';
 import {
   CarouselLayout,
@@ -13,11 +14,26 @@ import {
   useTracks,
 } from '@livekit/components-react';
 import { ConnectionState, Track, type Room } from 'livekit-client';
+import * as css from './LivekitJsCallSurface.css';
 
 const controlIdleDelay = 3500;
 
-function TrackTile() {
-  return <ParticipantTile style={{ minWidth: 0, minHeight: 0, overflow: 'hidden' }} />;
+function GridTile() {
+  return (
+    <ParticipantTile
+      style={{
+        position: 'relative',
+        height: '100%',
+        minWidth: 0,
+        minHeight: 0,
+        overflow: 'hidden',
+      }}
+    />
+  );
+}
+
+function CarouselTile() {
+  return <ParticipantTile style={{ position: 'relative', minWidth: 0, overflow: 'hidden' }} />;
 }
 
 function MediaLayout({ tracks }: { tracks: ReturnType<typeof useTracks> }) {
@@ -28,8 +44,7 @@ function MediaLayout({ tracks }: { tracks: ReturnType<typeof useTracks> }) {
     return (
       <FocusLayoutContainer
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) minmax(160px, 25%)',
+          display: 'flex',
           gap: config.space.S200,
           height: '100%',
           minHeight: 0,
@@ -38,15 +53,17 @@ function MediaLayout({ tracks }: { tracks: ReturnType<typeof useTracks> }) {
       >
         <FocusLayout
           trackRef={screenShare}
-          style={{ minWidth: 0, minHeight: 0, overflow: 'hidden' }}
+          style={{ position: 'relative', flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden' }}
         />
-        <CarouselLayout
-          tracks={remainingTracks}
-          orientation="vertical"
-          style={{ minWidth: 0, minHeight: 0, overflowY: 'auto' }}
-        >
-          <TrackTile />
-        </CarouselLayout>
+        {remainingTracks.length > 0 && (
+          <CarouselLayout
+            tracks={remainingTracks}
+            orientation="vertical"
+            style={{ minWidth: 0, minHeight: 0, overflowY: 'auto' }}
+          >
+            <CarouselTile />
+          </CarouselLayout>
+        )}
       </FocusLayoutContainer>
     );
   }
@@ -64,7 +81,7 @@ function MediaLayout({ tracks }: { tracks: ReturnType<typeof useTracks> }) {
         minWidth: 0,
       }}
     >
-      <TrackTile />
+      <GridTile />
     </GridLayout>
   );
 }
@@ -98,9 +115,17 @@ function ConnectionFeedback() {
 }
 
 function LivekitJsCallContent({ onHangup }: { onHangup: () => void }) {
-  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], {
-    onlySubscribed: false,
-  });
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: true },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+    ],
+    { onlySubscribed: false }
+  );
+  const localScreenShare = tracks.some(
+    (track) => track.source === Track.Source.ScreenShare && track.participant.isLocal
+  );
+  const hasVideo = tracks.some((track) => track.publication !== undefined);
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -124,23 +149,26 @@ function LivekitJsCallContent({ onHangup }: { onHangup: () => void }) {
   return (
     <Box
       data-livekit-call-surface
+      className={css.CallSurface}
+      role="region"
+      aria-label="Call"
       onPointerMove={revealControls}
       onPointerDown={revealControls}
       onFocusCapture={() => setControlsVisible(true)}
       style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
         minHeight: 0,
         overflow: 'hidden',
         background: 'var(--sable-livekit-canvas, #090b10)',
       }}
     >
       <RoomAudioRenderer />
-      <Box style={{ position: 'absolute', inset: 0 }}>
+      <Box style={{ position: 'absolute', inset: 0, padding: config.space.S200, minHeight: 0 }}>
         <MediaLayout tracks={tracks} />
       </Box>
-      {tracks.every((track) => track.publication === undefined) && (
+      {!hasVideo && (
         <Box
           alignItems="Center"
           justifyContent="Center"
@@ -157,44 +185,93 @@ function LivekitJsCallContent({ onHangup }: { onHangup: () => void }) {
         </Box>
       )}
       <ConnectionFeedback />
+      {localScreenShare && (
+        <Box
+          role="status"
+          style={{
+            position: 'absolute',
+            top: config.space.S300,
+            right: config.space.S300,
+            zIndex: 3,
+            padding: `${config.space.S100} ${config.space.S300}`,
+            borderRadius: config.radii.R500,
+            background: 'rgba(9, 11, 16, 0.72)',
+            color: color.Surface.OnContainer,
+            pointerEvents: 'none',
+          }}
+        >
+          <Text size="T200">Sharing your screen</Text>
+        </Box>
+      )}
       <Box
         data-livekit-controls
+        role="group"
+        aria-label="Call controls"
         onFocusCapture={() => setControlsVisible(true)}
         style={{
           position: 'absolute',
-          left: '50%',
-          bottom: config.space.S300,
+          left: 0,
+          right: 0,
+          bottom: 0,
           zIndex: 4,
           display: 'flex',
-          alignItems: 'center',
-          gap: config.space.S200,
-          transform: 'translateX(-50%)',
-          padding: config.space.S100,
-          borderRadius: config.radii.R500,
-          background: 'rgba(9, 11, 16, 0.86)',
+          justifyContent: 'center',
+          padding: `${config.space.S200} ${config.space.S300} calc(${config.space.S300} + env(safe-area-inset-bottom, 0px))`,
           opacity: controlsVisible ? 1 : 0,
-          transition: 'opacity 160ms ease',
-          pointerEvents: controlsVisible ? 'all' : 'none',
+          visibility: controlsVisible ? 'visible' : 'hidden',
+          transition: 'opacity 160ms ease, visibility 160ms ease',
+          pointerEvents: 'none',
         }}
       >
-        <ControlBar
-          variation="minimal"
-          controls={{ microphone: true, camera: true, screenShare: true, leave: false }}
-        />
-        <Button size="300" variant="Critical" fill="Solid" radii="Pill" onClick={onHangup}>
-          <Text as="span" size="B300">
-            End call
-          </Text>
-        </Button>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: config.space.S200,
+            padding: config.space.S100,
+            maxWidth: '100%',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: config.radii.R500,
+            background: 'rgba(9, 11, 16, 0.72)',
+            backdropFilter: 'blur(12px)',
+            pointerEvents: controlsVisible ? 'auto' : 'none',
+          }}
+        >
+          <ControlBar
+            variation="minimal"
+            controls={{ microphone: true, camera: true, screenShare: true, leave: false }}
+          />
+          <Button
+            size="300"
+            variant="Critical"
+            fill="Solid"
+            radii="Pill"
+            style={{
+              minHeight: toRem(44),
+              paddingRight: config.space.S400,
+              paddingLeft: config.space.S400,
+            }}
+            onClick={onHangup}
+          >
+            <Text as="span" size="B300">
+              End call
+            </Text>
+          </Button>
+        </div>
       </Box>
     </Box>
   );
 }
 
 export function LivekitJsCallSurface({ room, onHangup }: { room: Room; onHangup: () => void }) {
-  return (
+  const [portalTarget] = useState<HTMLElement>(
+    () => document.getElementById('portalContainer') ?? document.body
+  );
+
+  return createPortal(
     <RoomContext.Provider value={room}>
       <LivekitJsCallContent onHangup={onHangup} />
-    </RoomContext.Provider>
+    </RoomContext.Provider>,
+    portalTarget
   );
 }

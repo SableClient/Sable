@@ -423,8 +423,7 @@ export function CallView({ resizable }: CallViewProps) {
           : undefined,
         borderBottom: `1px solid var(--sable-surface-container-line)`,
         zIndex: 20,
-        backgroundColor: livekitJsMediaCall ? '#090b10' : currentJoined ? 'transparent' : undefined,
-        overflow: livekitJsMediaCall ? 'hidden' : undefined,
+        backgroundColor: currentJoined ? 'transparent' : undefined,
         pointerEvents: currentJoined ? 'none' : 'all',
       }}
     >

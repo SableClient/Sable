@@ -1,12 +1,13 @@
 export type CallStartOwner = 'livekit-mobile' | 'livekit-js' | 'element';
 
 export const selectCallStartOwner = ({
-  livekitJsProbeEnabled,
+  newCallsEnabled,
   nativeCallAvailable = false,
 }: {
-  livekitJsProbeEnabled: boolean;
+  newCallsEnabled: boolean;
   nativeCallAvailable?: boolean;
 }): CallStartOwner => {
+  if (!newCallsEnabled) return 'element';
   if (nativeCallAvailable) return 'livekit-mobile';
-  return livekitJsProbeEnabled ? 'livekit-js' : 'element';
+  return 'livekit-js';
 };

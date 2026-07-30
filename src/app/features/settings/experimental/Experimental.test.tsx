@@ -4,13 +4,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Experimental } from './Experimental';
 
-const { mockSetLiveKitJsCallsEnabled, mockSetLiveKitJsMediaTestEnabled, mockUseSetting } =
-  vi.hoisted(() => ({
-    mockSetLiveKitJsCallsEnabled: vi.fn<(value: boolean) => void>(),
-    mockSetLiveKitJsMediaTestEnabled: vi.fn<(value: boolean) => void>(),
-    mockUseSetting:
-      vi.fn<(_atom: unknown, key: string) => readonly [boolean, (value: boolean) => void]>(),
-  }));
+const { mockSetNewCallsEnabled, mockUseSetting } = vi.hoisted(() => ({
+  mockSetNewCallsEnabled: vi.fn<(value: boolean) => void>(),
+  mockUseSetting:
+    vi.fn<(_atom: unknown, key: string) => readonly [boolean, (value: boolean) => void]>(),
+}));
 
 vi.mock('$state/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof SettingsModule>();
@@ -65,67 +63,32 @@ vi.mock('folds', () => ({
 }));
 
 beforeEach(() => {
-  mockSetLiveKitJsCallsEnabled.mockReset();
-  mockSetLiveKitJsMediaTestEnabled.mockReset();
+  mockSetNewCallsEnabled.mockReset();
   mockUseSetting.mockImplementation((_atom: unknown, key: string) => {
-    if (key === 'livekitJsCallsEnabled') return [false, mockSetLiveKitJsCallsEnabled];
-    if (key === 'livekitJsMediaTestEnabled') return [false, mockSetLiveKitJsMediaTestEnabled];
+    if (key === 'newCallsEnabled') return [false, mockSetNewCallsEnabled];
     return [false, vi.fn<() => void>()];
   });
 });
 
-describe('Experimental LiveKit JS calls setting', () => {
-  it('shows the connection probe toggle on Tauri and plain browser builds', () => {
+describe('Experimental new calls setting', () => {
+  it('shows one new calls toggle', () => {
     render(<Experimental requestClose={() => {}} />);
 
-    expect(screen.getByText('LiveKit JS Calls')).toBeInTheDocument();
-    expect(screen.getByText('Try the LiveKit JS connection probe')).toBeInTheDocument();
+    expect(screen.getByText('New calls')).toBeInTheDocument();
+    expect(screen.getByText('Enable new calls')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Runs an experimental LiveKit JS connection probe. It does not publish media. Element Call remains the normal fallback.'
+        'Uses LiveKit JS on web and desktop, and native LiveKit on supported mobile devices. Element Call remains the fallback.'
       )
     ).toBeInTheDocument();
+    expect(screen.queryByText(/manual media|connection probe/i)).not.toBeInTheDocument();
   });
 
   it('persists the opt-in through the settings hook', () => {
     render(<Experimental requestClose={() => {}} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'livekit-js-calls' }));
+    fireEvent.click(screen.getByRole('button', { name: 'new-calls' }));
 
-    expect(mockSetLiveKitJsCallsEnabled).toHaveBeenCalledWith(true);
-  });
-
-  it('shows the manual media test only when the connection probe is enabled', () => {
-    const { rerender } = render(<Experimental requestClose={() => {}} />);
-
-    expect(screen.queryByText('Enable the manual LiveKit JS media test')).not.toBeInTheDocument();
-
-    mockUseSetting.mockImplementation((_atom: unknown, key: string) => {
-      if (key === 'livekitJsCallsEnabled') return [true, mockSetLiveKitJsCallsEnabled];
-      if (key === 'livekitJsMediaTestEnabled') return [false, mockSetLiveKitJsMediaTestEnabled];
-      return [false, vi.fn<() => void>()];
-    });
-    rerender(<Experimental requestClose={() => {}} />);
-
-    expect(screen.getByText('Enable the manual LiveKit JS media test')).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'Manual local media test only. Encrypted media is required. There is no fallback or automatic call selection. This is not release-ready.'
-      )
-    ).toBeInTheDocument();
-  });
-
-  it('persists the manual media test opt-in through the settings hook', () => {
-    mockUseSetting.mockImplementation((_atom: unknown, key: string) => {
-      if (key === 'livekitJsCallsEnabled') return [true, mockSetLiveKitJsCallsEnabled];
-      if (key === 'livekitJsMediaTestEnabled') return [false, mockSetLiveKitJsMediaTestEnabled];
-      return [false, vi.fn<() => void>()];
-    });
-
-    render(<Experimental requestClose={() => {}} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'livekit-js-media-test' }));
-
-    expect(mockSetLiveKitJsMediaTestEnabled).toHaveBeenCalledWith(true);
+    expect(mockSetNewCallsEnabled).toHaveBeenCalledWith(true);
   });
 });

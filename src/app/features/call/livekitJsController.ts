@@ -74,20 +74,12 @@ type LivekitRoomLike = Pick<LivekitRoom, 'connect' | 'disconnect'> & {
   localParticipant?: LivekitLocalParticipantLike;
 };
 
-type ManualMediaMethods = LivekitJsMediaFacade;
-
 type LivekitJsControllerBase = {
   connect: (options: LivekitJsConnectOptions) => Promise<void>;
   disconnect: () => Promise<void>;
   getState: () => Readonly<LivekitJsControllerState>;
   subscribe: (listener: LivekitJsControllerStateListener) => () => void;
-};
-
-type LivekitJsManualController = LivekitJsControllerBase & ManualMediaMethods;
-
-export type LivekitJsControllerOptions = {
-  manualMediaTest?: boolean;
-};
+} & LivekitJsMediaFacade;
 
 export type LivekitJsControllerDependencies = {
   createRoom?: (options: RoomOptions) => LivekitRoomLike;
@@ -129,16 +121,7 @@ const defaultCreateWorker = (): Worker =>
   new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), { type: 'module' });
 
 export function createLivekitJsController(
-  dependencies: LivekitJsControllerDependencies | undefined,
-  options: { manualMediaTest: true }
-): LivekitJsManualController;
-export function createLivekitJsController(
-  dependencies?: LivekitJsControllerDependencies,
-  options?: LivekitJsControllerOptions
-): LivekitJsControllerBase;
-export function createLivekitJsController(
-  dependencies: LivekitJsControllerDependencies = {},
-  controllerOptions: LivekitJsControllerOptions = {}
+  dependencies: LivekitJsControllerDependencies = {}
 ) {
   const createRoom = dependencies.createRoom ?? defaultCreateRoom;
   const createWorker = dependencies.createWorker ?? defaultCreateWorker;
@@ -147,7 +130,6 @@ export function createLivekitJsController(
   const supportsE2EE = dependencies.isE2EESupported ?? isLivekitE2EESupported;
   const getPreferredTransport = dependencies.getPreferredTransport ?? getPreferredLivekitTransport;
   const provisionToken = dependencies.provisionToken ?? provisionLivekitToken;
-  const manualMediaTest = controllerOptions.manualMediaTest === true;
 
   let state: LivekitJsControllerState = {
     lifecycle: 'idle',
@@ -310,19 +292,16 @@ export function createLivekitJsController(
         lifecycle: 'active',
         failure: null,
         room: current.room as LivekitRoom,
-        media: manualMediaTest
-          ? {
-              setMicrophoneEnabled,
-              setCameraEnabled,
-              setScreenShareEnabled,
-            }
-          : undefined,
+        media: {
+          setMicrophoneEnabled,
+          setCameraEnabled,
+          setScreenShareEnabled,
+        },
       });
     }
   };
 
   const requireMediaParticipant = (): LivekitLocalParticipantLike => {
-    if (!manualMediaTest) throw new LivekitJsMediaError('media-test-disabled');
     if (!supportsE2EE()) throw new LivekitJsMediaError('e2ee-unsupported');
     if (state.lifecycle !== 'active' || !record?.room?.localParticipant) {
       throw new LivekitJsMediaError('room-not-active');
@@ -469,6 +448,9 @@ export function createLivekitJsController(
   const controller: LivekitJsControllerBase = {
     connect,
     disconnect,
+    setMicrophoneEnabled,
+    setCameraEnabled,
+    setScreenShareEnabled,
     getState: (): Readonly<LivekitJsControllerState> => ({
       ...state,
       e2ee: { ...state.e2ee },
@@ -480,11 +462,5 @@ export function createLivekitJsController(
     },
   };
 
-  if (!manualMediaTest) return controller;
-  return {
-    ...controller,
-    setMicrophoneEnabled,
-    setCameraEnabled,
-    setScreenShareEnabled,
-  };
+  return controller;
 }

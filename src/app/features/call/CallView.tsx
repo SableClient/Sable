@@ -17,9 +17,9 @@ import type { LivekitJsCallSession } from '$state/livekitJsCall';
 import { livekitJsCallAtom } from '$state/livekitJsCall';
 import type { NativeCallSession } from '$state/nativeCall';
 import { nativeCallAtom } from '$state/nativeCall';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, type Settings } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { canRenderLivekitJsMediaTest, LivekitJsMediaTestSurface } from './LivekitJsMediaTest';
+import { LivekitJsCallSurface } from './LivekitJsCallSurface';
 import { MicrophoneButton, VideoButton } from './Controls';
 import { setNativeCallCameraEnabled, setNativeCallMicrophoneEnabled } from './livekitMobileBridge';
 
@@ -310,7 +310,11 @@ export function CallView({ resizable }: CallViewProps) {
   const callJoined = useCallJoined(callEmbed);
   const livekitJsCall = useAtomValue(livekitJsCallAtom);
   const nativeCall = useAtomValue(nativeCallAtom);
-  const [livekitJsMediaTestEnabled] = useSetting(settingsAtom, 'livekitJsMediaTestEnabled');
+  // The setting is added by the settings task alongside this UI change.
+  const [newCallsEnabled] = useSetting(settingsAtom, 'newCallsEnabled' as keyof Settings) as [
+    boolean,
+    (value: boolean) => void,
+  ];
 
   const livekitJsCallForRoom = livekitJsCall?.roomId === room.roomId ? livekitJsCall : undefined;
   const nativeCallForRoom = nativeCall?.roomId === room.roomId ? nativeCall : undefined;
@@ -435,13 +439,14 @@ export function CallView({ resizable }: CallViewProps) {
         !livekitJsCallForRoom &&
         !activeNativeCall &&
         nativeCallForRoom?.lifecycle !== 'error' && <CallPrescreen />}
-      {canRenderLivekitJsMediaTest(livekitJsMediaTestEnabled, livekitJsCallForRoom) ? (
-        <LivekitJsMediaTestSurface
+      {newCallsEnabled &&
+      livekitJsCallForRoom?.lifecycle === 'active' &&
+      livekitJsCallForRoom.room ? (
+        <LivekitJsCallSurface
           room={livekitJsCallForRoom.room}
-          media={livekitJsCallForRoom.media}
           onHangup={() => void livekitJsCallForRoom.hangup()}
         />
-      ) : livekitJsCallForRoom ? (
+      ) : newCallsEnabled && livekitJsCallForRoom ? (
         <LivekitJsCallProbe
           session={livekitJsCallForRoom}
           onHangup={() => void livekitJsCallForRoom.hangup()}

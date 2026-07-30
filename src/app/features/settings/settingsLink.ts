@@ -234,8 +234,7 @@ export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly s
     'bandwidth-saving-emojis',
     'sharehistory-command',
     'show-personas-tab',
-    'livekit-js-calls',
-    'livekit-js-media-test',
+    'new-calls',
     'media-galleries',
   ],
   about: [

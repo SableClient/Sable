@@ -2,23 +2,29 @@ import { describe, expect, it } from 'vitest';
 import { selectCallStartOwner } from './callStartSelection';
 
 describe('selectCallStartOwner', () => {
-  it('selects the native transport when available, even with the LiveKit JS probe enabled', () => {
-    expect(selectCallStartOwner({ livekitJsProbeEnabled: true, nativeCallAvailable: true })).toBe(
+  it('selects the native transport when available, even over LiveKit JS', () => {
+    expect(selectCallStartOwner({ newCallsEnabled: true, nativeCallAvailable: true })).toBe(
       'livekit-mobile'
     );
   });
 
   it('retains LiveKit JS when the native transport is unavailable', () => {
-    expect(selectCallStartOwner({ livekitJsProbeEnabled: true, nativeCallAvailable: false })).toBe(
+    expect(selectCallStartOwner({ newCallsEnabled: true, nativeCallAvailable: false })).toBe(
       'livekit-js'
     );
   });
 
-  it('selects the LiveKit JS probe when enabled', () => {
-    expect(selectCallStartOwner({ livekitJsProbeEnabled: true })).toBe('livekit-js');
+  it('selects LiveKit JS when new calls are enabled', () => {
+    expect(selectCallStartOwner({ newCallsEnabled: true })).toBe('livekit-js');
   });
 
-  it('falls back to Element Call when the probe is disabled and native is unavailable', () => {
-    expect(selectCallStartOwner({ livekitJsProbeEnabled: false })).toBe('element');
+  it('falls back to Element Call when new calls are disabled', () => {
+    expect(selectCallStartOwner({ newCallsEnabled: false })).toBe('element');
+  });
+
+  it('keeps the Element fallback when new calls are disabled, even if native is available', () => {
+    expect(
+      selectCallStartOwner({ newCallsEnabled: false, nativeCallAvailable: true })
+    ).toBe('element');
   });
 });

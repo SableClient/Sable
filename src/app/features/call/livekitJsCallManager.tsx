@@ -6,8 +6,6 @@ import { createLivekitJsController } from './livekitJsController';
 import { isLivekitJsCallActive, livekitJsCallAtom } from '$state/livekitJsCall';
 import { callEmbedAtom } from '$state/callEmbed';
 import { isNativeCallActive, nativeCallAtom } from '$state/nativeCall';
-import { settingsAtom } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 
@@ -36,14 +34,12 @@ type LivekitJsCallManagerProviderProps = {
  * Provider-level owner of the single LiveKit JS call controller. Mounted with
  * CallEmbedProvider so transient consumers (prescreen, room header, auto-join)
  * never own or disconnect the controller themselves. Owns: creation,
- * subscription -> livekitJsCallAtom, settings-driven deliberate replacement
- * (manual media test toggle), and provider-unmount disconnect.
+ * subscription -> livekitJsCallAtom, and provider-unmount disconnect.
  */
 export function LivekitJsCallManagerProvider({ children }: LivekitJsCallManagerProviderProps) {
   const mx = useMatrixClient();
   const discovery = useAutoDiscoveryInfo();
   const store = useStore();
-  const [manualMediaTest] = useSetting(settingsAtom, 'livekitJsMediaTestEnabled');
   const roomIdRef = useRef<string | undefined>(undefined);
   const controllerRef = useRef<LivekitJsController | undefined>(undefined);
   const generationRef = useRef(0);
@@ -53,8 +49,8 @@ export function LivekitJsCallManagerProvider({ children }: LivekitJsCallManagerP
   // current controller before the provider's own subscription effect runs.
   const controller = useMemo(() => {
     generationRef.current += 1;
-    return createLivekitJsController(undefined, { manualMediaTest });
-  }, [manualMediaTest]);
+    return createLivekitJsController();
+  }, []);
   const generation = generationRef.current;
   if (controllerRef.current !== controller) controllerRef.current = controller;
 

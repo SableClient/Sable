@@ -247,7 +247,7 @@ describe('livekit JS controller', () => {
     expect(mediaParticipant.setCameraEnabled).not.toHaveBeenCalled();
     expect(mediaParticipant.setScreenShareEnabled).not.toHaveBeenCalled();
     expect(controller.getState().room).toBe(livekitRoom);
-    expect(controller.getState().media).toBeUndefined();
+    expect(controller.getState().media).toBeDefined();
     expect(controller.getState().lifecycle).toBe('active');
   });
 
@@ -411,7 +411,7 @@ describe('livekit JS controller', () => {
     expect(controller.getState().lifecycle).toBe('idle');
   });
 
-  it('does not expose media publication methods', () => {
+  it('exposes media publication methods', () => {
     const session = makeSession();
     const { dependencies } = makeDependencies(session, []);
     const controller = createLivekitJsController(dependencies);
@@ -420,15 +420,14 @@ describe('livekit JS controller', () => {
       'connect',
       'disconnect',
       'getState',
+      'setCameraEnabled',
+      'setMicrophoneEnabled',
+      'setScreenShareEnabled',
       'subscribe',
     ]);
-    expect('publishTrack' in controller).toBe(false);
-    expect('setMicrophoneEnabled' in controller).toBe(false);
-    expect('setCameraEnabled' in controller).toBe(false);
-    expect('setScreenShareEnabled' in controller).toBe(false);
   });
 
-  it('disconnects the old mode before replacing it with a manual-media controller', async () => {
+  it('disconnects the previous controller before a replacement connects', async () => {
     const firstSession = makeSession();
     const first = makeDependencies(firstSession, []);
     const firstController = createLivekitJsController(first.dependencies);
@@ -436,9 +435,7 @@ describe('livekit JS controller', () => {
 
     const replacementSession = makeSession();
     const replacement = makeDependencies(replacementSession, [], makeProvider({ ready: true }));
-    const replacementController = createLivekitJsController(replacement.dependencies, {
-      manualMediaTest: true,
-    });
+    const replacementController = createLivekitJsController(replacement.dependencies);
 
     await firstController.disconnect();
     expect(firstController.getState().room).toBeUndefined();
@@ -447,7 +444,7 @@ describe('livekit JS controller', () => {
     expect(replacementController.getState().media).toBeDefined();
   });
 
-  it('publishes media only through the explicit manual-media-test controller', async () => {
+  it('publishes media through the controller media facade', async () => {
     const session = makeSession();
     const provider = makeProvider({
       ready: true,
@@ -455,7 +452,7 @@ describe('livekit JS controller', () => {
       keyIndex: 1,
     });
     const { dependencies, mediaParticipant, livekitRoom } = makeDependencies(session, [], provider);
-    const controller = createLivekitJsController(dependencies, { manualMediaTest: true });
+    const controller = createLivekitJsController(dependencies);
 
     await connectToActive(controller, session);
     await controller.setMicrophoneEnabled(true);
@@ -469,11 +466,11 @@ describe('livekit JS controller', () => {
     expect(controller.getState().media?.setMicrophoneEnabled).toBeDefined();
   });
 
-  it('refuses manual media when the local key is not ready or has failed', async () => {
+  it('refuses media when the local key is not ready or has failed', async () => {
     const session = makeSession();
     const provider = makeProvider();
     const { dependencies } = makeDependencies(session, [], provider);
-    const controller = createLivekitJsController(dependencies, { manualMediaTest: true });
+    const controller = createLivekitJsController(dependencies);
 
     await connectToActive(controller, session);
     await expect(controller.setMicrophoneEnabled(true)).rejects.toMatchObject({
@@ -486,11 +483,11 @@ describe('livekit JS controller', () => {
     });
   });
 
-  it('refuses manual media when runtime E2EE support is unavailable', async () => {
+  it('refuses media when runtime E2EE support is unavailable', async () => {
     const session = makeSession();
     const { dependencies } = makeDependencies(session, []);
     dependencies.isE2EESupported = () => false;
-    const controller = createLivekitJsController(dependencies, { manualMediaTest: true });
+    const controller = createLivekitJsController(dependencies);
 
     await expect(controller.setScreenShareEnabled(true)).rejects.toMatchObject({
       code: 'e2ee-unsupported',
@@ -505,7 +502,7 @@ describe('livekit JS controller', () => {
       keyIndex: 1,
     });
     const { dependencies, mediaParticipant } = makeDependencies(session, [], provider);
-    const controller = createLivekitJsController(dependencies, { manualMediaTest: true });
+    const controller = createLivekitJsController(dependencies);
     await connectToActive(controller, session);
     await controller.setMicrophoneEnabled(true);
     expect(controller.getState().mediaFailure).toBeNull();

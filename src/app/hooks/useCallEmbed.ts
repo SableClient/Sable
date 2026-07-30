@@ -18,7 +18,6 @@ import { callEmbedStartErrorAtom } from '$state/callEmbed';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { acquireCallOwner } from '$state/callOwner';
-import { isLivekitJsCallProbeEnabled } from '$features/call/livekitJsCallProbe';
 import { selectCallStartOwner } from '$features/call/callStartSelection';
 import { useLivekitJsCallManager } from '$features/call/livekitJsCallManager';
 import { getNativeCallAvailability } from '$features/call/nativeCallProbe';
@@ -77,24 +76,24 @@ export const useCallStart = (dm = false) => {
   const callEmbedRef = useCallEmbedRef();
   const store = useStore();
   const discovery = useAutoDiscoveryInfo();
-  const [livekitJsCallsEnabled] = useSetting(settingsAtom, 'livekitJsCallsEnabled');
+  const [newCallsEnabled] = useSetting(settingsAtom, 'newCallsEnabled');
   const livekitJsCallManager = useLivekitJsCallManager();
   const [nativeCallAvailable, setNativeCallAvailable] = useState(false);
 
   useEffect(() => {
     let active = true;
-    void getNativeCallAvailability().then((available) => {
+    void getNativeCallAvailability(newCallsEnabled).then((available) => {
       if (active) setNativeCallAvailable(available);
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [newCallsEnabled]);
 
   const startCall = useCallback(
     (room: Room, pref?: CallPreferences) => {
       const startOwner = selectCallStartOwner({
-        livekitJsProbeEnabled: isLivekitJsCallProbeEnabled(livekitJsCallsEnabled),
+        newCallsEnabled,
         nativeCallAvailable,
       });
       if (startOwner === 'livekit-mobile') {
@@ -159,7 +158,7 @@ export const useCallStart = (dm = false) => {
       discovery,
       clientConfig.elementCallUrl,
       setCallEmbedStartError,
-      livekitJsCallsEnabled,
+      newCallsEnabled,
       livekitJsCallManager,
       nativeCallAvailable,
     ]

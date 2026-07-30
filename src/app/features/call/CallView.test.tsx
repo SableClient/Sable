@@ -70,7 +70,7 @@ describe('native new-call surface', () => {
   });
 
   it('gives failed calls an explicit dismiss route', () => {
-    const onHangup = vi.fn();
+    const onHangup = vi.fn<() => void>();
     render(
       <NativeCallSurface
         session={{ ...nativeSession('error'), error: 'Native call connection failed.' }}

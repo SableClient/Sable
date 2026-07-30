@@ -2,7 +2,7 @@ import { Box, Text, Scroll } from 'folds';
 import { menuIcon, Warning } from '$components/icons/phosphor';
 import { PageContent, SettingsSectionPage } from '$components/page';
 import { InfoCard } from '$components/info-card';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, type Settings } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { SettingToggle } from '$components/setting-tile';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
@@ -29,35 +29,23 @@ function PersonaToggle() {
   );
 }
 
-function LiveKitJsCallsToggle() {
-  const [livekitJsCallsEnabled, setLivekitJsCallsEnabled] = useSetting(
+function NewCallsToggle() {
+  // The setting is added by the settings task alongside this UI change.
+  const [newCallsEnabled, setNewCallsEnabled] = useSetting(
     settingsAtom,
-    'livekitJsCallsEnabled'
-  );
-  const [livekitJsMediaTestEnabled, setLivekitJsMediaTestEnabled] = useSetting(
-    settingsAtom,
-    'livekitJsMediaTestEnabled'
-  );
+    'newCallsEnabled' as keyof Settings
+  ) as [boolean, (value: boolean) => void];
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">LiveKit JS Calls</Text>
+      <Text size="L400">New calls</Text>
       <SettingToggle
-        title="Try the LiveKit JS connection probe"
-        focusId="livekit-js-calls"
-        description="Runs an experimental LiveKit JS connection probe. It does not publish media. Element Call remains the normal fallback."
-        value={livekitJsCallsEnabled}
-        onChange={setLivekitJsCallsEnabled}
+        title="Enable new calls"
+        focusId="new-calls"
+        description="Uses LiveKit JS on web and desktop, and native LiveKit on supported mobile devices. Element Call remains the fallback."
+        value={newCallsEnabled}
+        onChange={setNewCallsEnabled}
       />
-      {livekitJsCallsEnabled && (
-        <SettingToggle
-          title="Enable the manual LiveKit JS media test"
-          focusId="livekit-js-media-test"
-          description="Manual local media test only. Encrypted media is required. There is no fallback or automatic call selection. This is not release-ready."
-          value={livekitJsMediaTestEnabled}
-          onChange={setLivekitJsMediaTestEnabled}
-        />
-      )}
     </Box>
   );
 }
@@ -89,7 +77,7 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
               <PersonaToggle />
-              <LiveKitJsCallsToggle />
+              <NewCallsToggle />
               <MSC4274MediaGalleries />
             </Box>
           </PageContent>

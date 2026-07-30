@@ -7,7 +7,7 @@ import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { MatrixClientProvider } from '$hooks/useMatrixClient';
 import { AutoDiscoveryInfoProvider } from '$hooks/useAutoDiscoveryInfo';
 import { CallEmbedRefContextProvider } from '$hooks/useCallEmbed';
-import { getSettings, settingsAtom } from '$state/settings';
+import { getSettings, settingsAtom, type Settings } from '$state/settings';
 import { livekitJsCallAtom } from '$state/livekitJsCall';
 import { nativeCallAtom, type NativeCallSession } from '$state/nativeCall';
 import {
@@ -100,9 +100,7 @@ type Harness = {
   Consumer: () => null;
 };
 
-const createHarness = (
-  settingsOverrides: { livekitJsCallsEnabled?: boolean; livekitJsMediaTestEnabled?: boolean } = {}
-): Harness => {
+const createHarness = (settingsOverrides: Partial<Settings> = {}): Harness => {
   const store = createStore();
   store.set(settingsAtom, { ...getSettings(), ...settingsOverrides });
   const controllers: FakeController[] = [];
@@ -197,7 +195,7 @@ describe('LivekitJsCallManagerProvider', () => {
   });
 
   it('child passive effect (auto-join) can start on initial mount', () => {
-    const harness = createHarness({ livekitJsCallsEnabled: true });
+    const harness = createHarness({ newCallsEnabled: true });
     const AutoJoinChild = (): null => {
       const manager = useLivekitJsCallManager();
       useEffect(() => {
@@ -217,57 +215,6 @@ describe('LivekitJsCallManagerProvider', () => {
     expect(controller.connect.mock.calls[0]![0]).toMatchObject({ room, callIntent: 'audio' });
   });
 
-  it('stale disconnect completion does not clear a replacement session', async () => {
-    const harness = createHarness({ livekitJsMediaTestEnabled: false });
-    let resolveOldDisconnect: (() => void) | undefined;
-    createControllerMock.mockImplementationOnce(() => {
-      const controller = {
-        ...makeFakeController(),
-        disconnect: vi.fn<() => Promise<void>>(
-          () =>
-            new Promise<void>((resolve) => {
-              resolveOldDisconnect = resolve;
-            })
-        ),
-      };
-      harness.controllers.push(controller);
-      return controller;
-    });
-    const view = render(
-      <harness.wrapper>
-        <harness.Consumer />
-      </harness.wrapper>
-    );
-    const oldController = harness.controllers[0]!;
-    act(() => {
-      currentManager(harness).start({ room, video: false });
-    });
-
-    // Deliberate replacement via manual media toggle while old disconnect pends.
-    act(() => {
-      harness.store.set(settingsAtom, { ...getSettings(), livekitJsMediaTestEnabled: true });
-    });
-    const newController = harness.controllers[1]!;
-    expect(newController).toBeDefined();
-    expect(oldController.disconnect).toHaveBeenCalledTimes(1);
-
-    // New controller starts and publishes before the old disconnect resolves.
-    act(() => {
-      currentManager(harness).start({ room, video: false });
-      newController.emit({ lifecycle: 'active', room: {} as never });
-    });
-    expect(harness.store.get(livekitJsCallAtom)?.lifecycle).toBe('active');
-
-    await act(async () => {
-      resolveOldDisconnect!();
-      await Promise.resolve();
-    });
-
-    expect(harness.store.get(livekitJsCallAtom)?.lifecycle).toBe('active');
-    expect(harness.store.get(livekitJsCallAtom)?.roomId).toBe(room.roomId);
-    view.unmount();
-  });
-
   it('provider unmount disconnects exactly once', async () => {
     const harness = createHarness();
     const view = render(<harness.wrapper>{undefined}</harness.wrapper>);
@@ -282,26 +229,8 @@ describe('LivekitJsCallManagerProvider', () => {
     expect(harness.store.get(livekitJsCallAtom)).toBeUndefined();
   });
 
-  it('manual media setting change deliberately replaces the controller', async () => {
-    const harness = createHarness({ livekitJsMediaTestEnabled: false });
-    render(<harness.wrapper>{undefined}</harness.wrapper>);
-    expect(harness.controllers).toHaveLength(1);
-    const first = harness.controllers[0]!;
-    expect(createControllerMock.mock.calls[0]![1]).toEqual({ manualMediaTest: false });
-
-    act(() => {
-      harness.store.set(settingsAtom, { ...getSettings(), livekitJsMediaTestEnabled: true });
-    });
-
-    await waitFor(() => {
-      expect(first.disconnect).toHaveBeenCalledTimes(1);
-      expect(harness.controllers).toHaveLength(2);
-    });
-    expect(createControllerMock.mock.calls[1]![1]).toEqual({ manualMediaTest: true });
-  });
-
   it('multiple consumers share one controller for one call', () => {
-    const harness = createHarness({ livekitJsCallsEnabled: true });
+    const harness = createHarness({ newCallsEnabled: true });
     render(
       <harness.wrapper>
         <harness.Consumer />

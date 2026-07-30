@@ -107,8 +107,6 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: {{apple.bundle-version-short}}
         CFBundleVersion: "{{apple.bundle-version}}"
-        NSMicrophoneUsageDescription: Sable needs microphone access for voice and video calls.
-        NSCameraUsageDescription: Sable needs camera access for video calls.
         UIBackgroundModes: [audio]
         NSPhotoLibraryAddUsageDescription: Sable saves images you download to your photo library.
         # Mirrors plugins.deep-link in tauri.conf.json: the plugin only patches

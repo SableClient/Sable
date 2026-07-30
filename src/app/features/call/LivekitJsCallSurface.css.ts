@@ -188,8 +188,20 @@ globalStyle(`${surface} .lk-button:focus-visible`, {
   outlineOffset: 2,
 });
 
-globalStyle(`${surface} .lk-button[aria-pressed='false']`, {
+globalStyle(`${surface} .lk-button[aria-pressed='false']:not(.lk-button-menu)`, {
   background: 'rgba(204, 74, 74, 0.45)',
+});
+
+// MediaDeviceMenu renders an empty button and relies on the stylesheet for its
+// affordance, so draw the caret here.
+globalStyle(`${surface} .lk-button-menu::after`, {
+  content: '""',
+  width: 0,
+  height: 0,
+  borderLeft: '4px solid transparent',
+  borderRight: '4px solid transparent',
+  borderTop: '5px solid currentColor',
+  opacity: 0.8,
 });
 
 globalStyle(`${surface} .lk-button:disabled`, {

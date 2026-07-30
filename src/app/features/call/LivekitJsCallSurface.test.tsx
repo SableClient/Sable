@@ -82,9 +82,9 @@ vi.mock('$hooks/useCall', () => ({
   ],
 }));
 vi.mock('./LivekitCallParticipant', () => ({
-  useCallParticipantProfile: (identity: string, map: Map<string, string>) => ({
+  useCallParticipantProfile: (identity: string, isLocal: boolean, map: Map<string, string>) => ({
     userId: map.get(identity),
-    name: map.get(identity) ?? 'Unknown participant',
+    name: map.get(identity) ?? (isLocal ? '@me:example.org' : 'Unknown participant'),
   }),
   CallParticipantAvatar: ({ profile }: { profile: { name: string } }) => (
     <div data-testid="participant-avatar" data-name={profile.name} />

@@ -21,6 +21,7 @@ import {
   VideoTrack,
 } from '@livekit/components-react';
 import { ConnectionState, Track, type Participant, type Room } from 'livekit-client';
+import { SpeakerHigh, sizedIcon } from '$components/icons/phosphor';
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useRoom } from '$hooks/useRoom';
 import type { LivekitJsCallMedia } from '$state/livekitJsCall';
@@ -46,7 +47,11 @@ const trackOptions = { onlySubscribed: false };
 function CallTileContent({ userIdByIdentity }: { userIdByIdentity: UserIdByRtcIdentity }) {
   const trackRef = useEnsureTrackRef();
   const { participant, publication, source } = trackRef;
-  const profile = useCallParticipantProfile(participant.identity, userIdByIdentity);
+  const profile = useCallParticipantProfile(
+    participant.identity,
+    participant.isLocal,
+    userIdByIdentity
+  );
   const isScreenShare = source === Track.Source.ScreenShare;
 
   return (
@@ -107,7 +112,12 @@ function AudioCallParticipant({
   participant: Participant;
   userIdByIdentity: UserIdByRtcIdentity;
 }) {
-  const profile = useCallParticipantProfile(participant.identity, userIdByIdentity, 192);
+  const profile = useCallParticipantProfile(
+    participant.identity,
+    participant.isLocal,
+    userIdByIdentity,
+    192
+  );
   const speaking = useIsSpeaking(participant);
 
   return (
@@ -133,7 +143,7 @@ function AudioCallLayout({ userIdByIdentity }: { userIdByIdentity: UserIdByRtcId
       justifyContent="Center"
       direction="Column"
       gap="500"
-      style={{ height: '100%' }}
+      style={{ width: '100%', height: '100%' }}
     >
       <Text size="L400" style={{ color: color.Surface.OnContainer, opacity: 0.7 }}>
         Audio call
@@ -423,7 +433,9 @@ function LivekitJsCallContent({
                 controls={{ leave: false }}
                 onDeviceError={handleDeviceError}
               />
-              <MediaDeviceMenu kind="audiooutput" aria-label="Select speaker" />
+              <MediaDeviceMenu kind="audiooutput" aria-label="Select speaker">
+                {sizedIcon(SpeakerHigh, '300')}
+              </MediaDeviceMenu>
             </>
           ) : (
             <Text size="T200" style={{ padding: `0 ${config.space.S200}` }}>

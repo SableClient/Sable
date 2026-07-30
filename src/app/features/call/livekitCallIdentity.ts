@@ -3,13 +3,19 @@ import type { CallMembership } from '$types/matrix-sdk';
 /** Maps a LiveKit participant identity to the Matrix user behind it. */
 export type UserIdByRtcIdentity = ReadonlyMap<string, string>;
 
-// `rtcBackendIdentity` is an anonymised SHA-256 of the user/device/member
-// triple, so the session memberships are the only place both halves are known.
+// The SFU decides what a LiveKit participant identity looks like: the
+// anonymised SHA-256 for sticky-event RTC memberships, or `user:device` on the
+// legacy path. Index every candidate so either shape resolves.
 export const buildRtcIdentityMap = (members: CallMembership[]): UserIdByRtcIdentity => {
   const identities = new Map<string, string>();
   members.forEach((member) => {
-    const { userId } = member;
-    if (userId) identities.set(member.rtcBackendIdentity, userId);
+    const { userId, deviceId } = member;
+    if (!userId) return;
+    [member.rtcBackendIdentity, member.memberId, deviceId && `${userId}:${deviceId}`].forEach(
+      (candidate) => {
+        if (candidate) identities.set(candidate, userId);
+      }
+    );
   });
   return identities;
 };

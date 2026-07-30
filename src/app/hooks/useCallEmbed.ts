@@ -78,37 +78,46 @@ export const useCallStart = (dm = false) => {
   const discovery = useAutoDiscoveryInfo();
   const [newCallsEnabled] = useSetting(settingsAtom, 'newCallsEnabled');
   const livekitJsCallManager = useLivekitJsCallManager();
-  const [nativeCallAvailable, setNativeCallAvailable] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    void getNativeCallAvailability(newCallsEnabled).then((available) => {
-      if (active) setNativeCallAvailable(available);
-    });
-    return () => {
-      active = false;
-    };
-  }, [newCallsEnabled]);
 
   const startCall = useCallback(
     (room: Room, pref?: CallPreferences) => {
-      const startOwner = selectCallStartOwner({
-        newCallsEnabled,
-        nativeCallAvailable,
-      });
-      if (startOwner === 'livekit-mobile') {
-        getNativeCallManager(store).start({ mx, room, discovery, dm, video: pref?.video });
-        return;
-      }
-      if (startOwner === 'livekit-js') {
+      if (newCallsEnabled) {
         if (!livekitJsCallManager) {
           throw new Error('LiveKit JS call manager is not provided!');
         }
-        livekitJsCallManager.start({ room, dm, video: pref?.video });
+        // Resolved rather than cached in state so the first tap cannot race the
+        // native capability probe and fall through to the JS backend.
+        void getNativeCallAvailability(true).then((nativeCallAvailable) => {
+          if (selectCallStartOwner({ newCallsEnabled, nativeCallAvailable }) === 'livekit-mobile') {
+            getNativeCallManager(store).start({
+              mx,
+              room,
+              discovery,
+              dm,
+              video: pref?.video,
+              microphone: pref?.microphone,
+            });
+            return;
+          }
+          livekitJsCallManager.start({
+            room,
+            dm,
+            video: pref?.video,
+            microphone: pref?.microphone,
+            sound: pref?.sound,
+            audioDeviceId: pref?.audioDeviceId,
+            videoDeviceId: pref?.videoDeviceId,
+          });
+        });
         return;
       }
       const ownerLease = acquireCallOwner('element', room.roomId);
-      if (!ownerLease) return;
+      if (!ownerLease) {
+        debugLog.warn('call', 'Failed to start call — another call is already active', {
+          roomId: room.roomId,
+        });
+        return;
+      }
       const container = callEmbedRef.current;
       if (!container) {
         ownerLease.release();
@@ -160,7 +169,6 @@ export const useCallStart = (dm = false) => {
       setCallEmbedStartError,
       newCallsEnabled,
       livekitJsCallManager,
-      nativeCallAvailable,
     ]
   );
 

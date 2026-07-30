@@ -3,7 +3,7 @@ import type { Room } from '$types/matrix-sdk';
 import { EventType } from '$types/matrix-sdk';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { useAtomValue } from 'jotai';
-import { livekitJsCallAtom } from '$state/livekitJsCall';
+import { isLivekitJsCallActive, livekitJsCallAtom } from '$state/livekitJsCall';
 import { isNativeCallActive, nativeCallAtom } from '$state/nativeCall';
 import { useLivekitSupport } from '$hooks/useLivekitSupport';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -24,8 +24,11 @@ export const useCallStartCapabilities = (room: Room): CallStartCapabilities => {
   const rtcSupported = webRTCSupported();
   const myUserId = mx.getSafeUserId();
   const [updateCount, forceUpdate] = useForceUpdate();
-  // A terminal native error session stays in the atom for display, but it is
-  // not an active call and must not block starting a (later) call.
+  // Terminal sessions stay in their atom for display, but they are not active
+  // calls and must not block starting a later one.
+  const activeLivekitJsRoomId = isLivekitJsCallActive(livekitJsCall)
+    ? livekitJsCall?.roomId
+    : undefined;
   const activeNativeCallRoomId = isNativeCallActive(nativeCall) ? nativeCall?.roomId : undefined;
 
   useStateEventCallback(
@@ -50,7 +53,7 @@ export const useCallStartCapabilities = (room: Room): CallStartCapabilities => {
     return evaluateCallStartCapabilities({
       room,
       myUserId,
-      activeCallRoomId: callEmbed?.roomId ?? livekitJsCall?.roomId ?? activeNativeCallRoomId,
+      activeCallRoomId: callEmbed?.roomId ?? activeLivekitJsRoomId ?? activeNativeCallRoomId,
       livekitSupported,
       rtcSupported,
     });
@@ -58,7 +61,7 @@ export const useCallStartCapabilities = (room: Room): CallStartCapabilities => {
     room,
     myUserId,
     callEmbed?.roomId,
-    livekitJsCall?.roomId,
+    activeLivekitJsRoomId,
     activeNativeCallRoomId,
     livekitSupported,
     rtcSupported,

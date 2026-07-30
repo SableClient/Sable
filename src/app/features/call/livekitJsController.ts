@@ -24,39 +24,16 @@ export type LivekitJsControllerLifecycle =
 
 export type LivekitJsControllerFailure = 'e2ee-unsupported' | 'e2ee-import-failed' | 'setup-failed';
 
-export type LivekitJsMediaFailure =
-  | 'media-test-disabled'
-  | 'e2ee-unsupported'
-  | 'e2ee-key-not-ready'
-  | 'e2ee-key-failed'
-  | 'room-not-active'
-  | 'media-operation-failed';
-
-export class LivekitJsMediaError extends Error {
-  public constructor(public readonly code: LivekitJsMediaFailure) {
-    super(`LiveKit JS media test refused: ${code}`);
-    this.name = 'LivekitJsMediaError';
-  }
-}
-
-export type LivekitJsMediaFacade = {
-  setMicrophoneEnabled: (enabled: boolean) => Promise<void>;
-  setCameraEnabled: (enabled: boolean) => Promise<void>;
-  setScreenShareEnabled: (enabled: boolean) => Promise<void>;
-};
-
 export type LivekitJsControllerState = {
   lifecycle: LivekitJsControllerLifecycle;
   failure: LivekitJsControllerFailure | null;
-  mediaFailure: LivekitJsMediaFailure | null;
   room?: LivekitRoom;
-  media?: LivekitJsMediaFacade;
   e2ee: Readonly<LivekitMatrixKeyProviderState>;
 };
 
-export type LivekitJsControllerStateListener = (state: Readonly<LivekitJsControllerState>) => void;
+type LivekitJsControllerStateListener = (state: Readonly<LivekitJsControllerState>) => void;
 
-export type LivekitJsConnectOptions = {
+type LivekitJsConnectOptions = {
   mx: MatrixClient;
   room: MatrixRoom;
   discovery?: Pick<AutoDiscoveryInfo, 'org.matrix.msc4143.rtc_foci'>;
@@ -65,21 +42,14 @@ export type LivekitJsConnectOptions = {
   ongoing?: boolean;
 };
 
-type LivekitLocalParticipantLike = Pick<
-  LivekitRoom['localParticipant'],
-  'setMicrophoneEnabled' | 'setCameraEnabled' | 'setScreenShareEnabled'
->;
-
-type LivekitRoomLike = Pick<LivekitRoom, 'connect' | 'disconnect'> & {
-  localParticipant?: LivekitLocalParticipantLike;
-};
+type LivekitRoomLike = Pick<LivekitRoom, 'connect' | 'disconnect'>;
 
 type LivekitJsControllerBase = {
   connect: (options: LivekitJsConnectOptions) => Promise<void>;
   disconnect: () => Promise<void>;
   getState: () => Readonly<LivekitJsControllerState>;
   subscribe: (listener: LivekitJsControllerStateListener) => () => void;
-} & LivekitJsMediaFacade;
+};
 
 export type LivekitJsControllerDependencies = {
   createRoom?: (options: RoomOptions) => LivekitRoomLike;
@@ -102,7 +72,6 @@ type ControllerRecord = {
   e2eeFailure: boolean;
   cancelMembershipWait?: () => void;
   removeKeyStateListener?: () => void;
-  mediaPublished: boolean;
   cleanupPromise?: Promise<void>;
   resourcesReady: Promise<void>;
   resolveResources: () => void;
@@ -118,7 +87,9 @@ const initialE2EEState: LivekitMatrixKeyProviderState = {
 const defaultCreateRoom = (options: RoomOptions): LivekitRoomLike => new LivekitRoom(options);
 
 const defaultCreateWorker = (): Worker =>
-  new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), { type: 'module' });
+  new Worker(new URL('livekit-client/e2ee-worker', import.meta.url), {
+    type: 'module',
+  });
 
 export function createLivekitJsController(dependencies: LivekitJsControllerDependencies = {}) {
   const createRoom = dependencies.createRoom ?? defaultCreateRoom;
@@ -132,9 +103,7 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
   let state: LivekitJsControllerState = {
     lifecycle: 'idle',
     failure: null,
-    mediaFailure: null,
     room: undefined,
-    media: undefined,
     e2ee: initialE2EEState,
   };
   let record: ControllerRecord | undefined;
@@ -177,15 +146,6 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
     current.cleanupPromise = (async () => {
       if (!current.room && !current.worker) await current.resourcesReady;
       const stopRoom = async (): Promise<void> => {
-        if (current.mediaPublished && current.room?.localParticipant) {
-          try {
-            await current.room.localParticipant.setMicrophoneEnabled(false);
-            await current.room.localParticipant.setCameraEnabled(false);
-            await current.room.localParticipant.setScreenShareEnabled(false);
-          } catch {
-            // Best-effort unpublish; disconnect clears any remaining tracks.
-          }
-        }
         await current.room?.disconnect();
       };
       if (current.matrixJoinStarted) {
@@ -213,9 +173,7 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
       publish({
         lifecycle: result,
         failure,
-        mediaFailure: result === 'idle' ? null : state.mediaFailure,
         room: undefined,
-        media: undefined,
         ...(result === 'idle' ? { e2ee: initialE2EEState } : {}),
       });
     })();
@@ -246,7 +204,9 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
             callIntent: connectOptions.callIntent ?? 'audio',
             ...(connectOptions.ongoing
               ? {}
-              : { notificationType: connectOptions.dm ? 'ring' : 'notification' }),
+              : {
+                  notificationType: connectOptions.dm ? 'ring' : 'notification',
+                }),
             manageMediaKeys: true,
             isCancelled: () => current.cancelled,
             onStage: (stage) => publish({ lifecycle: stage }),
@@ -290,81 +250,16 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
         lifecycle: 'active',
         failure: null,
         room: current.room as LivekitRoom,
-        media: {
-          setMicrophoneEnabled,
-          setCameraEnabled,
-          setScreenShareEnabled,
-        },
       });
     }
   };
-
-  const requireMediaParticipant = (): LivekitLocalParticipantLike => {
-    if (!supportsE2EE()) throw new LivekitJsMediaError('e2ee-unsupported');
-    if (state.lifecycle !== 'active' || !record?.room?.localParticipant) {
-      throw new LivekitJsMediaError('room-not-active');
-    }
-
-    const keyState = record.provider.getKeyState();
-    if (keyState.lastImportFailure) throw new LivekitJsMediaError('e2ee-key-failed');
-    if (!keyState.ready || !keyState.localOutboundIdentity) {
-      throw new LivekitJsMediaError('e2ee-key-not-ready');
-    }
-    return record.room.localParticipant;
-  };
-
-  const runMediaAction = async (
-    action: (participant: LivekitLocalParticipantLike) => Promise<unknown>
-  ): Promise<void> => {
-    let participant: LivekitLocalParticipantLike;
-    try {
-      participant = requireMediaParticipant();
-    } catch (error) {
-      if (error instanceof LivekitJsMediaError) publish({ mediaFailure: error.code });
-      throw error;
-    }
-
-    try {
-      await action(participant);
-    } catch {
-      const error = new LivekitJsMediaError('media-operation-failed');
-      publish({ mediaFailure: error.code });
-      throw error;
-    }
-    publish({ mediaFailure: null });
-  };
-
-  const markMediaPublished = (promise: Promise<void>, published: boolean): Promise<void> =>
-    promise.then(() => {
-      if (published && record) record.mediaPublished = true;
-    });
-
-  const setMicrophoneEnabled = (enabled: boolean): Promise<void> =>
-    markMediaPublished(
-      runMediaAction((participant) => participant.setMicrophoneEnabled(enabled)),
-      enabled
-    );
-
-  const setCameraEnabled = (enabled: boolean): Promise<void> =>
-    markMediaPublished(
-      runMediaAction((participant) => participant.setCameraEnabled(enabled)),
-      enabled
-    );
-
-  const setScreenShareEnabled = (enabled: boolean): Promise<void> =>
-    markMediaPublished(
-      runMediaAction((participant) => participant.setScreenShareEnabled(enabled)),
-      enabled
-    );
 
   const connect = (connectOptions: LivekitJsConnectOptions): Promise<void> => {
     if (state.lifecycle === 'failed' && !record && !operation) {
       publish({
         lifecycle: 'idle',
         failure: null,
-        mediaFailure: null,
         room: undefined,
-        media: undefined,
         e2ee: initialE2EEState,
       });
     }
@@ -377,9 +272,7 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
       publish({
         lifecycle: 'failed',
         failure: 'setup-failed',
-        mediaFailure: null,
         room: undefined,
-        media: undefined,
       });
       return Promise.resolve();
     }
@@ -398,9 +291,7 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
       publish({
         lifecycle: 'failed',
         failure: 'setup-failed',
-        mediaFailure: null,
         room: undefined,
-        media: undefined,
       });
       return Promise.resolve();
     }
@@ -414,7 +305,6 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
       ownerLease,
       resourcesReady,
       resolveResources,
-      mediaPublished: false,
     };
     record = current;
     current.removeKeyStateListener = current.provider.subscribe((e2ee) => {
@@ -435,7 +325,7 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
   const disconnect = async (): Promise<void> => {
     if (!record) {
       if (state.lifecycle === 'failed') {
-        publish({ lifecycle: 'idle', failure: null, mediaFailure: null });
+        publish({ lifecycle: 'idle', failure: null });
       }
       return;
     }
@@ -446,9 +336,6 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
   const controller: LivekitJsControllerBase = {
     connect,
     disconnect,
-    setMicrophoneEnabled,
-    setCameraEnabled,
-    setScreenShareEnabled,
     getState: (): Readonly<LivekitJsControllerState> => ({
       ...state,
       e2ee: { ...state.e2ee },

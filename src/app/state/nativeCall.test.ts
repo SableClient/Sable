@@ -13,6 +13,8 @@ const makeNativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCal
   lifecycle,
   microphoneEnabled: true,
   cameraEnabled: false,
+  setMicrophoneEnabled: async () => {},
+  setCameraEnabled: async () => {},
   hangup: async () => undefined,
 });
 
@@ -20,6 +22,8 @@ const livekitSession: LivekitJsCallSession = {
   roomId: '!room:example.org',
   lifecycle: 'active',
   failure: null,
+  e2eeReady: true,
+  initialMedia: { microphone: true, camera: false, sound: true },
   hangup: async () => undefined,
 };
 

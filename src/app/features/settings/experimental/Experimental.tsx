@@ -2,7 +2,7 @@ import { Box, Text, Scroll } from 'folds';
 import { menuIcon, Warning } from '$components/icons/phosphor';
 import { PageContent, SettingsSectionPage } from '$components/page';
 import { InfoCard } from '$components/info-card';
-import { settingsAtom, type Settings } from '$state/settings';
+import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { SettingToggle } from '$components/setting-tile';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
@@ -30,11 +30,7 @@ function PersonaToggle() {
 }
 
 function NewCallsToggle() {
-  // The setting is added by the settings task alongside this UI change.
-  const [newCallsEnabled, setNewCallsEnabled] = useSetting(
-    settingsAtom,
-    'newCallsEnabled' as keyof Settings
-  ) as [boolean, (value: boolean) => void];
+  const [newCallsEnabled, setNewCallsEnabled] = useSetting(settingsAtom, 'newCallsEnabled');
 
   return (
     <Box direction="Column" gap="100">

@@ -50,10 +50,17 @@ const makeFakeController = (): FakeController => {
   let state: LivekitJsControllerState = {
     lifecycle: 'idle',
     failure: null,
-    mediaFailure: null,
-    e2ee: { ready: false, localOutboundIdentity: null, keyIndex: null, lastImportFailure: null },
+    e2ee: {
+      ready: false,
+      localOutboundIdentity: null,
+      keyIndex: null,
+      lastImportFailure: null,
+    },
   };
-  const snapshot = (): LivekitJsControllerState => ({ ...state, e2ee: { ...state.e2ee } });
+  const snapshot = (): LivekitJsControllerState => ({
+    ...state,
+    e2ee: { ...state.e2ee },
+  });
   return {
     connect: vi.fn<(...args: unknown[]) => Promise<void>>(async () => undefined),
     disconnect: vi.fn<() => Promise<void>>(async () => undefined),
@@ -82,6 +89,8 @@ const makeNativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCal
   lifecycle,
   microphoneEnabled: true,
   cameraEnabled: false,
+  setMicrophoneEnabled: async () => {},
+  setCameraEnabled: async () => {},
   hangup: async () => undefined,
 });
 
@@ -152,7 +161,10 @@ describe('LivekitJsCallManagerProvider', () => {
       currentManager(harness).start({ room, video: true });
     });
     expect(controller.connect).toHaveBeenCalledTimes(1);
-    expect(controller.connect.mock.calls[0]![0]).toMatchObject({ room, callIntent: 'video' });
+    expect(controller.connect.mock.calls[0]![0]).toMatchObject({
+      room,
+      callIntent: 'video',
+    });
 
     // Consumer unmounts (prescreen replaced by call view) while provider persists.
     view.rerender(<harness.wrapper>{undefined}</harness.wrapper>);
@@ -212,7 +224,10 @@ describe('LivekitJsCallManagerProvider', () => {
 
     const controller = harness.controllers[0]!;
     expect(controller.connect).toHaveBeenCalledTimes(1);
-    expect(controller.connect.mock.calls[0]![0]).toMatchObject({ room, callIntent: 'audio' });
+    expect(controller.connect.mock.calls[0]![0]).toMatchObject({
+      room,
+      callIntent: 'audio',
+    });
   });
 
   it('provider unmount disconnects exactly once', async () => {

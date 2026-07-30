@@ -2,16 +2,25 @@ import { atom } from 'jotai';
 import type {
   LivekitJsControllerFailure,
   LivekitJsControllerLifecycle,
-  LivekitJsMediaFacade,
 } from '$features/call/livekitJsController';
 import type { Room as LivekitRoom } from 'livekit-client';
 
+export type LivekitJsCallMedia = {
+  microphone: boolean;
+  camera: boolean;
+  sound: boolean;
+  audioDeviceId?: string;
+  videoDeviceId?: string;
+};
+
 export type LivekitJsCallSession = {
   roomId: string;
+  /** What the user chose on the prescreen; applied once E2EE is ready. */
+  initialMedia: LivekitJsCallMedia;
   lifecycle: LivekitJsControllerLifecycle;
   failure: LivekitJsControllerFailure | null;
   room?: LivekitRoom;
-  media?: LivekitJsMediaFacade;
+  e2eeReady: boolean;
   hangup: () => Promise<void>;
 };
 

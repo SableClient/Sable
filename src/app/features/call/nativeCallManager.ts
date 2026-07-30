@@ -18,6 +18,7 @@ export type NativeCallManagerStartOptions = {
   discovery?: Pick<AutoDiscoveryInfo, 'org.matrix.msc4143.rtc_foci'>;
   dm?: boolean;
   video?: boolean;
+  microphone?: boolean;
 };
 
 export type NativeCallManager = {
@@ -35,7 +36,7 @@ export const createNativeCallManager = (
   });
 
   return {
-    start: ({ mx, room, discovery, dm, video }) => {
+    start: ({ mx, room, discovery, dm, video, microphone }) => {
       if (
         store.get(callEmbedAtom) ||
         isLivekitJsCallActive(store.get(livekitJsCallAtom)) ||
@@ -50,6 +51,7 @@ export const createNativeCallManager = (
           discovery,
           dm: dm ?? false,
           video: video ?? false,
+          microphone: microphone ?? true,
           ongoing: mx.matrixRTC.getRoomSession(room).memberships.length > 0,
         })
         .catch(() => undefined);

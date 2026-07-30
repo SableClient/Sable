@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   roomContext: undefined as unknown as Context<Room | undefined>,
   useConnectionState: vi.fn<() => string>(),
   useTracks: vi.fn<() => unknown[]>(),
+  useParticipants: vi.fn<() => { identity: string }[]>(),
+  setMicrophoneEnabled: vi.fn<(enabled: boolean) => Promise<void>>(),
+  setCameraEnabled: vi.fn<(enabled: boolean) => Promise<void>>(),
+  onDeviceError: undefined as undefined | ((e: { source: string }) => void),
 }));
 
 vi.mock('@livekit/components-react', async () => {
@@ -19,7 +23,23 @@ vi.mock('@livekit/components-react', async () => {
         {children}
       </div>
     ),
-    ControlBar: () => <div data-testid="control-bar">LiveKit controls</div>,
+    ControlBar: ({
+      controls,
+      onDeviceError,
+    }: {
+      controls?: Record<string, boolean>;
+      onDeviceError?: (e: { source: string }) => void;
+    }) => {
+      mocks.onDeviceError = onDeviceError;
+      return (
+        <div data-testid="control-bar" data-controls={JSON.stringify(controls)}>
+          LiveKit controls
+        </div>
+      );
+    },
+    MediaDeviceMenu: ({ kind }: { kind?: string }) => (
+      <div data-testid="device-menu" data-kind={kind} />
+    ),
     FocusLayout: ({ trackRef }: { trackRef?: { source?: string } }) => (
       <div data-testid="focus-layout" data-focus-source={trackRef?.source} />
     ),
@@ -29,13 +49,48 @@ vi.mock('@livekit/components-react', async () => {
     GridLayout: ({ children }: { children: ReactNode }) => (
       <div data-testid="grid-layout">{children}</div>
     ),
-    ParticipantTile: () => <div data-testid="participant-tile" />,
-    RoomAudioRenderer: () => <div data-testid="room-audio" />,
+    ParticipantTile: ({ children }: { children?: ReactNode }) => (
+      <div data-testid="participant-tile">{children}</div>
+    ),
+    RoomAudioRenderer: ({ muted }: { muted?: boolean }) => (
+      <div data-testid="room-audio" data-muted={muted ? 'true' : 'false'} />
+    ),
     RoomContext: mocks.roomContext,
+    ConnectionQualityIndicator: () => <div data-testid="connection-quality" />,
+    TrackMutedIndicator: () => <div data-testid="muted-indicator" />,
+    VideoTrack: () => <div data-testid="video-track" />,
     useConnectionState: mocks.useConnectionState,
     useTracks: mocks.useTracks,
+    useParticipants: mocks.useParticipants,
+    useEnsureTrackRef: () => mocks.useTracks()[0] ?? { participant: { identity: 'a' } },
+    useIsSpeaking: () => false,
+    useLocalParticipant: () => ({
+      localParticipant: {
+        setMicrophoneEnabled: mocks.setMicrophoneEnabled,
+        setCameraEnabled: mocks.setCameraEnabled,
+      },
+    }),
   };
 });
+
+vi.mock('$hooks/useRoom', () => ({ useRoom: () => ({ roomId: '!room:example.org' }) }));
+vi.mock('$hooks/useCall', () => ({
+  useCallSession: () => ({}),
+  useCallMembers: () => [
+    { rtcBackendIdentity: 'hash-alice', userId: '@alice:example.org' },
+    { rtcBackendIdentity: 'hash-bob', userId: '@bob:example.org' },
+  ],
+}));
+vi.mock('./LivekitCallParticipant', () => ({
+  useCallParticipantProfile: (identity: string, map: Map<string, string>) => ({
+    userId: map.get(identity),
+    name: map.get(identity) ?? 'Unknown participant',
+  }),
+  CallParticipantAvatar: ({ profile }: { profile: { name: string } }) => (
+    <div data-testid="participant-avatar" data-name={profile.name} />
+  ),
+  CallParticipantName: ({ profile }: { profile: { name: string } }) => <span>{profile.name}</span>,
+}));
 
 vi.mock('folds', () => ({
   Box: ({
@@ -94,16 +149,17 @@ vi.mock('folds', () => ({
 }));
 
 const room = {} as Room;
+const initialMedia = { microphone: true, camera: false, sound: true };
 
-const videoTrack = (source: string, isLocal: boolean) => ({
+const videoTrack = (source: string, isLocal: boolean, identity = 'hash-alice') => ({
   source,
-  participant: { isLocal },
+  participant: { isLocal, identity },
   publication: {},
 });
 
-const placeholderTrack = (source: string, isLocal: boolean) => ({
+const placeholderTrack = (source: string, isLocal: boolean, identity = 'hash-alice') => ({
   source,
-  participant: { isLocal },
+  participant: { isLocal, identity },
   publication: undefined,
 });
 
@@ -113,39 +169,187 @@ const controlsElement = () => document.body.querySelector('[data-livekit-control
 beforeEach(() => {
   mocks.useConnectionState.mockReset().mockReturnValue('connected');
   mocks.useTracks.mockReset().mockReturnValue([]);
+  mocks.useParticipants.mockReset().mockReturnValue([]);
+  mocks.setMicrophoneEnabled.mockReset().mockResolvedValue(undefined);
+  mocks.setCameraEnabled.mockReset().mockResolvedValue(undefined);
+  mocks.onDeviceError = undefined;
 });
 
 describe('LiveKit JS call surface', () => {
+  it('publishes with the devices chosen in the prescreen preview', () => {
+    render(
+      <LivekitJsCallSurface
+        room={room}
+        e2eeReady
+        initialMedia={{
+          microphone: true,
+          camera: true,
+          sound: true,
+          audioDeviceId: 'mic-2',
+          videoDeviceId: 'cam-1',
+        }}
+        onHangup={() => {}}
+      />
+    );
+
+    expect(mocks.setMicrophoneEnabled).toHaveBeenCalledWith(true, { deviceId: 'mic-2' });
+    expect(mocks.setCameraEnabled).toHaveBeenCalledWith(true, { deviceId: 'cam-1' });
+  });
+
+  it('leaves device selection to the browser when the user never picked one', () => {
+    render(
+      <LivekitJsCallSurface
+        room={room}
+        e2eeReady
+        initialMedia={{ microphone: true, camera: true, sound: true }}
+        onHangup={() => {}}
+      />
+    );
+
+    expect(mocks.setMicrophoneEnabled).toHaveBeenCalledWith(true, undefined);
+    expect(mocks.setCameraEnabled).toHaveBeenCalledWith(true, undefined);
+  });
+
+  it('applies the prescreen media choice once encryption is ready', () => {
+    render(
+      <LivekitJsCallSurface
+        room={room}
+        e2eeReady
+        initialMedia={{ microphone: true, camera: true, sound: true }}
+        onHangup={() => {}}
+      />
+    );
+
+    expect(mocks.setMicrophoneEnabled).toHaveBeenCalledWith(true, undefined);
+    expect(mocks.setCameraEnabled).toHaveBeenCalledWith(true, undefined);
+  });
+
+  it('joins muted when the prescreen microphone was off', () => {
+    render(
+      <LivekitJsCallSurface
+        room={room}
+        e2eeReady
+        initialMedia={{ microphone: false, camera: false, sound: true }}
+        onHangup={() => {}}
+      />
+    );
+
+    expect(mocks.setMicrophoneEnabled).toHaveBeenCalledWith(false, undefined);
+    expect(mocks.setCameraEnabled).not.toHaveBeenCalled();
+  });
+
+  it('publishes nothing until encryption is ready', () => {
+    render(
+      <LivekitJsCallSurface
+        room={room}
+        e2eeReady={false}
+        initialMedia={{ microphone: true, camera: true, sound: true }}
+        onHangup={() => {}}
+      />
+    );
+
+    expect(mocks.setMicrophoneEnabled).not.toHaveBeenCalled();
+    expect(mocks.setCameraEnabled).not.toHaveBeenCalled();
+  });
+
+  it('mutes incoming audio when the prescreen sound toggle was off', () => {
+    render(
+      <LivekitJsCallSurface
+        room={room}
+        e2eeReady
+        initialMedia={{ microphone: true, camera: false, sound: false }}
+        onHangup={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('room-audio')).toHaveAttribute('data-muted', 'true');
+  });
+
+  it('lets LiveKit derive publish controls from the token grants', () => {
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
+
+    expect(screen.getByTestId('control-bar')).toHaveAttribute('data-controls', '{"leave":false}');
+    expect(screen.getByTestId('device-menu')).toHaveAttribute('data-kind', 'audiooutput');
+  });
+
+  it('surfaces a denied microphone instead of failing silently', async () => {
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
+
+    act(() => mocks.onDeviceError?.({ source: 'microphone' }));
+
+    expect(
+      await screen.findByText('Microphone unavailable. Check your browser permissions.')
+    ).toBeInTheDocument();
+  });
+
+  it('withholds media controls until call encryption is ready', () => {
+    render(
+      <LivekitJsCallSurface
+        room={room}
+        e2eeReady={false}
+        initialMedia={initialMedia}
+        onHangup={() => {}}
+      />
+    );
+
+    expect(screen.queryByTestId('control-bar')).not.toBeInTheDocument();
+    expect(screen.getByText('Securing call…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'End call' })).toBeInTheDocument();
+  });
+
   it('keeps audio-only calls understandable with persistent controls', () => {
-    render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
 
     expect(screen.getByTestId('room-audio')).toBeInTheDocument();
-    expect(screen.getByTestId('grid-layout')).toBeInTheDocument();
     expect(screen.getByText('Audio call')).toBeInTheDocument();
     expect(screen.getByTestId('control-bar')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'End call' })).toBeInTheDocument();
   });
 
-  it('reports audio-only when every tracked camera is a placeholder', () => {
+  it('shows every participant when no camera is published, not an empty grid', () => {
     mocks.useTracks.mockReturnValue([
       placeholderTrack('camera', true),
       placeholderTrack('camera', false),
     ]);
+    mocks.useParticipants.mockReturnValue([{ identity: 'hash-alice' }, { identity: 'hash-bob' }]);
 
-    render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
 
-    expect(screen.getByTestId('grid-layout')).toBeInTheDocument();
-    expect(screen.getByText('Audio call')).toBeInTheDocument();
+    expect(screen.queryByTestId('grid-layout')).not.toBeInTheDocument();
     expect(screen.queryByTestId('focus-layout')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('participant-avatar')).toHaveLength(2);
+    expect(screen.getByText('@alice:example.org')).toBeInTheDocument();
+    expect(screen.getByText('@bob:example.org')).toBeInTheDocument();
   });
 
-  it('takes over the whole viewport in a portal instead of staying in the channel pane', () => {
-    const { container } = render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+  it('labels video tiles with the Matrix display name, never the LiveKit identity hash', () => {
+    mocks.useTracks.mockReturnValue([videoTrack('camera', false)]);
 
-    expect(container.querySelector('[data-livekit-call-surface]')).toBeNull();
-    const surface = surfaceElement();
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
+
+    expect(screen.getByTestId('grid-layout')).toBeInTheDocument();
+    expect(screen.getByText('@alice:example.org')).toBeInTheDocument();
+    expect(screen.queryByText(/hash-/)).not.toBeInTheDocument();
+  });
+
+  it('fills the call view container rather than the viewport', () => {
+    const { container } = render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
+
+    const surface = container.querySelector('[data-livekit-call-surface]');
     expect(surface).not.toBeNull();
-    expect(surface).toHaveStyle({ position: 'fixed' });
+    expect(surface).toHaveStyle({ position: 'relative', width: '100%', height: '100%' });
     expect(screen.getByRole('region', { name: 'Call' })).toBe(surface);
   });
 
@@ -155,7 +359,9 @@ describe('LiveKit JS call surface', () => {
       videoTrack('camera', false),
     ]);
 
-    render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
 
     expect(screen.getByTestId('focus-layout-container')).toBeInTheDocument();
     expect(screen.getByTestId('focus-layout')).toHaveAttribute('data-focus-source', 'screen_share');
@@ -171,7 +377,9 @@ describe('LiveKit JS call surface', () => {
       placeholderTrack('camera', true),
     ]);
 
-    render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
 
     expect(screen.getByTestId('focus-layout')).toHaveAttribute('data-focus-source', 'screen_share');
     expect(screen.getByRole('status')).toHaveTextContent('Sharing your screen');
@@ -181,7 +389,9 @@ describe('LiveKit JS call surface', () => {
   it('shows connection loss feedback without replacing the media canvas', () => {
     mocks.useConnectionState.mockReturnValue('reconnecting');
 
-    render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
 
     expect(screen.getByRole('status')).toHaveTextContent('Reconnecting…');
     expect(screen.getByTestId('room-audio')).toBeInTheDocument();
@@ -191,7 +401,14 @@ describe('LiveKit JS call surface', () => {
   it('hides idle controls from view and hit testing, then reveals them on a canvas tap', () => {
     vi.useFakeTimers();
     try {
-      render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+      render(
+        <LivekitJsCallSurface
+          room={room}
+          e2eeReady
+          initialMedia={initialMedia}
+          onHangup={() => {}}
+        />
+      );
 
       const surface = surfaceElement()!;
       const controls = controlsElement()!;
@@ -212,7 +429,14 @@ describe('LiveKit JS call surface', () => {
   it('reveals hidden controls for keyboard users when focus enters the call surface', () => {
     vi.useFakeTimers();
     try {
-      render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+      render(
+        <LivekitJsCallSurface
+          room={room}
+          e2eeReady
+          initialMedia={initialMedia}
+          onHangup={() => {}}
+        />
+      );
 
       const surface = surfaceElement()!;
       const controls = controlsElement()!;
@@ -228,14 +452,18 @@ describe('LiveKit JS call surface', () => {
   });
 
   it('labels the shared control surface for assistive technology', () => {
-    render(<LivekitJsCallSurface room={room} onHangup={() => {}} />);
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
 
     expect(screen.getByRole('group', { name: 'Call controls' })).toBe(controlsElement());
   });
 
   it('ends the call from the control bar', () => {
     const onHangup = vi.fn<() => void>();
-    render(<LivekitJsCallSurface room={room} onHangup={onHangup} />);
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={onHangup} />
+    );
 
     screen.getByRole('button', { name: 'End call' }).click();
     expect(onHangup).toHaveBeenCalledOnce();

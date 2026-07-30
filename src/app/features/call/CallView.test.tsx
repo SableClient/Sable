@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { LivekitJsCallProbe, NativeCallSurface } from './CallView';
+import { LivekitJsCallStatus, NativeCallSurface } from './CallView';
 import type { NativeCallSession } from '$state/nativeCall';
 
 const nativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCallSession => ({
@@ -10,51 +10,51 @@ const nativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCallSes
   lifecycle,
   microphoneEnabled: true,
   cameraEnabled: false,
+  setMicrophoneEnabled: async () => {},
+  setCameraEnabled: async () => {},
   hangup: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 });
 
-describe('LiveKit JS connection probe', () => {
-  it('renders connection and E2EE readiness without media controls', () => {
+describe('LiveKit JS call status', () => {
+  it('reports progress without exposing backend or transport details', () => {
     render(
-      <LivekitJsCallProbe session={{ lifecycle: 'active', failure: null }} onHangup={() => {}} />
+      <LivekitJsCallStatus
+        session={{ lifecycle: 'provisioning', failure: null }}
+        onHangup={() => {}}
+      />
     );
 
-    expect(screen.getByText('LiveKit JS connection probe')).toBeInTheDocument();
-    expect(screen.getByText('Connection: Connected')).toBeInTheDocument();
-    expect(screen.getByText('E2EE readiness:')).toHaveTextContent('Ready');
-    expect(
-      screen.getByText('Connection-only experiment · media is not published')
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /microphone|camera|screen/i })
-    ).not.toBeInTheDocument();
+    expect(screen.getByText('Preparing call')).toBeInTheDocument();
+    expect(screen.queryByText(/livekit|token|url|secret|e2ee/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
   });
 
-  it('uses safe status and setup failure text', () => {
+  it('explains a setup failure in plain language', () => {
     render(
-      <LivekitJsCallProbe
+      <LivekitJsCallStatus
         session={{ lifecycle: 'failed', failure: 'setup-failed' }}
         onHangup={() => {}}
       />
     );
 
-    expect(screen.getByText('Connection: Connection failed')).toBeInTheDocument();
-    expect(screen.getByText('E2EE readiness:')).toHaveTextContent('Unavailable');
-    expect(screen.getByText('LiveKit JS connection setup failed.')).toBeInTheDocument();
+    expect(screen.getByText('Call failed')).toBeInTheDocument();
+    expect(screen.getByText('Could not connect to the call.')).toBeInTheDocument();
     expect(screen.queryByText(/token|url|secret|error:/i)).not.toBeInTheDocument();
   });
 
-  it('shows unavailable E2EE status and calls hangup from End', () => {
+  it('gives an unsupported-encryption failure a dismiss route', () => {
     const onHangup = vi.fn<() => void>();
     render(
-      <LivekitJsCallProbe
+      <LivekitJsCallStatus
         session={{ lifecycle: 'failed', failure: 'e2ee-unsupported' }}
         onHangup={onHangup}
       />
     );
 
-    expect(screen.getByText('E2EE readiness:')).toHaveTextContent('Unavailable on this device');
-    screen.getByRole('button', { name: 'End' }).click();
+    expect(
+      screen.getByText('Encrypted calls are not supported on this device.')
+    ).toBeInTheDocument();
+    screen.getByRole('button', { name: 'Dismiss' }).click();
     expect(onHangup).toHaveBeenCalledOnce();
   });
 });
@@ -73,7 +73,10 @@ describe('native new-call surface', () => {
     const onHangup = vi.fn<() => void>();
     render(
       <NativeCallSurface
-        session={{ ...nativeSession('error'), error: 'Native call connection failed.' }}
+        session={{
+          ...nativeSession('error'),
+          error: 'Native call connection failed.',
+        }}
         onHangup={onHangup}
       />
     );

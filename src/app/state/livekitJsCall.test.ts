@@ -8,6 +8,8 @@ describe('selectActiveCallSession', () => {
       roomId: '!room:example.org',
       lifecycle: 'active' as const,
       failure: null,
+      e2eeReady: true,
+      initialMedia: { microphone: true, camera: false, sound: true },
       hangup: async () => undefined,
     };
 
@@ -20,6 +22,8 @@ describe('selectActiveCallSession', () => {
       roomId: '!livekit:example.org',
       lifecycle: 'active' as const,
       failure: null,
+      e2eeReady: true,
+      initialMedia: { microphone: true, camera: false, sound: true },
       hangup: async () => undefined,
     };
 
@@ -37,6 +41,8 @@ describe('selectActiveCallSession', () => {
       roomId: '!room:example.org',
       lifecycle: 'failed' as const,
       failure: 'setup-failed' as const,
+      e2eeReady: false,
+      initialMedia: { microphone: true, camera: false, sound: true },
       hangup: async () => undefined,
     };
 

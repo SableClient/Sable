@@ -41,7 +41,10 @@ describe('getPreferredLivekitTransport', () => {
           { type: 'livekit', livekit_service_url: 'https://discovery.example' },
         ],
       })
-    ).resolves.toEqual({ type: 'livekit', livekit_service_url: 'https://sdk.example' });
+    ).resolves.toEqual({
+      type: 'livekit',
+      livekit_service_url: 'https://sdk.example',
+    });
   });
 
   it('falls back to discovery when SDK transport discovery fails', async () => {
@@ -57,7 +60,10 @@ describe('getPreferredLivekitTransport', () => {
           { type: 'livekit', livekit_service_url: 'https://discovery.example' },
         ],
       })
-    ).resolves.toEqual({ type: 'livekit', livekit_service_url: 'https://discovery.example' });
+    ).resolves.toEqual({
+      type: 'livekit',
+      livekit_service_url: 'https://discovery.example',
+    });
   });
 });
 
@@ -101,7 +107,7 @@ describe('provisionLivekitToken', () => {
     });
   });
 
-  it('falls back to the legacy endpoint after a modern request failure', async () => {
+  it('falls back to the legacy endpoint when the modern one is unimplemented', async () => {
     fetchMock
       .mockResolvedValueOnce(response(404, { error: 'not found' }))
       .mockResolvedValueOnce(response(200, { url: 'wss://legacy.example', jwt: 'legacy-jwt' }));
@@ -121,15 +127,22 @@ describe('provisionLivekitToken', () => {
     });
   });
 
-  it('rejects invalid responses after trying both endpoints', async () => {
-    fetchMock
-      .mockResolvedValueOnce(response(200, { url: 'wss://livekit.example' }))
-      .mockResolvedValueOnce(response(200, { jwt: 'jwt-secret' }));
+  it('rejects an invalid modern response without retrying', async () => {
+    fetchMock.mockResolvedValueOnce(response(200, { url: 'wss://livekit.example' }));
 
     await expect(provisionLivekitToken(options)).rejects.toThrow(
       'LiveKit token provisioning failed'
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry the legacy endpoint after a server error', async () => {
+    fetchMock.mockResolvedValueOnce(response(500, { error: 'boom' }));
+
+    await expect(provisionLivekitToken(options)).rejects.toThrow(
+      'LiveKit token provisioning failed'
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not expose token values in errors', async () => {

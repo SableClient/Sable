@@ -18,6 +18,8 @@ export type NativeCallSession = {
   error?: string;
   microphoneEnabled: boolean;
   cameraEnabled: boolean;
+  setMicrophoneEnabled: (enabled: boolean) => Promise<void>;
+  setCameraEnabled: (enabled: boolean) => Promise<void>;
   hangup: () => Promise<void>;
 };
 

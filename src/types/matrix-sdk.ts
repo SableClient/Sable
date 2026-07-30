@@ -56,10 +56,7 @@ export * from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 export * from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 export * from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
 export { type CallMembershipIdentityParts } from 'matrix-js-sdk/lib/matrixrtc/EncryptionManager';
-export {
-  type LivekitTransport,
-  type LivekitTransportConfig,
-} from 'matrix-js-sdk/lib/matrixrtc/LivekitTransport';
+export { type LivekitTransportConfig } from 'matrix-js-sdk/lib/matrixrtc/LivekitTransport';
 export { type Transport } from 'matrix-js-sdk/lib/matrixrtc/types';
 
 export * from 'matrix-js-sdk/lib/models/thread';

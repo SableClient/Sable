@@ -17,11 +17,8 @@ import type { LivekitJsCallSession } from '$state/livekitJsCall';
 import { livekitJsCallAtom } from '$state/livekitJsCall';
 import type { NativeCallSession } from '$state/nativeCall';
 import { nativeCallAtom } from '$state/nativeCall';
-import { settingsAtom, type Settings } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
 import { LivekitJsCallSurface } from './LivekitJsCallSurface';
 import { MicrophoneButton, VideoButton } from './Controls';
-import { setNativeCallCameraEnabled, setNativeCallMicrophoneEnabled } from './livekitMobileBridge';
 
 function LivekitServerMissingMessage() {
   return (
@@ -122,22 +119,12 @@ export function NativeCallSurface({
         <Box direction="Row" gap="200" alignItems="Center">
           <MicrophoneButton
             enabled={session.microphoneEnabled}
-            onToggle={() =>
-              void setNativeCallMicrophoneEnabled({
-                callId: session.callId,
-                enabled: !session.microphoneEnabled,
-              })
-            }
+            onToggle={() => void session.setMicrophoneEnabled(!session.microphoneEnabled)}
             disabled={controlsDisabled}
           />
           <VideoButton
             enabled={session.cameraEnabled}
-            onToggle={() =>
-              void setNativeCallCameraEnabled({
-                callId: session.callId,
-                enabled: !session.cameraEnabled,
-              })
-            }
+            onToggle={() => void session.setCameraEnabled(!session.cameraEnabled)}
             disabled={controlsDisabled}
           />
         </Box>
@@ -154,66 +141,42 @@ export function NativeCallSurface({
 const livekitJsLifecycleLabels: Record<LivekitJsCallSession['lifecycle'], string> = {
   idle: 'Idle',
   'joining-matrix': 'Joining call',
-  provisioning: 'Preparing connection',
-  'connecting-livekit': 'Connecting to LiveKit',
+  provisioning: 'Preparing call',
+  'connecting-livekit': 'Connecting',
   active: 'Connected',
-  stopping: 'Ending connection',
-  failed: 'Connection failed',
+  stopping: 'Ending call',
+  failed: 'Call failed',
 };
 
-function LivekitJsE2EEStatus({
-  lifecycle,
-  failure,
-}: Pick<LivekitJsCallSession, 'lifecycle' | 'failure'>) {
-  if (failure === 'e2ee-unsupported') {
-    return <Text style={{ color: color.Warning.Main }}>Unavailable on this device</Text>;
-  }
-  if (failure === 'setup-failed') {
-    return <Text style={{ color: color.Warning.Main }}>Unavailable</Text>;
-  }
-  if (failure === 'e2ee-import-failed') {
-    return <Text style={{ color: color.Critical.Main }}>Failed to prepare</Text>;
-  }
-  if (lifecycle === 'active') return <Text>Ready</Text>;
-  return <Text>Waiting</Text>;
-}
+const livekitJsFailureMessages: Record<NonNullable<LivekitJsCallSession['failure']>, string> = {
+  'e2ee-unsupported': 'Encrypted calls are not supported on this device.',
+  'e2ee-import-failed': 'Could not set up call encryption.',
+  'setup-failed': 'Could not connect to the call.',
+};
 
-export function LivekitJsCallProbe({
+export function LivekitJsCallStatus({
   session,
   onHangup,
 }: {
   session: Pick<LivekitJsCallSession, 'lifecycle' | 'failure'>;
   onHangup: () => void;
 }) {
-  const failureMessage =
-    session.failure === 'e2ee-unsupported'
-      ? 'End-to-end encryption is unavailable on this device.'
-      : session.failure === 'e2ee-import-failed'
-        ? 'End-to-end encryption setup failed.'
-        : session.failure === 'setup-failed'
-          ? 'LiveKit JS connection setup failed.'
-          : undefined;
+  const failed = session.lifecycle === 'failed';
+  const failureMessage = session.failure ? livekitJsFailureMessages[session.failure] : undefined;
 
   return (
-    <Box alignItems="Center" justifyContent="Center" direction="Column" gap="200" grow="Yes">
-      <Text size="L400">LiveKit JS connection probe</Text>
-      <Text size="T300" align="Center">
-        Connection-only experiment · media is not published
-      </Text>
-      <Box direction="Column" gap="100" style={{ width: '100%', maxWidth: toRem(382) }}>
-        <Text size="T300">Connection: {livekitJsLifecycleLabels[session.lifecycle]}</Text>
-        <Text size="T300">
-          E2EE readiness: <LivekitJsE2EEStatus {...session} />
-        </Text>
+    <Box alignItems="Center" justifyContent="Center" direction="Column" gap="300" grow="Yes">
+      <Box direction="Column" gap="100" alignItems="Center">
+        <Text size="L400">{livekitJsLifecycleLabels[session.lifecycle]}</Text>
         {failureMessage && (
-          <Text style={{ color: color.Critical.Main }} size="T300">
+          <Text style={{ color: color.Critical.Main }} size="T300" align="Center">
             {failureMessage}
           </Text>
         )}
       </Box>
       <Button size="300" variant="Critical" fill="Soft" radii="300" onClick={onHangup}>
         <Text as="span" size="B300">
-          End
+          {failed ? 'Dismiss' : 'End'}
         </Text>
       </Button>
     </Box>
@@ -310,21 +273,13 @@ export function CallView({ resizable }: CallViewProps) {
   const callJoined = useCallJoined(callEmbed);
   const livekitJsCall = useAtomValue(livekitJsCallAtom);
   const nativeCall = useAtomValue(nativeCallAtom);
-  // The setting is added by the settings task alongside this UI change.
-  const [newCallsEnabled] = useSetting(settingsAtom, 'newCallsEnabled' as keyof Settings) as [
-    boolean,
-    (value: boolean) => void,
-  ];
 
   const livekitJsCallForRoom = livekitJsCall?.roomId === room.roomId ? livekitJsCall : undefined;
   const nativeCallForRoom = nativeCall?.roomId === room.roomId ? nativeCall : undefined;
-  const activeNativeCall = nativeCallForRoom?.lifecycle !== 'error' ? nativeCallForRoom : undefined;
-  const livekitJsMediaCall =
-    newCallsEnabled && livekitJsCallForRoom?.lifecycle === 'active' && livekitJsCallForRoom.room
-      ? livekitJsCallForRoom
-      : undefined;
+  const livekitJsRoom =
+    livekitJsCallForRoom?.lifecycle === 'active' ? livekitJsCallForRoom.room : undefined;
   const currentJoined =
-    !livekitJsCallForRoom && !activeNativeCall && callEmbed?.roomId === room.roomId && callJoined;
+    !livekitJsCallForRoom && !nativeCallForRoom && callEmbed?.roomId === room.roomId && callJoined;
 
   const [heightRatio, setHeightRatio] = useState(isMobile ? 0.3 : 0.72);
   const [availableHeight, setAvailableHeight] = useState(0);
@@ -423,7 +378,8 @@ export function CallView({ resizable }: CallViewProps) {
           : undefined,
         borderBottom: `1px solid var(--sable-surface-container-line)`,
         zIndex: 20,
-        backgroundColor: currentJoined ? 'transparent' : undefined,
+        backgroundColor: livekitJsRoom ? '#090b10' : currentJoined ? 'transparent' : undefined,
+        overflow: livekitJsRoom ? 'hidden' : undefined,
         pointerEvents: currentJoined ? 'none' : 'all',
       }}
     >
@@ -439,26 +395,20 @@ export function CallView({ resizable }: CallViewProps) {
         />
       )}
 
-      {!currentJoined &&
-        !livekitJsCallForRoom &&
-        !activeNativeCall &&
-        nativeCallForRoom?.lifecycle !== 'error' && <CallPrescreen />}
-      {livekitJsMediaCall ? (
+      {!currentJoined && !livekitJsCallForRoom && !nativeCallForRoom && <CallPrescreen />}
+      {livekitJsCallForRoom && livekitJsRoom ? (
         <LivekitJsCallSurface
-          room={livekitJsMediaCall.room!}
-          onHangup={() => void livekitJsMediaCall.hangup()}
+          room={livekitJsRoom}
+          e2eeReady={livekitJsCallForRoom.e2eeReady}
+          initialMedia={livekitJsCallForRoom.initialMedia}
+          onHangup={() => void livekitJsCallForRoom.hangup()}
         />
-      ) : newCallsEnabled && livekitJsCallForRoom ? (
-        <LivekitJsCallProbe
+      ) : livekitJsCallForRoom ? (
+        <LivekitJsCallStatus
           session={livekitJsCallForRoom}
           onHangup={() => void livekitJsCallForRoom.hangup()}
         />
-      ) : activeNativeCall ? (
-        <NativeCallSurface
-          session={activeNativeCall}
-          onHangup={() => void activeNativeCall.hangup()}
-        />
-      ) : nativeCallForRoom?.lifecycle === 'error' ? (
+      ) : nativeCallForRoom ? (
         <NativeCallSurface
           session={nativeCallForRoom}
           onHangup={() => void nativeCallForRoom.hangup()}

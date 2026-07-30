@@ -28,6 +28,8 @@ const makeNativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCal
   lifecycle,
   microphoneEnabled: true,
   cameraEnabled: false,
+  setMicrophoneEnabled: async () => {},
+  setCameraEnabled: async () => {},
   hangup: async () => undefined,
 });
 
@@ -67,6 +69,7 @@ describe('createNativeCallManager', () => {
       room,
       dm: true,
       video: true,
+      microphone: false,
     });
 
     expect(fake.start).toHaveBeenCalledWith({
@@ -74,6 +77,7 @@ describe('createNativeCallManager', () => {
       room,
       dm: true,
       video: true,
+      microphone: false,
       ongoing: true,
     });
   });
@@ -86,7 +90,7 @@ describe('createNativeCallManager', () => {
     manager.start({ mx: makeClient(), room });
 
     expect(fake.start).toHaveBeenCalledWith(
-      expect.objectContaining({ dm: false, video: false, ongoing: false })
+      expect.objectContaining({ dm: false, video: false, microphone: true, ongoing: false })
     );
   });
 

@@ -59,7 +59,7 @@ export type SetNativeCallEncryptionKeyRequest = {
   key: string;
 };
 
-export const NATIVE_CALL_EVENT = 'plugin:livekit-mobile://native-call-event';
+const NATIVE_CALL_EVENT = 'plugin:livekit-mobile://native-call-event';
 
 export const getNativeCallCapabilities = (): Promise<NativeCallCapabilities> =>
   invoke<NativeCallCapabilities>('plugin:livekit-mobile|getNativeCallCapabilities');

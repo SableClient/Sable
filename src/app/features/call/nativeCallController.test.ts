@@ -178,11 +178,12 @@ const makeDependencies = (order: string[]): Harness => {
   };
 };
 
-const startOptions = (session: MatrixRTCSession, video = false) => ({
+const startOptions = (session: MatrixRTCSession, video = false, microphone = true) => ({
   mx: makeClient(session),
   room,
   dm: false,
   video,
+  microphone,
   ongoing: false,
 });
 
@@ -251,6 +252,21 @@ describe('native call controller', () => {
       lifecycle: 'connected',
     });
     expect(setEncryptionKey).not.toHaveBeenCalled();
+  });
+
+  it('joins muted when the prescreen microphone was off', async () => {
+    const session = makeSession();
+    const { dependencies, connectCall } = makeDependencies([]);
+    const controller = createNativeCallController(dependencies);
+
+    const startPromise = controller.start(startOptions(session, false, false));
+    await waitForMembershipListener(session);
+    emitOwnMembership(session);
+    await vi.waitFor(() => expect(session.joinRTCSession).toHaveBeenCalled());
+    emitKey(session, [1, 2, 3, 4], 1, 'own-backend');
+    await startPromise;
+
+    expect(connectCall).toHaveBeenCalledWith(expect.objectContaining({ microphoneEnabled: false }));
   });
 
   it('rotates keys through the set command only after connect resolves', async () => {

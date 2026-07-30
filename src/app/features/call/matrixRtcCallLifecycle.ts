@@ -2,7 +2,6 @@ import type { AutoDiscoveryInfo } from '../../cs-api';
 import {
   MatrixRTCSessionEvent,
   type CallMembership,
-  type CallMembershipIdentityParts,
   type JoinSessionConfig,
   type MatrixClient,
   type MatrixRTCSession,
@@ -10,7 +9,6 @@ import {
 } from '$types/matrix-sdk';
 import { getPreferredLivekitTransport, provisionLivekitToken } from './livekitProvisioning';
 import type { LivekitProvisioningResult } from './livekitProvisioning';
-import type { LivekitTransportConfig } from '$types/matrix-sdk';
 
 const membershipWaitTimeoutMs = 10_000;
 
@@ -28,15 +26,10 @@ export type MatrixRTCJoinProvisionOptions = {
   onStage?: (stage: 'joining-matrix' | 'provisioning') => void;
   onMembershipWait?: (cancel: (() => void) | undefined) => void;
   onJoinStarted?: () => void;
-  onMembershipError?: (error: unknown) => void;
 };
 
 export type MatrixRTCJoinProvisionResult = {
-  session: MatrixRTCSession;
-  transport: LivekitTransportConfig;
-  identity: CallMembershipIdentityParts;
   ownMembership: CallMembership | undefined;
-  slotId: string;
   provisioned: LivekitProvisioningResult;
 };
 
@@ -48,8 +41,7 @@ type MembershipWait = {
 const waitForOwnMembership = (
   session: MatrixRTCSession,
   userId: string,
-  deviceId: string,
-  onMembershipError?: (error: unknown) => void
+  deviceId: string
 ): MembershipWait => {
   let resolveWait!: () => void;
   let rejectWait!: (reason?: unknown) => void;
@@ -71,8 +63,7 @@ const waitForOwnMembership = (
     }
   };
 
-  const handleMembershipManagerError = (error: unknown): void => {
-    onMembershipError?.(error);
+  const handleMembershipManagerError = (): void => {
     settle(() => rejectWait(new Error('MatrixRTC membership publication failed')));
   };
 
@@ -106,6 +97,9 @@ const waitForOwnMembership = (
     resolveWait = resolve;
     rejectWait = reject;
   });
+  // joinRTCSession can throw before the promise is awaited; keep the cancel
+  // rejection from surfacing as an unhandled rejection in that window.
+  promise.catch(() => {});
 
   try {
     session.on(MatrixRTCSessionEvent.MembershipsChanged, handleMembershipsChanged);
@@ -140,7 +134,6 @@ export const joinAndProvisionMatrixRTC = async ({
   onStage,
   onMembershipWait,
   onJoinStarted,
-  onMembershipError,
 }: MatrixRTCJoinProvisionOptions): Promise<MatrixRTCJoinProvisionResult> => {
   const deviceId = mx.getDeviceId();
   if (!deviceId) throw new Error('MatrixRTC device unavailable');
@@ -151,12 +144,7 @@ export const joinAndProvisionMatrixRTC = async ({
   const userId = mx.getSafeUserId();
   const identity = { userId, deviceId, memberId: `${userId}:${deviceId}` };
   if (isCancelled?.()) throw new Error('MatrixRTC setup cancelled');
-  const membershipWait = waitForOwnMembership(
-    session,
-    identity.userId,
-    identity.deviceId,
-    onMembershipError
-  );
+  const membershipWait = waitForOwnMembership(session, identity.userId, identity.deviceId);
   onMembershipWait?.(membershipWait.cancel);
   onStage?.('joining-matrix');
 
@@ -196,7 +184,7 @@ export const joinAndProvisionMatrixRTC = async ({
   });
   if (isCancelled?.()) throw new Error('MatrixRTC setup cancelled');
 
-  return { session, transport, identity, ownMembership, slotId, provisioned };
+  return { ownMembership, provisioned };
 };
 
 export const disconnectLivekitThenLeaveMatrixRTC = async (

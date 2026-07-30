@@ -65,6 +65,13 @@ type LegacyProvisioningRequest = {
   device_id: string;
 };
 
+class LivekitProvisioningHttpError extends Error {
+  public constructor(public readonly status: number) {
+    super(`LiveKit provisioning request failed with status ${status}`);
+    this.name = 'LivekitProvisioningHttpError';
+  }
+}
+
 const requestLivekitToken = async (
   endpoint: string,
   body: ModernProvisioningRequest | LegacyProvisioningRequest
@@ -76,7 +83,7 @@ const requestLivekitToken = async (
   });
 
   if (response.status < 200 || response.status >= 300) {
-    throw new Error('LiveKit provisioning request failed');
+    throw new LivekitProvisioningHttpError(response.status);
   }
 
   const data = (await response.json()) as unknown;
@@ -121,7 +128,14 @@ export const provisionLivekitToken = async ({
 
   try {
     return await requestLivekitToken(`${endpoint}/get_token`, modernRequest);
-  } catch {
+  } catch (error) {
+    // Only an SFU that does not implement the modern endpoint is worth a second
+    // round trip; network and server errors would fail the same way twice.
+    const unimplemented =
+      error instanceof LivekitProvisioningHttpError &&
+      (error.status === 404 || error.status === 405);
+    if (!unimplemented) throw new Error('LiveKit token provisioning failed', { cause: error });
+
     const legacyRequest: LegacyProvisioningRequest = {
       room: roomId,
       openid_token: openidToken,

@@ -112,7 +112,9 @@ export class LivekitMatrixKeyProvider extends BaseKeyProvider {
     const sequence = this.nextImportSequence++;
     const subtle = globalThis.crypto?.subtle;
     if (!subtle || typeof subtle.importKey !== 'function') {
-      this.enqueueUpdate(generation, sequence, { failure: 'webcrypto-unavailable' });
+      this.enqueueUpdate(generation, sequence, {
+        failure: 'webcrypto-unavailable',
+      });
       return;
     }
 
@@ -178,9 +180,14 @@ export class LivekitMatrixKeyProvider extends BaseKeyProvider {
         )
       );
 
-      this.updateState({ lastImportFailure: null });
+      // Only the local key clears the failure flag: a remote participant's key
+      // succeeding says nothing about whether our own outbound key imported.
       if (update.rtcBackendIdentity === this.localOutboundIdentity) {
-        this.updateState({ ready: true, keyIndex: update.encryptionKeyIndex });
+        this.updateState({
+          ready: true,
+          keyIndex: update.encryptionKeyIndex,
+          lastImportFailure: null,
+        });
       }
     }
   }

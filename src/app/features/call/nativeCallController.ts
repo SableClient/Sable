@@ -42,6 +42,7 @@ export type NativeCallStartOptions = {
   discovery?: Pick<AutoDiscoveryInfo, 'org.matrix.msc4143.rtc_foci'>;
   dm: boolean;
   video: boolean;
+  microphone: boolean;
   ongoing: boolean;
 };
 
@@ -80,6 +81,11 @@ export type NativeCallControllerDependencies = {
   createCallId?: () => string;
   acquireOwner?: typeof acquireCallOwner;
   onCleanup?: () => void;
+};
+
+const noMediaControls = {
+  setMicrophoneEnabled: async (): Promise<void> => {},
+  setCameraEnabled: async (): Promise<void> => {},
 };
 
 const toLifecycle = (
@@ -124,6 +130,7 @@ export const createNativeCallController = (
         error,
         microphoneEnabled: false,
         cameraEnabled: false,
+        ...noMediaControls,
         hangup: async () => {
           try {
             deps.setSession(undefined);
@@ -148,6 +155,8 @@ export const createNativeCallController = (
       ...(error ? { error } : {}),
       microphoneEnabled: media?.microphoneEnabled ?? true,
       cameraEnabled: media?.cameraEnabled ?? false,
+      setMicrophoneEnabled,
+      setCameraEnabled,
       hangup: () => cleanup(record, undefined, true),
     });
     displayedRecord = record;
@@ -198,6 +207,7 @@ export const createNativeCallController = (
           error: failure,
           microphoneEnabled: false,
           cameraEnabled: false,
+          ...noMediaControls,
           hangup: () => cleanup(record, undefined, true),
         });
       } catch {}
@@ -248,7 +258,15 @@ export const createNativeCallController = (
     });
   };
 
-  const start = async ({ mx, room, discovery, dm, video, ongoing }: NativeCallStartOptions) => {
+  const start = async ({
+    mx,
+    room,
+    discovery,
+    dm,
+    video,
+    microphone,
+    ongoing,
+  }: NativeCallStartOptions) => {
     if (activeRecord) {
       deps.onCleanup?.();
       return;
@@ -321,7 +339,7 @@ export const createNativeCallController = (
         callId,
         url: joined.provisioned.url,
         token: joined.provisioned.jwt,
-        microphoneEnabled: true,
+        microphoneEnabled: microphone,
         encryptionKeys,
       });
       currentRecord.connectResolved = true;

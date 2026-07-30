@@ -74,7 +74,7 @@ export function SecretStorageRecoveryPassphrase({
 
     const { salt, iterations, bits } = passphraseContent;
     submitPassphrase(recoveryPassphrase, salt, iterations, bits).then((decodedRecoveryKey) => {
-      if (alive()) {
+      if (alive() && decodedRecoveryKey instanceof Uint8Array) {
         recoveryPassphraseInput.value = '';
         onDecodedRecoveryKey(decodedRecoveryKey);
       }
@@ -193,7 +193,7 @@ export function SecretStorageRecoveryKey({
     if (!recoveryKey) return;
 
     submitRecoveryKey(recoveryKey).then((decodedRecoveryKey) => {
-      if (alive()) {
+      if (alive() && decodedRecoveryKey instanceof Uint8Array) {
         recoveryKeyInput.value = '';
         onDecodedRecoveryKey(decodedRecoveryKey);
       }

@@ -46,6 +46,8 @@ const makeNativeSession = (
   lifecycle,
   microphoneEnabled: true,
   cameraEnabled: false,
+  setMicrophoneEnabled: async () => {},
+  setCameraEnabled: async () => {},
   hangup: async () => undefined,
 });
 
@@ -124,7 +126,9 @@ describe('useCallStartCapabilities', () => {
 
   it('still counts an active Element call embed as an active call', () => {
     const harness = createHarness();
-    useCallEmbedMock.mockReturnValue({ roomId: '!other:example.org' } as CallEmbed);
+    useCallEmbedMock.mockReturnValue({
+      roomId: '!other:example.org',
+    } as CallEmbed);
 
     render(<harness.wrapper>{undefined}</harness.wrapper>);
 

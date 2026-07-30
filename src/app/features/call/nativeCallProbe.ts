@@ -1,7 +1,7 @@
 import { isMobileTauri } from '$utils/platform';
 import { getNativeCallCapabilities, type NativeCallCapabilities } from './livekitMobileBridge';
 
-export const supportsNativeCall = (capabilities: NativeCallCapabilities): boolean =>
+const supportsNativeCall = (capabilities: NativeCallCapabilities): boolean =>
   capabilities.supported && capabilities.microphone;
 
 let availabilityPromise: Promise<boolean> | undefined;

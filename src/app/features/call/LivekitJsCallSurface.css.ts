@@ -162,7 +162,7 @@ globalStyle(`${surface} .lk-control-bar`, {
   maxWidth: '100%',
 });
 
-globalStyle(`${surface} .lk-button, ${surface} .lk-start-audio-button`, {
+globalStyle(`${surface} .lk-button`, {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -183,13 +183,10 @@ globalStyle(`${surface} .lk-button:hover:not(:disabled)`, {
   background: 'rgba(255, 255, 255, 0.16)',
 });
 
-globalStyle(
-  `${surface} .lk-button:focus-visible, ${surface} .lk-start-audio-button:focus-visible`,
-  {
-    outline: `2px solid var(--sable-primary-main, #7aa2ff)`,
-    outlineOffset: 2,
-  }
-);
+globalStyle(`${surface} .lk-button:focus-visible`, {
+  outline: `2px solid var(--sable-primary-main, #7aa2ff)`,
+  outlineOffset: 2,
+});
 
 globalStyle(`${surface} .lk-button[aria-pressed='false']`, {
   background: 'rgba(204, 74, 74, 0.45)',
@@ -200,7 +197,7 @@ globalStyle(`${surface} .lk-button:disabled`, {
   cursor: 'default',
 });
 
-globalStyle(`${surface} .lk-button svg, ${surface} .lk-start-audio-button svg`, {
+globalStyle(`${surface} .lk-button svg`, {
   width: toRem(20),
   height: toRem(20),
 });
@@ -263,4 +260,17 @@ globalStyle(`${surface} .lk-device-menu .lk-button`, {
 
 globalStyle(`${surface} .lk-device-menu li[data-lk-active='true'] > .lk-button`, {
   color: 'var(--sable-primary-main, #7aa2ff)',
+});
+
+export const AudioParticipant = style({
+  gap: config.space.S200,
+  padding: config.space.S200,
+  borderRadius: config.radii.R400,
+  border: '2px solid transparent',
+  transition: 'border-color 120ms ease',
+  selectors: {
+    '&[data-lk-speaking="true"]': {
+      borderColor: 'var(--sable-primary-main, #7aa2ff)',
+    },
+  },
 });

@@ -6,7 +6,7 @@ import {
   type MatrixRTCSession,
 } from '$types/matrix-sdk';
 import type { MatrixClient, Room as MatrixRoom } from '$types/matrix-sdk';
-import type { Room as LivekitRoom, RoomOptions } from 'livekit-client';
+import type { RoomOptions } from 'livekit-client';
 import {
   createLivekitJsController,
   type LivekitJsControllerDependencies,
@@ -17,7 +17,10 @@ import type {
 } from './livekitMatrixKeyProvider';
 import { resetCallOwnerForTests } from '$state/callOwner';
 
-const transport = { type: 'livekit' as const, livekit_service_url: 'https://sfu.example' };
+const transport = {
+  type: 'livekit' as const,
+  livekit_service_url: 'https://sfu.example',
+};
 const room = { roomId: '!room:example.org' } as MatrixRoom;
 const membership = {
   userId: '@alice:example.org',
@@ -125,34 +128,12 @@ const makeDependencies = (
   livekitRoom: {
     connect: Mock<(url: string, token: string, options?: unknown) => Promise<void>>;
     disconnect: Mock<() => Promise<void>>;
-    localParticipant: {
-      setMicrophoneEnabled: Mock<LivekitRoom['localParticipant']['setMicrophoneEnabled']>;
-      setCameraEnabled: Mock<LivekitRoom['localParticipant']['setCameraEnabled']>;
-      setScreenShareEnabled: Mock<LivekitRoom['localParticipant']['setScreenShareEnabled']>;
-    };
-  };
-  mediaParticipant: {
-    setMicrophoneEnabled: Mock<LivekitRoom['localParticipant']['setMicrophoneEnabled']>;
-    setCameraEnabled: Mock<LivekitRoom['localParticipant']['setCameraEnabled']>;
-    setScreenShareEnabled: Mock<LivekitRoom['localParticipant']['setScreenShareEnabled']>;
   };
 } => {
   const worker = { terminate: vi.fn<() => void>() } as unknown as Worker;
   provider.attach.mockImplementation(() => order.push('attach'));
   provider.detach.mockImplementation(() => order.push('detach'));
-  const mediaParticipant = {
-    setMicrophoneEnabled: vi
-      .fn<LivekitRoom['localParticipant']['setMicrophoneEnabled']>()
-      .mockResolvedValue(undefined),
-    setCameraEnabled: vi
-      .fn<LivekitRoom['localParticipant']['setCameraEnabled']>()
-      .mockResolvedValue(undefined),
-    setScreenShareEnabled: vi
-      .fn<LivekitRoom['localParticipant']['setScreenShareEnabled']>()
-      .mockResolvedValue(undefined),
-  };
   const livekitRoom = {
-    localParticipant: mediaParticipant,
     connect: vi
       .fn<(url: string, token: string, options?: unknown) => Promise<void>>()
       .mockImplementation(async () => {
@@ -167,7 +148,6 @@ const makeDependencies = (
     provider,
     roomOptions,
     livekitRoom,
-    mediaParticipant,
     dependencies: {
       createKeyProvider: () => provider as unknown as LivekitMatrixKeyProvider,
       isE2EESupported: () => true,
@@ -212,13 +192,10 @@ describe('livekit JS controller', () => {
     resetCallOwnerForTests();
   });
 
-  it('attaches E2EE before joining and provisions before connecting one no-media Room', async () => {
+  it('attaches E2EE before joining and provisions before connecting one Room', async () => {
     const order: string[] = [];
     const session = makeSession(order);
-    const { dependencies, provider, roomOptions, mediaParticipant, livekitRoom } = makeDependencies(
-      session,
-      order
-    );
+    const { dependencies, provider, roomOptions, livekitRoom } = makeDependencies(session, order);
     const controller = createLivekitJsController(dependencies);
 
     await connectToActive(controller, session);
@@ -234,20 +211,24 @@ describe('livekit JS controller', () => {
     ]);
     expect(provider.attach).toHaveBeenCalledBefore(session.joinRTCSession as Mock);
     expect(session.joinRTCSession).toHaveBeenCalledWith(
-      { userId: '@alice:example.org', deviceId: 'DEVICE', memberId: '@alice:example.org:DEVICE' },
+      {
+        userId: '@alice:example.org',
+        deviceId: 'DEVICE',
+        memberId: '@alice:example.org:DEVICE',
+      },
       [transport],
       undefined,
-      { callIntent: 'audio', notificationType: 'notification', manageMediaKeys: true }
+      {
+        callIntent: 'audio',
+        notificationType: 'notification',
+        manageMediaKeys: true,
+      }
     );
     expect(roomOptions.value?.encryption).toEqual({
       keyProvider: provider,
       worker: expect.anything(),
     });
-    expect(mediaParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
-    expect(mediaParticipant.setCameraEnabled).not.toHaveBeenCalled();
-    expect(mediaParticipant.setScreenShareEnabled).not.toHaveBeenCalled();
     expect(controller.getState().room).toBe(livekitRoom);
-    expect(controller.getState().media).toBeDefined();
     expect(controller.getState().lifecycle).toBe('active');
   });
 
@@ -296,7 +277,6 @@ describe('livekit JS controller', () => {
     expect(order.indexOf('detach')).toBeLessThan(order.indexOf('leave'));
     expect(provider.detach).toHaveBeenCalledOnce();
     expect(controller.getState().room).toBeUndefined();
-    expect(controller.getState().media).toBeUndefined();
     expect(controller.getState().lifecycle).toBe('idle');
   });
 
@@ -307,7 +287,10 @@ describe('livekit JS controller', () => {
       .fn<NonNullable<LivekitJsControllerDependencies['provisionToken']>>()
       .mockRejectedValue(new Error('provision failed'));
     const controller = createLivekitJsController(dependencies);
-    const connectPromise = controller.connect({ mx: makeClient(session), room });
+    const connectPromise = controller.connect({
+      mx: makeClient(session),
+      room,
+    });
 
     await vi.waitFor(() =>
       expect(session.on).toHaveBeenCalledWith(
@@ -321,7 +304,6 @@ describe('livekit JS controller', () => {
     expect(provider.detach).toHaveBeenCalledOnce();
     expect(session.leaveRoomSession).toHaveBeenCalledOnce();
     expect(controller.getState().room).toBeUndefined();
-    expect(controller.getState().media).toBeUndefined();
     expect(controller.getState().lifecycle).toBe('failed');
   });
 
@@ -333,7 +315,10 @@ describe('livekit JS controller', () => {
       .fn<NonNullable<LivekitJsControllerDependencies['provisionToken']>>()
       .mockImplementation(() => pendingProvision.promise);
     const controller = createLivekitJsController(dependencies);
-    const connectPromise = controller.connect({ mx: makeClient(session), room });
+    const connectPromise = controller.connect({
+      mx: makeClient(session),
+      room,
+    });
 
     await vi.waitFor(() =>
       expect(session.on).toHaveBeenCalledWith(
@@ -351,7 +336,6 @@ describe('livekit JS controller', () => {
     expect(provider.detach).toHaveBeenCalledOnce();
     expect(session.leaveRoomSession).toHaveBeenCalledOnce();
     expect(controller.getState().room).toBeUndefined();
-    expect(controller.getState().media).toBeUndefined();
     expect(controller.getState().lifecycle).toBe('idle');
   });
 
@@ -367,7 +351,10 @@ describe('livekit JS controller', () => {
     };
     dependencies.createRoom = () => livekitRoom;
     const controller = createLivekitJsController(dependencies);
-    const connectPromise = controller.connect({ mx: makeClient(session), room });
+    const connectPromise = controller.connect({
+      mx: makeClient(session),
+      room,
+    });
 
     await vi.waitFor(() =>
       expect(session.on).toHaveBeenCalledWith(
@@ -411,7 +398,7 @@ describe('livekit JS controller', () => {
     expect(controller.getState().lifecycle).toBe('idle');
   });
 
-  it('exposes media publication methods', () => {
+  it('exposes only lifecycle and state methods', () => {
     const session = makeSession();
     const { dependencies } = makeDependencies(session, []);
     const controller = createLivekitJsController(dependencies);
@@ -420,9 +407,6 @@ describe('livekit JS controller', () => {
       'connect',
       'disconnect',
       'getState',
-      'setCameraEnabled',
-      'setMicrophoneEnabled',
-      'setScreenShareEnabled',
       'subscribe',
     ]);
   });
@@ -441,81 +425,6 @@ describe('livekit JS controller', () => {
     expect(firstController.getState().room).toBeUndefined();
     await connectToActive(replacementController, replacementSession);
 
-    expect(replacementController.getState().media).toBeDefined();
-  });
-
-  it('publishes media through the controller media facade', async () => {
-    const session = makeSession();
-    const provider = makeProvider({
-      ready: true,
-      localOutboundIdentity: 'local-backend-identity',
-      keyIndex: 1,
-    });
-    const { dependencies, mediaParticipant, livekitRoom } = makeDependencies(session, [], provider);
-    const controller = createLivekitJsController(dependencies);
-
-    await connectToActive(controller, session);
-    await controller.setMicrophoneEnabled(true);
-    await controller.setCameraEnabled(true);
-    await controller.setScreenShareEnabled(true);
-
-    expect(mediaParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
-    expect(mediaParticipant.setCameraEnabled).toHaveBeenCalledWith(true);
-    expect(mediaParticipant.setScreenShareEnabled).toHaveBeenCalledWith(true);
-    expect(controller.getState().room).toBe(livekitRoom);
-    expect(controller.getState().media?.setMicrophoneEnabled).toBeDefined();
-  });
-
-  it('refuses media when the local key is not ready or has failed', async () => {
-    const session = makeSession();
-    const provider = makeProvider();
-    const { dependencies } = makeDependencies(session, [], provider);
-    const controller = createLivekitJsController(dependencies);
-
-    await connectToActive(controller, session);
-    await expect(controller.setMicrophoneEnabled(true)).rejects.toMatchObject({
-      code: 'e2ee-key-not-ready',
-    });
-
-    provider.state.lastImportFailure = 'import-failed';
-    await expect(controller.setCameraEnabled(true)).rejects.toMatchObject({
-      code: 'e2ee-key-failed',
-    });
-  });
-
-  it('refuses media when runtime E2EE support is unavailable', async () => {
-    const session = makeSession();
-    const { dependencies } = makeDependencies(session, []);
-    dependencies.isE2EESupported = () => false;
-    const controller = createLivekitJsController(dependencies);
-
-    await expect(controller.setScreenShareEnabled(true)).rejects.toMatchObject({
-      code: 'e2ee-unsupported',
-    });
-    expect(controller.getState().mediaFailure).toBe('e2ee-unsupported');
-  });
-  it('reports media-operation-failed when a media operation rejects', async () => {
-    const session = makeSession();
-    const provider = makeProvider({
-      ready: true,
-      localOutboundIdentity: 'local-backend-identity',
-      keyIndex: 1,
-    });
-    const { dependencies, mediaParticipant } = makeDependencies(session, [], provider);
-    const controller = createLivekitJsController(dependencies);
-    await connectToActive(controller, session);
-    await controller.setMicrophoneEnabled(true);
-    expect(controller.getState().mediaFailure).toBeNull();
-
-    mediaParticipant.setMicrophoneEnabled.mockRejectedValueOnce(new Error('track stuck'));
-    await expect(controller.setMicrophoneEnabled(false)).rejects.toMatchObject({
-      code: 'media-operation-failed',
-    });
-    expect(controller.getState().mediaFailure).toBe('media-operation-failed');
-
-    // Teardown still unpublishes the retained microphone before disconnect.
-    await controller.disconnect();
-    expect(mediaParticipant.setMicrophoneEnabled).toHaveBeenLastCalledWith(false);
-    expect(controller.getState().lifecycle).toBe('idle');
+    expect(replacementController.getState().lifecycle).toBe('active');
   });
 });

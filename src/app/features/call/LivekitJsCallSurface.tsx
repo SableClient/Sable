@@ -1,24 +1,82 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, color, config, Text, toRem } from 'folds';
 import {
   CarouselLayout,
+  ConnectionQualityIndicator,
   ControlBar,
+  MediaDeviceMenu,
   FocusLayout,
   FocusLayoutContainer,
   GridLayout,
   ParticipantTile,
   RoomAudioRenderer,
   RoomContext,
+  TrackMutedIndicator,
   useConnectionState,
+  useEnsureTrackRef,
+  useIsSpeaking,
+  useLocalParticipant,
+  useParticipants,
   useTracks,
+  VideoTrack,
 } from '@livekit/components-react';
-import { ConnectionState, Track, type Room } from 'livekit-client';
+import { ConnectionState, Track, type Participant, type Room } from 'livekit-client';
+import { useCallMembers, useCallSession } from '$hooks/useCall';
+import { useRoom } from '$hooks/useRoom';
+import type { LivekitJsCallMedia } from '$state/livekitJsCall';
+import { buildRtcIdentityMap, type UserIdByRtcIdentity } from './livekitCallIdentity';
+import {
+  CallParticipantAvatar,
+  CallParticipantName,
+  useCallParticipantProfile,
+} from './LivekitCallParticipant';
 import * as css from './LivekitJsCallSurface.css';
 
 const controlIdleDelay = 3500;
 
-function GridTile() {
+// Camera carries a placeholder so participants without video still get a tile;
+// screen share must not, or every participant would fake a shared screen.
+const trackSources = [
+  { source: Track.Source.Camera, withPlaceholder: true },
+  { source: Track.Source.ScreenShare, withPlaceholder: false },
+];
+
+const trackOptions = { onlySubscribed: false };
+
+function CallTileContent({ userIdByIdentity }: { userIdByIdentity: UserIdByRtcIdentity }) {
+  const trackRef = useEnsureTrackRef();
+  const { participant, publication, source } = trackRef;
+  const profile = useCallParticipantProfile(participant.identity, userIdByIdentity);
+  const isScreenShare = source === Track.Source.ScreenShare;
+
+  return (
+    <>
+      {publication ? (
+        <VideoTrack trackRef={trackRef} />
+      ) : (
+        <div className="lk-participant-placeholder">
+          <CallParticipantAvatar profile={profile} size="min(96px, 40%)" />
+        </div>
+      )}
+      <div className="lk-participant-metadata">
+        <div className="lk-participant-metadata-item">
+          {!isScreenShare && (
+            <TrackMutedIndicator
+              trackRef={{ participant, source: Track.Source.Microphone }}
+              show="muted"
+            />
+          )}
+          <span className="lk-participant-name">
+            {isScreenShare ? `${profile.name}'s screen` : profile.name}
+          </span>
+        </div>
+        <ConnectionQualityIndicator className="lk-participant-metadata-item" />
+      </div>
+    </>
+  );
+}
+
+function GridTile({ userIdByIdentity }: { userIdByIdentity: UserIdByRtcIdentity }) {
   return (
     <ParticipantTile
       style={{
@@ -28,15 +86,78 @@ function GridTile() {
         minHeight: 0,
         overflow: 'hidden',
       }}
-    />
+    >
+      <CallTileContent userIdByIdentity={userIdByIdentity} />
+    </ParticipantTile>
   );
 }
 
-function CarouselTile() {
-  return <ParticipantTile style={{ position: 'relative', minWidth: 0, overflow: 'hidden' }} />;
+function CarouselTile({ userIdByIdentity }: { userIdByIdentity: UserIdByRtcIdentity }) {
+  return (
+    <ParticipantTile style={{ position: 'relative', minWidth: 0, overflow: 'hidden' }}>
+      <CallTileContent userIdByIdentity={userIdByIdentity} />
+    </ParticipantTile>
+  );
 }
 
-function MediaLayout({ tracks }: { tracks: ReturnType<typeof useTracks> }) {
+function AudioCallParticipant({
+  participant,
+  userIdByIdentity,
+}: {
+  participant: Participant;
+  userIdByIdentity: UserIdByRtcIdentity;
+}) {
+  const profile = useCallParticipantProfile(participant.identity, userIdByIdentity, 192);
+  const speaking = useIsSpeaking(participant);
+
+  return (
+    <Box
+      className={css.AudioParticipant}
+      data-lk-speaking={speaking ? 'true' : 'false'}
+      direction="Column"
+      alignItems="Center"
+      gap="200"
+    >
+      <CallParticipantAvatar profile={profile} size={toRem(96)} />
+      <CallParticipantName profile={profile} />
+    </Box>
+  );
+}
+
+function AudioCallLayout({ userIdByIdentity }: { userIdByIdentity: UserIdByRtcIdentity }) {
+  const participants = useParticipants();
+
+  return (
+    <Box
+      alignItems="Center"
+      justifyContent="Center"
+      direction="Column"
+      gap="500"
+      style={{ height: '100%' }}
+    >
+      <Text size="L400" style={{ color: color.Surface.OnContainer, opacity: 0.7 }}>
+        Audio call
+      </Text>
+      <Box wrap="Wrap" justifyContent="Center" alignItems="Center" gap="400">
+        {participants.map((participant) => (
+          <AudioCallParticipant
+            key={participant.identity}
+            participant={participant}
+            userIdByIdentity={userIdByIdentity}
+          />
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
+function MediaLayout({
+  tracks,
+  userIdByIdentity,
+}: {
+  tracks: ReturnType<typeof useTracks>;
+  userIdByIdentity: UserIdByRtcIdentity;
+}) {
   const screenShare = tracks.find((track) => track.source === Track.Source.ScreenShare);
 
   if (screenShare) {
@@ -61,7 +182,7 @@ function MediaLayout({ tracks }: { tracks: ReturnType<typeof useTracks> }) {
             orientation="vertical"
             style={{ minWidth: 0, minHeight: 0, overflowY: 'auto' }}
           >
-            <CarouselTile />
+            <CarouselTile userIdByIdentity={userIdByIdentity} />
           </CarouselLayout>
         )}
       </FocusLayoutContainer>
@@ -81,7 +202,7 @@ function MediaLayout({ tracks }: { tracks: ReturnType<typeof useTracks> }) {
         minWidth: 0,
       }}
     >
-      <GridTile />
+      <GridTile userIdByIdentity={userIdByIdentity} />
     </GridLayout>
   );
 }
@@ -114,20 +235,60 @@ function ConnectionFeedback() {
   );
 }
 
-function LivekitJsCallContent({ onHangup }: { onHangup: () => void }) {
-  const tracks = useTracks(
-    [
-      { source: Track.Source.Camera, withPlaceholder: true },
-      { source: Track.Source.ScreenShare, withPlaceholder: false },
-    ],
-    { onlySubscribed: false }
-  );
+const deviceErrorMessages: Partial<Record<Track.Source, string>> = {
+  [Track.Source.Microphone]: 'Microphone unavailable. Check your browser permissions.',
+  [Track.Source.Camera]: 'Camera unavailable. Check your browser permissions.',
+  [Track.Source.ScreenShare]: 'Screen sharing was not started.',
+};
+
+function LivekitJsCallContent({
+  e2eeReady,
+  initialMedia,
+  onHangup,
+}: {
+  e2eeReady: boolean;
+  initialMedia: LivekitJsCallMedia;
+  onHangup: () => void;
+}) {
+  const tracks = useTracks(trackSources, trackOptions);
   const localScreenShare = tracks.some(
     (track) => track.source === Track.Source.ScreenShare && track.participant.isLocal
   );
   const hasVideo = tracks.some((track) => track.publication !== undefined);
+  const matrixRoom = useRoom();
+  const callSession = useCallSession(matrixRoom);
+  const callMembers = useCallMembers(matrixRoom, callSession);
+  const userIdByIdentity = useMemo(() => buildRtcIdentityMap(callMembers), [callMembers]);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [deviceError, setDeviceError] = useState<string | undefined>(undefined);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const { localParticipant } = useLocalParticipant();
+  const appliedInitialMedia = useRef(false);
+
+  const handleDeviceError = useCallback(({ source }: { source: Track.Source }) => {
+    setDeviceError(deviceErrorMessages[source] ?? 'A media device is unavailable.');
+  }, []);
+
+  // Publishing before the local key is imported would send unencrypted frames,
+  // so the prescreen choice is applied on the first render where E2EE is ready.
+  useEffect(() => {
+    if (!e2eeReady || appliedInitialMedia.current) return;
+    appliedInitialMedia.current = true;
+    localParticipant
+      .setMicrophoneEnabled(
+        initialMedia.microphone,
+        initialMedia.audioDeviceId ? { deviceId: initialMedia.audioDeviceId } : undefined
+      )
+      .catch(() => handleDeviceError({ source: Track.Source.Microphone }));
+    if (initialMedia.camera) {
+      localParticipant
+        .setCameraEnabled(
+          true,
+          initialMedia.videoDeviceId ? { deviceId: initialMedia.videoDeviceId } : undefined
+        )
+        .catch(() => handleDeviceError({ source: Track.Source.Camera }));
+    }
+  }, [e2eeReady, initialMedia, localParticipant, handleDeviceError]);
 
   const revealControls = useCallback(() => {
     setControlsVisible(true);
@@ -156,35 +317,53 @@ function LivekitJsCallContent({ onHangup }: { onHangup: () => void }) {
       onPointerDown={revealControls}
       onFocusCapture={() => setControlsVisible(true)}
       style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
+        position: 'relative',
+        width: '100%',
+        height: '100%',
         minHeight: 0,
         overflow: 'hidden',
         background: 'var(--sable-livekit-canvas, #090b10)',
       }}
     >
-      <RoomAudioRenderer />
+      <RoomAudioRenderer muted={!initialMedia.sound} />
       <Box style={{ position: 'absolute', inset: 0, padding: config.space.S200, minHeight: 0 }}>
-        <MediaLayout tracks={tracks} />
+        {hasVideo ? (
+          <MediaLayout tracks={tracks} userIdByIdentity={userIdByIdentity} />
+        ) : (
+          <AudioCallLayout userIdByIdentity={userIdByIdentity} />
+        )}
       </Box>
-      {!hasVideo && (
+      <ConnectionFeedback />
+      {deviceError && (
         <Box
+          role="alert"
           alignItems="Center"
           justifyContent="Center"
           style={{
             position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            zIndex: 1,
+            top: toRem(56),
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 3,
+            padding: `${config.space.S100} ${config.space.S200}`,
+            borderRadius: config.radii.R500,
+            background: color.Critical.Container,
+            color: color.Critical.OnContainer,
           }}
         >
-          <Text size="L400" style={{ color: color.Surface.OnContainer }}>
-            Audio call
-          </Text>
+          <Text size="T200">{deviceError}</Text>
+          <Button
+            size="300"
+            variant="Critical"
+            fill="None"
+            onClick={() => setDeviceError(undefined)}
+          >
+            <Text as="span" size="B300">
+              Dismiss
+            </Text>
+          </Button>
         </Box>
       )}
-      <ConnectionFeedback />
       {localScreenShare && (
         <Box
           role="status"
@@ -237,10 +416,20 @@ function LivekitJsCallContent({ onHangup }: { onHangup: () => void }) {
             pointerEvents: controlsVisible ? 'auto' : 'none',
           }}
         >
-          <ControlBar
-            variation="minimal"
-            controls={{ microphone: true, camera: true, screenShare: true, leave: false }}
-          />
+          {e2eeReady ? (
+            <>
+              <ControlBar
+                variation="minimal"
+                controls={{ leave: false }}
+                onDeviceError={handleDeviceError}
+              />
+              <MediaDeviceMenu kind="audiooutput" aria-label="Select speaker" />
+            </>
+          ) : (
+            <Text size="T200" style={{ padding: `0 ${config.space.S200}` }}>
+              Securing call…
+            </Text>
+          )}
           <Button
             size="300"
             variant="Critical"
@@ -263,15 +452,20 @@ function LivekitJsCallContent({ onHangup }: { onHangup: () => void }) {
   );
 }
 
-export function LivekitJsCallSurface({ room, onHangup }: { room: Room; onHangup: () => void }) {
-  const [portalTarget] = useState<HTMLElement>(
-    () => document.getElementById('portalContainer') ?? document.body
-  );
-
-  return createPortal(
+export function LivekitJsCallSurface({
+  room,
+  e2eeReady,
+  initialMedia,
+  onHangup,
+}: {
+  room: Room;
+  e2eeReady: boolean;
+  initialMedia: LivekitJsCallMedia;
+  onHangup: () => void;
+}) {
+  return (
     <RoomContext.Provider value={room}>
-      <LivekitJsCallContent onHangup={onHangup} />
-    </RoomContext.Provider>,
-    portalTarget
+      <LivekitJsCallContent e2eeReady={e2eeReady} initialMedia={initialMedia} onHangup={onHangup} />
+    </RoomContext.Provider>
   );
 }

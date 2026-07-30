@@ -3,7 +3,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef } fr
 import { useStore } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { createLivekitJsController } from './livekitJsController';
-import { isLivekitJsCallActive, livekitJsCallAtom } from '$state/livekitJsCall';
+import {
+  isLivekitJsCallActive,
+  livekitJsCallAtom,
+  type LivekitJsCallMedia,
+} from '$state/livekitJsCall';
 import { callEmbedAtom } from '$state/callEmbed';
 import { isNativeCallActive, nativeCallAtom } from '$state/nativeCall';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -13,6 +17,10 @@ export type LivekitJsCallStartOptions = {
   room: Room;
   dm?: boolean;
   video?: boolean;
+  microphone?: boolean;
+  sound?: boolean;
+  audioDeviceId?: string;
+  videoDeviceId?: string;
 };
 
 export type LivekitJsCallManager = {
@@ -41,6 +49,11 @@ export function LivekitJsCallManagerProvider({ children }: LivekitJsCallManagerP
   const discovery = useAutoDiscoveryInfo();
   const store = useStore();
   const roomIdRef = useRef<string | undefined>(undefined);
+  const initialMediaRef = useRef<LivekitJsCallMedia>({
+    microphone: true,
+    camera: false,
+    sound: true,
+  });
   const controllerRef = useRef<LivekitJsController | undefined>(undefined);
   const generationRef = useRef(0);
 
@@ -65,10 +78,11 @@ export function LivekitJsCallManagerProvider({ children }: LivekitJsCallManagerP
       }
       store.set(livekitJsCallAtom, {
         roomId,
+        initialMedia: initialMediaRef.current,
         lifecycle: controllerState.lifecycle,
         failure: controllerState.failure,
         room: controllerState.lifecycle === 'active' ? controllerState.room : undefined,
-        media: controllerState.lifecycle === 'active' ? controllerState.media : undefined,
+        e2eeReady: controllerState.e2ee.ready,
         hangup: () => controller.disconnect(),
       });
     });
@@ -87,7 +101,15 @@ export function LivekitJsCallManagerProvider({ children }: LivekitJsCallManagerP
   }, [controller, generation, store]);
 
   const start = useCallback(
-    ({ room, dm, video }: LivekitJsCallStartOptions) => {
+    ({
+      room,
+      dm,
+      video,
+      microphone,
+      sound,
+      audioDeviceId,
+      videoDeviceId,
+    }: LivekitJsCallStartOptions) => {
       // Guard mirrors nativeCallManager.start: a single call owner at a time.
       // Without the native guard, connect would fail the call-owner lease and
       // publish a spurious 'failed' session while the native call continues.
@@ -101,6 +123,13 @@ export function LivekitJsCallManagerProvider({ children }: LivekitJsCallManagerP
       const activeController = controllerRef.current;
       if (!activeController) return;
       roomIdRef.current = room.roomId;
+      initialMediaRef.current = {
+        microphone: microphone ?? true,
+        camera: video ?? false,
+        sound: sound ?? true,
+        audioDeviceId,
+        videoDeviceId,
+      };
       void activeController
         .connect({
           mx,

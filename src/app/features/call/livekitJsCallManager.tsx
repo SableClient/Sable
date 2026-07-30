@@ -5,6 +5,7 @@ import type { Room } from '$types/matrix-sdk';
 import { createLivekitJsController } from './livekitJsController';
 import { isLivekitJsCallActive, livekitJsCallAtom } from '$state/livekitJsCall';
 import { callEmbedAtom } from '$state/callEmbed';
+import { isNativeCallActive, nativeCallAtom } from '$state/nativeCall';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -91,7 +92,16 @@ export function LivekitJsCallManagerProvider({ children }: LivekitJsCallManagerP
 
   const start = useCallback(
     ({ room, dm, video }: LivekitJsCallStartOptions) => {
-      if (store.get(callEmbedAtom) || isLivekitJsCallActive(store.get(livekitJsCallAtom))) return;
+      // Guard mirrors nativeCallManager.start: a single call owner at a time.
+      // Without the native guard, connect would fail the call-owner lease and
+      // publish a spurious 'failed' session while the native call continues.
+      if (
+        store.get(callEmbedAtom) ||
+        isLivekitJsCallActive(store.get(livekitJsCallAtom)) ||
+        isNativeCallActive(store.get(nativeCallAtom))
+      ) {
+        return;
+      }
       const activeController = controllerRef.current;
       if (!activeController) return;
       roomIdRef.current = room.roomId;

@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useStore } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ElementCallThemeKind } from '../plugins/call';
 import { CallEmbed, ElementWidgetActions, useClientWidgetApiEvent } from '../plugins/call';
@@ -21,6 +21,9 @@ import { acquireCallOwner } from '$state/callOwner';
 import { isLivekitJsCallProbeEnabled } from '$features/call/livekitJsCallProbe';
 import { selectCallStartOwner } from '$features/call/callStartSelection';
 import { useLivekitJsCallManager } from '$features/call/livekitJsCallManager';
+import { getNativeCallAvailability } from '$features/call/nativeCallProbe';
+import { getNativeCallManager } from '$features/call/nativeCallManager';
+import { useAutoDiscoveryInfo } from './useAutoDiscoveryInfo';
 
 const debugLog = createDebugLogger('useCallEmbed');
 
@@ -72,14 +75,32 @@ export const useCallStart = (dm = false) => {
   const setCallEmbed = useSetAtom(callEmbedAtom);
   const setCallEmbedStartError = useSetAtom(callEmbedStartErrorAtom);
   const callEmbedRef = useCallEmbedRef();
+  const store = useStore();
+  const discovery = useAutoDiscoveryInfo();
   const [livekitJsCallsEnabled] = useSetting(settingsAtom, 'livekitJsCallsEnabled');
   const livekitJsCallManager = useLivekitJsCallManager();
+  const [nativeCallAvailable, setNativeCallAvailable] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void getNativeCallAvailability().then((available) => {
+      if (active) setNativeCallAvailable(available);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const startCall = useCallback(
     (room: Room, pref?: CallPreferences) => {
       const startOwner = selectCallStartOwner({
         livekitJsProbeEnabled: isLivekitJsCallProbeEnabled(livekitJsCallsEnabled),
+        nativeCallAvailable,
       });
+      if (startOwner === 'livekit-mobile') {
+        getNativeCallManager(store).start({ mx, room, discovery, dm, video: pref?.video });
+        return;
+      }
       if (startOwner === 'livekit-js') {
         if (!livekitJsCallManager) {
           throw new Error('LiveKit JS call manager is not provided!');
@@ -134,10 +155,13 @@ export const useCallStart = (dm = false) => {
       theme,
       setCallEmbed,
       callEmbedRef,
+      store,
+      discovery,
       clientConfig.elementCallUrl,
       setCallEmbedStartError,
       livekitJsCallsEnabled,
       livekitJsCallManager,
+      nativeCallAvailable,
     ]
   );
 

@@ -9,6 +9,7 @@ import { AutoDiscoveryInfoProvider } from '$hooks/useAutoDiscoveryInfo';
 import { CallEmbedRefContextProvider } from '$hooks/useCallEmbed';
 import { getSettings, settingsAtom } from '$state/settings';
 import { livekitJsCallAtom } from '$state/livekitJsCall';
+import { nativeCallAtom, type NativeCallSession } from '$state/nativeCall';
 import {
   type LivekitJsCallManager,
   LivekitJsCallManagerProvider,
@@ -73,6 +74,16 @@ const makeFakeController = (): FakeController => {
 };
 
 const room = { roomId: '!room:example.org' } as Room;
+
+const makeNativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCallSession => ({
+  backend: 'livekit-mobile',
+  roomId: room.roomId,
+  callId: 'native-call-id',
+  lifecycle,
+  microphoneEnabled: true,
+  cameraEnabled: false,
+  hangup: async () => undefined,
+});
 
 const memberships: string[] = [];
 const mx = {
@@ -311,6 +322,41 @@ describe('LivekitJsCallManagerProvider', () => {
     act(() => {
       harness.managers[1]!.start({ room, video: false });
       harness.managers[2]!.start({ room, video: false });
+    });
+
+    expect(controller.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses to start while a native call is active and publishes no failed session', () => {
+    const harness = createHarness();
+    harness.store.set(nativeCallAtom, makeNativeSession('connected'));
+    render(
+      <harness.wrapper>
+        <harness.Consumer />
+      </harness.wrapper>
+    );
+    const controller = harness.controllers[0]!;
+
+    act(() => {
+      currentManager(harness).start({ room, video: false });
+    });
+
+    expect(controller.connect).not.toHaveBeenCalled();
+    expect(harness.store.get(livekitJsCallAtom)).toBeUndefined();
+  });
+
+  it('starts when the native session is in a terminal error state', () => {
+    const harness = createHarness();
+    harness.store.set(nativeCallAtom, makeNativeSession('error'));
+    render(
+      <harness.wrapper>
+        <harness.Consumer />
+      </harness.wrapper>
+    );
+    const controller = harness.controllers[0]!;
+
+    act(() => {
+      currentManager(harness).start({ room, video: false });
     });
 
     expect(controller.connect).toHaveBeenCalledTimes(1);

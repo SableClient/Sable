@@ -1,6 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { LivekitJsCallProbe } from './CallView';
+import { LivekitJsCallProbe, NativeCallSurface } from './CallView';
+import type { NativeCallSession } from '$state/nativeCall';
+
+const nativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCallSession => ({
+  backend: 'livekit-mobile',
+  roomId: '!room:example.org',
+  callId: 'call-id',
+  lifecycle,
+  microphoneEnabled: true,
+  cameraEnabled: false,
+  hangup: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+});
 
 describe('LiveKit JS connection probe', () => {
   it('renders connection and E2EE readiness without media controls', () => {
@@ -44,6 +55,34 @@ describe('LiveKit JS connection probe', () => {
 
     expect(screen.getByText('E2EE readiness:')).toHaveTextContent('Unavailable on this device');
     screen.getByRole('button', { name: 'End' }).click();
+    expect(onHangup).toHaveBeenCalledOnce();
+  });
+});
+
+describe('native new-call surface', () => {
+  it('shows connection controls when connected', () => {
+    render(<NativeCallSurface session={nativeSession('connected')} onHangup={() => {}} />);
+
+    expect(screen.getByText('New call')).toBeInTheDocument();
+    expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
+  });
+
+  it('gives failed calls an explicit dismiss route', () => {
+    const onHangup = vi.fn();
+    render(
+      <NativeCallSurface
+        session={{ ...nativeSession('error'), error: 'Native call connection failed.' }}
+        onHangup={onHangup}
+      />
+    );
+
+    expect(
+      screen.getByText(/Native call connection failed\. Dismiss this call to try again\./)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
+    screen.getByRole('button', { name: 'Dismiss' }).click();
     expect(onHangup).toHaveBeenCalledOnce();
   });
 });

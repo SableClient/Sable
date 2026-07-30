@@ -1,0 +1,68 @@
+import type { useStore } from 'jotai';
+
+type Store = ReturnType<typeof useStore>;
+import type { MatrixClient, Room } from '$types/matrix-sdk';
+import type { AutoDiscoveryInfo } from '../../cs-api';
+import { callEmbedAtom } from '$state/callEmbed';
+import { isLivekitJsCallActive, livekitJsCallAtom } from '$state/livekitJsCall';
+import { isNativeCallActive, nativeCallAtom } from '$state/nativeCall';
+import {
+  createNativeCallController,
+  type NativeCallController,
+  type NativeCallControllerDependencies,
+} from './nativeCallController';
+
+export type NativeCallManagerStartOptions = {
+  mx: MatrixClient;
+  room: Room;
+  discovery?: Pick<AutoDiscoveryInfo, 'org.matrix.msc4143.rtc_foci'>;
+  dm?: boolean;
+  video?: boolean;
+};
+
+export type NativeCallManager = {
+  start: (options: NativeCallManagerStartOptions) => void;
+};
+
+export const createNativeCallManager = (
+  store: Pick<Store, 'get' | 'set'>,
+  createController: (
+    dependencies: Pick<NativeCallControllerDependencies, 'setSession'>
+  ) => NativeCallController = createNativeCallController
+): NativeCallManager => {
+  const controller = createController({
+    setSession: (session) => store.set(nativeCallAtom, session),
+  });
+
+  return {
+    start: ({ mx, room, discovery, dm, video }) => {
+      if (
+        store.get(callEmbedAtom) ||
+        isLivekitJsCallActive(store.get(livekitJsCallAtom)) ||
+        isNativeCallActive(store.get(nativeCallAtom))
+      ) {
+        return;
+      }
+      void controller
+        .start({
+          mx,
+          room,
+          discovery,
+          dm: dm ?? false,
+          video: video ?? false,
+          ongoing: mx.matrixRTC.getRoomSession(room).memberships.length > 0,
+        })
+        .catch(() => undefined);
+    },
+  };
+};
+
+const managers = new WeakMap<Pick<Store, 'get' | 'set'>, NativeCallManager>();
+
+export const getNativeCallManager = (store: Pick<Store, 'get' | 'set'>): NativeCallManager => {
+  const cached = managers.get(store);
+  if (cached) return cached;
+  const manager = createNativeCallManager(store);
+  managers.set(store, manager);
+  return manager;
+};

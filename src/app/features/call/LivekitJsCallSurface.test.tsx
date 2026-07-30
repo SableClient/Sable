@@ -2,6 +2,8 @@ import { type CSSProperties, type Context, type ReactNode } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Room } from 'livekit-client';
+import { createStore, Provider } from 'jotai';
+import { livekitJsCallSoundAtom } from '$state/livekitJsCall';
 import { LivekitJsCallSurface } from './LivekitJsCallSurface';
 
 const mocks = vi.hoisted(() => ({
@@ -252,14 +254,19 @@ describe('LiveKit JS call surface', () => {
     expect(mocks.setCameraEnabled).not.toHaveBeenCalled();
   });
 
-  it('mutes incoming audio when the prescreen sound toggle was off', () => {
+  it('mutes incoming audio while the shared sound toggle is off', () => {
+    const store = createStore();
+    store.set(livekitJsCallSoundAtom, false);
+
     render(
-      <LivekitJsCallSurface
-        room={room}
-        e2eeReady
-        initialMedia={{ microphone: true, camera: false, sound: false }}
-        onHangup={() => {}}
-      />
+      <Provider store={store}>
+        <LivekitJsCallSurface
+          room={room}
+          e2eeReady
+          initialMedia={initialMedia}
+          onHangup={() => {}}
+        />
+      </Provider>
     );
 
     expect(screen.getByTestId('room-audio')).toHaveAttribute('data-muted', 'true');

@@ -26,6 +26,8 @@ export type LivekitJsCallSession = {
 
 export const livekitJsCallAtom = atom<LivekitJsCallSession | undefined>(undefined);
 
+export const livekitJsCallSoundAtom = atom(true);
+
 export const isLivekitJsCallActive = (session: LivekitJsCallSession | undefined): boolean =>
   session?.lifecycle !== undefined &&
   session.lifecycle !== 'idle' &&

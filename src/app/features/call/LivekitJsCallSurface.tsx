@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAtomValue } from 'jotai';
 import { Box, Button, color, config, Text, toRem } from 'folds';
 import {
   CarouselLayout,
@@ -24,7 +25,7 @@ import { ConnectionState, Track, type Participant, type Room } from 'livekit-cli
 import { SpeakerHigh, sizedIcon } from '$components/icons/phosphor';
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useRoom } from '$hooks/useRoom';
-import type { LivekitJsCallMedia } from '$state/livekitJsCall';
+import { livekitJsCallSoundAtom, type LivekitJsCallMedia } from '$state/livekitJsCall';
 import { buildRtcIdentityMap, type UserIdByRtcIdentity } from './livekitCallIdentity';
 import {
   CallParticipantAvatar,
@@ -273,6 +274,7 @@ function LivekitJsCallContent({
   const [deviceError, setDeviceError] = useState<string | undefined>(undefined);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { localParticipant } = useLocalParticipant();
+  const soundEnabled = useAtomValue(livekitJsCallSoundAtom);
   const appliedInitialMedia = useRef(false);
 
   const handleDeviceError = useCallback(({ source }: { source: Track.Source }) => {
@@ -335,7 +337,7 @@ function LivekitJsCallContent({
         background: 'var(--sable-livekit-canvas, #090b10)',
       }}
     >
-      <RoomAudioRenderer muted={!initialMedia.sound} />
+      <RoomAudioRenderer muted={!soundEnabled} />
       <Box style={{ position: 'absolute', inset: 0, padding: config.space.S200, minHeight: 0 }}>
         {hasVideo ? (
           <MediaLayout tracks={tracks} userIdByIdentity={userIdByIdentity} />

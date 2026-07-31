@@ -124,7 +124,7 @@ tauri-plugin-notifications = { git = "https://github.com/SableClient/tauri-plugi
 ] }
 tauri-plugin-edge-to-edge = { git = "https://github.com/SableClient/tauri-plugin-edge-to-edge.git", rev = "33c6116c27be28c06df5a9d02231ecc5fdeb93c5" }
 tauri-plugin-sharekit = { git = "https://github.com/Choochmeque/tauri-plugin-sharekit", rev = "9f2b4c5d8a4f0ab910d900ba234ed8bae0ab854b" }
-tauri-plugin-livekit-mobile = { git = "https://github.com/SableClient/tauri-plugin-livekit-mobile.git", rev = "43857b2c81555c8222d202a4625b5c5b25cb57b8" }
+tauri-plugin-livekit-mobile = { git = "https://github.com/SableClient/tauri-plugin-livekit-mobile.git", rev = "f63d276d90f926be9642f7be0f649192fcce18f1" }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2 = "0.6"

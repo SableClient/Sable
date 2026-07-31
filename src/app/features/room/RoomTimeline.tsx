@@ -113,6 +113,15 @@ const focusItemAffectsEvent = (focusItem: unknown, eventData: ProcessedEvent | u
 const eventIdAffectsEvent = (eventId: string | null | undefined, eventData?: ProcessedEvent) =>
   typeof eventId === 'string' && eventId === eventData?.id;
 
+const shallowEqual = (prev: Record<string, unknown>, next: Record<string, unknown>) => {
+  if (prev === next) return true;
+  if (Object.keys(prev).length !== Object.keys(next).length) return false;
+  for (const key in prev) {
+    if (prev[key] !== next[key]) return false;
+  }
+  return true;
+};
+
 const MemoizedTimelineItem = memo(
   function MemoizedTimelineItem({
     eventData,
@@ -134,6 +143,7 @@ const MemoizedTimelineItem = memo(
     messageLayout: MessageLayout;
     messageSpacing: MessageSpacing;
     settings: Record<string, unknown>;
+    permissions: Record<string, unknown>;
     renderMatrixEvent: ReturnType<typeof useTimelineEventRenderer>;
     focusItem: unknown;
     editId: string | undefined;
@@ -241,15 +251,9 @@ const MemoizedTimelineItem = memo(
     if (prev.messageSpacing !== next.messageSpacing) return false;
     if (prev.renderMatrixEvent !== next.renderMatrixEvent) return false;
 
-    // Shallow compare settings since it contains primitive toggles
-    const pSettings = prev.settings as Record<string, unknown>;
-    const nSettings = next.settings as Record<string, unknown>;
-    if (pSettings !== nSettings) {
-      if (Object.keys(pSettings).length !== Object.keys(nSettings).length) return false;
-      for (const key in pSettings) {
-        if (pSettings[key] !== nSettings[key]) return false;
-      }
-    }
+    // Shallow compare settings and permissions since both hold primitive toggles
+    if (!shallowEqual(prev.settings, next.settings)) return false;
+    if (!shallowEqual(prev.permissions, next.permissions)) return false;
 
     if (
       prev.focusItem !== next.focusItem &&
@@ -926,6 +930,10 @@ export function RoomTimeline({
     },
   });
 
+  // renderMatrixEvent keeps a stable identity and reads these through a ref, so
+  // the row memo has to compare them itself to notice a power-level change.
+  const rowPermissions = { canRedact, canDeleteOwn, canSendReaction, canPinEvent };
+
   const renderMatrixEvent = useTimelineEventRenderer({
     room,
     mx,
@@ -935,12 +943,7 @@ export function RoomTimeline({
     imagePackRooms,
     settings,
     state: { focusItem: timelineSync.focusItem, editId, activeReplyId, openThreadId },
-    permissions: {
-      canRedact,
-      canDeleteOwn,
-      canSendReaction,
-      canPinEvent,
-    },
+    permissions: rowPermissions,
     callbacks: {
       onUserClick: actions.handleUserClick,
       onUsernameClick: actions.handleUsernameClick,
@@ -1255,6 +1258,7 @@ export function RoomTimeline({
                 messageLayout={messageLayout}
                 messageSpacing={messageSpacing}
                 settings={settings as unknown as Record<string, unknown>}
+                permissions={rowPermissions}
                 renderMatrixEvent={renderMatrixEvent}
                 focusItem={timelineSync.focusItem}
                 editId={editId}

@@ -341,6 +341,14 @@ export class SlidingSyncManager {
 
   private readonly roomDataAwaitingSyncCompletion = new Set<string>();
 
+  /**
+   * Sync cycle each room subscription was requested in. A quiet room can be
+   * subscribed to without the server ever sending a RoomData envelope for it,
+   * so the loading flag needs a deadline of its own rather than waiting on
+   * pendingRoomDataListeners, which would never fire.
+   */
+  private readonly roomSubscriptionLoadingSince = new Map<string, number>();
+
   /** Wall-clock time recorded in attach() — used to compute true initial-sync latency. */
   private attachTime: number | null = null;
 
@@ -431,6 +439,16 @@ export class SlidingSyncManager {
       this.roomDataAwaitingSyncCompletion.clear();
 
       this.syncCount += 1;
+
+      // A subscription that saw no room data is settled once a full cycle has
+      // completed after the one it was requested in: the server had nothing to
+      // send for it. The extra cycle is the grace period for the request that
+      // actually carried the subscription.
+      this.roomSubscriptionLoadingSince.forEach((since, roomId) => {
+        if (this.syncCount < since + 2) return;
+        this.roomSubscriptionLoadingSince.delete(roomId);
+        this.notifyRoomSubscriptionStatus(roomId, false);
+      });
       Sentry.metrics.count('sable.sync.cycle', 1, {
         attributes: { transport: 'sliding' },
       });
@@ -606,6 +624,7 @@ export class SlidingSyncManager {
     });
 
     this.pendingRoomDataListeners.clear();
+    this.roomSubscriptionLoadingSince.clear();
     this.optimisticallyJoinedRoomIds.clear();
     this.responseProcessing = false;
     this.responseSettledListeners.clear();
@@ -1169,7 +1188,8 @@ export class SlidingSyncManager {
 
   public isRoomSubscriptionLoading(roomId: string): boolean {
     return (
-      this.pendingRoomDataListeners.has(roomId) || this.roomDataAwaitingSyncCompletion.has(roomId)
+      this.roomSubscriptionLoadingSince.has(roomId) ||
+      this.roomDataAwaitingSyncCompletion.has(roomId)
     );
   }
 
@@ -1229,9 +1249,11 @@ export class SlidingSyncManager {
       });
       this.slidingSync.removeListener(SlidingSyncEvent.RoomData, onFirstRoomData);
       this.pendingRoomDataListeners.delete(roomId);
+      this.roomSubscriptionLoadingSince.delete(roomId);
       this.roomDataAwaitingSyncCompletion.add(roomId);
     };
     this.pendingRoomDataListeners.set(roomId, onFirstRoomData);
+    this.roomSubscriptionLoadingSince.set(roomId, this.syncCount);
     this.slidingSync.on(SlidingSyncEvent.RoomData, onFirstRoomData);
     this.notifyRoomSubscriptionStatus(roomId, true);
     return true;
@@ -1244,6 +1266,7 @@ export class SlidingSyncManager {
       this.slidingSync.removeListener(SlidingSyncEvent.RoomData, pendingListener);
       this.pendingRoomDataListeners.delete(roomId);
     }
+    this.roomSubscriptionLoadingSince.delete(roomId);
     this.roomDataAwaitingSyncCompletion.delete(roomId);
     this.notifyRoomSubscriptionStatus(roomId, false);
     this.activeRoomSubscriptions.delete(roomId);

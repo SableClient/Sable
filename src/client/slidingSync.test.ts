@@ -496,6 +496,59 @@ describe('SlidingSyncManager room subscription coordination', () => {
     fireLifecycle(SlidingSyncState.Complete);
 
     expect(loadingStates).toEqual([false, true, false]);
+    expect(manager.isRoomSubscriptionLoading(roomId)).toBe(false);
+  });
+
+  it('stops reporting loading for a room the server never sends data for', () => {
+    const manager = makeManager(makeMockMx());
+    const roomId = '!quiet:example.com';
+    const loadingStates: boolean[] = [];
+
+    manager.onRoomSubscriptionStatus(roomId, (loading) => loadingStates.push(loading));
+    manager.subscribeToRoom(roomId);
+    manager.attach();
+    expect(manager.isRoomSubscriptionLoading(roomId)).toBe(true);
+
+    // The cycle the subscription was requested in carries no data for it.
+    fireLifecycle(SlidingSyncState.Complete);
+    expect(manager.isRoomSubscriptionLoading(roomId)).toBe(true);
+
+    // A full cycle later the room is quiet: nothing is coming.
+    fireLifecycle(SlidingSyncState.Complete);
+    expect(manager.isRoomSubscriptionLoading(roomId)).toBe(false);
+    expect(loadingStates).toEqual([false, true, false]);
+  });
+
+  it('stops reporting loading as soon as the subscription is dropped', () => {
+    const manager = makeManager(makeMockMx());
+    const roomId = '!quiet:example.com';
+
+    manager.subscribeToRoom(roomId);
+    manager.attach();
+    expect(manager.isRoomSubscriptionLoading(roomId)).toBe(true);
+
+    manager.unsubscribeFromRoom(roomId);
+
+    expect(manager.isRoomSubscriptionLoading(roomId)).toBe(false);
+  });
+
+  it('keeps reporting loading for a resubscribed room until its cycles elapse', () => {
+    const manager = makeManager(makeMockMx());
+    const roomId = '!quiet:example.com';
+
+    manager.subscribeToRoom(roomId);
+    manager.attach();
+    fireLifecycle(SlidingSyncState.Complete);
+    fireLifecycle(SlidingSyncState.Complete);
+    expect(manager.isRoomSubscriptionLoading(roomId)).toBe(false);
+
+    manager.unsubscribeFromRoom(roomId);
+    manager.subscribeToRoom(roomId);
+    expect(manager.isRoomSubscriptionLoading(roomId)).toBe(true);
+
+    fireLifecycle(SlidingSyncState.Complete);
+    fireLifecycle(SlidingSyncState.Complete);
+    expect(manager.isRoomSubscriptionLoading(roomId)).toBe(false);
   });
 
   it('uses the active subscription while a room is also an image-pack room', () => {

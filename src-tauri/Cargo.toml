@@ -124,7 +124,9 @@ tauri-plugin-notifications = { git = "https://github.com/SableClient/tauri-plugi
 ] }
 tauri-plugin-edge-to-edge = { git = "https://github.com/SableClient/tauri-plugin-edge-to-edge.git", rev = "33c6116c27be28c06df5a9d02231ecc5fdeb93c5" }
 tauri-plugin-sharekit = { git = "https://github.com/Choochmeque/tauri-plugin-sharekit", rev = "9f2b4c5d8a4f0ab910d900ba234ed8bae0ab854b" }
-tauri-plugin-livekit-mobile = { git = "https://github.com/SableClient/tauri-plugin-livekit-mobile.git", rev = "77d263f6d69914ea811672c5a1f0dcc268f8e228" }
+# TEMP: path override for local plugin verification (Room delegate category fix).
+# Revert to the git pin once the fix is published and verified on device.
+tauri-plugin-livekit-mobile = { path = "/Users/elebouch/dev/personnal/tauri-plugin-call-lifecycle" }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2 = "0.6"

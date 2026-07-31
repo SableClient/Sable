@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import { Badge, Box, Button, color, Header, Scroll, Text, toRem } from 'folds';
+import { Badge, Box, color, Header, Scroll, Text, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoom } from '$hooks/useRoom';
@@ -15,10 +15,11 @@ import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 import { canJoinCall } from './callStartCapabilities';
 import type { LivekitJsCallSession } from '$state/livekitJsCall';
 import { livekitJsCallAtom } from '$state/livekitJsCall';
-import type { NativeCallSession } from '$state/nativeCall';
 import { nativeCallAtom } from '$state/nativeCall';
 import { LivekitJsCallSurface } from './LivekitJsCallSurface';
-import { MicrophoneButton, VideoButton } from './Controls';
+import { NativeCallSurface } from './NativeCallSurface';
+import { CallStatusBar } from './callChrome';
+import { livekitJsCallStatus } from './callClient';
 
 function LivekitServerMissingMessage() {
   return (
@@ -86,74 +87,6 @@ function WidgetPreparationErrorMessage({ message }: { message: string }) {
   );
 }
 
-const nativeCallLifecycleLabels: Record<NativeCallSession['lifecycle'], string> = {
-  starting: 'Starting call',
-  connecting: 'Connecting',
-  connected: 'Connected',
-  reconnecting: 'Reconnecting',
-  error: 'Call failed',
-};
-
-export function NativeCallSurface({
-  session,
-  onHangup,
-}: {
-  session: NativeCallSession;
-  onHangup: () => void;
-}) {
-  const isError = session.lifecycle === 'error';
-  const controlsDisabled = isError || session.lifecycle !== 'connected';
-
-  return (
-    <Box alignItems="Center" justifyContent="Center" direction="Column" gap="300" grow="Yes">
-      <Box direction="Column" gap="100" alignItems="Center">
-        <Text size="L400">New call</Text>
-        <Text size="T300">{nativeCallLifecycleLabels[session.lifecycle]}</Text>
-        {session.error && (
-          <Text style={{ color: color.Critical.Main }} size="T300" align="Center">
-            {session.error} Dismiss this call to try again.
-          </Text>
-        )}
-      </Box>
-      {!isError && (
-        <Box direction="Row" gap="200" alignItems="Center">
-          <MicrophoneButton
-            enabled={session.microphoneEnabled}
-            onToggle={() => void session.setMicrophoneEnabled(!session.microphoneEnabled)}
-            disabled={controlsDisabled}
-          />
-          <VideoButton
-            enabled={session.cameraEnabled}
-            onToggle={() => void session.setCameraEnabled(!session.cameraEnabled)}
-            disabled={controlsDisabled}
-          />
-        </Box>
-      )}
-      <Button size="300" variant="Critical" fill="Soft" radii="300" onClick={onHangup}>
-        <Text as="span" size="B300">
-          {isError ? 'Dismiss' : 'End'}
-        </Text>
-      </Button>
-    </Box>
-  );
-}
-
-const livekitJsLifecycleLabels: Record<LivekitJsCallSession['lifecycle'], string> = {
-  idle: 'Idle',
-  'joining-matrix': 'Joining call',
-  provisioning: 'Preparing call',
-  'connecting-livekit': 'Connecting',
-  active: 'Connected',
-  stopping: 'Ending call',
-  failed: 'Call failed',
-};
-
-const livekitJsFailureMessages: Record<NonNullable<LivekitJsCallSession['failure']>, string> = {
-  'e2ee-unsupported': 'Encrypted calls are not supported on this device.',
-  'e2ee-import-failed': 'Could not set up call encryption.',
-  'setup-failed': 'Could not connect to the call.',
-};
-
 export function LivekitJsCallStatus({
   session,
   onHangup,
@@ -161,26 +94,7 @@ export function LivekitJsCallStatus({
   session: Pick<LivekitJsCallSession, 'lifecycle' | 'failure'>;
   onHangup: () => void;
 }) {
-  const failed = session.lifecycle === 'failed';
-  const failureMessage = session.failure ? livekitJsFailureMessages[session.failure] : undefined;
-
-  return (
-    <Box alignItems="Center" justifyContent="Center" direction="Column" gap="300" grow="Yes">
-      <Box direction="Column" gap="100" alignItems="Center">
-        <Text size="L400">{livekitJsLifecycleLabels[session.lifecycle]}</Text>
-        {failureMessage && (
-          <Text style={{ color: color.Critical.Main }} size="T300" align="Center">
-            {failureMessage}
-          </Text>
-        )}
-      </Box>
-      <Button size="300" variant="Critical" fill="Soft" radii="300" onClick={onHangup}>
-        <Text as="span" size="B300">
-          {failed ? 'Dismiss' : 'End'}
-        </Text>
-      </Button>
-    </Box>
-  );
+  return <CallStatusBar status={livekitJsCallStatus(session)} onHangup={onHangup} />;
 }
 
 function CallPrescreen() {
@@ -378,8 +292,13 @@ export function CallView({ resizable }: CallViewProps) {
           : undefined,
         borderBottom: `1px solid var(--sable-surface-container-line)`,
         zIndex: 20,
-        backgroundColor: livekitJsRoom ? '#090b10' : currentJoined ? 'transparent' : undefined,
-        overflow: livekitJsRoom ? 'hidden' : undefined,
+        backgroundColor:
+          livekitJsRoom || nativeCallForRoom
+            ? '#090b10'
+            : currentJoined
+              ? 'transparent'
+              : undefined,
+        overflow: livekitJsRoom || nativeCallForRoom ? 'hidden' : undefined,
         pointerEvents: currentJoined ? 'none' : 'all',
       }}
     >

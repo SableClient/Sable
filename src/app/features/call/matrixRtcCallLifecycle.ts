@@ -1,5 +1,6 @@
 import type { AutoDiscoveryInfo } from '../../cs-api';
 import {
+  EventType,
   MatrixRTCSessionEvent,
   type CallMembership,
   type JoinSessionConfig,
@@ -9,8 +10,14 @@ import {
 } from '$types/matrix-sdk';
 import { getPreferredLivekitTransport, provisionLivekitToken } from './livekitProvisioning';
 import type { LivekitProvisioningResult } from './livekitProvisioning';
+import { createDebugLogger } from '$utils/debugLogger';
 
-const membershipWaitTimeoutMs = 10_000;
+const debugLog = createDebugLogger('matrixRtcCallLifecycle');
+
+const membershipWaitTimeoutMs = 30_000;
+const fallbackPollIntervalMs = 1_000;
+const callMemberEventType = EventType.RTCMembership;
+const legacyCallMemberEventType = EventType.GroupCallMemberPrefix;
 
 export type MatrixRTCJoinProvisionOptions = {
   mx: MatrixClient;
@@ -41,19 +48,29 @@ type MembershipWait = {
 const waitForOwnMembership = (
   session: MatrixRTCSession,
   userId: string,
-  deviceId: string
+  deviceId: string,
+  mx: MatrixClient,
+  roomId: string
 ): MembershipWait => {
   let resolveWait!: () => void;
   let rejectWait!: (reason?: unknown) => void;
   let settled = false;
   let timeout: ReturnType<typeof setTimeout> | undefined;
+  let fallbackTimer: ReturnType<typeof setInterval> | undefined;
   let membershipsListenerInstalled = false;
   let membershipErrorListenerInstalled = false;
+
+  const stateKey = `_${userId}_${deviceId}_m.call`;
 
   const handleMembershipsChanged = (
     _oldMemberships: CallMembership[],
     memberships: CallMembership[]
   ): void => {
+    debugLog.info(
+      'call',
+      `membership changed: n=${memberships.length} want=${userId}:${deviceId} have=${memberships.map((m) => `${m.userId}:${m.deviceId}`).join(',')}`
+    );
+
     if (
       memberships.some(
         (membership) => membership.userId === userId && membership.deviceId === deviceId
@@ -85,10 +102,18 @@ const waitForOwnMembership = (
     }
   };
 
+  const stopFallback = (): void => {
+    if (fallbackTimer !== undefined) {
+      clearInterval(fallbackTimer);
+      fallbackTimer = undefined;
+    }
+  };
+
   const settle = (settlePromise: () => void): void => {
     if (settled) return;
     settled = true;
     if (timeout !== undefined) clearTimeout(timeout);
+    stopFallback();
     removeListeners();
     settlePromise();
   };
@@ -110,6 +135,36 @@ const waitForOwnMembership = (
       () => settle(() => rejectWait(new Error('MatrixRTC membership publication timed out'))),
       membershipWaitTimeoutMs
     );
+
+    // Server-side fallback: poll mx.getStateEvent so we detect the membership
+    // even when the local session filters it out during sync gaps.
+    fallbackTimer = setInterval(() => {
+      if (settled) return;
+      debugLog.info(
+        'call',
+        `fallback poll: checking server-side membership ${stateKey} in ${roomId}`
+      );
+      mx.getStateEvent(roomId, callMemberEventType, stateKey)
+        .then((event) => {
+          if (event && !settled) {
+            debugLog.info('call', `fallback resolved: found server-side membership ${stateKey}`);
+            settle(resolveWait);
+          }
+        })
+        .catch(() =>
+          // Try the legacy event type as fallback
+          mx.getStateEvent(roomId, legacyCallMemberEventType, stateKey)
+            .then((event) => {
+              if (event && !settled) {
+                debugLog.info('call', `fallback resolved (legacy): found server-side membership ${stateKey}`);
+                settle(resolveWait);
+              }
+            })
+            .catch(() => {
+              // next poll will retry
+            })
+        );
+    }, fallbackPollIntervalMs);
   } catch {
     settle(() => rejectWait(new Error('MatrixRTC membership listener setup failed')));
   }
@@ -144,7 +199,7 @@ export const joinAndProvisionMatrixRTC = async ({
   const userId = mx.getSafeUserId();
   const identity = { userId, deviceId, memberId: `${userId}:${deviceId}` };
   if (isCancelled?.()) throw new Error('MatrixRTC setup cancelled');
-  const membershipWait = waitForOwnMembership(session, identity.userId, identity.deviceId);
+  const membershipWait = waitForOwnMembership(session, identity.userId, identity.deviceId, mx, room.roomId);
   onMembershipWait?.(membershipWait.cancel);
   onStage?.('joining-matrix');
 

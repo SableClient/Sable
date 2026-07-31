@@ -30,6 +30,7 @@ const makeNativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCal
   cameraEnabled: false,
   setMicrophoneEnabled: async () => {},
   setCameraEnabled: async () => {},
+    switchCamera: async () => {},
   hangup: async () => undefined,
 });
 

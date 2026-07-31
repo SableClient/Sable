@@ -3,12 +3,26 @@ import type { MatrixClient, MatrixRTCSession, Room } from '$types/matrix-sdk';
 import {
   connectNativeCall,
   disconnectNativeCall,
+  drainPendingSystemCallActions,
+  endSystemCall,
+  fulfillAnswerCall,
+  fulfillEndCall,
+  getNativeCallState,
   listenNativeCallSnapshot,
+  onSystemCallAction,
+  reportSystemCallConnected,
+  reportSystemIncomingCall,
   setNativeCallCameraEnabled,
   setNativeCallEncryptionKey,
   setNativeCallMicrophoneEnabled,
+  setSystemCallMuted,
+  startSystemCall,
+  switchNativeCallCamera,
+  updateCallDisplay,
+  type GetAudioRoutesResponse,
   type NativeCallEncryptionKeyPayload,
   type NativeCallSnapshot,
+  type SystemCallAction,
 } from './livekitMobileBridge';
 import { getPreferredLivekitTransport, provisionLivekitToken } from './livekitProvisioning';
 import {
@@ -65,6 +79,7 @@ export type NativeCallController = {
   start: (options: NativeCallStartOptions) => Promise<void>;
   setMicrophoneEnabled: (enabled: boolean) => Promise<void>;
   setCameraEnabled: (enabled: boolean) => Promise<void>;
+  switchCamera: () => Promise<void>;
 };
 
 export type NativeCallControllerDependencies = {
@@ -74,6 +89,7 @@ export type NativeCallControllerDependencies = {
   setMicrophone?: typeof setNativeCallMicrophoneEnabled;
   setCamera?: typeof setNativeCallCameraEnabled;
   setEncryptionKey?: typeof setNativeCallEncryptionKey;
+  updateDisplay?: typeof updateCallDisplay;
   listenSnapshot?: typeof listenNativeCallSnapshot;
   createKeyForwarder?: () => NativeCallKeyForwarder;
   getPreferredTransport?: typeof getPreferredLivekitTransport;
@@ -86,6 +102,7 @@ export type NativeCallControllerDependencies = {
 const noMediaControls = {
   setMicrophoneEnabled: async (): Promise<void> => {},
   setCameraEnabled: async (): Promise<void> => {},
+  switchCamera: async (): Promise<void> => {},
 };
 
 const toLifecycle = (
@@ -106,6 +123,7 @@ export const createNativeCallController = (
     setMicrophone: dependencies.setMicrophone ?? setNativeCallMicrophoneEnabled,
     setCamera: dependencies.setCamera ?? setNativeCallCameraEnabled,
     setEncryptionKey: dependencies.setEncryptionKey ?? setNativeCallEncryptionKey,
+    updateDisplay: dependencies.updateDisplay ?? updateCallDisplay,
     listenSnapshot: dependencies.listenSnapshot ?? listenNativeCallSnapshot,
     createKeyForwarder: dependencies.createKeyForwarder ?? createNativeCallKeyForwarder,
     getPreferredTransport: dependencies.getPreferredTransport ?? getPreferredLivekitTransport,
@@ -113,6 +131,49 @@ export const createNativeCallController = (
     createCallId: dependencies.createCallId ?? (() => crypto.randomUUID()),
     acquireOwner: dependencies.acquireOwner ?? acquireCallOwner,
   };
+
+  // Register the system-call (CallKit) listener once at controller creation.
+  // Events (answer, end, mute from lock-screen/system-UI) flow from the
+  // native side regardless of call state.
+  let pendingSystemUuid: string | undefined;
+
+  // When the WebView resumes (phone unlocked, app foregrounded), the JS
+  // state may be stale — snapshot events emitted while JS was suspended are
+  // lost. Poll the native state to resync.
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible' && activeRecord && !activeRecord.cancelled) {
+      void getNativeCallState()
+        .then((snapshot) => handleSnapshot(activeRecord!, snapshot))
+        .catch(() => undefined);
+    }
+  };
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  void onSystemCallAction((action: SystemCallAction) => {
+    if (action.action === 'end') {
+      // System UI ended the call — hang up if active, then fulfill the
+      // pending CXEndCallAction so the system UI dismisses immediately.
+      if (activeRecord && !activeRecord.cancelled) {
+        void cleanup(activeRecord, undefined, true).finally(() => {
+          if (action.uuid) void fulfillEndCall(action.uuid).catch(() => undefined);
+        });
+      } else if (action.uuid) {
+        void fulfillEndCall(action.uuid).catch(() => undefined);
+      }
+      void drainPendingSystemCallActions().catch(() => undefined);
+    } else if (action.action === 'answer') {
+      // System UI answered an incoming call — store the uuid for the
+      // start path so it can map back to the system call.
+      pendingSystemUuid = action.uuid;
+    } else if (action.action === 'mute') {
+      // System UI mute toggle — push to LiveKit.
+      if (activeRecord && !activeRecord.cancelled && activeRecord.connectResolved) {
+        void deps.setMicrophone({ callId: activeRecord.callId, enabled: !action.muted }).catch(
+          () => undefined
+        );
+      }
+    }
+  }).catch(() => undefined);
 
   let activeRecord: NativeCallRecord | undefined;
   let displayedRecord: NativeCallRecord | undefined;
@@ -157,6 +218,7 @@ export const createNativeCallController = (
       cameraEnabled: media?.cameraEnabled ?? false,
       setMicrophoneEnabled,
       setCameraEnabled,
+      switchCamera,
       hangup: () => cleanup(record, undefined, true),
     });
     displayedRecord = record;
@@ -215,6 +277,8 @@ export const createNativeCallController = (
     }
 
     record.cleanupPromise = (async () => {
+      // End the system call so CallKit dismisses the active-call UI.
+      void endSystemCall({ callId: record.callId, remoteEnded: true }).catch(() => undefined);
       await disconnectLivekitThenLeaveMatrixRTC(
         () => deps.disconnectCall({ callId: record.callId }).then(() => undefined),
         record.session
@@ -325,7 +389,9 @@ export const createNativeCallController = (
       });
       if (!isCurrent(currentRecord)) return;
 
-      forwarder.setLocalOutboundIdentity(joined.ownMembership?.rtcBackendIdentity);
+      forwarder.setLocalOutboundIdentity(
+        joined.ownMembership?.rtcBackendIdentity ?? `${mx.getSafeUserId()}:${mx.getDeviceId()}`,
+      );
 
       stage = 'connecting';
       await forwarder.waitForOwnKey();
@@ -347,16 +413,39 @@ export const createNativeCallController = (
       forwarder.getKeys().forEach((key) => forwardKey(currentRecord, key));
       handleSnapshot(currentRecord, snapshot);
 
+      // Report the outgoing system call so CallKit shows the active-call UI.
+      // Use the pending uuid (from an answer action) if present; otherwise
+      // generate a new uuid. The native side maps callId ↔ uuid internally.
+      const systemUuid = pendingSystemUuid ?? crypto.randomUUID();
+      const isIncomingAnswer = pendingSystemUuid !== undefined;
+      pendingSystemUuid = undefined;
+      const callerName = room.name || room.roomId;
+      void startSystemCall({ callId, uuid: systemUuid, callerName }).catch(() => undefined);
+      // Update the system call display with the room name and video flag so
+      // CallKit shows the correct caller info.
+      void deps.updateDisplay({
+        callId,
+        callerName,
+        hasVideo: video,
+      }).catch(() => undefined);
+      // Report the call as connected to CallKit so the system UI updates.
+      void reportSystemCallConnected(systemUuid).catch(() => undefined);
+      // For system-initiated incoming answers: fulfill the deferred answer action.
+      if (isIncomingAnswer) {
+        void fulfillAnswerCall(systemUuid).catch(() => undefined);
+      }
+
       if (video && isCurrent(currentRecord)) {
         await deps.setCamera({ callId, enabled: true }).catch(() => undefined);
       }
-    } catch {
-      logFailure(setupErrorMessage(stage));
+    } catch (cause) {
+      const detail = cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause);
+      logFailure(`${setupErrorMessage(stage)} ${detail}`);
       if (record) {
-        await cleanup(record, setupErrorMessage(stage), false);
+        await cleanup(record, `${setupErrorMessage(stage)} ${detail}`, false);
       } else {
         ownerLease.release();
-        setSetupError(room.roomId, '', setupErrorMessage(stage));
+        setSetupError(room.roomId, '', `${setupErrorMessage(stage)} ${detail}`);
         deps.onCleanup?.();
       }
     }
@@ -366,6 +455,8 @@ export const createNativeCallController = (
     const record = activeRecord;
     if (!record || record.cancelled || !record.connectResolved) return;
     await deps.setMicrophone({ callId: record.callId, enabled }).catch(() => undefined);
+    // Push mute state back to CallKit for UI consistency.
+    void setSystemCallMuted({ callId: record.callId, muted: !enabled }).catch(() => undefined);
   };
 
   const setCameraEnabled = async (enabled: boolean): Promise<void> => {
@@ -374,5 +465,11 @@ export const createNativeCallController = (
     await deps.setCamera({ callId: record.callId, enabled }).catch(() => undefined);
   };
 
-  return { start, setMicrophoneEnabled, setCameraEnabled };
+  const switchCamera = async (): Promise<void> => {
+    const record = activeRecord;
+    if (!record || record.cancelled || !record.connectResolved) return;
+    await switchNativeCallCamera({ callId: record.callId }).catch(() => undefined);
+  };
+
+  return { start, setMicrophoneEnabled, setCameraEnabled, switchCamera };
 };

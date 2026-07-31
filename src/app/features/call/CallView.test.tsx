@@ -1,7 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { LivekitJsCallStatus, NativeCallSurface } from './CallView';
+import { LivekitJsCallStatus } from './CallView';
+import { NativeCallSurface } from './NativeCallSurface';
 import type { NativeCallSession } from '$state/nativeCall';
+
+vi.mock('./livekitMobileBridge', () => ({
+  getNativeCallState: vi.fn<() => Promise<never>>(() => Promise.reject(new Error('not on device'))),
+  listenNativeCallSnapshot: vi.fn<() => Promise<() => void>>(() => Promise.resolve(() => {})),
+  setNativeCallRemoteVideoOverlay: vi.fn<() => Promise<unknown>>(() => Promise.resolve({})),
+  clearNativeCallRemoteVideoOverlay: vi.fn<() => Promise<unknown>>(() => Promise.resolve({})),
+  setNativeCallLocalVideoOverlay: vi.fn<() => Promise<unknown>>(() => Promise.resolve({})),
+  clearNativeCallLocalVideoOverlay: vi.fn<() => Promise<unknown>>(() => Promise.resolve({})),
+}));
 
 const nativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCallSession => ({
   backend: 'livekit-mobile',
@@ -12,6 +22,7 @@ const nativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCallSes
   cameraEnabled: false,
   setMicrophoneEnabled: async () => {},
   setCameraEnabled: async () => {},
+    switchCamera: async () => {},
   hangup: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 });
 
@@ -59,14 +70,24 @@ describe('LiveKit JS call status', () => {
   });
 });
 
-describe('native new-call surface', () => {
-  it('shows connection controls when connected', () => {
+describe('native call surface', () => {
+  it('shows the local tile and call controls when connected', () => {
     render(<NativeCallSurface session={nativeSession('connected')} onHangup={() => {}} />);
 
-    expect(screen.getByText('New call')).toBeInTheDocument();
-    expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(screen.getByText('You')).toBeInTheDocument();
     expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Mute microphone' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Start camera' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
+  });
+
+  it('keeps media toggles disabled while connecting', () => {
+    render(<NativeCallSurface session={nativeSession('connecting')} onHangup={() => {}} />);
+
+    expect(screen.getByText('Connecting')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mute microphone' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start camera' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'End' })).toBeEnabled();
   });
 
   it('gives failed calls an explicit dismiss route', () => {
@@ -81,9 +102,8 @@ describe('native new-call surface', () => {
       />
     );
 
-    expect(
-      screen.getByText(/Native call connection failed\. Dismiss this call to try again\./)
-    ).toBeInTheDocument();
+    expect(screen.getByText('Call failed')).toBeInTheDocument();
+    expect(screen.getByText('Native call connection failed.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
     screen.getByRole('button', { name: 'Dismiss' }).click();
     expect(onHangup).toHaveBeenCalledOnce();

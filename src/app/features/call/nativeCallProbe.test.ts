@@ -11,13 +11,14 @@ vi.mock('./livekitMobileBridge', () => ({
   getNativeCallCapabilities: vi.fn<() => Promise<NativeCallCapabilities>>(),
 }));
 
-const allCapabilities = {
+const allCapabilities: NativeCallCapabilities = {
   supported: true,
   microphone: true,
   backgroundAudio: true,
   nativeRoom: true,
   camera: true,
   nativeVideoOverlay: false,
+  callKit: true,
 };
 
 beforeEach(() => {

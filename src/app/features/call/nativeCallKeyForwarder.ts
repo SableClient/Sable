@@ -4,6 +4,9 @@ import {
   type MatrixRTCSession,
 } from '$types/matrix-sdk';
 import type { NativeCallEncryptionKeyPayload } from './livekitMobileBridge';
+import { createDebugLogger } from '$utils/debugLogger';
+
+const debugLog = createDebugLogger('nativeCallKeyForwarder');
 
 export const ownKeyWaitTimeoutMs = 10_000;
 
@@ -59,6 +62,10 @@ export const createNativeCallKeyForwarder = (): NativeCallKeyForwarder => {
     _membershipParts: CallMembershipIdentityParts,
     rtcBackendIdentity: string
   ): void => {
+    debugLog.debug(
+      'call',
+      `key changed identity=${rtcBackendIdentity} index=${encryptionKeyIndex} ownIdentity=${localOutboundIdentity ?? 'unset'}`
+    );
     const accepted = keys.get(rtcBackendIdentity);
     if (accepted && encryptionKeyIndex <= accepted.keyIndex) return;
 

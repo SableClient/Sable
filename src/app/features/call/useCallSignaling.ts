@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as Sentry from '@sentry/react';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
-import type { RoomEventHandlerMap, MatrixEvent, Room } from '$types/matrix-sdk';
+import { EventType, type RoomEventHandlerMap, MatrixEvent, Room } from '$types/matrix-sdk';
 import { MatrixRTCSessionManagerEvents, RoomEvent } from '$types/matrix-sdk';
 import { mDirectAtom } from '$state/mDirectList';
 import {
@@ -48,7 +48,9 @@ import { createDebugLogger } from '$utils/debugLogger';
 const debugLog = createDebugLogger('CallSignaling');
 
 const canSenderStartCalls = (room: Room, senderId: string): boolean =>
-  room.currentState?.maySendStateEvent('org.matrix.msc3401.call.member', senderId) ?? false;
+  room.currentState?.maySendStateEvent(EventType.RTCMembership, senderId) ||
+  room.currentState?.maySendStateEvent(EventType.GroupCallMemberPrefix, senderId) ||
+  false;
 
 export function useIncomingCallSignaling() {
   const mx = useMatrixClient();

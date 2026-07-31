@@ -32,6 +32,7 @@ import {
   CallParticipantName,
   useCallParticipantProfile,
 } from './LivekitCallParticipant';
+import { CallControlBar, CallLayout } from './callChrome';
 import * as css from './LivekitJsCallSurface.css';
 
 const controlIdleDelay = 3500;
@@ -320,22 +321,12 @@ function LivekitJsCallContent({
   }, [revealControls]);
 
   return (
-    <Box
-      data-livekit-call-surface
+    <CallLayout
+      callSurfaceMarker
       className={css.CallSurface}
-      role="region"
-      aria-label="Call"
       onPointerMove={revealControls}
       onPointerDown={revealControls}
       onFocusCapture={() => setControlsVisible(true)}
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        minHeight: 0,
-        overflow: 'hidden',
-        background: 'var(--sable-livekit-canvas, #090b10)',
-      }}
     >
       <RoomAudioRenderer muted={!soundEnabled} />
       <Box style={{ position: 'absolute', inset: 0, padding: config.space.S200, minHeight: 0 }}>
@@ -394,75 +385,45 @@ function LivekitJsCallContent({
           <Text size="T200">Sharing your screen</Text>
         </Box>
       )}
-      <Box
-        data-livekit-controls
-        role="group"
-        aria-label="Call controls"
+      <CallControlBar
+        layout="overlay"
+        visible={controlsVisible}
         onFocusCapture={() => setControlsVisible(true)}
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 4,
-          display: 'flex',
-          justifyContent: 'center',
-          padding: `${config.space.S200} ${config.space.S300} calc(${config.space.S300} + env(safe-area-inset-bottom, 0px))`,
-          opacity: controlsVisible ? 1 : 0,
-          visibility: controlsVisible ? 'visible' : 'hidden',
-          transition: 'opacity 160ms ease, visibility 160ms ease',
-          pointerEvents: 'none',
-        }}
       >
-        <div
+        {e2eeReady ? (
+          <>
+            <ControlBar
+              variation="minimal"
+              controls={{ leave: false }}
+              onDeviceError={handleDeviceError}
+            />
+            <MediaDeviceMenu kind="audiooutput" aria-label="Select speaker">
+              {sizedIcon(SpeakerHigh, '300')}
+            </MediaDeviceMenu>
+          </>
+        ) : (
+          <Text size="T200" style={{ padding: `0 ${config.space.S200}` }}>
+            Securing call…
+          </Text>
+        )}
+        <Button
+          size="300"
+          variant="Critical"
+          fill="Solid"
+          radii="Pill"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: config.space.S200,
-            padding: config.space.S100,
-            maxWidth: '100%',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: config.radii.R500,
-            background: 'rgba(9, 11, 16, 0.72)',
-            backdropFilter: 'blur(12px)',
-            pointerEvents: controlsVisible ? 'auto' : 'none',
+            minHeight: toRem(44),
+            paddingRight: config.space.S400,
+            paddingLeft: config.space.S400,
           }}
+          onClick={onHangup}
         >
-          {e2eeReady ? (
-            <>
-              <ControlBar
-                variation="minimal"
-                controls={{ leave: false }}
-                onDeviceError={handleDeviceError}
-              />
-              <MediaDeviceMenu kind="audiooutput" aria-label="Select speaker">
-                {sizedIcon(SpeakerHigh, '300')}
-              </MediaDeviceMenu>
-            </>
-          ) : (
-            <Text size="T200" style={{ padding: `0 ${config.space.S200}` }}>
-              Securing call…
-            </Text>
-          )}
-          <Button
-            size="300"
-            variant="Critical"
-            fill="Solid"
-            radii="Pill"
-            style={{
-              minHeight: toRem(44),
-              paddingRight: config.space.S400,
-              paddingLeft: config.space.S400,
-            }}
-            onClick={onHangup}
-          >
-            <Text as="span" size="B300">
-              End call
-            </Text>
-          </Button>
-        </div>
-      </Box>
-    </Box>
+          <Text as="span" size="B300">
+            End call
+          </Text>
+        </Button>
+      </CallControlBar>
+    </CallLayout>
   );
 }
 

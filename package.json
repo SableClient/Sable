@@ -17,6 +17,7 @@
     "typecheck": "tsc",
     "tauri": "tauri",
     "tauri:cef": "node scripts/tauri.js cef",
+    "ios:frameworks": "node scripts/download-ios-frameworks.js",
     "tauri:wry": "node scripts/tauri.js wry",
     "test": "vitest",
     "test:ui": "vitest --ui",

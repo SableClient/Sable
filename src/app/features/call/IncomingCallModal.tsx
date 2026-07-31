@@ -1,6 +1,6 @@
 import { Avatar, Box, Button, color, Dialog, Header, IconButton, Text, config, toRem } from 'folds';
 import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import type { Room } from '$types/matrix-sdk';
+import { EventType, type Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomName } from '$hooks/useRoomMeta';
@@ -69,7 +69,9 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
   const canUseWebRTC = webRTCSupported();
   const myUserId = mx.getSafeUserId();
   const hasCallMemberPermission =
-    room.currentState?.maySendStateEvent('org.matrix.msc3401.call.member', myUserId) ?? false;
+    room.currentState?.maySendStateEvent(EventType.RTCMembership, myUserId) ||
+    room.currentState?.maySendStateEvent(EventType.GroupCallMemberPrefix, myUserId) ||
+    false;
 
   const capabilityIssues = useMemo(
     () =>

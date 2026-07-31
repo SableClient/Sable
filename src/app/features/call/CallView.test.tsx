@@ -13,6 +13,13 @@ vi.mock('./livekitMobileBridge', () => ({
   clearNativeCallLocalVideoOverlay: vi.fn<() => Promise<unknown>>(() => Promise.resolve({})),
 }));
 
+vi.mock('$hooks/useRoom', () => ({ useRoom: () => ({ roomId: '!room:example.org' }) }));
+vi.mock('$hooks/useCall', () => ({ useCallSession: () => ({}), useCallMembers: () => [] }));
+vi.mock('./LivekitCallParticipant', () => ({
+  useCallParticipantProfile: () => ({ name: 'Bob' }),
+  CallParticipantAvatar: () => <div data-testid="participant-avatar" />,
+}));
+
 const nativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCallSession => ({
   backend: 'livekit-mobile',
   roomId: '!room:example.org',

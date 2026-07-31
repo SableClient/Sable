@@ -19,6 +19,10 @@ import {
   type NativeCallRemoteParticipant,
   type NativeCallSnapshot,
 } from './livekitMobileBridge';
+import { useCallMembers, useCallSession } from '$hooks/useCall';
+import { useRoom } from '$hooks/useRoom';
+import { buildRtcIdentityMap, type UserIdByRtcIdentity } from './livekitCallIdentity';
+import { CallParticipantAvatar, useCallParticipantProfile } from './LivekitCallParticipant';
 import { CallControlBar, CallLayout, CallMediaControls, CallStatusBar } from './callChrome';
 import { controlButton } from './callChrome.css';
 import { nativeCallLifecycleLabels, nativeCallStatus } from './callClient';
@@ -38,6 +42,7 @@ const sameParticipants = (
     const other = b[index];
     return (
       participant.identity === other?.identity &&
+      participant.connectionQuality === other.connectionQuality &&
       participant.camera?.sid === other.camera?.sid &&
       participant.camera?.muted === other.camera?.muted &&
       participant.camera?.subscribed === other.camera?.subscribed
@@ -89,32 +94,6 @@ function useNativeRemoteParticipants(
   }, [callId, active]);
 
   return participants;
-}
-
-/**
- * MatrixRTC backend identities are usually `<userId>:<deviceId>` (and a
- * userId itself contains a colon). Strip the device part when that shape is
- * recognizable; anything else is shown as-is.
- */
-export function nativeParticipantLabel(identity: string): string {
-  if (identity.startsWith('@')) {
-    const firstColon = identity.indexOf(':');
-    const lastColon = identity.lastIndexOf(':');
-    if (firstColon !== -1 && lastColon > firstColon) {
-      return identity.slice(0, lastColon);
-    }
-  }
-  return identity;
-}
-
-export function nativeParticipantInitials(identity: string): string {
-  const label = nativeParticipantLabel(identity);
-  const initials = Array.from(label)
-    .filter((char) => /[\p{L}\p{N}]/u.test(char))
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-  return initials || '?';
 }
 
 type OverlayTarget = {
@@ -342,23 +321,30 @@ function LocalTile({
 
 type RemoteTileProps = {
   participant: NativeCallRemoteParticipant;
+  userIdByIdentity: UserIdByRtcIdentity;
   videoBound: boolean;
   slotRef?: (node: HTMLDivElement | null) => void;
   fixed?: boolean;
 };
 
-function RemoteTile({ participant, videoBound, slotRef, fixed }: RemoteTileProps) {
-  const label = nativeParticipantLabel(participant.identity);
+function RemoteTile({
+  participant,
+  userIdByIdentity,
+  videoBound,
+  slotRef,
+  fixed,
+}: RemoteTileProps) {
+  const profile = useCallParticipantProfile(participant.identity, false, userIdByIdentity);
   return (
     <div
       className={fixed ? `${css.Tile} ${css.TileFixed}` : css.Tile}
       data-video-bound={videoBound || undefined}
     >
       {/* When video is bound, the native view renders exactly over this slot;
-          the initials stay mounted underneath as the pre-video placeholder. */}
+          the avatar stays mounted underneath as the pre-video placeholder. */}
       <div className={css.TileSlot} ref={slotRef}>
         <div className={css.InitialsBadge} aria-hidden>
-          {nativeParticipantInitials(participant.identity)}
+          <CallParticipantAvatar profile={profile} size="100%" />
         </div>
       </div>
       <div className={css.TileLabel}>
@@ -371,12 +357,42 @@ function RemoteTile({ participant, videoBound, slotRef, fixed }: RemoteTileProps
             {sizedIcon(VideoCameraSlash, '200')}
           </span>
         )}
-        <span className={css.TileLabelName} title={participant.identity}>
-          {label}
-        </span>
+        <span className={css.TileLabelName}>{profile.name}</span>
       </div>
     </div>
   );
+}
+
+function RemoteDominantLabel({
+  participant,
+  userIdByIdentity,
+}: {
+  participant: NativeCallRemoteParticipant;
+  userIdByIdentity: UserIdByRtcIdentity;
+}) {
+  const profile = useCallParticipantProfile(participant.identity, false, userIdByIdentity);
+  return (
+    <>
+      <span className={css.QualityDot} data-quality={participant.connectionQuality ?? 'unknown'} />
+      {participant.camera?.muted && (
+        <span aria-label="Camera off" style={{ display: 'inline-flex', flexShrink: 0 }}>
+          {sizedIcon(VideoCameraSlash, '200')}
+        </span>
+      )}
+      <span className={css.TileLabelName}>{profile.name}</span>
+    </>
+  );
+}
+
+function RemoteDominantPlaceholder({
+  participant,
+  userIdByIdentity,
+}: {
+  participant: NativeCallRemoteParticipant;
+  userIdByIdentity: UserIdByRtcIdentity;
+}) {
+  const profile = useCallParticipantProfile(participant.identity, false, userIdByIdentity, 192);
+  return <CallParticipantAvatar profile={profile} size="100%" />;
 }
 
 /**
@@ -414,6 +430,10 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
   const connected = session.lifecycle === 'connected';
   const connecting = session.lifecycle === 'starting' || session.lifecycle === 'connecting';
   const remoteParticipants = useNativeRemoteParticipants(session.callId, !isError);
+  const matrixRoom = useRoom();
+  const callSession = useCallSession(matrixRoom);
+  const callMembers = useCallMembers(matrixRoom, callSession);
+  const userIdByIdentity = useMemo(() => buildRtcIdentityMap(callMembers), [callMembers]);
 
   const featured = useMemo(() => {
     const participant = remoteParticipants.find(
@@ -466,22 +486,14 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
           <DominantTile
             videoBound={duoLive}
             slotRef={duoLive ? setSlotNode : undefined}
-            placeholder={nativeParticipantInitials(duoRemote.identity)}
+            placeholder={
+              <RemoteDominantPlaceholder
+                participant={duoRemote}
+                userIdByIdentity={userIdByIdentity}
+              />
+            }
             label={
-              <>
-                <span
-                  className={css.QualityDot}
-                  data-quality={duoRemote.connectionQuality ?? 'unknown'}
-                />
-                {duoRemote.camera?.muted && (
-                  <span aria-label="Camera off" style={{ display: 'inline-flex', flexShrink: 0 }}>
-                    {sizedIcon(VideoCameraSlash, '200')}
-                  </span>
-                )}
-                <span className={css.TileLabelName} title={duoRemote.identity}>
-                  {nativeParticipantLabel(duoRemote.identity)}
-                </span>
-              </>
+              <RemoteDominantLabel participant={duoRemote} userIdByIdentity={userIdByIdentity} />
             }
           />
           {session.cameraEnabled && (
@@ -527,6 +539,7 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
               <RemoteTile
                 key={participant.identity}
                 participant={participant}
+                userIdByIdentity={userIdByIdentity}
                 videoBound={live}
                 slotRef={live ? setSlotNode : undefined}
                 fixed={compactGrid}

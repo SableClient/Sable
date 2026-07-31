@@ -34,6 +34,7 @@ import { settingsAtom } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
+import { markAsRead } from '$utils/notifications';
 import { usePreviousValue } from '$hooks/usePreviousValue';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getStateEvent } from '$utils/room/hierarchy';
@@ -740,6 +741,7 @@ const SABLE_REPLY_ACTION = 'sable-reply';
 
 export function NativeNotificationActionRouting() {
   const mx = useMatrixClient();
+  const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const queue = useAtomValue(nativeNotificationRepliesAtom);
   const sessions = useAtomValue(sessionsAtom);
   const sessionsRef = useRef(sessions);
@@ -811,6 +813,9 @@ export function NativeNotificationActionRouting() {
     setInFlight((previous: Set<string>) => new Set(previous).add(item.key));
     void mx
       .sendMessage(item.roomId, null, { msgtype: MsgType.Text, body: item.text })
+      // Replying is reading; otherwise the room stays unread and its
+      // notification lingers while later pushes stack onto it.
+      .then(() => markAsRead(mx, item.roomId, hideReads))
       .catch(() => {
         showToast('Reply was not sent. Open the room to retry.');
       })
@@ -823,7 +828,7 @@ export function NativeNotificationActionRouting() {
         remove(item.key);
       });
     return clearExpiryTimer;
-  }, [mx, queue, remove, setActiveSessionId, inFlight, setInFlight, replyWakeup]);
+  }, [mx, queue, remove, setActiveSessionId, inFlight, setInFlight, replyWakeup, hideReads]);
 
   return null;
 }

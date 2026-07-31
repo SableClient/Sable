@@ -438,7 +438,6 @@ type RoomNotifCache = {
 const roomNotifCaches = new Map<string, RoomNotifCache>();
 const roomNotifGenerations = new Map<string, number>();
 const roomNotifQueues = new Map<string, Promise<void>>();
-const accountSummaryQueues = new Map<string, Promise<void>>();
 
 function enqueueRoomOperation<T>(key: string, operation: () => Promise<T>): Promise<T> {
   const previous = roomNotifQueues.get(key) ?? Promise.resolve();
@@ -450,23 +449,6 @@ function enqueueRoomOperation<T>(key: string, operation: () => Promise<T>): Prom
   roomNotifQueues.set(key, completion);
   void completion.then(() => {
     if (roomNotifQueues.get(key) === completion) roomNotifQueues.delete(key);
-  });
-  return task;
-}
-
-function enqueueAccountSummaryOperation<T>(
-  userId: string,
-  operation: () => Promise<T>
-): Promise<T> {
-  const previous = accountSummaryQueues.get(userId) ?? Promise.resolve();
-  const task = previous.then(operation, operation);
-  const completion = task.then(
-    () => undefined,
-    () => undefined
-  );
-  accountSummaryQueues.set(userId, completion);
-  void completion.then(() => {
-    if (accountSummaryQueues.get(userId) === completion) accountSummaryQueues.delete(userId);
   });
   return task;
 }
@@ -501,71 +483,18 @@ export function resetUnifiedPushNotificationStateForTests(): void {
   roomNotifCaches.clear();
   roomNotifGenerations.clear();
   roomNotifQueues.clear();
-  accountSummaryQueues.clear();
 }
 
-async function refreshAccountSummary(
-  userId: string,
-  removeWhenEmpty: boolean,
-  isCurrent?: () => boolean
-): Promise<void> {
-  await enqueueAccountSummaryOperation(userId, async () => {
-    let notificationsApi: Awaited<ReturnType<typeof getTauriNotificationsApi>>;
-    try {
-      notificationsApi = await getTauriNotificationsApi();
-    } catch {
-      return;
-    }
-    if (isCurrent && !isCurrent()) return;
-
-    const accountCaches = Array.from(roomNotifCaches.entries()).filter(([key]) =>
-      key.startsWith(`${userId}\u0000`)
-    );
-    const roomCount = accountCaches.length;
-    if (roomCount <= 1) {
-      if (removeWhenEmpty) {
-        try {
-          await notificationsApi.removeActive([{ id: summaryNotifId(userId) }]);
-        } catch {
-          // already dismissed
-        }
-      }
-      return;
-    }
-
-    const totalMessages = accountCaches
-      .map(([, accountCache]) => accountCache)
-      .reduce((sum, accountCache) => sum + accountCache.messages.length, 0);
-    const summaryText = `${totalMessages} messages in ${roomCount} chats`;
-    const summaryLines: string[] = [];
-    accountCaches.forEach(([, accountCache]) => {
-      const latest = accountCache.messages[accountCache.messages.length - 1];
-      if (latest) {
-        summaryLines.push(
-          `${accountCache.roomName}: ${latest.sender?.name ?? 'You'}: ${latest.text}`
-        );
-      }
-    });
-
-    if (isCurrent && !isCurrent()) return;
-    try {
-      await notificationsApi.sendNotification({
-        id: summaryNotifId(userId),
-        title: summaryText,
-        body: '',
-        summary: summaryText,
-        inboxLines: summaryLines.slice(-5),
-        channelId: MESSAGES_CHANNEL_ID,
-        group: NOTIF_GROUP_KEY,
-        groupSummary: true,
-        icon: 'notification_icon',
-        silent: true,
-        autoCancel: true,
-      });
-    } catch {
-      // The room notification was already posted; a summary is best effort.
-    }
-  });
+// Older versions posted an account-level summary that collapsed every room into
+// one entry; Android bundles the per-room notifications on its own.
+async function dismissLegacyGroupSummary(userId: string): Promise<void> {
+  if (!userId) return;
+  try {
+    const notificationsApi = await getTauriNotificationsApi();
+    await notificationsApi.removeActive([{ id: summaryNotifId(userId) }]);
+  } catch {
+    // Nothing to dismiss, or the plugin is unavailable.
+  }
 }
 
 /** Clears accumulated messages for a room and dismisses its notification. */
@@ -580,7 +509,6 @@ export async function clearRoomNotification(userId: string, roomId: string) {
     } catch {
       // already dismissed
     }
-    await refreshAccountSummary(userId, true);
   });
 }
 
@@ -622,7 +550,6 @@ async function postRoomNotification(
     inboxLines: inboxLines.length > 1 ? inboxLines : undefined,
     largeBody: inboxLines.length > 1 ? undefined : latestBody,
   });
-  await refreshAccountSummary(userId, false, isCurrent);
   return true;
 }
 
@@ -740,7 +667,6 @@ async function handleRichPushPayload(
           cache.messages = previousMessages;
           if (eventId) cache.pendingEventIds.delete(eventId);
           if (cache.messages.length === 0) roomNotifCaches.delete(cache.key);
-          await refreshAccountSummary(userId, true);
           unifiedPushLog.warn('notification', 'UnifiedPush baseline notification failed');
           return false;
         }
@@ -990,7 +916,6 @@ async function handleMinimalPushPayload(
       cache.messages = previousMessages;
       if (eventId) cache.pendingEventIds.delete(eventId);
       if (cache.messages.length === 0) roomNotifCaches.delete(cache.key);
-      await refreshAccountSummary(userId, true);
       throw error;
     }
 
@@ -1143,6 +1068,8 @@ export async function listenForUnifiedPushMessages(getSettings: () => Notificati
     await listener.unregister().catch(() => {});
     throw error;
   }
+
+  void dismissLegacyGroupSummary(getSettings().mx.getUserId() ?? '');
 
   return {
     unregister: async () => {

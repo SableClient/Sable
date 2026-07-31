@@ -470,20 +470,8 @@ describe('UnifiedPushNotifications', () => {
     );
   });
 
-  it('serializes cross-room summary writes and refreshes from current caches', async () => {
+  it('posts one notification per room and no account-level summary', async () => {
     matrixClient.getRoom.mockReturnValue(makeRoom());
-    const summaryPosts: Record<string, unknown>[] = [];
-    let releaseFirstSummary!: () => void;
-    const firstSummary = new Promise<void>((resolve) => {
-      releaseFirstSummary = resolve;
-    });
-    notificationsApi.sendNotification.mockImplementation(async (notification) => {
-      if (notification.groupSummary) {
-        summaryPosts.push(notification);
-        if (summaryPosts.length === 1) await firstSummary;
-      }
-    });
-
     await listenForUnifiedPushMessages(() => makeSettings() as never);
     const roomPayload = (roomId: string, eventId: string, roomName: string) => ({
       ...encryptedPush(eventId),
@@ -491,108 +479,38 @@ describe('UnifiedPushNotifications', () => {
       room_name: roomName,
     });
     pushHandler({ message: JSON.stringify(roomPayload('!room-a:example.com', '$a', 'Room A')) });
-    await vi.waitFor(() => expect(notificationsApi.sendNotification).toHaveBeenCalledOnce());
     pushHandler({ message: JSON.stringify(roomPayload('!room-b:example.com', '$b', 'Room B')) });
-    await vi.waitFor(() => expect(summaryPosts).toHaveLength(1));
 
-    pushHandler({ message: JSON.stringify(roomPayload('!room-c:example.com', '$c', 'Room C')) });
-    releaseFirstSummary();
-    await vi.waitFor(() => expect(summaryPosts).toHaveLength(2));
-
-    expect(summaryPosts[0]).toMatchObject({ title: '2 messages in 2 chats' });
-    expect(summaryPosts[1]).toMatchObject({ title: '3 messages in 3 chats' });
+    await vi.waitFor(() => expect(notificationsApi.sendNotification).toHaveBeenCalledTimes(2));
+    const posted = notificationsApi.sendNotification.mock.calls.map(
+      ([notification]) => notification
+    );
+    expect(posted.some((notification) => notification.groupSummary)).toBe(false);
+    expect(new Set(posted.map((notification) => notification.title))).toEqual(
+      new Set(['Room A', 'Room B'])
+    );
+    expect(new Set(posted.map((notification) => notification.id)).size).toBe(2);
   });
 
-  it('compensates a summary that observed a baseline pending for another room', async () => {
-    matrixClient.getRoom.mockReturnValue(makeRoom());
-    let rejectFailedPost!: (error: Error) => void;
-    let failedPostStarted!: () => void;
-    const failedPost = new Promise<never>((_, reject) => {
-      rejectFailedPost = reject;
-    });
-    const failedPostStartedPromise = new Promise<void>((resolve) => {
-      failedPostStarted = resolve;
-    });
-    const summaryPosts: Record<string, unknown>[] = [];
-    notificationsApi.sendNotification.mockImplementation(async (notification) => {
-      const eventId = (notification.extra as Record<string, unknown> | undefined)?.event_id;
-      if (eventId === '$a-failed') {
-        failedPostStarted();
-        await failedPost;
-        return;
-      }
-      if (notification.groupSummary) summaryPosts.push(notification);
-    });
-
+  it('dismisses a group summary left behind by an older version', async () => {
     await listenForUnifiedPushMessages(() => makeSettings() as never);
-    const roomPayload = (
-      roomId: string,
-      eventId: string,
-      roomName: string,
-      sender_display_name: string
-    ) => ({
-      ...encryptedPush(eventId),
-      room_id: roomId,
-      room_name: roomName,
-      sender_display_name,
-    });
+
+    await vi.waitFor(() => expect(notificationsApi.removeActive).toHaveBeenCalledOnce());
+    expect(notificationsApi.removeActive.mock.calls[0]?.[0]).toEqual([{ id: expect.any(Number) }]);
+  });
+
+  it('clears a room even when dismissing its notification fails', async () => {
+    matrixClient.getRoom.mockReturnValue(makeRoom());
+    await listenForUnifiedPushMessages(() => makeSettings() as never);
     pushHandler({
-      message: JSON.stringify(
-        roomPayload('!room-a:example.com', '$a-old', 'Room A', 'Old message')
-      ),
+      message: JSON.stringify({ ...encryptedPush('$a'), room_id: '!room-a:example.com' }),
     });
     await vi.waitFor(() => expect(notificationsApi.sendNotification).toHaveBeenCalledOnce());
 
-    pushHandler({
-      message: JSON.stringify(
-        roomPayload('!room-a:example.com', '$a-failed', 'Room A', 'Failed message')
-      ),
-    });
-    await failedPostStartedPromise;
-    pushHandler({
-      message: JSON.stringify(roomPayload('!room-b:example.com', '$b', 'Room B', 'B message')),
-    });
-    await vi.waitFor(() => expect(summaryPosts).toHaveLength(1));
-
-    rejectFailedPost(new Error('pending baseline failed'));
-    await vi.waitFor(() => expect(summaryPosts).toHaveLength(2));
-
-    expect(summaryPosts[0]?.inboxLines).toEqual(
-      expect.arrayContaining(['Room A: Failed message: Encrypted message'])
-    );
-    expect(summaryPosts[1]?.inboxLines).toEqual(
-      expect.arrayContaining(['Room A: Old message: Encrypted message'])
-    );
-    expect(summaryPosts[1]?.inboxLines).not.toEqual(
-      expect.arrayContaining(['Room A: Failed message: Encrypted message'])
-    );
-  });
-
-  it('still cleans up the account summary when child removal fails', async () => {
-    matrixClient.getRoom.mockReturnValue(makeRoom());
-    await listenForUnifiedPushMessages(() => makeSettings() as never);
-    const roomPayload = (roomId: string, eventId: string) => ({
-      ...encryptedPush(eventId),
-      room_id: roomId,
-    });
-    pushHandler({ message: JSON.stringify(roomPayload('!room-a:example.com', '$a')) });
-    pushHandler({ message: JSON.stringify(roomPayload('!room-b:example.com', '$b')) });
-    await vi.waitFor(() =>
-      expect(
-        notificationsApi.sendNotification.mock.calls.some(
-          ([notification]) => notification.groupSummary
-        )
-      ).toBe(true)
-    );
-
-    let removeAttempts = 0;
-    notificationsApi.removeActive.mockImplementation(async () => {
-      removeAttempts += 1;
-      if (removeAttempts === 1) throw new Error('child removal failed');
-    });
-    await clearRoomNotification('@user:example.com', '!room-a:example.com');
-
-    expect(removeAttempts).toBe(2);
+    notificationsApi.removeActive.mockRejectedValueOnce(new Error('child removal failed'));
+    await expect(
+      clearRoomNotification('@user:example.com', '!room-a:example.com')
+    ).resolves.toBeUndefined();
   });
 
   it('checks preview policy again after a minimal event resolves', async () => {

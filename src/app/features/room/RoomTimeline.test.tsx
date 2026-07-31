@@ -1,8 +1,10 @@
+import { EventEmitter } from 'events';
 import { forwardRef, useImperativeHandle, type ReactNode } from 'react';
 import { act, render } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { Editor } from 'slate';
 import type { Room } from '$types/matrix-sdk';
+import { RoomEvent } from '$types/matrix-sdk';
 import type { ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
 import type * as DomUtils from '$utils/dom';
 import { RoomTimeline } from './RoomTimeline';
@@ -259,10 +261,20 @@ const fireResize = (element: Element) => {
   });
 };
 
+const roomEmitter = new EventEmitter();
 const room = {
   roomId: '!room:example.org',
   getLiveTimeline: () => undefined,
+  on: roomEmitter.on.bind(roomEmitter),
+  removeListener: roomEmitter.removeListener.bind(roomEmitter),
 } as unknown as Room;
+
+const emitReceiptFor = (userId: string) =>
+  roomEmitter.emit(
+    RoomEvent.Receipt,
+    { getContent: () => ({ '$evt:example.org': { 'm.read': { [userId]: { ts: 1 } } } }) },
+    room
+  );
 
 const getContentEl = (container: HTMLElement) => {
   const contentEl = container.querySelector('[data-testid="vlist-content"]');
@@ -371,6 +383,50 @@ describe('RoomTimeline content ResizeObserver', () => {
       scrollTo: false,
       highlight: true,
     });
+  });
+});
+
+describe('remote read receipts', () => {
+  const unread = {
+    readUptoEventId: '$read:example.org',
+    inLiveTimeline: true,
+    scrollTo: false,
+  };
+
+  it('clears the marker when the room is read on another device', () => {
+    getRoomUnreadInfoMock.mockReturnValue(unread);
+    renderTimeline();
+    expect(processedTimelineOptions.current?.readUptoEventId).toBe('$read:example.org');
+
+    getRoomUnreadInfoMock.mockReturnValue(undefined);
+    act(() => {
+      emitReceiptFor('@me:example.org');
+    });
+
+    expect(processedTimelineOptions.current?.readUptoEventId).toBeUndefined();
+  });
+
+  it('ignores receipts belonging to other users', () => {
+    getRoomUnreadInfoMock.mockReturnValue(unread);
+    renderTimeline();
+
+    getRoomUnreadInfoMock.mockReturnValue(undefined);
+    act(() => {
+      emitReceiptFor('@bob:example.org');
+    });
+
+    expect(processedTimelineOptions.current?.readUptoEventId).toBe('$read:example.org');
+  });
+
+  it('keeps the marker when the room is still unread after the receipt', () => {
+    getRoomUnreadInfoMock.mockReturnValue(unread);
+    renderTimeline();
+
+    act(() => {
+      emitReceiptFor('@me:example.org');
+    });
+
+    expect(processedTimelineOptions.current?.readUptoEventId).toBe('$read:example.org');
   });
 });
 

@@ -13,7 +13,7 @@ import {
 import type { Editor } from 'slate';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import type { Room, MatrixEvent, EventTimelineSet } from '$types/matrix-sdk';
-import { Direction, EventTimeline, EventType } from '$types/matrix-sdk';
+import { Direction, EventTimeline, EventType, RoomEvent } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import type { VListHandle } from 'virtua';
 import { VList } from 'virtua';
@@ -23,6 +23,7 @@ import { ArrowDown, ChatTeardropDots, Checks, chipIcon } from '$components/icons
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useMatrixEvent } from '$hooks/useMatrixEvent';
 import { useAlive } from '$hooks/useAlive';
 import { useMessageEdit } from '$hooks/useMessageEdit';
 import { useDocumentFocusChange } from '$hooks/useDocumentFocusChange';
@@ -986,6 +987,28 @@ export function RoomTimeline({
         }
       },
       [tryAutoMarkAsRead, atBottomState, timelineSync.liveTimelineLinked, setUnreadInfo]
+    )
+  );
+
+  // Reading elsewhere clears the room list badge, so clear the in-room marker too.
+  useMatrixEvent(
+    room,
+    RoomEvent.Receipt,
+    useCallback(
+      (mEvent: MatrixEvent) => {
+        const myUserId = mx.getUserId();
+        if (!myUserId) return;
+        const content =
+          mEvent.getContent<Record<string, Record<string, Record<string, unknown>>>>();
+        const isMyReceipt = Object.values(content).some((byType) =>
+          Object.values(byType ?? {}).some((byUser) => myUserId in (byUser ?? {}))
+        );
+        // Re-anchoring on a partial remote read would move the divider mid-read.
+        if (!isMyReceipt || getRoomUnreadInfo(room)) return;
+        readUptoEventIdRef.current = undefined;
+        setUnreadInfo(undefined);
+      },
+      [mx, room]
     )
   );
 

@@ -43,6 +43,19 @@ percent-encoding = "2"
 # openssl-sys out of the Android cross-compile.
 reqwest = { version = "0.12", default-features = false, features = ["stream"] }
 async-stream = "0.3"
+
+# Phase 0 spike for the notification crypto rework (see docs/notifications-rework.md).
+# Optional so regular builds don't pay the matrix-rust-sdk compile cost.
+matrix-sdk = { version = "0.18", default-features = false, features = [
+  "e2e-encryption",
+  "sqlite",
+], optional = true }
+matrix-sdk-crypto = { version = "0.18", optional = true }
+matrix-sdk-sqlite = { version = "0.18", features = [
+  "crypto-store",
+], optional = true }
+matrix-sdk-ui = { version = "0.18", optional = true }
+http = { version = "1", optional = true }
 base64 = "0.22"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = "0.3"
@@ -161,6 +174,15 @@ cef = ["dep:tauri-runtime-cef", "dep:cef"]
 # CrabNebula devtools. Off by default: its aggregator retains every metadata record for the
 # session, which costs hundreds of MB per minute once tauri-plugin-log feeds it.
 devtools = ["dep:tauri-plugin-devtools"]
+# Phase 0 spike: Rust Matrix crypto engine for the notification rework. Off by default.
+# See docs/notifications-rework.md.
+matrix-crypto = [
+  "dep:matrix-sdk",
+  "dep:matrix-sdk-crypto",
+  "dep:matrix-sdk-sqlite",
+  "dep:matrix-sdk-ui",
+  "dep:http",
+]
 [patch.crates-io]
 tauri-typegen = { git = "https://github.com/SableClient/tauri-typegen", branch = "fix/nondeterministic-generation-cache" }
 

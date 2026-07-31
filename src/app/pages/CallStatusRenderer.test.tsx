@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStore, Provider } from 'jotai';
 import type { ReactNode } from 'react';
 import { livekitJsCallAtom, type LivekitJsCallSession } from '../state/livekitJsCall';
+import { nativeCallAtom, type NativeCallSession } from '../state/nativeCall';
 import { CallStatusRenderer } from './CallStatusRenderer';
 
 const mocks = vi.hoisted(() => ({
@@ -24,6 +25,9 @@ vi.mock('../features/call-status', () => ({
 }));
 vi.mock('../features/call-status/LivekitCallStatus', () => ({
   LivekitCallStatus: () => <div data-testid="livekit-call-status" />,
+}));
+vi.mock('../features/call-status/NativeCallStatus', () => ({
+  NativeCallStatus: () => <div data-testid="native-call-status" />,
 }));
 
 const session = (lifecycle: LivekitJsCallSession['lifecycle']): LivekitJsCallSession => ({
@@ -92,6 +96,46 @@ describe('CallStatusRenderer', () => {
 
     expect(screen.getByTestId('element-call-status')).toBeInTheDocument();
     expect(screen.queryByTestId('livekit-call-status')).not.toBeInTheDocument();
+  });
+
+  it('shows the status bar during a native call', () => {
+    const store = createStore();
+    store.set(nativeCallAtom, {
+      backend: 'livekit-mobile',
+      roomId: '!room:example.org',
+      callId: 'call-id',
+      lifecycle: 'connected',
+      microphoneEnabled: true,
+      cameraEnabled: false,
+      setMicrophoneEnabled: async () => {},
+      setCameraEnabled: async () => {},
+      switchCamera: async () => {},
+      hangup: async () => undefined,
+    } satisfies NativeCallSession);
+
+    renderWith(<CallStatusRenderer />, store);
+
+    expect(screen.getByTestId('native-call-status')).toBeInTheDocument();
+  });
+
+  it('hides the native bar once the call has failed', () => {
+    const store = createStore();
+    store.set(nativeCallAtom, {
+      backend: 'livekit-mobile',
+      roomId: '!room:example.org',
+      callId: 'call-id',
+      lifecycle: 'error',
+      microphoneEnabled: false,
+      cameraEnabled: false,
+      setMicrophoneEnabled: async () => {},
+      setCameraEnabled: async () => {},
+      switchCamera: async () => {},
+      hangup: async () => undefined,
+    } satisfies NativeCallSession);
+
+    renderWith(<CallStatusRenderer />, store);
+
+    expect(screen.queryByTestId('native-call-status')).not.toBeInTheDocument();
   });
 
   it('renders nothing with no call at all', () => {

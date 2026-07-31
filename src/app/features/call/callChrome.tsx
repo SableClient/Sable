@@ -1,4 +1,10 @@
-import type { CSSProperties, FocusEventHandler, PointerEventHandler, ReactNode } from 'react';
+import type {
+  CSSProperties,
+  FocusEventHandler,
+  KeyboardEventHandler,
+  PointerEventHandler,
+  ReactNode,
+} from 'react';
 import { Box, Button, color, Text } from 'folds';
 import {
   Microphone,
@@ -27,6 +33,7 @@ export type CallLayoutProps = {
   onPointerMove?: PointerEventHandler<HTMLDivElement>;
   onPointerDown?: PointerEventHandler<HTMLDivElement>;
   onFocusCapture?: FocusEventHandler<HTMLDivElement>;
+  onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
 };
 
 export function CallLayout({
@@ -38,6 +45,7 @@ export function CallLayout({
   onPointerMove,
   onPointerDown,
   onFocusCapture,
+  onKeyDown,
 }: CallLayoutProps) {
   const mergedClassName = [css.callLayout, className].filter(Boolean).join(' ') || undefined;
   return (
@@ -50,6 +58,7 @@ export function CallLayout({
       onPointerMove={onPointerMove}
       onPointerDown={onPointerDown}
       onFocusCapture={onFocusCapture}
+      onKeyDown={onKeyDown}
       style={{ position: 'relative', width: '100%', height: '100%', ...style }}
     >
       {children}

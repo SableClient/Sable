@@ -58,6 +58,10 @@ export const controlBarFlow = style({
 export const controlPill = style({
   display: 'flex',
   alignItems: 'center',
+  // Wraps rather than overflowing: the parent clips, so an unwrapped row loses
+  // the End call button off the edge on a narrow viewport.
+  flexWrap: 'wrap',
+  justifyContent: 'center',
   gap: config.space.S200,
   maxWidth: '100%',
   padding: config.space.S100,

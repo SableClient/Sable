@@ -342,6 +342,7 @@ function LivekitJsCallContent({
 
   return (
     <CallLayout
+      onKeyDown={revealControls}
       callSurfaceMarker
       className={css.CallSurface}
       onPointerMove={revealControls}

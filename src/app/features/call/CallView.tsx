@@ -195,8 +195,12 @@ export function CallView({ resizable }: CallViewProps) {
   const currentJoined =
     !livekitJsCallForRoom && !nativeCallForRoom && callEmbed?.roomId === room.roomId && callJoined;
 
+  // A native call renders video tiles and a control bar, which need most of the
+  // viewport; the 0.3 default is sized for the Element Call participant list.
   const [heightRatio, setHeightRatio] = useState(isMobile ? 0.3 : 0.72);
   const [availableHeight, setAvailableHeight] = useState(0);
+  const effectiveHeightRatio =
+    isMobile && nativeCallForRoom ? Math.max(heightRatio, 0.75) : heightRatio;
 
   useEffect(() => {
     if (!resizable || !callViewRef.current) return undefined;
@@ -287,8 +291,8 @@ export function CallView({ resizable }: CallViewProps) {
         minWidth: toRem(280),
         height: resizable
           ? availableHeight > 0
-            ? `${availableHeight * heightRatio}px`
-            : `${heightRatio * 100}dvh`
+            ? `${availableHeight * effectiveHeightRatio}px`
+            : `${effectiveHeightRatio * 100}dvh`
           : undefined,
         borderBottom: `1px solid var(--sable-surface-container-line)`,
         zIndex: 20,

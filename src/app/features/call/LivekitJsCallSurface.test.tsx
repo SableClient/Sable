@@ -103,6 +103,7 @@ vi.mock('folds', () => ({
     onPointerDown,
     onPointerMove,
     onFocusCapture,
+    onKeyDown,
     'aria-label': ariaLabel,
     'data-livekit-call-surface': callSurface,
     'data-livekit-controls': controls,
@@ -114,10 +115,13 @@ vi.mock('folds', () => ({
     onPointerDown?: () => void;
     onPointerMove?: () => void;
     onFocusCapture?: () => void;
+    onKeyDown?: () => void;
     'aria-label'?: string;
     'data-livekit-call-surface'?: boolean;
     'data-livekit-controls'?: boolean;
   }) => (
+    // Stands in for folds' Box; the component under test supplies the role.
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       role={role}
       className={className}
@@ -125,6 +129,7 @@ vi.mock('folds', () => ({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onFocusCapture={onFocusCapture}
+      onKeyDown={onKeyDown}
       aria-label={ariaLabel}
       data-livekit-call-surface={callSurface ? '' : undefined}
       data-livekit-controls={controls ? '' : undefined}
@@ -433,7 +438,7 @@ describe('LiveKit JS call surface', () => {
     }
   });
 
-  it('reveals hidden controls for keyboard users when focus enters the call surface', () => {
+  it('reveals hidden controls on a key press, the only route a keyboard user has', () => {
     vi.useFakeTimers();
     try {
       render(
@@ -451,7 +456,10 @@ describe('LiveKit JS call surface', () => {
       act(() => vi.advanceTimersByTime(3500));
       expect(controls).toHaveStyle({ visibility: 'hidden' });
 
-      act(() => fireEvent.focusIn(surface));
+      // focusIn cannot fire from a Tab press: visibility:hidden removes the
+      // controls from the tab order and nothing else inside the surface is
+      // focusable, so keydown is the reveal a keyboard user can actually reach.
+      act(() => fireEvent.keyDown(surface, { key: 'Tab' }));
       expect(controls).toHaveStyle({ visibility: 'visible' });
     } finally {
       vi.useRealTimers();

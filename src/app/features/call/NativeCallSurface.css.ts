@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { color, config, toRem } from 'folds';
+import { config, toRem } from 'folds';
 
 /**
  * Native-call-specific styles. The dark canvas shell, the control bar pill, and
@@ -18,6 +18,66 @@ export const StatusRow = style({
   textAlign: 'center',
 });
 
+/** Full-bleed stage for the featured remote participant (FaceTime-style). */
+export const FeaturedStage = style({
+  flex: 1,
+  minHeight: 0,
+  minWidth: 0,
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+});
+
+/** The featured remote tile — full-bleed, no rounding. */
+export const FeaturedTile = style({
+  flex: 1,
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  minWidth: 0,
+  minHeight: 0,
+  overflow: 'hidden',
+  background: '#090b10',
+});
+
+/** Small floating local preview card (bottom-right, above controls). */
+export const FloatingLocal = style({
+  position: 'absolute',
+  bottom: `calc(${config.space.S200} + env(safe-area-inset-bottom, 0px))`,
+  right: `calc(${config.space.S200} + env(safe-area-inset-right, 0px))`,
+  width: '120px',
+  aspectRatio: '3 / 4',
+  zIndex: 3,
+  borderRadius: config.radii.R400,
+  overflow: 'hidden',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
+  background: '#14171f',
+});
+
+/** Horizontal filmstrip for non-featured remote participants. */
+export const Filmstrip = style({
+  display: 'flex',
+  gap: config.space.S200,
+  overflowX: 'auto',
+  padding: `${config.space.S100} ${config.space.S200}`,
+  flexShrink: 0,
+});
+
+export const FilmstripTile = style({
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  width: '100px',
+  height: '100px',
+  flexShrink: 0,
+  overflow: 'hidden',
+  borderRadius: config.radii.R400,
+  background: '#14171f',
+  outline: '1px solid rgba(255, 255, 255, 0.06)',
+  outlineOffset: '-1px',
+});
+
+/** Grid layout for audio-only (no featured video). */
 export const TilesStage = style({
   flex: 1,
   minHeight: 0,
@@ -94,21 +154,33 @@ export const TileLabelName = style({
   whiteSpace: 'nowrap',
 });
 
+/** Connection quality indicator dot. */
+export const QualityDot = style({
+  width: '8px',
+  height: '8px',
+  borderRadius: '50%',
+  flexShrink: 0,
+  selectors: {
+    '&[data-quality="good"]': { background: '#4ade80' },
+    '&[data-quality="poor"]': { background: '#fbbf24' },
+    '&[data-quality="lost"]': { background: '#ef4444' },
+    '&[data-quality="excellent"]': { background: '#4ade80' },
+    '&[data-quality="unknown"]': { background: 'rgba(255,255,255,0.3)' },
+  },
+});
+
+/** Round red disconnect button (icon-only, LiveKit mobile idiom). */
 export const HangupButton = style({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: config.space.S100,
-  minWidth: toRem(44),
-  minHeight: toRem(44),
-  padding: `0 ${config.space.S400}`,
+  width: toRem(44),
+  height: toRem(44),
+  padding: 0,
   border: 'none',
-  borderRadius: config.radii.R500,
+  borderRadius: '50%',
   background: '#f54336',
   color: '#ffffff',
-  font: 'inherit',
-  fontSize: toRem(14),
-  fontWeight: 600,
   cursor: 'pointer',
   transition: 'filter 120ms ease',
   selectors: {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Text } from 'folds';
+import { Text, config, toRem } from 'folds';
 import type { NativeCallSession } from '$state/nativeCall';
 import {
   ArrowsClockwise,
@@ -319,6 +319,11 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
   const [localSlotNode, setLocalSlotNode] = useState<HTMLDivElement | null>(null);
   useNativeLocalVideoOverlay(session.callId, connected, session.cameraEnabled, localSlotNode);
 
+  const hasFeatured = connected && featured !== undefined;
+  const otherRemotes = hasFeatured
+    ? remoteParticipants.filter((p) => p.identity !== featured?.participantIdentity)
+    : remoteParticipants;
+
   if (isError) {
     return (
       <CallLayout stack style={{ color: '#ffffff' }}>
@@ -339,33 +344,92 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
           </Text>
         </div>
       )}
-      <div className={css.TilesStage}>
-        <LocalTile
-          session={session}
-          slotRef={connected && session.cameraEnabled ? setLocalSlotNode : undefined}
-        />
-        {remoteParticipants.map((participant) => (
-          <RemoteTile
-            key={participant.identity}
-            participant={participant}
-            videoBound={connected && featured?.participantIdentity === participant.identity}
-            slotRef={
-              connected && featured?.participantIdentity === participant.identity
-                ? setSlotNode
-                : undefined
-            }
-          />
-        ))}
-        {connected && remoteParticipants.length === 0 && (
-          <div className={css.Tile} style={{ gridColumn: '1 / -1' }}>
-            <div className={css.TileSlot}>
-              <Text as="span" size="T300" className={css.SlotCaption}>
-                No one else is here yet
-              </Text>
+      {hasFeatured ? (
+        <>
+          <div className={css.FeaturedStage}>
+            <div className={css.FeaturedTile} data-video-bound>
+              <div className={css.TileSlot} ref={setSlotNode}>
+                <div className={css.InitialsBadge} aria-hidden>
+                  {nativeParticipantInitials(featured!.participantIdentity)}
+                </div>
+              </div>
+              <div className={css.TileLabel}>
+                {featured && (
+                  <span
+                    className={css.QualityDot}
+                    data-quality={
+                      remoteParticipants.find((p) => p.identity === featured.participantIdentity)
+                        ?.connectionQuality ?? 'unknown'
+                    }
+                  />
+                )}
+                <span className={css.TileLabelName}>
+                  {nativeParticipantLabel(featured!.participantIdentity)}
+                </span>
+              </div>
             </div>
+            {session.cameraEnabled && (
+              <div className={css.FloatingLocal} data-video-bound>
+                <div className={css.TileSlot} ref={setLocalSlotNode}>
+                  <div
+                    className={css.InitialsBadge}
+                    aria-hidden
+                    style={{ width: '40%', fontSize: toRem(14) }}
+                  >
+                    {sizedIcon(User, '200')}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+          {otherRemotes.length > 0 && (
+            <div className={css.Filmstrip}>
+              {otherRemotes.map((participant) => (
+                <div key={participant.identity} className={css.FilmstripTile}>
+                  <div className={css.TileSlot}>
+                    <div className={css.InitialsBadge} aria-hidden>
+                      {nativeParticipantInitials(participant.identity)}
+                    </div>
+                  </div>
+                  <div className={css.TileLabel} style={{ padding: `${config.space.S100}` }}>
+                    <span
+                      className={css.QualityDot}
+                      data-quality={participant.connectionQuality ?? 'unknown'}
+                    />
+                    <span className={css.TileLabelName} style={{ fontSize: toRem(11) }}>
+                      {nativeParticipantLabel(participant.identity)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className={css.TilesStage}>
+          <LocalTile
+            session={session}
+            slotRef={connected && session.cameraEnabled ? setLocalSlotNode : undefined}
+          />
+          {remoteParticipants.map((participant) => (
+            <RemoteTile
+              key={participant.identity}
+              participant={participant}
+              videoBound={false}
+              slotRef={undefined}
+            />
+          ))}
+          {connected && remoteParticipants.length === 0 && (
+            <div className={css.Tile} style={{ gridColumn: '1 / -1' }}>
+              <div className={css.TileSlot}>
+                <Text as="span" size="T300" className={css.SlotCaption}>
+                  No one else is here yet
+                </Text>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <CallControlBar layout="flow">
         <CallMediaControls
           microphoneEnabled={session.microphoneEnabled}
@@ -385,8 +449,8 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
             {sizedIcon(ArrowsClockwise, '300')}
           </button>
         )}
-        <button type="button" className={css.HangupButton} onClick={onHangup}>
-          {sizedIcon(PhoneDisconnect, '300')} End
+        <button type="button" className={css.HangupButton} aria-label="End call" onClick={onHangup}>
+          {sizedIcon(PhoneDisconnect, '300')}
         </button>
       </CallControlBar>
     </CallLayout>

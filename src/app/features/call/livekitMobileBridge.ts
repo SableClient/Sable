@@ -44,6 +44,7 @@ export type NativeCallRemoteCamera = {
 export type NativeCallRemoteParticipant = {
   identity: string;
   camera?: NativeCallRemoteCamera;
+  connectionQuality?: string;
 };
 
 export type NativeCallSnapshot = {

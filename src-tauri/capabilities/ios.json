@@ -7,6 +7,9 @@
     "dialog:allow-save",
     "dialog:allow-open",
     "fs:allow-write-file",
-    "fs:allow-read-file"
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "$TEMP/**/*" }, { "path": "$APPCACHE/**/*" }]
+    }
   ]
 }

@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { config, toRem } from 'folds';
+import { color, config, toRem } from 'folds';
 
 /**
  * Native-call-specific styles. The dark canvas shell, the control bar pill, and
@@ -28,7 +28,7 @@ export const DominantStage = style({
   flexDirection: 'column',
 });
 
-/** Edge-to-edge dominant tile — no rounding, full-bleed. */
+/** Edge-to-edge dominant tile: no rounding, full-bleed. */
 export const DominantTile = style({
   flex: 1,
   position: 'relative',
@@ -146,10 +146,12 @@ export const QualityDot = style({
   borderRadius: '50%',
   flexShrink: 0,
   selectors: {
-    '&[data-quality="good"]': { background: '#4ade80' },
-    '&[data-quality="poor"]': { background: '#fbbf24' },
-    '&[data-quality="lost"]': { background: '#ef4444' },
-    '&[data-quality="excellent"]': { background: '#4ade80' },
+    '&[data-quality="good"]': { background: color.Success.Main },
+    '&[data-quality="poor"]': { background: color.Warning.Main },
+    '&[data-quality="lost"]': { background: color.Critical.Main },
+    '&[data-quality="excellent"]': { background: color.Success.Main },
+    // Neutral rather than a token: it reads as "no signal yet" against the dark
+    // video stage, where a themed surface colour would look like a real state.
     '&[data-quality="unknown"]': { background: 'rgba(255,255,255,0.3)' },
   },
 });

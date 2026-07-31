@@ -7,10 +7,12 @@ import {
   endSystemCall,
   fulfillAnswerCall,
   fulfillEndCall,
+  getAudioRoutes,
   getNativeCallState,
   listenNativeCallSnapshot,
   onSystemCallAction,
   reportSystemCallConnected,
+  setAudioRoute,
   setNativeCallCameraEnabled,
   setNativeCallEncryptionKey,
   setNativeCallMicrophoneEnabled,
@@ -19,6 +21,7 @@ import {
   startSystemCall,
   switchNativeCallCamera,
   updateCallDisplay,
+  type NativeCallAudioRoute,
   type NativeCallEncryptionKeyPayload,
   type NativeCallFailureCode,
   type NativeCallSnapshot,
@@ -98,6 +101,8 @@ export type NativeCallController = {
   setMicrophoneEnabled: (enabled: boolean) => Promise<void>;
   setCameraEnabled: (enabled: boolean) => Promise<void>;
   switchCamera: () => Promise<void>;
+  listAudioRoutes: () => Promise<NativeCallAudioRoute[]>;
+  selectAudioRoute: (routeId: string) => Promise<void>;
 };
 
 export type NativeCallControllerDependencies = {
@@ -121,6 +126,8 @@ const noMediaControls = {
   setMicrophoneEnabled: async (): Promise<void> => {},
   setCameraEnabled: async (): Promise<void> => {},
   switchCamera: async (): Promise<void> => {},
+  listAudioRoutes: async (): Promise<NativeCallAudioRoute[]> => [],
+  selectAudioRoute: async (): Promise<void> => {},
 };
 
 const toLifecycle = (
@@ -156,7 +163,7 @@ export const createNativeCallController = (
   let pendingSystemUuid: string | undefined;
 
   // When the WebView resumes (phone unlocked, app foregrounded), the JS
-  // state may be stale — snapshot events emitted while JS was suspended are
+  // state may be stale: snapshot events emitted while JS was suspended are
   // lost. Poll the native state to resync.
   const handleVisibilityChange = () => {
     if (document.visibilityState === 'visible' && activeRecord && !activeRecord.cancelled) {
@@ -169,7 +176,7 @@ export const createNativeCallController = (
 
   void onSystemCallAction((action: SystemCallAction) => {
     if (action.action === 'end') {
-      // System UI ended the call — hang up if active, then fulfill the
+      // System UI ended the call: hang up if active, then fulfill the
       // pending CXEndCallAction so the system UI dismisses immediately.
       if (activeRecord && !activeRecord.cancelled) {
         void cleanup(activeRecord, undefined, true).finally(() => {
@@ -180,11 +187,11 @@ export const createNativeCallController = (
       }
       void drainPendingSystemCallActions().catch(() => undefined);
     } else if (action.action === 'answer') {
-      // System UI answered an incoming call — store the uuid for the
+      // System UI answered an incoming call: store the uuid for the
       // start path so it can map back to the system call.
       pendingSystemUuid = action.uuid;
     } else if (action.action === 'mute') {
-      // System UI mute toggle — push to LiveKit.
+      // System UI mute toggle: push to LiveKit.
       if (activeRecord && !activeRecord.cancelled && activeRecord.connectResolved) {
         void deps
           .setMicrophone({ callId: activeRecord.callId, enabled: !action.muted })
@@ -237,6 +244,8 @@ export const createNativeCallController = (
       setMicrophoneEnabled,
       setCameraEnabled,
       switchCamera,
+      listAudioRoutes,
+      selectAudioRoute,
       hangup: () => cleanup(record, undefined, true),
     });
     displayedRecord = record;
@@ -328,7 +337,7 @@ export const createNativeCallController = (
       if (snapshot.callId === null && !record.connectResolved) return;
       if (snapshot.callId !== null && snapshot.callId !== record.callId) return;
       if (snapshot.connectionState === 'idle') {
-        // The call ended normally — usually the other side hung up. Clear the
+        // The call ended normally, usually because the other side hung up. Clear the
         // session rather than publishing an error the user has to dismiss.
         void cleanup(record, undefined, true);
         return;
@@ -500,5 +509,26 @@ export const createNativeCallController = (
     await switchNativeCallCamera({ callId: record.callId }).catch(() => undefined);
   };
 
-  return { start, setMicrophoneEnabled, setCameraEnabled, switchCamera };
+  const listAudioRoutes = async (): Promise<NativeCallAudioRoute[]> => {
+    const record = activeRecord;
+    if (!record || record.cancelled || !record.connectResolved) return [];
+    return getAudioRoutes({ callId: record.callId })
+      .then((result) => result.routes)
+      .catch(() => []);
+  };
+
+  const selectAudioRoute = async (routeId: string): Promise<void> => {
+    const record = activeRecord;
+    if (!record || record.cancelled || !record.connectResolved) return;
+    await setAudioRoute({ callId: record.callId, routeId }).catch(() => undefined);
+  };
+
+  return {
+    start,
+    setMicrophoneEnabled,
+    setCameraEnabled,
+    switchCamera,
+    listAudioRoutes,
+    selectAudioRoute,
+  };
 };

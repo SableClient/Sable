@@ -16,6 +16,8 @@ const makeNativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCal
   setMicrophoneEnabled: async () => {},
   setCameraEnabled: async () => {},
   switchCamera: async () => {},
+  listAudioRoutes: async () => [],
+  selectAudioRoute: async () => {},
   hangup: async () => undefined,
 });
 

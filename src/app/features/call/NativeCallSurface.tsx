@@ -1,14 +1,17 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Text, toRem } from 'folds';
+import { Box, config, Menu, MenuItem, Text, toRem } from 'folds';
 import type { NativeCallSession } from '$state/nativeCall';
 import {
   ArrowsClockwise,
   MicrophoneSlash,
   PhoneDisconnect,
+  SpeakerHigh,
   User,
   VideoCameraSlash,
   sizedIcon,
 } from '$components/icons/phosphor';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import {
   clearNativeCallLocalVideoOverlay,
   clearNativeCallRemoteVideoOverlay,
@@ -16,11 +19,14 @@ import {
   listenNativeCallSnapshot,
   setNativeCallLocalVideoOverlay,
   setNativeCallRemoteVideoOverlay,
+  type NativeCallAudioRoute,
+  type NativeCallRemoteCamera,
   type NativeCallRemoteParticipant,
   type NativeCallSnapshot,
 } from './livekitMobileBridge';
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useRoom } from '$hooks/useRoom';
+import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { buildRtcIdentityMap, type UserIdByRtcIdentity } from './livekitCallIdentity';
 import { CallParticipantAvatar, useCallParticipantProfile } from './LivekitCallParticipant';
 import { CallControlBar, CallLayout, CallMediaControls, CallStatusBar } from './callChrome';
@@ -45,7 +51,10 @@ const sameParticipants = (
       participant.connectionQuality === other.connectionQuality &&
       participant.camera?.sid === other.camera?.sid &&
       participant.camera?.muted === other.camera?.muted &&
-      participant.camera?.subscribed === other.camera?.subscribed
+      participant.camera?.subscribed === other.camera?.subscribed &&
+      participant.screenShare?.sid === other.screenShare?.sid &&
+      participant.screenShare?.muted === other.screenShare?.muted &&
+      participant.screenShare?.subscribed === other.screenShare?.subscribed
     );
   });
 
@@ -103,7 +112,7 @@ type OverlayTarget = {
 
 /**
  * True when the slot's center point is covered by another element (drawers,
- * modal sheets, page transitions). Rect geometry alone cannot detect this —
+ * modal sheets, page transitions). Rect geometry alone cannot detect this:
  * a drawer sliding over the call view moves nothing. Probing the topmost
  * element at the slot's center is the reliable occlusion signal.
  */
@@ -123,11 +132,11 @@ function nativeSlotOccluded(slotNode: HTMLDivElement, rect: DOMRect): boolean {
  */
 function useNativeVideoOverlay(
   callId: string,
-  connected: boolean,
+  active: boolean,
   target: OverlayTarget | undefined,
   slotNode: HTMLDivElement | null
 ): void {
-  const targetKey = connected && target ? `${target.participantIdentity}:${target.trackId}` : null;
+  const targetKey = active && target ? `${target.participantIdentity}:${target.trackId}` : null;
 
   useEffect(() => {
     if (!targetKey || !target || !slotNode) return undefined;
@@ -135,16 +144,17 @@ function useNativeVideoOverlay(
     let lastGeometryKey = '';
     const report = () => {
       const rect = slotNode.getBoundingClientRect();
-      // Slot hidden or outside the viewport (display:none page, scrolled away):
-      // hide the native overlay too, otherwise it stays painted at a stale
-      // position over unrelated content.
+      // Slot hidden, outside the viewport (display:none page, scrolled away), or
+      // occluded by an overlaying page/drawer: hide the native overlay too,
+      // otherwise it stays painted at a stale position over unrelated content.
       const offscreen =
         rect.width <= 0 ||
         rect.height <= 0 ||
         rect.right < 0 ||
         rect.bottom < 0 ||
         rect.left > window.innerWidth ||
-        rect.top > window.innerHeight;
+        rect.top > window.innerHeight ||
+        nativeSlotOccluded(slotNode, rect);
       if (offscreen) {
         if (lastGeometryKey !== '') {
           lastGeometryKey = '';
@@ -205,11 +215,11 @@ function useNativeVideoOverlay(
  */
 function useNativeLocalVideoOverlay(
   callId: string,
-  connected: boolean,
+  enabled: boolean,
   cameraEnabled: boolean,
   slotNode: HTMLDivElement | null
 ): void {
-  const active = connected && cameraEnabled && slotNode;
+  const active = enabled && cameraEnabled && slotNode;
 
   useEffect(() => {
     if (!active || !slotNode) return undefined;
@@ -255,7 +265,7 @@ function useNativeLocalVideoOverlay(
     const observer = new ResizeObserver(report);
     observer.observe(slotNode);
     // Fires during slide transitions (transforms move the slot without any
-    // scroll/resize event) — this is how recovery after a room change works.
+    // scroll/resize event), which is how recovery after a room change works.
     const intersectionObserver = new IntersectionObserver(report, {
       threshold: [0, 0.25, 0.5, 0.75, 1],
     });
@@ -348,10 +358,7 @@ function RemoteTile({
         </div>
       </div>
       <div className={css.TileLabel}>
-        <span
-          className={css.QualityDot}
-          data-quality={participant.connectionQuality ?? 'unknown'}
-        />
+        <QualityDot quality={participant.connectionQuality} />
         {participant.camera?.muted && (
           <span aria-label="Camera off" style={{ display: 'inline-flex', flexShrink: 0 }}>
             {sizedIcon(VideoCameraSlash, '200')}
@@ -360,6 +367,97 @@ function RemoteTile({
         <span className={css.TileLabelName}>{profile.name}</span>
       </div>
     </div>
+  );
+}
+
+/**
+ * Output picker (speaker, receiver, Bluetooth). The button only appears once the
+ * platform actually reports routes, which is how it stays hidden on Android,
+ * where the command does not exist.
+ */
+function AudioRouteControl({ session }: { session: NativeCallSession }) {
+  const menu = useMenuAnchor<HTMLButtonElement>();
+  const [routes, setRoutes] = useState<NativeCallAudioRoute[]>([]);
+
+  useEffect(() => {
+    let disposed = false;
+    const load = async () => {
+      const next = await session.listAudioRoutes();
+      if (!disposed) setRoutes(next);
+    };
+    void load();
+    return () => {
+      disposed = true;
+    };
+  }, [session]);
+
+  if (routes.length === 0) return null;
+
+  return (
+    <ResponsiveMenu
+      anchor={menu.anchor}
+      requestClose={menu.close}
+      position="Top"
+      align="Center"
+      mobile="dialog"
+      menu={
+        <Menu>
+          <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+            {routes.map((route) => (
+              <MenuItem
+                key={route.id}
+                size="300"
+                radii="300"
+                variant="Surface"
+                onClick={() => {
+                  void session.selectAudioRoute(route.id);
+                  menu.close();
+                }}
+              >
+                <Text size="T300">{route.label || route.name}</Text>
+              </MenuItem>
+            ))}
+          </Box>
+        </Menu>
+      }
+    >
+      <button
+        type="button"
+        className={controlButton}
+        data-on
+        aria-label="Audio output"
+        title="Audio output"
+        onClick={(evt) => {
+          // Routes change when a headset is plugged in, so refresh on open.
+          const refresh = async () => setRoutes(await session.listAudioRoutes());
+          void refresh();
+          menu.openAt(evt.currentTarget);
+        }}
+      >
+        {sizedIcon(SpeakerHigh, '300')}
+      </button>
+    </ResponsiveMenu>
+  );
+}
+
+const qualityLabels: Record<string, string> = {
+  excellent: 'Excellent connection',
+  good: 'Good connection',
+  poor: 'Poor connection',
+  lost: 'Connection lost',
+  unknown: 'Connection quality unknown',
+};
+
+/** The dot carries state through colour alone, so it needs its own label. */
+function QualityDot({ quality }: { quality: string | undefined }) {
+  const value = quality ?? 'unknown';
+  return (
+    <span
+      className={css.QualityDot}
+      data-quality={value}
+      role="img"
+      aria-label={qualityLabels[value] ?? qualityLabels.unknown}
+    />
   );
 }
 
@@ -373,7 +471,7 @@ function RemoteDominantLabel({
   const profile = useCallParticipantProfile(participant.identity, false, userIdByIdentity);
   return (
     <>
-      <span className={css.QualityDot} data-quality={participant.connectionQuality ?? 'unknown'} />
+      <QualityDot quality={participant.connectionQuality} />
       {participant.camera?.muted && (
         <span aria-label="Camera off" style={{ display: 'inline-flex', flexShrink: 0 }}>
           {sizedIcon(VideoCameraSlash, '200')}
@@ -428,7 +526,6 @@ function DominantTile({
 export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps) {
   const isError = session.lifecycle === 'error';
   const connected = session.lifecycle === 'connected';
-  const connecting = session.lifecycle === 'starting' || session.lifecycle === 'connecting';
   const remoteParticipants = useNativeRemoteParticipants(session.callId, !isError);
   const matrixRoom = useRoom();
   const callSession = useCallSession(matrixRoom);
@@ -436,18 +533,31 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
   const userIdByIdentity = useMemo(() => buildRtcIdentityMap(callMembers), [callMembers]);
 
   const featured = useMemo(() => {
-    const participant = remoteParticipants.find(
-      (p) => p.camera && p.camera.subscribed && !p.camera.muted
-    );
-    if (!participant?.camera) return undefined;
-    return { participantIdentity: participant.identity, trackId: participant.camera.sid };
+    const live = (track: NativeCallRemoteCamera | undefined): boolean =>
+      track !== undefined && track.subscribed && !track.muted;
+    // A shared screen is the thing people are actually looking at, so it
+    // outranks any camera.
+    const sharing = remoteParticipants.find((p) => live(p.screenShare));
+    if (sharing?.screenShare) {
+      return { participantIdentity: sharing.identity, trackId: sharing.screenShare.sid };
+    }
+    const onCamera = remoteParticipants.find((p) => live(p.camera));
+    if (!onCamera?.camera) return undefined;
+    return { participantIdentity: onCamera.identity, trackId: onCamera.camera.sid };
   }, [remoteParticipants]);
 
+  // The room page stays mounted for the whole mobile slide-out transition, so
+  // geometry alone leaves the native video painted over the outgoing page until
+  // the slot finally clears the viewport. Route selection flips when the
+  // transition starts, which is the earliest honest "no longer on screen".
+  const selectedRoom = useSelectedRoom();
+  const overlayActive = connected && selectedRoom === session.roomId;
+
   const [slotNode, setSlotNode] = useState<HTMLDivElement | null>(null);
-  useNativeVideoOverlay(session.callId, connected, featured, slotNode);
+  useNativeVideoOverlay(session.callId, overlayActive, featured, slotNode);
 
   const [localSlotNode, setLocalSlotNode] = useState<HTMLDivElement | null>(null);
-  useNativeLocalVideoOverlay(session.callId, connected, session.cameraEnabled, localSlotNode);
+  useNativeLocalVideoOverlay(session.callId, overlayActive, session.cameraEnabled, localSlotNode);
 
   const remoteCount = remoteParticipants.length;
   // Total tiles once the local self-tile joins the grid. 7+ switches the grid
@@ -559,9 +669,13 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
           cameraEnabled={session.cameraEnabled}
           setMicrophoneEnabled={session.setMicrophoneEnabled}
           setCameraEnabled={session.setCameraEnabled}
-          disabled={connecting}
+          // The native setters reject unless the room is connected, so staying
+          // enabled while reconnecting just makes the buttons silently do
+          // nothing.
+          disabled={!connected}
         />
-        {session.cameraEnabled && !connecting && (
+        {connected && <AudioRouteControl session={session} />}
+        {session.cameraEnabled && connected && (
           <button
             type="button"
             className={controlButton}

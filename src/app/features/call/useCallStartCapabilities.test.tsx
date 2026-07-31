@@ -49,6 +49,8 @@ const makeNativeSession = (
   setMicrophoneEnabled: async () => {},
   setCameraEnabled: async () => {},
   switchCamera: async () => {},
+  listAudioRoutes: async () => [],
+  selectAudioRoute: async () => {},
   hangup: async () => undefined,
 });
 

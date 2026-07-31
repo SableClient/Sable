@@ -14,6 +14,9 @@ vi.mock('./livekitMobileBridge', () => ({
 }));
 
 vi.mock('$hooks/useRoom', () => ({ useRoom: () => ({ roomId: '!room:example.org' }) }));
+vi.mock('$hooks/router/useSelectedRoom', () => ({
+  useSelectedRoom: () => '!room:example.org',
+}));
 vi.mock('$hooks/useCall', () => ({ useCallSession: () => ({}), useCallMembers: () => [] }));
 vi.mock('./LivekitCallParticipant', () => ({
   useCallParticipantProfile: () => ({ name: 'Bob' }),
@@ -30,6 +33,8 @@ const nativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCallSes
   setMicrophoneEnabled: async () => {},
   setCameraEnabled: async () => {},
   switchCamera: async () => {},
+  listAudioRoutes: async () => [],
+  selectAudioRoute: async () => {},
   hangup: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 });
 

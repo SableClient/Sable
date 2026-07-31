@@ -110,6 +110,8 @@ describe('CallStatusRenderer', () => {
       setMicrophoneEnabled: async () => {},
       setCameraEnabled: async () => {},
       switchCamera: async () => {},
+      listAudioRoutes: async () => [],
+      selectAudioRoute: async () => {},
       hangup: async () => undefined,
     } satisfies NativeCallSession);
 
@@ -130,6 +132,8 @@ describe('CallStatusRenderer', () => {
       setMicrophoneEnabled: async () => {},
       setCameraEnabled: async () => {},
       switchCamera: async () => {},
+      listAudioRoutes: async () => [],
+      selectAudioRoute: async () => {},
       hangup: async () => undefined,
     } satisfies NativeCallSession);
 

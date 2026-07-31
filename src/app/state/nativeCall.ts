@@ -1,4 +1,5 @@
 import { atom } from 'jotai';
+import type { NativeCallAudioRoute } from '$features/call/livekitMobileBridge';
 import { selectActiveCallSession, type LivekitJsCallSession } from './livekitJsCall';
 
 export type NativeCallBackend = 'livekit-mobile';
@@ -21,13 +22,9 @@ export type NativeCallSession = {
   setMicrophoneEnabled: (enabled: boolean) => Promise<void>;
   setCameraEnabled: (enabled: boolean) => Promise<void>;
   switchCamera: () => Promise<void>;
+  listAudioRoutes: () => Promise<NativeCallAudioRoute[]>;
+  selectAudioRoute: (routeId: string) => Promise<void>;
   hangup: () => Promise<void>;
-  /** Fetch available audio output routes from CallKit. Follow-up wiring. */
-  getAudioRoutes?: () => Promise<unknown>;
-  /** Switch the active audio route (e.g. speaker vs bluetooth). Follow-up wiring. */
-  setAudioRoute?: (routeId: string) => Promise<void>;
-  /** Send DTMF digits over the active call. Follow-up wiring. */
-  sendDTMF?: (digits: string) => Promise<void>;
 };
 
 export const nativeCallAtom = atom<NativeCallSession | undefined>(undefined);

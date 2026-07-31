@@ -44,6 +44,7 @@ export type NativeCallRemoteCamera = {
 export type NativeCallRemoteParticipant = {
   identity: string;
   camera?: NativeCallRemoteCamera;
+  screenShare?: NativeCallRemoteCamera;
   connectionQuality?: string;
 };
 
@@ -172,8 +173,16 @@ export type DeclineSystemCallRequest = {
   reason: string;
 };
 
+/** `type` is the platform's own route vocabulary, so it stays a plain string. */
+export type NativeCallAudioRoute = {
+  id: string;
+  name: string;
+  type: string;
+  label: string;
+};
+
 export type GetAudioRoutesResponse = {
-  routes: unknown;
+  routes: NativeCallAudioRoute[];
   receiver: NativeCallSnapshot;
 };
 

@@ -17,7 +17,6 @@ use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 
 use matrix_sdk::deserialized_responses::AlgorithmInfo;
-use matrix_sdk::ruma::api::IncomingResponse as _;
 use matrix_sdk::ruma::api::client::{
     keys::{
         claim_keys::v3::Response as KeysClaimResponse, get_keys::v3::Response as KeysQueryResponse,
@@ -28,6 +27,7 @@ use matrix_sdk::ruma::api::client::{
     sync::sync_events::DeviceLists,
     to_device::send_event_to_device::v3::Response as ToDeviceResponse,
 };
+use matrix_sdk::ruma::api::IncomingResponse as _;
 use matrix_sdk::ruma::events::MessageLikeEventContent as _;
 use matrix_sdk::ruma::serde::Raw;
 use matrix_sdk::ruma::{OneTimeKeyAlgorithm, UInt};
@@ -72,8 +72,10 @@ pub async fn engine_open(
     user_id: String,
     device_id: String,
 ) -> Result<EngineInfo, String> {
-    let user: &matrix_sdk::ruma::UserId =
-        user_id.as_str().try_into().map_err(|e| format!("bad user id: {e}"))?;
+    let user: &matrix_sdk::ruma::UserId = user_id
+        .as_str()
+        .try_into()
+        .map_err(|e| format!("bad user id: {e}"))?;
     let device: &matrix_sdk::ruma::DeviceId = device_id.as_str().into();
 
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -175,7 +177,10 @@ pub async fn engine_receive_sync_changes(
         .one_time_keys_counts
         .iter()
         .filter_map(|(k, v)| {
-            Some((OneTimeKeyAlgorithm::from(k.as_str()), UInt::try_from(*v).ok()?))
+            Some((
+                OneTimeKeyAlgorithm::from(k.as_str()),
+                UInt::try_from(*v).ok()?,
+            ))
         })
         .collect();
     let fallback_keys: Vec<OneTimeKeyAlgorithm> = request
@@ -379,8 +384,10 @@ pub async fn engine_decrypt_event(
     event_json: String,
 ) -> Result<DecryptedEventResult, String> {
     let machine = state.machine(&user_id, &device_id)?;
-    let room: &matrix_sdk::ruma::RoomId =
-        room_id.as_str().try_into().map_err(|e| format!("bad room id: {e}"))?;
+    let room: &matrix_sdk::ruma::RoomId = room_id
+        .as_str()
+        .try_into()
+        .map_err(|e| format!("bad room id: {e}"))?;
     let event: Raw<EncryptedEvent> =
         serde_json::from_str(&event_json).map_err(|e| format!("bad event json: {e}"))?;
 
@@ -430,8 +437,10 @@ pub async fn engine_encrypt_event(
     content_json: String,
 ) -> Result<String, String> {
     let machine = state.machine(&user_id, &device_id)?;
-    let room: &matrix_sdk::ruma::RoomId =
-        room_id.as_str().try_into().map_err(|e| format!("bad room id: {e}"))?;
+    let room: &matrix_sdk::ruma::RoomId = room_id
+        .as_str()
+        .try_into()
+        .map_err(|e| format!("bad room id: {e}"))?;
     let content_box = serde_json::value::RawValue::from_string(content_json)
         .map_err(|e| format!("bad content json: {e}"))?;
     let content: Raw<matrix_sdk::ruma::events::AnyMessageLikeEventContent> =
@@ -442,6 +451,183 @@ pub async fn engine_encrypt_event(
         .await
         .map_err(|e| format!("encrypt_room_event failed: {e:?}"))?;
     Ok(encrypted.content.json().get().to_owned())
+}
+
+// ------------------------------------------------------- identities & trust
+
+/// Mirrors js-sdk's `DeviceVerificationStatus` fields. `isVerified()` is
+/// computed on the TS side, which owns the `trustCrossSignedDevices` setting.
+#[derive(Debug, Serialize)]
+pub struct DeviceTrust {
+    pub found: bool,
+    pub signed_by_owner: bool,
+    pub cross_signing_verified: bool,
+    pub local_verified: bool,
+}
+
+#[tauri::command]
+pub async fn engine_device_trust(
+    state: State<'_, CryptoEngineState>,
+    user_id: String,
+    device_id: String,
+    target_user_id: String,
+    target_device_id: String,
+) -> Result<DeviceTrust, String> {
+    let machine = state.machine(&user_id, &device_id)?;
+    let target_user: &matrix_sdk::ruma::UserId = target_user_id
+        .as_str()
+        .try_into()
+        .map_err(|e| format!("bad user id: {e}"))?;
+    let target_device: &matrix_sdk::ruma::DeviceId = target_device_id.as_str().into();
+
+    let device = machine
+        .get_device(target_user, target_device, None)
+        .await
+        .map_err(|e| format!("get_device failed: {e}"))?;
+
+    Ok(match device {
+        Some(device) => DeviceTrust {
+            found: true,
+            signed_by_owner: device.is_cross_signing_trusted(),
+            cross_signing_verified: device.is_cross_signing_trusted(),
+            local_verified: device.is_locally_trusted(),
+        },
+        None => DeviceTrust {
+            found: false,
+            signed_by_owner: false,
+            cross_signing_verified: false,
+            local_verified: false,
+        },
+    })
+}
+
+/// Mirrors js-sdk's `UserVerificationStatus` constructor arguments.
+#[derive(Debug, Serialize)]
+pub struct UserTrust {
+    pub known: bool,
+    pub cross_signing_verified: bool,
+    pub cross_signing_verified_before: bool,
+    pub needs_user_approval: bool,
+}
+
+#[tauri::command]
+pub async fn engine_user_trust(
+    state: State<'_, CryptoEngineState>,
+    user_id: String,
+    device_id: String,
+    target_user_id: String,
+) -> Result<UserTrust, String> {
+    let machine = state.machine(&user_id, &device_id)?;
+    let target_user: &matrix_sdk::ruma::UserId = target_user_id
+        .as_str()
+        .try_into()
+        .map_err(|e| format!("bad user id: {e}"))?;
+
+    let identity = machine
+        .get_identity(target_user, None)
+        .await
+        .map_err(|e| format!("get_identity failed: {e}"))?;
+
+    Ok(match identity {
+        Some(identity) => UserTrust {
+            known: true,
+            cross_signing_verified: identity.is_verified(),
+            cross_signing_verified_before: identity.was_previously_verified(),
+            needs_user_approval: identity.has_verification_violation(),
+        },
+        None => UserTrust {
+            known: false,
+            cross_signing_verified: false,
+            cross_signing_verified_before: false,
+            needs_user_approval: false,
+        },
+    })
+}
+
+/// Mirrors js-sdk's `CrossSigningStatus`: which private cross-signing keys this
+/// device holds.
+#[derive(Debug, Serialize)]
+pub struct CrossSigningKeyStatus {
+    pub master_key: bool,
+    pub self_signing_key: bool,
+    pub user_signing_key: bool,
+}
+
+#[tauri::command]
+pub async fn engine_cross_signing_status(
+    state: State<'_, CryptoEngineState>,
+    user_id: String,
+    device_id: String,
+) -> Result<CrossSigningKeyStatus, String> {
+    let machine = state.machine(&user_id, &device_id)?;
+    let status = machine.cross_signing_status().await;
+    Ok(CrossSigningKeyStatus {
+        master_key: status.has_master,
+        self_signing_key: status.has_self_signing,
+        user_signing_key: status.has_user_signing,
+    })
+}
+
+// ---------------------------------------------------------- room key transfer
+
+/// Exports inbound group sessions in the standard key-export format, as a JSON
+/// string so it can be handed to js-sdk's `importRoomKeys` unchanged. Pass
+/// `room_id` to export a single room, which keeps large accounts from
+/// serialising every session they have.
+#[tauri::command]
+pub async fn engine_export_room_keys(
+    state: State<'_, CryptoEngineState>,
+    user_id: String,
+    device_id: String,
+    room_id: Option<String>,
+) -> Result<String, String> {
+    let machine = state.machine(&user_id, &device_id)?;
+    let wanted_room = match room_id {
+        Some(id) => {
+            Some(matrix_sdk::ruma::RoomId::parse(&id).map_err(|e| format!("bad room id: {e}"))?)
+        }
+        None => None,
+    };
+
+    let exported = machine
+        .store()
+        .export_room_keys(|session| match &wanted_room {
+            Some(room) => session.room_id() == room,
+            None => true,
+        })
+        .await
+        .map_err(|e| format!("export_room_keys failed: {e}"))?;
+
+    serde_json::to_string(&exported).map_err(|e| e.to_string())
+}
+
+#[derive(Debug, Serialize)]
+pub struct ImportedRoomKeys {
+    pub imported_count: usize,
+    pub total_count: usize,
+}
+
+#[tauri::command]
+pub async fn engine_import_room_keys(
+    state: State<'_, CryptoEngineState>,
+    user_id: String,
+    device_id: String,
+    keys_json: String,
+) -> Result<ImportedRoomKeys, String> {
+    let machine = state.machine(&user_id, &device_id)?;
+    let keys: Vec<matrix_sdk_crypto::olm::ExportedRoomKey> =
+        serde_json::from_str(&keys_json).map_err(|e| format!("bad key export json: {e}"))?;
+
+    let result = machine
+        .store()
+        .import_exported_room_keys(keys, |_, _| {})
+        .await
+        .map_err(|e| format!("import_exported_room_keys failed: {e}"))?;
+
+    Ok(ImportedRoomKeys {
+        imported_count: result.imported_count,
+        total_count: result.total_count,
+    })
 }
 
 #[cfg(test)]
@@ -513,6 +699,58 @@ mod tests {
         let room: &matrix_sdk::ruma::RoomId = "!room:example.org".try_into().unwrap();
         let result = machine.decrypt_room_event(&raw, room, &settings).await;
         assert!(result.is_err(), "bogus megolm event must not decrypt");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Round-trips the key-export format the TS adapter hands to
+    /// `importRoomKeys`, and checks the trust/cross-signing reads a fresh
+    /// machine reports: nothing verified, no private cross-signing keys.
+    #[tokio::test]
+    async fn identity_reads_and_room_key_round_trip() {
+        let dir = std::env::temp_dir().join(format!("sable-engine-1c-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let user: &matrix_sdk::ruma::UserId = "@engine:example.org".try_into().unwrap();
+        let device: &matrix_sdk::ruma::DeviceId = "ENGINEDEVICE".into();
+        let store = SqliteCryptoStore::open(dir.join("crypto.sqlite3"), Some("pw"))
+            .await
+            .unwrap();
+        let machine = OlmMachine::with_store(user, device, Arc::new(store), None)
+            .await
+            .unwrap();
+
+        // A fresh machine holds no private cross-signing keys, so the adapter
+        // must report "not ready" rather than a half-set-up identity.
+        let status = machine.cross_signing_status().await;
+        assert!(!status.has_master);
+        assert!(!status.has_self_signing);
+        assert!(!status.has_user_signing);
+
+        // An unknown device must be absent, which the adapter maps to null
+        // instead of an unverified DeviceVerificationStatus.
+        let other: &matrix_sdk::ruma::UserId = "@other:example.org".try_into().unwrap();
+        assert!(machine
+            .get_device(other, "NODEVICE".into(), None)
+            .await
+            .unwrap()
+            .is_none());
+        assert!(machine.get_identity(other, None).await.unwrap().is_none());
+
+        // Exporting an empty store yields an empty array, not an error, and it
+        // must be valid JSON for the TS side to parse.
+        let exported = machine.store().export_room_keys(|_| true).await.unwrap();
+        assert_eq!(serde_json::to_string(&exported).unwrap(), "[]");
+
+        // Importing that empty export is a no-op rather than a failure.
+        let result = machine
+            .store()
+            .import_exported_room_keys(exported, |_, _| {})
+            .await
+            .unwrap();
+        assert_eq!(result.imported_count, 0);
+        assert_eq!(result.total_count, 0);
 
         let _ = std::fs::remove_dir_all(&dir);
     }

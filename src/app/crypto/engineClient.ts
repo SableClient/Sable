@@ -2,22 +2,39 @@ import type { MatrixClient } from '$types/matrix-sdk';
 import { Method } from '$types/matrix-sdk';
 import {
   engineClose,
+  engineCrossSigningStatus,
   engineDecryptEvent,
+  engineDeviceTrust,
   engineEncryptEvent,
+  engineExportRoomKeys,
+  engineImportRoomKeys,
   engineMarkRequestSent,
   engineOpen,
   engineOutgoingRequests,
   engineReceiveSyncChanges,
+  engineUserTrust,
 } from '$generated/tauri/commands';
 import type {
+  CrossSigningKeyStatus,
   CryptoRequestKind,
+  DeviceTrust,
   EngineInfo,
+  ImportedRoomKeys,
   OutgoingCryptoRequest,
   SyncChangesRequest,
   SyncChangesResult,
+  UserTrust,
 } from '$generated/tauri/types';
 
-export type { EngineInfo, OutgoingCryptoRequest, SyncChangesResult };
+export type {
+  CrossSigningKeyStatus,
+  DeviceTrust,
+  EngineInfo,
+  ImportedRoomKeys,
+  OutgoingCryptoRequest,
+  SyncChangesResult,
+  UserTrust,
+};
 
 export type EngineIdentity = {
   userId: string;
@@ -96,6 +113,53 @@ export async function encryptEvent(params: {
 }): Promise<Record<string, unknown>> {
   const contentJson = await engineEncryptEvent(params);
   return JSON.parse(contentJson) as Record<string, unknown>;
+}
+
+export async function deviceTrust(params: {
+  userId: string;
+  deviceId: string;
+  targetUserId: string;
+  targetDeviceId: string;
+}): Promise<DeviceTrust> {
+  return engineDeviceTrust(params);
+}
+
+export async function userTrust(params: {
+  userId: string;
+  deviceId: string;
+  targetUserId: string;
+}): Promise<UserTrust> {
+  return engineUserTrust(params);
+}
+
+export async function crossSigningStatus(identity: EngineIdentity): Promise<CrossSigningKeyStatus> {
+  return engineCrossSigningStatus({ ...identity });
+}
+
+/** Returns the standard key-export format, parsed. */
+export async function exportRoomKeys(params: {
+  userId: string;
+  deviceId: string;
+  roomId?: string;
+}): Promise<unknown[]> {
+  const exported = await engineExportRoomKeys({
+    userId: params.userId,
+    deviceId: params.deviceId,
+    roomId: params.roomId ?? null,
+  });
+  return JSON.parse(exported) as unknown[];
+}
+
+export async function importRoomKeys(params: {
+  userId: string;
+  deviceId: string;
+  keys: unknown[];
+}): Promise<ImportedRoomKeys> {
+  return engineImportRoomKeys({
+    userId: params.userId,
+    deviceId: params.deviceId,
+    keysJson: JSON.stringify(params.keys),
+  });
 }
 
 /**

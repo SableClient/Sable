@@ -5,15 +5,15 @@ mod desktop;
 mod diagnostics;
 #[cfg(target_os = "ios")]
 mod ios;
+#[cfg(feature = "matrix-crypto")]
+mod matrix_crypto;
+#[cfg(feature = "matrix-crypto")]
+mod matrix_crypto_spike;
 #[cfg(target_os = "android")]
 mod mobile;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 mod mobile_diagnostics;
 mod network;
-#[cfg(feature = "matrix-crypto")]
-mod matrix_crypto_spike;
-#[cfg(feature = "matrix-crypto")]
-mod matrix_crypto;
 mod sentry;
 mod share_inbox;
 
@@ -461,6 +461,16 @@ pub fn run() {
             matrix_crypto::engine_decrypt_event,
             #[cfg(feature = "matrix-crypto")]
             matrix_crypto::engine_encrypt_event,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_device_trust,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_user_trust,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_cross_signing_status,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_export_room_keys,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_import_room_keys,
             share_inbox::share_inbox_drain,
             share_inbox::share_inbox_read,
             share_inbox::share_inbox_clear,

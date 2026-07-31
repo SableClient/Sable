@@ -1,3 +1,4 @@
+import type { IMegolmSessionData } from 'matrix-js-sdk/lib/@types/crypto';
 import type {
   IDeviceLists,
   IToDeviceEvent,
@@ -6,6 +7,7 @@ import type {
   ReceivedToDeviceMessage,
   Room,
 } from '$types/matrix-sdk';
+import { DeviceVerificationStatus, UserVerificationStatus } from '$types/matrix-sdk';
 import { EventType } from 'matrix-js-sdk/lib/@types/event';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as engine from './engineClient';
@@ -65,6 +67,8 @@ export class RustIpcCrypto {
   #deviceKeys: EngineDeviceKeys;
 
   #stopped = false;
+
+  #trustCrossSignedDevices = true;
 
   /** Serialises the request pump so two sync cycles cannot run it at once. */
   #pump: Promise<void> = Promise.resolve();
@@ -225,6 +229,104 @@ export class RustIpcCrypto {
         return;
       }
     }
+  }
+
+  // ------------------------------------------------- identities and trust
+
+  async getOwnDeviceKeys(): Promise<{ ed25519: string; curve25519: string }> {
+    return {
+      ed25519: this.#deviceKeys.ed25519Key,
+      curve25519: this.#deviceKeys.curve25519Key,
+    };
+  }
+
+  async getDeviceVerificationStatus(
+    userId: string,
+    deviceId: string
+  ): Promise<DeviceVerificationStatus | null> {
+    const trust = await engine.deviceTrust({
+      ...this.#identity,
+      targetUserId: userId,
+      targetDeviceId: deviceId,
+    });
+    if (!trust.found) return null;
+    return new DeviceVerificationStatus({
+      signedByOwner: trust.signed_by_owner,
+      crossSigningVerified: trust.cross_signing_verified,
+      localVerified: trust.local_verified,
+      trustCrossSignedDevices: this.#trustCrossSignedDevices,
+    });
+  }
+
+  async getUserVerificationStatus(userId: string): Promise<UserVerificationStatus> {
+    const trust = await engine.userTrust({ ...this.#identity, targetUserId: userId });
+    return new UserVerificationStatus(
+      trust.cross_signing_verified,
+      trust.cross_signing_verified_before,
+      trust.known,
+      trust.needs_user_approval
+    );
+  }
+
+  async getCrossSigningStatus(): Promise<{
+    publicKeysOnDevice: boolean;
+    privateKeysInSecretStorage: boolean;
+    privateKeysCachedLocally: {
+      masterKey: boolean;
+      selfSigningKey: boolean;
+      userSigningKey: boolean;
+    };
+  }> {
+    const status = await engine.crossSigningStatus(this.#identity);
+    return {
+      // Both require account-data reads the engine does not do yet; Phase 1c
+      // fills these in with the 4S work rather than guessing here.
+      publicKeysOnDevice: false,
+      privateKeysInSecretStorage: false,
+      privateKeysCachedLocally: {
+        masterKey: status.master_key,
+        selfSigningKey: status.self_signing_key,
+        userSigningKey: status.user_signing_key,
+      },
+    };
+  }
+
+  async isCrossSigningReady(): Promise<boolean> {
+    const status = await engine.crossSigningStatus(this.#identity);
+    return status.master_key && status.self_signing_key && status.user_signing_key;
+  }
+
+  setTrustCrossSignedDevices(val: boolean): void {
+    this.#trustCrossSignedDevices = val;
+  }
+
+  getTrustCrossSignedDevices(): boolean {
+    return this.#trustCrossSignedDevices;
+  }
+
+  // -------------------------------------------------------- room key transfer
+
+  async exportRoomKeys(): Promise<IMegolmSessionData[]> {
+    const keys = await engine.exportRoomKeys(this.#identity);
+    return keys as IMegolmSessionData[];
+  }
+
+  async exportRoomKeysAsJson(): Promise<string> {
+    return JSON.stringify(await this.exportRoomKeys());
+  }
+
+  /** Exports one room's sessions, which `exportRoomKeys` cannot narrow to. */
+  async exportRoomKeysForRoom(roomId: string): Promise<IMegolmSessionData[]> {
+    const keys = await engine.exportRoomKeys({ ...this.#identity, roomId });
+    return keys as IMegolmSessionData[];
+  }
+
+  async importRoomKeys(keys: IMegolmSessionData[]): Promise<void> {
+    await engine.importRoomKeys({ ...this.#identity, keys });
+  }
+
+  async importRoomKeysAsJson(json: string): Promise<void> {
+    await this.importRoomKeys(JSON.parse(json) as IMegolmSessionData[]);
   }
 
   // ------------------------------------------------- not implemented (yet)

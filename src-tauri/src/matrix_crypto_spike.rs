@@ -61,7 +61,9 @@ pub async fn session_prototype(
     user_id: &str,
     device_id: &str,
 ) -> Result<SpikeCryptoInfo, String> {
-    let user: &UserId = user_id.try_into().map_err(|e| format!("bad user id: {e}"))?;
+    let user: &UserId = user_id
+        .try_into()
+        .map_err(|e| format!("bad user id: {e}"))?;
     let device: &DeviceId = device_id.into();
 
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
@@ -168,7 +170,10 @@ mod tests {
         .await
         .expect("session prototype should succeed");
 
-        assert!(info.reopen_roundtrip_ok, "identity keys must survive reopen");
+        assert!(
+            info.reopen_roundtrip_ok,
+            "identity keys must survive reopen"
+        );
         assert!(Path::new(&info.store_path).exists(), "sqlite store exists");
 
         let _ = std::fs::remove_dir_all(&dir);

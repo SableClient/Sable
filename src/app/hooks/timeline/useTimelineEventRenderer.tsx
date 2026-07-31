@@ -291,6 +291,12 @@ function ThreadReplyChip({
     </Chip>
   );
 }
+// Merged relation rows share the itemIndex -1 sentinel, so -1 targets nothing.
+const isFocusHighlighted = (
+  focusItem: { index: number; highlight: boolean } | undefined,
+  item: number
+) => item >= 0 && focusItem?.index === item && focusItem.highlight;
+
 export interface TimelineEventRendererOptions {
   room: Room;
   mx: MatrixClient;
@@ -413,7 +419,7 @@ export function useTimelineEventRenderer({
     timelineSet: EventTimelineSet,
     markedVariant: 'suppress' | 'plain' = 'suppress'
   ) {
-    const highlighted = focusItem?.index === item && focusItem.highlight;
+    const highlighted = isFocusHighlighted(focusItem, item);
     const marked =
       markedVariant === 'plain'
         ? activeReplyId === mEventId
@@ -442,7 +448,7 @@ export function useTimelineEventRenderer({
     item: number,
     timelineSet: EventTimelineSet
   ) {
-    const highlighted = focusItem?.index === item && focusItem.highlight;
+    const highlighted = isFocusHighlighted(focusItem, item);
     const marked = activeReplyId === mEventId && !suppressMark;
     const senderId = mEvent.getSender() ?? '';
     const senderName = getSenderDisplayName(senderId);
@@ -510,7 +516,7 @@ export function useTimelineEventRenderer({
   ) => {
     if (!hiddenEventEdits) return null;
 
-    const highlighted = focusItem?.index === item && focusItem.highlight;
+    const highlighted = isFocusHighlighted(focusItem, item);
     const marked = activeReplyId === mEventId && suppressMark !== true;
     const senderId = mEvent.getSender() ?? '';
     const senderName = getSenderDisplayName(senderId);

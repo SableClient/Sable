@@ -107,7 +107,8 @@ const getDayDividerText = (ts: number) => {
 const focusItemAffectsEvent = (focusItem: unknown, eventData: ProcessedEvent | undefined) => {
   if (!focusItem || typeof focusItem !== 'object' || !eventData) return false;
   const index = 'index' in focusItem ? focusItem.index : undefined;
-  return typeof index === 'number' && index === eventData.itemIndex;
+  // itemIndex -1 marks a merged relation row, which is never a focus target.
+  return typeof index === 'number' && index >= 0 && index === eventData.itemIndex;
 };
 
 const eventIdAffectsEvent = (eventId: string | null | undefined, eventData?: ProcessedEvent) =>

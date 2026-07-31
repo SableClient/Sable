@@ -14,6 +14,7 @@ const {
   getRoomUnreadInfoMock,
   rendererCtxPermissions,
   rendererCtxSettings,
+  rowItemIndex,
   processedTimelineOptions,
   windowFocused,
   rowRenders,
@@ -50,6 +51,7 @@ const {
     current: undefined as Record<string, unknown> | undefined,
   },
   windowFocused: { current: false },
+  rowItemIndex: { current: 0 },
   rowRenders: { count: 0 },
 }));
 
@@ -160,6 +162,8 @@ vi.mock('$hooks/timeline/useProcessedTimeline', async (importOriginal) => {
     ...actual,
     useProcessedTimeline: (options: Record<string, unknown>) => {
       processedTimelineOptions.current = options;
+      // Same object every call so the row memo can compare eventData by identity.
+      fakeEvent.itemIndex = rowItemIndex.current;
       return [fakeEvent];
     },
   };
@@ -274,6 +278,7 @@ beforeEach(() => {
   rendererCtxSettings.hideReads = false;
   processedTimelineOptions.current = undefined;
   windowFocused.current = false;
+  rowItemIndex.current = 0;
   rowRenders.count = 0;
   timelineSync.eventsLength = 1;
   timelineSync.focusItem = undefined;
@@ -400,6 +405,16 @@ describe('MemoizedTimelineItem', () => {
     expect(rowRenders.count).toBe(before);
   });
 
+  it('does not re-render for a focusItem pointing at the -1 merged-row sentinel', () => {
+    rowItemIndex.current = -1;
+    const { rerender } = renderTimeline();
+    const before = rowRenders.count;
+
+    timelineSync.focusItem = { index: -1, highlight: true, scrollTo: false };
+    rerender(<RoomTimeline room={room} editor={{} as Editor} />);
+
+    expect(rowRenders.count).toBe(before);
+  });
 });
 
 describe('unread read marker (normal sync)', () => {

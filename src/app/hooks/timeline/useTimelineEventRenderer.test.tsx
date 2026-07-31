@@ -718,6 +718,9 @@ const branches: BranchEntry[] = [
   },
 ];
 
+const highlightOf = (container: HTMLElement) =>
+  container.querySelector('[data-testid="message"]')?.getAttribute('data-highlight');
+
 describe('useTimelineEventRenderer', () => {
   describe.each(branches)('$name', ({ isStateEvent, createEvent: makeEvent }) => {
     it('renders correctly', () => {
@@ -899,6 +902,71 @@ describe('useTimelineEventRenderer', () => {
       const { container } = renderEventWithOverrides(editEvent, false, {});
       expect(container).not.toBeNull();
       expect(container.innerHTML).toMatchSnapshot();
+    });
+  });
+
+  describe('focusItem highlight', () => {
+    function renderMessageAtItem(
+      mEvent: MatrixEvent,
+      item: number,
+      focusItem?: { index: number; highlight: boolean; scrollTo: boolean }
+    ) {
+      const opts = { ...rendererOpts, state: { ...rendererOpts.state, focusItem } };
+      const { result } = renderHook(() => useTimelineEventRenderer(opts));
+      const node = result.current(
+        mEvent.getType() ?? 'UNKNOWN',
+        false,
+        mEvent.getId() ?? 'null',
+        mEvent,
+        item,
+        timelineSet,
+        false
+      );
+      return render(node as any);
+    }
+
+    const msgEvent = (id: string) =>
+      createEvent({
+        id,
+        type: EventType.RoomMessage,
+        content: { msgtype: 'm.text', body: 'hello' },
+        replyEventId: undefined,
+      });
+
+    it('highlights the focused row for a regular raw timeline index', () => {
+      const { container } = renderMessageAtItem(msgEvent('$a:example.com'), 3, {
+        index: 3,
+        highlight: true,
+        scrollTo: false,
+      });
+      expect(highlightOf(container)).toBe('true');
+    });
+
+    it('does not highlight a different row', () => {
+      const { container } = renderMessageAtItem(msgEvent('$a:example.com'), 4, {
+        index: 3,
+        highlight: true,
+        scrollTo: false,
+      });
+      expect(highlightOf(container)).toBe('false');
+    });
+
+    it('never highlights merged relation rows, which all carry itemIndex -1', () => {
+      // ThreadDrawer derives focusItem.index from the row's itemIndex, and every
+      // merged extra shares the -1 sentinel, so -1 must highlight nothing.
+      const jumpTarget = renderMessageAtItem(msgEvent('$edit-1:example.com'), -1, {
+        index: -1,
+        highlight: true,
+        scrollTo: false,
+      });
+      expect(highlightOf(jumpTarget.container)).toBe('false');
+
+      const otherExtra = renderMessageAtItem(msgEvent('$reaction-2:example.com'), -1, {
+        index: -1,
+        highlight: true,
+        scrollTo: false,
+      });
+      expect(highlightOf(otherExtra.container)).toBe('false');
     });
   });
 });

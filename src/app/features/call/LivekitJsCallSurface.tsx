@@ -303,6 +303,26 @@ function LivekitJsCallContent({
     }
   }, [e2eeReady, initialMedia, localParticipant, handleDeviceError]);
 
+  // Disable HTML5 PiP on all video elements in the LiveKit call surface.
+  // iOS WKWebView enables automatic PiP for video elements, which causes a
+  // "weird in-app PiP" overlay; disablePictureInPicture prevents it.
+  useEffect(() => {
+    const container = document.querySelector('[data-livekit-call-surface]');
+    if (!container) return;
+    const videos = container.querySelectorAll('video');
+    videos.forEach((video) => {
+      (video as HTMLVideoElement).disablePictureInPicture = true;
+    });
+    const observer = new MutationObserver(() => {
+      const newVideos = container.querySelectorAll('video');
+      newVideos.forEach((video) => {
+        (video as HTMLVideoElement).disablePictureInPicture = true;
+      });
+    });
+    observer.observe(container, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   const revealControls = useCallback(() => {
     setControlsVisible(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);

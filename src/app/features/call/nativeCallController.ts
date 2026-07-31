@@ -15,6 +15,7 @@ import {
   setNativeCallCameraEnabled,
   setNativeCallEncryptionKey,
   setNativeCallMicrophoneEnabled,
+  setNativeCallPiPEnabled,
   setSystemCallMuted,
   startSystemCall,
   switchNativeCallCamera,
@@ -279,6 +280,8 @@ export const createNativeCallController = (
     record.cleanupPromise = (async () => {
       // End the system call so CallKit dismisses the active-call UI.
       void endSystemCall({ callId: record.callId, remoteEnded: true }).catch(() => undefined);
+      // Disable native PiP on cleanup.
+      void setNativeCallPiPEnabled({ callId: record.callId, enabled: false }).catch(() => undefined);
       await disconnectLivekitThenLeaveMatrixRTC(
         () => deps.disconnectCall({ callId: record.callId }).then(() => undefined),
         record.session
@@ -430,6 +433,8 @@ export const createNativeCallController = (
       }).catch(() => undefined);
       // Report the call as connected to CallKit so the system UI updates.
       void reportSystemCallConnected(systemUuid).catch(() => undefined);
+      // Enable native PiP when the call connects.
+      void setNativeCallPiPEnabled({ callId, enabled: true }).catch(() => undefined);
       // For system-initiated incoming answers: fulfill the deferred answer action.
       if (isIncomingAnswer) {
         void fulfillAnswerCall(systemUuid).catch(() => undefined);

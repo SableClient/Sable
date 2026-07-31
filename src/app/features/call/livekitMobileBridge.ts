@@ -212,6 +212,14 @@ export const setNativeCallCameraEnabled = (request: {
     payload: request,
   });
 
+export const setNativeCallPiPEnabled = (request: {
+  callId: string;
+  enabled: boolean;
+}): Promise<NativeCallSnapshot> =>
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|setNativeCallPiPEnabled', {
+    payload: request,
+  });
+
 export const switchNativeCallCamera = (request: { callId: string }): Promise<NativeCallSnapshot> =>
   invoke<NativeCallSnapshot>('plugin:livekit-mobile|switchNativeCallCamera', {
     payload: request,

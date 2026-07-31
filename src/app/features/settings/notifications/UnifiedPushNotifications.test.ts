@@ -14,8 +14,10 @@ const notificationsApi = vi.hoisted(() => ({
   sendNotification: vi.fn<(notification: Record<string, unknown>) => Promise<void>>(),
   removeActive: vi.fn<(notifications: Array<{ id: number }>) => Promise<void>>(),
   createChannel: vi.fn<() => void>(),
+  removeChannel: vi.fn<() => Promise<void>>(),
   Importance: {
     Default: 3,
+    High: 4,
   },
 }));
 
@@ -101,6 +103,7 @@ describe('UnifiedPushNotifications', () => {
     notificationsApi.sendNotification.mockResolvedValue(undefined);
     notificationsApi.removeActive.mockResolvedValue(undefined);
     notificationsApi.createChannel.mockResolvedValue(undefined);
+    notificationsApi.removeChannel.mockResolvedValue(undefined);
     getTauriNotificationsApi.mockResolvedValue(notificationsApi);
     unifiedPushTransport.registerUnifiedPushTransport.mockResolvedValue({
       status: 'registered',
@@ -180,6 +183,55 @@ describe('UnifiedPushNotifications', () => {
     await vi.waitFor(() => expect(notificationsApi.sendNotification).toHaveBeenCalledTimes(2));
   });
 
+  it('posts message notifications as a conversation on the high-importance channel', async () => {
+    matrixClient.getRoom.mockReturnValue(makeRoom());
+
+    await listenAndPush({
+      type: 'm.room.message',
+      room_id: '!room:example.com',
+      room_name: 'Room',
+      event_id: '$plain:example.com',
+      sender: '@alice:example.com',
+      sender_display_name: 'Alice',
+      content: { body: 'hello' },
+    });
+
+    await vi.waitFor(() => expect(notificationsApi.sendNotification).toHaveBeenCalledOnce());
+    expect(notificationsApi.sendNotification.mock.calls[0]?.[0]).toMatchObject({
+      channelId: 'messages.v2',
+      groupConversation: false,
+      messages: [{ body: 'hello', senderName: 'Alice', senderKey: '@alice:example.com' }],
+    });
+  });
+
+  it('posts invitations on their own channel', async () => {
+    await listenAndPush({
+      type: 'm.room.member',
+      room_id: '!room:example.com',
+      room_name: 'Room',
+      sender_display_name: 'Alice',
+      content: { membership: 'invite' },
+    });
+
+    await vi.waitFor(() => expect(notificationsApi.sendNotification).toHaveBeenCalledOnce());
+    expect(notificationsApi.sendNotification.mock.calls[0]?.[0]).toMatchObject({
+      channelId: 'invites',
+      title: 'New Invitation',
+    });
+  });
+
+  it('creates the messages channel at high importance and drops the legacy one', async () => {
+    await tryEnableUnifiedPush(matrixClient as never);
+
+    expect(notificationsApi.createChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'messages.v2', importance: 4 })
+    );
+    expect(notificationsApi.createChannel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'invites' })
+    );
+    expect(notificationsApi.removeChannel).toHaveBeenCalledWith('messages');
+  });
+
   it('silently updates the same notification after encrypted decryption succeeds', async () => {
     matrixClient.getRoom.mockReturnValue(makeRoom());
     matrixClient.getCrypto.mockReturnValue({
@@ -232,7 +284,7 @@ describe('UnifiedPushNotifications', () => {
     expect(decryptEvent).not.toHaveBeenCalled();
   });
 
-  it('discards encrypted enrichment that resolves after the observation deadline', async () => {
+  it('applies encrypted enrichment that only decrypts long after the baseline post', async () => {
     vi.useFakeTimers();
     try {
       matrixClient.getRoom.mockReturnValue(makeRoom());
@@ -244,18 +296,50 @@ describe('UnifiedPushNotifications', () => {
         decryptEvent: vi.fn<() => Promise<Record<string, unknown>>>().mockReturnValue(decryption),
       });
 
-      await listenAndPush(encryptedPush('$deadline:example.com'));
+      await listenAndPush(encryptedPush('$late:example.com'));
       await vi.waitFor(() => expect(notificationsApi.sendNotification).toHaveBeenCalledOnce());
 
-      vi.advanceTimersByTime(2_500);
+      vi.advanceTimersByTime(30_000);
       resolveDecryption({
         clearEvent: {
           type: 'm.room.message',
           content: { body: 'late plaintext' },
         },
       });
-      await Promise.resolve();
-      await Promise.resolve();
+
+      await vi.waitFor(() => expect(notificationsApi.sendNotification).toHaveBeenCalledTimes(2));
+      expect(notificationsApi.sendNotification.mock.calls[1]?.[0]).toMatchObject({
+        body: 'You: late plaintext',
+        silent: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops waiting for the room key once the retry window elapses', async () => {
+    vi.useFakeTimers();
+    try {
+      matrixClient.getRoom.mockReturnValue(makeRoom());
+      let resolveDecryption!: (content: Record<string, unknown>) => void;
+      const decryption = new Promise<Record<string, unknown>>((resolve) => {
+        resolveDecryption = resolve;
+      });
+      matrixClient.getCrypto.mockReturnValue({
+        decryptEvent: vi.fn<() => Promise<Record<string, unknown>>>().mockReturnValue(decryption),
+      });
+
+      await listenAndPush(encryptedPush('$expired:example.com'));
+      await vi.waitFor(() => expect(notificationsApi.sendNotification).toHaveBeenCalledOnce());
+
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      resolveDecryption({
+        clearEvent: {
+          type: 'm.room.message',
+          content: { body: 'far too late' },
+        },
+      });
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(notificationsApi.sendNotification).toHaveBeenCalledOnce();
     } finally {

@@ -9,6 +9,13 @@ declare module '@choochmeque/tauri-plugin-notifications-api' {
     readonly High: 4;
   };
 
+  export type NotificationMessage = {
+    body: string;
+    timestamp: number;
+    senderName?: string;
+    senderKey?: string;
+  };
+
   export type NotificationOptions = {
     id?: number;
     channelId?: string;
@@ -22,6 +29,8 @@ declare module '@choochmeque/tauri-plugin-notifications-api' {
     groupSummary?: boolean;
     sound?: string;
     inboxLines?: string[];
+    messages?: NotificationMessage[];
+    groupConversation?: boolean;
     icon?: string;
     largeIcon?: string;
     iconColor?: string;

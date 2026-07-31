@@ -20,6 +20,7 @@ export type TauriNotificationsApi = {
     importance?: number;
     vibration?: boolean;
   }) => Promise<void>;
+  removeChannel: (id: string) => Promise<void>;
   isPermissionGranted: () => Promise<boolean>;
   requestPermission: () => Promise<NotificationPermission>;
   sendNotification: (payload: Record<string, unknown>) => Promise<void>;

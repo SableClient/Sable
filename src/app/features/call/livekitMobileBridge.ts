@@ -145,11 +145,6 @@ export type SetAudioRouteRequest = {
   routeId: string;
 };
 
-export type SendDTMFRequest = {
-  callId: string;
-  digits: string;
-};
-
 export type UpdateCallDisplayRequest = {
   callId: string;
   callerName: string;
@@ -197,19 +192,19 @@ export type SystemCallAction = {
 const NATIVE_CALL_EVENT = 'plugin:livekit-mobile://native-call-event';
 
 export const getNativeCallCapabilities = (): Promise<NativeCallCapabilities> =>
-  invoke<NativeCallCapabilities>('plugin:livekit-mobile|getNativeCallCapabilities');
+  invoke<NativeCallCapabilities>('plugin:livekit-mobile|get_native_call_capabilities');
 
 export const connectNativeCall = (request: ConnectNativeCallRequest): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|connectNativeCall', { payload: request });
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|connect_native_call', { payload: request });
 
 export const disconnectNativeCall = (request: { callId: string }): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|disconnectNativeCall', { payload: request });
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|disconnect_native_call', { payload: request });
 
 export const setNativeCallMicrophoneEnabled = (request: {
   callId: string;
   enabled: boolean;
 }): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|setNativeCallMicrophoneEnabled', {
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|set_native_call_microphone_enabled', {
     payload: request,
   });
 
@@ -217,7 +212,7 @@ export const setNativeCallCameraEnabled = (request: {
   callId: string;
   enabled: boolean;
 }): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|setNativeCallCameraEnabled', {
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|set_native_call_camera_enabled', {
     payload: request,
   });
 
@@ -225,52 +220,52 @@ export const setNativeCallPiPEnabled = (request: {
   callId: string;
   enabled: boolean;
 }): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|setNativeCallPiPEnabled', {
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|set_native_call_pip_enabled', {
     payload: request,
   });
 
 export const switchNativeCallCamera = (request: { callId: string }): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|switchNativeCallCamera', {
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|switch_native_call_camera', {
     payload: request,
   });
 
 export const setNativeCallEncryptionKey = (
   request: SetNativeCallEncryptionKeyRequest
 ): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|setNativeCallEncryptionKey', {
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|set_native_call_encryption_key', {
     payload: request,
   });
 
 export const setNativeCallRemoteVideoOverlay = (
   request: SetNativeCallRemoteVideoOverlayRequest
 ): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|setNativeCallRemoteVideoOverlay', {
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|set_native_call_remote_video_overlay', {
     payload: request,
   });
 
 export const clearNativeCallRemoteVideoOverlay = (
   request: ClearNativeCallRemoteVideoOverlayRequest
 ): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|clearNativeCallRemoteVideoOverlay', {
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|clear_native_call_remote_video_overlay', {
     payload: request,
   });
 
 export const setNativeCallLocalVideoOverlay = (
   request: SetNativeCallLocalVideoOverlayRequest
 ): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|setNativeCallLocalVideoOverlay', {
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|set_native_call_local_video_overlay', {
     payload: request,
   });
 
 export const clearNativeCallLocalVideoOverlay = (
   request: ClearNativeCallLocalVideoOverlayRequest
 ): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|clearNativeCallLocalVideoOverlay', {
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|clear_native_call_local_video_overlay', {
     payload: request,
   });
 
 export const getNativeCallState = (): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|getNativeCallState');
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|get_native_call_state');
 
 export const listenNativeCallSnapshot = (
   handler: (snapshot: NativeCallSnapshot) => void
@@ -278,59 +273,56 @@ export const listenNativeCallSnapshot = (
   listen<NativeCallSnapshot>(NATIVE_CALL_EVENT, ({ payload }) => handler(payload));
 
 export const reportSystemIncomingCall = (request: ReportSystemIncomingCallRequest): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|reportSystemIncomingCall', { payload: request });
+  invoke<void>('plugin:livekit-mobile|report_system_incoming_call', { payload: request });
 
 export const startSystemCall = (request: StartSystemCallRequest): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|startSystemCall', { payload: request });
+  invoke<void>('plugin:livekit-mobile|start_system_call', { payload: request });
 
 export const answerSystemCall = (request: AnswerSystemCallRequest): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|answerSystemCall', { payload: request });
+  invoke<void>('plugin:livekit-mobile|answer_system_call', { payload: request });
 
 export const endSystemCall = (request: EndSystemCallRequest): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|endSystemCall', { payload: request });
+  invoke<void>('plugin:livekit-mobile|end_system_call', { payload: request });
 
 export const setSystemCallMuted = (request: SetSystemCallMutedRequest): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|setSystemCallMuted', { payload: request });
+  invoke<void>('plugin:livekit-mobile|set_system_call_muted', { payload: request });
 
 export const drainPendingSystemCallActions = (): Promise<SystemCallAction[]> =>
-  invoke<SystemCallAction[]>('plugin:livekit-mobile|drainPendingSystemCallActions');
+  invoke<SystemCallAction[]>('plugin:livekit-mobile|drain_pending_system_call_actions');
 
 export const fulfillAnswerCall = (uuid: string): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|fulfillAnswerCall', { payload: { uuid } });
+  invoke<void>('plugin:livekit-mobile|fulfill_answer_call', { payload: { uuid } });
 
 export const fulfillEndCall = (uuid: string): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|fulfillEndCall', { payload: { uuid } });
+  invoke<void>('plugin:livekit-mobile|fulfill_end_call', { payload: { uuid } });
 
 export const reportSystemCallConnected = (uuid: string): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|reportSystemCallConnected', { payload: { uuid } });
+  invoke<void>('plugin:livekit-mobile|report_system_call_connected', { payload: { uuid } });
 
 export const getAudioRoutes = (request: GetAudioRoutesRequest): Promise<GetAudioRoutesResponse> =>
-  invoke<GetAudioRoutesResponse>('plugin:livekit-mobile|getAudioRoutes', { payload: request });
+  invoke<GetAudioRoutesResponse>('plugin:livekit-mobile|get_audio_routes', { payload: request });
 
 export const setAudioRoute = (request: SetAudioRouteRequest): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|setAudioRoute', { payload: request });
-
-export const sendDTMF = (request: SendDTMFRequest): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|sendDTMF', { payload: request });
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|set_audio_route', { payload: request });
 
 export const updateCallDisplay = (request: UpdateCallDisplayRequest): Promise<NativeCallSnapshot> =>
-  invoke<NativeCallSnapshot>('plugin:livekit-mobile|updateCallDisplay', { payload: request });
+  invoke<NativeCallSnapshot>('plugin:livekit-mobile|update_call_display', { payload: request });
 
 export const reportSystemCallAnsweredElsewhere = (
   request: ReportAnsweredElsewhereRequest
 ): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|reportSystemCallAnsweredElsewhere', { payload: request });
+  invoke<void>('plugin:livekit-mobile|report_system_call_answered_elsewhere', { payload: request });
 
 export const reportSystemCallDeclinedElsewhere = (
   request: ReportDeclinedElsewhereRequest
 ): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|reportSystemCallDeclinedElsewhere', { payload: request });
+  invoke<void>('plugin:livekit-mobile|report_system_call_declined_elsewhere', { payload: request });
 
 export const reportSystemCallUnanswered = (request: ReportUnansweredRequest): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|reportSystemCallUnanswered', { payload: request });
+  invoke<void>('plugin:livekit-mobile|report_system_call_unanswered', { payload: request });
 
 export const declineSystemCall = (request: DeclineSystemCallRequest): Promise<void> =>
-  invoke<void>('plugin:livekit-mobile|declineSystemCall', { payload: request });
+  invoke<void>('plugin:livekit-mobile|decline_system_call', { payload: request });
 
 export const onSystemCallAction = (
   handler: (action: SystemCallAction) => void

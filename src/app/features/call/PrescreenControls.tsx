@@ -46,7 +46,7 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
   // Only the new-call path applies the chosen devices; Element Call picks its
   // own, so previewing there would promise something we cannot honour.
   const [newCallsEnabled] = useSetting(settingsAtom, 'newCallsEnabled');
-  const showPreview = newCallsEnabled && !disabled && !joining;
+  const showPreview = newCallsEnabled && !disabled && !joining && !compact;
 
   return (
     <Box direction="Column" gap="300" alignItems="Center" style={{ width: '100%' }}>
@@ -85,7 +85,7 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
             direction="Row"
           >
             <MicrophoneButton enabled={microphone} onToggle={toggleMicrophone} />
-            <SoundButton enabled={sound} onToggle={toggleSound} />
+            {!compact && <SoundButton enabled={sound} onToggle={toggleSound} />}
           </Box>
 
           {!compact && <ControlDivider />}

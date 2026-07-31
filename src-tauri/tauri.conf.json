@@ -24,7 +24,7 @@
     },
     "iOS": {
       "template": "src-tauri/ios-project.yml",
-      "minimumSystemVersion": "15.0",
+      "minimumSystemVersion": "16.0",
       "frameworks": [
         "AudioToolbox",
         "Photos",

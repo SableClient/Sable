@@ -203,6 +203,14 @@ export const joinAndProvisionMatrixRTC = async ({
   const userId = mx.getSafeUserId();
   const identity = { userId, deviceId, memberId: `${userId}:${deviceId}` };
   if (isCancelled?.()) throw new Error('MatrixRTC setup cancelled');
+
+  // The SDK discards RTC memberships for anyone it cannot see joined, and
+  // sliding sync only ships `m.room.member/$ME`, so without the roster even our
+  // own membership is filtered out and `session.memberships` stays empty. Not
+  // fatal: the membership wait falls back to polling server-side state, so a
+  // failure here costs the roster UI rather than the call.
+  await room.loadMembersIfNeeded().catch(() => undefined);
+
   const membershipWait = waitForOwnMembership(
     session,
     identity.userId,

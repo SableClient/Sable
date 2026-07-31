@@ -21,7 +21,10 @@ import {
 } from '$state/callOwner';
 
 const OWN_IDENTITY = '@alice:example.org:DEVICE';
-const room = { roomId: '!room:example.org' } as Room;
+const room = {
+  roomId: '!room:example.org',
+  loadMembersIfNeeded: () => Promise.resolve(),
+} as unknown as Room;
 const transport = { type: 'livekit' as const, livekit_service_url: 'https://sfu.example' };
 const ownMembership = {
   userId: '@alice:example.org',

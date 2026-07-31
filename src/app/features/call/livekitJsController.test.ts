@@ -21,7 +21,10 @@ const transport = {
   type: 'livekit' as const,
   livekit_service_url: 'https://sfu.example',
 };
-const room = { roomId: '!room:example.org' } as MatrixRoom;
+const room = {
+  roomId: '!room:example.org',
+  loadMembersIfNeeded: () => Promise.resolve(),
+} as unknown as MatrixRoom;
 const membership = {
   userId: '@alice:example.org',
   deviceId: 'DEVICE',

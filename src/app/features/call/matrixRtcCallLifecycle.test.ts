@@ -66,7 +66,10 @@ describe('joinAndProvisionMatrixRTC', () => {
 
   const callOpts = (overrides: Record<string, unknown> = {}) => ({
     mx: makeClient(),
-    room: { roomId: '!room:example.org' } as unknown as Room,
+    room: {
+      roomId: '!room:example.org',
+      loadMembersIfNeeded: () => Promise.resolve(),
+    } as unknown as Room,
     session: makeSession(),
     callIntent: 'audio' as const,
     getPreferredTransport: vi
@@ -197,7 +200,7 @@ describe('joinAndProvisionMatrixRTC', () => {
   });
 
   it('rejects on SDK error path even with fallback available', async () => {
-    // MembershipManagerError wins — membership on server does not matter
+    // MembershipManagerError wins: membership on server does not matter
     const session = makeSession();
     const mx = makeClient({
       getStateEvent: vi.fn<MatrixClient['getStateEvent']>().mockResolvedValue({}),
